@@ -65,7 +65,7 @@ camera.position.z = camera_distance;
 const screen_size = new THREE.Vector2();
 camera.getViewSize(15, screen_size);
 container_column.position.x = -(.33 * screen_size.x);
-container_column.position.y = -(.2 * screen_size.y);
+container_column.position.y = -(.3 * screen_size.y);
 container_column.rotation.y = 1;
 
 const da_sun = new THREE.DirectionalLight(0xffffff, 10);
@@ -81,16 +81,29 @@ function swap_column_sides() {
     camera.getViewSize(15, determined_size);
     is_column_left = !is_column_left;
     let x_position = (is_column_left ? -1 : 1) * 0.33 * determined_size.x;
-    let y_rotation = (is_column_left ? 1 : -1);
+    // TODO Move up when on right and down when left
+    let y_position = (is_column_left ? -1 : 1.2) * (.3 * determined_size.y);
+    let y_rotation = (is_column_left ? 1 : 0);
+    let x_scale = (is_column_left ? 1 : .2);
+    let y_scale = (is_column_left ? 1 : .05);
+
+
+    // TODO Keep Elastic for when it comes left
+    //          Make it smoother going out to the right
 
     // Move column across the screen
     new Tween(container_column.position)
-    .to({ x: x_position})
-    .easing(Easing.Elastic.Out)
+    .to({ x: x_position, y: y_position}, is_column_left ? 600 : 330)
+    .easing(is_column_left ? Easing.Elastic.Out : Easing.Exponential.Out)
     .start();
     // Rotate the column as it moves
     new Tween(container_column.rotation)
-    .to({ y: y_rotation})
+    .to({ y: y_rotation}, is_column_left ? 1000 : 330)
+    .easing(is_column_left ? Easing.Elastic.Out : Easing.Exponential.Out)
+    .start();
+    // Shrink/Expand from depending on side
+    new Tween(container_column.scale)
+    .to({x: x_scale, y: y_scale}, is_column_left ? 500 : 330)
     .easing(Easing.Exponential.Out)
     .start();
 }
@@ -106,7 +119,7 @@ function animate() {
         let y_rotation = (is_column_left ? 1 : -1);
     
         // Move column across the screen
-        new Tween(container_column.position)
+        new Tween.Tween(container_column.position)
         .to({ x: x_position})
         .easing(Easing.Elastic.Out)
         .start();
