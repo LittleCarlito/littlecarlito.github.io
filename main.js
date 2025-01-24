@@ -65,7 +65,7 @@ camera.position.z = camera_distance;
 const screen_size = new THREE.Vector2();
 camera.getViewSize(15, screen_size);
 container_column.position.x = -(.33 * screen_size.x);
-container_column.position.y = -(.2 * screen_size.y);
+container_column.position.y = -(.3 * screen_size.y);
 container_column.rotation.y = 1;
 
 const da_sun = new THREE.DirectionalLight(0xffffff, 10);
@@ -81,16 +81,17 @@ function swap_column_sides() {
     camera.getViewSize(15, determined_size);
     is_column_left = !is_column_left;
     let x_position = (is_column_left ? -1 : 1) * 0.33 * determined_size.x;
+    let y_position = (is_column_left ? -1 : -.4) * (.3 * screen_size.y);
     let y_rotation = (is_column_left ? 1 : -1);
 
     // Move column across the screen
     new Tween(container_column.position)
-    .to({ x: x_position})
+    .to({ x: x_position, y: y_position}, 600)
     .easing(Easing.Elastic.Out)
     .start();
     // Rotate the column as it moves
     new Tween(container_column.rotation)
-    .to({ y: y_rotation})
+    .to({ y: y_rotation}, 300)
     .easing(Easing.Exponential.Out)
     .start();
 }
