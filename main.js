@@ -134,22 +134,39 @@ function get_intersect_list(e) {
     return raycaster.intersectObject(container_column, true);
 }
 
+// TODO Get this to be label specific so tweens can start on other labels at once
+let in_tween_map = new Map();
 function handle_hover(e) {
     const found_intersections = get_intersect_list(e);
     if(found_intersections.length > 0) {
         const intersected_object = found_intersections[0].object;
+        const object_name = intersected_object.name;
         if(current_intersected !== intersected_object) {
             // Reset previously inersected object if one existed
             if(current_intersected){
                 // TODO Switch this to be a tween
-                current_intersected.rotation.y = 0;
+                let deselected_rotation = 0;
+                new Tween(current_intersected.rotation)
+                .to({ y: deselected_rotation})
+                .easing(Easing.Elastic.Out)
+                .start();
             }
             // Set intersected object to current
             current_intersected = intersected_object;
         }
         // Apply rotation to current
         // TODO Switch this to be a tween
-        current_intersected.rotation.y = is_column_left ? -1 : 1;
+        let final_rotation = is_column_left ? -1 : 1;
+        // Determine if there is an existing in tween for this object
+        let in_tween = in_tween_map.get(object_name);
+        if(in_tween == null) {
+            in_tween = new Tween(current_intersected.rotation)
+            .to({ y: final_rotation}, 600)
+            .easing(Easing.Sinusoidal.In)
+            .start()
+            .onComplete(() => in_tween_map.delete(object_name));
+            in_tween_map.set(object_name, in_tween);
+        }
     } else {
         reset_previous_intersected();
     }
@@ -158,7 +175,11 @@ function handle_hover(e) {
 function reset_previous_intersected() {
     if(current_intersected) {
         // TODO Switch this to be a tween
-        current_intersected.rotation.y = 0;
+        let deselected_rotation = 0;
+        new Tween(current_intersected.rotation)
+        .to({ y: deselected_rotation})
+        .easing(Easing.Elastic.Out)
+        .start();
         current_intersected = null;
     }
 }
