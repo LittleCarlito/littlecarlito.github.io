@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { Easing, Tween, update as updateTween } from 'tween';
 
 // Values
-
 const icon_paths = [
     "contact_raised.svg",
     "projects_raised.svg",
@@ -17,9 +16,10 @@ const icon_labels = [
     "education",
     "about"
 ]
-
-// Setup
-
+// Mouse detection
+const raycaster = new THREE.Raycaster();
+const mouse_location = new THREE.Vector2();
+// Camera
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
     // FOV
@@ -31,9 +31,15 @@ const camera = new THREE.PerspectiveCamera(
     // Far clipping
     1000
 );
-
+// Rendering
 const texture_loader = new THREE.TextureLoader();
 const renderer = new THREE.WebGLRenderer();
+// Function variables
+let is_column_left = true;
+let resize_move = false;
+let current_intersected = null;
+
+// Setup
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setAnimationLoop(animate);
 document.body.appendChild(renderer.domElement);
@@ -75,40 +81,27 @@ scene.add(da_sun);
 // Functions
 
 /*** Swaps the container column sides */
-let is_column_left = true;
+
 function swap_column_sides() {
     const determined_size = new THREE.Vector2();
     camera.getViewSize(15, determined_size);
     is_column_left = !is_column_left;
     let x_position = (is_column_left ? -1 : 1) * 0.33 * determined_size.x;
-    // TODO Move up when on right and down when left
-    let y_position = (is_column_left ? -1 : 1.2) * (.3 * determined_size.y);
-    let y_rotation = (is_column_left ? 1 : 0);
-    let x_scale = (is_column_left ? 1 : .2);
-    let y_scale = (is_column_left ? 1 : .05);
-
-
-    // TODO Keep Elastic for when it comes left
-    //          Make it smoother going out to the right
+    let y_position = (is_column_left ? -1 : -.4) * (.3 * screen_size.y);
+    let y_rotation = (is_column_left ? 1 : -1);
 
     // Move column across the screen
     new Tween(container_column.position)
-    .to({ x: x_position, y: y_position}, is_column_left ? 600 : 330)
-    .easing(is_column_left ? Easing.Elastic.Out : Easing.Exponential.Out)
+    .to({ x: x_position, y: y_position}, 600)
+    .easing(Easing.Elastic.Out)
     .start();
     // Rotate the column as it moves
     new Tween(container_column.rotation)
-    .to({ y: y_rotation}, is_column_left ? 1000 : 330)
-    .easing(is_column_left ? Easing.Elastic.Out : Easing.Exponential.Out)
-    .start();
-    // Shrink/Expand from depending on side
-    new Tween(container_column.scale)
-    .to({x: x_scale, y: y_scale}, is_column_left ? 500 : 330)
+    .to({ y: y_rotation}, 300)
     .easing(Easing.Exponential.Out)
     .start();
 }
 
-let resize_move = false;
 function animate() {
     updateTween();
     if(resize_move){
@@ -119,7 +112,7 @@ function animate() {
         let y_rotation = (is_column_left ? 1 : -1);
     
         // Move column across the screen
-        new Tween.Tween(container_column.position)
+        new Tween(container_column.position)
         .to({ x: x_position})
         .easing(Easing.Elastic.Out)
         .start();
@@ -134,6 +127,42 @@ function animate() {
     renderer.render(scene, camera);
 }
 
+function get_intersect_list(e) {
+    mouse_location.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouse_location.y = -(e.clientY / window.innerHeight) * 2 + 1
+    raycaster.setFromCamera(mouse_location, camera);
+    return raycaster.intersectObject(container_column, true);
+}
+
+function handle_hover(e) {
+    const found_intersections = get_intersect_list(e);
+    if(found_intersections.length > 0) {
+        const intersected_object = found_intersections[0].object;
+        if(current_intersected !== intersected_object) {
+            // Reset previously inersected object if one existed
+            if(current_intersected){
+                // TODO Switch this to be a tween
+                current_intersected.rotation.y = 0;
+            }
+            // Set intersected object to current
+            current_intersected = intersected_object;
+        }
+        // Apply rotation to current
+        // TODO Switch this to be a tween
+        current_intersected.rotation.y = is_column_left ? -1 : 1;
+    } else {
+        reset_previous_intersected();
+    }
+}
+
+function reset_previous_intersected() {
+    if(current_intersected) {
+        // TODO Switch this to be a tween
+        current_intersected.rotation.y = 0;
+        current_intersected = null;
+    }
+}
+
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
@@ -143,27 +172,19 @@ window.addEventListener('resize', () => {
 
 // TODO Handle mouse down
 window.addEventListener('mousedown', (e) => {
-    const raycaster = new THREE.Raycaster();
-    const mouse_location = new THREE.Vector2(
-        (e.clientX / window.innerWidth) * 2 - 1,
-        -(e.clientY / window.innerHeight) * 2 + 1
-    );
-    raycaster.setFromCamera(mouse_location, camera);
-    const found_intersections = raycaster.intersectObject(container_column, true);
+    const found_intersections = get_intersect_list(e, "clicked down");
     found_intersections.forEach(i => (console.log(`${i.object.name} clicked down`)));
     // TODO Do something with the intersections
 });
 
 // TODO Handle mouse up
 window.addEventListener('mouseup', (e) => {
-    const raycaster = new THREE.Raycaster();
-    const mouse_location = new THREE.Vector2(
-        (e.clientX / window.innerWidth) * 2 - 1,
-        -(e.clientY / window.innerHeight) * 2 + 1
-    );
-    raycaster.setFromCamera(mouse_location, camera);
-    const found_intersections = raycaster.intersectObject(container_column, true);
+    const found_intersections = get_intersect_list(e, "clicked up");
     found_intersections.forEach(i => (console.log(`${i.object.name} clicked up`)));
     // TODO Temporary (though will want to include doing this when info pops up)
+    reset_previous_intersected();
     swap_column_sides();
 });
+
+// TODO Handle mouse movement
+window.addEventListener('mousemove', handle_hover)
