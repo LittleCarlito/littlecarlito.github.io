@@ -112,7 +112,7 @@ for (let c = 0; c < icon_text_boxes.length; c++) {
     const box_material = new THREE.MeshBasicMaterial({ color: icon_text_boxes[c] });
     const text_box = new THREE.Mesh(box_geometry, box_material);
     text_box.name = `${TEXT}${icon_labels[c]}`
-    text_box.position.x = -window.innerWidth;
+    text_box.position.x = get_associated_position(WEST);
     text_box.position.y = -(.05 * screen_size.y);
     text_box_container.add(text_box);
 }
@@ -120,7 +120,7 @@ for (let c = 0; c < icon_text_boxes.length; c++) {
 
 // Functions
 
-/** TODO Gets final location of assicated direction given current camera 
+/** Gets final location of assicated direction given current camera 
  ** incoming_direction must be a member of DIRECTIONS
 */
 function get_associated_position(incoming_direction) {
@@ -137,8 +137,6 @@ function get_associated_position(incoming_direction) {
             case WEST:
                 return -screen_size.x;
         }
-    } else {
-        // TODO Log that given direction is not supported
     }
 }
 
@@ -163,15 +161,6 @@ function swap_column_sides() {
     .start();
 }
 
-// TODO Change swap_column calling logic
-//          Should require selection to move left
-//          No selection click when right
-//              Moves column back left
-//              Moves active text box left off screen
-//          Selection while right
-//              Keeps column on the right
-//              Moves active text box down off screen
-//              Moves selected text box to active spot
 
 let focused_text_name = "";
 /** Brings the text box associated with the given name into focus
@@ -198,7 +187,6 @@ function focus_text_box(incoming_name) {
         .start()
     } else {
         lose_focus_text_box(WEST);
-        // TODO Log that container_column MUST be right side for focus text box
     }
 }
 
@@ -206,46 +194,58 @@ function focus_text_box(incoming_name) {
 function lose_focus_text_box(move_direction = "") {
     if(focused_text_name != "") {
         if(move_direction == "" || DIRECTIONS.includes(move_direction)) {
-            const new_size = new THREE.Vector2();
-            camera.getViewSize(15, new_size);
+            const view_size = new THREE.Vector2();
+            camera.getViewSize(15, view_size);
             const existing_focus_box = text_box_container.getObjectByName(focused_text_name);
             if(move_direction == "") {
-                existing_focus_box.position.x = -(new_size.x);
+                existing_focus_box.position.x = -(view_size.x);
             } else {
                 // Tween in given direction off screen
                 const previous_position = existing_focus_box.position;
                 const move_position = get_associated_position(move_direction);
                 switch(move_direction) {
-                    case NORTH, SOUTH:
+                    case NORTH:
                         new Tween(existing_focus_box.position)
-                        .to({ y: move_position }, PAN_SPEED)
+                        .to({ y: move_position }, PAN_SPEED * .7)
                         .easing(Easing.Sinusoidal.Out)
                         .start()
                         .onComplete(() => {
-                            existing_focus_box.position.x = -new_size.x;
-                            existing_focus_box.position.y = previous_position.y;
+                            existing_focus_box.position.y = -(.05 * view_size.y);
+                            existing_focus_box.position.x = get_associated_position(WEST);
                         });
                         break;
-                    case EAST, WEST:
+                    case SOUTH:
                         new Tween(existing_focus_box.position)
-                        .to({ x: move_position }, PAN_SPEED)
+                        .to({ y: move_position }, PAN_SPEED * .7)
                         .easing(Easing.Sinusoidal.Out)
                         .start()
                         .onComplete(() => {
-                            existing_focus_box.position.x = -new_size.x;
+                            existing_focus_box.position.y = -(.05 * view_size.y);
+                            existing_focus_box.position.x = get_associated_position(WEST);
                         });
+                        break;
+                    case EAST:
+                        new Tween(existing_focus_box.position)
+                        .to({ x: move_position }, PAN_SPEED * .7)
+                        .easing(Easing.Sinusoidal.Out)
+                        .start()
+                        .onComplete(() => (
+                            // Twice the west value will move it to text container
+                            existing_focus_box.position.x += (2 * get_associated_position(WEST))
+                        ));
+                        break;
+                    case WEST:
+                        new Tween(existing_focus_box.position)
+                        .to({ x: move_position }, PAN_SPEED * .7)
+                        .easing(Easing.Sinusoidal.Out)
+                        .start();                        
                         break;
                 }
             }
             // Lose focus on box
             focused_text_name = "";
-        } else {
-            // TODO Log passed in move direction isn't supported
         }
-    } else {
-        // TODO Log that there is no focused text box to lose focus on
     }
-
 }
 
 function animate() {
@@ -267,9 +267,6 @@ function animate() {
         .to({ y: y_rotation})
         .easing(Easing.Exponential.Out)
         .start();
-
-        // TODO Move text boxes out of window
-        text_box.position.x = - found_size.x;
 
         resize_move = false;
     }
@@ -342,17 +339,29 @@ window.addEventListener('mousedown', (e) => {
     // TODO Do something with the intersections
 });
 
-// TODO Handle mouse up
+// Handle mouse up
 window.addEventListener('mouseup', (e) => {
     const found_intersections = get_intersect_list(e, "clicked up");
-    if(found_intersections.length > 0){
-        const intersected_object = found_intersections[0].object;
-        (console.log(`${intersected_object.name} clicked up`))
-        reset_previous_intersected();
-        // TODO Provide label nameto focus_text_box
-        swap_column_sides();
-        focus_text_box(intersected_object.name);
+    if(is_column_left){
+        if(found_intersections.length > 0){
+            const intersected_object = found_intersections[0].object;
+            (console.log(`${intersected_object.name} clicked up`))
+            reset_previous_intersected();
+            swap_column_sides();
+            focus_text_box(intersected_object.name);
+        }
+    // Column is right
+    } else {
+        if(found_intersections.length > 0) {
+            const intersected_object = found_intersections[0].object;
+            lose_focus_text_box(SOUTH);
+            focus_text_box(intersected_object.name);
+        } else {
+            swap_column_sides();
+            lose_focus_text_box(WEST);
+        }
     }
+
 });
 
-window.addEventListener('mousemove', handle_hover)
+window.addEventListener('mousemove', handle_hover);
