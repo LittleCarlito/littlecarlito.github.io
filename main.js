@@ -4,9 +4,11 @@ import { Easing, Tween, update as updateTween } from 'tween';
 // Constants
 const PAN_SPEED = 600;
 const ROTATE_SPEED = 300;
+// Name types
 const CONATINER = "container_";
 const LABEL = "label_";
 const TEXT = "text_";
+// Directions
 const NORTH = "north";
 const SOUTH = "south";
 const EAST = "east";
@@ -17,8 +19,7 @@ const DIRECTIONS =[
     EAST,
     WEST
 ]
-
-// Values
+// Icons
 const icon_paths = [
     "contact_raised.svg",
     "projects_raised.svg",
@@ -40,6 +41,8 @@ const icon_text_boxes = [
     0x25973a,
     0x3851e5
 ];
+
+// Setup
 // Mouse detection
 const raycaster = new THREE.Raycaster();
 const mouse_location = new THREE.Vector2();
@@ -173,18 +176,20 @@ function focus_text_box(incoming_name) {
         camera.getViewSize(15, new_size);
         // Get text box name
         const found_index = incoming_name.indexOf('_');
-        const sub_name = incoming_name.substring(found_index + 1);
-        // If existing focus text box move it
-        if(focused_text_name != "") {
-            lose_focus_text_box(SOUTH);
+        const new_name = TEXT + incoming_name.substring(found_index + 1);
+        if(new_name != focused_text_name) {
+            // If existing focus text box move it
+            if(focused_text_name != "") {
+                lose_focus_text_box(SOUTH);
+            }
+            focused_text_name =  new_name;
+            // Get and move text box
+            const selected_text_box = text_box_container.getObjectByName(focused_text_name);
+            new Tween(selected_text_box.position)
+            .to({ x: -(new_size.x * .2) }, 285)
+            .easing(Easing.Sinusoidal.Out)
+            .start()
         }
-        focused_text_name = TEXT + sub_name;
-        // Get and move text box
-        const selected_text_box = text_box_container.getObjectByName(focused_text_name);
-        new Tween(selected_text_box.position)
-        .to({ x: -(new_size.x * .2) }, 285)
-        .easing(Easing.Sinusoidal.Out)
-        .start()
     } else {
         lose_focus_text_box(WEST);
     }
@@ -277,7 +282,7 @@ function get_intersect_list(e) {
     mouse_location.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse_location.y = -(e.clientY / window.innerHeight) * 2 + 1
     raycaster.setFromCamera(mouse_location, camera);
-    return raycaster.intersectObject(container_column, true);
+    return raycaster.intersectObject(scene, true);
 }
 
 function handle_hover(e) {
@@ -285,29 +290,32 @@ function handle_hover(e) {
     if(found_intersections.length > 0) {
         const intersected_object = found_intersections[0].object;
         const object_name = intersected_object.name;
-        if(current_intersected !== intersected_object) {
-            // Reset previously inersected object if one existed
-            if(current_intersected){
-                let deselected_rotation = 0;
-                new Tween(current_intersected.rotation)
-                .to({ y: deselected_rotation})
-                .easing(Easing.Elastic.Out)
-                .start();
+        const name_type = object_name.split("_")[0] + "_";
+        if(name_type == LABEL){
+            if(current_intersected !== intersected_object) {
+                // Reset previously inersected object if one existed
+                if(current_intersected){
+                    let deselected_rotation = 0;
+                    new Tween(current_intersected.rotation)
+                    .to({ y: deselected_rotation})
+                    .easing(Easing.Elastic.Out)
+                    .start();
+                }
+                // Set intersected object to current
+                current_intersected = intersected_object;
             }
-            // Set intersected object to current
-            current_intersected = intersected_object;
-        }
-        // Apply rotation to current
-        let final_rotation = is_column_left ? -(focus_rotation) : (focus_rotation);
-        // Determine if there is an existing in tween for this object
-        let in_tween = in_tween_map.get(object_name);
-        if(in_tween == null) {
-            in_tween = new Tween(current_intersected.rotation)
-            .to({ y: final_rotation}, 400)
-            .easing(Easing.Sinusoidal.In)
-            .start()
-            .onComplete(() => in_tween_map.delete(object_name));
-            in_tween_map.set(object_name, in_tween);
+            // Apply rotation to current
+            let final_rotation = is_column_left ? -(focus_rotation) : (focus_rotation);
+            // Determine if there is an existing in tween for this object
+            let in_tween = in_tween_map.get(object_name);
+            if(in_tween == null) {
+                in_tween = new Tween(current_intersected.rotation)
+                .to({ y: final_rotation}, 400)
+                .easing(Easing.Sinusoidal.In)
+                .start()
+                .onComplete(() => in_tween_map.delete(object_name));
+                in_tween_map.set(object_name, in_tween);
+            }
         }
     } else {
         reset_previous_intersected();
@@ -354,8 +362,11 @@ window.addEventListener('mouseup', (e) => {
     } else {
         if(found_intersections.length > 0) {
             const intersected_object = found_intersections[0].object;
-            lose_focus_text_box(SOUTH);
-            focus_text_box(intersected_object.name);
+            const name_type = intersected_object.name.split("_")[0] + "_";
+            console.log(`${name_type}`)
+            if(name_type == LABEL) {
+                focus_text_box(intersected_object.name);
+            }
         } else {
             swap_column_sides();
             lose_focus_text_box(WEST);
