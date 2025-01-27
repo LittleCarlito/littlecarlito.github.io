@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Easing, Tween, update as updateTween } from 'tween';
 
 // Constants
-const PAN_SPEED = 600;
+const PAN_SPEED = 800;
 const ROTATE_SPEED = 300;
 // Name types
 const CONATINER = "container_";
@@ -63,6 +63,8 @@ const texture_loader = new THREE.TextureLoader();
 const renderer = new THREE.WebGLRenderer();
 // Function variables
 const focus_rotation = .7;
+const original_height = window.innerHeight;
+const original_width = window.innerWidth;
 let is_column_left = true;
 let resize_move = false;
 let current_intersected = null;
@@ -110,13 +112,15 @@ scene.add(da_sun);
 // Text displays
 const text_box_container = new THREE.Object3D();
 scene.add(text_box_container);
+const text_box_height = (screen_size.y * .7);
+const text_box_width = (screen_size.x * .55);
 for (let c = 0; c < icon_text_boxes.length; c++) {
-    const box_geometry = new THREE.BoxGeometry(1, 1, .01);
+    const box_geometry = new THREE.BoxGeometry(text_box_width, text_box_height, .01);
     const box_material = new THREE.MeshBasicMaterial({ color: icon_text_boxes[c] });
     const text_box = new THREE.Mesh(box_geometry, box_material);
-    text_box.name = `${TEXT}${icon_labels[c]}`
+    text_box.name = `${TEXT}${icon_labels[c]}`;
     text_box.position.x = get_associated_position(WEST);
-    text_box.position.y = -(.05 * screen_size.y);
+    text_box.position.y = -(.02 * screen_size.y);
     text_box_container.add(text_box);
 }
 
@@ -183,13 +187,13 @@ function focus_text_box(incoming_name) {
                 lose_focus_text_box(SOUTH);
             }
             focused_text_name =  new_name;
-            // Get and move text box
-            const selected_text_box = text_box_container.getObjectByName(focused_text_name);
-            new Tween(selected_text_box.position)
-            .to({ x: -(new_size.x * .2) }, 285)
-            .easing(Easing.Sinusoidal.Out)
-            .start()
         }
+        // Get and move text box
+        const selected_text_box = text_box_container.getObjectByName(focused_text_name);
+        new Tween(selected_text_box.position)
+        .to({ x: -(new_size.x * .18) }, 285)
+        .easing(Easing.Sinusoidal.Out)
+        .start()
     } else {
         lose_focus_text_box(WEST);
     }
@@ -211,7 +215,7 @@ function lose_focus_text_box(move_direction = "") {
                 switch(move_direction) {
                     case NORTH:
                         new Tween(existing_focus_box.position)
-                        .to({ y: move_position }, PAN_SPEED * .7)
+                        .to({ y: move_position }, PAN_SPEED * .2)
                         .easing(Easing.Sinusoidal.Out)
                         .start()
                         .onComplete(() => {
@@ -221,7 +225,7 @@ function lose_focus_text_box(move_direction = "") {
                         break;
                     case SOUTH:
                         new Tween(existing_focus_box.position)
-                        .to({ y: move_position }, PAN_SPEED * .7)
+                        .to({ y: move_position }, PAN_SPEED * .2)
                         .easing(Easing.Sinusoidal.Out)
                         .start()
                         .onComplete(() => {
@@ -231,7 +235,7 @@ function lose_focus_text_box(move_direction = "") {
                         break;
                     case EAST:
                         new Tween(existing_focus_box.position)
-                        .to({ x: move_position }, PAN_SPEED * .7)
+                        .to({ x: move_position }, PAN_SPEED * .2)
                         .easing(Easing.Sinusoidal.Out)
                         .start()
                         .onComplete(() => (
@@ -241,7 +245,7 @@ function lose_focus_text_box(move_direction = "") {
                         break;
                     case WEST:
                         new Tween(existing_focus_box.position)
-                        .to({ x: move_position }, PAN_SPEED * .7)
+                        .to({ x: move_position }, PAN_SPEED * .2)
                         .easing(Easing.Sinusoidal.Out)
                         .start();                        
                         break;
@@ -262,6 +266,19 @@ function animate() {
         let x_position = (is_column_left ? -1 : 1) * 0.33 * found_size.x;
         let y_rotation = (is_column_left ? 1 : -1);
     
+        // Text moving
+        const text_x = Math.min(-found_size.x, -text_box_width * 2);
+        const text_y = -(.02 * found_size.y);
+        if(focused_text_name != ""){
+            focus_text_box(focused_text_name);
+        }
+        text_box_container.children.forEach(c => {
+            if(c.name != focused_text_name) {
+                c.position.x = text_x;
+                c.position.y = text_y;
+            }
+        });
+
         // Move column across the screen
         new Tween(container_column.position)
         .to({ x: x_position})
