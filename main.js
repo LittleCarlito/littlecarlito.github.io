@@ -1,13 +1,16 @@
 import * as THREE from 'three';
+import { clamp } from 'three/src/math/MathUtils.js';
 import { Easing, Tween, update as updateTween } from 'tween';
 
 // Constants
 const PAN_SPEED = 800;
 const ROTATE_SPEED = 300;
+const LINK_RADIUS = .44;
 // Name types
 const CONATINER = "container_";
 const LABEL = "label_";
 const TEXT = "text_";
+const LINK = "link_"
 // Directions
 const NORTH = "north";
 const SOUTH = "south";
@@ -34,13 +37,33 @@ const icon_labels = [
     "education",
     "about"
 ];
-const icon_text_boxes = [
+const icon_colors = [
     0xe5ce38,
     0x834eb4,
     0xb44444,
     0x25973a,
     0x3851e5
 ];
+// Links
+const link_paths = [
+    "github_link.svg",
+    "twitch_link.svg",
+    "linkedin_link.svg",
+    "tiktok_link.svg"
+]
+// TODO get profiles in link paths
+const link_labels = [
+    "github",
+    "twitch",
+    "linkedin",
+    "tiktok"
+]
+const link_urls = [
+    "https://github.com/blooooork",
+    "https://www.twitch.tv/blooooork",
+    "https://www.linkedin.com/in/meiersteven",
+    "https://www.tiktok.com/@blooooork"
+]
 
 // Setup
 // Mouse detection
@@ -62,9 +85,12 @@ const camera = new THREE.PerspectiveCamera(
 const texture_loader = new THREE.TextureLoader();
 const renderer = new THREE.WebGLRenderer();
 // Function variables
+let focused_text_name = "";
+let last_pixel_ratio = window.devicePixelRatio;
 const focus_rotation = .7;
 const original_height = window.innerHeight;
 const original_width = window.innerWidth;
+let swapping_column_sides = false;
 let is_column_left = true;
 let resize_move = false;
 let zoom_event = false;
@@ -115,9 +141,9 @@ const text_box_container = new THREE.Object3D();
 scene.add(text_box_container);
 const text_box_height = (screen_size.y * .7);
 const text_box_width = (screen_size.x * .55);
-for (let c = 0; c < icon_text_boxes.length; c++) {
+for (let c = 0; c < icon_paths.length; c++) {
     const box_geometry = new THREE.BoxGeometry(text_box_width, text_box_height, .01);
-    const box_material = new THREE.MeshBasicMaterial({ color: icon_text_boxes[c] });
+    const box_material = new THREE.MeshBasicMaterial({ color: icon_colors[c] });
     const text_box = new THREE.Mesh(box_geometry, box_material);
     text_box.name = `${TEXT}${icon_labels[c]}`;
     text_box.position.x = get_associated_position(WEST);
@@ -125,6 +151,38 @@ for (let c = 0; c < icon_text_boxes.length; c++) {
     text_box_container.add(text_box);
 }
 
+// TODO OOOOO
+// TODO Add name placeholder block
+// TODO Make them drop in from the top
+//          Bounce tweens on landing
+//              Differently timed so their drop times/set times should vary
+//              Preferrably randomized so it is different on each visit
+// TODO Make circles bounce on click
+// TODO Get text container based off right side of screen not left when focused
+// TODO Get text_box positional things to container
+//          Keep going back and forth but half the purpose is to maintain a solid off screen origin
+const link_container = new THREE.Object3D();
+// link_container.position.x =  (screen_size.x / 2) - (0.23 * screen_size.x);
+link_container.position.x =  (screen_size.x / 2) - (7);
+link_container.position.y = -(.4 * screen_size.y);
+scene.add(link_container);
+// TODO Calced radius should max at .45 but be allowed to get smaller
+const calced_radius = clamp(screen_size.x * .02, Number.MIN_SAFE_INTEGER, LINK_RADIUS);
+console.log(`${calced_radius}`);
+for(let l = 0; l < link_paths.length; l++) {
+    const circle_geometry = new THREE.CircleGeometry(calced_radius);
+    const circle_texture = texture_loader.load(link_paths[l]);
+    circle_texture.colorSpace = THREE.SRGBColorSpace;
+    const link_button = new THREE.Mesh(
+        circle_geometry,
+        new THREE.MeshBasicMaterial({
+            map: circle_texture,
+            transparent: true
+        }));
+    link_button.name = `${LINK}${link_paths[l]}`;
+    link_button.position.x += calced_radius * (3.5 * l);
+    link_container.add(link_button);
+}
 
 // Functions
 
@@ -153,15 +211,21 @@ function swap_column_sides() {
     const determined_size = new THREE.Vector2();
     camera.getViewSize(15, determined_size);
     is_column_left = !is_column_left;
-    let x_position = (is_column_left ? -1 : 1) * 0.33 * determined_size.x;
-    let y_position = (is_column_left ? -1 : -.4) * (.3 * screen_size.y);
+    const found_var = (determined_size.x / 2) * 0.6;
+    console.log(`${found_var}`);
+    let x_position = (is_column_left ? -1 : 1) * (determined_size.x / 2) * 0.6;
+    let y_position = (is_column_left ? -1 : -.6) * (screen_size.y / 2) * 0.6;
     let y_rotation = (is_column_left ? 1 : -1);
 
     // Move column across the screen
+    swapping_column_sides = true;
     new Tween(container_column.position)
     .to({ x: x_position, y: y_position}, PAN_SPEED)
     .easing(Easing.Elastic.Out)
-    .start();
+    .start()
+    .onComplete(() => {
+        swapping_column_sides = false;
+    });
     // Rotate the column as it moves
     new Tween(container_column.rotation)
     .to({ y: y_rotation}, ROTATE_SPEED)
@@ -170,10 +234,11 @@ function swap_column_sides() {
 }
 
 
-let focused_text_name = "";
 /** Brings the text box associated with the given name into focus
  ** container column MUST be on the right side
  */
+// TODO Get the focused position based off right side of the screen not the left
+//          Can tell when resizing that it favors left; Should favor right
 function focus_text_box(incoming_name) {
     if(!is_column_left) {
         // Get screen size
@@ -264,7 +329,6 @@ function animate() {
         if(!zoom_event) {
             const found_size = new THREE.Vector2();
             camera.getViewSize(15, found_size);
-    
             let x_position = (is_column_left ? -1 : 1) * 0.33 * found_size.x;
             let y_rotation = (is_column_left ? 1 : -1);
             // Move button column across the screen
@@ -298,6 +362,13 @@ function animate() {
                     c.scale.y = y_scale;
                 }
             });
+            new Tween(link_container.position)
+            .to({ 
+                x: (found_size.x / 2) - (7),
+                y: -(.4 * found_size.y)
+            })
+            .easing(Easing.Elastic.Out)
+            .start();
         } else {
             zoom_event = false;
         }
@@ -314,7 +385,7 @@ function get_intersect_list(e) {
 }
 function handle_hover(e) {
     const found_intersections = get_intersect_list(e);
-    if(found_intersections.length > 0) {
+    if(found_intersections.length > 0 && !swapping_column_sides) {
         const intersected_object = found_intersections[0].object;
         const object_name = intersected_object.name;
         const name_type = object_name.split("_")[0] + "_";
@@ -360,7 +431,6 @@ function reset_previous_intersected() {
     }
 }
 
-let last_pixel_ratio = window.devicePixelRatio;
 window.addEventListener('resize', () => {
     const current_pixel_ratio = window.devicePixelRatio;
     if(last_pixel_ratio != current_pixel_ratio) {
@@ -389,16 +459,18 @@ window.addEventListener('mouseup', (e) => {
         if(found_intersections.length > 0){
             const intersected_object = found_intersections[0].object;
             (console.log(`${intersected_object.name} clicked up`))
-            reset_previous_intersected();
-            swap_column_sides();
-            focus_text_box(intersected_object.name);
+            const name_type = intersected_object.name.split("_")[0] + "_";
+            if(name_type == LABEL) {
+                reset_previous_intersected();
+                swap_column_sides();
+                focus_text_box(intersected_object.name);
+            }
         }
     // Column is right
     } else {
         if(found_intersections.length > 0) {
             const intersected_object = found_intersections[0].object;
             const name_type = intersected_object.name.split("_")[0] + "_";
-            console.log(`${name_type}`)
             if(name_type == LABEL) {
                 focus_text_box(intersected_object.name);
             }
