@@ -67,6 +67,7 @@ const original_height = window.innerHeight;
 const original_width = window.innerWidth;
 let is_column_left = true;
 let resize_move = false;
+let zoom_event = false;
 let current_intersected = null;
 let in_tween_map = new Map();
 
@@ -260,36 +261,46 @@ function lose_focus_text_box(move_direction = "") {
 function animate() {
     updateTween();
     if(resize_move){
-        const found_size = new THREE.Vector2();
-        camera.getViewSize(15, found_size);
-
-        let x_position = (is_column_left ? -1 : 1) * 0.33 * found_size.x;
-        let y_rotation = (is_column_left ? 1 : -1);
+        if(!zoom_event) {
+            const found_size = new THREE.Vector2();
+            camera.getViewSize(15, found_size);
     
-        // Text moving
-        const text_x = Math.min(-found_size.x, -text_box_width * 2);
-        const text_y = -(.02 * found_size.y);
-        if(focused_text_name != ""){
-            focus_text_box(focused_text_name);
-        }
-        text_box_container.children.forEach(c => {
-            if(c.name != focused_text_name) {
-                c.position.x = text_x;
-                c.position.y = text_y;
+            let x_position = (is_column_left ? -1 : 1) * 0.33 * found_size.x;
+            let y_rotation = (is_column_left ? 1 : -1);
+            // Move button column across the screen
+            new Tween(container_column.position)
+            .to({ x: x_position})
+            .easing(Easing.Elastic.Out)
+            .start();
+            // Rotate the button column as it moves
+            new Tween(container_column.rotation)
+            .to({ y: y_rotation})
+            .easing(Easing.Exponential.Out)
+            .start();
+            // Text moving/scaling
+            const x_scale = window.innerWidth / original_width;
+            const y_scale = window.innerHeight / original_height;
+            const text_x = Math.min(-found_size.x, -text_box_width * 2);
+            const text_y = -(.02 * found_size.y);
+            if(focused_text_name != ""){
+                focus_text_box(focused_text_name);
+                const focused_box = text_box_container.getObjectByName(focused_text_name);
+                new Tween(focused_box.scale)
+                .to({ x: x_scale, y: y_scale }, 250)
+                .easing(Easing.Quadratic.Out)
+                .start();
             }
-        });
-
-        // Move column across the screen
-        new Tween(container_column.position)
-        .to({ x: x_position})
-        .easing(Easing.Elastic.Out)
-        .start();
-        // Rotate the column as it moves
-        new Tween(container_column.rotation)
-        .to({ y: y_rotation})
-        .easing(Easing.Exponential.Out)
-        .start();
-
+            text_box_container.children.forEach(c => {
+                if(c.name != focused_text_name) {
+                    c.position.x = text_x;
+                    c.position.y = text_y;
+                    c.scale.x = x_scale;
+                    c.scale.y = y_scale;
+                }
+            });
+        } else {
+            zoom_event = false;
+        }
         resize_move = false;
     }
     renderer.render(scene, camera);
@@ -301,7 +312,6 @@ function get_intersect_list(e) {
     raycaster.setFromCamera(mouse_location, camera);
     return raycaster.intersectObject(scene, true);
 }
-
 function handle_hover(e) {
     const found_intersections = get_intersect_list(e);
     if(found_intersections.length > 0) {
@@ -350,11 +360,19 @@ function reset_previous_intersected() {
     }
 }
 
+let last_pixel_ratio = window.devicePixelRatio;
 window.addEventListener('resize', () => {
+    const current_pixel_ratio = window.devicePixelRatio;
+    if(last_pixel_ratio != current_pixel_ratio) {
+        last_pixel_ratio = current_pixel_ratio;
+        zoom_event = true;
+    }
+    // Set variables
+    resize_move = true;
+    // Resize application
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    resize_move = true;
 });
 
 // TODO Handle mouse down
