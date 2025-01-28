@@ -11,6 +11,7 @@ const CONATINER = "container_";
 const LABEL = "label_";
 const TEXT = "text_";
 const LINK = "link_"
+const TITLE = "title_"
 // Directions
 const NORTH = "north";
 const SOUTH = "south";
@@ -90,6 +91,7 @@ let last_pixel_ratio = window.devicePixelRatio;
 const focus_rotation = .7;
 const original_height = window.innerHeight;
 const original_width = window.innerWidth;
+const original_pixel_ratio = window.devicePixelRatio;
 let swapping_column_sides = false;
 let is_column_left = true;
 let resize_move = false;
@@ -136,13 +138,30 @@ const da_sun = new THREE.DirectionalLight(0xffffff, 10);
 da_sun.position.set(0, 3, -2);
 scene.add(da_sun);
 
+// TODO OOOOO
+// TODO Create button to hide entire UI
+//          Should flip what is shown and on click again tween everything back
+
+// Title block
+const title_width = (screen_size.x * .5);
+const title_height = 2.75;
+const title_geometry = new THREE.BoxGeometry(title_width, title_height, .2);
+const title_material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const title_box = new THREE.Mesh(title_geometry, title_material);
+title_box.name = `${TITLE}`;
+title_box.position.y += 9;
+title_box.position.x -=4;
+scene.add(title_box);
+
+// TODO Stop calculating text box by screen size and just make it a size so it scales like icon_buttons above
 // Text displays
 const text_box_container = new THREE.Object3D();
 scene.add(text_box_container);
-const text_box_height = (screen_size.y * .7);
-const text_box_width = (screen_size.x * .55);
+const text_box_height = screen_size.y * .7;
+const text_box_width = screen_size.x * .55;
+console.log(`${text_box_width}; ${text_box_height}`);
 for (let c = 0; c < icon_paths.length; c++) {
-    const box_geometry = new THREE.BoxGeometry(text_box_width, text_box_height, .01);
+    const box_geometry = new THREE.BoxGeometry(12, 14, .01);
     const box_material = new THREE.MeshBasicMaterial({ color: icon_colors[c] });
     const text_box = new THREE.Mesh(box_geometry, box_material);
     text_box.name = `${TEXT}${icon_labels[c]}`;
@@ -151,8 +170,6 @@ for (let c = 0; c < icon_paths.length; c++) {
     text_box_container.add(text_box);
 }
 
-// TODO OOOOO
-// TODO Add name placeholder block
 // TODO Make them drop in from the top
 //          Bounce tweens on landing
 //              Differently timed so their drop times/set times should vary
@@ -341,27 +358,19 @@ function animate() {
             .to({ y: y_rotation})
             .easing(Easing.Exponential.Out)
             .start();
-            // Text moving/scaling
-            const x_scale = window.innerWidth / original_width;
-            const y_scale = window.innerHeight / original_height;
+            // Text moving
             const text_x = Math.min(-found_size.x, -text_box_width * 2);
             const text_y = -(.02 * found_size.y);
             if(focused_text_name != ""){
                 focus_text_box(focused_text_name);
-                const focused_box = text_box_container.getObjectByName(focused_text_name);
-                new Tween(focused_box.scale)
-                .to({ x: x_scale, y: y_scale }, 250)
-                .easing(Easing.Quadratic.Out)
-                .start();
             }
             text_box_container.children.forEach(c => {
                 if(c.name != focused_text_name) {
                     c.position.x = text_x;
                     c.position.y = text_y;
-                    c.scale.x = x_scale;
-                    c.scale.y = y_scale;
                 }
             });
+            // Link moving
             new Tween(link_container.position)
             .to({ 
                 x: (found_size.x / 2) - (7),
@@ -369,6 +378,9 @@ function animate() {
             })
             .easing(Easing.Elastic.Out)
             .start();
+            // Resize title
+            title_box.geometry.dispose();
+            title_box.geometry = new THREE.BoxGeometry(found_size.x * .5, title_height, .2);
         } else {
             zoom_event = false;
         }
