@@ -160,9 +160,6 @@ scene.add(title_box);
 // Text displays
 const text_box_container = new THREE.Object3D();
 scene.add(text_box_container);
-const text_box_height = get_text_box_height();
-const text_box_width = get_text_box_width();
-console.log(`${text_box_width}; ${text_box_height}`);
 for (let c = 0; c < icon_paths.length; c++) {
     const box_geometry = new THREE.BoxGeometry(12, 14, .01);
     const box_material = new THREE.MeshBasicMaterial({ color: icon_colors[c] });
@@ -206,7 +203,7 @@ for(let l = 0; l < link_paths.length; l++) {
 const hide_button_width = HIDE_WIDTH;
 const hide_button_height = HIDE_HEIGHT;
 const hide_button_geometry = new THREE.BoxGeometry(hide_button_width, hide_button_height, 0);
-const hide_button_material = new THREE.MeshBasicMaterial({ color: 0x777981 });
+const hide_button_material = get_hide_button_material();
 const hide_button = new THREE.Mesh(hide_button_geometry, hide_button_material);
 hide_button.position.y = get_hide_button_y();
 hide_button.position.x = get_hide_button_x();
@@ -222,6 +219,13 @@ function get_screen_size() {
 }
 
 // Hide button getters
+/** Determines the material for the hide button based off scene state */
+function get_hide_button_material() {
+    return is_overlay_hidden 
+    ? new THREE.MeshBasicMaterial({ color: 0x689f38 }) 
+    : new THREE.MeshBasicMaterial({ color: 0x777981 });
+}
+
 /** Calculates hide button x position based off camera position and window size*/
 function get_hide_button_x() {
     return is_column_left ? (get_screen_size().x / 2) - 2.5 : get_associated_position(EAST);
@@ -290,23 +294,28 @@ function get_column_y_rotation() {
     return (is_column_left ? 1 : -1);
 }
 
-// TODO OOOOO
-// TODO Make hide button work
-//          Tween everything off screen on click (except button)
-//          Tween everything back on click
-//              Ensure everything stays off screen with resizing when hidden
-/** TODO Hides/reveals overlay elements and swaps hide buttons display sprite */
+/** Hides/reveals overlay elements and swaps hide buttons display sprite */
 function trigger_overlay() {
-    console.log("PROGRESS");
-    // is_overlay_hidden = !is_overlay_hidden;
-    // const title_y = is_overlay_hidden ? get_associated_position(NORTH) : TITLE_HEIGHT;
-    // const container_column_x = is_overlay_hidden ? get_associated_position(WEST) : get_column_x();
-    // const link_y = is_overlay_hidden ? get_associated_position(SOUTH) : 
-    // TODO Use and maintain and is_overlay_hidden boolean
-    // TODO Tween title_box north
-    // TODO Tween container_column west
-    // TODO Tween link_container_south
-    // TODO Change how hide button looks
+    is_overlay_hidden = !is_overlay_hidden;
+    console.log(`is overlay hidden \"${is_overlay_hidden}\"`);
+    const title_y = is_overlay_hidden ? get_associated_position(NORTH) : TITLE_Y;
+    const container_column_x = is_overlay_hidden ? get_associated_position(WEST) : get_column_x_position();
+    const link_y = is_overlay_hidden ? get_associated_position(SOUTH) : get_link_container_y();
+    // Hide the overlay
+    new Tween(title_box.position)
+    .to({ y: title_y })
+    .easing(Easing.Elastic.InOut)
+    .start();
+    new Tween(container_column.position)
+    .to({ x: container_column_x })
+    .easing(Easing.Elastic.InOut)
+    .start();
+    new Tween(link_container.position)
+    .to({ y: link_y }, 680)
+    .easing(Easing.Elastic.InOut)
+    .start();
+    // Change how hide button looks based off value
+    hide_button.material = get_hide_button_material();
 }
 
 /** Gets final location of assicated direction given current camera 
@@ -472,6 +481,14 @@ function animate() {
             // Resize title
             title_box.geometry.dispose();
             title_box.geometry = new THREE.BoxGeometry(get_title_width(), title_height, TITLE_THICKNESS);
+            
+            
+            // TODO Move title box; Usually is fine but when overlay is hidden needs centering
+            //          Do it with a tween
+            new Tween(title_box.position)
+            .to({ y: TITLE_Y})
+            .easing(Easing.Elastic.Out)
+            .start();
             // Move hide button
             if(is_column_left) {
                 new Tween(hide_button.position)
@@ -482,6 +499,8 @@ function animate() {
                 .easing(Easing.Elastic.Out)
                 .start();
             }
+            // Overlay is always redisplayed
+            is_overlay_hidden = false;
         } else {
             zoom_event = false;
         }
