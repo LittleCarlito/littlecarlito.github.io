@@ -6,12 +6,19 @@ import { Easing, Tween, update as updateTween } from 'tween';
 const PAN_SPEED = 800;
 const ROTATE_SPEED = 300;
 const LINK_RADIUS = .44;
+const TITLE_HEIGHT = 2.75;
+const TITLE_Y = 9;
+const TITLE_X = -4;
+const TITLE_THICKNESS = .2;
+const HIDE_WIDTH = 1;
+const HIDE_HEIGHT = 1;
 // Name types
 const CONATINER = "container_";
 const LABEL = "label_";
 const TEXT = "text_";
 const LINK = "link_"
 const TITLE = "title_"
+const HIDE = "hide_"
 // Directions
 const NORTH = "north";
 const SOUTH = "south";
@@ -93,6 +100,7 @@ const original_height = window.innerHeight;
 const original_width = window.innerWidth;
 const original_pixel_ratio = window.devicePixelRatio;
 let swapping_column_sides = false;
+let is_overlay_hidden = false;
 let is_column_left = true;
 let resize_move = false;
 let zoom_event = false;
@@ -128,34 +136,32 @@ for (let i = 0; i < icon_paths.length; i++) {
 const camera_distance = 15;
 camera.position.z = camera_distance;
 
-const screen_size = new THREE.Vector2();
-camera.getViewSize(15, screen_size);
-container_column.position.x = -(.33 * screen_size.x);
-container_column.position.y = -(.3 * screen_size.y);
-container_column.rotation.y = 1;
+
+container_column.position.x = get_column_x_position();
+container_column.position.y = get_column_y_position();
+container_column.rotation.y = get_column_y_rotation();
 
 const da_sun = new THREE.DirectionalLight(0xffffff, 10);
 da_sun.position.set(0, 3, -2);
 scene.add(da_sun);
 
-// TODO Create name title block
 // Title block
-const title_width = (screen_size.x * .5);
-const title_height = 2.75;
-const title_geometry = new THREE.BoxGeometry(title_width, title_height, .2);
+const title_width = get_title_width();
+const title_height = TITLE_HEIGHT;
+const title_geometry = new THREE.BoxGeometry(title_width, title_height, TITLE_THICKNESS);
 const title_material = new THREE.MeshBasicMaterial({ color: 0xffffff });
 const title_box = new THREE.Mesh(title_geometry, title_material);
 title_box.name = `${TITLE}`;
-title_box.position.y = 9;
-title_box.position.x = -4;
+title_box.position.y = TITLE_Y;
+title_box.position.x = TITLE_X;
 scene.add(title_box);
 
 // TODO Stop calculating text box by screen size and just make it a size so it scales like icon_buttons above
 // Text displays
 const text_box_container = new THREE.Object3D();
 scene.add(text_box_container);
-const text_box_height = screen_size.y * .7;
-const text_box_width = screen_size.x * .55;
+const text_box_height = get_text_box_height();
+const text_box_width = get_text_box_width();
 console.log(`${text_box_width}; ${text_box_height}`);
 for (let c = 0; c < icon_paths.length; c++) {
     const box_geometry = new THREE.BoxGeometry(12, 14, .01);
@@ -163,7 +169,7 @@ for (let c = 0; c < icon_paths.length; c++) {
     const text_box = new THREE.Mesh(box_geometry, box_material);
     text_box.name = `${TEXT}${icon_labels[c]}`;
     text_box.position.x = get_associated_position(WEST);
-    text_box.position.y = -(.02 * screen_size.y);
+    text_box.position.y = get_text_box_y();
     text_box_container.add(text_box);
 }
 
@@ -175,14 +181,13 @@ for (let c = 0; c < icon_paths.length; c++) {
 // TODO Get text container based off right side of screen not left when focused
 // TODO Get text_box positional things to container
 //          Keep going back and forth but half the purpose is to maintain a solid off screen origin
+
 const link_container = new THREE.Object3D();
-// link_container.position.x =  (screen_size.x / 2) - (0.23 * screen_size.x);
-link_container.position.x =  (screen_size.x / 2) - (7);
-link_container.position.y = -(.4 * screen_size.y);
+link_container.position.x =  get_link_container_x();
+link_container.position.y = get_link_container_y();
 scene.add(link_container);
 // TODO Calced radius should max at .45 but be allowed to get smaller
-const calced_radius = clamp(screen_size.x * .02, Number.MIN_SAFE_INTEGER, LINK_RADIUS);
-console.log(`${calced_radius}`);
+const calced_radius = get_link_radius();
 for(let l = 0; l < link_paths.length; l++) {
     const circle_geometry = new THREE.CircleGeometry(calced_radius);
     const circle_texture = texture_loader.load(link_paths[l]);
@@ -198,24 +203,117 @@ for(let l = 0; l < link_paths.length; l++) {
     link_container.add(link_button);
 }
 
-// TODO OOOOO
-// TODO Should flip what is shown and on click again tween everything back
-const hide_button_width = 1;
-const hide_button_height = 1;
+const hide_button_width = HIDE_WIDTH;
+const hide_button_height = HIDE_HEIGHT;
 const hide_button_geometry = new THREE.BoxGeometry(hide_button_width, hide_button_height, 0);
 const hide_button_material = new THREE.MeshBasicMaterial({ color: 0x777981 });
 const hide_button = new THREE.Mesh(hide_button_geometry, hide_button_material);
-hide_button.position.y = (screen_size.y / 2) - 2.5;
-hide_button.position.x = (screen_size.x / 2) - 2.5;
+hide_button.position.y = get_hide_button_y();
+hide_button.position.x = get_hide_button_x();
+hide_button.name = HIDE;
 scene.add(hide_button);
 
 // Functions
+/** Calculates screen size based off a distance of 15 */
+function get_screen_size() {
+    const screen_size = new THREE.Vector2();
+    camera.getViewSize(15, screen_size);
+    return screen_size;
+}
+
+// Hide button getters
+/** Calculates hide button x position based off camera position and window size*/
+function get_hide_button_x() {
+    return is_column_left ? (get_screen_size().x / 2) - 2.5 : get_associated_position(EAST);
+}
+
+/** Calculates hide button y position based off camera position and window size */
+function get_hide_button_y() {
+    return (get_screen_size().y / 2) - 2.5;
+}
+
+// Link getters
+/** Calculates the link containers x position based off camera position and window size*/
+function get_link_container_x() {
+    return (get_screen_size().x / 2) - (7);
+}
+
+/** Calculates the link containers y position based off camera position and window size*/
+function get_link_container_y() {
+    return -(.4 * get_screen_size().y);
+}
+
+/** Calculates the links radius based off camera position and window size*/
+function get_link_radius() {
+    return clamp(get_screen_size().x * .02, Number.MIN_SAFE_INTEGER, LINK_RADIUS);
+}
+
+// Text box getters
+/** Calculates the selected text boxes x position based off camera position and window size */
+function get_focused_text_x() {
+   return -(get_screen_size().x * .18)
+}
+
+/** Calculates the text boxes y position based off camera position and window size */
+function get_text_box_y() {
+    return -(get_screen_size().y * 0.05);
+}
+/** Calculates the text boxes height based off camera position and window size */
+function get_text_box_height() {
+    return get_screen_size().y * .7;
+}
+
+/** Calculates the text boxes width based off camera position and window size */
+function get_text_box_width() {
+    return get_screen_size().x * .55;
+}
+
+// Title getters
+/** Calculates the titles width given the camera position and window size*/
+function get_title_width() {
+    return (get_screen_size().x * .5)
+}
+
+// Column getters
+/** Calculates the x position of the container column given it and the cameras position along with window size */
+function get_column_x_position() {
+    return (is_column_left ? -1 : 1) * (get_screen_size().x / 2) * 0.6;
+}
+
+/** Calculates the y position of the container column given it and the cameras position along with window size */
+function get_column_y_position() {
+    return (is_column_left ? -1 : -.6) * (get_screen_size().y / 2) * 0.6;
+}
+
+/** Calculates the y rotation of the container column given its position along with window size */
+function get_column_y_rotation() {
+    return (is_column_left ? 1 : -1);
+}
+
+// TODO OOOOO
+// TODO Make hide button work
+//          Tween everything off screen on click (except button)
+//          Tween everything back on click
+//              Ensure everything stays off screen with resizing when hidden
+/** TODO Hides/reveals overlay elements and swaps hide buttons display sprite */
+function trigger_overlay() {
+    console.log("PROGRESS");
+    // is_overlay_hidden = !is_overlay_hidden;
+    // const title_y = is_overlay_hidden ? get_associated_position(NORTH) : TITLE_HEIGHT;
+    // const container_column_x = is_overlay_hidden ? get_associated_position(WEST) : get_column_x();
+    // const link_y = is_overlay_hidden ? get_associated_position(SOUTH) : 
+    // TODO Use and maintain and is_overlay_hidden boolean
+    // TODO Tween title_box north
+    // TODO Tween container_column west
+    // TODO Tween link_container_south
+    // TODO Change how hide button looks
+}
 
 /** Gets final location of assicated direction given current camera 
  ** incoming_direction must be a member of DIRECTIONS
 */
 function get_associated_position(incoming_direction) {
-    if(DIRECTIONS.includes(incoming_direction)){
+    if(DIRECTIONS.includes(incoming_direction)) {
         const screen_size = new THREE.Vector2();
         camera.getViewSize(15, screen_size);
         switch(incoming_direction) {
@@ -233,15 +331,10 @@ function get_associated_position(incoming_direction) {
 
 /*** Swaps the container column sides */
 function swap_column_sides() {
-    const determined_size = new THREE.Vector2();
-    camera.getViewSize(15, determined_size);
     is_column_left = !is_column_left;
-    const found_var = (determined_size.x / 2) * 0.6;
-    console.log(`${found_var}`);
-    let x_position = (is_column_left ? -1 : 1) * (determined_size.x / 2) * 0.6;
-    let y_position = (is_column_left ? -1 : -.6) * (determined_size.y / 2) * 0.6;
-    let y_rotation = (is_column_left ? 1 : -1);
-
+    let x_position = get_column_x_position();
+    let y_position = get_column_y_position();
+    let y_rotation = get_column_y_rotation();
     // Move column across the screen
     swapping_column_sides = true;
     new Tween(container_column.position)
@@ -257,13 +350,12 @@ function swap_column_sides() {
     .easing(Easing.Exponential.Out)
     .start();
     // Handle hide button
-    const hide_x = is_column_left ? (determined_size.x / 2) - 2.5 : get_associated_position(EAST);
+    const hide_x = get_hide_button_x();
     new Tween(hide_button.position)
     .to({ x: hide_x }, 250)
     .easing(Easing.Sinusoidal.Out)
     .start();
 }
-
 
 /** Brings the text box associated with the given name into focus
  ** container column MUST be on the right side
@@ -272,9 +364,6 @@ function swap_column_sides() {
 //          Can tell when resizing that it favors left; Should favor right
 function focus_text_box(incoming_name) {
     if(!is_column_left) {
-        // Get screen size
-        const new_size = new THREE.Vector2();
-        camera.getViewSize(15, new_size);
         // Get text box name
         const found_index = incoming_name.indexOf('_');
         const new_name = TEXT + incoming_name.substring(found_index + 1);
@@ -288,7 +377,7 @@ function focus_text_box(incoming_name) {
         // Get and move text box
         const selected_text_box = text_box_container.getObjectByName(focused_text_name);
         new Tween(selected_text_box.position)
-        .to({ x: -(new_size.x * .18) }, 285)
+        .to({ x: get_focused_text_x() }, 285)
         .easing(Easing.Sinusoidal.Out)
         .start()
     } else {
@@ -296,15 +385,13 @@ function focus_text_box(incoming_name) {
     }
 }
 
-//  Method to tween focused_text_name to offscreen and set to empty string
+// Method to tween focused_text_name to offscreen and set to empty string
 function lose_focus_text_box(move_direction = "") {
     if(focused_text_name != "") {
         if(move_direction == "" || DIRECTIONS.includes(move_direction)) {
-            const view_size = new THREE.Vector2();
-            camera.getViewSize(15, view_size);
             const existing_focus_box = text_box_container.getObjectByName(focused_text_name);
             if(move_direction == "") {
-                existing_focus_box.position.x = -(view_size.x);
+                existing_focus_box.position.x = get_associated_position(WEST);
             } else {
                 // Tween in given direction off screen
                 const previous_position = existing_focus_box.position;
@@ -316,7 +403,7 @@ function lose_focus_text_box(move_direction = "") {
                         .easing(Easing.Sinusoidal.Out)
                         .start()
                         .onComplete(() => {
-                            existing_focus_box.position.y = -(.05 * view_size.y);
+                            existing_focus_box.position.y = get_text_box_y();
                             existing_focus_box.position.x = get_associated_position(WEST);
                         });
                         break;
@@ -326,8 +413,8 @@ function lose_focus_text_box(move_direction = "") {
                         .easing(Easing.Sinusoidal.Out)
                         .start()
                         .onComplete(() => {
-                            existing_focus_box.position.y = -(.05 * view_size.y);
-                            existing_focus_box.position.x = get_associated_position(WEST);
+                            existing_focus_box.position.y = get_text_box_y();
+                            existing_focus_box.position.x = 2 * get_associated_position(WEST);
                         });
                         break;
                     case EAST:
@@ -336,8 +423,7 @@ function lose_focus_text_box(move_direction = "") {
                         .easing(Easing.Sinusoidal.Out)
                         .start()
                         .onComplete(() => (
-                            // Twice the west value will move it to text container
-                            existing_focus_box.position.x += (2 * get_associated_position(WEST))
+                            existing_focus_box.position.x = (get_associated_position(WEST))
                         ));
                         break;
                     case WEST:
@@ -354,57 +440,48 @@ function lose_focus_text_box(move_direction = "") {
     }
 }
 
-let title_tween = null;
 function animate() {
     updateTween();
     if(resize_move){
         if(!zoom_event) {
-            const found_size = new THREE.Vector2();
-            camera.getViewSize(15, found_size);
-            let x_position = (is_column_left ? -1 : 1) * 0.33 * found_size.x;
-            let y_rotation = (is_column_left ? 1 : -1);
+            let x_position = get_column_x_position();
+            let y_rotation = get_column_y_rotation();
             // Move button column across the screen
             new Tween(container_column.position)
             .to({ x: x_position})
             .easing(Easing.Elastic.Out)
             .start();
-            // Rotate the button column as it moves
-            new Tween(container_column.rotation)
-            .to({ y: y_rotation})
-            .easing(Easing.Exponential.Out)
-            .start();
             // Text moving
-            const text_x = Math.min(-found_size.x, -text_box_width * 2);
-            const text_y = -(.02 * found_size.y);
             if(focused_text_name != ""){
                 focus_text_box(focused_text_name);
             }
             text_box_container.children.forEach(c => {
                 if(c.name != focused_text_name) {
-                    c.position.x = text_x;
-                    c.position.y = text_y;
+                    c.position.x = get_associated_position(WEST);
+                    c.position.y = get_text_box_y();
                 }
             });
             // Link moving
             new Tween(link_container.position)
             .to({ 
-                x: (found_size.x / 2) - (7),
-                y: -(.4 * found_size.y)
+                x: get_link_container_x(),
+                y: get_link_container_y()
             })
             .easing(Easing.Elastic.Out)
             .start();
             // Resize title
             title_box.geometry.dispose();
-            title_box.geometry = new THREE.BoxGeometry(found_size.x * .5, title_height, .2);
+            title_box.geometry = new THREE.BoxGeometry(get_title_width(), title_height, TITLE_THICKNESS);
             // Move hide button
-            const hide_x = is_column_left ? (determined_size.x / 2) - 2.5 : get_associated_position(EAST);
-            new Tween(hide_button.position)
-            .to({ 
-                x: hide_x,
-                y: (found_size.y / 2) - 2.5
-            })
-            .easing(Easing.Elastic.Out)
-            .start();
+            if(is_column_left) {
+                new Tween(hide_button.position)
+                .to({ 
+                    x: get_hide_button_x(),
+                    y: get_hide_button_y()
+                })
+                .easing(Easing.Elastic.Out)
+                .start();
+            }
         } else {
             zoom_event = false;
         }
@@ -413,12 +490,15 @@ function animate() {
     renderer.render(scene, camera);
 }
 
+/** Retrieves objects mouse is intersecting with from the given event */
 function get_intersect_list(e) {
     mouse_location.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse_location.y = -(e.clientY / window.innerHeight) * 2 + 1
     raycaster.setFromCamera(mouse_location, camera);
     return raycaster.intersectObject(scene, true);
 }
+
+/** Handles mouse hovering events and raycasts to collide with scene objects */
 function handle_hover(e) {
     const found_intersections = get_intersect_list(e);
     if(found_intersections.length > 0 && !swapping_column_sides) {
@@ -456,6 +536,7 @@ function handle_hover(e) {
     }
 }
 
+/** Resets the previous intersetcted objects orientation */
 function reset_previous_intersected() {
     if(current_intersected) {
         let deselected_rotation = 0;
@@ -467,6 +548,7 @@ function reset_previous_intersected() {
     }
 }
 
+// Window handlers
 window.addEventListener('resize', () => {
     const current_pixel_ratio = window.devicePixelRatio;
     if(last_pixel_ratio != current_pixel_ratio) {
@@ -496,10 +578,14 @@ window.addEventListener('mouseup', (e) => {
             const intersected_object = found_intersections[0].object;
             (console.log(`${intersected_object.name} clicked up`))
             const name_type = intersected_object.name.split("_")[0] + "_";
-            if(name_type == LABEL) {
-                reset_previous_intersected();
-                swap_column_sides();
-                focus_text_box(intersected_object.name);
+            switch(name_type) {
+                case LABEL:
+                    reset_previous_intersected();
+                    swap_column_sides();
+                    focus_text_box(intersected_object.name);
+                    break;
+                case HIDE:
+                    trigger_overlay()
             }
         }
     // Column is right
