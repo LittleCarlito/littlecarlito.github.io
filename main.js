@@ -260,7 +260,7 @@ function get_text_box_y() {
 }
 /** Calculates the text boxes height based off camera position and window size */
 function get_text_box_height() {
-    return get_screen_size().y * .7;
+    return get_screen_size().y * .6;
 }
 
 /** Calculates the text boxes width based off camera position and window size */
@@ -619,9 +619,13 @@ window.addEventListener('mouseup', (e) => {
     } else {
         if(found_intersections.length > 0) {
             const intersected_object = found_intersections[0].object;
-            const name_type = intersected_object.name.split("_")[0] + "_";
-            if(name_type == LABEL) {
-                focus_text_box(intersected_object.name);
+            const split_intersected_name = intersected_object.name.split("_");
+            const name_type = split_intersected_name[0] + "_";
+            switch(name_type) {
+                case LABEL:
+                    focus_text_box(intersected_object.name);
+                case LINK:
+                    open_link(split_intersected_name[1].trim());
             }
         } else {
             swap_column_sides();
