@@ -138,10 +138,7 @@ const da_sun = new THREE.DirectionalLight(0xffffff, 10);
 da_sun.position.set(0, 3, -2);
 scene.add(da_sun);
 
-// TODO OOOOO
-// TODO Create button to hide entire UI
-//          Should flip what is shown and on click again tween everything back
-
+// TODO Create name title block
 // Title block
 const title_width = (screen_size.x * .5);
 const title_height = 2.75;
@@ -149,8 +146,8 @@ const title_geometry = new THREE.BoxGeometry(title_width, title_height, .2);
 const title_material = new THREE.MeshBasicMaterial({ color: 0xffffff });
 const title_box = new THREE.Mesh(title_geometry, title_material);
 title_box.name = `${TITLE}`;
-title_box.position.y += 9;
-title_box.position.x -=4;
+title_box.position.y = 9;
+title_box.position.x = -4;
 scene.add(title_box);
 
 // TODO Stop calculating text box by screen size and just make it a size so it scales like icon_buttons above
@@ -201,6 +198,17 @@ for(let l = 0; l < link_paths.length; l++) {
     link_container.add(link_button);
 }
 
+// TODO OOOOO
+// TODO Should flip what is shown and on click again tween everything back
+const hide_button_width = 1;
+const hide_button_height = 1;
+const hide_button_geometry = new THREE.BoxGeometry(hide_button_width, hide_button_height, 0);
+const hide_button_material = new THREE.MeshBasicMaterial({ color: 0x777981 });
+const hide_button = new THREE.Mesh(hide_button_geometry, hide_button_material);
+hide_button.position.y = (screen_size.y / 2) - 2.5;
+hide_button.position.x = (screen_size.x / 2) - 2.5;
+scene.add(hide_button);
+
 // Functions
 
 /** Gets final location of assicated direction given current camera 
@@ -231,7 +239,7 @@ function swap_column_sides() {
     const found_var = (determined_size.x / 2) * 0.6;
     console.log(`${found_var}`);
     let x_position = (is_column_left ? -1 : 1) * (determined_size.x / 2) * 0.6;
-    let y_position = (is_column_left ? -1 : -.6) * (screen_size.y / 2) * 0.6;
+    let y_position = (is_column_left ? -1 : -.6) * (determined_size.y / 2) * 0.6;
     let y_rotation = (is_column_left ? 1 : -1);
 
     // Move column across the screen
@@ -247,6 +255,12 @@ function swap_column_sides() {
     new Tween(container_column.rotation)
     .to({ y: y_rotation}, ROTATE_SPEED)
     .easing(Easing.Exponential.Out)
+    .start();
+    // Handle hide button
+    const hide_x = is_column_left ? (determined_size.x / 2) - 2.5 : get_associated_position(EAST);
+    new Tween(hide_button.position)
+    .to({ x: hide_x }, 250)
+    .easing(Easing.Sinusoidal.Out)
     .start();
 }
 
@@ -340,6 +354,7 @@ function lose_focus_text_box(move_direction = "") {
     }
 }
 
+let title_tween = null;
 function animate() {
     updateTween();
     if(resize_move){
@@ -381,6 +396,15 @@ function animate() {
             // Resize title
             title_box.geometry.dispose();
             title_box.geometry = new THREE.BoxGeometry(found_size.x * .5, title_height, .2);
+            // Move hide button
+            const hide_x = is_column_left ? (determined_size.x / 2) - 2.5 : get_associated_position(EAST);
+            new Tween(hide_button.position)
+            .to({ 
+                x: hide_x,
+                y: (found_size.y / 2) - 2.5
+            })
+            .easing(Easing.Elastic.Out)
+            .start();
         } else {
             zoom_event = false;
         }
