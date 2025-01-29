@@ -60,18 +60,21 @@ const link_paths = [
     "tiktok_link.svg"
 ]
 // TODO get profiles in link paths
+const GITHUB = "github";
+const TWITCH = "twitch";
+const LINKEDIN = "linkedin";
+const TIKTOK = "tiktok";
 const link_labels = [
-    "github",
-    "twitch",
-    "linkedin",
-    "tiktok"
-]
-const link_urls = [
-    "https://github.com/blooooork",
-    "https://www.twitch.tv/blooooork",
-    "https://www.linkedin.com/in/meiersteven",
-    "https://www.tiktok.com/@blooooork"
-]
+    GITHUB,
+    TWITCH,
+    LINKEDIN,
+    TIKTOK
+];
+const link_urls = new Map();
+link_urls.set(GITHUB, "https://github.com/blooooork");
+link_urls.set(TWITCH, "https://www.twitch.tv/blooooork");
+link_urls.set(LINKEDIN, "https://www.linkedin.com/in/meiersteven");
+link_urls.set(TIKTOK, "https://www.tiktok.com/@blooooork");
 
 // Setup
 // Mouse detection
@@ -161,7 +164,10 @@ scene.add(title_box);
 const text_box_container = new THREE.Object3D();
 scene.add(text_box_container);
 for (let c = 0; c < icon_paths.length; c++) {
-    const box_geometry = new THREE.BoxGeometry(12, 14, .01);
+    const found_width = get_text_box_width();
+    const found_height = get_text_box_height();
+    console.log(`${found_width} x ${found_height}`);
+    const box_geometry = new THREE.BoxGeometry(found_width, found_height, .01);
     const box_material = new THREE.MeshBasicMaterial({ color: icon_colors[c] });
     const text_box = new THREE.Mesh(box_geometry, box_material);
     text_box.name = `${TEXT}${icon_labels[c]}`;
@@ -170,20 +176,10 @@ for (let c = 0; c < icon_paths.length; c++) {
     text_box_container.add(text_box);
 }
 
-// TODO Make them drop in from the top
-//          Bounce tweens on landing
-//              Differently timed so their drop times/set times should vary
-//              Preferrably randomized so it is different on each visit
-// TODO Make circles bounce on click
-// TODO Get text container based off right side of screen not left when focused
-// TODO Get text_box positional things to container
-//          Keep going back and forth but half the purpose is to maintain a solid off screen origin
-
 const link_container = new THREE.Object3D();
 link_container.position.x =  get_link_container_x();
 link_container.position.y = get_link_container_y();
 scene.add(link_container);
-// TODO Calced radius should max at .45 but be allowed to get smaller
 const calced_radius = get_link_radius();
 for(let l = 0; l < link_paths.length; l++) {
     const circle_geometry = new THREE.CircleGeometry(calced_radius);
@@ -195,7 +191,7 @@ for(let l = 0; l < link_paths.length; l++) {
             map: circle_texture,
             transparent: true
         }));
-    link_button.name = `${LINK}${link_paths[l]}`;
+    link_button.name = `${LINK}${link_labels[l]}`;
     link_button.position.x += calced_radius * (3.5 * l);
     link_container.add(link_button);
 }
@@ -255,7 +251,7 @@ function get_link_radius() {
 // Text box getters
 /** Calculates the selected text boxes x position based off camera position and window size */
 function get_focused_text_x() {
-   return -(get_screen_size().x * .18)
+   return -(get_screen_size().x / 2 * .36)
 }
 
 /** Calculates the text boxes y position based off camera position and window size */
@@ -269,13 +265,13 @@ function get_text_box_height() {
 
 /** Calculates the text boxes width based off camera position and window size */
 function get_text_box_width() {
-    return get_screen_size().x * .55;
+    return clamp(get_screen_size().x * .5, 12, 18);
 }
 
 // Title getters
 /** Calculates the titles width given the camera position and window size*/
 function get_title_width() {
-    return (get_screen_size().x * .5)
+    return clamp(get_screen_size().x * .5, 12, 18);
 }
 
 // Column getters
@@ -292,6 +288,16 @@ function get_column_y_position() {
 /** Calculates the y rotation of the container column given its position along with window size */
 function get_column_y_rotation() {
     return (is_column_left ? 1 : -1);
+}
+
+/** Open a new tab of the associated link */
+function open_link(new_link) {
+    if(link_urls.has(new_link)) {
+        const hyperlink_path = link_urls.get(new_link);
+        window.open(hyperlink_path, "_blank");
+    } else {
+        console.log(`Given label \"${new_link}\" does not have a stored path`);
+    }
 }
 
 /** Hides/reveals overlay elements and swaps hide buttons display sprite */
@@ -460,7 +466,8 @@ function animate() {
             .to({ x: x_position})
             .easing(Easing.Elastic.Out)
             .start();
-            // Text moving
+            // Move/resize text box
+            const new_text_geometry = new THREE.BoxGeometry(get_text_box_width(), get_text_box_height(), 0);
             if(focused_text_name != ""){
                 focus_text_box(focused_text_name);
             }
@@ -469,6 +476,8 @@ function animate() {
                     c.position.x = get_associated_position(WEST);
                     c.position.y = get_text_box_y();
                 }
+                c.geometry.dispose;
+                c.geometry = new_text_geometry;
             });
             // Link moving
             new Tween(link_container.position)
@@ -478,13 +487,9 @@ function animate() {
             })
             .easing(Easing.Elastic.Out)
             .start();
-            // Resize title
+            // Move/resize title
             title_box.geometry.dispose();
-            title_box.geometry = new THREE.BoxGeometry(get_title_width(), title_height, TITLE_THICKNESS);
-            
-            
-            // TODO Move title box; Usually is fine but when overlay is hidden needs centering
-            //          Do it with a tween
+            title_box.geometry = new THREE.BoxGeometry(get_title_width(), title_height, TITLE_THICKNESS);            
             new Tween(title_box.position)
             .to({ y: TITLE_Y})
             .easing(Easing.Elastic.Out)
@@ -595,8 +600,9 @@ window.addEventListener('mouseup', (e) => {
     if(is_column_left){
         if(found_intersections.length > 0){
             const intersected_object = found_intersections[0].object;
-            (console.log(`${intersected_object.name} clicked up`))
-            const name_type = intersected_object.name.split("_")[0] + "_";
+            (console.log(`${intersected_object.name} clicked up`));
+            const split_intersected_name = intersected_object.name.split("_");
+            const name_type = split_intersected_name[0] + "_";
             switch(name_type) {
                 case LABEL:
                     reset_previous_intersected();
@@ -605,6 +611,8 @@ window.addEventListener('mouseup', (e) => {
                     break;
                 case HIDE:
                     trigger_overlay()
+                case LINK:
+                    open_link(split_intersected_name[1].trim());
             }
         }
     // Column is right
