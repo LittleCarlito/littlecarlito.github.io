@@ -10,8 +10,6 @@ import { TextContainer } from './overlay/text_container';
 
 
 // TODO OOOOO
-// TODO Fix all the camera passing calls
-//          They have it set from the constructor
 // TODO Add rapier physics
 
 // Setup
@@ -61,15 +59,15 @@ function trigger_overlay() {
     hide_button.swap_hide_status();
     console.log(`is overlay hidden \"${hide_button.is_overlay_hidden}\"`);
     // Hide the overlay
-    title_block.trigger_overlay(hide_button.is_overlay_hidden, camera);
-    label_column.trigger_overlay(hide_button.is_overlay_hidden, camera);
-    link_container.trigger_overlay(hide_button.is_overlay_hidden, camera);
+    title_block.trigger_overlay(hide_button.is_overlay_hidden);
+    label_column.trigger_overlay(hide_button.is_overlay_hidden);
+    link_container.trigger_overlay(hide_button.is_overlay_hidden);
 }
 
 /*** Swaps the container column sides */
 function swap_column_sides() {
-    label_column.swap_sides(camera);
-    hide_button.swap_sides(label_column.is_column_left, camera);
+    label_column.swap_sides();
+    hide_button.swap_sides(label_column.is_column_left);
 }
 
 function animate() {
@@ -80,11 +78,11 @@ function animate() {
             text_box_container.resize();
             text_box_container.reposition(label_column.is_column_left);
             // TODO Shouldn't need to pass in camera as constructor set it internally for these objects
-            label_column.reposition(camera);
-            link_container.reposition(camera);
-            title_block.resize(camera);
+            label_column.reposition();
+            link_container.reposition();
+            title_block.resize();
             title_block.reposition();
-            hide_button.reposition(label_column.is_column_left, camera);
+            hide_button.reposition(label_column.is_column_left);
             // Overlay is always redisplayed
             if(hide_button.is_overlay_hidden) {
                 hide_button.swap_hide_status();

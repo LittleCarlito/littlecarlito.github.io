@@ -60,23 +60,23 @@ export class LabelColumn {
             button_option.position.y = i * 3;
             button_container.add(button_option);
         }
-        this.container_column.position.x = this.get_column_x_position(incoming_camera, true);
-        this.container_column.position.y = this.get_column_y_position(incoming_camera, true);
+        this.container_column.position.x = this.get_column_x_position(true);
+        this.container_column.position.y = this.get_column_y_position(true);
         this.container_column.rotation.y = this.get_column_y_rotation(true);
     }
 
-    trigger_overlay(is_overlay_hidden, incoming_camera) {
-        const container_column_x = is_overlay_hidden ? get_associated_position(WEST, incoming_camera) : this.get_column_x_position(incoming_camera, true);
+    trigger_overlay(is_overlay_hidden) {
+        const container_column_x = is_overlay_hidden ? get_associated_position(WEST, this.camera) : this.get_column_x_position(true);
         new Tween(this.container_column.position)
         .to({ x: container_column_x })
         .easing(Easing.Elastic.InOut)
         .start();  
     }
 
-    swap_sides(incoming_camera) {
+    swap_sides() {
         this.is_column_left = !this.is_column_left;
-        const x_position = this.get_column_x_position(incoming_camera, this.is_column_left);
-        const y_position = this.get_column_y_position(incoming_camera, this.is_column_left);
+        const x_position = this.get_column_x_position(this.is_column_left);
+        const y_position = this.get_column_y_position(this.is_column_left);
         const y_rotation = this.get_column_y_rotation(this.is_column_left);
         // Move column across the screen
         this.swapping_column_sides = true;
@@ -94,8 +94,8 @@ export class LabelColumn {
         .start();
     }
 
-    reposition(incoming_camera) {
-            let x_position = this.get_column_x_position(incoming_camera, this.is_column_left);
+    reposition() {
+            let x_position = this.get_column_x_position(this.is_column_left);
             // Move button column across the screen
             new Tween(this.container_column.position)
             .to({ x: x_position})
@@ -105,13 +105,13 @@ export class LabelColumn {
 
     // Column getters
     /** Calculates the x position of the container column given it and the cameras position along with window size */
-    get_column_x_position(incoming_camera, is_column_left) {
-        return (is_column_left ? -1 : 1) * (get_screen_size(incoming_camera).x / 2) * 0.6;
+    get_column_x_position(is_column_left) {
+        return (is_column_left ? -1 : 1) * (get_screen_size(this.camera).x / 2) * 0.6;
     }
     
     /** Calculates the y position of the container column given it and the cameras position along with window size */
-    get_column_y_position(incoming_camera, is_column_left) {
-        return (is_column_left ? -1 : -.6) * (get_screen_size(incoming_camera).y / 2) * 0.6;
+    get_column_y_position(is_column_left) {
+        return (is_column_left ? -1 : -.6) * (get_screen_size(this.camera).y / 2) * 0.6;
     }
     
     /** Calculates the y rotation of the container column given its position along with window size */

@@ -14,7 +14,7 @@ export class TitleBlock {
         // Set variables
         this.scene = incoming_scene;
         this.camera = incoming_camera;
-        this.title_width = this.get_title_width(incoming_camera);
+        this.title_width = this.get_title_width();
         this.title_height = TITLE_HEIGHT;
         // Set shape and material
         const title_geometry = new THREE.BoxGeometry(this.title_width, this.title_height, TITLE_THICKNESS);
@@ -28,13 +28,13 @@ export class TitleBlock {
     }
 
     /** Calculates the titles width given the camera position and window size*/
-    get_title_width(incoming_camera) {
-        return clamp(get_screen_size(incoming_camera).x * .5, 12, 18);
+    get_title_width() {
+        return clamp(get_screen_size(this.camera).x * .5, 12, 18);
     }
 
     /** Hides/reveals the title block based off overlay status */
-    trigger_overlay(is_overlay_hidden, incoming_camera) {
-        const title_y = is_overlay_hidden ? get_associated_position(NORTH, incoming_camera) : TITLE_Y;
+    trigger_overlay(is_overlay_hidden) {
+        const title_y = is_overlay_hidden ? get_associated_position(NORTH, this.camera) : TITLE_Y;
         new Tween(this.title_box.position)
         .to({ y: title_y })
         .easing(Easing.Elastic.InOut)
@@ -42,10 +42,10 @@ export class TitleBlock {
     }
 
     /** Resizes title box based off camera position and window size */
-    resize(incoming_camera){
+    resize(){
         // Move/resize title
         this.title_box.geometry.dispose();
-        this.title_box.geometry = new THREE.BoxGeometry(this.get_title_width(incoming_camera), TITLE_HEIGHT, TITLE_THICKNESS);            
+        this.title_box.geometry = new THREE.BoxGeometry(this.get_title_width(this.camera), TITLE_HEIGHT, TITLE_THICKNESS);            
         new Tween(this.title_box.position)
         .to({ y: TITLE_Y})
         .easing(Easing.Elastic.Out)

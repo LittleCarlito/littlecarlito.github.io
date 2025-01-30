@@ -37,11 +37,11 @@ export class LinkContainer {
         this.scene = incoming_scene;
         this.camera = incoming_camera;
         this.link_container = new THREE.Object3D();
-        this.link_container.position.x =  this.get_link_container_x(incoming_camera);
-        this.link_container.position.y = this.get_link_container_y(incoming_camera);
+        this.link_container.position.x =  this.get_link_container_x(this.camera);
+        this.link_container.position.y = this.get_link_container_y(this.camera);
         this.scene.add(this.link_container);
         // Create the link icons
-        const calced_radius = this.get_link_radius(incoming_camera);
+        const calced_radius = this.get_link_radius(this.camera);
         for(let l = 0; l < link_paths.length; l++) {
             const circle_geometry = new THREE.CircleGeometry(calced_radius);
             const circle_texture = texture_loader.load(link_paths[l]);
@@ -68,19 +68,19 @@ export class LinkContainer {
         }
     }
 
-    trigger_overlay(is_overlay_hidden, incoming_camera) {
-        const link_y = is_overlay_hidden ? get_associated_position(SOUTH, incoming_camera) : this.get_link_container_y(incoming_camera);
+    trigger_overlay(is_overlay_hidden) {
+        const link_y = is_overlay_hidden ? get_associated_position(SOUTH, this.camera) : this.get_link_container_y();
         new Tween(this.link_container.position)
         .to({ y: link_y }, 680)
         .easing(Easing.Elastic.InOut)
         .start();
     }
 
-    reposition(incoming_camera) {
+    reposition() {
         new Tween(this.link_container.position)
         .to({ 
-            x: this.get_link_container_x(incoming_camera),
-            y: this.get_link_container_y(incoming_camera)
+            x: this.get_link_container_x(),
+            y: this.get_link_container_y()
         })
         .easing(Easing.Elastic.Out)
         .start();
@@ -88,17 +88,17 @@ export class LinkContainer {
 
     // Link getters
     /** Calculates the link containers x position based off camera position and window size*/
-    get_link_container_x(incoming_camera) {
-        return (get_screen_size(incoming_camera).x / 2) - (7);
+    get_link_container_x() {
+        return (get_screen_size(this.camera).x / 2) - (7);
     }
     
     /** Calculates the link containers y position based off camera position and window size*/
-    get_link_container_y(incoming_camera) {
-        return -(.4 * get_screen_size(incoming_camera).y);
+    get_link_container_y() {
+        return -(.4 * get_screen_size(this.camera).y);
     }
     
     /** Calculates the links radius based off camera position and window size*/
-    get_link_radius(incoming_camera) {
-        return clamp(get_screen_size(incoming_camera).x * .02, Number.MIN_SAFE_INTEGER, LINK_RADIUS);
+    get_link_radius() {
+        return clamp(get_screen_size(this.camera).x * .02, Number.MIN_SAFE_INTEGER, LINK_RADIUS);
     }
 }
