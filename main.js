@@ -3,27 +3,19 @@ import { clamp } from 'three/src/math/MathUtils.js';
 import { Easing, Tween, update as updateTween } from 'tween';
 import {get_screen_size, get_associated_position, WEST, EAST, NORTH, SOUTH, VALID_DIRECTIONS} from "./overlay/screen"
 import { TitleBlock } from './overlay/title_block';
+import { HIDE, HideButton } from './overlay/hide_button';
 
 // Constants
 const PAN_SPEED = 800;
 const ROTATE_SPEED = 300;
 const LINK_RADIUS = .44;
 
-// TODO Get these to modular class for POC
-// const TITLE_HEIGHT = 2.75;
-// const TITLE_Y = 9;
-// const TITLE_X = -4;
-// const TITLE_THICKNESS = .2;
-
-
-const HIDE_WIDTH = 1;
-const HIDE_HEIGHT = 1;
 // Name types
 const CONATINER = "container_";
 const LABEL = "label_";
 const TEXT = "text_";
 const LINK = "link_"
-const HIDE = "hide_"
+
 // Icons
 const icon_paths = [
     "contact_raised.svg",
@@ -53,7 +45,6 @@ const link_paths = [
     "linkedin_link.svg",
     "tiktok_link.svg"
 ]
-// TODO get profiles in link paths
 const GITHUB = "github";
 const TWITCH = "twitch";
 const LINKEDIN = "linkedin";
@@ -93,7 +84,6 @@ const renderer = new THREE.WebGLRenderer();
 let focused_text_name = "";
 const focus_rotation = .7;
 let swapping_column_sides = false;
-let is_overlay_hidden = false;
 let is_column_left = true;
 let resize_move = false;
 let zoom_event = false;
@@ -102,8 +92,6 @@ let in_tween_map = new Map();
 const container_column = new THREE.Object3D();
 const text_box_container = new THREE.Object3D();
 const link_container = new THREE.Object3D();
-let hide_button;
-// let title_box;
 
 // Setup
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -178,35 +166,9 @@ for(let l = 0; l < link_paths.length; l++) {
     link_container.add(link_button);
 }
 
-const hide_button_width = HIDE_WIDTH;
-const hide_button_height = HIDE_HEIGHT;
-const hide_button_geometry = new THREE.BoxGeometry(hide_button_width, hide_button_height, 0);
-const hide_button_material = get_hide_button_material();
-hide_button = new THREE.Mesh(hide_button_geometry, hide_button_material);
-hide_button.position.y = get_hide_button_y();
-hide_button.position.x = get_hide_button_x();
-hide_button.name = HIDE;
-scene.add(hide_button);
+const hide_button = new HideButton(scene, camera);
 
 // Functions
-
-// Hide button getters
-/** Determines the material for the hide button based off scene state */
-function get_hide_button_material() {
-    return is_overlay_hidden 
-    ? new THREE.MeshBasicMaterial({ color: 0x689f38 }) 
-    : new THREE.MeshBasicMaterial({ color: 0x777981 });
-}
-
-/** Calculates hide button x position based off camera position and window size*/
-function get_hide_button_x() {
-    return is_column_left ? (get_screen_size(camera).x / 2) - 2.5 : get_associated_position(EAST, camera);
-}
-
-/** Calculates hide button y position based off camera position and window size */
-function get_hide_button_y() {
-    return (get_screen_size(camera).y / 2) - 2.5;
-}
 
 // Link getters
 /** Calculates the link containers x position based off camera position and window size*/
@@ -272,12 +234,12 @@ function open_link(new_link) {
 
 /** Hides/reveals overlay elements and swaps hide buttons display sprite */
 function trigger_overlay() {
-    is_overlay_hidden = !is_overlay_hidden;
-    console.log(`is overlay hidden \"${is_overlay_hidden}\"`);
-    const container_column_x = is_overlay_hidden ? get_associated_position(WEST, camera) : get_column_x_position();
-    const link_y = is_overlay_hidden ? get_associated_position(SOUTH, camera) : get_link_container_y();
+    hide_button.swap_hide_status();
+    console.log(`is overlay hidden \"${hide_button.is_overlay_hidden}\"`);
+    const container_column_x = hide_button.is_overlay_hidden ? get_associated_position(WEST, camera) : get_column_x_position();
+    const link_y = hide_button.is_overlay_hidden ? get_associated_position(SOUTH, camera) : get_link_container_y();
     // Hide the overlay
-    title_block.trigger_overlay(is_overlay_hidden, camera);
+    title_block.trigger_overlay(hide_button.is_overlay_hidden, camera);
     new Tween(container_column.position)
     .to({ x: container_column_x })
     .easing(Easing.Elastic.InOut)
@@ -286,8 +248,6 @@ function trigger_overlay() {
     .to({ y: link_y }, 680)
     .easing(Easing.Elastic.InOut)
     .start();
-    // Change how hide button looks based off value
-    hide_button.material = get_hide_button_material();
 }
 
 /*** Swaps the container column sides */
@@ -310,12 +270,9 @@ function swap_column_sides() {
     .to({ y: y_rotation}, ROTATE_SPEED)
     .easing(Easing.Exponential.Out)
     .start();
+
     // Handle hide button
-    const hide_x = get_hide_button_x();
-    new Tween(hide_button.position)
-    .to({ x: hide_x }, 250)
-    .easing(Easing.Sinusoidal.Out)
-    .start();
+    hide_button.swap_sides(is_column_left, camera);
 }
 
 /** Brings the text box associated with the given name into focus
@@ -436,18 +393,10 @@ function animate() {
             title_block.resize(camera);
             title_block.reposition();
             // Move hide button
-            new Tween(hide_button.position)
-            .to({ 
-                x: get_hide_button_x(),
-                y: get_hide_button_y()
-            })
-            .easing(Easing.Elastic.Out)
-            .start();
+            hide_button.reposition(is_column_left, camera);
             // Overlay is always redisplayed
-            if(is_overlay_hidden) {
-                is_overlay_hidden = false;
-                hide_button.material.dispose();
-                hide_button.material = get_hide_button_material();
+            if(hide_button.is_overlay_hidden) {
+                hide_button.swap_hide_status();
             }
         } else {
             zoom_event = false;
