@@ -5,14 +5,9 @@ import { WEST } from "./overlay/screen"
 import { TitleBlock } from './overlay/title_block';
 import { HIDE, HideButton } from './overlay/hide_button';
 import { LINK, LinkContainer } from './overlay/link_container';
-import { LABEL, LabelColumn } from './overlay/label_column';
+import { icon_colors, icon_labels, LABEL, LabelColumn } from './overlay/label_column';
 import { TextContainer } from './overlay/text_container';
 // import { OrbitControls } from 'three/examples/jsm/Addons.js';
-
-
-
-// TODO OOOOO
-// TODO Add rapier physics
 
 // ----- Variables
 const FOCUS_ROTATION = .7;
@@ -44,6 +39,11 @@ const camera = new THREE.PerspectiveCamera(
     // Far clipping
     1000
 );
+// TODO OOOOO
+// TODO Get hovering logic for each label to make its associated cube glow
+// TODO Get the overlay to be based off camera positioning so tilt and controls can be added and overlay follows
+// TODO Add HemisphereLight to way background for sunset/mood lighting
+// camera.rotation.x = -0.261799;
 camera.position.z = 15;
 // Rendering
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -52,22 +52,30 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.VSMShadowMap;
 renderer.setAnimationLoop(animate);
 document.body.appendChild(renderer.domElement);
+// TODO Need to get overlay attached to camera positioning before controls can be allowed
 // Controls
 // const controls = new OrbitControls(camera, renderer.domElement);
 // controls.enableDamping = true;
 // controls.target.y = 1;
 // Lighting
-const spotlight_one = new THREE.SpotLight(undefined, Math.PI * 10);
-spotlight_one.position.set(2.5, 5, 5);
-spotlight_one.angle = Math.PI / 3;
+const light_focus = new THREE.Object3D();
+light_focus.position.set(0, -9, 0);
+scene.add(light_focus);
+const spotlight_one = new THREE.SpotLight(undefined, 150);
+spotlight_one.position.set(2.5, 5, -5);
+spotlight_one.angle = -Math.PI / 2;
 spotlight_one.penumbra = 0.5;
 spotlight_one.castShadow = true;
 spotlight_one.shadow.blurSamples = 10;
 spotlight_one.shadow.radius = 5;
 scene.add(spotlight_one);
 const spotlight_two = spotlight_one.clone();
-spotlight_two.position.set(-2.5, 5, 5);
+spotlight_two.position.set(-2.5, 5, -1);
 scene.add(spotlight_two);
+const direction_light = new THREE.DirectionalLight(0xffffff, 2);
+direction_light.position.set(0, -3, -15);
+direction_light.target = light_focus;
+scene.add(direction_light);
 // Overlay creation
 const title_block = new TitleBlock(scene, camera);
 const text_box_container = new TextContainer(scene, camera);
@@ -76,16 +84,18 @@ const link_container = new LinkContainer(scene, camera);
 const hide_button = new HideButton(scene, camera);
 
 // -----Physics objects
-// Cube
-const cube_material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-const cube_geometry = new THREE.BoxGeometry(1, 1, 1);
-const cube_mesh = new THREE.Mesh(cube_geometry, cube_material);
-cube_mesh.castShadow = true;
-scene.add(cube_mesh);
-const cube_body = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(0, 5, 0).setCanSleep(false));
-const cube_shape = RAPIER.ColliderDesc.cuboid(0.5, 0.5, 0.5).setMass(1).setRestitution(1.1);
-world.createCollider(cube_shape, cube_body);
-dynamic_bodies.push([cube_mesh, cube_body]);
+// Cubes
+for(let i = 0; i < icon_labels.length; i++) {
+    const cube_material = new THREE.MeshStandardMaterial({ color: icon_colors[i] });
+    const cube_geometry = new THREE.BoxGeometry(1, 1, 1);
+    const cube_mesh = new THREE.Mesh(cube_geometry, cube_material);
+    cube_mesh.castShadow = true;
+    scene.add(cube_mesh);
+    const cube_body = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(((i * 2) - 3), -2, -5).setCanSleep(false));
+    const cube_shape = RAPIER.ColliderDesc.cuboid(0.5, 0.5, 0.5).setMass(1).setRestitution(1.1);
+    world.createCollider(cube_shape, cube_body);
+    dynamic_bodies.push([cube_mesh, cube_body]);
+}
 // Floor
 const floor_geometry = new THREE.BoxGeometry(100, 1, 100);
 const floor_material = new THREE.MeshStandardMaterial({ color: 0x808080 });
