@@ -1,15 +1,20 @@
 import * as THREE from 'three';
 import { clamp } from 'three/src/math/MathUtils.js';
 import { Easing, Tween, update as updateTween } from 'tween';
+import { TitleBlock } from './overlay/title_block';
 
 // Constants
 const PAN_SPEED = 800;
 const ROTATE_SPEED = 300;
 const LINK_RADIUS = .44;
+
+// TODO Get these to modular class for POC
 const TITLE_HEIGHT = 2.75;
 const TITLE_Y = 9;
 const TITLE_X = -4;
 const TITLE_THICKNESS = .2;
+
+
 const HIDE_WIDTH = 1;
 const HIDE_HEIGHT = 1;
 // Name types
@@ -17,7 +22,7 @@ const CONATINER = "container_";
 const LABEL = "label_";
 const TEXT = "text_";
 const LINK = "link_"
-const TITLE = "title_"
+export const TITLE = "title_"
 const HIDE = "hide_"
 // Directions
 const NORTH = "north";
@@ -97,11 +102,7 @@ const texture_loader = new THREE.TextureLoader();
 const renderer = new THREE.WebGLRenderer();
 // Function variables
 let focused_text_name = "";
-let last_pixel_ratio = window.devicePixelRatio;
 const focus_rotation = .7;
-const original_height = window.innerHeight;
-const original_width = window.innerWidth;
-const original_pixel_ratio = window.devicePixelRatio;
 let swapping_column_sides = false;
 let is_overlay_hidden = false;
 let is_column_left = true;
@@ -109,104 +110,116 @@ let resize_move = false;
 let zoom_event = false;
 let current_intersected = null;
 let in_tween_map = new Map();
-
-// Setup
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setAnimationLoop(animate);
-document.body.appendChild(renderer.domElement);
-
 const container_column = new THREE.Object3D();
-container_column.name = `${CONATINER}column`
-scene.add(container_column);
-
-for (let i = 0; i < icon_paths.length; i++) {
-    const button_container = new THREE.Object3D();
-    button_container.name = `${CONATINER}${icon_labels[i]}`
-    container_column.add(button_container);
-    const button_texture = texture_loader.load(icon_paths[i]);
-    button_texture.colorSpace = THREE.SRGBColorSpace;
-    const button_option = new THREE.Mesh(
-        new THREE.BoxGeometry(5, 3, 0),
-        new THREE.MeshBasicMaterial({
-            map: button_texture,
-            transparent: true
-        }));
-    button_option.name = `${LABEL}${icon_labels[i]}`
-    button_option.position.y = i * 3;
-    button_container.add(button_option);
-}
-
-const camera_distance = 15;
-camera.position.z = camera_distance;
-
-
-container_column.position.x = get_column_x_position();
-container_column.position.y = get_column_y_position();
-container_column.rotation.y = get_column_y_rotation();
-
-const da_sun = new THREE.DirectionalLight(0xffffff, 10);
-da_sun.position.set(0, 3, -2);
-scene.add(da_sun);
-
-// Title block
-const title_width = get_title_width();
-const title_height = TITLE_HEIGHT;
-const title_geometry = new THREE.BoxGeometry(title_width, title_height, TITLE_THICKNESS);
-const title_material = new THREE.MeshBasicMaterial({ color: 0xffffff });
-const title_box = new THREE.Mesh(title_geometry, title_material);
-title_box.name = `${TITLE}`;
-title_box.position.y = TITLE_Y;
-title_box.position.x = TITLE_X;
-scene.add(title_box);
-
-// TODO Stop calculating text box by screen size and just make it a size so it scales like icon_buttons above
-// Text displays
 const text_box_container = new THREE.Object3D();
-scene.add(text_box_container);
-for (let c = 0; c < icon_paths.length; c++) {
-    const found_width = get_text_box_width();
-    const found_height = get_text_box_height();
-    console.log(`${found_width} x ${found_height}`);
-    const box_geometry = new THREE.BoxGeometry(found_width, found_height, .01);
-    const box_material = new THREE.MeshBasicMaterial({ color: icon_colors[c] });
-    const text_box = new THREE.Mesh(box_geometry, box_material);
-    text_box.name = `${TEXT}${icon_labels[c]}`;
-    text_box.position.x = get_associated_position(WEST);
-    text_box.position.y = get_text_box_y();
-    text_box_container.add(text_box);
-}
-
 const link_container = new THREE.Object3D();
-link_container.position.x =  get_link_container_x();
-link_container.position.y = get_link_container_y();
-scene.add(link_container);
-const calced_radius = get_link_radius();
-for(let l = 0; l < link_paths.length; l++) {
-    const circle_geometry = new THREE.CircleGeometry(calced_radius);
-    const circle_texture = texture_loader.load(link_paths[l]);
-    circle_texture.colorSpace = THREE.SRGBColorSpace;
-    const link_button = new THREE.Mesh(
-        circle_geometry,
-        new THREE.MeshBasicMaterial({
-            map: circle_texture,
-            transparent: true
-        }));
-    link_button.name = `${LINK}${link_labels[l]}`;
-    link_button.position.x += calced_radius * (3.5 * l);
-    link_container.add(link_button);
-}
-
-const hide_button_width = HIDE_WIDTH;
-const hide_button_height = HIDE_HEIGHT;
-const hide_button_geometry = new THREE.BoxGeometry(hide_button_width, hide_button_height, 0);
-const hide_button_material = get_hide_button_material();
-const hide_button = new THREE.Mesh(hide_button_geometry, hide_button_material);
-hide_button.position.y = get_hide_button_y();
-hide_button.position.x = get_hide_button_x();
-hide_button.name = HIDE;
-scene.add(hide_button);
+let hide_button;
+let title_box;
 
 // Functions
+
+/** Initializes the main scene */
+function init() {
+    // Setup
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setAnimationLoop(animate);
+    document.body.appendChild(renderer.domElement);
+
+    container_column.name = `${CONATINER}column`
+    scene.add(container_column);
+
+    for (let i = 0; i < icon_paths.length; i++) {
+        const button_container = new THREE.Object3D();
+        button_container.name = `${CONATINER}${icon_labels[i]}`
+        container_column.add(button_container);
+        const button_texture = texture_loader.load(icon_paths[i]);
+        button_texture.colorSpace = THREE.SRGBColorSpace;
+        const button_option = new THREE.Mesh(
+            new THREE.BoxGeometry(5, 3, 0),
+            new THREE.MeshBasicMaterial({
+                map: button_texture,
+                transparent: true
+            }));
+        button_option.name = `${LABEL}${icon_labels[i]}`
+        button_option.position.y = i * 3;
+        button_container.add(button_option);
+    }
+
+    const camera_distance = 15;
+    camera.position.z = camera_distance;
+
+
+    container_column.position.x = get_column_x_position();
+    container_column.position.y = get_column_y_position();
+    container_column.rotation.y = get_column_y_rotation();
+
+    const da_sun = new THREE.DirectionalLight(0xffffff, 10);
+    da_sun.position.set(0, 3, -2);
+    scene.add(da_sun);
+
+    // TODO OOOOOO
+    // TODO newTitleBlock is breaking because you need to structure this with an init() setup
+    //          Maybe even a SceneManager class for better structure/readability
+    // const title_block = new TitleBlock(scene, camera);
+    // TODO Get this to modular class for POC
+    // Title block
+    const title_width = get_title_width();
+    const title_geometry = new THREE.BoxGeometry(title_width, TITLE_HEIGHT, TITLE_THICKNESS);
+    const title_material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    title_box = new THREE.Mesh(title_geometry, title_material);
+    title_box.name = `${TITLE}`;
+    title_box.position.y = TITLE_Y;
+    title_box.position.x = TITLE_X;
+    scene.add(title_box);
+
+
+
+
+    // TODO Stop calculating text box by screen size and just make it a size so it scales like icon_buttons above
+    // Text displays
+    scene.add(text_box_container);
+    for (let c = 0; c < icon_paths.length; c++) {
+        const found_width = get_text_box_width();
+        const found_height = get_text_box_height();
+        const box_geometry = new THREE.BoxGeometry(found_width, found_height, .01);
+        const box_material = new THREE.MeshBasicMaterial({ color: icon_colors[c] });
+        const text_box = new THREE.Mesh(box_geometry, box_material);
+        text_box.name = `${TEXT}${icon_labels[c]}`;
+        text_box.position.x = get_associated_position(WEST);
+        text_box.position.y = get_text_box_y();
+        text_box_container.add(text_box);
+    }
+
+    link_container.position.x =  get_link_container_x();
+    link_container.position.y = get_link_container_y();
+    scene.add(link_container);
+    const calced_radius = get_link_radius();
+    for(let l = 0; l < link_paths.length; l++) {
+        const circle_geometry = new THREE.CircleGeometry(calced_radius);
+        const circle_texture = texture_loader.load(link_paths[l]);
+        circle_texture.colorSpace = THREE.SRGBColorSpace;
+        const link_button = new THREE.Mesh(
+            circle_geometry,
+            new THREE.MeshBasicMaterial({
+                map: circle_texture,
+                transparent: true
+            }));
+        link_button.name = `${LINK}${link_labels[l]}`;
+        link_button.position.x += calced_radius * (3.5 * l);
+        link_container.add(link_button);
+    }
+
+    const hide_button_width = HIDE_WIDTH;
+    const hide_button_height = HIDE_HEIGHT;
+    const hide_button_geometry = new THREE.BoxGeometry(hide_button_width, hide_button_height, 0);
+    const hide_button_material = get_hide_button_material();
+    hide_button = new THREE.Mesh(hide_button_geometry, hide_button_material);
+    hide_button.position.y = get_hide_button_y();
+    hide_button.position.x = get_hide_button_x();
+    hide_button.name = HIDE;
+    scene.add(hide_button);
+}
+
 /** Calculates screen size based off a distance of 15 */
 function get_screen_size() {
     const screen_size = new THREE.Vector2();
@@ -268,6 +281,7 @@ function get_text_box_width() {
     return clamp(get_screen_size().x * .5, 12, 18);
 }
 
+// TODO Move to modular class for POC
 // Title getters
 /** Calculates the titles width given the camera position and window size*/
 function get_title_width() {
@@ -304,14 +318,18 @@ function open_link(new_link) {
 function trigger_overlay() {
     is_overlay_hidden = !is_overlay_hidden;
     console.log(`is overlay hidden \"${is_overlay_hidden}\"`);
-    const title_y = is_overlay_hidden ? get_associated_position(NORTH) : TITLE_Y;
     const container_column_x = is_overlay_hidden ? get_associated_position(WEST) : get_column_x_position();
     const link_y = is_overlay_hidden ? get_associated_position(SOUTH) : get_link_container_y();
     // Hide the overlay
+
+    // TODO Get this to modular object for POC
+    const title_y = is_overlay_hidden ? get_associated_position(NORTH) : TITLE_Y;
     new Tween(title_box.position)
     .to({ y: title_y })
     .easing(Easing.Elastic.InOut)
     .start();
+
+
     new Tween(container_column.position)
     .to({ x: container_column_x })
     .easing(Easing.Elastic.InOut)
@@ -460,7 +478,6 @@ function animate() {
     if(resize_move){
         if(!zoom_event) {
             let x_position = get_column_x_position();
-            let y_rotation = get_column_y_rotation();
             // Move button column across the screen
             new Tween(container_column.position)
             .to({ x: x_position})
@@ -487,25 +504,31 @@ function animate() {
             })
             .easing(Easing.Elastic.Out)
             .start();
+
+            // TODO Get this to modular object for POC
             // Move/resize title
             title_box.geometry.dispose();
-            title_box.geometry = new THREE.BoxGeometry(get_title_width(), title_height, TITLE_THICKNESS);            
+            title_box.geometry = new THREE.BoxGeometry(get_title_width(), TITLE_HEIGHT, TITLE_THICKNESS);            
+           
             new Tween(title_box.position)
             .to({ y: TITLE_Y})
             .easing(Easing.Elastic.Out)
             .start();
+
             // Move hide button
-            if(is_column_left) {
-                new Tween(hide_button.position)
-                .to({ 
-                    x: get_hide_button_x(),
-                    y: get_hide_button_y()
-                })
-                .easing(Easing.Elastic.Out)
-                .start();
-            }
+            new Tween(hide_button.position)
+            .to({ 
+                x: get_hide_button_x(),
+                y: get_hide_button_y()
+            })
+            .easing(Easing.Elastic.Out)
+            .start();
             // Overlay is always redisplayed
-            is_overlay_hidden = false;
+            if(is_overlay_hidden) {
+                is_overlay_hidden = false;
+                hide_button.material.dispose();
+                hide_button.material = get_hide_button_material();
+            }
         } else {
             zoom_event = false;
         }
@@ -573,6 +596,7 @@ function reset_previous_intersected() {
 }
 
 // Window handlers
+let last_pixel_ratio = window.devicePixelRatio;
 window.addEventListener('resize', () => {
     const current_pixel_ratio = window.devicePixelRatio;
     if(last_pixel_ratio != current_pixel_ratio) {
@@ -610,9 +634,11 @@ window.addEventListener('mouseup', (e) => {
                     focus_text_box(intersected_object.name);
                     break;
                 case HIDE:
-                    trigger_overlay()
+                    trigger_overlay();
+                    break;
                 case LINK:
                     open_link(split_intersected_name[1].trim());
+                    break;
             }
         }
     // Column is right
@@ -624,8 +650,10 @@ window.addEventListener('mouseup', (e) => {
             switch(name_type) {
                 case LABEL:
                     focus_text_box(intersected_object.name);
+                    break;
                 case LINK:
                     open_link(split_intersected_name[1].trim());
+                    break;
             }
         } else {
             swap_column_sides();
@@ -636,3 +664,5 @@ window.addEventListener('mouseup', (e) => {
 });
 
 window.addEventListener('mousemove', handle_hover);
+
+init();
