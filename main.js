@@ -12,7 +12,15 @@ import { TextContainer } from './overlay/text_container';
 // TODO OOOOO
 // TODO Add rapier physics
 
-// Setup
+// ----- Variables
+const FOCUS_ROTATION = .7;
+let resize_move = false;
+let zoom_event = false;
+let current_intersected = null;
+let in_tween_map = new Map();
+let last_pixel_ratio = window.devicePixelRatio;
+
+// ----- Setup
 // Mouse detection
 const raycaster = new THREE.Raycaster();
 const mouse_location = new THREE.Vector2();
@@ -28,32 +36,24 @@ const camera = new THREE.PerspectiveCamera(
     // Far clipping
     1000
 );
+camera.position.z = 15;
 // Rendering
 const renderer = new THREE.WebGLRenderer();
-// Function variables
-const focus_rotation = .7;
-let resize_move = false;
-let zoom_event = false;
-let current_intersected = null;
-let in_tween_map = new Map();
-
-// Setup
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setAnimationLoop(animate);
 document.body.appendChild(renderer.domElement);
-
-camera.position.z = 15;
-
+// Lighting
 const da_sun = new THREE.DirectionalLight(0xffffff, 10);
 da_sun.position.set(0, 3, -2);
 scene.add(da_sun);
-
+// Overlay creation
 const title_block = new TitleBlock(scene, camera);
 const text_box_container = new TextContainer(scene, camera);
 const label_column = new LabelColumn(scene, camera);
 const link_container = new LinkContainer(scene, camera);
 const hide_button = new HideButton(scene, camera);
 
+// ----- Functions
 /** Hides/reveals overlay elements and swaps hide buttons display sprite */
 function trigger_overlay() {
     hide_button.swap_hide_status();
@@ -70,6 +70,7 @@ function swap_column_sides() {
     hide_button.swap_sides(label_column.is_column_left);
 }
 
+/** Primary animation function run every frame by renderer */
 function animate() {
     updateTween();
     if(resize_move){
@@ -124,7 +125,7 @@ function handle_hover(e) {
                 current_intersected = intersected_object;
             }
             // Apply rotation to current
-            let final_rotation = label_column.is_column_left ? -(focus_rotation) : (focus_rotation);
+            let final_rotation = label_column.is_column_left ? -(FOCUS_ROTATION) : (FOCUS_ROTATION);
             // Determine if there is an existing in tween for this object
             let in_tween = in_tween_map.get(object_name);
             if(in_tween == null) {
@@ -153,9 +154,10 @@ function reset_previous_intersected() {
     }
 }
 
-// Window handlers
-let last_pixel_ratio = window.devicePixelRatio;
+// ----- Window handlers
+/** Handles resize events */
 window.addEventListener('resize', () => {
+    // Determine if it was a zoom event
     const current_pixel_ratio = window.devicePixelRatio;
     if(last_pixel_ratio != current_pixel_ratio) {
         last_pixel_ratio = current_pixel_ratio;
@@ -169,14 +171,14 @@ window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// TODO Handle mouse down
+/** Handles mouse down actions */
 window.addEventListener('mousedown', (e) => {
     const found_intersections = get_intersect_list(e, "clicked down");
     found_intersections.forEach(i => (console.log(`${i.object.name} clicked down`)));
     // TODO Do something with the intersections
 });
 
-// Handle mouse up
+/** Handles mouse up actions */
 window.addEventListener('mouseup', (e) => {
     const found_intersections = get_intersect_list(e, "clicked up");
     if(label_column.is_column_left){
@@ -221,4 +223,5 @@ window.addEventListener('mouseup', (e) => {
 
 });
 
+/** Handles mose movements and location */
 window.addEventListener('mousemove', handle_hover);
