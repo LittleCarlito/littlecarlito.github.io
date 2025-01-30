@@ -1,19 +1,18 @@
 import * as THREE from 'three';
-import { clamp } from 'three/src/math/MathUtils.js';
 import { Easing, Tween, update as updateTween } from 'tween';
-import {get_screen_size, get_associated_position, WEST, EAST, NORTH, SOUTH, VALID_DIRECTIONS} from "./overlay/screen"
+import { WEST } from "./overlay/screen"
 import { TitleBlock } from './overlay/title_block';
 import { HIDE, HideButton } from './overlay/hide_button';
 import { LINK, LinkContainer } from './overlay/link_container';
-import { PAN_SPEED, LABEL, LabelColumn, icon_labels, icon_colors } from './overlay/label_column';
+import { LABEL, LabelColumn } from './overlay/label_column';
+import { TextContainer } from './overlay/text_container';
 
 
 
-// Name types
 // TODO OOOOO
-// TODO Move text contaienr to its own class
+// TODO Fix all the camera passing calls
+//          They have it set from the constructor
 // TODO Add rapier physics
-const TEXT = "text_";
 
 // Setup
 // Mouse detection
@@ -32,72 +31,30 @@ const camera = new THREE.PerspectiveCamera(
     1000
 );
 // Rendering
-const texture_loader = new THREE.TextureLoader();
 const renderer = new THREE.WebGLRenderer();
 // Function variables
-let focused_text_name = "";
 const focus_rotation = .7;
 let resize_move = false;
 let zoom_event = false;
 let current_intersected = null;
 let in_tween_map = new Map();
-const text_box_container = new THREE.Object3D();
 
 // Setup
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setAnimationLoop(animate);
 document.body.appendChild(renderer.domElement);
 
-const camera_distance = 15;
-camera.position.z = camera_distance;
+camera.position.z = 15;
 
 const da_sun = new THREE.DirectionalLight(0xffffff, 10);
 da_sun.position.set(0, 3, -2);
 scene.add(da_sun);
 
 const title_block = new TitleBlock(scene, camera);
-
-// TODO Stop calculating text box by screen size and just make it a size so it scales like icon_buttons above
-// Text displays
-scene.add(text_box_container);
-for (let c = 0; c < icon_labels.length; c++) {
-    const found_width = get_text_box_width();
-    const found_height = get_text_box_height();
-    const box_geometry = new THREE.BoxGeometry(found_width, found_height, .01);
-    const box_material = new THREE.MeshBasicMaterial({ color: icon_colors[c] });
-    const text_box = new THREE.Mesh(box_geometry, box_material);
-    text_box.name = `${TEXT}${icon_labels[c]}`;
-    text_box.position.x = get_associated_position(WEST, camera);
-    text_box.position.y = get_text_box_y();
-    text_box_container.add(text_box);
-}
-
+const text_box_container = new TextContainer(scene, camera);
 const label_column = new LabelColumn(scene, camera);
 const link_container = new LinkContainer(scene, camera);
 const hide_button = new HideButton(scene, camera);
-
-// Functions
-
-// Text box getters
-/** Calculates the selected text boxes x position based off camera position and window size */
-function get_focused_text_x() {
-   return -(get_screen_size(camera).x / 2 * .36)
-}
-
-/** Calculates the text boxes y position based off camera position and window size */
-function get_text_box_y() {
-    return -(get_screen_size(camera).y * 0.05);
-}
-/** Calculates the text boxes height based off camera position and window size */
-function get_text_box_height() {
-    return get_screen_size(camera).y * .6;
-}
-
-/** Calculates the text boxes width based off camera position and window size */
-function get_text_box_width() {
-    return clamp(get_screen_size(camera).x * .5, 12, 18);
-}
-
 
 /** Hides/reveals overlay elements and swaps hide buttons display sprite */
 function trigger_overlay() {
@@ -115,107 +72,14 @@ function swap_column_sides() {
     hide_button.swap_sides(label_column.is_column_left, camera);
 }
 
-/** Brings the text box associated with the given name into focus
- ** container column MUST be on the right side
- */
-// TODO Get the focused position based off right side of the screen not the left
-//          Can tell when resizing that it favors left; Should favor right
-function focus_text_box(incoming_name) {
-    if(!label_column.is_column_left) {
-        // Get text box name
-        const found_index = incoming_name.indexOf('_');
-        const new_name = TEXT + incoming_name.substring(found_index + 1);
-        if(new_name != focused_text_name) {
-            // If existing focus text box move it
-            if(focused_text_name != "") {
-                lose_focus_text_box(SOUTH);
-            }
-            focused_text_name =  new_name;
-        }
-        // Get and move text box
-        const selected_text_box = text_box_container.getObjectByName(focused_text_name);
-        new Tween(selected_text_box.position)
-        .to({ x: get_focused_text_x() }, 285)
-        .easing(Easing.Sinusoidal.Out)
-        .start()
-    } else {
-        lose_focus_text_box(WEST);
-    }
-}
-
-// Method to tween focused_text_name to offscreen and set to empty string
-function lose_focus_text_box(move_direction = "") {
-    if(focused_text_name != "") {
-        if(move_direction == "" || VALID_DIRECTIONS.includes(move_direction)) {
-            const existing_focus_box = text_box_container.getObjectByName(focused_text_name);
-            if(move_direction == "") {
-                existing_focus_box.position.x = get_associated_position(WEST, camera);
-            } else {
-                // Tween in given direction off screen
-                const previous_position = existing_focus_box.position;
-                const move_position = get_associated_position(move_direction, camera);
-                switch(move_direction) {
-                    case NORTH:
-                        new Tween(existing_focus_box.position)
-                        .to({ y: move_position }, PAN_SPEED * .2)
-                        .easing(Easing.Sinusoidal.Out)
-                        .start()
-                        .onComplete(() => {
-                            existing_focus_box.position.y = get_text_box_y();
-                            existing_focus_box.position.x = get_associated_position(WEST, camera);
-                        });
-                        break;
-                    case SOUTH:
-                        new Tween(existing_focus_box.position)
-                        .to({ y: move_position }, PAN_SPEED * .2)
-                        .easing(Easing.Sinusoidal.Out)
-                        .start()
-                        .onComplete(() => {
-                            existing_focus_box.position.y = get_text_box_y();
-                            existing_focus_box.position.x = 2 * get_associated_position(WEST, camera);
-                        });
-                        break;
-                    case EAST:
-                        new Tween(existing_focus_box.position)
-                        .to({ x: move_position }, PAN_SPEED * .2)
-                        .easing(Easing.Sinusoidal.Out)
-                        .start()
-                        .onComplete(() => (
-                            existing_focus_box.position.x = (get_associated_position(WEST, camera))
-                        ));
-                        break;
-                    case WEST:
-                        new Tween(existing_focus_box.position)
-                        .to({ x: move_position }, PAN_SPEED * .2)
-                        .easing(Easing.Sinusoidal.Out)
-                        .start();                        
-                        break;
-                }
-            }
-            // Lose focus on box
-            focused_text_name = "";
-        }
-    }
-}
-
 function animate() {
     updateTween();
     if(resize_move){
         if(!zoom_event) {
-            // Move/resize text box
-            const new_text_geometry = new THREE.BoxGeometry(get_text_box_width(), get_text_box_height(), 0);
-            if(focused_text_name != ""){
-                focus_text_box(focused_text_name);
-            }
-            text_box_container.children.forEach(c => {
-                if(c.name != focused_text_name) {
-                    c.position.x = get_associated_position(WEST, camera);
-                    c.position.y = get_text_box_y();
-                }
-                c.geometry.dispose;
-                c.geometry = new_text_geometry;
-            });
             // Move/resize overlay
+            text_box_container.resize();
+            text_box_container.reposition(label_column.is_column_left);
+            // TODO Shouldn't need to pass in camera as constructor set it internally for these objects
             label_column.reposition(camera);
             link_container.reposition(camera);
             title_block.resize(camera);
@@ -327,7 +191,7 @@ window.addEventListener('mouseup', (e) => {
                 case LABEL:
                     reset_previous_intersected();
                     swap_column_sides();
-                    focus_text_box(intersected_object.name);
+                    text_box_container.focus_text_box(intersected_object.name, label_column.is_column_left);
                     break;
                 case HIDE:
                     trigger_overlay();
@@ -345,7 +209,7 @@ window.addEventListener('mouseup', (e) => {
             const name_type = split_intersected_name[0] + "_";
             switch(name_type) {
                 case LABEL:
-                    focus_text_box(intersected_object.name);
+                    text_box_container.focus_text_box(intersected_object.name, label_column.is_column_left);
                     break;
                 case LINK:
                     link_container.open_link(split_intersected_name[1].trim());
@@ -353,7 +217,7 @@ window.addEventListener('mouseup', (e) => {
             }
         } else {
             swap_column_sides();
-            lose_focus_text_box(WEST);
+            text_box_container.lose_focus_text_box(WEST);
         }
     }
 

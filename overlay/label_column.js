@@ -6,6 +6,7 @@ const texture_loader = new THREE.TextureLoader();
 export const CONATINER = "container_";
 export const LABEL = "label_";
 const ROTATE_SPEED = 300;
+// TODO Get this to shared variable with text_container
 export const PAN_SPEED = 800;
 // Icons
 const icon_paths = [
