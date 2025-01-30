@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import RAPIER from '@dimforge/rapier3d-compat';
 import { Easing, Tween, update as updateTween } from 'tween';
 import { WEST } from "./overlay/screen"
 import { TitleBlock } from './overlay/title_block';
@@ -6,6 +7,7 @@ import { HIDE, HideButton } from './overlay/hide_button';
 import { LINK, LinkContainer } from './overlay/link_container';
 import { LABEL, LabelColumn } from './overlay/label_column';
 import { TextContainer } from './overlay/text_container';
+// import { OrbitControls } from 'three/examples/jsm/Addons.js';
 
 
 
@@ -21,6 +23,12 @@ let in_tween_map = new Map();
 let last_pixel_ratio = window.devicePixelRatio;
 
 // ----- Setup
+// Physics
+await RAPIER.init();
+const gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
+const world = new RAPIER.World(gravity);
+const dynamic_bodies = [];
+const clock = new THREE.Clock();
 // Mouse detection
 const raycaster = new THREE.Raycaster();
 const mouse_location = new THREE.Vector2();
@@ -38,20 +46,56 @@ const camera = new THREE.PerspectiveCamera(
 );
 camera.position.z = 15;
 // Rendering
-const renderer = new THREE.WebGLRenderer();
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.VSMShadowMap;
 renderer.setAnimationLoop(animate);
 document.body.appendChild(renderer.domElement);
+// Controls
+// const controls = new OrbitControls(camera, renderer.domElement);
+// controls.enableDamping = true;
+// controls.target.y = 1;
 // Lighting
-const da_sun = new THREE.DirectionalLight(0xffffff, 10);
-da_sun.position.set(0, 3, -2);
-scene.add(da_sun);
+const spotlight_one = new THREE.SpotLight(undefined, Math.PI * 10);
+spotlight_one.position.set(2.5, 5, 5);
+spotlight_one.angle = Math.PI / 3;
+spotlight_one.penumbra = 0.5;
+spotlight_one.castShadow = true;
+spotlight_one.shadow.blurSamples = 10;
+spotlight_one.shadow.radius = 5;
+scene.add(spotlight_one);
+const spotlight_two = spotlight_one.clone();
+spotlight_two.position.set(-2.5, 5, 5);
+scene.add(spotlight_two);
 // Overlay creation
 const title_block = new TitleBlock(scene, camera);
 const text_box_container = new TextContainer(scene, camera);
 const label_column = new LabelColumn(scene, camera);
 const link_container = new LinkContainer(scene, camera);
 const hide_button = new HideButton(scene, camera);
+
+// -----Physics objects
+// Cube
+const cube_material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+const cube_geometry = new THREE.BoxGeometry(1, 1, 1);
+const cube_mesh = new THREE.Mesh(cube_geometry, cube_material);
+cube_mesh.castShadow = true;
+scene.add(cube_mesh);
+const cube_body = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(0, 5, 0).setCanSleep(false));
+const cube_shape = RAPIER.ColliderDesc.cuboid(0.5, 0.5, 0.5).setMass(1).setRestitution(1.1);
+world.createCollider(cube_shape, cube_body);
+dynamic_bodies.push([cube_mesh, cube_body]);
+// Floor
+const floor_geometry = new THREE.BoxGeometry(100, 1, 100);
+const floor_material = new THREE.MeshStandardMaterial({ color: 0x808080 });
+const floor_mesh = new THREE.Mesh(floor_geometry, floor_material);
+floor_mesh.receiveShadow = true;
+floor_mesh.position.y = -10.2;
+scene.add(floor_mesh);
+const floor_body = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(0, floor_mesh.position.y, 0));
+const floor_shape = RAPIER.ColliderDesc.cuboid(50, 0.5, 50);
+world.createCollider(floor_shape, floor_body);
 
 // ----- Functions
 /** Hides/reveals overlay elements and swaps hide buttons display sprite */
@@ -72,13 +116,13 @@ function swap_column_sides() {
 
 /** Primary animation function run every frame by renderer */
 function animate() {
+    // Handle the overlay
     updateTween();
-    if(resize_move){
+    if(resize_move) {
         if(!zoom_event) {
             // Move/resize overlay
             text_box_container.resize();
             text_box_container.reposition(label_column.is_column_left);
-            // TODO Shouldn't need to pass in camera as constructor set it internally for these objects
             label_column.reposition();
             link_container.reposition();
             title_block.resize();
@@ -93,6 +137,18 @@ function animate() {
         }
         resize_move = false;
     }
+    // Handle the physics objects
+    const delta = clock.getDelta();
+    world.timestep = Math.min(delta, 0.1);
+    world.step();
+    dynamic_bodies.forEach(([mesh, body]) => {
+        const position = body.translation();
+        mesh.position.set(position.x, position.y, position.z);
+        const rotation = body.rotation();
+        mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+    });
+    // Scene reload
+    // controls.update();
     renderer.render(scene, camera);
 }
 

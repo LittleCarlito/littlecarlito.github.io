@@ -18,7 +18,10 @@ export class TitleBlock {
         this.title_height = TITLE_HEIGHT;
         // Set shape and material
         const title_geometry = new THREE.BoxGeometry(this.title_width, this.title_height, TITLE_THICKNESS);
-        const title_material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const title_material = new THREE.MeshBasicMaterial({ 
+            color: 0xffffff,
+            wireframe: true
+         });
         this.title_box = new THREE.Mesh(title_geometry, title_material);
         // Set name and position
         this.title_box.name = `${TITLE}`;
