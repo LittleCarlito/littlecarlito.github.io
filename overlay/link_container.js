@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { get_screen_size, get_associated_position } from "./screen";
+import { Easing, Tween } from 'tween';
+import { get_screen_size, get_associated_position, SOUTH } from "./screen";
 import { clamp } from 'three/src/math/MathUtils.js';
 
 export const LINK = "link_"
@@ -78,8 +79,8 @@ export class LinkContainer {
     reposition(incoming_camera) {
         new Tween(this.link_container.position)
         .to({ 
-            x: get_link_container_x(incoming_camera),
-            y: get_link_container_y(incoming_camera)
+            x: this.get_link_container_x(incoming_camera),
+            y: this.get_link_container_y(incoming_camera)
         })
         .easing(Easing.Elastic.Out)
         .start();
