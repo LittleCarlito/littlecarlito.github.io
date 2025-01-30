@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { clamp } from "three/src/math/MathUtils.js";
-import { get_screen_size } from "./util";
-import { TITLE } from '../main';
+import { Easing, Tween } from 'tween';
+import { get_screen_size, get_associated_position, NORTH } from './screen';
 
+export const TITLE = "title_"
 const TITLE_HEIGHT = 2.75;
 const TITLE_Y = 9;
 const TITLE_X = -4;
@@ -32,20 +33,27 @@ export class TitleBlock {
     }
 
     /** Hides/reveals the title block based off overlay status */
-    trigger_overlay(is_overlay_hidden) {
-        const title_y = is_overlay_hidden ? get_associated_position(NORTH) : TITLE_Y;
-        new Tween(title_box.position)
+    trigger_overlay(is_overlay_hidden, incoming_camera) {
+        const title_y = is_overlay_hidden ? get_associated_position(NORTH, incoming_camera) : TITLE_Y;
+        new Tween(this.title_box.position)
         .to({ y: title_y })
         .easing(Easing.Elastic.InOut)
         .start();
     }
 
     /** Resizes title box based off camera position and window size */
-    resize(){
+    resize(incoming_camera){
         // Move/resize title
-        title_box.geometry.dispose();
-        title_box.geometry = new THREE.BoxGeometry(get_title_width(), title_height, TITLE_THICKNESS);            
-        new Tween(title_box.position)
+        this.title_box.geometry.dispose();
+        this.title_box.geometry = new THREE.BoxGeometry(this.get_title_width(incoming_camera), TITLE_HEIGHT, TITLE_THICKNESS);            
+        new Tween(this.title_box.position)
+        .to({ y: TITLE_Y})
+        .easing(Easing.Elastic.Out)
+        .start();
+    }
+
+    reposition() {
+        new Tween(this.title_box.position)
         .to({ y: TITLE_Y})
         .easing(Easing.Elastic.Out)
         .start();

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { clamp } from 'three/src/math/MathUtils.js';
 import { Easing, Tween, update as updateTween } from 'tween';
+import {get_screen_size, get_associated_position, WEST, EAST, NORTH, SOUTH, VALID_DIRECTIONS} from "./overlay/screen"
 import { TitleBlock } from './overlay/title_block';
 
 // Constants
@@ -9,10 +10,10 @@ const ROTATE_SPEED = 300;
 const LINK_RADIUS = .44;
 
 // TODO Get these to modular class for POC
-const TITLE_HEIGHT = 2.75;
-const TITLE_Y = 9;
-const TITLE_X = -4;
-const TITLE_THICKNESS = .2;
+// const TITLE_HEIGHT = 2.75;
+// const TITLE_Y = 9;
+// const TITLE_X = -4;
+// const TITLE_THICKNESS = .2;
 
 
 const HIDE_WIDTH = 1;
@@ -22,19 +23,7 @@ const CONATINER = "container_";
 const LABEL = "label_";
 const TEXT = "text_";
 const LINK = "link_"
-export const TITLE = "title_"
 const HIDE = "hide_"
-// Directions
-const NORTH = "north";
-const SOUTH = "south";
-const EAST = "east";
-const WEST = "west";
-const DIRECTIONS =[
-    NORTH,
-    SOUTH,
-    EAST,
-    WEST
-]
 // Icons
 const icon_paths = [
     "contact_raised.svg",
@@ -114,118 +103,92 @@ const container_column = new THREE.Object3D();
 const text_box_container = new THREE.Object3D();
 const link_container = new THREE.Object3D();
 let hide_button;
-let title_box;
+// let title_box;
+
+// Setup
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setAnimationLoop(animate);
+document.body.appendChild(renderer.domElement);
+
+container_column.name = `${CONATINER}column`
+scene.add(container_column);
+
+for (let i = 0; i < icon_paths.length; i++) {
+    const button_container = new THREE.Object3D();
+    button_container.name = `${CONATINER}${icon_labels[i]}`
+    container_column.add(button_container);
+    const button_texture = texture_loader.load(icon_paths[i]);
+    button_texture.colorSpace = THREE.SRGBColorSpace;
+    const button_option = new THREE.Mesh(
+        new THREE.BoxGeometry(5, 3, 0),
+        new THREE.MeshBasicMaterial({
+            map: button_texture,
+            transparent: true
+        }));
+    button_option.name = `${LABEL}${icon_labels[i]}`
+    button_option.position.y = i * 3;
+    button_container.add(button_option);
+}
+
+const camera_distance = 15;
+camera.position.z = camera_distance;
+
+
+container_column.position.x = get_column_x_position();
+container_column.position.y = get_column_y_position();
+container_column.rotation.y = get_column_y_rotation();
+
+const da_sun = new THREE.DirectionalLight(0xffffff, 10);
+da_sun.position.set(0, 3, -2);
+scene.add(da_sun);
+
+const title_block = new TitleBlock(scene, camera);
+
+// TODO Stop calculating text box by screen size and just make it a size so it scales like icon_buttons above
+// Text displays
+scene.add(text_box_container);
+for (let c = 0; c < icon_paths.length; c++) {
+    const found_width = get_text_box_width();
+    const found_height = get_text_box_height();
+    const box_geometry = new THREE.BoxGeometry(found_width, found_height, .01);
+    const box_material = new THREE.MeshBasicMaterial({ color: icon_colors[c] });
+    const text_box = new THREE.Mesh(box_geometry, box_material);
+    text_box.name = `${TEXT}${icon_labels[c]}`;
+    text_box.position.x = get_associated_position(WEST, camera);
+    text_box.position.y = get_text_box_y();
+    text_box_container.add(text_box);
+}
+
+link_container.position.x =  get_link_container_x();
+link_container.position.y = get_link_container_y();
+scene.add(link_container);
+const calced_radius = get_link_radius();
+for(let l = 0; l < link_paths.length; l++) {
+    const circle_geometry = new THREE.CircleGeometry(calced_radius);
+    const circle_texture = texture_loader.load(link_paths[l]);
+    circle_texture.colorSpace = THREE.SRGBColorSpace;
+    const link_button = new THREE.Mesh(
+        circle_geometry,
+        new THREE.MeshBasicMaterial({
+            map: circle_texture,
+            transparent: true
+        }));
+    link_button.name = `${LINK}${link_labels[l]}`;
+    link_button.position.x += calced_radius * (3.5 * l);
+    link_container.add(link_button);
+}
+
+const hide_button_width = HIDE_WIDTH;
+const hide_button_height = HIDE_HEIGHT;
+const hide_button_geometry = new THREE.BoxGeometry(hide_button_width, hide_button_height, 0);
+const hide_button_material = get_hide_button_material();
+hide_button = new THREE.Mesh(hide_button_geometry, hide_button_material);
+hide_button.position.y = get_hide_button_y();
+hide_button.position.x = get_hide_button_x();
+hide_button.name = HIDE;
+scene.add(hide_button);
 
 // Functions
-
-/** Initializes the main scene */
-function init() {
-    // Setup
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setAnimationLoop(animate);
-    document.body.appendChild(renderer.domElement);
-
-    container_column.name = `${CONATINER}column`
-    scene.add(container_column);
-
-    for (let i = 0; i < icon_paths.length; i++) {
-        const button_container = new THREE.Object3D();
-        button_container.name = `${CONATINER}${icon_labels[i]}`
-        container_column.add(button_container);
-        const button_texture = texture_loader.load(icon_paths[i]);
-        button_texture.colorSpace = THREE.SRGBColorSpace;
-        const button_option = new THREE.Mesh(
-            new THREE.BoxGeometry(5, 3, 0),
-            new THREE.MeshBasicMaterial({
-                map: button_texture,
-                transparent: true
-            }));
-        button_option.name = `${LABEL}${icon_labels[i]}`
-        button_option.position.y = i * 3;
-        button_container.add(button_option);
-    }
-
-    const camera_distance = 15;
-    camera.position.z = camera_distance;
-
-
-    container_column.position.x = get_column_x_position();
-    container_column.position.y = get_column_y_position();
-    container_column.rotation.y = get_column_y_rotation();
-
-    const da_sun = new THREE.DirectionalLight(0xffffff, 10);
-    da_sun.position.set(0, 3, -2);
-    scene.add(da_sun);
-
-    // TODO OOOOOO
-    // TODO newTitleBlock is breaking because you need to structure this with an init() setup
-    //          Maybe even a SceneManager class for better structure/readability
-    // const title_block = new TitleBlock(scene, camera);
-    // TODO Get this to modular class for POC
-    // Title block
-    const title_width = get_title_width();
-    const title_geometry = new THREE.BoxGeometry(title_width, TITLE_HEIGHT, TITLE_THICKNESS);
-    const title_material = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    title_box = new THREE.Mesh(title_geometry, title_material);
-    title_box.name = `${TITLE}`;
-    title_box.position.y = TITLE_Y;
-    title_box.position.x = TITLE_X;
-    scene.add(title_box);
-
-
-
-
-    // TODO Stop calculating text box by screen size and just make it a size so it scales like icon_buttons above
-    // Text displays
-    scene.add(text_box_container);
-    for (let c = 0; c < icon_paths.length; c++) {
-        const found_width = get_text_box_width();
-        const found_height = get_text_box_height();
-        const box_geometry = new THREE.BoxGeometry(found_width, found_height, .01);
-        const box_material = new THREE.MeshBasicMaterial({ color: icon_colors[c] });
-        const text_box = new THREE.Mesh(box_geometry, box_material);
-        text_box.name = `${TEXT}${icon_labels[c]}`;
-        text_box.position.x = get_associated_position(WEST);
-        text_box.position.y = get_text_box_y();
-        text_box_container.add(text_box);
-    }
-
-    link_container.position.x =  get_link_container_x();
-    link_container.position.y = get_link_container_y();
-    scene.add(link_container);
-    const calced_radius = get_link_radius();
-    for(let l = 0; l < link_paths.length; l++) {
-        const circle_geometry = new THREE.CircleGeometry(calced_radius);
-        const circle_texture = texture_loader.load(link_paths[l]);
-        circle_texture.colorSpace = THREE.SRGBColorSpace;
-        const link_button = new THREE.Mesh(
-            circle_geometry,
-            new THREE.MeshBasicMaterial({
-                map: circle_texture,
-                transparent: true
-            }));
-        link_button.name = `${LINK}${link_labels[l]}`;
-        link_button.position.x += calced_radius * (3.5 * l);
-        link_container.add(link_button);
-    }
-
-    const hide_button_width = HIDE_WIDTH;
-    const hide_button_height = HIDE_HEIGHT;
-    const hide_button_geometry = new THREE.BoxGeometry(hide_button_width, hide_button_height, 0);
-    const hide_button_material = get_hide_button_material();
-    hide_button = new THREE.Mesh(hide_button_geometry, hide_button_material);
-    hide_button.position.y = get_hide_button_y();
-    hide_button.position.x = get_hide_button_x();
-    hide_button.name = HIDE;
-    scene.add(hide_button);
-}
-
-/** Calculates screen size based off a distance of 15 */
-function get_screen_size() {
-    const screen_size = new THREE.Vector2();
-    camera.getViewSize(15, screen_size);
-    return screen_size;
-}
 
 // Hide button getters
 /** Determines the material for the hide button based off scene state */
@@ -237,66 +200,59 @@ function get_hide_button_material() {
 
 /** Calculates hide button x position based off camera position and window size*/
 function get_hide_button_x() {
-    return is_column_left ? (get_screen_size().x / 2) - 2.5 : get_associated_position(EAST);
+    return is_column_left ? (get_screen_size(camera).x / 2) - 2.5 : get_associated_position(EAST, camera);
 }
 
 /** Calculates hide button y position based off camera position and window size */
 function get_hide_button_y() {
-    return (get_screen_size().y / 2) - 2.5;
+    return (get_screen_size(camera).y / 2) - 2.5;
 }
 
 // Link getters
 /** Calculates the link containers x position based off camera position and window size*/
 function get_link_container_x() {
-    return (get_screen_size().x / 2) - (7);
+    return (get_screen_size(camera).x / 2) - (7);
 }
 
 /** Calculates the link containers y position based off camera position and window size*/
 function get_link_container_y() {
-    return -(.4 * get_screen_size().y);
+    return -(.4 * get_screen_size(camera).y);
 }
 
 /** Calculates the links radius based off camera position and window size*/
 function get_link_radius() {
-    return clamp(get_screen_size().x * .02, Number.MIN_SAFE_INTEGER, LINK_RADIUS);
+    return clamp(get_screen_size(camera).x * .02, Number.MIN_SAFE_INTEGER, LINK_RADIUS);
 }
 
 // Text box getters
 /** Calculates the selected text boxes x position based off camera position and window size */
 function get_focused_text_x() {
-   return -(get_screen_size().x / 2 * .36)
+   return -(get_screen_size(camera).x / 2 * .36)
 }
 
 /** Calculates the text boxes y position based off camera position and window size */
 function get_text_box_y() {
-    return -(get_screen_size().y * 0.05);
+    return -(get_screen_size(camera).y * 0.05);
 }
 /** Calculates the text boxes height based off camera position and window size */
 function get_text_box_height() {
-    return get_screen_size().y * .6;
+    return get_screen_size(camera).y * .6;
 }
 
 /** Calculates the text boxes width based off camera position and window size */
 function get_text_box_width() {
-    return clamp(get_screen_size().x * .5, 12, 18);
-}
-
-// TODO Move to modular class for POC
-// Title getters
-/** Calculates the titles width given the camera position and window size*/
-function get_title_width() {
-    return clamp(get_screen_size().x * .5, 12, 18);
+    return clamp(get_screen_size(camera).x * .5, 12, 18);
 }
 
 // Column getters
 /** Calculates the x position of the container column given it and the cameras position along with window size */
 function get_column_x_position() {
-    return (is_column_left ? -1 : 1) * (get_screen_size().x / 2) * 0.6;
+    return (is_column_left ? -1 : 1) * (get_screen_size(camera).x / 2) * 0.6;
 }
 
 /** Calculates the y position of the container column given it and the cameras position along with window size */
 function get_column_y_position() {
-    return (is_column_left ? -1 : -.6) * (get_screen_size().y / 2) * 0.6;
+    return (is_column_left ? -1 : -.6) * (get_screen_size(camera).y / 2) * 0.6;
 }
 
 /** Calculates the y rotation of the container column given its position along with window size */
@@ -318,18 +274,10 @@ function open_link(new_link) {
 function trigger_overlay() {
     is_overlay_hidden = !is_overlay_hidden;
     console.log(`is overlay hidden \"${is_overlay_hidden}\"`);
-    const container_column_x = is_overlay_hidden ? get_associated_position(WEST) : get_column_x_position();
-    const link_y = is_overlay_hidden ? get_associated_position(SOUTH) : get_link_container_y();
+    const container_column_x = is_overlay_hidden ? get_associated_position(WEST, camera) : get_column_x_position();
+    const link_y = is_overlay_hidden ? get_associated_position(SOUTH, camera) : get_link_container_y();
     // Hide the overlay
-
-    // TODO Get this to modular object for POC
-    const title_y = is_overlay_hidden ? get_associated_position(NORTH) : TITLE_Y;
-    new Tween(title_box.position)
-    .to({ y: title_y })
-    .easing(Easing.Elastic.InOut)
-    .start();
-
-
+    title_block.trigger_overlay(is_overlay_hidden, camera);
     new Tween(container_column.position)
     .to({ x: container_column_x })
     .easing(Easing.Elastic.InOut)
@@ -340,26 +288,6 @@ function trigger_overlay() {
     .start();
     // Change how hide button looks based off value
     hide_button.material = get_hide_button_material();
-}
-
-/** Gets final location of assicated direction given current camera 
- ** incoming_direction must be a member of DIRECTIONS
-*/
-function get_associated_position(incoming_direction) {
-    if(DIRECTIONS.includes(incoming_direction)) {
-        const screen_size = new THREE.Vector2();
-        camera.getViewSize(15, screen_size);
-        switch(incoming_direction) {
-            case NORTH:
-                return screen_size.y;
-            case SOUTH:
-                return -screen_size.y;
-            case EAST:
-                return screen_size.x;
-            case WEST:
-                return -screen_size.x;
-        }
-    }
 }
 
 /*** Swaps the container column sides */
@@ -421,14 +349,14 @@ function focus_text_box(incoming_name) {
 // Method to tween focused_text_name to offscreen and set to empty string
 function lose_focus_text_box(move_direction = "") {
     if(focused_text_name != "") {
-        if(move_direction == "" || DIRECTIONS.includes(move_direction)) {
+        if(move_direction == "" || VALID_DIRECTIONS.includes(move_direction)) {
             const existing_focus_box = text_box_container.getObjectByName(focused_text_name);
             if(move_direction == "") {
-                existing_focus_box.position.x = get_associated_position(WEST);
+                existing_focus_box.position.x = get_associated_position(WEST, camera);
             } else {
                 // Tween in given direction off screen
                 const previous_position = existing_focus_box.position;
-                const move_position = get_associated_position(move_direction);
+                const move_position = get_associated_position(move_direction, camera);
                 switch(move_direction) {
                     case NORTH:
                         new Tween(existing_focus_box.position)
@@ -437,7 +365,7 @@ function lose_focus_text_box(move_direction = "") {
                         .start()
                         .onComplete(() => {
                             existing_focus_box.position.y = get_text_box_y();
-                            existing_focus_box.position.x = get_associated_position(WEST);
+                            existing_focus_box.position.x = get_associated_position(WEST, camera);
                         });
                         break;
                     case SOUTH:
@@ -447,7 +375,7 @@ function lose_focus_text_box(move_direction = "") {
                         .start()
                         .onComplete(() => {
                             existing_focus_box.position.y = get_text_box_y();
-                            existing_focus_box.position.x = 2 * get_associated_position(WEST);
+                            existing_focus_box.position.x = 2 * get_associated_position(WEST, camera);
                         });
                         break;
                     case EAST:
@@ -456,7 +384,7 @@ function lose_focus_text_box(move_direction = "") {
                         .easing(Easing.Sinusoidal.Out)
                         .start()
                         .onComplete(() => (
-                            existing_focus_box.position.x = (get_associated_position(WEST))
+                            existing_focus_box.position.x = (get_associated_position(WEST, camera))
                         ));
                         break;
                     case WEST:
@@ -490,7 +418,7 @@ function animate() {
             }
             text_box_container.children.forEach(c => {
                 if(c.name != focused_text_name) {
-                    c.position.x = get_associated_position(WEST);
+                    c.position.x = get_associated_position(WEST, camera);
                     c.position.y = get_text_box_y();
                 }
                 c.geometry.dispose;
@@ -504,17 +432,9 @@ function animate() {
             })
             .easing(Easing.Elastic.Out)
             .start();
-
-            // TODO Get this to modular object for POC
-            // Move/resize title
-            title_box.geometry.dispose();
-            title_box.geometry = new THREE.BoxGeometry(get_title_width(), TITLE_HEIGHT, TITLE_THICKNESS);            
-           
-            new Tween(title_box.position)
-            .to({ y: TITLE_Y})
-            .easing(Easing.Elastic.Out)
-            .start();
-
+            // Title block repositioning
+            title_block.resize(camera);
+            title_block.reposition();
             // Move hide button
             new Tween(hide_button.position)
             .to({ 
@@ -664,5 +584,3 @@ window.addEventListener('mouseup', (e) => {
 });
 
 window.addEventListener('mousemove', handle_hover);
-
-init();
