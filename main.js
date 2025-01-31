@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { Easing, Tween, update as updateTween } from 'tween';
-import { UnrealBloomPass } from 'three/examples/jsm/Addons.js';
+import { BloomPass, UnrealBloomPass } from 'three/examples/jsm/Addons.js';
 import { EffectComposer } from 'three/examples/jsm/Addons.js';
 import { RenderPass } from 'three/examples/jsm/Addons.js';
 import { OutputPass } from 'three/examples/jsm/Addons.js';
@@ -83,10 +83,13 @@ direction_light.target = light_focus;
 scene.add(direction_light);
 // Effects/bloom effects
 const render_scene = new RenderPass(scene, camera);
-const bloom_pass = new UnrealBloomPass( new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-bloom_pass.threshold = 0;
-bloom_pass.strength = 1;
-bloom_pass.radius = 0;
+// const bloom_pass = new BloomPass( 1 );
+const bloom_pass = new UnrealBloomPass( 
+    new THREE.Vector2(window.innerWidth, window.innerHeight), // Resolution
+    1.5, // Strength
+    0.4, // Radius
+    1 // Threshold
+);
 const output_pass = new OutputPass();
 const composer = new EffectComposer(renderer);
 composer.addPass(render_scene);
@@ -102,8 +105,16 @@ const hide_button = new HideButton(scene, camera);
 // -----Physics objects
 // Cubes
 for(let i = 0; i < icon_labels.length; i++) {
-    const cube_material = new THREE.MeshStandardMaterial({ color: icon_colors[i] });
-
+    let cube_material;
+    if(i == 1) {
+        cube_material = new THREE.MeshStandardMaterial({ 
+            color: icon_colors[i],
+            emissive: icon_colors[i],
+            emissiveIntensity: 4
+        });
+    } else {
+        cube_material = new THREE.MeshStandardMaterial({color: icon_colors[i]});
+    }
     const cube_geometry = new THREE.BoxGeometry(1, 1, 1);
     const cube_mesh = new THREE.Mesh(cube_geometry, cube_material);
     cube_mesh.castShadow = true;
