@@ -8,6 +8,7 @@ export const LABEL = "label_";
 const ROTATE_SPEED = 300;
 // TODO Get this to shared variable with text_container
 export const PAN_SPEED = 800;
+export const FOCUS_ROTATION = .7;
 // Icons
 const icon_paths = [
     "contact_raised.svg",
@@ -32,8 +33,10 @@ export const icon_colors = [
 ];
 
 export class LabelColumn {
+    in_tween_map = new Map();
     swapping_column_sides = false;
     is_column_left = true;
+    current_intersected = null;
 
     constructor(incoming_scene, incoming_camera) {
         this.scene = incoming_scene;
@@ -101,6 +104,69 @@ export class LabelColumn {
             .to({ x: x_position})
             .easing(Easing.Elastic.Out)
             .start();
+    }
+
+    handle_hover(intersected_object, object_name) {
+        // Check if tween exists for this object already
+        let in_tween = this.in_tween_map.get(object_name);
+        if(in_tween == null) {
+            if(this.current_intersected !== intersected_object) {
+                // Reset previously inersected object if one existed
+                this.reset_previous_intersected();
+                // Set intersected object to current
+                this.current_intersected = intersected_object;
+            }
+
+
+
+            // TODO OOOOO
+            // TODO Refactor cube/physics objects to their own classes
+            // TODO Create an emission color array in cube class
+            // TODO Figure out how to assoicate cube with label
+            // TODO Call activate method on associated cube
+            // TODO Get the overlay to be based off camera positioning so tilt and controls can be added and overlay follows
+            // TODO Add HemisphereLight to way background for sunset/mood lighting
+            // const label_name = object_name.split("_")[1];
+            // const label_color = icon_colors[icon_labels.indexOf(label_name)];
+            // const emission_material = new THREE.MeshStandardMaterial({ 
+            //     color: label_color,
+            //     emissive: label_color,
+            //     emissiveIntensity: 0
+            // });
+            // this.current_intersected.material.dispose();
+            // this.current_intersected.material = emission_material;
+            // new Tween(this.current_intersected.material)
+            // .to({ emissiveIntensity: 4 }, 10000)
+            // .easing(Easing.Sinusoidal.Out)
+            // .start();
+
+
+
+
+            // Apply rotation to current
+            let final_rotation = this.is_column_left ? -(FOCUS_ROTATION) : (FOCUS_ROTATION);
+            // Create rotation tween and set it in the map
+            in_tween = new Tween(this.current_intersected.rotation)
+            .to({ y: final_rotation}, 400)
+            .easing(Easing.Sinusoidal.In)
+            .start()
+            .onComplete(() => this.in_tween_map.delete(object_name));
+            this.in_tween_map.set(object_name, in_tween);
+        }
+    }
+
+    /** Resets the previous intersetcted objects orientation */
+    reset_previous_intersected() {
+        if(this.current_intersected) {
+            // TODO Reset material to no emission
+            // Reset rotation
+            let deselected_rotation = 0;
+            new Tween(this.current_intersected.rotation)
+            .to({ y: deselected_rotation})
+            .easing(Easing.Elastic.Out)
+            .start();
+            this.current_intersected = null;
+        }
     }
 
     // Column getters

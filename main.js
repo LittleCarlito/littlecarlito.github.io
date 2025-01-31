@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
-import { Easing, Tween, update as updateTween } from 'tween';
-import { BloomPass, UnrealBloomPass } from 'three/examples/jsm/Addons.js';
+import { update as updateTween } from 'tween';
+import { UnrealBloomPass } from 'three/examples/jsm/Addons.js';
 import { EffectComposer } from 'three/examples/jsm/Addons.js';
 import { RenderPass } from 'three/examples/jsm/Addons.js';
 import { OutputPass } from 'three/examples/jsm/Addons.js';
@@ -9,17 +9,14 @@ import { WEST } from "./overlay/screen"
 import { TitleBlock } from './overlay/title_block';
 import { HIDE, HideButton } from './overlay/hide_button';
 import { LINK, LinkContainer } from './overlay/link_container';
-import { icon_colors, icon_labels, LABEL, LabelColumn } from './overlay/label_column';
+import { LABEL, LabelColumn } from './overlay/label_column';
 import { TextContainer } from './overlay/text_container';
-import { bloom } from 'three/examples/jsm/tsl/display/BloomNode.js';
+import { CubeConatiner } from './background/cube_container';
 // import { OrbitControls } from 'three/examples/jsm/Addons.js';
 
 // ----- Variables
-const FOCUS_ROTATION = .7;
 let resize_move = false;
 let zoom_event = false;
-let current_intersected = null;
-let in_tween_map = new Map();
 let last_pixel_ratio = window.devicePixelRatio;
 
 // ----- Setup
@@ -27,7 +24,6 @@ let last_pixel_ratio = window.devicePixelRatio;
 await RAPIER.init();
 const gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
 const world = new RAPIER.World(gravity);
-const dynamic_bodies = [];
 const clock = new THREE.Clock();
 // Mouse detection
 const raycaster = new THREE.Raycaster();
@@ -44,10 +40,7 @@ const camera = new THREE.PerspectiveCamera(
     // Far clipping
     1000
 );
-// TODO OOOOO
-// TODO Get hovering logic for each label to make its associated cube glow
-// TODO Get the overlay to be based off camera positioning so tilt and controls can be added and overlay follows
-// TODO Add HemisphereLight to way background for sunset/mood lighting
+
 // camera.rotation.x = -0.261799;
 camera.position.z = 15;
 // Rendering
@@ -101,30 +94,9 @@ const text_box_container = new TextContainer(scene, camera);
 const label_column = new LabelColumn(scene, camera);
 const link_container = new LinkContainer(scene, camera);
 const hide_button = new HideButton(scene, camera);
-
-// -----Physics objects
-// Cubes
-for(let i = 0; i < icon_labels.length; i++) {
-    let cube_material;
-    if(i == 1) {
-        cube_material = new THREE.MeshStandardMaterial({ 
-            color: icon_colors[i],
-            emissive: icon_colors[i],
-            emissiveIntensity: 4
-        });
-    } else {
-        cube_material = new THREE.MeshStandardMaterial({color: icon_colors[i]});
-    }
-    const cube_geometry = new THREE.BoxGeometry(1, 1, 1);
-    const cube_mesh = new THREE.Mesh(cube_geometry, cube_material);
-    cube_mesh.castShadow = true;
-    scene.add(cube_mesh);
-    const cube_body = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(((i * 2) - 3), -2, -5).setCanSleep(false));
-    const cube_shape = RAPIER.ColliderDesc.cuboid(0.5, 0.5, 0.5).setMass(1).setRestitution(1.1);
-    world.createCollider(cube_shape, cube_body);
-    dynamic_bodies.push([cube_mesh, cube_body]);
-}
-// Floor
+// Background creation
+const cube_container = new CubeConatiner(world, scene, camera);
+// TODO Get floor to class
 const floor_geometry = new THREE.BoxGeometry(100, 1, 100);
 const floor_material = new THREE.MeshStandardMaterial({ color: 0x808080 });
 const floor_mesh = new THREE.Mesh(floor_geometry, floor_material);
@@ -179,7 +151,7 @@ function animate() {
     const delta = clock.getDelta();
     world.timestep = Math.min(delta, 0.1);
     world.step();
-    dynamic_bodies.forEach(([mesh, body]) => {
+    cube_container.dynamic_bodies.forEach(([mesh, body]) => {
         const position = body.translation();
         mesh.position.set(position.x, position.y, position.z);
         const rotation = body.rotation();
@@ -187,7 +159,6 @@ function animate() {
     });
     // Scene reload
     // controls.update();
-    // renderer.render(scene, camera);
     composer.render();
 }
 
@@ -206,46 +177,12 @@ function handle_hover(e) {
         const intersected_object = found_intersections[0].object;
         const object_name = intersected_object.name;
         const name_type = object_name.split("_")[0] + "_";
+        // Handle label hover
         if(name_type == LABEL){
-            if(current_intersected !== intersected_object) {
-                // Reset previously inersected object if one existed
-                if(current_intersected){
-                    let deselected_rotation = 0;
-                    new Tween(current_intersected.rotation)
-                    .to({ y: deselected_rotation})
-                    .easing(Easing.Elastic.Out)
-                    .start();
-                }
-                // Set intersected object to current
-                current_intersected = intersected_object;
-            }
-            // Apply rotation to current
-            let final_rotation = label_column.is_column_left ? -(FOCUS_ROTATION) : (FOCUS_ROTATION);
-            // Determine if there is an existing in tween for this object
-            let in_tween = in_tween_map.get(object_name);
-            if(in_tween == null) {
-                in_tween = new Tween(current_intersected.rotation)
-                .to({ y: final_rotation}, 400)
-                .easing(Easing.Sinusoidal.In)
-                .start()
-                .onComplete(() => in_tween_map.delete(object_name));
-                in_tween_map.set(object_name, in_tween);
-            }
+            label_column.handle_hover(intersected_object, object_name);
         }
     } else {
-        reset_previous_intersected();
-    }
-}
-
-/** Resets the previous intersetcted objects orientation */
-function reset_previous_intersected() {
-    if(current_intersected) {
-        let deselected_rotation = 0;
-        new Tween(current_intersected.rotation)
-        .to({ y: deselected_rotation})
-        .easing(Easing.Elastic.Out)
-        .start();
-        current_intersected = null;
+        label_column.reset_previous_intersected();
     }
 }
 
@@ -285,7 +222,7 @@ window.addEventListener('mouseup', (e) => {
             const name_type = split_intersected_name[0] + "_";
             switch(name_type) {
                 case LABEL:
-                    reset_previous_intersected();
+                    label_column.reset_previous_intersected();
                     swap_column_sides();
                     text_box_container.focus_text_box(intersected_object.name, label_column.is_column_left);
                     break;
