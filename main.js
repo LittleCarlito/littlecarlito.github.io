@@ -11,7 +11,8 @@ import { HIDE, HideButton } from './overlay/hide_button';
 import { LINK, LinkContainer } from './overlay/link_container';
 import { LABEL, LabelColumn } from './overlay/label_column';
 import { TextContainer } from './overlay/text_container';
-import { CubeConatiner } from './background/cube_container';
+import { PrimaryContainer } from './background/primary_container';
+import { BackgroundFloor } from './background/background_floor';
 // import { OrbitControls } from 'three/examples/jsm/Addons.js';
 
 // ----- Variables
@@ -95,17 +96,8 @@ const label_column = new LabelColumn(scene, camera);
 const link_container = new LinkContainer(scene, camera);
 const hide_button = new HideButton(scene, camera);
 // Background creation
-const cube_container = new CubeConatiner(world, scene, camera);
-// TODO Get floor to class
-const floor_geometry = new THREE.BoxGeometry(100, 1, 100);
-const floor_material = new THREE.MeshStandardMaterial({ color: 0x808080 });
-const floor_mesh = new THREE.Mesh(floor_geometry, floor_material);
-floor_mesh.receiveShadow = true;
-floor_mesh.position.y = -10.2;
-scene.add(floor_mesh);
-const floor_body = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(0, floor_mesh.position.y, 0));
-const floor_shape = RAPIER.ColliderDesc.cuboid(50, 0.5, 50);
-world.createCollider(floor_shape, floor_body);
+const primary_container = new PrimaryContainer(world, scene, camera);
+const floor = new BackgroundFloor(world, scene, camera);
 
 // ----- Functions
 /** Hides/reveals overlay elements and swaps hide buttons display sprite */
@@ -151,7 +143,7 @@ function animate() {
     const delta = clock.getDelta();
     world.timestep = Math.min(delta, 0.1);
     world.step();
-    cube_container.dynamic_bodies.forEach(([mesh, body]) => {
+    primary_container.dynamic_bodies.forEach(([mesh, body]) => {
         const position = body.translation();
         mesh.position.set(position.x, position.y, position.z);
         const rotation = body.rotation();
@@ -170,6 +162,13 @@ function get_intersect_list(e) {
     return raycaster.intersectObject(scene, true);
 }
 
+
+// TODO OOOOO
+// TODO Mouse off screen should un rotate container_column and deactivate all primary_container objects
+// TODO Get the overlay to be based off camera positioning so tilt and controls can be added and overlay follows
+// TODO Add HemisphereLight to way background for sunset/mood lighting
+// TODO Get custom 3d object loaded in
+
 /** Handles mouse hovering events and raycasts to collide with scene objects */
 function handle_hover(e) {
     const found_intersections = get_intersect_list(e);
@@ -179,10 +178,12 @@ function handle_hover(e) {
         const name_type = object_name.split("_")[0] + "_";
         // Handle label hover
         if(name_type == LABEL){
-            label_column.handle_hover(intersected_object, object_name);
+            label_column.handle_hover(intersected_object);
+            primary_container.activate_object(object_name);
         }
     } else {
         label_column.reset_previous_intersected();
+        primary_container.decativate_all_objects();
     }
 }
 

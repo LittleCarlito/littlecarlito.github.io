@@ -106,8 +106,9 @@ export class LabelColumn {
             .start();
     }
 
-    handle_hover(intersected_object, object_name) {
+    handle_hover(intersected_object) {
         // Check if tween exists for this object already
+        const object_name = intersected_object.name;
         let in_tween = this.in_tween_map.get(object_name);
         if(in_tween == null) {
             if(this.current_intersected !== intersected_object) {
@@ -116,33 +117,6 @@ export class LabelColumn {
                 // Set intersected object to current
                 this.current_intersected = intersected_object;
             }
-
-
-
-            // TODO OOOOO
-            // TODO Refactor cube/physics objects to their own classes
-            // TODO Create an emission color array in cube class
-            // TODO Figure out how to assoicate cube with label
-            // TODO Call activate method on associated cube
-            // TODO Get the overlay to be based off camera positioning so tilt and controls can be added and overlay follows
-            // TODO Add HemisphereLight to way background for sunset/mood lighting
-            // const label_name = object_name.split("_")[1];
-            // const label_color = icon_colors[icon_labels.indexOf(label_name)];
-            // const emission_material = new THREE.MeshStandardMaterial({ 
-            //     color: label_color,
-            //     emissive: label_color,
-            //     emissiveIntensity: 0
-            // });
-            // this.current_intersected.material.dispose();
-            // this.current_intersected.material = emission_material;
-            // new Tween(this.current_intersected.material)
-            // .to({ emissiveIntensity: 4 }, 10000)
-            // .easing(Easing.Sinusoidal.Out)
-            // .start();
-
-
-
-
             // Apply rotation to current
             let final_rotation = this.is_column_left ? -(FOCUS_ROTATION) : (FOCUS_ROTATION);
             // Create rotation tween and set it in the map
