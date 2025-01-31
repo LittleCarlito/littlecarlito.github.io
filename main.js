@@ -1,12 +1,17 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { Easing, Tween, update as updateTween } from 'tween';
+import { UnrealBloomPass } from 'three/examples/jsm/Addons.js';
+import { EffectComposer } from 'three/examples/jsm/Addons.js';
+import { RenderPass } from 'three/examples/jsm/Addons.js';
+import { OutputPass } from 'three/examples/jsm/Addons.js';
 import { WEST } from "./overlay/screen"
 import { TitleBlock } from './overlay/title_block';
 import { HIDE, HideButton } from './overlay/hide_button';
 import { LINK, LinkContainer } from './overlay/link_container';
 import { icon_colors, icon_labels, LABEL, LabelColumn } from './overlay/label_column';
 import { TextContainer } from './overlay/text_container';
+import { bloom } from 'three/examples/jsm/tsl/display/BloomNode.js';
 // import { OrbitControls } from 'three/examples/jsm/Addons.js';
 
 // ----- Variables
@@ -76,6 +81,17 @@ const direction_light = new THREE.DirectionalLight(0xffffff, 2);
 direction_light.position.set(0, -3, -15);
 direction_light.target = light_focus;
 scene.add(direction_light);
+// Effects/bloom effects
+const render_scene = new RenderPass(scene, camera);
+const bloom_pass = new UnrealBloomPass( new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+bloom_pass.threshold = 0;
+bloom_pass.strength = 1;
+bloom_pass.radius = 0;
+const output_pass = new OutputPass();
+const composer = new EffectComposer(renderer);
+composer.addPass(render_scene);
+composer.addPass(bloom_pass);
+composer.addPass(output_pass);
 // Overlay creation
 const title_block = new TitleBlock(scene, camera);
 const text_box_container = new TextContainer(scene, camera);
@@ -87,6 +103,7 @@ const hide_button = new HideButton(scene, camera);
 // Cubes
 for(let i = 0; i < icon_labels.length; i++) {
     const cube_material = new THREE.MeshStandardMaterial({ color: icon_colors[i] });
+
     const cube_geometry = new THREE.BoxGeometry(1, 1, 1);
     const cube_mesh = new THREE.Mesh(cube_geometry, cube_material);
     cube_mesh.castShadow = true;
@@ -159,7 +176,8 @@ function animate() {
     });
     // Scene reload
     // controls.update();
-    renderer.render(scene, camera);
+    // renderer.render(scene, camera);
+    composer.render();
 }
 
 /** Retrieves objects mouse is intersecting with from the given event */
@@ -235,6 +253,7 @@ window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    composer.setSize(window.innerWidth, window.innerHeight);
 });
 
 /** Handles mouse down actions */

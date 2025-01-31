@@ -35,6 +35,9 @@ export class TextContainer {
     /** Brings the text box associated with the given name into focus
      ** container column MUST be on the right side
     */
+   // TODO Switch to using layers and switch layers off screen
+   //           Bring into layer with camera when focused
+   //           Put out of layer with camera affter tweening off screen on focus loss
     focus_text_box(incoming_name, is_column_left) {
         if(!is_column_left) {
             // Get text box name
