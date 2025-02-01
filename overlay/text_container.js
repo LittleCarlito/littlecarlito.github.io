@@ -16,7 +16,6 @@ export class TextContainer {
         this.camera = incoming_camera;
         // TODO Get off camera position based off this object
         this.text_box_container = new THREE.Object3D();
-        // TODO Stop calculating text box by screen size and just make it a size so it scales like icon_buttons above
         // Create text displays
         this.parent.add(this.text_box_container);
         for (let c = 0; c < icon_labels.length; c++) {
@@ -25,6 +24,7 @@ export class TextContainer {
             const box_geometry = new THREE.BoxGeometry(found_width, found_height, .01);
             const box_material = new THREE.MeshBasicMaterial({ color: icon_colors[c] });
             const text_box = new THREE.Mesh(box_geometry, box_material);
+            text_box.layers.set(1);
             text_box.name = `${TEXT}${icon_labels[c]}`;
             text_box.position.x = get_associated_position(WEST, this.camera);
             text_box.position.y = this.get_text_box_y();
@@ -35,9 +35,6 @@ export class TextContainer {
     /** Brings the text box associated with the given name into focus
      ** container column MUST be on the right side
     */
-   // TODO Switch to using layers and switch layers off screen
-   //           Bring into layer with camera when focused
-   //           Put out of layer with camera affter tweening off screen on focus loss
     focus_text_box(incoming_name, is_column_left) {
         if(!is_column_left) {
             // Get text box name
@@ -52,6 +49,7 @@ export class TextContainer {
             }
             // Get and move text box
             const selected_text_box = this.text_box_container.getObjectByName(this.focused_text_name);
+            selected_text_box.layers.set(0);
             new Tween(selected_text_box.position)
             .to({ x: this.get_focused_text_x() }, 285)
             .easing(Easing.Sinusoidal.Out)
@@ -78,6 +76,7 @@ export class TextContainer {
                             .easing(Easing.Sinusoidal.Out)
                             .start()
                             .onComplete(() => {
+                                existing_focus_box.layers.set(1);
                                 existing_focus_box.position.y = this.get_text_box_y();
                                 existing_focus_box.position.x = get_associated_position(WEST, this.camera);
                             });
@@ -88,6 +87,7 @@ export class TextContainer {
                             .easing(Easing.Sinusoidal.Out)
                             .start()
                             .onComplete(() => {
+                                existing_focus_box.layers.set(1);
                                 existing_focus_box.position.y = this.get_text_box_y();
                                 existing_focus_box.position.x = 2 * get_associated_position(WEST, this.camera);
                             });
@@ -97,15 +97,18 @@ export class TextContainer {
                             .to({ x: move_position }, PAN_SPEED * .2)
                             .easing(Easing.Sinusoidal.Out)
                             .start()
-                            .onComplete(() => (
+                            .onComplete(() => {
+                                existing_focus_box.layers.set(1);
                                 existing_focus_box.position.x = (get_associated_position(WEST, this.camera))
-                            ));
+                            });
                             break;
                         case WEST:
                             new Tween(existing_focus_box.position)
                             .to({ x: move_position }, PAN_SPEED * .2)
                             .easing(Easing.Sinusoidal.Out)
-                            .start();                        
+                            .start().onComplete(() => {
+                                existing_focus_box.layers.set(1);
+                            });                        
                             break;
                     }
                 }
