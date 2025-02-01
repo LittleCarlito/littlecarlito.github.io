@@ -10,9 +10,9 @@ const TITLE_X = -4;
 const TITLE_THICKNESS = .2
 
 export class TitleBlock {
-    constructor(incoming_scene, incoming_camera) {
+    constructor(incoming_parent, incoming_camera) {
         // Set variables
-        this.scene = incoming_scene;
+        this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.title_width = this.get_title_width();
         this.title_height = TITLE_HEIGHT;
@@ -27,7 +27,7 @@ export class TitleBlock {
         this.title_box.name = `${TITLE}`;
         this.title_box.position.y = TITLE_Y;
         this.title_box.position.x = TITLE_X;
-        this.scene.add(this.title_box);
+        this.parent.add(this.title_box);
     }
 
     /** Calculates the titles width given the camera position and window size*/

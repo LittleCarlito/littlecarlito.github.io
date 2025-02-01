@@ -38,13 +38,13 @@ export class LabelColumn {
     is_column_left = true;
     current_intersected = null;
 
-    constructor(incoming_scene, incoming_camera) {
-        this.scene = incoming_scene;
+    constructor(incoming_parent, incoming_camera) {
+        this.parent = incoming_parent;
         this.camera = incoming_camera;
 
         this.container_column = new THREE.Object3D();
         this.container_column.name = `${CONATINER}column`
-        this.scene.add(this.container_column);
+        this.parent.add(this.container_column);
         // Create section labels
         for (let i = 0; i < icon_paths.length; i++) {
             const button_container = new THREE.Object3D();

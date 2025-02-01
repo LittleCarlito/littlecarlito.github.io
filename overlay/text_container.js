@@ -11,14 +11,14 @@ export const PAN_SPEED = 800;
 export class TextContainer {
     focused_text_name = "";
 
-    constructor(incoming_scene, incoming_camera) {
-        this.scene = incoming_scene;
+    constructor(incoming_parent, incoming_camera) {
+        this.parent = incoming_parent;
         this.camera = incoming_camera;
         // TODO Get off camera position based off this object
         this.text_box_container = new THREE.Object3D();
         // TODO Stop calculating text box by screen size and just make it a size so it scales like icon_buttons above
         // Create text displays
-        this.scene.add(this.text_box_container);
+        this.parent.add(this.text_box_container);
         for (let c = 0; c < icon_labels.length; c++) {
             const found_width = this.get_text_box_width();
             const found_height = this.get_text_box_height();

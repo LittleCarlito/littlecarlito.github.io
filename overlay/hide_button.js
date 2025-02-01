@@ -9,8 +9,8 @@ const HIDE_HEIGHT = 1;
 export class HideButton {
     is_overlay_hidden = false;
 
-    constructor(incoming_scene, incoming_camera) {
-        this.scene = incoming_scene;
+    constructor(incoming_parent, incoming_camera) {
+        this.parent = incoming_parent;
         this.camera = incoming_camera;
         const hide_button_width = HIDE_WIDTH;
         const hide_button_height = HIDE_HEIGHT;
@@ -20,7 +20,7 @@ export class HideButton {
         this.hide_button.position.y = this.get_hide_button_y(this.camera);
         this.hide_button.position.x = this.get_hide_button_x(true, this.camera);
         this.hide_button.name = `${HIDE}`;
-        this.scene.add(this.hide_button);
+        this.parent.add(this.hide_button);
     }
 
     // Hide button getters

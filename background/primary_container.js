@@ -9,12 +9,12 @@ export class PrimaryContainer {
     dynamic_bodies = [];
     activated_name = "";
 
-    constructor(incoming_world, incoming_scene, incoming_camera) {
-        this.scene = incoming_scene;
+    constructor(incoming_world, incoming_parent, incoming_camera) {
+        this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.world = incoming_world;
         this.cube_container = new THREE.Object3D();
-        this.scene.add(this.cube_container);
+        this.parent.add(this.cube_container);
         // Cubes
         for(let i = 0; i < icon_labels.length; i++) {
             let cube_material;

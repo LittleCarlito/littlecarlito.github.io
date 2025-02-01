@@ -6,13 +6,12 @@ import { EffectComposer } from 'three/examples/jsm/Addons.js';
 import { RenderPass } from 'three/examples/jsm/Addons.js';
 import { OutputPass } from 'three/examples/jsm/Addons.js';
 import { WEST } from "./overlay/screen"
-import { TitleBlock } from './overlay/title_block';
-import { HIDE, HideButton } from './overlay/hide_button';
-import { LINK, LinkContainer } from './overlay/link_container';
-import { LABEL, LabelColumn } from './overlay/label_column';
-import { TextContainer } from './overlay/text_container';
+import { HIDE } from './overlay/hide_button';
+import { LINK } from './overlay/link_container';
+import { LABEL } from './overlay/label_column';
 import { PrimaryContainer } from './background/primary_container';
 import { BackgroundFloor } from './background/background_floor';
+import { OverlayContainer } from './overlay/overlay_container';
 // import { OrbitControls } from 'three/examples/jsm/Addons.js';
 
 // ----- Variables
@@ -89,32 +88,29 @@ const composer = new EffectComposer(renderer);
 composer.addPass(render_scene);
 composer.addPass(bloom_pass);
 composer.addPass(output_pass);
+
+// TODO OOOOO
+// TODO Make things go to non camera layer when tween off camera completes
+//          Layer back in then tween back on screen for opposite transition
+// TODO Reenable orbital camera controls
+// TODO Add HemisphereLight to way background for sunset/mood lighting
+// TODO NEW BRANCH Get custom 3d object loaded in
 // Overlay creation
-const title_block = new TitleBlock(scene, camera);
-const text_box_container = new TextContainer(scene, camera);
-const label_column = new LabelColumn(scene, camera);
-const link_container = new LinkContainer(scene, camera);
-const hide_button = new HideButton(scene, camera);
+const overlay_container = new OverlayContainer(scene, camera);
 // Background creation
 const primary_container = new PrimaryContainer(world, scene, camera);
-const floor = new BackgroundFloor(world, scene, camera);
+new BackgroundFloor(world, scene, camera);
 
 // ----- Functions
 /** Hides/reveals overlay elements and swaps hide buttons display sprite */
 function trigger_overlay() {
-    hide_button.swap_hide_status();
-    console.log(`is overlay hidden \"${hide_button.is_overlay_hidden}\"`);
-    // Hide the overlay
-    title_block.trigger_overlay(hide_button.is_overlay_hidden);
-    label_column.trigger_overlay(hide_button.is_overlay_hidden);
-    link_container.trigger_overlay(hide_button.is_overlay_hidden);
+    overlay_container.trigger_overlay();
 }
 
 /*** Swaps the container column sides */
 function swap_column_sides() {
-    label_column.swap_sides();
-    hide_button.swap_sides(label_column.is_column_left);
-    if(label_column.is_column_left){
+    overlay_container.swap_column_sides();
+    if(overlay_container.is_label_column_left_side()){
         primary_container.decativate_all_objects();
     }
 }
@@ -125,26 +121,15 @@ function animate() {
     updateTween();
     if(resize_move) {
         if(!zoom_event) {
-            // Move/resize overlay
-            text_box_container.resize();
-            text_box_container.reposition(label_column.is_column_left);
-            label_column.reposition();
-            link_container.reposition();
-            title_block.resize();
-            title_block.reposition();
-            hide_button.reposition(label_column.is_column_left);
-            // Overlay is always redisplayed
-            if(hide_button.is_overlay_hidden) {
-                hide_button.swap_hide_status();
-            }
+            overlay_container.resize_reposition();
         } else {
             zoom_event = false;
         }
         resize_move = false;
     }
     // Handle the physics objects
-    if(label_column.current_intersected != null) {
-        primary_container.activate_object(label_column.current_intersected.name);
+    if(overlay_container.is_intersected() != null) {
+        primary_container.activate_object(overlay_container.intersected_name());
     } else {
         primary_container.decativate_all_objects();
     }
@@ -170,36 +155,27 @@ function get_intersect_list(e) {
     return raycaster.intersectObject(scene, true);
 }
 
-
-// TODO OOOOO
-// TODO Get the overlay to be based off camera positioning so tilt and controls can be added and overlay follows
-// TODO Make things go to non camera layer when tween off camera completes
-//          Layer back in then tween back on screen for opposite transition
-// TODO Add HemisphereLight to way background for sunset/mood lighting
-// TODO NEW BRANCH Get custom 3d object loaded in
-
 /** Handles mouse hovering events and raycasts to collide with scene objects */
 function handle_hover(e) {
     const found_intersections = get_intersect_list(e);
-    if(found_intersections.length > 0 && !label_column.swapping_column_sides) {
+    if(found_intersections.length > 0 && !overlay_container.is_swapping_sides()) {
         const intersected_object = found_intersections[0].object;
         const object_name = intersected_object.name;
         const name_type = object_name.split("_")[0] + "_";
         // Handle label hover
         if(name_type == LABEL){
-            label_column.handle_hover(intersected_object);
+            overlay_container.handle_hover(intersected_object);
         }
     } else {
-        label_column.reset_previous_intersected();
+        overlay_container.reset_hover();
     }
 }
 
 /** Handles mouse off screen events */
 function handle_off_screen(e) {
     console.log(`Mouse is left`)
-    if(label_column.is_column_left) {
-        console.log(`Resetting column`)
-        label_column.reset_previous_intersected();
+    if(overlay_container.is_label_column_left_side()) {
+        overlay_container.reset_hover();
     }
 }
 
@@ -232,7 +208,7 @@ window.addEventListener('mousedown', (e) => {
 /** Handles mouse up actions */
 window.addEventListener('mouseup', (e) => {
     const found_intersections = get_intersect_list(e, "clicked up");
-    if(label_column.is_column_left){
+    if(overlay_container.is_label_column_left_side()){
         if(found_intersections.length > 0){
             const intersected_object = found_intersections[0].object;
             (console.log(`${intersected_object.name} clicked up`));
@@ -240,15 +216,15 @@ window.addEventListener('mouseup', (e) => {
             const name_type = split_intersected_name[0] + "_";
             switch(name_type) {
                 case LABEL:
-                    label_column.reset_previous_intersected();
+                    overlay_container.reset_hover();
                     swap_column_sides();
-                    text_box_container.focus_text_box(intersected_object.name, label_column.is_column_left);
+                    overlay_container.focus_text_box(intersected_object.name);
                     break;
                 case HIDE:
                     trigger_overlay();
                     break;
                 case LINK:
-                    link_container.open_link(split_intersected_name[1].trim());
+                    overlay_container.open_link(split_intersected_name[1].trim());
                     break;
             }
         }
@@ -260,15 +236,15 @@ window.addEventListener('mouseup', (e) => {
             const name_type = split_intersected_name[0] + "_";
             switch(name_type) {
                 case LABEL:
-                    text_box_container.focus_text_box(intersected_object.name, label_column.is_column_left);
+                    overlay_container.focus_text_box(intersected_object.name);
                     break;
                 case LINK:
-                    link_container.open_link(split_intersected_name[1].trim());
+                    overlay_container.open_link(split_intersected_name[1].trim());
                     break;
             }
         } else {
             swap_column_sides();
-            text_box_container.lose_focus_text_box(WEST);
+            overlay_container.lose_focus_text_box(WEST);
         }
     }
 

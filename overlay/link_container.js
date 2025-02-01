@@ -33,13 +33,13 @@ link_urls.set(LINKEDIN, "https://www.linkedin.com/in/meiersteven");
 link_urls.set(TIKTOK, "https://www.tiktok.com/@blooooork");
 
 export class LinkContainer {
-    constructor(incoming_scene, incoming_camera) {
-        this.scene = incoming_scene;
+    constructor(incoming_parent, incoming_camera) {
+        this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.link_container = new THREE.Object3D();
         this.link_container.position.x =  this.get_link_container_x(this.camera);
         this.link_container.position.y = this.get_link_container_y(this.camera);
-        this.scene.add(this.link_container);
+        this.parent.add(this.link_container);
         // Create the link icons
         const calced_radius = this.get_link_radius(this.camera);
         for(let l = 0; l < link_paths.length; l++) {
