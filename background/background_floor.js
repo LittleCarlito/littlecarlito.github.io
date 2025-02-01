@@ -12,6 +12,7 @@ export class BackgroundFloor {
         this.floor_mesh = new THREE.Mesh(floor_geometry, floor_material);
         this.floor_mesh.receiveShadow = true;
         this.floor_mesh.position.y = -10.2;
+        this.floor_mesh.layers.set(1);
         this.parent.add(this.floor_mesh);
         const floor_body = this.world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(0, this.floor_mesh.position.y, 0));
         const floor_shape = RAPIER.ColliderDesc.cuboid(50, 0.5, 50);

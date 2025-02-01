@@ -70,7 +70,7 @@ export class LabelColumn {
 
     trigger_overlay(is_overlay_hidden) {
         if(!is_overlay_hidden) {
-            this.container_column.layers.set(0);
+            this.set_content_layer(0);
         }
         const container_column_x = is_overlay_hidden ? get_associated_position(WEST, this.camera) : this.get_column_x_position(true);
         new Tween(this.container_column.position)
@@ -79,7 +79,7 @@ export class LabelColumn {
         .start()
         .onComplete(() => {
             if(is_overlay_hidden) {
-                this.container_column.layers.set(1);
+                this.set_content_layer(1);
             }
         });  
     }
@@ -149,6 +149,18 @@ export class LabelColumn {
             .start();
             this.current_intersected = null;
         }
+    }
+
+    // Column setters
+    set_content_layer(incoming_layer) {
+        this.container_column.layers.set(0);
+        icon_labels.forEach(label => {
+            const label_name = `${CONATINER}${label}`;
+            const button_name = `${LABEL}${label}`;
+            const existing_label_container = this.container_column.getObjectByName(label_name);
+            const existing_label = existing_label_container.getObjectByName(button_name);
+            existing_label.layers.set(incoming_layer);
+        });
     }
 
     // Column getters

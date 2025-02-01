@@ -70,7 +70,7 @@ export class LinkContainer {
 
     trigger_overlay(is_overlay_hidden) {
         if(!is_overlay_hidden) {
-            this.link_container.layers.set(0);
+            this.set_content_layers(0);
         }
         const link_y = is_overlay_hidden ? get_associated_position(SOUTH, this.camera) : this.get_link_container_y();
         new Tween(this.link_container.position)
@@ -79,7 +79,7 @@ export class LinkContainer {
         .start()
         .onComplete(() => {
             if(is_overlay_hidden) {
-                this.link_container.layers.set(1);
+                this.set_content_layers(1);
             }
         });
     }
@@ -92,6 +92,16 @@ export class LinkContainer {
         })
         .easing(Easing.Elastic.Out)
         .start();
+    }
+
+    // Link setters
+    set_content_layers(incoming_layer) {
+        this.link_container.layers.set(incoming_layer);
+        link_labels.forEach(link => {
+            const link_name = `${LINK}${link}`;
+            const existing_link = this.link_container.getObjectByName(link_name);
+            existing_link.layers.set(incoming_layer);
+        })
     }
 
     // Link getters
