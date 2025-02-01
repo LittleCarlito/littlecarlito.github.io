@@ -144,7 +144,6 @@ function animate() {
     }
     // Handle the physics objects
     if(label_column.current_intersected != null) {
-        console.log(`Bazinga`);
         primary_container.activate_object(label_column.current_intersected.name);
     } else {
         primary_container.decativate_all_objects();
@@ -173,7 +172,6 @@ function get_intersect_list(e) {
 
 
 // TODO OOOOO
-// TODO Mouse off screen should un rotate container_column and deactivate all primary_container objects
 // TODO Get the overlay to be based off camera positioning so tilt and controls can be added and overlay follows
 // TODO Make things go to non camera layer when tween off camera completes
 //          Layer back in then tween back on screen for opposite transition
@@ -181,7 +179,6 @@ function get_intersect_list(e) {
 // TODO NEW BRANCH Get custom 3d object loaded in
 
 /** Handles mouse hovering events and raycasts to collide with scene objects */
-let previous_hover = "";
 function handle_hover(e) {
     const found_intersections = get_intersect_list(e);
     if(found_intersections.length > 0 && !label_column.swapping_column_sides) {
@@ -196,6 +193,16 @@ function handle_hover(e) {
         label_column.reset_previous_intersected();
     }
 }
+
+/** Handles mouse off screen events */
+function handle_off_screen(e) {
+    console.log(`Mouse is left`)
+    if(label_column.is_column_left) {
+        console.log(`Resetting column`)
+        label_column.reset_previous_intersected();
+    }
+}
+
 
 // ----- Window handlers
 /** Handles resize events */
@@ -267,5 +274,10 @@ window.addEventListener('mouseup', (e) => {
 
 });
 
-/** Handles mouse movements and location */
 window.addEventListener('mousemove', handle_hover);
+/*
+The window object isn’t a typical DOM element with a well-defined “bounding box” for mouse events.
+In many browsers, these events simply never fire on window because the mouse leaving or entering 
+the window isn’t interpreted as a mouseleave or mouseenter on that object.
+*/
+renderer.domElement.addEventListener('mouseout', handle_off_screen);
