@@ -114,6 +114,9 @@ function trigger_overlay() {
 function swap_column_sides() {
     label_column.swap_sides();
     hide_button.swap_sides(label_column.is_column_left);
+    if(label_column.is_column_left){
+        primary_container.decativate_all_objects();
+    }
 }
 
 /** Primary animation function run every frame by renderer */
@@ -164,26 +167,50 @@ function get_intersect_list(e) {
 
 
 // TODO OOOOO
+// TODO To fix below and simplify everything change how the cubes are lit up
+//          Handle the container_column rotations shit in mouse hover
+//          In animate pass in container_column to primary_container
+//              PrimaryContainer checks the labels and detects which is rotated on y to the max amount from hover
+//                  Emit on those associated cubes
+//                  Note which cubes are being emitted on
+//                  If the column isn't rotated but the cube is emitted disable the cube
+//      Above will add a bit of delay between rotating and glowing which extends interaction (seems good)
+
+// BUG Quick hover pass over multiple items then keeping on one lights all up
 // TODO Mouse off screen should un rotate container_column and deactivate all primary_container objects
 // TODO Get the overlay to be based off camera positioning so tilt and controls can be added and overlay follows
+// TODO Make things go to non camera layer when tween off camera completes
+//          Layer back in then tween back on screen for opposite transition
 // TODO Add HemisphereLight to way background for sunset/mood lighting
-// TODO Get custom 3d object loaded in
+// TODO NEW BRANCH Get custom 3d object loaded in
 
 /** Handles mouse hovering events and raycasts to collide with scene objects */
+let previous_hover = "";
 function handle_hover(e) {
     const found_intersections = get_intersect_list(e);
     if(found_intersections.length > 0 && !label_column.swapping_column_sides) {
         const intersected_object = found_intersections[0].object;
         const object_name = intersected_object.name;
         const name_type = object_name.split("_")[0] + "_";
+        // Handle primary objects
+        if(previous_hover != "" && previous_hover != object_name) {
+            // console.log(`Previous hover was ${previous_hover}`);
+            primary_container.decativate_object(previous_hover);
+            previous_hover = "";
+        }
         // Handle label hover
         if(name_type == LABEL){
             label_column.handle_hover(intersected_object);
             primary_container.activate_object(object_name);
+            previous_hover = object_name;
         }
     } else {
         label_column.reset_previous_intersected();
-        primary_container.decativate_all_objects();
+        if(text_box_container.focused_text_name != "") {
+            primary_container.activate_object(text_box_container.focused_text_name);
+        } else {
+            primary_container.decativate_all_objects();
+        }
     }
 }
 
@@ -257,5 +284,5 @@ window.addEventListener('mouseup', (e) => {
 
 });
 
-/** Handles mose movements and location */
+/** Handles mouse movements and location */
 window.addEventListener('mousemove', handle_hover);

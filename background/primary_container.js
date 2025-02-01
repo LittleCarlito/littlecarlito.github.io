@@ -8,8 +8,9 @@ const EMISSION_COLOR = 0x3851e5;
 const PLACEHOLDER = "placeholder_"
 
 export class PrimaryContainer {
-    activated_name = "";
     dynamic_bodies = [];
+    tween_map = new Map();
+    activated_name = "";
 
     constructor(incoming_world, incoming_scene, incoming_camera) {
         this.scene = incoming_scene;
@@ -34,33 +35,39 @@ export class PrimaryContainer {
         }
     }
 
+    // TODO I think the issue is there are 2 equal tweens existing
+    //          One making brighter and one darkening
+    //          It just chooses one when highlighting quickly like that
+    // TODO Create logic to manage the tweens
+    //          Ensure deactivating gets rid of the activating tween and keeps the object dark
     activate_object(incoming_name) {
-        const label_name = incoming_name.split("_")[1];
-        if(label_name != this.activated_name) {
-            if(this.activated_name != "") {
-                console.log(`BAZINGA`)
-                this.decativate_object(PLACEHOLDER + this.activated_name);
-            }
-            this.activated_name = label_name
-            const incoming_index = icon_labels.indexOf(this.activated_name);
+        if(incoming_name != this.activated_name) {
+            this.activated_name = incoming_name;
+            this.decativate_all_objects();
+            const label_name = incoming_name.split("_")[1];
+            const incoming_index = icon_labels.indexOf(label_name);
             if(incoming_index <= this.dynamic_bodies.length - 1) {
                 const [activating_object] = this.dynamic_bodies.at(incoming_index);
-                if(activating_object.material.emissiveIntensity <= 1) {
+                if(activating_object.material.emissiveIntensity <= 1 && !this.tween_map.has(incoming_name)) {
                     // Set emissive material on activated object
                     const emission_material = new THREE.MeshStandardMaterial({ 
                         color: icon_colors[incoming_index],
-                        emissive: EMISSION_COLOR,
+                        emissive: icon_colors[incoming_index],
                         emissiveIntensity: 0
                     });
                     activating_object.material.dispose();
                     activating_object.material = emission_material;
                     // Tween emissive intesity
-                    new Tween(activating_object.material)
+                    const emit_tween = new Tween(activating_object.material)
                     .to({ emissiveIntensity: 9})
                     .easing(Easing.Sinusoidal.Out)
-                    .start();
+                    .start()
+                    .onComplete(() => {
+                        this.tween_map.delete(incoming_name)
+                    });
+                    this.tween_map.set(incoming_name, emit_tween);
                 } else {
-                    console.log(`Given cube name \"${incoming_name}\" is already activated`)
+                    // console.log(`Given cube name \"${incoming_name}\" is already activated`)
                 }
             } else {
                 console.log(`Given cube name \"${incoming_name}\" could not be found in dynamic bodies`);
@@ -69,18 +76,36 @@ export class PrimaryContainer {
     }
 
     decativate_object(incoming_name) {
+        let standard_tween;
         const label_name = incoming_name.split("_")[1];
         const incoming_index = icon_labels.indexOf(label_name);
         if(incoming_index <= this.dynamic_bodies.length - 1) {
             const [activating_object] = this.dynamic_bodies.at(incoming_index);
-            if(activating_object.material.emissiveIntensity > 1) {
+            if(this.tween_map.has(incoming_name)) {
+                this.tween_map.delete(incoming_name);
                 // Tween emissive intesity
-                new Tween(activating_object.material)
+                standard_tween = new Tween(activating_object.material)
                 .to({ emissiveIntensity: 0})
                 .easing(Easing.Sinusoidal.Out)
-                .start();
+                .start()
+                .onComplete(() => {
+                    this.tween_map.delete(incoming_name);
+                });
+                this.tween_map.set(incoming_name, standard_tween);
+            }
+            if(activating_object.material.emissiveIntensity > 1) {
+                // console.log(`Deactivating ${incoming_name}`);
+                // Tween emissive intesity
+                standard_tween = new Tween(activating_object.material)
+                .to({ emissiveIntensity: 0})
+                .easing(Easing.Sinusoidal.Out)
+                .start()
+                .onComplete(() => {
+                    this.tween_map.delete(incoming_name);
+                });
+                this.tween_map.set(incoming_name, standard_tween);
             } else {
-                console.log(`Given cube name \"${incoming_name}\" is already deactivated`);
+                // console.log(`Given cube name \"${incoming_name}\" is already deactivated`);
             }
         } else {
             console.log(`Given cube name \"${incoming_name}\" could not be found in dynamic bodies`);
