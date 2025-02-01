@@ -12,7 +12,7 @@ import { LABEL } from './overlay/label_column';
 import { PrimaryContainer } from './background/primary_container';
 import { BackgroundFloor } from './background/background_floor';
 import { OverlayContainer } from './overlay/overlay_container';
-import { OrbitControls } from 'three/examples/jsm/Addons.js';
+// import { OrbitControls } from 'three/examples/jsm/Addons.js';
 
 // ----- Variables
 let resize_move = false;
@@ -52,9 +52,9 @@ renderer.setAnimationLoop(animate);
 document.body.appendChild(renderer.domElement);
 // TODO Need to get overlay attached to camera positioning before controls can be allowed
 // Controls
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.target.y = 1;
+// const controls = new OrbitControls(camera, renderer.domElement);
+// controls.enableDamping = true;
+// controls.target.y = 1;
 // Lighting
 const light_focus = new THREE.Object3D();
 light_focus.position.set(0, -9, 0);
@@ -144,7 +144,7 @@ function animate() {
         mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
     });
     // Scene reload
-    controls.update();
+    // controls.update();
     composer.render();
 }
 
