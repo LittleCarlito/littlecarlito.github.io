@@ -143,6 +143,10 @@ function animate() {
         resize_move = false;
     }
     // Handle the physics objects
+    if(label_column.current_intersected != null) {
+        console.log(`Bazinga`);
+        primary_container.force_activate(label_column.current_intersected.name);
+    }
     const delta = clock.getDelta();
     world.timestep = Math.min(delta, 0.1);
     world.step();

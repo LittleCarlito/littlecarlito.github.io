@@ -75,6 +75,20 @@ export class PrimaryContainer {
         }
     }
 
+    /** Force activates the object associated with the incoming name without a tween */
+    force_activate(incoming_name) {
+        if(this.activated_name != incoming_name) {
+            this.decativate_object(this.activated_name);
+        }
+        this.activated_name = incoming_name;
+        const label_name = incoming_name.split("_")[1];
+        const incoming_index = icon_labels.indexOf(label_name);
+        if(incoming_index <= this.dynamic_bodies.length - 1) {
+            const [activating_object] = this.dynamic_bodies.at(incoming_index);
+            activating_object.material.emissiveIntensity = 9;
+        }
+    }
+
     decativate_object(incoming_name) {
         let standard_tween;
         const label_name = incoming_name.split("_")[1];
