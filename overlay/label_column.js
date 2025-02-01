@@ -69,11 +69,19 @@ export class LabelColumn {
     }
 
     trigger_overlay(is_overlay_hidden) {
+        if(!is_overlay_hidden) {
+            this.container_column.layers.set(0);
+        }
         const container_column_x = is_overlay_hidden ? get_associated_position(WEST, this.camera) : this.get_column_x_position(true);
         new Tween(this.container_column.position)
         .to({ x: container_column_x })
         .easing(Easing.Elastic.InOut)
-        .start();  
+        .start()
+        .onComplete(() => {
+            if(is_overlay_hidden) {
+                this.container_column.layers.set(1);
+            }
+        });  
     }
 
     swap_sides() {

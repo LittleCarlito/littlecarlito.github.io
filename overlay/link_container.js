@@ -69,11 +69,19 @@ export class LinkContainer {
     }
 
     trigger_overlay(is_overlay_hidden) {
+        if(!is_overlay_hidden) {
+            this.link_container.layers.set(0);
+        }
         const link_y = is_overlay_hidden ? get_associated_position(SOUTH, this.camera) : this.get_link_container_y();
         new Tween(this.link_container.position)
         .to({ y: link_y }, 680)
         .easing(Easing.Elastic.InOut)
-        .start();
+        .start()
+        .onComplete(() => {
+            if(is_overlay_hidden) {
+                this.link_container.layers.set(1);
+            }
+        });
     }
 
     reposition() {

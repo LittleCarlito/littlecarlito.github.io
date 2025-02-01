@@ -20,6 +20,9 @@ export class OverlayContainer {
         this.parent.add(this.overlay_container);
     }
 
+    // TODO OOOOO
+    // TODO Get layering right on this; It doesn't look correct at all
+    // TODO Add layering logic to hide button when swap sides occurs and it pops off screen
     trigger_overlay() {
         this.hide_button.swap_hide_status();
         console.log(`is overlay hidden \"${this.hide_button.is_overlay_hidden}\"`);

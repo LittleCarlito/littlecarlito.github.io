@@ -48,11 +48,19 @@ export class HideButton {
     }
 
     swap_sides(is_column_left) {
+        if(is_column_left) {
+            this.hide_button.layers.set(0);
+        }
         const hide_x = this.get_hide_button_x(is_column_left, this.camera);
         new Tween(this.hide_button.position)
         .to({ x: hide_x }, 250)
         .easing(Easing.Sinusoidal.Out)
-        .start();
+        .start()
+        .onComplete(() => {
+            if(!is_column_left) {
+                this.hide_button.layers.set(1);
+            }
+        });
     }
 
     reposition(is_column_left) {
