@@ -17,6 +17,7 @@ export class OverlayContainer {
         this.label_column = new LabelColumn(this.overlay_container, this.camera);
         this.link_container = new LinkContainer(this.overlay_container, this.camera);
         this.hide_button = new HideButton(this.overlay_container, this.camera);
+        this.overlay_container.position.z = this.camera.position.z - 15;
         this.parent.add(this.overlay_container);
     }
 

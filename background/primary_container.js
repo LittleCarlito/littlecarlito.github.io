@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { Easing, Tween } from 'tween';
-import { icon_colors, icon_labels } from '../overlay/label_column';
+import { icon_colors, icon_labels } from '../viewport/overlay/label_column';
 
 const PLACEHOLDER = "placeholder_"
 

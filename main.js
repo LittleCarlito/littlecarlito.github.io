@@ -5,14 +5,13 @@ import { UnrealBloomPass } from 'three/examples/jsm/Addons.js';
 import { EffectComposer } from 'three/examples/jsm/Addons.js';
 import { RenderPass } from 'three/examples/jsm/Addons.js';
 import { OutputPass } from 'three/examples/jsm/Addons.js';
-import { WEST } from "./overlay/screen"
-import { HIDE } from './overlay/hide_button';
-import { LINK } from './overlay/link_container';
-import { LABEL } from './overlay/label_column';
+import { WEST } from "./viewport/overlay/screen"
+import { HIDE } from './viewport/overlay/hide_button';
+import { LINK } from './viewport/overlay/link_container';
+import { LABEL } from './viewport/overlay/label_column';
 import { PrimaryContainer } from './background/primary_container';
 import { BackgroundFloor } from './background/background_floor';
-import { OverlayContainer } from './overlay/overlay_container';
-// import { OrbitControls } from 'three/examples/jsm/Addons.js';
+import { ViewableUI } from './viewport/viewable_ui';
 
 // ----- Variables
 let resize_move = false;
@@ -20,6 +19,7 @@ let zoom_event = false;
 let last_pixel_ratio = window.devicePixelRatio;
 
 // ----- Setup
+const scene = new THREE.Scene();
 // Physics
 await RAPIER.init();
 const gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
@@ -28,21 +28,6 @@ const clock = new THREE.Clock();
 // Mouse detection
 const raycaster = new THREE.Raycaster();
 const mouse_location = new THREE.Vector2();
-// Camera
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(
-    // FOV
-    75,
-    // Aspect ratio
-    window.innerWidth/window.innerHeight,
-    // Near clipping
-    0.1,
-    // Far clipping
-    1000
-);
-
-// camera.rotation.x = -0.261799;
-camera.position.z = 15;
 // Rendering
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -50,11 +35,6 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.VSMShadowMap;
 renderer.setAnimationLoop(animate);
 document.body.appendChild(renderer.domElement);
-// TODO Need to get overlay attached to camera positioning before controls can be allowed
-// Controls
-// const controls = new OrbitControls(camera, renderer.domElement);
-// controls.enableDamping = true;
-// controls.target.y = 1;
 // Lighting
 const light_focus = new THREE.Object3D();
 light_focus.position.set(0, -9, 0);
@@ -74,8 +54,12 @@ const direction_light = new THREE.DirectionalLight(0xffffff, 2);
 direction_light.position.set(0, -3, -15);
 direction_light.target = light_focus;
 scene.add(direction_light);
+const viewable_ui = new ViewableUI(scene);
+
+// camera.rotation.x = -0.261799;
+// camera.position.z = 15;
 // Effects/bloom effects
-const render_scene = new RenderPass(scene, camera);
+const render_scene = new RenderPass(scene, viewable_ui.get_camera());
 // const bloom_pass = new BloomPass( 1 );
 const bloom_pass = new UnrealBloomPass( 
     new THREE.Vector2(window.innerWidth, window.innerHeight), // Resolution
@@ -90,28 +74,23 @@ composer.addPass(bloom_pass);
 composer.addPass(output_pass);
 
 // TODO OOOOO
-// TODO Need to add loops to layer every object in containers
-//          Labels don't layer because of label_column layering
-//          Links don't layer because of link_contaienr layering
-// TODO Reenable orbital camera controls
 // TODO Add HemisphereLight to way background for sunset/mood lighting
 // TODO NEW BRANCH Get custom 3d object loaded in
-// Overlay creation
-const overlay_container = new OverlayContainer(scene, camera);
+
 // Background creation
-const primary_container = new PrimaryContainer(world, scene, camera);
-new BackgroundFloor(world, scene, camera);
+const primary_container = new PrimaryContainer(world, scene, viewable_ui.get_camera());
+new BackgroundFloor(world, scene, viewable_ui.get_camera());
 
 // ----- Functions
 /** Hides/reveals overlay elements and swaps hide buttons display sprite */
 function trigger_overlay() {
-    overlay_container.trigger_overlay();
+    viewable_ui.get_overlay().trigger_overlay();
 }
 
 /*** Swaps the container column sides */
 function swap_column_sides() {
-    overlay_container.swap_column_sides();
-    if(overlay_container.is_label_column_left_side()){
+    viewable_ui.get_overlay().swap_column_sides();
+    if( viewable_ui.get_overlay().is_label_column_left_side()){
         primary_container.decativate_all_objects();
     }
 }
@@ -122,15 +101,15 @@ function animate() {
     updateTween();
     if(resize_move) {
         if(!zoom_event) {
-            overlay_container.resize_reposition();
+            viewable_ui.get_overlay().resize_reposition();
         } else {
             zoom_event = false;
         }
         resize_move = false;
     }
     // Handle the physics objects
-    if(overlay_container.is_intersected() != null) {
-        primary_container.activate_object(overlay_container.intersected_name());
+    if( viewable_ui.get_overlay().is_intersected() != null) {
+        primary_container.activate_object( viewable_ui.get_overlay().intersected_name());
     } else {
         primary_container.decativate_all_objects();
     }
@@ -144,7 +123,6 @@ function animate() {
         mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
     });
     // Scene reload
-    // controls.update();
     composer.render();
 }
 
@@ -152,31 +130,31 @@ function animate() {
 function get_intersect_list(e) {
     mouse_location.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse_location.y = -(e.clientY / window.innerHeight) * 2 + 1
-    raycaster.setFromCamera(mouse_location, camera);
+    raycaster.setFromCamera(mouse_location, viewable_ui.get_camera());
     return raycaster.intersectObject(scene, true);
 }
 
 /** Handles mouse hovering events and raycasts to collide with scene objects */
 function handle_hover(e) {
     const found_intersections = get_intersect_list(e);
-    if(found_intersections.length > 0 && !overlay_container.is_swapping_sides()) {
+    if(found_intersections.length > 0 && ! viewable_ui.get_overlay().is_swapping_sides()) {
         const intersected_object = found_intersections[0].object;
         const object_name = intersected_object.name;
         const name_type = object_name.split("_")[0] + "_";
         // Handle label hover
         if(name_type == LABEL){
-            overlay_container.handle_hover(intersected_object);
+            viewable_ui.get_overlay().handle_hover(intersected_object);
         }
     } else {
-        overlay_container.reset_hover();
+        viewable_ui.get_overlay().reset_hover();
     }
 }
 
 /** Handles mouse off screen events */
 function handle_off_screen(e) {
     console.log(`Mouse is left`)
-    if(overlay_container.is_label_column_left_side()) {
-        overlay_container.reset_hover();
+    if( viewable_ui.get_overlay().is_label_column_left_side()) {
+        viewable_ui.get_overlay().reset_hover();
     }
 }
 
@@ -193,8 +171,9 @@ window.addEventListener('resize', () => {
     // Set variables
     resize_move = true;
     // Resize application
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
+    // TODO If refactor works make these internal to viewable ui
+    viewable_ui.get_camera().aspect = window.innerWidth / window.innerHeight;
+    viewable_ui.get_camera().updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
     composer.setSize(window.innerWidth, window.innerHeight);
 });
@@ -209,7 +188,7 @@ window.addEventListener('mousedown', (e) => {
 /** Handles mouse up actions */
 window.addEventListener('mouseup', (e) => {
     const found_intersections = get_intersect_list(e, "clicked up");
-    if(overlay_container.is_label_column_left_side()){
+    if( viewable_ui.get_overlay().is_label_column_left_side()){
         if(found_intersections.length > 0){
             const intersected_object = found_intersections[0].object;
             (console.log(`${intersected_object.name} clicked up`));
@@ -217,15 +196,15 @@ window.addEventListener('mouseup', (e) => {
             const name_type = split_intersected_name[0] + "_";
             switch(name_type) {
                 case LABEL:
-                    overlay_container.reset_hover();
+                    viewable_ui.get_overlay().reset_hover();
                     swap_column_sides();
-                    overlay_container.focus_text_box(intersected_object.name);
+                    viewable_ui.get_overlay().focus_text_box(intersected_object.name);
                     break;
                 case HIDE:
                     trigger_overlay();
                     break;
                 case LINK:
-                    overlay_container.open_link(split_intersected_name[1].trim());
+                    viewable_ui.get_overlay().open_link(split_intersected_name[1].trim());
                     break;
             }
         }
@@ -237,15 +216,15 @@ window.addEventListener('mouseup', (e) => {
             const name_type = split_intersected_name[0] + "_";
             switch(name_type) {
                 case LABEL:
-                    overlay_container.focus_text_box(intersected_object.name);
+                    viewable_ui.get_overlay().focus_text_box(intersected_object.name);
                     break;
                 case LINK:
-                    overlay_container.open_link(split_intersected_name[1].trim());
+                    viewable_ui.get_overlay().open_link(split_intersected_name[1].trim());
                     break;
             }
         } else {
             swap_column_sides();
-            overlay_container.lose_focus_text_box(WEST);
+            viewable_ui.get_overlay().lose_focus_text_box(WEST);
         }
     }
 
