@@ -12,9 +12,8 @@ import { LABEL } from './viewport/overlay/label_column';
 import { PrimaryContainer } from './background/primary_container';
 import { BackgroundFloor } from './background/background_floor';
 import { ViewableUI } from './viewport/viewable_ui';
+import { BackgroundLighting } from './background/background_lighting';
 
-// TODO OOOOO
-// TODO Keep box lit by default when text box is selected
 // TODO Add HemisphereLight to way background for sunset/mood lighting
 // TODO NEW BRANCH Get custom 3d object loaded in
 // TODO Get text box with programmable font loaded over text boxes
@@ -43,26 +42,12 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.VSMShadowMap;
 renderer.setAnimationLoop(animate);
 document.body.appendChild(renderer.domElement);
-// Lighting
-const light_focus = new THREE.Object3D();
-light_focus.position.set(0, -9, 0);
-scene.add(light_focus);
-const spotlight_one = new THREE.SpotLight(undefined, 150);
-spotlight_one.position.set(2.5, 5, -5);
-spotlight_one.angle = -Math.PI / 2;
-spotlight_one.penumbra = 0.5;
-spotlight_one.castShadow = true;
-spotlight_one.shadow.blurSamples = 10;
-spotlight_one.shadow.radius = 5;
-scene.add(spotlight_one);
-const spotlight_two = spotlight_one.clone();
-spotlight_two.position.set(-2.5, 5, -1);
-scene.add(spotlight_two);
-const direction_light = new THREE.DirectionalLight(0xffffff, 2);
-direction_light.position.set(0, -3, -15);
-direction_light.target = light_focus;
-scene.add(direction_light);
+// UI creation
 const viewable_ui = new ViewableUI(scene);
+// Background creation
+new BackgroundLighting(scene);
+const primary_container = new PrimaryContainer(world, scene, viewable_ui.get_camera());
+new BackgroundFloor(world, scene, viewable_ui.get_camera());
 // Effects/bloom effects
 const render_scene = new RenderPass(scene, viewable_ui.get_camera());
 const bloom_pass = new UnrealBloomPass( 
@@ -76,9 +61,6 @@ const composer = new EffectComposer(renderer);
 composer.addPass(render_scene);
 composer.addPass(bloom_pass);
 composer.addPass(output_pass);
-// Background creation
-const primary_container = new PrimaryContainer(world, scene, viewable_ui.get_camera());
-new BackgroundFloor(world, scene, viewable_ui.get_camera());
 
 // ----- Functions
 /** Hides/reveals overlay elements and swaps hide buttons display sprite */
