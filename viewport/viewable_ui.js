@@ -34,6 +34,14 @@ export class ViewableUI {
         return this.overlay_container;
     }
 
+    is_text_active() {
+        return this.overlay_container.is_text_active();
+    }
+
+    get_active_name() {
+        return this.overlay_container.get_active_box().name;
+    }
+
     get_viewable_container() {
         return this.viewable_ui_container;
     }

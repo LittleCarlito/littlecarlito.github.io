@@ -157,4 +157,14 @@ export class TextContainer {
     get_text_box_width() {
         return clamp(get_screen_size(this.camera).x * .5, 12, 18);
     }
+
+    /** Returns if there is an active text box or not */
+    is_text_box_active() {
+        return this.focused_text_name != "";
+    }
+
+    /** Returns active text box */
+    get_active_text_box() {
+        return this.text_box_container.getObjectByName(this.focused_text_name);
+    }
 }

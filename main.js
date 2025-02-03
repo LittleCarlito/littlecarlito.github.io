@@ -13,6 +13,14 @@ import { PrimaryContainer } from './background/primary_container';
 import { BackgroundFloor } from './background/background_floor';
 import { ViewableUI } from './viewport/viewable_ui';
 
+// TODO OOOOO
+// TODO Keep box lit by default when text box is selected
+// TODO Add HemisphereLight to way background for sunset/mood lighting
+// TODO NEW BRANCH Get custom 3d object loaded in
+// TODO Get text box with programmable font loaded over text boxes
+//          Should resize with the text box
+//          Should be sensitive to zoom events and enlarge text size on them
+
 // ----- Variables
 let resize_move = false;
 let zoom_event = false;
@@ -55,12 +63,8 @@ direction_light.position.set(0, -3, -15);
 direction_light.target = light_focus;
 scene.add(direction_light);
 const viewable_ui = new ViewableUI(scene);
-
-// camera.rotation.x = -0.261799;
-// camera.position.z = 15;
 // Effects/bloom effects
 const render_scene = new RenderPass(scene, viewable_ui.get_camera());
-// const bloom_pass = new BloomPass( 1 );
 const bloom_pass = new UnrealBloomPass( 
     new THREE.Vector2(window.innerWidth, window.innerHeight), // Resolution
     1.5, // Strength
@@ -72,11 +76,6 @@ const composer = new EffectComposer(renderer);
 composer.addPass(render_scene);
 composer.addPass(bloom_pass);
 composer.addPass(output_pass);
-
-// TODO OOOOO
-// TODO Add HemisphereLight to way background for sunset/mood lighting
-// TODO NEW BRANCH Get custom 3d object loaded in
-
 // Background creation
 const primary_container = new PrimaryContainer(world, scene, viewable_ui.get_camera());
 new BackgroundFloor(world, scene, viewable_ui.get_camera());
@@ -110,6 +109,8 @@ function animate() {
     // Handle the physics objects
     if( viewable_ui.get_overlay().is_intersected() != null) {
         primary_container.activate_object( viewable_ui.get_overlay().intersected_name());
+    } else if(viewable_ui.is_text_active()) {
+        primary_container.activate_object(viewable_ui.get_active_name());
     } else {
         primary_container.decativate_all_objects();
     }

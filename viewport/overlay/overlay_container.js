@@ -89,4 +89,14 @@ export class OverlayContainer {
     is_swapping_sides() {
         return this.label_column.swapping_column_sides;
     }
+
+    is_text_active() {
+        return this.text_box_container.is_text_box_active();
+    }
+
+    get_active_box() {
+        if(this.is_text_active()) {
+            return this.text_box_container.get_active_text_box();
+        }
+    }
 }
