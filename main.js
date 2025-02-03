@@ -14,7 +14,7 @@ import { BackgroundFloor } from './background/background_floor';
 import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
 
-// TODO NEW BRANCH Get custom 3d object loaded in
+// TODO OOOOOO
 // TODO Get text box with programmable font loaded over text boxes
 //          Should resize with the text box
 //          Should be sensitive to zoom events and enlarge text size on them
@@ -31,7 +31,7 @@ const texture_loader = new THREE.TextureLoader();
 scene.background = texture_loader.load(BACKGROUND_IMAGE);
 // Physics
 await RAPIER.init();
-const gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
+const gravity = new RAPIER.Vector3(0.0, -5, 0.0);
 const world = new RAPIER.World(gravity);
 const clock = new THREE.Clock();
 // Mouse detection
@@ -102,10 +102,12 @@ function animate() {
     world.timestep = Math.min(delta, 0.1);
     world.step();
     primary_container.dynamic_bodies.forEach(([mesh, body]) => {
-        const position = body.translation();
-        mesh.position.set(position.x, position.y, position.z);
-        const rotation = body.rotation();
-        mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+        if(body != null) {
+            const position = body.translation();
+            mesh.position.set(position.x, position.y, position.z);
+            const rotation = body.rotation();
+            mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+        }
     });
     // Scene reload
     composer.render();
@@ -137,7 +139,6 @@ function handle_hover(e) {
 
 /** Handles mouse off screen events */
 function handle_off_screen(e) {
-    console.log(`Mouse is left`)
     if( viewable_ui.get_overlay().is_label_column_left_side()) {
         viewable_ui.get_overlay().reset_hover();
     }
@@ -166,7 +167,11 @@ window.addEventListener('resize', () => {
 /** Handles mouse down actions */
 window.addEventListener('mousedown', (e) => {
     const found_intersections = get_intersect_list(e, "clicked down");
-    found_intersections.forEach(i => (console.log(`${i.object.name} clicked down`)));
+    found_intersections.forEach(i => {
+        if(i.object.name != "") {
+            console.log(`${i.object.name} clicked down`)
+        }
+    });
     // TODO Do something with the intersections
 });
 
@@ -176,7 +181,9 @@ window.addEventListener('mouseup', (e) => {
     if( viewable_ui.get_overlay().is_label_column_left_side()){
         if(found_intersections.length > 0){
             const intersected_object = found_intersections[0].object;
-            (console.log(`${intersected_object.name} clicked up`));
+            if(intersected_object.name != null) {
+                (console.log(`${intersected_object.name} clicked up`));
+            }
             const split_intersected_name = intersected_object.name.split("_");
             const name_type = split_intersected_name[0] + "_";
             switch(name_type) {

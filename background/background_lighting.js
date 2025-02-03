@@ -11,10 +11,6 @@ export class BackgroundLighting {
         this.parent = incoming_parent;
         this.lighting_container = new THREE.Object3D();
         this.parent.add(this.lighting_container);
-        // Light focus position
-        const light_focus = new THREE.Object3D();
-        light_focus.position.set(0, -9, 0);
-        this.lighting_container.add(light_focus);
         // Spotlights
         const spotlight_one = new THREE.SpotLight(SPOTLIGHT_COLOR, 150);
         spotlight_one.position.set(2.5, SPOTLIGHT_HEIGHT, -5);
@@ -27,8 +23,7 @@ export class BackgroundLighting {
         const spotlight_two = spotlight_one.clone();
         spotlight_two.position.set(-2.5, SPOTLIGHT_HEIGHT, -1);
         this.lighting_container.add(spotlight_two);
-        // TODO OOOOO
-        // TODO Hemisphere light
+        // Hemisphere light
         const hemisphere_light = new THREE.HemisphereLight(HEMISPHERE_SKY_COLOR, HEMISPHERE_GROUND_COLOR, 2);
         hemisphere_light.position.z = 50;
         hemisphere_light.position.y = 500;
