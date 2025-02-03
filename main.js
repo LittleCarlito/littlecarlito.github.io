@@ -14,19 +14,21 @@ import { BackgroundFloor } from './background/background_floor';
 import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
 
-// TODO Add HemisphereLight to way background for sunset/mood lighting
 // TODO NEW BRANCH Get custom 3d object loaded in
 // TODO Get text box with programmable font loaded over text boxes
 //          Should resize with the text box
 //          Should be sensitive to zoom events and enlarge text size on them
 
+// ----- Constants
+const BACKGROUND_IMAGE = 'gradient.jpg';
 // ----- Variables
 let resize_move = false;
 let zoom_event = false;
 let last_pixel_ratio = window.devicePixelRatio;
-
 // ----- Setup
 const scene = new THREE.Scene();
+const texture_loader = new THREE.TextureLoader();
+scene.background = texture_loader.load(BACKGROUND_IMAGE);
 // Physics
 await RAPIER.init();
 const gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
