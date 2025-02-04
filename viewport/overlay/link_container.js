@@ -7,6 +7,7 @@ export const LINK = "link_"
 const LINK_RADIUS = .44;
 const texture_loader = new THREE.TextureLoader();
 
+// TODO Get these to shared class with label_column things
 // Links
 const link_paths = [
     "github_link.svg",
@@ -25,7 +26,6 @@ const link_labels = [
     LINKEDIN,
     TIKTOK
 ];
-
 const link_urls = new Map();
 link_urls.set(GITHUB, "https://github.com/blooooork");
 link_urls.set(TWITCH, "https://www.twitch.tv/blooooork");

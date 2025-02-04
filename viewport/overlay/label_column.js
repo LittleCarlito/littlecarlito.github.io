@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Easing, Tween } from 'tween';
 import { get_screen_size, get_associated_position, WEST } from "./screen";
+import { category_icons, category_labels } from './common/primary_categories';
 
 const texture_loader = new THREE.TextureLoader();
 export const CONATINER = "container_";
@@ -9,29 +10,6 @@ const ROTATE_SPEED = 300;
 // TODO Get this to shared variable with text_container
 export const PAN_SPEED = 800;
 export const FOCUS_ROTATION = .7;
-// Icons
-const icon_paths = [
-    "contact_raised.svg",
-    "projects_raised.svg",
-    "work_raised.svg",
-    "education_raised.svg",
-    "about_raised.svg",
-];
-export const icon_labels = [
-    "contact",
-    "projects",
-    "work",
-    "education",
-    "about"
-];
-export const icon_colors = [
-    0xe5ce38,
-    0x834eb4,
-    0xb44444,
-    0x25973a,
-    0x3851e5
-];
-
 export class LabelColumn {
     in_tween_map = new Map();
     swapping_column_sides = false;
@@ -46,11 +24,11 @@ export class LabelColumn {
         this.container_column.name = `${CONATINER}column`
         this.parent.add(this.container_column);
         // Create section labels
-        for (let i = 0; i < icon_paths.length; i++) {
+        for (let i = 0; i < category_icons.length; i++) {
             const button_container = new THREE.Object3D();
-            button_container.name = `${CONATINER}${icon_labels[i]}`
+            button_container.name = `${CONATINER}${category_labels[i]}`
             this.container_column.add(button_container);
-            const button_texture = texture_loader.load(icon_paths[i]);
+            const button_texture = texture_loader.load(category_icons[i]);
             button_texture.colorSpace = THREE.SRGBColorSpace;
             const button_option = new THREE.Mesh(
                 // TODO Get demensions to constants
@@ -59,7 +37,7 @@ export class LabelColumn {
                     map: button_texture,
                     transparent: true
                 }));
-            button_option.name = `${LABEL}${icon_labels[i]}`
+            button_option.name = `${LABEL}${category_labels[i]}`
             button_option.position.y = i * 3;
             button_container.add(button_option);
         }
@@ -154,7 +132,7 @@ export class LabelColumn {
     // Column setters
     set_content_layer(incoming_layer) {
         this.container_column.layers.set(0);
-        icon_labels.forEach(label => {
+        category_labels.forEach(label => {
             const label_name = `${CONATINER}${label}`;
             const button_name = `${LABEL}${label}`;
             const existing_label_container = this.container_column.getObjectByName(label_name);

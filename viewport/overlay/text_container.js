@@ -1,7 +1,8 @@
 import * as THREE from 'three';
+import { FontLoader, TextGeometry } from 'three/examples/jsm/Addons.js';
 import { Easing, Tween } from 'tween';
 import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, VALID_DIRECTIONS } from "./screen";
-import { icon_colors, icon_labels } from "./label_column";
+import { category_colors, category_labels, category_text_blocks, category_text_font } from './common/primary_categories';
 import { clamp } from 'three/src/math/MathUtils.js';
 
 export const TEXT = "text_";
@@ -10,25 +11,53 @@ export const PAN_SPEED = 800;
 
 export class TextContainer {
     focused_text_name = "";
+    font_loader;
 
     constructor(incoming_parent, incoming_camera) {
+        this.font_loader = new FontLoader();
         this.parent = incoming_parent;
         this.camera = incoming_camera;
-        // TODO Get off camera position based off this object
         this.text_box_container = new THREE.Object3D();
         // Create text displays
         this.parent.add(this.text_box_container);
-        for (let c = 0; c < icon_labels.length; c++) {
+        for (let c = 0; c < category_labels.length; c++) {
+            const text_box = new THREE.Object3D();
+            // TODO Get text box and text to this
+            // TODO Then move this base to be bound by text_box_container
+            text_box.position.x = get_associated_position(WEST, this.camera);
+            text_box.position.y = this.get_text_box_y();
+            text_box.name = `${TEXT}${category_labels[c]}`;
+            this.text_box_container.add(text_box);
+            // Create the background box
             const found_width = this.get_text_box_width();
             const found_height = this.get_text_box_height();
             const box_geometry = new THREE.BoxGeometry(found_width, found_height, .01);
-            const box_material = new THREE.MeshBasicMaterial({ color: icon_colors[c] });
-            const text_box = new THREE.Mesh(box_geometry, box_material);
-            text_box.layers.set(1);
-            text_box.name = `${TEXT}${icon_labels[c]}`;
-            text_box.position.x = get_associated_position(WEST, this.camera);
-            text_box.position.y = this.get_text_box_y();
-            this.text_box_container.add(text_box);
+            const box_material = new THREE.MeshBasicMaterial({ color: category_colors[c] });
+            const text_box_background = new THREE.Mesh(box_geometry, box_material);
+            // text_box_background.layers.set(1);
+            // text_box_background.position.x = get_associated_position(WEST, this.camera);
+            // text_box_background.position.y = this.get_text_box_y();
+            text_box.add(text_box_background);
+            // Create text
+            this.font_loader.load(category_text_font[c], (font) => {
+                const text_geometry = new TextGeometry(category_text_blocks[c], {
+                    font: font,
+                    size: 1,
+                    depth: 0.01,
+                    curveSegments: 8,
+                    bevelEnabled: true,
+                    bevelThickness: 0.125,
+                    bevelSize: 0.025,
+                    bevelOffset: 0,
+                    bevelSegments: 4
+                });
+                text_geometry.center();
+                const text_material = new THREE.MeshNormalMaterial();
+                const text_mesh = new THREE.Mesh(text_geometry, text_material);
+                text_mesh.position.y = 3 - 2 * c;
+                text_box.add(text_mesh);
+                this.set_content_layer(text_box.name, 1);
+            });
         }
     }
 
@@ -49,7 +78,7 @@ export class TextContainer {
             }
             // Get and move text box
             const selected_text_box = this.text_box_container.getObjectByName(this.focused_text_name);
-            selected_text_box.layers.set(0);
+            this.set_content_layer(this.focused_text_name, 0);
             new Tween(selected_text_box.position)
             .to({ x: this.get_focused_text_x() }, 285)
             .easing(Easing.Sinusoidal.Out)
@@ -76,7 +105,7 @@ export class TextContainer {
                             .easing(Easing.Sinusoidal.Out)
                             .start()
                             .onComplete(() => {
-                                existing_focus_box.layers.set(1);
+                                this.set_content_layer(existing_focus_box.name, 1);
                                 existing_focus_box.position.y = this.get_text_box_y();
                                 existing_focus_box.position.x = get_associated_position(WEST, this.camera);
                             });
@@ -87,7 +116,7 @@ export class TextContainer {
                             .easing(Easing.Sinusoidal.Out)
                             .start()
                             .onComplete(() => {
-                                existing_focus_box.layers.set(1);
+                                this.set_content_layer(existing_focus_box.name, 1);
                                 existing_focus_box.position.y = this.get_text_box_y();
                                 existing_focus_box.position.x = 2 * get_associated_position(WEST, this.camera);
                             });
@@ -98,7 +127,7 @@ export class TextContainer {
                             .easing(Easing.Sinusoidal.Out)
                             .start()
                             .onComplete(() => {
-                                existing_focus_box.layers.set(1);
+                                this.set_content_layer(existing_focus_box.name, 1);
                                 existing_focus_box.position.x = (get_associated_position(WEST, this.camera))
                             });
                             break;
@@ -107,7 +136,7 @@ export class TextContainer {
                             .to({ x: move_position }, PAN_SPEED * .2)
                             .easing(Easing.Sinusoidal.Out)
                             .start().onComplete(() => {
-                                existing_focus_box.layers.set(1);
+                                this.set_content_layer(existing_focus_box.name, 1);
                             });                        
                             break;
                     }
@@ -135,6 +164,13 @@ export class TextContainer {
                 c.position.x = get_associated_position(WEST, this.camera);
                 c.position.y = this.get_text_box_y(this.camera);
             }
+        });
+    }
+
+    set_content_layer(incoming_object_name, incoming_layer) {
+        const existing_object = this.text_box_container.getObjectByName(incoming_object_name);
+        existing_object.children.forEach(c => {
+            c.layers.set(incoming_layer);
         });
     }
 

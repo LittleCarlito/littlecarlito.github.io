@@ -2,11 +2,11 @@ import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { GLTFLoader } from 'three/examples/jsm/Addons.js';
 import { Easing, Tween } from 'tween';
-import { icon_colors, icon_labels } from '../viewport/overlay/label_column';
+import { category_colors, category_labels } from '../viewport/overlay/common/primary_categories';
 
 const PLACEHOLDER = "placeholder_"
 const AXE_SCALE = 20;
-const AXE_MASS = 0.2;
+const AXE_MASS = 1;
 const AXE_RESTITUTION = 1.1;
 const AXE_POSITION = new THREE.Vector3(0, 0, 0);
 
@@ -24,9 +24,9 @@ export class PrimaryContainer {
         this.parent.add(this.cube_container);
         let id = 0;
         // Cubes
-        for(let i = 0; i < icon_labels.length; i++) {
+        for(let i = 0; i < category_labels.length; i++) {
             let cube_material;
-            cube_material = new THREE.MeshStandardMaterial({color: icon_colors[i]});
+            cube_material = new THREE.MeshStandardMaterial({color: category_colors[i]});
             const cube_geometry = new THREE.BoxGeometry(1, 1, 1);
             const cube_mesh = new THREE.Mesh(cube_geometry, cube_material);
             cube_mesh.castShadow = true;
@@ -76,12 +76,12 @@ export class PrimaryContainer {
         }
         this.activated_name = incoming_name;
         const label_name = incoming_name.split("_")[1];
-        const incoming_index = icon_labels.indexOf(label_name);
+        const incoming_index = category_labels.indexOf(label_name);
         if(incoming_index <= this.dynamic_bodies.length - 1) {
             const [activating_object] = this.dynamic_bodies.at(incoming_index);
             const emission_material = new THREE.MeshStandardMaterial({ 
-                color: icon_colors[incoming_index],
-                emissive: icon_colors[incoming_index],
+                color: category_colors[incoming_index],
+                emissive: category_colors[incoming_index],
                 emissiveIntensity: 9
             });
             activating_object.material.dispose();
@@ -92,7 +92,7 @@ export class PrimaryContainer {
     decativate_object(incoming_name) {
         let standard_tween;
         const label_name = incoming_name.split("_")[1];
-        const incoming_index = icon_labels.indexOf(label_name);
+        const incoming_index = category_labels.indexOf(label_name);
         if(incoming_index <= this.dynamic_bodies.length - 1) {
             const [activating_object] = this.dynamic_bodies.at(incoming_index);
             if(activating_object.material?.emissiveIntensity > 1) {
@@ -111,7 +111,7 @@ export class PrimaryContainer {
     }
 
     decativate_all_objects() {
-        icon_labels.forEach(label => {
+        category_labels.forEach(label => {
             this.decativate_object(PLACEHOLDER + label);
         });
     }
