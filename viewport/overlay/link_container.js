@@ -10,10 +10,10 @@ const texture_loader = new THREE.TextureLoader();
 // TODO Get these to shared class with label_column things
 // Links
 const link_paths = [
-    "github_link.svg",
-    "twitch_link.svg",
-    "linkedin_link.svg",
-    "tiktok_link.svg"
+    "links/github_link.svg",
+    "links/twitch_link.svg",
+    "links/linkedin_link.svg",
+    "links/tiktok_link.svg"
 ]
 
 const GITHUB = "github";

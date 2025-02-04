@@ -40,7 +40,7 @@ export class PrimaryContainer {
             id++;
         }
         // Axe with physics
-        this.gltf_loader.load("Axe.glb", (loaded_axe) => {
+        this.gltf_loader.load("assets/Axe.glb", (loaded_axe) => {
             let created_asset = loaded_axe.scene;
             created_asset.position.z = AXE_POSITION.z;
             // Scale up the axes

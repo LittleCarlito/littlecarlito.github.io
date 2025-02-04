@@ -6,6 +6,7 @@ import { category_colors, category_labels, category_text_blocks, category_text_f
 import { clamp } from 'three/src/math/MathUtils.js';
 
 export const TEXT = "text_";
+export const TEXT_BLOCK = "textblock_"
 // TODO Get this to shared variable with label_column
 export const PAN_SPEED = 800;
 
@@ -51,6 +52,7 @@ export class TextContainer {
                 text_geometry.center();
                 const text_material = new THREE.MeshNormalMaterial();
                 const text_mesh = new THREE.Mesh(text_geometry, text_material);
+                text_mesh.name = `${TEXT_BLOCK}${category_labels[c]}`;
                 text_mesh.position.y = 3 - 2 * c;
                 text_box.add(text_mesh);
                 this.set_content_layer(text_box.name, 1);
@@ -95,10 +97,11 @@ export class TextContainer {
                 } else {
                     // Tween in given direction off screen
                     const move_position = get_associated_position(move_direction, this.camera);
+                    const determined_speed = PAN_SPEED * .2;
                     switch(move_direction) {
                         case NORTH:
                             new Tween(existing_focus_box.position)
-                            .to({ y: move_position }, PAN_SPEED * .2)
+                            .to({ y: move_position }, determined_speed)
                             .easing(Easing.Sinusoidal.Out)
                             .start()
                             .onComplete(() => {
@@ -109,7 +112,7 @@ export class TextContainer {
                             break;
                         case SOUTH:
                             new Tween(existing_focus_box.position)
-                            .to({ y: move_position }, PAN_SPEED * .2)
+                            .to({ y: move_position }, determined_speed)
                             .easing(Easing.Sinusoidal.Out)
                             .start()
                             .onComplete(() => {
@@ -120,7 +123,7 @@ export class TextContainer {
                             break;
                         case EAST:
                             new Tween(existing_focus_box.position)
-                            .to({ x: move_position }, PAN_SPEED * .2)
+                            .to({ x: move_position }, determined_speed)
                             .easing(Easing.Sinusoidal.Out)
                             .start()
                             .onComplete(() => {
@@ -130,7 +133,7 @@ export class TextContainer {
                             break;
                         case WEST:
                             new Tween(existing_focus_box.position)
-                            .to({ x: move_position }, PAN_SPEED * .2)
+                            .to({ x: move_position }, determined_speed)
                             .easing(Easing.Sinusoidal.Out)
                             .start().onComplete(() => {
                                 this.set_content_layer(existing_focus_box.name, 1);
@@ -147,8 +150,13 @@ export class TextContainer {
     resize() {
         const new_text_geometry = new THREE.BoxGeometry(this.get_text_box_width(this.camera), this.get_text_box_height(this.camera), 0);
         this.text_box_container.children.forEach(c => {
+            // BUG it isn't actually saved as a TextGeometry but as  Mesh like everything else
+            //          TEXT_BLOCK name was added
+            // TODO Check name type to make sure it isn't a TEXT_BLOCK
             c.children.forEach(inner_c => {
-                if(inner_c.isMesh) {
+                const split_intersected_name = inner_c.name.split("_");
+                const name_type = split_intersected_name[0] + "_";
+                if(name_type != TEXT_BLOCK) {
                     inner_c.geometry.dispose;
                     inner_c.geometry = new_text_geometry;
                 }
