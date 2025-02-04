@@ -18,7 +18,6 @@ import { BackgroundLighting } from './background/background_lighting';
 // TODO Get text box with programmable font loaded over text boxes
 //          Should resize with the text box
 //          Should be sensitive to zoom events and enlarge text size on them
-// TODO See how much you can shrink gradient.jpg
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'gradient.jpg';
