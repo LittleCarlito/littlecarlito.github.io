@@ -34,9 +34,6 @@ export class TextContainer {
             const box_geometry = new THREE.BoxGeometry(found_width, found_height, .01);
             const box_material = new THREE.MeshBasicMaterial({ color: category_colors[c] });
             const text_box_background = new THREE.Mesh(box_geometry, box_material);
-            // text_box_background.layers.set(1);
-            // text_box_background.position.x = get_associated_position(WEST, this.camera);
-            // text_box_background.position.y = this.get_text_box_y();
             text_box.add(text_box_background);
             // Create text
             this.font_loader.load(category_text_font[c], (font) => {
@@ -150,8 +147,12 @@ export class TextContainer {
     resize() {
         const new_text_geometry = new THREE.BoxGeometry(this.get_text_box_width(this.camera), this.get_text_box_height(this.camera), 0);
         this.text_box_container.children.forEach(c => {
-            c.geometry.dispose;
-            c.geometry = new_text_geometry;
+            c.children.forEach(inner_c => {
+                if(inner_c.isMesh) {
+                    inner_c.geometry.dispose;
+                    inner_c.geometry = new_text_geometry;
+                }
+            })
         });
     }
 
