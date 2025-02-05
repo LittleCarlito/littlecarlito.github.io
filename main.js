@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { update as updateTween } from 'tween';
-import { CSS2DRenderer, UnrealBloomPass } from 'three/examples/jsm/Addons.js';
+import { CSS2DObject, CSS2DRenderer, UnrealBloomPass } from 'three/examples/jsm/Addons.js';
 import { EffectComposer } from 'three/examples/jsm/Addons.js';
 import { RenderPass } from 'three/examples/jsm/Addons.js';
 import { OutputPass } from 'three/examples/jsm/Addons.js';
@@ -13,6 +13,7 @@ import { PrimaryContainer } from './background/primary_container';
 import { BackgroundFloor } from './background/background_floor';
 import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
+import { TextFrame } from './viewport/overlay/text_frame';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'gradient.jpg';
@@ -38,7 +39,6 @@ const css_renderer = new CSS2DRenderer();
 css_renderer.setSize(window.innerWidth, window.innerHeight);
 css_renderer.domElement.style.position = 'absolute';
 css_renderer.domElement.style.top = '0';
-css_renderer.domElement.style.left = '0';
 css_renderer.domElement.style.zIndex = '1'; // On top of WebGL canvas
 document.body.appendChild(css_renderer.domElement);
 // WebGL rendering
@@ -49,7 +49,6 @@ webgl_renderer.shadowMap.type = THREE.VSMShadowMap;
 webgl_renderer.setAnimationLoop(animate);
 webgl_renderer.domElement.style.position = 'absolute';
 webgl_renderer.domElement.style.top = '0';
-webgl_renderer.domElement.style.left = '0';
 webgl_renderer.domElement.style.zIndex = '0';
 document.body.appendChild(webgl_renderer.domElement);
 // UI creation
@@ -58,18 +57,6 @@ const viewable_ui = new ViewableUI(scene);
 new BackgroundLighting(scene);
 const primary_container = new PrimaryContainer(world, scene, viewable_ui.get_camera());
 new BackgroundFloor(world, scene, viewable_ui.get_camera());
-
-
-// TODO OOOOOO
-// TODO Try to load external website on top of text box
-//          Use iFrames to display/create info cards as individual little embedded websites
-// TODO Enable mouse physics when HideButton enabled
-// TODO Create html pages for each category
-// TODO Ensure html page text boxes are sensitive to zooming
-//          Text should enlarge
-
-
-
 // Effects/bloom effects
 const render_scene = new RenderPass(scene, viewable_ui.get_camera());
 const bloom_pass = new UnrealBloomPass( 

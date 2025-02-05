@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { FontLoader, TextGeometry } from 'three/examples/jsm/Addons.js';
 import { Easing, Tween } from 'tween';
 import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, VALID_DIRECTIONS } from "./screen";
 import { category_colors, category_labels, category_text_blocks, category_text_font } from './common/primary_categories';
 import { clamp } from 'three/src/math/MathUtils.js';
+import { TextFrame } from './text_frame';
 
 export const TEXT = "text_";
 export const TEXT_BLOCK = "textblock_"
@@ -12,10 +12,8 @@ export const PAN_SPEED = 800;
 
 export class TextContainer {
     focused_text_name = "";
-    font_loader;
 
     constructor(incoming_parent, incoming_camera) {
-        this.font_loader = new FontLoader();
         this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.text_box_container = new THREE.Object3D();
@@ -35,28 +33,9 @@ export class TextContainer {
             const box_geometry = new THREE.BoxGeometry(found_width, found_height, .01);
             const box_material = new THREE.MeshBasicMaterial({ color: category_colors[c] });
             const text_box_background = new THREE.Mesh(box_geometry, box_material);
+            // Create html element
+            new TextFrame(text_box);
             text_box.add(text_box_background);
-            // Create text
-            this.font_loader.load(category_text_font[c], (font) => {
-                const text_geometry = new TextGeometry(category_text_blocks[c], {
-                    font: font,
-                    size: 1,
-                    depth: 0.01,
-                    curveSegments: 8,
-                    bevelEnabled: true,
-                    bevelThickness: 0.125,
-                    bevelSize: 0.025,
-                    bevelOffset: 0,
-                    bevelSegments: 4
-                });
-                text_geometry.center();
-                const text_material = new THREE.MeshNormalMaterial();
-                const text_mesh = new THREE.Mesh(text_geometry, text_material);
-                text_mesh.name = `${TEXT_BLOCK}${category_labels[c]}`;
-                text_mesh.position.y = 3 - 2 * c;
-                text_box.add(text_mesh);
-                this.set_content_layer(text_box.name, 1);
-            });
         }
     }
 
@@ -151,6 +130,10 @@ export class TextContainer {
         const new_text_geometry = new THREE.BoxGeometry(this.get_text_box_width(this.camera), this.get_text_box_height(this.camera), 0);
         this.text_box_container.children.forEach(c => {
             c.children.forEach(inner_c => {
+                // TODO Change this to be looking inclusivly instead of excluding
+                //          Put names on everythign and do == instead of not matches
+                //          This way will allow adding of new child objects without having to add code every time
+                //              Only when we want to be resizing objects should we have to add code here
                 const split_intersected_name = inner_c.name.split("_");
                 const name_type = split_intersected_name[0] + "_";
                 if(name_type != TEXT_BLOCK) {
