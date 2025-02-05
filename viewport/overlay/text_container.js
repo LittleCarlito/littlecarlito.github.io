@@ -150,9 +150,6 @@ export class TextContainer {
     resize() {
         const new_text_geometry = new THREE.BoxGeometry(this.get_text_box_width(this.camera), this.get_text_box_height(this.camera), 0);
         this.text_box_container.children.forEach(c => {
-            // BUG it isn't actually saved as a TextGeometry but as  Mesh like everything else
-            //          TEXT_BLOCK name was added
-            // TODO Check name type to make sure it isn't a TEXT_BLOCK
             c.children.forEach(inner_c => {
                 const split_intersected_name = inner_c.name.split("_");
                 const name_type = split_intersected_name[0] + "_";

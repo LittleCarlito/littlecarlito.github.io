@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { update as updateTween } from 'tween';
-import { UnrealBloomPass } from 'three/examples/jsm/Addons.js';
+import { CSS2DRenderer, UnrealBloomPass } from 'three/examples/jsm/Addons.js';
 import { EffectComposer } from 'three/examples/jsm/Addons.js';
 import { RenderPass } from 'three/examples/jsm/Addons.js';
 import { OutputPass } from 'three/examples/jsm/Addons.js';
@@ -13,11 +13,6 @@ import { PrimaryContainer } from './background/primary_container';
 import { BackgroundFloor } from './background/background_floor';
 import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
-
-// TODO OOOOOO
-// TODO Get text box with programmable font loaded over text boxes
-//          Should resize with the text box
-//          Should be sensitive to zoom events and enlarge text size on them
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'gradient.jpg';
@@ -38,18 +33,43 @@ const clock = new THREE.Clock();
 const raycaster = new THREE.Raycaster();
 const mouse_location = new THREE.Vector2();
 // Rendering
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.VSMShadowMap;
-renderer.setAnimationLoop(animate);
-document.body.appendChild(renderer.domElement);
+// CSS3D rendering
+const css_renderer = new CSS2DRenderer();
+css_renderer.setSize(window.innerWidth, window.innerHeight);
+css_renderer.domElement.style.position = 'absolute';
+css_renderer.domElement.style.top = '0';
+css_renderer.domElement.style.left = '0';
+css_renderer.domElement.style.zIndex = '1'; // On top of WebGL canvas
+document.body.appendChild(css_renderer.domElement);
+// WebGL rendering
+const webgl_renderer = new THREE.WebGLRenderer({ antialias: true });
+webgl_renderer.setSize(window.innerWidth, window.innerHeight);
+webgl_renderer.shadowMap.enabled = true;
+webgl_renderer.shadowMap.type = THREE.VSMShadowMap;
+webgl_renderer.setAnimationLoop(animate);
+webgl_renderer.domElement.style.position = 'absolute';
+webgl_renderer.domElement.style.top = '0';
+webgl_renderer.domElement.style.left = '0';
+webgl_renderer.domElement.style.zIndex = '0';
+document.body.appendChild(webgl_renderer.domElement);
 // UI creation
 const viewable_ui = new ViewableUI(scene);
 // Background creation
 new BackgroundLighting(scene);
 const primary_container = new PrimaryContainer(world, scene, viewable_ui.get_camera());
 new BackgroundFloor(world, scene, viewable_ui.get_camera());
+
+
+// TODO OOOOOO
+// TODO Try to load external website on top of text box
+//          Use iFrames to display/create info cards as individual little embedded websites
+// TODO Enable mouse physics when HideButton enabled
+// TODO Create html pages for each category
+// TODO Ensure html page text boxes are sensitive to zooming
+//          Text should enlarge
+
+
+
 // Effects/bloom effects
 const render_scene = new RenderPass(scene, viewable_ui.get_camera());
 const bloom_pass = new UnrealBloomPass( 
@@ -59,7 +79,7 @@ const bloom_pass = new UnrealBloomPass(
     1 // Threshold
 );
 const output_pass = new OutputPass();
-const composer = new EffectComposer(renderer);
+const composer = new EffectComposer(webgl_renderer);
 composer.addPass(render_scene);
 composer.addPass(bloom_pass);
 composer.addPass(output_pass);
@@ -111,6 +131,7 @@ function animate() {
     });
     // Scene reload
     composer.render();
+    css_renderer.render(scene, viewable_ui.get_camera());
 }
 
 /** Retrieves objects mouse is intersecting with from the given event */
@@ -160,7 +181,8 @@ window.addEventListener('resize', () => {
     // TODO If refactor works make these internal to viewable ui
     viewable_ui.get_camera().aspect = window.innerWidth / window.innerHeight;
     viewable_ui.get_camera().updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    webgl_renderer.setSize(window.innerWidth, window.innerHeight);
+    css_renderer.setSize(window.innerWidth, window.innerHeight);
     composer.setSize(window.innerWidth, window.innerHeight);
 });
 
@@ -228,4 +250,4 @@ The window object isn’t a typical DOM element with a well-defined “bounding 
 In many browsers, these events simply never fire on window because the mouse leaving or entering 
 the window isn’t interpreted as a mouseleave or mouseenter on that object.
 */
-renderer.domElement.addEventListener('mouseout', handle_off_screen);
+webgl_renderer.domElement.addEventListener('mouseout', handle_off_screen);
