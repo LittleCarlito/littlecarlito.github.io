@@ -17,6 +17,7 @@ const BACKGROUND_IMAGE = 'gradient.jpg';
 
 // TODO Temp from youtubes
 let mouse_pos = new THREE.Vector2();
+const BALL_Z_DEPTH = -5;
 
 let resize_move = false;
 let zoom_event = false;
@@ -76,28 +77,29 @@ composer.addPass(bloom_pass);
 composer.addPass(output_pass);
 
 // TODO Temp from youtubes
-function getMouseBall (RAPIER, world) {
-    const mouseSize = 0.25;
-    const geometry = new THREE.IcosahedronGeometry(mouseSize, 8);
+function getMouseBall(RAPIER, world) {
+    const mouse_size = 0.25;
+    const geometry = new THREE.IcosahedronGeometry(mouse_size, 8);
     const material = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       emissive: 0xffffff,
     });
-    const mouseLight = new THREE.PointLight(0xffffff, 1);
-    const mouseMesh = new THREE.Mesh(geometry, material);
-    mouseMesh.add(mouseLight);
+    const mouse_light = new THREE.PointLight(0xffffff, 1);
+    const mouse_mesh = new THREE.Mesh(geometry, material);
+    mouse_mesh.add(mouse_light);
     // RIGID BODY
-    let bodyDesc = RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(0, 0, 0)
-    let mouseRigid = world.createRigidBody(bodyDesc);
-    let dynamicCollider = RAPIER.ColliderDesc.ball(mouseSize * 3.0);
-    world.createCollider(dynamicCollider, mouseRigid);
-    function update (mousePos) {
-      mouseRigid.setTranslation({ x: mousePos.x * 5, y: mousePos.y * 5, z: 0.2 });
-      let { x, y, z } = mouseRigid.translation();
-      mouseMesh.position.set(x, y, z);
+    let body_desc = RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(0, 0, 0)
+    let mouse_rigid = world.createRigidBody(body_desc);
+    let dynamic_collider = RAPIER.ColliderDesc.ball(mouse_size * 3.0);
+    world.createCollider(dynamic_collider, mouse_rigid);
+    
+    function update(mouse_pos) {
+        mouse_rigid.setTranslation({ x: mouse_pos.x, y: mouse_pos.y, z: BALL_Z_DEPTH});
+        let { x, y, z } = mouse_rigid.translation();
+        mouse_mesh.position.set(x, y, z);
     }
-    return { mesh: mouseMesh, update };
-  }
+    return { mesh: mouse_mesh, update };
+}
 
 
 // ----- Functions
@@ -162,19 +164,24 @@ function get_intersect_list(e) {
     return raycaster.intersectObject(scene, true);
 }
 
-
-function handleMouseMove (evt) {
-    mousePos.x = (evt.clientX / window.innerWidth) * 2 - 1;
-    mousePos.y = -(evt.clientY / window.innerHeight) * 2 + 1;
-  }
-
-
 /** Handles mouse hovering events and raycasts to collide with scene objects */
 function handle_movement(e) {
-    // Mouse tracking
-    mouse_pos.x = (e.clientX / window.innerWidth) * 2 - 1;
-    mouse_pos.y = -(e.clientY / window.innerHeight) * 2 + 1;
-    // Hover handling
+    // Use positive normal (0,0,1) and positive distance for consistent plane orientation
+    const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -BALL_Z_DEPTH);
+    
+    const mouse = new THREE.Vector2(
+        (e.clientX / window.innerWidth) * 2 - 1,
+        -(e.clientY / window.innerHeight) * 2 + 1
+    );
+    
+    raycaster.setFromCamera(mouse, viewable_ui.get_camera());
+    
+    const intersection = new THREE.Vector3();
+    raycaster.ray.intersectPlane(plane, intersection);
+    
+    mouse_pos.x = intersection.x;
+    mouse_pos.y = intersection.y;
+
     const found_intersections = get_intersect_list(e);
     if(found_intersections.length > 0 && ! viewable_ui.get_overlay().is_swapping_sides()) {
         const intersected_object = found_intersections[0].object;
