@@ -225,6 +225,9 @@ window.addEventListener('mouseup', (e) => {
                 case LINK:
                     viewable_ui.get_overlay().open_link(split_intersected_name[1].trim());
                     break;
+                default:
+                    swap_column_sides();
+                    viewable_ui.get_overlay().lose_focus_text_box(WEST);
             }
         } else {
             swap_column_sides();
