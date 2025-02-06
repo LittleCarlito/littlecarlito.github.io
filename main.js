@@ -14,11 +14,6 @@ import { MouseBall } from './background/mouse_ball';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'gradient.jpg';
-
-// TODO Move to MouseBall BackgroundObject
-let mouse_pos = new THREE.Vector2();
-const BALL_Z_DEPTH = -5;
-
 // ----- Variables
 let resize_move = false;
 let zoom_event = false;

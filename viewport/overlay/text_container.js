@@ -134,6 +134,7 @@ export class TextContainer {
         this.text_box_container.children.forEach(c => {
             c.children.forEach(inner_c => {
                 // TODO OOOOO
+                // TODO When selected and clicking in blank space something is eating mouse inputs
                 // TODO Enable mouse physics when HideButton enabled
                 // BUG When shrinking to small column and selected other column colors become visible
                 // TODO Create html pages for each category
