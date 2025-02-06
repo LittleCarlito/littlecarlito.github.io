@@ -1,16 +1,9 @@
 import * as THREE from 'three';
 import { Easing, Tween } from 'tween';
-import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, VALID_DIRECTIONS } from "./screen";
-import { category_colors, category_labels, category_text_blocks, category_text_font } from './common/primary_categories';
 import { clamp } from 'three/src/math/MathUtils.js';
 import { TextFrame, IFRAME } from './text_frame';
-import { extract_type } from './common/util';
-
-export const TEXT = "text_";
-export const TEXT_BLOCK = "textblock_"
-export const BACKGROUND = "background_"
-// TODO Get this to shared variable with label_column
-export const PAN_SPEED = 800;
+import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, category_colors, 
+    category_labels, extract_type, PAN_SPEED, TEXT, BACKGROUND, TEXT_BLOCK } from './common';
 
 export class TextContainer {
     text_frames = [];
@@ -160,7 +153,6 @@ export class TextContainer {
     }
 
     update_iframe_size(incoming_simple_name, incoming_width, incoming_height) {
-        // TODO This is trash redo it and use the new array with TextFrames; It has simple name as a variable
         const matched_frame = this.text_frames.find(frame => (frame.simple_name == incoming_simple_name));
         if(matched_frame) {
             matched_frame.update_size(incoming_width, incoming_height);

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { GLTFLoader } from 'three/examples/jsm/Addons.js';
 import { Easing, Tween } from 'tween';
-import { category_colors, category_labels } from '../viewport/overlay/common/primary_categories';
+import { category_colors, category_labels } from '../viewport/overlay/common';
 
 const PLACEHOLDER = "placeholder_"
 const AXE_SCALE = 20;

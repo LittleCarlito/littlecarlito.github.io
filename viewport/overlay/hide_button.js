@@ -1,10 +1,6 @@
 import * as THREE from 'three';
 import { Easing, Tween } from 'tween';
-import { get_screen_size, get_associated_position, EAST } from './screen';
-
-export const HIDE = "hide_"
-const HIDE_WIDTH = 1;
-const HIDE_HEIGHT = 1;
+import { get_screen_size, get_associated_position, EAST, HIDE, HIDE_HEIGHT, HIDE_WIDTH } from './common';
 
 export class HideButton {
     is_overlay_hidden = false;

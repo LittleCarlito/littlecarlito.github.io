@@ -1,15 +1,9 @@
 import * as THREE from 'three';
 import { Easing, Tween } from 'tween';
-import { get_screen_size, get_associated_position, WEST } from "./screen";
+import { get_screen_size, get_associated_position, WEST } from "./common/screen";
 import { category_icons, category_labels } from './common/primary_categories';
+import { TEXTURE_LOADER, CONATINER, LABEL, PAN_SPEED, ROTATE_SPEED, FOCUS_ROTATION } from './common/util';
 
-const texture_loader = new THREE.TextureLoader();
-export const CONATINER = "container_";
-export const LABEL = "label_";
-const ROTATE_SPEED = 300;
-// TODO Get this to shared variable with text_container
-export const PAN_SPEED = 800;
-export const FOCUS_ROTATION = .7;
 export class LabelColumn {
     in_tween_map = new Map();
     swapping_column_sides = false;
@@ -28,7 +22,7 @@ export class LabelColumn {
             const button_container = new THREE.Object3D();
             button_container.name = `${CONATINER}${category_labels[i]}`
             this.container_column.add(button_container);
-            const button_texture = texture_loader.load(category_icons[i]);
+            const button_texture = TEXTURE_LOADER.load(category_icons[i]);
             button_texture.colorSpace = THREE.SRGBColorSpace;
             const button_option = new THREE.Mesh(
                 // TODO Get demensions to constants

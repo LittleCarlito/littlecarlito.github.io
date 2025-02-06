@@ -1,36 +1,9 @@
 import * as THREE from 'three';
 import { Easing, Tween } from 'tween';
-import { get_screen_size, get_associated_position, SOUTH } from "./screen";
 import { clamp } from 'three/src/math/MathUtils.js';
+import { get_screen_size, get_associated_position, SOUTH, LINK, LINK_RADIUS, 
+    LINK_PATHS, LINK_LABELS, LINK_URLS, TEXTURE_LOADER } from './common';
 
-export const LINK = "link_"
-const LINK_RADIUS = .44;
-const texture_loader = new THREE.TextureLoader();
-
-// TODO Get these to shared class with label_column things
-// Links
-const link_paths = [
-    "links/github_link.svg",
-    "links/twitch_link.svg",
-    "links/linkedin_link.svg",
-    "links/tiktok_link.svg"
-]
-
-const GITHUB = "github";
-const TWITCH = "twitch";
-const LINKEDIN = "linkedin";
-const TIKTOK = "tiktok";
-const link_labels = [
-    GITHUB,
-    TWITCH,
-    LINKEDIN,
-    TIKTOK
-];
-const link_urls = new Map();
-link_urls.set(GITHUB, "https://github.com/blooooork");
-link_urls.set(TWITCH, "https://www.twitch.tv/blooooork");
-link_urls.set(LINKEDIN, "https://www.linkedin.com/in/meiersteven");
-link_urls.set(TIKTOK, "https://www.tiktok.com/@blooooork");
 
 export class LinkContainer {
     constructor(incoming_parent, incoming_camera) {
@@ -42,9 +15,9 @@ export class LinkContainer {
         this.parent.add(this.link_container);
         // Create the link icons
         const calced_radius = this.get_link_radius(this.camera);
-        for(let l = 0; l < link_paths.length; l++) {
+        for(let l = 0; l < LINK_PATHS.length; l++) {
             const circle_geometry = new THREE.CircleGeometry(calced_radius);
-            const circle_texture = texture_loader.load(link_paths[l]);
+            const circle_texture = TEXTURE_LOADER.load(LINK_PATHS[l]);
             circle_texture.colorSpace = THREE.SRGBColorSpace;
             const link_button = new THREE.Mesh(
                 circle_geometry,
@@ -52,7 +25,7 @@ export class LinkContainer {
                     map: circle_texture,
                     transparent: true
                 }));
-            link_button.name = `${LINK}${link_labels[l]}`;
+            link_button.name = `${LINK}${LINK_LABELS[l]}`;
             link_button.position.x += calced_radius * (3.5 * l);
             this.link_container.add(link_button);
         }
@@ -60,8 +33,8 @@ export class LinkContainer {
 
     /** Open a new tab of the associated link */
     open_link(new_link) {
-        if(link_urls.has(new_link)) {
-            const hyperlink_path = link_urls.get(new_link);
+        if(LINK_URLS.has(new_link)) {
+            const hyperlink_path = LINK_URLS.get(new_link);
             window.open(hyperlink_path, "_blank");
         } else {
             console.log(`Given label \"${new_link}\" does not have a stored path`);
@@ -97,7 +70,7 @@ export class LinkContainer {
     // Link setters
     set_content_layers(incoming_layer) {
         this.link_container.layers.set(incoming_layer);
-        link_labels.forEach(link => {
+        LINK_LABELS.forEach(link => {
             const link_name = `${LINK}${link}`;
             const existing_link = this.link_container.getObjectByName(link_name);
             existing_link.layers.set(incoming_layer);

@@ -1,20 +1,15 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { update as updateTween } from 'tween';
-import { CSS2DObject, CSS2DRenderer, UnrealBloomPass } from 'three/examples/jsm/Addons.js';
+import { CSS2DRenderer, UnrealBloomPass } from 'three/examples/jsm/Addons.js';
 import { EffectComposer } from 'three/examples/jsm/Addons.js';
 import { RenderPass } from 'three/examples/jsm/Addons.js';
 import { OutputPass } from 'three/examples/jsm/Addons.js';
-import { WEST } from "./viewport/overlay/screen"
-import { HIDE } from './viewport/overlay/hide_button';
-import { LINK } from './viewport/overlay/link_container';
-import { LABEL } from './viewport/overlay/label_column';
 import { PrimaryContainer } from './background/primary_container';
 import { BackgroundFloor } from './background/background_floor';
 import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
-import { TextFrame } from './viewport/overlay/text_frame';
-import { extract_type } from './viewport/overlay/common/util';
+import { WEST, HIDE, LINK, TEXTURE_LOADER, LABEL, extract_type } from './viewport/overlay/common';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'gradient.jpg';
@@ -24,8 +19,7 @@ let zoom_event = false;
 let last_pixel_ratio = window.devicePixelRatio;
 // ----- Setup
 const scene = new THREE.Scene();
-const texture_loader = new THREE.TextureLoader();
-scene.background = texture_loader.load(BACKGROUND_IMAGE);
+scene.background = TEXTURE_LOADER.load(BACKGROUND_IMAGE);
 // Physics
 await RAPIER.init();
 const gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
@@ -233,9 +227,9 @@ window.addEventListener('mouseup', (e) => {
 
 window.addEventListener('mousemove', handle_hover);
 /*
-The window object isn’t a typical DOM element with a well-defined “bounding box” for mouse events.
+The window object isn't a typical DOM element with a well-defined "bounding box" for mouse events.
 In many browsers, these events simply never fire on window because the mouse leaving or entering 
-the window isn’t interpreted as a mouseleave or mouseenter on that object.
+the window isn't interpreted as a mouseleave or mouseenter on that object.
 */
 webgl_renderer.domElement.addEventListener('mouseout', handle_off_screen);
 css_renderer.domElement.addEventListener('mouseout', handle_off_screen);
