@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const DEFAULT_Z_DEPTH = -5;
+const DEFAULT_Z_DEPTH = 0;
 
 export class MouseBall {
     mouse_pos;
