@@ -14,6 +14,10 @@ import { WEST, HIDE, LINK, TEXTURE_LOADER, LABEL, extract_type } from './viewpor
 // ----- Constants
 const BACKGROUND_IMAGE = 'gradient.jpg';
 // ----- Variables
+
+// TODO Temp from youtubes
+let mouse_pos = new THREE.Vector2();
+
 let resize_move = false;
 let zoom_event = false;
 let last_pixel_ratio = window.devicePixelRatio;
@@ -52,6 +56,11 @@ const viewable_ui = new ViewableUI(scene);
 new BackgroundLighting(scene);
 const primary_container = new PrimaryContainer(world, scene, viewable_ui.get_camera());
 new BackgroundFloor(world, scene, viewable_ui.get_camera());
+
+// TODO Temp from youtubes
+const mouse_ball = getMouseBall(RAPIER, world);
+scene.add(mouse_ball.mesh);
+
 // Effects/bloom effects
 const render_scene = new RenderPass(scene, viewable_ui.get_camera());
 const bloom_pass = new UnrealBloomPass( 
@@ -65,6 +74,31 @@ const composer = new EffectComposer(webgl_renderer);
 composer.addPass(render_scene);
 composer.addPass(bloom_pass);
 composer.addPass(output_pass);
+
+// TODO Temp from youtubes
+function getMouseBall (RAPIER, world) {
+    const mouseSize = 0.25;
+    const geometry = new THREE.IcosahedronGeometry(mouseSize, 8);
+    const material = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      emissive: 0xffffff,
+    });
+    const mouseLight = new THREE.PointLight(0xffffff, 1);
+    const mouseMesh = new THREE.Mesh(geometry, material);
+    mouseMesh.add(mouseLight);
+    // RIGID BODY
+    let bodyDesc = RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(0, 0, 0)
+    let mouseRigid = world.createRigidBody(bodyDesc);
+    let dynamicCollider = RAPIER.ColliderDesc.ball(mouseSize * 3.0);
+    world.createCollider(dynamicCollider, mouseRigid);
+    function update (mousePos) {
+      mouseRigid.setTranslation({ x: mousePos.x * 5, y: mousePos.y * 5, z: 0.2 });
+      let { x, y, z } = mouseRigid.translation();
+      mouseMesh.position.set(x, y, z);
+    }
+    return { mesh: mouseMesh, update };
+  }
+
 
 // ----- Functions
 /** Hides/reveals overlay elements and swaps hide buttons display sprite */
@@ -103,6 +137,10 @@ function animate() {
     const delta = clock.getDelta();
     world.timestep = Math.min(delta, 0.1);
     world.step();
+
+    // TODO Temp from youtubes
+    mouse_ball.update(mouse_pos);
+
     primary_container.dynamic_bodies.forEach(([mesh, body]) => {
         if(body != null) {
             const position = body.translation();
@@ -124,8 +162,19 @@ function get_intersect_list(e) {
     return raycaster.intersectObject(scene, true);
 }
 
+
+function handleMouseMove (evt) {
+    mousePos.x = (evt.clientX / window.innerWidth) * 2 - 1;
+    mousePos.y = -(evt.clientY / window.innerHeight) * 2 + 1;
+  }
+
+
 /** Handles mouse hovering events and raycasts to collide with scene objects */
-function handle_hover(e) {
+function handle_movement(e) {
+    // Mouse tracking
+    mouse_pos.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouse_pos.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    // Hover handling
     const found_intersections = get_intersect_list(e);
     if(found_intersections.length > 0 && ! viewable_ui.get_overlay().is_swapping_sides()) {
         const intersected_object = found_intersections[0].object;
@@ -225,7 +274,7 @@ window.addEventListener('mouseup', (e) => {
 
 });
 
-window.addEventListener('mousemove', handle_hover);
+window.addEventListener('mousemove', handle_movement);
 /*
 The window object isn't a typical DOM element with a well-defined "bounding box" for mouse events.
 In many browsers, these events simply never fire on window because the mouse leaving or entering 

@@ -3,7 +3,7 @@ import { Easing, Tween } from 'tween';
 import { clamp } from 'three/src/math/MathUtils.js';
 import { TextFrame, IFRAME } from './text_frame';
 import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, category_colors, 
-    category_labels, extract_type, PAN_SPEED, TEXT, BACKGROUND, TEXT_BLOCK } from './common';
+    category_labels, extract_type, PAN_SPEED, TEXT, BACKGROUND, TEXT_BLOCK, VALID_DIRECTIONS } from './common';
 
 export class TextContainer {
     text_frames = [];
