@@ -3,14 +3,17 @@ import { Easing, Tween } from 'tween';
 import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, VALID_DIRECTIONS } from "./screen";
 import { category_colors, category_labels, category_text_blocks, category_text_font } from './common/primary_categories';
 import { clamp } from 'three/src/math/MathUtils.js';
-import { TextFrame } from './text_frame';
+import { TextFrame, IFRAME } from './text_frame';
+import { extract_type } from './common/util';
 
 export const TEXT = "text_";
 export const TEXT_BLOCK = "textblock_"
+export const BACKGROUND = "background_"
 // TODO Get this to shared variable with label_column
 export const PAN_SPEED = 800;
 
 export class TextContainer {
+    text_frames = [];
     focused_text_name = "";
 
     constructor(incoming_parent, incoming_camera) {
@@ -25,7 +28,8 @@ export class TextContainer {
             // TODO Then move this base to be bound by text_box_container
             text_box.position.x = get_associated_position(WEST, this.camera);
             text_box.position.y = this.get_text_box_y();
-            text_box.name = `${TEXT}${category_labels[c]}`;
+            text_box.simple_name = `${category_labels[c]}`;
+            text_box.name = `${TEXT}${text_box.simple_name}`;
             this.text_box_container.add(text_box);
             // Create the background box
             const found_width = this.get_text_box_width();
@@ -33,9 +37,13 @@ export class TextContainer {
             const box_geometry = new THREE.BoxGeometry(found_width, found_height, .01);
             const box_material = new THREE.MeshBasicMaterial({ color: category_colors[c] });
             const text_box_background = new THREE.Mesh(box_geometry, box_material);
-            // Create html element
-            new TextFrame(text_box, this.camera, found_width, found_height);
+            text_box_background.name = `${BACKGROUND}${category_labels[c]}`;
             text_box.add(text_box_background);
+            // Create html element
+            const new_frame = new TextFrame(text_box, this.camera, found_width, found_height);
+            new_frame.simple_name = `${category_labels[c]}`;
+            new_frame.name = `${TEXT_BLOCK}${category_labels[c]}`;
+            this.text_frames[c] = new_frame;
         }
     }
 
@@ -127,21 +135,36 @@ export class TextContainer {
     }
 
     resize() {
-        const new_text_geometry = new THREE.BoxGeometry(this.get_text_box_width(this.camera), this.get_text_box_height(this.camera), 0);
+        const calced_width = this.get_text_box_width(this.camera);
+        const calced_height = this.get_text_box_height(this.camera);
+        const new_text_geometry = new THREE.BoxGeometry(calced_width, calced_height, 0);
         this.text_box_container.children.forEach(c => {
             c.children.forEach(inner_c => {
-                // TODO Change this to be looking inclusivly instead of excluding
-                //          Put names on everythign and do == instead of not matches
-                //          This way will allow adding of new child objects without having to add code every time
-                //              Only when we want to be resizing objects should we have to add code here
-                const split_intersected_name = inner_c.name.split("_");
-                const name_type = split_intersected_name[0] + "_";
-                if(name_type != TEXT_BLOCK) {
-                    inner_c.geometry.dispose;
-                    inner_c.geometry = new_text_geometry;
+                // TODO OOOOO
+                // TODO Enable mouse physics when HideButton enabled
+                // BUG When shrinking to small column and selected other column colors become visible
+                // TODO Create html pages for each category
+                // TODO Ensure html page text boxes are sensitive to zooming
+                //          Text should enlarge
+                switch(extract_type(inner_c)) {
+                    case BACKGROUND:
+                        inner_c.geometry.dispose;
+                        inner_c.geometry = new_text_geometry;
+                        break;
+                    case IFRAME:
+                        this.update_iframe_size(inner_c.simple_name, calced_width, calced_height);
+                        break;
                 }
             })
         });
+    }
+
+    update_iframe_size(incoming_simple_name, incoming_width, incoming_height) {
+        // TODO This is trash redo it and use the new array with TextFrames; It has simple name as a variable
+        const matched_frame = this.text_frames.find(frame => (frame.simple_name == incoming_simple_name));
+        if(matched_frame) {
+            matched_frame.update_size(incoming_width, incoming_height);
+        }
     }
 
     reposition(is_column_left) {

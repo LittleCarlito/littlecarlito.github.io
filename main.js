@@ -14,6 +14,7 @@ import { BackgroundFloor } from './background/background_floor';
 import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
 import { TextFrame } from './viewport/overlay/text_frame';
+import { extract_type } from './viewport/overlay/common/util';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'gradient.jpg';
@@ -193,8 +194,8 @@ window.addEventListener('mouseup', (e) => {
             if(intersected_object.name != null) {
                 (console.log(`${intersected_object.name} clicked up`));
             }
-            const split_intersected_name = intersected_object.name.split("_");
-            const name_type = split_intersected_name[0] + "_";
+            // const split_intersected_name = intersected_object.name.split("_");
+            const name_type = extract_type(intersected_object);
             switch(name_type) {
                 case LABEL:
                     viewable_ui.get_overlay().reset_hover();
@@ -213,8 +214,7 @@ window.addEventListener('mouseup', (e) => {
     } else {
         if(found_intersections.length > 0) {
             const intersected_object = found_intersections[0].object;
-            const split_intersected_name = intersected_object.name.split("_");
-            const name_type = split_intersected_name[0] + "_";
+            const name_type = extract_type(intersected_object);
             switch(name_type) {
                 case LABEL:
                     viewable_ui.get_overlay().focus_text_box(intersected_object.name);
@@ -238,3 +238,4 @@ In many browsers, these events simply never fire on window because the mouse lea
 the window isn’t interpreted as a mouseleave or mouseenter on that object.
 */
 webgl_renderer.domElement.addEventListener('mouseout', handle_off_screen);
+css_renderer.domElement.addEventListener('mouseout', handle_off_screen);
