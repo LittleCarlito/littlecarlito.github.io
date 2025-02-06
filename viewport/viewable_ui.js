@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { OverlayContainer } from "./overlay/overlay_container";
 
+export const UI_Z_DIST = 15;
+
 export class ViewableUI {
     overlay_container;
 
@@ -18,7 +20,7 @@ export class ViewableUI {
             1000
         );
         this.viewable_ui_container.add(this.camera);
-        this.viewable_ui_container.position.z = 15;
+        this.viewable_ui_container.position.z = UI_Z_DIST;
         // this.viewable_ui_container.rotation.x = -0.261799;
         incoming_parent.add(this.viewable_ui_container);
         // Overlay creation

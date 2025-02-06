@@ -1,35 +1,51 @@
 import { CSS2DObject } from "three/examples/jsm/Addons.js";
+import { UI_Z_DIST } from "../viewable_ui";
 
 const TEST_LINK = "https://www.youtube.com/embed/SJOz3qjfQXU?";
 
 // TODO OOOOOO
-// TODO create one of these inside every text box
 // TODO Enable mouse physics when HideButton enabled
 // TODO Create html pages for each category
 // TODO Ensure html page text boxes are sensitive to zooming
 //          Text should enlarge
 export class TextFrame {
-    constructor(incoming_parent) {
+    camera;
+    parent;
+    div;
+    iframe;
+    css_div;
+    
+    constructor(incoming_parent, incoming_camera, incoming_width, incoming_height) {
         this.parent = incoming_parent;
-        const div = document.createElement( 'div' );
-        div.style.width = '480px';
-        div.style.height = '360px';
-        div.style.backgroundColor = '#000';
-        const iframe = document.createElement('iframe');
-        iframe.style.width = '480px';
-        iframe.style.height = '360px';
-        iframe.style.border = '0px';
-        // Use the current domain as the origin parameter; adjust if needed for development vs production
+        console.log(`incoming camera ${incoming_camera}`);
+        this.camera = incoming_camera;
+        this.div = document.createElement( 'div' );
+        this.iframe = document.createElement('iframe');
         const origin = window.location.origin;
-        iframe.src = `${TEST_LINK}rel=0&origin=${origin}`;
-        // Recommended allow attributes
-        iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
-        iframe.setAttribute('allowfullscreen', '');
-        div.appendChild(iframe);
-        this.css_div = new CSS2DObject(div);
+        this.iframe.src = `${TEST_LINK}rel=0&origin=${origin}`;
+        this.iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+        this.iframe.setAttribute('allowfullscreen', '');
+        this.div.appendChild(this.iframe);
+        // Position and add to scene
+        this.css_div = new CSS2DObject(this.div);
         this.parent.add(this.css_div);
-        // TODO Get positioning bacsed off incomign parent dimensions to position directly in the middle
-        //          Should also provide same margin on all sides to show background asset
-        this.css_div.position.set(2.5, 0, 5);
+        // Set initial size
+        this.update_size(incoming_width - 2, incoming_height - 2);
+    }
+
+    update_size(incoming_width, incoming_height) {
+        const distance_to_camera = UI_Z_DIST;
+        // Calculate conversion ratio
+        const vertical_fov = 75 * Math.PI / 180;
+        const pixels_per_unit = window.innerHeight / (2 * Math.tan(vertical_fov / 2) * distance_to_camera);
+        // Convert units
+        const pixel_width = Math.round(incoming_width * pixels_per_unit);
+        const pixel_height = Math.round(incoming_height * pixels_per_unit);
+        // Apply conversions
+        this.div.style.width = `${pixel_width}px`;
+        this.div.style.height = `${pixel_height}px`;
+        this.iframe.style.width = `${pixel_width}px`;
+        this.iframe.style.height = `${pixel_height}px`;
+        this.iframe.style.border = '0px';
     }
 }

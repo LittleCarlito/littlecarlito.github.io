@@ -34,7 +34,7 @@ export class TextContainer {
             const box_material = new THREE.MeshBasicMaterial({ color: category_colors[c] });
             const text_box_background = new THREE.Mesh(box_geometry, box_material);
             // Create html element
-            new TextFrame(text_box);
+            new TextFrame(text_box, this.camera, found_width, found_height);
             text_box.add(text_box_background);
         }
     }
