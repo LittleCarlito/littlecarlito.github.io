@@ -13,6 +13,7 @@ export class MouseBall {
     stuck_objects = new Set();
     eventQueue;
     isMouseDown = false;
+    isRightMouseDown = false;
 
     constructor(incoming_parent, incoming_world, RAPIER) {
         this.parent = incoming_parent;
@@ -47,19 +48,47 @@ export class MouseBall {
         this.update();
         this.parent.add(this.mouse_mesh);
 
-        // Add mouse event listeners
+        // Modify mouse event listeners
         window.addEventListener('mousedown', (e) => {
             if (e.button === 0) { // Left mouse button
                 this.isMouseDown = true;
+                if (this.mouse_rigid) {
+                    const collider = this.mouse_rigid.collider(0);
+                    collider.setCollisionGroups(0x00020002); // Enable collisions for detection
+                    collider.setSensor(true); // Keep sensor mode for grabbing
+                }
+            } else if (e.button === 2) { // Right mouse button
+                this.isRightMouseDown = true;
+                if (this.mouse_rigid) {
+                    const collider = this.mouse_rigid.collider(0);
+                    collider.setCollisionGroups(0x00020002); // Enable collisions
+                    collider.setSensor(false); // Disable sensor mode for physical interactions
+                }
             }
         });
         
         window.addEventListener('mouseup', (e) => {
             if (e.button === 0) { // Left mouse button
                 this.isMouseDown = false;
-                // Release all stuck objects when mouse is released
                 this.releaseStuckObjects();
+                if (this.mouse_rigid) {
+                    const collider = this.mouse_rigid.collider(0);
+                    collider.setCollisionGroups(0x00000000);
+                    collider.setSensor(true);
+                }
+            } else if (e.button === 2) { // Right mouse button
+                this.isRightMouseDown = false;
+                if (this.mouse_rigid) {
+                    const collider = this.mouse_rigid.collider(0);
+                    collider.setCollisionGroups(0x00000000); // Return to starting state
+                    collider.setSensor(true); // Return to sensor mode
+                }
             }
+        });
+
+        // Prevent context menu from appearing on right click
+        window.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
         });
     }
 
