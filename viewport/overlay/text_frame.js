@@ -1,5 +1,6 @@
 import { CSS2DObject } from "three/examples/jsm/Addons.js";
 import { UI_Z_DIST } from "../viewable_ui";
+import { CATEGORIES } from "./common/categories.js";
 
 const WIDTH_OFFSET = 2;
 const HEIGHT_OFFSET = 2;
@@ -21,7 +22,9 @@ export class TextFrame {
         this.div.name = `${DIV}${incoming_parent.simple_name}`;
         this.iframe = document.createElement('iframe');
         this.iframe.name = `${IFRAME}${incoming_parent.simple_name}`;
-        this.iframe.src = PLACEHOLDER_PATH;
+        // Look up the HTML path from CATEGORIES based on simple_name
+        const category = Object.values(CATEGORIES).find(cat => cat.value === incoming_parent.simple_name);
+        this.iframe.src = category ? category.html : PLACEHOLDER_PATH;
         this.div.appendChild(this.iframe);
         // Position and add to scene
         this.css_div = new CSS2DObject(this.div);

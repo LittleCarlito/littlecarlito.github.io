@@ -2,8 +2,7 @@ import * as THREE from 'three';
 import { Easing, Tween } from 'tween';
 import { clamp } from 'three/src/math/MathUtils.js';
 import { TextFrame, IFRAME } from './text_frame';
-import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, category_colors, 
-    category_labels, extract_type, PAN_SPEED, TYPES, VALID_DIRECTIONS } from './common';
+import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, CATEGORIES, extract_type, PAN_SPEED, TYPES, VALID_DIRECTIONS } from './common';
 
 export class TextContainer {
     container_width;
@@ -17,29 +16,28 @@ export class TextContainer {
         this.text_box_container = new THREE.Object3D();
         // Create text displays
         this.parent.add(this.text_box_container);
-        for (let c = 0; c < category_labels.length; c++) {
+        Object.values(CATEGORIES).forEach((category, i) => {
+            if (typeof category === 'function') return; // Skip helper methods
             const text_box = new THREE.Object3D();
-            // TODO Get text box and text to this
-            // TODO Then move this base to be bound by text_box_container
             text_box.position.x = get_associated_position(WEST, this.camera);
             text_box.position.y = this.get_text_box_y();
-            text_box.simple_name = `${category_labels[c]}`;
-            text_box.name = `${TYPES.TEXT}${text_box.simple_name}`;
+            text_box.simple_name = category.value;
+            text_box.name = `${TYPES.TEXT}${category.value}`;
             this.text_box_container.add(text_box);
             // Create the background box
             this.container_width = this.get_text_box_width();
             this.container_height = this.get_text_box_height();
             const box_geometry = new THREE.BoxGeometry(this.container_width, this.container_height, .01);
-            const box_material = new THREE.MeshBasicMaterial({ color: category_colors[c] });
+            const box_material = new THREE.MeshBasicMaterial({ color: category.color });
             const text_box_background = new THREE.Mesh(box_geometry, box_material);
-            text_box_background.name = `${TYPES.BACKGROUND}${category_labels[c]}`;
+            text_box_background.name = `${TYPES.BACKGROUND}${category.value}`;
             text_box.add(text_box_background);
             // Create html element
             const new_frame = new TextFrame(text_box, this.camera, this.container_width, this.container_height);
-            new_frame.simple_name = `${category_labels[c]}`;
-            new_frame.name = `${TYPES.TEXT_BLOCK}${category_labels[c]}`;
-            this.text_frames[c] = new_frame;
-        }
+            new_frame.simple_name = category.value;
+            new_frame.name = `${TYPES.TEXT_BLOCK}${category.value}`;
+            this.text_frames[i] = new_frame;
+        });
     }
 
     /** Brings the text box associated with the given name into focus

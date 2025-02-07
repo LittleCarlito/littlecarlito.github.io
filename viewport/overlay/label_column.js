@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Easing, Tween } from 'tween';
 import { get_screen_size, get_associated_position, WEST } from "./common/screen";
-import { category_icons, category_labels } from './common/primary_categories';
+import { CATEGORIES } from './common/categories';
 import { TEXTURE_LOADER, TYPES, PAN_SPEED, ROTATE_SPEED, FOCUS_ROTATION } from './common/index'
 
 export class LabelColumn {
@@ -18,11 +18,12 @@ export class LabelColumn {
         this.container_column.name = `${TYPES.CONATINER}column`
         this.parent.add(this.container_column);
         // Create section labels
-        for (let i = 0; i < category_icons.length; i++) {
+        Object.values(CATEGORIES).forEach((category, i) => {
+            if (typeof category === 'function') return; // Skip helper methods
             const button_container = new THREE.Object3D();
-            button_container.name = `${TYPES.CONATINER}${category_labels[i]}`
+            button_container.name = `${TYPES.CONATINER}${category.value}`
             this.container_column.add(button_container);
-            const button_texture = TEXTURE_LOADER.load(category_icons[i]);
+            const button_texture = TEXTURE_LOADER.load(category.icon);
             button_texture.colorSpace = THREE.SRGBColorSpace;
             const button_option = new THREE.Mesh(
                 // TODO Get demensions to constants
@@ -31,10 +32,10 @@ export class LabelColumn {
                     map: button_texture,
                     transparent: true
                 }));
-            button_option.name = `${TYPES.LABEL}${category_labels[i]}`
+            button_option.name = `${TYPES.LABEL}${category.value}`
             button_option.position.y = i * 3;
             button_container.add(button_option);
-        }
+        });
         this.container_column.position.x = this.get_column_x_position(true);
         this.container_column.position.y = this.get_column_y_position(true);
         this.container_column.rotation.y = this.get_column_y_rotation(true);
@@ -126,9 +127,10 @@ export class LabelColumn {
     // Column setters
     set_content_layer(incoming_layer) {
         this.container_column.layers.set(0);
-        category_labels.forEach(label => {
-            const label_name = `${TYPES.CONATINER}${label}`;
-            const button_name = `${TYPES.LABEL}${label}`;
+        Object.values(CATEGORIES).forEach(category => {
+            if (typeof category === 'function') return; // Skip helper methods
+            const label_name = `${TYPES.CONATINER}${category.value}`;
+            const button_name = `${TYPES.LABEL}${category.value}`;
             const existing_label_container = this.container_column.getObjectByName(label_name);
             const existing_label = existing_label_container.getObjectByName(button_name);
             existing_label.layers.set(incoming_layer);
