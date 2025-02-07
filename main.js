@@ -49,7 +49,6 @@ const viewable_ui = new ViewableUI(scene, world, RAPIER);
 new BackgroundLighting(scene);
 const primary_container = new PrimaryContainer(world, scene, viewable_ui.get_camera());
 new BackgroundFloor(world, scene, viewable_ui.get_camera());
-// const mouse_ball = new MouseBall(scene, world, RAPIER);
 // Effects/bloom effects
 const render_scene = new RenderPass(scene, viewable_ui.get_camera());
 const bloom_pass = new UnrealBloomPass( 

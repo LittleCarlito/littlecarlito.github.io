@@ -3,7 +3,7 @@ import { UI_Z_DIST } from "../viewable_ui";
 
 const WIDTH_OFFSET = 2;
 const HEIGHT_OFFSET = 2;
-const TEST_LINK = "https://www.youtube.com/embed/SJOz3qjfQXU?";
+const PLACEHOLDER_PATH = '/pages/placeholder.html';
 export const IFRAME = "iframe_";
 export const DIV = "div_"
 
@@ -21,10 +21,7 @@ export class TextFrame {
         this.div.name = `${DIV}${incoming_parent.simple_name}`;
         this.iframe = document.createElement('iframe');
         this.iframe.name = `${IFRAME}${incoming_parent.simple_name}`;
-        const origin = window.location.origin;
-        this.iframe.src = `${TEST_LINK}rel=0&origin=${origin}`;
-        this.iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
-        this.iframe.setAttribute('allowfullscreen', '');
+        this.iframe.src = PLACEHOLDER_PATH;
         this.div.appendChild(this.iframe);
         // Position and add to scene
         this.css_div = new CSS2DObject(this.div);
