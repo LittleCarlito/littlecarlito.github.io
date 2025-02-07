@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { TYPES } from '../viewport/overlay/common';
 
 const DEFAULT_Z_DEPTH = 0;
+const Z_SPEED = .2;
 
 export class MouseBall {
     mouse_pos;
@@ -23,12 +24,10 @@ export class MouseBall {
         this.mouse_mesh = new THREE.Mesh(geometry, material);
         this.mouse_mesh.name = `${TYPES.BALL}${TYPES.UNIQUE}`
         this.mouse_mesh.add(mouse_light);
-        
         // Set mouse mesh and light to layer 2
         this.mouse_mesh.layers.set(2);
         mouse_light.layers.set(2);
-        
-        // RIGID BODY
+        // Rigid body
         let body_desc = RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(0, 0, 0)
         this.mouse_rigid = this.world.createRigidBody(body_desc);
         let dynamic_collider = RAPIER.ColliderDesc.ball(mouse_size * 3.0);
@@ -59,6 +58,16 @@ export class MouseBall {
         this.mouse_rigid.setTranslation({ x: this.mouse_pos.x, y: this.mouse_pos.y, z: this.ball_z_depth});
         let { x, y, z } = this.mouse_rigid.translation();
         this.mouse_mesh.position.set(x, y, z);
+    }
+
+    /** Increases Z by the constant Z_SPEED amount */
+    increase_z() {
+        this.set_z_depth(this.ball_z_depth - Z_SPEED);
+    }
+
+    /** Decreases Z by the constant Z_SPEED amount */
+    decrease_z() {
+        this.set_z_depth(this.ball_z_depth + Z_SPEED);
     }
 
     set_z_depth(incoming_z) {

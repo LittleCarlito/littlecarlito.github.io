@@ -67,7 +67,8 @@ composer.addPass(output_pass);
 
 
 // TODO OOOOO
-// TODO Use scroll wheel to move mouse ball forward and back
+// TODO Get scroll wheel movement to be based off camera rotation
+//          Set the MouseBall Basis to be the same as cameras Basis
 // TODO Enable mouse physics when HideButton enabled
 // BUG When shrinking to small column and selected other column colors become visible
 // TODO Create html pages for each category
@@ -160,6 +161,25 @@ function handle_off_screen(e) {
     }
 }
 
+/** Handles mouse wheel actions */
+function handle_mouse_wheel(e) {
+    // Down up scroll
+    if(e.deltaY > 0) {
+        mouse_ball.decrease_z();
+    } else if(e.deltaY < 0) {
+        mouse_ball.increase_z();
+    }
+    // Right left scroll
+    if(e.deltaX > 0) {
+        log_scroll("Right scroll");
+    } else if(e.deltaX < 0) {
+        log_scroll("Left scroll");
+    }
+    // Shared logging method
+    function log_scroll(scroll_type) {
+        console.log(`${scroll_type} detected`);
+    }
+}
 
 // ----- Window handlers
 /** Handles resize events */
@@ -189,7 +209,6 @@ window.addEventListener('mousedown', (e) => {
             console.log(`${i.object.name} clicked down`)
         }
     });
-    // TODO Do something with the intersections
 });
 
 /** Handles mouse up actions */
@@ -238,9 +257,9 @@ window.addEventListener('mouseup', (e) => {
             viewable_ui.get_overlay().lose_focus_text_box(WEST);
         }
     }
-
 });
 
+window.addEventListener('wheel', handle_mouse_wheel);
 window.addEventListener('mousemove', handle_movement);
 /*
 The window object isn't a typical DOM element with a well-defined "bounding box" for mouse events.
