@@ -6,8 +6,11 @@ import { get_intersect_list, TYPES } from './overlay/common';
 export const UI_Z_DIST = 15;
 
 export class ViewableUI {
+    detect_rotation = false;
     overlay_container;
     mouse_ball;
+    leftMouseDown = false;
+    rightMouseDown = false;
 
     constructor(incoming_parent, incoming_world, RAPIER) {
         this.viewable_ui_container = new THREE.Object3D();
@@ -30,6 +33,42 @@ export class ViewableUI {
         this.parent.add(this.viewable_ui_container);
         // Overlay creation
         this.overlay_container = new OverlayContainer(this.viewable_ui_container, this.get_camera());
+        // Add mouse button event listeners
+        window.addEventListener('mousedown', (e) => {
+            if (e.button === 0) this.leftMouseDown = true;
+            if (e.button === 2) this.rightMouseDown = true;
+            // If left and right mouse button held down while overlay is hidden
+            if (this.leftMouseDown && this.rightMouseDown && this.mouse_ball.enabled) {
+                this.detect_rotation = true;
+            }
+        });
+        // Add event listener for lifting the mouse button
+        window.addEventListener('mouseup', (e) => {
+            if (e.button === 0) {
+                this.detect_rotation = false;
+                this.leftMouseDown = false;
+            };
+            if (e.button === 2) {
+                this.detect_rotation = false;
+                this.rightMouseDown = false;
+            };
+        });
+        // Prevent context menu from appearing on right click
+        window.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+        window.addEventListener('mousemove', (e) => {
+            if(this.detect_rotation) {
+                const sensitivity = 0.3;
+                // Calculate rotation amounts based on mouse movement
+                const horizontalRotation = (e.movementX / 1000) * sensitivity;
+                const verticalRotation = (e.movementY / 1000) * sensitivity;
+                
+                // Apply rotation to the camera container
+                this.viewable_ui_container.rotation.y += horizontalRotation;
+                this.viewable_ui_container.rotation.x += verticalRotation;
+            }
+        });
     }
 
     handle_movement(e, incoming_camera = null) {
