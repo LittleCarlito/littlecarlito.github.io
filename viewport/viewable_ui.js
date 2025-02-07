@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OverlayContainer } from "./overlay/overlay_container";
 import { MouseBall } from '../background/mouse_ball';
 import { get_intersect_list, TYPES } from './overlay/common';
+import { CameraController } from './camera_controller';
 
 export const UI_Z_DIST = 15;
 
@@ -11,6 +12,7 @@ export class ViewableUI {
     mouse_ball;
     leftMouseDown = false;
     rightMouseDown = false;
+    camera_controller;
 
     constructor(incoming_parent, incoming_world, RAPIER) {
         this.viewable_ui_container = new THREE.Object3D();
@@ -26,13 +28,25 @@ export class ViewableUI {
             // Far clipping
             1000
         );
+        
+        // Initialize camera controller
+        this.camera_controller = new CameraController(this.camera, UI_Z_DIST);
+        
+        // Create overlay and connect it to camera controller
+        this.overlay_container = new OverlayContainer(this.viewable_ui_container, this.get_camera());
+        this.camera_controller.setOverlayContainer(this.overlay_container);
+        
+        // Add callback for camera updates
+        this.camera_controller.addUpdateCallback(() => {
+            if (this.overlay_container) {
+                this.overlay_container.reposition(this.overlay_container.is_label_column_left_side());
+            }
+        });
+        
         this.mouse_ball = new MouseBall(this.camera, this.world, RAPIER);
         this.viewable_ui_container.add(this.camera);
-        this.viewable_ui_container.position.z = UI_Z_DIST;
         // this.viewable_ui_container.rotation.x = -0.261799;
         this.parent.add(this.viewable_ui_container);
-        // Overlay creation
-        this.overlay_container = new OverlayContainer(this.viewable_ui_container, this.get_camera());
         // Add mouse button event listeners
         window.addEventListener('mousedown', (e) => {
             if (e.button === 0) this.leftMouseDown = true;
@@ -59,14 +73,11 @@ export class ViewableUI {
         });
         window.addEventListener('mousemove', (e) => {
             if(this.detect_rotation) {
-                const sensitivity = 0.3;
-                // Calculate rotation amounts based on mouse movement
-                const horizontalRotation = (e.movementX / 1000) * sensitivity;
-                const verticalRotation = (e.movementY / 1000) * sensitivity;
-                
-                // Apply rotation to the camera container
-                this.viewable_ui_container.rotation.y += horizontalRotation;
-                this.viewable_ui_container.rotation.x += verticalRotation;
+                const sensitivity = 0.02;  // Reduced sensitivity since we're not dividing by 1000 anymore
+                this.camera_controller.rotate(
+                    e.movementX * sensitivity,
+                    e.movementY * sensitivity
+                );
             }
         });
     }
