@@ -10,7 +10,6 @@ import { BackgroundFloor } from './background/background_floor';
 import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
 import { WEST, TYPES, TEXTURE_LOADER, extract_type, get_intersect_list } from './viewport/overlay/common';
-import { MouseBall } from './background/mouse_ball';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'gradient.jpg';
@@ -45,12 +44,12 @@ webgl_renderer.domElement.style.top = '0';
 webgl_renderer.domElement.style.zIndex = '0';
 document.body.appendChild(webgl_renderer.domElement);
 // UI creation
-const viewable_ui = new ViewableUI(scene);
+const viewable_ui = new ViewableUI(scene, world, RAPIER);
 // Background creation
 new BackgroundLighting(scene);
 const primary_container = new PrimaryContainer(world, scene, viewable_ui.get_camera());
 new BackgroundFloor(world, scene, viewable_ui.get_camera());
-const mouse_ball = new MouseBall(scene, world, RAPIER);
+// const mouse_ball = new MouseBall(scene, world, RAPIER);
 // Effects/bloom effects
 const render_scene = new RenderPass(scene, viewable_ui.get_camera());
 const bloom_pass = new UnrealBloomPass( 
@@ -65,10 +64,8 @@ composer.addPass(render_scene);
 composer.addPass(bloom_pass);
 composer.addPass(output_pass);
 
-
 // TODO OOOOO
-// TODO Get scroll wheel movement to be based off camera rotation
-//          Set the MouseBall Basis to be the same as cameras Basis
+// TODO Make the MouseBall an internal child of the camera
 // TODO Enable mouse physics when HideButton enabled
 // BUG When shrinking to small column and selected other column colors become visible
 // TODO Create html pages for each category
@@ -113,8 +110,9 @@ function animate() {
     const delta = clock.getDelta();
     world.timestep = Math.min(delta, 0.1);
     world.step();
+    viewable_ui.update_mouse_ball();
+    // mouse_ball.update();
     // Background object updates
-    mouse_ball.update();
     primary_container.dynamic_bodies.forEach(([mesh, body]) => {
         if(body != null) {
             const position = body.translation();
@@ -130,28 +128,29 @@ function animate() {
 
 /** Handles mouse hovering events and raycasts to collide with scene objects */
 function handle_movement(e) {
-    // Handle mouseball
-    mouse_ball.handle_movement(e, viewable_ui.get_camera());
-    // Handle UI
-    const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
-    if(found_intersections.length > 0 && ! viewable_ui.get_overlay().is_swapping_sides()) {
-        const intersected_object = found_intersections[0].object;
-        const object_name = intersected_object.name;
-        const name_type = object_name.split("_")[0] + "_";
-        // Handle label hover
-        switch(name_type) {
-            case TYPES.LABEL:
-                viewable_ui.get_overlay().handle_hover(intersected_object);
-                break;
-            case TYPES.FLOOR:
-                viewable_ui.get_overlay().reset_hover();
-                break;
-            default:
-                break;
-        }
-    } else {
-        viewable_ui.get_overlay().reset_hover();
-    }
+    viewable_ui.handle_movement(e);
+    // // Handle mouseball
+    // mouse_ball.handle_movement(e, viewable_ui.get_camera());
+    // // Handle UI
+    // const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
+    // if(found_intersections.length > 0 && ! viewable_ui.get_overlay().is_swapping_sides()) {
+    //     const intersected_object = found_intersections[0].object;
+    //     const object_name = intersected_object.name;
+    //     const name_type = object_name.split("_")[0] + "_";
+    //     // Handle label hover
+    //     switch(name_type) {
+    //         case TYPES.LABEL:
+    //             viewable_ui.get_overlay().handle_hover(intersected_object);
+    //             break;
+    //         case TYPES.FLOOR:
+    //             viewable_ui.get_overlay().reset_hover();
+    //             break;
+    //         default:
+    //             break;
+    //     }
+    // } else {
+    //     viewable_ui.get_overlay().reset_hover();
+    // }
 }
 
 /** Handles mouse off screen events */
@@ -165,9 +164,9 @@ function handle_off_screen(e) {
 function handle_mouse_wheel(e) {
     // Down up scroll
     if(e.deltaY > 0) {
-        mouse_ball.decrease_z();
+        viewable_ui.decrease_mouse_ball_z();
     } else if(e.deltaY < 0) {
-        mouse_ball.increase_z();
+        viewable_ui.increase_mouse_ball_z();
     }
     // Right left scroll
     if(e.deltaX > 0) {

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { TYPES } from '../viewport/overlay/common';
 
-const DEFAULT_Z_DEPTH = 0;
+const DEFAULT_Z_DEPTH = -15;
 const Z_SPEED = .2;
 
 export class MouseBall {
@@ -38,7 +38,7 @@ export class MouseBall {
 
     handle_movement(e, incoming_camera) {
         // Use positive normal (0,0,1) and positive distance for consistent plane orientation
-        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -this.ball_z_depth);
+        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
         // Calculate normal device coordinates
         const mouse = new THREE.Vector2(
             (e.clientX / window.innerWidth) * 2 - 1,
@@ -49,15 +49,30 @@ export class MouseBall {
         // Get intersections of raycaster
         const intersection = new THREE.Vector3();
         this.raycaster.ray.intersectPlane(plane, intersection);
-        // Set mouse position to intersections
-        this.mouse_pos.x = intersection.x;
-        this.mouse_pos.y = intersection.y;
+        // Convert intersection point to local coordinates relative to camera
+        incoming_camera.worldToLocal(intersection);
+        // Set mouse position to intersections, scaled by z ratio
+        const z_ratio = this.ball_z_depth / DEFAULT_Z_DEPTH;
+        this.mouse_pos.x = intersection.x * z_ratio;
+        this.mouse_pos.y = intersection.y * z_ratio;
     }
 
     update() {
-        this.mouse_rigid.setTranslation({ x: this.mouse_pos.x, y: this.mouse_pos.y, z: this.ball_z_depth});
-        let { x, y, z } = this.mouse_rigid.translation();
-        this.mouse_mesh.position.set(x, y, z);
+        // Convert local position to world position for physics
+        const worldPosition = new THREE.Vector3(this.mouse_pos.x, this.mouse_pos.y, this.ball_z_depth);
+        this.parent.localToWorld(worldPosition);
+        
+        // Update physics body with world position
+        this.mouse_rigid.setTranslation({ 
+            x: worldPosition.x, 
+            y: worldPosition.y, 
+            z: worldPosition.z
+        });
+        
+        // Convert world position back to local space for visual mesh
+        const localPosition = worldPosition.clone();
+        this.parent.worldToLocal(localPosition);
+        this.mouse_mesh.position.set(localPosition.x, localPosition.y, localPosition.z);
     }
 
     /** Increases Z by the constant Z_SPEED amount */
