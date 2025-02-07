@@ -43,7 +43,7 @@ export class ViewableUI {
             }
         });
         
-        this.mouse_ball = new MouseBall(this.camera, this.world, RAPIER);
+        this.mouse_ball = new MouseBall(this.viewable_ui_container, this.world, RAPIER);
         this.viewable_ui_container.add(this.camera);
         // this.viewable_ui_container.rotation.x = -0.261799;
         this.parent.add(this.viewable_ui_container);

@@ -29,20 +29,6 @@ export class LinkContainer {
             link_button.position.x += calced_radius * (3.5 * l);
             this.link_container.add(link_button);
         });
-        // for(let l = 0; l < LINK_PATHS.length; l++) {
-        //     const circle_geometry = new THREE.CircleGeometry(calced_radius);
-        //     const circle_texture = TEXTURE_LOADER.load(LINK_PATHS[l]);
-        //     circle_texture.colorSpace = THREE.SRGBColorSpace;
-        //     const link_button = new THREE.Mesh(
-        //         circle_geometry,
-        //         new THREE.MeshBasicMaterial({
-        //             map: circle_texture,
-        //             transparent: true
-        //         }));
-        //     link_button.name = `${TYPES.LINK}${LINK_LABELS[l]}`;
-        //     link_button.position.x += calced_radius * (3.5 * l);
-        //     this.link_container.add(link_button);
-        // }
     }
 
     /** Open a new tab of the associated link */
@@ -53,13 +39,6 @@ export class LinkContainer {
         } else {
             console.log(`Given label \"${new_link}\" does not have a stored path`);
         }
-
-        // if(LINK_URLS.has(new_link)) {
-        //     const hyperlink_path = LINK_URLS.get(new_link);
-        //     window.open(hyperlink_path, "_blank");
-        // } else {
-        //     console.log(`Given label \"${new_link}\" does not have a stored path`);
-        // }
     }
 
     trigger_overlay(is_overlay_hidden) {

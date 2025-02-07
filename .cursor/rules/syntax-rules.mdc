@@ -1,0 +1,13 @@
+---
+description: Describing the minimum syntax requirements for contributing to the project
+globs: .js
+---
+
+# Your rule content
+
+- You can @ files here
+- You can use markdown but dont have to
+
+## Casing
+- All variables local to the class must use snake case.
+- All function names should be snake case.

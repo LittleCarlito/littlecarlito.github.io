@@ -25,10 +25,21 @@ export function extract_type(incoming_object) {
 
 // Mouse detection
 const raycaster = new THREE.Raycaster();
-const mouse_location = new THREE.Vector2();/** Retrieves objects mouse is intersecting with from the given event */
+const mouse_location = new THREE.Vector2();
+
+/** Converts screen coordinates to Normalized Device Coordinates (NDC) */
+export function get_ndc_from_event(e) {
+    return {
+        x: (e.clientX / window.innerWidth) * 2 - 1,
+        y: -(e.clientY / window.innerHeight) * 2 + 1
+    };
+}
+
+/** Retrieves objects mouse is intersecting with from the given event */
 export function get_intersect_list(e, incoming_camera, incoming_scene) {
-    mouse_location.x = (e.clientX / window.innerWidth) * 2 - 1;
-    mouse_location.y = -(e.clientY / window.innerHeight) * 2 + 1
+    const ndc = get_ndc_from_event(e);
+    mouse_location.x = ndc.x;
+    mouse_location.y = ndc.y;
     raycaster.setFromCamera(mouse_location, incoming_camera);
     return raycaster.intersectObject(incoming_scene, true);
 }
