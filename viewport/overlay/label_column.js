@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Easing, Tween } from 'tween';
 import { get_screen_size, get_associated_position, WEST } from "./common/screen";
 import { category_icons, category_labels } from './common/primary_categories';
-import { TEXTURE_LOADER, CONATINER, LABEL, PAN_SPEED, ROTATE_SPEED, FOCUS_ROTATION } from './common/util';
+import { TEXTURE_LOADER, TYPES, PAN_SPEED, ROTATE_SPEED, FOCUS_ROTATION } from './common/index'
 
 export class LabelColumn {
     in_tween_map = new Map();
@@ -15,12 +15,12 @@ export class LabelColumn {
         this.camera = incoming_camera;
 
         this.container_column = new THREE.Object3D();
-        this.container_column.name = `${CONATINER}column`
+        this.container_column.name = `${TYPES.CONATINER}column`
         this.parent.add(this.container_column);
         // Create section labels
         for (let i = 0; i < category_icons.length; i++) {
             const button_container = new THREE.Object3D();
-            button_container.name = `${CONATINER}${category_labels[i]}`
+            button_container.name = `${TYPES.CONATINER}${category_labels[i]}`
             this.container_column.add(button_container);
             const button_texture = TEXTURE_LOADER.load(category_icons[i]);
             button_texture.colorSpace = THREE.SRGBColorSpace;
@@ -31,7 +31,7 @@ export class LabelColumn {
                     map: button_texture,
                     transparent: true
                 }));
-            button_option.name = `${LABEL}${category_labels[i]}`
+            button_option.name = `${TYPES.LABEL}${category_labels[i]}`
             button_option.position.y = i * 3;
             button_container.add(button_option);
         }
@@ -127,8 +127,8 @@ export class LabelColumn {
     set_content_layer(incoming_layer) {
         this.container_column.layers.set(0);
         category_labels.forEach(label => {
-            const label_name = `${CONATINER}${label}`;
-            const button_name = `${LABEL}${label}`;
+            const label_name = `${TYPES.CONATINER}${label}`;
+            const button_name = `${TYPES.LABEL}${label}`;
             const existing_label_container = this.container_column.getObjectByName(label_name);
             const existing_label = existing_label_container.getObjectByName(button_name);
             existing_label.layers.set(incoming_layer);

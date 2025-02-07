@@ -9,7 +9,7 @@ import { PrimaryContainer } from './background/primary_container';
 import { BackgroundFloor } from './background/background_floor';
 import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
-import { WEST, HIDE, LINK, TEXTURE_LOADER, LABEL, extract_type, get_intersect_list, FLOOR } from './viewport/overlay/common';
+import { WEST, TYPES, TEXTURE_LOADER, extract_type, get_intersect_list } from './viewport/overlay/common';
 import { MouseBall } from './background/mouse_ball';
 
 // ----- Constants
@@ -139,10 +139,10 @@ function handle_movement(e) {
         const name_type = object_name.split("_")[0] + "_";
         // Handle label hover
         switch(name_type) {
-            case LABEL:
+            case TYPES.LABEL:
                 viewable_ui.get_overlay().handle_hover(intersected_object);
                 break;
-            case FLOOR:
+            case TYPES.FLOOR:
                 viewable_ui.get_overlay().reset_hover();
                 break;
             default:
@@ -204,15 +204,15 @@ window.addEventListener('mouseup', (e) => {
             // const split_intersected_name = intersected_object.name.split("_");
             const name_type = extract_type(intersected_object);
             switch(name_type) {
-                case LABEL:
+                case TYPES.LABEL:
                     viewable_ui.get_overlay().reset_hover();
                     swap_column_sides();
                     viewable_ui.get_overlay().focus_text_box(intersected_object.name);
                     break;
-                case HIDE:
+                case TYPES.HIDE:
                     trigger_overlay();
                     break;
-                case LINK:
+                case TYPES.LINK:
                     viewable_ui.get_overlay().open_link(split_intersected_name[1].trim());
                     break;
             }
@@ -223,10 +223,10 @@ window.addEventListener('mouseup', (e) => {
             const intersected_object = found_intersections[0].object;
             const name_type = extract_type(intersected_object);
             switch(name_type) {
-                case LABEL:
+                case TYPES.LABEL:
                     viewable_ui.get_overlay().focus_text_box(intersected_object.name);
                     break;
-                case LINK:
+                case TYPES.LINK:
                     viewable_ui.get_overlay().open_link(split_intersected_name[1].trim());
                     break;
                 default:

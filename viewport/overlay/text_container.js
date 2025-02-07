@@ -3,7 +3,7 @@ import { Easing, Tween } from 'tween';
 import { clamp } from 'three/src/math/MathUtils.js';
 import { TextFrame, IFRAME } from './text_frame';
 import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, category_colors, 
-    category_labels, extract_type, PAN_SPEED, TEXT, BACKGROUND, TEXT_BLOCK, VALID_DIRECTIONS } from './common';
+    category_labels, extract_type, PAN_SPEED, TYPES, VALID_DIRECTIONS } from './common';
 
 export class TextContainer {
     text_frames = [];
@@ -22,7 +22,7 @@ export class TextContainer {
             text_box.position.x = get_associated_position(WEST, this.camera);
             text_box.position.y = this.get_text_box_y();
             text_box.simple_name = `${category_labels[c]}`;
-            text_box.name = `${TEXT}${text_box.simple_name}`;
+            text_box.name = `${TYPES.TEXT}${text_box.simple_name}`;
             this.text_box_container.add(text_box);
             // Create the background box
             const found_width = this.get_text_box_width();
@@ -30,12 +30,12 @@ export class TextContainer {
             const box_geometry = new THREE.BoxGeometry(found_width, found_height, .01);
             const box_material = new THREE.MeshBasicMaterial({ color: category_colors[c] });
             const text_box_background = new THREE.Mesh(box_geometry, box_material);
-            text_box_background.name = `${BACKGROUND}${category_labels[c]}`;
+            text_box_background.name = `${TYPES.BACKGROUND}${category_labels[c]}`;
             text_box.add(text_box_background);
             // Create html element
             const new_frame = new TextFrame(text_box, this.camera, found_width, found_height);
             new_frame.simple_name = `${category_labels[c]}`;
-            new_frame.name = `${TEXT_BLOCK}${category_labels[c]}`;
+            new_frame.name = `${TYPES.TEXT_BLOCK}${category_labels[c]}`;
             this.text_frames[c] = new_frame;
         }
     }
@@ -47,7 +47,7 @@ export class TextContainer {
         if(!is_column_left) {
             // Get text box name
             const found_index = incoming_name.indexOf('_');
-            const new_name = TEXT + incoming_name.substring(found_index + 1);
+            const new_name = TYPES.TEXT + incoming_name.substring(found_index + 1);
             if(new_name != this.focused_text_name) {
                 // If existing focus text box move it
                 if(this.focused_text_name != "") {
@@ -134,11 +134,11 @@ export class TextContainer {
         this.text_box_container.children.forEach(c => {
             c.children.forEach(inner_c => {
                 switch(extract_type(inner_c)) {
-                    case BACKGROUND:
+                    case TYPES.BACKGROUND:
                         inner_c.geometry.dispose;
                         inner_c.geometry = new_text_geometry;
                         break;
-                    case IFRAME:
+                    case TYPES.IFRAME:
                         this.update_iframe_size(inner_c.simple_name, calced_width, calced_height);
                         break;
                 }

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BALL, UNIQUE } from '../viewport/overlay/common';
+import { TYPES } from '../viewport/overlay/common';
 
 const DEFAULT_Z_DEPTH = 0;
 
@@ -21,7 +21,7 @@ export class MouseBall {
         });
         const mouse_light = new THREE.PointLight(0xffffff, 1);
         this.mouse_mesh = new THREE.Mesh(geometry, material);
-        this.mouse_mesh.name = `${BALL}${UNIQUE}`
+        this.mouse_mesh.name = `${TYPES.BALL}${TYPES.UNIQUE}`
         this.mouse_mesh.add(mouse_light);
         
         // Set mouse mesh and light to layer 2

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Easing, Tween } from 'tween';
-import { get_screen_size, get_associated_position, EAST, HIDE, HIDE_HEIGHT, HIDE_WIDTH } from './common';
+import { get_screen_size, get_associated_position, EAST, TYPES, HIDE_HEIGHT, HIDE_WIDTH } from './common';
 
 export class HideButton {
     is_overlay_hidden = false;
@@ -15,7 +15,7 @@ export class HideButton {
         this.hide_button = new THREE.Mesh(hide_button_geometry, hide_button_material);
         this.hide_button.position.y = this.get_hide_button_y(this.camera);
         this.hide_button.position.x = this.get_hide_button_x(true, this.camera);
-        this.hide_button.name = `${HIDE}`;
+        this.hide_button.name = `${TYPES.HIDE}${TYPES.UNIQUE}`;
         this.parent.add(this.hide_button);
     }
 

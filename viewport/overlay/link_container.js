@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Easing, Tween } from 'tween';
 import { clamp } from 'three/src/math/MathUtils.js';
-import { get_screen_size, get_associated_position, SOUTH, LINK, LINK_RADIUS, 
+import { get_screen_size, get_associated_position, SOUTH, TYPES, LINK_RADIUS, 
     LINK_PATHS, LINK_LABELS, LINK_URLS, TEXTURE_LOADER } from './common';
 
 
@@ -25,7 +25,7 @@ export class LinkContainer {
                     map: circle_texture,
                     transparent: true
                 }));
-            link_button.name = `${LINK}${LINK_LABELS[l]}`;
+            link_button.name = `${TYPES.LINK}${LINK_LABELS[l]}`;
             link_button.position.x += calced_radius * (3.5 * l);
             this.link_container.add(link_button);
         }
@@ -71,7 +71,7 @@ export class LinkContainer {
     set_content_layers(incoming_layer) {
         this.link_container.layers.set(incoming_layer);
         LINK_LABELS.forEach(link => {
-            const link_name = `${LINK}${link}`;
+            const link_name = `${TYPES.LINK}${link}`;
             const existing_link = this.link_container.getObjectByName(link_name);
             existing_link.layers.set(incoming_layer);
         })
