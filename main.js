@@ -65,24 +65,19 @@ composer.addPass(bloom_pass);
 composer.addPass(output_pass);
 
 // TODO OOOOO
-// TODO Make the MouseBall an internal child of the camera
-// TODO Enable mouse physics when HideButton enabled
+// TODO Enable/disable mouse ball based off hide button
+//          Use layering
 // BUG When shrinking to small column and selected other column colors become visible
 // TODO Create html pages for each category
 // TODO Ensure html page text boxes are sensitive to zooming
 //          Text should enlarge
-
+// TODO Create instruction menus for when hide button is clicked for controlling physics things/camera
 
 // ----- Functions
-/** Hides/reveals overlay elements and swaps hide buttons display sprite */
-function trigger_overlay() {
-    viewable_ui.get_overlay().trigger_overlay();
-}
-
 /*** Swaps the container column sides */
 function swap_column_sides() {
     viewable_ui.get_overlay().swap_column_sides();
-    if( viewable_ui.get_overlay().is_label_column_left_side()){
+    if(viewable_ui.get_overlay().is_label_column_left_side()){
         primary_container.decativate_all_objects();
     }
 }
@@ -111,7 +106,6 @@ function animate() {
     world.timestep = Math.min(delta, 0.1);
     world.step();
     viewable_ui.update_mouse_ball();
-    // mouse_ball.update();
     // Background object updates
     primary_container.dynamic_bodies.forEach(([mesh, body]) => {
         if(body != null) {
@@ -129,28 +123,6 @@ function animate() {
 /** Handles mouse hovering events and raycasts to collide with scene objects */
 function handle_movement(e) {
     viewable_ui.handle_movement(e);
-    // // Handle mouseball
-    // mouse_ball.handle_movement(e, viewable_ui.get_camera());
-    // // Handle UI
-    // const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
-    // if(found_intersections.length > 0 && ! viewable_ui.get_overlay().is_swapping_sides()) {
-    //     const intersected_object = found_intersections[0].object;
-    //     const object_name = intersected_object.name;
-    //     const name_type = object_name.split("_")[0] + "_";
-    //     // Handle label hover
-    //     switch(name_type) {
-    //         case TYPES.LABEL:
-    //             viewable_ui.get_overlay().handle_hover(intersected_object);
-    //             break;
-    //         case TYPES.FLOOR:
-    //             viewable_ui.get_overlay().reset_hover();
-    //             break;
-    //         default:
-    //             break;
-    //     }
-    // } else {
-    //     viewable_ui.get_overlay().reset_hover();
-    // }
 }
 
 /** Handles mouse off screen events */
@@ -228,7 +200,7 @@ window.addEventListener('mouseup', (e) => {
                     viewable_ui.get_overlay().focus_text_box(intersected_object.name);
                     break;
                 case TYPES.HIDE:
-                    trigger_overlay();
+                    viewable_ui.trigger_overlay();
                     break;
                 case TYPES.LINK:
                     viewable_ui.get_overlay().open_link(split_intersected_name[1].trim());

@@ -24,7 +24,6 @@ export class ViewableUI {
             1000
         );
         this.mouse_ball = new MouseBall(this.camera, this.world, RAPIER);
-        this.camera.layers.enable(2);
         this.viewable_ui_container.add(this.camera);
         this.viewable_ui_container.position.z = UI_Z_DIST;
         // this.viewable_ui_container.rotation.x = -0.261799;
@@ -69,6 +68,20 @@ export class ViewableUI {
 
     decrease_mouse_ball_z() {
         this.mouse_ball.decrease_z();
+    }
+
+    toggle_mouse_ball(enabled) {
+        if (enabled) {
+            this.camera.layers.enable(2);
+            this.mouse_ball.toggle_physics(true);
+        } else {
+            this.camera.layers.disable(2);
+            this.mouse_ball.toggle_physics(false);
+        }
+    }
+
+    trigger_overlay() {
+        this.get_overlay().trigger_overlay();
     }
 
     // ViewableUI getters

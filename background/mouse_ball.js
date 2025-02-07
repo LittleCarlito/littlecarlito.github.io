@@ -30,7 +30,8 @@ export class MouseBall {
         // Rigid body
         let body_desc = RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(0, 0, 0)
         this.mouse_rigid = this.world.createRigidBody(body_desc);
-        let dynamic_collider = RAPIER.ColliderDesc.ball(mouse_size * 3.0);
+        let dynamic_collider = RAPIER.ColliderDesc.ball(mouse_size * 3.0)
+            .setCollisionGroups(0x00000000); // Start with collisions disabled
         this.world.createCollider(dynamic_collider, this.mouse_rigid);
         this.update();
         this.parent.add(this.mouse_mesh);
@@ -88,6 +89,18 @@ export class MouseBall {
     set_z_depth(incoming_z) {
         if(!isNaN(incoming_z)) {
             this.ball_z_depth = incoming_z;
+        }
+    }
+
+    // Add method to toggle physics interactions
+    toggle_physics(enabled) {
+        if (this.mouse_rigid) {
+            const collider = this.mouse_rigid.collider(0);
+            if (enabled) {
+                collider.setCollisionGroups(0x00020002); // Enable collisions
+            } else {
+                collider.setCollisionGroups(0x00000000); // Disable all collisions
+            }
         }
     }
 }

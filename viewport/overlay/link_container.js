@@ -91,11 +91,11 @@ export class LinkContainer {
     // Link setters
     set_content_layers(incoming_layer) {
         this.link_container.layers.set(incoming_layer);
-        LINK_LABELS.forEach(link => {
-            const link_name = `${TYPES.LINK}${link}`;
+        Object.values(LINKS).forEach(link => {
+            const link_name = `${TYPES.LINK}${link.value}`;
             const existing_link = this.link_container.getObjectByName(link_name);
             existing_link.layers.set(incoming_layer);
-        })
+        });
     }
 
     // Link getters
