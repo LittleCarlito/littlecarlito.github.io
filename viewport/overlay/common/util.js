@@ -15,11 +15,12 @@ export const HIDE_HEIGHT = 1;
  * @returns Extracts the substring before '_' character
  */
 export function extract_type(incoming_object) {
+    if (!incoming_object || !incoming_object.name) {
+        return "";
+    }
     const split_intersected_name = incoming_object.name.split("_");
     const name_type = split_intersected_name[0] + "_";
-    if(name_type != "") {
-        return name_type;
-    }
+    return name_type;
 }
 
 // Mouse detection

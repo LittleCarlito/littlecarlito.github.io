@@ -65,15 +65,24 @@ composer.addPass(bloom_pass);
 composer.addPass(output_pass);
 
 // TODO OOOOO
-// BUG When shrinking to small column and selected other column colors become visible
-// TODO Create html pages for each category
+// TODO Placeholder html plages for each category
+//          Don't have to be advanced but should be
+//              React
+//              Different for each category
+//              Not include any external connections to avoid CORs issues
 // TODO Ensure html page text boxes are sensitive to zooming
 //          Text should enlarge
 // TODO Change camera rotation to be rotating around origin and not from cameras position
 //          Need to add controller structure to use that to control camera position and keep camera rotation/focus consistent
 //          I think in JS this will take the form of a sphere of 15 radius with origin as its center
 //              Coordinates for the camera will be pulled from this sphere
-//              Movement around the coordinate system is done through both mouse buttons being held in the overlay
+//                  Movement around the coordinate system is done through both mouse buttons being held in the overlay
+//              Make radius (aka zoom) alterable through slider when overlay is hidden
+//                  Or make it sensitive to zoom events when overlay is hidden
+// TODO Create custom designed html pages for each category
+//          Add typing keframe animation to monitor one
+//          Add text bubble effect to contact one
+//          Etc.
 // TODO Create instruction menus for when hide button is clicked for controlling physics things/camera
 
 // ----- Functions

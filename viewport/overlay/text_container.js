@@ -6,6 +6,8 @@ import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, cat
     category_labels, extract_type, PAN_SPEED, TYPES, VALID_DIRECTIONS } from './common';
 
 export class TextContainer {
+    container_width;
+    container_height;
     text_frames = [];
     focused_text_name = "";
 
@@ -25,15 +27,15 @@ export class TextContainer {
             text_box.name = `${TYPES.TEXT}${text_box.simple_name}`;
             this.text_box_container.add(text_box);
             // Create the background box
-            const found_width = this.get_text_box_width();
-            const found_height = this.get_text_box_height();
-            const box_geometry = new THREE.BoxGeometry(found_width, found_height, .01);
+            this.container_width = this.get_text_box_width();
+            this.container_height = this.get_text_box_height();
+            const box_geometry = new THREE.BoxGeometry(this.container_width, this.container_height, .01);
             const box_material = new THREE.MeshBasicMaterial({ color: category_colors[c] });
             const text_box_background = new THREE.Mesh(box_geometry, box_material);
             text_box_background.name = `${TYPES.BACKGROUND}${category_labels[c]}`;
             text_box.add(text_box_background);
             // Create html element
-            const new_frame = new TextFrame(text_box, this.camera, found_width, found_height);
+            const new_frame = new TextFrame(text_box, this.camera, this.container_width, this.container_height);
             new_frame.simple_name = `${category_labels[c]}`;
             new_frame.name = `${TYPES.TEXT_BLOCK}${category_labels[c]}`;
             this.text_frames[c] = new_frame;
@@ -128,18 +130,24 @@ export class TextContainer {
     }
 
     resize() {
-        const calced_width = this.get_text_box_width(this.camera);
-        const calced_height = this.get_text_box_height(this.camera);
-        const new_text_geometry = new THREE.BoxGeometry(calced_width, calced_height, 0);
+        this.container_width = this.get_text_box_width(this.camera);
+        this.container_height = this.get_text_box_height(this.camera);
+        const new_text_geometry = new THREE.BoxGeometry(this.container_width, this.container_height, 0);
+        
         this.text_box_container.children.forEach(c => {
             c.children.forEach(inner_c => {
-                switch(extract_type(inner_c)) {
+                if (!inner_c || !inner_c.name) return;
+                
+                const type = extract_type(inner_c);
+                switch(type) {
                     case TYPES.BACKGROUND:
-                        inner_c.geometry.dispose;
+                        inner_c.geometry.dispose();
                         inner_c.geometry = new_text_geometry;
                         break;
-                    case TYPES.IFRAME:
-                        this.update_iframe_size(inner_c.simple_name, calced_width, calced_height);
+                    case IFRAME:
+                        if (inner_c.simple_name) {
+                            this.update_iframe_size(inner_c.simple_name, this.container_width, this.container_height);
+                        }
                         break;
                 }
             })
@@ -159,7 +167,7 @@ export class TextContainer {
         }
         this.text_box_container.children.forEach(c => {
             if(c.name != this.focused_text_name) {
-                c.position.x = get_associated_position(WEST, this.camera);
+                c.position.x = -(this.container_width * 3);
                 c.position.y = this.get_text_box_y(this.camera);
             }
         });
