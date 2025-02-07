@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Easing, Tween } from 'tween';
 import { clamp } from 'three/src/math/MathUtils.js';
 import { get_screen_size, get_associated_position, SOUTH, TYPES, LINK_RADIUS, 
-    LINK_PATHS, LINK_LABELS, LINK_URLS, TEXTURE_LOADER } from './common';
+    LINKS, TEXTURE_LOADER } from './common';
 
 
 export class LinkContainer {
@@ -15,9 +15,9 @@ export class LinkContainer {
         this.parent.add(this.link_container);
         // Create the link icons
         const calced_radius = this.get_link_radius(this.camera);
-        for(let l = 0; l < LINK_PATHS.length; l++) {
+        Object.values(LINKS).forEach((link, l) => {
             const circle_geometry = new THREE.CircleGeometry(calced_radius);
-            const circle_texture = TEXTURE_LOADER.load(LINK_PATHS[l]);
+            const circle_texture = TEXTURE_LOADER.load(link.icon_path);
             circle_texture.colorSpace = THREE.SRGBColorSpace;
             const link_button = new THREE.Mesh(
                 circle_geometry,
@@ -25,20 +25,41 @@ export class LinkContainer {
                     map: circle_texture,
                     transparent: true
                 }));
-            link_button.name = `${TYPES.LINK}${LINK_LABELS[l]}`;
+            link_button.name = `${TYPES.LINK}${link.value}`;
             link_button.position.x += calced_radius * (3.5 * l);
             this.link_container.add(link_button);
-        }
+        });
+        // for(let l = 0; l < LINK_PATHS.length; l++) {
+        //     const circle_geometry = new THREE.CircleGeometry(calced_radius);
+        //     const circle_texture = TEXTURE_LOADER.load(LINK_PATHS[l]);
+        //     circle_texture.colorSpace = THREE.SRGBColorSpace;
+        //     const link_button = new THREE.Mesh(
+        //         circle_geometry,
+        //         new THREE.MeshBasicMaterial({
+        //             map: circle_texture,
+        //             transparent: true
+        //         }));
+        //     link_button.name = `${TYPES.LINK}${LINK_LABELS[l]}`;
+        //     link_button.position.x += calced_radius * (3.5 * l);
+        //     this.link_container.add(link_button);
+        // }
     }
 
     /** Open a new tab of the associated link */
     open_link(new_link) {
-        if(LINK_URLS.has(new_link)) {
-            const hyperlink_path = LINK_URLS.get(new_link);
-            window.open(hyperlink_path, "_blank");
+        const found_url = LINKS.get_link(new_link);
+        if(found_url) {
+            window.open(found_url, "_blank");
         } else {
             console.log(`Given label \"${new_link}\" does not have a stored path`);
         }
+
+        // if(LINK_URLS.has(new_link)) {
+        //     const hyperlink_path = LINK_URLS.get(new_link);
+        //     window.open(hyperlink_path, "_blank");
+        // } else {
+        //     console.log(`Given label \"${new_link}\" does not have a stored path`);
+        // }
     }
 
     trigger_overlay(is_overlay_hidden) {

@@ -201,7 +201,7 @@ window.addEventListener('mouseup', (e) => {
             if(intersected_object.name != null) {
                 (console.log(`${intersected_object.name} clicked up`));
             }
-            // const split_intersected_name = intersected_object.name.split("_");
+            const split_intersected_name = intersected_object.name.split("_");
             const name_type = extract_type(intersected_object);
             switch(name_type) {
                 case TYPES.LABEL:
