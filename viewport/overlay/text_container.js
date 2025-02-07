@@ -133,13 +133,6 @@ export class TextContainer {
         const new_text_geometry = new THREE.BoxGeometry(calced_width, calced_height, 0);
         this.text_box_container.children.forEach(c => {
             c.children.forEach(inner_c => {
-                // TODO OOOOO
-                // TODO Use scroll wheel to move mouse ball forward and back
-                // TODO Enable mouse physics when HideButton enabled
-                // BUG When shrinking to small column and selected other column colors become visible
-                // TODO Create html pages for each category
-                // TODO Ensure html page text boxes are sensitive to zooming
-                //          Text should enlarge
                 switch(extract_type(inner_c)) {
                     case BACKGROUND:
                         inner_c.geometry.dispose;

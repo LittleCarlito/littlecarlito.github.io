@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { BALL, UNIQUE } from '../viewport/overlay/common';
 
 const DEFAULT_Z_DEPTH = 0;
 
@@ -20,7 +21,13 @@ export class MouseBall {
         });
         const mouse_light = new THREE.PointLight(0xffffff, 1);
         this.mouse_mesh = new THREE.Mesh(geometry, material);
+        this.mouse_mesh.name = `${BALL}${UNIQUE}`
         this.mouse_mesh.add(mouse_light);
+        
+        // Set mouse mesh and light to layer 2
+        this.mouse_mesh.layers.set(2);
+        mouse_light.layers.set(2);
+        
         // RIGID BODY
         let body_desc = RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(0, 0, 0)
         this.mouse_rigid = this.world.createRigidBody(body_desc);

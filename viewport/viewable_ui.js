@@ -19,6 +19,7 @@ export class ViewableUI {
             // Far clipping
             1000
         );
+        this.camera.layers.enable(2);
         this.viewable_ui_container.add(this.camera);
         this.viewable_ui_container.position.z = UI_Z_DIST;
         // this.viewable_ui_container.rotation.x = -0.261799;

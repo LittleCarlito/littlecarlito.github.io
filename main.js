@@ -9,7 +9,7 @@ import { PrimaryContainer } from './background/primary_container';
 import { BackgroundFloor } from './background/background_floor';
 import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
-import { WEST, HIDE, LINK, TEXTURE_LOADER, LABEL, extract_type } from './viewport/overlay/common';
+import { WEST, HIDE, LINK, TEXTURE_LOADER, LABEL, extract_type, get_intersect_list, FLOOR } from './viewport/overlay/common';
 import { MouseBall } from './background/mouse_ball';
 
 // ----- Constants
@@ -26,9 +26,6 @@ await RAPIER.init();
 const gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
 const world = new RAPIER.World(gravity);
 const clock = new THREE.Clock();
-// Mouse detection
-const raycaster = new THREE.Raycaster();
-const mouse_location = new THREE.Vector2();
 // Rendering
 // CSS3D rendering
 const css_renderer = new CSS2DRenderer();
@@ -68,6 +65,16 @@ composer.addPass(render_scene);
 composer.addPass(bloom_pass);
 composer.addPass(output_pass);
 
+
+// TODO OOOOO
+// TODO Use scroll wheel to move mouse ball forward and back
+// TODO Enable mouse physics when HideButton enabled
+// BUG When shrinking to small column and selected other column colors become visible
+// TODO Create html pages for each category
+// TODO Ensure html page text boxes are sensitive to zooming
+//          Text should enlarge
+
+
 // ----- Functions
 /** Hides/reveals overlay elements and swaps hide buttons display sprite */
 function trigger_overlay() {
@@ -105,10 +112,8 @@ function animate() {
     const delta = clock.getDelta();
     world.timestep = Math.min(delta, 0.1);
     world.step();
-
-    // TODO Temp from youtubes
+    // Background object updates
     mouse_ball.update();
-
     primary_container.dynamic_bodies.forEach(([mesh, body]) => {
         if(body != null) {
             const position = body.translation();
@@ -122,27 +127,26 @@ function animate() {
     css_renderer.render(scene, viewable_ui.get_camera());
 }
 
-/** Retrieves objects mouse is intersecting with from the given event */
-function get_intersect_list(e) {
-    mouse_location.x = (e.clientX / window.innerWidth) * 2 - 1;
-    mouse_location.y = -(e.clientY / window.innerHeight) * 2 + 1
-    raycaster.setFromCamera(mouse_location, viewable_ui.get_camera());
-    return raycaster.intersectObject(scene, true);
-}
-
 /** Handles mouse hovering events and raycasts to collide with scene objects */
 function handle_movement(e) {
     // Handle mouseball
     mouse_ball.handle_movement(e, viewable_ui.get_camera());
     // Handle UI
-    const found_intersections = get_intersect_list(e);
+    const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
     if(found_intersections.length > 0 && ! viewable_ui.get_overlay().is_swapping_sides()) {
         const intersected_object = found_intersections[0].object;
         const object_name = intersected_object.name;
         const name_type = object_name.split("_")[0] + "_";
         // Handle label hover
-        if(name_type == LABEL){
-            viewable_ui.get_overlay().handle_hover(intersected_object);
+        switch(name_type) {
+            case LABEL:
+                viewable_ui.get_overlay().handle_hover(intersected_object);
+                break;
+            case FLOOR:
+                viewable_ui.get_overlay().reset_hover();
+                break;
+            default:
+                break;
         }
     } else {
         viewable_ui.get_overlay().reset_hover();
@@ -179,7 +183,7 @@ window.addEventListener('resize', () => {
 
 /** Handles mouse down actions */
 window.addEventListener('mousedown', (e) => {
-    const found_intersections = get_intersect_list(e, "clicked down");
+    const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
     found_intersections.forEach(i => {
         if(i.object.name != "") {
             console.log(`${i.object.name} clicked down`)
@@ -190,7 +194,7 @@ window.addEventListener('mousedown', (e) => {
 
 /** Handles mouse up actions */
 window.addEventListener('mouseup', (e) => {
-    const found_intersections = get_intersect_list(e, "clicked up");
+    const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
     if( viewable_ui.get_overlay().is_label_column_left_side()){
         if(found_intersections.length > 0){
             const intersected_object = found_intersections[0].object;
