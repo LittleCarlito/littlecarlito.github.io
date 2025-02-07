@@ -12,6 +12,7 @@ export class MouseBall {
     raycaster = new THREE.Raycaster();
     stuck_objects = new Set();
     eventQueue;
+    isMouseDown = false;
 
     constructor(incoming_parent, incoming_world, RAPIER) {
         this.parent = incoming_parent;
@@ -45,6 +46,21 @@ export class MouseBall {
         
         this.update();
         this.parent.add(this.mouse_mesh);
+
+        // Add mouse event listeners
+        window.addEventListener('mousedown', (e) => {
+            if (e.button === 0) { // Left mouse button
+                this.isMouseDown = true;
+            }
+        });
+        
+        window.addEventListener('mouseup', (e) => {
+            if (e.button === 0) { // Left mouse button
+                this.isMouseDown = false;
+                // Release all stuck objects when mouse is released
+                this.releaseStuckObjects();
+            }
+        });
     }
 
     handle_movement(e, incoming_camera) {
@@ -89,7 +105,7 @@ export class MouseBall {
         this.world.step(this.eventQueue);
         
         this.eventQueue.drainCollisionEvents((handle1, handle2, started) => {
-            if (!this.enabled || !started) return;
+            if (!this.enabled || !started || !this.isMouseDown) return;
             
             const collider1 = this.world.getCollider(handle1);
             const collider2 = this.world.getCollider(handle2);
@@ -106,15 +122,15 @@ export class MouseBall {
             }
         });
 
-        // Update positions of stuck objects
-        for (const stuckBody of this.stuck_objects) {
-            const offset = stuckBody.translation();
-            const newPos = {
-                x: worldPosition.x + (offset.x - worldPosition.x) * 0.95,
-                y: worldPosition.y + (offset.y - worldPosition.y) * 0.95,
-                z: worldPosition.z + (offset.z - worldPosition.z) * 0.95
-            };
-            stuckBody.setTranslation(newPos);
+        // Update positions of stuck objects so that they snap directly to the mouse
+        if (this.isMouseDown) {
+            for (const stuckBody of this.stuck_objects) {
+                stuckBody.setTranslation({ 
+                    x: worldPosition.x, 
+                    y: worldPosition.y, 
+                    z: worldPosition.z
+                });
+            }
         }
     }
 
@@ -138,6 +154,13 @@ export class MouseBall {
         }
     }
 
+    releaseStuckObjects() {
+        for (const stuckBody of this.stuck_objects) {
+            stuckBody.setBodyType(this.RAPIER.RigidBodyType.Dynamic);
+        }
+        this.stuck_objects.clear();
+    }
+
     // Modify toggle_physics to handle stuck objects
     toggle_physics(enabled) {
         if (this.mouse_rigid) {
@@ -145,11 +168,8 @@ export class MouseBall {
             if (enabled) {
                 collider.setCollisionGroups(0x00020002); // Enable collisions
             } else {
-                // Release all stuck objects when disabled
-                for (const stuckBody of this.stuck_objects) {
-                    stuckBody.setBodyType(this.RAPIER.RigidBodyType.Dynamic);
-                }
-                this.stuck_objects.clear();
+                this.releaseStuckObjects();
+                this.isMouseDown = false;
                 collider.setCollisionGroups(0x00000000); // Disable all collisions
             }
         }
