@@ -82,6 +82,8 @@ export class ViewableUI {
 
     trigger_overlay() {
         this.get_overlay().trigger_overlay();
+        this.mouse_ball.enabled = !this.mouse_ball.enabled;
+        this.toggle_mouse_ball(this.mouse_ball.enabled);
     }
 
     // ViewableUI getters

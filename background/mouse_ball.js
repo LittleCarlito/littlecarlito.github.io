@@ -5,6 +5,7 @@ const DEFAULT_Z_DEPTH = -15;
 const Z_SPEED = .2;
 
 export class MouseBall {
+    enabled = false;
     mouse_pos;
     mouse_pos = new THREE.Vector2();
     ball_z_depth;
@@ -78,12 +79,16 @@ export class MouseBall {
 
     /** Increases Z by the constant Z_SPEED amount */
     increase_z() {
-        this.set_z_depth(this.ball_z_depth - Z_SPEED);
+        if(this.enabled) {
+            this.set_z_depth(this.ball_z_depth - Z_SPEED);
+        }
     }
 
     /** Decreases Z by the constant Z_SPEED amount */
     decrease_z() {
-        this.set_z_depth(this.ball_z_depth + Z_SPEED);
+        if(this.enabled) {
+            this.set_z_depth(this.ball_z_depth + Z_SPEED);
+        }
     }
 
     set_z_depth(incoming_z) {
