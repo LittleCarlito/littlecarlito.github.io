@@ -65,8 +65,7 @@ composer.addPass(bloom_pass);
 composer.addPass(output_pass);
 
 // TODO OOOOO
-// TODO Enable/disable mouse ball based off hide button
-//          Use layering
+// TODO Change mouse ball from collider to grabber on click
 // BUG When shrinking to small column and selected other column colors become visible
 // TODO Create html pages for each category
 // TODO Ensure html page text boxes are sensitive to zooming

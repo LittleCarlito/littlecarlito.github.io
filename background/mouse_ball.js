@@ -10,16 +10,19 @@ export class MouseBall {
     mouse_pos = new THREE.Vector2();
     ball_z_depth;
     raycaster = new THREE.Raycaster();
+    stuck_objects = new Set();
+    eventQueue;
 
     constructor(incoming_parent, incoming_world, RAPIER) {
         this.parent = incoming_parent;
         this.world = incoming_world;
+        this.RAPIER = RAPIER; // Store RAPIER reference
         this.ball_z_depth = DEFAULT_Z_DEPTH;
         const mouse_size = 0.25;
         const geometry = new THREE.IcosahedronGeometry(mouse_size, 8);
         const material = new THREE.MeshStandardMaterial({
-          color: 0xffffff,
-          emissive: 0xffffff,
+            color: 0xffffff,
+            emissive: 0xffffff,
         });
         const mouse_light = new THREE.PointLight(0xffffff, 1);
         this.mouse_mesh = new THREE.Mesh(geometry, material);
@@ -32,8 +35,14 @@ export class MouseBall {
         let body_desc = RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(0, 0, 0)
         this.mouse_rigid = this.world.createRigidBody(body_desc);
         let dynamic_collider = RAPIER.ColliderDesc.ball(mouse_size * 3.0)
-            .setCollisionGroups(0x00000000); // Start with collisions disabled
-        this.world.createCollider(dynamic_collider, this.mouse_rigid);
+            .setCollisionGroups(0x00000000) // Start with collisions disabled
+            .setSensor(true);  // Make it a sensor collider to detect but not physically interact
+        this.world.createCollider(dynamic_collider, this.mouse_rigid)
+            .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+            
+        // Set up event queue for collision detection
+        this.eventQueue = new RAPIER.EventQueue(true);
+        
         this.update();
         this.parent.add(this.mouse_mesh);
     }
@@ -75,6 +84,38 @@ export class MouseBall {
         const localPosition = worldPosition.clone();
         this.parent.worldToLocal(localPosition);
         this.mouse_mesh.position.set(localPosition.x, localPosition.y, localPosition.z);
+
+        // Handle collision events
+        this.world.step(this.eventQueue);
+        
+        this.eventQueue.drainCollisionEvents((handle1, handle2, started) => {
+            if (!this.enabled || !started) return;
+            
+            const collider1 = this.world.getCollider(handle1);
+            const collider2 = this.world.getCollider(handle2);
+            
+            const mouseBallCollider = this.mouse_rigid.collider(0);
+            if (collider1 === mouseBallCollider || collider2 === mouseBallCollider) {
+                const otherCollider = collider1 === mouseBallCollider ? collider2 : collider1;
+                const otherBody = otherCollider.parent();
+                
+                if (otherBody && !this.stuck_objects.has(otherBody)) {
+                    this.stuck_objects.add(otherBody);
+                    otherBody.setBodyType(this.RAPIER.RigidBodyType.KinematicPositionBased);
+                }
+            }
+        });
+
+        // Update positions of stuck objects
+        for (const stuckBody of this.stuck_objects) {
+            const offset = stuckBody.translation();
+            const newPos = {
+                x: worldPosition.x + (offset.x - worldPosition.x) * 0.95,
+                y: worldPosition.y + (offset.y - worldPosition.y) * 0.95,
+                z: worldPosition.z + (offset.z - worldPosition.z) * 0.95
+            };
+            stuckBody.setTranslation(newPos);
+        }
     }
 
     /** Increases Z by the constant Z_SPEED amount */
@@ -97,13 +138,18 @@ export class MouseBall {
         }
     }
 
-    // Add method to toggle physics interactions
+    // Modify toggle_physics to handle stuck objects
     toggle_physics(enabled) {
         if (this.mouse_rigid) {
             const collider = this.mouse_rigid.collider(0);
             if (enabled) {
                 collider.setCollisionGroups(0x00020002); // Enable collisions
             } else {
+                // Release all stuck objects when disabled
+                for (const stuckBody of this.stuck_objects) {
+                    stuckBody.setBodyType(this.RAPIER.RigidBodyType.Dynamic);
+                }
+                this.stuck_objects.clear();
                 collider.setCollisionGroups(0x00000000); // Disable all collisions
             }
         }
