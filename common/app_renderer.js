@@ -41,9 +41,15 @@ export class AppRenderer {
         this.composer.addPass(render_scene);
         this.composer.addPass(bloom_pass);
         this.composer.addPass(output_pass);
+
     }
 
     // ----- Functions
+
+    add_event_listener(incoming_event_name, handler_method) {
+        this.webgl_renderer.domElement.addEventListener(incoming_event_name, handler_method);
+        this.css_renderer.domElement.addEventListener(incoming_event_name, handler_method);
+    }
 
     render() {
         this.composer.render();

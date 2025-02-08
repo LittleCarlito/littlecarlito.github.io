@@ -27,6 +27,7 @@ const viewable_ui = new ViewableUI(scene, world, RAPIER);
 // Renderer
 const app_renderer = new AppRenderer(scene, viewable_ui.get_camera());
 app_renderer.set_animation_loop(animate);
+app_renderer.add_event_listener('mouseout', handle_off_screen);
 // Background creation
 new BackgroundLighting(scene);
 const primary_container = new PrimaryContainer(world, scene, viewable_ui.get_camera());
@@ -203,10 +204,3 @@ window.addEventListener('mouseup', (e) => {
 
 window.addEventListener('wheel', handle_mouse_wheel);
 window.addEventListener('mousemove', handle_movement);
-/*
-The window object isn't a typical DOM element with a well-defined "bounding box" for mouse events.
-In many browsers, these events simply never fire on window because the mouse leaving or entering 
-the window isn't interpreted as a mouseleave or mouseenter on that object.
-*/
-webgl_renderer.domElement.addEventListener('mouseout', handle_off_screen);
-css_renderer.domElement.addEventListener('mouseout', handle_off_screen);
