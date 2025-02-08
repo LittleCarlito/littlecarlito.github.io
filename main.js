@@ -38,6 +38,7 @@ new BackgroundFloor(world, scene, viewable_ui.get_camera());
 // BUG Hide button goes gray after rotating
 // BUG Disable rotating until tweening overlay offscreen is complete
 // BUG After rotation re-enabling overlay only Links come back occasionally
+// BUG Mouse ball is only able to rotate half way with camera
 // TODO Create custom designed html pages for each category
 //          Add typing keframe animation to monitor one
 //          Add text bubble effect to contact one
@@ -49,13 +50,6 @@ new BackgroundFloor(world, scene, viewable_ui.get_camera());
 // TODO Add throwing physics
 
 // ----- Functions
-/*** Swaps the container column sides */
-function swap_column_sides() {
-    viewable_ui.swap_sides();
-    if(viewable_ui.is_column_left_side()){
-        primary_container.decativate_all_objects();
-    }
-}
 
 /** Primary animation function run every frame by renderer */
 function animate() {
@@ -95,14 +89,9 @@ function animate() {
     app_renderer.render();
 }
 
-/** Handles mouse hovering events and raycasts to collide with scene objects */
-function handle_movement(e) {
-    viewable_ui.handle_movement(e);
-}
-
 /** Handles mouse off screen events */
 function handle_off_screen() {
-    if( viewable_ui.is_column_left_side()) {
+    if(viewable_ui.is_column_left_side()) {
         viewable_ui.reset_hover();
     }
 }
@@ -154,53 +143,4 @@ window.addEventListener('mousedown', (e) => {
     });
 });
 
-/** Handles mouse up actions */
-window.addEventListener('mouseup', (e) => {
-    const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
-    if( viewable_ui.is_column_left_side()){
-        if(found_intersections.length > 0){
-            const intersected_object = found_intersections[0].object;
-            if(intersected_object.name != null) {
-                (console.log(`${intersected_object.name} clicked up`));
-            }
-            const split_intersected_name = intersected_object.name.split("_");
-            const name_type = extract_type(intersected_object);
-            switch(name_type) {
-                case TYPES.LABEL:
-                    viewable_ui.reset_hover();
-                    swap_column_sides();
-                    viewable_ui.focus_text_box(intersected_object.name);
-                    break;
-                case TYPES.HIDE:
-                    viewable_ui.trigger_overlay();
-                    break;
-                case TYPES.LINK:
-                    viewable_ui.open_link(split_intersected_name[1].trim());
-                    break;
-            }
-        }
-    // Column is right
-    } else {
-        if(found_intersections.length > 0) {
-            const intersected_object = found_intersections[0].object;
-            const name_type = extract_type(intersected_object);
-            switch(name_type) {
-                case TYPES.LABEL:
-                    viewable_ui.focus_text_box(intersected_object.name);
-                    break;
-                case TYPES.LINK:
-                    viewable_ui.open_link(split_intersected_name[1].trim());
-                    break;
-                default:
-                    swap_column_sides();
-                    viewable_ui.lose_focus_text_box(WEST);
-            }
-        } else {
-            swap_column_sides();
-            viewable_ui.lose_focus_text_box(WEST);
-        }
-    }
-});
-
 window.addEventListener('wheel', handle_mouse_wheel);
-window.addEventListener('mousemove', handle_movement);

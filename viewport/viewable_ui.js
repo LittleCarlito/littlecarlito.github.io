@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OverlayContainer } from "./overlay/overlay_container";
 import { MouseBall } from '../background/mouse_ball';
-import { get_intersect_list, TYPES } from './overlay/common';
+import { extract_type, get_intersect_list, TYPES, WEST} from './overlay/common';
 import { CameraController } from './camera_controller';
 
 export const UI_Z_DIST = 15;
@@ -47,40 +47,118 @@ export class ViewableUI {
         this.viewable_ui_container.add(this.camera);
         // this.viewable_ui_container.rotation.x = -0.261799;
         this.parent.add(this.viewable_ui_container);
-        // TODO Refactor listener lambads to functions
         // Add mouse button event listeners
-        window.addEventListener('mousedown', (e) => {
-            if (e.button === 0) this.leftMouseDown = true;
-            if (e.button === 2) this.rightMouseDown = true;
-            // If left and right mouse button held down while overlay is hidden
-            if (this.leftMouseDown && this.rightMouseDown && this.mouse_ball.enabled) {
-                this.detect_rotation = true;
-            }
-        });
+        window.addEventListener('mousedown', this.handle_mouse_down.bind(this));
         // Add event listener for lifting the mouse button
-        window.addEventListener('mouseup', (e) => {
-            if (e.button === 0) {
-                this.detect_rotation = false;
-                this.leftMouseDown = false;
-            };
-            if (e.button === 2) {
-                this.detect_rotation = false;
-                this.rightMouseDown = false;
-            };
-        });
+        window.addEventListener('mouseup', this.handle_mouse_up.bind(this));
         // Prevent context menu from appearing on right click
-        window.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-        });
-        window.addEventListener('mousemove', (e) => {
-            if(this.detect_rotation) {
-                const sensitivity = 0.02;  // Reduced sensitivity since we're not dividing by 1000 anymore
-                this.camera_controller.rotate(
-                    e.movementX * sensitivity,
-                    e.movementY * sensitivity
-                );
+        window.addEventListener('contextmenu', this.handle_context_menu.bind(this));
+        window.addEventListener('mousemove', this.handle_mouse_move.bind(this));
+    }
+
+    // ----- Functions
+
+    handle_context_menu = (e) => {
+        e.preventDefault();
+    }
+
+    handle_mouse_up = (e) => {
+        // Intersection detection and handling
+        const found_intersections = get_intersect_list(e, this.get_camera(), this.parent);
+        if( this.is_column_left_side()){
+            if(found_intersections.length > 0){
+                const intersected_object = found_intersections[0].object;
+                if(intersected_object.name != null) {
+                    (console.log(`${intersected_object.name} clicked up`));
+                }
+                const split_intersected_name = intersected_object.name.split("_");
+                const name_type = extract_type(intersected_object);
+                switch(name_type) {
+                    case TYPES.LABEL:
+                        this.reset_hover();
+                        this.swap_sides();
+                        this.focus_text_box(intersected_object.name);
+                        break;
+                    case TYPES.HIDE:
+                        this.trigger_overlay();
+                        break;
+                    case TYPES.LINK:
+                        this.open_link(split_intersected_name[1].trim());
+                        break;
+                }
             }
-        });
+        // Column is right
+        } else {
+            if(found_intersections.length > 0) {
+                const intersected_object = found_intersections[0].object;
+                const name_type = extract_type(intersected_object);
+                const split_intersected_name = intersected_object.name.split("_");
+                switch(name_type) {
+                    case TYPES.LABEL:
+                        this.focus_text_box(intersected_object.name);
+                        break;
+                    case TYPES.LINK:
+                        this.open_link(split_intersected_name[1].trim());
+                        break;
+                    default:
+                        this.swap_sides();
+                        this.lose_focus_text_box(WEST);
+                }
+            } else {
+                this.swap_sides();
+                this.lose_focus_text_box(WEST);
+            }
+        }
+        // Camera rotation detection
+        if (e.button === 0) {
+            this.detect_rotation = false;
+            this.leftMouseDown = false;
+        };
+        if (e.button === 2) {
+            this.detect_rotation = false;
+            this.rightMouseDown = false;
+        };
+    }
+
+    handle_mouse_down = (e) => {
+        if (e.button === 0) this.leftMouseDown = true;
+        if (e.button === 2) this.rightMouseDown = true;
+        // If left and right mouse button held down while overlay is hidden
+        if (this.leftMouseDown && this.rightMouseDown && this.mouse_ball.enabled) {
+            this.detect_rotation = true;
+        }
+    }
+
+    handle_mouse_move = (e) => {
+        if(this.detect_rotation) {
+            const sensitivity = 0.02;  // Reduced sensitivity since we're not dividing by 1000 anymore
+            this.camera_controller.rotate(
+                e.movementX * sensitivity,
+                e.movementY * sensitivity
+            );
+        }
+        // Handle mouseball
+        this.mouse_ball.handle_movement(e, this.camera);
+        // Handle UI
+        const found_intersections = get_intersect_list(e, this.camera, this.parent);
+        if(found_intersections.length > 0 && ! this.get_overlay().is_swapping_sides()) {
+            const intersected_object = found_intersections[0].object;
+            const object_name = intersected_object.name;
+            const name_type = object_name.split("_")[0] + "_";
+            // Handle label hover
+            switch(name_type) {
+                case TYPES.LABEL:
+                    this.get_overlay().handle_hover(intersected_object);
+                    break;
+                case TYPES.FLOOR:
+                    this.get_overlay().reset_hover();
+                    break;
+                default:
+                    break;
+            }
+        } else {
+            this.get_overlay().reset_hover();
+        }
     }
 
     swap_sides() {
@@ -110,32 +188,6 @@ export class ViewableUI {
     reset_camera() {
         this.get_camera().aspect = window.innerWidth / window.innerHeight;
         this.get_camera().updateProjectionMatrix();
-    }
-
-    handle_movement(e, incoming_camera = null) {
-        const used_camera = incoming_camera == null ? this.get_camera() : incoming_camera;
-        // Handle mouseball
-        this.mouse_ball.handle_movement(e, used_camera);
-        // Handle UI
-        const found_intersections = get_intersect_list(e, used_camera, this.parent);
-        if(found_intersections.length > 0 && ! this.get_overlay().is_swapping_sides()) {
-            const intersected_object = found_intersections[0].object;
-            const object_name = intersected_object.name;
-            const name_type = object_name.split("_")[0] + "_";
-            // Handle label hover
-            switch(name_type) {
-                case TYPES.LABEL:
-                    this.get_overlay().handle_hover(intersected_object);
-                    break;
-                case TYPES.FLOOR:
-                    this.get_overlay().reset_hover();
-                    break;
-                default:
-                    break;
-            }
-        } else {
-            this.get_overlay().reset_hover();
-        }
     }
 
     update_mouse_ball() {
@@ -170,7 +222,8 @@ export class ViewableUI {
         this.toggle_mouse_ball(this.mouse_ball.enabled);
     }
 
-    // ViewableUI getters
+    // ----- Getters
+
     get_camera() {
         return this.camera;
     }
