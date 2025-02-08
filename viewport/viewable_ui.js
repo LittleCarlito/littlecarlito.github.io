@@ -47,6 +47,7 @@ export class ViewableUI {
         this.viewable_ui_container.add(this.camera);
         // this.viewable_ui_container.rotation.x = -0.261799;
         this.parent.add(this.viewable_ui_container);
+        // TODO Refactor listener lambads to functions
         // Add mouse button event listeners
         window.addEventListener('mousedown', (e) => {
             if (e.button === 0) this.leftMouseDown = true;
@@ -80,6 +81,35 @@ export class ViewableUI {
                 );
             }
         });
+    }
+
+    swap_sides() {
+        this.get_overlay().swap_column_sides();
+    }
+
+    is_column_left_side() {
+        return this.get_overlay().is_label_column_left_side();
+    }
+
+    reset_hover() {
+        this.get_overlay().reset_hover();
+    }
+
+    focus_text_box(incoming_name) {
+        this.get_overlay().focus_text_box(incoming_name);
+    }
+
+    open_link(incoming_url) {
+        this.get_overlay().open_link(incoming_url);
+    }
+
+    lose_focus_text_box(incoming_direction = null) {
+        this.get_overlay().lose_focus_text_box(incoming_direction);
+    }
+
+    reset_camera() {
+        this.get_camera().aspect = window.innerWidth / window.innerHeight;
+        this.get_camera().updateProjectionMatrix();
     }
 
     handle_movement(e, incoming_camera = null) {
@@ -130,6 +160,10 @@ export class ViewableUI {
         }
     }
 
+    resize_reposition() {
+        this.get_overlay().resize_reposition();
+    }
+
     trigger_overlay() {
         this.get_overlay().trigger_overlay();
         this.mouse_ball.enabled = !this.mouse_ball.enabled;
@@ -155,5 +189,9 @@ export class ViewableUI {
 
     get_viewable_container() {
         return this.viewable_ui_container;
+    }
+
+    get_intersected_name() {
+        return this.get_overlay().intersected_name();
     }
 }

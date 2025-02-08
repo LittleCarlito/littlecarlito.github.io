@@ -1,15 +1,12 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { update as updateTween } from 'tween';
-import { CSS2DRenderer, UnrealBloomPass } from 'three/examples/jsm/Addons.js';
-import { EffectComposer } from 'three/examples/jsm/Addons.js';
-import { RenderPass } from 'three/examples/jsm/Addons.js';
-import { OutputPass } from 'three/examples/jsm/Addons.js';
 import { PrimaryContainer } from './background/primary_container';
 import { BackgroundFloor } from './background/background_floor';
 import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
 import { WEST, TYPES, TEXTURE_LOADER, extract_type, get_intersect_list } from './viewport/overlay/common';
+import { AppRenderer } from './common/app_renderer';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'gradient.jpg';
@@ -25,43 +22,16 @@ await RAPIER.init();
 const gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
 const world = new RAPIER.World(gravity);
 const clock = new THREE.Clock();
-// Rendering
-// CSS3D rendering
-const css_renderer = new CSS2DRenderer();
-css_renderer.setSize(window.innerWidth, window.innerHeight);
-css_renderer.domElement.style.position = 'absolute';
-css_renderer.domElement.style.top = '0';
-css_renderer.domElement.style.zIndex = '1'; // On top of WebGL canvas
-document.body.appendChild(css_renderer.domElement);
-// WebGL rendering
-const webgl_renderer = new THREE.WebGLRenderer({ antialias: true });
-webgl_renderer.setSize(window.innerWidth, window.innerHeight);
-webgl_renderer.shadowMap.enabled = true;
-webgl_renderer.shadowMap.type = THREE.VSMShadowMap;
-webgl_renderer.setAnimationLoop(animate);
-webgl_renderer.domElement.style.position = 'absolute';
-webgl_renderer.domElement.style.top = '0';
-webgl_renderer.domElement.style.zIndex = '0';
-document.body.appendChild(webgl_renderer.domElement);
 // UI creation
 const viewable_ui = new ViewableUI(scene, world, RAPIER);
+// Renderer
+const app_renderer = new AppRenderer(scene, viewable_ui.get_camera());
+app_renderer.set_animation_loop(animate);
 // Background creation
 new BackgroundLighting(scene);
 const primary_container = new PrimaryContainer(world, scene, viewable_ui.get_camera());
 new BackgroundFloor(world, scene, viewable_ui.get_camera());
-// Effects/bloom effects
-const render_scene = new RenderPass(scene, viewable_ui.get_camera());
-const bloom_pass = new UnrealBloomPass( 
-    new THREE.Vector2(window.innerWidth, window.innerHeight), // Resolution
-    1.5, // Strength
-    0.4, // Radius
-    1 // Threshold
-);
-const output_pass = new OutputPass();
-const composer = new EffectComposer(webgl_renderer);
-composer.addPass(render_scene);
-composer.addPass(bloom_pass);
-composer.addPass(output_pass);
+
 
 // TODO OOOOO
 // BUG Hide button goes gray after rotating
@@ -80,8 +50,8 @@ composer.addPass(output_pass);
 // ----- Functions
 /*** Swaps the container column sides */
 function swap_column_sides() {
-    viewable_ui.get_overlay().swap_column_sides();
-    if(viewable_ui.get_overlay().is_label_column_left_side()){
+    viewable_ui.swap_sides();
+    if(viewable_ui.is_column_left_side()){
         primary_container.decativate_all_objects();
     }
 }
@@ -92,7 +62,7 @@ function animate() {
     updateTween();
     if(resize_move) {
         if(!zoom_event) {
-            viewable_ui.get_overlay().resize_reposition();
+            viewable_ui.resize_reposition();
         } else {
             zoom_event = false;
         }
@@ -100,7 +70,8 @@ function animate() {
     }
     // Handle the physics objects
     if( viewable_ui.get_overlay().is_intersected() != null) {
-        primary_container.activate_object( viewable_ui.get_overlay().intersected_name());
+        primary_container.activate_object( viewable_ui.get_intersected_name());
+        // primary_container.activate_object( viewable_ui.get_overlay().intersected_name());
     } else if(viewable_ui.is_text_active()) {
         primary_container.activate_object(viewable_ui.get_active_name());
     } else {
@@ -120,8 +91,7 @@ function animate() {
         }
     });
     // Scene reload
-    composer.render();
-    css_renderer.render(scene, viewable_ui.get_camera());
+    app_renderer.render();
 }
 
 /** Handles mouse hovering events and raycasts to collide with scene objects */
@@ -130,9 +100,9 @@ function handle_movement(e) {
 }
 
 /** Handles mouse off screen events */
-function handle_off_screen(e) {
-    if( viewable_ui.get_overlay().is_label_column_left_side()) {
-        viewable_ui.get_overlay().reset_hover();
+function handle_off_screen() {
+    if( viewable_ui.is_column_left_side()) {
+        viewable_ui.reset_hover();
     }
 }
 
@@ -168,11 +138,8 @@ window.addEventListener('resize', () => {
     // Set variables
     resize_move = true;
     // Resize application
-    // TODO If refactor works make these internal to viewable ui
-    viewable_ui.get_camera().aspect = window.innerWidth / window.innerHeight;
-    viewable_ui.get_camera().updateProjectionMatrix();
-    webgl_renderer.setSize(window.innerWidth, window.innerHeight);
-    css_renderer.setSize(window.innerWidth, window.innerHeight);
+    viewable_ui.reset_camera();
+
     composer.setSize(window.innerWidth, window.innerHeight);
 });
 
@@ -189,7 +156,7 @@ window.addEventListener('mousedown', (e) => {
 /** Handles mouse up actions */
 window.addEventListener('mouseup', (e) => {
     const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
-    if( viewable_ui.get_overlay().is_label_column_left_side()){
+    if( viewable_ui.is_column_left_side()){
         if(found_intersections.length > 0){
             const intersected_object = found_intersections[0].object;
             if(intersected_object.name != null) {
@@ -199,15 +166,15 @@ window.addEventListener('mouseup', (e) => {
             const name_type = extract_type(intersected_object);
             switch(name_type) {
                 case TYPES.LABEL:
-                    viewable_ui.get_overlay().reset_hover();
+                    viewable_ui.reset_hover();
                     swap_column_sides();
-                    viewable_ui.get_overlay().focus_text_box(intersected_object.name);
+                    viewable_ui.focus_text_box(intersected_object.name);
                     break;
                 case TYPES.HIDE:
                     viewable_ui.trigger_overlay();
                     break;
                 case TYPES.LINK:
-                    viewable_ui.get_overlay().open_link(split_intersected_name[1].trim());
+                    viewable_ui.open_link(split_intersected_name[1].trim());
                     break;
             }
         }
@@ -218,18 +185,18 @@ window.addEventListener('mouseup', (e) => {
             const name_type = extract_type(intersected_object);
             switch(name_type) {
                 case TYPES.LABEL:
-                    viewable_ui.get_overlay().focus_text_box(intersected_object.name);
+                    viewable_ui.focus_text_box(intersected_object.name);
                     break;
                 case TYPES.LINK:
-                    viewable_ui.get_overlay().open_link(split_intersected_name[1].trim());
+                    viewable_ui.open_link(split_intersected_name[1].trim());
                     break;
                 default:
                     swap_column_sides();
-                    viewable_ui.get_overlay().lose_focus_text_box(WEST);
+                    viewable_ui.lose_focus_text_box(WEST);
             }
         } else {
             swap_column_sides();
-            viewable_ui.get_overlay().lose_focus_text_box(WEST);
+            viewable_ui.lose_focus_text_box(WEST);
         }
     }
 });
