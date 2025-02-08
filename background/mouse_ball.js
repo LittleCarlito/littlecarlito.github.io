@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import { TYPES } from '../viewport/overlay/common';
-import { get_ndc_from_event, get_screen_size } from '../viewport/overlay/common';
+import { TYPES, get_ndc_from_event } from '../viewport/overlay/common';
 
 const DEFAULT_Z_DEPTH = 0;
 const Z_SPEED = .2;
@@ -97,19 +96,30 @@ export class MouseBall {
         // Get NDC coordinates using common utility
         const ndc = get_ndc_from_event(e);
         
-        // Calculate screen size at the ball's z-depth
-        const screen_size = get_screen_size(incoming_camera);
+        // Create plane at fixed distance from camera
+        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -this.ball_z_depth);
         
-        // Convert NDC to world coordinates at the ball's z-depth
-        this.mouse_pos.x = ndc.x * screen_size.x / 2;
-        this.mouse_pos.y = ndc.y * screen_size.y / 2;
+        // Set up raycaster
+        this.raycaster.setFromCamera(new THREE.Vector2(ndc.x, ndc.y), incoming_camera);
+        
+        // Get intersection point
+        const intersection = new THREE.Vector3();
+        this.raycaster.ray.intersectPlane(plane, intersection);
+        
+        if (intersection) {
+            // Convert to parent's local space
+            this.parent.worldToLocal(intersection);
+            
+            // Update mouse position
+            this.mouse_pos.x = intersection.x;
+            this.mouse_pos.y = intersection.y;
+        }
     }
 
     update() {
-        // Calculate world position based on camera orientation
+        // Calculate world position
         const worldPosition = new THREE.Vector3(this.mouse_pos.x, this.mouse_pos.y, this.ball_z_depth);
-        worldPosition.applyQuaternion(this.parent.quaternion);
-        worldPosition.add(this.parent.position);
+        this.parent.localToWorld(worldPosition);
         
         // Update physics body
         this.mouse_rigid.setTranslation({ 

@@ -64,13 +64,9 @@ composer.addPass(bloom_pass);
 composer.addPass(output_pass);
 
 // TODO OOOOO
-// TODO Change camera rotation to be rotating around origin and not from cameras position
-//          Need to add controller structure to use that to control camera position and keep camera rotation/focus consistent
-//          I think in JS this will take the form of a sphere of 15 radius with origin as its center
-//              Coordinates for the camera will be pulled from this sphere
-//                  Movement around the coordinate system is done through both mouse buttons being held in the overlay
-//              Make radius (aka zoom) alterable through slider when overlay is hidden
-//                  Or make it sensitive to zoom events when overlay is hidden
+// BUG Hide button goes gray after rotating
+// BUG Disable rotating until tweening overlay offscreen is complete
+// BUG After rotation re-enabling overlay only Links come back occasionally
 // TODO Create custom designed html pages for each category
 //          Add typing keframe animation to monitor one
 //          Add text bubble effect to contact one
