@@ -49,14 +49,32 @@ export class ViewableUI {
         this.parent.add(this.viewable_ui_container);
         // Add mouse button event listeners
         window.addEventListener('mousedown', this.handle_mouse_down.bind(this));
-        // Add event listener for lifting the mouse button
         window.addEventListener('mouseup', this.handle_mouse_up.bind(this));
-        // Prevent context menu from appearing on right click
         window.addEventListener('contextmenu', this.handle_context_menu.bind(this));
         window.addEventListener('mousemove', this.handle_mouse_move.bind(this));
+        window.addEventListener('wheel', this.handle_scroll_wheel.bind(this));
     }
 
-    // ----- Functions
+    // ----- Handlers
+
+    handle_scroll_wheel = (e) => {
+        // Down up scroll
+        if(e.deltaY > 0) {
+            this.decrease_mouse_ball_z();
+        } else if(e.deltaY < 0) {
+            this.increase_mouse_ball_z();
+        }
+        // Right left scroll
+        if(e.deltaX > 0) {
+            log_scroll("Right scroll");
+        } else if(e.deltaX < 0) {
+            log_scroll("Left scroll");
+        }
+        // Shared logging method
+        function log_scroll(scroll_type) {
+            console.log(`${scroll_type} detected`);
+        }
+    }
 
     handle_context_menu = (e) => {
         e.preventDefault();
@@ -121,6 +139,14 @@ export class ViewableUI {
     }
 
     handle_mouse_down = (e) => {
+        // Intersection detection and handling
+        const found_intersections = get_intersect_list(e, this.get_camera(), this.parent);
+        found_intersections.forEach(i => {
+            if(i.object.name != "") {
+                console.log(`${i.object.name} clicked down`)
+            }
+        });
+        // Camera rotation detection
         if (e.button === 0) this.leftMouseDown = true;
         if (e.button === 2) this.rightMouseDown = true;
         // If left and right mouse button held down while overlay is hidden
@@ -160,6 +186,8 @@ export class ViewableUI {
             this.get_overlay().reset_hover();
         }
     }
+
+    // ----- Functions
 
     swap_sides() {
         this.get_overlay().swap_column_sides();

@@ -5,51 +5,50 @@ import { PrimaryContainer } from './background/primary_container';
 import { BackgroundFloor } from './background/background_floor';
 import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
-import { WEST, TYPES, TEXTURE_LOADER, extract_type, get_intersect_list } from './viewport/overlay/common';
+import { TEXTURE_LOADER } from './viewport/overlay/common';
 import { AppRenderer } from './common/app_renderer';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'gradient.jpg';
+await RAPIER.init();
 // ----- Variables
 let resize_move = false;
 let zoom_event = false;
 let last_pixel_ratio = window.devicePixelRatio;
-// ----- Setup
-const scene = new THREE.Scene();
-scene.background = TEXTURE_LOADER.load(BACKGROUND_IMAGE);
-// Physics
-await RAPIER.init();
-const gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
-const world = new RAPIER.World(gravity);
-const clock = new THREE.Clock();
-// UI creation
-const viewable_ui = new ViewableUI(scene, world, RAPIER);
-// Renderer
-const app_renderer = new AppRenderer(scene, viewable_ui.get_camera());
-app_renderer.set_animation_loop(animate);
-app_renderer.add_event_listener('mouseout', handle_off_screen);
-// Background creation
-new BackgroundLighting(scene);
-const primary_container = new PrimaryContainer(world, scene, viewable_ui.get_camera());
-new BackgroundFloor(world, scene, viewable_ui.get_camera());
-
-
-// TODO OOOOO
-// BUG Hide button goes gray after rotating
-// BUG Disable rotating until tweening overlay offscreen is complete
-// BUG After rotation re-enabling overlay only Links come back occasionally
-// BUG Mouse ball is only able to rotate half way with camera
-// TODO Create custom designed html pages for each category
-//          Add typing keframe animation to monitor one
-//          Add text bubble effect to contact one
-//          Etc.
-// TODO Create instruction menus for when hide button is clicked for controlling physics things/camera
-// TODO Make overlay z layer always on top of everything else
-// TODO Add clipping when TextFrame exceeds current bounds of text_box and add scroll bars if possible
-//          Want to keeep sensitivity to zooming on the TextBox html pages
-// TODO Add throwing physics
+let scene;
+let gravity;
+let world;
+let clock;
+let viewable_ui;
+let app_renderer;
+let primary_container;
 
 // ----- Functions
+function init() {
+    // ----- Setup
+    scene = new THREE.Scene();
+    scene.background = TEXTURE_LOADER.load(BACKGROUND_IMAGE);
+    window.addEventListener('resize', handle_resize);
+    // Physics
+    gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
+    world = new RAPIER.World(gravity);
+    clock = new THREE.Clock();
+    // UI creation
+    viewable_ui = new ViewableUI(scene, world, RAPIER);
+    // Renderer
+    app_renderer = new AppRenderer(scene, viewable_ui.get_camera());
+    app_renderer.set_animation_loop(animate);
+    app_renderer.add_event_listener('mouseout', () => {
+        if(viewable_ui.is_column_left_side()) {
+            viewable_ui.reset_hover();
+        }
+    });
+    // Background creation
+    new BackgroundLighting(scene);
+    primary_container = new PrimaryContainer(world, scene, viewable_ui.get_camera());
+    new BackgroundFloor(world, scene, viewable_ui.get_camera());
+}
+
 
 /** Primary animation function run every frame by renderer */
 function animate() {
@@ -89,36 +88,8 @@ function animate() {
     app_renderer.render();
 }
 
-/** Handles mouse off screen events */
-function handle_off_screen() {
-    if(viewable_ui.is_column_left_side()) {
-        viewable_ui.reset_hover();
-    }
-}
-
-/** Handles mouse wheel actions */
-function handle_mouse_wheel(e) {
-    // Down up scroll
-    if(e.deltaY > 0) {
-        viewable_ui.decrease_mouse_ball_z();
-    } else if(e.deltaY < 0) {
-        viewable_ui.increase_mouse_ball_z();
-    }
-    // Right left scroll
-    if(e.deltaX > 0) {
-        log_scroll("Right scroll");
-    } else if(e.deltaX < 0) {
-        log_scroll("Left scroll");
-    }
-    // Shared logging method
-    function log_scroll(scroll_type) {
-        console.log(`${scroll_type} detected`);
-    }
-}
-
-// ----- Window handlers
 /** Handles resize events */
-window.addEventListener('resize', () => {
+function handle_resize() {
     // Determine if it was a zoom event
     const current_pixel_ratio = window.devicePixelRatio;
     if(last_pixel_ratio != current_pixel_ratio) {
@@ -129,18 +100,7 @@ window.addEventListener('resize', () => {
     resize_move = true;
     // Resize application
     viewable_ui.reset_camera();
+    app_renderer.resize();
+}
 
-    composer.setSize(window.innerWidth, window.innerHeight);
-});
-
-/** Handles mouse down actions */
-window.addEventListener('mousedown', (e) => {
-    const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
-    found_intersections.forEach(i => {
-        if(i.object.name != "") {
-            console.log(`${i.object.name} clicked down`)
-        }
-    });
-});
-
-window.addEventListener('wheel', handle_mouse_wheel);
+init();
