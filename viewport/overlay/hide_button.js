@@ -22,9 +22,10 @@ export class HideButton {
     // Hide button getters
     /** Determines the material for the hide button based off scene state */
     get_hide_button_material() {
-        return this.is_overlay_hidden 
-        ? new THREE.MeshBasicMaterial({ color: 0x689f38 }) 
-        : new THREE.MeshBasicMaterial({ color: 0x777981 });
+        return new THREE.MeshBasicMaterial({ 
+            color: this.is_overlay_hidden ? 0x689f38 : 0x777981,
+            toneMapped: false
+        });
     }
     
     /** Calculates hide button x position based off camera position and window size*/
@@ -39,7 +40,9 @@ export class HideButton {
 
     /** Resets the internal material based off the buttons state */
     update_material() {
-        this.hide_button.material.dispose;
+        if (this.hide_button.material) {
+            this.hide_button.material.dispose();
+        }
         this.hide_button.material = this.get_hide_button_material();
     }
 

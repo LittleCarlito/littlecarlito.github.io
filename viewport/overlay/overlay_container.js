@@ -44,10 +44,6 @@ export class OverlayContainer {
         this.title_block.resize();
         this.title_block.reposition();
         this.hide_button.reposition(this.label_column.is_column_left);
-        // Overlay is always redisplayed
-        if(this.hide_button.is_overlay_hidden) {
-            this.hide_button.swap_hide_status();
-        }
     }
 
     handle_hover(intersected_object) {
