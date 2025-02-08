@@ -75,6 +75,7 @@ composer.addPass(output_pass);
 // TODO Make overlay z layer always on top of everything else
 // TODO Add clipping when TextFrame exceeds current bounds of text_box and add scroll bars if possible
 //          Want to keeep sensitivity to zooming on the TextBox html pages
+// TODO Add throwing physics
 
 // ----- Functions
 /*** Swaps the container column sides */
