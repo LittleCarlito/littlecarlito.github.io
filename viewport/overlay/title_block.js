@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { clamp } from "three/src/math/MathUtils.js";
-import { Easing, Tween } from 'tween';
+import { Easing, Tween } from 'three/examples/jsm/libs/tween.module.js';
 import { get_screen_size, get_associated_position, NORTH } from './common';
 
 export const TITLE = "title_"

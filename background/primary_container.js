@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { GLTFLoader } from 'three/examples/jsm/Addons.js';
-import { Easing, Tween } from 'tween';
+import { Easing, Tween } from 'three/examples/jsm/libs/tween.module.js';
 import { CATEGORIES } from '../viewport/overlay/common/categories.js';
 // import { category_colors, category_labels } from '../viewport/overlay/common';
 

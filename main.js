@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
-import { update as updateTween } from 'tween';
+import { update as updateTween } from 'three/examples/jsm/libs/tween.module.js';
 import { PrimaryContainer } from './background/primary_container';
 import { BackgroundFloor } from './background/background_floor';
 import { ViewableUI } from './viewport/viewable_ui';
@@ -23,9 +23,8 @@ let viewable_ui;
 let app_renderer;
 let primary_container;
 
-// ----- Functions
+/** Initializes the main scene */
 function init() {
-    // ----- Setup
     scene = new THREE.Scene();
     scene.background = TEXTURE_LOADER.load(BACKGROUND_IMAGE);
     window.addEventListener('resize', handle_resize);

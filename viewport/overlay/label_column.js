@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Easing, Tween } from 'tween';
+import { Easing, Tween } from 'three/examples/jsm/libs/tween.module.js';
 import { get_screen_size, get_associated_position, WEST } from "./common/screen";
 import { CATEGORIES } from './common/categories';
 import { TEXTURE_LOADER, TYPES, PAN_SPEED, ROTATE_SPEED, FOCUS_ROTATION } from './common/index'
