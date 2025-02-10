@@ -59,6 +59,11 @@ export class AppRenderer {
     resize() {
         this.webgl_renderer.setSize(window.innerWidth, window.innerHeight);
         this.css_renderer.setSize(window.innerWidth, window.innerHeight);
+        // Update bloom pass resolution
+        const bloomPass = this.composer.passes.find(pass => pass instanceof UnrealBloomPass);
+        if (bloomPass) {
+            bloomPass.resolution.set(window.innerWidth, window.innerHeight);
+        }
     }
 
     
