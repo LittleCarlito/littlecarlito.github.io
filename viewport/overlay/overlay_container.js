@@ -35,6 +35,10 @@ export class OverlayContainer {
         this.hide_button.swap_sides(this.label_column.is_column_left);
     }
 
+    /**
+     * Resize and repositions the overlay
+     * FOR USE WHEN ONSCREEN ONLY
+     */
     resize_reposition() {
         // Move/resize overlay
         this.text_box_container.resize();
@@ -44,6 +48,20 @@ export class OverlayContainer {
         this.title_block.resize();
         this.title_block.reposition();
         this.hide_button.reposition(this.label_column.is_column_left);
+    }
+
+    /**
+     * Resize and repositions the overlay
+     * FOR USE WHEN OFFSCREEN ONLY
+     */
+    resize_reposition_offscreen() {
+        // Move/resize overlay
+        this.text_box_container.resize();
+        this.text_box_container.offscreen_reposition();
+        this.label_column.offscreen_reposition();
+        this.link_container.offscreen_reposition();
+        this.title_block.resize();
+        this.title_block.offscreen_reposition();
     }
 
     handle_hover(intersected_object) {

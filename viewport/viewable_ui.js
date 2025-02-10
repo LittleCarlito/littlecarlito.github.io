@@ -39,7 +39,7 @@ export class ViewableUI {
         // Add callback for camera updates
         this.camera_controller.add_update_callback(() => {
             if (this.overlay_container) {
-                this.overlay_container.resize_reposition();
+                this.overlay_container.resize_reposition_offscreen();
             }
         });
         

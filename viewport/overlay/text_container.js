@@ -57,7 +57,7 @@ export class TextContainer {
             }
             // Get and move text box
             const selected_text_box = this.text_box_container.getObjectByName(this.focused_text_name);
-            // this.set_content_layer(this.focused_text_name, 0);
+            this.set_content_layer(this.focused_text_name, 0);
             new Tween(selected_text_box.position)
             .to({ x: this.get_focused_text_x() }, 285)
             .easing(Easing.Sinusoidal.Out)
@@ -85,7 +85,7 @@ export class TextContainer {
                             .easing(Easing.Sinusoidal.Out)
                             .start()
                             .onComplete(() => {
-                                // this.set_content_layer(existing_focus_box.name, 1);
+                                this.set_content_layer(existing_focus_box.name, 1);
                                 existing_focus_box.position.y = this.get_text_box_y();
                                 existing_focus_box.position.x = get_associated_position(WEST, this.camera);
                             });
@@ -96,7 +96,7 @@ export class TextContainer {
                             .easing(Easing.Sinusoidal.Out)
                             .start()
                             .onComplete(() => {
-                                // this.set_content_layer(existing_focus_box.name, 1);
+                                this.set_content_layer(existing_focus_box.name, 1);
                                 existing_focus_box.position.y = this.get_text_box_y();
                                 existing_focus_box.position.x = 2 * get_associated_position(WEST, this.camera);
                             });
@@ -107,7 +107,7 @@ export class TextContainer {
                             .easing(Easing.Sinusoidal.Out)
                             .start()
                             .onComplete(() => {
-                                // this.set_content_layer(existing_focus_box.name, 1);
+                                this.set_content_layer(existing_focus_box.name, 1);
                                 existing_focus_box.position.x = (get_associated_position(WEST, this.camera))
                             });
                             break;
@@ -116,7 +116,7 @@ export class TextContainer {
                             .to({ x: move_position }, determined_speed)
                             .easing(Easing.Sinusoidal.Out)
                             .start().onComplete(() => {
-                                // this.set_content_layer(existing_focus_box.name, 1);
+                                this.set_content_layer(existing_focus_box.name, 1);
                             });                        
                             break;
                     }
@@ -171,12 +171,19 @@ export class TextContainer {
         });
     }
 
-    // set_content_layer(incoming_object_name, incoming_layer) {
-    //     const existing_object = this.text_box_container.getObjectByName(incoming_object_name);
-    //     existing_object.children.forEach(c => {
-    //         c.layers.set(incoming_layer);
-    //     });
-    // }
+    offscreen_reposition() {
+        this.text_box_container.children.forEach(c => {
+            c.position.x = -(this.container_width * 3);
+            c.position.y = this.get_text_box_y(this.camera);
+        })
+    }
+
+    set_content_layer(incoming_object_name, incoming_layer) {
+        const existing_object = this.text_box_container.getObjectByName(incoming_object_name);
+        existing_object.children.forEach(c => {
+            c.layers.set(incoming_layer);
+        });
+    }
 
     // Text box getters
     /** Calculates the selected text boxes x position based off camera position and window size */

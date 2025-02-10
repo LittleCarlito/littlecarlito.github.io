@@ -13,7 +13,6 @@ export class LinkContainer {
         
         // Store initial positions in overlay space
         this.initial_y = -(.4 * get_screen_size(this.camera).y);
-        this.hidden_y = get_associated_position(SOUTH, this.camera);
         
         this.link_container.position.x = this.get_link_container_x(this.camera);
         this.link_container.position.y = this.initial_y;
@@ -49,50 +48,17 @@ export class LinkContainer {
     }
 
     trigger_overlay(is_overlay_hidden) {
-        console.log('LinkContainer Animation Start');
-        
-        this.tween_update_count = 0;
-        console.log('Animation Setup:', {
-            isHidden: is_overlay_hidden,
-            tweenActive: !!this.current_tween,
-            updateCount: this.tween_update_count
-        });
-
         if(!is_overlay_hidden) {
-            // this.set_content_layers(0);
+            this.set_content_layers(0);
         }
-        
-        const target_y = is_overlay_hidden ? this.hidden_y : this.initial_y;
-        
-        console.log('Transform State:', {
-            containerWorld: this.link_container.getWorldPosition(new THREE.Vector3()),
-            containerLocal: this.link_container.position.clone(),
-            parentWorld: this.parent.getWorldPosition(new THREE.Vector3()),
-            parentMatrix: this.parent.matrix.elements,
-            targetY: target_y,
-            isHidden: is_overlay_hidden
-        });
-        
+        const target_y = is_overlay_hidden ? get_associated_position(SOUTH, this.camera) : this.initial_y;
         this.current_tween = new Tween(this.link_container.position)
             .to({ y: target_y }, 680)
             .easing(Easing.Elastic.InOut)
-            .onUpdate(() => {
-                this.tween_update_count++;
-                console.log('Animation Frame:', {
-                    updateCount: this.tween_update_count,
-                    tweenActive: !!this.current_tween,
-                    position: this.link_container.position.clone()
-                });
-            })
             .onComplete(() => {
-                console.log('Animation Complete:', {
-                    updateCount: this.tween_update_count,
-                    finalPosition: this.link_container.position.clone(),
-                    isHidden: is_overlay_hidden
-                });
                 this.current_tween = null;
                 if(is_overlay_hidden) {
-                    // this.set_content_layers(1);
+                    this.set_content_layers(1);
                 }
             })
             .start();
@@ -108,15 +74,20 @@ export class LinkContainer {
         .start();
     }
 
+    offscreen_reposition() {
+        this.link_container.position.y = get_associated_position(SOUTH, this.camera)
+        this.link_container.position.x = this.get_link_container_x();      
+    }
+
     // Link setters
-    // set_content_layers(incoming_layer) {
-    //     this.link_container.layers.set(incoming_layer);
-    //     Object.values(LINKS).forEach(link => {
-    //         const link_name = `${TYPES.LINK}${link.value}`;
-    //         const existing_link = this.link_container.getObjectByName(link_name);
-    //         existing_link.layers.set(incoming_layer);
-    //     });
-    // }
+    set_content_layers(incoming_layer) {
+        this.link_container.layers.set(incoming_layer);
+        Object.values(LINKS).forEach(link => {
+            const link_name = `${TYPES.LINK}${link.value}`;
+            const existing_link = this.link_container.getObjectByName(link_name);
+            existing_link.layers.set(incoming_layer);
+        });
+    }
 
     // Link getters
     /** Calculates the link containers x position based off camera position and window size*/

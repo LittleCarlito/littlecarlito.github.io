@@ -72,6 +72,11 @@ export class HideButton {
         .start();
     }
 
+    offscreen_reposition() {
+        this.hide_button.position.y = this.get_hide_button_y();
+        this.hide_button.position.x = this.get_hide_button_x(false);
+    }
+
     swap_hide_status() {
         this.is_overlay_hidden = !this.is_overlay_hidden;
         this.update_material();
