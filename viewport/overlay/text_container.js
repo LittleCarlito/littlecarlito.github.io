@@ -23,6 +23,7 @@ export class TextContainer {
             text_box.position.y = this.get_text_box_y();
             text_box.simple_name = category.value;
             text_box.name = `${TYPES.TEXT}${category.value}`;
+            text_box.layers.set(1);
             this.text_box_container.add(text_box);
             // Create the background box
             this.container_width = this.get_text_box_width();
@@ -131,11 +132,9 @@ export class TextContainer {
         this.container_width = this.get_text_box_width(this.camera);
         this.container_height = this.get_text_box_height(this.camera);
         const new_text_geometry = new THREE.BoxGeometry(this.container_width, this.container_height, 0);
-        
         this.text_box_container.children.forEach(c => {
             c.children.forEach(inner_c => {
                 if (!inner_c || !inner_c.name) return;
-                
                 const type = extract_type(inner_c);
                 switch(type) {
                     case TYPES.BACKGROUND:
@@ -165,7 +164,7 @@ export class TextContainer {
         }
         this.text_box_container.children.forEach(c => {
             if(c.name != this.focused_text_name) {
-                c.position.x = -(this.container_width * 3);
+                c.position.x = get_associated_position(WEST, this.camera);
                 c.position.y = this.get_text_box_y(this.camera);
             }
         });

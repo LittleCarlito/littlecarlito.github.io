@@ -22,6 +22,7 @@ let clock;
 let viewable_ui;
 let app_renderer;
 let primary_container;
+let resizeTimeout;
 
 /** Initializes the main scene */
 function init() {
@@ -89,18 +90,29 @@ function animate() {
 
 /** Handles resize events */
 function handle_resize() {
+    // Clear any existing timeout
+    if (resizeTimeout) {
+        clearTimeout(resizeTimeout);
+    }
+
+    // Set variables
+    resize_move = true;
+    
     // Determine if it was a zoom event
     const current_pixel_ratio = window.devicePixelRatio;
-    if(last_pixel_ratio != current_pixel_ratio) {
+    if (last_pixel_ratio != current_pixel_ratio) {
         last_pixel_ratio = current_pixel_ratio;
         zoom_event = true;
     }
-    // Set variables
-    resize_move = true;
-    // Resize application
+
+    // Immediate camera update
     viewable_ui.reset_camera();
-    viewable_ui.reset_mouseball();
     app_renderer.resize();
+
+    // Debounce the mouse ball reset
+    resizeTimeout = setTimeout(() => {
+        viewable_ui.reset_mouseball();
+    }, 100); // 100ms delay
 }
 
 init();

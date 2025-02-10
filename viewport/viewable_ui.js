@@ -216,17 +216,14 @@ export class ViewableUI {
 
     /** TODO Resets the MouseBall size and intersection plane according to window size */
     reset_mouseball() {
-        if (this.mouse_ball) {
-            // Use the last known position instead of center
-            const lastPosition = this.mouse_ball.mouse_mesh.position;
-            const lastScreenX = ((lastPosition.x / lastPosition.z) + 1) / 2 * window.innerWidth;
-            const lastScreenY = ((-lastPosition.y / lastPosition.z) + 1) / 2 * window.innerHeight;
-            
-            const dummyEvent = {
-                clientX: lastScreenX,
-                clientY: lastScreenY
-            };
-            this.mouse_ball.handle_movement(dummyEvent, this.camera);
+        if (this.mouse_ball && this.mouse_ball.mouse_mesh) {
+            // Store current position
+            const last_position = this.mouse_ball.mouse_mesh.position.clone();
+            // Update position directly without triggering physics
+            this.mouse_ball.mouse_mesh.position.copy(last_position);
+            if (this.mouse_ball.mouse_rigid) {
+                this.mouse_ball.mouse_rigid.setTranslation(last_position);
+            }
         }
     }
 
