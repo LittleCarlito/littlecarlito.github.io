@@ -192,10 +192,6 @@ export class ViewableUI {
         this.get_overlay().swap_column_sides();
     }
 
-    is_column_left_side() {
-        return this.get_overlay().is_label_column_left_side();
-    }
-
     reset_hover() {
         this.get_overlay().reset_hover();
     }
@@ -251,16 +247,24 @@ export class ViewableUI {
 
     // ----- Getters
 
+    is_column_left_side() {
+        return this.get_overlay().is_label_column_left_side();
+    }
+
+    is_text_active() {
+        return this.overlay_container.is_text_active();
+    }
+
+    get_hide_transition_map() {
+        return this.get_overlay().hide_transition_map;
+    }
+
     get_camera() {
         return this.camera;
     }
 
     get_overlay() {
         return this.overlay_container;
-    }
-
-    is_text_active() {
-        return this.overlay_container.is_text_active();
     }
 
     get_active_name() {

@@ -41,12 +41,12 @@ export class LabelColumn {
         this.container_column.rotation.y = this.get_column_y_rotation(true);
     }
 
-    trigger_overlay(is_overlay_hidden) {
+    trigger_overlay(is_overlay_hidden, tween_map) {
         if(!is_overlay_hidden) {
             this.set_content_layer(0);
         }
         const container_column_x = is_overlay_hidden ? get_associated_position(WEST, this.camera) : this.get_column_x_position(true);
-        new Tween(this.container_column.position)
+        const new_tween = new Tween(this.container_column.position)
         .to({ x: container_column_x })
         .easing(Easing.Elastic.InOut)
         .start()
@@ -54,7 +54,9 @@ export class LabelColumn {
             if(is_overlay_hidden) {
                 this.set_content_layer(1);
             }
-        });  
+            tween_map.delete(this.container_column.name);
+        });
+        tween_map.set(this.container_column.name, new_tween);
     }
 
     swap_sides() {

@@ -9,13 +9,9 @@ export class LinkContainer {
     constructor(incoming_parent, incoming_camera) {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
-        this.link_container = new THREE.Object3D();
-        
-        // Store initial positions in overlay space
-        this.initial_y = -(.4 * get_screen_size(this.camera).y);
-        
+        this.link_container = new THREE.Object3D();       
         this.link_container.position.x = this.get_link_container_x(this.camera);
-        this.link_container.position.y = this.initial_y;
+        this.link_container.position.y = this.get_link_container_y();
         this.parent.add(this.link_container);
         // Create the link icons
         const calced_radius = this.get_link_radius(this.camera);
@@ -33,8 +29,6 @@ export class LinkContainer {
             link_button.position.x += calced_radius * (3.5 * l);
             this.link_container.add(link_button);
         });
-        this.current_tween = null;
-        this.tween_update_count = 0;
     }
 
     /** Open a new tab of the associated link */
@@ -47,21 +41,23 @@ export class LinkContainer {
         }
     }
 
-    trigger_overlay(is_overlay_hidden) {
+    trigger_overlay(is_overlay_hidden, tween_map) {
         if(!is_overlay_hidden) {
             this.set_content_layers(0);
         }
-        const target_y = is_overlay_hidden ? get_associated_position(SOUTH, this.camera) : this.initial_y;
-        this.current_tween = new Tween(this.link_container.position)
+        const target_y = is_overlay_hidden ? get_associated_position(SOUTH, this.camera) : this.get_link_container_y();
+        const new_tween = new Tween(this.link_container.position)
             .to({ y: target_y }, 680)
             .easing(Easing.Elastic.InOut)
+            .start()
             .onComplete(() => {
                 this.current_tween = null;
                 if(is_overlay_hidden) {
                     this.set_content_layers(1);
                 }
-            })
-            .start();
+                tween_map.delete(this.link_container.name);
+            });
+            tween_map.set(this.link_container.name, new_tween); 
     }
 
     reposition() {

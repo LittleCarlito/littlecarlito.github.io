@@ -6,6 +6,13 @@ import { LinkContainer } from './link_container';
 import { HideButton } from './hide_button';
 
 export class OverlayContainer {
+    overlay_container;
+    title_block;
+    text_box_container;
+    label_column;
+    link_container;
+    hide_button;
+    hide_transition_map = new Map();
     
     constructor(incoming_parent, incoming_camera) {
         this.parent = incoming_parent;
@@ -22,12 +29,14 @@ export class OverlayContainer {
     }
 
     trigger_overlay() {
-        this.hide_button.swap_hide_status();
-        console.log(`is overlay hidden \"${this.hide_button.is_overlay_hidden}\"`);
-        // Hide the overlay
-        this.title_block.trigger_overlay(this.hide_button.is_overlay_hidden);
-        this.label_column.trigger_overlay(this.hide_button.is_overlay_hidden);
-        this.link_container.trigger_overlay(this.hide_button.is_overlay_hidden);
+        if(this.hide_transition_map.size == 0) {
+            this.hide_button.swap_hide_status();
+            console.log(`is overlay hidden \"${this.hide_button.is_overlay_hidden}\"`);
+            // Hide the overlay
+            this.title_block.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
+            this.label_column.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
+            this.link_container.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
+        }
     }
 
     swap_column_sides() {
