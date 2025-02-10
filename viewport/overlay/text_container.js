@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Easing, Tween } from 'three/examples/jsm/libs/tween.module.js';
 import { clamp } from 'three/src/math/MathUtils.js';
 import { TextFrame, IFRAME } from './text_frame';
-import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, CATEGORIES, extract_type, PAN_SPEED, TYPES, VALID_DIRECTIONS } from './common';
+import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, CATEGORIES, extract_type, PAN_SPEED, TYPES, VALID_DIRECTIONS, FLAGS } from './common';
 
 export class TextContainer {
     container_width;
@@ -23,7 +23,9 @@ export class TextContainer {
             text_box.position.y = this.get_text_box_y();
             text_box.simple_name = category.value;
             text_box.name = `${TYPES.TEXT}${category.value}`;
-            text_box.layers.set(1);
+            if(FLAGS.LAYER){
+                text_box.layers.set(1);
+            }
             this.text_box_container.add(text_box);
             // Create the background box
             this.container_width = this.get_text_box_width();
@@ -58,7 +60,9 @@ export class TextContainer {
             }
             // Get and move text box
             const selected_text_box = this.text_box_container.getObjectByName(this.focused_text_name);
-            this.set_content_layer(this.focused_text_name, 0);
+            if(FLAGS.LAYER){
+                this.set_content_layer(this.focused_text_name, 0);
+            }
             new Tween(selected_text_box.position)
             .to({ x: this.get_focused_text_x() }, 285)
             .easing(Easing.Sinusoidal.Out)
@@ -86,7 +90,9 @@ export class TextContainer {
                             .easing(Easing.Sinusoidal.Out)
                             .start()
                             .onComplete(() => {
-                                this.set_content_layer(existing_focus_box.name, 1);
+                                if(FLAGS.LAYER){
+                                    this.set_content_layer(existing_focus_box.name, 1);
+                                }
                                 existing_focus_box.position.y = this.get_text_box_y();
                                 existing_focus_box.position.x = get_associated_position(WEST, this.camera);
                             });
@@ -97,7 +103,9 @@ export class TextContainer {
                             .easing(Easing.Sinusoidal.Out)
                             .start()
                             .onComplete(() => {
-                                this.set_content_layer(existing_focus_box.name, 1);
+                                if(FLAGS.LAYER){
+                                    this.set_content_layer(existing_focus_box.name, 1);
+                                }
                                 existing_focus_box.position.y = this.get_text_box_y();
                                 existing_focus_box.position.x = 2 * get_associated_position(WEST, this.camera);
                             });
@@ -108,7 +116,9 @@ export class TextContainer {
                             .easing(Easing.Sinusoidal.Out)
                             .start()
                             .onComplete(() => {
-                                this.set_content_layer(existing_focus_box.name, 1);
+                                if(FLAGS.LAYER){
+                                    this.set_content_layer(existing_focus_box.name, 1);
+                                }
                                 existing_focus_box.position.x = (get_associated_position(WEST, this.camera))
                             });
                             break;
@@ -117,7 +127,9 @@ export class TextContainer {
                             .to({ x: move_position }, determined_speed)
                             .easing(Easing.Sinusoidal.Out)
                             .start().onComplete(() => {
-                                this.set_content_layer(existing_focus_box.name, 1);
+                                if(FLAGS.LAYER){
+                                    this.set_content_layer(existing_focus_box.name, 1);
+                                }
                             });                        
                             break;
                     }

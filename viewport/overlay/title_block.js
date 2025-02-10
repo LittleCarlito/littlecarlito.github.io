@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { clamp } from "three/src/math/MathUtils.js";
 import { Easing, Tween } from 'three/examples/jsm/libs/tween.module.js';
-import { get_screen_size, get_associated_position, NORTH } from './common';
+import { get_screen_size, get_associated_position, NORTH, FLAGS } from './common';
 
 export const TITLE = "title_"
 const TITLE_HEIGHT = 2.75;
@@ -37,7 +37,7 @@ export class TitleBlock {
 
     /** Hides/reveals the title block based off overlay status */
     trigger_overlay(is_overlay_hidden, tween_map) {
-        if(!is_overlay_hidden) {
+        if(!is_overlay_hidden && FLAGS.LAYER) {
             this.title_box.layers.set(0);
         }
         const title_y = is_overlay_hidden ? get_associated_position(NORTH, this.camera) : TITLE_Y;
@@ -46,7 +46,7 @@ export class TitleBlock {
         .easing(Easing.Elastic.InOut)
         .start()
         .onComplete(() => {
-            if(is_overlay_hidden) {
+            if(is_overlay_hidden && FLAGS.LAYER) {
                 this.title_box.layers.set(1);
             }
             tween_map.delete(this.title_box.name);

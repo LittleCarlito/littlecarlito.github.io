@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { Easing, Tween } from 'three/examples/jsm/libs/tween.module.js';
 import { clamp } from 'three/src/math/MathUtils.js';
 import { get_screen_size, get_associated_position, SOUTH, TYPES, LINK_RADIUS, 
-    LINKS, TEXTURE_LOADER } from './common';
+    LINKS, TEXTURE_LOADER, 
+    FLAGS} from './common';
 
 
 export class LinkContainer {
@@ -42,7 +43,8 @@ export class LinkContainer {
     }
 
     trigger_overlay(is_overlay_hidden, tween_map) {
-        if(!is_overlay_hidden) {
+        console.log(`Layer flag is ${FLAGS.LAYER}`);
+        if(!is_overlay_hidden && FLAGS.LAYER) {
             this.set_content_layers(0);
         }
         const target_y = is_overlay_hidden ? get_associated_position(SOUTH, this.camera) : this.get_link_container_y();
@@ -52,7 +54,7 @@ export class LinkContainer {
             .start()
             .onComplete(() => {
                 this.current_tween = null;
-                if(is_overlay_hidden) {
+                if(is_overlay_hidden && FLAGS.LAYER) {
                     this.set_content_layers(1);
                 }
                 tween_map.delete(this.link_container.name);

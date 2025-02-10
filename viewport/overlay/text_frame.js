@@ -1,5 +1,4 @@
 import { CSS2DObject } from "three/examples/jsm/Addons.js";
-import { UI_Z_DIST } from "../viewable_ui";
 import { CATEGORIES } from "./common/categories.js";
 
 const WIDTH_OFFSET = .5;

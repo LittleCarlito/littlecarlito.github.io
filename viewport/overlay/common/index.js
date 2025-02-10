@@ -8,7 +8,10 @@ export * from './screen';
 export * from './categories';
 
 // Re-export everything from types.js
-export * from './types'
+export * from './types';
 
 // Re-export everything from links.js
-export * from './links'
+export * from './links';
+
+// Re-export everything from flags.js
+export * from './flags';

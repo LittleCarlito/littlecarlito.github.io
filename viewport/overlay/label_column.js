@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Easing, Tween } from 'three/examples/jsm/libs/tween.module.js';
 import { get_screen_size, get_associated_position, WEST } from "./common/screen";
 import { CATEGORIES } from './common/categories';
-import { TEXTURE_LOADER, TYPES, PAN_SPEED, ROTATE_SPEED, FOCUS_ROTATION } from './common/index'
+import { TEXTURE_LOADER, TYPES, PAN_SPEED, ROTATE_SPEED, FOCUS_ROTATION, FLAGS } from './common/index'
 
 export class LabelColumn {
     in_tween_map = new Map();
@@ -13,7 +13,6 @@ export class LabelColumn {
     constructor(incoming_parent, incoming_camera) {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
-
         this.container_column = new THREE.Object3D();
         this.container_column.name = `${TYPES.CONATINER}column`
         this.parent.add(this.container_column);
@@ -42,7 +41,7 @@ export class LabelColumn {
     }
 
     trigger_overlay(is_overlay_hidden, tween_map) {
-        if(!is_overlay_hidden) {
+        if(!is_overlay_hidden && FLAGS.LAYER) {
             this.set_content_layer(0);
         }
         const container_column_x = is_overlay_hidden ? get_associated_position(WEST, this.camera) : this.get_column_x_position(true);
@@ -51,7 +50,7 @@ export class LabelColumn {
         .easing(Easing.Elastic.InOut)
         .start()
         .onComplete(() => {
-            if(is_overlay_hidden) {
+            if(is_overlay_hidden && FLAGS.LAYER) {
                 this.set_content_layer(1);
             }
             tween_map.delete(this.container_column.name);

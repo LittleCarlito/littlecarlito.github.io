@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OverlayContainer } from "./overlay/overlay_container";
 import { MouseBall } from '../background/mouse_ball';
-import { extract_type, get_intersect_list, TYPES, WEST} from './overlay/common';
+import { extract_type, FLAGS, get_intersect_list, TYPES, WEST} from './overlay/common';
 import { CameraController } from './camera_controller';
 
 export const UI_Z_DIST = 25;
@@ -240,12 +240,16 @@ export class ViewableUI {
     }
 
     toggle_mouse_ball(enabled) {
-        if (enabled) {
-            this.camera.layers.enable(2);
-            this.mouse_ball.toggle_physics(true);
-        } else {
-            this.camera.layers.disable(2);
-            this.mouse_ball.toggle_physics(false);
+        if(FLAGS.LAYER){
+            if (enabled) {
+                this.mouse_ball.enabled = true;
+                this.camera.layers.enable(2);
+                this.mouse_ball.toggle_physics(true);
+            } else {
+                this.mouse_ball.enabled = false;
+                this.camera.layers.disable(2);
+                this.mouse_ball.toggle_physics(false);
+            }
         }
     }
 

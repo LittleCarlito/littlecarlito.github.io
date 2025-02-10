@@ -98,22 +98,12 @@ export class MouseBall {
 
     handle_movement(e) {
         const ndc = get_ndc_from_event(e);
-        console.log("NDC coordinates:", ndc);
         const fov = this.camera.fov * Math.PI / 180;
         const aspect = this.camera.aspect;
         const z = -this.ball_z_depth;
         const tan_fov = Math.tan(fov / 2);
-        
-        console.log("Camera properties:", {
-            fov: this.camera.fov,
-            aspect: aspect,
-            z_depth: this.ball_z_depth
-        });
-        
         this.mouse_pos.x = ndc.x * Math.abs(z) * tan_fov * aspect;
         this.mouse_pos.y = ndc.y * Math.abs(z) * tan_fov;
-        
-        console.log("Calculated position:", this.mouse_pos);
         // Position in camera's local space
         this.mouse_mesh.position.set(
             this.mouse_pos.x,
