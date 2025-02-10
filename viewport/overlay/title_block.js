@@ -38,7 +38,7 @@ export class TitleBlock {
     /** Hides/reveals the title block based off overlay status */
     trigger_overlay(is_overlay_hidden) {
         if(!is_overlay_hidden) {
-            this.title_box.layers.set(0);
+            // this.title_box.layers.set(0);
         }
         const title_y = is_overlay_hidden ? get_associated_position(NORTH, this.camera) : TITLE_Y;
         new Tween(this.title_box.position)
@@ -47,7 +47,7 @@ export class TitleBlock {
         .start()
         .onComplete(() => {
             if(is_overlay_hidden) {
-                this.title_box.layers.set(1);
+                // this.title_box.layers.set(1);
             }
         });
     }

@@ -34,10 +34,10 @@ export class ViewableUI {
         
         // Create overlay and connect it to camera controller
         this.overlay_container = new OverlayContainer(this.viewable_ui_container, this.get_camera());
-        this.camera_controller.setOverlayContainer(this.overlay_container);
+        this.camera_controller.set_overlay_container(this.overlay_container);
         
         // Add callback for camera updates
-        this.camera_controller.addUpdateCallback(() => {
+        this.camera_controller.add_update_callback(() => {
             if (this.overlay_container) {
                 this.overlay_container.resize_reposition();
             }

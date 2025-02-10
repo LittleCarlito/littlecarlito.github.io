@@ -42,18 +42,19 @@ export class LabelColumn {
     }
 
     trigger_overlay(is_overlay_hidden) {
-        if(!is_overlay_hidden) {
-            this.set_content_layer(0);
-        }
+        // TODO TEMP DISABLING LAYERING
+        // if(!is_overlay_hidden) {
+        //     this.set_content_layer(0);
+        // }
         const container_column_x = is_overlay_hidden ? get_associated_position(WEST, this.camera) : this.get_column_x_position(true);
         new Tween(this.container_column.position)
         .to({ x: container_column_x })
         .easing(Easing.Elastic.InOut)
         .start()
         .onComplete(() => {
-            if(is_overlay_hidden) {
-                this.set_content_layer(1);
-            }
+            // if(is_overlay_hidden) {
+            //     this.set_content_layer(1);
+            // }
         });  
     }
 
@@ -125,17 +126,17 @@ export class LabelColumn {
     }
 
     // Column setters
-    set_content_layer(incoming_layer) {
-        this.container_column.layers.set(0);
-        Object.values(CATEGORIES).forEach(category => {
-            if (typeof category === 'function') return; // Skip helper methods
-            const label_name = `${TYPES.CONATINER}${category.value}`;
-            const button_name = `${TYPES.LABEL}${category.value}`;
-            const existing_label_container = this.container_column.getObjectByName(label_name);
-            const existing_label = existing_label_container.getObjectByName(button_name);
-            existing_label.layers.set(incoming_layer);
-        });
-    }
+    // set_content_layer(incoming_layer) {
+    //     this.container_column.layers.set(0);
+    //     Object.values(CATEGORIES).forEach(category => {
+    //         if (typeof category === 'function') return; // Skip helper methods
+    //         const label_name = `${TYPES.CONATINER}${category.value}`;
+    //         const button_name = `${TYPES.LABEL}${category.value}`;
+    //         const existing_label_container = this.container_column.getObjectByName(label_name);
+    //         const existing_label = existing_label_container.getObjectByName(button_name);
+    //         existing_label.layers.set(incoming_layer);
+    //     });
+    // }
 
     // Column getters
     /** Calculates the x position of the container column given it and the cameras position along with window size */

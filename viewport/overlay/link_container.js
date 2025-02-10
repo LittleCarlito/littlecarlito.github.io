@@ -59,7 +59,7 @@ export class LinkContainer {
         });
 
         if(!is_overlay_hidden) {
-            this.set_content_layers(0);
+            // this.set_content_layers(0);
         }
         
         const target_y = is_overlay_hidden ? this.hidden_y : this.initial_y;
@@ -92,7 +92,7 @@ export class LinkContainer {
                 });
                 this.current_tween = null;
                 if(is_overlay_hidden) {
-                    this.set_content_layers(1);
+                    // this.set_content_layers(1);
                 }
             })
             .start();
@@ -109,14 +109,14 @@ export class LinkContainer {
     }
 
     // Link setters
-    set_content_layers(incoming_layer) {
-        this.link_container.layers.set(incoming_layer);
-        Object.values(LINKS).forEach(link => {
-            const link_name = `${TYPES.LINK}${link.value}`;
-            const existing_link = this.link_container.getObjectByName(link_name);
-            existing_link.layers.set(incoming_layer);
-        });
-    }
+    // set_content_layers(incoming_layer) {
+    //     this.link_container.layers.set(incoming_layer);
+    //     Object.values(LINKS).forEach(link => {
+    //         const link_name = `${TYPES.LINK}${link.value}`;
+    //         const existing_link = this.link_container.getObjectByName(link_name);
+    //         existing_link.layers.set(incoming_layer);
+    //     });
+    // }
 
     // Link getters
     /** Calculates the link containers x position based off camera position and window size*/
