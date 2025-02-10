@@ -42,7 +42,7 @@ export class ViewableUI {
                 this.overlay_container.resize_reposition_offscreen();
             }
         });
-        this.mouse_ball = new MouseBall(null, this.world, RAPIER, this.camera);
+        this.mouse_ball = new MouseBall(this.camera, this.world, RAPIER, this.camera);
         this.viewable_ui_container.add(this.camera);
         // this.viewable_ui_container.rotation.x = -0.261799;
         this.parent.add(this.viewable_ui_container);
@@ -211,6 +211,12 @@ export class ViewableUI {
     reset_camera() {
         this.get_camera().aspect = window.innerWidth / window.innerHeight;
         this.get_camera().updateProjectionMatrix();
+    }
+
+    /** TODO Resets the MouseBall size and intersection plane according to window size */
+    reset_mouseball() {
+        // TODO Implement
+
     }
 
     update_mouse_ball() {
