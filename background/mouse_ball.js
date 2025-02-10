@@ -5,17 +5,23 @@ const DEFAULT_Z_DEPTH = 15;
 const Z_SPEED = 0.5;
 
 export class MouseBall {
-    enabled = false;
-    mouse_pos = new THREE.Vector2();
-    ball_z_depth;
-    raycaster = new THREE.Raycaster();
-    stuck_objects = new Set();
-    eventQueue;
-    isMouseDown = false;
-    isRightMouseDown = false;
+    parent;
     camera;
+    RAPIER;
+    world;
+    enabled = false;
+    ball_z_depth;
+    mouse_pos = new THREE.Vector2();
+    mouse_rigid;
+    mouse_mesh;
+    stuck_objects = new Set();
+    raycaster = new THREE.Raycaster();
+    event_queue;
+    is_mouse_down = false;
+    is_right_mouse_down = false;
 
     constructor(incoming_parent, incoming_world, RAPIER, incoming_camera) {
+        this.parent = incoming_parent;
         this.world = incoming_world;
         this.RAPIER = RAPIER;
         this.camera = incoming_camera;
@@ -32,14 +38,11 @@ export class MouseBall {
         this.mouse_mesh = new THREE.Mesh(geometry, material);
         this.mouse_mesh.name = `${TYPES.BALL}${TYPES.UNIQUE}`;
         this.mouse_mesh.add(mouse_light);
-        
         // Set layers
         this.mouse_mesh.layers.set(2);
         mouse_light.layers.set(2);
-        
-        // Add mesh directly to camera
-        this.camera.add(this.mouse_mesh);
-        
+        // Add mesh to scene
+        this.parent.add(this.mouse_mesh);
         // Create physics body
         let body_desc = RAPIER.RigidBodyDesc.kinematicPositionBased();
         this.mouse_rigid = this.world.createRigidBody(body_desc);
@@ -48,20 +51,19 @@ export class MouseBall {
             .setSensor(true);
         this.world.createCollider(dynamic_collider, this.mouse_rigid)
             .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
-            
-        this.eventQueue = new RAPIER.EventQueue(true);
-        
+        this.event_queue = new RAPIER.EventQueue(true);
+        // TODO Set these to functions
         // Modify mouse event listeners
         window.addEventListener('mousedown', (e) => {
             if (e.button === 0) { // Left mouse button
-                this.isMouseDown = true;
+                this.is_mouse_down = true;
                 if (this.mouse_rigid) {
                     const collider = this.mouse_rigid.collider(0);
                     collider.setCollisionGroups(0x00020002); // Enable collisions for detection
                     collider.setSensor(true); // Keep sensor mode for grabbing
                 }
             } else if (e.button === 2) { // Right mouse button
-                this.isRightMouseDown = true;
+                this.is_right_mouse_down = true;
                 if (this.mouse_rigid) {
                     const collider = this.mouse_rigid.collider(0);
                     collider.setCollisionGroups(0x00020002); // Enable collisions
@@ -72,15 +74,15 @@ export class MouseBall {
         
         window.addEventListener('mouseup', (e) => {
             if (e.button === 0) { // Left mouse button
-                this.isMouseDown = false;
-                this.releaseStuckObjects();
+                this.is_mouse_down = false;
+                this.release_stuck_objects();
                 if (this.mouse_rigid) {
                     const collider = this.mouse_rigid.collider(0);
                     collider.setCollisionGroups(0x00000000);
                     collider.setSensor(true);
                 }
             } else if (e.button === 2) { // Right mouse button
-                this.isRightMouseDown = false;
+                this.is_right_mouse_down = false;
                 if (this.mouse_rigid) {
                     const collider = this.mouse_rigid.collider(0);
                     collider.setCollisionGroups(0x00000000); // Return to starting state
@@ -88,7 +90,6 @@ export class MouseBall {
                 }
             }
         });
-
         // Prevent context menu from appearing on right click
         window.addEventListener('contextmenu', (e) => {
             e.preventDefault();
@@ -97,11 +98,9 @@ export class MouseBall {
 
     handle_movement(e) {
         const ndc = get_ndc_from_event(e);
-        
         // Convert NDC to view space coordinates
         this.mouse_pos.x = ndc.x;
         this.mouse_pos.y = ndc.y;
-        
         // Position in camera's local space with adjusted scaling
         this.mouse_mesh.position.set(
             this.mouse_pos.x * this.ball_z_depth * 0.75,  // Scale factor for better accuracy
@@ -112,37 +111,30 @@ export class MouseBall {
 
     update() {
         // Get world position for physics
-        const worldPosition = new THREE.Vector3();
-        this.mouse_mesh.getWorldPosition(worldPosition);
-        
+        const world_position = new THREE.Vector3();
+        this.mouse_mesh.getWorldPosition(world_position);
         // Update physics body position
-        this.mouse_rigid.setTranslation(worldPosition);
-        
+        this.mouse_rigid.setTranslation(world_position);
         // Handle collision events
-        this.world.step(this.eventQueue);
-        
-        this.eventQueue.drainCollisionEvents((handle1, handle2, started) => {
-            if (!this.enabled || !started || !this.isMouseDown) return;
-            
+        this.world.step(this.event_queue);
+        this.event_queue.drainCollisionEvents((handle1, handle2, started) => {
+            if (!this.enabled || !started || !this.is_mouse_down) return;
             const collider1 = this.world.getCollider(handle1);
             const collider2 = this.world.getCollider(handle2);
-            
-            const mouseBallCollider = this.mouse_rigid.collider(0);
-            if (collider1 === mouseBallCollider || collider2 === mouseBallCollider) {
-                const otherCollider = collider1 === mouseBallCollider ? collider2 : collider1;
-                const otherBody = otherCollider.parent();
-                
-                if (otherBody && !this.stuck_objects.has(otherBody)) {
-                    this.stuck_objects.add(otherBody);
-                    otherBody.setBodyType(this.RAPIER.RigidBodyType.KinematicPositionBased);
+            const mouse_ball_collider = this.mouse_rigid.collider(0);
+            if (collider1 === mouse_ball_collider || collider2 === mouse_ball_collider) {
+                const other_collider = collider1 === mouse_ball_collider ? collider2 : collider1;
+                const other_body = other_collider.parent();
+                if (other_body && !this.stuck_objects.has(other_body)) {
+                    this.stuck_objects.add(other_body);
+                    other_body.setBodyType(this.RAPIER.RigidBodyType.KinematicPositionBased);
                 }
             }
         });
-
         // Update positions of stuck objects
-        if (this.isMouseDown) {
-            for (const stuckBody of this.stuck_objects) {
-                stuckBody.setTranslation(worldPosition);
+        if (this.is_mouse_down) {
+            for (const stuck_body of this.stuck_objects) {
+                stuck_body.setTranslation(world_position);
             }
         }
     }
@@ -167,9 +159,9 @@ export class MouseBall {
         }
     }
 
-    releaseStuckObjects() {
-        for (const stuckBody of this.stuck_objects) {
-            stuckBody.setBodyType(this.RAPIER.RigidBodyType.Dynamic);
+    release_stuck_objects() {
+        for (const stuck_body of this.stuck_objects) {
+            stuck_body.setBodyType(this.RAPIER.RigidBodyType.Dynamic);
         }
         this.stuck_objects.clear();
     }
@@ -181,8 +173,8 @@ export class MouseBall {
             if (enabled) {
                 collider.setCollisionGroups(0x00020002); // Enable collisions
             } else {
-                this.releaseStuckObjects();
-                this.isMouseDown = false;
+                this.release_stuck_objects();
+                this.is_mouse_down = false;
                 collider.setCollisionGroups(0x00000000); // Disable all collisions
             }
         }

@@ -99,6 +99,7 @@ function handle_resize() {
     resize_move = true;
     // Resize application
     viewable_ui.reset_camera();
+    viewable_ui.reset_mouseball();
     app_renderer.resize();
 }
 

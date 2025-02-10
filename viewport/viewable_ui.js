@@ -42,6 +42,7 @@ export class ViewableUI {
                 this.overlay_container.resize_reposition_offscreen();
             }
         });
+        // Create mouse ball for world interaction
         this.mouse_ball = new MouseBall(this.camera, this.world, RAPIER, this.camera);
         this.viewable_ui_container.add(this.camera);
         // this.viewable_ui_container.rotation.x = -0.261799;
