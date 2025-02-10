@@ -14,7 +14,9 @@ export class BackgroundFloor {
         this.floor_mesh.receiveShadow = true;
         this.floor_mesh.position.y = -10.2;
         this.floor_mesh.name = `${TYPES.FLOOR}${TYPES.UNIQUE}`;
-        // this.floor_mesh.layers.set(1);
+        // TODO Make this a toggleable feature
+        // Disable raycasting for this mesh
+        this.floor_mesh.raycast = () => null;
         this.parent.add(this.floor_mesh);
         const floor_body = this.world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(0, this.floor_mesh.position.y, 0));
         const floor_shape = RAPIER.ColliderDesc.cuboid(50, 0.5, 50);

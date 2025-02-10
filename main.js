@@ -89,6 +89,7 @@ function animate() {
 
 /** Handles resize events */
 function handle_resize() {
+    console.log("Bazinga");
     // Determine if it was a zoom event
     const current_pixel_ratio = window.devicePixelRatio;
     if(last_pixel_ratio != current_pixel_ratio) {
