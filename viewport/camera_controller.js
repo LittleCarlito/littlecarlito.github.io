@@ -61,11 +61,6 @@ export class CameraController {
         // Set camera target and udpate
         this.camera.lookAt(this.target);
         this.camera.updateMatrix();
-
-        // TODO OOOOO
-        // TODO Confirmed by disabling some random layering that movement has the label column tween back to its position on rotation
-        //          Assuming the other objects are doing the same
-        // TODO Fix it so that on rotation the overlay objects don't tween back to their pre-hidden positions
         // Update overlay position
         if (this.overlay_container) {
             // Calculate the position in front of the camera

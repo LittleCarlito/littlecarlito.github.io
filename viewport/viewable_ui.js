@@ -4,7 +4,7 @@ import { MouseBall } from '../background/mouse_ball';
 import { extract_type, get_intersect_list, TYPES, WEST} from './overlay/common';
 import { CameraController } from './camera_controller';
 
-export const UI_Z_DIST = 15;
+export const UI_Z_DIST = 25;
 
 export class ViewableUI {
     detect_rotation = false;
@@ -42,8 +42,7 @@ export class ViewableUI {
                 this.overlay_container.resize_reposition_offscreen();
             }
         });
-        
-        this.mouse_ball = new MouseBall(this.viewable_ui_container, this.world, RAPIER);
+        this.mouse_ball = new MouseBall(null, this.world, RAPIER, this.camera);
         this.viewable_ui_container.add(this.camera);
         // this.viewable_ui_container.rotation.x = -0.261799;
         this.parent.add(this.viewable_ui_container);

@@ -1,12 +1,11 @@
 import * as THREE from 'three';
 import { TYPES, get_ndc_from_event } from '../viewport/overlay/common';
 
-const DEFAULT_Z_DEPTH = 0;
-const Z_SPEED = .2;
+const DEFAULT_Z_DEPTH = 15;
+const Z_SPEED = 0.5;
 
 export class MouseBall {
     enabled = false;
-    mouse_pos;
     mouse_pos = new THREE.Vector2();
     ball_z_depth;
     raycaster = new THREE.Raycaster();
@@ -14,12 +13,15 @@ export class MouseBall {
     eventQueue;
     isMouseDown = false;
     isRightMouseDown = false;
+    camera;
 
-    constructor(incoming_parent, incoming_world, RAPIER) {
-        this.parent = incoming_parent;
+    constructor(incoming_parent, incoming_world, RAPIER, incoming_camera) {
         this.world = incoming_world;
-        this.RAPIER = RAPIER; // Store RAPIER reference
+        this.RAPIER = RAPIER;
+        this.camera = incoming_camera;
         this.ball_z_depth = DEFAULT_Z_DEPTH;
+        
+        // Create mouse ball mesh
         const mouse_size = 0.25;
         const geometry = new THREE.IcosahedronGeometry(mouse_size, 8);
         const material = new THREE.MeshStandardMaterial({
@@ -28,26 +30,27 @@ export class MouseBall {
         });
         const mouse_light = new THREE.PointLight(0xffffff, 1);
         this.mouse_mesh = new THREE.Mesh(geometry, material);
-        this.mouse_mesh.name = `${TYPES.BALL}${TYPES.UNIQUE}`
+        this.mouse_mesh.name = `${TYPES.BALL}${TYPES.UNIQUE}`;
         this.mouse_mesh.add(mouse_light);
-        // Set mouse mesh and light to layer 2
+        
+        // Set layers
         this.mouse_mesh.layers.set(2);
         mouse_light.layers.set(2);
-        // Rigid body
-        let body_desc = RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(0, 0, 0)
+        
+        // Add mesh directly to camera
+        this.camera.add(this.mouse_mesh);
+        
+        // Create physics body
+        let body_desc = RAPIER.RigidBodyDesc.kinematicPositionBased();
         this.mouse_rigid = this.world.createRigidBody(body_desc);
         let dynamic_collider = RAPIER.ColliderDesc.ball(mouse_size * 3.0)
-            .setCollisionGroups(0x00000000) // Start with collisions disabled
-            .setSensor(true);  // Make it a sensor collider to detect but not physically interact
+            .setCollisionGroups(0x00000000)
+            .setSensor(true);
         this.world.createCollider(dynamic_collider, this.mouse_rigid)
             .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
             
-        // Set up event queue for collision detection
         this.eventQueue = new RAPIER.EventQueue(true);
         
-        this.update();
-        this.parent.add(this.mouse_mesh);
-
         // Modify mouse event listeners
         window.addEventListener('mousedown', (e) => {
             if (e.button === 0) { // Left mouse button
@@ -92,44 +95,28 @@ export class MouseBall {
         });
     }
 
-    handle_movement(e, incoming_camera) {
-        // Get NDC coordinates using common utility
+    handle_movement(e) {
         const ndc = get_ndc_from_event(e);
         
-        // Create plane at fixed distance from camera
-        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -this.ball_z_depth);
+        // Convert NDC to view space coordinates
+        this.mouse_pos.x = ndc.x;
+        this.mouse_pos.y = ndc.y;
         
-        // Set up raycaster
-        this.raycaster.setFromCamera(new THREE.Vector2(ndc.x, ndc.y), incoming_camera);
-        
-        // Get intersection point
-        const intersection = new THREE.Vector3();
-        this.raycaster.ray.intersectPlane(plane, intersection);
-        
-        if (intersection) {
-            // Convert to parent's local space
-            this.parent.worldToLocal(intersection);
-            
-            // Update mouse position
-            this.mouse_pos.x = intersection.x;
-            this.mouse_pos.y = intersection.y;
-        }
+        // Position in camera's local space with adjusted scaling
+        this.mouse_mesh.position.set(
+            this.mouse_pos.x * this.ball_z_depth * 0.75,  // Scale factor for better accuracy
+            this.mouse_pos.y * this.ball_z_depth * 0.75,  // Scale factor for better accuracy
+            -this.ball_z_depth
+        );
     }
 
     update() {
-        // Calculate world position
-        const worldPosition = new THREE.Vector3(this.mouse_pos.x, this.mouse_pos.y, this.ball_z_depth);
-        this.parent.localToWorld(worldPosition);
+        // Get world position for physics
+        const worldPosition = new THREE.Vector3();
+        this.mouse_mesh.getWorldPosition(worldPosition);
         
-        // Update physics body
-        this.mouse_rigid.setTranslation({ 
-            x: worldPosition.x, 
-            y: worldPosition.y, 
-            z: worldPosition.z
-        });
-        
-        // Update visual mesh
-        this.mouse_mesh.position.copy(worldPosition);
+        // Update physics body position
+        this.mouse_rigid.setTranslation(worldPosition);
         
         // Handle collision events
         this.world.step(this.eventQueue);
@@ -152,14 +139,10 @@ export class MouseBall {
             }
         });
 
-        // Update positions of stuck objects so that they snap directly to the mouse
+        // Update positions of stuck objects
         if (this.isMouseDown) {
             for (const stuckBody of this.stuck_objects) {
-                stuckBody.setTranslation({ 
-                    x: worldPosition.x, 
-                    y: worldPosition.y, 
-                    z: worldPosition.z
-                });
+                stuckBody.setTranslation(worldPosition);
             }
         }
     }
