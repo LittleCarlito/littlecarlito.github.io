@@ -2,8 +2,8 @@ import { CSS2DObject } from "three/examples/jsm/Addons.js";
 import { UI_Z_DIST } from "../viewable_ui";
 import { CATEGORIES } from "./common/categories.js";
 
-const WIDTH_OFFSET = 2;
-const HEIGHT_OFFSET = 2;
+const WIDTH_OFFSET = .5;
+const HEIGHT_OFFSET = .5;
 const PLACEHOLDER_PATH = '/pages/placeholder.html';
 export const IFRAME = "iframe_";
 export const DIV = "div_"
@@ -38,14 +38,14 @@ export class TextFrame {
     update_size(incoming_width, incoming_height) {
         const calced_width = incoming_width - WIDTH_OFFSET;
         const calced_height = incoming_height - HEIGHT_OFFSET;
-        const distance_to_camera = UI_Z_DIST;
-        // Calculate conversion ratio
-        const vertical_fov = 75 * Math.PI / 180;
-        const pixels_per_unit = window.innerHeight / (2 * Math.tan(vertical_fov / 2) * distance_to_camera);
-        // Convert units
+        // Convert world units to pixels using the same scale as Three.js
+        const fov = this.camera.fov * Math.PI / 180;
+        const height_at_distance = 2 * Math.tan(fov / 2) * 15;
+        const pixels_per_unit = window.innerHeight / height_at_distance;
+        // Apply conversions
         const pixel_width = Math.round(calced_width * pixels_per_unit);
         const pixel_height = Math.round(calced_height * pixels_per_unit);
-        // Apply conversions
+        // Apply to both div and iframe
         this.div.style.width = `${pixel_width}px`;
         this.div.style.height = `${pixel_height}px`;
         this.iframe.style.width = `${pixel_width}px`;
