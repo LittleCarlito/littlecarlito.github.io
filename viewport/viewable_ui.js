@@ -59,9 +59,9 @@ export class ViewableUI {
     handle_scroll_wheel = (e) => {
         // Down up scroll
         if(e.deltaY > 0) {
-            this.decrease_mouse_ball_z();
-        } else if(e.deltaY < 0) {
             this.increase_mouse_ball_z();
+        } else if(e.deltaY < 0) {
+            this.decrease_mouse_ball_z();
         }
         // Right left scroll
         if(e.deltaX > 0) {
