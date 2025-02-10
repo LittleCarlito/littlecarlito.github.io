@@ -4,6 +4,7 @@ import { TextContainer } from './text_container';
 import { LabelColumn } from './label_column';
 import { LinkContainer } from './link_container';
 import { HideButton } from './hide_button';
+import { FLAGS } from './common';
 
 export class OverlayContainer {
     overlay_container;
@@ -29,13 +30,34 @@ export class OverlayContainer {
     }
 
     trigger_overlay() {
+        if(FLAGS.TWEEN_LOGS) {
+            console.log(`OverlayContainer - Triggering overlay animation:
+                Current Map Size: ${this.hide_transition_map.size}
+                Current Position: (${this.overlay_container.position.x.toFixed(2)}, ${this.overlay_container.position.y.toFixed(2)}, ${this.overlay_container.position.z.toFixed(2)})`);
+        }
+        
         if(this.hide_transition_map.size == 0) {
             this.hide_button.swap_hide_status();
-            console.log(`is overlay hidden \"${this.hide_button.is_overlay_hidden}\"`);
-            // Hide the overlay
+            if(FLAGS.TWEEN_LOGS) {
+                console.log(`OverlayContainer - Starting animations:
+                    Is overlay hidden: ${this.hide_button.is_overlay_hidden}
+                    Active tweens before: ${this.hide_transition_map.size}`);
+            }
+            
             this.title_block.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
             this.label_column.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
             this.link_container.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
+            
+            if(FLAGS.TWEEN_LOGS) {
+                console.log(`OverlayContainer - Animations started:
+                    Active tweens after: ${this.hide_transition_map.size}`);
+            }
+        } else {
+            if(FLAGS.TWEEN_LOGS) {
+                console.log(`OverlayContainer - Animation skipped:
+                    Current active tweens: ${this.hide_transition_map.size}
+                    Active tween names: ${Array.from(this.hide_transition_map.keys()).join(', ')}`);
+            }
         }
     }
 

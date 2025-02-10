@@ -43,23 +43,39 @@ export class LinkContainer {
     }
 
     trigger_overlay(is_overlay_hidden, tween_map) {
-        console.log(`Layer flag is ${FLAGS.LAYER}`);
+        const current_pos = this.link_container.position.clone();
+        const target_y = is_overlay_hidden ? get_associated_position(SOUTH, this.camera) : this.get_link_container_y();
+        
+        if(FLAGS.TWEEN_LOGS) {
+            console.log(`Link Container - Starting overlay animation:
+                Hidden: ${is_overlay_hidden}
+                Current Position: (${current_pos.x.toFixed(2)}, ${current_pos.y.toFixed(2)}, ${current_pos.z.toFixed(2)})
+                Target Y: ${target_y.toFixed(2)}
+                Map Size: ${tween_map.size}`);
+        }
+        
         if(!is_overlay_hidden && FLAGS.LAYER) {
             this.set_content_layers(0);
         }
-        const target_y = is_overlay_hidden ? get_associated_position(SOUTH, this.camera) : this.get_link_container_y();
+        
         const new_tween = new Tween(this.link_container.position)
             .to({ y: target_y }, 680)
             .easing(Easing.Elastic.InOut)
             .start()
             .onComplete(() => {
+                const final_pos = this.link_container.position.clone();
+                if(FLAGS.TWEEN_LOGS) {
+                    console.log(`Link Container - Completed overlay animation:
+                        Hidden: ${is_overlay_hidden}
+                        Final Position: (${final_pos.x.toFixed(2)}, ${final_pos.y.toFixed(2)}, ${final_pos.z.toFixed(2)})`);
+                }
                 this.current_tween = null;
                 if(is_overlay_hidden && FLAGS.LAYER) {
                     this.set_content_layers(1);
                 }
                 tween_map.delete(this.link_container.name);
             });
-            tween_map.set(this.link_container.name, new_tween); 
+        tween_map.set(this.link_container.name, new_tween);
     }
 
     reposition() {

@@ -1,5 +1,6 @@
 export const FLAGS = {
-    LAYER: true
+    LAYER: true,
+    TWEEN_LOGS: true
 };
 
 Object.freeze(FLAGS);

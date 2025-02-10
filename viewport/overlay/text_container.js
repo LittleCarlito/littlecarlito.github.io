@@ -225,4 +225,40 @@ export class TextContainer {
     get_active_text_box() {
         return this.text_box_container.getObjectByName(this.focused_text_name);
     }
+
+    trigger_overlay(is_overlay_hidden, tween_map) {
+        const current_pos = this.text_box_container.position.clone();
+        const target_y = is_overlay_hidden ? get_associated_position(SOUTH, this.camera) : this.get_text_box_y();
+        
+        if(FLAGS.TWEEN_LOGS) {
+            console.log(`Text Container - Starting overlay animation:
+                Hidden: ${is_overlay_hidden}
+                Current Position: (${current_pos.x.toFixed(2)}, ${current_pos.y.toFixed(2)}, ${current_pos.z.toFixed(2)})
+                Target Y: ${target_y.toFixed(2)}
+                Map Size: ${tween_map.size}`);
+        }
+        
+        if(!is_overlay_hidden && FLAGS.LAYER) {
+            this.set_content_layer(0);
+        }
+        
+        const new_tween = new Tween(this.text_box_container.position)
+            .to({ y: target_y }, 680)
+            .easing(Easing.Elastic.InOut)
+            .start()
+            .onComplete(() => {
+                const final_pos = this.text_box_container.position.clone();
+                if(FLAGS.TWEEN_LOGS) {
+                    console.log(`Text Container - Completed overlay animation:
+                        Hidden: ${is_overlay_hidden}
+                        Final Position: (${final_pos.x.toFixed(2)}, ${final_pos.y.toFixed(2)}, ${final_pos.z.toFixed(2)})`);
+                }
+                this.current_tween = null;
+                if(is_overlay_hidden && FLAGS.LAYER) {
+                    this.set_content_layer(1);
+                }
+                tween_map.delete(this.text_box_container.name);
+            });
+        tween_map.set(this.text_box_container.name, new_tween); 
+    }
 }
