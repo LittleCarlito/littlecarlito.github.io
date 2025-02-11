@@ -48,18 +48,27 @@
 </head>
 <body>
     <h1 class="terminal-text">WORK</h1>
-    <script>
-        localStorage.removeItem('hasPlayed');  // TEMPORARY: Remove this line after testing
+    <script type="module">
+        import { FLAGS } from '../../common';
+        localStorage.removeItem('has_played');
         const text = document.querySelector('.terminal-text');
-        console.log('Page Load - localStorage state:', localStorage.getItem('hasPlayed'));
+        if(FLAGS.HTML_LOGS){
+            console.log('Page Load - localStorage state:', localStorage.getItem('has_played'));
+        }
         window.startTypingAnimation = function() {
-            console.log('Animation triggered - localStorage state:', localStorage.getItem('hasPlayed'));
-            if(!localStorage.getItem('hasPlayed')){
-                console.log('First time - playing animation');
+            if(FLAGS.HTML_LOGS){
+                console.log('Animation triggered - localStorage state:', localStorage.getItem('has_played'));
+            }
+            if(!localStorage.getItem('has_played')){
+                if(FLAGS.HTML_LOGS){
+                    console.log('First time - playing animation');
+                }
                 text.classList.add('typing', 'cursor');
-                localStorage.setItem('hasPlayed', true);
+                localStorage.setItem('has_played', true);
             } else {
-                console.log('Already played - showing text');
+                if(FLAGS.HTML_LOGS){
+                    console.log('Already played - showing text');
+                }
                 text.classList.remove('typing');  // Remove animation class
                 text.style.opacity = '1';
                 text.style.width = '4ch';
