@@ -7,7 +7,7 @@ import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
 import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES, WEST } from './viewport/overlay/common';
 import { AppRenderer } from './common/app_renderer';
-import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out } from './background/common';
+import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/common';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'gradient.jpg';
@@ -162,49 +162,42 @@ function handle_mouse_move(e) {
 
 function handle_mouse_up(e) {
     if(grabbed_cube) {
-        console.log(`Dropping ${grabbed_cube.name}`);
+        release_object(grabbed_cube, primary_container, RAPIER);
         grabbed_cube = null;
     }
-    // Intersection detection and handling
     viewable_ui.handle_mouse_up(get_intersect_list(e, viewable_ui.get_camera(), scene));
-    // Hold detection
     if (e.button === 0) {
         viewable_ui.detect_rotation = false;
         left_mouse_down = false;
-    };
+    }
     if (e.button === 2) {
         viewable_ui.detect_rotation = false;
         right_mouse_down = false;
-    };
+    }
 }
 
 function handle_mouse_down(e) {
-    // Hold detection
     if(e.button === 0) {
         left_mouse_down = true;
     }
     if(e.button === 2) {
         right_mouse_down = true;
     }
-    // If both left and right mouse are held down
     if(left_mouse_down && right_mouse_down && viewable_ui.is_overlay_hidden()) {
         viewable_ui.detect_rotation = true;
-    // If only one mouse button is held down
     } else if(viewable_ui.is_overlay_hidden()) {
-        // Intersection detection and handling
         const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
         found_intersections.forEach(i => {
             switch(extract_type(i.object)) {
                 case TYPES.CUBE:
                     if(left_mouse_down) {
                         grabbed_cube = i.object;
-                        console.log(`Bazinga`)
+                        grab_object(grabbed_cube, primary_container, RAPIER);
                     } else {
                         shove_object(i.object, viewable_ui.get_camera(), primary_container);
                     }
                     break;
                 default:
-                    console.log(`${i.object.name} clicked down`)
                     break;
             }
         });
