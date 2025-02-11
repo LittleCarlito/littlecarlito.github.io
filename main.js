@@ -38,7 +38,7 @@ function init() {
     window.addEventListener('mousedown', handle_mouse_down);
     window.addEventListener('mouseup', handle_mouse_up);
     window.addEventListener('contextmenu', handle_context_menu);
-    window.addEventListener('wheel', handle_scroll_wheel);
+    window.addEventListener('wheel', handle_wheel);
     // Physics
     gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
     world = new RAPIER.World(gravity);
@@ -192,7 +192,7 @@ function handle_mouse_down(e) {
                 case TYPES.CUBE:
                     if(left_mouse_down) {
                         grabbed_cube = i.object;
-                        grab_object(grabbed_cube, primary_container, RAPIER);
+                        grab_object(grabbed_cube, viewable_ui.get_camera(), primary_container, RAPIER);
                     } else {
                         shove_object(i.object, viewable_ui.get_camera(), primary_container);
                     }
@@ -208,26 +208,17 @@ function handle_context_menu(e) {
     e.preventDefault();
 }
 
-// TODO OOOOO
-// TODO Update this to bring objects closer if they are being held
-function handle_scroll_wheel(e) {
-    if(grabbed_cube){
-        // Down up scroll
-        if(e.deltaY > 0) {
-            zoom_object_in(grabbed_cube, primary_container);
-        } else if(e.deltaY < 0) {
-            zoom_object_out(grabbed_cube, primary_container);
+function handle_wheel(e) {
+    if(grabbed_cube) {
+        if(e.deltaY < 0) {
+            zoom_object_in(grabbed_cube, primary_container, RAPIER);
+        } else {
+            zoom_object_out(grabbed_cube, primary_container, RAPIER);
         }
-        // Right left scroll
-        if(e.deltaX > 0) {
-            log_scroll("Right scroll");
-        } else if(e.deltaX < 0) {
-            log_scroll("Left scroll");
-        }
-    }
-    // Shared logging function
-    function log_scroll(scroll_type) {
-        console.log(`${scroll_type} detected`);
+        zoom_event = true;
+        resize_move = true;
+    } else {
+        viewable_ui.handle_wheel(e);
     }
 }
 
