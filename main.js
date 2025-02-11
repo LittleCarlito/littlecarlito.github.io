@@ -7,6 +7,7 @@ import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
 import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES, WEST } from './viewport/overlay/common';
 import { AppRenderer } from './common/app_renderer';
+import { shove_object } from './background/common';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'gradient.jpg';
@@ -24,6 +25,7 @@ let app_renderer;
 let primary_container;
 let resizeTimeout;
 let hovered_cube_name = "";
+let grabbed_cube = null;
 let left_mouse_down = false;
 let right_mouse_down = false;
 
@@ -45,16 +47,17 @@ function init() {
     viewable_ui = new ViewableUI(scene, world, RAPIER);
     // Renderer
     app_renderer = new AppRenderer(scene, viewable_ui.get_camera());
+    // Background creation
+    new BackgroundLighting(scene);
+    primary_container = new PrimaryContainer(world, scene, viewable_ui.get_camera());
+    new BackgroundFloor(world, scene, viewable_ui.get_camera());
+    // Start animation loop after everything is initialized
     app_renderer.set_animation_loop(animate);
     app_renderer.add_event_listener('mouseout', () => {
         if(viewable_ui.is_column_left_side()) {
             viewable_ui.reset_hover();
         }
     });
-    // Background creation
-    new BackgroundLighting(scene);
-    primary_container = new PrimaryContainer(world, scene, viewable_ui.get_camera());
-    new BackgroundFloor(world, scene, viewable_ui.get_camera());
 }
 
 
@@ -72,8 +75,7 @@ function animate() {
     }
     // Handle the physics objects
     if(viewable_ui.get_overlay().is_intersected() != null) {
-        primary_container.activate_object( viewable_ui.get_intersected_name());
-    // TODO Make sure you have logic resetting this when its not hovered
+        primary_container.activate_object(viewable_ui.get_intersected_name());
     } else if(hovered_cube_name != "") {
         primary_container.activate_object(hovered_cube_name);
     } else if(viewable_ui.is_text_active()) {
@@ -84,7 +86,6 @@ function animate() {
     const delta = clock.getDelta();
     world.timestep = Math.min(delta, 0.1);
     world.step();
-    // viewable_ui.update_mouse_ball();
     // Background object updates
     primary_container.dynamic_bodies.forEach(([mesh, body]) => {
         if(body != null) {
@@ -217,7 +218,7 @@ function handle_mouse_up(e) {
             viewable_ui.lose_focus_text_box(WEST);
         }
     }
-    // Camera rotation detection
+    // Hold detection
     if (e.button === 0) {
         viewable_ui.detect_rotation = false;
         left_mouse_down = false;
@@ -229,21 +230,35 @@ function handle_mouse_up(e) {
 }
 
 function handle_mouse_down(e) {
-    // Intersection detection and handling
-    const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
-    found_intersections.forEach(i => {
-        if(i.object.name != "") {
-            console.log(`${i.object.name} clicked down`)
-        }
-    });
+    // Hold detection
     if(e.button === 0) {
         left_mouse_down = true;
     }
     if(e.button === 2) {
         right_mouse_down = true;
     }
+    // If both left and right mouse are held down
     if(left_mouse_down && right_mouse_down && viewable_ui.is_overlay_hidden()) {
         viewable_ui.detect_rotation = true;
+    // If only one mouse button is held down
+    } else if(viewable_ui.is_overlay_hidden()) {
+        // Intersection detection and handling
+        const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
+        found_intersections.forEach(i => {
+            switch(extract_type(i.object)) {
+                case TYPES.CUBE:
+                    if(left_mouse_down) {
+                        grabbed_cube = i.object;
+                        console.log(`Bazinga`)
+                    } else {
+                        shove_object(i.object, viewable_ui.get_camera(), primary_container);
+                    }
+                    break;
+                default:
+                    console.log(`${i.object.name} clicked down`)
+                    break;
+            }
+        });
     }
 }
 
