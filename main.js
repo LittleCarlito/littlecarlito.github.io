@@ -5,7 +5,7 @@ import { PrimaryContainer } from './background/primary_container';
 import { BackgroundFloor } from './background/background_floor';
 import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
-import { get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/common';
+import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES, WEST } from './viewport/overlay/common';
 import { AppRenderer } from './common/app_renderer';
 
 // ----- Constants
@@ -24,6 +24,8 @@ let app_renderer;
 let primary_container;
 let resizeTimeout;
 let hovered_cube_name = "";
+let left_mouse_down = false;
+let right_mouse_down = false;
 
 /** Initializes the main scene */
 function init() {
@@ -31,6 +33,10 @@ function init() {
     scene.background = TEXTURE_LOADER.load(BACKGROUND_IMAGE);
     window.addEventListener('resize', handle_resize);
     window.addEventListener('mousemove', handle_mouse_move);
+    window.addEventListener('mousedown', handle_mouse_down);
+    window.addEventListener('mouseup', handle_mouse_up);
+    window.addEventListener('contextmenu', handle_context_menu);
+    window.addEventListener('wheel', handle_scroll_wheel);
     // Physics
     gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
     world = new RAPIER.World(gravity);
@@ -91,6 +97,8 @@ function animate() {
     // Scene reload
     app_renderer.render();
 }
+
+// ----- Handlers
 
 /** Handles resize events */
 function handle_resize() {
@@ -158,6 +166,107 @@ function handle_mouse_move (e) {
     } else {
         viewable_ui.get_overlay().reset_hover();
         hovered_cube_name = "";
+    }
+}
+
+
+function handle_mouse_up(e) {
+    // Intersection detection and handling
+    const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
+    if(viewable_ui.is_column_left_side()){
+        if(found_intersections.length > 0){
+            const intersected_object = found_intersections[0].object;
+            if(intersected_object.name != null) {
+                (console.log(`${intersected_object.name} clicked up`));
+            }
+            const split_intersected_name = intersected_object.name.split("_");
+            const name_type = extract_type(intersected_object);
+            switch(name_type) {
+                case TYPES.LABEL:
+                    viewable_ui.reset_hover();
+                    viewable_ui.swap_sides();
+                    viewable_ui.focus_text_box(intersected_object.name);
+                    break;
+                case TYPES.HIDE:
+                    viewable_ui.trigger_overlay();
+                    break;
+                case TYPES.LINK:
+                    viewable_ui.open_link(split_intersected_name[1].trim());
+                    break;
+            }
+        }
+    // Column is right
+    } else {
+        if(found_intersections.length > 0) {
+            const intersected_object = found_intersections[0].object;
+            const name_type = extract_type(intersected_object);
+            const split_intersected_name = intersected_object.name.split("_");
+            switch(name_type) {
+                case TYPES.LABEL:
+                    viewable_ui.focus_text_box(intersected_object.name);
+                    break;
+                case TYPES.LINK:
+                    viewable_ui.open_link(split_intersected_name[1].trim());
+                    break;
+                default:
+                    viewable_ui.swap_sides();
+                    viewable_ui.lose_focus_text_box(WEST);
+            }
+        } else {
+            viewable_ui.swap_sides();
+            viewable_ui.lose_focus_text_box(WEST);
+        }
+    }
+    // Camera rotation detection
+    if (e.button === 0) {
+        viewable_ui.detect_rotation = false;
+        left_mouse_down = false;
+    };
+    if (e.button === 2) {
+        viewable_ui.detect_rotation = false;
+        right_mouse_down = false;
+    };
+}
+
+function handle_mouse_down(e) {
+    // Intersection detection and handling
+    const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
+    found_intersections.forEach(i => {
+        if(i.object.name != "") {
+            console.log(`${i.object.name} clicked down`)
+        }
+    });
+    if(e.button === 0) {
+        left_mouse_down = true;
+    }
+    if(e.button === 2) {
+        right_mouse_down = true;
+    }
+    if(left_mouse_down && right_mouse_down && viewable_ui.is_overlay_hidden()) {
+        viewable_ui.detect_rotation = true;
+    }
+}
+
+function handle_context_menu(e) {
+    e.preventDefault();
+}
+
+function handle_scroll_wheel(e) {
+    // Down up scroll
+    if(e.deltaY > 0) {
+        // this.increase_mouse_ball_z();
+    } else if(e.deltaY < 0) {
+        // this.decrease_mouse_ball_z();
+    }
+    // Right left scroll
+    if(e.deltaX > 0) {
+        log_scroll("Right scroll");
+    } else if(e.deltaX < 0) {
+        log_scroll("Left scroll");
+    }
+    // Shared logging method
+    function log_scroll(scroll_type) {
+        console.log(`${scroll_type} detected`);
     }
 }
 
