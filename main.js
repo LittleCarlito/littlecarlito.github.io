@@ -182,6 +182,11 @@ function handle_mouse_down(e) {
     }
     if(e.button === 2) {
         right_mouse_down = true;
+        // If we're holding an object and right click is pressed, release it
+        if(grabbed_cube) {
+            release_object(grabbed_cube, primary_container, RAPIER);
+            grabbed_cube = null;
+        }
     }
     if(left_mouse_down && right_mouse_down && viewable_ui.is_overlay_hidden()) {
         viewable_ui.detect_rotation = true;
