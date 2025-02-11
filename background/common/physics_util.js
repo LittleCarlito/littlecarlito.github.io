@@ -83,19 +83,16 @@ export function grab_object(incoming_object, incoming_camera, primary_container,
     const body_pair = primary_container.dynamic_bodies.find(([mesh]) => mesh.name === incoming_object.name);
     if (!body_pair) return;
     const [_, body] = body_pair;
-    
     // Store initial distance from camera when grabbed
     const camera_pos = new THREE.Vector3();
     incoming_camera.getWorldPosition(camera_pos);
     const object_pos = new THREE.Vector3();
     object_pos.copy(body.translation());
     initial_grab_distance = camera_pos.distanceTo(object_pos);
-    
     // Reset velocity tracking
     last_position.copy(object_pos);
     last_time = performance.now();
     current_velocity.set(0, 0, 0);
-    
     body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased);
 }
 
@@ -103,10 +100,8 @@ export function release_object(incoming_object, primary_container, RAPIER) {
     const body_pair = primary_container.dynamic_bodies.find(([mesh]) => mesh.name === incoming_object.name);
     if (!body_pair) return;
     const [_, body] = body_pair;
-    
     // Change back to dynamic body
     body.setBodyType(RAPIER.RigidBodyType.Dynamic);
-    
     // Apply velocity as impulse
     body.applyImpulse(
         { 

@@ -5,16 +5,50 @@
         body {
             margin: 0;
             padding: 0;
-            background-color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            background-color: black;
             height: 100vh;
-            font-family: Arial, sans-serif;
+            font-family: 'Courier New', monospace;
+            color: #00ff00;
+        }
+
+        .terminal-text {
+            position: relative;
+            white-space: nowrap;
+            overflow: hidden;
+            border-right: 2px solid #00ff00;
+            margin: 20px;
+            width: 0;
+            --characters: 0;
+        }
+
+        .terminal-text::before {
+            content: attr(data-text);
+        }
+
+        .terminal-text {
+            animation: typing 2s steps(var(--characters)) infinite;
+            animation-timing-function: steps(var(--characters), jump-end);
+        }
+
+        @keyframes typing {
+            from { width: 0 }
+            to { width: calc(var(--characters) * 1ch) }
+        }
+
+        @keyframes blink-caret {
+            from, to { border-color: transparent }
+            50% { border-color: #00ff00 }
         }
     </style>
 </head>
 <body>
-    <h1>WORK</h1>
+    <h1 class="terminal-text" data-text="Stupid robot can't print the last character "></h1>
+    <script>
+        // Set the character count dynamically
+        document.querySelectorAll('.terminal-text').forEach(element => {
+            const text = element.getAttribute('data-text');
+            element.style.setProperty('--characters', text.length);
+        });
+    </script>
 </body>
 </html>
