@@ -62,7 +62,16 @@ export class TextContainer {
                 if(this.focused_text_name != "") {
                     this.lose_focus_text_box(SOUTH);
                 }
-                this.focused_text_name =  new_name;
+                this.focused_text_name = new_name;
+                // Find the corresponding TextFrame
+                const category = incoming_name.substring(found_index + 1);
+                const frameIndex = this.text_frames.findIndex(frame => frame.simple_name === category);
+                if (frameIndex !== -1) {
+                    const frame = this.text_frames[frameIndex];
+                    if (frame.iframe.contentWindow) {
+                        frame.iframe.contentWindow.startTypingAnimation();
+                    }
+                }
             }
             // Get and move text box
             const selected_text_box = this.text_box_container.getObjectByName(this.focused_text_name);

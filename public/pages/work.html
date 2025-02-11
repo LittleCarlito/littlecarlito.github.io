@@ -15,24 +15,29 @@
             position: relative;
             white-space: nowrap;
             overflow: hidden;
-            border-right: 2px solid #00ff00;
+            opacity: 0;
             margin: 20px;
-            width: 0;
-            --characters: 0;
         }
 
-        .terminal-text::before {
-            content: attr(data-text);
+        .terminal-text.revealed {
+            opacity: 1;
+            width: 4ch;
         }
 
-        .terminal-text {
-            animation: typing 2s steps(var(--characters)) infinite;
-            animation-timing-function: steps(var(--characters), jump-end);
+        .terminal-text.typing {
+            opacity: 1;
+            animation: typing 2s steps(4);
+            animation-fill-mode: forwards;
         }
 
         @keyframes typing {
             from { width: 0 }
-            to { width: calc(var(--characters) * 1ch) }
+            to { width: 4ch }
+        }
+
+        .cursor {
+            border-right: 2px solid #00ff00;
+            animation: blink-caret 0.75s step-end infinite;
         }
 
         @keyframes blink-caret {
@@ -42,13 +47,25 @@
     </style>
 </head>
 <body>
-    <h1 class="terminal-text" data-text="Stupid robot can't print the last character "></h1>
+    <h1 class="terminal-text">WORK</h1>
     <script>
-        // Set the character count dynamically
-        document.querySelectorAll('.terminal-text').forEach(element => {
-            const text = element.getAttribute('data-text');
-            element.style.setProperty('--characters', text.length);
-        });
+        localStorage.removeItem('hasPlayed');  // TEMPORARY: Remove this line after testing
+        const text = document.querySelector('.terminal-text');
+        console.log('Page Load - localStorage state:', localStorage.getItem('hasPlayed'));
+        window.startTypingAnimation = function() {
+            console.log('Animation triggered - localStorage state:', localStorage.getItem('hasPlayed'));
+            if(!localStorage.getItem('hasPlayed')){
+                console.log('First time - playing animation');
+                text.classList.add('typing', 'cursor');
+                localStorage.setItem('hasPlayed', true);
+            } else {
+                console.log('Already played - showing text');
+                text.classList.remove('typing');  // Remove animation class
+                text.style.opacity = '1';
+                text.style.width = '4ch';
+                text.classList.add('cursor');
+            }
+        };
     </script>
 </body>
 </html>
