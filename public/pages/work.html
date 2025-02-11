@@ -50,26 +50,26 @@
     <h1 class="terminal-text">WORK</h1>
     <script type="module">
         import { FLAGS } from '../../common';
-        localStorage.removeItem('has_played');
+        localStorage.removeItem('work_has_played');
         const text = document.querySelector('.terminal-text');
         if(FLAGS.HTML_LOGS){
-            console.log('Page Load - localStorage state:', localStorage.getItem('has_played'));
+            console.log('Page Load - localStorage state:', localStorage.getItem('work_has_played'));
         }
         window.trigger_frame_animation = function() {
             if(FLAGS.HTML_LOGS){
-                console.log('Animation triggered - localStorage state:', localStorage.getItem('has_played'));
+                console.log('Animation triggered - localStorage state:', localStorage.getItem('work_has_played'));
             }
-            if(!localStorage.getItem('has_played')){
+            if(!localStorage.getItem('work_has_played')){
                 if(FLAGS.HTML_LOGS){
                     console.log('First time - playing animation');
                 }
                 text.classList.add('typing', 'cursor');
-                localStorage.setItem('has_played', true);
+                localStorage.setItem('work_has_played', true);
             } else {
                 if(FLAGS.HTML_LOGS){
                     console.log('Already played - showing text');
                 }
-                text.classList.remove('typing');  // Remove animation class
+                text.classList.remove('typing');
                 text.style.opacity = '1';
                 text.style.width = '4ch';
                 text.classList.add('cursor');

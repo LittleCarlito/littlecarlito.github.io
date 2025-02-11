@@ -81,13 +81,13 @@
         const messages = document.querySelectorAll('.message');
         const typingIndicator = document.querySelector('.typing-indicator');
         if(FLAGS.HTML_LOGS){
-            console.log('Page Load - localStorage state:', localStorage.getItem('has_played'));
+            console.log('Page Load - localStorage state:', localStorage.getItem('contact_has_played'));
         }
         window.trigger_frame_animation = function() {
             if(FLAGS.HTML_LOGS){
-                console.log('Animation triggered - localStorage state:', localStorage.getItem('has_played'));
+                console.log('Animation triggered - localStorage state:', localStorage.getItem('contact_has_played'));
             }
-            if(!localStorage.getItem('has_played')){
+            if(!localStorage.getItem('contact_has_played')){
                 if(FLAGS.HTML_LOGS){
                     console.log('First time - playing animation');
                 }
@@ -109,27 +109,17 @@
                     for(let i = 1; i < messages.length; i++) {
                         setTimeout(() => {
                             messages[i].classList.add('show');
-                            console.log('Message styles:', {
-                                marginTop: window.getComputedStyle(messages[i]).marginTop,
-                                transform: window.getComputedStyle(messages[i]).transform,
-                                animation: window.getComputedStyle(messages[i]).animation
-                            });
                         }, (i - 1) * 800); // 800ms between each response message
                     }
                 }, 1000); // 1 second delay before responses start
                 
-                localStorage.setItem('has_played', true);
+                localStorage.setItem('contact_has_played', true);
             } else {
                 if(FLAGS.HTML_LOGS){
                     console.log('Already played - showing text');
                 }
                 messages.forEach(message => {
                     message.classList.add('show');
-                    console.log('Message styles:', {
-                        marginTop: window.getComputedStyle(message).marginTop,
-                        transform: window.getComputedStyle(message).transform,
-                        animation: window.getComputedStyle(message).animation
-                    });
                 });
                 typingIndicator.style.display = 'none';
                 typingIndicator.style.opacity = '0';
