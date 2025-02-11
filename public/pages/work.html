@@ -64,6 +64,11 @@
                     console.log('First time - playing animation');
                 }
                 text.classList.add('typing', 'cursor');
+                text.addEventListener('animationend', () => {
+                    text.classList.remove('typing');
+                    text.style.opacity = '1';
+                    text.style.width = '4ch';
+                }, { once: true });
                 localStorage.setItem('work_has_played', true);
             } else {
                 if(FLAGS.HTML_LOGS){
