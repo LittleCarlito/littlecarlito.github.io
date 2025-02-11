@@ -5,7 +5,7 @@ import { PrimaryContainer } from './background/primary_container';
 import { BackgroundFloor } from './background/background_floor';
 import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
-import { TEXTURE_LOADER } from './viewport/overlay/common';
+import { get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/common';
 import { AppRenderer } from './common/app_renderer';
 
 // ----- Constants
@@ -29,6 +29,7 @@ function init() {
     scene = new THREE.Scene();
     scene.background = TEXTURE_LOADER.load(BACKGROUND_IMAGE);
     window.addEventListener('resize', handle_resize);
+    window.addEventListener('mousemove', handle_mouse_move);
     // Physics
     gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
     world = new RAPIER.World(gravity);
@@ -63,7 +64,7 @@ function animate() {
         resize_move = false;
     }
     // Handle the physics objects
-    if( viewable_ui.get_overlay().is_intersected() != null) {
+    if(viewable_ui.get_overlay().is_intersected() != null) {
         primary_container.activate_object( viewable_ui.get_intersected_name());
         // primary_container.activate_object( viewable_ui.get_overlay().intersected_name());
     } else if(viewable_ui.is_text_active()) {
@@ -113,6 +114,38 @@ function handle_resize() {
     resizeTimeout = setTimeout(() => {
         viewable_ui.reset_mouseball();
     }, 100); // 100ms delay
+}
+
+function handle_mouse_move (e) {
+    if(viewable_ui.detect_rotation) {
+        const sensitivity = 0.02;  // Reduced sensitivity since we're not dividing by 1000 anymore
+        viewable_ui.get_camera_controller().rotate(
+            e.movementX * sensitivity,
+            e.movementY * sensitivity
+        );
+    }
+    // Handle mouseball
+    viewable_ui.get_mouse_ball().handle_movement(e, viewable_ui.get_camera());
+    // Handle UI
+    const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
+    if(found_intersections.length > 0 && ! viewable_ui.get_overlay().is_swapping_sides()) {
+        const intersected_object = found_intersections[0].object;
+        const object_name = intersected_object.name;
+        const name_type = object_name.split("_")[0] + "_";
+        // Handle label hover
+        switch(name_type) {
+            case TYPES.LABEL:
+                viewable_ui.get_overlay().handle_hover(intersected_object);
+                break;
+            case TYPES.FLOOR:
+                viewable_ui.get_overlay().reset_hover();
+                break;
+            default:
+                break;
+        }
+    } else {
+        viewable_ui.get_overlay().reset_hover();
+    }
 }
 
 init();

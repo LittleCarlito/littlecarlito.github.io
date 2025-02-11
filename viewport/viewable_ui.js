@@ -51,7 +51,6 @@ export class ViewableUI {
         window.addEventListener('mousedown', this.handle_mouse_down.bind(this));
         window.addEventListener('mouseup', this.handle_mouse_up.bind(this));
         window.addEventListener('contextmenu', this.handle_context_menu.bind(this));
-        window.addEventListener('mousemove', this.handle_mouse_move.bind(this));
         window.addEventListener('wheel', this.handle_scroll_wheel.bind(this));
     }
 
@@ -155,38 +154,6 @@ export class ViewableUI {
         }
     }
 
-    handle_mouse_move = (e) => {
-        if(this.detect_rotation) {
-            const sensitivity = 0.02;  // Reduced sensitivity since we're not dividing by 1000 anymore
-            this.camera_controller.rotate(
-                e.movementX * sensitivity,
-                e.movementY * sensitivity
-            );
-        }
-        // Handle mouseball
-        this.mouse_ball.handle_movement(e, this.camera);
-        // Handle UI
-        const found_intersections = get_intersect_list(e, this.camera, this.parent);
-        if(found_intersections.length > 0 && ! this.get_overlay().is_swapping_sides()) {
-            const intersected_object = found_intersections[0].object;
-            const object_name = intersected_object.name;
-            const name_type = object_name.split("_")[0] + "_";
-            // Handle label hover
-            switch(name_type) {
-                case TYPES.LABEL:
-                    this.get_overlay().handle_hover(intersected_object);
-                    break;
-                case TYPES.FLOOR:
-                    this.get_overlay().reset_hover();
-                    break;
-                default:
-                    break;
-            }
-        } else {
-            this.get_overlay().reset_hover();
-        }
-    }
-
     // ----- Functions
 
     swap_sides() {
@@ -214,7 +181,7 @@ export class ViewableUI {
         this.get_camera().updateProjectionMatrix();
     }
 
-    /** TODO Resets the MouseBall size and intersection plane according to window size */
+    /** Resets the MouseBall size and intersection plane according to window size */
     reset_mouseball() {
         if (this.mouse_ball && this.mouse_ball.mouse_mesh) {
             // Store current position
@@ -289,6 +256,10 @@ export class ViewableUI {
         return this.camera;
     }
 
+    get_camera_controller() {
+        return this.camera_controller;
+    }
+
     get_overlay() {
         return this.overlay_container;
     }
@@ -303,5 +274,9 @@ export class ViewableUI {
 
     get_intersected_name() {
         return this.get_overlay().intersected_name();
+    }
+
+    get_mouse_ball() {
+        return this.mouse_ball;
     }
 }
