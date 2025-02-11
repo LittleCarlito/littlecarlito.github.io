@@ -2,22 +2,84 @@
 <html>
 <head>
     <style>
-        body{margin:0;padding:0;background-color:#333333;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;display:flex;justify-content:center;align-items:center}
-        .message{background-color:#007AFF;color:white;padding:8px 12px;border-radius:20px;font-size:16px;max-width:70%;margin:20px;opacity:0;transform:scale(0.3) translateY(20px);transition:opacity 0.3s ease-in}
-        .message.show{opacity:1;transform:scale(1) translateY(0);animation:bounce 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275)}
+        body{margin:0;padding:120px 0 0 0;background-color:#333333;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;display:flex;flex-direction:column;justify-content:flex-start;align-items:center;overflow:hidden}
+        .message{
+            padding:8px 12px;
+            border-radius:20px;
+            font-size:16px;
+            max-width:70%;
+            margin:6px;
+            opacity:0;
+            position:relative;
+        }
+        .left_message{background-color:#333333;color:white;border:1px solid #666666;align-self:flex-start;margin-left:20px}
+        .left_message::before{content:"";position:absolute;left:-4px;bottom:12px;width:8px;height:8px;border-left:1px solid #666666;border-bottom:1px solid #666666;background-color:#333333;transform:rotate(45deg);z-index:1}
+        .right_message{background-color:#007AFF;color:white;align-self:flex-end;margin-right:20px}
+        .right_message::before{content:"";position:absolute;right:1.5px;bottom:4px;width:10px;height:6px;clip-path:polygon(0 0, 100% 0, 100% 100%, 50% 100%);background-color:#007AFF}
+        .right_message + .right_message{margin-top:7px}
+        .right_message + .left_message, .left_message + .typing-indicator{
+            margin-top:120px;
+        }
+        .typing-indicator + .right_message{
+            margin-top:120px;
+        }
+        .typing-indicator{
+            padding:8px 12px;
+            border-radius:20px;
+            align-self:flex-end;
+            margin-right:20px;
+            background-color:#007AFF;
+            opacity:0;
+            display:none;
+            position:absolute;
+            right:0;
+            top:50%;
+            transform:translateY(-50%);
+        }
+        .message.show{
+            opacity:1;
+            animation:message_show 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes message_show {
+            0% {
+                opacity: 0;
+                transform:scale(0.3);
+            }
+            100% {
+                opacity: 1;
+                transform:scale(1);
+            }
+        }
+        .typing-indicator::before{content:"";position:absolute;right:1.5px;bottom:4px;width:10px;height:6px;clip-path:polygon(0 0, 100% 0, 100% 100%, 50% 100%);background-color:#007AFF}
+        .typing-indicator span{width:6px;height:6px;background-color:white;display:inline-block;border-radius:50%;margin:0 1px;animation:typing 1.4s infinite}
+        .typing-indicator span:nth-child(2){animation-delay:0.2s}
+        .typing-indicator span:nth-child(3){animation-delay:0.4s}
         @keyframes bounce{
             0%{transform:scale(0.3) translateY(20px)}
             50%{transform:scale(1.05) translateY(-5px)}
             70%{transform:scale(0.98) translateY(2px)}
             100%{transform:scale(1) translateY(0)}
         }
+        @keyframes typing{
+            0%, 100%{transform:translateY(0)}
+            50%{transform:translateY(-6px)}
+        }
     </style>
 </head>
 <body>
-    <div class="message">CONTACT</div>
+    <div class="message left_message">Nice website!</div>
+    <div class="typing-indicator">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+    <div class="message right_message">Thanks you can contact me at:</div>
+    <div class="message right_message">email-placeholder</div>
+    <div class="message right_message">discord-placeholder</div>
     <script type="module">
         import { FLAGS } from '../../common';
-        const text = document.querySelector('.message');
+        const messages = document.querySelectorAll('.message');
+        const typingIndicator = document.querySelector('.typing-indicator');
         if(FLAGS.HTML_LOGS){
             console.log('Page Load - localStorage state:', localStorage.getItem('has_played'));
         }
@@ -29,15 +91,48 @@
                 if(FLAGS.HTML_LOGS){
                     console.log('First time - playing animation');
                 }
-                text.classList.add('show');
+                // Show first message immediately
+                messages[0].classList.add('show');
+                
+                // Show typing indicator after a short delay
+                setTimeout(() => {
+                    typingIndicator.style.display = 'block';
+                    typingIndicator.style.opacity = '1';
+                }, 400);
+                
+                // Hide typing indicator and show responses
+                setTimeout(() => {
+                    typingIndicator.style.opacity = '0';
+                    setTimeout(() => typingIndicator.style.display = 'none', 300);
+                    
+                    // Show response messages with longer delays between them
+                    for(let i = 1; i < messages.length; i++) {
+                        setTimeout(() => {
+                            messages[i].classList.add('show');
+                            console.log('Message styles:', {
+                                marginTop: window.getComputedStyle(messages[i]).marginTop,
+                                transform: window.getComputedStyle(messages[i]).transform,
+                                animation: window.getComputedStyle(messages[i]).animation
+                            });
+                        }, (i - 1) * 800); // 800ms between each response message
+                    }
+                }, 1000); // 1 second delay before responses start
+                
                 localStorage.setItem('has_played', true);
             } else {
                 if(FLAGS.HTML_LOGS){
                     console.log('Already played - showing text');
                 }
-                text.classList.remove('show');
-                text.style.opacity = '1';
-                text.style.transform = 'scale(1) translateY(0)';
+                messages.forEach(message => {
+                    message.classList.add('show');
+                    console.log('Message styles:', {
+                        marginTop: window.getComputedStyle(message).marginTop,
+                        transform: window.getComputedStyle(message).transform,
+                        animation: window.getComputedStyle(message).animation
+                    });
+                });
+                typingIndicator.style.display = 'none';
+                typingIndicator.style.opacity = '0';
             }
         };
     </script>
