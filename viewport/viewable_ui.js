@@ -254,7 +254,11 @@ export class ViewableUI {
     }
 
     resize_reposition() {
-        this.get_overlay().resize_reposition();
+        if(this.is_overlay_hidden()){
+            this.get_overlay().resize_reposition_offscreen();
+        } else {
+            this.get_overlay().resize_reposition();
+        }
     }
 
     trigger_overlay() {
@@ -271,6 +275,10 @@ export class ViewableUI {
 
     is_text_active() {
         return this.overlay_container.is_text_active();
+    }
+
+    is_overlay_hidden() {
+        return this.get_overlay().hide_button.is_overlay_hidden;
     }
 
     get_hide_transition_map() {
