@@ -10,13 +10,14 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             background: transparent;
+            overflow: hidden;
         }
 
         .writing-container {
             width: 100%;
-            height: 100%;
+            position: relative;
             opacity: 0;
         }
 
@@ -67,9 +68,10 @@
         }
 
         #title_svg {
-            width: 800px;  /* Make SVG large enough to contain all text */
-            height: 600px;
+            width: 800px;
+            height: auto;
             display: block;
+            max-height: 100vh;
         }
 
         .letter-path {
@@ -105,13 +107,6 @@
     <div class="writing-container">
         <svg id="title_svg" width="800" height="600" viewBox="0 0 800 600">
             <!-- SVG content will be added here via JavaScript -->
-        </svg>
-    </div>
-
-    <div class="title">
-        <svg id="title_svg" width="400" height="200">
-            <!-- Adjust font size and positioning for better readability -->
-            <path id="title_path" fill="black" d=""/>
         </svg>
     </div>
 
@@ -186,17 +181,15 @@
                     console.log('Generating path for char:', char, 'x:', x, 'y:', y, 'fontSize:', fontSize);
                 }
                 
-                // Create SVG path element
                 const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
                 const pathData = getPathDataForChar(char, x, y, fontSize);
                 path.setAttribute('d', pathData);
                 path.setAttribute('class', 'letter-path');
                 
-                // Add path to SVG
                 const svg = document.querySelector('svg');
                 svg.appendChild(path);
                 if(FLAGS.HTML_LOGS) {
-                    console.log('Starting animation for:', pathData);
+                    console.log('Starting animation for character:', char);
                 }
                 
                 const pathLength = path.getTotalLength();
@@ -204,17 +197,15 @@
                 path.style.setProperty('--path-length', pathLength);
                 path.style.strokeDashoffset = pathLength;
                 
-                // Start animation immediately using requestAnimationFrame for smooth start
                 requestAnimationFrame(() => {
                     path.classList.add('animate');
                 });
 
                 path.addEventListener('animationend', () => {
-                    if(FLAGS.HTML_LOGS) {
-                        console.log('Animation ended for:', char);
+                    if(FLAGS.HTML_LOGS) {   
+                        console.log('Finished animating:', char);
                     }
-                    // Controls pause between letters (10 = faster, 50 = slower)
-                    setTimeout(resolve, 3);
+                    setTimeout(resolve, 10);
                 });
             });
         }
