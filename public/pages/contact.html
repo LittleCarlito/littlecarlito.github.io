@@ -91,27 +91,23 @@
                 if(FLAGS.HTML_LOGS){
                     console.log('First time - playing animation');
                 }
-                // Show first message immediately
                 messages[0].classList.add('show');
                 
-                // Show typing indicator after a short delay
                 setTimeout(() => {
                     typingIndicator.style.display = 'block';
                     typingIndicator.style.opacity = '1';
                 }, 400);
                 
-                // Hide typing indicator and show responses
                 setTimeout(() => {
                     typingIndicator.style.opacity = '0';
                     setTimeout(() => typingIndicator.style.display = 'none', 300);
                     
-                    // Show response messages with longer delays between them
                     for(let i = 1; i < messages.length; i++) {
                         setTimeout(() => {
                             messages[i].classList.add('show');
-                        }, (i - 1) * 800); // 800ms between each response message
+                        }, (i - 1) * 800);
                     }
-                }, 1000); // 1 second delay before responses start
+                }, 1000);
                 
                 localStorage.setItem('contact_has_played', true);
             } else {
@@ -125,6 +121,7 @@
                 typingIndicator.style.opacity = '0';
             }
         };
+        localStorage.removeItem('contact_has_played');
     </script>
 </body>
 </html>
