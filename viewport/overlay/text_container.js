@@ -68,7 +68,8 @@ export class TextContainer {
                 const frameIndex = this.text_frames.findIndex(frame => frame.simple_name === category);
                 if (frameIndex !== -1) {
                     const frame = this.text_frames[frameIndex];
-                    if (frame.iframe.contentWindow) {
+                    if (frame.iframe.contentWindow 
+                        && typeof frame.iframe.contentWindow.startTypingAnimation === 'function') {
                         frame.iframe.contentWindow.startTypingAnimation();
                     }
                 }
