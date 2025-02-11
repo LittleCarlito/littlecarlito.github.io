@@ -20,6 +20,11 @@ export class OverlayContainer {
         this.camera = incoming_camera;
         // Overlay creation
         this.overlay_container = new THREE.Object3D();
+        // Make sure all children also render last so they're on top
+        this.overlay_container.renderOrder = 999;
+        this.overlay_container.traverse((child) => {
+            child.renderOrder = 999;
+        });
         this.title_block = new TitleBlock(this.overlay_container, this.camera);
         this.text_box_container = new TextContainer(this.overlay_container, this.camera);
         this.label_column = new LabelColumn(this.overlay_container, this.camera);

@@ -30,7 +30,8 @@ export class LabelColumn {
                 new THREE.BoxGeometry(5, 3, 0),
                 new THREE.MeshBasicMaterial({
                     map: button_texture,
-                    transparent: true
+                    transparent: true,
+                    depthTest: false
                 }));
             button_option.name = `${TYPES.LABEL}${category.value}`
             button_option.position.y = i * 3;

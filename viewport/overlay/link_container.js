@@ -25,7 +25,8 @@ export class LinkContainer {
                 circle_geometry,
                 new THREE.MeshBasicMaterial({
                     map: circle_texture,
-                    transparent: true
+                    transparent: true,
+                    depthTest: false
                 }));
             link_button.name = `${TYPES.LINK}${link.value}`;
             link_button.position.x += calced_radius * (3.5 * l);

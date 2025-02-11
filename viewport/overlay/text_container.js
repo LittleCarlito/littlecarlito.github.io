@@ -32,7 +32,10 @@ export class TextContainer {
             this.container_width = this.get_text_box_width();
             this.container_height = this.get_text_box_height();
             const box_geometry = new THREE.BoxGeometry(this.container_width, this.container_height, .01);
-            const box_material = new THREE.MeshBasicMaterial({ color: category.color });
+            const box_material = new THREE.MeshBasicMaterial({ 
+                color: category.color,
+                depthTest: false 
+            });
             const text_box_background = new THREE.Mesh(box_geometry, box_material);
             text_box_background.name = `${TYPES.BACKGROUND}${category.value}`;
             text_box.add(text_box_background);
