@@ -12,6 +12,3 @@ export * from './types';
 
 // Re-export everything from links.js
 export * from './links';
-
-// Re-export everything from flags.js
-export * from './flags';

@@ -4,7 +4,7 @@ import { TextContainer } from './text_container';
 import { LabelColumn } from './label_column';
 import { LinkContainer } from './link_container';
 import { HideButton } from './hide_button';
-import { FLAGS } from './common';
+import { FLAGS } from '../../common';
 
 export class OverlayContainer {
     overlay_container;

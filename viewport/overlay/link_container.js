@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { Easing, Tween } from 'three/examples/jsm/libs/tween.module.js';
 import { clamp } from 'three/src/math/MathUtils.js';
 import { get_screen_size, get_associated_position, SOUTH, TYPES, LINK_RADIUS, 
-    LINKS, TEXTURE_LOADER, 
-    FLAGS} from './common';
+    LINKS, TEXTURE_LOADER } from './common';
+import { FLAGS } from '../../common';
+
 
 
 export class LinkContainer {
