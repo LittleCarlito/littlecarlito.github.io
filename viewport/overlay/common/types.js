@@ -8,5 +8,6 @@ export const TYPES = Object.freeze({
     LINK: "link_",
     HIDE: "hide_",
     FLOOR: "floor_",
-    BALL: "ball_"
+    BALL: "ball_",
+    CUBE: "cube_"
 })

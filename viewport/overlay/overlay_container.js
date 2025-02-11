@@ -35,7 +35,6 @@ export class OverlayContainer {
                 Current Map Size: ${this.hide_transition_map.size}
                 Current Position: (${this.overlay_container.position.x.toFixed(2)}, ${this.overlay_container.position.y.toFixed(2)}, ${this.overlay_container.position.z.toFixed(2)})`);
         }
-        
         if(this.hide_transition_map.size == 0) {
             this.hide_button.swap_hide_status();
             if(FLAGS.TWEEN_LOGS) {
@@ -43,11 +42,9 @@ export class OverlayContainer {
                     Is overlay hidden: ${this.hide_button.is_overlay_hidden}
                     Active tweens before: ${this.hide_transition_map.size}`);
             }
-            
             this.title_block.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
             this.label_column.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
             this.link_container.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
-            
             if(FLAGS.TWEEN_LOGS) {
                 console.log(`OverlayContainer - Animations started:
                     Active tweens after: ${this.hide_transition_map.size}`);
@@ -71,7 +68,6 @@ export class OverlayContainer {
      * FOR USE WHEN ONSCREEN ONLY
      */
     resize_reposition() {
-        // Move/resize overlay
         this.text_box_container.resize();
         this.text_box_container.reposition(this.label_column.is_column_left);
         this.label_column.reposition();
@@ -86,7 +82,6 @@ export class OverlayContainer {
      * FOR USE WHEN OFFSCREEN ONLY
      */
     resize_reposition_offscreen() {
-        // Move/resize overlay
         this.text_box_container.resize();
         this.text_box_container.offscreen_reposition();
         this.label_column.offscreen_reposition();

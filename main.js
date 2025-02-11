@@ -23,6 +23,7 @@ let viewable_ui;
 let app_renderer;
 let primary_container;
 let resizeTimeout;
+let hovered_cube_name = "";
 
 /** Initializes the main scene */
 function init() {
@@ -66,7 +67,9 @@ function animate() {
     // Handle the physics objects
     if(viewable_ui.get_overlay().is_intersected() != null) {
         primary_container.activate_object( viewable_ui.get_intersected_name());
-        // primary_container.activate_object( viewable_ui.get_overlay().intersected_name());
+    // TODO Make sure you have logic resetting this when its not hovered
+    } else if(hovered_cube_name != "") {
+        primary_container.activate_object(hovered_cube_name);
     } else if(viewable_ui.is_text_active()) {
         primary_container.activate_object(viewable_ui.get_active_name());
     } else {
@@ -75,7 +78,7 @@ function animate() {
     const delta = clock.getDelta();
     world.timestep = Math.min(delta, 0.1);
     world.step();
-    viewable_ui.update_mouse_ball();
+    // viewable_ui.update_mouse_ball();
     // Background object updates
     primary_container.dynamic_bodies.forEach(([mesh, body]) => {
         if(body != null) {
@@ -125,8 +128,8 @@ function handle_mouse_move (e) {
         );
     }
     // Handle mouseball
-    viewable_ui.get_mouse_ball().handle_movement(e, viewable_ui.get_camera());
-    // Handle UI
+    // viewable_ui.get_mouse_ball().handle_movement(e, viewable_ui.get_camera());
+    // Handle intersections
     const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
     if(found_intersections.length > 0 && ! viewable_ui.get_overlay().is_swapping_sides()) {
         const intersected_object = found_intersections[0].object;
@@ -140,11 +143,21 @@ function handle_mouse_move (e) {
             case TYPES.FLOOR:
                 viewable_ui.get_overlay().reset_hover();
                 break;
+            // TODO Change this to be just setting a string for hovered object
+            //          Make sure to get rid of deactivate all below too
+            //          Should all be in animate instead, independent of mouse movement
+            case TYPES.CUBE:
+                if(viewable_ui.is_overlay_hidden()) {
+                    hovered_cube_name = object_name;
+                } else {
+                    hovered_cube_name = "";
+                }
             default:
                 break;
         }
     } else {
         viewable_ui.get_overlay().reset_hover();
+        hovered_cube_name = "";
     }
 }
 

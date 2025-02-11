@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OverlayContainer } from "./overlay/overlay_container";
-import { MouseBall } from '../background/mouse_ball';
+// import { MouseBall } from '../background/mouse_ball';
 import { extract_type, FLAGS, get_intersect_list, TYPES, WEST} from './overlay/common';
 import { CameraController } from './camera_controller';
 
@@ -9,7 +9,7 @@ export const UI_Z_DIST = 25;
 export class ViewableUI {
     detect_rotation = false;
     overlay_container;
-    mouse_ball;
+    // mouse_ball;
     leftMouseDown = false;
     rightMouseDown = false;
     camera_controller;
@@ -43,7 +43,7 @@ export class ViewableUI {
             }
         });
         // Create mouse ball for world interaction
-        this.mouse_ball = new MouseBall(this.camera, this.world, RAPIER, this.camera);
+        // this.mouse_ball = new MouseBall(this.camera, this.world, RAPIER, this.camera);
         this.viewable_ui_container.add(this.camera);
         // this.viewable_ui_container.rotation.x = -0.261799;
         this.parent.add(this.viewable_ui_container);
@@ -59,9 +59,9 @@ export class ViewableUI {
     handle_scroll_wheel = (e) => {
         // Down up scroll
         if(e.deltaY > 0) {
-            this.increase_mouse_ball_z();
+            // this.increase_mouse_ball_z();
         } else if(e.deltaY < 0) {
-            this.decrease_mouse_ball_z();
+            // this.decrease_mouse_ball_z();
         }
         // Right left scroll
         if(e.deltaX > 0) {
@@ -149,7 +149,7 @@ export class ViewableUI {
         if (e.button === 0) this.leftMouseDown = true;
         if (e.button === 2) this.rightMouseDown = true;
         // If left and right mouse button held down while overlay is hidden
-        if (this.leftMouseDown && this.rightMouseDown && this.mouse_ball.enabled) {
+        if (this.leftMouseDown && this.rightMouseDown && this.is_overlay_hidden()) {
             this.detect_rotation = true;
         }
     }
@@ -182,43 +182,43 @@ export class ViewableUI {
     }
 
     /** Resets the MouseBall size and intersection plane according to window size */
-    reset_mouseball() {
-        if (this.mouse_ball && this.mouse_ball.mouse_mesh) {
+    // reset_mouseball() {
+        // if (this.mouse_ball && this.mouse_ball.mouse_mesh) {
             // Store current position
-            const last_position = this.mouse_ball.mouse_mesh.position.clone();
+            // const last_position = this.mouse_ball.mouse_mesh.position.clone();
             // Update position directly without triggering physics
-            this.mouse_ball.mouse_mesh.position.copy(last_position);
-            if (this.mouse_ball.mouse_rigid) {
-                this.mouse_ball.mouse_rigid.setTranslation(last_position);
-            }
-        }
-    }
+            // this.mouse_ball.mouse_mesh.position.copy(last_position);
+            // if (this.mouse_ball.mouse_rigid) {
+            //     this.mouse_ball.mouse_rigid.setTranslation(last_position);
+            // }
+        // }
+    // }
 
-    update_mouse_ball() {
-        this.mouse_ball.update();
-    }
+    // update_mouse_ball() {
+    //     this.mouse_ball.update();
+    // }
 
-    increase_mouse_ball_z() {
-        this.mouse_ball.increase_z();
-    }
+    // increase_mouse_ball_z() {
+    //     this.mouse_ball.increase_z();
+    // }
 
-    decrease_mouse_ball_z() {
-        this.mouse_ball.decrease_z();
-    }
+    // decrease_mouse_ball_z() {
+    //     this.mouse_ball.decrease_z();
+    // }
 
-    toggle_mouse_ball(enabled) {
-        if(FLAGS.LAYER){
-            if (enabled) {
-                this.mouse_ball.enabled = true;
-                this.camera.layers.enable(2);
-                this.mouse_ball.toggle_physics(true);
-            } else {
-                this.mouse_ball.enabled = false;
-                this.camera.layers.disable(2);
-                this.mouse_ball.toggle_physics(false);
-            }
-        }
-    }
+    // toggle_mouse_ball(enabled) {
+    //     if(FLAGS.LAYER){
+    //         if (enabled) {
+    //             this.mouse_ball.enabled = true;
+    //             this.camera.layers.enable(2);
+    //             this.mouse_ball.toggle_physics(true);
+    //         } else {
+    //             this.mouse_ball.enabled = false;
+    //             this.camera.layers.disable(2);
+    //             this.mouse_ball.toggle_physics(false);
+    //         }
+    //     }
+    // }
 
     resize_reposition() {
         if(this.is_overlay_hidden()){
@@ -230,8 +230,8 @@ export class ViewableUI {
 
     trigger_overlay() {
         this.get_overlay().trigger_overlay();
-        this.mouse_ball.enabled = !this.mouse_ball.enabled;
-        this.toggle_mouse_ball(this.mouse_ball.enabled);
+        // this.mouse_ball.enabled = !this.mouse_ball.enabled;
+        // this.toggle_mouse_ball(this.mouse_ball.enabled);
     }
 
     // ----- Getters
@@ -276,7 +276,7 @@ export class ViewableUI {
         return this.get_overlay().intersected_name();
     }
 
-    get_mouse_ball() {
-        return this.mouse_ball;
-    }
+    // get_mouse_ball() {
+    //     return this.mouse_ball;
+    // }
 }
