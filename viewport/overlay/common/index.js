@@ -1,5 +1,5 @@
-// Re-export everything from util.js
-export * from './util';
+// Re-export everything from ui_util.js
+export * from './ui_util';
 
 // Re-export everything from screen.js
 export * from './screen';

@@ -7,7 +7,7 @@ import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
 import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES, WEST } from './viewport/overlay/common';
 import { AppRenderer } from './common/app_renderer';
-import { shove_object } from './background/common';
+import { shove_object, translate_object, update_mouse_position } from './background/common';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'gradient.jpg';
@@ -76,6 +76,8 @@ function animate() {
     // Handle the physics objects
     if(viewable_ui.get_overlay().is_intersected() != null) {
         primary_container.activate_object(viewable_ui.get_intersected_name());
+    } else if(grabbed_cube) {
+        translate_object(grabbed_cube, viewable_ui.get_camera(), primary_container);
     } else if(hovered_cube_name != "") {
         primary_container.activate_object(hovered_cube_name);
     } else if(viewable_ui.is_text_active()) {
@@ -107,28 +109,21 @@ function handle_resize() {
     if (resizeTimeout) {
         clearTimeout(resizeTimeout);
     }
-
     // Set variables
     resize_move = true;
-    
     // Determine if it was a zoom event
     const current_pixel_ratio = window.devicePixelRatio;
     if (last_pixel_ratio != current_pixel_ratio) {
         last_pixel_ratio = current_pixel_ratio;
         zoom_event = true;
     }
-
     // Immediate camera update
     viewable_ui.reset_camera();
     app_renderer.resize();
-
-    // Debounce the mouse ball reset
-    resizeTimeout = setTimeout(() => {
-        viewable_ui.reset_mouseball();
-    }, 100); // 100ms delay
 }
 
-function handle_mouse_move (e) {
+function handle_mouse_move(e) {
+    update_mouse_position(e);
     if(viewable_ui.detect_rotation) {
         const sensitivity = 0.02;  // Reduced sensitivity since we're not dividing by 1000 anymore
         viewable_ui.get_camera_controller().rotate(
@@ -136,8 +131,6 @@ function handle_mouse_move (e) {
             e.movementY * sensitivity
         );
     }
-    // Handle mouseball
-    // viewable_ui.get_mouse_ball().handle_movement(e, viewable_ui.get_camera());
     // Handle intersections
     const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
     if(found_intersections.length > 0 && ! viewable_ui.get_overlay().is_swapping_sides()) {
@@ -152,9 +145,6 @@ function handle_mouse_move (e) {
             case TYPES.FLOOR:
                 viewable_ui.get_overlay().reset_hover();
                 break;
-            // TODO Change this to be just setting a string for hovered object
-            //          Make sure to get rid of deactivate all below too
-            //          Should all be in animate instead, independent of mouse movement
             case TYPES.CUBE:
                 if(viewable_ui.is_overlay_hidden()) {
                     hovered_cube_name = object_name;
@@ -172,6 +162,10 @@ function handle_mouse_move (e) {
 
 
 function handle_mouse_up(e) {
+    if(grabbed_cube) {
+        console.log(`Dropping ${grabbed_cube.name}`);
+        grabbed_cube = null;
+    }
     // Intersection detection and handling
     const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
     if(viewable_ui.is_column_left_side()){
@@ -266,12 +260,14 @@ function handle_context_menu(e) {
     e.preventDefault();
 }
 
+// TODO OOOOO
+// TODO Update this to bring objects closer if they are being held
 function handle_scroll_wheel(e) {
     // Down up scroll
     if(e.deltaY > 0) {
-        // this.increase_mouse_ball_z();
+        // TODO Implement
     } else if(e.deltaY < 0) {
-        // this.decrease_mouse_ball_z();
+        // TODO Implement
     }
     // Right left scroll
     if(e.deltaX > 0) {

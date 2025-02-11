@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { OverlayContainer } from "./overlay/overlay_container";
-// import { MouseBall } from '../background/mouse_ball';
 import { extract_type, FLAGS, get_intersect_list, TYPES, WEST} from './overlay/common';
 import { CameraController } from './camera_controller';
 
@@ -9,7 +8,6 @@ export const UI_Z_DIST = 25;
 export class ViewableUI {
     detect_rotation = false;
     overlay_container;
-    // mouse_ball;
     leftMouseDown = false;
     rightMouseDown = false;
     camera_controller;
@@ -42,8 +40,6 @@ export class ViewableUI {
                 this.overlay_container.resize_reposition_offscreen();
             }
         });
-        // Create mouse ball for world interaction
-        // this.mouse_ball = new MouseBall(this.camera, this.world, RAPIER, this.camera);
         this.viewable_ui_container.add(this.camera);
         // this.viewable_ui_container.rotation.x = -0.261799;
         this.parent.add(this.viewable_ui_container);
@@ -77,45 +73,6 @@ export class ViewableUI {
         this.get_camera().updateProjectionMatrix();
     }
 
-    /** Resets the MouseBall size and intersection plane according to window size */
-    // reset_mouseball() {
-        // if (this.mouse_ball && this.mouse_ball.mouse_mesh) {
-            // Store current position
-            // const last_position = this.mouse_ball.mouse_mesh.position.clone();
-            // Update position directly without triggering physics
-            // this.mouse_ball.mouse_mesh.position.copy(last_position);
-            // if (this.mouse_ball.mouse_rigid) {
-            //     this.mouse_ball.mouse_rigid.setTranslation(last_position);
-            // }
-        // }
-    // }
-
-    // update_mouse_ball() {
-    //     this.mouse_ball.update();
-    // }
-
-    // increase_mouse_ball_z() {
-    //     this.mouse_ball.increase_z();
-    // }
-
-    // decrease_mouse_ball_z() {
-    //     this.mouse_ball.decrease_z();
-    // }
-
-    // toggle_mouse_ball(enabled) {
-    //     if(FLAGS.LAYER){
-    //         if (enabled) {
-    //             this.mouse_ball.enabled = true;
-    //             this.camera.layers.enable(2);
-    //             this.mouse_ball.toggle_physics(true);
-    //         } else {
-    //             this.mouse_ball.enabled = false;
-    //             this.camera.layers.disable(2);
-    //             this.mouse_ball.toggle_physics(false);
-    //         }
-    //     }
-    // }
-
     resize_reposition() {
         if(this.is_overlay_hidden()){
             this.get_overlay().resize_reposition_offscreen();
@@ -126,8 +83,6 @@ export class ViewableUI {
 
     trigger_overlay() {
         this.get_overlay().trigger_overlay();
-        // this.mouse_ball.enabled = !this.mouse_ball.enabled;
-        // this.toggle_mouse_ball(this.mouse_ball.enabled);
     }
 
     // ----- Getters
@@ -171,8 +126,4 @@ export class ViewableUI {
     get_intersected_name() {
         return this.get_overlay().intersected_name();
     }
-
-    // get_mouse_ball() {
-    //     return this.mouse_ball;
-    // }
 }
