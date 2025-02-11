@@ -1,9 +1,13 @@
 import * as THREE from 'three';
 
+const THROW_MULTIPLIER = 0.1; // Adjust this to control throw strength
 const SHOVE_FORCE = 4; // Adjust this value to control the force of the shove
 const ZOOM_AMOUNT = 2;  // Amount to move per scroll event
 let current_mouse_pos = new THREE.Vector2();
 let initial_grab_distance = 15; // Store initial distance when grabbed
+let last_position = new THREE.Vector3();
+let current_velocity = new THREE.Vector3();
+let last_time = 0;
 
 export function shove_object(incoming_object, incoming_source, primary_container) {
     // Find the corresponding rigid body for the cube
@@ -48,6 +52,13 @@ export function translate_object(incoming_object, incoming_camera, primary_conta
     ray_dir.subVectors(ray_end, ray_start).normalize();
     // Use stored initial distance
     const new_position = ray_start.clone().add(ray_dir.multiplyScalar(initial_grab_distance));
+    // Calculate velocity
+    const current_time = performance.now();
+    const delta_time = (current_time - last_time) / 1000; // Convert to seconds
+    current_velocity.subVectors(new_position, last_position).divideScalar(delta_time);
+    // Update tracking variables
+    last_position.copy(new_position);
+    last_time = current_time;
     // Lock rotation when grabbed
     const current_rot = body.rotation();
     body.setTranslation(new_position);
@@ -72,12 +83,18 @@ export function grab_object(incoming_object, incoming_camera, primary_container,
     const body_pair = primary_container.dynamic_bodies.find(([mesh]) => mesh.name === incoming_object.name);
     if (!body_pair) return;
     const [_, body] = body_pair;
+    
     // Store initial distance from camera when grabbed
     const camera_pos = new THREE.Vector3();
     incoming_camera.getWorldPosition(camera_pos);
     const object_pos = new THREE.Vector3();
     object_pos.copy(body.translation());
     initial_grab_distance = camera_pos.distanceTo(object_pos);
+    
+    // Reset velocity tracking
+    last_position.copy(object_pos);
+    last_time = performance.now();
+    current_velocity.set(0, 0, 0);
     
     body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased);
 }
@@ -86,5 +103,17 @@ export function release_object(incoming_object, primary_container, RAPIER) {
     const body_pair = primary_container.dynamic_bodies.find(([mesh]) => mesh.name === incoming_object.name);
     if (!body_pair) return;
     const [_, body] = body_pair;
+    
+    // Change back to dynamic body
     body.setBodyType(RAPIER.RigidBodyType.Dynamic);
+    
+    // Apply velocity as impulse
+    body.applyImpulse(
+        { 
+            x: current_velocity.x * THROW_MULTIPLIER, 
+            y: current_velocity.y * THROW_MULTIPLIER, 
+            z: current_velocity.z * THROW_MULTIPLIER 
+        },
+        true
+    );
 }

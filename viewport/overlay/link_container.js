@@ -5,8 +5,6 @@ import { get_screen_size, get_associated_position, SOUTH, TYPES, LINK_RADIUS,
     LINKS, TEXTURE_LOADER } from './common';
 import { FLAGS } from '../../common';
 
-
-
 export class LinkContainer {
     constructor(incoming_parent, incoming_camera) {
         this.parent = incoming_parent;
