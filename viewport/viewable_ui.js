@@ -84,6 +84,53 @@ export class ViewableUI {
     trigger_overlay() {
         this.get_overlay().trigger_overlay();
     }
+    
+    handle_mouse_up(found_intersections){
+        if(this.is_column_left_side()){
+            if(found_intersections.length > 0){
+                const intersected_object = found_intersections[0].object;
+                if(intersected_object.name != null) {
+                    (console.log(`${intersected_object.name} clicked up`));
+                }
+                const split_intersected_name = intersected_object.name.split("_");
+                const name_type = extract_type(intersected_object);
+                switch(name_type) {
+                    case TYPES.LABEL:
+                        this.reset_hover();
+                        this.swap_sides();
+                        this.focus_text_box(intersected_object.name);
+                        break;
+                    case TYPES.HIDE:
+                        this.trigger_overlay();
+                        break;
+                    case TYPES.LINK:
+                        this.open_link(split_intersected_name[1].trim());
+                        break;
+                }
+            }
+        // Column is right
+        } else {
+            if(found_intersections.length > 0) {
+                const intersected_object = found_intersections[0].object;
+                const name_type = extract_type(intersected_object);
+                const split_intersected_name = intersected_object.name.split("_");
+                switch(name_type) {
+                    case TYPES.LABEL:
+                        this.focus_text_box(intersected_object.name);
+                        break;
+                    case TYPES.LINK:
+                        this.open_link(split_intersected_name[1].trim());
+                        break;
+                    default:
+                        this.swap_sides();
+                        this.lose_focus_text_box(WEST);
+                }
+            } else {
+                this.swap_sides();
+                this.lose_focus_text_box(WEST);
+            }
+        }
+    }
 
     // ----- Getters
 

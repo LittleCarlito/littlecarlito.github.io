@@ -7,7 +7,7 @@ import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
 import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES, WEST } from './viewport/overlay/common';
 import { AppRenderer } from './common/app_renderer';
-import { shove_object, translate_object, update_mouse_position } from './background/common';
+import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out } from './background/common';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'gradient.jpg';
@@ -160,58 +160,13 @@ function handle_mouse_move(e) {
     }
 }
 
-
 function handle_mouse_up(e) {
     if(grabbed_cube) {
         console.log(`Dropping ${grabbed_cube.name}`);
         grabbed_cube = null;
     }
     // Intersection detection and handling
-    const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
-    if(viewable_ui.is_column_left_side()){
-        if(found_intersections.length > 0){
-            const intersected_object = found_intersections[0].object;
-            if(intersected_object.name != null) {
-                (console.log(`${intersected_object.name} clicked up`));
-            }
-            const split_intersected_name = intersected_object.name.split("_");
-            const name_type = extract_type(intersected_object);
-            switch(name_type) {
-                case TYPES.LABEL:
-                    viewable_ui.reset_hover();
-                    viewable_ui.swap_sides();
-                    viewable_ui.focus_text_box(intersected_object.name);
-                    break;
-                case TYPES.HIDE:
-                    viewable_ui.trigger_overlay();
-                    break;
-                case TYPES.LINK:
-                    viewable_ui.open_link(split_intersected_name[1].trim());
-                    break;
-            }
-        }
-    // Column is right
-    } else {
-        if(found_intersections.length > 0) {
-            const intersected_object = found_intersections[0].object;
-            const name_type = extract_type(intersected_object);
-            const split_intersected_name = intersected_object.name.split("_");
-            switch(name_type) {
-                case TYPES.LABEL:
-                    viewable_ui.focus_text_box(intersected_object.name);
-                    break;
-                case TYPES.LINK:
-                    viewable_ui.open_link(split_intersected_name[1].trim());
-                    break;
-                default:
-                    viewable_ui.swap_sides();
-                    viewable_ui.lose_focus_text_box(WEST);
-            }
-        } else {
-            viewable_ui.swap_sides();
-            viewable_ui.lose_focus_text_box(WEST);
-        }
-    }
+    viewable_ui.handle_mouse_up(get_intersect_list(e, viewable_ui.get_camera(), scene));
     // Hold detection
     if (e.button === 0) {
         viewable_ui.detect_rotation = false;
@@ -263,19 +218,21 @@ function handle_context_menu(e) {
 // TODO OOOOO
 // TODO Update this to bring objects closer if they are being held
 function handle_scroll_wheel(e) {
-    // Down up scroll
-    if(e.deltaY > 0) {
-        // TODO Implement
-    } else if(e.deltaY < 0) {
-        // TODO Implement
+    if(grabbed_cube){
+        // Down up scroll
+        if(e.deltaY > 0) {
+            zoom_object_in(grabbed_cube, primary_container);
+        } else if(e.deltaY < 0) {
+            zoom_object_out(grabbed_cube, primary_container);
+        }
+        // Right left scroll
+        if(e.deltaX > 0) {
+            log_scroll("Right scroll");
+        } else if(e.deltaX < 0) {
+            log_scroll("Left scroll");
+        }
     }
-    // Right left scroll
-    if(e.deltaX > 0) {
-        log_scroll("Right scroll");
-    } else if(e.deltaX < 0) {
-        log_scroll("Left scroll");
-    }
-    // Shared logging method
+    // Shared logging function
     function log_scroll(scroll_type) {
         console.log(`${scroll_type} detected`);
     }

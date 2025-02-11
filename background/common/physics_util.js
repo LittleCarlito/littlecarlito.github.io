@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 
 const SHOVE_FORCE = 4; // Adjust this value to control the force of the shove
+const ZOOM_AMOUNT = 2;  // Amount to move per scroll event
 let current_mouse_pos = new THREE.Vector2();
 
 export function shove_object(incoming_object, incoming_source, primary_container) {
@@ -40,27 +41,36 @@ export function translate_object(incoming_object, incoming_camera, primary_conta
     const body_pair = dynamic_bodies.find(([mesh]) => mesh.name === cube_name);
     if (!body_pair) return;
     const [_, body] = body_pair;
-
     // Create vectors for the ray
     const ray_start = new THREE.Vector3();
     const ray_end = new THREE.Vector3();
     const ray_dir = new THREE.Vector3();
-
     // Get ray from camera through mouse point
     ray_start.setFromMatrixPosition(incoming_camera.matrixWorld);
     ray_end.set(current_mouse_pos.x, current_mouse_pos.y, 1).unproject(incoming_camera);
     ray_dir.subVectors(ray_end, ray_start).normalize();
-
     // Get the cube's current z-distance from camera
     const cube_pos = new THREE.Vector3();
     incoming_object.getWorldPosition(cube_pos);
     const camera_pos = new THREE.Vector3();
     incoming_camera.getWorldPosition(camera_pos);
     const z_distance = cube_pos.distanceTo(camera_pos);
-
     // Calculate new position maintaining z-distance
     const new_position = ray_start.clone().add(ray_dir.multiplyScalar(z_distance));
-    
     // Update the rigid body position
     body.setTranslation(new_position);
+}
+
+export function zoom_object_in(incoming_object, primary_container) {
+    const body_pair = primary_container.dynamic_bodies.find(([mesh]) => mesh.name === incoming_object.name);
+    if (!body_pair) return;
+    const [mesh, _] = body_pair;
+    mesh.position.z += ZOOM_AMOUNT;
+}
+
+export function zoom_object_out(incoming_object, primary_container) {
+    const body_pair = primary_container.dynamic_bodies.find(([mesh]) => mesh.name === incoming_object.name);
+    if (!body_pair) return;
+    const [mesh, _] = body_pair;
+    mesh.position.z -= ZOOM_AMOUNT;
 }
