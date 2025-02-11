@@ -1,20 +1,367 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/opentype.js"></script>
     <style>
         body {
             margin: 0;
             padding: 0;
-            background-color: white;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
             height: 100vh;
-            font-family: Arial, sans-serif;
+            background: transparent;
+        }
+
+        .writing-container {
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+        }
+
+        .writing-container.show {
+            opacity: 1;
+        }
+
+        .text-path {
+            fill: none;
+            stroke: black;
+            stroke-width: 2;
+        }
+
+        .text-path.hidden {
+            stroke-dashoffset: 1000;
+        }
+
+        @keyframes write-text {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        .text-path.animate-write {
+            animation: write-text 1s forwards;
+        }
+
+        .title-text {
+            font-size: 96px;
+        }
+
+        .project-text {
+            font-size: 48px;
+        }
+
+        .hidden {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+        }
+
+        .animate-write {
+            animation: write-text forwards;
+        }
+
+        @font-face {
+            font-family: 'TokyoRockstar';
+            src: url('/fonts/TokyoRockstar.ttf') format('truetype');
+        }
+
+        #title_svg {
+            width: 800px;  /* Make SVG large enough to contain all text */
+            height: 600px;
+            display: block;
+        }
+
+        .letter-path {
+            fill: none;
+            stroke: #000;
+            stroke-width: 2px;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .letter-path.animate {
+            /* Controls letter animation speed: 0.6s = faster, 1.2s = slower */
+            animation: drawLetter 0.1s forwards;
+        }
+
+        @keyframes drawLetter {
+            0% {
+                fill: transparent;
+                stroke-dashoffset: var(--path-length);
+            }
+            70% {
+                fill: transparent;
+                stroke-dashoffset: 0;
+            }
+            100% {
+                fill: #000;
+                stroke-dashoffset: 0;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>PROJECTS</h1>
+    <div class="writing-container">
+        <svg id="title_svg" width="800" height="600" viewBox="0 0 800 600">
+            <!-- SVG content will be added here via JavaScript -->
+        </svg>
+    </div>
+
+    <div class="title">
+        <svg id="title_svg" width="400" height="200">
+            <!-- Adjust font size and positioning for better readability -->
+            <path id="title_path" fill="black" d=""/>
+        </svg>
+    </div>
+
+    <script type="module">
+        import { FLAGS } from '../../common';
+
+        let font = null;
+        opentype.load('/fonts/TokyoRockstar.ttf', function(err, loadedFont) {
+            if (err && FLAGS.HTML_LOGS) {
+                console.error('Font could not be loaded:', err);
+                return;
+            }
+            font = loadedFont;
+            if(FLAGS.HTML_LOGS) {
+                console.log('Font loaded successfully');
+            }
+        });
+
+        const container = document.querySelector('.writing-container');
+        const svg = document.querySelector('#title_svg');  // Make sure we're selecting the right SVG
+        
+        // Separate title and project elements
+        const titleText = { text: 'Projects', duration: 800, class: 'title-text' };
+        
+        const projectElements = [
+            { text: 'Project 1', duration: 600, class: 'project-text' },
+            { text: 'Project 2', duration: 600, class: 'project-text' },
+            { text: 'Project 3', duration: 600, class: 'project-text' },
+            { text: 'Project 4', duration: 600, class: 'project-text' },
+            { text: 'Project 5', duration: 600, class: 'project-text' },
+            { text: 'Project 6', duration: 600, class: 'project-text' },
+            { text: 'Project 7', duration: 600, class: 'project-text' }
+        ];
+
+        // Remove localStorage state for testing
+        localStorage.removeItem('projects_has_played');
+
+        const TITLE_X = 30;  // Move further left
+        const TITLE_Y = 100;
+        const TITLE_FONT_SIZE = 96;
+        
+        const PROJECT_START_X = 100;  // Move projects further left
+        const PROJECT_START_Y = 180;
+        const PROJECT_FONT_SIZE = 48;
+        const PROJECT_SPACING = 50;
+
+        function createCharacterPath(char, x, y, className, fontSize) {
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("class", `text-path hidden ${className}`);
+            const pathData = getPathDataForChar(char, x, y, fontSize);
+            path.setAttribute("d", pathData);
+            
+            // Get the path length for animation
+            const length = path.getTotalLength();
+            path.style.strokeDasharray = length;
+            path.style.strokeDashoffset = length;  // Start hidden
+            
+            return path;
+        }
+
+        function getPathDataForChar(char, x, y, fontSize) {
+            if(FLAGS.HTML_LOGS) {
+                console.log(`Generating path for char: ${char}, x: ${x}, y: ${y}, fontSize: ${fontSize}`);
+            }
+            const path = font.getPath(char, x, y, fontSize);
+            return path.toPathData();
+        }
+
+        function animateCharacter(char, x, y, fontSize) {
+            return new Promise((resolve) => {
+                if(FLAGS.HTML_LOGS) {
+                    console.log('Generating path for char:', char, 'x:', x, 'y:', y, 'fontSize:', fontSize);
+                }
+                
+                // Create SVG path element
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                const pathData = getPathDataForChar(char, x, y, fontSize);
+                path.setAttribute('d', pathData);
+                path.setAttribute('class', 'letter-path');
+                
+                // Add path to SVG
+                const svg = document.querySelector('svg');
+                svg.appendChild(path);
+                if(FLAGS.HTML_LOGS) {
+                    console.log('Starting animation for:', pathData);
+                }
+                
+                const pathLength = path.getTotalLength();
+                path.style.strokeDasharray = pathLength;
+                path.style.setProperty('--path-length', pathLength);
+                path.style.strokeDashoffset = pathLength;
+                
+                // Start animation immediately using requestAnimationFrame for smooth start
+                requestAnimationFrame(() => {
+                    path.classList.add('animate');
+                });
+
+                path.addEventListener('animationend', () => {
+                    if(FLAGS.HTML_LOGS) {
+                        console.log('Animation ended for:', char);
+                    }
+                    // Controls pause between letters (10 = faster, 50 = slower)
+                    setTimeout(resolve, 3);
+                });
+            });
+        }
+
+        async function animateAllText() {
+            const allCharacters = [];
+            let currentX = TITLE_X;
+            let currentY = TITLE_Y;
+
+            // Collect title characters
+            titleText.text.split('').forEach(char => {
+                allCharacters.push({
+                    char,
+                    x: currentX,
+                    y: currentY,
+                    fontSize: TITLE_FONT_SIZE,
+                    class: titleText.class
+                });
+                currentX += font.getAdvanceWidth(char, TITLE_FONT_SIZE);
+            });
+
+            // Collect project characters
+            currentY = PROJECT_START_Y;
+            projectElements.forEach(item => {
+                currentX = PROJECT_START_X;
+                item.text.split('').forEach(char => {
+                    allCharacters.push({
+                        char,
+                        x: currentX,
+                        y: currentY,
+                        fontSize: PROJECT_FONT_SIZE,
+                        class: item.class
+                    });
+                    currentX += font.getAdvanceWidth(char, PROJECT_FONT_SIZE);
+                });
+                currentY += PROJECT_SPACING;
+            });
+
+            // Animate one at a time, waiting for each to finish
+            const charDuration = 200; // Duration per character
+            
+            for (let charInfo of allCharacters) {
+                if(FLAGS.HTML_LOGS) {
+                    console.log('Creating character:', charInfo.char);
+                }
+                const charPath = createCharacterPath(
+                    charInfo.char, 
+                    charInfo.x, 
+                    charInfo.y, 
+                    charInfo.class, 
+                    charInfo.fontSize
+                );
+                svg.appendChild(charPath);
+                await animateCharacter(charInfo.char, charInfo.x, charInfo.y, charInfo.fontSize);
+            }
+        }
+
+        function showAllText() {
+            // Show title
+            const titleChars = titleText.text.split('');
+            let currentX = TITLE_X;
+            let titleY = TITLE_Y;  // Renamed to avoid duplicate declaration
+            
+            titleChars.forEach(char => {
+                const charPath = createCharacterPath(char, currentX, titleY, titleText.class, TITLE_FONT_SIZE);
+                charPath.style.strokeDashoffset = 0;
+                svg.appendChild(charPath);
+                currentX += font.getAdvanceWidth(char, TITLE_FONT_SIZE);
+            });
+
+            // Show projects
+            let projectY = PROJECT_START_Y;  // Renamed to be unique
+            projectElements.forEach((item) => {
+                const chars = item.text.split('');
+                let currentX = PROJECT_START_X;
+                
+                chars.forEach(char => {
+                    const charPath = createCharacterPath(char, currentX, projectY, item.class, PROJECT_FONT_SIZE);
+                    charPath.style.strokeDashoffset = 0;
+                    svg.appendChild(charPath);
+                    currentX += font.getAdvanceWidth(char, PROJECT_FONT_SIZE);
+                });
+
+                projectY += PROJECT_SPACING;
+            });
+        }
+
+        async function animateTitle() {
+            const state = localStorage.getItem('animationPlayed');
+            if(FLAGS.HTML_LOGS) {
+                console.log('Animation triggered - localStorage state:', state);
+            }
+            
+            if (!state) {
+                if(FLAGS.HTML_LOGS) {
+                    console.log('First time - playing animation');
+                }
+                localStorage.setItem('animationPlayed', 'true');
+                
+                // Create array of characters to animate
+                const chars = ['P', 'r', 'o', 'j', 'e', 'c', 't', 's'];
+                const fontSize = 96;
+                let xOffset = 30;
+                const yPos = 100;
+                
+                // Second row
+                const chars2 = ['P', 'r', 'o', 'j'];
+                const fontSize2 = 48;
+                let xOffset2 = 100;
+                const yPos2 = 180;
+
+                // Animate first row
+                for (let char of chars) {
+                    if(FLAGS.HTML_LOGS) {
+                        console.log('Creating character:', char);
+                    }
+                    await animateCharacter(char, xOffset, yPos, fontSize);
+                    xOffset += fontSize * 0.768; // Adjust spacing between characters
+                }
+
+                // Animate second row
+                for (let char of chars2) {
+                    if(FLAGS.HTML_LOGS) {
+                        console.log('Creating character:', char);
+                    }
+                    await animateCharacter(char, xOffset2, yPos2, fontSize2);
+                    xOffset2 += fontSize2 * 0.768; // Adjust spacing between characters
+                }
+            }
+        }
+
+        window.trigger_frame_animation = function() {
+            if(FLAGS.HTML_LOGS) {
+                console.log("Animation triggered - localStorage state:", localStorage.getItem('projects_has_played'));
+            }
+            if(!localStorage.getItem('projects_has_played')) {
+                if(FLAGS.HTML_LOGS) {
+                    console.log("First time - playing animation");
+                }
+                container.classList.add('show');
+                animateAllText();
+                localStorage.setItem('projects_has_played', true);
+            } else {
+                container.classList.add('show');
+                showAllText();
+            }
+        };
+    </script>
 </body>
 </html>
