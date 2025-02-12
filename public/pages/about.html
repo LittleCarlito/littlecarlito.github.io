@@ -237,6 +237,9 @@
     <script type="module">
         import { FLAGS } from '../../common';
         
+        // Add this line to reset the animation state
+        localStorage.removeItem('about_has_played');
+        
         window.trigger_frame_animation = function() {
             if(FLAGS.HTML_LOGS) {
                 console.log('Animation triggered');
@@ -255,11 +258,6 @@
                 page.classList.add('flipped');
             }
         };
-
-        // Add immediate execution for testing
-        setTimeout(() => {
-            window.trigger_frame_animation();
-        }, 500);
     </script>
 </body>
 </html>
