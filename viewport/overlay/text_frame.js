@@ -2,6 +2,7 @@ import { CSS2DObject } from "three/examples/jsm/Addons.js";
 import { CATEGORIES } from "./common/categories.js";
 import * as THREE from 'three';
 import { Easing, Tween } from 'three/examples/jsm/libs/tween.module.js';
+import { FLAGS } from "../../common/flags.js";
 
 const WIDTH_OFFSET = .5;
 const HEIGHT_OFFSET = .5;
@@ -81,7 +82,13 @@ export class TextFrame {
         
         // Create vectors for both fountains
         const vector = new THREE.Vector3(position.x, position.y, 0.5);
+        if(FLAGS.TWEEN_LOGS) {
+            console.log('Initial vector:', vector);
+        }
         vector.unproject(this.camera);
+        if(FLAGS.TWEEN_LOGS) {
+            console.log('Vector after unproject:', vector);
+        }
         
         // Calculate position and orientation relative to camera
         const camera_direction = new THREE.Vector3(0, 0, -1);
