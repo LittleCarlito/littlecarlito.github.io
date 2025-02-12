@@ -75,7 +75,7 @@ export class TextContainer {
                     const textBox = this.text_box_container.getObjectByName(new_name);
                     if (textBox && category === 'education' && !this.education_confetti_shown) {
                         // Force position to exact center of screen/overlay
-                        const position = new THREE.Vector3(-this.get_focused_text_x() + 3, this.container_height - 7, 30);
+                        const position = new THREE.Vector3(-this.get_focused_text_x(), this.container_height - 7, 30);
                         
                         if(FLAGS.TWEEN_LOGS) {
                             console.log(`Confetti Position: (${position.x}, ${position.y}, ${position.z})`);
