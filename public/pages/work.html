@@ -91,7 +91,7 @@
     <script type="module">
         import { FLAGS } from '../../common';
         
-        const CHARS_PER_SECOND = 100; // Adjust this number to control typing speed
+        const CHARS_PER_SECOND = 200; // Adjust this number to control typing speed
 
         localStorage.removeItem('work_has_played');
         const textElements = document.querySelectorAll('.terminal-text');
@@ -100,10 +100,14 @@
             console.log('Page Load - localStorage state:', localStorage.getItem('work_has_played'));
         }
 
+        let animationInProgress = false;
+        let shouldStopAnimation = false;
+
         async function animateText(element) {
+            console.log('Starting animation for element:', element.textContent.substring(0, 20) + '...');
             return new Promise(resolve => {
-                // Skip animation if element is empty or only whitespace
-                if (!element.textContent.trim()) {
+                if (!element.textContent.trim() || shouldStopAnimation) {
+                    console.log('Skipping animation - empty or stopped');
                     element.style.opacity = '1';
                     resolve();
                     return;
@@ -111,52 +115,93 @@
 
                 const textLength = element.textContent.trim().length;
                 const duration = textLength / CHARS_PER_SECOND;
+                console.log(`Animation setup - Length: ${textLength}, Duration: ${duration}s`);
                 
-                // Set CSS variables for the animation
                 element.style.setProperty('--text-length', textLength);
                 element.style.setProperty('--typing-duration', `${duration}s`);
                 element.style.setProperty('--final-width', `${textLength}ch`);
                 
-                element.classList.add('typing', 'cursor');
-                
-                element.addEventListener('animationend', () => {
+                element.animationEndHandler = () => {
+                    console.log('Animation ended for:', element.textContent.substring(0, 20) + '...');
                     element.classList.remove('typing', 'cursor');
                     element.style.opacity = '1';
                     element.style.width = `${textLength}ch`;
+                    element.removeEventListener('animationend', element.animationEndHandler);
+                    delete element.animationEndHandler;
                     resolve();
-                }, { once: true });
+                };
+                
+                console.log('Adding animation classes and listener');
+                element.classList.add('typing', 'cursor');
+                element.addEventListener('animationend', element.animationEndHandler, { once: true });
+            });
+        }
+
+        function stopAllAnimations() {
+            console.log('Stopping all animations');
+            shouldStopAnimation = true;
+            textElements.forEach(element => {
+                console.log('Cleaning up element:', element.textContent.substring(0, 20) + '...');
+                if (element.animationEndHandler) {
+                    element.removeEventListener('animationend', element.animationEndHandler);
+                    delete element.animationEndHandler;
+                }
+                const textLength = element.textContent.length;
+                element.classList.remove('typing', 'cursor');
+                element.style.opacity = '1';
+                element.style.width = `${textLength}ch`;
             });
         }
 
         window.trigger_frame_animation = async function() {
-            if(FLAGS.HTML_LOGS){
-                console.log('Animation triggered - localStorage state:', localStorage.getItem('work_has_played'));
-            }
+            console.log('Animation triggered, localStorage state:', localStorage.getItem('work_has_played'));
             
-            if(!localStorage.getItem('work_has_played')){
-                if(FLAGS.HTML_LOGS){
-                    console.log('First time - playing animation');
-                }
+            // Stop any existing animations
+            stopAllAnimations();
+            
+            // Reset the stop flag
+            shouldStopAnimation = false;
+            
+            if(!localStorage.getItem('work_has_played') && !animationInProgress){
+                console.log('First time - playing animation');
+                animationInProgress = true;
                 
-                // Animate each text element sequentially
-                for (const element of textElements) {
-                    await animateText(element);
-                }
+                // Reset all elements to initial state
+                textElements.forEach(element => {
+                    element.style.opacity = '0';
+                    element.style.width = '0';
+                });
                 
-                localStorage.setItem('work_has_played', true);
+                try {
+                    for (const element of textElements) {
+                        if (shouldStopAnimation) {
+                            console.log('Animation sequence stopped');
+                            break;
+                        }
+                        console.log('Starting animation for next element');
+                        await animateText(element);
+                    }
+                } finally {
+                    animationInProgress = false;
+                    localStorage.setItem('work_has_played', true);
+                }
             } else {
-                if(FLAGS.HTML_LOGS){
-                    console.log('Already played - showing text');
-                }
-                // Show all text immediately
+                console.log('Already played or animation in progress - showing text immediately');
                 textElements.forEach(element => {
                     const textLength = element.textContent.length;
-                    element.classList.remove('typing');
+                    element.classList.remove('typing', 'cursor');
                     element.style.opacity = '1';
                     element.style.width = `${textLength}ch`;
                 });
             }
         };
+
+        // Add cleanup when page is hidden/unloaded
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                stopAllAnimations();
+            }
+        });
     </script>
 </body>
 </html>

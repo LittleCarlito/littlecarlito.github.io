@@ -50,21 +50,150 @@
         }
 
         .back {
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            padding: 6em;
             transform: rotateY(180deg);
             background: white;
+            position: relative;  /* For absolute positioning of header elements */
+        }
+
+        .header-section {
+            position: relative;
+            width: 100%;
+            margin-bottom: 6em;
+            height: 100px;  /* Increased height to accommodate consistent spacing */
+            padding-top: 0;  /* Remove top padding as we'll control spacing through profile picture */
+        }
+
+        .profile-picture {
+            position: absolute;
+            left: 15% !important;  /* Adjusted for better horizontal centering */
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #ccc;
+        }
+
+        .content-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1px 1fr;
+            gap: 6em;
+            padding: 0 4em;
+        }
+
+        hr.vertical-divider {
+            border: none;
+            width: 1px;
+            background-color: #ccc;
+            height: 200px;
+            margin: 0;
+            align-self: start;
+            transform: translateX(4em) translateY(7em);
+        }
+
+        .section:first-child {
+            transform: translateX(4em) translateY(4em);
+            margin-left: 2em;
+        }
+
+        .section:last-child {
+            transform: translateX(4em) translateY(3em);
+            margin-right: -2em;
+        }
+
+        .section {
+            padding: 1em;
+        }
+
+        .section h2 {
+            min-width: 200px;  /* Set minimum width to accommodate "Outside Work" */
+            display: inline-block;
+            text-align: center;  /* Keep text centered within the fixed width */
+            white-space: nowrap !important;  /* Force no wrapping */
+        }
+
+        .section-content {
+            text-align: left;  /* Changed from center to left */
+            margin-left: 2em;
+        }
+
+        .skills-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5em;
+            text-align: left;  /* Changed from center to left */
+            margin-right: -2em;
         }
 
         h1 {
-            color: black;
+            position: absolute;
+            width: 100%;
             text-align: center;
             font-size: 2.5em;
+            margin: 0;
+            left: 60%;  /* Adjusted to better balance with profile picture */
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        h2 {
+            color: black;
+            text-align: center;
+            font-size: 1.8em;
+            margin-top: 1.5em;
+            margin-bottom: 0.8em;
+        }
+
+        h3 {
+            color: black;
+            text-align: center;
+            font-size: 1.4em;
+            margin-bottom: 0.5em;
+        }
+
+        p {
+            font-size: 1.2em;
+            margin: 0.5em 0;
+            text-align: left;  /* Ensure all paragraphs are left-aligned */
         }
 
         .page.flipped {
             transform: translateX(100%) rotateY(-180deg); /* Move right while flipping */
+        }
+
+        .header-section p {
+            position: absolute;
+            width: 50%;  /* Reduced from 60% to make it more narrow */
+            text-align: center;
+            left: 65%;  /* Moved further right from 60% */
+            transform: translateX(-50%);
+            top: 110%;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .at-work-list li {
+            white-space: nowrap;
+            overflow: visible;
+        }
+
+        .label {
+            white-space: nowrap;
+            overflow: visible;
+        }
+
+        .column span {
+            white-space: nowrap;
+            overflow: visible;
+            display: inline-block;  /* Added to ensure nowrap works properly */
+        }
+
+        .column h2 {
+            min-width: 500px;  /* Set minimum width to accommodate "Outside Work" */
+            display: inline-block;
+            text-align: center;  /* Keep text centered within the fixed width */
         }
     </style>
 </head>
@@ -75,7 +204,32 @@
                 <img src="../images/PlaceholderPicture.png" alt="Profile Picture">
             </div>
             <div class="back">
-                <h1>ABOUT</h1>
+                <div class="header-section">
+                    <img src="../images/pxArt.png" alt="Profile Picture" class="profile-picture">
+                    <h1>ABOUT</h1>
+                    <p>Blah blah blah blah blah blah blah I'm a good dev you should hire me</p>
+                </div>
+                <div class="content-wrapper">
+                    <div class="section">
+                        <h2>Outside Work</h2>
+                        <div class="section-content">
+                            <p>Interests</p>
+                            <p>Adventures</p>
+                        </div>
+                    </div>
+
+                    <hr class="vertical-divider">
+
+                    <div class="section">
+                        <h2>At Work</h2>
+                        <div class="skills-grid">
+                            <p>Spring Boot</p>
+                            <p>React</p>
+                            <p>Typescript</p>
+                            <p>Java</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
