@@ -97,8 +97,8 @@ function animate() {
             mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
         }
     });
-    // Update confetti particles
-    viewable_ui.get_overlay().text_box_container.updateConfetti();
+    // Update confetti particles for all text frames
+    viewable_ui.get_overlay().text_box_container.text_frames.forEach(frame => frame.update_confetti());
     // Scene reload
     app_renderer.render();
 }

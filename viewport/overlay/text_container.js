@@ -11,6 +11,7 @@ export class TextContainer {
     text_frames = [];
     focused_text_name = "";
     particles = [];
+    education_confetti_shown = false;
 
     constructor(incoming_parent, incoming_camera) {
         this.parent = incoming_parent;
@@ -65,25 +66,33 @@ export class TextContainer {
                 }
                 this.focused_text_name = new_name;
                 
-                // Check if this is the education text box and create confetti
+                // Get the category and find corresponding frame
                 const category = incoming_name.substring(found_index + 1);
-                if (category === 'education') {
-                    // Create confetti at the text box position
-                    const textBox = this.text_box_container.getObjectByName(new_name);
-                    if (textBox) {
-                        const position = new THREE.Vector3();
-                        textBox.getWorldPosition(position);
-                        
-                        // Convert world position to screen coordinates
-                        position.project(this.camera);
-                        this.createConfettiBurst(position);
-                    }
-                }
-
-                // Find the corresponding TextFrame
                 const frameIndex = this.text_frames.findIndex(frame => frame.simple_name === category);
                 if (frameIndex !== -1) {
                     const frame = this.text_frames[frameIndex];
+                    // Create confetti if it's the education frame and hasn't been shown yet
+                    const textBox = this.text_box_container.getObjectByName(new_name);
+                    if (textBox && category === 'education' && !this.education_confetti_shown) {
+                        // Force position to exact center of screen/overlay
+                        const position = new THREE.Vector3(-this.get_focused_text_x() + 3, this.container_height - 7, 30);
+                        
+                        if(FLAGS.TWEEN_LOGS) {
+                            console.log(`Confetti Position: (${position.x}, ${position.y}, ${position.z})`);
+                        }
+                        
+                        // Create a dummy object for the delay tween
+                        const dummy = { value: 0 };
+                        new Tween(dummy)
+                            .to({ value: 1 }, 200) // 500ms delay
+                            .start()
+                            .onComplete(() => {
+                                frame.create_confetti_burst(position);
+                                this.education_confetti_shown = true; // Set flag after showing confetti
+                            });
+                    }
+                    
+                    // Trigger frame animation
                     if (frame.iframe.contentWindow && typeof frame.iframe.contentWindow.trigger_frame_animation === 'function') {
                         frame.iframe.contentWindow.trigger_frame_animation();
                     }
@@ -291,114 +300,5 @@ export class TextContainer {
                 tween_map.delete(this.text_box_container.name);
             });
         tween_map.set(this.text_box_container.name, new_tween); 
-    }
-
-    createConfettiBurst(position) {
-        const particleCount = 200;
-        const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff];
-        
-        // Create vectors for both fountains
-        const vector = new THREE.Vector3(position.x, position.y, 0.5);
-        vector.unproject(this.camera);
-        
-        // Calculate position 15 units in front of camera
-        const cameraDirection = new THREE.Vector3(0, 0, -1);
-        cameraDirection.applyQuaternion(this.camera.quaternion);
-        const targetPosition = this.camera.position.clone().add(cameraDirection.multiplyScalar(15));
-        
-        // Keep x,y from mouse position but use fixed z distance
-        vector.z = targetPosition.z;
-        
-        // Create two fountains with different rotations
-        const rotations = [0, -Math.PI]; // 0 and -180 degrees
-        
-        rotations.forEach(baseRotation => {
-            for (let i = 0; i < particleCount; i++) {
-                const geometry = new THREE.PlaneGeometry(0.05, 0.05);
-                const material = new THREE.MeshBasicMaterial({
-                    color: colors[Math.floor(Math.random() * colors.length)],
-                    side: THREE.DoubleSide,
-                    depthTest: false,
-                    transparent: true,
-                    opacity: 1
-                });
-                
-                const particle = new THREE.Mesh(geometry, material);
-                
-                // Set initial position with slight random offset
-                particle.position.copy(vector).add(
-                    new THREE.Vector3(
-                        (Math.random() - 0.5) * 0.2,
-                        (Math.random() - 0.5) * 0.2,
-                        (Math.random() - 0.5) * 0.2
-                    )
-                );
-                
-                // Calculate fountain-like velocity with rotation
-                const angle = (Math.random() * Math.PI * 0.5 - Math.PI * 0.25) + baseRotation;
-                const heightVariation = Math.random() * 0.1;
-                const speed = 0.08 + Math.random() * 0.12;
-                const upwardForce = 0.15 + Math.random() * 0.1 + heightVariation;
-                
-                // Apply rotated velocity
-                particle.velocity = new THREE.Vector3(
-                    Math.cos(angle) * speed * 0.5,
-                    upwardForce,
-                    Math.sin(angle) * speed * 0.5
-                );
-                
-                // Random rotation
-                particle.rotation.z = Math.random() * Math.PI * 2;
-                particle.rotationSpeed = (Math.random() - 0.5) * 0.2;
-                
-                // Add some random acceleration
-                particle.acceleration = new THREE.Vector3(
-                    (Math.random() - 0.5) * 0.0005,
-                    0,
-                    (Math.random() - 0.5) * 0.0005
-                );
-                
-                this.particles.push(particle);
-                this.parent.add(particle);
-                
-                // Animate the particle
-                new Tween(particle.material)
-                    .to({ opacity: 0 }, 6000)
-                    .easing(Easing.Quadratic.Out)
-                    .start()
-                    .onComplete(() => {
-                        this.parent.remove(particle);
-                        particle.geometry.dispose();
-                        particle.material.dispose();
-                        const index = this.particles.indexOf(particle);
-                        if (index > -1) {
-                            this.particles.splice(index, 1);
-                        }
-                    });
-            }
-        });
-    }
-
-    updateConfetti() {
-        for (const particle of this.particles) {
-            // Add acceleration to velocity (reduced)
-            if (particle.acceleration) {
-                particle.velocity.add(particle.acceleration);
-            }
-            
-            // Update position
-            particle.position.add(particle.velocity);
-            
-            // Add some subtle swaying (reduced)
-            particle.velocity.x += Math.sin(Date.now() * 0.0005 + particle.position.y) * 0.0002;
-            particle.velocity.z += Math.cos(Date.now() * 0.0005 + particle.position.y) * 0.0002;
-            
-            // Rotate particle
-            particle.rotation.z += particle.rotationSpeed;
-            
-            // Apply gravity with air resistance
-            particle.velocity.y -= 0.004; // Reduced gravity
-            particle.velocity.multiplyScalar(0.995); // Increased air resistance
-        }
     }
 }

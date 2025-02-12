@@ -1,6 +1,6 @@
 export const FLAGS = {
     LAYER: true,
-    TWEEN_LOGS: false,
+    TWEEN_LOGS: true,
     HTML_LOGS: false
 };
 
