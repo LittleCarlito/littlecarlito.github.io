@@ -84,7 +84,7 @@
 
         .letter-path.animate {
             /* Controls letter animation speed: 0.6s = faster, 1.2s = slower */
-            animation: drawLetter 0.1s forwards;
+            animation: drawLetter .025s forwards;
         }
 
         @keyframes drawLetter {
@@ -245,7 +245,7 @@
             });
 
             // Animate one at a time, waiting for each to finish
-            const charDuration = 200; // Duration per character
+            const charDuration = 10; // Duration per character
             
             for (let charInfo of allCharacters) {
                 if(FLAGS.HTML_LOGS) {
