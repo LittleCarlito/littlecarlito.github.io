@@ -112,9 +112,10 @@ export class TextFrame {
                     opacity: 1
                 });
                 const particle = new THREE.Mesh(geometry, material);
+                particle.renderOrder = 999;
                 particle.position.copy(vector).add(
                     new THREE.Vector3(
-                        (Math.random() - 0.5) * 0.2 - xOffset, // Add xOffset here
+                        (Math.random() - 0.5) * 0.2 - xOffset,
                         (Math.random() - 0.5) * 0.2,
                         (Math.random() - 0.5) * 0.2
                     )
