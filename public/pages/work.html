@@ -26,13 +26,13 @@
 
         .terminal-text.typing {
             opacity: 1;
-            animation: typing 2s steps(4);
+            animation: typing var(--typing-duration) steps(var(--text-length));
             animation-fill-mode: forwards;
         }
 
         @keyframes typing {
             from { width: 0 }
-            to { width: 4ch }
+            to { width: var(--final-width) }
         }
 
         .cursor {
@@ -44,40 +44,117 @@
             from, to { border-color: transparent }
             50% { border-color: #00ff00 }
         }
+
+        h3.terminal-text {
+            color: #00cc00;  /* Slightly different shade of green */
+            margin-top: 5px;
+            margin-bottom: 5px;
+            font-size: 1.1em;
+        }
     </style>
 </head>
 <body>
-    <h1 class="terminal-text">WORK</h1>
+    <div id="content">
+        <h1 class="terminal-text">--------------------------------</h1>
+        <h1 class="terminal-text">WORK EXPERIENCE</h1>
+        <h1 class="terminal-text">--------------------------------</h1>
+        
+        <h2 class="terminal-text">Apex Systems</h2>
+        <h3 class="terminal-text">Java Engineer</h3>
+        <p class="terminal-text">Remote | June 2024 - Present</p>
+        <p class="terminal-text">• Works with healthcare clients designing and implementing Java solutions</p>
+        <p class="terminal-text">• Defined client development standards and code review processes</p>
+        <p class="terminal-text">• Onboards new clients into SailPoint provisioning services</p>
+        <p class="terminal-text">• Instructs engineers on JUnit and testing framework best practices</p>
+        
+        <h2 class="terminal-text">Northwestern Mutual</h2>
+        <h3 class="terminal-text">Software Engineer II</h3>
+        <p class="terminal-text">Franklin, WI | 2023 - June 2024</p>
+        <p class="terminal-text">• Designed and implemented "Fuzzy" match service for AI healthcare payments</p>
+        <p class="terminal-text">• Primary developer of DocuSign backend replacement service</p>
+        <p class="terminal-text">• Led team implementing 3 new microservices with NoSQL DynamoDB backend</p>
+        <p class="terminal-text">• Maintained 24/7 support with 0 escalated incidents over 2 years</p>
+        
+        <h3 class="terminal-text">Software Engineer</h3>
+        <p class="terminal-text">2021 - 2023</p>
+        <p class="terminal-text">• Replaced mainframe batch processor with Java microservices</p>
+        <p class="terminal-text">• Completed DevOps certification with AWS expertise</p>
+        <p class="terminal-text">• Defined testing standards achieving ~90% coverage</p>
+        
+        <h2 class="terminal-text">Quad Graphics</h2>
+        <h3 class="terminal-text">Business Analyst</h3>
+        <p class="terminal-text">Sussex, WI | 2014 - 2018</p>
+        <p class="terminal-text">• Led Agile activities and defined work requirements</p>
+        <p class="terminal-text">• Optimized healthcare mailing logic reducing onboarding by 80%</p>
+        <p class="terminal-text">• Managed PHI data with 0 breaches over 4 years</p>
+    </div>
     <script type="module">
         import { FLAGS } from '../../common';
+        
+        const CHARS_PER_SECOND = 100; // Adjust this number to control typing speed
+
         localStorage.removeItem('work_has_played');
-        const text = document.querySelector('.terminal-text');
+        const textElements = document.querySelectorAll('.terminal-text');
+        
         if(FLAGS.HTML_LOGS){
             console.log('Page Load - localStorage state:', localStorage.getItem('work_has_played'));
         }
-        window.trigger_frame_animation = function() {
+
+        async function animateText(element) {
+            return new Promise(resolve => {
+                // Skip animation if element is empty or only whitespace
+                if (!element.textContent.trim()) {
+                    element.style.opacity = '1';
+                    resolve();
+                    return;
+                }
+
+                const textLength = element.textContent.trim().length;
+                const duration = textLength / CHARS_PER_SECOND;
+                
+                // Set CSS variables for the animation
+                element.style.setProperty('--text-length', textLength);
+                element.style.setProperty('--typing-duration', `${duration}s`);
+                element.style.setProperty('--final-width', `${textLength}ch`);
+                
+                element.classList.add('typing', 'cursor');
+                
+                element.addEventListener('animationend', () => {
+                    element.classList.remove('typing', 'cursor');
+                    element.style.opacity = '1';
+                    element.style.width = `${textLength}ch`;
+                    resolve();
+                }, { once: true });
+            });
+        }
+
+        window.trigger_frame_animation = async function() {
             if(FLAGS.HTML_LOGS){
                 console.log('Animation triggered - localStorage state:', localStorage.getItem('work_has_played'));
             }
+            
             if(!localStorage.getItem('work_has_played')){
                 if(FLAGS.HTML_LOGS){
                     console.log('First time - playing animation');
                 }
-                text.classList.add('typing', 'cursor');
-                text.addEventListener('animationend', () => {
-                    text.classList.remove('typing');
-                    text.style.opacity = '1';
-                    text.style.width = '4ch';
-                }, { once: true });
+                
+                // Animate each text element sequentially
+                for (const element of textElements) {
+                    await animateText(element);
+                }
+                
                 localStorage.setItem('work_has_played', true);
             } else {
                 if(FLAGS.HTML_LOGS){
                     console.log('Already played - showing text');
                 }
-                text.classList.remove('typing');
-                text.style.opacity = '1';
-                text.style.width = '4ch';
-                text.classList.add('cursor');
+                // Show all text immediately
+                textElements.forEach(element => {
+                    const textLength = element.textContent.length;
+                    element.classList.remove('typing');
+                    element.style.opacity = '1';
+                    element.style.width = `${textLength}ch`;
+                });
             }
         };
     </script>
