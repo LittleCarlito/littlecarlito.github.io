@@ -10,7 +10,7 @@ import { AppRenderer } from './common/app_renderer';
 import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/common';
 
 // ----- Constants
-const BACKGROUND_IMAGE = 'gradient.jpg';
+const BACKGROUND_IMAGE = 'images/gradient.jpg';
 await RAPIER.init();
 // ----- Variables
 let resize_move = false;
