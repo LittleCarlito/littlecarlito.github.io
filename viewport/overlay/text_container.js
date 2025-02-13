@@ -38,10 +38,12 @@ export class TextContainer {
                 depthTest: false,
                 transparent: true
             });
-            const text_box_background = new THREE.Mesh(box_geometry, box_material);
-            text_box_background.name = `${TYPES.BACKGROUND}${category.value}`;
-            text_box_background.renderOrder = 999;
-            text_box.add(text_box_background);
+            if(category.value != 'about') {
+                const text_box_background = new THREE.Mesh(box_geometry, box_material);
+                text_box_background.name = `${TYPES.BACKGROUND}${category.value}`;
+                text_box_background.renderOrder = 999;
+                text_box.add(text_box_background);
+            }
             // Create html element
             const new_frame = new TextFrame(text_box, this.camera, this.container_width, this.container_height);
             new_frame.simple_name = category.value;

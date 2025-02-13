@@ -14,10 +14,18 @@
             overflow: hidden;
         }
 
+        .scale-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform-origin: center center;
+        }
+
         .flipbook {
             width: 100%;
-            height: 100vh;
-            max-width: none;
+            height: 100%;
             position: relative;
             perspective: 1000px;
         }
@@ -79,8 +87,10 @@
         .content-wrapper {
             display: grid;
             grid-template-columns: 1fr 1px 1fr;
-            gap: 6em;
-            padding: 0 4em;
+            gap: 2em;
+            padding: 0 2em;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         hr.vertical-divider {
@@ -90,17 +100,17 @@
             height: 200px;
             margin: 0;
             align-self: start;
-            transform: translateX(4em) translateY(7em);
+            transform: translateX(0) translateY(7em);
         }
 
         .section:first-child {
-            transform: translateX(4em) translateY(4em);
-            margin-left: 2em;
+            transform: translateX(0) translateY(4em);
+            margin-left: 0;
         }
 
         .section:last-child {
-            transform: translateX(4em) translateY(3em);
-            margin-right: -2em;
+            transform: translateX(0);
+            margin-right: 0;
         }
 
         .section {
@@ -122,18 +132,18 @@
         .skills-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 1.5em;
-            text-align: left;  /* Changed from center to left */
-            margin-right: -2em;
+            gap: 1em;
+            text-align: left;
+            margin-right: 0;
         }
 
         h1 {
             position: absolute;
             width: 100%;
             text-align: center;
-            font-size: 2.5em;
+            font-size: calc(2vw + 1.5em); /* Responsive base size */
             margin: 0;
-            left: 60%;  /* Adjusted to better balance with profile picture */
+            left: 60%;
             top: 50%;
             transform: translate(-50%, -50%);
         }
@@ -141,22 +151,26 @@
         h2 {
             color: black;
             text-align: center;
-            font-size: 1.8em;
+            font-size: calc(1.5vw + 0.8em);
             margin-top: 1.5em;
             margin-bottom: 0.8em;
+            min-width: 200px;
+            display: inline-block;
+            text-align: center;
+            white-space: nowrap !important;
         }
 
         h3 {
             color: black;
             text-align: center;
-            font-size: 1.4em;
+            font-size: calc(1.2vw + 0.7em);
             margin-bottom: 0.5em;
         }
 
         p {
-            font-size: 1.2em;
+            font-size: calc(1vw + 0.6em);
             margin: 0.5em 0;
-            text-align: left;  /* Ensure all paragraphs are left-aligned */
+            text-align: left;
         }
 
         .page.flipped {
@@ -165,13 +179,14 @@
 
         .header-section p {
             position: absolute;
-            width: 50%;  /* Reduced from 60% to make it more narrow */
+            width: 50%;
             text-align: center;
-            left: 65%;  /* Moved further right from 60% */
+            left: 65%;
             transform: translateX(-50%);
             top: 110%;
             word-wrap: break-word;
             overflow-wrap: break-word;
+            font-size: calc(1vw + 0.6em);
         }
 
         .at-work-list li {
@@ -195,38 +210,55 @@
             display: inline-block;
             text-align: center;  /* Keep text centered within the fixed width */
         }
+
+        /* Add min and max font sizes to ensure readability */
+        @media screen and (max-width: 600px) {
+            h1 { font-size: 1.8em; }
+            h2 { font-size: 1.4em; }
+            h3 { font-size: 1.2em; }
+            p { font-size: 1em; }
+        }
+
+        @media screen and (min-width: 1200px) {
+            h1 { font-size: 2.8em; }
+            h2 { font-size: 2em; }
+            h3 { font-size: 1.6em; }
+            p { font-size: 1.2em; }
+        }
     </style>
 </head>
 <body>
-    <div class="flipbook">
-        <div class="page">
-            <div class="front">
-                <img src="../images/PlaceholderPicture.png" alt="Profile Picture">
-            </div>
-            <div class="back">
-                <div class="header-section">
-                    <img src="../images/pxArt.png" alt="Profile Picture" class="profile-picture">
-                    <h1>ABOUT</h1>
-                    <p>Blah blah blah blah blah blah blah I'm a good dev you should hire me</p>
+    <div class="scale-container">
+        <div class="flipbook">
+            <div class="page">
+                <div class="front">
+                    <img src="../images/PlaceholderPicture.png" alt="Profile Picture">
                 </div>
-                <div class="content-wrapper">
-                    <div class="section">
-                        <h2>Outside Work</h2>
-                        <div class="section-content">
-                            <p>Interests</p>
-                            <p>Adventures</p>
-                        </div>
+                <div class="back">
+                    <div class="header-section">
+                        <img src="../images/pxArt.png" alt="Profile Picture" class="profile-picture">
+                        <h1>ABOUT</h1>
+                        <p>Blah blah blah blah blah blah blah I'm a good dev you should hire me</p>
                     </div>
+                    <div class="content-wrapper">
+                        <div class="section">
+                            <h2>Outside Work</h2>
+                            <div class="section-content">
+                                <p>Interests</p>
+                                <p>Adventures</p>
+                            </div>
+                        </div>
 
-                    <hr class="vertical-divider">
+                        <hr class="vertical-divider">
 
-                    <div class="section">
-                        <h2>At Work</h2>
-                        <div class="skills-grid">
-                            <p>Spring Boot</p>
-                            <p>React</p>
-                            <p>Typescript</p>
-                            <p>Java</p>
+                        <div class="section">
+                            <h2>At Work</h2>
+                            <div class="skills-grid">
+                                <p>Spring Boot</p>
+                                <p>React</p>
+                                <p>Typescript</p>
+                                <p>Java</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -239,6 +271,35 @@
         
         // Add this line to reset the animation state
         localStorage.removeItem('about_has_played');
+        
+        function scaleContent() {
+            const container = document.querySelector('.scale-container');
+            const content = document.querySelector('.flipbook');
+            
+            // Get the actual content size (before any scaling)
+            const contentRect = content.getBoundingClientRect();
+            const contentWidth = contentRect.width;
+            const contentHeight = contentRect.height;
+            
+            // Get the container dimensions
+            const containerWidth = window.innerWidth;
+            const containerHeight = window.innerHeight;
+            
+            // Calculate scale factors
+            const scaleX = containerWidth / contentWidth;
+            const scaleY = containerHeight / contentHeight;
+            
+            // Use the smaller scale factor to maintain aspect ratio
+            // Multiply by 0.8 to make it 80% of the container size
+            const scale = Math.min(scaleX, scaleY, 1) * 0.8;
+            
+            // Apply the scale transform
+            container.style.transform = `scale(${scale})`;
+        }
+
+        // Call on load and resize
+        window.addEventListener('load', scaleContent);
+        window.addEventListener('resize', scaleContent);
         
         window.trigger_frame_animation = function() {
             if(FLAGS.HTML_LOGS) {
