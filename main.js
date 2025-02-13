@@ -11,6 +11,55 @@ import { shove_object, translate_object, update_mouse_position, zoom_object_in, 
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'images/gradient.jpg';
+// Sign and beam constants
+const BEAM_DIMENSIONS = {
+    WIDTH: 10,
+    HEIGHT: 0.5,
+    DEPTH: 0.2
+};
+const SIGN_DIMENSIONS = {
+    WIDTH: 10,
+    HEIGHT: 10,
+    DEPTH: 0.01
+};
+// Position of the entire assembly relative to camera
+const ASSEMBLY_POSITION = {
+    X_OFFSET: 10,      // How far right of camera
+    Y_OFFSET: 8,     // How high up from camera
+    Z_OFFSET: -15     // How far in front of camera
+};
+// Chain configuration
+const CHAIN_CONFIG = {
+    SPREAD: 5,        // How far apart the chains are (half of beam width)
+    LENGTH: 0.5       // Minimum length to avoid clipping
+};
+// Anchor points for joints (shouldn't need to change these)
+const JOINT_ANCHORS = {
+    BEAM: {
+        LEFT: { x: -CHAIN_CONFIG.SPREAD, y: 0, z: 0 },
+        RIGHT: { x: CHAIN_CONFIG.SPREAD, y: 0, z: 0 }
+    },
+    CHAIN: {
+        TOP: { x: 0, y: 1, z: 0 },
+        BOTTOM: { x: 0, y: -1, z: 0 }
+    },
+    SIGN: {
+        LEFT: { x: -CHAIN_CONFIG.SPREAD, y: SIGN_DIMENSIONS.HEIGHT/2, z: 0 },
+        RIGHT: { x: CHAIN_CONFIG.SPREAD, y: SIGN_DIMENSIONS.HEIGHT/2, z: 0 }
+    }
+};
+
+// Physics configuration for the sign
+const SIGN_PHYSICS = {
+    LINEAR_DAMPING: 1.0,      // Resistance to movement through space
+    ANGULAR_DAMPING: 0.8,     // Resistance to rotation
+    INITIAL_VELOCITY: {       // Starting velocities
+        LINEAR: { x: 0, y: 0, z: -5 },  // Negative y = downward force
+        ANGULAR: { x: 0, y: 0, z: 0 }
+    },
+    USE_CCD: true            // Enable Continuous Collision Detection
+};
+
 await RAPIER.init();
 // ----- Variables
 let resize_move = false;
@@ -71,18 +120,136 @@ function init() {
     primary_container = new PrimaryContainer(world, scene, viewable_ui.get_camera());
     new BackgroundFloor(world, scene, viewable_ui.get_camera());
 
-    // TODO Test instruction cube
-    const test_material = new THREE.MeshStandardMaterial({color: 0xffffff});
-    const test_geometry = new THREE.BoxGeometry(3, 3, 3);
-    const test_mesh = new THREE.Mesh(test_geometry, test_material);
-    test_mesh.castShadow = true;
-    test_mesh.name = `${TYPES.UNIQUE}`;
-    scene.add(test_mesh);
-    const test_body = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic()
-    .setTranslation(0, -2, -5).setCanSleep(false));
-    const test_shape = RAPIER.ColliderDesc.cuboid(0.5, 0.5, 0.5).setMass(1).setRestitution(1.1);
-    world.createCollider(test_shape, test_body);
-    primary_container.dynamic_bodies.push([test_mesh, test_body]);
+
+    // TODO OOOOO
+    // TODO Create a Rigid object in Rapier but fixed() not dynamic()
+    //          Will serve as cross beam to hold up sign
+    // TODO Once crossbeam exists create joints using rapier to attach the two
+    // TODO Then make cross beam invisible
+    const beam_geometry = new THREE.BoxGeometry(
+        BEAM_DIMENSIONS.WIDTH, 
+        BEAM_DIMENSIONS.HEIGHT, 
+        BEAM_DIMENSIONS.DEPTH
+    );
+    const beam_material = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0
+    });
+    const beam_mesh = new THREE.Mesh(beam_geometry, beam_material);
+    scene.add(beam_mesh);
+    const beam_body = world.createRigidBody(
+        RAPIER.RigidBodyDesc.fixed()
+        .setTranslation(
+            viewable_ui.get_camera().position.x + ASSEMBLY_POSITION.X_OFFSET,
+            viewable_ui.get_camera().position.y + ASSEMBLY_POSITION.Y_OFFSET,
+            viewable_ui.get_camera().position.z + ASSEMBLY_POSITION.Z_OFFSET
+        )
+        .setCanSleep(false)
+    );
+    const beam_shape = RAPIER.ColliderDesc.cuboid(20, 1.5, 1.5);
+    world.createCollider(beam_shape, beam_body);
+    primary_container.dynamic_bodies.push([beam_mesh, beam_body]);
+    // Create an SVG image element
+    const svgImage = new Image();
+    svgImage.onload = () => {
+        // Create canvas and context
+        const canvas = document.createElement('canvas');
+        canvas.width = svgImage.width;
+        canvas.height = svgImage.height;
+        const context = canvas.getContext('2d');
+        // Draw SVG to canvas
+        context.drawImage(svgImage, 0, 0);
+        // Create texture from canvas
+        const texture = new THREE.CanvasTexture(canvas);
+        // Create material with texture
+        const test_material = new THREE.MeshStandardMaterial({
+            map: texture,
+            side: THREE.DoubleSide
+        });
+        // Create test object
+        const test_geometry = new THREE.BoxGeometry(
+            SIGN_DIMENSIONS.WIDTH, 
+            SIGN_DIMENSIONS.HEIGHT, 
+            SIGN_DIMENSIONS.DEPTH
+        );
+        const test_mesh = new THREE.Mesh(test_geometry, test_material);
+        test_mesh.castShadow = true;
+        test_mesh.name = `${TYPES.UNIQUE}`;
+        scene.add(test_mesh);
+        // Create test physics object
+        const test_body = world.createRigidBody(
+            RAPIER.RigidBodyDesc
+            .dynamic()
+            .setTranslation(
+                viewable_ui.get_camera().position.x + ASSEMBLY_POSITION.X_OFFSET,
+                beam_mesh.position.y - (CHAIN_CONFIG.LENGTH + SIGN_DIMENSIONS.HEIGHT/2),
+                beam_mesh.position.z
+            )
+            .setLinearDamping(SIGN_PHYSICS.LINEAR_DAMPING)
+            .setAngularDamping(SIGN_PHYSICS.ANGULAR_DAMPING)
+            .setCcdEnabled(SIGN_PHYSICS.USE_CCD)
+            .setCanSleep(false)
+        );
+        // Apply initial velocities
+        test_body.setLinvel(SIGN_PHYSICS.INITIAL_VELOCITY.LINEAR, true);
+        test_body.setAngvel(SIGN_PHYSICS.INITIAL_VELOCITY.ANGULAR, true);
+        const test_shape = RAPIER.ColliderDesc.cuboid(5, 5, 0.005);
+        world.createCollider(test_shape, test_body);
+        
+        // Create intermediate objects for the chain
+        const left_chain = world.createRigidBody(
+            RAPIER.RigidBodyDesc.dynamic()
+            .setTranslation(
+                beam_mesh.position.x - CHAIN_CONFIG.SPREAD,
+                beam_mesh.position.y - CHAIN_CONFIG.LENGTH,
+                beam_mesh.position.z
+            )
+            .setLinearDamping(0.8)
+            .setAngularDamping(0.8)
+        );
+        const right_chain = world.createRigidBody(
+            RAPIER.RigidBodyDesc.dynamic()
+            .setTranslation(
+                beam_mesh.position.x + CHAIN_CONFIG.SPREAD,
+                beam_mesh.position.y - CHAIN_CONFIG.LENGTH,
+                beam_mesh.position.z
+            )
+            .setLinearDamping(0.8)
+            .setAngularDamping(0.8)
+        );
+
+        // Create joints from beam to chain pieces
+        const top_left_joint = RAPIER.JointData.spherical(
+            JOINT_ANCHORS.BEAM.LEFT,
+            JOINT_ANCHORS.CHAIN.TOP
+        );
+        world.createImpulseJoint(top_left_joint, beam_body, left_chain, true);
+
+        const top_right_joint = RAPIER.JointData.spherical(
+            JOINT_ANCHORS.BEAM.RIGHT,
+            JOINT_ANCHORS.CHAIN.TOP
+        );
+        world.createImpulseJoint(top_right_joint, beam_body, right_chain, true);
+
+        // Create joints from chain pieces to sign
+        const bottom_left_joint = RAPIER.JointData.spherical(
+            JOINT_ANCHORS.CHAIN.BOTTOM,
+            JOINT_ANCHORS.SIGN.LEFT
+        );
+        world.createImpulseJoint(bottom_left_joint, left_chain, test_body, true);
+
+        const bottom_right_joint = RAPIER.JointData.spherical(
+            JOINT_ANCHORS.CHAIN.BOTTOM,
+            JOINT_ANCHORS.SIGN.RIGHT
+        );
+        world.createImpulseJoint(bottom_right_joint, right_chain, test_body, true);
+
+        primary_container.dynamic_bodies.push([test_mesh, test_body]);
+    };
+    svgImage.src = 'images/MouseControlMenu.svg';
+
+
 
     // Start animation loop after everything is initialized
     app_renderer.set_animation_loop(animate);
