@@ -30,6 +30,8 @@ let grabbed_cube = null;
 let left_mouse_down = false;
 let right_mouse_down = false;
 let construction_acknowledged = false;
+let primary_instruction_sign = null;
+let secondary_instruction_sign = null;
 
 /** Initializes the main scene */
 function init() {
@@ -69,9 +71,6 @@ function init() {
     new BackgroundLighting(scene);
     primary_container = new PrimaryContainer(world, scene, viewable_ui.get_camera());
     new BackgroundFloor(world, scene, viewable_ui.get_camera());
-    // TODO OOOOO
-    // TODO Make this only appear when the hide button has been clicked
-    new ControlMenu(scene, viewable_ui.get_camera(), world, primary_container, RAPIER);
     // Start animation loop after everything is initialized
     app_renderer.set_animation_loop(animate);
     app_renderer.add_event_listener('mouseout', () => {
@@ -83,6 +82,19 @@ function init() {
 
 /** Primary animation function run every frame by renderer */
 function animate() {
+    // Check if instructions need spawning
+    if(viewable_ui.is_primary_triggered() && primary_instruction_sign == null) {
+        console.log("Big man");
+        // TODO OOOOO
+        // TODO Make it first spawn off screen
+        // TODO Add more inital z force than it already has
+        // TODO Then tween it to its on screen position with elastic after effect
+        //          Should hopefully look cool with the joint
+        // TODO Create and add logic for secondary menu to appear when an object has been grabbed
+        primary_instruction_sign = new ControlMenu(scene, viewable_ui.get_camera(), world, primary_container, RAPIER);
+    } else if(viewable_ui.is_secondary_triggered() && secondary_instruction_sign == null) {
+        console.log("Bazinga");
+    }
     // Handle the overlay
     updateTween();
     if(resize_move) {

@@ -134,6 +134,14 @@ export class ViewableUI {
 
     // ----- Getters
 
+    is_primary_triggered() {
+        return this.get_overlay().primary_control_trigger;
+    }
+
+    is_secondary_triggered() {
+        return this.get_overlay().secondary_control_trigger;
+    }
+
     is_column_left_side() {
         return this.get_overlay().is_label_column_left_side();
     }
