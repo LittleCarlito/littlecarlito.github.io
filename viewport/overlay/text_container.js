@@ -21,7 +21,7 @@ export class TextContainer {
         Object.values(CATEGORIES).forEach((category, i) => {
             if (typeof category === 'function') return; // Skip helper methods
             const text_box = new THREE.Object3D();
-            text_box.position.x = get_associated_position(WEST, this.camera);
+            text_box.position.x = get_associated_position(WEST, this.camera) * 2;
             text_box.position.y = this.get_text_box_y();
             text_box.simple_name = category.value;
             text_box.name = `${TYPES.TEXT}${category.value}`;
@@ -196,7 +196,7 @@ export class TextContainer {
         }
         this.text_box_container.children.forEach(c => {
             if(c.name != this.focused_text_name) {
-                c.position.x = get_associated_position(WEST, this.camera);
+                c.position.x = get_associated_position(WEST, this.camera) * 2;
                 c.position.y = this.get_text_box_y(this.camera);
             }
         });
