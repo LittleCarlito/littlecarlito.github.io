@@ -13,12 +13,6 @@ export const SIGN_DIMENSIONS = {
     HEIGHT: 10,
     DEPTH: 0.01
 };
-// Position of the entire assembly relative to camera
-export const ASSEMBLY_POSITION = {
-    X_OFFSET: 10,      // How far right of camera
-    Y_OFFSET: 8,     // How high up from camera
-    Z_OFFSET: -15     // How far in front of camera
-};
 // Chain configuration
 export const CHAIN_CONFIG = {
     SPREAD: 5,        // How far apart the chains are (half of beam width)
@@ -78,16 +72,22 @@ export class ControlMenu {
     left_upper_joint;
     right_lower_joint;
     right_upper_joint;
+    // Assembly position
+    assembly_position;
 
     constructor(incoming_parent, incoming_camera, incoming_world, primary_container, RAPIER) {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.world = incoming_world;
-        // TODO OOOOO
-        // TODO Create a Rigid object in Rapier but fixed() not dynamic()
-        //          Will serve as cross beam to hold up sign
-        // TODO Once crossbeam exists create joints using rapier to attach the two
-        // TODO Then make cross beam invisible
+        
+        // Calculate assembly position based on camera
+        this.assembly_position = {
+            x: this.camera.position.x + 10,  // 10 units right of camera
+            y: this.camera.position.y + 8,   // 8 units above camera
+            z: this.camera.position.z - 15   // 15 units in front of camera
+        };
+
+        // Beam creation
         this.beam_geometry = new THREE.BoxGeometry(
             BEAM_DIMENSIONS.WIDTH, 
             BEAM_DIMENSIONS.HEIGHT, 
@@ -101,18 +101,19 @@ export class ControlMenu {
         this.beam_mesh = new THREE.Mesh(this.beam_geometry, this.beam_material);
         this.parent.add(this.beam_mesh);
         this.beam_body = this.world.createRigidBody(
-            RAPIER.RigidBodyDesc.fixed()
+            RAPIER.RigidBodyDesc
+            .kinematicPositionBased()
             .setTranslation(
-                this.camera.position.x + ASSEMBLY_POSITION.X_OFFSET,
-                this.camera.position.y + ASSEMBLY_POSITION.Y_OFFSET,
-                this.camera.position.z + ASSEMBLY_POSITION.Z_OFFSET
+                this.assembly_position.x,
+                this.assembly_position.y,
+                this.assembly_position.z
             )
             .setCanSleep(false)
         );
         this.beam_shape = RAPIER.ColliderDesc.cuboid(20, 1.5, 1.5);
         this.world.createCollider(this.beam_shape, this.beam_body);
         primary_container.dynamic_bodies.push([this.beam_mesh, this.beam_body]);
-        // Create an SVG image element
+        // Sign creation
         this.sign_image = new Image();
         this.sign_image.onload = () => {
             // Create canvas and context
@@ -144,7 +145,7 @@ export class ControlMenu {
                 RAPIER.RigidBodyDesc
                 .dynamic()
                 .setTranslation(
-                    this.camera.position.x + ASSEMBLY_POSITION.X_OFFSET,
+                    this.assembly_position.x,
                     this.beam_mesh.position.y - (CHAIN_CONFIG.LENGTH + SIGN_DIMENSIONS.HEIGHT/2),
                     this.beam_mesh.position.z
                 )
@@ -158,7 +159,6 @@ export class ControlMenu {
             this.sign_body.setAngvel(SIGN_PHYSICS.INITIAL_VELOCITY.ANGULAR, true);
             this.sign_shape = RAPIER.ColliderDesc.cuboid(5, 5, 0.005);
             this.world.createCollider(this.sign_shape, this.sign_body);
-            
             // Create intermediate objects for the chain
             this.left_chain = this.world.createRigidBody(
                 RAPIER.RigidBodyDesc.dynamic()
@@ -180,33 +180,28 @@ export class ControlMenu {
                 .setLinearDamping(0.8)
                 .setAngularDamping(0.8)
             );
-
             // Create joints from beam to chain pieces
             this.left_upper_joint = RAPIER.JointData.spherical(
                 JOINT_ANCHORS.BEAM.LEFT,
                 JOINT_ANCHORS.CHAIN.TOP
             );
             this.world.createImpulseJoint(this.left_upper_joint, this.beam_body, this.left_chain, true);
-
             this.right_upper_joint = RAPIER.JointData.spherical(
                 JOINT_ANCHORS.BEAM.RIGHT,
                 JOINT_ANCHORS.CHAIN.TOP
             );
             this.world.createImpulseJoint(this.right_upper_joint, this.beam_body, this.right_chain, true);
-
             // Create joints from chain pieces to sign
             this.left_lower_joint = RAPIER.JointData.spherical(
                 JOINT_ANCHORS.CHAIN.BOTTOM,
                 JOINT_ANCHORS.SIGN.LEFT
             );
             this.world.createImpulseJoint(this.left_lower_joint, this.left_chain, this.sign_body, true);
-
             this.right_lower_joint = RAPIER.JointData.spherical(
                 JOINT_ANCHORS.CHAIN.BOTTOM,
                 JOINT_ANCHORS.SIGN.RIGHT
             );
             this.world.createImpulseJoint(this.right_lower_joint, this.right_chain, this.sign_body, true);
-
             primary_container.dynamic_bodies.push([this.sign_mesh, this.sign_body]);
         };
         this.sign_image.src = IMAGE_PATH;

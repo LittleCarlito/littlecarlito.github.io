@@ -86,11 +86,7 @@ function animate() {
     if(viewable_ui.is_primary_triggered() && primary_instruction_sign == null) {
         console.log("Big man");
         // TODO OOOOO
-        // TODO Have hide button revealing break chains
-        // TODO Make it first spawn off screen
-        // TODO Add more inital z force than it already has
-        // TODO Then tween it to its on screen position with elastic after effect
-        //          Should hopefully look cool with the joint
+        // TODO Make it spawn WAAAAYYY off in the distance and come zooming at the camera using a tween
         // TODO Create and add logic for secondary menu to appear when an object has been grabbed
         primary_instruction_sign = new ControlMenu(scene, viewable_ui.get_camera(), world, primary_container, RAPIER);
     } else if(!viewable_ui.is_overlay_hidden() && primary_instruction_sign != null) {
