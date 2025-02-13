@@ -5,7 +5,7 @@ import { PrimaryContainer } from './background/primary_container';
 import { BackgroundFloor } from './background/background_floor';
 import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
-import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES, WEST } from './viewport/overlay/common';
+import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/common';
 import { AppRenderer } from './common/app_renderer';
 import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/common';
 
@@ -70,6 +70,20 @@ function init() {
     new BackgroundLighting(scene);
     primary_container = new PrimaryContainer(world, scene, viewable_ui.get_camera());
     new BackgroundFloor(world, scene, viewable_ui.get_camera());
+
+    // TODO Test instruction cube
+    const test_material = new THREE.MeshStandardMaterial({color: 0xffffff});
+    const test_geometry = new THREE.BoxGeometry(3, 3, 3);
+    const test_mesh = new THREE.Mesh(test_geometry, test_material);
+    test_mesh.castShadow = true;
+    test_mesh.name = `${TYPES.UNIQUE}`;
+    scene.add(test_mesh);
+    const test_body = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic()
+    .setTranslation(0, -2, -5).setCanSleep(false));
+    const test_shape = RAPIER.ColliderDesc.cuboid(0.5, 0.5, 0.5).setMass(1).setRestitution(1.1);
+    world.createCollider(test_shape, test_body);
+    primary_container.dynamic_bodies.push([test_mesh, test_body]);
+
     // Start animation loop after everything is initialized
     app_renderer.set_animation_loop(animate);
     app_renderer.add_event_listener('mouseout', () => {
