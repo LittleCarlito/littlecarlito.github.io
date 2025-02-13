@@ -28,9 +28,28 @@ let hovered_cube_name = "";
 let grabbed_cube = null;
 let left_mouse_down = false;
 let right_mouse_down = false;
+let construction_acknowledged = false;
 
 /** Initializes the main scene */
 function init() {
+    // Show the under construction modal
+    fetch('pages/under_construction.html')
+        .then(response => response.text())
+        .then(html => {
+            document.body.insertAdjacentHTML('beforeend', html);
+            const modal = document.getElementById('construction-modal');
+            const acknowledgeBtn = document.getElementById('acknowledge-btn');
+            
+            // Show the modal
+            modal.style.display = 'block';
+            
+            // Handle the acknowledge button click
+            acknowledgeBtn.addEventListener('click', () => {
+                modal.style.display = 'none';
+                construction_acknowledged = true;
+            });
+        });
+
     scene = new THREE.Scene();
     scene.background = TEXTURE_LOADER.load(BACKGROUND_IMAGE);
     window.addEventListener('resize', handle_resize);
@@ -133,81 +152,87 @@ function handle_mouse_move(e) {
             e.movementY * sensitivity
         );
     }
-    // Handle intersections
-    const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
-    if(found_intersections.length > 0 && ! viewable_ui.get_overlay().is_swapping_sides()) {
-        const intersected_object = found_intersections[0].object;
-        const object_name = intersected_object.name;
-        const name_type = object_name.split("_")[0] + "_";
-        // Handle label hover
-        switch(name_type) {
-            case TYPES.LABEL:
-                viewable_ui.get_overlay().handle_hover(intersected_object);
-                break;
-            case TYPES.FLOOR:
-                viewable_ui.get_overlay().reset_hover();
-                break;
-            case TYPES.CUBE:
-                if(viewable_ui.is_overlay_hidden()) {
-                    hovered_cube_name = object_name;
-                } else {
-                    hovered_cube_name = "";
-                }
-            default:
-                break;
+    if(construction_acknowledged) {
+        // Handle intersections
+        const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
+        if(found_intersections.length > 0 && ! viewable_ui.get_overlay().is_swapping_sides()) {
+            const intersected_object = found_intersections[0].object;
+            const object_name = intersected_object.name;
+            const name_type = object_name.split("_")[0] + "_";
+            // Handle label hover
+            switch(name_type) {
+                case TYPES.LABEL:
+                    viewable_ui.get_overlay().handle_hover(intersected_object);
+                    break;
+                case TYPES.FLOOR:
+                    viewable_ui.get_overlay().reset_hover();
+                    break;
+                case TYPES.CUBE:
+                    if(viewable_ui.is_overlay_hidden()) {
+                        hovered_cube_name = object_name;
+                    } else {
+                        hovered_cube_name = "";
+                    }
+                default:
+                    break;
+            }
+        } else {
+            viewable_ui.get_overlay().reset_hover();
+            hovered_cube_name = "";
         }
-    } else {
-        viewable_ui.get_overlay().reset_hover();
-        hovered_cube_name = "";
     }
 }
 
 function handle_mouse_up(e) {
-    if(grabbed_cube) {
-        release_object(grabbed_cube, primary_container, RAPIER);
-        grabbed_cube = null;
-    }
-    viewable_ui.handle_mouse_up(get_intersect_list(e, viewable_ui.get_camera(), scene));
-    if (e.button === 0) {
-        viewable_ui.detect_rotation = false;
-        left_mouse_down = false;
-    }
-    if (e.button === 2) {
-        viewable_ui.detect_rotation = false;
-        right_mouse_down = false;
-    }
-}
-
-function handle_mouse_down(e) {
-    if(e.button === 0) {
-        left_mouse_down = true;
-    }
-    if(e.button === 2) {
-        right_mouse_down = true;
-        // If we're holding an object and right click is pressed, release it
+    if(construction_acknowledged) {
         if(grabbed_cube) {
             release_object(grabbed_cube, primary_container, RAPIER);
             grabbed_cube = null;
         }
+        viewable_ui.handle_mouse_up(get_intersect_list(e, viewable_ui.get_camera(), scene));
+        if (e.button === 0) {
+            viewable_ui.detect_rotation = false;
+            left_mouse_down = false;
+        }
+        if (e.button === 2) {
+            viewable_ui.detect_rotation = false;
+            right_mouse_down = false;
+        }
     }
-    if(left_mouse_down && right_mouse_down && viewable_ui.is_overlay_hidden()) {
-        viewable_ui.detect_rotation = true;
-    } else if(viewable_ui.is_overlay_hidden()) {
-        const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
-        found_intersections.forEach(i => {
-            switch(extract_type(i.object)) {
-                case TYPES.CUBE:
-                    if(left_mouse_down) {
-                        grabbed_cube = i.object;
-                        grab_object(grabbed_cube, viewable_ui.get_camera(), primary_container, RAPIER);
-                    } else {
-                        shove_object(i.object, viewable_ui.get_camera(), primary_container);
-                    }
-                    break;
-                default:
-                    break;
+}
+
+function handle_mouse_down(e) {
+    if(construction_acknowledged) {
+        if(e.button === 0) {
+            left_mouse_down = true;
+        }
+        if(e.button === 2) {
+            right_mouse_down = true;
+            // If we're holding an object and right click is pressed, release it
+            if(grabbed_cube) {
+                release_object(grabbed_cube, primary_container, RAPIER);
+                grabbed_cube = null;
             }
-        });
+        }
+        if(left_mouse_down && right_mouse_down && viewable_ui.is_overlay_hidden()) {
+            viewable_ui.detect_rotation = true;
+        } else if(viewable_ui.is_overlay_hidden()) {
+            const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
+            found_intersections.forEach(i => {
+                switch(extract_type(i.object)) {
+                    case TYPES.CUBE:
+                        if(left_mouse_down) {
+                            grabbed_cube = i.object;
+                            grab_object(grabbed_cube, viewable_ui.get_camera(), primary_container, RAPIER);
+                        } else {
+                            shove_object(i.object, viewable_ui.get_camera(), primary_container);
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            });
+        }
     }
 }
 
@@ -216,16 +241,18 @@ function handle_context_menu(e) {
 }
 
 function handle_wheel(e) {
-    if(grabbed_cube) {
-        if(e.deltaY < 0) {
-            zoom_object_in(grabbed_cube, primary_container, RAPIER);
+    if(construction_acknowledged) {
+        if(grabbed_cube) {
+            if(e.deltaY < 0) {
+                zoom_object_in(grabbed_cube, primary_container, RAPIER);
+            } else {
+                zoom_object_out(grabbed_cube, primary_container, RAPIER);
+            }
+            zoom_event = true;
+            resize_move = true;
         } else {
-            zoom_object_out(grabbed_cube, primary_container, RAPIER);
+            viewable_ui.handle_wheel(e);
         }
-        zoom_event = true;
-        resize_move = true;
-    } else {
-        viewable_ui.handle_wheel(e);
     }
 }
 
