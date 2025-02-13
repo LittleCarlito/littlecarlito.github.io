@@ -82,15 +82,21 @@ function init() {
 
 /** Primary animation function run every frame by renderer */
 function animate() {
+    // Test moving objects
+    const delta = clock.getDelta();
+    
+    // Add these logging statements
+    if (primary_instruction_sign) {
+        const beam_pos = primary_instruction_sign.beam_body.translation();
+        const beam_vel = primary_instruction_sign.beam_body.linvel();
+        console.log('Beam Position:', {x: beam_pos.x, y: beam_pos.y, z: beam_pos.z});
+        console.log('Beam Velocity:', {x: beam_vel.x, y: beam_vel.y, z: beam_vel.z});
+    }
     // Deal with primary instructions
     if(viewable_ui.is_primary_triggered() && primary_instruction_sign == null) {
         console.log("Big man");
         // TODO OOOOO
-        // TODO Have hide button revealing break chains
-        // TODO Make it first spawn off screen
-        // TODO Add more inital z force than it already has
-        // TODO Then tween it to its on screen position with elastic after effect
-        //          Should hopefully look cool with the joint
+        // TODO Make it spawn WAAAAYYY off in the distance and come zooming at the camera using a tween
         // TODO Create and add logic for secondary menu to appear when an object has been grabbed
         primary_instruction_sign = new ControlMenu(scene, viewable_ui.get_camera(), world, primary_container, RAPIER);
     } else if(!viewable_ui.is_overlay_hidden() && primary_instruction_sign != null) {
@@ -122,7 +128,6 @@ function animate() {
     } else {
         primary_container.decativate_all_objects();
     }
-    const delta = clock.getDelta();
     world.timestep = Math.min(delta, 0.1);
     world.step();
     // Background object updates
