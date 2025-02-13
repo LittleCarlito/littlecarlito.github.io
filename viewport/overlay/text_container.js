@@ -11,7 +11,6 @@ export class TextContainer {
     text_frames = [];
     focused_text_name = "";
     particles = [];
-    education_confetti_shown = false;
 
     constructor(incoming_parent, incoming_camera) {
         this.parent = incoming_parent;
@@ -71,27 +70,6 @@ export class TextContainer {
                 const frameIndex = this.text_frames.findIndex(frame => frame.simple_name === category);
                 if (frameIndex !== -1) {
                     const frame = this.text_frames[frameIndex];
-                    // Create confetti if it's the education frame and hasn't been shown yet
-                    const textBox = this.text_box_container.getObjectByName(new_name);
-                    if (textBox && category === 'education' && !this.education_confetti_shown) {
-                        // Force position to exact center of screen/overlay
-                        const position = new THREE.Vector3(-this.get_focused_text_x(), this.container_height - 7, 30);
-                        
-                        if(FLAGS.TWEEN_LOGS) {
-                            console.log(`Confetti Position: (${position.x}, ${position.y}, ${position.z})`);
-                        }
-                        
-                        // Create a dummy object for the delay tween
-                        const dummy = { value: 0 };
-                        new Tween(dummy)
-                            .to({ value: 1 }, 200) // 500ms delay
-                            .start()
-                            .onComplete(() => {
-                                frame.create_confetti_burst(position);
-                                this.education_confetti_shown = true; // Set flag after showing confetti
-                            });
-                    }
-                    
                     // Trigger frame animation
                     if (frame.iframe.contentWindow && typeof frame.iframe.contentWindow.trigger_frame_animation === 'function') {
                         frame.iframe.contentWindow.trigger_frame_animation();

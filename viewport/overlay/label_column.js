@@ -21,6 +21,7 @@ export class LabelColumn {
         Object.values(CATEGORIES).forEach((category, i) => {
             if (typeof category === 'function') return; // Skip helper methods
             const button_container = new THREE.Object3D();
+            button_container.simple_name = category.value;
             button_container.name = `${TYPES.CONATINER}${category.value}`
             this.container_column.add(button_container);
             const button_texture = TEXTURE_LOADER.load(category.icon);
@@ -33,6 +34,7 @@ export class LabelColumn {
                     transparent: true,
                     depthTest: false
                 }));
+            button_option.simple_name = category.value;
             button_option.name = `${TYPES.LABEL}${category.value}`
             button_option.position.y = i * 3;
             button_container.add(button_option);
