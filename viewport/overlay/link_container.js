@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { Easing, Tween } from 'three/examples/jsm/libs/tween.module.js';
 import { clamp } from 'three/src/math/MathUtils.js';
-import { get_screen_size, get_associated_position, SOUTH, TYPES, LINK_RADIUS, 
-    LINKS, TEXTURE_LOADER } from './common';
+import { get_screen_size, get_associated_position, SOUTH, TYPES, LINKS, TEXTURE_LOADER } from './common';
 import { FLAGS } from '../../common';
+
+const LINK_RADIUS = .44;
 
 export class LinkContainer {
     constructor(incoming_parent, incoming_camera) {
@@ -14,9 +15,8 @@ export class LinkContainer {
         this.link_container.position.y = this.get_link_container_y();
         this.parent.add(this.link_container);
         // Create the link icons
-        const calced_radius = this.get_link_radius(this.camera);
         Object.values(LINKS).forEach((link, l) => {
-            const circle_geometry = new THREE.CircleGeometry(calced_radius);
+            const circle_geometry = new THREE.CircleGeometry(LINK_RADIUS);
             const circle_texture = TEXTURE_LOADER.load(link.icon_path);
             circle_texture.colorSpace = THREE.SRGBColorSpace;
             const link_button = new THREE.Mesh(
@@ -27,7 +27,8 @@ export class LinkContainer {
                     depthTest: false
                 }));
             link_button.name = `${TYPES.LINK}${link.value}`;
-            link_button.position.x += calced_radius * (3.5 * l);
+            // todo other thing here
+            link_button.position.x += LINK_RADIUS * (3.5 * l);
             this.link_container.add(link_button);
         });
     }
