@@ -211,4 +211,38 @@ export class ControlMenu {
         };
         this.sign_image.src = IMAGE_PATH;
     }
+
+    break_chains() {
+        try {
+            // Remove all joints first
+            if(this.left_upper_joint) {
+                this.world.removeImpulseJoint(this.left_upper_joint);
+                this.left_upper_joint = null;
+            }
+            if(this.right_upper_joint) {
+                this.world.removeImpulseJoint(this.right_upper_joint);
+                this.right_upper_joint = null;
+            }
+            if(this.left_lower_joint) {
+                this.world.removeImpulseJoint(this.left_lower_joint);
+                this.left_lower_joint = null;
+            }
+            if(this.right_lower_joint) {
+                this.world.removeImpulseJoint(this.right_lower_joint);
+                this.right_lower_joint = null;
+            }
+
+            // Remove the chain rigid bodies
+            if(this.left_chain) {
+                this.world.removeRigidBody(this.left_chain);
+                this.left_chain = null;
+            }
+            if(this.right_chain) {
+                this.world.removeRigidBody(this.right_chain);
+                this.right_chain = null;
+            }
+        } catch(e) {
+            console.warn("Error during chain cleanup:", e);
+        }
+    }
 }
