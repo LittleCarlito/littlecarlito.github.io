@@ -200,18 +200,20 @@ export class ControlMenu {
             this.world.createCollider(this.sign_shape, this.sign_body);
             // Create intermediate objects for the chain
             this.left_chain = this.world.createRigidBody(
-                RAPIER.RigidBodyDesc.kinematicVelocityBased()
+                RAPIER.RigidBodyDesc
+                .kinematicVelocityBased()
                 .setTranslation(
                     this.top_beam_mesh.position.x - CHAIN_CONFIG.SPREAD,
                     this.top_beam_mesh.position.y - CHAIN_CONFIG.LENGTH,
                     this.top_beam_mesh.position.z
                 )
                 .setLinvel(0, 0, incoming_speed)
-                .setLinearDamping(SIGN_PHYSICS.LINEAR_DAMPING)    // Moderate damping
-                .setAngularDamping(SIGN_PHYSICS.ANGULAR_DAMPING)   // Slightly higher angular damping to reduce spinning
+                .setLinearDamping(SIGN_PHYSICS.LINEAR_DAMPING)
+                .setAngularDamping(SIGN_PHYSICS.ANGULAR_DAMPING)
             );
             this.right_chain = this.world.createRigidBody(
-                RAPIER.RigidBodyDesc.kinematicVelocityBased()
+                RAPIER.RigidBodyDesc
+                .kinematicVelocityBased()
                 .setTranslation(
                     this.top_beam_mesh.position.x + CHAIN_CONFIG.SPREAD,
                     this.top_beam_mesh.position.y - CHAIN_CONFIG.LENGTH,
@@ -222,18 +224,24 @@ export class ControlMenu {
                 .setAngularDamping(SIGN_PHYSICS.ANGULAR_DAMPING)   // Slightly higher angular damping to reduce spinning
             );
             this.bottom_chain = this.world.createRigidBody(
-                RAPIER.RigidBodyDesc.kinematicVelocityBased()
+                RAPIER.RigidBodyDesc
+                .dynamic()
                 .setTranslation(
                     this.bottom_beam_mesh.position.x,
                     this.bottom_beam_mesh.position.y + CHAIN_CONFIG.LENGTH,
                     this.bottom_beam_mesh.position.z
                 )
-                .setLinvel(0, 0, incoming_speed)
                 .setLinearDamping(SIGN_PHYSICS.LINEAR_DAMPING)
                 .setAngularDamping(SIGN_PHYSICS.ANGULAR_DAMPING)
             );
             // TODO OOOOO
             // TODO Attach bottom chain to bottom beam and bottom of sign
+            // TODO Tried it and its no good
+            //          This is because it is not a dynamic body
+            //              It is not affected by gravity and will not fall
+            //              If we want it to move with the kinematic body they need to
+            //                  Be switched to dynamic bodies themselves
+            //                  OR we figure out motors on joints and i kinda don't wanna do that right now
 
             // Create joints from beam to chain pieces
             this.left_upper_joint = RAPIER.JointData.spherical(
