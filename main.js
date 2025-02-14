@@ -84,18 +84,12 @@ function init() {
 function animate() {
     // Test moving objects
     const delta = clock.getDelta();
-    
-    // Add these logging statements
-    if (primary_instruction_sign) {
-        const beam_pos = primary_instruction_sign.beam_body.translation();
-        const beam_vel = primary_instruction_sign.beam_body.linvel();
-        console.log('Beam Position:', {x: beam_pos.x, y: beam_pos.y, z: beam_pos.z});
-        console.log('Beam Velocity:', {x: beam_vel.x, y: beam_vel.y, z: beam_vel.z});
-    }
     // Deal with primary instructions
     if(viewable_ui.is_primary_triggered() && primary_instruction_sign == null) {
         console.log("Big man");
         // TODO OOOOO
+        // TODO Create a bottom bar with a chain to the middle of the control window so it can really haul ass
+        //          Won't have to deal with dampening then
         // TODO Make it spawn WAAAAYYY off in the distance and come zooming at the camera using a tween
         // TODO Create and add logic for secondary menu to appear when an object has been grabbed
         primary_instruction_sign = new ControlMenu(scene, viewable_ui.get_camera(), world, primary_container, RAPIER);
