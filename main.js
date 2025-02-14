@@ -9,6 +9,7 @@ import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewp
 import { AppRenderer } from './common/app_renderer';
 import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/common';
 import { ControlMenu } from './background/control_menu';
+import { FLAGS } from './common';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'images/gradient.jpg';
@@ -35,21 +36,24 @@ let secondary_instruction_sign = null;
 
 /** Initializes the main scene */
 function init() {
-    // Show the under construction modal
-    fetch('pages/under_construction.html')
-        .then(response => response.text())
-        .then(html => {
-            document.body.insertAdjacentHTML('beforeend', html);
-            const modal = document.getElementById('construction-modal');
-            const acknowledgeBtn = document.getElementById('acknowledge-btn');
-            // Show the modal
-            modal.style.display = 'block';
-            // Handle the acknowledge button click
-            acknowledgeBtn.addEventListener('click', () => {
-                modal.style.display = 'none';
-                construction_acknowledged = true;
+    if(FLAGS.CONSTRUCTION_GREETING) {    // Show the under construction modal
+        fetch('pages/under_construction.html')
+            .then(response => response.text())
+            .then(html => {
+                document.body.insertAdjacentHTML('beforeend', html);
+                const modal = document.getElementById('construction-modal');
+                const acknowledgeBtn = document.getElementById('acknowledge-btn');
+                // Show the modal
+                modal.style.display = 'block';
+                // Handle the acknowledge button click
+                acknowledgeBtn.addEventListener('click', () => {
+                    modal.style.display = 'none';
+                    construction_acknowledged = true;
+                });
             });
-        });
+        }
+        
+
     // ----- Setup
     scene = new THREE.Scene();
     scene.background = TEXTURE_LOADER.load(BACKGROUND_IMAGE);
@@ -88,7 +92,9 @@ function animate() {
     if(viewable_ui.is_primary_triggered() && primary_instruction_sign == null) {
         console.log("Big man");
         // TODO OOOOO
-        // TODO Create a bottom bar with a chain to the middle of the control window so it can really haul ass
+        // TODO Make a chain spherical joint combo for the bottom bar to hold it in place
+        //          Control the amount it swings by the distance of the chain/from the bottom bar
+        //              Create more links if you want more movement
         //          Won't have to deal with dampening then
         // TODO Make it spawn WAAAAYYY off in the distance and come zooming at the camera using a tween
         // TODO Create and add logic for secondary menu to appear when an object has been grabbed
