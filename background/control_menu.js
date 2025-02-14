@@ -15,14 +15,15 @@ export const SIGN_DIMENSIONS = {
 };
 // Chain configuration
 export const CHAIN_CONFIG = {
-    SPREAD: 5,        // How far apart the chains are (half of beam width)
-    LENGTH: 0.5       // Minimum length to avoid clipping
+    SPREAD: 5,
+    LENGTH: 0.5
 };
-// Anchor points for joints (shouldn't need to change these)
+// Anchor points for joints
 export const JOINT_ANCHORS = {
     BEAM: {
         LEFT: { x: -CHAIN_CONFIG.SPREAD, y: 0, z: 0 },
-        RIGHT: { x: CHAIN_CONFIG.SPREAD, y: 0, z: 0 }
+        RIGHT: { x: CHAIN_CONFIG.SPREAD, y: 0, z: 0 },
+        BOTTOM: { x: 0, y: 0, z: 0 }
     },
     CHAIN: {
         TOP: { x: 0, y: 1, z: 0 },
@@ -30,7 +31,8 @@ export const JOINT_ANCHORS = {
     },
     SIGN: {
         LEFT: { x: -CHAIN_CONFIG.SPREAD, y: SIGN_DIMENSIONS.HEIGHT/2, z: 0 },
-        RIGHT: { x: CHAIN_CONFIG.SPREAD, y: SIGN_DIMENSIONS.HEIGHT/2, z: 0 }
+        RIGHT: { x: CHAIN_CONFIG.SPREAD, y: SIGN_DIMENSIONS.HEIGHT/2, z: 0 },
+        BOTTOM: { x: 0, y: -SIGN_DIMENSIONS.HEIGHT/2, z: 0 }
     }
 };
 
@@ -74,10 +76,13 @@ export class ControlMenu {
     // Chains
     left_chain;
     right_chain;
+    bottom_chain;
     left_lower_joint;
     left_upper_joint;
     right_lower_joint;
     right_upper_joint;
+    bottom_lower_joint;
+    bottom_uppwer_join;
     // Assembly position
     assembly_position;
 
@@ -119,7 +124,7 @@ export class ControlMenu {
         this.top_beam_shape = RAPIER.ColliderDesc.cuboid(20, 1.5, 1.5);
         this.world.createCollider(this.top_beam_shape, this.top_beam_body);
         primary_container.dynamic_bodies.push([this.top_beam_mesh, this.top_beam_body]);
-        // TODO Bottom beam creation
+        // Bottom beam creation
         this.bottom_beam_geometry = new THREE.BoxGeometry(
             BEAM_DIMENSIONS.WIDTH, 
             BEAM_DIMENSIONS.HEIGHT, 
@@ -216,6 +221,20 @@ export class ControlMenu {
                 .setLinearDamping(SIGN_PHYSICS.LINEAR_DAMPING)    // Moderate damping
                 .setAngularDamping(SIGN_PHYSICS.ANGULAR_DAMPING)   // Slightly higher angular damping to reduce spinning
             );
+            this.bottom_chain = this.world.createRigidBody(
+                RAPIER.RigidBodyDesc.kinematicVelocityBased()
+                .setTranslation(
+                    this.bottom_beam_mesh.position.x,
+                    this.bottom_beam_mesh.position.y + CHAIN_CONFIG.LENGTH,
+                    this.bottom_beam_mesh.position.z
+                )
+                .setLinvel(0, 0, incoming_speed)
+                .setLinearDamping(SIGN_PHYSICS.LINEAR_DAMPING)
+                .setAngularDamping(SIGN_PHYSICS.ANGULAR_DAMPING)
+            );
+            // TODO OOOOO
+            // TODO Attach bottom chain to bottom beam and bottom of sign
+
             // Create joints from beam to chain pieces
             this.left_upper_joint = RAPIER.JointData.spherical(
                 JOINT_ANCHORS.BEAM.LEFT,
@@ -227,6 +246,11 @@ export class ControlMenu {
                 JOINT_ANCHORS.CHAIN.TOP
             );
             this.world.createImpulseJoint(this.right_upper_joint, this.top_beam_body, this.right_chain, true);
+            this.bottom_upper_joint = RAPIER.JointData.spherical(
+                JOINT_ANCHORS.BEAM.BOTTOM,
+                JOINT_ANCHORS.CHAIN.BOTTOM
+            );
+            this.world.createImpulseJoint(this.bottom_upper_joint, this.bottom_beam_body, this.bottom_chain, true);
             // Create joints from chain pieces to sign
             this.left_lower_joint = RAPIER.JointData.spherical(
                 JOINT_ANCHORS.CHAIN.BOTTOM,
@@ -238,11 +262,21 @@ export class ControlMenu {
                 JOINT_ANCHORS.SIGN.RIGHT
             );
             this.world.createImpulseJoint(this.right_lower_joint, this.right_chain, this.sign_body, true);
+            this.bottom_lower_joint = RAPIER.JointData.spherical(
+                JOINT_ANCHORS.CHAIN.TOP,
+                JOINT_ANCHORS.SIGN.BOTTOM
+            );
+            this.world.createImpulseJoint(this.bottom_lower_joint, this.bottom_chain, this.sign_body, true);
             primary_container.dynamic_bodies.push([this.sign_mesh, this.sign_body]);
         };
         this.sign_image.src = IMAGE_PATH;
     }
 
+    // TODO Refactor break chains methods to be
+    //          Break top chains
+    //          Break bottom chains
+    //          Break chains
+    //              Calls both methods above
     break_chains() {
         try {
             // Remove all joints first
