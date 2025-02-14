@@ -75,46 +75,6 @@ function init() {
     new BackgroundLighting(scene);
     primary_container = new PrimaryContainer(world, scene, viewable_ui.get_camera());
     new BackgroundFloor(world, scene, viewable_ui.get_camera());
-
-    // TODO OOOOO
-    // TODO Figure out below to make the sign work better
-    // TODO Now joint another thin block to the bottom ofthis like a windchime flapping as it goes
-    const test_geometry = new THREE.BoxGeometry(3, 3, 3);
-    const test_material = new THREE.MeshStandardMaterial({ color: 0xffffff });
-    const test_mesh = new THREE.Mesh(test_geometry, test_material);
-    scene.add(test_mesh);
-    const test_body = world.createRigidBody(
-        RAPIER.RigidBodyDesc.dynamic()
-        .setTranslation(0, 10, -40)
-        .setGravityScale(0)
-        .setLinvel(0, 0, 10)
-        .setCanSleep(false)
-    );
-    const test_shape = RAPIER.ColliderDesc.cuboid(1.5, 1.5, 1.5).setMass(0).setRestitution(1.1);
-    world.createCollider(test_shape, test_body);
-    primary_container.dynamic_bodies.push([test_mesh, test_body]);
-    // TODO Windchime thingy
-    const chime_geometry = new THREE.BoxGeometry(.5, 10, .5);
-    const chime_material = new THREE.MeshStandardMaterial({ color: 0xffffff });
-    const chime_mesh = new THREE.Mesh(chime_geometry, chime_material);
-    scene.add(chime_mesh);
-    const chime_body = world.createRigidBody(
-        RAPIER.RigidBodyDesc.dynamic()
-        .setTranslation(0, 2, -40)
-        .setLinearDamping(1)
-        .setGravityScale(3)
-        .setCanSleep(false)
-    );
-    const chime_shape = RAPIER.ColliderDesc.cuboid(.25, .5, .25).setMass(1).setRestitution(1.1);
-    world.createCollider(chime_shape, chime_body);
-    primary_container.dynamic_bodies.push([chime_mesh, chime_body]);
-    // Test chain and joint
-    const chain_joint = RAPIER.JointData.spherical(
-        {x: 0, y: -1.5, z: 0},  // Anchor point on the test body
-        {x: 0, y: 5, z: 0}    // Anchor point on the chime body
-    );
-    world.createImpulseJoint(chain_joint, test_body, chime_body, true);
-
     // Start animation loop after everything is initialized
     app_renderer.set_animation_loop(animate);
     app_renderer.add_event_listener('mouseout', () => {
