@@ -5,7 +5,7 @@ export class ScrollMenu {
     parent;
     camera;
     world;
-
+    // Chain settings
     CHAIN_CONFIG = {
         POSITION: {
             X: 0,
@@ -33,6 +33,8 @@ export class ScrollMenu {
             IMAGE_PATH: 'images/ScrollControlMenu.svg'
         }
     };
+    chain_joints = [];
+    chains_broken = false;
 
     constructor(incoming_parent, incoming_camera, incoming_world, primary_container, incoming_RAPIER) {
         this.parent = incoming_parent;
@@ -40,7 +42,7 @@ export class ScrollMenu {
         this.world = incoming_world;
         this.RAPIER = incoming_RAPIER;
         // Chain configuration constants
-        this.CHAIN_CONFIG.POSITION.Z = this.camera.position.z - 10;
+        this.CHAIN_CONFIG.POSITION.Z = this.camera.position.z - 3;
         // Create anchor point
         const anchor_body = this.world.createRigidBody(
             this.RAPIER.RigidBodyDesc.fixed()
@@ -74,18 +76,23 @@ export class ScrollMenu {
                 this.CHAIN_CONFIG.SEGMENTS.LENGTH * 0.8,
                 8
             );
-            const link_material = new THREE.MeshStandardMaterial({ color: 0x888888 });
+            const link_material = new THREE.MeshStandardMaterial({ 
+                color: 0x888888,
+                transparent: true,
+                opacity: 0
+             });
             const link_mesh = new THREE.Mesh(link_geometry, link_material);
             link_mesh.rotation.x = Math.PI / 2;
             this.parent.add(link_mesh);
             primary_container.dynamic_bodies.push([link_mesh, segment_body]);
+            let created_joint;
             // Create spherical joint between segments
             if (i > 0) {
                 const joint_desc = this.RAPIER.JointData.spherical(
                     {x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0},
                     {x: 0, y: this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0}
                 );
-                this.world.createImpulseJoint(
+                created_joint = this.world.createImpulseJoint(
                     joint_desc,
                     segments[i-1],
                     segment_body,
@@ -97,13 +104,14 @@ export class ScrollMenu {
                     {x: 0, y: 0, z: 0},
                     {x: 0, y: this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0}
                 );
-                this.world.createImpulseJoint(
+                created_joint = this.world.createImpulseJoint(
                     joint_desc,
                     anchor_body,
                     segment_body,
                     true
                 );
             }
+            this.chain_joints.push(created_joint);
         }
         // Create and load the sign
         const sign_image = new Image();
@@ -160,5 +168,13 @@ export class ScrollMenu {
             primary_container.dynamic_bodies.push([sign_mesh, sign_body]);
         };
         sign_image.src = this.CHAIN_CONFIG.SIGN.IMAGE_PATH;
+    }
+
+    break_chains() {
+        this.chain_joints.forEach(joint => {
+            this.world.removeImpulseJoint(joint);
+        });
+        this.chain_joints = [];
+        this.chains_broken = true;
     }
 }

@@ -202,7 +202,7 @@ export class OverlayContainer {
             this.label_column.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
             this.link_container.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
             // Set the control menu to appear in animate
-            if(this.primary_control_trigger && !this.secondary_control_trigger) {
+            if(this.primary_control_trigger && !this.secondary_control_trigger && this.hide_button.is_overlay_hidden) {
                 this.secondary_control_trigger = true;
             }
             this.primary_control_trigger = true;

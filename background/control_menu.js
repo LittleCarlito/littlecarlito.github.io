@@ -73,12 +73,6 @@ export class ControlMenu {
     top_beam_mesh;
     top_beam_body;
     top_beam_shape;
-    // Bottom beam variables
-    bottom_beam_geometry;
-    bottom_beam_material;
-    bottom_beam_mesh;
-    bottom_beam_body;
-    bottom_beam_shape;
     // Sign variables
     sign_image;
     sign_canvas;
@@ -89,19 +83,10 @@ export class ControlMenu {
     sign_mesh;
     sign_body;
     sign_shape;
-    // Chains
-    left_chain;
-    right_chain;
-    bottom_chain;
-    left_lower_joint;
-    left_upper_joint;
-    right_lower_joint;
-    right_upper_joint;
-    bottom_lower_joint;
-    bottom_uppwer_join;
     // Assembly position
     assembly_position;
     sign_joint;
+    chains_broken = false;
     reached_target = false;
     last_log_time = 0;
     log_interval = 500;
@@ -221,10 +206,11 @@ export class ControlMenu {
     }
 
     break_chains() {
-        if(this.sign_joint) {
+        if(!this.chains_broken) {
             this.sign_body.setGravityScale(1);
             this.world.removeImpulseJoint(this.sign_joint);
             this.sign_joint = null;
+            this.chains_broken = true;
         }
     }
 

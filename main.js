@@ -93,21 +93,20 @@ function animate() {
     if((grabbed_cube != null  || viewable_ui.is_secondary_triggered()) && !tigger_secondary) {
         tigger_secondary = true;
     }
-
-    // TODO Switch the cube to be the secondary controls sign
     // Test moving objects
     const delta = clock.getDelta();
     // Deal with primary instructions
     if(viewable_ui.is_primary_triggered() && primary_instruction_sign == null) {
         primary_instruction_sign = new ControlMenu(scene, viewable_ui.get_camera(), world, primary_container, RAPIER);
-    } else if(!viewable_ui.is_overlay_hidden() && primary_instruction_sign != null) {
+    } else if(!viewable_ui.is_overlay_hidden() && primary_instruction_sign != null && !primary_instruction_sign.chains_broken) {
         primary_instruction_sign.break_chains();
     // Deal with secondary instructions
     } else if(tigger_secondary && secondary_instruction_sign == null && !chain_created) {
         primary_instruction_sign.break_chains();
         chain_created = true;
-        // TODO Create scroll menu
         secondary_instruction_sign = new ScrollMenu(scene, viewable_ui.get_camera(), world, primary_container, RAPIER);
+    } else if(secondary_instruction_sign != null && !viewable_ui.is_overlay_hidden()) {
+        secondary_instruction_sign.break_chains();
     }
     // Handle the overlay
     updateTween();
@@ -270,8 +269,10 @@ function handle_wheel(e) {
     if(construction_acknowledged) {
         if(grabbed_cube) {
             if(e.deltaY < 0) {
+                secondary_instruction_sign.break_chains();
                 zoom_object_in(grabbed_cube, primary_container, RAPIER);
             } else {
+                secondary_instruction_sign.break_chains();
                 zoom_object_out(grabbed_cube, primary_container, RAPIER);
             }
             zoom_event = true;
