@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { TYPES } from '../viewport/overlay/common';
+import { FLAGS } from '../common';
 
 export const IMAGE_PATH = 'images/MouseControlMenu.svg';
 // Sign and beam constants
@@ -41,15 +42,16 @@ export const JOINT_ANCHORS = {
 
 // Physics configuration for the sign
 export const SIGN_PHYSICS = {
-    LINEAR_DAMPING: 1,
-    ANGULAR_DAMPING: 1,
-    MASS: 50,
+    LINEAR_DAMPING: .6,
+    ANGULAR_DAMPING: .2,
+    GRAVITY_SCALE: 2,
+    MASS: 1,
     RESTITUTION: 1.1,
     INITIAL_VELOCITY: {
-        LINEAR: { x: 0, y: 0, z: -5 },
+        LINEAR: { x: 0, y: 0, z: 0 },
         ANGULAR: { x: 0, y: 0, z: 0 }
     },
-    USE_CCD: true            // Enable Continuous Collision Detection
+    USE_CCD: true
 };
 
 export class ControlMenu {
@@ -91,6 +93,11 @@ export class ControlMenu {
     // Assembly position
     assembly_position;
     sign_joint;
+    // Add these new properties
+    hasReachedTarget = false;
+    lastLogTime = 0;
+    logInterval = 500; // Log every 500ms
+    RAPIER; // Store RAPIER for later use
 
     constructor(incoming_parent, incoming_camera, incoming_world, primary_container, RAPIER, incoming_speed = 15) {
         this.parent = incoming_parent;
@@ -167,7 +174,7 @@ export class ControlMenu {
                     this.top_beam_mesh.position.y - (SIGN_SPACING + SIGN_DIMENSIONS.HEIGHT/2),
                     this.top_beam_mesh.position.z
                 )
-                .setLinvel(0, 0, 0)
+                .setGravityScale(SIGN_PHYSICS.GRAVITY_SCALE)
                 .setLinearDamping(SIGN_PHYSICS.LINEAR_DAMPING)
                 .setAngularDamping(SIGN_PHYSICS.ANGULAR_DAMPING)
                 .setCcdEnabled(SIGN_PHYSICS.USE_CCD)
@@ -179,15 +186,17 @@ export class ControlMenu {
             this.sign_shape = RAPIER.ColliderDesc.cuboid(5, 5, 0.005).setMass(SIGN_PHYSICS.MASS).setRestitution(SIGN_PHYSICS.RESTITUTION);
             this.world.createCollider(this.sign_shape, this.sign_body);
 
-            // Connect bottom of beam to top of sign with proper spacing
-            const sign_joint = RAPIER.JointData.spherical(
+            // Create revolute joint for forward/backward swinging
+            const sign_joint = RAPIER.JointData.revolute(
                 JOINT_ANCHORS.BEAM.BOTTOM,  // Anchor point on the beam
-                {                           // Updated anchor point for the sign
+                {                           // Anchor point for the sign
                     x: JOINT_ANCHORS.SIGN.TOP.x,
-                    y: JOINT_ANCHORS.SIGN.TOP.y + SIGN_SPACING,  // Add spacing to the Y coordinate
+                    y: JOINT_ANCHORS.SIGN.TOP.y + SIGN_SPACING,
                     z: JOINT_ANCHORS.SIGN.TOP.z
-                }
+                },
+                { x: 1, y: 0, z: 0 }       // Rotation axis (x-axis for forward/backward swing)
             );
+
             this.sign_joint = this.world.createImpulseJoint(
                 sign_joint, 
                 this.top_beam_body, 
@@ -198,12 +207,61 @@ export class ControlMenu {
             primary_container.dynamic_bodies.push([this.sign_mesh, this.sign_body]);
         };
         this.sign_image.src = IMAGE_PATH;
+        // Add at end of constructor
+        this.hasReachedTarget = false;
+        this.lastLogTime = 0;
+        this.logInterval = 500;
+        this.RAPIER = RAPIER; // Store RAPIER for later use
     }
 
     break_chains() {
         if (this.sign_joint) {
             this.world.removeImpulseJoint(this.sign_joint);
             this.sign_joint = null;
+        }
+    }
+
+    // Add new update method
+    update() {
+        const currentTime = performance.now();
+        // Log positions periodically
+        if (currentTime - this.lastLogTime > this.logInterval) {
+            const beamPos = this.top_beam_mesh.position;
+            const beamVel = this.top_beam_body.linvel();
+            if(FLAGS.PHYSICS_LOGS) {
+                console.log('=== Position Update ===');
+                console.log(`Top Beam - Position: (${beamPos.x.toFixed(2)}, ${beamPos.y.toFixed(2)}, ${beamPos.z.toFixed(2)})`);
+                console.log(`Top Beam - Velocity: (${beamVel.x.toFixed(2)}, ${beamVel.y.toFixed(2)}, ${beamVel.z.toFixed(2)})`);
+                if (this.sign_mesh && this.sign_body) {
+                    const signPos = this.sign_mesh.position;
+                    const signVel = this.sign_body.linvel();
+                    console.log(`Sign - Position: (${signPos.x.toFixed(2)}, ${signPos.y.toFixed(2)}, ${signPos.z.toFixed(2)})`);
+                    console.log(`Sign - Velocity: (${signVel.x.toFixed(2)}, ${signVel.y.toFixed(2)}, ${signVel.z.toFixed(2)})`);
+                }
+            }
+            
+            this.lastLogTime = currentTime;
+        }
+
+        // Check for stopping condition
+        if (!this.hasReachedTarget && this.top_beam_mesh.position.z >= 5) {
+            if(FLAGS.PHYSICS_LOGS) {
+                console.log('=== Attempting to Stop Beam ===');
+            }
+            this.hasReachedTarget = true;
+            // Get current position before changing anything
+            const currentPos = this.top_beam_body.translation();
+            if(FLAGS.PHYSICS_LOGS) {
+                console.log(`Current Position before stop: (${currentPos.x.toFixed(2)}, ${currentPos.y.toFixed(2)}, ${currentPos.z.toFixed(2)})`);
+            }
+            // First set velocity to 0
+            this.top_beam_body.setLinvel(0, 0, 0);
+            // Change the body type to fixed
+            this.top_beam_body.setBodyType(this.RAPIER.RigidBodyType.Fixed);
+            if(FLAGS.PHYSICS_LOGS) {
+                console.log('Changed body type to Fixed');
+                console.log(`Final Position: (${currentPos.x.toFixed(2)}, ${currentPos.y.toFixed(2)}, ${currentPos.z.toFixed(2)})`);
+            }
         }
     }
 }

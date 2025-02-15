@@ -87,7 +87,9 @@ function init() {
 /** Primary animation function run every frame by renderer */
 function animate() {
     // TODO Add code pushing test object up against gravity
-
+    if(primary_instruction_sign) {
+        primary_instruction_sign.update();
+    }
 
 
     // Test moving objects
