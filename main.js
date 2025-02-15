@@ -9,6 +9,8 @@ import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewp
 import { AppRenderer } from './common/app_renderer';
 import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/common';
 import { ControlMenu } from './background/control_menu';
+import { FLAGS } from './common';
+import { ScrollMenu } from './background/scroll_menu';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'images/gradient.jpg';
@@ -31,25 +33,28 @@ let left_mouse_down = false;
 let right_mouse_down = false;
 let construction_acknowledged = false;
 let primary_instruction_sign = null;
+let tigger_secondary = false;
 let secondary_instruction_sign = null;
+let chain_created = false;
 
 /** Initializes the main scene */
 function init() {
-    // Show the under construction modal
-    fetch('pages/under_construction.html')
-        .then(response => response.text())
-        .then(html => {
-            document.body.insertAdjacentHTML('beforeend', html);
-            const modal = document.getElementById('construction-modal');
-            const acknowledgeBtn = document.getElementById('acknowledge-btn');
-            // Show the modal
-            modal.style.display = 'block';
-            // Handle the acknowledge button click
-            acknowledgeBtn.addEventListener('click', () => {
-                modal.style.display = 'none';
-                construction_acknowledged = true;
+    if(FLAGS.CONSTRUCTION_GREETING) {
+        fetch('pages/under_construction.html')
+            .then(response => response.text())
+            .then(html => {
+                document.body.insertAdjacentHTML('beforeend', html);
+                const modal = document.getElementById('construction-modal');
+                const acknowledgeBtn = document.getElementById('acknowledge-btn');
+                // Show the modal
+                modal.style.display = 'block';
+                // Handle the acknowledge button click
+                acknowledgeBtn.addEventListener('click', () => {
+                    modal.style.display = 'none';
+                    construction_acknowledged = true;
+                });
             });
-        });
+        }
     // ----- Setup
     scene = new THREE.Scene();
     scene.background = TEXTURE_LOADER.load(BACKGROUND_IMAGE);
@@ -82,19 +87,27 @@ function init() {
 
 /** Primary animation function run every frame by renderer */
 function animate() {
+    if(primary_instruction_sign) {
+        primary_instruction_sign.update();
+    }
+    if((grabbed_cube != null  || viewable_ui.is_secondary_triggered()) && !tigger_secondary) {
+        tigger_secondary = true;
+    }
+
+    // TODO Switch the cube to be the secondary controls sign
+    // Test moving objects
+    const delta = clock.getDelta();
     // Deal with primary instructions
     if(viewable_ui.is_primary_triggered() && primary_instruction_sign == null) {
-        console.log("Big man");
-        // TODO OOOOO
-        // TODO Make it spawn WAAAAYYY off in the distance and come zooming at the camera using a tween
-        // TODO Create and add logic for secondary menu to appear when an object has been grabbed
         primary_instruction_sign = new ControlMenu(scene, viewable_ui.get_camera(), world, primary_container, RAPIER);
     } else if(!viewable_ui.is_overlay_hidden() && primary_instruction_sign != null) {
         primary_instruction_sign.break_chains();
     // Deal with secondary instructions
-    } else if(viewable_ui.is_secondary_triggered() && secondary_instruction_sign == null) {
-        // TODO Implement
-        console.log("Bazinga");
+    } else if(tigger_secondary && secondary_instruction_sign == null && !chain_created) {
+        primary_instruction_sign.break_chains();
+        chain_created = true;
+        // TODO Create scroll menu
+        secondary_instruction_sign = new ScrollMenu(scene, viewable_ui.get_camera(), world, primary_container, RAPIER);
     }
     // Handle the overlay
     updateTween();
@@ -118,7 +131,6 @@ function animate() {
     } else {
         primary_container.decativate_all_objects();
     }
-    const delta = clock.getDelta();
     world.timestep = Math.min(delta, 0.1);
     world.step();
     // Background object updates
@@ -264,8 +276,6 @@ function handle_wheel(e) {
             }
             zoom_event = true;
             resize_move = true;
-        } else {
-            viewable_ui.handle_wheel(e);
         }
     }
 }

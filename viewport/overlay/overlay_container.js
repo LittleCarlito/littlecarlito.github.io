@@ -37,7 +37,7 @@ export class OverlayContainer {
     hide_transition_map = new Map();
     party_popped = false;
     particles = [];
-    // TODO Set this to true when hide is clicked the first time
+    // Set this to true when hide is clicked the first time
     primary_control_trigger = false;
     // TODO Set this to true when the first object is grabbed, camera is frist moved, or first object is pushed
     secondary_control_trigger = false;
@@ -202,6 +202,9 @@ export class OverlayContainer {
             this.label_column.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
             this.link_container.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
             // Set the control menu to appear in animate
+            if(this.primary_control_trigger && !this.secondary_control_trigger) {
+                this.secondary_control_trigger = true;
+            }
             this.primary_control_trigger = true;
             if(FLAGS.TWEEN_LOGS) {
                 console.log(`OverlayContainer - Animations started:
