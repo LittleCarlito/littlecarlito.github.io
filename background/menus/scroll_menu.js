@@ -175,10 +175,23 @@ export class ScrollMenu {
     }
 
     break_chains() {
+        // Remove all joints
         this.chain_joints.forEach(joint => {
             this.world.removeImpulseJoint(joint);
         });
         this.chain_joints = [];
+        // Remove chain link meshes from the scene
+        if (this.parent.children) {
+            const chain_links = this.parent.children.filter(child => 
+                child.geometry instanceof THREE.CylinderGeometry
+            );
+            chain_links.forEach(link => {
+                this.parent.remove(link);
+                link.geometry.dispose();
+                link.material.dispose();
+            });
+        }
+
         this.chains_broken = true;
     }
 
