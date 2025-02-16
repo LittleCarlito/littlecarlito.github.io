@@ -62,4 +62,10 @@ export class SecondaryContainer {
             }
         });
     }
+
+    contains_object(incoming_name) {
+        this.getNodeChildren().forEach(child => {
+            if(child.name == incoming_name) return true;
+        })
+    }
 }

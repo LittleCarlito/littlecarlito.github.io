@@ -1,4 +1,5 @@
 export const TYPES = Object.freeze({
+    ANY: "any_",
     CONATINER: "container_",
     LABEL: "label_",
     TEXT: "text_",
