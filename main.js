@@ -28,7 +28,7 @@ let app_renderer;
 let primary_container;
 let resizeTimeout;
 let hovered_cube_name = "";
-let grabbed_cube = null;
+let grabbed_object = null;
 let left_mouse_down = false;
 let right_mouse_down = false;
 let construction_acknowledged = false;
@@ -90,7 +90,7 @@ function animate() {
     if(primary_instruction_sign) {
         primary_instruction_sign.update();
     }
-    if((grabbed_cube != null  || viewable_ui.is_secondary_triggered()) && !tigger_secondary) {
+    if((grabbed_object != null  || viewable_ui.is_secondary_triggered()) && !tigger_secondary) {
         tigger_secondary = true;
     }
     // Test moving objects
@@ -121,8 +121,8 @@ function animate() {
     // Handle the physics objects
     if(viewable_ui.get_overlay().is_intersected() != null) {
         primary_container.activate_object(viewable_ui.get_intersected_name());
-    } else if(grabbed_cube) {
-        translate_object(grabbed_cube, viewable_ui.get_camera(), primary_container);
+    } else if(grabbed_object) {
+        translate_object(grabbed_object, viewable_ui.get_camera(), primary_container);
     } else if(hovered_cube_name != "") {
         primary_container.activate_object(hovered_cube_name);
     } else if(viewable_ui.is_text_active()) {
@@ -192,7 +192,7 @@ function handle_mouse_move(e) {
                 case TYPES.FLOOR:
                     viewable_ui.get_overlay().reset_hover();
                     break;
-                case TYPES.CUBE:
+                case TYPES.INTERACTABLE:
                     if(viewable_ui.is_overlay_hidden()) {
                         hovered_cube_name = object_name;
                     } else {
@@ -210,9 +210,9 @@ function handle_mouse_move(e) {
 
 function handle_mouse_up(e) {
     if(construction_acknowledged) {
-        if(grabbed_cube) {
-            release_object(grabbed_cube, primary_container, RAPIER);
-            grabbed_cube = null;
+        if(grabbed_object) {
+            release_object(grabbed_object, primary_container, RAPIER);
+            grabbed_object = null;
         }
         viewable_ui.handle_mouse_up(get_intersect_list(e, viewable_ui.get_camera(), scene));
         if (e.button === 0) {
@@ -234,9 +234,9 @@ function handle_mouse_down(e) {
         if(e.button === 2) {
             right_mouse_down = true;
             // If we're holding an object and right click is pressed, release it
-            if(grabbed_cube) {
-                release_object(grabbed_cube, primary_container, RAPIER);
-                grabbed_cube = null;
+            if(grabbed_object) {
+                release_object(grabbed_object, primary_container, RAPIER);
+                grabbed_object = null;
             }
         }
         if(left_mouse_down && right_mouse_down && viewable_ui.is_overlay_hidden()) {
@@ -245,10 +245,10 @@ function handle_mouse_down(e) {
             const found_intersections = get_intersect_list(e, viewable_ui.get_camera(), scene);
             found_intersections.forEach(i => {
                 switch(extract_type(i.object)) {
-                    case TYPES.CUBE:
+                    case TYPES.INTERACTABLE:
                         if(left_mouse_down) {
-                            grabbed_cube = i.object;
-                            grab_object(grabbed_cube, viewable_ui.get_camera(), primary_container, RAPIER);
+                            grabbed_object = i.object;
+                            grab_object(grabbed_object, viewable_ui.get_camera(), primary_container, RAPIER);
                         } else {
                             shove_object(i.object, viewable_ui.get_camera(), primary_container);
                         }
@@ -267,13 +267,13 @@ function handle_context_menu(e) {
 
 function handle_wheel(e) {
     if(construction_acknowledged) {
-        if(grabbed_cube) {
+        if(grabbed_object) {
             if(e.deltaY < 0) {
                 secondary_instruction_sign.break_chains();
-                zoom_object_in(grabbed_cube, primary_container, RAPIER);
+                zoom_object_in(grabbed_object, primary_container, RAPIER);
             } else {
                 secondary_instruction_sign.break_chains();
-                zoom_object_out(grabbed_cube, primary_container, RAPIER);
+                zoom_object_out(grabbed_object, primary_container, RAPIER);
             }
             zoom_event = true;
             resize_move = true;

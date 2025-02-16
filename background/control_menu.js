@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { TYPES } from '../viewport/overlay/common';
-import { FLAGS } from '../common';
+import { FLAGS, NAMES } from '../common';
 
 export const IMAGE_PATH = 'images/MouseControlMenu.svg';
 // Sign and beam constants
@@ -155,7 +155,7 @@ export class ControlMenu {
             );
             this.sign_mesh = new THREE.Mesh(this.sign_geometry, this.sign_material);
             this.sign_mesh.castShadow = true;
-            this.sign_mesh.name = `${TYPES.SIGN}${TYPES.PRIMARY}`;
+            this.sign_mesh.name = `${TYPES.INTERACTABLE}${NAMES.PRIMARY}`;
             this.parent.add(this.sign_mesh);
             // Create test physics object
             this.sign_body = this.world.createRigidBody(

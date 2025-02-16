@@ -1,7 +1,4 @@
 export const TYPES = Object.freeze({
-    PRIMARY: "primary",
-    SECONDARY: "secondary",
-    UNIQUE: "unique",
     CONATINER: "container_",
     LABEL: "label_",
     TEXT: "text_",
@@ -11,6 +8,6 @@ export const TYPES = Object.freeze({
     HIDE: "hide_",
     FLOOR: "floor_",
     BALL: "ball_",
-    CUBE: "cube_",
+    INTERACTABLE: "interactable_",
     SIGN: "sign_"
 })

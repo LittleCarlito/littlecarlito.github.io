@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { TYPES } from '../viewport/overlay/common';
+import { NAMES } from '../common';
 
 export class BackgroundFloor {
 
@@ -13,7 +14,7 @@ export class BackgroundFloor {
         this.floor_mesh = new THREE.Mesh(floor_geometry, floor_material);
         this.floor_mesh.receiveShadow = true;
         this.floor_mesh.position.y = -10.2;
-        this.floor_mesh.name = `${TYPES.FLOOR}${TYPES.UNIQUE}`;
+        this.floor_mesh.name = `${TYPES.FLOOR}${NAMES.UNIQUE}`;
         // TODO Make this a toggleable feature
         // Disable raycasting for this mesh
         this.floor_mesh.raycast = () => null;

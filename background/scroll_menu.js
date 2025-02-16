@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { TYPES } from '../viewport/overlay/common';
+import { NAMES } from '../common';
 
 export class ScrollMenu {
     parent;
@@ -152,7 +153,7 @@ export class ScrollMenu {
             );
             const sign_mesh = new THREE.Mesh(sign_geometry, sign_material);
             sign_mesh.castShadow = true;
-            sign_mesh.name = `${TYPES.SIGN}${TYPES.SECONDARY}`;
+            sign_mesh.name = `${TYPES.INTERACTABLE}${NAMES.SECONDARY}`;
             this.parent.add(sign_mesh);
             // Connect sign to last chain segment
             const finalJointDesc = this.RAPIER.JointData.spherical(
