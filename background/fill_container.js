@@ -30,6 +30,7 @@ export class FillContainer {
             let created_asset = loaded_axe.scene;
             created_asset.position.z = this.AXE.position.z;
             // Scale up the axes
+            created_asset.name = `${TYPES.INTERACTABLE}${NAMES.AXE}`;
             created_asset.scale.set(this.AXE.scale, this.AXE.scale, this.AXE.scale);  
             this.object_container.add(created_asset);
             // Get geometry for convex hull
