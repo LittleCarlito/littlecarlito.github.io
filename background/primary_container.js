@@ -1,13 +1,8 @@
 import { CATEGORIES } from '../viewport/overlay/overlay_common';
-import { TYPES, NAMES, THREE, Easing, Tween, RAPIER } from '../common';
-import { GLTF_LOADER } from './background_common';
-// import { category_colors, category_labels } from '../viewport/overlay/common';
+import { TYPES, THREE, Easing, Tween, RAPIER } from '../common';
 
+// TODO Delete this
 const PLACEHOLDER = "placeholder_"
-const AXE_SCALE = 20;
-const AXE_MASS = 1;
-const AXE_RESTITUTION = 1.1;
-const AXE_POSITION = new THREE.Vector3(0, 0, 0);
 
 export class PrimaryContainer {
     parent;
@@ -40,36 +35,6 @@ export class PrimaryContainer {
             this.world.createCollider(cube_shape, cube_body);
             this.dynamic_bodies.push([cube_mesh, cube_body]);
             id++;
-        });
-        // TODO Create secondary container class with all the other physics objects
-        // Axe with physics
-        GLTF_LOADER.load("assets/Axe.glb", (loaded_axe) => {
-            let created_asset = loaded_axe.scene;
-            created_asset.position.z = AXE_POSITION.z;
-            // Scale up the axes
-            created_asset.scale.set(AXE_SCALE, AXE_SCALE, AXE_SCALE);  
-            this.parent.add(created_asset);
-            // Get geometry for convex hull
-            let geometry;
-            created_asset.traverse((child) => {
-                if (child.isMesh) {
-                    child.name = `${TYPES.INTERACTABLE}${NAMES.AXE}`;
-                    geometry = child.geometry;
-                }
-            });
-            const points = geometry.attributes.position.array;
-            const axe_body = this.world.createRigidBody(
-                RAPIER.RigidBodyDesc.dynamic()
-                .setTranslation(AXE_POSITION.x, AXE_POSITION.y, AXE_POSITION.z)
-                .setCanSleep(false)
-            );
-            // Create convex hull collider
-            const collider_desc = RAPIER.ColliderDesc.convexHull(points)
-                .setMass(AXE_MASS)
-                .setRestitution(AXE_RESTITUTION);
-            this.world.createCollider(collider_desc, axe_body);
-            // Add axe to dynamic bodies
-            this.dynamic_bodies.push([created_asset, axe_body]);
         });
     }
 
@@ -121,6 +86,20 @@ export class PrimaryContainer {
     }
 
     contains_object(incoming_name) {
+        // TODO OOOOO
+        // TODO Using this to see if activate object needs to be called for hover and grab
+        //          Now that more than just cubes can trigger methods we need ways to protect from bad access
         // TODO Determine if an object with a matching name exists in here
+    }
+
+    update() {
+        this.dynamic_bodies.forEach(([mesh, body]) => {
+            if(body != null) {
+                const position = body.translation();
+                mesh.position.set(position.x, position.y, position.z);
+                const rotation = body.rotation();
+                mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+            }
+        });
     }
 }

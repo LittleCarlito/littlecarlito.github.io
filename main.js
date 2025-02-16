@@ -9,6 +9,7 @@ import { shove_object, translate_object, update_mouse_position, zoom_object_in, 
 import { ControlMenu } from './background/control_menu';
 import { FLAGS, RAPIER, THREE } from './common';
 import { ScrollMenu } from './background/scroll_menu';
+import { SecondaryContainer } from './background/secondary_container';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'images/gradient.jpg';
@@ -24,6 +25,7 @@ let clock;
 let viewable_ui;
 let app_renderer;
 let primary_container;
+let secondary_container;
 let resizeTimeout;
 let hovered_cube_name = "";
 let grabbed_object = null;
@@ -73,6 +75,7 @@ function init() {
     // Background creation
     new BackgroundLighting(scene);
     primary_container = new PrimaryContainer(scene, viewable_ui.get_camera(), world);
+    secondary_container = new SecondaryContainer(scene, viewable_ui.get_camera(), world);
     new BackgroundFloor(world, scene, viewable_ui.get_camera());
     // Start animation loop after everything is initialized
     app_renderer.set_animation_loop(animate);
@@ -132,14 +135,8 @@ function animate() {
     world.timestep = Math.min(delta, 0.1);
     world.step();
     // Background object updates
-    primary_container.dynamic_bodies.forEach(([mesh, body]) => {
-        if(body != null) {
-            const position = body.translation();
-            mesh.position.set(position.x, position.y, position.z);
-            const rotation = body.rotation();
-            mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
-        }
-    });
+    primary_container.update();
+    secondary_container.update();
     // Update confetti particles
     viewable_ui.get_overlay().update_confetti();
     // Scene reload
