@@ -1,6 +1,5 @@
-import * as THREE from 'three';
-import { TYPES } from '../viewport/overlay/common';
-import { FLAGS, NAMES } from '../common';
+import { TYPES } from '../viewport/overlay/overlay_common';
+import { FLAGS, NAMES, THREE } from '../common';
 
 export const IMAGE_PATH = 'images/MouseControlMenu.svg';
 // Sign and beam constants

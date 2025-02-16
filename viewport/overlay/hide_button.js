@@ -1,7 +1,5 @@
-import * as THREE from 'three';
-import { get_screen_size, get_associated_position, EAST, TYPES, HIDE_HEIGHT, HIDE_WIDTH } from './common';
-import { Tween, Easing } from 'three/examples/jsm/libs/tween.module.js';
-import { NAMES } from '../../common';
+import { get_screen_size, get_associated_position, EAST, TYPES, HIDE_HEIGHT, HIDE_WIDTH } from './overlay_common';
+import { Easing, NAMES, THREE, Tween } from '../../common';
 
 export class HideButton {
     is_overlay_hidden = false;

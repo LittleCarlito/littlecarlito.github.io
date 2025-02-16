@@ -1,11 +1,9 @@
-import * as THREE from 'three';
 import { TitleBlock } from './title_block';
 import { TextContainer } from './text_container';
 import { LabelColumn } from './label_column';
 import { LinkContainer } from './link_container';
 import { HideButton } from './hide_button';
-import { FLAGS } from '../../common';
-import { Tween, Easing } from 'three/examples/jsm/libs/tween.module.js';
+import { Easing, FLAGS, THREE, Tween } from '../../common';
 
 // Confetti constants
 const PARTICLE_COUNT = 200;

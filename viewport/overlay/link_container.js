@@ -1,8 +1,6 @@
-import * as THREE from 'three';
-import { Easing, Tween } from 'three/examples/jsm/libs/tween.module.js';
 import { clamp } from 'three/src/math/MathUtils.js';
-import { get_screen_size, get_associated_position, SOUTH, TYPES, LINKS, TEXTURE_LOADER } from './common';
-import { FLAGS } from '../../common';
+import { get_screen_size, get_associated_position, SOUTH, TYPES, LINKS, TEXTURE_LOADER } from './overlay_common';
+import { Easing, FLAGS, THREE, Tween } from '../../common';
 
 const LINK_RADIUS = .44;
 

@@ -1,15 +1,13 @@
-import * as THREE from 'three';
-import RAPIER from '@dimforge/rapier3d-compat';
 import { update as updateTween } from 'three/examples/jsm/libs/tween.module.js';
 import { PrimaryContainer } from './background/primary_container';
 import { BackgroundFloor } from './background/background_floor';
 import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
-import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/common';
+import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/overlay_common';
 import { AppRenderer } from './common/app_renderer';
-import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/common';
+import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common';
 import { ControlMenu } from './background/control_menu';
-import { FLAGS } from './common';
+import { FLAGS, RAPIER, THREE } from './common';
 import { ScrollMenu } from './background/scroll_menu';
 
 // ----- Constants
@@ -74,7 +72,7 @@ function init() {
     app_renderer = new AppRenderer(scene, viewable_ui.get_camera());
     // Background creation
     new BackgroundLighting(scene);
-    primary_container = new PrimaryContainer(world, scene, viewable_ui.get_camera());
+    primary_container = new PrimaryContainer(scene, viewable_ui.get_camera(), world);
     new BackgroundFloor(world, scene, viewable_ui.get_camera());
     // Start animation loop after everything is initialized
     app_renderer.set_animation_loop(animate);
@@ -124,6 +122,7 @@ function animate() {
     } else if(grabbed_object) {
         translate_object(grabbed_object, viewable_ui.get_camera(), primary_container);
     } else if(hovered_cube_name != "") {
+
         primary_container.activate_object(hovered_cube_name);
     } else if(viewable_ui.is_text_active()) {
         primary_container.activate_object(viewable_ui.get_active_name());

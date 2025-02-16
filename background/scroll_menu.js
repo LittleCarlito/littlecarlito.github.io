@@ -1,6 +1,5 @@
-import * as THREE from 'three';
-import { TYPES } from '../viewport/overlay/common';
-import { NAMES } from '../common';
+import { TYPES } from '../viewport/overlay/overlay_common';
+import { NAMES, THREE } from '../common';
 
 export class ScrollMenu {
     parent;

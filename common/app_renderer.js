@@ -1,8 +1,8 @@
-import * as THREE from 'three';
 import { CSS2DRenderer, UnrealBloomPass } from 'three/examples/jsm/Addons.js';
 import { EffectComposer } from 'three/examples/jsm/Addons.js';
 import { RenderPass } from 'three/examples/jsm/Addons.js';
 import { OutputPass } from 'three/examples/jsm/Addons.js';
+import { THREE } from '.';
 
 export class AppRenderer {
     webgl_renderer;

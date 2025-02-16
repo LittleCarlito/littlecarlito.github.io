@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import { THREE } from "../common";
 
 export class CameraController {
     constructor(camera, distance = 15) {

@@ -1,9 +1,7 @@
-import * as THREE from 'three';
-import { Easing, Tween } from 'three/examples/jsm/libs/tween.module.js';
-import { get_screen_size, get_associated_position, WEST } from "./common/screen";
-import { CATEGORIES } from './common/categories';
-import { TEXTURE_LOADER, TYPES, PAN_SPEED, ROTATE_SPEED, FOCUS_ROTATION } from './common/index'
-import { FLAGS } from '../../common';
+import { get_screen_size, get_associated_position, WEST } from "./overlay_common/screen";
+import { CATEGORIES } from './overlay_common/categories';
+import { TEXTURE_LOADER, TYPES, PAN_SPEED, ROTATE_SPEED, FOCUS_ROTATION } from './overlay_common/index'
+import { Easing, FLAGS, THREE, Tween } from '../../common';
 
 export class LabelColumn {
     in_tween_map = new Map();

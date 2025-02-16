@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import { THREE } from "../common";
 
 export const SPOTLIGHT_HEIGHT = 7;
 export const SPOTLIGHT_COLOR = 0xfff9d8;

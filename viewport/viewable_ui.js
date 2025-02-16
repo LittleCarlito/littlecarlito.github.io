@@ -1,7 +1,7 @@
-import * as THREE from 'three';
 import { OverlayContainer } from "./overlay/overlay_container";
-import { extract_type, TYPES, WEST} from './overlay/common';
+import { extract_type, TYPES, WEST} from './overlay/overlay_common';
 import { CameraController } from './camera_controller';
+import { THREE } from "../common";
 
 export const UI_Z_DIST = 25;
 

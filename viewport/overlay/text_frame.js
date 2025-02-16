@@ -1,8 +1,5 @@
 import { CSS2DObject } from "three/examples/jsm/Addons.js";
-import { CATEGORIES } from "./common/categories.js";
-import * as THREE from 'three';
-import { Easing, Tween } from 'three/examples/jsm/libs/tween.module.js';
-import { FLAGS } from "../../common/flags.js";
+import { CATEGORIES } from "./overlay_common/categories.js";
 
 const WIDTH_OFFSET = .5;
 const HEIGHT_OFFSET = .5;

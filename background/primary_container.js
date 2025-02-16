@@ -1,10 +1,6 @@
-import * as THREE from 'three';
-import RAPIER from '@dimforge/rapier3d-compat';
-import { GLTFLoader } from 'three/examples/jsm/Addons.js';
-import { Easing, Tween } from 'three/examples/jsm/libs/tween.module.js';
-import { CATEGORIES } from '../viewport/overlay/common/categories.js';
-import { TYPES } from '../common/types.js';
-import { NAMES } from '../common/names.js';
+import { CATEGORIES } from '../viewport/overlay/overlay_common';
+import { TYPES, NAMES, THREE, Easing, Tween, RAPIER } from '../common';
+import { GLTF_LOADER } from './background_common';
 // import { category_colors, category_labels } from '../viewport/overlay/common';
 
 const PLACEHOLDER = "placeholder_"
@@ -14,17 +10,19 @@ const AXE_RESTITUTION = 1.1;
 const AXE_POSITION = new THREE.Vector3(0, 0, 0);
 
 export class PrimaryContainer {
-    gltf_loader;
+    parent;
+    camera;
+    world;
+    object_container;
     dynamic_bodies = [];
     activated_name = "";
 
-    constructor(incoming_world, incoming_parent, incoming_camera) {
-        this.gltf_loader = new GLTFLoader();
+    constructor(incoming_parent, incoming_camera, incoming_world) {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.world = incoming_world;
-        this.cube_container = new THREE.Object3D();
-        this.parent.add(this.cube_container);
+        this.object_container = new THREE.Object3D();
+        this.parent.add(this.object_container);
         let id = 0;
         // Cubes
         Object.values(CATEGORIES).forEach((category, i) => {
@@ -34,7 +32,7 @@ export class PrimaryContainer {
             const cube_mesh = new THREE.Mesh(cube_geometry, cube_material);
             cube_mesh.castShadow = true;
             cube_mesh.name = `${TYPES.INTERACTABLE}${category.value}`;
-            this.cube_container.add(cube_mesh);
+            this.object_container.add(cube_mesh);
             const cube_body = this.world
             .createRigidBody(RAPIER.RigidBodyDesc.dynamic()
             .setTranslation(((i * 2) - 3), -2, -5).setCanSleep(false));
@@ -43,8 +41,9 @@ export class PrimaryContainer {
             this.dynamic_bodies.push([cube_mesh, cube_body]);
             id++;
         });
+        // TODO Create secondary container class with all the other physics objects
         // Axe with physics
-        this.gltf_loader.load("assets/Axe.glb", (loaded_axe) => {
+        GLTF_LOADER.load("assets/Axe.glb", (loaded_axe) => {
             let created_asset = loaded_axe.scene;
             created_asset.position.z = AXE_POSITION.z;
             // Scale up the axes
@@ -119,5 +118,9 @@ export class PrimaryContainer {
     decativate_all_objects() {
         CATEGORIES.getValues().forEach(value => 
             this.decativate_object(PLACEHOLDER + value));
+    }
+
+    contains_object(incoming_name) {
+        // TODO Determine if an object with a matching name exists in here
     }
 }

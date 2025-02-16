@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import { THREE } from "../../../common";
 
 // Directions
 export const NORTH = "north";

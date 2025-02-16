@@ -1,8 +1,6 @@
-import * as THREE from 'three';
 import { clamp } from "three/src/math/MathUtils.js";
-import { Easing, Tween } from 'three/examples/jsm/libs/tween.module.js';
-import { get_screen_size, get_associated_position, NORTH } from './common';
-import { FLAGS } from '../../common';
+import { get_screen_size, get_associated_position, NORTH } from './overlay_common';
+import { Easing, FLAGS, THREE, Tween } from '../../common';
 
 export const TITLE = "title_"
 const TITLE_HEIGHT = 2.75;

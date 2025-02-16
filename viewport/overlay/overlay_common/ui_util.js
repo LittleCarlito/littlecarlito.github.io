@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import { THREE } from "../../../common";
 
 export const TEXTURE_LOADER = new THREE.TextureLoader();
 // Constants
