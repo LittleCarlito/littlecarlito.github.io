@@ -6,10 +6,8 @@ import { BackgroundLighting } from './background/background_lighting';
 import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/overlay_common';
 import { AppRenderer } from './common/app_renderer';
 import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common';
-import { ControlMenu } from './background/control_menu';
 import { FLAGS, RAPIER, THREE } from './common';
-import { ScrollMenu } from './background/scroll_menu';
-import { SecondaryContainer } from './background/secondary_container';
+import { FillContainer } from './background/fill_container';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'images/gradient.jpg';
@@ -25,17 +23,13 @@ let clock;
 let viewable_ui;
 let app_renderer;
 let primary_container;
-let secondary_container;
+let fill_container;
 let resizeTimeout;
 let hovered_cube_name = "";
 let grabbed_object = null;
 let left_mouse_down = false;
 let right_mouse_down = false;
 let construction_acknowledged = false;
-let primary_instruction_sign = null;
-let tigger_secondary = false;
-let secondary_instruction_sign = null;
-let chain_created = false;
 
 /** Initializes the main scene */
 function init() {
@@ -75,7 +69,7 @@ function init() {
     // Background creation
     new BackgroundLighting(scene);
     primary_container = new PrimaryContainer(scene, viewable_ui.get_camera(), world);
-    secondary_container = new SecondaryContainer(scene, viewable_ui.get_camera(), world);
+    fill_container = new FillContainer(scene, viewable_ui.get_camera(), world);
     new BackgroundFloor(world, scene, viewable_ui.get_camera());
     // Start animation loop after everything is initialized
     app_renderer.set_animation_loop(animate);
@@ -88,27 +82,7 @@ function init() {
 
 /** Primary animation function run every frame by renderer */
 function animate() {
-    if(primary_instruction_sign) {
-        primary_instruction_sign.update();
-    }
-    if((grabbed_object != null  || viewable_ui.is_secondary_triggered()) && !tigger_secondary) {
-        tigger_secondary = true;
-    }
-    // Test moving objects
     const delta = clock.getDelta();
-    // Deal with primary instructions
-    if(viewable_ui.is_primary_triggered() && primary_instruction_sign == null) {
-        primary_instruction_sign = new ControlMenu(scene, viewable_ui.get_camera(), world, primary_container, RAPIER);
-    } else if(!viewable_ui.is_overlay_hidden() && primary_instruction_sign != null && !primary_instruction_sign.chains_broken) {
-        primary_instruction_sign.break_chains();
-    // Deal with secondary instructions
-    } else if(tigger_secondary && secondary_instruction_sign == null && !chain_created) {
-        primary_instruction_sign.break_chains();
-        chain_created = true;
-        secondary_instruction_sign = new ScrollMenu(scene, viewable_ui.get_camera(), world, primary_container, RAPIER);
-    } else if(secondary_instruction_sign != null && !viewable_ui.is_overlay_hidden()) {
-        secondary_instruction_sign.break_chains();
-    }
     // Handle the overlay
     updateTween();
     if(resize_move) {
@@ -123,7 +97,7 @@ function animate() {
     if(viewable_ui.get_overlay().is_intersected() != null) {
         primary_container.activate_object(viewable_ui.get_intersected_name());
     } else if(grabbed_object) {
-        translate_object(grabbed_object, viewable_ui.get_camera(), primary_container);
+        translate_object(grabbed_object, viewable_ui.get_camera(), primary_container, fill_container);
     } else if(hovered_cube_name != "") {
 
         primary_container.activate_object(hovered_cube_name);
@@ -136,7 +110,7 @@ function animate() {
     world.step();
     // Background object updates
     primary_container.update();
-    secondary_container.update();
+    fill_container.update(grabbed_object, viewable_ui);
     // Update confetti particles
     viewable_ui.get_overlay().update_confetti();
     // Scene reload
@@ -207,7 +181,7 @@ function handle_mouse_move(e) {
 function handle_mouse_up(e) {
     if(construction_acknowledged) {
         if(grabbed_object) {
-            release_object(grabbed_object, primary_container, RAPIER);
+            release_object(grabbed_object, primary_container, fill_container);
             grabbed_object = null;
         }
         viewable_ui.handle_mouse_up(get_intersect_list(e, viewable_ui.get_camera(), scene));
@@ -231,7 +205,7 @@ function handle_mouse_down(e) {
             right_mouse_down = true;
             // If we're holding an object and right click is pressed, release it
             if(grabbed_object) {
-                release_object(grabbed_object, primary_container, RAPIER);
+                release_object(grabbed_object, primary_container, fill_container);
                 grabbed_object = null;
             }
         }
@@ -244,9 +218,9 @@ function handle_mouse_down(e) {
                     case TYPES.INTERACTABLE:
                         if(left_mouse_down) {
                             grabbed_object = i.object;
-                            grab_object(grabbed_object, viewable_ui.get_camera(), primary_container, RAPIER);
+                            grab_object(grabbed_object, viewable_ui.get_camera(), primary_container, fill_container);
                         } else {
-                            shove_object(i.object, viewable_ui.get_camera(), primary_container);
+                            shove_object(i.object, viewable_ui.get_camera(), primary_container, fill_container);
                         }
                         break;
                     default:
@@ -265,11 +239,11 @@ function handle_wheel(e) {
     if(construction_acknowledged) {
         if(grabbed_object) {
             if(e.deltaY < 0) {
-                secondary_instruction_sign.break_chains();
-                zoom_object_in(grabbed_object, primary_container, RAPIER);
+                fill_container.break_secondary_chains();
+                zoom_object_in(grabbed_object, primary_container, fill_container);
             } else {
-                secondary_instruction_sign.break_chains();
-                zoom_object_out(grabbed_object, primary_container, RAPIER);
+                fill_container.break_secondary_chains();
+                zoom_object_out(grabbed_object, primary_container, fill_container);
             }
             zoom_event = true;
             resize_move = true;

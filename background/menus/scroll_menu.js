@@ -1,5 +1,5 @@
-import { TYPES } from '../viewport/overlay/overlay_common';
-import { NAMES, THREE } from '../common';
+import { TYPES } from '../../viewport/overlay/overlay_common';
+import { FLAGS, NAMES, THREE } from '../../common';
 
 export class ScrollMenu {
     parent;
@@ -35,6 +35,8 @@ export class ScrollMenu {
     };
     chain_joints = [];
     chains_broken = false;
+    last_log_time = 0;
+    log_interval = 500;
 
     constructor(incoming_parent, incoming_camera, incoming_world, primary_container, incoming_RAPIER) {
         this.parent = incoming_parent;
@@ -168,6 +170,8 @@ export class ScrollMenu {
             primary_container.dynamic_bodies.push([sign_mesh, sign_body]);
         };
         sign_image.src = this.CHAIN_CONFIG.SIGN.IMAGE_PATH;
+        this.last_log_time = 0;
+        this.log_interval = 500;
     }
 
     break_chains() {
@@ -176,5 +180,34 @@ export class ScrollMenu {
         });
         this.chain_joints = [];
         this.chains_broken = true;
+    }
+
+    update() {
+        const currentTime = performance.now();
+        // Log positions periodically
+        if (currentTime - this.last_log_time > this.log_interval) {
+            if(FLAGS.PHYSICS_LOGS) {
+                console.log('=== Position Update (Scroll Menu) ===');
+                // Log chain segment positions if they exist
+                if (this.parent.children) {
+                    const chainLinks = this.parent.children.filter(child => 
+                        child.geometry instanceof THREE.CylinderGeometry
+                    );
+                    chainLinks.forEach((link, index) => {
+                        const linkPos = link.position;
+                        console.log(`Chain Link ${index} - Position: (${linkPos.x.toFixed(2)}, ${linkPos.y.toFixed(2)}, ${linkPos.z.toFixed(2)})`);
+                    });
+                }
+                // Log sign position if it exists
+                const sign = this.parent.children.find(child => 
+                    child.name === `${TYPES.INTERACTABLE}${NAMES.SECONDARY}`
+                );
+                if (sign) {
+                    const signPos = sign.position;
+                    console.log(`Sign - Position: (${signPos.x.toFixed(2)}, ${signPos.y.toFixed(2)}, ${signPos.z.toFixed(2)})`);
+                }
+            }
+            this.last_log_time = currentTime;
+        }
     }
 }
