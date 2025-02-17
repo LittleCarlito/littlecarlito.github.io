@@ -99,11 +99,11 @@ export class FillContainer {
     }
 
     spawn_primary_instructions() {
-        this.primary_instruction_sign = new ControlMenu(this.object_container, this.camera, this.world, this, RAPIER);
+        this.primary_instruction_sign = new ControlMenu(this.object_container, this.camera, this.world, this);
     }
 
     spawn_secondary_instructions() {
-        this.secondary_instruction_sign = new ScrollMenu(this.object_container, this.camera, this.world, this, RAPIER);
+        this.secondary_instruction_sign = new ScrollMenu(this.object_container, this.camera, this.world, this);
     }
 
     break_primary_chains() {

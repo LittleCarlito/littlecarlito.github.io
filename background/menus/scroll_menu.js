@@ -1,5 +1,5 @@
 import { TYPES } from '../../viewport/overlay/overlay_common';
-import { FLAGS, NAMES, THREE } from '../../common';
+import { FLAGS, NAMES, RAPIER, THREE } from '../../common';
 
 export class ScrollMenu {
     parent;
@@ -38,16 +38,15 @@ export class ScrollMenu {
     last_log_time = 0;
     log_interval = 500;
 
-    constructor(incoming_parent, incoming_camera, incoming_world, primary_container, incoming_RAPIER) {
+    constructor(incoming_parent, incoming_camera, incoming_world, primary_container) {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.world = incoming_world;
-        this.RAPIER = incoming_RAPIER;
         // Chain configuration constants
         this.CHAIN_CONFIG.POSITION.Z = this.camera.position.z - 3;
         // Create anchor point
         const anchor_body = this.world.createRigidBody(
-            this.RAPIER.RigidBodyDesc.fixed()
+            RAPIER.RigidBodyDesc.fixed()
             .setTranslation(
                 this.CHAIN_CONFIG.POSITION.X,
                 this.CHAIN_CONFIG.POSITION.Y,
@@ -58,7 +57,7 @@ export class ScrollMenu {
         const segments = [];
         for(let i = 0; i < this.CHAIN_CONFIG.SEGMENTS.COUNT; i++) {
             const segment_body = this.world.createRigidBody(
-                this.RAPIER.RigidBodyDesc.dynamic()
+                RAPIER.RigidBodyDesc.dynamic()
                 .setTranslation(
                     this.CHAIN_CONFIG.POSITION.X,
                     this.CHAIN_CONFIG.POSITION.Y - (i * this.CHAIN_CONFIG.SEGMENTS.LENGTH),
@@ -67,7 +66,7 @@ export class ScrollMenu {
                 .setLinearDamping(this.CHAIN_CONFIG.SEGMENTS.DAMPING)
                 .setAngularDamping(this.CHAIN_CONFIG.SEGMENTS.DAMPING)
             );
-            const collider = this.RAPIER.ColliderDesc.ball(this.CHAIN_CONFIG.SEGMENTS.RADIUS);
+            const collider = RAPIER.ColliderDesc.ball(this.CHAIN_CONFIG.SEGMENTS.RADIUS);
             this.world.createCollider(collider, segment_body);
             segments.push(segment_body);
 
@@ -90,7 +89,7 @@ export class ScrollMenu {
             let created_joint;
             // Create spherical joint between segments
             if (i > 0) {
-                const joint_desc = this.RAPIER.JointData.spherical(
+                const joint_desc = RAPIER.JointData.spherical(
                     {x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0},
                     {x: 0, y: this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0}
                 );
@@ -102,7 +101,7 @@ export class ScrollMenu {
                 );
             } else {
                 // Connect first segment to anchor
-                const joint_desc = this.RAPIER.JointData.spherical(
+                const joint_desc = RAPIER.JointData.spherical(
                     {x: 0, y: 0, z: 0},
                     {x: 0, y: this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0}
                 );
@@ -132,7 +131,7 @@ export class ScrollMenu {
             const sign_spawn_y = this.CHAIN_CONFIG.POSITION.Y - 
                 (this.CHAIN_CONFIG.SEGMENTS.COUNT * this.CHAIN_CONFIG.SEGMENTS.LENGTH);
             const sign_body = this.world.createRigidBody(
-                this.RAPIER.RigidBodyDesc.dynamic()
+                RAPIER.RigidBodyDesc.dynamic()
                 .setTranslation(
                     this.CHAIN_CONFIG.POSITION.X + this.CHAIN_CONFIG.SIGN.LOCAL_OFFSET.X,
                     sign_spawn_y + this.CHAIN_CONFIG.SIGN.LOCAL_OFFSET.Y,
@@ -141,7 +140,7 @@ export class ScrollMenu {
                 .setLinearDamping(this.CHAIN_CONFIG.SIGN.DAMPING)
                 .setAngularDamping(this.CHAIN_CONFIG.SIGN.DAMPING)
             );
-            const sign_collider = this.RAPIER.ColliderDesc.cuboid(
+            const sign_collider = RAPIER.ColliderDesc.cuboid(
                 this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH/2,
                 this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT/2,
                 this.CHAIN_CONFIG.SIGN.DIMENSIONS.DEPTH/2
@@ -157,7 +156,7 @@ export class ScrollMenu {
             sign_mesh.name = `${TYPES.INTERACTABLE}${NAMES.SECONDARY}`;
             this.parent.add(sign_mesh);
             // Connect sign to last chain segment
-            const finalJointDesc = this.RAPIER.JointData.spherical(
+            const finalJointDesc = RAPIER.JointData.spherical(
                 {x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0},
                 {x: 0, y: this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT/2, z: 0}
             );
@@ -191,7 +190,6 @@ export class ScrollMenu {
                 link.material.dispose();
             });
         }
-
         this.chains_broken = true;
     }
 

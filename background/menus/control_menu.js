@@ -1,5 +1,5 @@
 import { TYPES } from '../../viewport/overlay/overlay_common';
-import { FLAGS, NAMES, THREE } from '../../common';
+import { FLAGS, NAMES, RAPIER, THREE } from '../../common';
 
 export const IMAGE_PATH = 'images/MouseControlMenu.svg';
 // Sign and beam constants
@@ -65,7 +65,6 @@ export class ControlMenu {
     parent;
     camera;
     world;
-    RAPIER;
     // Top beam variables
     top_beam_geometry;
     top_beam_material;
@@ -90,11 +89,10 @@ export class ControlMenu {
     last_log_time = 0;
     log_interval = 500;
 
-    constructor(incoming_parent, incoming_camera, incoming_world, primary_container, RAPIER, incoming_speed = DEFAULT_SPEED) {
+    constructor(incoming_parent, incoming_camera, incoming_world, primary_container, incoming_speed = DEFAULT_SPEED) {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.world = incoming_world;
-        
         // Calculate assembly position based on camera
         this.assembly_position = {
             x: this.camera.position.x + ASSEMBLY_OFFSET.x,
@@ -201,7 +199,6 @@ export class ControlMenu {
         this.reached_target = false;
         this.last_log_time = 0;
         this.log_interval = 500;
-        this.RAPIER = RAPIER;
     }
 
     break_chains() {
@@ -253,7 +250,7 @@ export class ControlMenu {
                 this.sign_body.setGravityScale(1);
             }, GRAVITY_DELAY);
             // Change the body type to fixed
-            this.top_beam_body.setBodyType(this.RAPIER.RigidBodyType.Fixed);
+            this.top_beam_body.setBodyType(RAPIER.RigidBodyType.Fixed);
             if(FLAGS.PHYSICS_LOGS) {
                 console.log('Changed body type to Fixed');
                 console.log(`Final Position: (${currentPos.x.toFixed(2)}, ${currentPos.y.toFixed(2)}, ${currentPos.z.toFixed(2)})`);

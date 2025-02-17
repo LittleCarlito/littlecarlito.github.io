@@ -12,7 +12,7 @@ export class ViewableUI {
     rightMouseDown = false;
     camera_controller;
 
-    constructor(incoming_parent, incoming_world, RAPIER) {
+    constructor(incoming_parent, incoming_world) {
         this.viewable_ui_container = new THREE.Object3D();
         this.parent = incoming_parent;
         this.world = incoming_world;

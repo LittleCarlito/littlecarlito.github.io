@@ -63,7 +63,7 @@ function init() {
     world = new RAPIER.World(gravity);
     clock = new THREE.Clock();
     // UI creation
-    viewable_ui = new ViewableUI(scene, world, RAPIER);
+    viewable_ui = new ViewableUI(scene, world);
     // Renderer
     app_renderer = new AppRenderer(scene, viewable_ui.get_camera());
     // Background creation
