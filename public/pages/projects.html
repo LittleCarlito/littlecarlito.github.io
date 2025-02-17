@@ -9,7 +9,7 @@
             padding: 0;
             display: flex;
             flex-direction: column;
-            align-items: center;
+            align-items: flex-start;
             min-height: 100vh;
             background: transparent;
             overflow: hidden;
@@ -19,6 +19,7 @@
             width: 100%;
             position: relative;
             opacity: 0;
+            padding-left: 30px;
         }
 
         .writing-container.show {
@@ -72,6 +73,7 @@
             height: auto;
             display: block;
             max-height: 100vh;
+            margin-left: 0;
         }
 
         .letter-path {
@@ -123,35 +125,95 @@
             if(FLAGS.HTML_LOGS) {
                 console.log('Font loaded successfully');
             }
+
+            // After font loads
+            const debugContainer = document.createElement('div');
+            debugContainer.style.position = 'absolute';
+            debugContainer.style.top = '0';
+            debugContainer.style.left = '0';
+            debugContainer.style.width = '100%';
+            debugContainer.style.height = '100%';
+            debugContainer.style.zIndex = '100';
+            document.body.appendChild(debugContainer);
+
+            if(FLAGS.HTML_LOGS) {
+                console.log('Debug container created');
+            }
+
+            // Y positions, heights, widths, and offsets tuned for each item
+            const boxConfigs = [
+                { y: 180, height: 35, width: 285, yOffset: -40, url: 'https://www.youtube.com/@Blooooork' },  // ThreeJS tutorials
+                { y: 260, height: 35, width: 144, yOffset: -42, url: 'https://github.com/LittleCarlito/Recipeat' },  // Recipeat
+                { y: 340, height: 35, width: 234, yOffset: -45, url: 'https://github.com/LittleCarlito/SaveScummer' },  // SaveScummer
+                { y: 420, height: 35, width: 114, yOffset: -48, url: 'https://github.com/LittleCarlito/JPaint' },  // JPaint
+                { y: 500, height: 45, width: 565, yOffset: -50, url: 'https://github.com/LittleCarlito/springvilleSite' },  // Springville
+                { y: 580, height: 35, width: 200, yOffset: -50, url: 'https://github.com/LittleCarlito/threejs_site' }   // This website
+            ];
+
+            boxConfigs.forEach((config, index) => {
+                const link = document.createElement('a');
+                link.href = config.url;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.style.position = 'absolute';
+                link.style.left = '60px';
+                link.style.top = `${config.y + config.yOffset}px`;
+                link.style.width = `${config.width}px`;
+                link.style.height = `${config.height}px`;
+                if(FLAGS.VISUAL_DEBUG) {
+                    link.style.backgroundColor = `rgba(255, 0, 0, 0.3)`;
+                }
+                link.style.cursor = 'pointer';
+                debugContainer.appendChild(link);
+                
+                if(FLAGS.HTML_LOGS) {
+                    console.log(`Created link ${index + 1} at y=${config.y}`);
+                }
+            });
+
+            // Verify container has children
+            if(FLAGS.HTML_LOGS) {
+                console.log('Number of links created:', debugContainer.children.length);
+            }
         });
 
+        // Constants for positioning
+        const TITLE_X = 30;  // Keep this value for left margin
+        const TITLE_Y = 100;
+        const TITLE_FONT_SIZE = 96;
+        
+        const PROJECT_START_X = 60;  // Adjust this to be closer to TITLE_X
+        const PROJECT_START_Y = 180;
+        const PROJECT_FONT_SIZE = 48;
+        const PROJECT_SPACING = 80;
+
         const container = document.querySelector('.writing-container');
-        const svg = document.querySelector('#title_svg');  // Make sure we're selecting the right SVG
+        const svg = document.querySelector('#title_svg');
+        svg.setAttribute('viewBox', '0 0 800 600');
+        svg.style.width = '100%';
+        svg.style.maxWidth = '800px';
+        svg.style.height = 'auto';
+        svg.style.position = 'absolute';
+        svg.style.left = '0';
+
+        container.style.position = 'relative';
+        container.style.width = '100%';
+        container.style.maxWidth = '800px';
         
         // Separate title and project elements
         const titleText = { text: 'Projects', duration: 800, class: 'title-text' };
         
         const projectElements = [
-            { text: 'Project 1', duration: 600, class: 'project-text' },
-            { text: 'Project 2', duration: 600, class: 'project-text' },
-            { text: 'Project 3', duration: 600, class: 'project-text' },
-            { text: 'Project 4', duration: 600, class: 'project-text' },
-            { text: 'Project 5', duration: 600, class: 'project-text' },
-            { text: 'Project 6', duration: 600, class: 'project-text' },
-            { text: 'Project 7', duration: 600, class: 'project-text' }
+            { text: 'ThreeJS tutorials', duration: 600, class: 'project-text' },
+            { text: 'Recipeat', duration: 600, class: 'project-text' },
+            { text: 'SaveScummer', duration: 600, class: 'project-text' },
+            { text: 'JPaint', duration: 600, class: 'project-text' },
+            { text: 'Springville Family Dentistry webiste', duration: 600, class: 'project-text' },
+            { text: 'This website', duration: 600, class: 'project-text' }
         ];
 
         // Remove localStorage state for testing
         localStorage.removeItem('projects_has_played');
-
-        const TITLE_X = 30;  // Move further left
-        const TITLE_Y = 100;
-        const TITLE_FONT_SIZE = 96;
-        
-        const PROJECT_START_X = 100;  // Move projects further left
-        const PROJECT_START_Y = 180;
-        const PROJECT_FONT_SIZE = 48;
-        const PROJECT_SPACING = 50;
 
         function createCharacterPath(char, x, y, className, fontSize) {
             const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
