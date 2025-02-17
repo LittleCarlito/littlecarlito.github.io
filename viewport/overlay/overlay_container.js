@@ -4,6 +4,7 @@ import { LabelColumn } from './label_column';
 import { LinkContainer } from './link_container';
 import { HideButton } from './hide_button';
 import { Easing, FLAGS, THREE, Tween } from '../../common';
+import { ArtistBlock } from '../artist_block';
 
 // Confetti constants
 const PARTICLE_COUNT = 200;
@@ -37,8 +38,9 @@ export class OverlayContainer {
     particles = [];
     // Set this to true when hide is clicked the first time
     primary_control_trigger = false;
-    // TODO Set this to true when the first object is grabbed, camera is frist moved, or first object is pushed
+    // Set this to true when the first object is grabbed, camera is frist moved, or first object is pushed
     secondary_control_trigger = false;
+    artist_block;
     
     constructor(incoming_parent, incoming_camera) {
         this.parent = incoming_parent;
@@ -57,6 +59,8 @@ export class OverlayContainer {
         this.hide_button = new HideButton(this.overlay_container, this.camera);
         this.overlay_container.position.z = this.camera.position.z - 15;
         this.parent.add(this.overlay_container);
+        
+        this.artist_block = new ArtistBlock(this.overlay_container, this.camera);
     }
 
     create_confetti_burst() {
@@ -163,20 +167,16 @@ export class OverlayContainer {
                 console.log(`First Particle - Position: (${particle.position.x.toFixed(2)}, ${particle.position.y.toFixed(2)}, ${particle.position.z.toFixed(2)}), Velocity: (${particle.velocity.x.toFixed(3)}, ${particle.velocity.y.toFixed(3)}, ${particle.velocity.z.toFixed(3)})`);
             }
         }
-        
         for (const particle of this.particles) {
             // Convert velocity to local space for gravity
-            const localVelocity = particle.velocity.clone();
-            localVelocity.applyQuaternion(this.overlay_container.quaternion.clone().invert());
-            
+            const local_velocity = particle.velocity.clone();
+            local_velocity.applyQuaternion(this.overlay_container.quaternion.clone().invert());
             // Apply gravity in local space
-            localVelocity.y -= GRAVITY;
-            localVelocity.multiplyScalar(DRAG);
-            
+            local_velocity.y -= GRAVITY;
+            local_velocity.multiplyScalar(DRAG);
             // Convert back to world space
-            particle.velocity.copy(localVelocity);
+            particle.velocity.copy(local_velocity);
             particle.velocity.applyQuaternion(this.overlay_container.quaternion);
-            
             particle.position.add(particle.velocity);
             particle.rotation.z += particle.rotationSpeed;
         }
@@ -199,6 +199,7 @@ export class OverlayContainer {
             this.title_block.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
             this.label_column.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
             this.link_container.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
+            this.artist_block.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
             // Set the control menu to appear in animate
             if(this.primary_control_trigger && !this.secondary_control_trigger && this.hide_button.is_overlay_hidden) {
                 this.secondary_control_trigger = true;
