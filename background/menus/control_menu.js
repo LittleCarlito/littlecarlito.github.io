@@ -41,7 +41,7 @@ export const MENU_CONFIG = {
     },
     POSITION: {
         OFFSET: {
-            X: 10,
+            X: 0,
             Y: 8,
             Z: 400
         },
@@ -258,7 +258,12 @@ export class ControlMenu {
 
     // Add new update method
     update() {
+        // Skip if sign_joint isn't created yet
+        if (!this.sign_joint) return;
+
+        // Get current time
         const currentTime = performance.now();
+        
         // Log positions periodically
         if (currentTime - this.last_log_time > this.log_interval) {
             const beamPos = this.top_beam_mesh.position;

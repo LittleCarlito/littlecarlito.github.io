@@ -5,6 +5,7 @@ export class ScrollMenu {
     parent;
     camera;
     world;
+    dynamic_bodies;
     // Chain settings
     CHAIN_CONFIG = {
         POSITION: {
@@ -16,28 +17,30 @@ export class ScrollMenu {
             COUNT: 6,
             LENGTH: 0.5,
             RADIUS: 0.1,
-            DAMPING: 1.0,
-            MASS: 0.1,                    
-            RESTITUTION: 0.3,            
-            FRICTION: 0.8,               
-            ANGULAR_DAMPING: 1.0         
+            DAMPING: 1.5,
+            MASS: 0.05,
+            RESTITUTION: 0.1,
+            FRICTION: 0.8,
+            ANGULAR_DAMPING: 1.5,
+            GRAVITY_SCALE: 5.0
         },
         SIGN: {
             LOCAL_OFFSET: {
                 X: 0,    
                 Y: 2,    
-                Z: 0     
+                Z: 0
             },
             DIMENSIONS: {
                 WIDTH: 2,
                 HEIGHT: 2,
                 DEPTH: 0.01
             },
-            DAMPING: 0.3,
-            MASS: 1.0,                   
-            RESTITUTION: 0.2,           
-            FRICTION: 0.7,              
-            ANGULAR_DAMPING: 0.3,       
+            DAMPING: 0.8,
+            MASS: 1,
+            RESTITUTION: 0.1,
+            FRICTION: 0.8,
+            ANGULAR_DAMPING: 0.8,
+            GRAVITY_SCALE: 1.5,
             IMAGE_PATH: 'images/ScrollControlMenu.svg'
         }
     };
@@ -46,10 +49,11 @@ export class ScrollMenu {
     last_log_time = 0;
     log_interval = 500;
 
-    constructor(incoming_parent, incoming_camera, incoming_world, primary_container) {
+    constructor(incoming_parent, incoming_camera, incoming_world, incoming_container) {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.world = incoming_world;
+        this.dynamic_bodies = incoming_container.dynamic_bodies;
         // Chain configuration constants
         this.CHAIN_CONFIG.POSITION.Z = this.camera.position.z - 3;
         // Create anchor point
@@ -74,6 +78,8 @@ export class ScrollMenu {
                 .setLinearDamping(this.CHAIN_CONFIG.SEGMENTS.DAMPING)
                 .setAngularDamping(this.CHAIN_CONFIG.SEGMENTS.ANGULAR_DAMPING)
                 .setAdditionalMass(this.CHAIN_CONFIG.SEGMENTS.MASS)
+                .setGravityScale(this.CHAIN_CONFIG.SEGMENTS.GRAVITY_SCALE)
+                .setCanSleep(false)
             );
             const collider = RAPIER.ColliderDesc.ball(this.CHAIN_CONFIG.SEGMENTS.RADIUS)
                 .setRestitution(this.CHAIN_CONFIG.SEGMENTS.RESTITUTION)
@@ -96,7 +102,7 @@ export class ScrollMenu {
             const link_mesh = new THREE.Mesh(link_geometry, link_material);
             link_mesh.rotation.x = Math.PI / 2;
             this.parent.add(link_mesh);
-            primary_container.dynamic_bodies.push([link_mesh, segment_body]);
+            this.dynamic_bodies.push([link_mesh, segment_body]);
             let created_joint;
             // Create spherical joint between segments
             if (i > 0) {
@@ -151,6 +157,8 @@ export class ScrollMenu {
                 .setLinearDamping(this.CHAIN_CONFIG.SIGN.DAMPING)
                 .setAngularDamping(this.CHAIN_CONFIG.SIGN.ANGULAR_DAMPING)
                 .setAdditionalMass(this.CHAIN_CONFIG.SIGN.MASS)
+                .setGravityScale(this.CHAIN_CONFIG.SIGN.GRAVITY_SCALE)
+                .setCanSleep(false)
             );
             const sign_collider = RAPIER.ColliderDesc.cuboid(
                 this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH/2,
@@ -180,7 +188,7 @@ export class ScrollMenu {
                 sign_body,
                 true
             );
-            primary_container.dynamic_bodies.push([sign_mesh, sign_body]);
+            this.dynamic_bodies.push([sign_mesh, sign_body]);
         };
         sign_image.src = this.CHAIN_CONFIG.SIGN.IMAGE_PATH;
         this.last_log_time = 0;
@@ -188,23 +196,43 @@ export class ScrollMenu {
     }
 
     break_chains() {
-        // Remove all joints
-        this.chain_joints.forEach(joint => {
-            this.world.removeImpulseJoint(joint);
-        });
-        this.chain_joints = [];
-        // Remove chain link meshes from the scene
-        if (this.parent.children) {
-            const chain_links = this.parent.children.filter(child => 
-                child.geometry instanceof THREE.CylinderGeometry
-            );
-            chain_links.forEach(link => {
-                this.parent.remove(link);
-                link.geometry.dispose();
-                link.material.dispose();
+        if (!this.chains_broken) {
+            // Remove all joints
+            this.chain_joints.forEach(joint => {
+                this.world.removeImpulseJoint(joint);
             });
+            this.chain_joints = [];
+
+            // Find and update all chain segments and sign in dynamic_bodies
+            if (this.parent.children) {
+                // Handle chain segments
+                const chain_links = this.parent.children.filter(child => 
+                    child.geometry instanceof THREE.CylinderGeometry
+                );
+                chain_links.forEach((link, index) => {
+                    // Find corresponding rigid body
+                    const bodyPair = this.dynamic_bodies.find(([mesh]) => mesh === link);
+                    if (bodyPair) {
+                        const [_, body] = bodyPair;
+                        body.setGravityScale(this.CHAIN_CONFIG.SEGMENTS.GRAVITY_SCALE);
+                    }
+                });
+
+                // Handle sign
+                const sign = this.parent.children.find(child => 
+                    child.name === `${TYPES.INTERACTABLE}${NAMES.SECONDARY}`
+                );
+                if (sign) {
+                    const signBodyPair = this.dynamic_bodies.find(([mesh]) => mesh === sign);
+                    if (signBodyPair) {
+                        const [_, body] = signBodyPair;
+                        body.setGravityScale(this.CHAIN_CONFIG.SIGN.GRAVITY_SCALE);
+                    }
+                }
+            }
+
+            this.chains_broken = true;
         }
-        this.chains_broken = true;
     }
 
     update() {
