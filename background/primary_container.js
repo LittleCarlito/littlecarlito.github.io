@@ -45,7 +45,6 @@ export class PrimaryContainer {
         const incoming_index = Object.values(CATEGORIES).findIndex(cat => 
             typeof cat !== 'function' && cat.value === label_name
         );
-        console.log(`Primary dynamic body length ${this.dynamic_bodies.length}`);
         if(incoming_index <= this.dynamic_bodies.length - 1 && incoming_index != -1) {
             const [activating_object] = this.dynamic_bodies.at(incoming_index);
             const category = Object.values(CATEGORIES)[incoming_index];

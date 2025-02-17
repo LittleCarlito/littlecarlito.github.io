@@ -16,20 +16,28 @@ export class ScrollMenu {
             COUNT: 6,
             LENGTH: 0.5,
             RADIUS: 0.1,
-            DAMPING: 1.0
+            DAMPING: 1.0,
+            MASS: 0.1,                    
+            RESTITUTION: 0.3,            
+            FRICTION: 0.8,               
+            ANGULAR_DAMPING: 1.0         
         },
         SIGN: {
             LOCAL_OFFSET: {
-                X: 0,    // Centered with chain
-                Y: 2,    // No vertical offset
-                Z: 0     // No depth offset
+                X: 0,    
+                Y: 2,    
+                Z: 0     
             },
             DIMENSIONS: {
                 WIDTH: 2,
                 HEIGHT: 2,
                 DEPTH: 0.01
             },
-            DAMPING: 0.7,
+            DAMPING: 0.3,
+            MASS: 1.0,                   
+            RESTITUTION: 0.2,           
+            FRICTION: 0.7,              
+            ANGULAR_DAMPING: 0.3,       
             IMAGE_PATH: 'images/ScrollControlMenu.svg'
         }
     };
@@ -64,9 +72,12 @@ export class ScrollMenu {
                     this.CHAIN_CONFIG.POSITION.Z
                 )
                 .setLinearDamping(this.CHAIN_CONFIG.SEGMENTS.DAMPING)
-                .setAngularDamping(this.CHAIN_CONFIG.SEGMENTS.DAMPING)
+                .setAngularDamping(this.CHAIN_CONFIG.SEGMENTS.ANGULAR_DAMPING)
+                .setAdditionalMass(this.CHAIN_CONFIG.SEGMENTS.MASS)
             );
-            const collider = RAPIER.ColliderDesc.ball(this.CHAIN_CONFIG.SEGMENTS.RADIUS);
+            const collider = RAPIER.ColliderDesc.ball(this.CHAIN_CONFIG.SEGMENTS.RADIUS)
+                .setRestitution(this.CHAIN_CONFIG.SEGMENTS.RESTITUTION)
+                .setFriction(this.CHAIN_CONFIG.SEGMENTS.FRICTION);
             this.world.createCollider(collider, segment_body);
             segments.push(segment_body);
 
@@ -138,13 +149,16 @@ export class ScrollMenu {
                     this.CHAIN_CONFIG.POSITION.Z + this.CHAIN_CONFIG.SIGN.LOCAL_OFFSET.Z
                 )
                 .setLinearDamping(this.CHAIN_CONFIG.SIGN.DAMPING)
-                .setAngularDamping(this.CHAIN_CONFIG.SIGN.DAMPING)
+                .setAngularDamping(this.CHAIN_CONFIG.SIGN.ANGULAR_DAMPING)
+                .setAdditionalMass(this.CHAIN_CONFIG.SIGN.MASS)
             );
             const sign_collider = RAPIER.ColliderDesc.cuboid(
                 this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH/2,
                 this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT/2,
                 this.CHAIN_CONFIG.SIGN.DIMENSIONS.DEPTH/2
-            );
+            )
+                .setRestitution(this.CHAIN_CONFIG.SIGN.RESTITUTION)
+                .setFriction(this.CHAIN_CONFIG.SIGN.FRICTION);
             this.world.createCollider(sign_collider, sign_body);
             const sign_geometry = new THREE.BoxGeometry(
                 this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH,
