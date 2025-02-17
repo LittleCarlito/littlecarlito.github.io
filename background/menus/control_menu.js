@@ -2,58 +2,81 @@ import { TYPES } from '../../viewport/overlay/overlay_common';
 import { FLAGS, NAMES, RAPIER, THREE } from '../../common';
 
 export const IMAGE_PATH = 'images/MouseControlMenu.svg';
-// Sign and beam constants
-export const BEAM_DIMENSIONS = {
-    WIDTH: 10,
-    HEIGHT: 0.5,
-    DEPTH: 0.2
-};
-export const SIGN_DIMENSIONS = {
-    WIDTH: 10,
-    HEIGHT: 10,
-    DEPTH: 0.01
-};
-// Distance between sign and beam
-export const SIGN_SPACING = 1.5;
-// Chain configuration
-export const CHAIN_CONFIG = {
-    SPREAD: 5,
-    LENGTH: 1
-};
-// Anchor points for joints
-export const JOINT_ANCHORS = {
+
+// Combined configuration object for better organization
+export const MENU_CONFIG = {
     BEAM: {
-        LEFT: { x: -CHAIN_CONFIG.SPREAD, y: 0, z: 0 },
-        RIGHT: { x: CHAIN_CONFIG.SPREAD, y: 0, z: 0 },
-        BOTTOM: { x: 0, y: -BEAM_DIMENSIONS.HEIGHT/2, z: 0 }
-    },
-    CHAIN: {
-        TOP: { x: 0, y: 1, z: 0 },
-        BOTTOM: { x: 0, y: -1, z: 0 }
+        DIMENSIONS: {
+            WIDTH: 10,
+            HEIGHT: 0.5,
+            DEPTH: 0.2
+        },
+        PHYSICS: {
+            MASS: 0,
+            RESTITUTION: 1.1
+        }
     },
     SIGN: {
-        LEFT: { x: -CHAIN_CONFIG.SPREAD, y: SIGN_DIMENSIONS.HEIGHT/2, z: 0 },
-        RIGHT: { x: CHAIN_CONFIG.SPREAD, y: SIGN_DIMENSIONS.HEIGHT/2, z: 0 },
-        BOTTOM: { x: 0, y: -SIGN_DIMENSIONS.HEIGHT/2, z: 0 },
-        TOP: { x: 0, y: SIGN_DIMENSIONS.HEIGHT/2, z: 0 }
+        DIMENSIONS: {
+            WIDTH: 10,
+            HEIGHT: 10,
+            DEPTH: 0.01
+        },
+        PHYSICS: {
+            LINEAR_DAMPING: 0.9,
+            ANGULAR_DAMPING: 0.9,
+            MASS: 5,
+            RESTITUTION: 0.2,
+            USE_CCD: true
+        }
+    },
+    SPACING: 1.5,
+    JOINT: {
+        SPREAD: 5,
+        LENGTH: 1,
+        LIMITS: {
+            MIN: -Math.PI / 6,  // -30 degrees in radians
+            MAX: Math.PI / 6    // +30 degrees in radians
+        }
+    },
+    POSITION: {
+        OFFSET: {
+            X: 10,
+            Y: 8,
+            Z: 400
+        },
+        Z_TARGET: 7
+    },
+    MOVEMENT: {
+        DEFAULT_SPEED: 80,
+        GRAVITY_DELAY: 266
     }
 };
-export const ASSEMBLY_OFFSET = {
-    x: 10,
-    y: 8,
-    z: 200
+
+// Joint anchor points - derived from configuration
+export const JOINT_ANCHORS = {
+    BEAM: {
+        LEFT: { x: -MENU_CONFIG.JOINT.SPREAD, y: 0, z: 0 },
+        RIGHT: { x: MENU_CONFIG.JOINT.SPREAD, y: 0, z: 0 },
+        BOTTOM: { x: 0, y: -MENU_CONFIG.BEAM.DIMENSIONS.HEIGHT/2, z: 0 }
+    },
+    SIGN: {
+        LEFT: { x: -MENU_CONFIG.JOINT.SPREAD, y: MENU_CONFIG.SIGN.DIMENSIONS.HEIGHT/2, z: 0 },
+        RIGHT: { x: MENU_CONFIG.JOINT.SPREAD, y: MENU_CONFIG.SIGN.DIMENSIONS.HEIGHT/2, z: 0 },
+        BOTTOM: { x: 0, y: -MENU_CONFIG.SIGN.DIMENSIONS.HEIGHT/2, z: 0 },
+        TOP: { x: 0, y: MENU_CONFIG.SIGN.DIMENSIONS.HEIGHT/2, z: 0 }
+    }
 };
-export const Z_TARGET = 7;
-export const DEFAULT_SPEED = 80;
+export const DEFAULT_SPEED = 250;
 export const GRAVITY_DELAY = 266;
 
 // Physics configuration for the sign
 export const SIGN_PHYSICS = {
-    LINEAR_DAMPING: .9,
+    LINEAR_DAMPING: .2,
     ANGULAR_DAMPING: .9,
-    GRAVITY_SCALE: 100,
-    MASS: 5,
-    RESTITUTION: .2,
+    GRAVITY_SCALE: 2,
+    MASS: 10,
+    RESTITUTION: 1.1,
     INITIAL_VELOCITY: {
         LINEAR: { x: 0, y: 0, z: 0 },
         ANGULAR: { x: 0, y: 0, z: 0 }
@@ -93,17 +116,17 @@ export class ControlMenu {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.world = incoming_world;
-        // Calculate assembly position based on camera
+        // Calculate assembly position based on camera using MENU_CONFIG
         this.assembly_position = {
-            x: this.camera.position.x + ASSEMBLY_OFFSET.x,
-            y: this.camera.position.y + ASSEMBLY_OFFSET.y,
-            z: this.camera.position.z - ASSEMBLY_OFFSET.z
+            x: this.camera.position.x + MENU_CONFIG.POSITION.OFFSET.X,
+            y: this.camera.position.y + MENU_CONFIG.POSITION.OFFSET.Y,
+            z: this.camera.position.z - MENU_CONFIG.POSITION.OFFSET.Z
         };
         // Top beam creation
         this.top_beam_geometry = new THREE.BoxGeometry(
-            BEAM_DIMENSIONS.WIDTH, 
-            BEAM_DIMENSIONS.HEIGHT, 
-            BEAM_DIMENSIONS.DEPTH
+            MENU_CONFIG.BEAM.DIMENSIONS.WIDTH, 
+            MENU_CONFIG.BEAM.DIMENSIONS.HEIGHT, 
+            MENU_CONFIG.BEAM.DIMENSIONS.DEPTH
         );
         this.top_beam_material = new THREE.MeshStandardMaterial({
             color: 0xffffff,
@@ -124,7 +147,13 @@ export class ControlMenu {
             .setGravityScale(0)
             .setCanSleep(false)
         );
-        this.top_beam_shape = RAPIER.ColliderDesc.cuboid(20, 1.5, 1.5).setMass(0).setRestitution(1.1);
+        this.top_beam_shape = RAPIER.ColliderDesc.cuboid(
+            MENU_CONFIG.BEAM.DIMENSIONS.WIDTH/2, 
+            MENU_CONFIG.BEAM.DIMENSIONS.HEIGHT/2, 
+            MENU_CONFIG.BEAM.DIMENSIONS.DEPTH/2
+        )
+            .setMass(MENU_CONFIG.BEAM.PHYSICS.MASS)
+            .setRestitution(MENU_CONFIG.BEAM.PHYSICS.RESTITUTION);
         this.world.createCollider(this.top_beam_shape, this.top_beam_body);
         primary_container.dynamic_bodies.push([this.top_beam_mesh, this.top_beam_body]);
         // Sign creation
@@ -146,59 +175,76 @@ export class ControlMenu {
             });
             // Create test object
             this.sign_geometry = new THREE.BoxGeometry(
-                SIGN_DIMENSIONS.WIDTH, 
-                SIGN_DIMENSIONS.HEIGHT, 
-                SIGN_DIMENSIONS.DEPTH
+                MENU_CONFIG.SIGN.DIMENSIONS.WIDTH, 
+                MENU_CONFIG.SIGN.DIMENSIONS.HEIGHT, 
+                MENU_CONFIG.SIGN.DIMENSIONS.DEPTH
             );
             this.sign_mesh = new THREE.Mesh(this.sign_geometry, this.sign_material);
             this.sign_mesh.castShadow = true;
             this.sign_mesh.name = `${TYPES.INTERACTABLE}${NAMES.PRIMARY}`;
             this.parent.add(this.sign_mesh);
-            // Create test physics object
+            // Create test physics object with initial rotation
+            const initialRotation = new THREE.Quaternion().setFromAxisAngle(
+                new THREE.Vector3(1, 0, 0),
+                -Math.PI/2  // Start at 90 degrees down
+            );
+            
             this.sign_body = this.world.createRigidBody(
                 RAPIER.RigidBodyDesc
                 .dynamic()
                 .setTranslation(
                     this.assembly_position.x,
-                    this.top_beam_mesh.position.y - (SIGN_SPACING + SIGN_DIMENSIONS.HEIGHT/2),
+                    this.top_beam_mesh.position.y - (MENU_CONFIG.SPACING + MENU_CONFIG.SIGN.DIMENSIONS.HEIGHT/2),
                     this.top_beam_mesh.position.z
                 )
-                .setGravityScale(SIGN_PHYSICS.GRAVITY_SCALE)
-                .setLinearDamping(SIGN_PHYSICS.LINEAR_DAMPING)
-                .setAngularDamping(SIGN_PHYSICS.ANGULAR_DAMPING)
-                .setCcdEnabled(SIGN_PHYSICS.USE_CCD)
+                .setRotation(initialRotation)
+                .setAngvel({ x: 0, y: 0, z: 0 })  // Set initial angular velocity to 0
+                .setLinearDamping(MENU_CONFIG.SIGN.PHYSICS.LINEAR_DAMPING)
+                .setAngularDamping(2.0)  // Increased from 0.9
+                .setCcdEnabled(MENU_CONFIG.SIGN.PHYSICS.USE_CCD)
                 .setCanSleep(false)
             );
-            // Apply initial velocities
-            this.sign_body.setLinvel(SIGN_PHYSICS.INITIAL_VELOCITY.LINEAR, true);
-            this.sign_body.setAngvel(SIGN_PHYSICS.INITIAL_VELOCITY.ANGULAR, true);
-            this.sign_shape = RAPIER.ColliderDesc.cuboid(5, 5, 0.005).setMass(SIGN_PHYSICS.MASS).setRestitution(SIGN_PHYSICS.RESTITUTION);
+            this.sign_shape = RAPIER.ColliderDesc.cuboid(
+                MENU_CONFIG.SIGN.DIMENSIONS.WIDTH/2, 
+                MENU_CONFIG.SIGN.DIMENSIONS.HEIGHT/2, 
+                MENU_CONFIG.SIGN.DIMENSIONS.DEPTH/2
+            )
+                .setMass(MENU_CONFIG.SIGN.PHYSICS.MASS)
+                .setRestitution(MENU_CONFIG.SIGN.PHYSICS.RESTITUTION);
             this.world.createCollider(this.sign_shape, this.sign_body);
 
-            // Create revolute joint for forward/backward swinging
+            // Create revolute joint
             const sign_joint = RAPIER.JointData.revolute(
-                JOINT_ANCHORS.BEAM.BOTTOM,  // Anchor point on the beam
-                {                           // Anchor point for the sign
+                JOINT_ANCHORS.BEAM.BOTTOM,
+                {
                     x: JOINT_ANCHORS.SIGN.TOP.x,
-                    y: JOINT_ANCHORS.SIGN.TOP.y + SIGN_SPACING,
+                    y: JOINT_ANCHORS.SIGN.TOP.y + MENU_CONFIG.SPACING,
                     z: JOINT_ANCHORS.SIGN.TOP.z
                 },
-                { x: 1, y: 0, z: 0 }       // Rotation axis (x-axis for forward/backward swing)
+                { x: 1, y: 0, z: 0 }
             );
 
-            this.sign_joint = this.world.createImpulseJoint(
-                sign_joint, 
-                this.top_beam_body, 
-                this.sign_body, 
-                true
-            );
+            // Set limits for straight down
+            sign_joint.limits = [0, 0];
+            
+            // Create joint with correct method
+            this.sign_joint = this.world.createImpulseJoint(sign_joint, this.top_beam_body, this.sign_body);
+
+            // Configure the motor after joint creation
+            if (this.sign_joint) {
+                this.sign_joint.configureMotorPosition(0, 10000.0, 1000.0);
+            }
+
+            if(FLAGS.PHYSICS_LOGS) {
+                console.log("Joint created with motor configuration");
+            }
 
             primary_container.dynamic_bodies.push([this.sign_mesh, this.sign_body]);
         };
         this.sign_image.src = IMAGE_PATH;
         this.reached_target = false;
         this.last_log_time = 0;
-        this.log_interval = 500;
+        this.log_interval = 5000;
     }
 
     break_chains() {
@@ -224,8 +270,15 @@ export class ControlMenu {
                 if (this.sign_mesh && this.sign_body) {
                     const signPos = this.sign_mesh.position;
                     const signVel = this.sign_body.linvel();
+                    const rotation = this.sign_body.rotation();
+                    // Convert quaternion to Euler angles (in radians)
+                    const euler = new THREE.Euler().setFromQuaternion(
+                        new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w)
+                    );
                     console.log(`Sign - Position: (${signPos.x.toFixed(2)}, ${signPos.y.toFixed(2)}, ${signPos.z.toFixed(2)})`);
                     console.log(`Sign - Velocity: (${signVel.x.toFixed(2)}, ${signVel.y.toFixed(2)}, ${signVel.z.toFixed(2)})`);
+                    console.log(`Sign - Rotation (rad): x:${euler.x.toFixed(2)}, y:${euler.y.toFixed(2)}, z:${euler.z.toFixed(2)}`);
+                    console.log(`Sign - Rotation (deg): x:${(euler.x * 180/Math.PI).toFixed(2)}°, y:${(euler.y * 180/Math.PI).toFixed(2)}°, z:${(euler.z * 180/Math.PI).toFixed(2)}°`);
                 }
             }
             
@@ -233,7 +286,7 @@ export class ControlMenu {
         }
 
         // Check for stopping condition
-        if (!this.reached_target && this.top_beam_mesh.position.z >= Z_TARGET) {
+        if (!this.reached_target && this.top_beam_mesh.position.z >= MENU_CONFIG.POSITION.Z_TARGET) {
             if(FLAGS.PHYSICS_LOGS) {
                 console.log('=== Attempting to Stop Beam ===');
             }
@@ -245,10 +298,31 @@ export class ControlMenu {
             }
             // First set velocity to 0
             this.top_beam_body.setLinvel(0, 0, 0);
+            
+            // Moderate damping
+            this.sign_body.setAngularDamping(0.9);
+            if (this.sign_joint) {
+                // Start with strong motor to stop motion
+                this.sign_joint.configureMotorPosition(0, 1000.0, 200.0);
+                
+                // Rapidly reduce motor strength
+                setTimeout(() => {
+                    this.sign_joint.configureMotorPosition(0, 500.0, 100.0);
+                    setTimeout(() => {
+                        this.sign_joint.configureMotorPosition(0, 100.0, 20.0);
+                        setTimeout(() => {
+                            // Almost completely remove motor influence
+                            this.sign_joint.configureMotorPosition(0, 10.0, 2.0);
+                        }, 100);
+                    }, 100);
+                }, 100);
+            }
+            
             // Set gravity to something reasonable
             setTimeout(() => {
                 this.sign_body.setGravityScale(1);
-            }, GRAVITY_DELAY);
+            }, MENU_CONFIG.MOVEMENT.GRAVITY_DELAY);
+            
             // Change the body type to fixed
             this.top_beam_body.setBodyType(RAPIER.RigidBodyType.Fixed);
             if(FLAGS.PHYSICS_LOGS) {
