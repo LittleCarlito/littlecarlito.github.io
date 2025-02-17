@@ -1,4 +1,4 @@
-import { NAMES, RAPIER, THREE, TYPES } from "../common";
+import { FLAGS, NAMES, RAPIER, THREE, TYPES } from "../common";
 import { GLTF_LOADER } from "./background_common";
 import { ControlMenu } from "./menus/control_menu";
 import { ScrollMenu } from "./menus/scroll_menu";
@@ -103,7 +103,27 @@ export class FillContainer {
     }
 
     spawn_secondary_instructions() {
-        this.secondary_instruction_sign = new ScrollMenu(this.object_container, this.camera, this.world, this);
+        if(FLAGS.PHYSICS_LOGS) {
+            console.log('Spawning Scroll Menu:');
+            console.log(`Camera Position: (${this.camera.position.x.toFixed(2)}, ${this.camera.position.y.toFixed(2)}, ${this.camera.position.z.toFixed(2)})`);
+        }
+        
+        // Calculate spawn position in front of camera
+        const forward = new THREE.Vector3(0, 0, -5);  // 5 units in front
+        forward.applyQuaternion(this.camera.quaternion);
+        const spawnPosition = {
+            x: this.camera.position.x + forward.x,
+            y: this.camera.position.y + forward.y + 4, // Additional Y offset
+            z: this.camera.position.z + forward.z
+        };
+        
+        this.secondary_instruction_sign = new ScrollMenu(
+            this.object_container, 
+            this.camera, 
+            this.world, 
+            this,
+            spawnPosition
+        );
     }
 
     break_primary_chains() {

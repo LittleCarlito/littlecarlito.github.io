@@ -1,4 +1,4 @@
-import { THREE } from "../common";
+import { FLAGS, THREE } from "../common";
 
 export class CameraController {
     constructor(camera, distance = 15) {
@@ -54,10 +54,18 @@ export class CameraController {
         // Convert spherical coordinates to Cartesian
         const phi_rad = THREE.MathUtils.degToRad(this.phi);
         const theta_rad = THREE.MathUtils.degToRad(this.theta);
+        
         // Update camera position
         this.camera.position.x = this.distance * Math.cos(phi_rad) * Math.sin(theta_rad);
         this.camera.position.y = this.distance * Math.sin(phi_rad);
         this.camera.position.z = this.distance * Math.cos(phi_rad) * Math.cos(theta_rad);
+        
+        if(FLAGS.PHYSICS_LOGS) {
+            console.log('Camera Update:');
+            console.log(`Position: (${this.camera.position.x.toFixed(2)}, ${this.camera.position.y.toFixed(2)}, ${this.camera.position.z.toFixed(2)})`);
+            console.log(`Angles: phi=${this.phi.toFixed(2)}°, theta=${this.theta.toFixed(2)}°`);
+        }
+        
         // Set camera target and udpate
         this.camera.lookAt(this.target);
         this.camera.updateMatrix();

@@ -3,7 +3,7 @@ export const FLAGS = {
     LAYER: true,
     TWEEN_LOGS: false,
     HTML_LOGS: false,
-    PHYSICS_LOGS: false
+    PHYSICS_LOGS: true
 };
 
 Object.freeze(FLAGS);

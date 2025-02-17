@@ -49,14 +49,31 @@ export class ScrollMenu {
     last_log_time = 0;
     log_interval = 500;
 
-    constructor(incoming_parent, incoming_camera, incoming_world, incoming_container) {
+    constructor(incoming_parent, incoming_camera, incoming_world, incoming_container, spawn_position) {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.world = incoming_world;
         this.dynamic_bodies = incoming_container.dynamic_bodies;
-        // Chain configuration constants
-        this.CHAIN_CONFIG.POSITION.Z = this.camera.position.z - 3;
-        // Create anchor point
+
+        // Use spawn position
+        this.CHAIN_CONFIG.POSITION.X = spawn_position.x;
+        this.CHAIN_CONFIG.POSITION.Y = spawn_position.y;
+        this.CHAIN_CONFIG.POSITION.Z = spawn_position.z;
+
+        // Calculate rotation based on camera position
+        const theta_rad = Math.atan2(
+            this.camera.position.x,
+            this.camera.position.z
+        );
+        const halfAngle = theta_rad / 2;
+        const rotation = {
+            x: 0,
+            y: Math.sin(halfAngle),
+            z: 0,
+            w: Math.cos(halfAngle)
+        };
+
+        // Create anchor with rotation
         const anchor_body = this.world.createRigidBody(
             RAPIER.RigidBodyDesc.fixed()
             .setTranslation(
@@ -64,17 +81,20 @@ export class ScrollMenu {
                 this.CHAIN_CONFIG.POSITION.Y,
                 this.CHAIN_CONFIG.POSITION.Z
             )
+            .setRotation(rotation)  // Apply same rotation to anchor
         );
-        // Create chain segments with visible links
-        const segments = [];
+
+        // Create chain segments with same rotation
+        let previous_body = anchor_body;
         for(let i = 0; i < this.CHAIN_CONFIG.SEGMENTS.COUNT; i++) {
-            const segment_body = this.world.createRigidBody(
+            const chain_body = this.world.createRigidBody(
                 RAPIER.RigidBodyDesc.dynamic()
                 .setTranslation(
                     this.CHAIN_CONFIG.POSITION.X,
-                    this.CHAIN_CONFIG.POSITION.Y - (i * this.CHAIN_CONFIG.SEGMENTS.LENGTH),
+                    this.CHAIN_CONFIG.POSITION.Y - (i + 1) * this.CHAIN_CONFIG.SEGMENTS.LENGTH,
                     this.CHAIN_CONFIG.POSITION.Z
                 )
+                .setRotation(rotation)  // Apply same rotation to each chain segment
                 .setLinearDamping(this.CHAIN_CONFIG.SEGMENTS.DAMPING)
                 .setAngularDamping(this.CHAIN_CONFIG.SEGMENTS.ANGULAR_DAMPING)
                 .setAdditionalMass(this.CHAIN_CONFIG.SEGMENTS.MASS)
@@ -84,25 +104,8 @@ export class ScrollMenu {
             const collider = RAPIER.ColliderDesc.ball(this.CHAIN_CONFIG.SEGMENTS.RADIUS)
                 .setRestitution(this.CHAIN_CONFIG.SEGMENTS.RESTITUTION)
                 .setFriction(this.CHAIN_CONFIG.SEGMENTS.FRICTION);
-            this.world.createCollider(collider, segment_body);
-            segments.push(segment_body);
-
-            // Create visible chain link
-            const link_geometry = new THREE.CylinderGeometry(
-                this.CHAIN_CONFIG.SEGMENTS.RADIUS,
-                this.CHAIN_CONFIG.SEGMENTS.RADIUS,
-                this.CHAIN_CONFIG.SEGMENTS.LENGTH * 0.8,
-                8
-            );
-            const link_material = new THREE.MeshStandardMaterial({ 
-                color: 0x888888,
-                transparent: true,
-                opacity: 0
-             });
-            const link_mesh = new THREE.Mesh(link_geometry, link_material);
-            link_mesh.rotation.x = Math.PI / 2;
-            this.parent.add(link_mesh);
-            this.dynamic_bodies.push([link_mesh, segment_body]);
+            this.world.createCollider(collider, chain_body);
+            this.dynamic_bodies.push([chain_body]);
             let created_joint;
             // Create spherical joint between segments
             if (i > 0) {
@@ -112,8 +115,8 @@ export class ScrollMenu {
                 );
                 created_joint = this.world.createImpulseJoint(
                     joint_desc,
-                    segments[i-1],
-                    segment_body,
+                    previous_body,
+                    chain_body,
                     true
                 );
             } else {
@@ -125,11 +128,12 @@ export class ScrollMenu {
                 created_joint = this.world.createImpulseJoint(
                     joint_desc,
                     anchor_body,
-                    segment_body,
+                    chain_body,
                     true
                 );
             }
             this.chain_joints.push(created_joint);
+            previous_body = chain_body;
         }
         // Create and load the sign
         const sign_image = new Image();
@@ -145,8 +149,28 @@ export class ScrollMenu {
                 map: sign_texture,
                 side: THREE.DoubleSide
             });
+            
+            const sign_geometry = new THREE.BoxGeometry(
+                this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH,
+                this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT,
+                this.CHAIN_CONFIG.SIGN.DIMENSIONS.DEPTH
+            );
+            const sign_mesh = new THREE.Mesh(sign_geometry, sign_material);
+            sign_mesh.castShadow = true;
+            sign_mesh.name = `${TYPES.INTERACTABLE}${NAMES.SECONDARY}`;
+            
+            // Rotate the sign 90 degrees around X axis
+            sign_mesh.rotation.x = Math.PI / 2;
+            
+            this.parent.add(sign_mesh);
+            
             const sign_spawn_y = this.CHAIN_CONFIG.POSITION.Y - 
                 (this.CHAIN_CONFIG.SEGMENTS.COUNT * this.CHAIN_CONFIG.SEGMENTS.LENGTH);
+            const theta_rad = Math.atan2(
+                this.camera.position.x,
+                this.camera.position.z
+            );
+            const halfAngle = theta_rad / 2;
             const sign_body = this.world.createRigidBody(
                 RAPIER.RigidBodyDesc.dynamic()
                 .setTranslation(
@@ -154,6 +178,12 @@ export class ScrollMenu {
                     sign_spawn_y + this.CHAIN_CONFIG.SIGN.LOCAL_OFFSET.Y,
                     this.CHAIN_CONFIG.POSITION.Z + this.CHAIN_CONFIG.SIGN.LOCAL_OFFSET.Z
                 )
+                .setRotation({
+                    x: 0,
+                    y: Math.sin(halfAngle),
+                    z: 0,
+                    w: Math.cos(halfAngle)
+                })
                 .setLinearDamping(this.CHAIN_CONFIG.SIGN.DAMPING)
                 .setAngularDamping(this.CHAIN_CONFIG.SIGN.ANGULAR_DAMPING)
                 .setAdditionalMass(this.CHAIN_CONFIG.SIGN.MASS)
@@ -168,15 +198,7 @@ export class ScrollMenu {
                 .setRestitution(this.CHAIN_CONFIG.SIGN.RESTITUTION)
                 .setFriction(this.CHAIN_CONFIG.SIGN.FRICTION);
             this.world.createCollider(sign_collider, sign_body);
-            const sign_geometry = new THREE.BoxGeometry(
-                this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH,
-                this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT,
-                this.CHAIN_CONFIG.SIGN.DIMENSIONS.DEPTH
-            );
-            const sign_mesh = new THREE.Mesh(sign_geometry, sign_material);
-            sign_mesh.castShadow = true;
-            sign_mesh.name = `${TYPES.INTERACTABLE}${NAMES.SECONDARY}`;
-            this.parent.add(sign_mesh);
+            
             // Connect sign to last chain segment
             const finalJointDesc = RAPIER.JointData.spherical(
                 {x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0},
@@ -184,7 +206,7 @@ export class ScrollMenu {
             );
             this.world.createImpulseJoint(
                 finalJointDesc,
-                segments[segments.length - 1],
+                previous_body,
                 sign_body,
                 true
             );
@@ -237,6 +259,28 @@ export class ScrollMenu {
 
     update() {
         const currentTime = performance.now();
+        
+        // Update sign rotation based on camera angles
+        if (this.parent.children) {
+            const sign = this.parent.children.find(child => 
+                child.name === `${TYPES.INTERACTABLE}${NAMES.SECONDARY}`
+            );
+            if (sign) {
+                // Calculate rotation based on camera position
+                const direction = new THREE.Vector3();
+                direction.subVectors(this.camera.position, new THREE.Vector3(0, 0, 0));
+                direction.normalize();
+                
+                // Set sign rotation to face center
+                sign.position.normalize();
+                const rotationMatrix = new THREE.Matrix4();
+                rotationMatrix.lookAt(sign.position, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1, 0));
+                sign.quaternion.setFromRotationMatrix(rotationMatrix);
+                // Rotate 180 degrees to face outward instead of inward
+                sign.rotateY(Math.PI);
+            }
+        }
+        
         // Log positions periodically
         if (currentTime - this.last_log_time > this.log_interval) {
             if(FLAGS.PHYSICS_LOGS) {
