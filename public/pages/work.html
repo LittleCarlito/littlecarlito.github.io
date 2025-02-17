@@ -13,36 +13,39 @@
 
         .terminal-text {
             position: relative;
-            white-space: nowrap;
-            overflow: hidden;
+            white-space: pre-wrap;
             opacity: 0;
             margin: 20px;
+            max-width: 95vw;
+            line-height: 1.5;
         }
 
         .terminal-text.revealed {
             opacity: 1;
-            width: 4ch;
         }
 
         .terminal-text.typing {
             opacity: 1;
-            animation: typing var(--typing-duration) steps(var(--text-length));
-            animation-fill-mode: forwards;
-        }
-
-        @keyframes typing {
-            from { width: 0 }
-            to { width: var(--final-width) }
+            animation: typing-reveal var(--typing-duration) steps(var(--text-length));
         }
 
         .cursor {
-            border-right: 2px solid #00ff00;
-            animation: blink-caret 0.75s step-end infinite;
+            position: absolute;
+            left: 20px;
         }
 
-        @keyframes blink-caret {
-            from, to { border-color: transparent }
-            50% { border-color: #00ff00 }
+        .cursor.blink {
+            animation: blink 0.75s step-end infinite;
+        }
+
+        @keyframes blink {
+            from, to { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        @keyframes typing-reveal {
+            from { clip-path: inset(0 100% 0 0); }
+            to { clip-path: inset(0 0 0 0); }
         }
 
         h3.terminal-text {
@@ -50,6 +53,63 @@
             margin-top: 5px;
             margin-bottom: 5px;
             font-size: 1.1em;
+        }
+
+        .cursor-line {
+            position: absolute;
+            left: 20px;
+            color: #00ff00;
+            animation: blink 0.75s step-end infinite;
+            z-index: 1000;
+            transition: top 0.1s ease-out;
+        }
+
+        .typing {
+            position: relative;
+        }
+
+        .cursor {
+            animation: blink 0.75s step-end infinite;
+        }
+
+        .typing {
+            animation: none;  /* No blinking during typing */
+        }
+
+        .cursor {
+            animation: blink 0.75s step-end infinite;
+            margin-top: 0.5em;
+        }
+
+        .typing-cursor {
+            opacity: 1;  /* Always visible during typing */
+        }
+
+        .command-line {
+            margin-top: 0.5em;
+            margin-left: 20px;
+            color: #00ff00;
+            display: flex;
+            align-items: baseline;
+        }
+
+        .bash-prompt {
+            white-space: pre;  /* Preserve spaces */
+        }
+
+        .command-text {
+            white-space: pre;  /* Preserve spaces */
+            margin-left: 0;  /* Remove any default margins */
+        }
+
+        .command-cursor {
+            animation: blink 0.75s step-end infinite;
+            margin-left: 1px;
+        }
+
+        @keyframes blink {
+            from, to { opacity: 1; }
+            50% { opacity: 0; }
         }
     </style>
 </head>
@@ -91,136 +151,191 @@
     <script type="module">
         import { FLAGS } from '../../common';
         
-        const CHARS_PER_SECOND = 200; // Adjust this number to control typing speed
-
-        localStorage.removeItem('work_has_played');
+        const CHARS_PER_SECOND = 50;
         const textElements = document.querySelectorAll('.terminal-text');
-        
-        if(FLAGS.HTML_LOGS){
-            console.log('Page Load - localStorage state:', localStorage.getItem('work_has_played'));
-        }
-
         let animationInProgress = false;
         let shouldStopAnimation = false;
+        const CURSOR = '█';
+        let commandInput = '';
+        
+        // Generate a random private IP address
+        const randomIP = `172.${Math.floor(Math.random() * 16 + 16)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`;
+        const BASH_PROMPT = `visitor@ip-${randomIP}:~$ `;
 
         async function animateText(element) {
-            if(FLAGS.HTML_LOGS){
+            if(FLAGS.HTML_LOGS) {
                 console.log('Starting animation for element:', element.textContent.substring(0, 20) + '...');
             }
             return new Promise(resolve => {
                 if (!element.textContent.trim() || shouldStopAnimation) {
-                    if(FLAGS.HTML_LOGS){
-                        console.log('Skipping animation - empty or stopped');
+                    if(FLAGS.HTML_LOGS) {
+                        console.log('Skipping animation - empty text or stop flag');
                     }
-                    element.style.opacity = '1';
+                    element.classList.add('revealed');
                     resolve();
                     return;
                 }
 
-                const textLength = element.textContent.trim().length;
-                const duration = textLength / CHARS_PER_SECOND;
-                if(FLAGS.HTML_LOGS){
-                    console.log(`Animation setup - Length: ${textLength}, Duration: ${duration}s`);
-                }
+                const text = element.textContent;
+                element.style.opacity = '1';
+                element.textContent = '';
                 
-                element.style.setProperty('--text-length', textLength);
-                element.style.setProperty('--typing-duration', `${duration}s`);
-                element.style.setProperty('--final-width', `${textLength}ch`);
-                
-                element.animationEndHandler = () => {
-                    if(FLAGS.HTML_LOGS){
-                        console.log('Animation ended for:', element.textContent.substring(0, 20) + '...');
+                let currentChar = 0;
+                const interval = setInterval(() => {
+                    if (shouldStopAnimation) {
+                        clearInterval(interval);
+                        element.textContent = text;
+                        resolve();
+                        return;
                     }
-                    element.classList.remove('typing', 'cursor');
-                    element.style.opacity = '1';
-                    element.style.width = `${textLength}ch`;
-                    element.removeEventListener('animationend', element.animationEndHandler);
-                    delete element.animationEndHandler;
-                    resolve();
-                };
-                if(FLAGS.HTML_LOGS){
-                    console.log('Adding animation classes and listener');
-                }
-                element.classList.add('typing', 'cursor');
-                element.addEventListener('animationend', element.animationEndHandler, { once: true });
+
+                    currentChar++;
+                    element.textContent = text.substring(0, currentChar) + CURSOR;
+                    
+                    if (currentChar >= text.length) {
+                        clearInterval(interval);
+                        element.textContent = text; // Remove animation cursor
+                        if(FLAGS.HTML_LOGS) {
+                            console.log('Animation complete for element');
+                        }
+                        setTimeout(resolve, 100);
+                    }
+                }, 1000 / CHARS_PER_SECOND);
+
+                element.dataset.animationTimer = interval;
             });
+        }
+
+        function createCommandLine(preserveCommand = false) {
+            const commandLine = document.createElement('div');
+            commandLine.className = 'command-line';
+            
+            const promptSpan = document.createElement('span');
+            promptSpan.className = 'bash-prompt';
+            promptSpan.textContent = BASH_PROMPT;
+            
+            const inputSpan = document.createElement('span');
+            inputSpan.className = 'command-text';
+            inputSpan.textContent = preserveCommand ? commandInput : '';
+            
+            const cursorSpan = document.createElement('span');
+            cursorSpan.className = 'command-cursor';
+            cursorSpan.textContent = CURSOR;
+            
+            commandLine.appendChild(promptSpan);
+            commandLine.appendChild(inputSpan);
+            if (!preserveCommand) {
+                commandLine.appendChild(cursorSpan);
+            }
+            
+            document.getElementById('content').appendChild(commandLine);
+        }
+
+        function handleKeyPress(e) {
+            // Prevent browser shortcuts and default behaviors
+            if (e.key === '/' || 
+                e.key === "'" ||
+                (e.ctrlKey && e.key === 'f') ||
+                (e.ctrlKey && e.key === 'g') ||
+                (e.ctrlKey && e.key === 'k') ||
+                (e.ctrlKey && e.key === 'l') ||
+                (e.ctrlKey && e.key === 'p') ||
+                (e.ctrlKey && e.key === 's')) {
+                e.preventDefault();
+            }
+
+            if (!document.querySelector('.command-line')) return;
+            
+            if (e.key === 'Enter') {
+                // Just preserve the current line by removing its cursor
+                const currentLine = document.querySelector('.command-line:last-child');
+                const cursor = currentLine.querySelector('.command-cursor');
+                if (cursor) cursor.remove();
+                
+                // Create new command line
+                commandInput = '';
+                createCommandLine(false);
+            } else if (e.key === 'Backspace') {
+                e.preventDefault();
+                commandInput = commandInput.slice(0, -1);
+            } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                commandInput += e.key;
+            }
+            
+            // Update active command line display
+            const commandLines = document.querySelectorAll('.command-line');
+            const activeCommandLine = commandLines[commandLines.length - 1];
+            if (activeCommandLine) {
+                const commandText = activeCommandLine.querySelector('.command-text');
+                if (commandText) {
+                    commandText.textContent = commandInput;
+                }
+            }
+
+            window.scrollTo(0, document.body.scrollHeight);
         }
 
         function stopAllAnimations() {
-            if(FLAGS.HTML_LOGS){
+            if(FLAGS.HTML_LOGS) {
                 console.log('Stopping all animations');
             }
             shouldStopAnimation = true;
-            textElements.forEach(element => {
-                if(FLAGS.HTML_LOGS){
-                    console.log('Cleaning up element:', element.textContent.substring(0, 20) + '...');
+            animationInProgress = false;
+            textElements.forEach(el => {
+                if (el.dataset.animationTimer) {
+                    clearInterval(Number(el.dataset.animationTimer));
+                    delete el.dataset.animationTimer;
                 }
-                if (element.animationEndHandler) {
-                    element.removeEventListener('animationend', element.animationEndHandler);
-                    delete element.animationEndHandler;
-                }
-                const textLength = element.textContent.length;
-                element.classList.remove('typing', 'cursor');
-                element.style.opacity = '1';
-                element.style.width = `${textLength}ch`;
+                el.style.opacity = '1';
+                el.classList.add('revealed');
+                el.textContent = el.textContent.replace(CURSOR, '');
             });
+            
+            createCommandLine();
         }
 
         window.trigger_frame_animation = async function() {
-            if(FLAGS.HTML_LOGS){
-                console.log('Animation triggered, localStorage state:', localStorage.getItem('work_has_played'));
+            if(FLAGS.HTML_LOGS) {
+                console.log('Animation triggered');
             }
-            
-            // Stop any existing animations
-            stopAllAnimations();
-            
-            // Reset the stop flag
+
+            if (animationInProgress) {
+                stopAllAnimations();
+                return;
+            }
+
+            const existingCommandLine = document.querySelector('.command-line');
+            if (existingCommandLine) {
+                existingCommandLine.remove();
+            }
+
+            animationInProgress = true;
             shouldStopAnimation = false;
-            
-            if(!localStorage.getItem('work_has_played') && !animationInProgress){
-                if(FLAGS.HTML_LOGS){
-                    console.log('First time - playing animation');
+
+            try {
+                for (const element of textElements) {
+                    if (shouldStopAnimation) break;
+                    await animateText(element);
                 }
-                animationInProgress = true;
-                
-                // Reset all elements to initial state
-                textElements.forEach(element => {
-                    element.style.opacity = '0';
-                    element.style.width = '0';
-                });
-                
-                try {
-                    for (const element of textElements) {
-                        if (shouldStopAnimation) {
-                            if(FLAGS.HTML_LOGS){
-                                console.log('Animation sequence stopped');
-                            }
-                            break;
-                        }
-                        if(FLAGS.HTML_LOGS){
-                            console.log('Starting animation for next element');
-                        }
-                        await animateText(element);
-                    }
-                } finally {
-                    animationInProgress = false;
-                    localStorage.setItem('work_has_played', true);
+            } finally {
+                if (!shouldStopAnimation) {
+                    createCommandLine();
                 }
-            } else {
-                if(FLAGS.HTML_LOGS){
-                    console.log('Already played or animation in progress - showing text immediately');
-                }
-                textElements.forEach(element => {
-                    const textLength = element.textContent.length;
-                    element.classList.remove('typing', 'cursor');
-                    element.style.opacity = '1';
-                    element.style.width = `${textLength}ch`;
-                });
             }
         };
 
-        // Add cleanup when page is hidden/unloaded
+        // Add both keydown and keypress listeners for better control
+        document.addEventListener('keydown', handleKeyPress);
+        document.addEventListener('keypress', (e) => {
+            if (document.querySelector('.command-line')) {
+                e.preventDefault(); // Prevent double input
+            }
+        });
+
         document.addEventListener('visibilitychange', () => {
+            if(FLAGS.HTML_LOGS) {
+                console.log('Visibility changed - Hidden:', document.hidden);
+            }
             if (document.hidden) {
                 stopAllAnimations();
             }
