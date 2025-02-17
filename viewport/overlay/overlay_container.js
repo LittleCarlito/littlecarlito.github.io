@@ -60,7 +60,7 @@ export class OverlayContainer {
     }
 
     create_confetti_burst() {
-        if(FLAGS.CONFETTI_LOGS) {
+        if(FLAGS.PHYSICS_LOGS) {
             const cam_pos = this.camera.position;
             const overlay_pos = this.overlay_container.position;
             console.log(`Camera Position: (${cam_pos.x.toFixed(2)}, ${cam_pos.y.toFixed(2)}, ${cam_pos.z.toFixed(2)})`);
@@ -72,7 +72,7 @@ export class OverlayContainer {
         forward.applyQuaternion(this.camera.quaternion);
         const burst_position = this.camera.position.clone().add(forward);
         
-        if(FLAGS.CONFETTI_LOGS) {
+        if(FLAGS.PHYSICS_LOGS) {
             console.log(`Burst Position: (${burst_position.x.toFixed(2)}, ${burst_position.y.toFixed(2)}, ${burst_position.z.toFixed(2)})`);
         }
 
@@ -156,7 +156,7 @@ export class OverlayContainer {
     }
 
     update_confetti() {
-        if (this.particles.length > 0 && FLAGS.CONFETTI_LOGS) {
+        if (this.particles.length > 0 && FLAGS.PHYSICS_LOGS) {
             // Only log first particle every 10 frames to reduce spam
             if (Math.random() < 0.1) {
                 const particle = this.particles[0];

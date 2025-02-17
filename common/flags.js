@@ -2,8 +2,7 @@ export const FLAGS = {
     CONSTRUCTION_GREETING: true,
     LAYER: true,
     TWEEN_LOGS: false,
-    HTML_LOGS: true,
-    CONFETTI_LOGS: false,
+    HTML_LOGS: false,
     PHYSICS_LOGS: false
 };
 
