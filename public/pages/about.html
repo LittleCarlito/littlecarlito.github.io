@@ -40,7 +40,7 @@
             background: white !important;
             border-right: 2px solid #ccc;
             box-shadow: 5px 0 15px rgba(0, 0, 0, 0.1);
-            left: 0; /* Start position */
+            left: 0;
         }
 
         .front, .back {
@@ -60,47 +60,47 @@
         .back {
             display: grid;
             grid-template-rows: auto 1fr;
-            padding: 6em;
             transform: rotateY(180deg);
             background: white;
-            position: relative;  /* For absolute positioning of header elements */
+            position: relative;
         }
 
         .header-section {
             position: relative;
             width: 100%;
-            margin-bottom: 6em;
-            height: 100px;  /* Increased height to accommodate consistent spacing */
-            padding-top: 0;  /* Remove top padding as we'll control spacing through profile picture */
+        }
+
+        h1 {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            font-size: calc(2vw + 1.5em);
+            margin: 0;
+            left: 60%;
+            transform: translate(-50%, -50%);
+            padding-top: 3em;
         }
 
         .profile-picture {
             position: absolute;
-            left: 15% !important;  /* Adjusted for better horizontal centering */
-            width: 150px;
-            height: 150px;
+            top: 30px;
+            left: 10px;
+            width: 120px;
+            height: 120px;
             border-radius: 50%;
             object-fit: cover;
             border: 3px solid #ccc;
+            pointer-events: none;
+            user-select: none;
         }
 
         .content-wrapper {
-            display: grid;
-            grid-template-columns: 1fr 1px 1fr;
-            gap: 2em;
-            padding: 0 2em;
             width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2em;
             box-sizing: border-box;
-        }
-
-        hr.vertical-divider {
-            border: none;
-            width: 1px;
-            background-color: #ccc;
-            height: 200px;
-            margin: 0;
-            align-self: start;
-            transform: translateX(-4em) translateY(7em);
         }
 
         .section:first-child {
@@ -118,14 +118,14 @@
         }
 
         .section h2 {
-            min-width: 200px;  /* Set minimum width to accommodate "Outside Work" */
+            min-width: 200px;
             display: inline-block;
-            text-align: center;  /* Keep text centered within the fixed width */
-            white-space: nowrap !important;  /* Force no wrapping */
+            text-align: center;
+            white-space: nowrap !important;
         }
 
         .section-content {
-            text-align: left;  /* Changed from center to left */
+            text-align: left;
             margin-left: 2em;
         }
 
@@ -137,23 +137,11 @@
             margin-right: 0;
         }
 
-        h1 {
-            position: absolute;
-            width: 100%;
-            text-align: center;
-            font-size: calc(2vw + 1.5em); /* Responsive base size */
-            margin: 0;
-            left: 60%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-        }
-
         h2 {
             color: black;
             text-align: center;
-            font-size: calc(1.5vw + 0.8em);
+            font-size: 1.5em;
             margin-top: 1.5em;
-            margin-bottom: 0.8em;
             min-width: 200px;
             display: inline-block;
             text-align: center;
@@ -174,16 +162,16 @@
         }
 
         .page.flipped {
-            transform: translateX(100%) rotateY(-180deg); /* Move right while flipping */
+            transform: translateX(100%) rotateY(-180deg);
         }
 
-        .header-section p {
+        .about-text {
             position: absolute;
-            width: 50%;
-            text-align: center;
-            left: 65%;
+            width: 70vw;
+            text-align: left;
+            left: 60%;
             transform: translateX(-50%);
-            top: 110%;
+            top: 80px;
             word-wrap: break-word;
             overflow-wrap: break-word;
             font-size: calc(1vw + 0.6em);
@@ -202,13 +190,13 @@
         .column span {
             white-space: nowrap;
             overflow: visible;
-            display: inline-block;  /* Added to ensure nowrap works properly */
+            display: inline-block;
         }
 
         .column h2 {
-            min-width: 500px;  /* Set minimum width to accommodate "Outside Work" */
+            min-width: 500px;
             display: inline-block;
-            text-align: center;  /* Keep text centered within the fixed width */
+            text-align: center;
         }
 
         /* Add min and max font sizes to ensure readability */
@@ -225,6 +213,43 @@
             h3 { font-size: 1.6em; }
             p { font-size: 1.2em; }
         }
+
+        .physics-container {
+            margin-top: 30vh;
+            width: 90vw;
+            height: 60vh;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .skill-ball {
+            position: absolute;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.2s;
+        }
+
+        .skill-ball:hover {
+            transform: scale(1.1);
+        }
+
+        .frontend {
+            background: #2196F3;
+        }
+
+        .backend {
+            background: #4CAF50;
+        }
     </style>
 </head>
 <body>
@@ -238,28 +263,10 @@
                     <div class="header-section">
                         <img src="../images/pxArt.png" alt="Profile Picture" class="profile-picture">
                         <h1>ABOUT</h1>
-                        <p>Blah blah blah blah blah blah blah I'm a good dev you should hire me</p>
                     </div>
+                    <p class="about-text">Working in the software development industry since 2014. I have worked my way from being a change management representative to a Java Engineer at multiple Fortune 500 and 100 companies. Programming is pretty much all I do, and I can do it for you!</p>
                     <div class="content-wrapper">
-                        <div class="section">
-                            <h2>Outside Work</h2>
-                            <div class="section-content">
-                                <p>Interests</p>
-                                <p>Adventures</p>
-                            </div>
-                        </div>
-
-                        <hr class="vertical-divider">
-
-                        <div class="section">
-                            <h2>At Work</h2>
-                            <div class="skills-grid">
-                                <p>Spring Boot</p>
-                                <p>React</p>
-                                <p>Typescript</p>
-                                <p>Java</p>
-                            </div>
-                        </div>
+                        <div id="physics-container" class="physics-container"></div>
                     </div>
                 </div>
             </div>
@@ -291,7 +298,7 @@
             
             // Use the smaller scale factor to maintain aspect ratio
             // Multiply by 0.8 to make it 80% of the container size
-            const scale = Math.min(scaleX, scaleY, 1) * 0.8;
+            const scale = Math.min(scaleX, scaleY, 1) * 1;
             
             // Apply the scale transform
             container.style.transform = `scale(${scale})`;
@@ -319,6 +326,241 @@
                 page.classList.add('flipped');
             }
         };
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script>
+        const skills = {
+            frontend: ['React', 'ThreeJS', 'JavaScript', 'TypeScript', 'HTML/CSS', 'WebGL'],
+            backend: ['Spring Boot', 'Java', 'SQL', 'Kubernetes', 'Docker', 'AWS', 'GDScript']
+        };
+
+        function initPhysics() {
+            const container = document.getElementById('physics-container');
+            const engine = Matter.Engine.create();
+            const world = engine.world;
+            
+            // Remove gravity entirely
+            engine.world.gravity.y = 0;
+            
+            // Add some air resistance to make movement fluid
+            engine.world.airFriction = 0.05;
+
+            const render = Matter.Render.create({
+                element: container,
+                engine: engine,
+                options: {
+                    width: container.clientWidth,
+                    height: container.clientHeight,
+                    wireframes: false,
+                    background: 'transparent'
+                }
+            });
+
+            // Create skill balls and store them in array
+            const balls = [];
+            const radius = 30;
+            const PHYSICS_CONSTANTS = {
+                SWIM_FORCE: 0.003,
+                MAX_SPEED: 3,
+                MIN_SPEED: 0.1,
+                INITIAL_SPEED_FACTOR: 0.5,
+                
+                // Speed variation
+                SPEED_VARIATION_FREQUENCY: 0.001,
+                SPEED_VARIATION_RANGE: 0.3,
+                SPEED_VARIATION_BASE: 0.6,
+                
+                // Movement chances
+                VERTICAL_DRIFT_CHANCE: 0.002,
+                VERTICAL_DRIFT_FORCE: 0.00005,
+                DIRECTION_CHANGE_CHANCE: 0.0005,
+                
+                // Avoidance
+                AVOIDANCE_RADIUS_FACTOR: 3,
+                AVOIDANCE_FORCE_X: 0.0005,
+                AVOIDANCE_FORCE_Y: 0.0001
+            };
+
+            Object.entries(skills).forEach(([type, skillList]) => {
+                skillList.forEach((skill, index) => {
+                    const x = Math.random() * (container.clientWidth - radius * 2) + radius;
+                    const y = Math.random() * (container.clientHeight - radius * 2) + radius;
+                    
+                    // Create individual speed characteristics for each ball
+                    const individualProperties = {
+                        speedBase: PHYSICS_CONSTANTS.SPEED_VARIATION_BASE + (Math.random() - 0.5) * 0.2,
+                        speedFrequency: PHYSICS_CONSTANTS.SPEED_VARIATION_FREQUENCY * (0.8 + Math.random() * 0.4),
+                        phaseOffset: Math.random() * Math.PI * 2,
+                        speedRange: PHYSICS_CONSTANTS.SPEED_VARIATION_RANGE * (0.8 + Math.random() * 0.4)
+                    };
+                    
+                    const ball = Matter.Bodies.circle(x, y, radius, {
+                        render: {
+                            fillStyle: type === 'frontend' ? '#2196F3' : '#4CAF50',
+                            visible: true
+                        },
+                        label: skill,
+                        restitution: 0.6,
+                        friction: 0.001,
+                        density: 0.0005,
+                        frictionAir: 0.03,
+                        individualProperties
+                    });
+
+                    // Set random initial direction and velocity
+                    const initialDirection = Math.random() > 0.5 ? 1 : -1;
+                    Matter.Body.setVelocity(ball, {
+                        x: initialDirection * PHYSICS_CONSTANTS.MAX_SPEED * PHYSICS_CONSTANTS.INITIAL_SPEED_FACTOR,
+                        y: 0
+                    });
+                    
+                    Matter.World.add(world, ball);
+                    balls.push(ball);
+                });
+            });
+
+            // Add text rendering
+            Matter.Events.on(render, 'afterRender', () => {
+                const ctx = render.context;
+                balls.forEach(ball => {
+                    ctx.save();
+                    ctx.fillStyle = 'white';
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(ball.label, ball.position.x, ball.position.y);
+                    ctx.restore();
+                });
+            });
+
+            Matter.Events.on(engine, 'beforeUpdate', () => {
+                // Get current mouse position
+                const mousePosition = mouse.position;
+                
+                balls.forEach(ball => {
+                    const position = Matter.Vector.create(ball.position.x, ball.position.y);
+                    const velocity = Matter.Vector.create(ball.velocity.x, ball.velocity.y);
+                    const props = ball.individualProperties;
+                    
+                    const currentSpeed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+                    
+                    if (currentSpeed < PHYSICS_CONSTANTS.MIN_SPEED) {
+                        const direction = Math.random() > 0.5 ? 1 : -1;
+                        Matter.Body.setVelocity(ball, {
+                            x: direction * PHYSICS_CONSTANTS.MAX_SPEED * PHYSICS_CONSTANTS.INITIAL_SPEED_FACTOR,
+                            y: 0
+                        });
+                    } else {
+                        // Use individual properties for speed variation
+                        const speedVariation = Math.sin(engine.timing.timestamp * props.speedFrequency + props.phaseOffset) 
+                            * props.speedRange + props.speedBase;
+                        const targetSpeed = PHYSICS_CONSTANTS.MAX_SPEED * speedVariation;
+                        
+                        const speedAdjustment = (targetSpeed - currentSpeed) * 0.1;
+                        const directionX = velocity.x > 0 ? 1 : -1;
+                        
+                        if (Math.random() < PHYSICS_CONSTANTS.VERTICAL_DRIFT_CHANCE) {
+                            Matter.Body.applyForce(ball, ball.position, {
+                                x: directionX * speedAdjustment * PHYSICS_CONSTANTS.SWIM_FORCE,
+                                y: (Math.random() - 0.5) * PHYSICS_CONSTANTS.VERTICAL_DRIFT_FORCE
+                            });
+                        } else {
+                            Matter.Body.applyForce(ball, ball.position, {
+                                x: directionX * speedAdjustment * PHYSICS_CONSTANTS.SWIM_FORCE,
+                                y: 0
+                            });
+                        }
+                    }
+
+                    // Direction changes
+                    if (Math.random() < PHYSICS_CONSTANTS.DIRECTION_CHANGE_CHANCE) {
+                        Matter.Body.setVelocity(ball, {
+                            x: -velocity.x,
+                            y: velocity.y
+                        });
+                    }
+
+                    // Avoidance logic for other balls
+                    let avoidanceForce = { x: 0, y: 0 };
+                    balls.forEach(otherBall => {
+                        if (otherBall !== ball) {
+                            const dx = otherBall.position.x - ball.position.x;
+                            const dy = otherBall.position.y - ball.position.y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            
+                            if (distance < radius * PHYSICS_CONSTANTS.AVOIDANCE_RADIUS_FACTOR) {
+                                avoidanceForce.x -= (dx / distance) * PHYSICS_CONSTANTS.AVOIDANCE_FORCE_X;
+                                avoidanceForce.y -= (dy / distance) * PHYSICS_CONSTANTS.AVOIDANCE_FORCE_Y;
+                            }
+                        }
+                    });
+
+                    // Add mouse avoidance
+                    if (mousePosition) {
+                        const dx = mousePosition.x - ball.position.x;
+                        const dy = mousePosition.y - ball.position.y;
+                        const mouseDistance = Math.sqrt(dx * dx + dy * dy);
+                        const mouseAvoidanceRadius = radius * 5; // Larger radius for mouse avoidance
+                        
+                        if (mouseDistance < mouseAvoidanceRadius) {
+                            avoidanceForce.x -= (dx / mouseDistance) * PHYSICS_CONSTANTS.AVOIDANCE_FORCE_X * 2;
+                            avoidanceForce.y -= (dy / mouseDistance) * PHYSICS_CONSTANTS.AVOIDANCE_FORCE_Y * 2;
+                        }
+                    }
+
+                    // Apply combined avoidance forces
+                    Matter.Body.applyForce(ball, ball.position, avoidanceForce);
+
+                    // Simple wrapping logic
+                    if (position.x > container.clientWidth) {
+                        Matter.Body.setPosition(ball, Matter.Vector.create(0, position.y));
+                    } else if (position.x < 0) {
+                        Matter.Body.setPosition(ball, Matter.Vector.create(container.clientWidth, position.y));
+                    }
+                    if (position.y > container.clientHeight) {
+                        Matter.Body.setPosition(ball, Matter.Vector.create(position.x, 0));
+                    } else if (position.y < 0) {
+                        Matter.Body.setPosition(ball, Matter.Vector.create(position.x, container.clientHeight));
+                    }
+                });
+            });
+
+            // Create the runner
+            const runner = Matter.Runner.create();
+
+            // Create only top boundary (or remove this entirely if you want no boundaries)
+            const walls = [
+                Matter.Bodies.rectangle(container.clientWidth/2, 0, container.clientWidth, 2, { isStatic: true })
+            ];
+            Matter.World.add(world, walls);
+
+            // After creating balls and before starting the engine...
+            
+            // Mouse interaction
+            const mouse = Matter.Mouse.create(render.canvas);
+            const mouseConstraint = Matter.MouseConstraint.create(engine, {
+                mouse: mouse,
+                constraint: {
+                    stiffness: 0.2,
+                    render: { visible: false }
+                }
+            });
+            Matter.World.add(world, mouseConstraint);
+            render.mouse = mouse;
+
+            // Replace Engine.run with Runner.run
+            Matter.Runner.run(runner, engine);
+            Matter.Render.run(render);
+
+            // Modified resize handler
+            window.addEventListener('resize', () => {
+                render.canvas.width = container.clientWidth;
+                render.canvas.height = container.clientHeight;
+            });
+        }
+
+        window.addEventListener('load', initPhysics);
     </script>
 </body>
 </html>
