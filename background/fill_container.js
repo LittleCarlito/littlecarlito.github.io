@@ -27,7 +27,7 @@ export class FillContainer {
     DESK = {
         scale: 2,
         mass: 1,
-        restitution: 1.1,
+        restitution: .5,
         position: new THREE.Vector3(0, 0, -8)
     }
 
