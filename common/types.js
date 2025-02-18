@@ -5,6 +5,7 @@ export const TYPES = Object.freeze({
     TEXT: "text_",
     TEXT_BLOCK: "textblock_",
     BACKGROUND: "background_",
+    GLTF_MESH: "gltf_",
     LINK: "link_",
     HIDE: "hide_",
     FLOOR: "floor_",

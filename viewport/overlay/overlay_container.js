@@ -5,6 +5,7 @@ import { LinkContainer } from './link_container';
 import { HideButton } from './hide_button';
 import { Easing, FLAGS, THREE, Tween } from '../../common';
 import { ArtistBlock } from '../artist_block';
+import { CATEGORIES } from './overlay_common';
 
 // Confetti constants
 const PARTICLE_COUNT = 200;
@@ -260,7 +261,7 @@ export class OverlayContainer {
 
     focus_text_box(incoming_name) {
         const simple_name = incoming_name.split('_')[1];
-        if(simple_name == 'education' && !this.party_popped) {
+        if(simple_name == CATEGORIES.EDUCATION.value && !this.party_popped) {
             // Create a dummy object for the delay tween
             const dummy = { value: 0 };
             new Tween(dummy)

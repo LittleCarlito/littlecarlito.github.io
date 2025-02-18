@@ -1,7 +1,8 @@
 import { clamp } from 'three/src/math/MathUtils.js';
 import { TextFrame, IFRAME } from './text_frame';
 import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, CATEGORIES, extract_type, PAN_SPEED, TYPES, VALID_DIRECTIONS } from './overlay_common';
-import { Easing, FLAGS, THREE, Tween } from '../../common';
+import { Easing, FLAGS, NAMES, THREE, Tween } from '../../common';
+import { GLTF_LOADER } from '../../background/background_common';
 
 export class TextContainer {
     container_width;
@@ -9,6 +10,14 @@ export class TextContainer {
     text_frames = [];
     focused_text_name = "";
     particles = [];
+
+    DIPLOMA = {
+        scale: 10,
+        mass: 1,
+        restitution: .2,
+        position: new THREE.Vector3(10, 0, 4),
+        rotation: new THREE.Euler(-Math.PI/  2, 0, Math.PI)
+    }
 
     constructor(incoming_parent, incoming_camera) {
         this.parent = incoming_parent;
@@ -27,20 +36,48 @@ export class TextContainer {
                 text_box.layers.set(1);
             }
             this.text_box_container.add(text_box);
-            // Create the background box
-            this.container_width = this.get_text_box_width();
-            this.container_height = this.get_text_box_height();
-            const box_geometry = new THREE.BoxGeometry(this.container_width, this.container_height, .01);
-            const box_material = new THREE.MeshBasicMaterial({ 
-                color: category.color,
-                depthTest: false,
-                transparent: true
-            });
-            if(category.value != 'about') {
-                const text_box_background = new THREE.Mesh(box_geometry, box_material);
-                text_box_background.name = `${TYPES.BACKGROUND}${category.value}`;
-                text_box_background.renderOrder = 999;
-                text_box.add(text_box_background);
+
+
+
+            // TODO OOOOOO
+            switch(category.value) {
+                case CATEGORIES.EDUCATION.value:
+                    // TODO For education ones we need to make it the GLTF instead and use that
+                    GLTF_LOADER.load("assets/diploma.glb", (loaded_diploma) => {
+                        let diploma_asset = loaded_diploma.scene;
+                        diploma_asset.position.copy(this.DIPLOMA.position);
+                        diploma_asset.rotation.copy(this.DIPLOMA.rotation);
+                        diploma_asset.name = `${TYPES.GLTF_MESH}${NAMES.DIPLOMA}`;
+                        diploma_asset.scale.set(this.DIPLOMA.scale, this.DIPLOMA.scale, this.DIPLOMA.scale);
+                        diploma_asset.renderOrder = 999;
+                        diploma_asset.traverse((child) => {
+                            if (child.isMesh) {
+                                child.name = `${TYPES.INTERACTABLE}${NAMES.DIPLOMA}`;
+                                child.material.depthTest = false;
+                                child.material.transparent = true;
+                            }
+                        });
+                        text_box.add(diploma_asset);
+                    });
+                    break;
+                case CATEGORIES.ABOUT.value:
+                    // About doesn't want any background asset or box
+                    break;
+                default:
+                    // Create the background box
+                    this.container_width = this.get_text_box_width();
+                    this.container_height = this.get_text_box_height();
+                    const box_geometry = new THREE.BoxGeometry(this.container_width, this.container_height, .01);
+                    const box_material = new THREE.MeshBasicMaterial({ 
+                        color: category.color,
+                        depthTest: false,
+                        transparent: true
+                    });
+                    const text_box_background = new THREE.Mesh(box_geometry, box_material);
+                    text_box_background.name = `${TYPES.BACKGROUND}${category.value}`;
+                    text_box_background.renderOrder = 999;
+                    text_box.add(text_box_background);
+                    break;
             }
             // Create html element
             const new_frame = new TextFrame(text_box, this.camera, this.container_width, this.container_height);
