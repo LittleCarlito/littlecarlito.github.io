@@ -257,14 +257,14 @@
         <div class="flipbook">
             <div class="page">
                 <div class="front">
-                    <img src="../images/PlaceholderPicture.png" alt="Profile Picture">
+                    <img src="../images/PlaceholderPicture.jpg" alt="Profile Picture">
                 </div>
                 <div class="back">
                     <div class="header-section">
                         <img src="../images/pxArt.png" alt="Profile Picture" class="profile-picture">
                         <h1>ABOUT</h1>
                     </div>
-                    <p class="about-text">Working in the software development industry since 2014. I have worked my way from being a change management representative to a Java Engineer at multiple Fortune 500 and 100 companies. Programming is pretty much all I do, and I can do it for you!</p>
+                    <p class="about-text">Working in the software development industry since 2014. I have worked my way from being a Change Management Representative to a Java Engineer at multiple Fortune 500 and 100 companies. Programming is pretty much all I do, and I can do it for you!</p>
                     <div class="content-wrapper">
                         <div id="physics-container" class="physics-container"></div>
                     </div>
@@ -511,32 +511,25 @@
 
                     // Apply combined avoidance forces
                     Matter.Body.applyForce(ball, ball.position, avoidanceForce);
-
-                    // Simple wrapping logic
-                    if (position.x > container.clientWidth) {
-                        Matter.Body.setPosition(ball, Matter.Vector.create(0, position.y));
-                    } else if (position.x < 0) {
-                        Matter.Body.setPosition(ball, Matter.Vector.create(container.clientWidth, position.y));
-                    }
-                    if (position.y > container.clientHeight) {
-                        Matter.Body.setPosition(ball, Matter.Vector.create(position.x, 0));
-                    } else if (position.y < 0) {
-                        Matter.Body.setPosition(ball, Matter.Vector.create(position.x, container.clientHeight));
-                    }
                 });
             });
+
+            // Create all boundaries instead of just the top one
+            const walls = [
+                // Top
+                Matter.Bodies.rectangle(container.clientWidth/2, -10, container.clientWidth, 20, { isStatic: true }),
+                // Bottom
+                Matter.Bodies.rectangle(container.clientWidth/2, container.clientHeight + 10, container.clientWidth, 20, { isStatic: true }),
+                // Left
+                Matter.Bodies.rectangle(-10, container.clientHeight/2, 20, container.clientHeight, { isStatic: true }),
+                // Right
+                Matter.Bodies.rectangle(container.clientWidth + 10, container.clientHeight/2, 20, container.clientHeight, { isStatic: true })
+            ];
+            Matter.World.add(world, walls);
 
             // Create the runner
             const runner = Matter.Runner.create();
 
-            // Create only top boundary (or remove this entirely if you want no boundaries)
-            const walls = [
-                Matter.Bodies.rectangle(container.clientWidth/2, 0, container.clientWidth, 2, { isStatic: true })
-            ];
-            Matter.World.add(world, walls);
-
-            // After creating balls and before starting the engine...
-            
             // Mouse interaction
             const mouse = Matter.Mouse.create(render.canvas);
             const mouseConstraint = Matter.MouseConstraint.create(engine, {
