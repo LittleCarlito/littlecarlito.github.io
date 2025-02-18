@@ -61,6 +61,21 @@ export class TextContainer {
             if(new_name != this.focused_text_name) {
                 // If existing focus text box move it
                 if(this.focused_text_name != "") {
+                    // Stop any running animations in the current frame before switching
+                    const currentFrame = this.text_frames.find(frame => 
+                        frame.simple_name === this.focused_text_name.replace(TYPES.TEXT, '')
+                    );
+                    if (currentFrame && currentFrame.iframe.contentWindow) {
+                        // Only trigger visibility change for education page
+                        if (currentFrame.simple_name === 'education') {
+                            const visibilityEvent = new Event('visibilitychange');
+                            Object.defineProperty(currentFrame.iframe.contentDocument, 'hidden', {
+                                value: true,
+                                writable: false
+                            });
+                            currentFrame.iframe.contentDocument.dispatchEvent(visibilityEvent);
+                        }
+                    }
                     this.lose_focus_text_box(SOUTH);
                 }
                 this.focused_text_name = new_name;
