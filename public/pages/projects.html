@@ -107,7 +107,7 @@
 </head>
 <body>
     <div class="writing-container">
-        <svg id="title_svg" width="800" height="600" viewBox="0 0 800 600">
+        <svg id="title_svg" width="800" height="800" viewBox="0 0 800 800">
             <!-- SVG content will be added here via JavaScript -->
         </svg>
     </div>
@@ -118,52 +118,77 @@
         // Configuration constants
         const ORIGINAL_SVG_WIDTH = 800;
         const LINK_LEFT_MARGIN = 60;
+        const BASE_Y = 180;
+        const Y_SPACING = 80;
         
-        // Project link configurations
-        const PROJECT_LINKS = [
+        // Single source of truth for all projects
+        const PROJECTS = [
             {
-                y: 180,
-                height: 35,
+                text: 'ThreeJS tutorials',
+                url: 'https://www.youtube.com/@Blooooork',
                 width: 285,
-                yOffset: -15,
-                url: 'https://www.youtube.com/@Blooooork'
+                height: 35,
+                yOffset: -15
             },
             {
-                y: 260,
-                height: 35,
+                text: 'Chuck Chucker',
+                url: 'https://github.com/LittleCarlito/chucker',
+                width: 250,
+                height: 32,
+                yOffset: -5
+            },
+            {
+                text: 'Recipeat',
+                url: 'https://github.com/LittleCarlito/Recipeat',
                 width: 144,
-                yOffset: -10,
-                url: 'https://github.com/LittleCarlito/Recipeat'
+                height: 35,
+                yOffset: 0
             },
             {
-                y: 340,
-                height: 35,
+                text: 'SaveScummer',
+                url: 'https://github.com/LittleCarlito/SaveScummer',
                 width: 234,
-                yOffset: 0,
-                url: 'https://github.com/LittleCarlito/SaveScummer'
+                height: 35,
+                yOffset: 5
             },
             {
-                y: 420,
-                height: 35,
+                text: 'JPaint',
+                url: 'https://github.com/LittleCarlito/JPaint',
                 width: 114,
-                yOffset: 5,
-                url: 'https://github.com/LittleCarlito/JPaint'
-            },
-            {
-                y: 500,
-                height: 45,
-                width: 565,
-                yOffset: 15,
-                url: 'https://github.com/LittleCarlito/springvilleSite'
-            },
-            {
-                y: 580,
                 height: 35,
+                yOffset: 15
+            },
+            {
+                text: 'Springville Family Dentistry webiste',
+                url: 'https://github.com/LittleCarlito/springvilleSite',
+                width: 568,
+                height: 45,
+                yOffset: 20
+            },
+            {
+                text: 'This website',
+                url: 'https://github.com/LittleCarlito/threejs_site',
                 width: 200,
-                yOffset: 20,
-                url: 'https://github.com/LittleCarlito/threejs_site'
+                height: 35,
+                yOffset: 34
             }
         ];
+
+        // Generate PROJECT_LINKS dynamically
+        const PROJECT_LINKS = PROJECTS.map((project, index) => ({
+            y: BASE_Y + (index * Y_SPACING),
+            height: project.height,
+            width: project.width,
+            yOffset: project.yOffset,
+            url: project.url
+        }));
+
+        // Generate projectElements dynamically
+        const projectElements = PROJECTS.map(project => ({
+            text: project.text,
+            duration: 600,
+            class: 'project-text'
+        }));
 
         let font = null;
         opentype.load('/fonts/TokyoRockstar.ttf', function(err, loadedFont) {
@@ -193,11 +218,12 @@
             // Y positions, heights, widths, and offsets tuned for each item
             const boxConfigs = [
                 { y: 180, height: 35, width: 285, yOffset: -40, url: 'https://www.youtube.com/@Blooooork' },  // ThreeJS tutorials
-                { y: 260, height: 35, width: 144, yOffset: -42, url: 'https://github.com/LittleCarlito/Recipeat' },  // Recipeat
-                { y: 340, height: 35, width: 234, yOffset: -45, url: 'https://github.com/LittleCarlito/SaveScummer' },  // SaveScummer
-                { y: 420, height: 35, width: 114, yOffset: -48, url: 'https://github.com/LittleCarlito/JPaint' },  // JPaint
-                { y: 500, height: 45, width: 565, yOffset: -50, url: 'https://github.com/LittleCarlito/springvilleSite' },  // Springville
-                { y: 580, height: 35, width: 200, yOffset: -50, url: 'https://github.com/LittleCarlito/threejs_site' }   // This website
+                { y: 260, height: 35, width: 200, yOffset: -42, url: '#' },  // Recipeat
+                { y: 340, height: 35, width: 144, yOffset: -42, url: 'https://github.com/LittleCarlito/Recipeat' },  // SaveScummer
+                { y: 420, height: 35, width: 234, yOffset: -45, url: 'https://github.com/LittleCarlito/SaveScummer' },  // JPaint
+                { y: 500, height: 45, width: 114, yOffset: -48, url: 'https://github.com/LittleCarlito/JPaint' },  // Springville
+                { y: 580, height: 35, width: 565, yOffset: -50, url: 'https://github.com/LittleCarlito/springvilleSite' },  // This website
+                { y: 660, height: 35, width: 200, yOffset: -50, url: 'https://github.com/LittleCarlito/threejs_site' }   // This website
             ];
 
             boxConfigs.forEach((config, index) => {
@@ -228,6 +254,16 @@
 
             // After creating the debug container and links, call updateBoxPositions
             updateBoxPositions();
+
+            // Calculate viewBox height based on number of projects
+            const TITLE_HEIGHT = 100;  // Space for "Projects" title
+            const TOTAL_PROJECTS = PROJECTS.length;
+            const TOTAL_HEIGHT = TITLE_HEIGHT + (TOTAL_PROJECTS * Y_SPACING) + 100;  // Extra padding at bottom
+
+            // Update SVG viewBox when font loads
+            const svg = document.querySelector('#title_svg');
+            svg.setAttribute('viewBox', `0 0 800 ${TOTAL_HEIGHT}`);
+            svg.setAttribute('height', TOTAL_HEIGHT);
         });
 
         // Constants for positioning
@@ -256,15 +292,6 @@
         // Separate title and project elements
         const titleText = { text: 'Projects', duration: 800, class: 'title-text' };
         
-        const projectElements = [
-            { text: 'ThreeJS tutorials', duration: 600, class: 'project-text' },
-            { text: 'Recipeat', duration: 600, class: 'project-text' },
-            { text: 'SaveScummer', duration: 600, class: 'project-text' },
-            { text: 'JPaint', duration: 600, class: 'project-text' },
-            { text: 'Springville Family Dentistry webiste', duration: 600, class: 'project-text' },
-            { text: 'This website', duration: 600, class: 'project-text' }
-        ];
-
         // Remove localStorage state for testing
         localStorage.removeItem('projects_has_played');
 
@@ -481,7 +508,6 @@
                 if (links[index]) {
                     const link = links[index];
                     link.style.left = `${LINK_LEFT_MARGIN * scale}px`;
-                    // Slightly reduce y-scaling by using 0.9 factor
                     link.style.top = `${(config.y * scale * 0.9 + config.yOffset * scale)}px`;
                     link.style.width = `${config.width * scale}px`;
                     link.style.height = `${config.height * scale}px`;
