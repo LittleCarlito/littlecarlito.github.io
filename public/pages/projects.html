@@ -115,6 +115,56 @@
     <script type="module">
         import { FLAGS } from '../../common';
 
+        // Configuration constants
+        const ORIGINAL_SVG_WIDTH = 800;
+        const LINK_LEFT_MARGIN = 60;
+        
+        // Project link configurations
+        const PROJECT_LINKS = [
+            {
+                y: 180,
+                height: 35,
+                width: 285,
+                yOffset: -15,
+                url: 'https://www.youtube.com/@Blooooork'
+            },
+            {
+                y: 260,
+                height: 35,
+                width: 144,
+                yOffset: -10,
+                url: 'https://github.com/LittleCarlito/Recipeat'
+            },
+            {
+                y: 340,
+                height: 35,
+                width: 234,
+                yOffset: 0,
+                url: 'https://github.com/LittleCarlito/SaveScummer'
+            },
+            {
+                y: 420,
+                height: 35,
+                width: 114,
+                yOffset: 5,
+                url: 'https://github.com/LittleCarlito/JPaint'
+            },
+            {
+                y: 500,
+                height: 45,
+                width: 565,
+                yOffset: 15,
+                url: 'https://github.com/LittleCarlito/springvilleSite'
+            },
+            {
+                y: 580,
+                height: 35,
+                width: 200,
+                yOffset: 20,
+                url: 'https://github.com/LittleCarlito/threejs_site'
+            }
+        ];
+
         let font = null;
         opentype.load('/fonts/TokyoRockstar.ttf', function(err, loadedFont) {
             if (err && FLAGS.HTML_LOGS) {
@@ -175,6 +225,9 @@
             if(FLAGS.HTML_LOGS) {
                 console.log('Number of links created:', debugContainer.children.length);
             }
+
+            // After creating the debug container and links, call updateBoxPositions
+            updateBoxPositions();
         });
 
         // Constants for positioning
@@ -415,6 +468,29 @@
                 showAllText();
             }
         };
+
+        function updateBoxPositions() {
+            const svg = document.querySelector('#title_svg');
+            const svgRect = svg.getBoundingClientRect();
+            const scale = svgRect.width / ORIGINAL_SVG_WIDTH;
+
+            const debugContainer = document.querySelector('div[style*="position: absolute"]');
+            const links = debugContainer.getElementsByTagName('a');
+
+            PROJECT_LINKS.forEach((config, index) => {
+                if (links[index]) {
+                    const link = links[index];
+                    link.style.left = `${LINK_LEFT_MARGIN * scale}px`;
+                    // Slightly reduce y-scaling by using 0.9 factor
+                    link.style.top = `${(config.y * scale * 0.9 + config.yOffset * scale)}px`;
+                    link.style.width = `${config.width * scale}px`;
+                    link.style.height = `${config.height * scale}px`;
+                }
+            });
+        }
+
+        // Add resize event listener
+        window.addEventListener('resize', updateBoxPositions);
     </script>
 </body>
 </html>
