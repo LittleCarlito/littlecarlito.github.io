@@ -37,7 +37,29 @@ export class TextContainer {
             }
             this.text_box_container.add(text_box);
 
+            const create_background = (incoming_category, incoming_box) => {
+                this.container_width = this.get_text_box_width();
+                this.container_height = this.get_text_box_height();
+                const box_geometry = new THREE.BoxGeometry(this.container_width, this.container_height, .01);
+                const box_material = new THREE.MeshBasicMaterial({ 
+                    color: incoming_category.color,
+                    depthTest: false,
+                    transparent: true
+                });
+                const text_box_background = new THREE.Mesh(box_geometry, box_material);
+                text_box_background.name = `${TYPES.BACKGROUND}${incoming_category.value}`;
+                text_box_background.renderOrder = 999;
+                incoming_box.add(text_box_background);
+            };
 
+            // TODO Incoming Index is the issue that stopped you last time
+            // TODO Rework whatever text_frames is to be a map with names instead of tightly coupled indexes
+            const create_text_frame  = (incoming_category, incoming_box, incoming_index) => {
+                const new_frame = new TextFrame(incoming_box, this.camera, this.container_width, this.container_height);
+                new_frame.simple_name = incoming_category.value;
+                new_frame.name = `${TYPES.TEXT_BLOCK}${incoming_category.value}`;
+                this.text_frames[incoming_index] = new_frame;
+            };
 
             // TODO OOOOOO
             switch(category.value) {
@@ -59,31 +81,18 @@ export class TextContainer {
                         });
                         text_box.add(diploma_asset);
                     });
+                    create_background(category, text_box);
                     break;
                 case CATEGORIES.ABOUT.value:
                     // About doesn't want any background asset or box
                     break;
                 default:
-                    // Create the background box
-                    this.container_width = this.get_text_box_width();
-                    this.container_height = this.get_text_box_height();
-                    const box_geometry = new THREE.BoxGeometry(this.container_width, this.container_height, .01);
-                    const box_material = new THREE.MeshBasicMaterial({ 
-                        color: category.color,
-                        depthTest: false,
-                        transparent: true
-                    });
-                    const text_box_background = new THREE.Mesh(box_geometry, box_material);
-                    text_box_background.name = `${TYPES.BACKGROUND}${category.value}`;
-                    text_box_background.renderOrder = 999;
-                    text_box.add(text_box_background);
+                    create_background(category, text_box);
                     break;
             }
             // Create html element
-            const new_frame = new TextFrame(text_box, this.camera, this.container_width, this.container_height);
-            new_frame.simple_name = category.value;
-            new_frame.name = `${TYPES.TEXT_BLOCK}${category.value}`;
-            this.text_frames[i] = new_frame;
+            create_text_frame(category, text_box, i);
+
         });
     }
 
