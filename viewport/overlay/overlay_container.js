@@ -4,7 +4,7 @@ import { LabelColumn } from './label_column';
 import { LinkContainer } from './link_container';
 import { HideButton } from './hide_button';
 import { Easing, FLAGS, THREE, Tween } from '../../common';
-import { ArtistBlock } from '../artist_block';
+import { ArtistBlock } from './artist_block';
 import { CATEGORIES } from './overlay_common';
 
 // Confetti constants
@@ -237,6 +237,7 @@ export class OverlayContainer {
         this.title_block.reposition();
         this.hide_button.reposition(this.label_column.is_column_left);
         this.artist_block.resize();
+        this.artist_block.reposition();
     }
 
     /**

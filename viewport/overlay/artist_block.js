@@ -1,19 +1,20 @@
-import { get_screen_size, get_associated_position, SOUTH } from './overlay/overlay_common';
-import { Easing, FLAGS, THREE, Tween } from '../common';
+import { get_screen_size, get_associated_position, SOUTH } from './overlay_common';
+import { Easing, FLAGS, THREE, Tween, TYPES } from '../../common';
 import { clamp } from 'three/src/math/MathUtils.js';
 
 const ARTIST_BLOCK = {
     DIMENSIONS: {
-        MIN_WIDTH: 6,      // Minimum width
-        MAX_WIDTH: 12,     // Maximum width
-        WIDTH_SCALE: 0.2,  // Percentage of screen width
+        MIN_WIDTH: 6,
+        MAX_WIDTH: 8,
+        WIDTH_SCALE: 0.2, // Percent based
         HEIGHT: 1,
         DEPTH: 0.2
     },
     POSITION: {
-        X_OFFSET: 3.5,     // Distance from screen edge
-        Y_SCALE: 0.4,      // Percentage of screen height from bottom
-        Z: 0
+        X_OFFSET: 1,
+        Y_SCALE: 0.4, // Percent based
+        Z: 0,
+        MIN_PADDING: 3
     }
 };
 
@@ -35,10 +36,11 @@ export class ArtistBlock {
         
         this.artist_box = new THREE.Mesh(artist_geometry, artist_material);
         
-        // Position calculation mirroring link container
+        // Position calculation with width offset
         const screen_size = get_screen_size(this.camera);
+        const initial_width = this.get_artist_width();
         this.artist_box.position.set(
-            -(screen_size.x / 2) + ARTIST_BLOCK.POSITION.X_OFFSET,
+            -(screen_size.x / 2) + ARTIST_BLOCK.POSITION.X_OFFSET + (initial_width / 2),
             -(ARTIST_BLOCK.POSITION.Y_SCALE * screen_size.y),
             ARTIST_BLOCK.POSITION.Z
         );
@@ -93,9 +95,21 @@ export class ArtistBlock {
 
     reposition() {
         const screen_size = get_screen_size(this.camera);
+        const current_width = this.get_artist_width();
+        
+        // Get link container's x position (it's positioned from right edge)
+        const link_x = (screen_size.x / 2) - 7;  // This matches LinkContainer's calculation
+        
+        // Calculate our x position from left edge, ensuring minimum padding from link container
+        const max_x = link_x - ARTIST_BLOCK.POSITION.MIN_PADDING - (current_width / 2);
+        const desired_x = Math.min(
+            max_x,
+            -(screen_size.x / 2) + ARTIST_BLOCK.POSITION.X_OFFSET + (current_width / 2)
+        );
+        
         new Tween(this.artist_box.position)
             .to({ 
-                x: -(screen_size.x / 2) + ARTIST_BLOCK.POSITION.X_OFFSET,
+                x: desired_x,
                 y: -(ARTIST_BLOCK.POSITION.Y_SCALE * screen_size.y)
             })
             .easing(Easing.Elastic.Out)
@@ -104,7 +118,8 @@ export class ArtistBlock {
 
     offscreen_reposition() {
         const screen_size = get_screen_size(this.camera);
+        const current_width = this.get_artist_width();
         this.artist_box.position.y = get_associated_position(SOUTH, this.camera);
-        this.artist_box.position.x = -(screen_size.x / 2) + ARTIST_BLOCK.POSITION.X_OFFSET;
+        this.artist_box.position.x = -(screen_size.x / 2) + ARTIST_BLOCK.POSITION.X_OFFSET + (current_width / 2);
     }
 }
