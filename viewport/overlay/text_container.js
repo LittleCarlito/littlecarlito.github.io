@@ -2,7 +2,7 @@ import { clamp } from 'three/src/math/MathUtils.js';
 import { TextFrame, IFRAME } from './text_frame';
 import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, CATEGORIES, extract_type, PAN_SPEED, TYPES, VALID_DIRECTIONS } from './overlay_common';
 import { Easing, FLAGS, NAMES, THREE, Tween } from '../../common';
-import { GLTF_LOADER } from '../../background/background_common';
+import { AssetManager } from '../../background/background_common';
 
 export class TextContainer {
     container_width;
@@ -62,7 +62,8 @@ export class TextContainer {
             // TODO OOOOOO
             switch(category.value) {
                 case CATEGORIES.EDUCATION.value:
-                    GLTF_LOADER.load("assets/diploma.glb", (loaded_diploma) => {
+                    const asset_manager = AssetManager.get_instance();
+                    asset_manager.loader.load("assets/diploma.glb", (loaded_diploma) => {
                         let diploma_asset = loaded_diploma.scene;
                         diploma_asset.position.copy(this.DIPLOMA.position);
                         diploma_asset.rotation.copy(this.DIPLOMA.rotation);

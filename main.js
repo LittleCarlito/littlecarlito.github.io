@@ -5,8 +5,8 @@ import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
 import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/overlay_common';
 import { AppRenderer } from './common/app_renderer';
-import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object, GLTF_LOADER } from './background/background_common';
-import { FLAGS, NAMES, RAPIER, THREE } from './common';
+import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object, AssetManager } from './background/background_common';
+import { FLAGS, RAPIER, THREE } from './common';
 import { FillContainer } from './background/fill_container';
 
 // ----- Constants
@@ -30,6 +30,7 @@ let grabbed_object = null;
 let left_mouse_down = false;
 let right_mouse_down = false;
 let construction_acknowledged = false;
+let asset_manager;
 
 
 const DIPLOMA = {
@@ -41,6 +42,7 @@ const DIPLOMA = {
 
 /** Initializes the main scene */
 function init() {
+    asset_manager = AssetManager.get_instance();
     if(FLAGS.CONSTRUCTION_GREETING) {
         fetch('pages/under_construction.html')
             .then(response => response.text())
@@ -107,7 +109,6 @@ function animate() {
     } else if(grabbed_object) {
         translate_object(grabbed_object, viewable_ui.get_camera(), primary_container, fill_container);
     } else if(hovered_cube_name != "") {
-
         primary_container.activate_object(hovered_cube_name);
     } else if(viewable_ui.is_text_active()) {
         primary_container.activate_object(viewable_ui.get_active_name());
@@ -119,6 +120,7 @@ function animate() {
     // Background object updates
     primary_container.update();
     fill_container.update(grabbed_object, viewable_ui);
+    asset_manager.update();
     // Update confetti particles
     viewable_ui.get_overlay().update_confetti();
     // Scene reload

@@ -1,2 +1,2 @@
 export * from './physics_util'
-export * from './asset_loader'
+export * from './asset_manager'

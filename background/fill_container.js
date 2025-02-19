@@ -1,5 +1,5 @@
 import { FLAGS, NAMES, RAPIER, THREE, TYPES } from "../common";
-import { GLTF_LOADER } from "./background_common";
+import { AssetManager } from "./background_common";
 import { ControlMenu } from "./menus/control_menu";
 import { ScrollMenu } from "./menus/scroll_menu";
 
@@ -37,8 +37,10 @@ export class FillContainer {
         this.world = incoming_world;
         this.object_container = new THREE.Object3D();
         this.parent.add(this.object_container);
+        const asset_loader = AssetManager.get_instance();
+        this.loader = asset_loader.loader;
         // Axe with physics
-        GLTF_LOADER.load("assets/Axe.glb", (loaded_axe) => {
+        this.loader.load("assets/Axe.glb", (loaded_axe) => {
             let axe_asset = loaded_axe.scene;
             axe_asset.position.copy(this.AXE.position);
             axe_asset.name = `${TYPES.INTERACTABLE}${NAMES.AXE}`;
@@ -67,7 +69,7 @@ export class FillContainer {
             this.dynamic_bodies.push([axe_asset, axe_body]);
         });
         // Diploma with physics
-        GLTF_LOADER.load("assets/diploma.glb", (loaded_diploma) => {
+        this.loader.load("assets/diploma.glb", (loaded_diploma) => {
             let diploma_asset = loaded_diploma.scene;
             diploma_asset.position.copy(this.DIPLOMA.position);
             diploma_asset.name = `${TYPES.INTERACTABLE}${NAMES.DIPLOMA}`;
@@ -105,7 +107,7 @@ export class FillContainer {
             this.dynamic_bodies.push([diploma_asset, diploma_body]);
         });
         // Desk with physics
-        GLTF_LOADER.load("assets/desk.glb", (loaded_desk) => {
+        this.loader.load("assets/desk.glb", (loaded_desk) => {
             let desk_asset = loaded_desk.scene;
             desk_asset.position.copy(this.DESK.position);
             desk_asset.name = `${TYPES.INTERACTABLE}${NAMES.DESK}`;
