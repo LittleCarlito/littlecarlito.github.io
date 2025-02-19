@@ -1,9 +1,12 @@
 import { get_screen_size, get_associated_position, SOUTH } from './overlay/overlay_common';
 import { Easing, FLAGS, THREE, Tween } from '../common';
+import { clamp } from 'three/src/math/MathUtils.js';
 
 const ARTIST_BLOCK = {
     DIMENSIONS: {
-        WIDTH: 6,
+        MIN_WIDTH: 6,      // Minimum width
+        MAX_WIDTH: 12,     // Maximum width
+        WIDTH_SCALE: 0.2,  // Percentage of screen width
         HEIGHT: 1,
         DEPTH: 0.2
     },
@@ -19,9 +22,9 @@ export class ArtistBlock {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
         
-        // Create wireframe box
+        // Create wireframe box with calculated width
         const artist_geometry = new THREE.BoxGeometry(
-            ARTIST_BLOCK.DIMENSIONS.WIDTH,
+            this.get_artist_width(),
             ARTIST_BLOCK.DIMENSIONS.HEIGHT,
             ARTIST_BLOCK.DIMENSIONS.DEPTH
         );
@@ -45,6 +48,24 @@ export class ArtistBlock {
         this.artist_box.material.depthTest = false;
         
         this.parent.add(this.artist_box);
+    }
+
+    get_artist_width() {
+        return clamp(
+            get_screen_size(this.camera).x * ARTIST_BLOCK.DIMENSIONS.WIDTH_SCALE,
+            ARTIST_BLOCK.DIMENSIONS.MIN_WIDTH,
+            ARTIST_BLOCK.DIMENSIONS.MAX_WIDTH
+        );
+    }
+
+    resize() {
+        // Dispose of old geometry and create new one
+        this.artist_box.geometry.dispose();
+        this.artist_box.geometry = new THREE.BoxGeometry(
+            this.get_artist_width(),
+            ARTIST_BLOCK.DIMENSIONS.HEIGHT,
+            ARTIST_BLOCK.DIMENSIONS.DEPTH
+        );
     }
 
     trigger_overlay(is_overlay_hidden, tween_map) {

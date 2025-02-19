@@ -236,6 +236,7 @@ export class OverlayContainer {
         this.title_block.resize();
         this.title_block.reposition();
         this.hide_button.reposition(this.label_column.is_column_left);
+        this.artist_block.resize();
     }
 
     /**
@@ -249,6 +250,7 @@ export class OverlayContainer {
         this.link_container.offscreen_reposition();
         this.title_block.resize();
         this.title_block.offscreen_reposition();
+        this.artist_block.resize();
     }
 
     handle_hover(intersected_object) {
