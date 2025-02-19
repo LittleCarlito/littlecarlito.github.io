@@ -7,7 +7,7 @@ import { GLTF_LOADER } from '../../background/background_common';
 export class TextContainer {
     container_width;
     container_height;
-    text_frames = [];
+    text_frames = new Map();
     focused_text_name = "";
     particles = [];
 
@@ -52,18 +52,17 @@ export class TextContainer {
                 incoming_box.add(text_box_background);
             };
 
-            // TODO Incoming Index is the issue that stopped you last time
-            // TODO Rework whatever text_frames is to be a map with names instead of tightly coupled indexes
-            const create_text_frame  = (incoming_category, incoming_box, incoming_index) => {
+            const create_text_frame = (incoming_category, incoming_box) => {
                 const new_frame = new TextFrame(incoming_box, this.camera, this.container_width, this.container_height);
                 new_frame.simple_name = incoming_category.value;
                 new_frame.name = `${TYPES.TEXT_BLOCK}${incoming_category.value}`;
-                this.text_frames[incoming_index] = new_frame;
+                this.text_frames.set(new_frame.name, new_frame);
             };
 
             // TODO OOOOOO
             switch(category.value) {
                 case CATEGORIES.EDUCATION.value:
+                    // TODO Make it so Every one but EDUCATION creates a text_frame
                     // TODO For education ones we need to make it the GLTF instead and use that
                     GLTF_LOADER.load("assets/diploma.glb", (loaded_diploma) => {
                         let diploma_asset = loaded_diploma.scene;
@@ -91,7 +90,7 @@ export class TextContainer {
                     break;
             }
             // Create html element
-            create_text_frame(category, text_box, i);
+            create_text_frame(category, text_box);
 
         });
     }
@@ -104,16 +103,24 @@ export class TextContainer {
             // Get text box name
             const found_index = incoming_name.indexOf('_');
             const new_name = TYPES.TEXT + incoming_name.substring(found_index + 1);
+            if(FLAGS.SELECT_LOGS) {
+                console.log('Focusing text box:', {
+                    incoming_name,
+                    new_name,
+                    category: incoming_name.substring(found_index + 1),
+                    available_frames: Array.from(this.text_frames.keys())
+                });
+            }
+
             if(new_name != this.focused_text_name) {
                 // If existing focus text box move it
                 if(this.focused_text_name != "") {
                     // Stop any running animations in the current frame before switching
-                    const currentFrame = this.text_frames.find(frame => 
-                        frame.simple_name === this.focused_text_name.replace(TYPES.TEXT, '')
-                    );
+                    const currentCategory = this.focused_text_name.replace(TYPES.TEXT, '');
+                    const currentFrame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${currentCategory}`);
                     if (currentFrame && currentFrame.iframe.contentWindow) {
                         // Only trigger visibility change for education page
-                        if (currentFrame.simple_name === 'education') {
+                        if (currentFrame.simple_name === CATEGORIES.EDUCATION.value) {
                             const visibilityEvent = new Event('visibilitychange');
                             Object.defineProperty(currentFrame.iframe.contentDocument, 'hidden', {
                                 value: true,
@@ -128,13 +135,22 @@ export class TextContainer {
                 
                 // Get the category and find corresponding frame
                 const category = incoming_name.substring(found_index + 1);
-                const frameIndex = this.text_frames.findIndex(frame => frame.simple_name === category);
-                if (frameIndex !== -1) {
-                    const frame = this.text_frames[frameIndex];
-                    // Trigger frame animation
-                    if (frame.iframe.contentWindow && typeof frame.iframe.contentWindow.trigger_frame_animation === 'function') {
-                        frame.iframe.contentWindow.trigger_frame_animation();
-                    }
+                const frame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${category}`);
+                
+                if(FLAGS.SELECT_LOGS) {
+                    console.log('Frame lookup:', {
+                        category,
+                        frameKey: `${TYPES.TEXT_BLOCK}${category}`,
+                        frameFound: !!frame,
+                        frameWindow: frame?.iframe?.contentWindow ? 'exists' : 'missing',
+                        hasAnimation: frame?.iframe?.contentWindow?.trigger_frame_animation ? 'yes' : 'no'
+                    });
+                }
+
+                // Trigger frame animation
+                if (frame && frame.iframe.contentWindow && 
+                    typeof frame.iframe.contentWindow.trigger_frame_animation === 'function') {
+                    frame.iframe.contentWindow.trigger_frame_animation();
                 }
             }
             // Get and move text box
@@ -243,7 +259,7 @@ export class TextContainer {
     }
 
     update_iframe_size(incoming_simple_name, incoming_width, incoming_height) {
-        const matched_frame = this.text_frames.find(frame => (frame.simple_name == incoming_simple_name));
+        const matched_frame = Array.from(this.text_frames.values()).find(frame => (frame.simple_name == incoming_simple_name));
         if(matched_frame) {
             matched_frame.update_size(incoming_width, incoming_height);
         }
