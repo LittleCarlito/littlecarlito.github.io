@@ -62,8 +62,6 @@ export class TextContainer {
             // TODO OOOOOO
             switch(category.value) {
                 case CATEGORIES.EDUCATION.value:
-                    // TODO Make it so Every one but EDUCATION creates a text_frame
-                    // TODO For education ones we need to make it the GLTF instead and use that
                     GLTF_LOADER.load("assets/diploma.glb", (loaded_diploma) => {
                         let diploma_asset = loaded_diploma.scene;
                         diploma_asset.position.copy(this.DIPLOMA.position);
