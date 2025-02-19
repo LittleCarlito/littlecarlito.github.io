@@ -2,6 +2,7 @@ import { OverlayContainer } from "./overlay/overlay_container";
 import { extract_type, TYPES, WEST} from './overlay/overlay_common';
 import { CameraController } from './camera_controller';
 import { THREE } from "../common";
+import { FLAGS } from "../common";
 
 export const UI_Z_DIST = 25;
 
@@ -89,22 +90,22 @@ export class ViewableUI {
         if(this.is_column_left_side()){
             if(found_intersections.length > 0){
                 const intersected_object = found_intersections[0].object;
-                if(intersected_object.name != null) {
-                    (console.log(`${intersected_object.name} clicked up`));
-                }
-                const split_intersected_name = intersected_object.name.split("_");
+                const object_name = intersected_object.name;
                 const name_type = extract_type(intersected_object);
                 switch(name_type) {
                     case TYPES.LABEL:
+                        if(FLAGS.SELECT_LOGS) {
+                            console.log(object_name, "clicked up");
+                        }
                         this.reset_hover();
                         this.swap_sides();
-                        this.focus_text_box(intersected_object.name);
+                        this.focus_text_box(object_name);
                         break;
                     case TYPES.HIDE:
                         this.trigger_overlay();
                         break;
                     case TYPES.LINK:
-                        this.open_link(split_intersected_name[1].trim());
+                        this.open_link(object_name.split("_")[1].trim());
                         break;
                 }
             }
@@ -112,14 +113,17 @@ export class ViewableUI {
         } else {
             if(found_intersections.length > 0) {
                 const intersected_object = found_intersections[0].object;
+                const object_name = intersected_object.name;
                 const name_type = extract_type(intersected_object);
-                const split_intersected_name = intersected_object.name.split("_");
                 switch(name_type) {
                     case TYPES.LABEL:
-                        this.focus_text_box(intersected_object.name);
+                        if(FLAGS.SELECT_LOGS) {
+                            console.log(object_name, "clicked up");
+                        }
+                        this.focus_text_box(object_name);
                         break;
                     case TYPES.LINK:
-                        this.open_link(split_intersected_name[1].trim());
+                        this.open_link(object_name.split("_")[1].trim());
                         break;
                     default:
                         this.swap_sides();
@@ -128,6 +132,22 @@ export class ViewableUI {
             } else {
                 this.swap_sides();
                 this.lose_focus_text_box(WEST);
+            }
+        }
+    }
+
+    handle_mouse_down(found_intersections) {
+        if(found_intersections.length > 0) {
+            const intersected_object = found_intersections[0].object;
+            const object_name = intersected_object.name;
+            const name_type = extract_type(intersected_object);
+            switch(name_type) {
+                case TYPES.LABEL:
+                    if(FLAGS.SELECT_LOGS) {
+                        console.log(object_name, "clicked down");
+                    }
+                    break;
+                // ... rest of the switch cases ...
             }
         }
     }
