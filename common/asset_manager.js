@@ -1,5 +1,5 @@
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
-import { RAPIER, THREE } from "../../common";
+import { RAPIER, THREE } from ".";
 
 // Define all possible asset types that can be loaded and spawned
 export const ASSET_TYPE = {
@@ -66,15 +66,12 @@ export class AssetManager {
     async load_asset_type(asset_type) {
         const asset_config = ASSET_CONFIGS[asset_type];
         if (!asset_config) throw new Error(`Unknown asset type: ${asset_type}`);
-
         if (this.loaded_assets.has(asset_type)) {
             return this.loaded_assets.get(asset_type);
         }
-
         if (this.loading_promises.has(asset_type)) {
             return this.loading_promises.get(asset_type);
         }
-
         const loading_promise = new Promise((resolve, reject) => {
             this.loader.load(
                 asset_config.PATH,
@@ -87,7 +84,6 @@ export class AssetManager {
                 reject
             );
         });
-
         this.loading_promises.set(asset_type, loading_promise);
         return loading_promise;
     }
@@ -97,11 +93,11 @@ export class AssetManager {
      * @param {string} asset_type - Type of asset from ASSET_TYPE enum
      * @param {THREE.Object3D} parent - Parent object to add the mesh to
      * @param {RAPIER.World} world - Physics world to create the body in
-     * @param {THREE.Vector3} position_offset - Position offset from parent
      * @param {Object} options - Additional options (e.g., color for cubes)
+     * @param {THREE.Vector3} position_offset - Position offset from parent
      * @returns {Array} [mesh, body] pair for physics updates
      */
-    async spawn_asset(asset_type, parent, world, position_offset, options = {}) {
+    async spawn_asset(asset_type, parent, world, options = {}, position_offset = new THREE.Vector3(0, 0, 0)) {
         if (!Object.values(ASSET_TYPE).includes(asset_type)) {
             throw new Error(`Invalid asset type: ${asset_type}`);
         }
@@ -166,7 +162,6 @@ export class AssetManager {
         const instance_id = `${asset_type}_${Date.now()}`;
         const body_pair = [mesh, body];
         this.dynamic_bodies.set(instance_id, body_pair);
-
         return body_pair;
     }
 

@@ -5,8 +5,8 @@ import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
 import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/overlay_common';
 import { AppRenderer } from './common/app_renderer';
-import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object, AssetManager } from './background/background_common';
-import { FLAGS, RAPIER, THREE } from './common';
+import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common';
+import { FLAGS, RAPIER, THREE, AssetManager } from './common';
 import { FillContainer } from './background/fill_container';
 
 // ----- Constants

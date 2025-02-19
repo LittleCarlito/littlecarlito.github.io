@@ -1,8 +1,7 @@
 import { clamp } from 'three/src/math/MathUtils.js';
 import { TextFrame, IFRAME } from './text_frame';
 import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, CATEGORIES, extract_type, PAN_SPEED, TYPES, VALID_DIRECTIONS } from './overlay_common';
-import { Easing, FLAGS, NAMES, THREE, Tween } from '../../common';
-import { AssetManager } from '../../background/background_common';
+import { Easing, FLAGS, NAMES, THREE, Tween, AssetManager } from '../../common';
 
 export class TextContainer {
     container_width;
