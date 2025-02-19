@@ -84,14 +84,13 @@ export class TextContainer {
                     break;
                 case CATEGORIES.ABOUT.value:
                     // About doesn't want any background asset or box
+                    create_text_frame(category, text_box);
                     break;
                 default:
                     create_background(category, text_box);
+                    create_text_frame(category, text_box);
                     break;
             }
-            // Create html element
-            create_text_frame(category, text_box);
-
         });
     }
 
