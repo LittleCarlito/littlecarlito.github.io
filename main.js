@@ -5,8 +5,8 @@ import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
 import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/overlay_common';
 import { AppRenderer } from './common/app_renderer';
-import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common';
-import { FLAGS, RAPIER, THREE } from './common';
+import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object, GLTF_LOADER } from './background/background_common';
+import { FLAGS, NAMES, RAPIER, THREE } from './common';
 import { FillContainer } from './background/fill_container';
 
 // ----- Constants
@@ -30,6 +30,14 @@ let grabbed_object = null;
 let left_mouse_down = false;
 let right_mouse_down = false;
 let construction_acknowledged = false;
+
+
+const DIPLOMA = {
+    scale: 10,
+    mass: 1,
+    restitution: .2,
+    position: new THREE.Vector3(-5, 8, -3)
+}
 
 /** Initializes the main scene */
 function init() {

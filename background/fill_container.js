@@ -81,7 +81,6 @@ export class FillContainer {
                     diploma_geometry = child.geometry;
                 }
             });
-            
             // Calculate bounding box dimensions
             diploma_geometry.computeBoundingBox();
             const bounding_box = diploma_geometry.boundingBox;

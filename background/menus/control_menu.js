@@ -258,8 +258,8 @@ export class ControlMenu {
 
     // Add new update method
     update() {
-        // Skip if sign_joint isn't created yet
-        if (!this.sign_joint) return;
+        // Skip if sign_joint isn't created yet or has been removed
+        if (!this.sign_joint || this.chains_broken) return;
 
         // Get current time
         const currentTime = performance.now();
@@ -296,30 +296,40 @@ export class ControlMenu {
                 console.log('=== Attempting to Stop Beam ===');
             }
             this.reached_target = true;
+            
             // Get current position before changing anything
             const currentPos = this.top_beam_body.translation();
             if(FLAGS.PHYSICS_LOGS) {
                 console.log(`Current Position before stop: (${currentPos.x.toFixed(2)}, ${currentPos.y.toFixed(2)}, ${currentPos.z.toFixed(2)})`);
             }
+            
             // First set velocity to 0
             this.top_beam_body.setLinvel(0, 0, 0);
             
             // Moderate damping
             this.sign_body.setAngularDamping(0.9);
-            if (this.sign_joint) {
+            
+            // Only configure joint if it exists and chains aren't broken
+            if (this.sign_joint && !this.chains_broken) {
                 // Start with strong motor to stop motion
                 this.sign_joint.configureMotorPosition(0, 1000.0, 200.0);
                 
                 // Rapidly reduce motor strength
                 setTimeout(() => {
-                    this.sign_joint.configureMotorPosition(0, 500.0, 100.0);
-                    setTimeout(() => {
-                        this.sign_joint.configureMotorPosition(0, 100.0, 20.0);
+                    if (this.sign_joint && !this.chains_broken) {
+                        this.sign_joint.configureMotorPosition(0, 500.0, 100.0);
                         setTimeout(() => {
-                            // Almost completely remove motor influence
-                            this.sign_joint.configureMotorPosition(0, 10.0, 2.0);
+                            if (this.sign_joint && !this.chains_broken) {
+                                this.sign_joint.configureMotorPosition(0, 100.0, 20.0);
+                                setTimeout(() => {
+                                    if (this.sign_joint && !this.chains_broken) {
+                                        // Almost completely remove motor influence
+                                        this.sign_joint.configureMotorPosition(0, 10.0, 2.0);
+                                    }
+                                }, 100);
+                            }
                         }, 100);
-                    }, 100);
+                    }
                 }, 100);
             }
             
