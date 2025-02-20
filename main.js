@@ -148,7 +148,7 @@ function handle_mouse_move(e) {
     update_mouse_position(e);
     if(viewable_ui.detect_rotation) {
         const sensitivity = 0.02;  // Reduced sensitivity since we're not dividing by 1000 anymore
-        viewable_ui.get_camera_controller().rotate(
+        viewable_ui.get_camera_manager().rotate(
             e.movementX * sensitivity,
             e.movementY * sensitivity
         );

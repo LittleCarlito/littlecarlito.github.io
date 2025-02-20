@@ -1,6 +1,6 @@
 import { OverlayContainer } from "./overlay/overlay_container";
 import { extract_type, TYPES, WEST} from './overlay/overlay_common';
-import { CameraController } from './camera_controller';
+import { CameraManager } from './camera_manager';
 import { THREE } from "../common";
 import { FLAGS } from "../common";
 
@@ -11,7 +11,7 @@ export class ViewableUI {
     overlay_container;
     leftMouseDown = false;
     rightMouseDown = false;
-    camera_controller;
+    camera_manager;
 
     constructor(incoming_parent, incoming_world) {
         this.viewable_ui_container = new THREE.Object3D();
@@ -28,15 +28,15 @@ export class ViewableUI {
             1000
         );
         
-        // Initialize camera controller
-        this.camera_controller = new CameraController(this.camera, UI_Z_DIST);
+        // Initialize camera manager
+        this.camera_manager = new CameraManager(this.camera, UI_Z_DIST);
         
-        // Create overlay and connect it to camera controller
+        // Create overlay and connect it to camera manager
         this.overlay_container = new OverlayContainer(this.viewable_ui_container, this.get_camera());
-        this.camera_controller.set_overlay_container(this.overlay_container);
+        this.camera_manager.set_overlay_container(this.overlay_container);
         
         // Add callback for camera updates
-        this.camera_controller.add_update_callback(() => {
+        this.camera_manager.add_update_callback(() => {
             if (this.overlay_container) {
                 this.overlay_container.resize_reposition_offscreen();
             }
@@ -182,8 +182,8 @@ export class ViewableUI {
         return this.camera;
     }
 
-    get_camera_controller() {
-        return this.camera_controller;
+    get_camera_manager() {
+        return this.camera_manager;
     }
 
     get_overlay() {

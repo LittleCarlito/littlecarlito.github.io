@@ -1,6 +1,6 @@
 import { FLAGS, THREE } from "../common";
 
-export class CameraController {
+export class CameraManager {
     constructor(camera, distance = 15) {
         this.camera = camera;
         this.distance = distance;
