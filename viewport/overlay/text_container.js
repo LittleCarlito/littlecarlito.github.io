@@ -11,14 +11,6 @@ export class TextContainer {
     particles = [];
     asset_manager;
 
-    DIPLOMA = {
-        scale: 10,
-        mass: 1,
-        restitution: .2,
-        position: new THREE.Vector3(10, 0, 4),
-        rotation: new THREE.Euler(-Math.PI/  2, 0, Math.PI)
-    }
-
     constructor(incoming_parent, incoming_camera) {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
@@ -37,7 +29,6 @@ export class TextContainer {
                 text_box.layers.set(1);
             }
             this.text_box_container.add(text_box);
-
             const create_background = (incoming_category, incoming_box) => {
                 this.container_width = this.get_text_box_width();
                 this.container_height = this.get_text_box_height();
@@ -52,15 +43,12 @@ export class TextContainer {
                 text_box_background.renderOrder = 999;
                 incoming_box.add(text_box_background);
             };
-
             const create_text_frame = (incoming_category, incoming_box) => {
                 const new_frame = new TextFrame(incoming_box, this.camera, this.container_width, this.container_height);
                 new_frame.simple_name = incoming_category.value;
                 new_frame.name = `${TYPES.TEXT_BLOCK}${incoming_category.value}`;
                 this.text_frames.set(new_frame.name, new_frame);
             };
-
-            // TODO OOOOOO
             switch(category.value) {
                 case CATEGORIES.EDUCATION.value:
                     const rotation = new THREE.Euler(-Math.PI/2, 0, Math.PI, 'XYZ');

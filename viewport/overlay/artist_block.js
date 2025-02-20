@@ -22,7 +22,6 @@ export class ArtistBlock {
     constructor(incoming_parent, incoming_camera) {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
-        
         // Create wireframe box with calculated width
         const artist_geometry = new THREE.BoxGeometry(
             this.get_artist_width(),
@@ -33,10 +32,8 @@ export class ArtistBlock {
             color: 0xffffff,
             wireframe: true
         });
-        
         this.artist_box = new THREE.Mesh(artist_geometry, artist_material);
-        
-        // Position calculation with width offset
+        // Initial position calculation without padding
         const screen_size = get_screen_size(this.camera);
         const initial_width = this.get_artist_width();
         this.artist_box.position.set(
@@ -44,12 +41,12 @@ export class ArtistBlock {
             -(ARTIST_BLOCK.POSITION.Y_SCALE * screen_size.y),
             ARTIST_BLOCK.POSITION.Z
         );
-        
         // Ensure it renders on top
         this.artist_box.renderOrder = 999;
         this.artist_box.material.depthTest = false;
-        
         this.parent.add(this.artist_box);
+        // Trigger reposition animation to move to proper padded position
+        this.reposition();
     }
 
     get_artist_width() {
