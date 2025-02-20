@@ -107,4 +107,4 @@ This project is currently under active development. Feel free to open issues or 
 
 ---
 
-Built with 💻 by Steven Meier
+Built with 💻 by Steven & Bennett Meier
