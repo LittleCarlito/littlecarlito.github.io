@@ -103,6 +103,34 @@
                 stroke-dashoffset: 0;
             }
         }
+
+        .construction-tape {
+            position: absolute;
+            background: repeating-linear-gradient(
+                45deg,
+                rgba(255, 215, 0, 0.7),
+                rgba(255, 215, 0, 0.7) 5px,
+                rgba(0, 0, 0, 0.7) 5px,
+                rgba(0, 0, 0, 0.7) 10px
+            );
+            color: white;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            text-align: center;
+            line-height: 25px;
+            font-size: 14px;
+            padding: 0 10px;
+            width: 285px;
+            height: 25px;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        .tape-interceptor {
+            position: absolute;
+            z-index: 999;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -191,6 +219,8 @@
         }));
 
         let font = null;
+        let tape, interceptor;
+
         opentype.load('/fonts/TokyoRockstar.ttf', function(err, loadedFont) {
             if (err && FLAGS.HTML_LOGS) {
                 console.error('Font could not be loaded:', err);
@@ -200,6 +230,17 @@
             if(FLAGS.HTML_LOGS) {
                 console.log('Font loaded successfully');
             }
+
+            // Create tape after font is loaded
+            tape = document.createElement('div');
+            tape.className = 'construction-tape';
+            tape.textContent = 'COMING SOON';
+            
+            interceptor = document.createElement('div');
+            interceptor.className = 'tape-interceptor';
+            
+            document.body.appendChild(tape);
+            document.body.appendChild(interceptor);
 
             // After font loads
             const debugContainer = document.createElement('div');
@@ -499,7 +540,6 @@
         function updateBoxPositions() {
             const svg = document.querySelector('#title_svg');
             const svgRect = svg.getBoundingClientRect();
-            // Round the scale to prevent subpixel issues
             const scale = Math.round((svgRect.width / ORIGINAL_SVG_WIDTH) * 1000) / 1000;
 
             const debugContainer = document.querySelector('div[style*="position: absolute"]');
@@ -508,13 +548,30 @@
             PROJECT_LINKS.forEach((config, index) => {
                 if (links[index]) {
                     const link = links[index];
-                    // Round all position calculations
                     link.style.left = `${Math.round(LINK_LEFT_MARGIN * scale)}px`;
                     link.style.top = `${Math.round(config.y * scale * 0.9 + config.yOffset * scale)}px`;
                     link.style.width = `${Math.round(config.width * scale)}px`;
                     link.style.height = `${Math.round(config.height * scale)}px`;
                 }
             });
+
+            // Update tape position only if tape exists
+            if (tape && interceptor) {
+                const youtubeLink = document.querySelector('a[href*="youtube"]');
+                if (youtubeLink) {
+                    // Position the tape
+                    const linkBox = youtubeLink.getBoundingClientRect();
+                    tape.style.left = `${linkBox.left}px`;
+                    tape.style.top = `${linkBox.top + (linkBox.height / 2) - 12.5}px`;
+                    tape.style.transform = 'rotate(-5deg)';
+
+                    // Position the interceptor exactly like the debug box
+                    interceptor.style.left = youtubeLink.style.left;
+                    interceptor.style.top = youtubeLink.style.top;
+                    interceptor.style.width = youtubeLink.style.width;
+                    interceptor.style.height = youtubeLink.style.height;
+                }
+            }
         }
 
         // Use ResizeObserver for more accurate size change detection
