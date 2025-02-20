@@ -335,6 +335,8 @@
             backend: ['Spring Boot', 'Java', 'SQL', 'Kubernetes', 'Docker', 'AWS', 'GDScript']
         };
 
+        let engine, render, world, walls; // Add walls to track them globally
+
         function initPhysics() {
             const container = document.getElementById('physics-container');
             const engine = Matter.Engine.create();
@@ -523,8 +525,8 @@
                 });
             });
 
-            // Create all boundaries instead of just the top one
-            const walls = [
+            // Modify walls creation to store them in the global variable
+            walls = [
                 // Top
                 Matter.Bodies.rectangle(container.clientWidth/2, -10, container.clientWidth, 20, { isStatic: true }),
                 // Bottom
@@ -543,10 +545,27 @@
             Matter.Runner.run(runner, engine);
             Matter.Render.run(render);
 
-            // Modified resize handler
+            // Replace the existing resize handler with this enhanced version
             window.addEventListener('resize', () => {
+                const container = document.getElementById('physics-container');
+                
+                // Update render dimensions
                 render.canvas.width = container.clientWidth;
                 render.canvas.height = container.clientHeight;
+                render.options.width = container.clientWidth;
+                render.options.height = container.clientHeight;
+
+                // Remove old walls
+                walls.forEach(wall => Matter.World.remove(world, wall));
+
+                // Create new walls at updated positions
+                walls = [
+                    Matter.Bodies.rectangle(container.clientWidth/2, -10, container.clientWidth, 20, { isStatic: true }),
+                    Matter.Bodies.rectangle(container.clientWidth/2, container.clientHeight + 10, container.clientWidth, 20, { isStatic: true }),
+                    Matter.Bodies.rectangle(-10, container.clientHeight/2, 20, container.clientHeight, { isStatic: true }),
+                    Matter.Bodies.rectangle(container.clientWidth + 10, container.clientHeight/2, 20, container.clientHeight, { isStatic: true })
+                ];
+                Matter.World.add(world, walls);
             });
         }
 
