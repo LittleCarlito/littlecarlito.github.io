@@ -3,7 +3,7 @@ import { CATEGORIES } from './overlay_common/categories';
 import { TEXTURE_LOADER, TYPES, PAN_SPEED, ROTATE_SPEED, FOCUS_ROTATION } from './overlay_common/index'
 import { Easing, FLAGS, THREE, Tween } from '../../common';
 
-export class LabelColumn {
+export class LabelContainer {
     in_tween_map = new Map();
     swapping_column_sides = false;
     is_column_left = true;

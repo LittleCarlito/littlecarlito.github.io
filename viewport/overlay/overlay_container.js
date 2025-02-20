@@ -1,6 +1,6 @@
 import { TitleBlock } from './title_block';
 import { TextContainer } from './text_container';
-import { LabelColumn } from './label_column';
+import { LabelContainer } from './label_container';
 import { LinkContainer } from './link_container';
 import { HideButton } from './hide_button';
 import { Easing, FLAGS, THREE, Tween } from '../../common';
@@ -31,7 +31,7 @@ export class OverlayContainer {
     overlay_container;
     title_block;
     text_box_container;
-    label_column;
+    label_container;
     link_container;
     hide_button;
     hide_transition_map = new Map();
@@ -55,7 +55,7 @@ export class OverlayContainer {
         });
         this.title_block = new TitleBlock(this.overlay_container, this.camera);
         this.text_box_container = new TextContainer(this.overlay_container, this.camera);
-        this.label_column = new LabelColumn(this.overlay_container, this.camera);
+        this.label_container = new LabelContainer(this.overlay_container, this.camera);
         this.link_container = new LinkContainer(this.overlay_container, this.camera);
         this.hide_button = new HideButton(this.overlay_container, this.camera);
         this.overlay_container.position.z = this.camera.position.z - 15;
@@ -198,7 +198,7 @@ export class OverlayContainer {
             }
             // Move overlay objects
             this.title_block.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
-            this.label_column.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
+            this.label_container.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
             this.link_container.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
             this.artist_block.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
             // Set the control menu to appear in animate
@@ -220,8 +220,8 @@ export class OverlayContainer {
     }
 
     swap_column_sides() {
-        this.label_column.swap_sides();
-        this.hide_button.swap_sides(this.label_column.is_column_left);
+        this.label_container.swap_sides();
+        this.hide_button.swap_sides(this.label_container.is_column_left);
     }
 
     /**
@@ -230,12 +230,12 @@ export class OverlayContainer {
      */
     resize_reposition() {
         this.text_box_container.resize();
-        this.text_box_container.reposition(this.label_column.is_column_left);
-        this.label_column.reposition();
+        this.text_box_container.reposition(this.label_container.is_column_left);
+        this.label_container.reposition();
         this.link_container.reposition();
         this.title_block.resize();
         this.title_block.reposition();
-        this.hide_button.reposition(this.label_column.is_column_left);
+        this.hide_button.reposition(this.label_container.is_column_left);
         this.artist_block.resize();
         this.artist_block.reposition();
     }
@@ -247,7 +247,7 @@ export class OverlayContainer {
     resize_reposition_offscreen() {
         this.text_box_container.resize();
         this.text_box_container.offscreen_reposition();
-        this.label_column.offscreen_reposition();
+        this.label_container.offscreen_reposition();
         this.link_container.offscreen_reposition();
         this.title_block.resize();
         this.title_block.offscreen_reposition();
@@ -255,11 +255,11 @@ export class OverlayContainer {
     }
 
     handle_hover(intersected_object) {
-        this.label_column.handle_hover(intersected_object);
+        this.label_container.handle_hover(intersected_object);
     }
 
     reset_hover() {
-        this.label_column.reset_previous_intersected();
+        this.label_container.reset_previous_intersected();
     }
 
     focus_text_box(incoming_name) {
@@ -276,7 +276,7 @@ export class OverlayContainer {
                 });
             this.party_popped = true;
         }
-        this.text_box_container.focus_text_box(simple_name, this.label_column.is_column_left);
+        this.text_box_container.focus_text_box(simple_name, this.label_container.is_column_left);
     }
 
     lose_focus_text_box(incoming_direction) {
@@ -288,20 +288,20 @@ export class OverlayContainer {
     }
 
     // Overlay getters
-    is_label_column_left_side() {
-        return this.label_column.is_column_left;
+    is_label_container_left_side() {
+        return this.label_container.is_column_left;
     }
 
     is_intersected() {
-        return this.label_column.current_intersected;
+        return this.label_container.current_intersected;
     }
 
     intersected_name() {
-        return this.label_column.current_intersected.name;
+        return this.label_container.current_intersected.name;
     }
 
     is_swapping_sides() {
-        return this.label_column.swapping_column_sides;
+        return this.label_container.swapping_column_sides;
     }
 
     is_text_active() {

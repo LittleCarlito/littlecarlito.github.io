@@ -163,7 +163,7 @@ export class ViewableUI {
     }
 
     is_column_left_side() {
-        return this.get_overlay().is_label_column_left_side();
+        return this.get_overlay().is_label_container_left_side();
     }
 
     is_text_active() {
