@@ -18,6 +18,29 @@ export class TextContainer {
         this.asset_manager = AssetManager.get_instance();
         // Create text displays
         this.parent.add(this.text_box_container);
+        // Creat background private method
+        const create_background = (incoming_category, incoming_box) => {
+            this.container_width = this.get_text_box_width();
+            this.container_height = this.get_text_box_height();
+            const box_geometry = new THREE.BoxGeometry(this.container_width, this.container_height, .01);
+            const box_material = new THREE.MeshBasicMaterial({ 
+                color: incoming_category.color,
+                depthTest: false,
+                transparent: true
+            });
+            const text_box_background = new THREE.Mesh(box_geometry, box_material);
+            text_box_background.name = `${TYPES.BACKGROUND}${incoming_category.value}`;
+            text_box_background.renderOrder = -1;
+            incoming_box.add(text_box_background);
+        };
+        // Create frame priavte method
+        const create_text_frame = (incoming_category, incoming_box) => {
+            const new_frame = new TextFrame(incoming_box, this.camera, this.container_width, this.container_height);
+            new_frame.simple_name = incoming_category.value;
+            new_frame.name = `${TYPES.TEXT_BLOCK}${incoming_category.value}`;
+            this.text_frames.set(new_frame.name, new_frame);
+        };
+
         Object.values(CATEGORIES).forEach((category, i) => {
             if (typeof category === 'function') return; // Skip helper methods
             const text_box = new THREE.Object3D();
@@ -29,26 +52,6 @@ export class TextContainer {
                 text_box.layers.set(1);
             }
             this.text_box_container.add(text_box);
-            const create_background = (incoming_category, incoming_box) => {
-                this.container_width = this.get_text_box_width();
-                this.container_height = this.get_text_box_height();
-                const box_geometry = new THREE.BoxGeometry(this.container_width, this.container_height, .01);
-                const box_material = new THREE.MeshBasicMaterial({ 
-                    color: incoming_category.color,
-                    depthTest: false,
-                    transparent: true
-                });
-                const text_box_background = new THREE.Mesh(box_geometry, box_material);
-                text_box_background.name = `${TYPES.BACKGROUND}${incoming_category.value}`;
-                text_box_background.renderOrder = 999;
-                incoming_box.add(text_box_background);
-            };
-            const create_text_frame = (incoming_category, incoming_box) => {
-                const new_frame = new TextFrame(incoming_box, this.camera, this.container_width, this.container_height);
-                new_frame.simple_name = incoming_category.value;
-                new_frame.name = `${TYPES.TEXT_BLOCK}${incoming_category.value}`;
-                this.text_frames.set(new_frame.name, new_frame);
-            };
             switch(category.value) {
                 case CATEGORIES.EDUCATION.value:
                     const rotation = new THREE.Euler(-Math.PI/2, 0, Math.PI, 'XYZ');

@@ -198,14 +198,14 @@ export class AssetManager {
             mesh.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
             mesh.traverse((child) => {
                 if (child.isMesh) {
-                    child.material.depthTest = false;
+                    child.material.depthTest = true;
                     child.material.transparent = true;
                 }
             });
         }
         mesh.position.copy(position_offset);
         if (rotation) mesh.rotation.copy(rotation);
-        mesh.renderOrder = 999;
+        mesh.renderOrder = 0;
         parent.add(mesh);
         const instance_id = `${asset_type}_static_${Date.now()}`;
         this.static_meshes.set(instance_id, mesh);
