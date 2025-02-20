@@ -1,8 +1,9 @@
-import { FLAGS, NAMES, RAPIER, THREE, TYPES, AssetManager, ASSET_TYPE } from "../common";
+import { FLAGS, THREE, AssetManager, ASSET_TYPE } from "../common";
 import { ControlMenu } from "./menus/control_menu";
 import { ScrollMenu } from "./menus/scroll_menu";
+import { CATEGORIES, TYPES } from "../viewport/overlay/overlay_common";
 
-export class FillContainer {
+export class BackgroundContainer {
     parent;
     camera;
     world;
@@ -42,6 +43,25 @@ export class FillContainer {
         asset_loader.spawn_asset(ASSET_TYPE.AXE, this.object_container, this.world);
         asset_loader.spawn_asset(ASSET_TYPE.DIPLOMA, this.object_container, this.world);
         asset_loader.spawn_asset(ASSET_TYPE.DESK, this.object_container, this.world);
+        // Create all cubes asynchronously but wait for all to complete
+        const asset_manager = AssetManager.get_instance();
+        const cube_promises = Object.values(CATEGORIES).map(async (category, i) => {
+            if (typeof category === 'function') return; // Skip helper methods
+            const position = new THREE.Vector3(((i * 2) - 3), -2, -5);
+            const [mesh, body] = await asset_manager.spawn_asset(
+                ASSET_TYPE.CUBE,
+                this.object_container,
+                this.world,
+                { color: category.color },
+                position
+            );
+            if (FLAGS.ASSET_LOGS) console.log(`[BackgroundContainer] Creating cube with name: ${TYPES.INTERACTABLE}${category.value}`);
+            mesh.name = `${TYPES.INTERACTABLE}${category.value}`;
+        });
+        // Wait for all cubes to be created
+        Promise.all(cube_promises).then(() => {
+            if (FLAGS.PHYSICS_LOGS) console.log('All cubes initialized');
+        });
     }
 
     update(grabbed_object, viewable_ui) {

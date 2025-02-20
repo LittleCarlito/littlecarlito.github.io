@@ -1,5 +1,4 @@
 import { update as updateTween } from 'three/examples/jsm/libs/tween.module.js';
-import { PrimaryContainer } from './background/primary_container';
 import { BackgroundFloor } from './background/background_floor';
 import { ViewableUI } from './viewport/viewable_ui';
 import { BackgroundLighting } from './background/background_lighting';
@@ -7,7 +6,7 @@ import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewp
 import { AppRenderer } from './common/app_renderer';
 import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common';
 import { FLAGS, RAPIER, THREE, AssetManager } from './common';
-import { FillContainer } from './background/fill_container';
+import { BackgroundContainer } from './background/background_container';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'images/gradient.jpg';
@@ -22,8 +21,7 @@ let world;
 let clock;
 let viewable_ui;
 let app_renderer;
-let primary_container;
-let fill_container;
+let background_container;
 let resizeTimeout;
 let hovered_cube_name = "";
 let grabbed_object = null;
@@ -78,8 +76,7 @@ function init() {
     app_renderer = new AppRenderer(scene, viewable_ui.get_camera());
     // Background creation
     new BackgroundLighting(scene);
-    primary_container = new PrimaryContainer(scene, viewable_ui.get_camera(), world);
-    fill_container = new FillContainer(scene, viewable_ui.get_camera(), world);
+    background_container = new BackgroundContainer(scene, viewable_ui.get_camera(), world);
     new BackgroundFloor(world, scene, viewable_ui.get_camera());
     // Start animation loop after everything is initialized
     app_renderer.set_animation_loop(animate);
@@ -107,7 +104,7 @@ function animate() {
     if(viewable_ui.get_overlay().is_intersected() != null) {
         asset_manager.activate_object(viewable_ui.get_intersected_name());
     } else if(grabbed_object) {
-        translate_object(grabbed_object, viewable_ui.get_camera(), primary_container, fill_container);
+        translate_object(grabbed_object, viewable_ui.get_camera(), background_container);
     } else if(hovered_cube_name != "") {
         asset_manager.activate_object(hovered_cube_name);
     } else if(viewable_ui.is_text_active()) {
@@ -118,7 +115,7 @@ function animate() {
     world.timestep = Math.min(delta, 0.1);
     world.step();
     // Background object updates
-    fill_container.update(grabbed_object, viewable_ui);
+    background_container.update(grabbed_object, viewable_ui);
     asset_manager.update();
     // Update confetti particles
     viewable_ui.get_overlay().update_confetti();
@@ -190,7 +187,7 @@ function handle_mouse_move(e) {
 function handle_mouse_up(e) {
     if(construction_acknowledged) {
         if(grabbed_object) {
-            release_object(grabbed_object, primary_container, fill_container);
+            release_object(grabbed_object, background_container);
             grabbed_object = null;
         }
         viewable_ui.handle_mouse_up(get_intersect_list(e, viewable_ui.get_camera(), scene));
@@ -214,7 +211,7 @@ function handle_mouse_down(e) {
             right_mouse_down = true;
             // If we're holding an object and right click is pressed, release it
             if(grabbed_object) {
-                release_object(grabbed_object, primary_container, fill_container);
+                release_object(grabbed_object, background_container);
                 grabbed_object = null;
             }
         }
@@ -227,9 +224,9 @@ function handle_mouse_down(e) {
                     case TYPES.INTERACTABLE:
                         if(left_mouse_down) {
                             grabbed_object = i.object;
-                            grab_object(grabbed_object, viewable_ui.get_camera(), primary_container, fill_container);
+                            grab_object(grabbed_object, viewable_ui.get_camera(), background_container);
                         } else {
-                            shove_object(i.object, viewable_ui.get_camera(), primary_container, fill_container);
+                            shove_object(i.object, viewable_ui.get_camera(), background_container);
                         }
                         break;
                     default:
@@ -248,11 +245,11 @@ function handle_wheel(e) {
     if(construction_acknowledged) {
         if(grabbed_object) {
             if(e.deltaY < 0) {
-                fill_container.break_secondary_chains();
-                zoom_object_in(grabbed_object, primary_container, fill_container);
+                background_container.break_secondary_chains();
+                zoom_object_in(grabbed_object, background_container);
             } else {
-                fill_container.break_secondary_chains();
-                zoom_object_out(grabbed_object, primary_container, fill_container);
+                background_container.break_secondary_chains();
+                zoom_object_out(grabbed_object, background_container);
             }
             zoom_event = true;
             resize_move = true;

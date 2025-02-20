@@ -9,11 +9,10 @@ let last_position = new THREE.Vector3();
 let current_velocity = new THREE.Vector3();
 let last_time = 0;
 
-export function shove_object(incoming_object, incoming_source, primary_container, fill_container) {
+export function shove_object(incoming_object, incoming_source, background_container) {
     // Find the corresponding rigid body for the cube
     const incoming_name = incoming_object.name;
-    // Get the dynamic_bodies from the primary_container
-    const dynamic_bodies = primary_container.dynamic_bodies.concat(fill_container.dynamic_bodies);
+    const dynamic_bodies = background_container.dynamic_bodies;
     // Find the matching body for the cube mesh
     const body_pair = dynamic_bodies.find(([mesh]) => mesh.name === incoming_name);
     if (!body_pair) return;
@@ -39,8 +38,8 @@ export function update_mouse_position(e) {
     current_mouse_pos.y = -(e.clientY / window.innerHeight) * 2 + 1;
 }
 
-export function translate_object(incoming_object, incoming_camera, primary_container, fill_container) {
-    const dynamic_bodies = primary_container.dynamic_bodies.concat(fill_container.dynamic_bodies);
+export function translate_object(incoming_object, incoming_camera, background_container) {
+    const dynamic_bodies = background_container.dynamic_bodies;
     const body_pair = dynamic_bodies.find(([mesh]) => mesh.name === incoming_object.name);
     if (!body_pair) return;
     const [_, body] = body_pair;
@@ -66,24 +65,24 @@ export function translate_object(incoming_object, incoming_camera, primary_conta
     body.setRotation(current_rot);
 }
 
-export function zoom_object_in(incoming_object, primary_container, fill_container) {
-    const dynamic_bodies = primary_container.dynamic_bodies.concat(fill_container.dynamic_bodies);
+export function zoom_object_in(incoming_object, background_container) {
+    const dynamic_bodies = background_container.dynamic_bodies;
     const body_pair = dynamic_bodies.find(([mesh]) => mesh.name === incoming_object.name);
     if (!body_pair) return;
     // Adjust the grab distance
     initial_grab_distance += ZOOM_AMOUNT;
 }
 
-export function zoom_object_out(incoming_object, primary_container, fill_container) {
-    const dynamic_bodies = primary_container.dynamic_bodies.concat(fill_container.dynamic_bodies);
+export function zoom_object_out(incoming_object, background_container) {
+    const dynamic_bodies = background_container.dynamic_bodies;
     const body_pair = dynamic_bodies.find(([mesh]) => mesh.name === incoming_object.name);
     if (!body_pair) return;
     // Adjust the grab distance
     initial_grab_distance -= ZOOM_AMOUNT;
 }
 
-export function grab_object(incoming_object, incoming_camera, primary_container, fill_container) {
-    const dynamic_bodies = primary_container.dynamic_bodies.concat(fill_container.dynamic_bodies);
+export function grab_object(incoming_object, incoming_camera, background_container) {
+    const dynamic_bodies = background_container.dynamic_bodies;
     const body_pair = dynamic_bodies.find(([mesh]) => mesh.name === incoming_object.name);
     if (!body_pair) return;
     const [_, body] = body_pair;
@@ -100,8 +99,8 @@ export function grab_object(incoming_object, incoming_camera, primary_container,
     body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased);
 }
 
-export function release_object(incoming_object, primary_container, fill_container) {
-    const dynamic_bodies = primary_container.dynamic_bodies.concat(fill_container.dynamic_bodies);
+export function release_object(incoming_object, background_container) {
+    const dynamic_bodies = background_container.dynamic_bodies;
     const body_pair = dynamic_bodies.find(([mesh]) => mesh.name === incoming_object.name);
     if (!body_pair) return;
     const [_, body] = body_pair;
