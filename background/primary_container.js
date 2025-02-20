@@ -1,5 +1,5 @@
 import { CATEGORIES } from '../viewport/overlay/overlay_common';
-import { TYPES, THREE, Easing, Tween, RAPIER } from '../common';
+import { TYPES, THREE, Easing, Tween, AssetManager, ASSET_TYPE, FLAGS } from '../common';
 
 export class PrimaryContainer {
     parent;
@@ -15,23 +15,24 @@ export class PrimaryContainer {
         this.world = incoming_world;
         this.object_container = new THREE.Object3D();
         this.parent.add(this.object_container);
-        let id = 0;
-        // Cubes
-        Object.values(CATEGORIES).forEach((category, i) => {
+        // Create all cubes asynchronously but wait for all to complete
+        const asset_manager = AssetManager.get_instance();
+        const cube_promises = Object.values(CATEGORIES).map(async (category, i) => {
             if (typeof category === 'function') return; // Skip helper methods
-            let cube_material = new THREE.MeshStandardMaterial({color: category.color});
-            const cube_geometry = new THREE.BoxGeometry(1, 1, 1);
-            const cube_mesh = new THREE.Mesh(cube_geometry, cube_material);
-            cube_mesh.castShadow = true;
-            cube_mesh.name = `${TYPES.INTERACTABLE}${category.value}`;
-            this.object_container.add(cube_mesh);
-            const cube_body = this.world
-            .createRigidBody(RAPIER.RigidBodyDesc.dynamic()
-            .setTranslation(((i * 2) - 3), -2, -5).setCanSleep(false));
-            const cube_shape = RAPIER.ColliderDesc.cuboid(0.5, 0.5, 0.5).setMass(1).setRestitution(1.1);
-            this.world.createCollider(cube_shape, cube_body);
-            this.dynamic_bodies.push([cube_mesh, cube_body]);
-            id++;
+            const position = new THREE.Vector3(((i * 2) - 3), -2, -5);
+            const [mesh, body] = await asset_manager.spawn_asset(
+                ASSET_TYPE.CUBE,
+                this.object_container,
+                this.world,
+                { color: category.color },
+                position
+            );
+            mesh.name = `${TYPES.INTERACTABLE}${category.value}`;
+            this.dynamic_bodies.push([mesh, body]);
+        });
+        // Wait for all cubes to be created
+        Promise.all(cube_promises).then(() => {
+            if (FLAGS.PHYSICS_LOGS) console.log('All cubes initialized');
         });
     }
 
