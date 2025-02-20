@@ -33,14 +33,13 @@ export class TextContainer {
             text_box_background.renderOrder = -1;
             incoming_box.add(text_box_background);
         };
-        // Create frame priavte method
+        // Create frame private method
         const create_text_frame = (incoming_category, incoming_box) => {
             const new_frame = new TextFrame(incoming_box, this.camera, this.container_width, this.container_height);
             new_frame.simple_name = incoming_category.value;
             new_frame.name = `${TYPES.TEXT_BLOCK}${incoming_category.value}`;
             this.text_frames.set(new_frame.name, new_frame);
         };
-
         Object.values(CATEGORIES).forEach((category, i) => {
             if (typeof category === 'function') return; // Skip helper methods
             const text_box = new THREE.Object3D();

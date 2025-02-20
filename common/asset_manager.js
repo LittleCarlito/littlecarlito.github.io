@@ -1,5 +1,7 @@
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
-import { RAPIER, THREE } from ".";
+import { Easing, Tween, RAPIER, THREE } from ".";
+import { CATEGORIES } from "../viewport/overlay/overlay_common";
+import { FLAGS } from "./flags";
 
 // Define all possible asset types that can be loaded and spawned
 export const ASSET_TYPE = {
@@ -43,6 +45,8 @@ export const ASSET_CONFIGS = {
 
 export class AssetManager {
     static instance = null;
+    static instance_counter = 0;
+    currently_activated_name = "";  // Add this to track the currently activated object
     
     constructor() {
         if (AssetManager.instance) {
@@ -170,9 +174,14 @@ export class AssetManager {
                 world.createCollider(collider, body);
             }
         }
-        const instance_id = `${asset_type}_${Date.now()}`;
+        // Generate a truly unique ID using counter instead of timestamp
+        const instance_id = `${asset_type}_${AssetManager.instance_counter++}`;
         const body_pair = [mesh, body];
         this.dynamic_bodies.set(instance_id, body_pair);
+        
+        // Add the instance_id to the mesh's userData for reference
+        mesh.userData.instance_id = instance_id;
+        
         return body_pair;
     }
 
@@ -229,5 +238,131 @@ export class AssetManager {
 
     get_all_static_meshes() {
         return Array.from(this.static_meshes.values());
+    }
+
+    // Add method to get body pair by mesh
+    get_body_pair_by_mesh(mesh) {
+        const instance_id = mesh.userData.instance_id;
+        return instance_id ? this.dynamic_bodies.get(instance_id) : null;
+    }
+
+    /**
+     * Activates an object by setting its material to emit light
+     * @param {string} object_name - Name of the object to activate
+     */
+    activate_object(object_name) {
+        if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Attempting to activate: ${object_name}`);
+        
+        // Deactivate previously activated object if it's different
+        if (this.currently_activated_name !== object_name) {
+            if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Deactivating previous: ${this.currently_activated_name}`);
+            this.deactivate_object(this.currently_activated_name);
+        }
+        
+        this.currently_activated_name = object_name;
+        
+        // Extract the category name from the incoming object name
+        const requested_category = object_name.split("_")[1];
+        if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Looking for category: ${requested_category}`);
+        
+        let found = false;
+        for (const [instance_id, [mesh, _body]] of this.dynamic_bodies) {
+            const mesh_category = mesh.name.split("_")[1];
+            
+            if (mesh_category === requested_category) {
+                found = true;
+                if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Found matching mesh by category: ${mesh_category}`);
+                
+                const category = Object.values(CATEGORIES).find(cat => 
+                    typeof cat !== 'function' && cat.value === requested_category
+                );
+                
+                if (category) {
+                    if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Applying emission material with color: ${category.color}`);
+                    const emission_material = new THREE.MeshStandardMaterial({ 
+                        color: category.color,
+                        emissive: category.color,
+                        emissiveIntensity: 9
+                    });
+                    if (mesh.material) mesh.material.dispose();
+                    mesh.material = emission_material;
+                }
+                break;
+            }
+        }
+        if (!found) {
+            console.warn(`[AssetManager] No mesh found for category: ${requested_category}`);
+        }
+    }
+
+    /**
+     * Deactivates an object by tweening its emission to zero
+     * @param {string} object_name - Name of the object to deactivate
+     */
+    deactivate_object(object_name) {
+        if (!object_name) return;
+        if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Attempting to deactivate: ${object_name}`);
+        
+        const requested_category = object_name.split("_")[1];
+        let found = false;
+        
+        for (const [instance_id, [mesh, _body]] of this.dynamic_bodies) {
+            const mesh_category = mesh.name.split("_")[1];
+            
+            if (mesh_category === requested_category && mesh.material?.emissiveIntensity > 1) {
+                found = true;
+                if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Found mesh to deactivate: ${mesh.name}`);
+                new Tween(mesh.material)
+                    .to({ emissiveIntensity: 0 })
+                    .easing(Easing.Sinusoidal.Out)
+                    .start();
+                break;
+            }
+        }
+        if (!found && FLAGS.ASSET_LOGS) {
+            console.warn(`[AssetManager] No active mesh found for category: ${requested_category}`);
+        }
+    }
+
+    /**
+     * Deactivates all objects that match the given type prefix, or all objects if no prefix provided
+     * @param {string} [type_prefix] - Optional prefix to match object names against
+     */
+    deactivate_all_objects(type_prefix = null) {
+        if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Deactivating all objects${type_prefix ? ` with prefix: ${type_prefix}` : ''}`);
+        let deactivation_count = 0;
+        
+        for (const [instance_id, [mesh, _body]] of this.dynamic_bodies) {
+            if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Checking mesh: ${mesh.name}`);
+            
+            if (type_prefix && !mesh.name.startsWith(type_prefix)) {
+                continue;
+            }
+            
+            if (mesh.material && 
+                mesh.material.emissive && 
+                mesh.material.emissiveIntensity > 0) {
+                if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Deactivating emissive mesh: ${mesh.name}`);
+                new Tween(mesh.material)
+                    .to({ emissiveIntensity: 0 })
+                    .easing(Easing.Sinusoidal.Out)
+                    .start();
+                deactivation_count++;
+            }
+        }
+        
+        if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Deactivated ${deactivation_count} objects`);
+    }
+
+    /**
+     * Checks if an object with the given name exists
+     * @param {string} object_name - Name of the object to check
+     * @returns {boolean} True if the object exists
+     */
+    contains_object(object_name) {
+        for (const [_, [mesh, _body]] of this.dynamic_bodies) {
+            if (mesh.name === object_name) return true;
+        }
+        return false;
     }
 }

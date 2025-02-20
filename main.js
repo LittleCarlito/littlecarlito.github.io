@@ -105,20 +105,19 @@ function animate() {
     }
     // Handle the physics objects
     if(viewable_ui.get_overlay().is_intersected() != null) {
-        primary_container.activate_object(viewable_ui.get_intersected_name());
+        asset_manager.activate_object(viewable_ui.get_intersected_name());
     } else if(grabbed_object) {
         translate_object(grabbed_object, viewable_ui.get_camera(), primary_container, fill_container);
     } else if(hovered_cube_name != "") {
-        primary_container.activate_object(hovered_cube_name);
+        asset_manager.activate_object(hovered_cube_name);
     } else if(viewable_ui.is_text_active()) {
-        primary_container.activate_object(viewable_ui.get_active_name());
+        asset_manager.activate_object(viewable_ui.get_active_name());
     } else {
-        primary_container.decativate_all_objects();
+        asset_manager.deactivate_all_objects();
     }
     world.timestep = Math.min(delta, 0.1);
     world.step();
     // Background object updates
-    primary_container.update();
     fill_container.update(grabbed_object, viewable_ui);
     asset_manager.update();
     // Update confetti particles

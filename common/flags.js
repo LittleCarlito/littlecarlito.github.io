@@ -4,10 +4,11 @@ export const FLAGS = {
     LAYER: true,
     VISUAL_DEBUG: false,
     // Log flags
-    SELECT_LOGS:false,
+    SELECT_LOGS: false,
     TWEEN_LOGS: false,
     HTML_LOGS: false,
-    PHYSICS_LOGS: false
+    PHYSICS_LOGS: false,
+    ASSET_LOGS: false
 };
 
 Object.freeze(FLAGS);
