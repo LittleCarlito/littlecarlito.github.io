@@ -6,7 +6,7 @@ import { FLAGS } from "../common";
 
 export const UI_Z_DIST = 25;
 
-export class ViewableUI {
+export class ViewableContainer {
     detect_rotation = false;
     overlay_container;
     leftMouseDown = false;
@@ -14,7 +14,7 @@ export class ViewableUI {
     camera_manager;
 
     constructor(incoming_parent, incoming_world) {
-        this.viewable_ui_container = new THREE.Object3D();
+        this.viewable_container_container = new THREE.Object3D();
         this.parent = incoming_parent;
         this.world = incoming_world;
         this.camera = new THREE.PerspectiveCamera(
@@ -32,7 +32,7 @@ export class ViewableUI {
         this.camera_manager = new CameraManager(this.camera, UI_Z_DIST);
         
         // Create overlay and connect it to camera manager
-        this.overlay_container = new OverlayContainer(this.viewable_ui_container, this.get_camera());
+        this.overlay_container = new OverlayContainer(this.viewable_container_container, this.get_camera());
         this.camera_manager.set_overlay_container(this.overlay_container);
         
         // Add callback for camera updates
@@ -41,9 +41,9 @@ export class ViewableUI {
                 this.overlay_container.resize_reposition_offscreen();
             }
         });
-        this.viewable_ui_container.add(this.camera);
-        // this.viewable_ui_container.rotation.x = -0.261799;
-        this.parent.add(this.viewable_ui_container);
+        this.viewable_container_container.add(this.camera);
+        // this.viewable_container_container.rotation.x = -0.261799;
+        this.parent.add(this.viewable_container_container);
         // Add mouse button event listeners
     }
 
@@ -147,7 +147,6 @@ export class ViewableUI {
                         console.log(object_name, "clicked down");
                     }
                     break;
-                // ... rest of the switch cases ...
             }
         }
     }
@@ -195,7 +194,7 @@ export class ViewableUI {
     }
 
     get_viewable_container() {
-        return this.viewable_ui_container;
+        return this.viewable_container_container;
     }
 
     get_intersected_name() {

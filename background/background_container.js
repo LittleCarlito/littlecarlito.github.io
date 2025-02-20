@@ -64,22 +64,22 @@ export class BackgroundContainer {
         });
     }
 
-    update(grabbed_object, viewable_ui) {
+    update(grabbed_object, viewable_container) {
         // Logic triggering spawning
         let trigger_secondary = false;
-        if((grabbed_object != null  || viewable_ui.is_secondary_triggered()) && !trigger_secondary) {
+        if((grabbed_object != null  || viewable_container.is_secondary_triggered()) && !trigger_secondary) {
             trigger_secondary = true;
         }
         // Deal with primary instructions
-        if(viewable_ui.is_primary_triggered() && !this.is_primary_spawned()) {
+        if(viewable_container.is_primary_triggered() && !this.is_primary_spawned()) {
             this.spawn_primary_instructions();
-        } else if(!viewable_ui.is_overlay_hidden() && this.is_primary_instructions_intact()) {
+        } else if(!viewable_container.is_overlay_hidden() && this.is_primary_instructions_intact()) {
             this.break_primary_chains();
         // Deal with secondary instructions
         } else if(trigger_secondary && !this.is_secondary_spawned()) {
             this.break_primary_chains();
             this.spawn_secondary_instructions();
-        } else if(this.is_secondary_spawned() && !viewable_ui.is_overlay_hidden()) {
+        } else if(this.is_secondary_spawned() && !viewable_container.is_overlay_hidden()) {
             this.break_secondary_chains();
         }
         // Handle logic for what already exists
