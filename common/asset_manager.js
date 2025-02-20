@@ -120,6 +120,17 @@ export class AssetManager {
             mesh = gltf.scene.clone();
             mesh.position.copy(position_offset);
             mesh.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
+            // Ensure proper material settings for physics objects
+            mesh.traverse((child) => {
+                if (child.isMesh) {
+                    // Clone the material to avoid sharing between instances
+                    child.material = child.material.clone();
+                    // Ensure proper depth testing for physics objects
+                    child.material.depthTest = true;
+                    child.material.transparent = false;
+                    child.castShadow = true;
+                }
+            });
         }
         // Add mesh to parent
         parent.add(mesh);
