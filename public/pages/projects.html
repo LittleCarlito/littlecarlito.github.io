@@ -12,14 +12,15 @@
             align-items: flex-start;
             min-height: 100vh;
             background: transparent;
-            overflow: hidden;
+            overflow-x: auto;  /* Add horizontal scroll when needed */
         }
 
         .writing-container {
-            width: 100%;
+            width: 800px;     /* Fixed width */
             position: relative;
             opacity: 0;
             padding-left: 30px;
+            min-width: 800px; /* Prevent container shrinking */
         }
 
         .writing-container.show {
@@ -72,8 +73,7 @@
             width: 800px;
             height: auto;
             display: block;
-            max-height: 100vh;
-            margin-left: 0;
+            min-width: 800px; /* Prevent SVG shrinking */
         }
 
         .letter-path {
@@ -499,7 +499,8 @@
         function updateBoxPositions() {
             const svg = document.querySelector('#title_svg');
             const svgRect = svg.getBoundingClientRect();
-            const scale = svgRect.width / ORIGINAL_SVG_WIDTH;
+            // Round the scale to prevent subpixel issues
+            const scale = Math.round((svgRect.width / ORIGINAL_SVG_WIDTH) * 1000) / 1000;
 
             const debugContainer = document.querySelector('div[style*="position: absolute"]');
             const links = debugContainer.getElementsByTagName('a');
@@ -507,16 +508,21 @@
             PROJECT_LINKS.forEach((config, index) => {
                 if (links[index]) {
                     const link = links[index];
-                    link.style.left = `${LINK_LEFT_MARGIN * scale}px`;
-                    link.style.top = `${(config.y * scale * 0.9 + config.yOffset * scale)}px`;
-                    link.style.width = `${config.width * scale}px`;
-                    link.style.height = `${config.height * scale}px`;
+                    // Round all position calculations
+                    link.style.left = `${Math.round(LINK_LEFT_MARGIN * scale)}px`;
+                    link.style.top = `${Math.round(config.y * scale * 0.9 + config.yOffset * scale)}px`;
+                    link.style.width = `${Math.round(config.width * scale)}px`;
+                    link.style.height = `${Math.round(config.height * scale)}px`;
                 }
             });
         }
 
-        // Add resize event listener
-        window.addEventListener('resize', updateBoxPositions);
+        // Use ResizeObserver for more accurate size change detection
+        const resizeObserver = new ResizeObserver(() => {
+            requestAnimationFrame(updateBoxPositions);
+        });
+
+        resizeObserver.observe(document.querySelector('#title_svg'));
     </script>
 </body>
 </html>
