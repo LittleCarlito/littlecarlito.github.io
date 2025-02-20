@@ -170,32 +170,31 @@ export class AssetManager {
      * @param {string} asset_type - Type of asset from ASSET_TYPE enum
      * @param {THREE.Object3D} parent - Parent object to add the mesh to
      * @param {THREE.Vector3} position_offset - Position offset from parent
+     * @param {THREE.Quaternion} rotation - Rotation of the mesh
      * @returns {THREE.Object3D} The created mesh
      */
-    async create_static_mesh(asset_type, parent, position_offset) {
-        if (!Object.values(ASSET_TYPE).includes(asset_type)) {
-            throw new Error(`Invalid asset type: ${asset_type}`);
-        }
+    async create_static_mesh(asset_type, parent, position_offset = new THREE.Vector3(0, 0, 0), rotation = null) {
+        if (!Object.values(ASSET_TYPE).includes(asset_type)) throw new Error(`Invalid asset type: ${asset_type}`);
         const asset_config = ASSET_CONFIGS[asset_type];
         let mesh;
-        // Handle primitive cube differently
         if (asset_type === ASSET_TYPE.CUBE) {
-            mesh = new THREE.Mesh(
-                asset_config.geometry,
-                asset_config.create_material(0xffffff)
-            );
+            mesh = new THREE.Mesh(asset_config.geometry, asset_config.create_material(0xffffff));
             mesh.castShadow = true;
         } else {
-            // Load and setup GLB model
-            if (!this.loaded_assets.has(asset_type)) {
-                await this.load_asset_type(asset_type);
-            }
+            if (!this.loaded_assets.has(asset_type)) await this.load_asset_type(asset_type);
             const gltf = this.loaded_assets.get(asset_type);
             mesh = gltf.scene.clone();
             mesh.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
+            mesh.traverse((child) => {
+                if (child.isMesh) {
+                    child.material.depthTest = false;
+                    child.material.transparent = true;
+                }
+            });
         }
         mesh.position.copy(position_offset);
-        // Add to parent and tracking
+        if (rotation) mesh.rotation.copy(rotation);
+        mesh.renderOrder = 999;
         parent.add(mesh);
         const instance_id = `${asset_type}_static_${Date.now()}`;
         this.static_meshes.set(instance_id, mesh);

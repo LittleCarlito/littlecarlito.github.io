@@ -1,7 +1,7 @@
 import { clamp } from 'three/src/math/MathUtils.js';
 import { TextFrame, IFRAME } from './text_frame';
 import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, CATEGORIES, extract_type, PAN_SPEED, TYPES, VALID_DIRECTIONS } from './overlay_common';
-import { Easing, FLAGS, NAMES, THREE, Tween, AssetManager } from '../../common';
+import { Easing, FLAGS, NAMES, THREE, Tween, AssetManager, ASSET_TYPE } from '../../common';
 
 export class TextContainer {
     container_width;
@@ -9,6 +9,7 @@ export class TextContainer {
     text_frames = new Map();
     focused_text_name = "";
     particles = [];
+    asset_manager;
 
     DIPLOMA = {
         scale: 10,
@@ -22,6 +23,7 @@ export class TextContainer {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.text_box_container = new THREE.Object3D();
+        this.asset_manager = AssetManager.get_instance();
         // Create text displays
         this.parent.add(this.text_box_container);
         Object.values(CATEGORIES).forEach((category, i) => {
@@ -61,23 +63,11 @@ export class TextContainer {
             // TODO OOOOOO
             switch(category.value) {
                 case CATEGORIES.EDUCATION.value:
-                    const asset_manager = AssetManager.get_instance();
-                    asset_manager.loader.load("assets/diploma.glb", (loaded_diploma) => {
-                        let diploma_asset = loaded_diploma.scene;
-                        diploma_asset.position.copy(this.DIPLOMA.position);
-                        diploma_asset.rotation.copy(this.DIPLOMA.rotation);
-                        diploma_asset.name = `${TYPES.GLTF_MESH}${NAMES.DIPLOMA}`;
-                        diploma_asset.scale.set(this.DIPLOMA.scale, this.DIPLOMA.scale, this.DIPLOMA.scale);
-                        diploma_asset.renderOrder = 999;
-                        diploma_asset.traverse((child) => {
-                            if (child.isMesh) {
-                                child.name = `${TYPES.INTERACTABLE}${NAMES.DIPLOMA}`;
-                                child.material.depthTest = false;
-                                child.material.transparent = true;
-                            }
-                        });
-                        text_box.add(diploma_asset);
-                    });
+                    const rotation = new THREE.Euler(-Math.PI/2, 0, Math.PI, 'XYZ');
+                    const position_one_offset = new THREE.Vector3(0, 3, 0);
+                    const position_two_offset = new THREE.Vector3(0, -3, 0);
+                    this.asset_manager.create_static_mesh(ASSET_TYPE.DIPLOMA, text_box, position_one_offset, rotation);
+                    this.asset_manager.create_static_mesh(ASSET_TYPE.DIPLOMA, text_box, position_two_offset, rotation);
                     create_background(category, text_box);
                     break;
                 case CATEGORIES.ABOUT.value:
