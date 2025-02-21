@@ -330,12 +330,25 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <script>
-        const skills = {
-            frontend: ['React', 'ThreeJS', 'JavaScript', 'TypeScript', 'HTML/CSS', 'WebGL'],
-            backend: ['Spring Boot', 'Java', 'SQL', 'Kubernetes', 'Docker', 'AWS', 'GDScript']
-        };
+        const skills = [
+            { name: 'React', icon_path: '../logos/react.svg' },
+            { name: 'ThreeJS', icon_path: '../logos/threejs.svg' },
+            { name: 'JavaScript', icon_path: '../logos/js.svg' },
+            { name: 'TypeScript', icon_path: '../logos/ts.svg' },
+            { name: 'HTML', icon_path: '../logos/html.svg' },
+            { name: 'CSS', icon_path: '../logos/css.svg' },
+            { name: 'WebGL', icon_path: '../logos/web_gl.svg' },
+            { name: 'Spring Boot', icon_path: '../logos/spring.svg' },
+            { name: 'Java', icon_path: '../logos/java.svg' },
+            { name: 'SQL', icon_path: '../logos/sql.svg' },
+            { name: 'Kubernetes', icon_path: '../logos/kubernetes.svg' },
+            { name: 'Docker', icon_path: '../logos/docker.svg' },
+            { name: 'AWS', icon_path: '../logos/aws.svg' },
+            { name: 'GDScript', icon_path: '../logos/gdscript.svg' },
+            { name: 'JUnit 5', icon_path: '../logos/junit.svg' }
+        ];
 
-        let engine, render, world, walls; // Add walls to track them globally
+        let engine, render, world, walls;
 
         function initPhysics() {
             const container = document.getElementById('physics-container');
@@ -359,49 +372,62 @@
                 }
             });
 
-            // Create mouse constraint first
-            const mouse = Matter.Mouse.create(render.canvas);
-            const mouseConstraint = Matter.MouseConstraint.create(engine, {
-                mouse: mouse,
-                constraint: {
-                    stiffness: 0.2,
-                    render: { visible: false }
-                }
+            // Modified image loading with error handling
+            const loadedImages = {};
+            const imagePromises = skills.map(skill => {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    
+                    img.onload = () => {
+                        loadedImages[skill.name] = img;
+                        resolve();
+                    };
+                    
+                    img.onerror = (e) => {
+                        console.error(`Failed to load image for ${skill.name}:`, skill.icon_path);
+                        // Resolve anyway to prevent the whole system from failing
+                        resolve();
+                    };
+                    
+                    // Try with and without leading slash
+                    if (skill.icon_path.startsWith('/')) {
+                        img.src = skill.icon_path.substring(1);
+                    } else {
+                        img.src = skill.icon_path;
+                    }
+                });
             });
-            Matter.World.add(world, mouseConstraint);
-            render.mouse = mouse;
 
-            // Create skill balls and store them in array
-            const balls = [];
-            const radius = 30;
-            const PHYSICS_CONSTANTS = {
-                SWIM_FORCE: 0.003,
-                MAX_SPEED: 3,
-                MIN_SPEED: 0.1,
-                INITIAL_SPEED_FACTOR: 0.5,
-                
-                // Speed variation
-                SPEED_VARIATION_FREQUENCY: 0.001,
-                SPEED_VARIATION_RANGE: 0.3,
-                SPEED_VARIATION_BASE: 0.6,
-                
-                // Movement chances
-                VERTICAL_DRIFT_CHANCE: 0.002,
-                VERTICAL_DRIFT_FORCE: 0.00005,
-                DIRECTION_CHANGE_CHANCE: 0.0005,
-                
-                // Avoidance
-                AVOIDANCE_RADIUS_FACTOR: 3,
-                AVOIDANCE_FORCE_X: 0.0005,
-                AVOIDANCE_FORCE_Y: 0.0001
-            };
+            // Rest of the physics initialization
+            Promise.all(imagePromises).then(() => {
+                const logos = [];
+                const radius = 30;
+                const PHYSICS_CONSTANTS = {
+                    SWIM_FORCE: 0.003,
+                    MAX_SPEED: 3,
+                    MIN_SPEED: 0.1,
+                    INITIAL_SPEED_FACTOR: 0.5,
+                    
+                    // Speed variation
+                    SPEED_VARIATION_FREQUENCY: 0.001,
+                    SPEED_VARIATION_RANGE: 0.3,
+                    SPEED_VARIATION_BASE: 0.6,
+                    
+                    // Movement chances
+                    VERTICAL_DRIFT_CHANCE: 0.002,
+                    VERTICAL_DRIFT_FORCE: 0.00005,
+                    DIRECTION_CHANGE_CHANCE: 0.0005,
+                    
+                    // Avoidance
+                    AVOIDANCE_RADIUS_FACTOR: 3,
+                    AVOIDANCE_FORCE_X: 0.0005,
+                    AVOIDANCE_FORCE_Y: 0.0001
+                };
 
-            Object.entries(skills).forEach(([type, skillList]) => {
-                skillList.forEach((skill, index) => {
+                skills.forEach((skill) => {
                     const x = Math.random() * (container.clientWidth - radius * 2) + radius;
                     const y = Math.random() * (container.clientHeight - radius * 2) + radius;
                     
-                    // Create individual speed characteristics for each ball
                     const individualProperties = {
                         speedBase: PHYSICS_CONSTANTS.SPEED_VARIATION_BASE + (Math.random() - 0.5) * 0.2,
                         speedFrequency: PHYSICS_CONSTANTS.SPEED_VARIATION_FREQUENCY * (0.8 + Math.random() * 0.4),
@@ -409,12 +435,14 @@
                         speedRange: PHYSICS_CONSTANTS.SPEED_VARIATION_RANGE * (0.8 + Math.random() * 0.4)
                     };
                     
-                    const ball = Matter.Bodies.circle(x, y, radius, {
+                    const logo = Matter.Bodies.circle(x, y, radius, {
                         render: {
-                            fillStyle: type === 'frontend' ? '#2196F3' : '#4CAF50',
-                            visible: true
+                            sprite: {
+                                texture: skill.icon_path,
+                                xScale: 0.5,
+                                yScale: 0.5
+                            }
                         },
-                        label: skill,
                         restitution: 0.6,
                         friction: 0.001,
                         density: 0.0005,
@@ -422,143 +450,105 @@
                         individualProperties
                     });
 
-                    // Set random initial direction and velocity
-                    const initialDirection = Math.random() > 0.5 ? 1 : -1;
-                    Matter.Body.setVelocity(ball, {
-                        x: initialDirection * PHYSICS_CONSTANTS.MAX_SPEED * PHYSICS_CONSTANTS.INITIAL_SPEED_FACTOR,
-                        y: 0
-                    });
-                    
-                    Matter.World.add(world, ball);
-                    balls.push(ball);
+                    Matter.World.add(world, logo);
+                    logos.push(logo);
                 });
-            });
 
-            // Add text rendering
-            Matter.Events.on(render, 'afterRender', () => {
-                const ctx = render.context;
-                balls.forEach(ball => {
-                    ctx.save();
-                    ctx.fillStyle = 'white';
-                    ctx.font = '12px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(ball.label, ball.position.x, ball.position.y);
-                    ctx.restore();
+                // Keep mouse constraint for avoidance only
+                const mouse = Matter.Mouse.create(render.canvas);
+                const mouseConstraint = Matter.MouseConstraint.create(engine, {
+                    mouse: mouse,
+                    constraint: {
+                        stiffness: 0.2,
+                        render: { visible: false }
+                    }
                 });
-            });
+                Matter.World.add(world, mouseConstraint);
+                render.mouse = mouse;
 
-            Matter.Events.on(engine, 'beforeUpdate', () => {
-                balls.forEach(ball => {
-                    const position = Matter.Vector.create(ball.position.x, ball.position.y);
-                    const velocity = Matter.Vector.create(ball.velocity.x, ball.velocity.y);
-                    const props = ball.individualProperties;
-                    
-                    const currentSpeed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
-                    
-                    if (currentSpeed < PHYSICS_CONSTANTS.MIN_SPEED) {
-                        const direction = Math.random() > 0.5 ? 1 : -1;
-                        Matter.Body.setVelocity(ball, {
-                            x: direction * PHYSICS_CONSTANTS.MAX_SPEED * PHYSICS_CONSTANTS.INITIAL_SPEED_FACTOR,
-                            y: 0
-                        });
-                    } else {
-                        // Use individual properties for speed variation
-                        const speedVariation = Math.sin(engine.timing.timestamp * props.speedFrequency + props.phaseOffset) 
-                            * props.speedRange + props.speedBase;
-                        const targetSpeed = PHYSICS_CONSTANTS.MAX_SPEED * speedVariation;
+                // Keep all the existing physics logic exactly as is
+                Matter.Events.on(engine, 'beforeUpdate', () => {
+                    logos.forEach(logo => {
+                        const position = Matter.Vector.create(logo.position.x, logo.position.y);
+                        const velocity = Matter.Vector.create(logo.velocity.x, logo.velocity.y);
+                        const props = logo.individualProperties;
                         
-                        const speedAdjustment = (targetSpeed - currentSpeed) * 0.1;
-                        const directionX = velocity.x > 0 ? 1 : -1;
+                        const currentSpeed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
                         
-                        if (Math.random() < PHYSICS_CONSTANTS.VERTICAL_DRIFT_CHANCE) {
-                            Matter.Body.applyForce(ball, ball.position, {
-                                x: directionX * speedAdjustment * PHYSICS_CONSTANTS.SWIM_FORCE,
-                                y: (Math.random() - 0.5) * PHYSICS_CONSTANTS.VERTICAL_DRIFT_FORCE
-                            });
-                        } else {
-                            Matter.Body.applyForce(ball, ball.position, {
-                                x: directionX * speedAdjustment * PHYSICS_CONSTANTS.SWIM_FORCE,
+                        if (currentSpeed < PHYSICS_CONSTANTS.MIN_SPEED) {
+                            const direction = Math.random() > 0.5 ? 1 : -1;
+                            Matter.Body.setVelocity(logo, {
+                                x: direction * PHYSICS_CONSTANTS.MAX_SPEED * PHYSICS_CONSTANTS.INITIAL_SPEED_FACTOR,
                                 y: 0
                             });
-                        }
-                    }
-
-                    // Direction changes
-                    if (Math.random() < PHYSICS_CONSTANTS.DIRECTION_CHANGE_CHANCE) {
-                        Matter.Body.setVelocity(ball, {
-                            x: -velocity.x,
-                            y: velocity.y
-                        });
-                    }
-
-                    // Avoidance logic for other balls
-                    let avoidanceForce = { x: 0, y: 0 };
-                    balls.forEach(otherBall => {
-                        if (otherBall !== ball) {
-                            const dx = otherBall.position.x - ball.position.x;
-                            const dy = otherBall.position.y - ball.position.y;
-                            const distance = Math.sqrt(dx * dx + dy * dy);
+                        } else {
+                            // Use individual properties for speed variation
+                            const speedVariation = Math.sin(engine.timing.timestamp * props.speedFrequency + props.phaseOffset) 
+                                * props.speedRange + props.speedBase;
+                            const targetSpeed = PHYSICS_CONSTANTS.MAX_SPEED * speedVariation;
                             
-                            if (distance < radius * PHYSICS_CONSTANTS.AVOIDANCE_RADIUS_FACTOR) {
-                                avoidanceForce.x -= (dx / distance) * PHYSICS_CONSTANTS.AVOIDANCE_FORCE_X;
-                                avoidanceForce.y -= (dy / distance) * PHYSICS_CONSTANTS.AVOIDANCE_FORCE_Y;
+                            const speedAdjustment = (targetSpeed - currentSpeed) * 0.1;
+                            const directionX = velocity.x > 0 ? 1 : -1;
+                            
+                            if (Math.random() < PHYSICS_CONSTANTS.VERTICAL_DRIFT_CHANCE) {
+                                Matter.Body.applyForce(logo, logo.position, {
+                                    x: directionX * speedAdjustment * PHYSICS_CONSTANTS.SWIM_FORCE,
+                                    y: (Math.random() - 0.5) * PHYSICS_CONSTANTS.VERTICAL_DRIFT_FORCE
+                                });
+                            } else {
+                                Matter.Body.applyForce(logo, logo.position, {
+                                    x: directionX * speedAdjustment * PHYSICS_CONSTANTS.SWIM_FORCE,
+                                    y: 0
+                                });
                             }
                         }
-                    });
 
-                    // Only check mouse position if it exists
-                    if (mouseConstraint.mouse.position) {
-                        const dx = mouseConstraint.mouse.position.x - ball.position.x;
-                        const dy = mouseConstraint.mouse.position.y - ball.position.y;
-                        const mouseDistance = Math.sqrt(dx * dx + dy * dy);
-                        const mouseAvoidanceRadius = radius * 5;
-                        
-                        if (mouseDistance < mouseAvoidanceRadius) {
-                            avoidanceForce.x -= (dx / mouseDistance) * PHYSICS_CONSTANTS.AVOIDANCE_FORCE_X * 2;
-                            avoidanceForce.y -= (dy / mouseDistance) * PHYSICS_CONSTANTS.AVOIDANCE_FORCE_Y * 2;
+                        // Direction changes
+                        if (Math.random() < PHYSICS_CONSTANTS.DIRECTION_CHANGE_CHANCE) {
+                            Matter.Body.setVelocity(logo, {
+                                x: -velocity.x,
+                                y: velocity.y
+                            });
                         }
-                    }
 
-                    // Apply combined avoidance forces
-                    Matter.Body.applyForce(ball, ball.position, avoidanceForce);
+                        // Avoidance logic for other logos
+                        let avoidanceForce = { x: 0, y: 0 };
+                        logos.forEach(otherLogo => {
+                            if (otherLogo !== logo) {
+                                const dx = otherLogo.position.x - logo.position.x;
+                                const dy = otherLogo.position.y - logo.position.y;
+                                const distance = Math.sqrt(dx * dx + dy * dy);
+                                
+                                if (distance < radius * PHYSICS_CONSTANTS.AVOIDANCE_RADIUS_FACTOR) {
+                                    avoidanceForce.x -= (dx / distance) * PHYSICS_CONSTANTS.AVOIDANCE_FORCE_X;
+                                    avoidanceForce.y -= (dy / distance) * PHYSICS_CONSTANTS.AVOIDANCE_FORCE_Y;
+                                }
+                            }
+                        });
+
+                        // Only check mouse position if it exists
+                        if (mouseConstraint.mouse.position) {
+                            const dx = mouseConstraint.mouse.position.x - logo.position.x;
+                            const dy = mouseConstraint.mouse.position.y - logo.position.y;
+                            const mouseDistance = Math.sqrt(dx * dx + dy * dy);
+                            const mouseAvoidanceRadius = radius * 5;
+                            
+                            if (mouseDistance < mouseAvoidanceRadius) {
+                                avoidanceForce.x -= (dx / mouseDistance) * PHYSICS_CONSTANTS.AVOIDANCE_FORCE_X * 2;
+                                avoidanceForce.y -= (dy / mouseDistance) * PHYSICS_CONSTANTS.AVOIDANCE_FORCE_Y * 2;
+                            }
+                        }
+
+                        // Apply combined avoidance forces
+                        Matter.Body.applyForce(logo, logo.position, avoidanceForce);
+                    });
                 });
-            });
 
-            // Modify walls creation to store them in the global variable
-            walls = [
-                // Top
-                Matter.Bodies.rectangle(container.clientWidth/2, -10, container.clientWidth, 20, { isStatic: true }),
-                // Bottom
-                Matter.Bodies.rectangle(container.clientWidth/2, container.clientHeight + 10, container.clientWidth, 20, { isStatic: true }),
-                // Left
-                Matter.Bodies.rectangle(-10, container.clientHeight/2, 20, container.clientHeight, { isStatic: true }),
-                // Right
-                Matter.Bodies.rectangle(container.clientWidth + 10, container.clientHeight/2, 20, container.clientHeight, { isStatic: true })
-            ];
-            Matter.World.add(world, walls);
+                // Keep the runner and walls
+                const runner = Matter.Runner.create();
+                Matter.Runner.run(runner, engine);
+                Matter.Render.run(render);
 
-            // Create the runner
-            const runner = Matter.Runner.create();
-
-            // Replace Engine.run with Runner.run
-            Matter.Runner.run(runner, engine);
-            Matter.Render.run(render);
-
-            // Replace the existing resize handler with this enhanced version
-            window.addEventListener('resize', () => {
-                const container = document.getElementById('physics-container');
-                
-                // Update render dimensions
-                render.canvas.width = container.clientWidth;
-                render.canvas.height = container.clientHeight;
-                render.options.width = container.clientWidth;
-                render.options.height = container.clientHeight;
-
-                // Remove old walls
-                walls.forEach(wall => Matter.World.remove(world, wall));
-
-                // Create new walls at updated positions
                 walls = [
                     Matter.Bodies.rectangle(container.clientWidth/2, -10, container.clientWidth, 20, { isStatic: true }),
                     Matter.Bodies.rectangle(container.clientWidth/2, container.clientHeight + 10, container.clientWidth, 20, { isStatic: true }),
@@ -566,6 +556,8 @@
                     Matter.Bodies.rectangle(container.clientWidth + 10, container.clientHeight/2, 20, container.clientHeight, { isStatic: true })
                 ];
                 Matter.World.add(world, walls);
+            }).catch(error => {
+                console.error('Error during physics initialization:', error);
             });
         }
 
