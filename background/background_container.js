@@ -1,9 +1,10 @@
-import { FLAGS, THREE, AssetManager, ASSET_TYPE } from "../common";
+import { FLAGS, THREE, AssetManager, ASSET_TYPE, NAMES } from "../common";
 import { ControlMenu } from "./menus/control_menu";
 import { ScrollMenu } from "./menus/scroll_menu";
 import { CATEGORIES, TYPES } from "../viewport/overlay/overlay_common";
 
 export class BackgroundContainer {
+    name = "[BackgroundContainer]"
     parent;
     camera;
     world;
@@ -11,25 +12,6 @@ export class BackgroundContainer {
     primary_instruction_sign = null;
     secondary_instruction_sign = null;
     dynamic_bodies = [];
-
-    AXE = {
-        scale: 20,
-        mass: 5,
-        restitution: .1,
-        position: new THREE.Vector3(5, 10, -5)
-    }
-    DIPLOMA = {
-        scale: 10,
-        mass: 1,
-        restitution: .2,
-        position: new THREE.Vector3(-5, 8, -3)
-    }
-    DESK = {
-        scale: 2,
-        mass: 1,
-        restitution: .5,
-        position: new THREE.Vector3(0, 0, -8)
-    }
 
     constructor(incoming_parent, incoming_camera, incoming_world) {
         this.parent = incoming_parent;
@@ -40,9 +22,17 @@ export class BackgroundContainer {
         const asset_loader = AssetManager.get_instance();
         this.loader = asset_loader.loader;
         // Spawn assets
-        asset_loader.spawn_asset(ASSET_TYPE.AXE, this.object_container, this.world);
-        asset_loader.spawn_asset(ASSET_TYPE.DIPLOMA, this.object_container, this.world);
-        asset_loader.spawn_asset(ASSET_TYPE.DESK, this.object_container, this.world);
+        (async () => {
+            let [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.AXE, this.object_container, this.world);
+            mesh.name = `${TYPES.INTERACTABLE}${NAMES.AXE}`;
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Axe with name: ${mesh.name}`);
+            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DIPLOMA, this.object_container, this.world);
+            mesh.name = `${TYPES.INTERACTABLE}${NAMES.DIPLOMA}`;
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma with name: ${mesh.name}`);
+            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DESK, this.object_container, this.world);
+            mesh.name = `${TYPES.INTERACTABLE}${NAMES.DESK}`;
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Desk with name: ${mesh.name}`);
+        })();
         // Create all cubes asynchronously but wait for all to complete
         const asset_manager = AssetManager.get_instance();
         const cube_promises = Object.values(CATEGORIES).map(async (category, i) => {
@@ -55,8 +45,8 @@ export class BackgroundContainer {
                 { color: category.color },
                 position
             );
-            if (FLAGS.ASSET_LOGS) console.log(`[BackgroundContainer] Creating cube with name: ${TYPES.INTERACTABLE}${category.value}`);
             mesh.name = `${TYPES.INTERACTABLE}${category.value}`;
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating cube with name: ${mesh.name}`);
         });
         // Wait for all cubes to be created
         Promise.all(cube_promises).then(() => {

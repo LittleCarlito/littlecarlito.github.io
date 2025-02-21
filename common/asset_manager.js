@@ -251,11 +251,11 @@ export class AssetManager {
      * @param {string} object_name - Name of the object to activate
      */
     activate_object(object_name) {
-        if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Attempting to activate: ${object_name}`);
+        if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Attempting to activate: ${object_name}`);
         
         // Deactivate previously activated object if it's different
         if (this.currently_activated_name !== object_name) {
-            if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Deactivating previous: ${this.currently_activated_name}`);
+            if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Deactivating previous: ${this.currently_activated_name}`);
             this.deactivate_object(this.currently_activated_name);
         }
         
@@ -263,7 +263,7 @@ export class AssetManager {
         
         // Extract the category name from the incoming object name
         const requested_category = object_name.split("_")[1];
-        if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Looking for category: ${requested_category}`);
+        if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Looking for category: ${requested_category}`);
         
         let found = false;
         for (const [instance_id, [mesh, _body]] of this.dynamic_bodies) {
@@ -271,14 +271,14 @@ export class AssetManager {
             
             if (mesh_category === requested_category) {
                 found = true;
-                if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Found matching mesh by category: ${mesh_category}`);
+                if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Found matching mesh by category: ${mesh_category}`);
                 
                 const category = Object.values(CATEGORIES).find(cat => 
                     typeof cat !== 'function' && cat.value === requested_category
                 );
                 
                 if (category) {
-                    if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Applying emission material with color: ${category.color}`);
+                    if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Applying emission material with color: ${category.color}`);
                     const emission_material = new THREE.MeshStandardMaterial({ 
                         color: category.color,
                         emissive: category.color,
@@ -290,7 +290,7 @@ export class AssetManager {
                 break;
             }
         }
-        if (!found) {
+        if (!found && FLAGS.ACTIVATE_LOGS) {
             console.warn(`[AssetManager] No mesh found for category: ${requested_category}`);
         }
     }
@@ -301,7 +301,7 @@ export class AssetManager {
      */
     deactivate_object(object_name) {
         if (!object_name) return;
-        if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Attempting to deactivate: ${object_name}`);
+        if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Attempting to deactivate: ${object_name}`);
         
         const requested_category = object_name.split("_")[1];
         let found = false;
@@ -311,7 +311,7 @@ export class AssetManager {
             
             if (mesh_category === requested_category && mesh.material?.emissiveIntensity > 1) {
                 found = true;
-                if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Found mesh to deactivate: ${mesh.name}`);
+                if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Found mesh to deactivate: ${mesh.name}`);
                 new Tween(mesh.material)
                     .to({ emissiveIntensity: 0 })
                     .easing(Easing.Sinusoidal.Out)
@@ -319,7 +319,7 @@ export class AssetManager {
                 break;
             }
         }
-        if (!found && FLAGS.ASSET_LOGS) {
+        if (!found && FLAGS.ACTIVATE_LOGS) {
             console.warn(`[AssetManager] No active mesh found for category: ${requested_category}`);
         }
     }

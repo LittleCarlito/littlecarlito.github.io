@@ -3,5 +3,6 @@ export const NAMES = Object.freeze({
     SECONDARY: "secondary",
     UNIQUE: "unique",
     AXE: "axe",
-    DIPLOMA: "diploma"
+    DIPLOMA: "diploma",
+    DESK: "desk"
 })
