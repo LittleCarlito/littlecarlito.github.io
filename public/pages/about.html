@@ -350,6 +350,28 @@
 
         let engine, render, world, walls;
 
+        const PHYSICS_CONSTANTS = {
+            // Core movement
+            SWIM_FORCE: 0.003,
+            MAX_SPEED: 3,
+            MIN_SPEED: 0.1,
+            INITIAL_SPEED_FACTOR: 0.5,
+            // Speed variation
+            SPEED_VARIATION_FREQUENCY: 0.001,
+            SPEED_VARIATION_RANGE: 0.3,
+            SPEED_VARIATION_BASE: 0.6,
+            // Movement chances
+            VERTICAL_DRIFT_CHANCE: 0.002,
+            VERTICAL_DRIFT_FORCE: 0.00005,
+            DIRECTION_CHANGE_CHANCE: 0.0005,
+            // Avoidance
+            AVOIDANCE_RADIUS_FACTOR: 3,
+            AVOIDANCE_FORCE_X: 0.0005,
+            AVOIDANCE_FORCE_Y: 0.0001,
+            // Icon scale
+            ICON_SCALE: 1
+        };
+
         function initPhysics() {
             const container = document.getElementById('physics-container');
             const engine = Matter.Engine.create();
@@ -402,27 +424,6 @@
             Promise.all(imagePromises).then(() => {
                 const logos = [];
                 const radius = 30;
-                const PHYSICS_CONSTANTS = {
-                    SWIM_FORCE: 0.003,
-                    MAX_SPEED: 3,
-                    MIN_SPEED: 0.1,
-                    INITIAL_SPEED_FACTOR: 0.5,
-                    
-                    // Speed variation
-                    SPEED_VARIATION_FREQUENCY: 0.001,
-                    SPEED_VARIATION_RANGE: 0.3,
-                    SPEED_VARIATION_BASE: 0.6,
-                    
-                    // Movement chances
-                    VERTICAL_DRIFT_CHANCE: 0.002,
-                    VERTICAL_DRIFT_FORCE: 0.00005,
-                    DIRECTION_CHANGE_CHANCE: 0.0005,
-                    
-                    // Avoidance
-                    AVOIDANCE_RADIUS_FACTOR: 3,
-                    AVOIDANCE_FORCE_X: 0.0005,
-                    AVOIDANCE_FORCE_Y: 0.0001
-                };
 
                 skills.forEach((skill) => {
                     const x = Math.random() * (container.clientWidth - radius * 2) + radius;
@@ -439,8 +440,8 @@
                         render: {
                             sprite: {
                                 texture: skill.icon_path,
-                                xScale: 0.5,
-                                yScale: 0.5
+                                xScale: PHYSICS_CONSTANTS.ICON_SCALE,
+                                yScale: PHYSICS_CONSTANTS.ICON_SCALE
                             }
                         },
                         restitution: 0.6,
