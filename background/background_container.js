@@ -20,7 +20,6 @@ export class BackgroundContainer {
         this.object_container = new THREE.Object3D();
         this.parent.add(this.object_container);
         const asset_loader = AssetManager.get_instance();
-        this.loader = asset_loader.loader;
         // Spawn assets
         (async () => {
             let [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.AXE, this.object_container, this.world);
@@ -62,7 +61,9 @@ export class BackgroundContainer {
         }
         // Deal with primary instructions
         if(viewable_container.is_primary_triggered() && !this.is_primary_spawned()) {
-            this.spawn_primary_instructions();
+            this.spawn_primary_instructions().catch(err => {
+                console.error("Error spawning primary instructions:", err);
+            });
         } else if(!viewable_container.is_overlay_hidden() && this.is_primary_instructions_intact()) {
             this.break_primary_chains();
         // Deal with secondary instructions
@@ -95,11 +96,39 @@ export class BackgroundContainer {
         })
     }
 
-    spawn_primary_instructions() {
+    async spawn_primary_instructions() {
         this.primary_instruction_sign = new ControlMenu(this.object_container, this.camera, this.world, this);
+        
+        // Wait for the sign to be fully initialized
+        await new Promise(resolve => {
+            const checkSignReady = () => {
+                if (this.primary_instruction_sign.sign_mesh && this.primary_instruction_sign.sign_body) {
+                    resolve();
+                } else {
+                    setTimeout(checkSignReady, 100);
+                }
+            };
+            checkSignReady();
+        });
+        const asset_loader = AssetManager.get_instance();
+        // Now we know the sign_mesh and sign_body exist
+        this.primary_instruction_sign.sign_mesh.name = `${TYPES.INTERACTABLE}primary`;
+        this.primary_instruction_sign.sign_mesh.traverse((child) => {
+            if (child.isMesh) {
+                child.name = `${TYPES.INTERACTABLE}primary`;
+            }
+        });
+        asset_loader.add_object(this.primary_instruction_sign.sign_mesh, this.primary_instruction_sign.sign_body);
+        if (FLAGS.PHYSICS_LOGS) {
+            console.log("Primary sign added to asset manager:", {
+                meshName: this.primary_instruction_sign.sign_mesh.name,
+                hasBody: !!this.primary_instruction_sign.sign_body,
+                bodyType: this.primary_instruction_sign.sign_body.bodyType()
+            });
+        }
     }
 
-    spawn_secondary_instructions() {
+    async spawn_secondary_instructions() {
         if(FLAGS.PHYSICS_LOGS) {
             console.log('Spawning Scroll Menu:');
             console.log(`Camera Position: (${this.camera.position.x.toFixed(2)}, ${this.camera.position.y.toFixed(2)}, ${this.camera.position.z.toFixed(2)})`);
@@ -112,6 +141,7 @@ export class BackgroundContainer {
             y: this.camera.position.y + forward.y + 4, // Additional Y offset
             z: this.camera.position.z + forward.z
         };
+        
         this.secondary_instruction_sign = new ScrollMenu(
             this.object_container, 
             this.camera, 
@@ -119,6 +149,38 @@ export class BackgroundContainer {
             this,
             spawn_position
         );
+
+        // Wait for the sign to be fully initialized
+        await new Promise(resolve => {
+            const checkSignReady = () => {
+                if (this.secondary_instruction_sign.sign_mesh && this.secondary_instruction_sign.sign_body) {
+                    resolve();
+                } else {
+                    setTimeout(checkSignReady, 100);
+                }
+            };
+            checkSignReady();
+        });
+
+        const asset_loader = AssetManager.get_instance();
+        
+        // Now we know the sign_mesh and sign_body exist
+        this.secondary_instruction_sign.sign_mesh.name = `${TYPES.INTERACTABLE}secondary`;
+        this.secondary_instruction_sign.sign_mesh.traverse((child) => {
+            if (child.isMesh) {
+                child.name = `${TYPES.INTERACTABLE}secondary`;
+            }
+        });
+        
+        asset_loader.add_object(this.secondary_instruction_sign.sign_mesh, this.secondary_instruction_sign.sign_body);
+        
+        if (FLAGS.PHYSICS_LOGS) {
+            console.log("Secondary sign added to asset manager:", {
+                meshName: this.secondary_instruction_sign.sign_mesh.name,
+                hasBody: !!this.secondary_instruction_sign.sign_body,
+                bodyType: this.secondary_instruction_sign.sign_body.bodyType()
+            });
+        }
     }
 
     break_primary_chains() {

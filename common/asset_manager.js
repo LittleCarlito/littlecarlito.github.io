@@ -96,6 +96,10 @@ export class AssetManager {
         return loading_promise;
     }
 
+    get_new_instance_id() {
+        return AssetManager.instance_counter++;
+    }
+
     /**
      * Spawns a physics-enabled asset of the specified type
      * @param {string} asset_type - Type of asset from ASSET_TYPE enum
@@ -183,7 +187,7 @@ export class AssetManager {
             }
         }
         // Generate a truly unique ID using counter instead of timestamp
-        const instance_id = `${asset_type}_${AssetManager.instance_counter++}`;
+        const instance_id = `${asset_type}_${this.get_new_instance_id()}`;
         const body_pair = [mesh, body];
         this.dynamic_bodies.set(instance_id, body_pair);
         
@@ -191,6 +195,28 @@ export class AssetManager {
         mesh.userData.instance_id = instance_id;
         
         return body_pair;
+    }
+
+
+    /**
+     * Adds the incoming object to the dynamic bodies map
+     * Also assigns a unique identifier to the mesh for retrieval
+     * @param {*} incoming_object 
+     */
+    add_object(incoming_mesh, incoming_body) {
+        if (!incoming_mesh) {
+            console.error('Cannot add object: incoming_mesh is undefined');
+            return;
+        }
+        if(incoming_mesh.name) {
+            const incoming_name = incoming_mesh.name;
+            const instance_id = `${incoming_name}_${this.get_new_instance_id()}`;
+            const incoming_pair = [incoming_mesh, incoming_body];
+            this.dynamic_bodies.set(instance_id, incoming_pair);
+            incoming_mesh.userData.instance_id = instance_id;
+        } else {
+            console.error(`${incoming_mesh} ${incoming_body} mesh body combo could not be added because the mesh didn't have a name`);
+        }
     }
 
     /**

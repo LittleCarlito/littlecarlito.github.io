@@ -1,4 +1,4 @@
-import { RAPIER, THREE } from "../../common";
+import { FLAGS, RAPIER, THREE } from "../../common";
 import { AssetManager } from "../../common/asset_manager";
 
 const THROW_MULTIPLIER = 0.1; // Adjust this to control throw strength
@@ -10,7 +10,7 @@ let last_position = new THREE.Vector3();
 let current_velocity = new THREE.Vector3();
 let last_time = 0;
 
-export function shove_object(incoming_object, incoming_source, background_container) {
+export function shove_object(incoming_object, incoming_source) {
     // Get the body pair from AssetManager using the instance_id
     const asset_manager = AssetManager.get_instance();
     const body_pair = asset_manager.get_body_pair_by_mesh(incoming_object);
@@ -38,7 +38,7 @@ export function update_mouse_position(e) {
     current_mouse_pos.y = -(e.clientY / window.innerHeight) * 2 + 1;
 }
 
-export function translate_object(incoming_object, incoming_camera, background_container) {
+export function translate_object(incoming_object, incoming_camera) {
     const asset_manager = AssetManager.get_instance();
     const body_pair = asset_manager.get_body_pair_by_mesh(incoming_object);
     if (!body_pair) return;
@@ -65,7 +65,7 @@ export function translate_object(incoming_object, incoming_camera, background_co
     body.setRotation(current_rot);
 }
 
-export function zoom_object_in(incoming_object, background_container) {
+export function zoom_object_in(incoming_object) {
     const asset_manager = AssetManager.get_instance();
     const body_pair = asset_manager.get_body_pair_by_mesh(incoming_object);
     if (!body_pair) return;
@@ -73,7 +73,7 @@ export function zoom_object_in(incoming_object, background_container) {
     initial_grab_distance += ZOOM_AMOUNT;
 }
 
-export function zoom_object_out(incoming_object, background_container) {
+export function zoom_object_out(incoming_object) {
     const asset_manager = AssetManager.get_instance();
     const body_pair = asset_manager.get_body_pair_by_mesh(incoming_object);
     if (!body_pair) return;
@@ -81,8 +81,9 @@ export function zoom_object_out(incoming_object, background_container) {
     initial_grab_distance -= ZOOM_AMOUNT;
 }
 
-export function grab_object(incoming_object, incoming_camera, background_container) {
+export function grab_object(incoming_object, incoming_camera) {
     const asset_manager = AssetManager.get_instance();
+    if(FLAGS.ACTIVATE_LOGS) console.log(`Grabbing ${incoming_object.name}`);
     const body_pair = asset_manager.get_body_pair_by_mesh(incoming_object);
     if (!body_pair) return;
     const [_, body] = body_pair;
@@ -99,7 +100,7 @@ export function grab_object(incoming_object, incoming_camera, background_contain
     body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased);
 }
 
-export function release_object(incoming_object, background_container) {
+export function release_object(incoming_object) {
     const asset_manager = AssetManager.get_instance();
     const body_pair = asset_manager.get_body_pair_by_mesh(incoming_object);
     if (!body_pair) return;

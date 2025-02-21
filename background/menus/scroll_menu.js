@@ -1,5 +1,6 @@
 import { TYPES } from '../../viewport/overlay/overlay_common';
 import { FLAGS, NAMES, RAPIER, THREE } from '../../common';
+import { AssetManager } from '../../common/asset_manager';
 
 export class ScrollMenu {
     parent;
@@ -210,7 +211,8 @@ export class ScrollMenu {
                 sign_body,
                 true
             );
-            this.dynamic_bodies.push([sign_mesh, sign_body]);
+            const asset_loader = AssetManager.get_instance();
+            asset_loader.add_object(sign_mesh, sign_body);
         };
         sign_image.src = this.CHAIN_CONFIG.SIGN.IMAGE_PATH;
         this.last_log_time = 0;

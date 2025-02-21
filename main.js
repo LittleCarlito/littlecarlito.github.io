@@ -104,7 +104,7 @@ function animate() {
     if(viewable_container.get_overlay().is_intersected() != null) {
         asset_manager.activate_object(viewable_container.get_intersected_name());
     } else if(grabbed_object) {
-        translate_object(grabbed_object, viewable_container.get_camera(), background_container);
+        translate_object(grabbed_object, viewable_container.get_camera());
     } else if(hovered_cube_name != "") {
         asset_manager.activate_object(hovered_cube_name);
     } else if(viewable_container.is_text_active()) {
@@ -211,7 +211,7 @@ function handle_mouse_down(e) {
             right_mouse_down = true;
             // If we're holding an object and right click is pressed, release it
             if(grabbed_object) {
-                release_object(grabbed_object, background_container);
+                release_object(grabbed_object);
                 grabbed_object = null;
             }
         }
@@ -224,9 +224,9 @@ function handle_mouse_down(e) {
                     case TYPES.INTERACTABLE:
                         if(left_mouse_down) {
                             grabbed_object = i.object;
-                            grab_object(grabbed_object, viewable_container.get_camera(), background_container);
+                            grab_object(grabbed_object, viewable_container.get_camera());
                         } else {
-                            shove_object(i.object, viewable_container.get_camera(), background_container);
+                            shove_object(i.object, viewable_container.get_camera());
                         }
                         break;
                     default:
@@ -246,10 +246,10 @@ function handle_wheel(e) {
         if(grabbed_object) {
             if(e.deltaY < 0) {
                 background_container.break_secondary_chains();
-                zoom_object_in(grabbed_object, background_container);
+                zoom_object_in(grabbed_object);
             } else {
                 background_container.break_secondary_chains();
-                zoom_object_out(grabbed_object, background_container);
+                zoom_object_out(grabbed_object);
             }
             zoom_event = true;
             resize_move = true;
