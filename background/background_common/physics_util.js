@@ -1,4 +1,5 @@
 import { RAPIER, THREE } from "../../common";
+import { AssetManager } from "../../common/asset_manager";
 
 const THROW_MULTIPLIER = 0.1; // Adjust this to control throw strength
 const SHOVE_FORCE = 4; // Adjust this value to control the force of the shove
@@ -10,12 +11,11 @@ let current_velocity = new THREE.Vector3();
 let last_time = 0;
 
 export function shove_object(incoming_object, incoming_source, background_container) {
-    // Find the corresponding rigid body for the cube
-    const incoming_name = incoming_object.name;
-    const dynamic_bodies = background_container.dynamic_bodies;
-    // Find the matching body for the cube mesh
-    const body_pair = dynamic_bodies.find(([mesh]) => mesh.name === incoming_name);
+    // Get the body pair from AssetManager using the instance_id
+    const asset_manager = AssetManager.get_instance();
+    const body_pair = asset_manager.get_body_pair_by_mesh(incoming_object);
     if (!body_pair) return;
+    
     const [_, body] = body_pair;
     // Calculate direction from camera to cube
     const camera_position = new THREE.Vector3();
@@ -39,8 +39,8 @@ export function update_mouse_position(e) {
 }
 
 export function translate_object(incoming_object, incoming_camera, background_container) {
-    const dynamic_bodies = background_container.dynamic_bodies;
-    const body_pair = dynamic_bodies.find(([mesh]) => mesh.name === incoming_object.name);
+    const asset_manager = AssetManager.get_instance();
+    const body_pair = asset_manager.get_body_pair_by_mesh(incoming_object);
     if (!body_pair) return;
     const [_, body] = body_pair;
     // Get ray from camera through mouse point
@@ -66,24 +66,24 @@ export function translate_object(incoming_object, incoming_camera, background_co
 }
 
 export function zoom_object_in(incoming_object, background_container) {
-    const dynamic_bodies = background_container.dynamic_bodies;
-    const body_pair = dynamic_bodies.find(([mesh]) => mesh.name === incoming_object.name);
+    const asset_manager = AssetManager.get_instance();
+    const body_pair = asset_manager.get_body_pair_by_mesh(incoming_object);
     if (!body_pair) return;
     // Adjust the grab distance
     initial_grab_distance += ZOOM_AMOUNT;
 }
 
 export function zoom_object_out(incoming_object, background_container) {
-    const dynamic_bodies = background_container.dynamic_bodies;
-    const body_pair = dynamic_bodies.find(([mesh]) => mesh.name === incoming_object.name);
+    const asset_manager = AssetManager.get_instance();
+    const body_pair = asset_manager.get_body_pair_by_mesh(incoming_object);
     if (!body_pair) return;
     // Adjust the grab distance
     initial_grab_distance -= ZOOM_AMOUNT;
 }
 
 export function grab_object(incoming_object, incoming_camera, background_container) {
-    const dynamic_bodies = background_container.dynamic_bodies;
-    const body_pair = dynamic_bodies.find(([mesh]) => mesh.name === incoming_object.name);
+    const asset_manager = AssetManager.get_instance();
+    const body_pair = asset_manager.get_body_pair_by_mesh(incoming_object);
     if (!body_pair) return;
     const [_, body] = body_pair;
     // Store initial distance from camera when grabbed
@@ -100,8 +100,8 @@ export function grab_object(incoming_object, incoming_camera, background_contain
 }
 
 export function release_object(incoming_object, background_container) {
-    const dynamic_bodies = background_container.dynamic_bodies;
-    const body_pair = dynamic_bodies.find(([mesh]) => mesh.name === incoming_object.name);
+    const asset_manager = AssetManager.get_instance();
+    const body_pair = asset_manager.get_body_pair_by_mesh(incoming_object);
     if (!body_pair) return;
     const [_, body] = body_pair;
     // Change back to dynamic body
