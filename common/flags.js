@@ -8,7 +8,8 @@ export const FLAGS = {
     TWEEN_LOGS: false,
     HTML_LOGS: false,
     PHYSICS_LOGS: false,
-    ASSET_LOGS: false
+    ASSET_LOGS: true,
+    ACTIVATE_LOGS: false
 };
 
 Object.freeze(FLAGS);

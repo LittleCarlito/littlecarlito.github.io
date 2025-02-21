@@ -329,11 +329,11 @@ export class AssetManager {
      * @param {string} [type_prefix] - Optional prefix to match object names against
      */
     deactivate_all_objects(type_prefix = null) {
-        if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Deactivating all objects${type_prefix ? ` with prefix: ${type_prefix}` : ''}`);
+        if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Deactivating all objects${type_prefix ? ` with prefix: ${type_prefix}` : ''}`);
         let deactivation_count = 0;
         
         for (const [instance_id, [mesh, _body]] of this.dynamic_bodies) {
-            if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Checking mesh: ${mesh.name}`);
+            if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Checking mesh: ${mesh.name}`);
             
             if (type_prefix && !mesh.name.startsWith(type_prefix)) {
                 continue;
@@ -342,7 +342,7 @@ export class AssetManager {
             if (mesh.material && 
                 mesh.material.emissive && 
                 mesh.material.emissiveIntensity > 0) {
-                if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Deactivating emissive mesh: ${mesh.name}`);
+                if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Deactivating emissive mesh: ${mesh.name}`);
                 new Tween(mesh.material)
                     .to({ emissiveIntensity: 0 })
                     .easing(Easing.Sinusoidal.Out)
@@ -351,7 +351,7 @@ export class AssetManager {
             }
         }
         
-        if (FLAGS.ASSET_LOGS) console.log(`[AssetManager] Deactivated ${deactivation_count} objects`);
+        if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Deactivated ${deactivation_count} objects`);
     }
 
     /**
