@@ -14,22 +14,22 @@ export function shove_object(incoming_object, incoming_source, background_contai
     // Get the body pair from AssetManager using the instance_id
     const asset_manager = AssetManager.get_instance();
     const body_pair = asset_manager.get_body_pair_by_mesh(incoming_object);
-    if (!body_pair) return;
-    
-    const [_, body] = body_pair;
-    // Calculate direction from camera to cube
-    const camera_position = new THREE.Vector3();
-    incoming_source.getWorldPosition(camera_position);
-    const cube_position = new THREE.Vector3();
-    incoming_object.getWorldPosition(cube_position);
-    const direction = new THREE.Vector3()
-        .subVectors(cube_position, camera_position)
-        .normalize();
-    // Apply the impulse force in the calculated direction
-    body.applyImpulse(
-        { x: direction.x * SHOVE_FORCE, y: direction.y * SHOVE_FORCE, z: direction.z * SHOVE_FORCE },
-        true
-    );
+    if (body_pair){
+        const [mesh, body] = body_pair;
+        // Calculate direction from camera to cube
+        const camera_position = new THREE.Vector3();
+        incoming_source.getWorldPosition(camera_position);
+        const cube_position = new THREE.Vector3();
+        incoming_object.getWorldPosition(cube_position);
+        const direction = new THREE.Vector3()
+            .subVectors(cube_position, camera_position)
+            .normalize();
+        // Apply the impulse force in the calculated direction
+        body.applyImpulse(
+            { x: direction.x * SHOVE_FORCE, y: direction.y * SHOVE_FORCE, z: direction.z * SHOVE_FORCE },
+            true
+        );
+    }
 }
 
 // Update this in the mousemove handler

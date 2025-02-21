@@ -1,3 +1,5 @@
+
+// TODO Refactor into ASSET_MANAGER configs
 export const NAMES = Object.freeze({
     PRIMARY: "primary",
     SECONDARY: "secondary",

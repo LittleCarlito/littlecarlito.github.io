@@ -1,6 +1,6 @@
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
-import { Easing, Tween, RAPIER, THREE } from ".";
-import { CATEGORIES } from "../viewport/overlay/overlay_common";
+import { Easing, Tween, RAPIER, THREE, NAMES } from ".";
+import { CATEGORIES, TYPES } from "../viewport/overlay/overlay_common";
 import { FLAGS } from "./flags";
 
 // Define all possible asset types that can be loaded and spawned
@@ -16,24 +16,28 @@ Object.freeze(ASSET_TYPE);
 export const ASSET_CONFIGS = {
     [ASSET_TYPE.AXE]: {
         PATH: "assets/Axe.glb",
+        name: "axe",
         scale: 20,
         mass: 5,
         restitution: .1,
     },
     [ASSET_TYPE.DIPLOMA]: {
         PATH: "assets/diploma.glb",
+        name: "diploma",
         scale: 10,
         mass: 1,
         restitution: .2,
     },
     [ASSET_TYPE.DESK]: {
         PATH: "assets/desk.glb",
+        name: "desk",
         scale: 2,
         mass: 1,
         restitution: .5,
     },
     [ASSET_TYPE.CUBE]: {
         // No PATH needed as it's a primitive
+        name: "cube",
         scale: 1,
         mass: 1,
         restitution: 1.1,
@@ -115,6 +119,8 @@ export class AssetManager {
             );
             mesh.position.copy(position_offset);
             mesh.castShadow = true;
+            // Add name for cube
+            mesh.name = `${TYPES.INTERACTABLE}${asset_config.name}`;
         } else {
             // Normal GLB asset loading path
             if (!this.loaded_assets.has(asset_type)) {
@@ -124,14 +130,16 @@ export class AssetManager {
             mesh = gltf.scene.clone();
             mesh.position.copy(position_offset);
             mesh.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
+            // Set name on parent mesh
+            mesh.name = `${TYPES.INTERACTABLE}${asset_config.name}`;
             // Ensure proper material settings for physics objects
             mesh.traverse((child) => {
                 if (child.isMesh) {
-                    // Clone the material to avoid sharing between instances
                     child.material = child.material.clone();
-                    // Ensure proper depth testing for physics objects
                     child.material.depthTest = true;
                     child.material.transparent = false;
+                    // Set name on child meshes too
+                    child.name = `${TYPES.INTERACTABLE}${asset_config.name}`;
                     child.castShadow = true;
                 }
             });
@@ -240,9 +248,16 @@ export class AssetManager {
         return Array.from(this.static_meshes.values());
     }
 
-    // Add method to get body pair by mesh
+    // Update method to get body pair by mesh
     get_body_pair_by_mesh(mesh) {
-        const instance_id = mesh.userData.instance_id;
+        // First check if the current mesh has the instance_id
+        let instance_id = mesh.userData.instance_id;
+        // If not found, traverse up the parent hierarchy
+        let current = mesh;
+        while (!instance_id && current.parent) {
+            current = current.parent;
+            instance_id = current.userData.instance_id;
+        }
         return instance_id ? this.dynamic_bodies.get(instance_id) : null;
     }
 
