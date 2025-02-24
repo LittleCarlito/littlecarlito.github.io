@@ -12,7 +12,7 @@ const ARTIST_BLOCK = {
     },
     POSITION: {
         X_OFFSET: 1,
-        Y_SCALE: 0.4, // Percent based
+        Y_SCALE: 0.45, // Percent based
         Z: 0,
         MIN_PADDING: 3
     }

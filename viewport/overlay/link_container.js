@@ -2,19 +2,29 @@ import { clamp } from 'three/src/math/MathUtils.js';
 import { get_screen_size, get_associated_position, SOUTH, TYPES, LINKS, TEXTURE_LOADER } from './overlay_common';
 import { Easing, FLAGS, THREE, Tween } from '../../common';
 
-const LINK_RADIUS = .44;
+const LINK_CONTAINER = {
+    DIMENSIONS: {
+        RADIUS: 0.44,
+        SPACING: 3.5 // Multiplier for horizontal spacing between links
+    },
+    POSITION: {
+        X_OFFSET: 7, // Distance from right edge
+        Y_SCALE: 0.45, // Percent based
+        Z: 0
+    }
+};
 
 export class LinkContainer {
     constructor(incoming_parent, incoming_camera) {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.link_container = new THREE.Object3D();       
-        this.link_container.position.x = this.get_link_container_x(this.camera);
+        this.link_container.position.x = this.get_link_container_x();
         this.link_container.position.y = this.get_link_container_y();
         this.parent.add(this.link_container);
         // Create the link icons
         Object.values(LINKS).forEach((link, l) => {
-            const circle_geometry = new THREE.CircleGeometry(LINK_RADIUS);
+            const circle_geometry = new THREE.CircleGeometry(LINK_CONTAINER.DIMENSIONS.RADIUS);
             const circle_texture = TEXTURE_LOADER.load(link.icon_path);
             circle_texture.colorSpace = THREE.SRGBColorSpace;
             const link_button = new THREE.Mesh(
@@ -25,8 +35,7 @@ export class LinkContainer {
                     depthTest: false
                 }));
             link_button.name = `${TYPES.LINK}${link.value}`;
-            // todo other thing here
-            link_button.position.x += LINK_RADIUS * (3.5 * l);
+            link_button.position.x += LINK_CONTAINER.DIMENSIONS.RADIUS * (LINK_CONTAINER.DIMENSIONS.SPACING * l);
             this.link_container.add(link_button);
         });
     }
@@ -105,16 +114,16 @@ export class LinkContainer {
     // Link getters
     /** Calculates the link containers x position based off camera position and window size*/
     get_link_container_x() {
-        return (get_screen_size(this.camera).x / 2) - (7);
+        return (get_screen_size(this.camera).x / 2) - LINK_CONTAINER.POSITION.X_OFFSET;
     }
     
     /** Calculates the link containers y position based off camera position and window size*/
     get_link_container_y() {
-        return -(.4 * get_screen_size(this.camera).y);
+        return -(LINK_CONTAINER.POSITION.Y_SCALE * get_screen_size(this.camera).y);
     }
     
     /** Calculates the links radius based off camera position and window size*/
     get_link_radius() {
-        return clamp(get_screen_size(this.camera).x * .02, Number.MIN_SAFE_INTEGER, LINK_RADIUS);
+        return clamp(get_screen_size(this.camera).x * .02, Number.MIN_SAFE_INTEGER, LINK_CONTAINER.DIMENSIONS.RADIUS);
     }
 }

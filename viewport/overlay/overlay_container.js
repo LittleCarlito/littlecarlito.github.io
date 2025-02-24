@@ -57,11 +57,10 @@ export class OverlayContainer {
         this.text_box_container = new TextContainer(this.overlay_container, this.camera);
         this.label_container = new LabelContainer(this.overlay_container, this.camera);
         this.link_container = new LinkContainer(this.overlay_container, this.camera);
+        this.artist_block = new ArtistBlock(this.overlay_container, this.camera);
         this.hide_button = new HideButton(this.overlay_container, this.camera);
         this.overlay_container.position.z = this.camera.position.z - 15;
         this.parent.add(this.overlay_container);
-        
-        this.artist_block = new ArtistBlock(this.overlay_container, this.camera);
     }
 
     create_confetti_burst() {
