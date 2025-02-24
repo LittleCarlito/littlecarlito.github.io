@@ -4,6 +4,9 @@ on:
   push:
     branches: [ main ]
 
+permissions:
+  contents: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -25,4 +28,11 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist 
+          publish_dir: ./dist
+
+      - name: Output Site URL
+        run: |
+          echo "✨ Deployed successfully!"
+          echo "🌐 Site is live at: https://littlecarlito.github.io/threejs_site/"
+        env:
+          SITE_URL: ${{ github.event.repository.name }} 

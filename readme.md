@@ -2,6 +2,8 @@
 
 A dynamic, physics-based portfolio website built with Three.js, featuring interactive 3D elements, real-time physics simulations, and engaging user interfaces.
 
+[![Live Site](https://img.shields.io/badge/🌐_Live_Site-Visit-blue)](https://littlecarlito.github.io/threejs_site/)
+![Deployment Status](https://github.com/LittleCarlito/threejs_site/actions/workflows/deploy.yml/badge.svg)
 ![Under Construction](https://img.shields.io/badge/status-under%20construction-yellow)
 ![Three.js](https://img.shields.io/badge/Three.js-black?logo=three.js)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
@@ -23,19 +25,26 @@ A dynamic, physics-based portfolio website built with Three.js, featuring intera
   - Work experience
   - Contact information
 
+## 🚀 Live Demo
+
+Visit the live site: [https://littlecarlito.github.io/threejs_site/](https://littlecarlito.github.io/threejs_site/)
+
 ## 🛠️ Technology Stack
 
-- **Frontend Framework**: Three.js
-- **Build Tool**: Vite
-- **Physics Engine**: Rapier3D
-- **3D Assets**: GLTF/GLB models
-- **Animation**: Custom tweening system
+- **Frontend Framework**: Three.js with custom physics integration
+- **Build Tool**: Vite with automated GitHub Pages deployment
+- **Physics Engine**: Rapier3D for realistic object interactions
+- **3D Assets**: GLTF/GLB models with dynamic loading
+- **Animation**: Custom tweening system with particle effects
+- **CI/CD**: GitHub Actions for automated deployment
+- **Asset Management**: Dynamic loading with error handling
+- **UI Components**: Physics-based interactive elements
 
 ## 🚀 Getting Started
 
 1. Clone the repository
     ```bash
-    git clone https://github.com/YourUsername/threejs_site.git
+    git clone https://github.com/LittleCarlito/threejs_site.git
     cd threejs_site
     ```
 
@@ -85,12 +94,28 @@ The site will be available at `http://127.0.0.1:5173`
 - Efficient 3D model loading and caching
 - Automatic physics collider generation
 - Instance management for multiple object copies
+- Error handling and fallback systems
 
 ### Interactive UI Elements
 - Animated text reveals
 - Particle effects
 - Physics-based menu systems
 - Responsive overlay system
+
+## 🔄 Continuous Integration
+
+This project uses GitHub Actions for automated deployment:
+- Automatic builds on push to main branch
+- Asset optimization during build
+- Immediate deployment to GitHub Pages
+- Status checks and deployment verification
+
+## 📈 Performance Optimizations
+
+- Efficient asset loading with caching
+- Physics engine optimizations
+- Responsive image loading
+- Dynamic import of heavy components
 
 ## 🤝 Contributing
 
