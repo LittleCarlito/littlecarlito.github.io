@@ -10,8 +10,12 @@ export default defineConfig(({ command }) => ({
         manualChunks: {
           three: ['three'],
           rapier: ['@dimforge/rapier3d-compat']
-        }
+        },
+        external: [
+          /^development\/.*/  // Excludes anything in the development folder
+        ]
       }
-    }
+    },
+    sourcemap: true,
   }
 })) 

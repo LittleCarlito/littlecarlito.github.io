@@ -3,3 +3,13 @@ package-lock.json
 **/node_modules/
 **/.cursor/
 
+# Make sure development folder is NOT ignored
+!development/
+!development/**
+
+# But maybe ignore some temp/cache files within it
+development/**/*.blend1
+development/**/*.blend2
+development/**/*.blend3
+development/**/.DS_Store
+

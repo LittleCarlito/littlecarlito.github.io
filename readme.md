@@ -76,12 +76,23 @@ The site will be available at `http://127.0.0.1:5173`
 │   ├── fonts/         # Custom fonts
 │   ├── images/        # Image assets
 │   └── pages/         # HTML templates
+├── development/       # Source files for assets (not included in build)
+│   └── blender/      # Original Blender files
 ├── src/
 │   ├── background/    # 3D environment components
 │   ├── viewport/      # Camera and view management
 │   ├── common/        # Shared utilities
 │   └── main.js        # Application entry point
 ```
+
+### Development Assets
+The `development` folder contains source files for assets used in the project:
+- Original Blender (.blend) files
+- Work-in-progress assets
+- Asset documentation
+- Source files for textures and models
+
+This folder is tracked in git for collaboration but excluded from the production build.
 
 ## 🎨 Features in Detail
 

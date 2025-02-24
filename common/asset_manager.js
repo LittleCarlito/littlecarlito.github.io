@@ -22,7 +22,7 @@ export const ASSET_CONFIGS = {
         restitution: .1,
     },
     [ASSET_TYPE.DIPLOMA]: {
-        PATH: "assets/diploma.glb",
+        PATH: "assets/diploma_bot.glb",
         name: "diploma",
         scale: 10,
         mass: 1,
@@ -115,7 +115,15 @@ export class AssetManager {
         }
         const asset_config = ASSET_CONFIGS[asset_type];
         let mesh;
-        // Special handling for CUBE type since it's a primitive
+        // Create physics body first
+        const body = world.createRigidBody(
+            RAPIER.RigidBodyDesc.dynamic()
+                .setTranslation(position_offset.x, position_offset.y, position_offset.z)
+                .setCanSleep(false)
+        );
+
+        console.log(`Created rigid body for ${asset_type}:`, body);
+
         if (asset_type === ASSET_TYPE.CUBE) {
             mesh = new THREE.Mesh(
                 asset_config.geometry,
@@ -125,6 +133,11 @@ export class AssetManager {
             mesh.castShadow = true;
             // Add name for cube
             mesh.name = `${TYPES.INTERACTABLE}${asset_config.name}`;
+            const collider = RAPIER.ColliderDesc.cuboid(0.5, 0.5, 0.5)
+                .setMass(asset_config.mass)
+                .setRestitution(asset_config.restitution);
+            const created_collider = world.createCollider(collider, body);
+            console.log(`Created cube collider:`, created_collider);
         } else {
             // Normal GLB asset loading path
             if (!this.loaded_assets.has(asset_type)) {
@@ -134,58 +147,133 @@ export class AssetManager {
             mesh = gltf.scene.clone();
             mesh.position.copy(position_offset);
             mesh.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
+            
             // Set name on parent mesh
             mesh.name = `${TYPES.INTERACTABLE}${asset_config.name}`;
-            // Ensure proper material settings for physics objects
+            
+            // Look for collision mesh
+            let collision_geometry;
             mesh.traverse((child) => {
                 if (child.isMesh) {
-                    child.material = child.material.clone();
+                    // Skip collision meshes for material handling
+                    if (child.name.startsWith('col_')) {
+                        child.visible = false;
+                        return;
+                    }
+
+                    // Clone the material but preserve all original properties
+                    const originalMaterial = child.material;
+                    child.material = originalMaterial.clone();
+                    
+                    // Preserve all material properties
+                    child.material.color = originalMaterial.color;
+                    child.material.map = originalMaterial.map;
+                    child.material.normalMap = originalMaterial.normalMap;
+                    child.material.roughnessMap = originalMaterial.roughnessMap;
+                    child.material.metalnessMap = originalMaterial.metalnessMap;
+                    child.material.aoMap = originalMaterial.aoMap;
+                    child.material.emissiveMap = originalMaterial.emissiveMap;
+                    child.material.emissive = originalMaterial.emissive;
+                    child.material.emissiveIntensity = originalMaterial.emissiveIntensity;
+                    
+                    // Preserve material parameters
+                    child.material.metalness = originalMaterial.metalness;
+                    child.material.roughness = originalMaterial.roughness;
+                    child.material.envMapIntensity = originalMaterial.envMapIntensity || 1;
+                    
+                    // Enable necessary material features
+                    child.material.transparent = originalMaterial.transparent;
+                    child.material.opacity = originalMaterial.opacity;
+                    child.material.side = originalMaterial.side;
                     child.material.depthTest = true;
-                    child.material.transparent = false;
-                    // Set name on child meshes too
-                    child.name = `${TYPES.INTERACTABLE}${asset_config.name}`;
+                    child.material.needsUpdate = true;
+
+                    // Enable shadows
                     child.castShadow = true;
+                    child.receiveShadow = true;
+
+                    // Debug log
+                    console.log(`Material settings for ${child.name}:`, {
+                        color: child.material.color,
+                        metalness: child.material.metalness,
+                        roughness: child.material.roughness,
+                        maps: {
+                            diffuse: !!child.material.map,
+                            normal: !!child.material.normalMap,
+                            roughness: !!child.material.roughnessMap,
+                            metalness: !!child.material.metalnessMap,
+                            ao: !!child.material.aoMap,
+                            emissive: !!child.material.emissiveMap
+                        }
+                    });
+
+                    // Check if this is a collision mesh
+                    if (child.name.startsWith('col_')) {
+                        collision_geometry = child.geometry;
+                        child.visible = false; // Hide collision mesh
+                    }
                 }
             });
+
+            // Create collider based on found collision mesh or fallback to bounding box
+            if (collision_geometry) {
+                const vertices = collision_geometry.attributes.position.array;
+                const indices = collision_geometry.index ? collision_geometry.index.array : undefined;
+                
+                // Apply scale to vertices directly instead of using setScale
+                const scaledVertices = new Float32Array(vertices.length);
+                for (let i = 0; i < vertices.length; i++) {
+                    scaledVertices[i] = vertices[i] * asset_config.scale;
+                }
+                
+                let collider;
+                if (indices) {
+                    collider = RAPIER.ColliderDesc.trimesh(scaledVertices, indices)
+                        .setMass(asset_config.mass)
+                        .setRestitution(asset_config.restitution);
+                } else {
+                    collider = RAPIER.ColliderDesc.convexHull(scaledVertices)
+                        .setMass(asset_config.mass)
+                        .setRestitution(asset_config.restitution);
+                }
+                
+                const created_collider = world.createCollider(collider, body);
+                console.log(`Created collision mesh collider:`, created_collider);
+            } else {
+                // Fallback to bounding box if no collision mesh found
+                console.warn(`No collision mesh found for ${asset_type}, falling back to bounding box`);
+                let geometry;
+                mesh.traverse((child) => {
+                    if (child.isMesh && !child.name.startsWith('col_')) geometry = child.geometry;
+                });
+                if (geometry) {
+                    geometry.computeBoundingBox();
+                    const bounding_box = geometry.boundingBox;
+                    const dimensions = new THREE.Vector3();
+                    bounding_box.getSize(dimensions);
+
+                    const half_width = (dimensions.x * asset_config.scale) / 2;
+                    const half_height = (dimensions.y * asset_config.scale) / 2;
+                    const half_depth = (dimensions.z * asset_config.scale) / 2;
+
+                    const collider = RAPIER.ColliderDesc.cuboid(half_width, half_height, half_depth)
+                        .setMass(asset_config.mass)
+                        .setRestitution(asset_config.restitution);
+
+                    const created_collider = world.createCollider(collider, body);
+                    console.log(`Created bounding box collider:`, created_collider);
+                    console.log(`Collider dimensions:`, {
+                        width: half_width,
+                        height: half_height,
+                        depth: half_depth,
+                        mass: asset_config.mass,
+                        restitution: asset_config.restitution
+                    });
+                }
+            }
         }
         // Add mesh to parent
         parent.add(mesh);
-        // Create physics body
-        const body = world.createRigidBody(
-            RAPIER.RigidBodyDesc.dynamic()
-                .setTranslation(position_offset.x, position_offset.y, position_offset.z)
-                .setCanSleep(false)
-        );
-        // Create collider based on asset type
-        if (asset_type === ASSET_TYPE.CUBE) {
-            // Cube uses simple box collider with unit dimensions
-            const collider = RAPIER.ColliderDesc.cuboid(0.5, 0.5, 0.5)
-                .setMass(asset_config.mass)
-                .setRestitution(asset_config.restitution);
-            world.createCollider(collider, body);
-        } else {
-            // Other assets use computed bounding box
-            let geometry;
-            mesh.traverse((child) => {
-                if (child.isMesh) geometry = child.geometry;
-            });
-            if (geometry) {
-                geometry.computeBoundingBox();
-                const bounding_box = geometry.boundingBox;
-                const dimensions = new THREE.Vector3();
-                bounding_box.getSize(dimensions);
-
-                const half_width = (dimensions.x * asset_config.scale) / 2;
-                const half_height = (dimensions.y * asset_config.scale) / 2;
-                const half_depth = (dimensions.z * asset_config.scale) / 2;
-
-                const collider = RAPIER.ColliderDesc.cuboid(half_width, half_height, half_depth)
-                    .setMass(asset_config.mass)
-                    .setRestitution(asset_config.restitution);
-
-                world.createCollider(collider, body);
-            }
-        }
         // Generate a truly unique ID using counter instead of timestamp
         const instance_id = `${asset_type}_${this.get_new_instance_id()}`;
         const body_pair = [mesh, body];
