@@ -8,6 +8,9 @@ export const ASSET_TYPE = {
     AXE: 'AXE',
     DIPLOMA: 'DIPLOMA',
     DESK: 'DESK',
+    CHAIR: 'CHAIR',
+    BOOK: 'BOOK',
+    ROOM: 'ROOM',
     CUBE: 'CUBE'  // Simple geometric primitive for testing
 };
 Object.freeze(ASSET_TYPE);
@@ -34,6 +37,30 @@ export const ASSET_CONFIGS = {
         scale: 2,
         mass: 1,
         restitution: .5,
+    },
+    // TODO Load in room
+    [ASSET_TYPE.ROOM]: {
+        PATH: "assets/room.glb",
+        name: "room",
+        scale: 1,
+        mass: 1,
+        restituation: .2
+    },
+    // TODO Load in book
+    [ASSET_TYPE.BOOK]: {
+        PATH: "assets/book.glb",
+        name: "book",
+        scale: 1,
+        mass: 1,
+        restituation: 1
+    },
+    // TOOD Load in chair
+    [ASSET_TYPE.CHAIR]: {
+        PATH: "assets/chair.glb",
+        name: "chair",
+        scale: 1,
+        mass: 1.2,
+        restituation: 1
     },
     [ASSET_TYPE.CUBE]: {
         // No PATH needed as it's a primitive
@@ -140,107 +167,50 @@ export class AssetManager {
             console.log(`Created cube collider:`, created_collider);
         } else {
             // Normal GLB asset loading path
-            if (!this.loaded_assets.has(asset_type)) {
-                await this.load_asset_type(asset_type);
-            }
+            if (!this.loaded_assets.has(asset_type)) await this.load_asset_type(asset_type);
             const gltf = this.loaded_assets.get(asset_type);
             mesh = gltf.scene.clone();
             mesh.position.copy(position_offset);
             mesh.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
             
-            // Set name on parent mesh
-            mesh.name = `${TYPES.INTERACTABLE}${asset_config.name}`;
-            
-            // Look for collision mesh
-            let collision_geometry;
+            // Look for collision mesh using the 'col_' prefix
+            let collision_mesh = null;
             mesh.traverse((child) => {
                 if (child.isMesh) {
-                    // Skip collision meshes for material handling
                     if (child.name.startsWith('col_')) {
-                        child.visible = false;
-                        return;
-                    }
-
-                    // Clone the material but preserve all original properties
-                    const originalMaterial = child.material;
-                    child.material = originalMaterial.clone();
-                    
-                    // Preserve all material properties
-                    child.material.color = originalMaterial.color;
-                    child.material.map = originalMaterial.map;
-                    child.material.normalMap = originalMaterial.normalMap;
-                    child.material.roughnessMap = originalMaterial.roughnessMap;
-                    child.material.metalnessMap = originalMaterial.metalnessMap;
-                    child.material.aoMap = originalMaterial.aoMap;
-                    child.material.emissiveMap = originalMaterial.emissiveMap;
-                    child.material.emissive = originalMaterial.emissive;
-                    child.material.emissiveIntensity = originalMaterial.emissiveIntensity;
-                    
-                    // Preserve material parameters
-                    child.material.metalness = originalMaterial.metalness;
-                    child.material.roughness = originalMaterial.roughness;
-                    child.material.envMapIntensity = originalMaterial.envMapIntensity || 1;
-                    
-                    // Enable necessary material features
-                    child.material.transparent = originalMaterial.transparent;
-                    child.material.opacity = originalMaterial.opacity;
-                    child.material.side = originalMaterial.side;
-                    child.material.depthTest = true;
-                    child.material.needsUpdate = true;
-
-                    // Enable shadows
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-
-                    // Debug log
-                    console.log(`Material settings for ${child.name}:`, {
-                        color: child.material.color,
-                        metalness: child.material.metalness,
-                        roughness: child.material.roughness,
-                        maps: {
-                            diffuse: !!child.material.map,
-                            normal: !!child.material.normalMap,
-                            roughness: !!child.material.roughnessMap,
-                            metalness: !!child.material.metalnessMap,
-                            ao: !!child.material.aoMap,
-                            emissive: !!child.material.emissiveMap
-                        }
-                    });
-
-                    // Check if this is a collision mesh
-                    if (child.name.startsWith('col_')) {
-                        collision_geometry = child.geometry;
-                        child.visible = false; // Hide collision mesh
+                        collision_mesh = child;
+                        child.visible = false;  // Hide collision mesh
+                    } else {
+                        // Regular mesh handling
+                        child.material = child.material.clone();
+                        child.material.depthTest = true;
+                        child.material.transparent = false;
+                        child.name = `${TYPES.INTERACTABLE}${asset_config.name}`;
+                        child.castShadow = true;
                     }
                 }
             });
 
-            // Create collider based on found collision mesh or fallback to bounding box
-            if (collision_geometry) {
-                const vertices = collision_geometry.attributes.position.array;
-                const indices = collision_geometry.index ? collision_geometry.index.array : undefined;
-                
-                // Apply scale to vertices directly instead of using setScale
-                const scaledVertices = new Float32Array(vertices.length);
-                for (let i = 0; i < vertices.length; i++) {
-                    scaledVertices[i] = vertices[i] * asset_config.scale;
-                }
+            // Create physics body with proper collision mesh if found
+            if (collision_mesh) {
+                console.log(`Found collision mesh for ${asset_type}: ${collision_mesh.name}`);
+                const geometry = collision_mesh.geometry;
+                const vertices = geometry.attributes.position.array;
+                const indices = geometry.index ? geometry.index.array : undefined;
                 
                 let collider;
                 if (indices) {
-                    collider = RAPIER.ColliderDesc.trimesh(scaledVertices, indices)
+                    collider = RAPIER.ColliderDesc.trimesh(vertices, indices)
                         .setMass(asset_config.mass)
                         .setRestitution(asset_config.restitution);
                 } else {
-                    collider = RAPIER.ColliderDesc.convexHull(scaledVertices)
+                    collider = RAPIER.ColliderDesc.convexHull(vertices)
                         .setMass(asset_config.mass)
                         .setRestitution(asset_config.restitution);
                 }
                 
-                const created_collider = world.createCollider(collider, body);
-                console.log(`Created collision mesh collider:`, created_collider);
+                world.createCollider(collider, body);
             } else {
-                // Fallback to bounding box if no collision mesh found
                 console.warn(`No collision mesh found for ${asset_type}, falling back to bounding box`);
                 let geometry;
                 mesh.traverse((child) => {
@@ -327,16 +297,47 @@ export class AssetManager {
             const gltf = this.loaded_assets.get(asset_type);
             mesh = gltf.scene.clone();
             mesh.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
+            
+            console.log('Creating static mesh for UI:', {
+                assetType: asset_type,
+                parentType: parent.type,
+                parentName: parent.name,
+                isOverlay: parent.parent?.parent?.name?.includes('overlay')
+            });
+
             mesh.traverse((child) => {
                 if (child.isMesh) {
-                    child.material.depthTest = true;
-                    child.material.transparent = true;
+                    console.log('Original material properties:', {
+                        hasMap: !!child.material.map,
+                        color: child.material.color,
+                        type: child.material.type
+                    });
+
+                    // Force UI rendering properties
+                    child.material = new THREE.MeshBasicMaterial({
+                        map: child.material.map,
+                        color: child.material.color,
+                        transparent: true,
+                        depthTest: false,
+                        side: THREE.DoubleSide,
+                        opacity: 1
+                    });
+                    child.renderOrder = 999; // Ensure it renders on top
+
+                    console.log('New material properties:', {
+                        hasMap: !!child.material.map,
+                        color: child.material.color,
+                        type: child.material.type,
+                        transparent: child.material.transparent,
+                        depthTest: child.material.depthTest,
+                        renderOrder: child.renderOrder
+                    });
                 }
             });
         }
         mesh.position.copy(position_offset);
         if (rotation) mesh.rotation.copy(rotation);
-        mesh.renderOrder = 0;
+        mesh.renderOrder = 999;
         parent.add(mesh);
         const instance_id = `${asset_type}_static_${Date.now()}`;
         this.static_meshes.set(instance_id, mesh);
