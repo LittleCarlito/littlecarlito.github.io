@@ -1,9 +1,17 @@
 import { defineConfig } from 'vite'
 
-export default defineConfig({
-  base: '/threejs_site/',
+export default defineConfig(({ command }) => ({
+  base: command === 'serve' ? '' : '/threejs_site/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          three: ['three'],
+          rapier: ['@dimforge/rapier3d-compat']
+        }
+      }
+    }
   }
-}) 
+})) 
