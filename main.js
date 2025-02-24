@@ -10,7 +10,7 @@ import { BackgroundContainer } from './background/background_container';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'images/gradient.jpg';
-await RAPIER.init();
+
 // ----- Variables
 let resize_move = false;
 let zoom_event = false;
@@ -30,16 +30,11 @@ let right_mouse_down = false;
 let construction_acknowledged = false;
 let asset_manager;
 
-
-const DIPLOMA = {
-    scale: 10,
-    mass: 1,
-    restitution: .2,
-    position: new THREE.Vector3(-5, 8, -3)
-}
-
 /** Initializes the main scene */
-function init() {
+async function init() {
+    // Initialize RAPIER first
+    await RAPIER.init();
+    
     asset_manager = AssetManager.get_instance();
     if(FLAGS.CONSTRUCTION_GREETING) {
         fetch('pages/under_construction.html')
@@ -257,4 +252,5 @@ function handle_wheel(e) {
     }
 }
 
-init();
+// Change the init call to handle the promise
+init().catch(console.error);
