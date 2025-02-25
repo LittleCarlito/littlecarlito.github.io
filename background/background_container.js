@@ -25,17 +25,29 @@ export class BackgroundContainer {
             let [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.AXE, this.object_container, this.world);
             mesh.name = `${TYPES.INTERACTABLE}${NAMES.AXE}`;
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Axe with name: ${mesh.name}`);
-            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DIPLOMA, this.object_container, this.world);
-            mesh.name = `${TYPES.INTERACTABLE}${NAMES.DIPLOMA}`;
+            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DIPLOMA, this.object_container, this.world, {}, new THREE.Vector3(-10, 5, 0));
+            mesh.name = `${TYPES.INTERACTABLE}${CATEGORIES.EDUCATION}`;
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma with name: ${mesh.name}`);
-            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DESK, this.object_container, this.world);
+            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DESK, this.object_container, this.world, {}, new THREE.Vector3(-5, 5, 0));
             mesh.name = `${TYPES.INTERACTABLE}${NAMES.DESK}`;
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Desk with name: ${mesh.name}`);
+            // Spawn a chair
+            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.CHAIR, this.object_container, this.world, {}, new THREE.Vector3(-0, 5, 0));
+            mesh.name = `${TYPES.INTERACTABLE}${NAMES.CHAIR}`;
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Chair with name: ${mesh.name}`);
+            // Spawn a room
+            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.ROOM, this.object_container, this.world, {}, new THREE.Vector3(5, 5, 0));
+            mesh.name = `${TYPES.INTERACTABLE}${NAMES.ROOM}`;
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Room with name: ${mesh.name}`);
+            // Spawn a book
+            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.BOOK, this.object_container, this.world, {}, new THREE.Vector3(10, 5, 0));
+            mesh.name = `${TYPES.INTERACTABLE}${NAMES.BOOK}`;
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Book with name: ${mesh.name}`);
         })();
         // Create all cubes asynchronously but wait for all to complete
         const asset_manager = AssetManager.get_instance();
         const cube_promises = Object.values(CATEGORIES).map(async (category, i) => {
-            if (typeof category === 'function') return; // Skip helper methods
+            if (typeof category === 'function' || category == CATEGORIES.EDUCATION) return; // Skip helper methods
             const position = new THREE.Vector3(((i * 2) - 3), -2, -5);
             const [mesh, body] = await asset_manager.spawn_asset(
                 ASSET_TYPE.CUBE,
@@ -97,35 +109,40 @@ export class BackgroundContainer {
     }
 
     async spawn_primary_instructions() {
-        this.primary_instruction_sign = new ControlMenu(this.object_container, this.camera, this.world, this);
-        
-        // Wait for the sign to be fully initialized
-        await new Promise(resolve => {
-            const checkSignReady = () => {
-                if (this.primary_instruction_sign.sign_mesh && this.primary_instruction_sign.sign_body) {
-                    resolve();
-                } else {
-                    setTimeout(checkSignReady, 100);
-                }
-            };
-            checkSignReady();
-        });
-        const asset_loader = AssetManager.get_instance();
-        // Now we know the sign_mesh and sign_body exist
-        this.primary_instruction_sign.sign_mesh.name = `${TYPES.INTERACTABLE}primary`;
-        this.primary_instruction_sign.sign_mesh.traverse((child) => {
-            if (child.isMesh) {
-                child.name = `${TYPES.INTERACTABLE}primary`;
-            }
-        });
-        asset_loader.add_object(this.primary_instruction_sign.sign_mesh, this.primary_instruction_sign.sign_body);
-        if (FLAGS.PHYSICS_LOGS) {
-            console.log("Primary sign added to asset manager:", {
-                meshName: this.primary_instruction_sign.sign_mesh.name,
-                hasBody: !!this.primary_instruction_sign.sign_body,
-                bodyType: this.primary_instruction_sign.sign_body.bodyType()
+        // Wrap the menu creation in an async IIFE to prevent blocking
+        (async () => {
+            this.primary_instruction_sign = new ControlMenu(this.object_container, this.camera, this.world, this);
+            
+            // Wait for the sign to be fully initialized
+            await new Promise(resolve => {
+                const checkSignReady = () => {
+                    if (this.primary_instruction_sign.sign_mesh && this.primary_instruction_sign.sign_body) {
+                        resolve();
+                    } else {
+                        setTimeout(checkSignReady, 100);
+                    }
+                };
+                checkSignReady();
             });
-        }
+            const asset_loader = AssetManager.get_instance();
+            // Now we know the sign_mesh and sign_body exist
+            this.primary_instruction_sign.sign_mesh.name = `${TYPES.INTERACTABLE}primary`;
+            this.primary_instruction_sign.sign_mesh.traverse((child) => {
+                if (child.isMesh) {
+                    child.name = `${TYPES.INTERACTABLE}primary`;
+                }
+            });
+            asset_loader.add_object(this.primary_instruction_sign.sign_mesh, this.primary_instruction_sign.sign_body);
+            if (FLAGS.PHYSICS_LOGS) {
+                console.log("Primary sign added to asset manager:", {
+                    meshName: this.primary_instruction_sign.sign_mesh.name,
+                    hasBody: !!this.primary_instruction_sign.sign_body,
+                    bodyType: this.primary_instruction_sign.sign_body.bodyType()
+                });
+            }
+        })().catch(err => {
+            console.error("Error spawning primary instructions:", err);
+        });
     }
 
     async spawn_secondary_instructions() {
@@ -142,45 +159,50 @@ export class BackgroundContainer {
             z: this.camera.position.z + forward.z
         };
         
-        this.secondary_instruction_sign = new ScrollMenu(
-            this.object_container, 
-            this.camera, 
-            this.world, 
-            this,
-            spawn_position
-        );
+        // Wrap the menu creation in an async IIFE to prevent blocking
+        (async () => {
+            this.secondary_instruction_sign = new ScrollMenu(
+                this.object_container, 
+                this.camera, 
+                this.world, 
+                this,
+                spawn_position
+            );
 
-        // Wait for the sign to be fully initialized
-        await new Promise(resolve => {
-            const checkSignReady = () => {
-                if (this.secondary_instruction_sign.sign_mesh && this.secondary_instruction_sign.sign_body) {
-                    resolve();
-                } else {
-                    setTimeout(checkSignReady, 100);
-                }
-            };
-            checkSignReady();
-        });
-
-        const asset_loader = AssetManager.get_instance();
-        
-        // Now we know the sign_mesh and sign_body exist
-        this.secondary_instruction_sign.sign_mesh.name = `${TYPES.INTERACTABLE}secondary`;
-        this.secondary_instruction_sign.sign_mesh.traverse((child) => {
-            if (child.isMesh) {
-                child.name = `${TYPES.INTERACTABLE}secondary`;
-            }
-        });
-        
-        asset_loader.add_object(this.secondary_instruction_sign.sign_mesh, this.secondary_instruction_sign.sign_body);
-        
-        if (FLAGS.PHYSICS_LOGS) {
-            console.log("Secondary sign added to asset manager:", {
-                meshName: this.secondary_instruction_sign.sign_mesh.name,
-                hasBody: !!this.secondary_instruction_sign.sign_body,
-                bodyType: this.secondary_instruction_sign.sign_body.bodyType()
+            // Wait for the sign to be fully initialized
+            await new Promise(resolve => {
+                const checkSignReady = () => {
+                    if (this.secondary_instruction_sign.sign_mesh && this.secondary_instruction_sign.sign_body) {
+                        resolve();
+                    } else {
+                        setTimeout(checkSignReady, 100);
+                    }
+                };
+                checkSignReady();
             });
-        }
+
+            const asset_loader = AssetManager.get_instance();
+            
+            // Now we know the sign_mesh and sign_body exist
+            this.secondary_instruction_sign.sign_mesh.name = `${TYPES.INTERACTABLE}secondary`;
+            this.secondary_instruction_sign.sign_mesh.traverse((child) => {
+                if (child.isMesh) {
+                    child.name = `${TYPES.INTERACTABLE}secondary`;
+                }
+            });
+            
+            asset_loader.add_object(this.secondary_instruction_sign.sign_mesh, this.secondary_instruction_sign.sign_body);
+            
+            if (FLAGS.PHYSICS_LOGS) {
+                console.log("Secondary sign added to asset manager:", {
+                    meshName: this.secondary_instruction_sign.sign_mesh.name,
+                    hasBody: !!this.secondary_instruction_sign.sign_body,
+                    bodyType: this.secondary_instruction_sign.sign_body.bodyType()
+                });
+            }
+        })().catch(err => {
+            console.error("Error spawning secondary instructions:", err);
+        });
     }
 
     break_primary_chains() {
