@@ -22,26 +22,29 @@ export class BackgroundContainer {
         const asset_loader = AssetManager.get_instance();
         // Spawn assets
         (async () => {
-            let [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.AXE, this.object_container, this.world);
-            mesh.name = `${TYPES.INTERACTABLE}${NAMES.AXE}`;
-            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Axe with name: ${mesh.name}`);
+            let [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DESKPHOTO, this.object_container, this.world, {},new THREE.Vector3(-5, 5, 5));
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DESKPHOTO}`;
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Desk photo with name: ${mesh.name}`);
+            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.TABLET, this.object_container, this.world, {}, new THREE.Vector3(-10, 5, 5));
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.TABLET}`;
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Tablet with name: ${mesh.name}`);
             [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DIPLOMA, this.object_container, this.world, {}, new THREE.Vector3(-10, 5, 0));
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DIPLOMA}`;
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma with name: ${mesh.name}`);
             [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DESK, this.object_container, this.world, {}, new THREE.Vector3(-5, 5, 0));
-            mesh.name = `${TYPES.INTERACTABLE}${NAMES.DESK}`;
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DESK}`;
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Desk with name: ${mesh.name}`);
             // Spawn a chair
             [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.CHAIR, this.object_container, this.world, {}, new THREE.Vector3(-0, 5, 0));
-            mesh.name = `${TYPES.INTERACTABLE}${NAMES.CHAIR}`;
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.CHAIR}`;
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Chair with name: ${mesh.name}`);
             // Spawn a room
             [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.ROOM, this.object_container, this.world, {}, new THREE.Vector3(5, 5, 0));
-            mesh.name = `${TYPES.INTERACTABLE}${NAMES.ROOM}`;
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.ROOM}`;
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Room with name: ${mesh.name}`);
             // Spawn a book
             [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.BOOK, this.object_container, this.world, {}, new THREE.Vector3(10, 5, 0));
-            mesh.name = `${TYPES.INTERACTABLE}${NAMES.BOOK}`;
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.BOOK}`;
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Book with name: ${mesh.name}`);
         })();
         // Create all cubes asynchronously but wait for all to complete

@@ -11,6 +11,8 @@ export const ASSET_TYPE = {
     CHAIR: 'CHAIR',
     BOOK: 'BOOK',
     ROOM: 'ROOM',
+    TABLET: 'TABLET',
+    DESKPHOTO: 'DESK_PHOTO',
     CUBE: 'CUBE'  // Simple geometric primitive for testing
 };
 Object.freeze(ASSET_TYPE);
@@ -38,7 +40,7 @@ export const ASSET_CONFIGS = {
         mass: 1,
         restitution: .5,
     },
-    // TODO Load in room
+    // Load in room
     [ASSET_TYPE.ROOM]: {
         PATH: "assets/room.glb",
         name: "room",
@@ -46,7 +48,7 @@ export const ASSET_CONFIGS = {
         mass: 1,
         restituation: .2
     },
-    // TODO Load in book
+    // Load in book
     [ASSET_TYPE.BOOK]: {
         PATH: "assets/book.glb",
         name: "book",
@@ -54,12 +56,26 @@ export const ASSET_CONFIGS = {
         mass: 1,
         restituation: 1
     },
-    // TOOD Load in chair
+    // Load in chair
     [ASSET_TYPE.CHAIR]: {
         PATH: "assets/chair.glb",
         name: "chair",
         scale: 5,
         mass: 1.2,
+        restituation: 1
+    },
+    [ASSET_TYPE.TABLET]: {
+        PATH: "assets/tablet.glb",
+        name: "tablet",
+        scale: 5,
+        mass: 1,
+        restituation: 1
+    },
+    [ASSET_TYPE.DESKPHOTO]: {
+        PATH: "assets/deskphoto.glb",
+        name: "desk_photo",
+        scale: 5,
+        mass: 1,
         restituation: 1
     },
     [ASSET_TYPE.CUBE]: {

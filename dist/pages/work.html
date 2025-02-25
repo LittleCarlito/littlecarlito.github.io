@@ -148,13 +148,12 @@
         <p class="terminal-text">• Revolutionized healthcare mailing system reducing client onboarding from 6 weeks to 5 days</p>
         <p class="terminal-text">• Managed sensitive healthcare data for 10M+ patients with perfect compliance record</p>
     </div>
-    <script type="module">
-        import { FLAGS } from '../../common';
-        
+    <script type="module">       
         const CHARS_PER_SECOND = 200;
         const textElements = document.querySelectorAll('.terminal-text');
         let animationInProgress = false;
         let shouldStopAnimation = false;
+        let hasCompletedOnce = false;
         const CURSOR = '█';
         let commandInput = '';
         
@@ -163,14 +162,8 @@
         const BASH_PROMPT = `visitor@ip-${randomIP}:~$ `;
 
         async function animateText(element) {
-            if(FLAGS.HTML_LOGS) {
-                console.log('Starting animation for element:', element.textContent.substring(0, 20) + '...');
-            }
             return new Promise(resolve => {
                 if (!element.textContent.trim() || shouldStopAnimation) {
-                    if(FLAGS.HTML_LOGS) {
-                        console.log('Skipping animation - empty text or stop flag');
-                    }
                     element.classList.add('revealed');
                     resolve();
                     return;
@@ -195,9 +188,6 @@
                     if (currentChar >= text.length) {
                         clearInterval(interval);
                         element.textContent = text; // Remove animation cursor
-                        if(FLAGS.HTML_LOGS) {
-                            console.log('Animation complete for element');
-                        }
                         setTimeout(resolve, 100);
                     }
                 }, 1000 / CHARS_PER_SECOND);
@@ -276,9 +266,6 @@
         }
 
         function stopAllAnimations() {
-            if(FLAGS.HTML_LOGS) {
-                console.log('Stopping all animations');
-            }
             shouldStopAnimation = true;
             animationInProgress = false;
             textElements.forEach(el => {
@@ -292,11 +279,13 @@
             });
             
             createCommandLine();
+            hasCompletedOnce = true;
         }
 
         window.trigger_frame_animation = async function() {
-            if(FLAGS.HTML_LOGS) {
-                console.log('Animation triggered');
+            if (hasCompletedOnce) {
+                stopAllAnimations();
+                return;
             }
 
             if (animationInProgress) {
@@ -317,6 +306,7 @@
                     if (shouldStopAnimation) break;
                     await animateText(element);
                 }
+                hasCompletedOnce = true;
             } finally {
                 if (!shouldStopAnimation) {
                     createCommandLine();
@@ -333,9 +323,6 @@
         });
 
         document.addEventListener('visibilitychange', () => {
-            if(FLAGS.HTML_LOGS) {
-                console.log('Visibility changed - Hidden:', document.hidden);
-            }
             if (document.hidden) {
                 stopAllAnimations();
             }
