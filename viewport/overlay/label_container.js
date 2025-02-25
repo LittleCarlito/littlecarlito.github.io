@@ -82,12 +82,12 @@ export class LabelContainer {
     }
 
     reposition() {
-            let x_position = this.get_column_x_position(this.is_column_left);
-            // Move button column across the screen
-            new Tween(this.container_column.position)
-            .to({ x: x_position})
-            .easing(Easing.Elastic.Out)
-            .start();
+        let x_position = this.get_column_x_position(this.is_column_left);
+        // Move button column across the screen
+        new Tween(this.container_column.position)
+        .to({ x: x_position})
+        .easing(Easing.Elastic.Out)
+        .start();
     }
 
     offscreen_reposition() {
@@ -100,24 +100,26 @@ export class LabelContainer {
         let in_tween = this.in_tween_map.get(object_name);
         if(in_tween == null) {
             if(this.current_intersected !== intersected_object) {
-                // Reset previously inersected object if one existed
+                // Reset previously intersected object if one existed
                 this.reset_previous_intersected();
                 // Set intersected object to current
                 this.current_intersected = intersected_object;
+                // Apply rotation to current
+                let final_rotation = this.is_column_left ? -(FOCUS_ROTATION) : (FOCUS_ROTATION);
+                // Create rotation tween and set it in the map
+                in_tween = new Tween(this.current_intersected.rotation)
+                .to({ y: final_rotation}, 400)
+                .easing(Easing.Sinusoidal.In)
+                .start()
+                .onComplete(() => {
+                    this.in_tween_map.delete(object_name);
+                });
+                this.in_tween_map.set(object_name, in_tween);
             }
-            // Apply rotation to current
-            let final_rotation = this.is_column_left ? -(FOCUS_ROTATION) : (FOCUS_ROTATION);
-            // Create rotation tween and set it in the map
-            in_tween = new Tween(this.current_intersected.rotation)
-            .to({ y: final_rotation}, 400)
-            .easing(Easing.Sinusoidal.In)
-            .start()
-            .onComplete(() => this.in_tween_map.delete(object_name));
-            this.in_tween_map.set(object_name, in_tween);
         }
     }
 
-    /** Resets the previous intersetcted objects orientation */
+    /** Resets the previous intersected objects orientation */
     reset_previous_intersected() {
         if(this.current_intersected) {
             // Reset rotation
