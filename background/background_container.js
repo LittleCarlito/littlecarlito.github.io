@@ -25,12 +25,24 @@ export class BackgroundContainer {
             let [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.AXE, this.object_container, this.world);
             mesh.name = `${TYPES.INTERACTABLE}${NAMES.AXE}`;
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Axe with name: ${mesh.name}`);
-            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DIPLOMA, this.object_container, this.world);
+            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DIPLOMA, this.object_container, this.world, {}, new THREE.Vector3(-10, 5, 0));
             mesh.name = `${TYPES.INTERACTABLE}${NAMES.DIPLOMA}`;
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma with name: ${mesh.name}`);
-            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DESK, this.object_container, this.world);
+            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DESK, this.object_container, this.world, {}, new THREE.Vector3(-5, 5, 0));
             mesh.name = `${TYPES.INTERACTABLE}${NAMES.DESK}`;
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Desk with name: ${mesh.name}`);
+            // Spawn a chair
+            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.CHAIR, this.object_container, this.world, {}, new THREE.Vector3(-0, 5, 0));
+            mesh.name = `${TYPES.INTERACTABLE}${NAMES.CHAIR}`;
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Chair with name: ${mesh.name}`);
+            // Spawn a room
+            // [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.ROOM, this.object_container, this.world, {}, new THREE.Vector3(5, 5, 0));
+            // mesh.name = `${TYPES.INTERACTABLE}${NAMES.ROOM}`;
+            // if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Room with name: ${mesh.name}`);
+            // Spawn a book
+            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.BOOK, this.object_container, this.world, {}, new THREE.Vector3(10, 5, 0));
+            mesh.name = `${TYPES.INTERACTABLE}${NAMES.BOOK}`;
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Book with name: ${mesh.name}`);
         })();
         // Create all cubes asynchronously but wait for all to complete
         const asset_manager = AssetManager.get_instance();

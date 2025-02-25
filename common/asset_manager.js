@@ -42,7 +42,7 @@ export const ASSET_CONFIGS = {
     [ASSET_TYPE.ROOM]: {
         PATH: "assets/room.glb",
         name: "room",
-        scale: 1,
+        scale: 5,
         mass: 1,
         restituation: .2
     },
@@ -50,7 +50,7 @@ export const ASSET_CONFIGS = {
     [ASSET_TYPE.BOOK]: {
         PATH: "assets/book.glb",
         name: "book",
-        scale: 1,
+        scale: 5,
         mass: 1,
         restituation: 1
     },
@@ -58,7 +58,7 @@ export const ASSET_CONFIGS = {
     [ASSET_TYPE.CHAIR]: {
         PATH: "assets/chair.glb",
         name: "chair",
-        scale: 1,
+        scale: 5,
         mass: 1.2,
         restituation: 1
     },
@@ -173,13 +173,20 @@ export class AssetManager {
             mesh.position.copy(position_offset);
             mesh.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
             
-            // Look for collision mesh using the 'col_' prefix
-            let collision_mesh = null;
+            // Look for ALL collision meshes using the 'col_' prefix
+            let collision_meshes = [];
             mesh.traverse((child) => {
                 if (child.isMesh) {
                     if (child.name.startsWith('col_')) {
-                        collision_mesh = child;
+                        collision_meshes.push(child);
                         child.visible = false;  // Hide collision mesh
+                        console.log(`Found collision mesh for ${asset_type}:`, {
+                            name: child.name,
+                            vertices: child.geometry.attributes.position.count,
+                            hasIndices: !!child.geometry.index,
+                            position: child.position,
+                            scale: asset_config.scale
+                        });
                     } else {
                         // Regular mesh handling
                         child.material = child.material.clone();
@@ -191,25 +198,55 @@ export class AssetManager {
                 }
             });
 
-            // Create physics body with proper collision mesh if found
-            if (collision_mesh) {
-                console.log(`Found collision mesh for ${asset_type}: ${collision_mesh.name}`);
-                const geometry = collision_mesh.geometry;
-                const vertices = geometry.attributes.position.array;
-                const indices = geometry.index ? geometry.index.array : undefined;
+            // Create physics body with all collision meshes if found
+            if (collision_meshes.length > 0) {
+                console.log(`Creating compound collider for ${asset_type} with ${collision_meshes.length} collision meshes`);
                 
-                let collider;
-                if (indices) {
-                    collider = RAPIER.ColliderDesc.trimesh(vertices, indices)
-                        .setMass(asset_config.mass)
-                        .setRestitution(asset_config.restitution);
-                } else {
-                    collider = RAPIER.ColliderDesc.convexHull(vertices)
-                        .setMass(asset_config.mass)
-                        .setRestitution(asset_config.restitution);
-                }
-                
-                world.createCollider(collider, body);
+                // Create colliders for each collision mesh
+                collision_meshes.forEach((collision_mesh) => {
+                    const geometry = collision_mesh.geometry;
+                    
+                    // Scale the vertices by the asset's scale
+                    const originalVertices = geometry.attributes.position.array;
+                    const scaledVertices = new Float32Array(originalVertices.length);
+                    for (let i = 0; i < originalVertices.length; i++) {
+                        scaledVertices[i] = originalVertices[i] * asset_config.scale;
+                    }
+                    
+                    const indices = geometry.index ? geometry.index.array : undefined;
+                    
+                    console.log(`Creating collider component for ${collision_mesh.name}:`, {
+                        vertexCount: scaledVertices.length / 3,
+                        indexCount: indices ? indices.length : 'none',
+                        scale: asset_config.scale,
+                        position: collision_mesh.position
+                    });
+
+                    let collider;
+                    if (indices) {
+                        collider = RAPIER.ColliderDesc.trimesh(scaledVertices, indices)
+                            .setMass(asset_config.mass)
+                            .setRestitution(asset_config.restitution);
+                    } else {
+                        collider = RAPIER.ColliderDesc.convexHull(scaledVertices)
+                            .setMass(asset_config.mass)
+                            .setRestitution(asset_config.restitution);
+                    }
+
+                    // Get the collision mesh's position relative to the model
+                    const meshPosition = new THREE.Vector3();
+                    collision_mesh.getWorldPosition(meshPosition);
+                    const relativePosition = meshPosition.sub(mesh.position);
+                    
+                    // Apply the relative position to the collider
+                    collider.setTranslation(
+                        relativePosition.x * asset_config.scale,
+                        relativePosition.y * asset_config.scale,
+                        relativePosition.z * asset_config.scale
+                    );
+                    
+                    world.createCollider(collider, body);
+                });
             } else {
                 console.warn(`No collision mesh found for ${asset_type}, falling back to bounding box`);
                 let geometry;
