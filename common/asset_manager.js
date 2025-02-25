@@ -501,12 +501,13 @@ export class AssetManager {
      * @param {string} [type_prefix] - Optional prefix to match object names against
      */
     deactivate_all_objects(type_prefix = null) {
+        // Only proceed if we have an active object
+        if (!this.currently_activated_name) return;
+        
         if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Deactivating all objects${type_prefix ? ` with prefix: ${type_prefix}` : ''}`);
         let deactivation_count = 0;
         
         for (const [instance_id, [mesh, _body]] of this.dynamic_bodies) {
-            if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Checking mesh: ${mesh.name}`);
-            
             if (type_prefix && !mesh.name.startsWith(type_prefix)) {
                 continue;
             }
@@ -523,7 +524,12 @@ export class AssetManager {
             }
         }
         
-        if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Deactivated ${deactivation_count} objects`);
+        if (deactivation_count > 0 && FLAGS.ACTIVATE_LOGS) {
+            console.log(`[AssetManager] Deactivated ${deactivation_count} objects`);
+        }
+        
+        // Reset the currently activated name since we've deactivated everything
+        this.currently_activated_name = "";
     }
 
     /**
