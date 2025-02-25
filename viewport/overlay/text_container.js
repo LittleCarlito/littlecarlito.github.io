@@ -81,7 +81,7 @@ export class TextContainer {
 
                                     // Get the original material's properties
                                     const originalMaterial = child.material;
-                                    console.log('Original material:', {
+                                    if(FLAGS.ASSET_LOGS) console.log('Original material:', {
                                         name: child.name,
                                         map: originalMaterial.map?.image?.src,
                                         color: originalMaterial.color.getHexString()
@@ -98,7 +98,7 @@ export class TextContainer {
                                     child.material.side = THREE.DoubleSide;
                                     child.renderOrder = 999;
 
-                                    console.log('New material:', {
+                                    if(FLAGS.ASSET_LOGS) console.log('New material:', {
                                         name: child.name,
                                         map: child.material.map?.image?.src,
                                         color: child.material.color.getHexString()

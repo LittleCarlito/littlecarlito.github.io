@@ -149,7 +149,7 @@ export class AssetManager {
                 .setCanSleep(false)
         );
 
-        console.log(`Created rigid body for ${asset_type}:`, body);
+        if(FLAGS.ASSET_LOGS) console.log(`Created rigid body for ${asset_type}:`, body);
 
         if (asset_type === ASSET_TYPE.CUBE) {
             mesh = new THREE.Mesh(
@@ -164,7 +164,7 @@ export class AssetManager {
                 .setMass(asset_config.mass)
                 .setRestitution(asset_config.restitution);
             const created_collider = world.createCollider(collider, body);
-            console.log(`Created cube collider:`, created_collider);
+            if(FLAGS.ASSET_LOGS) console.log(`Created cube collider:`, created_collider);
         } else {
             // Normal GLB asset loading path
             if (!this.loaded_assets.has(asset_type)) await this.load_asset_type(asset_type);
@@ -180,7 +180,7 @@ export class AssetManager {
                     if (child.name.startsWith('col_')) {
                         collision_meshes.push(child);
                         child.visible = false;  // Hide collision mesh
-                        console.log(`Found collision mesh for ${asset_type}:`, {
+                        if(FLAGS.ASSET_LOGS) console.log(`Found collision mesh for ${asset_type}:`, {
                             name: child.name,
                             vertices: child.geometry.attributes.position.count,
                             hasIndices: !!child.geometry.index,
@@ -200,7 +200,7 @@ export class AssetManager {
 
             // Create physics body with all collision meshes if found
             if (collision_meshes.length > 0) {
-                console.log(`Creating compound collider for ${asset_type} with ${collision_meshes.length} collision meshes`);
+                if(FLAGS.ASSET_LOGS) console.log(`Creating compound collider for ${asset_type} with ${collision_meshes.length} collision meshes`);
                 
                 // Create colliders for each collision mesh
                 collision_meshes.forEach((collision_mesh) => {
@@ -215,7 +215,7 @@ export class AssetManager {
                     
                     const indices = geometry.index ? geometry.index.array : undefined;
                     
-                    console.log(`Creating collider component for ${collision_mesh.name}:`, {
+                    if(FLAGS.ASSET_LOGS) console.log(`Creating collider component for ${collision_mesh.name}:`, {
                         vertexCount: scaledVertices.length / 3,
                         indexCount: indices ? indices.length : 'none',
                         scale: asset_config.scale,
@@ -248,7 +248,7 @@ export class AssetManager {
                     world.createCollider(collider, body);
                 });
             } else {
-                console.warn(`No collision mesh found for ${asset_type}, falling back to bounding box`);
+                if(FLAGS.ASSET_LOGS) console.warn(`No collision mesh found for ${asset_type}, falling back to bounding box`);
                 let geometry;
                 mesh.traverse((child) => {
                     if (child.isMesh && !child.name.startsWith('col_')) geometry = child.geometry;
@@ -268,8 +268,8 @@ export class AssetManager {
                         .setRestitution(asset_config.restitution);
 
                     const created_collider = world.createCollider(collider, body);
-                    console.log(`Created bounding box collider:`, created_collider);
-                    console.log(`Collider dimensions:`, {
+                    if(FLAGS.ASSET_LOGS) console.log(`Created bounding box collider:`, created_collider);
+                    if(FLAGS.ASSET_LOGS) console.log(`Collider dimensions:`, {
                         width: half_width,
                         height: half_height,
                         depth: half_depth,
@@ -335,7 +335,7 @@ export class AssetManager {
             mesh = gltf.scene.clone();
             mesh.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
             
-            console.log('Creating static mesh for UI:', {
+            if(FLAGS.ASSET_LOGS) console.log('Creating static mesh for UI:', {
                 assetType: asset_type,
                 parentType: parent.type,
                 parentName: parent.name,
@@ -344,7 +344,7 @@ export class AssetManager {
 
             mesh.traverse((child) => {
                 if (child.isMesh) {
-                    console.log('Original material properties:', {
+                    if(FLAGS.ASSET_LOGS) console.log('Original material properties:', {
                         hasMap: !!child.material.map,
                         color: child.material.color,
                         type: child.material.type
@@ -361,7 +361,7 @@ export class AssetManager {
                     });
                     child.renderOrder = 999; // Ensure it renders on top
 
-                    console.log('New material properties:', {
+                    if(FLAGS.ASSET_LOGS) console.log('New material properties:', {
                         hasMap: !!child.material.map,
                         color: child.material.color,
                         type: child.material.type,
@@ -419,7 +419,6 @@ export class AssetManager {
      */
     activate_object(object_name) {
         if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Attempting to activate: ${object_name}`);
-        
         // Deactivate previously activated object if it's different
         if (this.currently_activated_name !== object_name) {
             if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Deactivating previous: ${this.currently_activated_name}`);
@@ -428,6 +427,12 @@ export class AssetManager {
         
         this.currently_activated_name = object_name;
         
+        // TODO OOOOO
+        // TODO Seems right here is where we can get the diploma to glow like a mofo
+        //          Need to have its name be <whatever_we_want>_<label_category>
+        //              In above that would mean that it would be interactable_education
+        // TODO In doing above we also need to ensure we don't make an education cube
+
         // Extract the category name from the incoming object name
         const requested_category = object_name.split("_")[1];
         if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Looking for category: ${requested_category}`);

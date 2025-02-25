@@ -26,7 +26,7 @@ export class BackgroundContainer {
             mesh.name = `${TYPES.INTERACTABLE}${NAMES.AXE}`;
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Axe with name: ${mesh.name}`);
             [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DIPLOMA, this.object_container, this.world, {}, new THREE.Vector3(-10, 5, 0));
-            mesh.name = `${TYPES.INTERACTABLE}${NAMES.DIPLOMA}`;
+            mesh.name = `${TYPES.INTERACTABLE}${CATEGORIES.EDUCATION}`;
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma with name: ${mesh.name}`);
             [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DESK, this.object_container, this.world, {}, new THREE.Vector3(-5, 5, 0));
             mesh.name = `${TYPES.INTERACTABLE}${NAMES.DESK}`;
@@ -47,7 +47,7 @@ export class BackgroundContainer {
         // Create all cubes asynchronously but wait for all to complete
         const asset_manager = AssetManager.get_instance();
         const cube_promises = Object.values(CATEGORIES).map(async (category, i) => {
-            if (typeof category === 'function') return; // Skip helper methods
+            if (typeof category === 'function' || category == CATEGORIES.EDUCATION) return; // Skip helper methods
             const position = new THREE.Vector3(((i * 2) - 3), -2, -5);
             const [mesh, body] = await asset_manager.spawn_asset(
                 ASSET_TYPE.CUBE,
