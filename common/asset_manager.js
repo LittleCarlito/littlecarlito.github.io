@@ -6,8 +6,11 @@ import { FLAGS } from "./flags";
 // Define all possible asset types that can be loaded and spawned
 export const ASSET_TYPE = {
     AXE: 'AXE',
-    DIPLOMA: 'DIPLOMA',
+    DIPLOMA: 'education',
     DESK: 'DESK',
+    CHAIR: 'CHAIR',
+    BOOK: 'BOOK',
+    ROOM: 'ROOM',
     CUBE: 'CUBE'  // Simple geometric primitive for testing
 };
 Object.freeze(ASSET_TYPE);
@@ -23,7 +26,7 @@ export const ASSET_CONFIGS = {
     },
     [ASSET_TYPE.DIPLOMA]: {
         PATH: "assets/diploma_bot.glb",
-        name: "diploma",
+        name: "education",
         scale: 10,
         mass: 1,
         restitution: .2,
@@ -34,6 +37,30 @@ export const ASSET_CONFIGS = {
         scale: 2,
         mass: 1,
         restitution: .5,
+    },
+    // TODO Load in room
+    [ASSET_TYPE.ROOM]: {
+        PATH: "assets/room.glb",
+        name: "room",
+        scale: 5,
+        mass: 1,
+        restituation: .2
+    },
+    // TODO Load in book
+    [ASSET_TYPE.BOOK]: {
+        PATH: "assets/book.glb",
+        name: "book",
+        scale: 5,
+        mass: 1,
+        restituation: 1
+    },
+    // TOOD Load in chair
+    [ASSET_TYPE.CHAIR]: {
+        PATH: "assets/chair.glb",
+        name: "chair",
+        scale: 5,
+        mass: 1.2,
+        restituation: 1
     },
     [ASSET_TYPE.CUBE]: {
         // No PATH needed as it's a primitive
@@ -51,6 +78,7 @@ export class AssetManager {
     static instance = null;
     static instance_counter = 0;
     currently_activated_name = "";  // Add this to track the currently activated object
+    emission_states = new Map(); // Track emission states of objects
     
     constructor() {
         if (AssetManager.instance) {
@@ -122,7 +150,7 @@ export class AssetManager {
                 .setCanSleep(false)
         );
 
-        console.log(`Created rigid body for ${asset_type}:`, body);
+        if(FLAGS.ASSET_LOGS) console.log(`Created rigid body for ${asset_type}:`, body);
 
         if (asset_type === ASSET_TYPE.CUBE) {
             mesh = new THREE.Mesh(
@@ -137,111 +165,91 @@ export class AssetManager {
                 .setMass(asset_config.mass)
                 .setRestitution(asset_config.restitution);
             const created_collider = world.createCollider(collider, body);
-            console.log(`Created cube collider:`, created_collider);
+            if(FLAGS.ASSET_LOGS) console.log(`Created cube collider:`, created_collider);
         } else {
             // Normal GLB asset loading path
-            if (!this.loaded_assets.has(asset_type)) {
-                await this.load_asset_type(asset_type);
-            }
+            if (!this.loaded_assets.has(asset_type)) await this.load_asset_type(asset_type);
             const gltf = this.loaded_assets.get(asset_type);
             mesh = gltf.scene.clone();
             mesh.position.copy(position_offset);
             mesh.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
             
-            // Set name on parent mesh
-            mesh.name = `${TYPES.INTERACTABLE}${asset_config.name}`;
-            
-            // Look for collision mesh
-            let collision_geometry;
+            // Look for ALL collision meshes using the 'col_' prefix
+            let collision_meshes = [];
             mesh.traverse((child) => {
                 if (child.isMesh) {
-                    // Skip collision meshes for material handling
                     if (child.name.startsWith('col_')) {
-                        child.visible = false;
-                        return;
-                    }
-
-                    // Clone the material but preserve all original properties
-                    const originalMaterial = child.material;
-                    child.material = originalMaterial.clone();
-                    
-                    // Preserve all material properties
-                    child.material.color = originalMaterial.color;
-                    child.material.map = originalMaterial.map;
-                    child.material.normalMap = originalMaterial.normalMap;
-                    child.material.roughnessMap = originalMaterial.roughnessMap;
-                    child.material.metalnessMap = originalMaterial.metalnessMap;
-                    child.material.aoMap = originalMaterial.aoMap;
-                    child.material.emissiveMap = originalMaterial.emissiveMap;
-                    child.material.emissive = originalMaterial.emissive;
-                    child.material.emissiveIntensity = originalMaterial.emissiveIntensity;
-                    
-                    // Preserve material parameters
-                    child.material.metalness = originalMaterial.metalness;
-                    child.material.roughness = originalMaterial.roughness;
-                    child.material.envMapIntensity = originalMaterial.envMapIntensity || 1;
-                    
-                    // Enable necessary material features
-                    child.material.transparent = originalMaterial.transparent;
-                    child.material.opacity = originalMaterial.opacity;
-                    child.material.side = originalMaterial.side;
-                    child.material.depthTest = true;
-                    child.material.needsUpdate = true;
-
-                    // Enable shadows
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-
-                    // Debug log
-                    console.log(`Material settings for ${child.name}:`, {
-                        color: child.material.color,
-                        metalness: child.material.metalness,
-                        roughness: child.material.roughness,
-                        maps: {
-                            diffuse: !!child.material.map,
-                            normal: !!child.material.normalMap,
-                            roughness: !!child.material.roughnessMap,
-                            metalness: !!child.material.metalnessMap,
-                            ao: !!child.material.aoMap,
-                            emissive: !!child.material.emissiveMap
-                        }
-                    });
-
-                    // Check if this is a collision mesh
-                    if (child.name.startsWith('col_')) {
-                        collision_geometry = child.geometry;
-                        child.visible = false; // Hide collision mesh
+                        collision_meshes.push(child);
+                        child.visible = false;  // Hide collision mesh
+                        if(FLAGS.ASSET_LOGS) console.log(`Found collision mesh for ${asset_type}:`, {
+                            name: child.name,
+                            vertices: child.geometry.attributes.position.count,
+                            hasIndices: !!child.geometry.index,
+                            position: child.position,
+                            scale: asset_config.scale
+                        });
+                    } else {
+                        // Regular mesh handling
+                        child.material = child.material.clone();
+                        child.material.depthTest = true;
+                        child.material.transparent = false;
+                        child.name = `${TYPES.INTERACTABLE}${asset_config.name}`;
+                        child.castShadow = true;
                     }
                 }
             });
 
-            // Create collider based on found collision mesh or fallback to bounding box
-            if (collision_geometry) {
-                const vertices = collision_geometry.attributes.position.array;
-                const indices = collision_geometry.index ? collision_geometry.index.array : undefined;
+            // Create physics body with all collision meshes if found
+            if (collision_meshes.length > 0) {
+                if(FLAGS.ASSET_LOGS) console.log(`Creating compound collider for ${asset_type} with ${collision_meshes.length} collision meshes`);
                 
-                // Apply scale to vertices directly instead of using setScale
-                const scaledVertices = new Float32Array(vertices.length);
-                for (let i = 0; i < vertices.length; i++) {
-                    scaledVertices[i] = vertices[i] * asset_config.scale;
-                }
-                
-                let collider;
-                if (indices) {
-                    collider = RAPIER.ColliderDesc.trimesh(scaledVertices, indices)
-                        .setMass(asset_config.mass)
-                        .setRestitution(asset_config.restitution);
-                } else {
-                    collider = RAPIER.ColliderDesc.convexHull(scaledVertices)
-                        .setMass(asset_config.mass)
-                        .setRestitution(asset_config.restitution);
-                }
-                
-                const created_collider = world.createCollider(collider, body);
-                console.log(`Created collision mesh collider:`, created_collider);
+                // Create colliders for each collision mesh
+                collision_meshes.forEach((collision_mesh) => {
+                    const geometry = collision_mesh.geometry;
+                    
+                    // Scale the vertices by the asset's scale
+                    const originalVertices = geometry.attributes.position.array;
+                    const scaledVertices = new Float32Array(originalVertices.length);
+                    for (let i = 0; i < originalVertices.length; i++) {
+                        scaledVertices[i] = originalVertices[i] * asset_config.scale;
+                    }
+                    
+                    const indices = geometry.index ? geometry.index.array : undefined;
+                    
+                    if(FLAGS.ASSET_LOGS) console.log(`Creating collider component for ${collision_mesh.name}:`, {
+                        vertexCount: scaledVertices.length / 3,
+                        indexCount: indices ? indices.length : 'none',
+                        scale: asset_config.scale,
+                        position: collision_mesh.position
+                    });
+
+                    let collider;
+                    if (indices) {
+                        collider = RAPIER.ColliderDesc.trimesh(scaledVertices, indices)
+                            .setMass(asset_config.mass)
+                            .setRestitution(asset_config.restitution);
+                    } else {
+                        collider = RAPIER.ColliderDesc.convexHull(scaledVertices)
+                            .setMass(asset_config.mass)
+                            .setRestitution(asset_config.restitution);
+                    }
+
+                    // Get the collision mesh's position relative to the model
+                    const meshPosition = new THREE.Vector3();
+                    collision_mesh.getWorldPosition(meshPosition);
+                    const relativePosition = meshPosition.sub(mesh.position);
+                    
+                    // Apply the relative position to the collider
+                    collider.setTranslation(
+                        relativePosition.x * asset_config.scale,
+                        relativePosition.y * asset_config.scale,
+                        relativePosition.z * asset_config.scale
+                    );
+                    
+                    world.createCollider(collider, body);
+                });
             } else {
-                // Fallback to bounding box if no collision mesh found
-                console.warn(`No collision mesh found for ${asset_type}, falling back to bounding box`);
+                if(FLAGS.ASSET_LOGS) console.warn(`No collision mesh found for ${asset_type}, falling back to bounding box`);
                 let geometry;
                 mesh.traverse((child) => {
                     if (child.isMesh && !child.name.startsWith('col_')) geometry = child.geometry;
@@ -261,8 +269,8 @@ export class AssetManager {
                         .setRestitution(asset_config.restitution);
 
                     const created_collider = world.createCollider(collider, body);
-                    console.log(`Created bounding box collider:`, created_collider);
-                    console.log(`Collider dimensions:`, {
+                    if(FLAGS.ASSET_LOGS) console.log(`Created bounding box collider:`, created_collider);
+                    if(FLAGS.ASSET_LOGS) console.log(`Collider dimensions:`, {
                         width: half_width,
                         height: half_height,
                         depth: half_depth,
@@ -327,16 +335,47 @@ export class AssetManager {
             const gltf = this.loaded_assets.get(asset_type);
             mesh = gltf.scene.clone();
             mesh.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
+            
+            if(FLAGS.ASSET_LOGS) console.log('Creating static mesh for UI:', {
+                assetType: asset_type,
+                parentType: parent.type,
+                parentName: parent.name,
+                isOverlay: parent.parent?.parent?.name?.includes('overlay')
+            });
+
             mesh.traverse((child) => {
                 if (child.isMesh) {
-                    child.material.depthTest = true;
-                    child.material.transparent = true;
+                    if(FLAGS.ASSET_LOGS) console.log('Original material properties:', {
+                        hasMap: !!child.material.map,
+                        color: child.material.color,
+                        type: child.material.type
+                    });
+
+                    // Force UI rendering properties
+                    child.material = new THREE.MeshBasicMaterial({
+                        map: child.material.map,
+                        color: child.material.color,
+                        transparent: true,
+                        depthTest: false,
+                        side: THREE.DoubleSide,
+                        opacity: 1
+                    });
+                    child.renderOrder = 999; // Ensure it renders on top
+
+                    if(FLAGS.ASSET_LOGS) console.log('New material properties:', {
+                        hasMap: !!child.material.map,
+                        color: child.material.color,
+                        type: child.material.type,
+                        transparent: child.material.transparent,
+                        depthTest: child.material.depthTest,
+                        renderOrder: child.renderOrder
+                    });
                 }
             });
         }
         mesh.position.copy(position_offset);
         if (rotation) mesh.rotation.copy(rotation);
-        mesh.renderOrder = 0;
+        mesh.renderOrder = 999;
         parent.add(mesh);
         const instance_id = `${asset_type}_static_${Date.now()}`;
         this.static_meshes.set(instance_id, mesh);
@@ -375,13 +414,63 @@ export class AssetManager {
         return instance_id ? this.dynamic_bodies.get(instance_id) : null;
     }
 
-    /**
-     * Activates an object by setting its material to emit light
-     * @param {string} object_name - Name of the object to activate
-     */
+    // Add helper method to check if a mesh is actually emissive
+    is_mesh_emissive(mesh) {
+        if (!mesh) return false;
+        let has_emissive = false;
+        
+        const check_material = (material) => {
+            return material && 
+                   material.emissive && 
+                   material.emissiveIntensity > 0 &&
+                   material.emissiveIntensity === 9; // Our target intensity
+        };
+        
+        if (mesh.isGroup || mesh.isObject3D) {
+            mesh.traverse((child) => {
+                if (child.isMesh && !child.name.startsWith('col_')) {
+                    if (check_material(child.material)) {
+                        has_emissive = true;
+                    }
+                }
+            });
+        } else if (mesh.isMesh) {
+            has_emissive = check_material(mesh.material);
+        }
+        
+        return has_emissive;
+    }
+
     activate_object(object_name) {
         if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Attempting to activate: ${object_name}`);
         
+        // First check if we think it's active
+        if(object_name === this.currently_activated_name) {
+            if (this.emission_states.get(object_name) === 'active') {
+                // Verify the actual material state
+                let found_and_verified = false;
+                for (const [instance_id, [mesh, _body]] of this.dynamic_bodies) {
+                    const mesh_category = mesh.name.split("_")[1];
+                    if (mesh_category === object_name.split("_")[1]) {
+                        // If we find the mesh but it's not actually emissive, we need to reapply
+                        if (this.is_mesh_emissive(mesh)) {
+                            found_and_verified = true;
+                            return;
+                        } else {
+                            if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Object ${object_name} claims to be active but isn't emissive - reapplying`);
+                            this.emission_states.delete(object_name);
+                            break;
+                        }
+                    }
+                }
+                if (!found_and_verified) {
+                    if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Object ${object_name} not found for verification - resetting state`);
+                    this.emission_states.delete(object_name);
+                }
+            }
+        }
+        
+        // Rest of the activation logic remains the same...
         // Deactivate previously activated object if it's different
         if (this.currently_activated_name !== object_name) {
             if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Deactivating previous: ${this.currently_activated_name}`);
@@ -408,19 +497,83 @@ export class AssetManager {
                 
                 if (category) {
                     if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Applying emission material with color: ${category.color}`);
-                    const emission_material = new THREE.MeshStandardMaterial({ 
-                        color: category.color,
-                        emissive: category.color,
-                        emissiveIntensity: 9
-                    });
-                    if (mesh.material) mesh.material.dispose();
-                    mesh.material = emission_material;
+                    
+                    // Set the emission state to 'applying'
+                    this.emission_states.set(object_name, 'applying');
+                    
+                    // Function to create emission material
+                    const createEmissionMaterial = (originalMaterial) => {
+                        return new THREE.MeshStandardMaterial({ 
+                            color: category.color,
+                            emissive: category.color,
+                            emissiveIntensity: 9,
+                            map: originalMaterial?.map || null,
+                            transparent: originalMaterial?.transparent || false,
+                            opacity: originalMaterial?.opacity || 1,
+                        });
+                    };
+
+                    let meshesProcessed = 0;
+                    let totalMeshes = 0;
+
+                    // Count total meshes first
+                    if (mesh.isGroup || mesh.isObject3D) {
+                        mesh.traverse((child) => {
+                            if (child.isMesh && !child.name.startsWith('col_')) totalMeshes++;
+                        });
+                    } else if (mesh.isMesh) {
+                        totalMeshes = 1;
+                    }
+
+                    // For GLB models, we need to traverse all meshes
+                    if (mesh.isGroup || mesh.isObject3D) {
+                        mesh.traverse((child) => {
+                            if (child.isMesh && !child.name.startsWith('col_')) {
+                                // Store the original material for deactivation
+                                if (!child.userData.originalMaterial) {
+                                    child.userData.originalMaterial = child.material.clone();
+                                }
+                                // Apply new emission material while preserving textures
+                                if (child.material) child.material.dispose();
+                                child.material = createEmissionMaterial(child.userData.originalMaterial);
+                                meshesProcessed++;
+                                
+                                // Check if all meshes are processed and verify emission
+                                if (meshesProcessed === totalMeshes) {
+                                    if (this.is_mesh_emissive(mesh)) {
+                                        this.emission_states.set(object_name, 'active');
+                                        if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Object ${object_name} is now fully activated and verified`);
+                                    } else {
+                                        if (FLAGS.ACTIVATE_LOGS) console.warn(`[AssetManager] Failed to apply emission to ${object_name}`);
+                                        this.emission_states.delete(object_name);
+                                    }
+                                }
+                            }
+                        });
+                    } else if (mesh.isMesh) {
+                        // For primitive objects like cubes
+                        if (!mesh.userData.originalMaterial) {
+                            mesh.userData.originalMaterial = mesh.material.clone();
+                        }
+                        if (mesh.material) mesh.material.dispose();
+                        mesh.material = createEmissionMaterial(mesh.userData.originalMaterial);
+                        
+                        // Verify emission for primitive mesh
+                        if (this.is_mesh_emissive(mesh)) {
+                            this.emission_states.set(object_name, 'active');
+                            if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Object ${object_name} is now fully activated and verified`);
+                        } else {
+                            if (FLAGS.ACTIVATE_LOGS) console.warn(`[AssetManager] Failed to apply emission to ${object_name}`);
+                            this.emission_states.delete(object_name);
+                        }
+                    }
                 }
                 break;
             }
         }
         if (!found && FLAGS.ACTIVATE_LOGS) {
             console.warn(`[AssetManager] No mesh found for category: ${requested_category}`);
+            this.emission_states.delete(object_name);
         }
     }
 
@@ -430,7 +583,6 @@ export class AssetManager {
      */
     deactivate_object(object_name) {
         if (!object_name) return;
-        if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Attempting to deactivate: ${object_name}`);
         
         const requested_category = object_name.split("_")[1];
         let found = false;
@@ -438,18 +590,80 @@ export class AssetManager {
         for (const [instance_id, [mesh, _body]] of this.dynamic_bodies) {
             const mesh_category = mesh.name.split("_")[1];
             
-            if (mesh_category === requested_category && mesh.material?.emissiveIntensity > 1) {
+            if (mesh_category === requested_category) {
                 found = true;
                 if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Found mesh to deactivate: ${mesh.name}`);
-                new Tween(mesh.material)
-                    .to({ emissiveIntensity: 0 })
-                    .easing(Easing.Sinusoidal.Out)
-                    .start();
+                
+                // Set deactivation state
+                this.emission_states.set(object_name, 'deactivating');
+                
+                let meshesProcessed = 0;
+                let totalMeshes = 0;
+
+                // Count total meshes first
+                if (mesh.isGroup || mesh.isObject3D) {
+                    mesh.traverse((child) => {
+                        if (child.isMesh && !child.name.startsWith('col_')) totalMeshes++;
+                    });
+                } else if (mesh.isMesh) {
+                    totalMeshes = 1;
+                }
+
+                const deactivateMesh = (targetMesh) => {
+                    // Only proceed if we have an original material to restore to
+                    if (targetMesh.userData.originalMaterial) {
+                        // Create a new tween for the emission fade out
+                        if (targetMesh.material && targetMesh.material.emissiveIntensity > 0) {
+                            // Clone the current material to avoid affecting other instances
+                            const tweenMaterial = targetMesh.material.clone();
+                            targetMesh.material = tweenMaterial;
+
+                            new Tween(tweenMaterial)
+                                .to({ emissiveIntensity: 0 }, 500) // 500ms duration for smooth transition
+                                .easing(Easing.Quadratic.Out)
+                                .onComplete(() => {
+                                    // Cleanup the tween material
+                                    if (tweenMaterial) tweenMaterial.dispose();
+                                    
+                                    // Restore the original material
+                                    const restoredMaterial = targetMesh.userData.originalMaterial.clone();
+                                    targetMesh.material = restoredMaterial;
+                                    
+                                    meshesProcessed++;
+                                    if (meshesProcessed === totalMeshes) {
+                                        this.emission_states.delete(object_name);
+                                        if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Object ${object_name} is now fully deactivated`);
+                                    }
+                                    
+                                    if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Restored original material for: ${targetMesh.name}`);
+                                })
+                                .start();
+                        }
+                    } else if (FLAGS.ACTIVATE_LOGS) {
+                        console.warn(`[AssetManager] No original material found for: ${targetMesh.name}`);
+                        meshesProcessed++;
+                        if (meshesProcessed === totalMeshes) {
+                            this.emission_states.delete(object_name);
+                        }
+                    }
+                };
+
+                // Handle both GLB models and primitive objects
+                if (mesh.isGroup || mesh.isObject3D) {
+                    mesh.traverse((child) => {
+                        if (child.isMesh && !child.name.startsWith('col_')) {
+                            deactivateMesh(child);
+                        }
+                    });
+                } else if (mesh.isMesh) {
+                    deactivateMesh(mesh);
+                }
                 break;
             }
         }
         if (!found && FLAGS.ACTIVATE_LOGS) {
             console.warn(`[AssetManager] No active mesh found for category: ${requested_category}`);
+            this.emission_states.delete(object_name);
         }
     }
 
@@ -458,29 +672,63 @@ export class AssetManager {
      * @param {string} [type_prefix] - Optional prefix to match object names against
      */
     deactivate_all_objects(type_prefix = null) {
+        // Only proceed if we have an active object
+        if (!this.currently_activated_name) return;
+        
         if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Deactivating all objects${type_prefix ? ` with prefix: ${type_prefix}` : ''}`);
         let deactivation_count = 0;
         
+        const deactivateMesh = (targetMesh) => {
+            if (targetMesh.material && 
+                targetMesh.material.emissive && 
+                targetMesh.material.emissiveIntensity > 0) {
+                if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Deactivating emissive mesh: ${targetMesh.name}`);
+                
+                // Clone the current material to avoid affecting other instances
+                const tweenMaterial = targetMesh.material.clone();
+                targetMesh.material = tweenMaterial;
+
+                new Tween(tweenMaterial)
+                    .to({ emissiveIntensity: 0 }, 500)
+                    .easing(Easing.Quadratic.Out)
+                    .onComplete(() => {
+                        // Cleanup the tween material
+                        if (tweenMaterial) tweenMaterial.dispose();
+                        
+                        // Restore the original material if it exists
+                        if (targetMesh.userData.originalMaterial) {
+                            const restoredMaterial = targetMesh.userData.originalMaterial.clone();
+                            targetMesh.material = restoredMaterial;
+                        }
+                    })
+                    .start();
+                deactivation_count++;
+            }
+        };
+
         for (const [instance_id, [mesh, _body]] of this.dynamic_bodies) {
-            if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Checking mesh: ${mesh.name}`);
-            
             if (type_prefix && !mesh.name.startsWith(type_prefix)) {
                 continue;
             }
             
-            if (mesh.material && 
-                mesh.material.emissive && 
-                mesh.material.emissiveIntensity > 0) {
-                if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Deactivating emissive mesh: ${mesh.name}`);
-                new Tween(mesh.material)
-                    .to({ emissiveIntensity: 0 })
-                    .easing(Easing.Sinusoidal.Out)
-                    .start();
-                deactivation_count++;
+            // Handle both GLB models and primitive objects
+            if (mesh.isGroup || mesh.isObject3D) {
+                mesh.traverse((child) => {
+                    if (child.isMesh && !child.name.startsWith('col_')) {
+                        deactivateMesh(child);
+                    }
+                });
+            } else if (mesh.isMesh) {
+                deactivateMesh(mesh);
             }
         }
         
-        if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Deactivated ${deactivation_count} objects`);
+        if (deactivation_count > 0 && FLAGS.ACTIVATE_LOGS) {
+            console.log(`[AssetManager] Deactivated ${deactivation_count} objects`);
+        }
+        
+        // Reset the currently activated name since we've deactivated everything
+        this.currently_activated_name = "";
     }
 
     /**

@@ -1,7 +1,7 @@
 import { clamp } from 'three/src/math/MathUtils.js';
 import { TextFrame, IFRAME } from './text_frame';
 import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, CATEGORIES, extract_type, PAN_SPEED, TYPES, VALID_DIRECTIONS } from './overlay_common';
-import { Easing, FLAGS, NAMES, THREE, Tween, AssetManager, ASSET_TYPE } from '../../common';
+import { Easing, FLAGS, NAMES, THREE, Tween, AssetManager, ASSET_TYPE, ASSET_CONFIGS } from '../../common';
 
 export class TextContainer {
     container_width;
@@ -56,8 +56,60 @@ export class TextContainer {
                     const rotation = new THREE.Euler(-Math.PI/2, 0, Math.PI, 'XYZ');
                     const position_one_offset = new THREE.Vector3(0, 3, 0);
                     const position_two_offset = new THREE.Vector3(0, -3, 0);
-                    this.asset_manager.create_static_mesh(ASSET_TYPE.DIPLOMA, text_box, position_one_offset, rotation);
-                    this.asset_manager.create_static_mesh(ASSET_TYPE.DIPLOMA, text_box, position_two_offset, rotation);
+                    
+                    // Create diplomas with specific UI handling
+                    (async () => {
+                        // Load the diploma asset first
+                        const asset_config = ASSET_CONFIGS[ASSET_TYPE.DIPLOMA];
+                        const gltf = await this.asset_manager.loader.loadAsync(asset_config.PATH);
+                        
+                        // Create two instances
+                        [position_one_offset, position_two_offset].forEach(position => {
+                            const diploma = gltf.scene.clone();
+                            diploma.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
+                            diploma.position.copy(position);
+                            diploma.rotation.copy(rotation);
+                            
+                            // Handle materials
+                            diploma.traverse((child) => {
+                                if (child.isMesh) {
+                                    // Hide collision mesh
+                                    if (child.name.startsWith('col_')) {
+                                        child.visible = false;
+                                        return;
+                                    }
+
+                                    // Get the original material's properties
+                                    const originalMaterial = child.material;
+                                    if(FLAGS.ASSET_LOGS) console.log('Original material:', {
+                                        name: child.name,
+                                        map: originalMaterial.map?.image?.src,
+                                        color: originalMaterial.color.getHexString()
+                                    });
+
+                                    // Try using the original material but with basic properties
+                                    child.material = new THREE.MeshBasicMaterial();
+                                    child.material.copy(originalMaterial);
+                                    child.material.needsUpdate = true;
+                                    
+                                    // Force some UI-specific properties
+                                    child.material.transparent = true;
+                                    child.material.depthTest = false;
+                                    child.material.side = THREE.DoubleSide;
+                                    child.renderOrder = 999;
+
+                                    if(FLAGS.ASSET_LOGS) console.log('New material:', {
+                                        name: child.name,
+                                        map: child.material.map?.image?.src,
+                                        color: child.material.color.getHexString()
+                                    });
+                                }
+                            });
+                            
+                            text_box.add(diploma);
+                        });
+                    })();
+                    
                     create_background(category, text_box);
                     break;
                 case CATEGORIES.ABOUT.value:

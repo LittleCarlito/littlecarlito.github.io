@@ -11,14 +11,14 @@ export class ScrollMenu {
     CHAIN_CONFIG = {
         POSITION: {
             X: 0,
-            Y: 4,
+            Y: 10,
             Z: 0
         },
         SEGMENTS: {
             COUNT: 6,
             LENGTH: 0.5,
             RADIUS: 0.1,
-            DAMPING: 1.5,
+            DAMPING: .2,
             MASS: 0.05,
             RESTITUTION: 0.1,
             FRICTION: 0.8,
