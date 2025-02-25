@@ -26,7 +26,7 @@ export class BackgroundContainer {
             mesh.name = `${TYPES.INTERACTABLE}${NAMES.AXE}`;
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Axe with name: ${mesh.name}`);
             [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DIPLOMA, this.object_container, this.world, {}, new THREE.Vector3(-10, 5, 0));
-            mesh.name = `${TYPES.INTERACTABLE}${CATEGORIES.EDUCATION}`;
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DIPLOMA}`;
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma with name: ${mesh.name}`);
             [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DESK, this.object_container, this.world, {}, new THREE.Vector3(-5, 5, 0));
             mesh.name = `${TYPES.INTERACTABLE}${NAMES.DESK}`;

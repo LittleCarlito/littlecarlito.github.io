@@ -6,7 +6,7 @@ import { FLAGS } from "./flags";
 // Define all possible asset types that can be loaded and spawned
 export const ASSET_TYPE = {
     AXE: 'AXE',
-    DIPLOMA: 'DIPLOMA',
+    DIPLOMA: 'education',
     DESK: 'DESK',
     CHAIR: 'CHAIR',
     BOOK: 'BOOK',
@@ -26,7 +26,7 @@ export const ASSET_CONFIGS = {
     },
     [ASSET_TYPE.DIPLOMA]: {
         PATH: "assets/diploma_bot.glb",
-        name: "diploma",
+        name: "education",
         scale: 10,
         mass: 1,
         restitution: .2,
@@ -427,12 +427,6 @@ export class AssetManager {
         
         this.currently_activated_name = object_name;
         
-        // TODO OOOOO
-        // TODO Seems right here is where we can get the diploma to glow like a mofo
-        //          Need to have its name be <whatever_we_want>_<label_category>
-        //              In above that would mean that it would be interactable_education
-        // TODO In doing above we also need to ensure we don't make an education cube
-
         // Extract the category name from the incoming object name
         const requested_category = object_name.split("_")[1];
         if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Looking for category: ${requested_category}`);
@@ -451,13 +445,40 @@ export class AssetManager {
                 
                 if (category) {
                     if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Applying emission material with color: ${category.color}`);
-                    const emission_material = new THREE.MeshStandardMaterial({ 
-                        color: category.color,
-                        emissive: category.color,
-                        emissiveIntensity: 9
-                    });
-                    if (mesh.material) mesh.material.dispose();
-                    mesh.material = emission_material;
+                    
+                    // Function to create emission material
+                    const createEmissionMaterial = (originalMaterial) => {
+                        return new THREE.MeshStandardMaterial({ 
+                            color: category.color,
+                            emissive: category.color,
+                            emissiveIntensity: 9,
+                            map: originalMaterial?.map || null,
+                            transparent: originalMaterial?.transparent || false,
+                            opacity: originalMaterial?.opacity || 1,
+                        });
+                    };
+
+                    // For GLB models, we need to traverse all meshes
+                    if (mesh.isGroup || mesh.isObject3D) {
+                        mesh.traverse((child) => {
+                            if (child.isMesh && !child.name.startsWith('col_')) {
+                                // Store the original material for deactivation
+                                if (!child.userData.originalMaterial) {
+                                    child.userData.originalMaterial = child.material.clone();
+                                }
+                                // Apply new emission material while preserving textures
+                                if (child.material) child.material.dispose();
+                                child.material = createEmissionMaterial(child.userData.originalMaterial);
+                            }
+                        });
+                    } else if (mesh.isMesh) {
+                        // For primitive objects like cubes
+                        if (!mesh.userData.originalMaterial) {
+                            mesh.userData.originalMaterial = mesh.material.clone();
+                        }
+                        if (mesh.material) mesh.material.dispose();
+                        mesh.material = createEmissionMaterial(mesh.userData.originalMaterial);
+                    }
                 }
                 break;
             }
@@ -481,13 +502,49 @@ export class AssetManager {
         for (const [instance_id, [mesh, _body]] of this.dynamic_bodies) {
             const mesh_category = mesh.name.split("_")[1];
             
-            if (mesh_category === requested_category && mesh.material?.emissiveIntensity > 1) {
+            if (mesh_category === requested_category) {
                 found = true;
                 if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Found mesh to deactivate: ${mesh.name}`);
-                new Tween(mesh.material)
-                    .to({ emissiveIntensity: 0 })
-                    .easing(Easing.Sinusoidal.Out)
-                    .start();
+                
+                const deactivateMesh = (targetMesh) => {
+                    // Only proceed if we have an original material to restore to
+                    if (targetMesh.userData.originalMaterial) {
+                        // Create a new tween for the emission fade out
+                        if (targetMesh.material && targetMesh.material.emissiveIntensity > 0) {
+                            // Clone the current material to avoid affecting other instances
+                            const tweenMaterial = targetMesh.material.clone();
+                            targetMesh.material = tweenMaterial;
+
+                            new Tween(tweenMaterial)
+                                .to({ emissiveIntensity: 0 }, 500) // 500ms duration for smooth transition
+                                .easing(Easing.Quadratic.Out)
+                                .onComplete(() => {
+                                    // Cleanup the tween material
+                                    if (tweenMaterial) tweenMaterial.dispose();
+                                    
+                                    // Restore the original material
+                                    const restoredMaterial = targetMesh.userData.originalMaterial.clone();
+                                    targetMesh.material = restoredMaterial;
+                                    
+                                    if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Restored original material for: ${targetMesh.name}`);
+                                })
+                                .start();
+                        }
+                    } else if (FLAGS.ACTIVATE_LOGS) {
+                        console.warn(`[AssetManager] No original material found for: ${targetMesh.name}`);
+                    }
+                };
+
+                // Handle both GLB models and primitive objects
+                if (mesh.isGroup || mesh.isObject3D) {
+                    mesh.traverse((child) => {
+                        if (child.isMesh && !child.name.startsWith('col_')) {
+                            deactivateMesh(child);
+                        }
+                    });
+                } else if (mesh.isMesh) {
+                    deactivateMesh(mesh);
+                }
                 break;
             }
         }
@@ -507,20 +564,48 @@ export class AssetManager {
         if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Deactivating all objects${type_prefix ? ` with prefix: ${type_prefix}` : ''}`);
         let deactivation_count = 0;
         
+        const deactivateMesh = (targetMesh) => {
+            if (targetMesh.material && 
+                targetMesh.material.emissive && 
+                targetMesh.material.emissiveIntensity > 0) {
+                if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Deactivating emissive mesh: ${targetMesh.name}`);
+                
+                // Clone the current material to avoid affecting other instances
+                const tweenMaterial = targetMesh.material.clone();
+                targetMesh.material = tweenMaterial;
+
+                new Tween(tweenMaterial)
+                    .to({ emissiveIntensity: 0 }, 500)
+                    .easing(Easing.Quadratic.Out)
+                    .onComplete(() => {
+                        // Cleanup the tween material
+                        if (tweenMaterial) tweenMaterial.dispose();
+                        
+                        // Restore the original material if it exists
+                        if (targetMesh.userData.originalMaterial) {
+                            const restoredMaterial = targetMesh.userData.originalMaterial.clone();
+                            targetMesh.material = restoredMaterial;
+                        }
+                    })
+                    .start();
+                deactivation_count++;
+            }
+        };
+
         for (const [instance_id, [mesh, _body]] of this.dynamic_bodies) {
             if (type_prefix && !mesh.name.startsWith(type_prefix)) {
                 continue;
             }
             
-            if (mesh.material && 
-                mesh.material.emissive && 
-                mesh.material.emissiveIntensity > 0) {
-                if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Deactivating emissive mesh: ${mesh.name}`);
-                new Tween(mesh.material)
-                    .to({ emissiveIntensity: 0 })
-                    .easing(Easing.Sinusoidal.Out)
-                    .start();
-                deactivation_count++;
+            // Handle both GLB models and primitive objects
+            if (mesh.isGroup || mesh.isObject3D) {
+                mesh.traverse((child) => {
+                    if (child.isMesh && !child.name.startsWith('col_')) {
+                        deactivateMesh(child);
+                    }
+                });
+            } else if (mesh.isMesh) {
+                deactivateMesh(mesh);
             }
         }
         
