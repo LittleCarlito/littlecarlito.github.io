@@ -2,6 +2,7 @@
 package-lock.json
 **/node_modules/
 **/.cursor/
+dist/
 
 # Make sure development folder is NOT ignored
 !development/
