@@ -95,23 +95,66 @@ export class LabelContainer {
     }
 
     handle_hover(intersected_object) {
+        if (!intersected_object || !intersected_object.rotation) {
+            if (FLAGS.ROTATION_TWEEN_LOGS) {
+                console.log('[RotationTween] Invalid hover object received');
+            }
+            return;
+        }
+
+        if (FLAGS.ROTATION_TWEEN_LOGS) {
+            console.log(`[RotationTween] Hover detected on object: ${intersected_object.name}`);
+            console.log(`[RotationTween] Current rotation: ${JSON.stringify(intersected_object.rotation)}`);
+            console.log(`[RotationTween] Swapping sides status: ${this.swapping_column_sides}`);
+        }
+
+        // Don't process hovers while swapping sides
+        if (this.swapping_column_sides) {
+            if (FLAGS.ROTATION_TWEEN_LOGS) {
+                console.log('[RotationTween] Ignoring hover while swapping sides');
+            }
+            return;
+        }
+
         // Check if tween exists for this object already
         const object_name = intersected_object.name;
         let in_tween = this.in_tween_map.get(object_name);
+        if (FLAGS.ROTATION_TWEEN_LOGS) {
+            console.log(`[RotationTween] Existing tween for ${object_name}:`, in_tween ? 'yes' : 'no');
+            if (in_tween) {
+                console.log(`[RotationTween] Current tween progress:`, in_tween._elapsed / in_tween._duration);
+            }
+        }
+        
         if(in_tween == null) {
             if(this.current_intersected !== intersected_object) {
+                if (FLAGS.ROTATION_TWEEN_LOGS) {
+                    console.log(`[RotationTween] New intersection detected. Previous:`, this.current_intersected ? this.current_intersected.name : 'none');
+                }
+                
                 // Reset previously intersected object if one existed
                 this.reset_previous_intersected();
+                
                 // Set intersected object to current
                 this.current_intersected = intersected_object;
+                
                 // Apply rotation to current
                 let final_rotation = this.is_column_left ? -(FOCUS_ROTATION) : (FOCUS_ROTATION);
+                if (FLAGS.ROTATION_TWEEN_LOGS) {
+                    console.log(`[RotationTween] Starting rotation tween to ${final_rotation} (is_column_left: ${this.is_column_left})`);
+                }
+                
                 // Create rotation tween and set it in the map
                 in_tween = new Tween(this.current_intersected.rotation)
                 .to({ y: final_rotation}, 400)
                 .easing(Easing.Sinusoidal.In)
                 .start()
                 .onComplete(() => {
+                    if (FLAGS.ROTATION_TWEEN_LOGS) {
+                        console.log(`[RotationTween] Tween complete for ${object_name}. Final rotation:`, intersected_object.rotation.y);
+                    }
+                    // Ensure we're at exactly the final rotation
+                    intersected_object.rotation.y = final_rotation;
                     this.in_tween_map.delete(object_name);
                 });
                 this.in_tween_map.set(object_name, in_tween);
@@ -122,12 +165,37 @@ export class LabelContainer {
     /** Resets the previous intersected objects orientation */
     reset_previous_intersected() {
         if(this.current_intersected) {
+            if (FLAGS.ROTATION_TWEEN_LOGS) {
+                console.log(`[RotationTween] Resetting rotation for ${this.current_intersected.name}. Current rotation:`, this.current_intersected.rotation.y);
+            }
+            // Store reference to current object before nulling it
+            const object_to_reset = this.current_intersected;
+            
+            // Remove any existing tweens for this object
+            const existing_tween = this.in_tween_map.get(object_to_reset.name);
+            if (existing_tween) {
+                if (FLAGS.ROTATION_TWEEN_LOGS) {
+                    console.log(`[RotationTween] Stopping existing tween for ${object_to_reset.name} at progress:`, existing_tween._elapsed / existing_tween._duration);
+                }
+                existing_tween.stop();
+                this.in_tween_map.delete(object_to_reset.name);
+            }
+            
             // Reset rotation
             let deselected_rotation = 0;
-            new Tween(this.current_intersected.rotation)
-            .to({ y: deselected_rotation})
+            const reset_tween = new Tween(object_to_reset.rotation)
+            .to({ y: deselected_rotation}, 400)
             .easing(Easing.Elastic.Out)
-            .start();
+            .start()
+            .onComplete(() => {
+                if (FLAGS.ROTATION_TWEEN_LOGS) {
+                    console.log(`[RotationTween] Reset complete for ${object_to_reset.name}. Final rotation:`, object_to_reset.rotation.y);
+                }
+                // Ensure the rotation is exactly 0
+                object_to_reset.rotation.y = 0;
+            });
+            
+            // Clear the current intersected after creating tween
             this.current_intersected = null;
         }
     }
