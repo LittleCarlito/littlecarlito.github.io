@@ -79,6 +79,7 @@ export class AssetManager {
     static instance_counter = 0;
     currently_activated_name = "";  // Add this to track the currently activated object
     emission_states = new Map(); // Track emission states of objects
+    name = "[AssetManager]";
     
     constructor() {
         if (AssetManager.instance) {
@@ -441,9 +442,7 @@ export class AssetManager {
         return has_emissive;
     }
 
-    activate_object(object_name) {
-        if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Attempting to activate: ${object_name}`);
-        
+    activate_object(object_name) {        
         // First check if we think it's active
         if(object_name === this.currently_activated_name) {
             if (this.emission_states.get(object_name) === 'active') {
@@ -457,14 +456,14 @@ export class AssetManager {
                             found_and_verified = true;
                             return;
                         } else {
-                            if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Object ${object_name} claims to be active but isn't emissive - reapplying`);
+                            if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Object ${object_name} claims to be active but isn't emissive - reapplying`);
                             this.emission_states.delete(object_name);
                             break;
                         }
                     }
                 }
                 if (!found_and_verified) {
-                    if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Object ${object_name} not found for verification - resetting state`);
+                    if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Object ${object_name} not found for verification - resetting state`);
                     this.emission_states.delete(object_name);
                 }
             }
@@ -473,7 +472,7 @@ export class AssetManager {
         // Rest of the activation logic remains the same...
         // Deactivate previously activated object if it's different
         if (this.currently_activated_name !== object_name) {
-            if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Deactivating previous: ${this.currently_activated_name}`);
+            if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Deactivating previous: ${this.currently_activated_name}`);
             this.deactivate_object(this.currently_activated_name);
         }
         
@@ -481,7 +480,7 @@ export class AssetManager {
         
         // Extract the category name from the incoming object name
         const requested_category = object_name.split("_")[1];
-        if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Looking for category: ${requested_category}`);
+        if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Looking for category: ${requested_category}`);
         
         let found = false;
         for (const [instance_id, [mesh, _body]] of this.dynamic_bodies) {
@@ -489,14 +488,14 @@ export class AssetManager {
             
             if (mesh_category === requested_category) {
                 found = true;
-                if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Found matching mesh by category: ${mesh_category}`);
+                if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Found matching mesh by category: ${mesh_category}`);
                 
                 const category = Object.values(CATEGORIES).find(cat => 
                     typeof cat !== 'function' && cat.value === requested_category
                 );
                 
                 if (category) {
-                    if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Applying emission material with color: ${category.color}`);
+                    if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Applying emission material with color: ${category.color}`);
                     
                     // Set the emission state to 'applying'
                     this.emission_states.set(object_name, 'applying');
@@ -542,9 +541,9 @@ export class AssetManager {
                                 if (meshesProcessed === totalMeshes) {
                                     if (this.is_mesh_emissive(mesh)) {
                                         this.emission_states.set(object_name, 'active');
-                                        if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Object ${object_name} is now fully activated and verified`);
+                                        if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Object ${object_name} is now fully activated and verified`);
                                     } else {
-                                        if (FLAGS.ACTIVATE_LOGS) console.warn(`[AssetManager] Failed to apply emission to ${object_name}`);
+                                        if (FLAGS.ACTIVATE_LOGS) console.warn(`[${this.name} Failed to apply emission to ${object_name}`);
                                         this.emission_states.delete(object_name);
                                     }
                                 }
@@ -561,9 +560,9 @@ export class AssetManager {
                         // Verify emission for primitive mesh
                         if (this.is_mesh_emissive(mesh)) {
                             this.emission_states.set(object_name, 'active');
-                            if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Object ${object_name} is now fully activated and verified`);
+                            if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Object ${object_name} is now fully activated and verified`);
                         } else {
-                            if (FLAGS.ACTIVATE_LOGS) console.warn(`[AssetManager] Failed to apply emission to ${object_name}`);
+                            if (FLAGS.ACTIVATE_LOGS) console.warn(`${this.name} Failed to apply emission to ${object_name}`);
                             this.emission_states.delete(object_name);
                         }
                     }
@@ -572,7 +571,7 @@ export class AssetManager {
             }
         }
         if (!found && FLAGS.ACTIVATE_LOGS) {
-            console.warn(`[AssetManager] No mesh found for category: ${requested_category}`);
+            console.warn(`${this.name} No mesh found for category: ${requested_category}`);
             this.emission_states.delete(object_name);
         }
     }
@@ -592,7 +591,7 @@ export class AssetManager {
             
             if (mesh_category === requested_category) {
                 found = true;
-                if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Found mesh to deactivate: ${mesh.name}`);
+                if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Found mesh to deactivate: ${mesh.name}`);
                 
                 // Set deactivation state
                 this.emission_states.set(object_name, 'deactivating');
@@ -632,15 +631,15 @@ export class AssetManager {
                                     meshesProcessed++;
                                     if (meshesProcessed === totalMeshes) {
                                         this.emission_states.delete(object_name);
-                                        if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Object ${object_name} is now fully deactivated`);
+                                        if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Object ${object_name} is now fully deactivated`);
                                     }
                                     
-                                    if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Restored original material for: ${targetMesh.name}`);
+                                    if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Restored original material for: ${targetMesh.name}`);
                                 })
                                 .start();
                         }
                     } else if (FLAGS.ACTIVATE_LOGS) {
-                        console.warn(`[AssetManager] No original material found for: ${targetMesh.name}`);
+                        console.warn(`${this.name} No original material found for: ${targetMesh.name}`);
                         meshesProcessed++;
                         if (meshesProcessed === totalMeshes) {
                             this.emission_states.delete(object_name);
@@ -662,7 +661,7 @@ export class AssetManager {
             }
         }
         if (!found && FLAGS.ACTIVATE_LOGS) {
-            console.warn(`[AssetManager] No active mesh found for category: ${requested_category}`);
+            console.warn(`${this.name} No active mesh found for category: ${requested_category}`);
             this.emission_states.delete(object_name);
         }
     }
@@ -675,14 +674,14 @@ export class AssetManager {
         // Only proceed if we have an active object
         if (!this.currently_activated_name) return;
         
-        if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Deactivating all objects${type_prefix ? ` with prefix: ${type_prefix}` : ''}`);
+        if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Deactivating all objects${type_prefix ? ` with prefix: ${type_prefix}` : ''}`);
         let deactivation_count = 0;
         
         const deactivateMesh = (targetMesh) => {
             if (targetMesh.material && 
                 targetMesh.material.emissive && 
                 targetMesh.material.emissiveIntensity > 0) {
-                if (FLAGS.ACTIVATE_LOGS) console.log(`[AssetManager] Deactivating emissive mesh: ${targetMesh.name}`);
+                if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Deactivating emissive mesh: ${targetMesh.name}`);
                 
                 // Clone the current material to avoid affecting other instances
                 const tweenMaterial = targetMesh.material.clone();
