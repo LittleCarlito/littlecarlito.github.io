@@ -126,6 +126,10 @@ export class ControlMenu {
             y: this.camera.position.y + MENU_CONFIG.POSITION.OFFSET.Y,
             z: this.camera.position.z - MENU_CONFIG.POSITION.OFFSET.Z
         };
+        return this.initialize(primary_container, incoming_speed);
+    }
+
+    async initialize(primary_container, incoming_speed) {
         // Top beam creation
         this.top_beam_geometry = new THREE.BoxGeometry(
             MENU_CONFIG.BEAM.DIMENSIONS.WIDTH, 
@@ -160,106 +164,124 @@ export class ControlMenu {
             .setRestitution(MENU_CONFIG.BEAM.PHYSICS.RESTITUTION);
         this.world.createCollider(this.top_beam_shape, this.top_beam_body);
         primary_container.dynamic_bodies.push([this.top_beam_mesh, this.top_beam_body]);
-        // Sign creation
-        this.sign_image = new Image();
-        this.sign_image.onload = () => {
-            // Create canvas and context
-            this.sign_canvas = document.createElement('canvas');
-            this.sign_canvas.width = this.sign_image.width;
-            this.sign_canvas.height = this.sign_image.height;
-            this.sign_context = this.sign_canvas.getContext('2d');
-            // Draw SVG to canvas
-            this.sign_context.drawImage(this.sign_image, 0, 0);
-            // Create texture from canvas
-            this.sign_texture = new THREE.CanvasTexture(this.sign_canvas);
-            // Create material with texture
-            this.sign_material = new THREE.MeshStandardMaterial({
-                map: this.sign_texture,
-                side: THREE.DoubleSide
-            });
-            // Create test object
-            this.sign_geometry = new THREE.BoxGeometry(
-                MENU_CONFIG.SIGN.DIMENSIONS.WIDTH, 
-                MENU_CONFIG.SIGN.DIMENSIONS.HEIGHT, 
-                MENU_CONFIG.SIGN.DIMENSIONS.DEPTH
-            );
-            this.sign_mesh = new THREE.Mesh(this.sign_geometry, this.sign_material);
-            this.sign_mesh.castShadow = true;
-            this.sign_mesh.name = `${TYPES.INTERACTABLE}${NAMES.PRIMARY}`;
-            this.parent.add(this.sign_mesh);
-            // Create test physics object with initial rotation
-            const initialRotation = new THREE.Quaternion().setFromAxisAngle(
-                new THREE.Vector3(1, 0, 0),
-                -Math.PI/2  // Start at 90 degrees down
-            );
-            this.sign_body = this.world.createRigidBody(
-                RAPIER.RigidBodyDesc
-                .dynamic()
-                .setTranslation(
-                    this.assembly_position.x,
-                    this.top_beam_mesh.position.y - (MENU_CONFIG.SPACING + MENU_CONFIG.SIGN.DIMENSIONS.HEIGHT/2),
-                    this.top_beam_mesh.position.z
+
+        // Create and load the sign asynchronously
+        await new Promise((resolve) => {
+            this.sign_image = new Image();
+            this.sign_image.onload = () => {
+                // Create canvas and context
+                this.sign_canvas = document.createElement('canvas');
+                this.sign_canvas.width = this.sign_image.width;
+                this.sign_canvas.height = this.sign_image.height;
+                this.sign_context = this.sign_canvas.getContext('2d');
+                // Draw SVG to canvas
+                this.sign_context.drawImage(this.sign_image, 0, 0);
+                // Create texture from canvas
+                this.sign_texture = new THREE.CanvasTexture(this.sign_canvas);
+                // Create material with texture
+                this.sign_material = new THREE.MeshStandardMaterial({
+                    map: this.sign_texture,
+                    side: THREE.DoubleSide
+                });
+                // Create test object
+                this.sign_geometry = new THREE.BoxGeometry(
+                    MENU_CONFIG.SIGN.DIMENSIONS.WIDTH, 
+                    MENU_CONFIG.SIGN.DIMENSIONS.HEIGHT, 
+                    MENU_CONFIG.SIGN.DIMENSIONS.DEPTH
+                );
+                this.sign_mesh = new THREE.Mesh(this.sign_geometry, this.sign_material);
+                this.sign_mesh.castShadow = true;
+                this.sign_mesh.name = `${TYPES.INTERACTABLE}${NAMES.PRIMARY}`;
+                this.parent.add(this.sign_mesh);
+                // Create test physics object with initial rotation
+                const initialRotation = new THREE.Quaternion().setFromAxisAngle(
+                    new THREE.Vector3(1, 0, 0),
+                    -Math.PI/2  // Start at 90 degrees down
+                );
+                this.sign_body = this.world.createRigidBody(
+                    RAPIER.RigidBodyDesc
+                    .dynamic()
+                    .setTranslation(
+                        this.assembly_position.x,
+                        this.top_beam_mesh.position.y - (MENU_CONFIG.SPACING + MENU_CONFIG.SIGN.DIMENSIONS.HEIGHT/2),
+                        this.top_beam_mesh.position.z
+                    )
+                    .setRotation(initialRotation)
+                    .setAngvel({ x: 0, y: 0, z: 0 })
+                    .setLinearDamping(MENU_CONFIG.SIGN.PHYSICS.LINEAR_DAMPING)
+                    .setAngularDamping(2.0)
+                    .setCcdEnabled(MENU_CONFIG.SIGN.PHYSICS.USE_CCD)
+                    .setCanSleep(false)
+                );
+                this.sign_shape = RAPIER.ColliderDesc.cuboid(
+                    MENU_CONFIG.SIGN.DIMENSIONS.WIDTH/2, 
+                    MENU_CONFIG.SIGN.DIMENSIONS.HEIGHT/2, 
+                    MENU_CONFIG.SIGN.DIMENSIONS.DEPTH/2
                 )
-                .setRotation(initialRotation)
-                .setAngvel({ x: 0, y: 0, z: 0 })  // Set initial angular velocity to 0
-                .setLinearDamping(MENU_CONFIG.SIGN.PHYSICS.LINEAR_DAMPING)
-                .setAngularDamping(2.0)  // Increased from 0.9
-                .setCcdEnabled(MENU_CONFIG.SIGN.PHYSICS.USE_CCD)
-                .setCanSleep(false)
-            );
-            this.sign_shape = RAPIER.ColliderDesc.cuboid(
-                MENU_CONFIG.SIGN.DIMENSIONS.WIDTH/2, 
-                MENU_CONFIG.SIGN.DIMENSIONS.HEIGHT/2, 
-                MENU_CONFIG.SIGN.DIMENSIONS.DEPTH/2
-            )
-                .setMass(MENU_CONFIG.SIGN.PHYSICS.MASS)
-                .setRestitution(MENU_CONFIG.SIGN.PHYSICS.RESTITUTION);
-            this.world.createCollider(this.sign_shape, this.sign_body);
-            // Create revolute joint
-            const sign_joint = RAPIER.JointData.revolute(
-                JOINT_ANCHORS.BEAM.BOTTOM,
-                {
-                    x: JOINT_ANCHORS.SIGN.TOP.x,
-                    y: JOINT_ANCHORS.SIGN.TOP.y + MENU_CONFIG.SPACING,
-                    z: JOINT_ANCHORS.SIGN.TOP.z
-                },
-                { x: 1, y: 0, z: 0 }
-            );
-            // Set limits for straight down
-            sign_joint.limits = [0, 0];
-            // Create joint with correct method
-            this.sign_joint = this.world.createImpulseJoint(sign_joint, this.top_beam_body, this.sign_body);
-            // Configure the motor after joint creation
-            if (this.sign_joint) {
-                this.sign_joint.configureMotorPosition(0, 10000.0, 1000.0);
-            }
-            if(FLAGS.PHYSICS_LOGS) {
-                console.log("Joint created with motor configuration");
-            }
-            primary_container.dynamic_bodies.push([this.sign_mesh, this.sign_body]);
-        };
-        this.sign_image.src = IMAGE_PATH;
+                    .setMass(MENU_CONFIG.SIGN.PHYSICS.MASS)
+                    .setRestitution(MENU_CONFIG.SIGN.PHYSICS.RESTITUTION);
+                this.world.createCollider(this.sign_shape, this.sign_body);
+                // Create revolute joint
+                const sign_joint = RAPIER.JointData.revolute(
+                    JOINT_ANCHORS.BEAM.BOTTOM,
+                    {
+                        x: JOINT_ANCHORS.SIGN.TOP.x,
+                        y: JOINT_ANCHORS.SIGN.TOP.y + MENU_CONFIG.SPACING,
+                        z: JOINT_ANCHORS.SIGN.TOP.z
+                    },
+                    { x: 1, y: 0, z: 0 }
+                );
+                // Set limits for straight down
+                sign_joint.limits = [0, 0];
+                // Create joint with correct method
+                this.sign_joint = this.world.createImpulseJoint(sign_joint, this.top_beam_body, this.sign_body);
+                // Configure the motor after joint creation
+                if (this.sign_joint) {
+                    this.sign_joint.configureMotorPosition(0, 10000.0, 1000.0);
+                }
+                if(FLAGS.PHYSICS_LOGS) {
+                    console.log("Joint created with motor configuration");
+                }
+                primary_container.dynamic_bodies.push([this.sign_mesh, this.sign_body]);
+                resolve();
+            };
+            this.sign_image.src = IMAGE_PATH;
+        });
+
         this.reached_target = false;
         this.last_log_time = 0;
         this.log_interval = 5000;
+
+        return this;
     }
 
     async break_chains() {
-        if(!this.chains_broken) {
-            // Set gravity on sign body
-            this.sign_body.setGravityScale(1);
-            
-            // Remove the joint
-            if (this.sign_joint) {
-                this.world.removeImpulseJoint(this.sign_joint);
-                this.sign_joint = null;
+        if (!this.chains_broken) {
+            // Remove joint with null check
+            if (this.sign_joint && this.world.getImpulseJoint(this.sign_joint.handle)) {
+                try {
+                    this.world.removeImpulseJoint(this.sign_joint);
+                } catch (e) {
+                    console.warn('Failed to remove joint:', e);
+                }
             }
-            // Remove spotlight using the despawn method
+            this.sign_joint = null;
+
+            // Remove spotlight if it exists
             if (this.menu_spotlight) {
                 await this.lighting.despawn_spotlight(this.menu_spotlight);
                 this.menu_spotlight = null;
             }
+
+            // Set gravity scale for sign body
+            if (this.sign_body) {
+                this.sign_body.setGravityScale(1.0);
+            }
+
             this.chains_broken = true;
+            if (FLAGS.PHYSICS_LOGS) {
+                console.log("Control menu chains broken");
+            }
         }
     }
 

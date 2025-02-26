@@ -15,6 +15,7 @@ export class BackgroundContainer {
     asset_manifest = new Set();
     loading_complete = false;
     loading_promise;
+    is_spawning_secondary = false;  // Add state tracking for spawn in progress
 
     constructor(incoming_parent, incoming_camera, incoming_world) {
         this.parent = incoming_parent;
@@ -107,25 +108,33 @@ export class BackgroundContainer {
     }
 
     update(grabbed_object, viewable_container) {
-        // Logic triggering spawning
-        let trigger_secondary = false;
-        if((grabbed_object != null  || viewable_container.is_secondary_triggered()) && !trigger_secondary) {
-            trigger_secondary = true;
-        }
         // Deal with primary instructions
         if(viewable_container.is_primary_triggered() && !this.is_primary_spawned()) {
             this.spawn_primary_instructions().catch(err => {
                 console.error("Error spawning primary instructions:", err);
             });
         } else if(!viewable_container.is_overlay_hidden() && this.is_primary_instructions_intact()) {
-            this.break_primary_chains();
-        // Deal with secondary instructions
-        } else if(trigger_secondary && !this.is_secondary_spawned()) {
-            this.break_primary_chains();
-            this.spawn_secondary_instructions();
+            this.break_primary_chains().catch(err => {
+                console.error("Error breaking primary chains:", err);
+            });
+        // Deal with secondary instructions - only if not already spawning
+        } else if(!this.is_spawning_secondary && !this.is_secondary_spawned() && 
+                 (grabbed_object != null || viewable_container.is_secondary_triggered())) {
+            this.is_spawning_secondary = true;  // Set flag before starting spawn
+            this.break_primary_chains()
+                .then(() => this.spawn_secondary_instructions())
+                .catch(err => {
+                    console.error("Error in secondary menu sequence:", err);
+                })
+                .finally(() => {
+                    this.is_spawning_secondary = false;  // Clear flag when done
+                });
         } else if(this.is_secondary_spawned() && !viewable_container.is_overlay_hidden()) {
-            this.break_secondary_chains();
+            this.break_secondary_chains().catch(err => {
+                console.error("Error breaking secondary chains:", err);
+            });
         }
+
         // Handle logic for what already exists
         if(this.primary_instruction_sign) {
             this.primary_instruction_sign.update();
@@ -150,77 +159,66 @@ export class BackgroundContainer {
     }
 
     async spawn_primary_instructions() {
-        // Wrap the menu creation in an async IIFE to prevent blocking
-        (async () => {
-            this.primary_instruction_sign = new ControlMenu(this.object_container, this.camera, this.world, this);
-            
-            // Wait for the sign to be fully initialized
-            await new Promise(resolve => {
-                const checkSignReady = () => {
-                    if (this.primary_instruction_sign.sign_mesh && this.primary_instruction_sign.sign_body) {
-                        resolve();
-                    } else {
-                        setTimeout(checkSignReady, 100);
-                    }
-                };
-                checkSignReady();
-            });
+        try {
+            // Create and await the ControlMenu initialization
+            this.primary_instruction_sign = await new ControlMenu(
+                this.object_container, 
+                this.camera, 
+                this.world, 
+                this
+            );
+
             const asset_loader = AssetManager.get_instance();
-            // Now we know the sign_mesh and sign_body exist
-            this.primary_instruction_sign.sign_mesh.name = `${TYPES.INTERACTABLE}primary`;
-            this.primary_instruction_sign.sign_mesh.traverse((child) => {
-                if (child.isMesh) {
-                    child.name = `${TYPES.INTERACTABLE}primary`;
-                }
-            });
-            asset_loader.add_object(this.primary_instruction_sign.sign_mesh, this.primary_instruction_sign.sign_body);
-            if (FLAGS.PHYSICS_LOGS) {
-                console.log("Primary sign added to asset manager:", {
-                    meshName: this.primary_instruction_sign.sign_mesh.name,
-                    hasBody: !!this.primary_instruction_sign.sign_body,
-                    bodyType: this.primary_instruction_sign.sign_body.bodyType()
+            
+            // Now we know the sign is fully initialized
+            if (this.primary_instruction_sign.sign_mesh && this.primary_instruction_sign.sign_body) {
+                this.primary_instruction_sign.sign_mesh.name = `${TYPES.INTERACTABLE}primary`;
+                this.primary_instruction_sign.sign_mesh.traverse((child) => {
+                    if (child.isMesh) {
+                        child.name = `${TYPES.INTERACTABLE}primary`;
+                    }
                 });
+                asset_loader.add_object(
+                    this.primary_instruction_sign.sign_mesh, 
+                    this.primary_instruction_sign.sign_body
+                );
+                if (FLAGS.PHYSICS_LOGS) {
+                    console.log("Primary sign added to asset manager:", {
+                        meshName: this.primary_instruction_sign.sign_mesh.name,
+                        hasBody: !!this.primary_instruction_sign.sign_body,
+                        bodyType: this.primary_instruction_sign.sign_body.bodyType()
+                    });
+                }
             }
-        })().catch(err => {
+        } catch (err) {
             console.error("Error spawning primary instructions:", err);
-        });
+            this.primary_instruction_sign = null;
+        }
     }
 
     async spawn_secondary_instructions() {
-        if(FLAGS.PHYSICS_LOGS) {
-            console.log('Spawning Scroll Menu:');
-            console.log(`Camera Position: (${this.camera.position.x.toFixed(2)}, ${this.camera.position.y.toFixed(2)}, ${this.camera.position.z.toFixed(2)})`);
-        }
-        // Calculate spawn position in front of camera
-        const forward = new THREE.Vector3(0, 0, -5);  // 5 units in front
-        forward.applyQuaternion(this.camera.quaternion);
-        const spawn_position = {
-            x: this.camera.position.x + forward.x,
-            y: this.camera.position.y + forward.y + 4, // Additional Y offset
-            z: this.camera.position.z + forward.z
-        };
-        
-        // Wrap the menu creation in an async IIFE to prevent blocking
-        (async () => {
-            this.secondary_instruction_sign = new ScrollMenu(
+        try {
+            if(FLAGS.PHYSICS_LOGS) {
+                console.log('Spawning Scroll Menu:');
+                console.log(`Camera Position: (${this.camera.position.x.toFixed(2)}, ${this.camera.position.y.toFixed(2)}, ${this.camera.position.z.toFixed(2)})`);
+            }
+            // Calculate spawn position in front of camera
+            const forward = new THREE.Vector3(0, 0, -5);  // 5 units in front
+            forward.applyQuaternion(this.camera.quaternion);
+            const spawn_position = {
+                x: this.camera.position.x + forward.x,
+                y: this.camera.position.y + forward.y + 4, // Additional Y offset
+                z: this.camera.position.z + forward.z
+            };
+            
+            // Create and await the ScrollMenu initialization
+            this.secondary_instruction_sign = await new ScrollMenu(
                 this.object_container, 
                 this.camera, 
                 this.world, 
                 this,
                 spawn_position
             );
-
-            // Wait for the sign to be fully initialized
-            await new Promise(resolve => {
-                const checkSignReady = () => {
-                    if (this.secondary_instruction_sign.sign_mesh && this.secondary_instruction_sign.sign_body) {
-                        resolve();
-                    } else {
-                        setTimeout(checkSignReady, 100);
-                    }
-                };
-                checkSignReady();
-            });
 
             const asset_loader = AssetManager.get_instance();
             
@@ -241,15 +239,16 @@ export class BackgroundContainer {
                     bodyType: this.secondary_instruction_sign.sign_body.bodyType()
                 });
             }
-        })().catch(err => {
+        } catch (err) {
             console.error("Error spawning secondary instructions:", err);
-        });
+            this.secondary_instruction_sign = null;
+        }
     }
 
-    break_primary_chains() {
-        if(this.is_primary_spawned) {
+    async break_primary_chains() {
+        if(this.is_primary_spawned()) {
             if(!this.primary_instruction_sign.chains_broken) {
-                this.primary_instruction_sign.break_chains();
+                await this.primary_instruction_sign.break_chains();
             } else {
                 console.log("Primary instruction chains are already broken");
             }
@@ -258,10 +257,10 @@ export class BackgroundContainer {
         }
     }
 
-    break_secondary_chains() {
-        if(this.is_secondary_spawned) {
+    async break_secondary_chains() {
+        if(this.is_secondary_spawned()) {
             if(!this.secondary_instruction_sign.chains_broken) {
-                this.secondary_instruction_sign.break_chains();
+                await this.secondary_instruction_sign.break_chains();
             }
         } else {
             console.warn("Secondary instruction chains cannot be broken as it has not spawned...");
