@@ -8,8 +8,13 @@ export default defineConfig(({ command }) => ({
     rollupOptions: {
       output: {
         manualChunks: {
-          three: ['three'],
-          rapier: ['@dimforge/rapier3d-compat']
+          'vendor': ['three/examples/jsm/libs/tween.module.js'],
+          'three-core': ['three'],
+          'three-addons': [
+            'three/examples/jsm/controls/OrbitControls',
+            'three/examples/jsm/Addons.js'
+          ],
+          'physics': ['@dimforge/rapier3d-compat']
         },
         external: [
           /^development\/.*/  // Excludes anything in the development folder
@@ -17,5 +22,6 @@ export default defineConfig(({ command }) => ({
       }
     },
     sourcemap: true,
+    chunkSizeWarningLimit: 1000, // Increase warning limit to 1000kb
   }
 })) 
