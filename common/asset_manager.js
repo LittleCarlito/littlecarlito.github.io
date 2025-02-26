@@ -3,6 +3,20 @@ import { Easing, Tween, RAPIER, THREE, NAMES } from ".";
 import { CATEGORIES, TYPES } from "../viewport/overlay/overlay_common";
 import { FLAGS } from "./flags";
 
+/**
+ * Generates triangle indices for a geometry that doesn't have them
+ * @param {THREE.BufferGeometry} geometry - The geometry to generate indices for
+ * @returns {Uint32Array} The generated indices
+ */
+function generateIndices(geometry) {
+    const vertexCount = geometry.attributes.position.count;
+    const indices = new Uint32Array(vertexCount);
+    for (let i = 0; i < vertexCount; i++) {
+        indices[i] = i;
+    }
+    return indices;
+}
+
 // Define all possible asset types that can be loaded and spawned
 export const ASSET_TYPE = {
     AXE: 'AXE',
@@ -46,7 +60,7 @@ export const ASSET_CONFIGS = {
         name: "room",
         scale: 5,
         mass: 1,
-        restituation: .2
+        restitution: .2
     },
     // Load in book
     [ASSET_TYPE.BOOK]: {
@@ -54,7 +68,7 @@ export const ASSET_CONFIGS = {
         name: "book",
         scale: 5,
         mass: 1,
-        restituation: 1
+        restitution: 1
     },
     // Load in chair
     [ASSET_TYPE.CHAIR]: {
@@ -62,21 +76,21 @@ export const ASSET_CONFIGS = {
         name: "chair",
         scale: 5,
         mass: 1.2,
-        restituation: 1
+        restitution: 1
     },
     [ASSET_TYPE.TABLET]: {
         PATH: "assets/tablet.glb",
         name: "tablet",
         scale: 5,
         mass: 1,
-        restituation: 1
+        restitution: 1
     },
     [ASSET_TYPE.DESKPHOTO]: {
         PATH: "assets/deskphoto.glb",
         name: "desk_photo",
         scale: 5,
         mass: 1,
-        restituation: 1
+        restitution: 1
     },
     [ASSET_TYPE.CUBE]: {
         // No PATH needed as it's a primitive
@@ -231,7 +245,7 @@ export class AssetManager {
                         scaledVertices[i] = originalVertices[i] * asset_config.scale;
                     }
                     
-                    const indices = geometry.index ? geometry.index.array : undefined;
+                    const indices = geometry.index ? geometry.index.array : generateIndices(geometry);
                     
                     if(FLAGS.ASSET_LOGS) console.log(`Creating collider component for ${collision_mesh.name}:`, {
                         vertexCount: scaledVertices.length / 3,
@@ -240,16 +254,11 @@ export class AssetManager {
                         position: collision_mesh.position
                     });
 
-                    let collider;
-                    if (indices) {
-                        collider = RAPIER.ColliderDesc.trimesh(scaledVertices, indices)
-                            .setMass(asset_config.mass)
-                            .setRestitution(asset_config.restitution);
-                    } else {
-                        collider = RAPIER.ColliderDesc.convexHull(scaledVertices)
-                            .setMass(asset_config.mass)
-                            .setRestitution(asset_config.restitution);
-                    }
+                    // Always use trimesh for static collision meshes
+                    const collider = RAPIER.ColliderDesc.trimesh(scaledVertices, indices)
+                        .setMass(asset_config.mass)
+                        .setRestitution(asset_config.restitution)
+                        .setFriction(1.0); // Add friction to help prevent sliding
 
                     // Get the collision mesh's position relative to the model
                     const meshPosition = new THREE.Vector3();
@@ -283,7 +292,8 @@ export class AssetManager {
 
                     const collider = RAPIER.ColliderDesc.cuboid(half_width, half_height, half_depth)
                         .setMass(asset_config.mass)
-                        .setRestitution(asset_config.restitution);
+                        .setRestitution(asset_config.restitution)
+                        .setFriction(1.0); // Add friction to help prevent sliding
 
                     const created_collider = world.createCollider(collider, body);
                     if(FLAGS.ASSET_LOGS) console.log(`Created bounding box collider:`, created_collider);
