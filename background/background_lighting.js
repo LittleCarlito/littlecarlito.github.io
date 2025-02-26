@@ -1,9 +1,13 @@
 import { THREE } from "../common";
 
-export const SPOTLIGHT_HEIGHT = 7;
-export const SPOTLIGHT_COLOR = 0xfff9d8;
-export const HEMISPHERE_SKY_COLOR = 0xffffff;
-export const HEMISPHERE_GROUND_COLOR = 0x663c1f;
+export const SPOTLIGHT_HEIGHT = 50;
+export const SPOTLIGHT_DISTANCE = 0; // Light position on z-axis
+export const SPOTLIGHT_OFFSET = 0;
+export const SPOTLIGHT_COLOR = 0xffffff;
+export const SPOTLIGHT_INTENSITY = 5;
+export const SPOTLIGHT_ANGLE = Math.PI / 16; // Even narrower angle
+export const SPOTLIGHT_PENUMBRA = 0.05; // Sharper edge
+export const SPOTLIGHT_SHARPNESS = 0.5;
 
 export class BackgroundLighting {
 
@@ -11,22 +15,32 @@ export class BackgroundLighting {
         this.parent = incoming_parent;
         this.lighting_container = new THREE.Object3D();
         this.parent.add(this.lighting_container);
-        // Spotlights
-        const spotlight_one = new THREE.SpotLight(SPOTLIGHT_COLOR, 150);
-        spotlight_one.position.set(2.5, SPOTLIGHT_HEIGHT, -5);
-        spotlight_one.angle = -Math.PI / 2;
-        spotlight_one.penumbra = 0.5;
+        // Spotlight one
+        const spotlight_one = new THREE.SpotLight(
+            SPOTLIGHT_COLOR, 
+            SPOTLIGHT_INTENSITY, 
+            SPOTLIGHT_DISTANCE, 
+            SPOTLIGHT_ANGLE, 
+            SPOTLIGHT_PENUMBRA, 
+            SPOTLIGHT_SHARPNESS
+        );
+        spotlight_one.position.set(SPOTLIGHT_OFFSET, SPOTLIGHT_HEIGHT, SPOTLIGHT_DISTANCE);
         spotlight_one.castShadow = true;
-        spotlight_one.shadow.blurSamples = 10;
-        spotlight_one.shadow.radius = 5;
+        // Increase blur and radius for softer shadows
+        spotlight_one.shadow.blurSamples = 32;
+        spotlight_one.shadow.radius = 4;
+        spotlight_one.shadow.mapSize.width = 2048;
+        spotlight_one.shadow.mapSize.height = 2048;
+        // Adjust shadow camera parameters
+        spotlight_one.shadow.camera.near = 10;
+        spotlight_one.shadow.camera.far = 100;
+        spotlight_one.shadow.camera.fov = 30;
+        // Increase bias to prevent self-shadowing artifacts
+        spotlight_one.shadow.bias = -0.002;
+        spotlight_one.shadow.normalBias = 0.02;  // Add normal bias to help with surface artifacts
+        // Position the target directly below the light
+        spotlight_one.target.position.set(SPOTLIGHT_OFFSET, 0, SPOTLIGHT_DISTANCE);
+        this.lighting_container.add(spotlight_one.target);
         this.lighting_container.add(spotlight_one);
-        const spotlight_two = spotlight_one.clone();
-        spotlight_two.position.set(-2.5, SPOTLIGHT_HEIGHT, -1);
-        this.lighting_container.add(spotlight_two);
-        // Hemisphere light
-        const hemisphere_light = new THREE.HemisphereLight(HEMISPHERE_SKY_COLOR, HEMISPHERE_GROUND_COLOR, 2);
-        hemisphere_light.position.z = 50;
-        hemisphere_light.position.y = 500;
-        this.lighting_container.add(hemisphere_light);
     }
 }
