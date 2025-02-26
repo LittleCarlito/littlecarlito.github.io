@@ -1,5 +1,6 @@
 import { TYPES } from '../../viewport/overlay/overlay_common';
 import { FLAGS, NAMES, RAPIER, THREE } from '../../common';
+import { BackgroundLighting } from '../background_lighting';
 
 export const IMAGE_PATH = 'images/MouseControlMenu.svg';
 
@@ -111,11 +112,14 @@ export class ControlMenu {
     reached_target = false;
     last_log_time = 0;
     log_interval = 500;
+    menu_spotlight = null;
+    lighting = null;
 
     constructor(incoming_parent, incoming_camera, incoming_world, primary_container, incoming_speed = DEFAULT_SPEED) {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.world = incoming_world;
+        this.lighting = new BackgroundLighting(this.parent);
         // Calculate assembly position based on camera using MENU_CONFIG
         this.assembly_position = {
             x: this.camera.position.x + MENU_CONFIG.POSITION.OFFSET.X,
@@ -247,17 +251,23 @@ export class ControlMenu {
         this.log_interval = 5000;
     }
 
-    break_chains() {
+    async break_chains() {
         if(!this.chains_broken) {
             this.sign_body.setGravityScale(1);
             this.world.removeImpulseJoint(this.sign_joint);
             this.sign_joint = null;
+            
+            // Remove spotlight using the despawn method
+            if (this.menu_spotlight) {
+                await this.lighting.despawn_spotlight(this.menu_spotlight);
+                this.menu_spotlight = null;
+            }
+            
             this.chains_broken = true;
         }
     }
 
-    // Add new update method
-    update() {
+    async update() {
         // Skip if sign_joint isn't created yet or has been removed
         if (!this.sign_joint || this.chains_broken) return;
 
@@ -296,6 +306,34 @@ export class ControlMenu {
                 console.log('=== Attempting to Stop Beam ===');
             }
             this.reached_target = true;
+            
+            // Create spotlight when target is reached
+            if (!this.menu_spotlight && this.sign_mesh) {
+                // Calculate spotlight position 15 units behind camera
+                const spotlightPosition = new THREE.Vector3();
+                spotlightPosition.copy(this.camera.position);
+                const backVector = new THREE.Vector3(0, 0, 15);
+                backVector.applyQuaternion(this.camera.quaternion);
+                spotlightPosition.add(backVector);
+
+                // Calculate direction to sign
+                const targetPosition = new THREE.Vector3();
+                targetPosition.copy(this.sign_mesh.position);
+
+                // Calculate angles for spotlight
+                const direction = new THREE.Vector3().subVectors(targetPosition, spotlightPosition);
+                const rotationY = Math.atan2(direction.x, direction.z);
+                const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
+
+                // Create spotlight using the stored lighting instance
+                this.menu_spotlight = await this.lighting.createSpotlight(
+                    spotlightPosition,
+                    rotationX,
+                    rotationY,
+                    5, // circle radius
+                    0  // unlimited distance
+                );
+            }
             
             // Get current position before changing anything
             const currentPos = this.top_beam_body.translation();

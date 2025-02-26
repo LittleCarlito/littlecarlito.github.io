@@ -2,6 +2,7 @@ export const FLAGS = {
     // Functionality flags
     CONSTRUCTION_GREETING: true,
     LAYER: true,
+    VISUAL_DEBUG: false,
     // Log flags
     SELECT_LOGS: false,
     TWEEN_LOGS: false,
