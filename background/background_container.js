@@ -142,7 +142,11 @@ export class BackgroundContainer {
         if(this.secondary_instruction_sign) {
             this.secondary_instruction_sign.update();
         }
-        this.dynamic_bodies.forEach(([mesh, body]) => {
+        this.dynamic_bodies.forEach(entry => {
+            // Handle both array format [mesh, body] and object format {mesh, body}
+            const mesh = Array.isArray(entry) ? entry[0] : entry.mesh;
+            const body = Array.isArray(entry) ? entry[1] : entry.body;
+            
             if(body != null) {
                 const position = body.translation();
                 mesh.position.set(position.x, position.y, position.z);
