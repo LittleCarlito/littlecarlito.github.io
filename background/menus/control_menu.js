@@ -253,9 +253,14 @@ export class ControlMenu {
 
     async break_chains() {
         if(!this.chains_broken) {
+            // Set gravity on sign body
             this.sign_body.setGravityScale(1);
-            this.world.removeImpulseJoint(this.sign_joint);
-            this.sign_joint = null;
+            
+            // Remove the joint
+            if (this.sign_joint) {
+                this.world.removeImpulseJoint(this.sign_joint);
+                this.sign_joint = null;
+            }
             
             // Remove spotlight using the despawn method
             if (this.menu_spotlight) {
