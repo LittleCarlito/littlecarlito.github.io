@@ -1,6 +1,7 @@
 import { TYPES } from '../../viewport/overlay/overlay_common';
 import { FLAGS, NAMES, RAPIER, THREE } from '../../common';
 import { AssetManager } from '../../common/asset_manager';
+import { BackgroundLighting } from '../background_lighting';
 
 export class ScrollMenu {
     parent;
@@ -49,12 +50,15 @@ export class ScrollMenu {
     chains_broken = false;
     last_log_time = 0;
     log_interval = 500;
+    menu_spotlight = null;
+    lighting = null;
 
     constructor(incoming_parent, incoming_camera, incoming_world, incoming_container, spawn_position) {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.world = incoming_world;
         this.dynamic_bodies = incoming_container.dynamic_bodies;
+        this.lighting = new BackgroundLighting(this.parent);
 
         // Use spawn position
         this.CHAIN_CONFIG.POSITION.X = spawn_position.x;
@@ -227,6 +231,12 @@ export class ScrollMenu {
             });
             this.chain_joints = [];
 
+            // Remove spotlight if it exists
+            if (this.menu_spotlight) {
+                this.lighting.despawn_spotlight(this.menu_spotlight);
+                this.menu_spotlight = null;
+            }
+
             // Find and update all chain segments and sign in dynamic_bodies
             if (this.parent.children) {
                 // Handle chain segments
@@ -261,6 +271,41 @@ export class ScrollMenu {
 
     update() {
         const currentTime = performance.now();
+        
+        // Create spotlight if it doesn't exist and we have a sign
+        if (!this.menu_spotlight && !this.chains_broken) {
+            const sign = this.parent.children.find(child => 
+                child.name === `${TYPES.INTERACTABLE}${NAMES.SECONDARY}`
+            );
+            
+            if (sign) {
+                // Calculate spotlight position 15 units behind camera
+                const spotlightPosition = new THREE.Vector3();
+                spotlightPosition.copy(this.camera.position);
+                const backVector = new THREE.Vector3(0, 0, 15);
+                backVector.applyQuaternion(this.camera.quaternion);
+                spotlightPosition.add(backVector);
+
+                // Calculate direction to sign
+                const targetPosition = new THREE.Vector3();
+                targetPosition.copy(sign.position);
+
+                // Calculate angles for spotlight
+                const direction = new THREE.Vector3().subVectors(targetPosition, spotlightPosition);
+                const rotationY = Math.atan2(direction.x, direction.z);
+                const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
+
+                // Create spotlight using the stored lighting instance
+                this.menu_spotlight = this.lighting.createSpotlight(
+                    spotlightPosition,
+                    rotationX,
+                    rotationY,
+                    5, // circle radius
+                    0, // unlimited distance
+                    0x00FFFF // Cyan color for scroll menu
+                );
+            }
+        }
         
         // Update sign rotation based on camera angles
         if (this.parent.children) {
