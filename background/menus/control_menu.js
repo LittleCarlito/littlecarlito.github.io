@@ -251,7 +251,7 @@ export class ControlMenu {
         this.log_interval = 5000;
     }
 
-    break_chains() {
+    async break_chains() {
         if(!this.chains_broken) {
             this.sign_body.setGravityScale(1);
             this.world.removeImpulseJoint(this.sign_joint);
@@ -259,7 +259,7 @@ export class ControlMenu {
             
             // Remove spotlight using the despawn method
             if (this.menu_spotlight) {
-                this.lighting.despawn_spotlight(this.menu_spotlight);
+                await this.lighting.despawn_spotlight(this.menu_spotlight);
                 this.menu_spotlight = null;
             }
             
@@ -267,8 +267,7 @@ export class ControlMenu {
         }
     }
 
-    // Add new update method
-    update() {
+    async update() {
         // Skip if sign_joint isn't created yet or has been removed
         if (!this.sign_joint || this.chains_broken) return;
 
@@ -327,7 +326,7 @@ export class ControlMenu {
                 const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
 
                 // Create spotlight using the stored lighting instance
-                this.menu_spotlight = this.lighting.createSpotlight(
+                this.menu_spotlight = await this.lighting.createSpotlight(
                     spotlightPosition,
                     rotationX,
                     rotationY,

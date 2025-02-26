@@ -128,6 +128,10 @@ async function init() {
         // Physics
         gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
         world = new RAPIER.World(gravity);
+        // Disable sleeping globally
+        world.maxVelocityIterations = 4;
+        world.maxVelocityFriction = 8;
+        world.allowSleep = true;
         clock = new THREE.Clock();
 
         // UI creation
@@ -137,7 +141,7 @@ async function init() {
         app_renderer = new AppRenderer(scene, viewable_container.get_camera());
         
         // Background creation
-        new BackgroundLighting(scene);
+        const lighting = new BackgroundLighting(scene);
         background_container = new BackgroundContainer(scene, viewable_container.get_camera(), world);
         new BackgroundFloor(world, scene, viewable_container.get_camera());
 

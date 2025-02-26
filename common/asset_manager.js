@@ -690,6 +690,39 @@ export class AssetManager {
         // Only proceed if we have an active object
         if (!this.currently_activated_name) return;
         
+        // Check if any objects are actually emissive before proceeding
+        let hasEmissiveObjects = false;
+        for (const [_, [mesh, _body]] of this.dynamic_bodies) {
+            if (type_prefix && !mesh.name.startsWith(type_prefix)) continue;
+            
+            const checkEmissive = (targetMesh) => {
+                if (targetMesh.material && 
+                    targetMesh.material.emissive && 
+                    targetMesh.material.emissiveIntensity > 0) {
+                    hasEmissiveObjects = true;
+                    return true;
+                }
+                return false;
+            };
+
+            if (mesh.isGroup || mesh.isObject3D) {
+                mesh.traverse((child) => {
+                    if (child.isMesh && !child.name.startsWith('col_')) {
+                        if (checkEmissive(child)) return;
+                    }
+                });
+                if (hasEmissiveObjects) break;
+            } else if (mesh.isMesh) {
+                if (checkEmissive(mesh)) break;
+            }
+        }
+
+        // If no emissive objects found, just reset the currently_activated_name and return
+        if (!hasEmissiveObjects) {
+            this.currently_activated_name = "";
+            return;
+        }
+        
         if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Deactivating all objects${type_prefix ? ` with prefix: ${type_prefix}` : ''}`);
         let deactivation_count = 0;
         

@@ -17,19 +17,21 @@ export class BackgroundLighting {
         this.lighting_container = new THREE.Object3D();
         this.parent.add(this.lighting_container);
 
-        // Create main spotlight pointing straight down
-        const main = this.createSpotlight(
-            new THREE.Vector3(SPOTLIGHT_OFFSET, SPOTLIGHT_HEIGHT, SPOTLIGHT_DISTANCE),
-            -Math.PI/2, // Point straight down
-            0,          // No rotation around Y
-            5,         // Circle radius
-            0          // Unlimited distance
-        );
+        // Create main spotlight pointing straight down asynchronously
+        (async () => {
+            const main = await this.createSpotlight(
+                new THREE.Vector3(SPOTLIGHT_OFFSET, SPOTLIGHT_HEIGHT, SPOTLIGHT_DISTANCE),
+                -Math.PI/2, // Point straight down
+                0,          // No rotation around Y
+                5,         // Circle radius
+                0          // Unlimited distance
+            );
 
-        // Create debug visualization if enabled
-        if (FLAGS.VISUAL_DEBUG) {
-            this.createEnhancedSpotlightHelper(main, 0x00FF00);
-        }
+            // Create debug visualization if enabled
+            if (FLAGS.VISUAL_DEBUG) {
+                await this.createEnhancedSpotlightHelper(main, 0x00FF00);
+            }
+        })();
     }
 
     // Add debug colors array
@@ -44,7 +46,7 @@ export class BackgroundLighting {
         0x8000FF  // Purple
     ];
 
-    createSpotlight(origin, rotationX, rotationY, circleRadius, maxDistance, color = null) {
+    async createSpotlight(origin, rotationX, rotationY, circleRadius, maxDistance, color = null) {
         // Use the constant angle instead of calculating from radius
         const angle = SPOTLIGHT_ANGLE;
         
@@ -84,6 +86,9 @@ export class BackgroundLighting {
             origin.z + z
         );
         spotlight.target = target;
+        
+        // Add objects to scene in next frame to prevent stuttering
+        await new Promise(resolve => setTimeout(resolve, 0));
         this.lighting_container.add(target);
         this.lighting_container.add(spotlight);
 
@@ -91,7 +96,7 @@ export class BackgroundLighting {
         if (FLAGS.VISUAL_DEBUG) {
             // If no color provided, randomly select one
             const debugColor = color || this.DEBUG_COLORS[Math.floor(Math.random() * this.DEBUG_COLORS.length)];
-            const helpers = this.createEnhancedSpotlightHelper(spotlight, debugColor);
+            const helpers = await this.createEnhancedSpotlightHelper(spotlight, debugColor);
             // Store helpers reference on the spotlight for cleanup
             spotlight.userData.debugHelpers = helpers;
         }
@@ -99,7 +104,7 @@ export class BackgroundLighting {
         return spotlight;
     }
 
-    createEnhancedSpotlightHelper(spotlight, color) {
+    async createEnhancedSpotlightHelper(spotlight, color) {
         // Create the standard helper
         const helper = new THREE.SpotLightHelper(spotlight, color);
         // Make helper and all its children non-interactive
@@ -107,6 +112,9 @@ export class BackgroundLighting {
         helper.traverse(child => {
             child.raycast = () => null;
         });
+        
+        // Add helper in next frame
+        await new Promise(resolve => setTimeout(resolve, 0));
         this.lighting_container.add(helper);
 
         // Calculate direction and distance to target
@@ -139,17 +147,22 @@ export class BackgroundLighting {
         const quaternion = new THREE.Quaternion();
         quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), direction);
         cone.quaternion.copy(quaternion);
+        
+        // Add cone in next frame
+        await new Promise(resolve => setTimeout(resolve, 0));
         this.lighting_container.add(cone);
+        
         return {
             helper,
             cone
         };
     }
 
-    despawn_spotlight(spotlight) {
+    async despawn_spotlight(spotlight) {
         if (!spotlight) return;
         
         // Remove the spotlight's target and the spotlight itself
+        await new Promise(resolve => setTimeout(resolve, 0));
         this.lighting_container.remove(spotlight.target);
         this.lighting_container.remove(spotlight);
 
@@ -173,11 +186,12 @@ export class BackgroundLighting {
             (child.isMesh && child.material.wireframe && child.geometry.type === 'ConeGeometry')
         );
         
-        helpers.forEach(helper => {
+        for (const helper of helpers) {
+            await new Promise(resolve => setTimeout(resolve, 0));
             if (helper.geometry) helper.geometry.dispose();
             if (helper.material) helper.material.dispose();
             this.lighting_container.remove(helper);
-        });
+        }
     }
 
     // Add method to update helpers if spotlights move

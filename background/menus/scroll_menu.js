@@ -223,17 +223,24 @@ export class ScrollMenu {
         this.log_interval = 500;
     }
 
-    break_chains() {
+    async break_chains() {
         if (!this.chains_broken) {
-            // Remove all joints
-            this.chain_joints.forEach(joint => {
-                this.world.removeImpulseJoint(joint);
-            });
+            // Remove all joints with null check
+            for (let i = 0; i < this.chain_joints.length; i++) {
+                const joint = this.chain_joints[i];
+                if (joint && this.world.getImpulseJoint(joint.handle)) {
+                    try {
+                        this.world.removeImpulseJoint(joint);
+                    } catch (e) {
+                        console.warn('Failed to remove joint:', e);
+                    }
+                }
+            }
             this.chain_joints = [];
 
             // Remove spotlight if it exists
             if (this.menu_spotlight) {
-                this.lighting.despawn_spotlight(this.menu_spotlight);
+                await this.lighting.despawn_spotlight(this.menu_spotlight);
                 this.menu_spotlight = null;
             }
 
@@ -248,7 +255,9 @@ export class ScrollMenu {
                     const bodyPair = this.dynamic_bodies.find(([mesh]) => mesh === link);
                     if (bodyPair) {
                         const [_, body] = bodyPair;
-                        body.setGravityScale(this.CHAIN_CONFIG.SEGMENTS.GRAVITY_SCALE);
+                        if (body && !body.isRemoved()) {
+                            body.setGravityScale(this.CHAIN_CONFIG.SEGMENTS.GRAVITY_SCALE);
+                        }
                     }
                 });
 
@@ -260,7 +269,9 @@ export class ScrollMenu {
                     const signBodyPair = this.dynamic_bodies.find(([mesh]) => mesh === sign);
                     if (signBodyPair) {
                         const [_, body] = signBodyPair;
-                        body.setGravityScale(this.CHAIN_CONFIG.SIGN.GRAVITY_SCALE);
+                        if (body && !body.isRemoved()) {
+                            body.setGravityScale(this.CHAIN_CONFIG.SIGN.GRAVITY_SCALE);
+                        }
                     }
                 }
             }
@@ -269,7 +280,7 @@ export class ScrollMenu {
         }
     }
 
-    update() {
+    async update() {
         const currentTime = performance.now();
         
         // Create spotlight if it doesn't exist and we have a sign
@@ -296,7 +307,7 @@ export class ScrollMenu {
                 const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
 
                 // Create spotlight using the stored lighting instance
-                this.menu_spotlight = this.lighting.createSpotlight(
+                this.menu_spotlight = await this.lighting.createSpotlight(
                     spotlightPosition,
                     rotationX,
                     rotationY,
