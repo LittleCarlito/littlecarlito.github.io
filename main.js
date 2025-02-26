@@ -1,12 +1,12 @@
-import { update as updateTween } from 'three/examples/jsm/libs/tween.module.js';
+import { FLAGS, loadThree, loadRapier, THREE, RAPIER, updateTween } from './common';
 import { BackgroundFloor } from './background/background_floor';
 import { ViewableContainer } from './viewport/viewable_container';
 import { BackgroundLighting } from './background/background_lighting';
 import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/overlay_common';
 import { AppRenderer } from './common/app_renderer';
 import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common';
-import { FLAGS, RAPIER, THREE, AssetManager } from './common';
 import { BackgroundContainer } from './background/background_container';
+import { AssetManager } from './common/asset_manager';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'images/gradient.jpg';
@@ -30,56 +30,90 @@ let right_mouse_down = false;
 let construction_acknowledged = false;
 let asset_manager;
 
+/** Updates the loading progress text */
+function updateLoadingProgress(text) {
+    const loadingProgress = document.getElementById('loading-progress');
+    if (loadingProgress) {
+        loadingProgress.textContent = text;
+    }
+}
+
+/** Shows the loading screen */
+async function showLoadingScreen() {
+    const response = await fetch('pages/loading.html');
+    const html = await response.text();
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+/** Hides the loading screen */
+function hideLoadingScreen() {
+    const loadingScreen = document.getElementById('loading-screen');
+    if (loadingScreen) {
+        loadingScreen.remove();
+    }
+}
+
 /** Initializes the main scene */
 async function init() {
-    // Initialize RAPIER first
-    await RAPIER.init();
-    
-    asset_manager = AssetManager.get_instance();
-    if(FLAGS.CONSTRUCTION_GREETING) {
-        fetch('pages/under_construction.html')
-            .then(response => response.text())
-            .then(html => {
-                document.body.insertAdjacentHTML('beforeend', html);
-                const modal = document.getElementById('construction-modal');
-                const acknowledgeBtn = document.getElementById('acknowledge-btn');
-                // Show the modal
-                modal.style.display = 'block';
-                // Handle the acknowledge button click
-                acknowledgeBtn.addEventListener('click', () => {
-                    modal.style.display = 'none';
-                    construction_acknowledged = true;
-                });
+    try {
+        await showLoadingScreen();
+        
+        updateLoadingProgress('Loading Three.js...');
+        await loadThree(); // Still load async but we already have THREE available
+
+        updateLoadingProgress('Loading Rapier Physics...');
+        await loadRapier(); // Initialize Rapier
+        await RAPIER.init(); // Make sure Rapier is initialized
+        
+        updateLoadingProgress('Initializing scene...');
+        asset_manager = AssetManager.get_instance();
+        
+        if(FLAGS.CONSTRUCTION_GREETING) {
+            const response = await fetch('pages/under_construction.html');
+            const html = await response.text();
+            document.body.insertAdjacentHTML('beforeend', html);
+            const modal = document.getElementById('construction-modal');
+            const acknowledgeBtn = document.getElementById('acknowledge-btn');
+            modal.style.display = 'block';
+            acknowledgeBtn.addEventListener('click', () => {
+                modal.style.display = 'none';
+                construction_acknowledged = true;
             });
         }
-    // ----- Setup
-    scene = new THREE.Scene();
-    scene.background = TEXTURE_LOADER.load(BACKGROUND_IMAGE);
-    window.addEventListener('resize', handle_resize);
-    window.addEventListener('mousemove', handle_mouse_move);
-    window.addEventListener('mousedown', handle_mouse_down);
-    window.addEventListener('mouseup', handle_mouse_up);
-    window.addEventListener('contextmenu', handle_context_menu);
-    window.addEventListener('wheel', handle_wheel);
-    // Physics
-    gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
-    world = new RAPIER.World(gravity);
-    clock = new THREE.Clock();
-    // UI creation
-    viewable_container = new ViewableContainer(scene, world);
-    // Renderer
-    app_renderer = new AppRenderer(scene, viewable_container.get_camera());
-    // Background creation
-    new BackgroundLighting(scene);
-    background_container = new BackgroundContainer(scene, viewable_container.get_camera(), world);
-    new BackgroundFloor(world, scene, viewable_container.get_camera());
-    // Start animation loop after everything is initialized
-    app_renderer.set_animation_loop(animate);
-    app_renderer.add_event_listener('mouseout', () => {
-        if(viewable_container.is_column_left_side()) {
-            viewable_container.reset_hover();
-        }
-    });
+
+        // ----- Setup
+        scene = new THREE.Scene();
+        scene.background = TEXTURE_LOADER.load(BACKGROUND_IMAGE);
+        window.addEventListener('resize', handle_resize);
+        window.addEventListener('mousemove', handle_mouse_move);
+        window.addEventListener('mousedown', handle_mouse_down);
+        window.addEventListener('mouseup', handle_mouse_up);
+        window.addEventListener('contextmenu', handle_context_menu);
+        window.addEventListener('wheel', handle_wheel);
+
+        // Physics
+        gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
+        world = new RAPIER.World(gravity);
+        clock = new THREE.Clock();
+
+        // UI creation
+        viewable_container = new ViewableContainer(scene, world);
+        
+        // Renderer
+        app_renderer = new AppRenderer(scene, viewable_container.get_camera());
+        
+        // Background creation
+        new BackgroundLighting(scene);
+        background_container = new BackgroundContainer(scene, viewable_container.get_camera(), world);
+        new BackgroundFloor(world, scene, viewable_container.get_camera());
+
+        // Hide loading screen and start animation
+        hideLoadingScreen();
+        app_renderer.set_animation_loop(animate);
+    } catch (error) {
+        console.error('Error during initialization:', error);
+        updateLoadingProgress('Error loading application. Please refresh the page.');
+    }
 }
 
 /** Primary animation function run every frame by renderer */
@@ -252,5 +286,5 @@ function handle_wheel(e) {
     }
 }
 
-// Change the init call to handle the promise
-init().catch(console.error);
+// Start initialization
+init();
