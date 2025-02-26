@@ -178,7 +178,6 @@ export class AssetManager {
         const body = world.createRigidBody(
             RAPIER.RigidBodyDesc.dynamic()
                 .setTranslation(position_offset.x, position_offset.y, position_offset.z)
-                .setCanSleep(false)
         );
 
         if(FLAGS.ASSET_LOGS) console.log(`Created rigid body for ${asset_type}:`, body);

@@ -8,6 +8,16 @@ export class LabelContainer {
     swapping_column_sides = false;
     is_column_left = true;
     current_intersected = null;
+    wireframe_boxes = [];
+
+    // Define colors for wireframes - high visibility versions of category colors
+    wireframe_colors = {
+        contact: 0xffff55,    // bright yellow
+        project: 0xff55ff,    // bright purple
+        work: 0xff5555,       // bright red
+        education: 0x55ff55,  // bright green
+        about: 0x5555ff       // bright blue
+    };
 
     constructor(incoming_parent, incoming_camera) {
         this.parent = incoming_parent;
@@ -36,6 +46,22 @@ export class LabelContainer {
             button_option.name = `${TYPES.LABEL}${category.value}`
             button_option.position.y = i * 3;
             button_container.add(button_option);
+
+            // Add wireframe box for visual debugging
+            if (FLAGS.LABEL_VISUAL_DEBUG) {
+                const wireframe_geometry = new THREE.BoxGeometry(5, 3, 0.2); // Added depth for 3D visualization
+                const wireframe_material = new THREE.MeshBasicMaterial({
+                    color: this.wireframe_colors[category.value] || 0xffffff, // fallback to white if category not found
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.7,
+                    depthTest: false
+                });
+                const wireframe_box = new THREE.Mesh(wireframe_geometry, wireframe_material);
+                wireframe_box.raycast = () => null; // Disable raycasting
+                button_option.add(wireframe_box);
+                this.wireframe_boxes.push(wireframe_box);
+            }
         });
         this.container_column.position.x = this.get_column_x_position(true);
         this.container_column.position.y = this.get_column_y_position(true);
@@ -65,6 +91,7 @@ export class LabelContainer {
         const x_position = this.get_column_x_position(this.is_column_left);
         const y_position = this.get_column_y_position(this.is_column_left);
         const y_rotation = this.get_column_y_rotation(this.is_column_left);
+        
         // Move column across the screen
         this.swapping_column_sides = true;
         new Tween(this.container_column.position)
@@ -74,6 +101,7 @@ export class LabelContainer {
         .onComplete(() => {
             this.swapping_column_sides = false;
         });
+
         // Rotate the column as it moves
         new Tween(this.container_column.rotation)
         .to({ y: y_rotation}, ROTATE_SPEED)
@@ -119,30 +147,25 @@ export class LabelContainer {
         // Check if tween exists for this object already
         const object_name = intersected_object.name;
         let in_tween = this.in_tween_map.get(object_name);
-        if (FLAGS.ROTATION_TWEEN_LOGS) {
-            console.log(`[RotationTween] Existing tween for ${object_name}:`, in_tween ? 'yes' : 'no');
-            if (in_tween) {
-                console.log(`[RotationTween] Current tween progress:`, in_tween._elapsed / in_tween._duration);
-            }
-        }
         
         if(in_tween == null) {
             if(this.current_intersected !== intersected_object) {
-                if (FLAGS.ROTATION_TWEEN_LOGS) {
-                    console.log(`[RotationTween] New intersection detected. Previous:`, this.current_intersected ? this.current_intersected.name : 'none');
-                }
-                
                 // Reset previously intersected object if one existed
                 this.reset_previous_intersected();
                 
                 // Set intersected object to current
                 this.current_intersected = intersected_object;
                 
+                // Show the corresponding static wireframe
+                if (FLAGS.LABEL_VISUAL_DEBUG) {
+                    const index = parseInt(object_name.replace(/[^0-9]/g, '')) - 1;
+                    if (this.wireframe_boxes[index]) {
+                        this.wireframe_boxes[index].visible = true;
+                    }
+                }
+                
                 // Apply rotation to current
                 let final_rotation = this.is_column_left ? -(FOCUS_ROTATION) : (FOCUS_ROTATION);
-                if (FLAGS.ROTATION_TWEEN_LOGS) {
-                    console.log(`[RotationTween] Starting rotation tween to ${final_rotation} (is_column_left: ${this.is_column_left})`);
-                }
                 
                 // Create rotation tween and set it in the map
                 in_tween = new Tween(this.current_intersected.rotation)
@@ -153,7 +176,6 @@ export class LabelContainer {
                     if (FLAGS.ROTATION_TWEEN_LOGS) {
                         console.log(`[RotationTween] Tween complete for ${object_name}. Final rotation:`, intersected_object.rotation.y);
                     }
-                    // Ensure we're at exactly the final rotation
                     intersected_object.rotation.y = final_rotation;
                     this.in_tween_map.delete(object_name);
                 });
@@ -168,20 +190,22 @@ export class LabelContainer {
             if (FLAGS.ROTATION_TWEEN_LOGS) {
                 console.log(`[RotationTween] Resetting rotation for ${this.current_intersected.name}. Current rotation:`, this.current_intersected.rotation.y);
             }
-            // Store reference to current object before nulling it
             const object_to_reset = this.current_intersected;
             
-            // Remove any existing tweens for this object
+            // Hide the corresponding static wireframe
+            if (FLAGS.LABEL_VISUAL_DEBUG) {
+                const index = parseInt(object_to_reset.name.replace(/[^0-9]/g, '')) - 1;
+                if (this.wireframe_boxes[index]) {
+                    this.wireframe_boxes[index].visible = false;
+                }
+            }
+            
             const existing_tween = this.in_tween_map.get(object_to_reset.name);
             if (existing_tween) {
-                if (FLAGS.ROTATION_TWEEN_LOGS) {
-                    console.log(`[RotationTween] Stopping existing tween for ${object_to_reset.name} at progress:`, existing_tween._elapsed / existing_tween._duration);
-                }
                 existing_tween.stop();
                 this.in_tween_map.delete(object_to_reset.name);
             }
             
-            // Reset rotation
             let deselected_rotation = 0;
             const reset_tween = new Tween(object_to_reset.rotation)
             .to({ y: deselected_rotation}, 400)
@@ -191,11 +215,9 @@ export class LabelContainer {
                 if (FLAGS.ROTATION_TWEEN_LOGS) {
                     console.log(`[RotationTween] Reset complete for ${object_to_reset.name}. Final rotation:`, object_to_reset.rotation.y);
                 }
-                // Ensure the rotation is exactly 0
                 object_to_reset.rotation.y = 0;
             });
             
-            // Clear the current intersected after creating tween
             this.current_intersected = null;
         }
     }

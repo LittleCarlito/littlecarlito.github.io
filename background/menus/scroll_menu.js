@@ -16,15 +16,16 @@ export class ScrollMenu {
             Z: 0
         },
         SEGMENTS: {
-            COUNT: 6,
+            COUNT: 5,
             LENGTH: 0.5,
             RADIUS: 0.1,
-            DAMPING: .2,
-            MASS: 0.05,
+            DAMPING: 1,
+            MASS: 1,
             RESTITUTION: 0.1,
             FRICTION: 0.8,
+            LINEAR_DAMPING: .2,
             ANGULAR_DAMPING: 1.5,
-            GRAVITY_SCALE: 5.0
+            GRAVITY_SCALE: 1.0
         },
         SIGN: {
             LOCAL_OFFSET: {
@@ -38,7 +39,7 @@ export class ScrollMenu {
                 DEPTH: 0.01
             },
             DAMPING: 0.8,
-            MASS: 1,
+            MASS: 5,
             RESTITUTION: 0.1,
             FRICTION: 0.8,
             ANGULAR_DAMPING: 0.8,
@@ -52,6 +53,9 @@ export class ScrollMenu {
     log_interval = 500;
     menu_spotlight = null;
     lighting = null;
+    sign_image;
+    sign_mesh;
+    sign_body;
 
     constructor(incoming_parent, incoming_camera, incoming_world, incoming_container, spawn_position) {
         this.parent = incoming_parent;
@@ -65,6 +69,10 @@ export class ScrollMenu {
         this.CHAIN_CONFIG.POSITION.Y = spawn_position.y;
         this.CHAIN_CONFIG.POSITION.Z = spawn_position.z;
 
+        return this.initialize(spawn_position);
+    }
+
+    async initialize(spawn_position) {
         // Calculate rotation based on camera position
         const theta_rad = Math.atan2(
             this.camera.position.x,
@@ -86,7 +94,7 @@ export class ScrollMenu {
                 this.CHAIN_CONFIG.POSITION.Y,
                 this.CHAIN_CONFIG.POSITION.Z
             )
-            .setRotation(rotation)  // Apply same rotation to anchor
+            .setRotation(rotation)
         );
 
         // Create chain segments with same rotation
@@ -99,7 +107,7 @@ export class ScrollMenu {
                     this.CHAIN_CONFIG.POSITION.Y - (i + 1) * this.CHAIN_CONFIG.SEGMENTS.LENGTH,
                     this.CHAIN_CONFIG.POSITION.Z
                 )
-                .setRotation(rotation)  // Apply same rotation to each chain segment
+                .setRotation(rotation)
                 .setLinearDamping(this.CHAIN_CONFIG.SEGMENTS.DAMPING)
                 .setAngularDamping(this.CHAIN_CONFIG.SEGMENTS.ANGULAR_DAMPING)
                 .setAdditionalMass(this.CHAIN_CONFIG.SEGMENTS.MASS)
@@ -140,87 +148,95 @@ export class ScrollMenu {
             this.chain_joints.push(created_joint);
             previous_body = chain_body;
         }
-        // Create and load the sign
-        const sign_image = new Image();
-        sign_image.onload = () => {
-            const sign_canvas = document.createElement('canvas');
-            sign_canvas.width = sign_image.width;
-            sign_canvas.height = sign_image.height;
-            const signContext = sign_canvas.getContext('2d');
-            signContext.drawImage(sign_image, 0, 0);
-            
-            const sign_texture = new THREE.CanvasTexture(sign_canvas);
-            const sign_material = new THREE.MeshStandardMaterial({
-                map: sign_texture,
-                side: THREE.DoubleSide
-            });
-            
-            const sign_geometry = new THREE.BoxGeometry(
-                this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH,
-                this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT,
-                this.CHAIN_CONFIG.SIGN.DIMENSIONS.DEPTH
-            );
-            const sign_mesh = new THREE.Mesh(sign_geometry, sign_material);
-            sign_mesh.castShadow = true;
-            sign_mesh.name = `${TYPES.INTERACTABLE}${NAMES.SECONDARY}`;
-            
-            // Rotate the sign 90 degrees around X axis
-            sign_mesh.rotation.x = Math.PI / 2;
-            
-            this.parent.add(sign_mesh);
-            
-            const sign_spawn_y = this.CHAIN_CONFIG.POSITION.Y - 
-                (this.CHAIN_CONFIG.SEGMENTS.COUNT * this.CHAIN_CONFIG.SEGMENTS.LENGTH);
-            const theta_rad = Math.atan2(
-                this.camera.position.x,
-                this.camera.position.z
-            );
-            const halfAngle = theta_rad / 2;
-            const sign_body = this.world.createRigidBody(
-                RAPIER.RigidBodyDesc.dynamic()
-                .setTranslation(
-                    this.CHAIN_CONFIG.POSITION.X + this.CHAIN_CONFIG.SIGN.LOCAL_OFFSET.X,
-                    sign_spawn_y + this.CHAIN_CONFIG.SIGN.LOCAL_OFFSET.Y,
-                    this.CHAIN_CONFIG.POSITION.Z + this.CHAIN_CONFIG.SIGN.LOCAL_OFFSET.Z
+
+        // Create and load the sign asynchronously
+        await new Promise((resolve, reject) => {
+            this.sign_image = new Image();
+            this.sign_image.onload = () => {
+                const sign_canvas = document.createElement('canvas');
+                sign_canvas.width = this.sign_image.width;
+                sign_canvas.height = this.sign_image.height;
+                const signContext = sign_canvas.getContext('2d');
+                signContext.drawImage(this.sign_image, 0, 0);
+                
+                const sign_texture = new THREE.CanvasTexture(sign_canvas);
+                const sign_material = new THREE.MeshStandardMaterial({
+                    map: sign_texture,
+                    side: THREE.DoubleSide
+                });
+                
+                const sign_geometry = new THREE.BoxGeometry(
+                    this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH,
+                    this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT,
+                    this.CHAIN_CONFIG.SIGN.DIMENSIONS.DEPTH
+                );
+                this.sign_mesh = new THREE.Mesh(sign_geometry, sign_material);
+                this.sign_mesh.castShadow = true;
+                this.sign_mesh.name = `${TYPES.INTERACTABLE}${NAMES.SECONDARY}`;
+                
+                // Rotate the sign 90 degrees around X axis
+                this.sign_mesh.rotation.x = Math.PI / 2;
+                
+                this.parent.add(this.sign_mesh);
+                
+                const sign_spawn_y = this.CHAIN_CONFIG.POSITION.Y - 
+                    (this.CHAIN_CONFIG.SEGMENTS.COUNT * this.CHAIN_CONFIG.SEGMENTS.LENGTH);
+                const theta_rad = Math.atan2(
+                    this.camera.position.x,
+                    this.camera.position.z
+                );
+                const halfAngle = theta_rad / 2;
+                this.sign_body = this.world.createRigidBody(
+                    RAPIER.RigidBodyDesc.dynamic()
+                    .setTranslation(
+                        this.CHAIN_CONFIG.POSITION.X + this.CHAIN_CONFIG.SIGN.LOCAL_OFFSET.X,
+                        sign_spawn_y + this.CHAIN_CONFIG.SIGN.LOCAL_OFFSET.Y,
+                        this.CHAIN_CONFIG.POSITION.Z + this.CHAIN_CONFIG.SIGN.LOCAL_OFFSET.Z
+                    )
+                    .setRotation({
+                        x: 0,
+                        y: Math.sin(halfAngle),
+                        z: 0,
+                        w: Math.cos(halfAngle)
+                    })
+                    .setLinearDamping(this.CHAIN_CONFIG.SIGN.DAMPING)
+                    .setAngularDamping(this.CHAIN_CONFIG.SIGN.ANGULAR_DAMPING)
+                    .setAdditionalMass(this.CHAIN_CONFIG.SIGN.MASS)
+                    .setGravityScale(this.CHAIN_CONFIG.SIGN.GRAVITY_SCALE)
+                    .setCanSleep(false)
+                );
+                const sign_collider = RAPIER.ColliderDesc.cuboid(
+                    this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH/2,
+                    this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT/2,
+                    this.CHAIN_CONFIG.SIGN.DIMENSIONS.DEPTH/2
                 )
-                .setRotation({
-                    x: 0,
-                    y: Math.sin(halfAngle),
-                    z: 0,
-                    w: Math.cos(halfAngle)
-                })
-                .setLinearDamping(this.CHAIN_CONFIG.SIGN.DAMPING)
-                .setAngularDamping(this.CHAIN_CONFIG.SIGN.ANGULAR_DAMPING)
-                .setAdditionalMass(this.CHAIN_CONFIG.SIGN.MASS)
-                .setGravityScale(this.CHAIN_CONFIG.SIGN.GRAVITY_SCALE)
-                .setCanSleep(false)
-            );
-            const sign_collider = RAPIER.ColliderDesc.cuboid(
-                this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH/2,
-                this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT/2,
-                this.CHAIN_CONFIG.SIGN.DIMENSIONS.DEPTH/2
-            )
-                .setRestitution(this.CHAIN_CONFIG.SIGN.RESTITUTION)
-                .setFriction(this.CHAIN_CONFIG.SIGN.FRICTION);
-            this.world.createCollider(sign_collider, sign_body);
-            
-            // Connect sign to last chain segment
-            const finalJointDesc = RAPIER.JointData.spherical(
-                {x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0},
-                {x: 0, y: this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT/2, z: 0}
-            );
-            this.world.createImpulseJoint(
-                finalJointDesc,
-                previous_body,
-                sign_body,
-                true
-            );
-            const asset_loader = AssetManager.get_instance();
-            asset_loader.add_object(sign_mesh, sign_body);
-        };
-        sign_image.src = this.CHAIN_CONFIG.SIGN.IMAGE_PATH;
+                    .setRestitution(this.CHAIN_CONFIG.SIGN.RESTITUTION)
+                    .setFriction(this.CHAIN_CONFIG.SIGN.FRICTION);
+                this.world.createCollider(sign_collider, this.sign_body);
+                
+                // Connect sign to last chain segment
+                const finalJointDesc = RAPIER.JointData.spherical(
+                    {x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0},
+                    {x: 0, y: this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT/2, z: 0}
+                );
+                this.world.createImpulseJoint(
+                    finalJointDesc,
+                    previous_body,
+                    this.sign_body,
+                    true
+                );
+                const asset_loader = AssetManager.get_instance();
+                asset_loader.add_object(this.sign_mesh, this.sign_body);
+                resolve();
+            };
+            this.sign_image.onerror = reject;
+            this.sign_image.src = this.CHAIN_CONFIG.SIGN.IMAGE_PATH;
+        });
+
         this.last_log_time = 0;
         this.log_interval = 500;
+
+        return this;
     }
 
     async break_chains() {
