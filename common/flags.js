@@ -3,6 +3,7 @@ export const FLAGS = {
     CONSTRUCTION_GREETING: true,
     LAYER: true,
     VISUAL_DEBUG: false,
+    LABEL_VISUAL_DEBUG: false,
     // Log flags
     SELECT_LOGS: false,
     TWEEN_LOGS: false,
