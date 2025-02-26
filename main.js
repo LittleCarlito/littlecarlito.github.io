@@ -135,15 +135,37 @@ async function init() {
         clock = new THREE.Clock();
 
         // UI creation
+        updateLoadingProgress('Creating UI components...');
         viewable_container = new ViewableContainer(scene, world);
         
         // Renderer
         app_renderer = new AppRenderer(scene, viewable_container.get_camera());
         
         // Background creation
+        updateLoadingProgress('Loading background assets...');
         const lighting = new BackgroundLighting(scene);
         background_container = new BackgroundContainer(scene, viewable_container.get_camera(), world);
         new BackgroundFloor(world, scene, viewable_container.get_camera());
+
+        // Wait for all assets to be loaded
+        updateLoadingProgress('Loading scene assets...');
+        await new Promise(async (resolve) => {
+            const checkAssetsLoaded = async () => {
+                const isComplete = await background_container.is_loading_complete();
+                if (isComplete) {
+                    if (FLAGS.ASSET_LOGS) {
+                        console.log('All assets loaded:', Array.from(background_container.get_asset_manifest()));
+                    }
+                    resolve();
+                } else {
+                    if (FLAGS.ASSET_LOGS) {
+                        console.log('Waiting for assets to complete loading...');
+                    }
+                    setTimeout(checkAssetsLoaded, 100);
+                }
+            };
+            await checkAssetsLoaded();
+        });
 
         // Hide loading screen and start animation
         hideLoadingScreen();

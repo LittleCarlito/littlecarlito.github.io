@@ -192,7 +192,6 @@ export class ControlMenu {
                 new THREE.Vector3(1, 0, 0),
                 -Math.PI/2  // Start at 90 degrees down
             );
-            
             this.sign_body = this.world.createRigidBody(
                 RAPIER.RigidBodyDesc
                 .dynamic()
@@ -216,7 +215,6 @@ export class ControlMenu {
                 .setMass(MENU_CONFIG.SIGN.PHYSICS.MASS)
                 .setRestitution(MENU_CONFIG.SIGN.PHYSICS.RESTITUTION);
             this.world.createCollider(this.sign_shape, this.sign_body);
-
             // Create revolute joint
             const sign_joint = RAPIER.JointData.revolute(
                 JOINT_ANCHORS.BEAM.BOTTOM,
@@ -227,22 +225,17 @@ export class ControlMenu {
                 },
                 { x: 1, y: 0, z: 0 }
             );
-
             // Set limits for straight down
             sign_joint.limits = [0, 0];
-            
             // Create joint with correct method
             this.sign_joint = this.world.createImpulseJoint(sign_joint, this.top_beam_body, this.sign_body);
-
             // Configure the motor after joint creation
             if (this.sign_joint) {
                 this.sign_joint.configureMotorPosition(0, 10000.0, 1000.0);
             }
-
             if(FLAGS.PHYSICS_LOGS) {
                 console.log("Joint created with motor configuration");
             }
-
             primary_container.dynamic_bodies.push([this.sign_mesh, this.sign_body]);
         };
         this.sign_image.src = IMAGE_PATH;
@@ -261,13 +254,11 @@ export class ControlMenu {
                 this.world.removeImpulseJoint(this.sign_joint);
                 this.sign_joint = null;
             }
-            
             // Remove spotlight using the despawn method
             if (this.menu_spotlight) {
                 await this.lighting.despawn_spotlight(this.menu_spotlight);
                 this.menu_spotlight = null;
             }
-            
             this.chains_broken = true;
         }
     }
@@ -275,10 +266,8 @@ export class ControlMenu {
     async update() {
         // Skip if sign_joint isn't created yet or has been removed
         if (!this.sign_joint || this.chains_broken) return;
-
         // Get current time
         const currentTime = performance.now();
-        
         // Log positions periodically
         if (currentTime - this.last_log_time > this.log_interval) {
             const beamPos = this.top_beam_mesh.position;
@@ -301,17 +290,14 @@ export class ControlMenu {
                     console.log(`Sign - Rotation (deg): x:${(euler.x * 180/Math.PI).toFixed(2)}°, y:${(euler.y * 180/Math.PI).toFixed(2)}°, z:${(euler.z * 180/Math.PI).toFixed(2)}°`);
                 }
             }
-            
             this.last_log_time = currentTime;
         }
-
         // Check for stopping condition
         if (!this.reached_target && this.top_beam_mesh.position.z >= MENU_CONFIG.POSITION.Z_TARGET) {
             if(FLAGS.PHYSICS_LOGS) {
                 console.log('=== Attempting to Stop Beam ===');
             }
             this.reached_target = true;
-            
             // Create spotlight when target is reached
             if (!this.menu_spotlight && this.sign_mesh) {
                 // Calculate spotlight position 15 units behind camera
@@ -320,16 +306,13 @@ export class ControlMenu {
                 const backVector = new THREE.Vector3(0, 0, 15);
                 backVector.applyQuaternion(this.camera.quaternion);
                 spotlightPosition.add(backVector);
-
                 // Calculate direction to sign
                 const targetPosition = new THREE.Vector3();
                 targetPosition.copy(this.sign_mesh.position);
-
                 // Calculate angles for spotlight
                 const direction = new THREE.Vector3().subVectors(targetPosition, spotlightPosition);
                 const rotationY = Math.atan2(direction.x, direction.z);
                 const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
-
                 // Create spotlight using the stored lighting instance
                 this.menu_spotlight = await this.lighting.createSpotlight(
                     spotlightPosition,
@@ -339,24 +322,19 @@ export class ControlMenu {
                     0  // unlimited distance
                 );
             }
-            
             // Get current position before changing anything
             const currentPos = this.top_beam_body.translation();
             if(FLAGS.PHYSICS_LOGS) {
                 console.log(`Current Position before stop: (${currentPos.x.toFixed(2)}, ${currentPos.y.toFixed(2)}, ${currentPos.z.toFixed(2)})`);
             }
-            
             // First set velocity to 0
             this.top_beam_body.setLinvel(0, 0, 0);
-            
             // Moderate damping
             this.sign_body.setAngularDamping(0.9);
-            
             // Only configure joint if it exists and chains aren't broken
             if (this.sign_joint && !this.chains_broken) {
                 // Start with strong motor to stop motion
                 this.sign_joint.configureMotorPosition(0, 1000.0, 200.0);
-                
                 // Rapidly reduce motor strength
                 setTimeout(() => {
                     if (this.sign_joint && !this.chains_broken) {
@@ -375,12 +353,10 @@ export class ControlMenu {
                     }
                 }, 100);
             }
-            
             // Set gravity to something reasonable
             setTimeout(() => {
                 this.sign_body.setGravityScale(1);
             }, MENU_CONFIG.MOVEMENT.GRAVITY_DELAY);
-            
             // Change the body type to fixed
             this.top_beam_body.setBodyType(RAPIER.RigidBodyType.Fixed);
             if(FLAGS.PHYSICS_LOGS) {

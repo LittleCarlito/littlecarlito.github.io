@@ -12,6 +12,9 @@ export class BackgroundContainer {
     primary_instruction_sign = null;
     secondary_instruction_sign = null;
     dynamic_bodies = [];
+    asset_manifest = new Set();
+    loading_complete = false;
+    loading_promise;
 
     constructor(incoming_parent, incoming_camera, incoming_world) {
         this.parent = incoming_parent;
@@ -20,52 +23,87 @@ export class BackgroundContainer {
         this.object_container = new THREE.Object3D();
         this.parent.add(this.object_container);
         const asset_loader = AssetManager.get_instance();
-        // Spawn assets
-        (async () => {
+
+        // Create a promise for the main assets
+        const mainAssetsPromise = (async () => {
             let [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DESKPHOTO, this.object_container, this.world, {},new THREE.Vector3(-5, 5, 5));
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DESKPHOTO}`;
+            this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Desk photo with name: ${mesh.name}`);
+
             [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.TABLET, this.object_container, this.world, {}, new THREE.Vector3(-10, 5, 5));
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.TABLET}`;
+            this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Tablet with name: ${mesh.name}`);
+
             [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DIPLOMA, this.object_container, this.world, {}, new THREE.Vector3(-10, 5, 0));
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DIPLOMA}`;
+            this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma with name: ${mesh.name}`);
+
             [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DESK, this.object_container, this.world, {}, new THREE.Vector3(-5, 5, 0));
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DESK}`;
+            this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Desk with name: ${mesh.name}`);
-            // Spawn a chair
+
             [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.CHAIR, this.object_container, this.world, {}, new THREE.Vector3(-0, 5, 0));
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.CHAIR}`;
+            this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Chair with name: ${mesh.name}`);
-            // Spawn a room
+
             [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.ROOM, this.object_container, this.world, {}, new THREE.Vector3(25, 5, 0));
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.ROOM}`;
+            this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Room with name: ${mesh.name}`);
-            // Spawn a book
+
             [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.BOOK, this.object_container, this.world, {}, new THREE.Vector3(10, 5, 0));
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.BOOK}`;
+            this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Book with name: ${mesh.name}`);
         })();
-        // Create all cubes asynchronously but wait for all to complete
-        const asset_manager = AssetManager.get_instance();
-        const cube_promises = Object.values(CATEGORIES).map(async (category, i) => {
-            if (typeof category === 'function' || category == CATEGORIES.EDUCATION) return; // Skip helper methods
-            const position = new THREE.Vector3(((i * 2) - 3), -2, -5);
-            const [mesh, body] = await asset_manager.spawn_asset(
-                ASSET_TYPE.CUBE,
-                this.object_container,
-                this.world,
-                { color: category.color },
-                position
-            );
-            mesh.name = `${TYPES.INTERACTABLE}${category.value}`;
-            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating cube with name: ${mesh.name}`);
+
+        // Create all cubes asynchronously
+        const cube_promises = Object.values(CATEGORIES)
+            .filter(category => typeof category !== 'function' && category !== CATEGORIES.EDUCATION)
+            .map(async (category, i) => {
+                const position = new THREE.Vector3(((i * 2) - 3), -2, -5);
+                const [mesh, body] = await asset_loader.spawn_asset(
+                    ASSET_TYPE.CUBE,
+                    this.object_container,
+                    this.world,
+                    { color: category.color },
+                    position
+                );
+                mesh.name = `${TYPES.INTERACTABLE}${category.value}`;
+                this.asset_manifest.add(mesh.name);
+                if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating cube with name: ${mesh.name}`);
+                return mesh;
+            });
+
+        // Store the loading promise for external checking
+        this.loading_promise = Promise.all([mainAssetsPromise, ...cube_promises]).then(() => {
+            if (FLAGS.PHYSICS_LOGS) console.log('All assets initialized');
+            this.loading_complete = true;
+        }).catch(error => {
+            console.error('Error loading assets:', error);
+            throw error;
         });
-        // Wait for all cubes to be created
-        Promise.all(cube_promises).then(() => {
-            if (FLAGS.PHYSICS_LOGS) console.log('All cubes initialized');
-        });
+    }
+
+    // Add method to check if all assets are loaded
+    async is_loading_complete() {
+        try {
+            await this.loading_promise;
+            return true;
+        } catch (error) {
+            console.error('Error checking loading status:', error);
+            return false;
+        }
+    }
+
+    // Add method to get the asset manifest
+    get_asset_manifest() {
+        return this.asset_manifest;
     }
 
     update(grabbed_object, viewable_container) {
