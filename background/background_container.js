@@ -39,7 +39,7 @@ export class BackgroundContainer {
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.CHAIR}`;
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Chair with name: ${mesh.name}`);
             // Spawn a room
-            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.ROOM, this.object_container, this.world, {}, new THREE.Vector3(5, 5, 0));
+            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.ROOM, this.object_container, this.world, {}, new THREE.Vector3(25, 5, 0));
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.ROOM}`;
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Room with name: ${mesh.name}`);
             // Spawn a book

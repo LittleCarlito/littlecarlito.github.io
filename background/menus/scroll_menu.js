@@ -16,15 +16,16 @@ export class ScrollMenu {
             Z: 0
         },
         SEGMENTS: {
-            COUNT: 6,
+            COUNT: 5,
             LENGTH: 0.5,
             RADIUS: 0.1,
-            DAMPING: .2,
-            MASS: 0.05,
+            DAMPING: 1,
+            MASS: 1,
             RESTITUTION: 0.1,
             FRICTION: 0.8,
+            LINEAR_DAMPING: .2,
             ANGULAR_DAMPING: 1.5,
-            GRAVITY_SCALE: 5.0
+            GRAVITY_SCALE: 1.0
         },
         SIGN: {
             LOCAL_OFFSET: {
@@ -38,7 +39,7 @@ export class ScrollMenu {
                 DEPTH: 0.01
             },
             DAMPING: 0.8,
-            MASS: 1,
+            MASS: 5,
             RESTITUTION: 0.1,
             FRICTION: 0.8,
             ANGULAR_DAMPING: 0.8,
