@@ -40,7 +40,10 @@ function updateLoadingProgress(text) {
 
 /** Shows the loading screen */
 async function showLoadingScreen() {
-    const response = await fetch('pages/loading.html');
+    const loadingPath = window.location.hostname === 'littlecarlito.github.io' 
+        ? '/threejs_site/pages/loading.html'
+        : 'pages/loading.html';
+    const response = await fetch(loadingPath);
     const html = await response.text();
     document.body.insertAdjacentHTML('beforeend', html);
 }
