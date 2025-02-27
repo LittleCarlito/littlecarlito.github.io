@@ -151,9 +151,47 @@ export class CameraManager {
             console.log(`Angles: phi=${this.phi.toFixed(2)}°, theta=${this.theta.toFixed(2)}°`);
         }
         
-        // Set camera target and udpate
+        // Set camera target and update
         this.camera.lookAt(this.target);
         this.camera.updateMatrix();
+
+        // Update spotlight positions relative to camera
+        if (this.left_shoulder_light) {
+            const leftPos = new THREE.Vector3(
+                SPOTLIGHT_CONFIG.LEFT.POSITION.X,
+                SPOTLIGHT_CONFIG.LEFT.POSITION.Y,
+                SPOTLIGHT_CONFIG.LEFT.POSITION.Z
+            );
+            // Transform the offset by camera's rotation
+            leftPos.applyQuaternion(this.camera.quaternion);
+            // Add camera's position
+            leftPos.add(this.camera.position);
+            this.left_shoulder_light.position.copy(leftPos);
+            
+            // Update target to point forward
+            const forward = new THREE.Vector3(0, 0, -100);
+            forward.applyQuaternion(this.camera.quaternion);
+            this.left_shoulder_light.target.position.copy(leftPos).add(forward);
+        }
+
+        if (this.right_shoulder_light) {
+            const rightPos = new THREE.Vector3(
+                SPOTLIGHT_CONFIG.RIGHT.POSITION.X,
+                SPOTLIGHT_CONFIG.RIGHT.POSITION.Y,
+                SPOTLIGHT_CONFIG.RIGHT.POSITION.Z
+            );
+            // Transform the offset by camera's rotation
+            rightPos.applyQuaternion(this.camera.quaternion);
+            // Add camera's position
+            rightPos.add(this.camera.position);
+            this.right_shoulder_light.position.copy(rightPos);
+            
+            // Update target to point forward
+            const forward = new THREE.Vector3(0, 0, -100);
+            forward.applyQuaternion(this.camera.quaternion);
+            this.right_shoulder_light.target.position.copy(rightPos).add(forward);
+        }
+
         // Update overlay position
         if (this.overlay_container) {
             // Calculate the position in front of the camera
