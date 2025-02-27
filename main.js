@@ -143,7 +143,7 @@ async function init() {
         
         // Background creation
         updateLoadingProgress('Loading background assets...');
-        const lighting = new BackgroundLighting(scene);
+        const lighting = BackgroundLighting.getInstance(scene);
         background_container = new BackgroundContainer(scene, viewable_container.get_camera(), world);
         new BackgroundFloor(world, scene, viewable_container.get_camera());
 

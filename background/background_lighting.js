@@ -11,8 +11,26 @@ export const SPOTLIGHT_PENUMBRA = 0.05; // Sharper edge
 export const SPOTLIGHT_SHARPNESS = 0.5;
 
 export class BackgroundLighting {
+    static instance = null;
+
+    static getInstance(parent) {
+        if (!BackgroundLighting.instance) {
+            BackgroundLighting.instance = new BackgroundLighting(parent);
+        } else if (parent && BackgroundLighting.instance.parent !== parent) {
+            // If parent is different, update the parent and re-add the lighting container
+            BackgroundLighting.instance.parent.remove(BackgroundLighting.instance.lighting_container);
+            BackgroundLighting.instance.parent = parent;
+            BackgroundLighting.instance.parent.add(BackgroundLighting.instance.lighting_container);
+        }
+        return BackgroundLighting.instance;
+    }
 
     constructor(incoming_parent) {
+        // Prevent direct construction
+        if (BackgroundLighting.instance) {
+            return BackgroundLighting.instance;
+        }
+        
         this.parent = incoming_parent;
         this.lighting_container = new THREE.Object3D();
         this.parent.add(this.lighting_container);

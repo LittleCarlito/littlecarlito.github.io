@@ -70,7 +70,7 @@ export class ScrollMenu {
         this.camera = incoming_camera;
         this.world = incoming_world;
         this.dynamic_bodies = incoming_container.dynamic_bodies;
-        this.lighting = new BackgroundLighting(this.parent);
+        this.lighting = BackgroundLighting.getInstance(this.parent);
 
         // Use spawn position
         this.CHAIN_CONFIG.POSITION.X = spawn_position.x;

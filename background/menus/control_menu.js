@@ -119,7 +119,7 @@ export class ControlMenu {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.world = incoming_world;
-        this.lighting = new BackgroundLighting(this.parent);
+        this.lighting = BackgroundLighting.getInstance(this.parent);
         // Calculate assembly position based on camera using MENU_CONFIG
         this.assembly_position = {
             x: this.camera.position.x + MENU_CONFIG.POSITION.OFFSET.X,

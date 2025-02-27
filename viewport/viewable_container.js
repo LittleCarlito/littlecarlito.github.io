@@ -29,7 +29,7 @@ export class ViewableContainer {
         );
         
         // Initialize camera manager
-        this.camera_manager = new CameraManager(this.camera, UI_Z_DIST);
+        this.camera_manager = new CameraManager(this.parent, this.camera, UI_Z_DIST);
         
         // Create overlay and connect it to camera manager
         this.overlay_container = new OverlayContainer(this.viewable_container_container, this.get_camera());

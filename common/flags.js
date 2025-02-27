@@ -10,8 +10,8 @@ export const FLAGS = {
     TWEEN_LOGS: false,
     HTML_LOGS: false,
     PHYSICS_LOGS: false,
-    ASSET_LOGS: true,
-    ACTIVATE_LOGS: true,
+    ASSET_LOGS: false,
+    ACTIVATE_LOGS: false,
     EFFECT_LOGS: false
 };
 

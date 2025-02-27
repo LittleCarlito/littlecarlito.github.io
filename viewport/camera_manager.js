@@ -1,8 +1,21 @@
 import { FLAGS, THREE } from "../common";
 
+// Left shoulder spotlight constants
+const LEFT_SPOTLIGHT_OFFSET = -2;
+const LEFT_SPOTLIGHT_HEIGHT = 3;
+const LEFT_SPOTLIGHT_DISTANCE = 2;
+const LEFT_SPOTLIGHT_ANGLE = Math.PI / 6; // 30 degrees
+
+// Right shoulder spotlight constants
+const RIGHT_SPOTLIGHT_OFFSET = 2;
+const RIGHT_SPOTLIGHT_HEIGHT = 3;
+const RIGHT_SPOTLIGHT_DISTANCE = 2;
+const RIGHT_SPOTLIGHT_ANGLE = Math.PI / 6; // 30 degrees
+
 export class CameraManager {
-    constructor(camera, distance = 15) {
-        this.camera = camera;
+    constructor(incoming_parent, incoming_camera, distance = 15) {
+        this.parent = incoming_parent;
+        this.camera = incoming_camera;
         this.distance = distance;
         this.target = new THREE.Vector3(0, 0, 0);
         // Spherical coordinates (starting position)
@@ -22,6 +35,34 @@ export class CameraManager {
 
         // TODO OOOOO
         // TODO Make 2 spotlights pointing forward
+        (async () => {
+            this.left_shoulder_light = await create_spotlight(
+                new THREE.Vector3(LEFT_SPOTLIGHT_OFFSET, LEFT_SPOTLIGHT_HEIGHT, LEFT_SPOTLIGHT_DISTANCE),
+                -Math.PI/2, // Point straight down
+                0,          // No rotation around Y
+                LEFT_SPOTLIGHT_HEIGHT * Math.tan(LEFT_SPOTLIGHT_ANGLE), // Calculate radius from height and angle
+                0          // Unlimited distance
+            );
+
+            // Create debug visualization if enabled
+            if (FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
+                await this.create_spotlight_helper(main);
+            }
+        })();
+        (async () => {
+            this.right_shoulder_light = await this.create_spotlight(
+                new THREE.Vector3(RIGHT_SPOTLIGHT_OFFSET, RIGHT_SPOTLIGHT_HEIGHT, RIGHT_SPOTLIGHT_DISTANCE),
+                -Math.PI/2, // Point straight down
+                0,          // No rotation around Y
+                RIGHT_SPOTLIGHT_HEIGHT * Math.tan(RIGHT_SPOTLIGHT_ANGLE), // Calculate radius from height and angle
+                0          // Unlimited distance
+            );
+
+            // Create debug visualization if enabled
+            if (FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
+                await this.create_spotlight_helper(main);
+            }
+        })();
     }
 
     add_update_callback(callback) {
