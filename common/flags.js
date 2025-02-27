@@ -9,7 +9,7 @@ export const FLAGS = {
     SELECT_LOGS: false,
     TWEEN_LOGS: false,
     HTML_LOGS: false,
-    PHYSICS_LOGS: true,
+    PHYSICS_LOGS: false,
     ASSET_LOGS: false,
     ACTIVATE_LOGS: false,
     EFFECT_LOGS: false
