@@ -68,12 +68,20 @@ export class CameraManager {
                 await this.lighting.despawn_spotlight_helpers(this.left_shoulder_light);
             }
             
+            const leftPos = new THREE.Vector3(
+                SPOTLIGHT_CONFIG.LEFT.POSITION.X,
+                SPOTLIGHT_CONFIG.LEFT.POSITION.Y,
+                SPOTLIGHT_CONFIG.LEFT.POSITION.Z
+            );
+            leftPos.applyQuaternion(this.camera.quaternion);
+            leftPos.add(this.camera.position);
+
+            const forward = new THREE.Vector3(0, 0, -100);
+            forward.applyQuaternion(this.camera.quaternion);
+            const target = new THREE.Vector3().copy(leftPos).add(forward);
+            
             this.left_shoulder_light = await this.lighting.create_spotlight(
-                new THREE.Vector3(
-                    SPOTLIGHT_CONFIG.LEFT.POSITION.X,
-                    SPOTLIGHT_CONFIG.LEFT.POSITION.Y,
-                    SPOTLIGHT_CONFIG.LEFT.POSITION.Z
-                ),
+                leftPos,
                 ANGLES.toRadians(SPOTLIGHT_CONFIG.LEFT.ROTATION.PITCH),
                 ANGLES.toRadians(SPOTLIGHT_CONFIG.LEFT.ROTATION.YAW),
                 SPOTLIGHT_CONFIG.LEFT.POSITION.Y * Math.tan(ANGLES.toRadians(SPOTLIGHT_CONFIG.LEFT.ANGLE)),
@@ -81,6 +89,7 @@ export class CameraManager {
                 null,  // Default color
                 SPOTLIGHT_CONFIG.LEFT.INTENSITY
             );
+            this.left_shoulder_light.target.position.copy(target);
         })();
 
         // Create right shoulder spotlight
@@ -90,12 +99,20 @@ export class CameraManager {
                 await this.lighting.despawn_spotlight_helpers(this.right_shoulder_light);
             }
             
+            const rightPos = new THREE.Vector3(
+                SPOTLIGHT_CONFIG.RIGHT.POSITION.X,
+                SPOTLIGHT_CONFIG.RIGHT.POSITION.Y,
+                SPOTLIGHT_CONFIG.RIGHT.POSITION.Z
+            );
+            rightPos.applyQuaternion(this.camera.quaternion);
+            rightPos.add(this.camera.position);
+
+            const forward = new THREE.Vector3(0, 0, -100);
+            forward.applyQuaternion(this.camera.quaternion);
+            const target = new THREE.Vector3().copy(rightPos).add(forward);
+            
             this.right_shoulder_light = await this.lighting.create_spotlight(
-                new THREE.Vector3(
-                    SPOTLIGHT_CONFIG.RIGHT.POSITION.X,
-                    SPOTLIGHT_CONFIG.RIGHT.POSITION.Y,
-                    SPOTLIGHT_CONFIG.RIGHT.POSITION.Z
-                ),
+                rightPos,
                 ANGLES.toRadians(SPOTLIGHT_CONFIG.RIGHT.ROTATION.PITCH),
                 ANGLES.toRadians(SPOTLIGHT_CONFIG.RIGHT.ROTATION.YAW),
                 SPOTLIGHT_CONFIG.RIGHT.POSITION.Y * Math.tan(ANGLES.toRadians(SPOTLIGHT_CONFIG.RIGHT.ANGLE)),
@@ -103,6 +120,7 @@ export class CameraManager {
                 null,  // Default color
                 SPOTLIGHT_CONFIG.RIGHT.INTENSITY
             );
+            this.right_shoulder_light.target.position.copy(target);
         })();
     }
 
