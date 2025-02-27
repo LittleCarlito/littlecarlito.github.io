@@ -110,6 +110,7 @@ export class AssetManager {
     currently_activated_name = "";  // Add this to track the currently activated object
     emission_states = new Map(); // Track emission states of objects
     name = "[AssetManager]";
+    material_cache = new Map(); // Add material cache
     
     constructor() {
         if (AssetManager.instance) {
@@ -120,6 +121,7 @@ export class AssetManager {
         this.dynamic_bodies = new Map(); // Stores [mesh, physicsBody] pairs
         this.static_meshes = new Map();  // Stores static meshes without physics
         this.loading_promises = new Map();
+        this.material_cache = new Map(); // Initialize material cache
         AssetManager.instance = this;
     }
 
@@ -219,26 +221,14 @@ export class AssetManager {
                             scale: asset_config.scale
                         });
                     } else {
-                        // Regular mesh handling with optimized materials
                         const originalMaterial = child.material;
-                        child.material = new THREE.MeshStandardMaterial({
-                            map: originalMaterial.map, // Keep the base color map
-                            color: originalMaterial.color,
-                            transparent: originalMaterial.transparent,
-                            opacity: originalMaterial.opacity,
-                            side: originalMaterial.side,
-                            // Optimized settings to minimize sampler usage
-                            roughness: 1.0,
-                            metalness: 0.0,
-                            envMapIntensity: 0.0,
-                            normalScale: new THREE.Vector2(0, 0),
-                            emissiveIntensity: 0.0,
-                            aoMapIntensity: 0.0,
-                            displacementScale: 0.0,
-                            flatShading: true
-                        });
+                        // Create a unique key based on the material's essential properties
+                        const materialKey = `${asset_type}_${child.name}_${!!originalMaterial.map}_${originalMaterial.color?.getHex() || 0}`;
                         
-                        // Clean up unused textures
+                        // Get cached or new material
+                        child.material = this.getMaterial(materialKey, originalMaterial);
+                        
+                        // Clean up original material if it exists
                         if (originalMaterial) {
                             if (originalMaterial.roughnessMap) originalMaterial.roughnessMap.dispose();
                             if (originalMaterial.metalnessMap) originalMaterial.metalnessMap.dispose();
@@ -252,8 +242,6 @@ export class AssetManager {
                         }
 
                         child.material.needsUpdate = true;
-                        child.material.depthTest = true;
-                        child.material.transparent = false;
                         child.name = `${TYPES.INTERACTABLE}${asset_config.name}`;
                         child.castShadow = true;
                     }
@@ -558,21 +546,28 @@ export class AssetManager {
                     
                     // Function to create emission material
                     const createEmissionMaterial = (originalMaterial) => {
-                        return new THREE.MeshStandardMaterial({ 
-                            color: category.color,
-                            emissive: category.color,
-                            emissiveIntensity: 9,
-                            map: originalMaterial?.map || null,
-                            transparent: originalMaterial?.transparent || false,
-                            opacity: originalMaterial?.opacity || 1,
-                            roughness: 1.0, // Maximum roughness to disable roughness map
-                            metalness: 0.0, // No metalness to disable metalness map
-                            envMapIntensity: 0.0, // Disable environment mapping
-                            normalScale: new THREE.Vector2(0, 0), // Disable normal mapping
-                            aoMapIntensity: 0.0, // Disable ambient occlusion
-                            displacementScale: 0.0, // Disable displacement mapping
-                            flatShading: true // Use flat shading to reduce complexity
-                        });
+                        const emissionKey = `emission_${category.color.getHex()}_${!!originalMaterial?.map}`;
+                        
+                        if (!this.material_cache.has(emissionKey)) {
+                            const material = new THREE.MeshStandardMaterial({ 
+                                color: category.color,
+                                emissive: category.color,
+                                emissiveIntensity: 9,
+                                map: originalMaterial?.map || null,
+                                transparent: originalMaterial?.transparent || false,
+                                opacity: originalMaterial?.opacity || 1,
+                                roughness: 1.0,
+                                metalness: 0.0,
+                                envMapIntensity: 0.0,
+                                normalScale: new THREE.Vector2(0, 0),
+                                aoMapIntensity: 0.0,
+                                displacementScale: 0.0,
+                                flatShading: true
+                            });
+                            this.material_cache.set(emissionKey, material);
+                            return material;
+                        }
+                        return this.material_cache.get(emissionKey).clone();
                     };
 
                     let meshesProcessed = 0;
@@ -836,5 +831,39 @@ export class AssetManager {
             if (mesh.name === object_name) return true;
         }
         return false;
+    }
+
+    // Helper to get cached material or create new one
+    getMaterial(key, originalMaterial) {
+        if (!this.material_cache.has(key)) {
+            const material = new THREE.MeshStandardMaterial({
+                map: originalMaterial.map,
+                color: originalMaterial.color,
+                transparent: originalMaterial.transparent,
+                opacity: originalMaterial.opacity,
+                side: originalMaterial.side,
+                roughness: 1.0,
+                metalness: 0.0,
+                envMapIntensity: 0.0,
+                normalScale: new THREE.Vector2(0, 0),
+                emissiveIntensity: 0.0,
+                aoMapIntensity: 0.0,
+                displacementScale: 0.0,
+                flatShading: true
+            });
+            this.material_cache.set(key, material);
+            return material;
+        }
+        return this.material_cache.get(key).clone();
+    }
+
+    // Add cleanup method for when objects are destroyed
+    cleanup() {
+        // Dispose of all cached materials
+        for (const material of this.material_cache.values()) {
+            if (material.map) material.map.dispose();
+            material.dispose();
+        }
+        this.material_cache.clear();
     }
 }
