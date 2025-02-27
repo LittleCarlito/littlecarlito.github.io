@@ -1,14 +1,10 @@
 # Dependencies
 node_modules
-packages/*/node_modules
 
 # Lock files
-package-lock.json
-packages/*/package-lock.json
 
 # Build outputs
 dist
-packages/*/dist
 
 # IDE
 .vscode
