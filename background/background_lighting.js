@@ -48,7 +48,7 @@ export class BackgroundLighting {
 
         // Create main spotlight pointing straight down asynchronously
         (async () => {
-            const main = await this.create_spotlight(
+            const primary_light = await this.create_spotlight(
                 new THREE.Vector3(SPOTLIGHT_OFFSET, SPOTLIGHT_HEIGHT, SPOTLIGHT_DISTANCE),
                 -Math.PI/2, // Point straight down
                 0,          // No rotation around Y
@@ -58,7 +58,7 @@ export class BackgroundLighting {
 
             // Create debug visualization if enabled
             if (FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
-                await this.create_spotlight_helper(main);
+                await this.create_spotlight_helper(primary_light);
             }
         })();
     }

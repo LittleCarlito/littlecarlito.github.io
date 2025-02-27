@@ -1,3 +1,4 @@
+import { BackgroundLighting } from "../background/background_lighting";
 import { FLAGS, THREE } from "../common";
 
 // Left shoulder spotlight constants
@@ -16,6 +17,7 @@ export class CameraManager {
     constructor(incoming_parent, incoming_camera, distance = 15) {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
+        this.lighting = BackgroundLighting.getInstance(this.parent);
         this.distance = distance;
         this.target = new THREE.Vector3(0, 0, 0);
         // Spherical coordinates (starting position)
@@ -36,7 +38,7 @@ export class CameraManager {
         // TODO OOOOO
         // TODO Make 2 spotlights pointing forward
         (async () => {
-            this.left_shoulder_light = await create_spotlight(
+            this.left_shoulder_light = await this.lighting.create_spotlight(
                 new THREE.Vector3(LEFT_SPOTLIGHT_OFFSET, LEFT_SPOTLIGHT_HEIGHT, LEFT_SPOTLIGHT_DISTANCE),
                 -Math.PI/2, // Point straight down
                 0,          // No rotation around Y
@@ -46,11 +48,11 @@ export class CameraManager {
 
             // Create debug visualization if enabled
             if (FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
-                await this.create_spotlight_helper(main);
+                await this.lighting.create_spotlight_helper(this.left_shoulder_light);
             }
         })();
         (async () => {
-            this.right_shoulder_light = await this.create_spotlight(
+            this.right_shoulder_light = await this.lighting.create_spotlight(
                 new THREE.Vector3(RIGHT_SPOTLIGHT_OFFSET, RIGHT_SPOTLIGHT_HEIGHT, RIGHT_SPOTLIGHT_DISTANCE),
                 -Math.PI/2, // Point straight down
                 0,          // No rotation around Y
@@ -60,7 +62,7 @@ export class CameraManager {
 
             // Create debug visualization if enabled
             if (FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
-                await this.create_spotlight_helper(main);
+                await this.lighting.create_spotlight_helper(this.right_shoulder_light);
             }
         })();
     }
