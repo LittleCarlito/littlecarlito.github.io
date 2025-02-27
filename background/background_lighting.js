@@ -28,7 +28,7 @@ export class BackgroundLighting {
             );
 
             // Create debug visualization if enabled
-            if (FLAGS.VISUAL_DEBUG) {
+            if (FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
                 await this.createEnhancedSpotlightHelper(main, 0x00FF00);
             }
         })();
@@ -93,7 +93,7 @@ export class BackgroundLighting {
         this.lighting_container.add(spotlight);
 
         // Create debug visualization if enabled
-        if (FLAGS.VISUAL_DEBUG) {
+        if (FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
             // If no color provided, randomly select one
             const debugColor = color || this.DEBUG_COLORS[Math.floor(Math.random() * this.DEBUG_COLORS.length)];
             const helpers = await this.createEnhancedSpotlightHelper(spotlight, debugColor);
@@ -167,7 +167,7 @@ export class BackgroundLighting {
         this.lighting_container.remove(spotlight);
 
         // Remove debug helpers if they exist
-        if (FLAGS.VISUAL_DEBUG && spotlight.userData.debugHelpers) {
+        if (FLAGS.SPOTLIGHT_VISUAL_DEBUG && spotlight.userData.debugHelpers) {
             const { helper, cone } = spotlight.userData.debugHelpers;
             if (helper) {
                 helper.dispose(); // Dispose of any materials/geometries
