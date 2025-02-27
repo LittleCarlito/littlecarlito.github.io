@@ -76,14 +76,20 @@ export class CameraManager {
             leftPos.applyQuaternion(this.camera.quaternion);
             leftPos.add(this.camera.position);
 
+            // Calculate target using forward direction
             const forward = new THREE.Vector3(0, 0, -100);
             forward.applyQuaternion(this.camera.quaternion);
             const target = new THREE.Vector3().copy(leftPos).add(forward);
             
+            // Calculate angles for spotlight based on direction
+            const direction = new THREE.Vector3().subVectors(target, leftPos);
+            const rotationY = Math.atan2(direction.x, direction.z);
+            const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
+            
             this.left_shoulder_light = await this.lighting.create_spotlight(
                 leftPos,
-                ANGLES.toRadians(SPOTLIGHT_CONFIG.LEFT.ROTATION.PITCH),
-                ANGLES.toRadians(SPOTLIGHT_CONFIG.LEFT.ROTATION.YAW),
+                rotationX,
+                rotationY,
                 SPOTLIGHT_CONFIG.LEFT.POSITION.Y * Math.tan(ANGLES.toRadians(SPOTLIGHT_CONFIG.LEFT.ANGLE)),
                 SPOTLIGHT_CONFIG.LEFT.MAX_DISTANCE,
                 null,  // Default color
@@ -107,14 +113,20 @@ export class CameraManager {
             rightPos.applyQuaternion(this.camera.quaternion);
             rightPos.add(this.camera.position);
 
+            // Calculate target using forward direction
             const forward = new THREE.Vector3(0, 0, -100);
             forward.applyQuaternion(this.camera.quaternion);
             const target = new THREE.Vector3().copy(rightPos).add(forward);
             
+            // Calculate angles for spotlight based on direction
+            const direction = new THREE.Vector3().subVectors(target, rightPos);
+            const rotationY = Math.atan2(direction.x, direction.z);
+            const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
+            
             this.right_shoulder_light = await this.lighting.create_spotlight(
                 rightPos,
-                ANGLES.toRadians(SPOTLIGHT_CONFIG.RIGHT.ROTATION.PITCH),
-                ANGLES.toRadians(SPOTLIGHT_CONFIG.RIGHT.ROTATION.YAW),
+                rotationX,
+                rotationY,
                 SPOTLIGHT_CONFIG.RIGHT.POSITION.Y * Math.tan(ANGLES.toRadians(SPOTLIGHT_CONFIG.RIGHT.ANGLE)),
                 SPOTLIGHT_CONFIG.RIGHT.MAX_DISTANCE,
                 null,  // Default color
