@@ -50,7 +50,7 @@ export class ScrollMenu {
             RESTITUTION: 0.01,
             FRICTION: 1.0,
             ANGULAR_DAMPING: 1.5,   // Lighter angular damping
-            GRAVITY_SCALE: 0.5,     // Moderate gravity scale
+            GRAVITY_SCALE: 2,     // Moderate gravity scale
             IMAGE_PATH: 'images/ScrollControlMenu.svg'
         }
     };

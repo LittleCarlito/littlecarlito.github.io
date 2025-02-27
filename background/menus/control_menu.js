@@ -296,8 +296,10 @@ export class ControlMenu {
     async update() {
         // Skip if sign_joint isn't created yet or has been removed
         if (!this.sign_joint || this.chains_broken) return;
-        // Get current time
+
+        // Get current time for logging
         const currentTime = performance.now();
+        
         // Log positions periodically
         if (currentTime - this.last_log_time > this.log_interval) {
             const beamPos = this.top_beam_mesh.position;
@@ -310,7 +312,6 @@ export class ControlMenu {
                     const signPos = this.sign_mesh.position;
                     const signVel = this.sign_body.linvel();
                     const rotation = this.sign_body.rotation();
-                    // Convert quaternion to Euler angles (in radians)
                     const euler = new THREE.Euler().setFromQuaternion(
                         new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w)
                     );
@@ -322,76 +323,75 @@ export class ControlMenu {
             }
             this.last_log_time = currentTime;
         }
+
         // Check for stopping condition
         if (!this.reached_target && this.top_beam_mesh.position.z >= MENU_CONFIG.POSITION.Z_TARGET) {
             if(FLAGS.PHYSICS_LOGS) {
                 console.log('=== Attempting to Stop Beam ===');
             }
-            this.reached_target = true;
-            // Create spotlight when target is reached
-            if (!this.menu_spotlight && this.sign_mesh) {
-                // Calculate spotlight position 15 units behind camera
-                const spotlightPosition = new THREE.Vector3();
-                spotlightPosition.copy(this.camera.position);
-                const backVector = new THREE.Vector3(0, 0, 15);
-                backVector.applyQuaternion(this.camera.quaternion);
-                spotlightPosition.add(backVector);
-                // Calculate direction to sign
-                const targetPosition = new THREE.Vector3();
-                targetPosition.copy(this.sign_mesh.position);
-                // Calculate angles for spotlight
-                const direction = new THREE.Vector3().subVectors(targetPosition, spotlightPosition);
-                const rotationY = Math.atan2(direction.x, direction.z);
-                const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
-                // Create spotlight using the stored lighting instance
-                this.menu_spotlight = await this.lighting.create_spotlight(
-                    spotlightPosition,
-                    rotationX,
-                    rotationY,
-                    50 * Math.tan(Math.PI / 16), // Use same radius calculation as primary spotlight
-                    0  // unlimited distance
-                );
-            }
+
             // Get current position before changing anything
             const currentPos = this.top_beam_body.translation();
             if(FLAGS.PHYSICS_LOGS) {
                 console.log(`Current Position before stop: (${currentPos.x.toFixed(2)}, ${currentPos.y.toFixed(2)}, ${currentPos.z.toFixed(2)})`);
             }
-            // First set velocity to 0
+
+            // Immediately stop all motion
             this.top_beam_body.setLinvel(0, 0, 0);
-            // Moderate damping
-            this.sign_body.setAngularDamping(0.9);
-            // Only configure joint if it exists and chains aren't broken
+            this.top_beam_body.setAngvel(0, 0, 0);
+            
+            // Force the position to exactly Z_TARGET
+            this.top_beam_body.setTranslation({
+                x: currentPos.x,
+                y: currentPos.y,
+                z: MENU_CONFIG.POSITION.Z_TARGET
+            });
+
+            // Set strong damping and immediately configure joint
             if (this.sign_joint && !this.chains_broken) {
-                // Start with strong motor to stop motion
-                this.sign_joint.configureMotorPosition(0, 1000.0, 200.0);
-                // Rapidly reduce motor strength
-                setTimeout(() => {
-                    if (this.sign_joint && !this.chains_broken) {
-                        this.sign_joint.configureMotorPosition(0, 500.0, 100.0);
-                        setTimeout(() => {
-                            if (this.sign_joint && !this.chains_broken) {
-                                this.sign_joint.configureMotorPosition(0, 100.0, 20.0);
-                                setTimeout(() => {
-                                    if (this.sign_joint && !this.chains_broken) {
-                                        // Almost completely remove motor influence
-                                        this.sign_joint.configureMotorPosition(0, 10.0, 2.0);
-                                    }
-                                }, 100);
-                            }
-                        }, 100);
-                    }
-                }, 100);
+                this.sign_body.setAngularDamping(0.9);
+                this.sign_body.setLinearDamping(0.9);
+                // Set strong motor with high stiffness to hold position
+                this.sign_joint.configureMotorPosition(0, 10000.0, 1000.0);
             }
-            // Set gravity to something reasonable
-            setTimeout(() => {
+
+            // Immediately set gravity and change body type
+            if (this.sign_body) {
                 this.sign_body.setGravityScale(1);
-            }, MENU_CONFIG.MOVEMENT.GRAVITY_DELAY);
-            // Change the body type to fixed
+            }
             this.top_beam_body.setBodyType(RAPIER.RigidBodyType.Fixed);
+
+            // Create spotlight if needed (but don't wait for it)
+            if (!this.menu_spotlight && this.sign_mesh) {
+                const spotlightPosition = new THREE.Vector3();
+                spotlightPosition.copy(this.camera.position);
+                const backVector = new THREE.Vector3(0, 0, 15);
+                backVector.applyQuaternion(this.camera.quaternion);
+                spotlightPosition.add(backVector);
+
+                const targetPosition = new THREE.Vector3();
+                targetPosition.copy(this.sign_mesh.position);
+                const direction = new THREE.Vector3().subVectors(targetPosition, spotlightPosition);
+                const rotationY = Math.atan2(direction.x, direction.z);
+                const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
+
+                this.lighting.create_spotlight(
+                    spotlightPosition,
+                    rotationX,
+                    rotationY,
+                    50 * Math.tan(Math.PI / 16),
+                    0
+                ).then(spotlight => {
+                    this.menu_spotlight = spotlight;
+                });
+            }
+
+            this.reached_target = true;
+
             if(FLAGS.PHYSICS_LOGS) {
+                const finalPos = this.top_beam_body.translation();
                 console.log('Changed body type to Fixed');
-                console.log(`Final Position: (${currentPos.x.toFixed(2)}, ${currentPos.y.toFixed(2)}, ${currentPos.z.toFixed(2)})`);
+                console.log(`Final Position: (${finalPos.x.toFixed(2)}, ${finalPos.y.toFixed(2)}, ${finalPos.z.toFixed(2)})`);
             }
         }
     }
