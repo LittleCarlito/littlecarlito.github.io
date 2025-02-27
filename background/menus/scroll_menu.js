@@ -257,7 +257,10 @@ export class ScrollMenu {
                 const sign_texture = new THREE.CanvasTexture(sign_canvas);
                 const sign_material = new THREE.MeshStandardMaterial({
                     map: sign_texture,
-                    side: THREE.DoubleSide
+                    side: THREE.DoubleSide,
+                    roughness: 0.8,
+                    metalness: 0.1,
+                    envMapIntensity: 0.5
                 });
                 
                 const sign_geometry = new THREE.BoxGeometry(

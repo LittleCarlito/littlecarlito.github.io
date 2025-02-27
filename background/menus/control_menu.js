@@ -181,7 +181,10 @@ export class ControlMenu {
                 // Create material with texture
                 this.sign_material = new THREE.MeshStandardMaterial({
                     map: this.sign_texture,
-                    side: THREE.DoubleSide
+                    side: THREE.DoubleSide,
+                    roughness: 0.8,
+                    metalness: 0.1,
+                    envMapIntensity: 0.5
                 });
                 // Create test object
                 this.sign_geometry = new THREE.BoxGeometry(

@@ -534,6 +534,9 @@ export class AssetManager {
                             map: originalMaterial?.map || null,
                             transparent: originalMaterial?.transparent || false,
                             opacity: originalMaterial?.opacity || 1,
+                            roughness: 0.8,
+                            metalness: 0.1,
+                            envMapIntensity: 0.5
                         });
                     };
 
