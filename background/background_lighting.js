@@ -75,7 +75,7 @@ export class BackgroundLighting {
         0x8000FF  // Purple
     ];
 
-    async create_spotlight(origin, rotation_x, rotation_y, circle_radius, max_distance, color = null) {
+    async create_spotlight(origin, rotation_x, rotation_y, circle_radius, max_distance, color = null, intensity = SPOTLIGHT_INTENSITY) {
         // Calculate angle from circle radius if provided, otherwise use constant
         const angle = circle_radius > 0 
             ? Math.atan2(circle_radius, SPOTLIGHT_HEIGHT)
@@ -83,7 +83,7 @@ export class BackgroundLighting {
         
         const spotlight = new THREE.SpotLight(
             color || SPOTLIGHT_COLOR,  // Use provided color or fall back to constant
-            SPOTLIGHT_INTENSITY,
+            intensity,
             max_distance,
             angle,
             SPOTLIGHT_PENUMBRA,

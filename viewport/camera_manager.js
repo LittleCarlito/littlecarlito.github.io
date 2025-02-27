@@ -20,7 +20,8 @@ const SPOTLIGHT_CONFIG = {
             YAW: 0      // No rotation around Y
         },
         ANGLE: 80,      // Was Math.PI / 4 (45 degrees)
-        MAX_DISTANCE: 0 // Unlimited distance
+        MAX_DISTANCE: 0, // Unlimited distance
+        INTENSITY: 2    // Adding intensity configuration
     },
     RIGHT: {
         POSITION: {
@@ -33,7 +34,8 @@ const SPOTLIGHT_CONFIG = {
             YAW: 0      // No rotation around Y
         },
         ANGLE: 80,      // Was Math.PI / 4 (45 degrees)
-        MAX_DISTANCE: 0 // Unlimited distance
+        MAX_DISTANCE: 0, // Unlimited distance
+        INTENSITY: 2    // Adding intensity configuration
     }
 };
 
@@ -70,7 +72,9 @@ export class CameraManager {
                 ANGLES.toRadians(SPOTLIGHT_CONFIG.LEFT.ROTATION.PITCH),
                 ANGLES.toRadians(SPOTLIGHT_CONFIG.LEFT.ROTATION.YAW),
                 SPOTLIGHT_CONFIG.LEFT.POSITION.Y * Math.tan(ANGLES.toRadians(SPOTLIGHT_CONFIG.LEFT.ANGLE)),
-                SPOTLIGHT_CONFIG.LEFT.MAX_DISTANCE
+                SPOTLIGHT_CONFIG.LEFT.MAX_DISTANCE,
+                null,  // Default color
+                SPOTLIGHT_CONFIG.LEFT.INTENSITY
             );
 
             // Create debug visualization if enabled
@@ -90,7 +94,9 @@ export class CameraManager {
                 ANGLES.toRadians(SPOTLIGHT_CONFIG.RIGHT.ROTATION.PITCH),
                 ANGLES.toRadians(SPOTLIGHT_CONFIG.RIGHT.ROTATION.YAW),
                 SPOTLIGHT_CONFIG.RIGHT.POSITION.Y * Math.tan(ANGLES.toRadians(SPOTLIGHT_CONFIG.RIGHT.ANGLE)),
-                SPOTLIGHT_CONFIG.RIGHT.MAX_DISTANCE
+                SPOTLIGHT_CONFIG.RIGHT.MAX_DISTANCE,
+                null,  // Default color
+                SPOTLIGHT_CONFIG.RIGHT.INTENSITY
             );
 
             // Create debug visualization if enabled

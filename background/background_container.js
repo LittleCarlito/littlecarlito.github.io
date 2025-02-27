@@ -43,7 +43,7 @@ export class BackgroundContainer {
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma with name: ${mesh.name}`);
 
-            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DESK, this.object_container, this.world, {}, new THREE.Vector3(-5, 5, 0));
+            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DESK, this.object_container, this.world, {}, new THREE.Vector3(-5, 15, 0));
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DESK}`;
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Desk with name: ${mesh.name}`);

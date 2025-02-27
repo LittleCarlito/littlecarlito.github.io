@@ -1,9 +1,9 @@
 export const FLAGS = {
     // Functionality flags
-    CONSTRUCTION_GREETING: false,
+    CONSTRUCTION_GREETING: true,
     LAYER: true,
-    SPOTLIGHT_VISUAL_DEBUG: true,
-    SIGN_VISUAL_DEBUG: true,
+    SPOTLIGHT_VISUAL_DEBUG: false,
+    SIGN_VISUAL_DEBUG: false,
     LABEL_VISUAL_DEBUG: false,
     // Log flags
     SELECT_LOGS: false,
