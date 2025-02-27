@@ -138,6 +138,19 @@ export class BackgroundLighting {
         const helper = new THREE.SpotLightHelper(spotlight);
         helper.material = this.sharedDebugMaterials.helper;
         
+        // Store original update method
+        const originalUpdate = helper.update;
+        helper.update = () => {
+            // Call original update
+            originalUpdate.call(helper);
+            // After update, ensure all children use our shared material
+            helper.traverse(child => {
+                if (child.material && child !== helper) {
+                    child.material = this.sharedDebugMaterials.helper;
+                }
+            });
+        };
+        
         // Make helper and all its children non-interactive
         helper.raycast = () => null;
         helper.traverse(child => {
@@ -192,34 +205,56 @@ export class BackgroundLighting {
         if (FLAGS.SPOTLIGHT_VISUAL_DEBUG && spotlight.userData.debugHelpers) {
             const { helper, cone } = spotlight.userData.debugHelpers;
             if (helper) {
-                if (helper.children && helper.children.length > 0) {
+                // Remove the helper and its children from the scene
+                this.lighting_container.remove(helper);
+                if (helper.children) {
                     helper.children.forEach(child => {
-                        if (child.geometry) child.geometry.dispose();
+                        if (child.geometry) {
+                            child.geometry.dispose();
+                        }
                     });
                 }
-                this.lighting_container.remove(helper);
+                if (helper.geometry) {
+                    helper.geometry.dispose();
+                }
             }
             if (cone) {
-                if (cone.geometry) cone.geometry.dispose();
                 this.lighting_container.remove(cone);
+                if (cone.geometry) {
+                    cone.geometry.dispose();
+                }
             }
         }
 
         // Clean up any orphaned helpers that might have been missed
-        const helpers = this.lighting_container.children.filter(child => 
-            child.isSpotLightHelper || 
-            (child.isMesh && child.material.wireframe && child.geometry.type === 'ConeGeometry')
-        );
+        const helpers = this.lighting_container.children.filter(child => {
+            // Only match helpers that belong to this specific spotlight
+            if (child.isSpotLightHelper) {
+                return child.light === spotlight;
+            }
+            if (child.isMesh && child.material && child.material.wireframe && 
+                child.geometry && child.geometry.type === 'ConeGeometry') {
+                // Check if this cone belongs to our spotlight by checking position
+                return child.position.equals(spotlight.position);
+            }
+            return false;
+        });
         
         for (const helper of helpers) {
-            await new Promise(resolve => setTimeout(resolve, 0));
-            if (helper.isSpotLightHelper && helper.children) {
+            // Remove from scene
+            this.lighting_container.remove(helper);
+            
+            // Dispose geometries
+            if (helper.children) {
                 helper.children.forEach(child => {
-                    if (child.geometry) child.geometry.dispose();
+                    if (child.geometry) {
+                        child.geometry.dispose();
+                    }
                 });
             }
-            if (helper.geometry) helper.geometry.dispose();
-            this.lighting_container.remove(helper);
+            if (helper.geometry) {
+                helper.geometry.dispose();
+            }
         }
     }
 

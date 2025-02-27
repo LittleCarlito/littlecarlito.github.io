@@ -40,7 +40,7 @@ export class CameraManager {
         (async () => {
             this.left_shoulder_light = await this.lighting.create_spotlight(
                 new THREE.Vector3(LEFT_SPOTLIGHT_OFFSET, LEFT_SPOTLIGHT_HEIGHT, LEFT_SPOTLIGHT_DISTANCE),
-                -Math.PI/2, // Point straight down
+                Math.PI, // Point straight down
                 0,          // No rotation around Y
                 LEFT_SPOTLIGHT_HEIGHT * Math.tan(LEFT_SPOTLIGHT_ANGLE), // Calculate radius from height and angle
                 0          // Unlimited distance
@@ -54,7 +54,7 @@ export class CameraManager {
         (async () => {
             this.right_shoulder_light = await this.lighting.create_spotlight(
                 new THREE.Vector3(RIGHT_SPOTLIGHT_OFFSET, RIGHT_SPOTLIGHT_HEIGHT, RIGHT_SPOTLIGHT_DISTANCE),
-                -Math.PI/2, // Point straight down
+                Math.PI, // Point straight down
                 0,          // No rotation around Y
                 RIGHT_SPOTLIGHT_HEIGHT * Math.tan(RIGHT_SPOTLIGHT_ANGLE), // Calculate radius from height and angle
                 0          // Unlimited distance

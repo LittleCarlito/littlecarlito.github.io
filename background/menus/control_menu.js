@@ -344,7 +344,7 @@ export class ControlMenu {
                 const rotationY = Math.atan2(direction.x, direction.z);
                 const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
                 // Create spotlight using the stored lighting instance
-                this.menu_spotlight = await this.lighting.createSpotlight(
+                this.menu_spotlight = await this.lighting.create_spotlight(
                     spotlightPosition,
                     rotationX,
                     rotationY,
