@@ -27,7 +27,7 @@ let hovered_cube_name = "";
 let grabbed_object = null;
 let left_mouse_down = false;
 let right_mouse_down = false;
-let construction_acknowledged = false;
+let construction_acknowledged = !FLAGS.CONSTRUCTION_GREETING;
 let asset_manager;
 
 /** Updates the loading progress text */

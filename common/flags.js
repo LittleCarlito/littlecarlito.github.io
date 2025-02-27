@@ -1,6 +1,6 @@
 export const FLAGS = {
     // Functionality flags
-    CONSTRUCTION_GREETING: true,
+    CONSTRUCTION_GREETING: false,
     LAYER: true,
     SPOTLIGHT_VISUAL_DEBUG: true,
     SIGN_VISUAL_DEBUG: true,
