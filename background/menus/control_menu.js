@@ -348,7 +348,7 @@ export class ControlMenu {
                     spotlightPosition,
                     rotationX,
                     rotationY,
-                    5, // circle radius
+                    50 * Math.tan(Math.PI / 16), // Use same radius calculation as primary spotlight
                     0  // unlimited distance
                 );
             }
