@@ -1,0 +1,35 @@
+{
+  "name": "@blooooork/three-ui",
+  "version": "1.0.0",
+  "description": "Professional 3D user interface components for Three.js applications",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "three.js",
+    "webgl",
+    "ui",
+    "interface",
+    "components",
+    "3d-ui"
+  ],
+  "author": "blooooork",
+  "license": "MIT",
+  "peerDependencies": {
+    "three": "^0.160.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "vite": "^5.0.8",
+    "three": "^0.160.0"
+  }
+} 

@@ -1,8 +1,24 @@
-.DS_Store
+# Dependencies
+node_modules
+packages/*/node_modules
+
+# Lock files
 package-lock.json
-**/node_modules/
-**/.cursor/
-dist/
+packages/*/package-lock.json
+
+# Build outputs
+dist
+packages/*/dist
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Make sure development folder is NOT ignored
 !development/
@@ -13,4 +29,7 @@ development/**/*.blend1
 development/**/*.blend2
 development/**/*.blend3
 development/**/.DS_Store
+
+**/node_modules/
+**/.cursor/
 
