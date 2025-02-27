@@ -258,9 +258,14 @@ export class ScrollMenu {
                 const sign_material = new THREE.MeshStandardMaterial({
                     map: sign_texture,
                     side: THREE.DoubleSide,
-                    roughness: 0.8,
-                    metalness: 0.1,
-                    envMapIntensity: 0.5
+                    roughness: 1.0, // Maximum roughness to disable roughness map
+                    metalness: 0.0, // No metalness to disable metalness map
+                    envMapIntensity: 0.0, // Disable environment mapping
+                    normalScale: new THREE.Vector2(0, 0), // Disable normal mapping
+                    emissiveIntensity: 0.0, // Disable emissive by default
+                    aoMapIntensity: 0.0, // Disable ambient occlusion
+                    displacementScale: 0.0, // Disable displacement mapping
+                    flatShading: true // Use flat shading to reduce complexity
                 });
                 
                 const sign_geometry = new THREE.BoxGeometry(
