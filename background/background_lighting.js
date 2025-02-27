@@ -17,6 +17,17 @@ export class BackgroundLighting {
         this.lighting_container = new THREE.Object3D();
         this.parent.add(this.lighting_container);
 
+        // Create shared materials for debug visualization with a single static color
+        this.sharedDebugMaterials = {
+            helper: new THREE.LineBasicMaterial({ color: 0x00FF00 }), // Green for visibility
+            cone: new THREE.MeshBasicMaterial({ 
+                color: 0x00FF00,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.6
+            })
+        };
+
         // Create main spotlight pointing straight down asynchronously
         (async () => {
             const main = await this.createSpotlight(
@@ -29,7 +40,7 @@ export class BackgroundLighting {
 
             // Create debug visualization if enabled
             if (FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
-                await this.createEnhancedSpotlightHelper(main, 0x00FF00);
+                await this.createEnhancedSpotlightHelper(main);
             }
         })();
     }
@@ -94,9 +105,7 @@ export class BackgroundLighting {
 
         // Create debug visualization if enabled
         if (FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
-            // If no color provided, randomly select one
-            const debugColor = color || this.DEBUG_COLORS[Math.floor(Math.random() * this.DEBUG_COLORS.length)];
-            const helpers = await this.createEnhancedSpotlightHelper(spotlight, debugColor);
+            const helpers = await this.createEnhancedSpotlightHelper(spotlight);
             // Store helpers reference on the spotlight for cleanup
             spotlight.userData.debugHelpers = helpers;
         }
@@ -104,9 +113,11 @@ export class BackgroundLighting {
         return spotlight;
     }
 
-    async createEnhancedSpotlightHelper(spotlight, color) {
-        // Create the standard helper
-        const helper = new THREE.SpotLightHelper(spotlight, color);
+    async createEnhancedSpotlightHelper(spotlight) {
+        // Create the standard helper with shared material
+        const helper = new THREE.SpotLightHelper(spotlight);
+        helper.material = this.sharedDebugMaterials.helper;
+        
         // Make helper and all its children non-interactive
         helper.raycast = () => null;
         helper.traverse(child => {
@@ -117,38 +128,29 @@ export class BackgroundLighting {
         await new Promise(resolve => setTimeout(resolve, 0));
         this.lighting_container.add(helper);
 
-        // Calculate direction and distance to target
+        // Create the cone visualization with shared material
         const spotlightToTarget = new THREE.Vector3().subVectors(
             spotlight.target.position,
             spotlight.position
         );
         const distance = spotlightToTarget.length();
-        // Create a cone to visualize the spotlight's beam
         const height = distance;
         const radius = Math.tan(spotlight.angle) * height;
-        // Create cone pointing down by default (narrow end at 0,0,0)
         const geometry = new THREE.ConeGeometry(radius, height, 32, 32, true);
-        geometry.translate(0, -height/2, 0); // Move pivot to top of cone
-        const material = new THREE.MeshBasicMaterial({ 
-            color: color,
-            wireframe: true,
-            transparent: true,
-            opacity: 0.6
-        });
-        const cone = new THREE.Mesh(geometry, material);
-        // Make cone and all its children non-interactive
+        geometry.translate(0, -height/2, 0);
+        
+        const cone = new THREE.Mesh(geometry, this.sharedDebugMaterials.cone);
         cone.raycast = () => null;
         cone.traverse(child => {
             child.raycast = () => null;
         });
         cone.position.copy(spotlight.position);
-        // Orient cone to point from spotlight to target
+        
         const direction = spotlightToTarget.normalize();
         const quaternion = new THREE.Quaternion();
         quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), direction);
         cone.quaternion.copy(quaternion);
         
-        // Add cone in next frame
         await new Promise(resolve => setTimeout(resolve, 0));
         this.lighting_container.add(cone);
         
@@ -170,12 +172,15 @@ export class BackgroundLighting {
         if (FLAGS.SPOTLIGHT_VISUAL_DEBUG && spotlight.userData.debugHelpers) {
             const { helper, cone } = spotlight.userData.debugHelpers;
             if (helper) {
-                helper.dispose(); // Dispose of any materials/geometries
+                if (helper.children && helper.children.length > 0) {
+                    helper.children.forEach(child => {
+                        if (child.geometry) child.geometry.dispose();
+                    });
+                }
                 this.lighting_container.remove(helper);
             }
             if (cone) {
-                cone.geometry.dispose();
-                cone.material.dispose();
+                if (cone.geometry) cone.geometry.dispose();
                 this.lighting_container.remove(cone);
             }
         }
@@ -188,15 +193,18 @@ export class BackgroundLighting {
         
         for (const helper of helpers) {
             await new Promise(resolve => setTimeout(resolve, 0));
+            if (helper.isSpotLightHelper && helper.children) {
+                helper.children.forEach(child => {
+                    if (child.geometry) child.geometry.dispose();
+                });
+            }
             if (helper.geometry) helper.geometry.dispose();
-            if (helper.material) helper.material.dispose();
             this.lighting_container.remove(helper);
         }
     }
 
-    // Add method to update helpers if spotlights move
+    // Update method for spotlight movement
     updateHelpers() {
-        // The standard helpers will update automatically
         this.lighting_container.children.forEach(child => {
             if (child.isSpotLightHelper) {
                 child.update();
