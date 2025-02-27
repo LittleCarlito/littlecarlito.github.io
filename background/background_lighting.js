@@ -30,17 +30,17 @@ export class BackgroundLighting {
 
         // Create main spotlight pointing straight down asynchronously
         (async () => {
-            const main = await this.createSpotlight(
+            const main = await this.create_spotlight(
                 new THREE.Vector3(SPOTLIGHT_OFFSET, SPOTLIGHT_HEIGHT, SPOTLIGHT_DISTANCE),
                 -Math.PI/2, // Point straight down
                 0,          // No rotation around Y
-                5,         // Circle radius
+                SPOTLIGHT_HEIGHT * Math.tan(SPOTLIGHT_ANGLE), // Calculate radius from height and angle
                 0          // Unlimited distance
             );
 
             // Create debug visualization if enabled
             if (FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
-                await this.createEnhancedSpotlightHelper(main);
+                await this.create_spotlight_helper(main);
             }
         })();
     }
@@ -57,14 +57,16 @@ export class BackgroundLighting {
         0x8000FF  // Purple
     ];
 
-    async createSpotlight(origin, rotationX, rotationY, circleRadius, maxDistance, color = null) {
-        // Use the constant angle instead of calculating from radius
-        const angle = SPOTLIGHT_ANGLE;
+    async create_spotlight(origin, rotation_x, rotation_y, circle_radius, max_distance, color = null) {
+        // Calculate angle from circle radius if provided, otherwise use constant
+        const angle = circle_radius > 0 
+            ? Math.atan2(circle_radius, SPOTLIGHT_HEIGHT)
+            : SPOTLIGHT_ANGLE;
         
         const spotlight = new THREE.SpotLight(
-            SPOTLIGHT_COLOR,
+            color || SPOTLIGHT_COLOR,  // Use provided color or fall back to constant
             SPOTLIGHT_INTENSITY,
-            maxDistance,
+            max_distance,
             angle,
             SPOTLIGHT_PENUMBRA,
             SPOTLIGHT_SHARPNESS
@@ -88,9 +90,9 @@ export class BackgroundLighting {
         const targetDistance = 100; // Use a fixed distance for the target
         const target = new THREE.Object3D();
         // Calculate target position based on spherical coordinates
-        const x = Math.sin(rotationY) * Math.cos(rotationX) * targetDistance;
-        const y = Math.sin(rotationX) * targetDistance;
-        const z = Math.cos(rotationY) * Math.cos(rotationX) * targetDistance;
+        const x = Math.sin(rotation_y) * Math.cos(rotation_x) * targetDistance;
+        const y = Math.sin(rotation_x) * targetDistance;
+        const z = Math.cos(rotation_y) * Math.cos(rotation_x) * targetDistance;
         target.position.set(
             origin.x + x,
             origin.y + y,
@@ -105,7 +107,7 @@ export class BackgroundLighting {
 
         // Create debug visualization if enabled
         if (FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
-            const helpers = await this.createEnhancedSpotlightHelper(spotlight);
+            const helpers = await this.create_spotlight_helper(spotlight);
             // Store helpers reference on the spotlight for cleanup
             spotlight.userData.debugHelpers = helpers;
         }
@@ -113,7 +115,7 @@ export class BackgroundLighting {
         return spotlight;
     }
 
-    async createEnhancedSpotlightHelper(spotlight) {
+    async create_spotlight_helper(spotlight) {
         // Create the standard helper with shared material
         const helper = new THREE.SpotLightHelper(spotlight);
         helper.material = this.sharedDebugMaterials.helper;

@@ -19,6 +19,9 @@ export class CameraManager {
         this.overlay_container = null;
         // Update the camera
         this.update_camera();
+
+        // TODO OOOOO
+        // TODO Make 2 spotlights pointing forward
     }
 
     add_update_callback(callback) {
