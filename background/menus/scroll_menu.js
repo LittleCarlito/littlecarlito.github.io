@@ -423,41 +423,13 @@ export class ScrollMenu {
             }
             this.chain_joints = [];
 
-            // Remove spotlight if it exists
+            // Remove spotlight and its debug meshes if they exist
             if (this.menu_spotlight) {
+                // First despawn the spotlight helpers
+                await this.lighting.despawn_spotlight_helpers(this.menu_spotlight);
+                // Then despawn the spotlight itself
                 await this.lighting.despawn_spotlight(this.menu_spotlight);
                 this.menu_spotlight = null;
-            }
-
-            // Find and update all chain segments and sign in dynamic_bodies
-            if (this.parent.children) {
-                // Handle chain segments
-                const chainLinks = this.dynamic_bodies.filter(data => 
-                    data.type === 'scroll_menu_chain' && 
-                    data.body && 
-                    typeof data.body.setGravityScale === 'function'
-                );
-                chainLinks.forEach(bodyData => {
-                    try {
-                        bodyData.body.setGravityScale(this.CHAIN_CONFIG.SEGMENTS.GRAVITY_SCALE);
-                    } catch (e) {
-                        console.warn('Failed to update chain segment gravity:', e);
-                    }
-                });
-
-                // Handle sign
-                const signData = this.dynamic_bodies.find(data => 
-                    data.type === 'scroll_menu_sign' && 
-                    data.body && 
-                    typeof data.body.setGravityScale === 'function'
-                );
-                if (signData) {
-                    try {
-                        signData.body.setGravityScale(this.CHAIN_CONFIG.SIGN.GRAVITY_SCALE);
-                    } catch (e) {
-                        console.warn('Failed to update sign gravity:', e);
-                    }
-                }
             }
 
             this.chains_broken = true;
