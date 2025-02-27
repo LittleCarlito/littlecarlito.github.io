@@ -182,9 +182,14 @@ export class ControlMenu {
                 this.sign_material = new THREE.MeshStandardMaterial({
                     map: this.sign_texture,
                     side: THREE.DoubleSide,
-                    roughness: 0.8,
-                    metalness: 0.1,
-                    envMapIntensity: 0.5
+                    roughness: 1.0,
+                    metalness: 0.0,
+                    envMapIntensity: 0.0,
+                    normalScale: new THREE.Vector2(0, 0),
+                    emissiveIntensity: 0.0,
+                    aoMapIntensity: 0.0,
+                    displacementScale: 0.0,
+                    flatShading: true
                 });
                 // Create test object
                 this.sign_geometry = new THREE.BoxGeometry(

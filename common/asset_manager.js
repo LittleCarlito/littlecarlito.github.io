@@ -219,8 +219,39 @@ export class AssetManager {
                             scale: asset_config.scale
                         });
                     } else {
-                        // Regular mesh handling
-                        child.material = child.material.clone();
+                        // Regular mesh handling with optimized materials
+                        const originalMaterial = child.material;
+                        child.material = new THREE.MeshStandardMaterial({
+                            map: originalMaterial.map, // Keep the base color map
+                            color: originalMaterial.color,
+                            transparent: originalMaterial.transparent,
+                            opacity: originalMaterial.opacity,
+                            side: originalMaterial.side,
+                            // Optimized settings to minimize sampler usage
+                            roughness: 1.0,
+                            metalness: 0.0,
+                            envMapIntensity: 0.0,
+                            normalScale: new THREE.Vector2(0, 0),
+                            emissiveIntensity: 0.0,
+                            aoMapIntensity: 0.0,
+                            displacementScale: 0.0,
+                            flatShading: true
+                        });
+                        
+                        // Clean up unused textures
+                        if (originalMaterial) {
+                            if (originalMaterial.roughnessMap) originalMaterial.roughnessMap.dispose();
+                            if (originalMaterial.metalnessMap) originalMaterial.metalnessMap.dispose();
+                            if (originalMaterial.normalMap) originalMaterial.normalMap.dispose();
+                            if (originalMaterial.bumpMap) originalMaterial.bumpMap.dispose();
+                            if (originalMaterial.envMap) originalMaterial.envMap.dispose();
+                            if (originalMaterial.alphaMap) originalMaterial.alphaMap.dispose();
+                            if (originalMaterial.aoMap) originalMaterial.aoMap.dispose();
+                            if (originalMaterial.displacementMap) originalMaterial.displacementMap.dispose();
+                            originalMaterial.dispose();
+                        }
+
+                        child.material.needsUpdate = true;
                         child.material.depthTest = true;
                         child.material.transparent = false;
                         child.name = `${TYPES.INTERACTABLE}${asset_config.name}`;
@@ -534,9 +565,13 @@ export class AssetManager {
                             map: originalMaterial?.map || null,
                             transparent: originalMaterial?.transparent || false,
                             opacity: originalMaterial?.opacity || 1,
-                            roughness: 0.8,
-                            metalness: 0.1,
-                            envMapIntensity: 0.5
+                            roughness: 1.0, // Maximum roughness to disable roughness map
+                            metalness: 0.0, // No metalness to disable metalness map
+                            envMapIntensity: 0.0, // Disable environment mapping
+                            normalScale: new THREE.Vector2(0, 0), // Disable normal mapping
+                            aoMapIntensity: 0.0, // Disable ambient occlusion
+                            displacementScale: 0.0, // Disable displacement mapping
+                            flatShading: true // Use flat shading to reduce complexity
                         });
                     };
 
