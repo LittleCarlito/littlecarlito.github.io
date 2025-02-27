@@ -2,6 +2,7 @@ import { GLTFLoader } from "three/examples/jsm/Addons.js";
 import { Easing, Tween, RAPIER, THREE, NAMES } from ".";
 import { CATEGORIES, TYPES } from "../viewport/overlay/overlay_common";
 import { FLAGS } from "./flags";
+import { TextureAtlasManager } from './texture_atlas_manager';
 
 /**
  * Generates triangle indices for a geometry that doesn't have them
@@ -111,6 +112,8 @@ export class AssetManager {
     emission_states = new Map(); // Track emission states of objects
     name = "[AssetManager]";
     material_cache = new Map(); // Add material cache
+    textureAtlasManager = TextureAtlasManager.getInstance();
+    pendingTextures = new Map(); // Track textures waiting to be atlased
     
     constructor() {
         if (AssetManager.instance) {
@@ -122,6 +125,8 @@ export class AssetManager {
         this.static_meshes = new Map();  // Stores static meshes without physics
         this.loading_promises = new Map();
         this.material_cache = new Map(); // Initialize material cache
+        this.textureAtlasManager = TextureAtlasManager.getInstance();
+        this.pendingTextures = new Map(); // Track textures waiting to be atlased
         AssetManager.instance = this;
     }
 
@@ -159,6 +164,42 @@ export class AssetManager {
 
     get_new_instance_id() {
         return AssetManager.instance_counter++;
+    }
+
+    async processTexturesForAtlas(mesh) {
+        const textures = new Set();
+        
+        mesh.traverse((child) => {
+            if (child.isMesh && child.material) {
+                const materials = Array.isArray(child.material) ? child.material : [child.material];
+                materials.forEach(material => {
+                    if (material.map) textures.add(material.map);
+                });
+            }
+        });
+
+        if (textures.size === 0) return null;
+
+        // Create atlas if we have enough textures or if we're forced to
+        if (textures.size > 0) {
+            const atlas = await this.textureAtlasManager.createAtlas(Array.from(textures));
+            
+            // Update all materials to use the atlas
+            mesh.traverse((child) => {
+                if (child.isMesh && child.material) {
+                    const materials = Array.isArray(child.material) ? child.material : [child.material];
+                    materials.forEach(material => {
+                        if (material.map) {
+                            this.textureAtlasManager.updateMaterialWithAtlas(child, atlas, material.map);
+                        }
+                    });
+                }
+            });
+
+            return atlas;
+        }
+
+        return null;
     }
 
     /**
@@ -206,6 +247,9 @@ export class AssetManager {
             mesh.position.copy(position_offset);
             mesh.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
             
+            // Process textures for atlasing before material optimization
+            await this.processTexturesForAtlas(mesh);
+
             // Look for ALL collision meshes using the 'col_' prefix
             let collision_meshes = [];
             mesh.traverse((child) => {
@@ -865,5 +909,8 @@ export class AssetManager {
             material.dispose();
         }
         this.material_cache.clear();
+        
+        // Clean up texture atlases
+        this.textureAtlasManager.dispose();
     }
 }
