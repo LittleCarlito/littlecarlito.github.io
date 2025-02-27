@@ -136,10 +136,9 @@ export class BackgroundContainer {
                 // Add to parent
                 this.object_container.add(mesh);
 
-                // Set name and add to manifest
-                mesh.name = `${TYPES.INTERACTABLE}${category.value}`;
+                // Add to manifest and register with asset manager
                 this.asset_manifest.add(mesh.name);
-                this.dynamic_bodies.push([mesh, body]);
+                asset_loader.add_object(mesh, body);
                 
                 if (FLAGS.ASSET_LOGS) {
                     console.log(`${this.name} Created cube with name: ${mesh.name}`);

@@ -237,8 +237,9 @@ export class AssetManager {
                 mesh.castShadow = true;
                 mesh.receiveShadow = true;
                 
-                // Add name for cube
-                mesh.name = `${TYPES.INTERACTABLE}${asset_config.name}`;
+                // Add name for cube using the category value
+                mesh.name = `${TYPES.INTERACTABLE}${options.category}`;
+                if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating cube with name: ${mesh.name}, category: ${options.category}`);
                 
                 const collider = RAPIER.ColliderDesc.cuboid(0.5, 0.5, 0.5)
                     .setMass(asset_config.mass)
@@ -586,7 +587,10 @@ export class AssetManager {
         
         // Extract the category name from the incoming object name
         const requested_category = object_name.split("_")[1];
-        if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Looking for category: ${requested_category}`);
+        if (FLAGS.ACTIVATE_LOGS) {
+            console.log(`${this.name} Looking for category: ${requested_category}`);
+            console.log(`${this.name} Available meshes:`, Array.from(this.dynamic_bodies.values()).map(([mesh, _]) => mesh.name));
+        }
         
         let found = false;
         for (const [instance_id, [mesh, _body]] of this.dynamic_bodies) {
@@ -665,10 +669,12 @@ export class AssetManager {
                                 // Store the original material for deactivation
                                 if (!child.userData.originalMaterial) {
                                     child.userData.originalMaterial = child.material.clone();
+                                    console.log("Cloned original material for:", object_name);
                                 }
                                 // Apply new emission material while preserving textures
                                 if (child.material) child.material.dispose();
                                 child.material = createEmissionMaterial(child.userData.originalMaterial);
+                                console.log("Applied emission material to:", object_name, "Material:", child.material);
                                 meshesProcessed++;
                                 
                                 // Check if all meshes are processed and verify emission
@@ -687,9 +693,11 @@ export class AssetManager {
                         // For primitive objects like cubes
                         if (!mesh.userData.originalMaterial) {
                             mesh.userData.originalMaterial = mesh.material.clone();
+                            console.log("Cloned original material for cube:", object_name);
                         }
                         if (mesh.material) mesh.material.dispose();
                         mesh.material = createEmissionMaterial(mesh.userData.originalMaterial);
+                        console.log("Applied emission material to cube:", object_name, "Material:", mesh.material);
                         
                         // Verify emission for primitive mesh
                         if (this.is_mesh_emissive(mesh)) {
