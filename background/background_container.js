@@ -16,6 +16,7 @@ export class BackgroundContainer {
     loading_complete = false;
     loading_promise;
     is_spawning_secondary = false;  // Add state tracking for spawn in progress
+    is_spawning_primary = false;
 
     constructor(incoming_parent, incoming_camera, incoming_world) {
         this.parent = incoming_parent;
@@ -64,29 +65,112 @@ export class BackgroundContainer {
         })();
 
         // Create all cubes asynchronously
-        const cube_promises = Object.values(CATEGORIES)
-            .filter(category => typeof category !== 'function' && category !== CATEGORIES.EDUCATION)
-            .map(async (category, i) => {
+        const validCategories = Object.entries(CATEGORIES)
+            .filter(([key, value]) => {
+                // Only include actual category entries (not helper methods)
+                return key === key.toUpperCase() && // All category keys are uppercase
+                       key !== 'EDUCATION' && // Skip education category
+                       typeof value === 'object' && // Must be an object
+                       value !== null && // Must not be null
+                       'color' in value && // Must have a color property
+                       'value' in value; // Must have a value property
+            })
+            .map(([_, category]) => category);
+
+        if (FLAGS.ASSET_LOGS) {
+            console.log('Valid categories for cube creation:', validCategories);
+        }
+
+        // Ensure we have valid categories before proceeding
+        if (!validCategories || validCategories.length === 0) {
+            console.error('No valid categories found for cube creation');
+            this.loading_complete = true;
+            this.loading_promise = Promise.resolve();
+            return;
+        }
+
+        const cube_promises = validCategories.map(async (category, i) => {
+            try {
+                if (!category || typeof category !== 'object') {
+                    console.error('Invalid category object:', category);
+                    return null;
+                }
+
+                if (FLAGS.ASSET_LOGS) {
+                    console.log(`Creating cube for category:`, category);
+                }
+
+                // Create position vector
                 const position = new THREE.Vector3(((i * 2) - 3), -2, -5);
-                const [mesh, body] = await asset_loader.spawn_asset(
+
+                // Wait a small amount between spawns to avoid lock conflicts
+                await new Promise(resolve => setTimeout(resolve, i * 100));
+
+                // Create cube with proper color
+                const result = await asset_loader.spawn_asset(
                     ASSET_TYPE.CUBE,
                     this.object_container,
                     this.world,
-                    { color: category.color },
+                    { 
+                        color: category.color,
+                        category: category.value,
+                        scale: 1,
+                        mass: 1,
+                        restitution: 1.1
+                    },
                     position
                 );
+
+                if (!result) {
+                    console.error(`Spawn failed for category ${category.value}`);
+                    return null;
+                }
+
+                const [mesh, body] = result;
+
+                if (!mesh || !body) {
+                    console.error(`Failed to create mesh or body for category ${category.value}. Mesh:`, mesh, 'Body:', body);
+                    return null;
+                }
+
+                // Add to parent
+                this.object_container.add(mesh);
+
+                // Set name and add to manifest
                 mesh.name = `${TYPES.INTERACTABLE}${category.value}`;
                 this.asset_manifest.add(mesh.name);
-                if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating cube with name: ${mesh.name}`);
+                this.dynamic_bodies.push([mesh, body]);
+                
+                if (FLAGS.ASSET_LOGS) {
+                    console.log(`${this.name} Created cube with name: ${mesh.name}`);
+                }
+                
                 return mesh;
-            });
+            } catch (error) {
+                console.error(`Error creating cube for category ${category?.value}:`, error);
+                console.error('Error stack:', error.stack);
+                return null;
+            }
+        });
 
         // Store the loading promise for external checking
-        this.loading_promise = Promise.all([mainAssetsPromise, ...cube_promises]).then(() => {
-            if (FLAGS.PHYSICS_LOGS) console.log('All assets initialized');
+        this.loading_promise = Promise.all([
+            mainAssetsPromise.catch(error => {
+                console.error('Error in mainAssetsPromise:', error);
+                return null;
+            }),
+            ...cube_promises.map(p => p.catch(error => {
+                console.error('Error in cube promise:', error);
+                return null;
+            }))
+        ]).then(results => {
+            if (FLAGS.PHYSICS_LOGS) {
+                console.log('All assets initialized:', results);
+            }
             this.loading_complete = true;
         }).catch(error => {
-            console.error('Error loading assets:', error);
+            console.error('Error in Promise.all:', error);
+            this.loading_complete = true;
             throw error;
         });
     }
@@ -163,7 +247,16 @@ export class BackgroundContainer {
     }
 
     async spawn_primary_instructions() {
+        // Check if already spawning or spawned
+        if (this.is_spawning_primary || this.is_primary_spawned()) {
+            if(FLAGS.PHYSICS_LOGS) console.log(`${this.name} Primary instructions already spawning or spawned`);
+            return;
+        }
+
         try {
+            this.is_spawning_primary = true;  // Set spawn lock
+            if(FLAGS.PHYSICS_LOGS) console.log(`${this.name} Starting primary instructions spawn`);
+
             // Create and await the ControlMenu initialization
             this.primary_instruction_sign = await new ControlMenu(
                 this.object_container, 
@@ -187,7 +280,7 @@ export class BackgroundContainer {
                     this.primary_instruction_sign.sign_body
                 );
                 if (FLAGS.PHYSICS_LOGS) {
-                    console.log("Primary sign added to asset manager:", {
+                    console.log(`${this.name} Primary sign added to asset manager:`, {
                         meshName: this.primary_instruction_sign.sign_mesh.name,
                         hasBody: !!this.primary_instruction_sign.sign_body,
                         bodyType: this.primary_instruction_sign.sign_body.bodyType()
@@ -195,8 +288,11 @@ export class BackgroundContainer {
                 }
             }
         } catch (err) {
-            console.error("Error spawning primary instructions:", err);
+            console.error(`${this.name} Error spawning primary instructions:`, err);
             this.primary_instruction_sign = null;
+        } finally {
+            this.is_spawning_primary = false;  // Always release the spawn lock
+            if(FLAGS.PHYSICS_LOGS) console.log(`${this.name} Primary instructions spawn complete`);
         }
     }
 
