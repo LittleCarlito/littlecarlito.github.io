@@ -1,8 +1,49 @@
+import { BackgroundLighting } from "../background/background_lighting";
 import { FLAGS, THREE } from "../common";
 
+// Utility functions for angle conversion
+const ANGLES = {
+    toRadians: degrees => degrees * (Math.PI / 180),
+    toDegrees: radians => radians * (180 / Math.PI)
+};
+
+// Spotlight configuration constants
+const SPOTLIGHT_CONFIG = {
+    LEFT: {
+        POSITION: {
+            X: -3,
+            Y: 2.5,
+            Z: 40
+        },
+        ROTATION: {
+            PITCH: 190,  // Point straight down (was Math.PI)
+            YAW: 0      // No rotation around Y
+        },
+        ANGLE: 80,      // Was Math.PI / 4 (45 degrees)
+        MAX_DISTANCE: 0, // Unlimited distance
+        INTENSITY: 2    // Adding intensity configuration
+    },
+    RIGHT: {
+        POSITION: {
+            X: 3,
+            Y: 2.5,
+            Z: 40
+        },
+        ROTATION: {
+            PITCH: 190,  // Point straight down (was Math.PI)
+            YAW: 0      // No rotation around Y
+        },
+        ANGLE: 80,      // Was Math.PI / 4 (45 degrees)
+        MAX_DISTANCE: 0, // Unlimited distance
+        INTENSITY: 2    // Adding intensity configuration
+    }
+};
+
 export class CameraManager {
-    constructor(camera, distance = 15) {
-        this.camera = camera;
+    constructor(incoming_parent, incoming_camera, distance = 15) {
+        this.parent = incoming_parent;
+        this.camera = incoming_camera;
+        this.lighting = BackgroundLighting.getInstance(this.parent);
         this.distance = distance;
         this.target = new THREE.Vector3(0, 0, 0);
         // Spherical coordinates (starting position)
@@ -19,6 +60,80 @@ export class CameraManager {
         this.overlay_container = null;
         // Update the camera
         this.update_camera();
+
+        // Create left shoulder spotlight
+        (async () => {
+            // Clean up any existing helpers first
+            if (this.left_shoulder_light) {
+                await this.lighting.despawn_spotlight_helpers(this.left_shoulder_light);
+            }
+            
+            const leftPos = new THREE.Vector3(
+                SPOTLIGHT_CONFIG.LEFT.POSITION.X,
+                SPOTLIGHT_CONFIG.LEFT.POSITION.Y,
+                SPOTLIGHT_CONFIG.LEFT.POSITION.Z
+            );
+            leftPos.applyQuaternion(this.camera.quaternion);
+            leftPos.add(this.camera.position);
+
+            // Calculate target using forward direction
+            const forward = new THREE.Vector3(0, 0, -100);
+            forward.applyQuaternion(this.camera.quaternion);
+            const target = new THREE.Vector3().copy(leftPos).add(forward);
+            
+            // Calculate angles for spotlight based on direction
+            const direction = new THREE.Vector3().subVectors(target, leftPos);
+            const rotationY = Math.atan2(direction.x, direction.z);
+            const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
+            
+            this.left_shoulder_light = await this.lighting.create_spotlight(
+                leftPos,
+                rotationX,
+                rotationY,
+                SPOTLIGHT_CONFIG.LEFT.POSITION.Y * Math.tan(ANGLES.toRadians(SPOTLIGHT_CONFIG.LEFT.ANGLE)),
+                SPOTLIGHT_CONFIG.LEFT.MAX_DISTANCE,
+                null,  // Default color
+                SPOTLIGHT_CONFIG.LEFT.INTENSITY
+            );
+            this.left_shoulder_light.target.position.copy(target);
+        })();
+
+        // Create right shoulder spotlight
+        (async () => {
+            // Clean up any existing helpers first
+            if (this.right_shoulder_light) {
+                await this.lighting.despawn_spotlight_helpers(this.right_shoulder_light);
+            }
+            
+            const rightPos = new THREE.Vector3(
+                SPOTLIGHT_CONFIG.RIGHT.POSITION.X,
+                SPOTLIGHT_CONFIG.RIGHT.POSITION.Y,
+                SPOTLIGHT_CONFIG.RIGHT.POSITION.Z
+            );
+            rightPos.applyQuaternion(this.camera.quaternion);
+            rightPos.add(this.camera.position);
+
+            // Calculate target using forward direction
+            const forward = new THREE.Vector3(0, 0, -100);
+            forward.applyQuaternion(this.camera.quaternion);
+            const target = new THREE.Vector3().copy(rightPos).add(forward);
+            
+            // Calculate angles for spotlight based on direction
+            const direction = new THREE.Vector3().subVectors(target, rightPos);
+            const rotationY = Math.atan2(direction.x, direction.z);
+            const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
+            
+            this.right_shoulder_light = await this.lighting.create_spotlight(
+                rightPos,
+                rotationX,
+                rotationY,
+                SPOTLIGHT_CONFIG.RIGHT.POSITION.Y * Math.tan(ANGLES.toRadians(SPOTLIGHT_CONFIG.RIGHT.ANGLE)),
+                SPOTLIGHT_CONFIG.RIGHT.MAX_DISTANCE,
+                null,  // Default color
+                SPOTLIGHT_CONFIG.RIGHT.INTENSITY
+            );
+            this.right_shoulder_light.target.position.copy(target);
+        })();
     }
 
     add_update_callback(callback) {
@@ -50,6 +165,15 @@ export class CameraManager {
         this.overlay_container = container;
     }
 
+    async cleanupDebugMeshes() {
+        if (this.left_shoulder_light) {
+            await this.lighting.despawn_spotlight_helpers(this.left_shoulder_light);
+        }
+        if (this.right_shoulder_light) {
+            await this.lighting.despawn_spotlight_helpers(this.right_shoulder_light);
+        }
+    }
+
     update_camera() {
         // Convert spherical coordinates to Cartesian
         const phi_rad = THREE.MathUtils.degToRad(this.phi);
@@ -66,9 +190,58 @@ export class CameraManager {
             console.log(`Angles: phi=${this.phi.toFixed(2)}°, theta=${this.theta.toFixed(2)}°`);
         }
         
-        // Set camera target and udpate
+        // Set camera target and update
         this.camera.lookAt(this.target);
         this.camera.updateMatrix();
+
+        // Update spotlight positions relative to camera
+        if (this.left_shoulder_light) {
+            const leftPos = new THREE.Vector3(
+                SPOTLIGHT_CONFIG.LEFT.POSITION.X,
+                SPOTLIGHT_CONFIG.LEFT.POSITION.Y,
+                SPOTLIGHT_CONFIG.LEFT.POSITION.Z
+            );
+            // Transform the offset by camera's rotation
+            leftPos.applyQuaternion(this.camera.quaternion);
+            // Add camera's position
+            leftPos.add(this.camera.position);
+            this.left_shoulder_light.position.copy(leftPos);
+            
+            // Update target to point forward
+            const forward = new THREE.Vector3(0, 0, -100);
+            forward.applyQuaternion(this.camera.quaternion);
+            this.left_shoulder_light.target.position.copy(leftPos).add(forward);
+            
+            // Update matrices
+            this.left_shoulder_light.updateMatrixWorld(true);
+            this.left_shoulder_light.target.updateMatrixWorld(true);
+        }
+
+        if (this.right_shoulder_light) {
+            const rightPos = new THREE.Vector3(
+                SPOTLIGHT_CONFIG.RIGHT.POSITION.X,
+                SPOTLIGHT_CONFIG.RIGHT.POSITION.Y,
+                SPOTLIGHT_CONFIG.RIGHT.POSITION.Z
+            );
+            // Transform the offset by camera's rotation
+            rightPos.applyQuaternion(this.camera.quaternion);
+            // Add camera's position
+            rightPos.add(this.camera.position);
+            this.right_shoulder_light.position.copy(rightPos);
+            
+            // Update target to point forward
+            const forward = new THREE.Vector3(0, 0, -100);
+            forward.applyQuaternion(this.camera.quaternion);
+            this.right_shoulder_light.target.position.copy(rightPos).add(forward);
+            
+            // Update matrices
+            this.right_shoulder_light.updateMatrixWorld(true);
+            this.right_shoulder_light.target.updateMatrixWorld(true);
+        }
+
+        // Let BackgroundLighting handle debug mesh updates
+        this.lighting.updateHelpers();
+
         // Update overlay position
         if (this.overlay_container) {
             // Calculate the position in front of the camera

@@ -11,25 +11,54 @@ export const SPOTLIGHT_PENUMBRA = 0.05; // Sharper edge
 export const SPOTLIGHT_SHARPNESS = 0.5;
 
 export class BackgroundLighting {
+    static instance = null;
+
+    static getInstance(parent) {
+        if (!BackgroundLighting.instance) {
+            BackgroundLighting.instance = new BackgroundLighting(parent);
+        } else if (parent && BackgroundLighting.instance.parent !== parent) {
+            // If parent is different, update the parent and re-add the lighting container
+            BackgroundLighting.instance.parent.remove(BackgroundLighting.instance.lighting_container);
+            BackgroundLighting.instance.parent = parent;
+            BackgroundLighting.instance.parent.add(BackgroundLighting.instance.lighting_container);
+        }
+        return BackgroundLighting.instance;
+    }
 
     constructor(incoming_parent) {
+        // Prevent direct construction
+        if (BackgroundLighting.instance) {
+            return BackgroundLighting.instance;
+        }
+        
         this.parent = incoming_parent;
         this.lighting_container = new THREE.Object3D();
         this.parent.add(this.lighting_container);
 
+        // Create shared materials for debug visualization with a single static color
+        this.sharedDebugMaterials = {
+            helper: new THREE.LineBasicMaterial({ color: 0x00FF00 }), // Green for visibility
+            cone: new THREE.MeshBasicMaterial({ 
+                color: 0x00FF00,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.6
+            })
+        };
+
         // Create main spotlight pointing straight down asynchronously
         (async () => {
-            const main = await this.createSpotlight(
+            const primary_light = await this.create_spotlight(
                 new THREE.Vector3(SPOTLIGHT_OFFSET, SPOTLIGHT_HEIGHT, SPOTLIGHT_DISTANCE),
                 -Math.PI/2, // Point straight down
                 0,          // No rotation around Y
-                5,         // Circle radius
+                SPOTLIGHT_HEIGHT * Math.tan(SPOTLIGHT_ANGLE), // Calculate radius from height and angle
                 0          // Unlimited distance
             );
 
             // Create debug visualization if enabled
             if (FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
-                await this.createEnhancedSpotlightHelper(main, 0x00FF00);
+                await this.create_spotlight_helper(primary_light);
             }
         })();
     }
@@ -46,14 +75,16 @@ export class BackgroundLighting {
         0x8000FF  // Purple
     ];
 
-    async createSpotlight(origin, rotationX, rotationY, circleRadius, maxDistance, color = null) {
-        // Use the constant angle instead of calculating from radius
-        const angle = SPOTLIGHT_ANGLE;
+    async create_spotlight(origin, rotation_x, rotation_y, circle_radius, max_distance, color = null, intensity = SPOTLIGHT_INTENSITY) {
+        // Calculate angle from circle radius if provided, otherwise use constant
+        const angle = circle_radius > 0 
+            ? Math.atan2(circle_radius, SPOTLIGHT_HEIGHT)
+            : SPOTLIGHT_ANGLE;
         
         const spotlight = new THREE.SpotLight(
-            SPOTLIGHT_COLOR,
-            SPOTLIGHT_INTENSITY,
-            maxDistance,
+            color || SPOTLIGHT_COLOR,  // Use provided color or fall back to constant
+            intensity,
+            max_distance,
             angle,
             SPOTLIGHT_PENUMBRA,
             SPOTLIGHT_SHARPNESS
@@ -77,9 +108,9 @@ export class BackgroundLighting {
         const targetDistance = 100; // Use a fixed distance for the target
         const target = new THREE.Object3D();
         // Calculate target position based on spherical coordinates
-        const x = Math.sin(rotationY) * Math.cos(rotationX) * targetDistance;
-        const y = Math.sin(rotationX) * targetDistance;
-        const z = Math.cos(rotationY) * Math.cos(rotationX) * targetDistance;
+        const x = Math.sin(rotation_y) * Math.cos(rotation_x) * targetDistance;
+        const y = Math.sin(rotation_x) * targetDistance;
+        const z = Math.cos(rotation_y) * Math.cos(rotation_x) * targetDistance;
         target.position.set(
             origin.x + x,
             origin.y + y,
@@ -94,9 +125,7 @@ export class BackgroundLighting {
 
         // Create debug visualization if enabled
         if (FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
-            // If no color provided, randomly select one
-            const debugColor = color || this.DEBUG_COLORS[Math.floor(Math.random() * this.DEBUG_COLORS.length)];
-            const helpers = await this.createEnhancedSpotlightHelper(spotlight, debugColor);
+            const helpers = await this.create_spotlight_helper(spotlight);
             // Store helpers reference on the spotlight for cleanup
             spotlight.userData.debugHelpers = helpers;
         }
@@ -104,9 +133,24 @@ export class BackgroundLighting {
         return spotlight;
     }
 
-    async createEnhancedSpotlightHelper(spotlight, color) {
-        // Create the standard helper
-        const helper = new THREE.SpotLightHelper(spotlight, color);
+    async create_spotlight_helper(spotlight) {
+        // Create the standard helper with shared material
+        const helper = new THREE.SpotLightHelper(spotlight);
+        helper.material = this.sharedDebugMaterials.helper;
+        
+        // Store original update method
+        const originalUpdate = helper.update;
+        helper.update = () => {
+            // Call original update
+            originalUpdate.call(helper);
+            // After update, ensure all children use our shared material
+            helper.traverse(child => {
+                if (child.material && child !== helper) {
+                    child.material = this.sharedDebugMaterials.helper;
+                }
+            });
+        };
+        
         // Make helper and all its children non-interactive
         helper.raycast = () => null;
         helper.traverse(child => {
@@ -117,38 +161,29 @@ export class BackgroundLighting {
         await new Promise(resolve => setTimeout(resolve, 0));
         this.lighting_container.add(helper);
 
-        // Calculate direction and distance to target
+        // Create the cone visualization with shared material
         const spotlightToTarget = new THREE.Vector3().subVectors(
             spotlight.target.position,
             spotlight.position
         );
         const distance = spotlightToTarget.length();
-        // Create a cone to visualize the spotlight's beam
         const height = distance;
         const radius = Math.tan(spotlight.angle) * height;
-        // Create cone pointing down by default (narrow end at 0,0,0)
         const geometry = new THREE.ConeGeometry(radius, height, 32, 32, true);
-        geometry.translate(0, -height/2, 0); // Move pivot to top of cone
-        const material = new THREE.MeshBasicMaterial({ 
-            color: color,
-            wireframe: true,
-            transparent: true,
-            opacity: 0.6
-        });
-        const cone = new THREE.Mesh(geometry, material);
-        // Make cone and all its children non-interactive
+        geometry.translate(0, -height/2, 0);
+        
+        const cone = new THREE.Mesh(geometry, this.sharedDebugMaterials.cone);
         cone.raycast = () => null;
         cone.traverse(child => {
             child.raycast = () => null;
         });
         cone.position.copy(spotlight.position);
-        // Orient cone to point from spotlight to target
+        
         const direction = spotlightToTarget.normalize();
         const quaternion = new THREE.Quaternion();
         quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), direction);
         cone.quaternion.copy(quaternion);
         
-        // Add cone in next frame
         await new Promise(resolve => setTimeout(resolve, 0));
         this.lighting_container.add(cone);
         
@@ -170,36 +205,117 @@ export class BackgroundLighting {
         if (FLAGS.SPOTLIGHT_VISUAL_DEBUG && spotlight.userData.debugHelpers) {
             const { helper, cone } = spotlight.userData.debugHelpers;
             if (helper) {
-                helper.dispose(); // Dispose of any materials/geometries
+                // Remove the helper and its children from the scene
                 this.lighting_container.remove(helper);
+                if (helper.children) {
+                    helper.children.forEach(child => {
+                        if (child.geometry) {
+                            child.geometry.dispose();
+                        }
+                    });
+                }
+                if (helper.geometry) {
+                    helper.geometry.dispose();
+                }
             }
             if (cone) {
-                cone.geometry.dispose();
-                cone.material.dispose();
                 this.lighting_container.remove(cone);
+                if (cone.geometry) {
+                    cone.geometry.dispose();
+                }
             }
         }
 
         // Clean up any orphaned helpers that might have been missed
-        const helpers = this.lighting_container.children.filter(child => 
-            child.isSpotLightHelper || 
-            (child.isMesh && child.material.wireframe && child.geometry.type === 'ConeGeometry')
-        );
+        const helpers = this.lighting_container.children.filter(child => {
+            // Only match helpers that belong to this specific spotlight
+            if (child.isSpotLightHelper) {
+                return child.light === spotlight;
+            }
+            if (child.isMesh && child.material && child.material.wireframe && 
+                child.geometry && child.geometry.type === 'ConeGeometry') {
+                // Check if this cone belongs to our spotlight by checking position
+                return child.position.equals(spotlight.position);
+            }
+            return false;
+        });
         
         for (const helper of helpers) {
-            await new Promise(resolve => setTimeout(resolve, 0));
-            if (helper.geometry) helper.geometry.dispose();
-            if (helper.material) helper.material.dispose();
+            // Remove from scene
             this.lighting_container.remove(helper);
+            
+            // Dispose geometries
+            if (helper.children) {
+                helper.children.forEach(child => {
+                    if (child.geometry) {
+                        child.geometry.dispose();
+                    }
+                });
+            }
+            if (helper.geometry) {
+                helper.geometry.dispose();
+            }
         }
     }
 
-    // Add method to update helpers if spotlights move
+    async despawn_spotlight_helpers(spotlight) {
+        if (!spotlight || !spotlight.userData.debugHelpers) return;
+
+        const { helper, cone } = spotlight.userData.debugHelpers;
+        
+        // Remove and dispose helper
+        if (helper) {
+            this.lighting_container.remove(helper);
+            if (helper.children) {
+                helper.children.forEach(child => {
+                    if (child.geometry) {
+                        child.geometry.dispose();
+                    }
+                });
+            }
+            if (helper.geometry) {
+                helper.geometry.dispose();
+            }
+        }
+        
+        // Remove and dispose cone
+        if (cone) {
+            this.lighting_container.remove(cone);
+            if (cone.geometry) {
+                cone.geometry.dispose();
+            }
+        }
+
+        // Clear the debug helpers reference
+        spotlight.userData.debugHelpers = null;
+    }
+
+    // Update method for spotlight movement
     updateHelpers() {
-        // The standard helpers will update automatically
         this.lighting_container.children.forEach(child => {
-            if (child.isSpotLightHelper) {
-                child.update();
+            if (child.isSpotLight && child.userData.debugHelpers) {
+                const { helper, cone } = child.userData.debugHelpers;
+                
+                // Update the standard helper
+                if (helper) {
+                    helper.update();
+                }
+                
+                // Update the cone
+                if (cone) {
+                    // Update cone position
+                    cone.position.copy(child.position);
+                    
+                    // Update cone orientation
+                    const spotlightToTarget = new THREE.Vector3().subVectors(
+                        child.target.position,
+                        child.position
+                    );
+                    const direction = spotlightToTarget.normalize();
+                    const quaternion = new THREE.Quaternion();
+                    quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), direction);
+                    cone.quaternion.copy(quaternion);
+                }
             }
         });
     }

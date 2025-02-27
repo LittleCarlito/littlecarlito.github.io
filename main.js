@@ -27,7 +27,7 @@ let hovered_cube_name = "";
 let grabbed_object = null;
 let left_mouse_down = false;
 let right_mouse_down = false;
-let construction_acknowledged = false;
+let construction_acknowledged = !FLAGS.CONSTRUCTION_GREETING;
 let asset_manager;
 
 /** Updates the loading progress text */
@@ -143,7 +143,7 @@ async function init() {
         
         // Background creation
         updateLoadingProgress('Loading background assets...');
-        const lighting = new BackgroundLighting(scene);
+        const lighting = BackgroundLighting.getInstance(scene);
         background_container = new BackgroundContainer(scene, viewable_container.get_camera(), world);
         new BackgroundFloor(world, scene, viewable_container.get_camera());
 

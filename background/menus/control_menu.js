@@ -119,7 +119,7 @@ export class ControlMenu {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.world = incoming_world;
-        this.lighting = new BackgroundLighting(this.parent);
+        this.lighting = BackgroundLighting.getInstance(this.parent);
         // Calculate assembly position based on camera using MENU_CONFIG
         this.assembly_position = {
             x: this.camera.position.x + MENU_CONFIG.POSITION.OFFSET.X,
@@ -344,11 +344,11 @@ export class ControlMenu {
                 const rotationY = Math.atan2(direction.x, direction.z);
                 const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
                 // Create spotlight using the stored lighting instance
-                this.menu_spotlight = await this.lighting.createSpotlight(
+                this.menu_spotlight = await this.lighting.create_spotlight(
                     spotlightPosition,
                     rotationX,
                     rotationY,
-                    5, // circle radius
+                    50 * Math.tan(Math.PI / 16), // Use same radius calculation as primary spotlight
                     0  // unlimited distance
                 );
             }
