@@ -63,6 +63,11 @@ export class CameraManager {
 
         // Create left shoulder spotlight
         (async () => {
+            // Clean up any existing helpers first
+            if (this.left_shoulder_light) {
+                await this.lighting.despawn_spotlight_helpers(this.left_shoulder_light);
+            }
+            
             this.left_shoulder_light = await this.lighting.create_spotlight(
                 new THREE.Vector3(
                     SPOTLIGHT_CONFIG.LEFT.POSITION.X,
@@ -76,15 +81,15 @@ export class CameraManager {
                 null,  // Default color
                 SPOTLIGHT_CONFIG.LEFT.INTENSITY
             );
-
-            // Create debug visualization if enabled
-            if (FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
-                await this.lighting.create_spotlight_helper(this.left_shoulder_light);
-            }
         })();
 
         // Create right shoulder spotlight
         (async () => {
+            // Clean up any existing helpers first
+            if (this.right_shoulder_light) {
+                await this.lighting.despawn_spotlight_helpers(this.right_shoulder_light);
+            }
+            
             this.right_shoulder_light = await this.lighting.create_spotlight(
                 new THREE.Vector3(
                     SPOTLIGHT_CONFIG.RIGHT.POSITION.X,
@@ -98,11 +103,6 @@ export class CameraManager {
                 null,  // Default color
                 SPOTLIGHT_CONFIG.RIGHT.INTENSITY
             );
-
-            // Create debug visualization if enabled
-            if (FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
-                await this.lighting.create_spotlight_helper(this.right_shoulder_light);
-            }
         })();
     }
 
@@ -133,6 +133,15 @@ export class CameraManager {
 
     set_overlay_container(container) {
         this.overlay_container = container;
+    }
+
+    async cleanupDebugMeshes() {
+        if (this.left_shoulder_light) {
+            await this.lighting.despawn_spotlight_helpers(this.left_shoulder_light);
+        }
+        if (this.right_shoulder_light) {
+            await this.lighting.despawn_spotlight_helpers(this.right_shoulder_light);
+        }
     }
 
     update_camera() {
@@ -172,6 +181,10 @@ export class CameraManager {
             const forward = new THREE.Vector3(0, 0, -100);
             forward.applyQuaternion(this.camera.quaternion);
             this.left_shoulder_light.target.position.copy(leftPos).add(forward);
+            
+            // Update matrices
+            this.left_shoulder_light.updateMatrixWorld(true);
+            this.left_shoulder_light.target.updateMatrixWorld(true);
         }
 
         if (this.right_shoulder_light) {
@@ -190,7 +203,14 @@ export class CameraManager {
             const forward = new THREE.Vector3(0, 0, -100);
             forward.applyQuaternion(this.camera.quaternion);
             this.right_shoulder_light.target.position.copy(rightPos).add(forward);
+            
+            // Update matrices
+            this.right_shoulder_light.updateMatrixWorld(true);
+            this.right_shoulder_light.target.updateMatrixWorld(true);
         }
+
+        // Let BackgroundLighting handle debug mesh updates
+        this.lighting.updateHelpers();
 
         // Update overlay position
         if (this.overlay_container) {

@@ -258,11 +258,64 @@ export class BackgroundLighting {
         }
     }
 
+    async despawn_spotlight_helpers(spotlight) {
+        if (!spotlight || !spotlight.userData.debugHelpers) return;
+
+        const { helper, cone } = spotlight.userData.debugHelpers;
+        
+        // Remove and dispose helper
+        if (helper) {
+            this.lighting_container.remove(helper);
+            if (helper.children) {
+                helper.children.forEach(child => {
+                    if (child.geometry) {
+                        child.geometry.dispose();
+                    }
+                });
+            }
+            if (helper.geometry) {
+                helper.geometry.dispose();
+            }
+        }
+        
+        // Remove and dispose cone
+        if (cone) {
+            this.lighting_container.remove(cone);
+            if (cone.geometry) {
+                cone.geometry.dispose();
+            }
+        }
+
+        // Clear the debug helpers reference
+        spotlight.userData.debugHelpers = null;
+    }
+
     // Update method for spotlight movement
     updateHelpers() {
         this.lighting_container.children.forEach(child => {
-            if (child.isSpotLightHelper) {
-                child.update();
+            if (child.isSpotLight && child.userData.debugHelpers) {
+                const { helper, cone } = child.userData.debugHelpers;
+                
+                // Update the standard helper
+                if (helper) {
+                    helper.update();
+                }
+                
+                // Update the cone
+                if (cone) {
+                    // Update cone position
+                    cone.position.copy(child.position);
+                    
+                    // Update cone orientation
+                    const spotlightToTarget = new THREE.Vector3().subVectors(
+                        child.target.position,
+                        child.position
+                    );
+                    const direction = spotlightToTarget.normalize();
+                    const quaternion = new THREE.Quaternion();
+                    quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), direction);
+                    cone.quaternion.copy(quaternion);
+                }
             }
         });
     }
