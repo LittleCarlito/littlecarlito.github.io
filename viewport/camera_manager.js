@@ -1,17 +1,41 @@
 import { BackgroundLighting } from "../background/background_lighting";
 import { FLAGS, THREE } from "../common";
 
-// Left shoulder spotlight constants
-const LEFT_SPOTLIGHT_OFFSET = -2;
-const LEFT_SPOTLIGHT_HEIGHT = 3;
-const LEFT_SPOTLIGHT_DISTANCE = 2;
-const LEFT_SPOTLIGHT_ANGLE = Math.PI / 6; // 30 degrees
+// Utility functions for angle conversion
+const ANGLES = {
+    toRadians: degrees => degrees * (Math.PI / 180),
+    toDegrees: radians => radians * (180 / Math.PI)
+};
 
-// Right shoulder spotlight constants
-const RIGHT_SPOTLIGHT_OFFSET = 2;
-const RIGHT_SPOTLIGHT_HEIGHT = 3;
-const RIGHT_SPOTLIGHT_DISTANCE = 2;
-const RIGHT_SPOTLIGHT_ANGLE = Math.PI / 6; // 30 degrees
+// Spotlight configuration constants
+const SPOTLIGHT_CONFIG = {
+    LEFT: {
+        POSITION: {
+            X: -3,
+            Y: 2.5,
+            Z: 40
+        },
+        ROTATION: {
+            PITCH: 190,  // Point straight down (was Math.PI)
+            YAW: 0      // No rotation around Y
+        },
+        ANGLE: 80,      // Was Math.PI / 4 (45 degrees)
+        MAX_DISTANCE: 0 // Unlimited distance
+    },
+    RIGHT: {
+        POSITION: {
+            X: 3,
+            Y: 2.5,
+            Z: 40
+        },
+        ROTATION: {
+            PITCH: 190,  // Point straight down (was Math.PI)
+            YAW: 0      // No rotation around Y
+        },
+        ANGLE: 80,      // Was Math.PI / 4 (45 degrees)
+        MAX_DISTANCE: 0 // Unlimited distance
+    }
+};
 
 export class CameraManager {
     constructor(incoming_parent, incoming_camera, distance = 15) {
@@ -35,15 +59,18 @@ export class CameraManager {
         // Update the camera
         this.update_camera();
 
-        // TODO OOOOO
-        // TODO Make 2 spotlights pointing forward
+        // Create left shoulder spotlight
         (async () => {
             this.left_shoulder_light = await this.lighting.create_spotlight(
-                new THREE.Vector3(LEFT_SPOTLIGHT_OFFSET, LEFT_SPOTLIGHT_HEIGHT, LEFT_SPOTLIGHT_DISTANCE),
-                Math.PI, // Point straight down
-                0,          // No rotation around Y
-                LEFT_SPOTLIGHT_HEIGHT * Math.tan(LEFT_SPOTLIGHT_ANGLE), // Calculate radius from height and angle
-                0          // Unlimited distance
+                new THREE.Vector3(
+                    SPOTLIGHT_CONFIG.LEFT.POSITION.X,
+                    SPOTLIGHT_CONFIG.LEFT.POSITION.Y,
+                    SPOTLIGHT_CONFIG.LEFT.POSITION.Z
+                ),
+                ANGLES.toRadians(SPOTLIGHT_CONFIG.LEFT.ROTATION.PITCH),
+                ANGLES.toRadians(SPOTLIGHT_CONFIG.LEFT.ROTATION.YAW),
+                SPOTLIGHT_CONFIG.LEFT.POSITION.Y * Math.tan(ANGLES.toRadians(SPOTLIGHT_CONFIG.LEFT.ANGLE)),
+                SPOTLIGHT_CONFIG.LEFT.MAX_DISTANCE
             );
 
             // Create debug visualization if enabled
@@ -51,13 +78,19 @@ export class CameraManager {
                 await this.lighting.create_spotlight_helper(this.left_shoulder_light);
             }
         })();
+
+        // Create right shoulder spotlight
         (async () => {
             this.right_shoulder_light = await this.lighting.create_spotlight(
-                new THREE.Vector3(RIGHT_SPOTLIGHT_OFFSET, RIGHT_SPOTLIGHT_HEIGHT, RIGHT_SPOTLIGHT_DISTANCE),
-                Math.PI, // Point straight down
-                0,          // No rotation around Y
-                RIGHT_SPOTLIGHT_HEIGHT * Math.tan(RIGHT_SPOTLIGHT_ANGLE), // Calculate radius from height and angle
-                0          // Unlimited distance
+                new THREE.Vector3(
+                    SPOTLIGHT_CONFIG.RIGHT.POSITION.X,
+                    SPOTLIGHT_CONFIG.RIGHT.POSITION.Y,
+                    SPOTLIGHT_CONFIG.RIGHT.POSITION.Z
+                ),
+                ANGLES.toRadians(SPOTLIGHT_CONFIG.RIGHT.ROTATION.PITCH),
+                ANGLES.toRadians(SPOTLIGHT_CONFIG.RIGHT.ROTATION.YAW),
+                SPOTLIGHT_CONFIG.RIGHT.POSITION.Y * Math.tan(ANGLES.toRadians(SPOTLIGHT_CONFIG.RIGHT.ANGLE)),
+                SPOTLIGHT_CONFIG.RIGHT.MAX_DISTANCE
             );
 
             // Create debug visualization if enabled
