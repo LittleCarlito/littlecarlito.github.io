@@ -74,10 +74,13 @@ export class OverlayContainer {
         const pixels_per_unit = window.innerHeight / height_at_distance;
         const max_width_units = this.MAX_WIDTH_PIXELS / pixels_per_unit;
         const current_width = (window.innerWidth / pixels_per_unit);
-        const scale_factor = Math.min(1, max_width_units / current_width);
+        const target_scale = Math.min(1, max_width_units / current_width);
         
-        // Apply scale to limit width while maintaining aspect ratio
-        this.overlay_container.scale.set(scale_factor, scale_factor, 1);
+        // Use tween for smooth scale transition
+        new Tween(this.overlay_container.scale)
+            .to({ x: target_scale, y: target_scale }, 200)
+            .easing(Easing.Elastic.Out)
+            .start();
     }
 
     create_confetti_burst() {
