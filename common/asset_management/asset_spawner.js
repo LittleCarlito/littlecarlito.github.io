@@ -30,6 +30,8 @@ export class AssetSpawner {
     name = "[AssetSpawner]";
     textureAtlasManager = TextureAtlasManager.getInstance();
     pendingTextures = new Map(); // Track textures waiting to be atlased
+    debugMeshes = new Map(); // Store debug wireframe meshes
+    debugColorIndex = 0; // Counter for cycling through debug colors
     
     constructor() {
         if (AssetSpawner.instance) {
@@ -38,6 +40,8 @@ export class AssetSpawner {
         this.storage = AssetStorage.get_instance();
         this.textureAtlasManager = TextureAtlasManager.getInstance();
         this.pendingTextures = new Map(); // Track textures waiting to be atlased
+        this.debugMeshes = new Map(); // Store debug wireframe meshes
+        this.debugColorIndex = 0; // Counter for cycling through debug colors
         AssetSpawner.instance = this;
     }
 
@@ -88,6 +92,72 @@ export class AssetSpawner {
     }
 
     /**
+     * Creates a debug wireframe mesh for a collider
+     * @param {string} type - Type of collider ('cuboid', 'trimesh', 'sphere')
+     * @param {Object} dimensions - Dimensions of the collider
+     * @param {THREE.Vector3} position - Position of the collider
+     * @param {THREE.Quaternion} rotation - Rotation of the collider
+     * @returns {THREE.Mesh} The debug wireframe mesh
+     */
+    createDebugWireframe(type, dimensions, position, rotation) {
+        if (!FLAGS.COLLISION_VISUAL_DEBUG) return null;
+
+        // Array of bright, distinct colors for debug meshes
+        const debugColors = [
+            0xff0000, // Red
+            0x00ff00, // Green
+            0x0000ff, // Blue
+            0xff00ff, // Magenta
+            0xffff00, // Yellow
+            0x00ffff, // Cyan
+            0xff8000, // Orange
+            0x8000ff, // Purple
+        ];
+
+        // Cycle through colors
+        const color = debugColors[this.debugColorIndex % debugColors.length];
+        this.debugColorIndex++;
+
+        let geometry;
+        switch (type) {
+            case 'cuboid':
+                geometry = new THREE.BoxGeometry(
+                    dimensions.width * 2,
+                    dimensions.height * 2,
+                    dimensions.depth * 2
+                );
+                break;
+            case 'trimesh':
+                geometry = dimensions.geometry.clone();
+                break;
+            case 'sphere':
+                geometry = new THREE.SphereGeometry(dimensions.radius);
+                break;
+            default:
+                console.warn('Unknown debug wireframe type:', type);
+                return null;
+        }
+
+        const material = new THREE.MeshBasicMaterial({
+            color: color,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.5,
+            depthTest: true,
+            side: THREE.DoubleSide
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.copy(position);
+        if (rotation) {
+            mesh.quaternion.copy(rotation);
+        }
+        mesh.renderOrder = 999; // Ensure wireframe renders on top
+
+        return mesh;
+    }
+
+    /**
      * Spawns a physics-enabled asset of the specified type.
      * @param {string} asset_type - Type of asset from ASSET_TYPE enum.
      * @param {THREE.Object3D} parent - Parent object to add the mesh to.
@@ -126,6 +196,27 @@ export class AssetSpawner {
                     .setRestitution(asset_config.restitution);
                 const created_collider = world.createCollider(collider, body);
                 if(FLAGS.ASSET_LOGS) console.log(`Created cube collider:`, created_collider);
+
+                // Add debug wireframe if enabled
+                if (FLAGS.COLLISION_VISUAL_DEBUG) {
+                    const debugMesh = this.createDebugWireframe(
+                        'cuboid',
+                        { width: 0.5, height: 0.5, depth: 0.5 },
+                        mesh.position,
+                        mesh.quaternion
+                    );
+                    if (debugMesh) {
+                        parent.add(debugMesh);
+                        // Store debug mesh with a unique key
+                        const debugKey = `${mesh.uuid}_debug`;
+                        this.debugMeshes.set(debugKey, {
+                            mesh: debugMesh,
+                            body: body,
+                            type: 'cube'
+                        });
+                    }
+                }
+
                 // Add to parent
                 parent.add(mesh);
                 return [mesh, body];
@@ -210,7 +301,29 @@ export class AssetSpawner {
                             relativePosition.y * asset_config.scale,
                             relativePosition.z * asset_config.scale
                         );
-                        world.createCollider(collider, body);
+                        const created_collider = world.createCollider(collider, body);
+
+                        // Add debug wireframe if enabled
+                        if (FLAGS.COLLISION_VISUAL_DEBUG) {
+                            const debugMesh = this.createDebugWireframe(
+                                'trimesh',
+                                { geometry: collision_mesh.geometry },
+                                meshPosition,
+                                collision_mesh.quaternion
+                            );
+                            if (debugMesh) {
+                                // Scale the debug mesh to match the asset scale
+                                debugMesh.scale.multiplyScalar(asset_config.scale);
+                                parent.add(debugMesh);
+                                // Store debug mesh with a unique key
+                                const debugKey = `${collision_mesh.uuid}_debug`;
+                                this.debugMeshes.set(debugKey, {
+                                    mesh: debugMesh,
+                                    body: body,
+                                    type: 'trimesh'
+                                });
+                            }
+                        }
                     });
                 } else {
                     if(FLAGS.ASSET_LOGS) console.warn(`No collision mesh found for ${asset_type}, falling back to bounding box`);
@@ -234,6 +347,31 @@ export class AssetSpawner {
                             .setFriction(1.0); // Add friction to help prevent sliding
 
                         const created_collider = world.createCollider(collider, body);
+
+                        // Add debug wireframe if enabled
+                        if (FLAGS.COLLISION_VISUAL_DEBUG) {
+                            const debugMesh = this.createDebugWireframe(
+                                'cuboid',
+                                { 
+                                    width: half_width,
+                                    height: half_height,
+                                    depth: half_depth
+                                },
+                                mesh.position,
+                                mesh.quaternion
+                            );
+                            if (debugMesh) {
+                                parent.add(debugMesh);
+                                // Store debug mesh with a unique key
+                                const debugKey = `${mesh.uuid}_debug`;
+                                this.debugMeshes.set(debugKey, {
+                                    mesh: debugMesh,
+                                    body: body,
+                                    type: 'boundingBox'
+                                });
+                            }
+                        }
+
                         if(FLAGS.ASSET_LOGS) console.log(`Created bounding box collider:`, created_collider);
                         if(FLAGS.ASSET_LOGS) console.log(`Collider dimensions:`, {
                             width: half_width,
@@ -325,12 +463,39 @@ export class AssetSpawner {
     }
 
     /**
+     * Updates the positions and rotations of debug wireframes to match their physics bodies
+     * Should be called each frame during the physics update
+     */
+    update_debug_wireframes() {
+        if (!FLAGS.COLLISION_VISUAL_DEBUG) return;
+
+        this.debugMeshes.forEach((debugData) => {
+            if (debugData.mesh && debugData.body) {
+                const position = debugData.body.translation();
+                const rotation = debugData.body.rotation();
+                
+                debugData.mesh.position.set(position.x, position.y, position.z);
+                debugData.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+            }
+        });
+    }
+
+    /**
      * Cleans up resources used by the AssetSpawner.
      * Disposes of textures and clears caches.
      */
     cleanup() {
         this.storage.cleanup();
         this.textureAtlasManager.dispose();
+        // Clean up debug meshes
+        this.debugMeshes.forEach((debugData) => {
+            if (debugData.mesh) {
+                debugData.mesh.geometry.dispose();
+                debugData.mesh.material.dispose();
+                debugData.mesh.parent?.remove(debugData.mesh);
+            }
+        });
+        this.debugMeshes.clear();
     }
 
     // Getters and Setters
