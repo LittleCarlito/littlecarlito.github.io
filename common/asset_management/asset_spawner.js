@@ -32,26 +32,362 @@ export class AssetSpawner {
     pendingTextures = new Map(); // Track textures waiting to be atlased
     debugMeshes = new Map(); // Store debug wireframe meshes
     debugColorIndex = 0; // Counter for cycling through debug colors
+    objectPools = new Map(); // Pool for reusing objects
+    materialPool = new Map(); // Pool for reusing materials
+    poolSize = 20; // Maximum size for each object pool
+    disposalQueue = new Set(); // Queue for objects to be disposed
+    lastCleanupTime = 0;
+    cleanupInterval = 5000; // Cleanup every 5 seconds
     
-    constructor() {
+    constructor(world) {
         if (AssetSpawner.instance) {
             return AssetSpawner.instance;
         }
+        this.world = world;
         this.storage = AssetStorage.get_instance();
         this.textureAtlasManager = TextureAtlasManager.getInstance();
-        this.pendingTextures = new Map(); // Track textures waiting to be atlased
-        this.debugMeshes = new Map(); // Store debug wireframe meshes
-        this.debugColorIndex = 0; // Counter for cycling through debug colors
+        this.pendingTextures = new Map();
+        this.debugMeshes = new Map();
+        this.debugColorIndex = 0;
+        this.objectPools = new Map();
+        this.materialPool = new Map();
+        this.poolSize = 20;
+        this.disposalQueue = new Set();
+        this.lastCleanupTime = 0;
+        this.cleanupInterval = 5000;
+
+        // Initialize material pool
+        this.initializeMaterialPool();
+
+        // Initialize pools for each asset type
+        Object.values(ASSET_TYPE).forEach(type => {
+            this.objectPools.set(type, []);
+        });
+        
+        // Initialize pools for special types
+        this.objectPools.set('scroll_menu', []);
+        this.objectPools.set('main_signs', []);
+
+        // Now initialize the pools with preallocated assets
+        this.initializePools();
         AssetSpawner.instance = this;
     }
 
     /**
+     * Initialize the material pool with commonly used materials
+     */
+    initializeMaterialPool() {
+        // Create and cache basic materials for signs and common uses
+        const signMaterial = new THREE.MeshBasicMaterial({ 
+            visible: false,
+            transparent: true,
+            depthTest: false,
+            side: THREE.DoubleSide
+        });
+        this.materialPool.set('sign', signMaterial);
+
+        const chainMaterial = new THREE.MeshBasicMaterial({ 
+            visible: false,
+            transparent: true,
+            depthTest: false,
+            side: THREE.DoubleSide
+        });
+        this.materialPool.set('chain', chainMaterial);
+
+        // Debug materials with different colors
+        const debugColors = [
+            0xff0000, // Red
+            0x00ff00, // Green
+            0x0000ff, // Blue
+            0xff00ff, // Magenta
+            0xffff00, // Yellow
+            0x00ffff, // Cyan
+            0xff8000, // Orange
+            0x8000ff  // Purple
+        ];
+
+        // Create debug wireframe materials for each color
+        debugColors.forEach((color, index) => {
+            const debugMaterial = new THREE.MeshBasicMaterial({
+                color: color,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.5,
+                depthTest: true,
+                side: THREE.DoubleSide
+            });
+            this.materialPool.set(`debug_${index}`, debugMaterial);
+        });
+
+        // Common materials for basic shapes
+        const basicWhiteMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            side: THREE.DoubleSide
+        });
+        this.materialPool.set('basic_white', basicWhiteMaterial);
+
+        const basicTransparentMaterial = new THREE.MeshBasicMaterial({
+            transparent: true,
+            opacity: 0.5,
+            side: THREE.DoubleSide
+        });
+        this.materialPool.set('basic_transparent', basicTransparentMaterial);
+    }
+
+    /**
+     * Get a material from the pool or create a new one
+     * @param {string} type - Type of material needed
+     * @returns {THREE.Material} The pooled material
+     */
+    getMaterial(type) {
+        return this.materialPool.get(type) || new THREE.MeshBasicMaterial({ visible: false });
+    }
+
+    /**
+     * Initialize object pools for different asset types and preallocate common assets
+     */
+    initializePools() {
+        if (FLAGS.ASSET_LOGS) console.log('Initializing object pools...');
+        // Preallocate memory for frequently used assets
+        this.preallocateAssets().catch(error => {
+            console.error('Error during asset preallocation:', error);
+        });
+    }
+
+    /**
+     * Preallocates memory for frequently used assets like signs and their assemblies
+     */
+    async preallocateAssets() {
+        try {
+            // Define preallocation configuration
+            const PREALLOC_CONFIG = {
+                SCROLL_MENU: {
+                    count: 5,
+                    components: ['sign', 'chain_segment']
+                },
+                MAIN_SIGNS: {
+                    count: 10,
+                    components: ['sign']
+                }
+            };
+
+            if(FLAGS.ASSET_LOGS) console.log('Starting asset preallocation...');
+
+            // Create shared geometries
+            const signGeometry = new THREE.BoxGeometry(2, 2, 0.01);
+            const chainGeometry = new THREE.SphereGeometry(0.1);
+
+            // Get shared materials
+            const signMaterial = this.getMaterial('sign');
+            const chainMaterial = this.getMaterial('chain');
+
+            // Preallocate scroll menu assemblies
+            for (let i = 0; i < PREALLOC_CONFIG.SCROLL_MENU.count; i++) {
+                // Create sign components using shared resources
+                const signMesh = new THREE.Mesh(signGeometry, signMaterial);
+                const signBody = this.world?.createRigidBody(
+                    RAPIER.RigidBodyDesc.dynamic()
+                        .setTranslation(0, 0, 0)
+                        .setLinearDamping(0.8)
+                        .setAngularDamping(1.0)
+                        .setCanSleep(true)  // Enable sleeping for sign
+                        .setSleepThreshold(0)  // Make it sleep immediately
+                );
+                
+                // Force the sign to sleep initially
+                signBody?.setLinvel({ x: 0, y: 0, z: 0 }, true);
+                signBody?.setAngvel({ x: 0, y: 0, z: 0 }, true);
+                signBody?.sleep();
+
+                // Create chain segments using shared resources
+                const chainSegments = [];
+                for (let j = 0; j < 6; j++) {
+                    const segmentMesh = new THREE.Mesh(chainGeometry, chainMaterial);
+                    const segmentBody = this.world?.createRigidBody(
+                        RAPIER.RigidBodyDesc.dynamic()
+                            .setTranslation(0, 0, 0)
+                            .setLinearDamping(0.8)
+                            .setAngularDamping(1.0)
+                            .setCanSleep(true)  // Enable sleeping
+                            .setSleepThreshold(0)  // Make it sleep immediately
+                    );
+                    // Force the body to sleep initially
+                    segmentBody?.sleep();
+                    chainSegments.push({ mesh: segmentMesh, body: segmentBody });
+                }
+
+                const assembly = {
+                    sign: { mesh: signMesh, body: signBody },
+                    chainSegments: chainSegments,
+                    isAssembly: true
+                };
+                
+                this.objectPools.get('scroll_menu').push(assembly);
+            }
+
+            // Preallocate main signs using shared resources
+            for (let i = 0; i < PREALLOC_CONFIG.MAIN_SIGNS.count; i++) {
+                const signMesh = new THREE.Mesh(signGeometry, signMaterial);
+                const signBody = this.world?.createRigidBody(
+                    RAPIER.RigidBodyDesc.dynamic()
+                        .setTranslation(0, 0, 0)
+                        .setLinearDamping(0.5)
+                        .setAngularDamping(0.5)
+                );
+                
+                this.objectPools.get('main_signs').push({
+                    mesh: signMesh,
+                    body: signBody
+                });
+            }
+
+            if(FLAGS.ASSET_LOGS) console.log('Asset preallocation complete:', {
+                scrollMenuAssemblies: this.objectPools.get('scroll_menu').length,
+                mainSigns: this.objectPools.get('main_signs').length
+            });
+
+        } catch (error) {
+            console.error('Error during asset preallocation:', error);
+        }
+    }
+
+    /**
+     * Get a preallocated assembly from the pool
+     * @param {string} assemblyType - Type of assembly ('scroll_menu' or 'main_signs')
+     * @returns {Object} The assembly object or null if none available
+     */
+    getPreallocatedAssembly(assemblyType) {
+        const pool = this.objectPools.get(assemblyType);
+        if (pool && pool.length > 0) {
+            const assembly = pool.pop();
+            if (assembly.isAssembly) {
+                // Reset assembly components
+                assembly.sign.mesh.visible = true;
+                assembly.chainSegments.forEach(segment => {
+                    segment.mesh.visible = true;
+                    // Ensure chain segments start sleeping
+                    segment.body?.sleep();
+                });
+            } else {
+                assembly.mesh.visible = true;
+            }
+            return assembly;
+        }
+        return null;
+    }
+
+    /**
+     * Return a preallocated assembly to the pool
+     * @param {string} assemblyType - Type of assembly
+     * @param {Object} assembly - The assembly to return
+     */
+    returnPreallocatedAssembly(assemblyType, assembly) {
+        const pool = this.objectPools.get(assemblyType);
+        if (pool && pool.length < this.poolSize) {
+            if (assembly.isAssembly) {
+                // Reset assembly state
+                assembly.sign.mesh.visible = false;
+                assembly.sign.mesh.position.set(0, 0, 0);
+                assembly.sign.body.setTranslation({ x: 0, y: 0, z: 0 }, true);
+                
+                assembly.chainSegments.forEach(segment => {
+                    segment.mesh.visible = false;
+                    segment.mesh.position.set(0, 0, 0);
+                    segment.body.setTranslation({ x: 0, y: 0, z: 0 }, true);
+                    // Ensure chain segments are sleeping when returned to pool
+                    segment.body?.sleep();
+                });
+            } else {
+                assembly.mesh.visible = false;
+                assembly.mesh.position.set(0, 0, 0);
+                assembly.body.setTranslation({ x: 0, y: 0, z: 0 }, true);
+            }
+            pool.push(assembly);
+        } else {
+            this.disposalQueue.add(assembly);
+        }
+    }
+
+    /**
+     * Get an object from the pool or create a new one
+     * @param {string} asset_type - Type of asset from ASSET_TYPE enum
+     * @returns {Object} The pooled or new object
+     */
+    getFromPool(asset_type) {
+        const pool = this.objectPools.get(asset_type);
+        if (pool && pool.length > 0) {
+            const object = pool.pop();
+            if (FLAGS.ASSET_LOGS) console.log(`Retrieved ${asset_type} from pool`);
+            return object;
+        }
+        return null;
+    }
+
+    /**
+     * Return an object to the pool
+     * @param {string} asset_type - Type of asset
+     * @param {Object} object - Object to return to pool
+     */
+    returnToPool(asset_type, object) {
+        const pool = this.objectPools.get(asset_type);
+        if (pool && pool.length < this.poolSize) {
+            // Reset object state
+            if (object.mesh) {
+                object.mesh.position.set(0, 0, 0);
+                object.mesh.quaternion.set(0, 0, 0, 1);
+                object.mesh.visible = false;
+            }
+            if (object.body) {
+                object.body.setTranslation({ x: 0, y: 0, z: 0 }, true);
+                object.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+                object.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+            }
+            pool.push(object);
+            if (FLAGS.ASSET_LOGS) console.log(`Returned ${asset_type} to pool`);
+        } else {
+            // Queue for disposal if pool is full
+            this.disposalQueue.add(object);
+        }
+    }
+
+    /**
+     * Periodic cleanup of disposed objects
+     */
+    performCleanup() {
+        const currentTime = Date.now();
+        if (currentTime - this.lastCleanupTime < this.cleanupInterval) return;
+
+        this.disposalQueue.forEach(object => {
+            if (object.mesh) {
+                if (object.mesh.parent) {
+                    object.mesh.parent.remove(object.mesh);
+                }
+                if (object.mesh.geometry) object.mesh.geometry.dispose();
+                if (object.mesh.material) {
+                    if (Array.isArray(object.mesh.material)) {
+                        object.mesh.material.forEach(mat => mat.dispose());
+                    } else {
+                        object.mesh.material.dispose();
+                    }
+                }
+            }
+            if (object.body && object.body.parent) {
+                object.body.parent.remove(object.body);
+            }
+        });
+
+        this.disposalQueue.clear();
+        this.lastCleanupTime = currentTime;
+    }
+
+    /**
      * Gets or creates the singleton instance of AssetSpawner.
+     * @param {RAPIER.World} world - The physics world instance
      * @returns {AssetSpawner} The singleton instance.
      */
-    static get_instance() {
+    static get_instance(world) {
         if (!AssetSpawner.instance) {
-            AssetSpawner.instance = new AssetSpawner();
+            AssetSpawner.instance = new AssetSpawner(world);
         }
         return AssetSpawner.instance;
     }
@@ -92,6 +428,16 @@ export class AssetSpawner {
     }
 
     /**
+     * Get a debug material from the pool
+     * @returns {THREE.Material} A pooled debug material
+     */
+    getDebugMaterial() {
+        const index = this.debugColorIndex % 8; // 8 colors in our pool
+        this.debugColorIndex++;
+        return this.materialPool.get(`debug_${index}`);
+    }
+
+    /**
      * Creates a debug wireframe mesh for a collider
      * @param {string} type - Type of collider ('cuboid', 'trimesh', 'sphere')
      * @param {Object} dimensions - Dimensions of the collider
@@ -101,22 +447,6 @@ export class AssetSpawner {
      */
     createDebugWireframe(type, dimensions, position, rotation) {
         if (!FLAGS.COLLISION_VISUAL_DEBUG) return null;
-
-        // Array of bright, distinct colors for debug meshes
-        const debugColors = [
-            0xff0000, // Red
-            0x00ff00, // Green
-            0x0000ff, // Blue
-            0xff00ff, // Magenta
-            0xffff00, // Yellow
-            0x00ffff, // Cyan
-            0xff8000, // Orange
-            0x8000ff, // Purple
-        ];
-
-        // Cycle through colors
-        const color = debugColors[this.debugColorIndex % debugColors.length];
-        this.debugColorIndex++;
 
         let geometry;
         switch (type) {
@@ -138,21 +468,14 @@ export class AssetSpawner {
                 return null;
         }
 
-        const material = new THREE.MeshBasicMaterial({
-            color: color,
-            wireframe: true,
-            transparent: true,
-            opacity: 0.5,
-            depthTest: true,
-            side: THREE.DoubleSide
-        });
-
+        // Use pooled debug material
+        const material = this.getDebugMaterial();
         const mesh = new THREE.Mesh(geometry, material);
         mesh.position.copy(position);
         if (rotation) {
             mesh.quaternion.copy(rotation);
         }
-        mesh.renderOrder = 999; // Ensure wireframe renders on top
+        mesh.renderOrder = 999;
 
         return mesh;
     }
@@ -168,6 +491,62 @@ export class AssetSpawner {
      */
     async spawn_asset(asset_type, parent, world, options = {}, position_offset = new THREE.Vector3(0, 0, 0)) {
         try {
+            // Check if this is a scroll menu or main sign spawn
+            if (asset_type === 'scroll_menu' || asset_type === 'main_signs') {
+                const assembly = this.getPreallocatedAssembly(asset_type);
+                if (assembly) {
+                    if (assembly.isAssembly) {
+                        // Position and configure scroll menu assembly
+                        assembly.sign.mesh.position.copy(position_offset);
+                        assembly.sign.body.setTranslation(position_offset, true);
+                        assembly.sign.body?.setLinvel({ x: 0, y: 0, z: 0 }, true);
+                        assembly.sign.body?.setAngvel({ x: 0, y: 0, z: 0 }, true);
+                        assembly.sign.body?.sleep();
+                        
+                        // Position chain segments with precise positioning
+                        assembly.chainSegments.forEach((segment, index) => {
+                            const segmentOffset = new THREE.Vector3(
+                                position_offset.x,
+                                position_offset.y - (index + 1) * 0.5,
+                                position_offset.z
+                            );
+                            segment.mesh.position.copy(segmentOffset);
+                            segment.body.setTranslation(segmentOffset, true);
+                            segment.body?.setLinvel({ x: 0, y: 0, z: 0 }, true);
+                            segment.body?.setAngvel({ x: 0, y: 0, z: 0 }, true);
+                            segment.body?.sleep();
+                        });
+
+                        // Add a method to wake up the entire assembly
+                        assembly.wakeUp = () => {
+                            assembly.sign.body?.wakeUp();
+                            assembly.chainSegments.forEach(segment => segment.body?.wakeUp());
+                        };
+
+                        parent.add(assembly.sign.mesh);
+                        assembly.chainSegments.forEach(segment => parent.add(segment.mesh));
+                    } else {
+                        // Position and configure main sign
+                        assembly.mesh.position.copy(position_offset);
+                        assembly.body.setTranslation(position_offset, true);
+                        parent.add(assembly.mesh);
+                    }
+                    return assembly;
+                }
+            }
+
+            // If not a special assembly or no preallocated assembly available, proceed with normal spawn
+            // Check pool first
+            const pooledObject = this.getFromPool(asset_type);
+            if (pooledObject) {
+                const { mesh, body } = pooledObject;
+                mesh.visible = true;
+                mesh.position.copy(position_offset);
+                body.setTranslation(position_offset, true);
+                parent.add(mesh);
+                return [mesh, body];
+            }
+
             if (!Object.values(ASSET_TYPE).includes(asset_type)) {
                 throw new Error(`Invalid asset type: ${asset_type}`);
             }
@@ -177,14 +556,19 @@ export class AssetSpawner {
             const body = world.createRigidBody(
                 RAPIER.RigidBodyDesc.dynamic()
                     .setTranslation(position_offset.x, position_offset.y, position_offset.z)
+                    .setLinearDamping(0.5)  // Add damping to reduce bouncing
+                    .setAngularDamping(0.5) // Add angular damping to reduce spinning
+                    .setCanSleep(true)      // Allow the body to sleep when it comes to rest
             );
 
             if(FLAGS.ASSET_LOGS) console.log(`Created rigid body for ${asset_type}:`, body);
             if (asset_type === ASSET_TYPE.CUBE) {
-                mesh = new THREE.Mesh(
-                    asset_config.geometry,
-                    asset_config.create_material(options.color || 0xffffff)
-                );
+                // Use pooled basic material for cubes
+                const material = this.materialPool.get('basic_white').clone();
+                if (options.color) {
+                    material.color.setHex(options.color);
+                }
+                mesh = new THREE.Mesh(asset_config.geometry, material);
                 mesh.position.copy(position_offset);
                 mesh.castShadow = true;
                 mesh.receiveShadow = true;
@@ -193,7 +577,9 @@ export class AssetSpawner {
                 if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating cube with name: ${mesh.name}, category: ${options.category}`);
                 const collider = RAPIER.ColliderDesc.cuboid(0.5, 0.5, 0.5)
                     .setMass(asset_config.mass)
-                    .setRestitution(asset_config.restitution);
+                    .setRestitution(0.3)     // Lower restitution to reduce bouncing
+                    .setFriction(0.8)        // Higher friction to help objects settle
+                    .setCollisionGroups(0x00010001);  // Set collision groups to reduce checks
                 const created_collider = world.createCollider(collider, body);
                 if(FLAGS.ASSET_LOGS) console.log(`Created cube collider:`, created_collider);
 
@@ -219,7 +605,6 @@ export class AssetSpawner {
 
                 // Add to parent
                 parent.add(mesh);
-                return [mesh, body];
             } else {
                 // Normal GLB asset loading path
                 if (!this.storage.has_loaded_asset(asset_type)) await this.storage.load_asset_type(asset_type);
@@ -245,23 +630,18 @@ export class AssetSpawner {
                             });
                         } else {
                             const originalMaterial = child.material;
-                            // Create a unique key based on the material's essential properties
+                            // Create a unique key for material pooling
                             const materialKey = `${asset_type}_${child.name}_${!!originalMaterial.map}_${originalMaterial.color?.getHex() || 0}`;
-                            // Get cached or new material
-                            child.material = this.storage.get_material(materialKey, originalMaterial);
-                            // Clean up original material if it exists
-                            if (originalMaterial) {
-                                if (originalMaterial.roughnessMap) originalMaterial.roughnessMap.dispose();
-                                if (originalMaterial.metalnessMap) originalMaterial.metalnessMap.dispose();
-                                if (originalMaterial.normalMap) originalMaterial.normalMap.dispose();
-                                if (originalMaterial.bumpMap) originalMaterial.bumpMap.dispose();
-                                if (originalMaterial.envMap) originalMaterial.envMap.dispose();
-                                if (originalMaterial.alphaMap) originalMaterial.alphaMap.dispose();
-                                if (originalMaterial.aoMap) originalMaterial.aoMap.dispose();
-                                if (originalMaterial.displacementMap) originalMaterial.displacementMap.dispose();
-                                originalMaterial.dispose();
+                            
+                            // Try to get material from pool first
+                            let material = this.materialPool.get(materialKey);
+                            if (!material) {
+                                // If not in pool, create and store it
+                                material = this.storage.get_material(materialKey, originalMaterial);
+                                this.materialPool.set(materialKey, material);
                             }
-                            child.material.needsUpdate = true;
+                            
+                            child.material = material;
                             child.name = `${TYPES.INTERACTABLE}${asset_config.name}`;
                             child.castShadow = true;
                         }
@@ -289,8 +669,9 @@ export class AssetSpawner {
                         // Always use trimesh for static collision meshes
                         const collider = RAPIER.ColliderDesc.trimesh(scaledVertices, indices)
                             .setMass(asset_config.mass)
-                            .setRestitution(asset_config.restitution)
-                            .setFriction(1.0); // Add friction to help prevent sliding
+                            .setRestitution(0.3)     // Lower restitution to reduce bouncing
+                            .setFriction(0.8)        // Higher friction to help objects settle
+                            .setCollisionGroups(0x00010001);  // Set collision groups to reduce checks
                         // Get the collision mesh's position relative to the model
                         const meshPosition = new THREE.Vector3();
                         collision_mesh.getWorldPosition(meshPosition);
@@ -343,8 +724,9 @@ export class AssetSpawner {
 
                         const collider = RAPIER.ColliderDesc.cuboid(half_width, half_height, half_depth)
                             .setMass(asset_config.mass)
-                            .setRestitution(asset_config.restitution)
-                            .setFriction(1.0); // Add friction to help prevent sliding
+                            .setRestitution(0.3)     // Lower restitution to reduce bouncing
+                            .setFriction(0.8)        // Higher friction to help objects settle
+                            .setCollisionGroups(0x00010001);  // Set collision groups to reduce checks
 
                         const created_collider = world.createCollider(collider, body);
 
@@ -391,6 +773,10 @@ export class AssetSpawner {
             this.storage.store_dynamic_body(instance_id, body_pair);
             // Add the instance_id to the mesh's userData for reference
             mesh.userData.instance_id = instance_id;
+
+            // After creating new object, check if we should perform cleanup
+            this.performCleanup();
+
             return body_pair;
         } catch (error) {
             console.error(`Error in spawn_asset for ${asset_type}:`, error);
@@ -411,12 +797,16 @@ export class AssetSpawner {
         const asset_config = ASSET_CONFIGS[asset_type];
         let mesh;
         if (asset_type === ASSET_TYPE.CUBE) {
-            mesh = new THREE.Mesh(asset_config.geometry, asset_config.create_material(0xffffff));
+            mesh = new THREE.Mesh(
+                asset_config.geometry, 
+                this.materialPool.get('basic_white').clone()
+            );
             mesh.castShadow = true;
         } else {
             if (!this.storage.has_loaded_asset(asset_type)) await this.storage.load_asset_type(asset_type);
             const gltf = this.storage.get_loaded_asset(asset_type);
             mesh = gltf.scene.clone();
+            mesh.position.copy(position_offset);
             mesh.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
             
             if(FLAGS.ASSET_LOGS) console.log('Creating static mesh for UI:', {
@@ -427,29 +817,23 @@ export class AssetSpawner {
             });
             mesh.traverse((child) => {
                 if (child.isMesh) {
-                    if(FLAGS.ASSET_LOGS) console.log('Original material properties:', {
-                        hasMap: !!child.material.map,
-                        color: child.material.color,
-                        type: child.material.type
-                    });
-                    // Force UI rendering properties
-                    child.material = new THREE.MeshBasicMaterial({
-                        map: child.material.map,
-                        color: child.material.color,
-                        transparent: true,
-                        depthTest: false,
-                        side: THREE.DoubleSide,
-                        opacity: 1
-                    });
+                    const materialKey = `static_${asset_type}_${child.name}`;
+                    let material = this.materialPool.get(materialKey);
+                    
+                    if (!material) {
+                        material = new THREE.MeshBasicMaterial({
+                            map: child.material.map,
+                            color: child.material.color,
+                            transparent: true,
+                            depthTest: false,
+                            side: THREE.DoubleSide,
+                            opacity: 1
+                        });
+                        this.materialPool.set(materialKey, material);
+                    }
+                    
+                    child.material = material;
                     child.renderOrder = 999; // Ensure it renders on top
-                    if(FLAGS.ASSET_LOGS) console.log('New material properties:', {
-                        hasMap: !!child.material.map,
-                        color: child.material.color,
-                        type: child.material.type,
-                        transparent: child.material.transparent,
-                        depthTest: child.material.depthTest,
-                        renderOrder: child.renderOrder
-                    });
                 }
             });
         }
@@ -481,17 +865,34 @@ export class AssetSpawner {
     }
 
     /**
-     * Cleans up resources used by the AssetSpawner.
-     * Disposes of textures and clears caches.
+     * Enhanced cleanup method with pool management
      */
     cleanup() {
+        // Clear object pools
+        this.objectPools.forEach((pool, type) => {
+            pool.forEach(object => {
+                this.disposalQueue.add(object);
+            });
+            pool.length = 0;
+        });
+
+        // Dispose of pooled materials
+        this.materialPool.forEach((material, key) => {
+            if (material.map) material.map.dispose();
+            material.dispose();
+        });
+        this.materialPool.clear();
+
+        // Perform final cleanup
+        this.performCleanup();
+
+        // Existing cleanup code
         this.storage.cleanup();
         this.textureAtlasManager.dispose();
-        // Clean up debug meshes
         this.debugMeshes.forEach((debugData) => {
             if (debugData.mesh) {
                 debugData.mesh.geometry.dispose();
-                debugData.mesh.material.dispose();
+                // Don't dispose of materials here as they're handled in the material pool cleanup
                 debugData.mesh.parent?.remove(debugData.mesh);
             }
         });
@@ -502,5 +903,34 @@ export class AssetSpawner {
 
     get_new_instance_id() {
         return AssetSpawner.instance_counter++;
+    }
+
+    createAsset(asset_config) {
+        const model = asset_config.model.clone();
+        model.frustumCulled = true;  // Enable frustum culling
+        
+        // Add LOD (Level of Detail) for complex models
+        if (asset_config.geometry && asset_config.geometry.attributes.position.count > 1000) {
+            const lod = new THREE.LOD();
+            
+            // High detail (original)
+            lod.addLevel(model, 0);
+            
+            // Medium detail (50% less geometry)
+            const mediumGeo = asset_config.geometry.clone();
+            const mediumDetail = THREE.BufferGeometryUtils.mergeVertices(mediumGeo, 0.1);
+            const mediumMesh = new THREE.Mesh(mediumDetail, model.material);
+            lod.addLevel(mediumMesh, 10);
+            
+            // Low detail (75% less geometry)
+            const lowGeo = asset_config.geometry.clone();
+            const lowDetail = THREE.BufferGeometryUtils.mergeVertices(lowGeo, 0.2);
+            const lowMesh = new THREE.Mesh(lowDetail, model.material);
+            lod.addLevel(lowMesh, 20);
+            
+            model = lod;
+        }
+        
+        // Rest of the existing createAsset code...
     }
 }

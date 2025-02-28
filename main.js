@@ -132,10 +132,17 @@ async function init() {
         // Physics
         gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
         world = new RAPIER.World(gravity);
-        // Disable sleeping globally
-        world.maxVelocityIterations = 4;
-        world.maxVelocityFriction = 8;
+        // Physics optimization settings
         world.allowSleep = true;
+        world.linearSleepThreshold = 0.2;
+        world.angularSleepThreshold = 0.1;
+        world.sleepThreshold = 0.1;
+        world.maxVelocityIterations = 2;  // Reduced from 4
+        world.maxVelocityFriction = 4;    // Reduced from 8
+        world.integrationParameters.dt = 1/60;  // Fixed timestep
+        world.integrationParameters.erp = 0.8;  // Error reduction parameter
+        world.integrationParameters.warmstartCoeff = 0.8;
+        world.integrationParameters.allowedLinearError = 0.001;
         clock = new THREE.Clock();
 
         // UI creation
