@@ -3,6 +3,13 @@
 
 ### Bug Fixes
 
+* a return to sanity ([#42](https://github.com/LittleCarlito/threejs_site/issues/42)) ([ceedf1d](https://github.com/LittleCarlito/threejs_site/commit/ceedf1d8bda3434e1bb0f580eadc46bb8e13a5f0))
+
+## [0.2.1](https://github.com/LittleCarlito/threejs_site/compare/v0.2.0...v0.2.1) (2025-02-28)
+
+
+### Bug Fixes
+
 * high res resize ([#39](https://github.com/LittleCarlito/threejs_site/issues/39)) ([0e72444](https://github.com/LittleCarlito/threejs_site/commit/0e72444f59e00001645a0b8d6fecfa827db6c715))
 
 # [0.2.0](https://github.com/LittleCarlito/threejs_site/compare/v0.1.0...v0.2.0) (2025-02-28)
