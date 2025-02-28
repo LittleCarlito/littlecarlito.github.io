@@ -146,9 +146,10 @@ export class ScrollMenu {
             true
         );
 
-        // Set initial velocities
+        // Set initial velocities and force sleep
         chain_body.setLinvel({ x: 0, y: 0, z: 0 }, true);
         chain_body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+        chain_body.sleep();
 
         this.chain_joints.push(created_joint);
 
@@ -311,7 +312,7 @@ export class ScrollMenu {
                     .setAngularDamping(this.CHAIN_CONFIG.SIGN.ANGULAR_DAMPING)
                     .setAdditionalMass(this.CHAIN_CONFIG.SIGN.MASS)
                     .setGravityScale(this.CHAIN_CONFIG.SIGN.GRAVITY_SCALE)
-                    .setCanSleep(false)
+                    .setCanSleep(true)
                 );
                 const sign_collider = RAPIER.ColliderDesc.cuboid(
                     this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH/2,
@@ -325,6 +326,9 @@ export class ScrollMenu {
                 // Set initial velocities to zero for sign
                 this.sign_body.setLinvel({ x: 0, y: 0, z: 0 }, true);
                 this.sign_body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+                
+                // Force the sign to sleep initially
+                this.sign_body?.sleep();
                 
                 // Connect sign to last chain segment with adjusted joint positions
                 const finalJointDesc = RAPIER.JointData.spherical(

@@ -190,7 +190,14 @@ export class AssetSpawner {
                         .setTranslation(0, 0, 0)
                         .setLinearDamping(0.8)
                         .setAngularDamping(1.0)
+                        .setCanSleep(true)  // Enable sleeping for sign
+                        .setSleepThreshold(0)  // Make it sleep immediately
                 );
+                
+                // Force the sign to sleep initially
+                signBody?.setLinvel({ x: 0, y: 0, z: 0 }, true);
+                signBody?.setAngvel({ x: 0, y: 0, z: 0 }, true);
+                signBody?.sleep();
 
                 // Create chain segments using shared resources
                 const chainSegments = [];
@@ -201,7 +208,11 @@ export class AssetSpawner {
                             .setTranslation(0, 0, 0)
                             .setLinearDamping(0.8)
                             .setAngularDamping(1.0)
+                            .setCanSleep(true)  // Enable sleeping
+                            .setSleepThreshold(0)  // Make it sleep immediately
                     );
+                    // Force the body to sleep initially
+                    segmentBody?.sleep();
                     chainSegments.push({ mesh: segmentMesh, body: segmentBody });
                 }
 
@@ -254,6 +265,8 @@ export class AssetSpawner {
                 assembly.sign.mesh.visible = true;
                 assembly.chainSegments.forEach(segment => {
                     segment.mesh.visible = true;
+                    // Ensure chain segments start sleeping
+                    segment.body?.sleep();
                 });
             } else {
                 assembly.mesh.visible = true;
@@ -281,6 +294,8 @@ export class AssetSpawner {
                     segment.mesh.visible = false;
                     segment.mesh.position.set(0, 0, 0);
                     segment.body.setTranslation({ x: 0, y: 0, z: 0 }, true);
+                    // Ensure chain segments are sleeping when returned to pool
+                    segment.body?.sleep();
                 });
             } else {
                 assembly.mesh.visible = false;
@@ -484,17 +499,29 @@ export class AssetSpawner {
                         // Position and configure scroll menu assembly
                         assembly.sign.mesh.position.copy(position_offset);
                         assembly.sign.body.setTranslation(position_offset, true);
+                        assembly.sign.body?.setLinvel({ x: 0, y: 0, z: 0 }, true);
+                        assembly.sign.body?.setAngvel({ x: 0, y: 0, z: 0 }, true);
+                        assembly.sign.body?.sleep();
                         
-                        // Position chain segments
+                        // Position chain segments with precise positioning
                         assembly.chainSegments.forEach((segment, index) => {
                             const segmentOffset = new THREE.Vector3(
                                 position_offset.x,
-                                position_offset.y - (index + 1) * 0.5, // Adjust spacing as needed
+                                position_offset.y - (index + 1) * 0.5,
                                 position_offset.z
                             );
                             segment.mesh.position.copy(segmentOffset);
                             segment.body.setTranslation(segmentOffset, true);
+                            segment.body?.setLinvel({ x: 0, y: 0, z: 0 }, true);
+                            segment.body?.setAngvel({ x: 0, y: 0, z: 0 }, true);
+                            segment.body?.sleep();
                         });
+
+                        // Add a method to wake up the entire assembly
+                        assembly.wakeUp = () => {
+                            assembly.sign.body?.wakeUp();
+                            assembly.chainSegments.forEach(segment => segment.body?.wakeUp());
+                        };
 
                         parent.add(assembly.sign.mesh);
                         assembly.chainSegments.forEach(segment => parent.add(segment.mesh));
