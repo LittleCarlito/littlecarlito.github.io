@@ -69,7 +69,7 @@ Visit the live site: [https://littlecarlito.github.io/threejs_site/](https://lit
     npm run dev
     ```
 
-The site will be available at `http://127.0.0.1:5173`
+The site will be available at `http://localhost:5173`
 
 ## 🎮 Controls
 
