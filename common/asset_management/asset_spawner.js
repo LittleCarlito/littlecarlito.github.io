@@ -197,7 +197,8 @@ export class AssetSpawner {
                 const collider = RAPIER.ColliderDesc.cuboid(0.5, 0.5, 0.5)
                     .setMass(asset_config.mass)
                     .setRestitution(0.3)     // Lower restitution to reduce bouncing
-                    .setFriction(0.8);       // Higher friction to help objects settle
+                    .setFriction(0.8)        // Higher friction to help objects settle
+                    .setCollisionGroups(0x00010001);  // Set collision groups to reduce checks
                 const created_collider = world.createCollider(collider, body);
                 if(FLAGS.ASSET_LOGS) console.log(`Created cube collider:`, created_collider);
 
@@ -294,7 +295,8 @@ export class AssetSpawner {
                         const collider = RAPIER.ColliderDesc.trimesh(scaledVertices, indices)
                             .setMass(asset_config.mass)
                             .setRestitution(0.3)     // Lower restitution to reduce bouncing
-                            .setFriction(0.8);       // Higher friction to help objects settle
+                            .setFriction(0.8)        // Higher friction to help objects settle
+                            .setCollisionGroups(0x00010001);  // Set collision groups to reduce checks
                         // Get the collision mesh's position relative to the model
                         const meshPosition = new THREE.Vector3();
                         collision_mesh.getWorldPosition(meshPosition);
@@ -348,7 +350,8 @@ export class AssetSpawner {
                         const collider = RAPIER.ColliderDesc.cuboid(half_width, half_height, half_depth)
                             .setMass(asset_config.mass)
                             .setRestitution(0.3)     // Lower restitution to reduce bouncing
-                            .setFriction(0.8);       // Higher friction to help objects settle
+                            .setFriction(0.8)        // Higher friction to help objects settle
+                            .setCollisionGroups(0x00010001);  // Set collision groups to reduce checks
 
                         const created_collider = world.createCollider(collider, body);
 
@@ -506,5 +509,34 @@ export class AssetSpawner {
 
     get_new_instance_id() {
         return AssetSpawner.instance_counter++;
+    }
+
+    createAsset(asset_config) {
+        const model = asset_config.model.clone();
+        model.frustumCulled = true;  // Enable frustum culling
+        
+        // Add LOD (Level of Detail) for complex models
+        if (asset_config.geometry && asset_config.geometry.attributes.position.count > 1000) {
+            const lod = new THREE.LOD();
+            
+            // High detail (original)
+            lod.addLevel(model, 0);
+            
+            // Medium detail (50% less geometry)
+            const mediumGeo = asset_config.geometry.clone();
+            const mediumDetail = THREE.BufferGeometryUtils.mergeVertices(mediumGeo, 0.1);
+            const mediumMesh = new THREE.Mesh(mediumDetail, model.material);
+            lod.addLevel(mediumMesh, 10);
+            
+            // Low detail (75% less geometry)
+            const lowGeo = asset_config.geometry.clone();
+            const lowDetail = THREE.BufferGeometryUtils.mergeVertices(lowGeo, 0.2);
+            const lowMesh = new THREE.Mesh(lowDetail, model.material);
+            lod.addLevel(lowMesh, 20);
+            
+            model = lod;
+        }
+        
+        // Rest of the existing createAsset code...
     }
 }
