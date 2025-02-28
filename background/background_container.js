@@ -1,10 +1,8 @@
-import { FLAGS, THREE, AssetSpawner, NAMES } from "../common";
-import { ASSET_TYPE } from "../common/asset_management/asset_type";
+import { FLAGS, THREE, AssetSpawner, ASSET_TYPE } from "../common";
 import { ControlMenu } from "./menus/control_menu";
 import { ScrollMenu } from "./menus/scroll_menu";
 import { CATEGORIES, TYPES } from "../viewport/overlay/overlay_common";
 import { AssetStorage } from '../common/asset_management/asset_storage';
-import { AssetActivator } from '../common/asset_management/asset_activator';
 
 export class BackgroundContainer {
     name = "[BackgroundContainer]"

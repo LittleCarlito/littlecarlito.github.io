@@ -1,5 +1,5 @@
 import { TYPES } from '../../viewport/overlay/overlay_common';
-import { FLAGS, NAMES, RAPIER, THREE } from '../../common';
+import { FLAGS, ASSET_TYPE, RAPIER, THREE } from '../../common';
 import { AssetSpawner } from '../../common';
 import { BackgroundLighting } from '../background_lighting';
 import { AssetStorage } from '../../common/asset_management/asset_storage';
@@ -276,7 +276,7 @@ export class ScrollMenu {
                 );
                 this.sign_mesh = new THREE.Mesh(sign_geometry, sign_material);
                 this.sign_mesh.castShadow = true;
-                this.sign_mesh.name = `${TYPES.INTERACTABLE}${NAMES.SECONDARY}_SCROLL_MENU`;
+                this.sign_mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.SECONDARY}_SCROLL_MENU`;
                 
                 // Rotate the sign 90 degrees around X axis
                 this.sign_mesh.rotation.x = Math.PI / 2;
@@ -471,7 +471,7 @@ export class ScrollMenu {
         // Update sign rotation based on camera angles
         if (this.parent.children) {
             const sign = this.parent.children.find(child => 
-                child.name === `${TYPES.INTERACTABLE}${NAMES.SECONDARY}_SCROLL_MENU`
+                child.name === `${TYPES.INTERACTABLE}${ASSET_TYPE.SECONDARY}_SCROLL_MENU`
             );
             if (sign) {
                 // Calculate rotation based on camera position

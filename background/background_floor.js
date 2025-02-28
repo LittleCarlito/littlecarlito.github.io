@@ -1,5 +1,5 @@
 import { TYPES } from '../viewport/overlay/overlay_common';
-import { NAMES, RAPIER, THREE } from '../common';
+import { ASSET_TYPE, RAPIER, THREE } from '../common';
 
 export class BackgroundFloor {
 
@@ -12,7 +12,7 @@ export class BackgroundFloor {
         this.floor_mesh = new THREE.Mesh(floor_geometry, floor_material);
         this.floor_mesh.receiveShadow = true;
         this.floor_mesh.position.y = -10.2;
-        this.floor_mesh.name = `${TYPES.FLOOR}${NAMES.UNIQUE}`;
+        this.floor_mesh.name = `${TYPES.FLOOR}${ASSET_TYPE.UNIQUE}`;
         // TODO Make this a toggleable feature
         // Disable raycasting for this mesh
         this.floor_mesh.raycast = () => null;

@@ -1,5 +1,5 @@
 import { TYPES } from '../../viewport/overlay/overlay_common';
-import { FLAGS, NAMES, RAPIER, THREE } from '../../common';
+import { FLAGS, ASSET_TYPE, RAPIER, THREE } from '../../common';
 import { BackgroundLighting } from '../background_lighting';
 
 export const IMAGE_PATH = 'images/MouseControlMenu.svg';
@@ -199,7 +199,7 @@ export class ControlMenu {
                 );
                 this.sign_mesh = new THREE.Mesh(this.sign_geometry, this.sign_material);
                 this.sign_mesh.castShadow = true;
-                this.sign_mesh.name = `${TYPES.INTERACTABLE}${NAMES.PRIMARY}`;
+                this.sign_mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.PRIMARY}`;
                 this.parent.add(this.sign_mesh);
                 // Create test physics object with initial rotation
                 const initialRotation = new THREE.Quaternion().setFromAxisAngle(

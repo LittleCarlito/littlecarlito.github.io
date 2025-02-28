@@ -35,6 +35,5 @@ export async function loadRapier() {
 export * from './flags'
 export * from './app_renderer'
 export * from './types'
-export * from './names'
 export * from './asset_management/asset_spawner'
 export * from './asset_management/asset_type'
