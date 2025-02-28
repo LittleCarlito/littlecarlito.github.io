@@ -3,6 +3,7 @@ import { Easing, Tween, RAPIER, THREE, NAMES } from "..";
 import { CATEGORIES, TYPES } from "../../viewport/overlay/overlay_common";
 import { FLAGS } from "../flags";
 import { TextureAtlasManager } from '../texture_atlas_manager';
+import { AssetStorage } from './asset_storage';
 
 /**
  * Generates triangle indices for a geometry that doesn't have them
@@ -111,7 +112,6 @@ export class AssetManager {
     currently_activated_name = "";  // Add this to track the currently activated object
     emission_states = new Map(); // Track emission states of objects
     name = "[AssetManager]";
-    material_cache = new Map(); // Add material cache
     textureAtlasManager = TextureAtlasManager.getInstance();
     pendingTextures = new Map(); // Track textures waiting to be atlased
     
@@ -120,11 +120,7 @@ export class AssetManager {
             return AssetManager.instance;
         }
         this.loader = new GLTFLoader();
-        this.loaded_assets = new Map();  // Stores the raw GLTF data
-        this.dynamic_bodies = new Map(); // Stores [mesh, physicsBody] pairs
-        this.static_meshes = new Map();  // Stores static meshes without physics
-        this.loading_promises = new Map();
-        this.material_cache = new Map(); // Initialize material cache
+        this.storage = new AssetStorage();
         this.textureAtlasManager = TextureAtlasManager.getInstance();
         this.pendingTextures = new Map(); // Track textures waiting to be atlased
         AssetManager.instance = this;
@@ -140,25 +136,28 @@ export class AssetManager {
     async load_asset_type(asset_type) {
         const asset_config = ASSET_CONFIGS[asset_type];
         if (!asset_config) throw new Error(`Unknown asset type: ${asset_type}`);
-        if (this.loaded_assets.has(asset_type)) {
-            return this.loaded_assets.get(asset_type);
+        
+        if (this.storage.has_loaded_asset(asset_type)) {
+            return this.storage.get_loaded_asset(asset_type);
         }
-        if (this.loading_promises.has(asset_type)) {
-            return this.loading_promises.get(asset_type);
+        
+        if (this.storage.has_loading_promise(asset_type)) {
+            return this.storage.get_loading_promise(asset_type);
         }
+        
         const loading_promise = new Promise((resolve, reject) => {
             this.loader.load(
                 asset_config.PATH,
                 (gltf) => {
-                    this.loaded_assets.set(asset_type, gltf);
-                    this.loading_promises.delete(asset_type);
+                    this.storage.store_loaded_asset(asset_type, gltf);
                     resolve(gltf);
                 },
                 undefined,
                 reject
             );
         });
-        this.loading_promises.set(asset_type, loading_promise);
+        
+        this.storage.set_loading_promise(asset_type, loading_promise);
         return loading_promise;
     }
 
@@ -255,8 +254,8 @@ export class AssetManager {
                 return [mesh, body];
             } else {
                 // Normal GLB asset loading path
-                if (!this.loaded_assets.has(asset_type)) await this.load_asset_type(asset_type);
-                const gltf = this.loaded_assets.get(asset_type);
+                if (!this.storage.has_loaded_asset(asset_type)) await this.load_asset_type(asset_type);
+                const gltf = this.storage.get_loaded_asset(asset_type);
                 mesh = gltf.scene.clone();
                 mesh.position.copy(position_offset);
                 mesh.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
@@ -388,7 +387,7 @@ export class AssetManager {
             // Generate a truly unique ID using counter instead of timestamp
             const instance_id = `${asset_type}_${this.get_new_instance_id()}`;
             const body_pair = [mesh, body];
-            this.dynamic_bodies.set(instance_id, body_pair);
+            this.storage.store_dynamic_body(instance_id, body_pair);
             
             // Add the instance_id to the mesh's userData for reference
             mesh.userData.instance_id = instance_id;
@@ -415,7 +414,7 @@ export class AssetManager {
             const incoming_name = incoming_mesh.name;
             const instance_id = `${incoming_name}_${this.get_new_instance_id()}`;
             const incoming_pair = [incoming_mesh, incoming_body];
-            this.dynamic_bodies.set(instance_id, incoming_pair);
+            this.storage.store_dynamic_body(instance_id, incoming_pair);
             incoming_mesh.userData.instance_id = instance_id;
         } else {
             console.error(`${incoming_mesh} ${incoming_body} mesh body combo could not be added because the mesh didn't have a name`);
@@ -438,8 +437,8 @@ export class AssetManager {
             mesh = new THREE.Mesh(asset_config.geometry, asset_config.create_material(0xffffff));
             mesh.castShadow = true;
         } else {
-            if (!this.loaded_assets.has(asset_type)) await this.load_asset_type(asset_type);
-            const gltf = this.loaded_assets.get(asset_type);
+            if (!this.storage.has_loaded_asset(asset_type)) await this.load_asset_type(asset_type);
+            const gltf = this.storage.get_loaded_asset(asset_type);
             mesh = gltf.scene.clone();
             mesh.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
             
@@ -485,7 +484,7 @@ export class AssetManager {
         mesh.renderOrder = 999;
         parent.add(mesh);
         const instance_id = `${asset_type}_static_${Date.now()}`;
-        this.static_meshes.set(instance_id, mesh);
+        this.storage.store_static_mesh(instance_id, mesh);
         return mesh;
     }
 
@@ -501,24 +500,16 @@ export class AssetManager {
     }
 
     get_all_dynamic_bodies() {
-        return Array.from(this.dynamic_bodies.values());
+        return this.storage.get_all_dynamic_bodies();
     }
 
     get_all_static_meshes() {
-        return Array.from(this.static_meshes.values());
+        return this.storage.get_all_static_meshes();
     }
 
     // Update method to get body pair by mesh
     get_body_pair_by_mesh(mesh) {
-        // First check if the current mesh has the instance_id
-        let instance_id = mesh.userData.instance_id;
-        // If not found, traverse up the parent hierarchy
-        let current = mesh;
-        while (!instance_id && current.parent) {
-            current = current.parent;
-            instance_id = current.userData.instance_id;
-        }
-        return instance_id ? this.dynamic_bodies.get(instance_id) : null;
+        return this.storage.get_body_pair_by_mesh(mesh);
     }
 
     // Add helper method to check if a mesh is actually emissive
@@ -547,11 +538,11 @@ export class AssetManager {
 
     activate_object(object_name) {        
         // First check if we think it's active
-        if(object_name === this.currently_activated_name) {
-            if (this.emission_states.get(object_name) === 'active') {
+        if(object_name === this.storage.get_currently_activated_name()) {
+            if (this.storage.get_emission_state(object_name) === 'active') {
                 // Verify the actual material state
                 let found_and_verified = false;
-                for (const [instance_id, [mesh, _body]] of this.dynamic_bodies) {
+                for (const [mesh, _body] of this.storage.get_all_dynamic_bodies()) {
                     const mesh_category = mesh.name.split("_")[1];
                     if (mesh_category === object_name.split("_")[1]) {
                         // If we find the mesh but it's not actually emissive, we need to reapply
@@ -560,36 +551,36 @@ export class AssetManager {
                             return;
                         } else {
                             if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Object ${object_name} claims to be active but isn't emissive - reapplying`);
-                            this.emission_states.delete(object_name);
+                            this.storage.delete_emission_state(object_name);
                             break;
                         }
                     }
                 }
                 if (!found_and_verified) {
                     if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Object ${object_name} not found for verification - resetting state`);
-                    this.emission_states.delete(object_name);
+                    this.storage.delete_emission_state(object_name);
                 }
             }
         }
         
-        // Rest of the activation logic remains the same...
         // Deactivate previously activated object if it's different
-        if (this.currently_activated_name !== object_name) {
-            if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Deactivating previous: ${this.currently_activated_name}`);
-            this.deactivate_object(this.currently_activated_name);
+        const current_activated = this.storage.get_currently_activated_name();
+        if (current_activated !== object_name) {
+            if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Deactivating previous: ${current_activated}`);
+            this.deactivate_object(current_activated);
         }
         
-        this.currently_activated_name = object_name;
+        this.storage.set_currently_activated_name(object_name);
         
         // Extract the category name from the incoming object name
         const requested_category = object_name.split("_")[1];
         if (FLAGS.ACTIVATE_LOGS) {
             console.log(`${this.name} Looking for category: ${requested_category}`);
-            console.log(`${this.name} Available meshes:`, Array.from(this.dynamic_bodies.values()).map(([mesh, _]) => mesh.name));
+            console.log(`${this.name} Available meshes:`, this.storage.get_all_dynamic_bodies().map(([mesh, _]) => mesh.name));
         }
         
         let found = false;
-        for (const [instance_id, [mesh, _body]] of this.dynamic_bodies) {
+        for (const [mesh, _body] of this.storage.get_all_dynamic_bodies()) {
             const mesh_category = mesh.name.split("_")[1];
             
             if (mesh_category === requested_category) {
@@ -604,7 +595,7 @@ export class AssetManager {
                     if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Applying emission material with color: ${category.color}`);
                     
                     // Set the emission state to 'applying'
-                    this.emission_states.set(object_name, 'applying');
+                    this.storage.set_emission_state(object_name, 'applying');
                     
                     // Function to create emission material
                     const createEmissionMaterial = (originalMaterial) => {
@@ -622,28 +613,7 @@ export class AssetManager {
                         }
 
                         const emissionKey = `emission_${categoryColor.getHex()}_${!!originalMaterial?.map}`;
-                        
-                        if (!this.material_cache.has(emissionKey)) {
-                            const material = new THREE.MeshStandardMaterial({ 
-                                color: categoryColor,
-                                emissive: categoryColor,
-                                emissiveIntensity: 9,
-                                map: originalMaterial?.map || null,
-                                transparent: originalMaterial?.transparent || false,
-                                opacity: originalMaterial?.opacity || 1,
-                                roughness: 1.0,
-                                metalness: 0.0,
-                                envMapIntensity: 0.0,
-                                normalScale: new THREE.Vector2(0, 0),
-                                aoMapIntensity: 0.0,
-                                displacementScale: 0.0,
-                                flatShading: true,
-                                toneMapped: false // Prevent tone mapping from affecting emission
-                            });
-                            this.material_cache.set(emissionKey, material);
-                            return material;
-                        }
-                        return this.material_cache.get(emissionKey).clone();
+                        return this.getMaterial(emissionKey, originalMaterial);
                     };
 
                     let meshesProcessed = 0;
@@ -676,11 +646,11 @@ export class AssetManager {
                                 // Check if all meshes are processed and verify emission
                                 if (meshesProcessed === totalMeshes) {
                                     if (this.is_mesh_emissive(mesh)) {
-                                        this.emission_states.set(object_name, 'active');
+                                        this.storage.set_emission_state(object_name, 'active');
                                         if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Object ${object_name} is now fully activated and verified`);
                                     } else {
                                         if (FLAGS.ACTIVATE_LOGS) console.warn(`[${this.name} Failed to apply emission to ${object_name}`);
-                                        this.emission_states.delete(object_name);
+                                        this.storage.delete_emission_state(object_name);
                                     }
                                 }
                             }
@@ -697,11 +667,11 @@ export class AssetManager {
                         
                         // Verify emission for primitive mesh
                         if (this.is_mesh_emissive(mesh)) {
-                            this.emission_states.set(object_name, 'active');
+                            this.storage.set_emission_state(object_name, 'active');
                             if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Object ${object_name} is now fully activated and verified`);
                         } else {
                             if (FLAGS.ACTIVATE_LOGS) console.warn(`${this.name} Failed to apply emission to ${object_name}`);
-                            this.emission_states.delete(object_name);
+                            this.storage.delete_emission_state(object_name);
                         }
                     }
                 }
@@ -710,21 +680,17 @@ export class AssetManager {
         }
         if (!found && FLAGS.ACTIVATE_LOGS) {
             console.warn(`${this.name} No mesh found for category: ${requested_category}`);
-            this.emission_states.delete(object_name);
+            this.storage.delete_emission_state(object_name);
         }
     }
 
-    /**
-     * Deactivates an object by tweening its emission to zero
-     * @param {string} object_name - Name of the object to deactivate
-     */
     deactivate_object(object_name) {
         if (!object_name) return;
         
         const requested_category = object_name.split("_")[1];
         let found = false;
         
-        for (const [instance_id, [mesh, _body]] of this.dynamic_bodies) {
+        for (const [mesh, _body] of this.storage.get_all_dynamic_bodies()) {
             const mesh_category = mesh.name.split("_")[1];
             
             if (mesh_category === requested_category) {
@@ -732,7 +698,7 @@ export class AssetManager {
                 if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Found mesh to deactivate: ${mesh.name}`);
                 
                 // Set deactivation state
-                this.emission_states.set(object_name, 'deactivating');
+                this.storage.set_emission_state(object_name, 'deactivating');
                 
                 let meshesProcessed = 0;
                 let totalMeshes = 0;
@@ -768,7 +734,7 @@ export class AssetManager {
                                     
                                     meshesProcessed++;
                                     if (meshesProcessed === totalMeshes) {
-                                        this.emission_states.delete(object_name);
+                                        this.storage.delete_emission_state(object_name);
                                         if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Object ${object_name} is now fully deactivated`);
                                     }
                                     
@@ -780,7 +746,7 @@ export class AssetManager {
                         console.warn(`${this.name} No original material found for: ${targetMesh.name}`);
                         meshesProcessed++;
                         if (meshesProcessed === totalMeshes) {
-                            this.emission_states.delete(object_name);
+                            this.storage.delete_emission_state(object_name);
                         }
                     }
                 };
@@ -800,21 +766,17 @@ export class AssetManager {
         }
         if (!found && FLAGS.ACTIVATE_LOGS) {
             console.warn(`${this.name} No active mesh found for category: ${requested_category}`);
-            this.emission_states.delete(object_name);
+            this.storage.delete_emission_state(object_name);
         }
     }
 
-    /**
-     * Deactivates all objects that match the given type prefix, or all objects if no prefix provided
-     * @param {string} [type_prefix] - Optional prefix to match object names against
-     */
     deactivate_all_objects(type_prefix = null) {
         // Only proceed if we have an active object
-        if (!this.currently_activated_name) return;
+        if (!this.storage.get_currently_activated_name()) return;
         
         // Check if any objects are actually emissive before proceeding
         let hasEmissiveObjects = false;
-        for (const [_, [mesh, _body]] of this.dynamic_bodies) {
+        for (const [mesh, _body] of this.storage.get_all_dynamic_bodies()) {
             if (type_prefix && !mesh.name.startsWith(type_prefix)) continue;
             
             const checkEmissive = (targetMesh) => {
@@ -841,7 +803,7 @@ export class AssetManager {
 
         // If no emissive objects found, just reset the currently_activated_name and return
         if (!hasEmissiveObjects) {
-            this.currently_activated_name = "";
+            this.storage.set_currently_activated_name("");
             return;
         }
         
@@ -876,7 +838,7 @@ export class AssetManager {
             }
         };
 
-        for (const [instance_id, [mesh, _body]] of this.dynamic_bodies) {
+        for (const [mesh, _body] of this.storage.get_all_dynamic_bodies()) {
             if (type_prefix && !mesh.name.startsWith(type_prefix)) {
                 continue;
             }
@@ -898,7 +860,7 @@ export class AssetManager {
         }
         
         // Reset the currently activated name since we've deactivated everything
-        this.currently_activated_name = "";
+        this.storage.set_currently_activated_name("");
     }
 
     /**
@@ -907,15 +869,12 @@ export class AssetManager {
      * @returns {boolean} True if the object exists
      */
     contains_object(object_name) {
-        for (const [_, [mesh, _body]] of this.dynamic_bodies) {
-            if (mesh.name === object_name) return true;
-        }
-        return false;
+        return this.storage.contains_object(object_name);
     }
 
     // Helper to get cached material or create new one
     getMaterial(key, originalMaterial) {
-        if (!this.material_cache.has(key)) {
+        if (!this.storage.has_material(key)) {
             const material = new THREE.MeshStandardMaterial({
                 map: originalMaterial.map,
                 color: originalMaterial.color,
@@ -931,22 +890,14 @@ export class AssetManager {
                 displacementScale: 0.0,
                 flatShading: true
             });
-            this.material_cache.set(key, material);
+            this.storage.store_material(key, material);
             return material;
         }
-        return this.material_cache.get(key).clone();
+        return this.storage.get_material(key).clone();
     }
 
-    // Add cleanup method for when objects are destroyed
     cleanup() {
-        // Dispose of all cached materials
-        for (const material of this.material_cache.values()) {
-            if (material.map) material.map.dispose();
-            material.dispose();
-        }
-        this.material_cache.clear();
-        
-        // Clean up texture atlases
+        this.storage.cleanup();
         this.textureAtlasManager.dispose();
     }
 }
