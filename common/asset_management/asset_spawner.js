@@ -19,6 +19,11 @@ function generateIndices(geometry) {
     return indices;
 }
 
+/**
+ * Class responsible for spawning and managing 3D assets in the scene.
+ * Handles both static and dynamic (physics-enabled) assets, texture atlasing,
+ * and material optimization.
+ */
 export class AssetSpawner {
     static instance = null;
     static instance_counter = 0;
@@ -36,6 +41,10 @@ export class AssetSpawner {
         AssetSpawner.instance = this;
     }
 
+    /**
+     * Gets or creates the singleton instance of AssetSpawner.
+     * @returns {AssetSpawner} The singleton instance.
+     */
     static get_instance() {
         if (!AssetSpawner.instance) {
             AssetSpawner.instance = new AssetSpawner();
@@ -43,10 +52,11 @@ export class AssetSpawner {
         return AssetSpawner.instance;
     }
 
-    get_new_instance_id() {
-        return AssetSpawner.instance_counter++;
-    }
-
+    /**
+     * Processes textures for a mesh and creates a texture atlas.
+     * @param {THREE.Mesh|THREE.Object3D} mesh - The mesh whose textures need to be processed.
+     * @returns {Promise<THREE.Texture|null>} The created texture atlas or null if no textures found.
+     */
     async processTexturesForAtlas(mesh) {
         const textures = new Set();
         mesh.traverse((child) => {
@@ -78,13 +88,13 @@ export class AssetSpawner {
     }
 
     /**
-     * Spawns a physics-enabled asset of the specified type
-     * @param {string} asset_type - Type of asset from ASSET_TYPE enum
-     * @param {THREE.Object3D} parent - Parent object to add the mesh to
-     * @param {RAPIER.World} world - Physics world to create the body in
-     * @param {Object} options - Additional options (e.g., color for cubes)
-     * @param {THREE.Vector3} position_offset - Position offset from parent
-     * @returns {Array} [mesh, body] pair for physics updates
+     * Spawns a physics-enabled asset of the specified type.
+     * @param {string} asset_type - Type of asset from ASSET_TYPE enum.
+     * @param {THREE.Object3D} parent - Parent object to add the mesh to.
+     * @param {RAPIER.World} world - Physics world to create the body in.
+     * @param {Object} options - Additional options (e.g., color for cubes).
+     * @param {THREE.Vector3} position_offset - Position offset from parent.
+     * @returns {Promise<Array>} Promise resolving to [mesh, body] pair for physics updates.
      */
     async spawn_asset(asset_type, parent, world, options = {}, position_offset = new THREE.Vector3(0, 0, 0)) {
         try {
@@ -251,12 +261,12 @@ export class AssetSpawner {
     }
 
     /**
-     * Creates a static (non-physics) mesh of the specified asset type
-     * @param {string} asset_type - Type of asset from ASSET_TYPE enum
-     * @param {THREE.Object3D} parent - Parent object to add the mesh to
-     * @param {THREE.Vector3} position_offset - Position offset from parent
-     * @param {THREE.Quaternion} rotation - Rotation of the mesh
-     * @returns {THREE.Object3D} The created mesh
+     * Creates a static (non-physics) mesh of the specified asset type.
+     * @param {string} asset_type - Type of asset from ASSET_TYPE enum.
+     * @param {THREE.Object3D} parent - Parent object to add the mesh to.
+     * @param {THREE.Vector3} position_offset - Position offset from parent.
+     * @param {THREE.Euler|null} rotation - Optional rotation to apply to the mesh.
+     * @returns {Promise<THREE.Object3D>} Promise resolving to the created mesh.
      */
     async create_static_mesh(asset_type, parent, position_offset = new THREE.Vector3(0, 0, 0), rotation = null) {
         if (!Object.values(ASSET_TYPE).includes(asset_type)) throw new Error(`Invalid asset type: ${asset_type}`);
@@ -314,8 +324,18 @@ export class AssetSpawner {
         return mesh;
     }
 
+    /**
+     * Cleans up resources used by the AssetSpawner.
+     * Disposes of textures and clears caches.
+     */
     cleanup() {
         this.storage.cleanup();
         this.textureAtlasManager.dispose();
+    }
+
+    // Getters and Setters
+
+    get_new_instance_id() {
+        return AssetSpawner.instance_counter++;
     }
 }

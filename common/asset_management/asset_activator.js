@@ -2,6 +2,10 @@ import { THREE, FLAGS, Easing, Tween } from "..";
 import { AssetStorage } from "./asset_storage";
 import { CATEGORIES } from "../../viewport/overlay/overlay_common";
 
+/**
+ * Class responsible for managing the activation and deactivation of 3D objects in the scene.
+ * Handles emission effects, material management, and state tracking for interactive objects.
+ */
 export class AssetActivator {
     static instance = null;
     name = "[AssetActivator]";
@@ -14,6 +18,10 @@ export class AssetActivator {
         AssetActivator.instance = this;
     }
 
+    /**
+     * Gets or creates the singleton instance of AssetActivator.
+     * @returns {AssetActivator} The singleton instance.
+     */
     static get_instance() {
         if (!AssetActivator.instance) {
             AssetActivator.instance = new AssetActivator();
@@ -21,7 +29,11 @@ export class AssetActivator {
         return AssetActivator.instance;
     }
 
-    // Helper method to check if a mesh is actually emissive
+    /**
+     * Checks if a mesh has active emission properties.
+     * @param {THREE.Mesh|THREE.Object3D} mesh - The mesh to check for emission.
+     * @returns {boolean} True if the mesh has active emission properties.
+     */
     is_mesh_emissive(mesh) {
         if (!mesh) return false;
         let has_emissive = false;
@@ -45,6 +57,10 @@ export class AssetActivator {
         return has_emissive;
     }
 
+    /**
+     * Activates an object by applying emission effects and updating its state.
+     * @param {string} object_name - The name of the object to activate.
+     */
     activate_object(object_name) {        
         // First check if any object with this category is already emissive
         const requested_category = object_name.split("_")[1];
@@ -170,6 +186,10 @@ export class AssetActivator {
         }
     }
 
+    /**
+     * Deactivates an object by removing emission effects and restoring original materials.
+     * @param {string} object_name - The name of the object to deactivate.
+     */
     deactivate_object(object_name) {
         if (!object_name) return;
         const requested_category = object_name.split("_")[1];
@@ -248,6 +268,10 @@ export class AssetActivator {
         }
     }
 
+    /**
+     * Deactivates all objects with optional type filtering.
+     * @param {string|null} type_prefix - Optional prefix to filter which objects to deactivate.
+     */
     deactivate_all_objects(type_prefix = null) {
         // Only proceed if we have an active object
         if (!this.storage.get_currently_activated_name()) return;

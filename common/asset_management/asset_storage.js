@@ -3,6 +3,10 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { ASSET_CONFIGS } from "./asset_type";
 import { FLAGS } from "../flags";
 
+/**
+ * Class responsible for managing asset loading, storage, and caching.
+ * Handles GLB models, materials, and maintains references to both static and dynamic objects.
+ */
 export class AssetStorage {
     static instance = null;
 
@@ -22,6 +26,10 @@ export class AssetStorage {
         AssetStorage.instance = this;
     }
 
+    /**
+     * Gets or creates the singleton instance of AssetStorage.
+     * @returns {AssetStorage} The singleton instance.
+     */
     static get_instance() {
         if (!AssetStorage.instance) {
             AssetStorage.instance = new AssetStorage();
@@ -29,6 +37,12 @@ export class AssetStorage {
         return AssetStorage.instance;
     }
 
+    /**
+     * Loads an asset of the specified type if not already loaded.
+     * @param {string} asset_type - The type of asset to load.
+     * @returns {Promise<THREE.GLTF>} Promise resolving to the loaded GLTF data.
+     * @throws {Error} If the asset type is unknown.
+     */
     async load_asset_type(asset_type) {
         const asset_config = ASSET_CONFIGS[asset_type];
         if (!asset_config) throw new Error(`Unknown asset type: ${asset_type}`);
@@ -57,7 +71,61 @@ export class AssetStorage {
         return loading_promise;
     }
 
-    // Core storage methods
+    /**
+     * Adds a new object to the storage system.
+     * @param {THREE.Object3D} incoming_mesh - The mesh to add.
+     * @param {RAPIER.RigidBody} incoming_body - The physics body associated with the mesh.
+     */
+    add_object(incoming_mesh, incoming_body) {
+        if (!incoming_mesh) {
+            console.error('Cannot add object: incoming_mesh is undefined');
+            return;
+        }
+        if(incoming_mesh.name) {
+            const instance_id = `${incoming_mesh.name}_${this.get_new_instance_id()}`;
+            const body_pair = [incoming_mesh, incoming_body];
+            this.store_dynamic_body(instance_id, body_pair);
+            incoming_mesh.userData.instance_id = instance_id;
+        } else {
+            console.error(`${incoming_mesh} ${incoming_body} mesh body combo could not be added because the mesh didn't have a name`);
+        }
+    }
+
+    /**
+     * Updates the positions and rotations of all dynamic bodies based on their physics state.
+     */
+    update() {
+        this.get_all_dynamic_bodies().forEach(([mesh, body]) => {
+            if (body) {
+                const position = body.translation();
+                mesh.position.set(position.x, position.y, position.z);
+                const rotation = body.rotation();
+                mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+            }
+        });
+    }
+
+    /**
+     * Cleans up all stored resources, disposing of materials and clearing caches.
+     */
+    cleanup() {
+        // Dispose of all cached materials
+        for (const material of this.material_cache.values()) {
+            if (material.map) material.map.dispose();
+            material.dispose();
+        }
+        this.material_cache.clear();
+        // Clear all other storage
+        this.loaded_assets.clear();
+        this.dynamic_bodies.clear();
+        this.static_meshes.clear();
+        this.loading_promises.clear();
+        this.emission_states.clear();
+        this.currently_activated_name = "";
+    }
+
+    // Getters and Setters
+
     get_new_instance_id() {
         return this.instance_counter++;
     }
@@ -91,7 +159,6 @@ export class AssetStorage {
         this.loading_promises.delete(asset_type);
     }
 
-    // Dynamic bodies management
     store_dynamic_body(instance_id, body_pair) {
         this.dynamic_bodies.set(instance_id, body_pair);
         const [mesh, _body] = body_pair;
@@ -116,7 +183,6 @@ export class AssetStorage {
         return instance_id ? this.dynamic_bodies.get(instance_id) : null;
     }
 
-    // Static meshes management
     store_static_mesh(instance_id, mesh) {
         this.static_meshes.set(instance_id, mesh);
     }
@@ -129,7 +195,6 @@ export class AssetStorage {
         return Array.from(this.static_meshes.values());
     }
 
-    // Material cache management
     store_material(key, material) {
         this.material_cache.set(key, material);
     }
@@ -154,7 +219,6 @@ export class AssetStorage {
             this.material_cache.set(key, material);
             return material;
         }
-        // Don't clone cached materials - reuse them
         return this.material_cache.get(key);
     }
 
@@ -162,7 +226,6 @@ export class AssetStorage {
         return this.material_cache.has(key);
     }
 
-    // Emission state management
     set_emission_state(object_name, state) {
         this.emission_states.set(object_name, state);
     }
@@ -183,55 +246,10 @@ export class AssetStorage {
         return this.currently_activated_name;
     }
 
-    // Object existence check
     contains_object(object_name) {
         for (const [mesh, _body] of this.get_all_dynamic_bodies()) {
             if (mesh.name === object_name) return true;
         }
         return false;
-    }
-
-    // Object addition
-    add_object(incoming_mesh, incoming_body) {
-        if (!incoming_mesh) {
-            console.error('Cannot add object: incoming_mesh is undefined');
-            return;
-        }
-        if(incoming_mesh.name) {
-            const instance_id = `${incoming_mesh.name}_${this.get_new_instance_id()}`;
-            const body_pair = [incoming_mesh, incoming_body];
-            this.store_dynamic_body(instance_id, body_pair);
-            incoming_mesh.userData.instance_id = instance_id;
-        } else {
-            console.error(`${incoming_mesh} ${incoming_body} mesh body combo could not be added because the mesh didn't have a name`);
-        }
-    }
-
-    // Cleanup
-    cleanup() {
-        // Dispose of all cached materials
-        for (const material of this.material_cache.values()) {
-            if (material.map) material.map.dispose();
-            material.dispose();
-        }
-        this.material_cache.clear();
-        // Clear all other storage
-        this.loaded_assets.clear();
-        this.dynamic_bodies.clear();
-        this.static_meshes.clear();
-        this.loading_promises.clear();
-        this.emission_states.clear();
-        this.currently_activated_name = "";
-    }
-
-    update() {
-        this.get_all_dynamic_bodies().forEach(([mesh, body]) => {
-            if (body) {
-                const position = body.translation();
-                mesh.position.set(position.x, position.y, position.z);
-                const rotation = body.rotation();
-                mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
-            }
-        });
     }
 }
