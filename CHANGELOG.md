@@ -1,3 +1,10 @@
+## [0.0.6](https://github.com/LittleCarlito/threejs_site/compare/v0.0.5...v0.0.6) (2025-02-28)
+
+
+### Bug Fixes
+
+* removing bad icon ([9dcd3c5](https://github.com/LittleCarlito/threejs_site/commit/9dcd3c597c98e98e3c7358f57115fd1c846fa5ad))
+
 ## [0.0.5](https://github.com/LittleCarlito/threejs_site/compare/v0.0.4...v0.0.5) (2025-02-28)
 
 
