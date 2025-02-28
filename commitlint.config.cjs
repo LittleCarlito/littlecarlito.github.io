@@ -1,5 +1,9 @@
 module.exports = {
   extends: ['@commitlint/config-conventional'],
+  ignores: [
+    // Ignore GitHub's auto-generated squash commit messages
+    (message) => /^.+\(#\d+\)$/m.test(message)
+  ],
   rules: {
     'body-leading-blank': [1, 'always'],
     'body-max-line-length': [2, 'always', 100],
