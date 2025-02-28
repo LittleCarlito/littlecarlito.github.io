@@ -1,3 +1,10 @@
+## [0.0.8](https://github.com/LittleCarlito/threejs_site/compare/v0.0.7...v0.0.8) (2025-02-28)
+
+
+### Bug Fixes
+
+* localhost url ([#35](https://github.com/LittleCarlito/threejs_site/issues/35)) ([b43d7ca](https://github.com/LittleCarlito/threejs_site/commit/b43d7cacbc470f4a5bdf6aac81746913c6456e18))
+
 ## [0.0.7](https://github.com/LittleCarlito/threejs_site/compare/v0.0.6...v0.0.7) (2025-02-28)
 
 
