@@ -320,7 +320,6 @@ export class AssetActivator {
                     .onComplete(() => {
                         // Cleanup the tween material
                         if (tweenMaterial) tweenMaterial.dispose();
-                        
                         // Restore the original material if it exists
                         if (targetMesh.userData.originalMaterial) {
                             const restoredMaterial = targetMesh.userData.originalMaterial.clone();
