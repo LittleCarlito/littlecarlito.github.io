@@ -1,5 +1,6 @@
 import { FLAGS, RAPIER, THREE } from "../../common";
-import { AssetManager } from "../../common/asset_manager";
+import { AssetSpawner } from "../../common";
+import { AssetStorage } from '../../common/asset_management/asset_storage';
 
 const THROW_MULTIPLIER = 0.1; // Adjust this to control throw strength
 const SHOVE_FORCE = 4; // Adjust this value to control the force of the shove
@@ -12,8 +13,7 @@ let last_time = 0;
 
 export function shove_object(incoming_object, incoming_source) {
     // Get the body pair from AssetManager using the instance_id
-    const asset_manager = AssetManager.get_instance();
-    const body_pair = asset_manager.get_body_pair_by_mesh(incoming_object);
+    const body_pair = AssetStorage.get_instance().get_body_pair_by_mesh(incoming_object);
     if (body_pair){
         const [mesh, body] = body_pair;
         // Calculate direction from camera to cube
@@ -39,8 +39,7 @@ export function update_mouse_position(e) {
 }
 
 export function translate_object(incoming_object, incoming_camera) {
-    const asset_manager = AssetManager.get_instance();
-    const body_pair = asset_manager.get_body_pair_by_mesh(incoming_object);
+    const body_pair = AssetStorage.get_instance().get_body_pair_by_mesh(incoming_object);
     if (!body_pair) return;
     const [_, body] = body_pair;
     // Get ray from camera through mouse point
@@ -66,25 +65,22 @@ export function translate_object(incoming_object, incoming_camera) {
 }
 
 export function zoom_object_in(incoming_object) {
-    const asset_manager = AssetManager.get_instance();
-    const body_pair = asset_manager.get_body_pair_by_mesh(incoming_object);
+    const body_pair = AssetStorage.get_instance().get_body_pair_by_mesh(incoming_object);
     if (!body_pair) return;
     // Adjust the grab distance
     initial_grab_distance += ZOOM_AMOUNT;
 }
 
 export function zoom_object_out(incoming_object) {
-    const asset_manager = AssetManager.get_instance();
-    const body_pair = asset_manager.get_body_pair_by_mesh(incoming_object);
+    const body_pair = AssetStorage.get_instance().get_body_pair_by_mesh(incoming_object);
     if (!body_pair) return;
     // Adjust the grab distance
     initial_grab_distance -= ZOOM_AMOUNT;
 }
 
 export function grab_object(incoming_object, incoming_camera) {
-    const asset_manager = AssetManager.get_instance();
+    const body_pair = AssetStorage.get_instance().get_body_pair_by_mesh(incoming_object);
     if(FLAGS.ACTIVATE_LOGS) console.log(`Grabbing ${incoming_object.name}`);
-    const body_pair = asset_manager.get_body_pair_by_mesh(incoming_object);
     if (!body_pair) return;
     const [_, body] = body_pair;
     // Store initial distance from camera when grabbed
@@ -101,8 +97,7 @@ export function grab_object(incoming_object, incoming_camera) {
 }
 
 export function release_object(incoming_object) {
-    const asset_manager = AssetManager.get_instance();
-    const body_pair = asset_manager.get_body_pair_by_mesh(incoming_object);
+    const body_pair = AssetStorage.get_instance().get_body_pair_by_mesh(incoming_object);
     if (!body_pair) return;
     const [_, body] = body_pair;
     // Change back to dynamic body

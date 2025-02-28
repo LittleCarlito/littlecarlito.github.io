@@ -1,7 +1,10 @@
-import { FLAGS, THREE, AssetManager, ASSET_TYPE, NAMES } from "../common";
+import { FLAGS, THREE, AssetSpawner, NAMES } from "../common";
+import { ASSET_TYPE } from "../common/asset_management/asset_type";
 import { ControlMenu } from "./menus/control_menu";
 import { ScrollMenu } from "./menus/scroll_menu";
 import { CATEGORIES, TYPES } from "../viewport/overlay/overlay_common";
+import { AssetStorage } from '../common/asset_management/asset_storage';
+import { AssetActivator } from '../common/asset_management/asset_activator';
 
 export class BackgroundContainer {
     name = "[BackgroundContainer]"
@@ -24,7 +27,7 @@ export class BackgroundContainer {
         this.world = incoming_world;
         this.object_container = new THREE.Object3D();
         this.parent.add(this.object_container);
-        const asset_loader = AssetManager.get_instance();
+        const asset_loader = AssetSpawner.get_instance();
 
         // Create a promise for the main assets
         const mainAssetsPromise = (async () => {
@@ -138,7 +141,7 @@ export class BackgroundContainer {
 
                 // Add to manifest and register with asset manager
                 this.asset_manifest.add(mesh.name);
-                asset_loader.add_object(mesh, body);
+                AssetStorage.get_instance().add_object(mesh, body);
                 
                 if (FLAGS.ASSET_LOGS) {
                     console.log(`${this.name} Created cube with name: ${mesh.name}`);
@@ -240,9 +243,7 @@ export class BackgroundContainer {
     }
 
     contains_object(incoming_name) {
-        this.getNodeChildren().forEach(child => {
-            if(child.name == incoming_name) return true;
-        })
+        return AssetStorage.get_instance().contains_object(incoming_name);
     }
 
     async spawn_primary_instructions() {
@@ -264,7 +265,7 @@ export class BackgroundContainer {
                 this
             );
 
-            const asset_loader = AssetManager.get_instance();
+            const asset_loader = AssetSpawner.get_instance();
             
             // Now we know the sign is fully initialized
             if (this.primary_instruction_sign.sign_mesh && this.primary_instruction_sign.sign_body) {
@@ -274,7 +275,7 @@ export class BackgroundContainer {
                         child.name = `${TYPES.INTERACTABLE}primary`;
                     }
                 });
-                asset_loader.add_object(
+                AssetStorage.get_instance().add_object(
                     this.primary_instruction_sign.sign_mesh, 
                     this.primary_instruction_sign.sign_body
                 );
@@ -319,7 +320,7 @@ export class BackgroundContainer {
                 spawn_position
             );
 
-            const asset_loader = AssetManager.get_instance();
+            const asset_loader = AssetSpawner.get_instance();
             
             // Now we know the sign_mesh and sign_body exist
             this.secondary_instruction_sign.sign_mesh.name = `${TYPES.INTERACTABLE}secondary`;
@@ -329,7 +330,10 @@ export class BackgroundContainer {
                 }
             });
             
-            asset_loader.add_object(this.secondary_instruction_sign.sign_mesh, this.secondary_instruction_sign.sign_body);
+            AssetStorage.get_instance().add_object(
+                this.secondary_instruction_sign.sign_mesh, 
+                this.secondary_instruction_sign.sign_body
+            );
             
             if (FLAGS.PHYSICS_LOGS) {
                 console.log("Secondary sign added to asset manager:", {
