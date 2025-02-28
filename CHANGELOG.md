@@ -1,3 +1,10 @@
+## [0.0.7](https://github.com/LittleCarlito/threejs_site/compare/v0.0.6...v0.0.7) (2025-02-28)
+
+
+### Bug Fixes
+
+* laxing bot to allow github messages ([#34](https://github.com/LittleCarlito/threejs_site/issues/34)) ([f924d9f](https://github.com/LittleCarlito/threejs_site/commit/f924d9f5e0bb56463b67c75e4203e3fec52157d1))
+
 ## [0.0.6](https://github.com/LittleCarlito/threejs_site/compare/v0.0.5...v0.0.6) (2025-02-28)
 
 
