@@ -75,6 +75,7 @@ export class BackgroundContainer {
                 // TODO Get these to use category constants
                        key !== 'EDUCATION' && // Skip education category
                        key !== 'CONTACT' && // Skip contact category
+                       key !== 'ABOUT' && // Skip about category
                        typeof value === 'object' && // Must be an object
                        value !== null && // Must not be null
                        'color' in value && // Must have a color property

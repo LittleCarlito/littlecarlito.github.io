@@ -9,7 +9,7 @@ export const ASSET_TYPE = {
     BOOK: 'BOOK',
     ROOM: 'ROOM',
     TABLET: 'contact',
-    DESKPHOTO: 'DESK_PHOTO',
+    DESKPHOTO: 'about',
     CUBE: 'CUBE'  // Simple geometric primitive for testing
 };
 Object.freeze(ASSET_TYPE);
