@@ -537,29 +537,15 @@ export class AssetManager {
     }
 
     activate_object(object_name) {        
-        // First check if we think it's active
-        if(object_name === this.storage.get_currently_activated_name()) {
-            if (this.storage.get_emission_state(object_name) === 'active') {
-                // Verify the actual material state
-                let found_and_verified = false;
-                for (const [mesh, _body] of this.storage.get_all_dynamic_bodies()) {
-                    const mesh_category = mesh.name.split("_")[1];
-                    if (mesh_category === object_name.split("_")[1]) {
-                        // If we find the mesh but it's not actually emissive, we need to reapply
-                        if (this.is_mesh_emissive(mesh)) {
-                            found_and_verified = true;
-                            return;
-                        } else {
-                            if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Object ${object_name} claims to be active but isn't emissive - reapplying`);
-                            this.storage.delete_emission_state(object_name);
-                            break;
-                        }
-                    }
-                }
-                if (!found_and_verified) {
-                    if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Object ${object_name} not found for verification - resetting state`);
-                    this.storage.delete_emission_state(object_name);
-                }
+        // First check if any object with this category is already emissive
+        const requested_category = object_name.split("_")[1];
+        for (const [mesh, _body] of this.storage.get_all_dynamic_bodies()) {
+            const mesh_category = mesh.name.split("_")[1];
+            if (mesh_category === requested_category && this.is_mesh_emissive(mesh)) {
+                // Object is already emissive, just update the state if needed
+                this.storage.set_currently_activated_name(object_name);
+                this.storage.set_emission_state(object_name, 'active');
+                return;
             }
         }
         
@@ -572,8 +558,6 @@ export class AssetManager {
         
         this.storage.set_currently_activated_name(object_name);
         
-        // Extract the category name from the incoming object name
-        const requested_category = object_name.split("_")[1];
         if (FLAGS.ACTIVATE_LOGS) {
             console.log(`${this.name} Looking for category: ${requested_category}`);
             console.log(`${this.name} Available meshes:`, this.storage.get_all_dynamic_bodies().map(([mesh, _]) => mesh.name));
@@ -597,24 +581,32 @@ export class AssetManager {
                     // Set the emission state to 'applying'
                     this.storage.set_emission_state(object_name, 'applying');
                     
-                    // Function to create emission material
-                    const createEmissionMaterial = (originalMaterial) => {
-                        // Ensure we have a valid color from the category
-                        let categoryColor;
-                        if (category.color instanceof THREE.Color) {
-                            categoryColor = category.color;
-                        } else if (typeof category.color === 'number') {
-                            categoryColor = new THREE.Color(category.color);
-                        } else if (typeof category.color === 'string') {
-                            categoryColor = new THREE.Color(category.color);
-                        } else {
-                            console.warn('Invalid category color:', category.color);
-                            categoryColor = new THREE.Color(0xffffff);
-                        }
+                    // Create a single emission material for all meshes
+                    let categoryColor;
+                    if (category.color instanceof THREE.Color) {
+                        categoryColor = category.color;
+                    } else if (typeof category.color === 'number') {
+                        categoryColor = new THREE.Color(category.color);
+                    } else if (typeof category.color === 'string') {
+                        categoryColor = new THREE.Color(category.color);
+                    } else {
+                        console.warn('Invalid category color:', category.color);
+                        categoryColor = new THREE.Color(0xffffff);
+                    }
 
-                        const emissionKey = `emission_${categoryColor.getHex()}_${!!originalMaterial?.map}`;
-                        return this.getMaterial(emissionKey, originalMaterial);
-                    };
+                    // Create a single emission material for this category
+                    const emissionKey = `emission_${categoryColor.getHex()}`;
+                    const emissionMaterial = this.getMaterial(emissionKey, {
+                        map: null,
+                        color: categoryColor,
+                        transparent: false,
+                        opacity: 1,
+                        side: THREE.FrontSide
+                    });
+                    
+                    // Set emissive properties on the shared material
+                    emissionMaterial.emissive = categoryColor;
+                    emissionMaterial.emissiveIntensity = 9;
 
                     let meshesProcessed = 0;
                     let totalMeshes = 0;
@@ -634,13 +626,13 @@ export class AssetManager {
                             if (child.isMesh && !child.name.startsWith('col_')) {
                                 // Store the original material for deactivation
                                 if (!child.userData.originalMaterial) {
-                                    child.userData.originalMaterial = child.material.clone();
-                                    console.log("Cloned original material for:", object_name);
+                                    child.userData.originalMaterial = child.material;
+                                    if (FLAGS.ACTIVATE_LOGS) console.log("Stored original material for:", object_name);
                                 }
-                                // Apply new emission material while preserving textures
+                                // Apply shared emission material
                                 if (child.material) child.material.dispose();
-                                child.material = createEmissionMaterial(child.userData.originalMaterial);
-                                console.log("Applied emission material to:", object_name, "Material:", child.material);
+                                child.material = emissionMaterial;
+                                if (FLAGS.ACTIVATE_LOGS) console.log("Applied shared emission material to:", object_name);
                                 meshesProcessed++;
                                 
                                 // Check if all meshes are processed and verify emission
@@ -649,7 +641,7 @@ export class AssetManager {
                                         this.storage.set_emission_state(object_name, 'active');
                                         if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Object ${object_name} is now fully activated and verified`);
                                     } else {
-                                        if (FLAGS.ACTIVATE_LOGS) console.warn(`[${this.name} Failed to apply emission to ${object_name}`);
+                                        if (FLAGS.ACTIVATE_LOGS) console.warn(`${this.name} Failed to apply emission to ${object_name}`);
                                         this.storage.delete_emission_state(object_name);
                                     }
                                 }
@@ -658,12 +650,12 @@ export class AssetManager {
                     } else if (mesh.isMesh) {
                         // For primitive objects like cubes
                         if (!mesh.userData.originalMaterial) {
-                            mesh.userData.originalMaterial = mesh.material.clone();
-                            console.log("Cloned original material for cube:", object_name);
+                            mesh.userData.originalMaterial = mesh.material;
+                            if (FLAGS.ACTIVATE_LOGS) console.log("Stored original material for cube:", object_name);
                         }
                         if (mesh.material) mesh.material.dispose();
-                        mesh.material = createEmissionMaterial(mesh.userData.originalMaterial);
-                        console.log("Applied emission material to cube:", object_name, "Material:", mesh.material);
+                        mesh.material = emissionMaterial;
+                        if (FLAGS.ACTIVATE_LOGS) console.log("Applied shared emission material to cube:", object_name);
                         
                         // Verify emission for primitive mesh
                         if (this.is_mesh_emissive(mesh)) {
@@ -893,7 +885,8 @@ export class AssetManager {
             this.storage.store_material(key, material);
             return material;
         }
-        return this.storage.get_material(key).clone();
+        // Don't clone cached materials - reuse them
+        return this.storage.get_material(key);
     }
 
     cleanup() {
