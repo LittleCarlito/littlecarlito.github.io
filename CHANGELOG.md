@@ -1,3 +1,10 @@
+# [0.2.0](https://github.com/LittleCarlito/threejs_site/compare/v0.1.0...v0.2.0) (2025-02-28)
+
+
+### Features
+
+* collision wire frames ([#37](https://github.com/LittleCarlito/threejs_site/issues/37)) ([489ee8d](https://github.com/LittleCarlito/threejs_site/commit/489ee8d86f8fdb607e144b3d958ce1c627499107))
+
 # [0.1.0](https://github.com/LittleCarlito/threejs_site/compare/v0.0.8...v0.1.0) (2025-02-28)
 
 
