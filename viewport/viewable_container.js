@@ -70,8 +70,12 @@ export class ViewableContainer {
     }
 
     reset_camera() {
+        // Update camera aspect ratio
         this.get_camera().aspect = window.innerWidth / window.innerHeight;
+        // Update projection matrix
         this.get_camera().updateProjectionMatrix();
+        // Force camera manager to update
+        this.camera_manager.update_camera();
     }
 
     resize_reposition() {
