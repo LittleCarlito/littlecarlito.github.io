@@ -1,5 +1,5 @@
 import { FLAGS, RAPIER, THREE } from "../../common";
-import { AssetManager } from "../../common";
+import { AssetSpawner } from "../../common";
 import { AssetStorage } from '../../common/asset_management/asset_storage';
 
 const THROW_MULTIPLIER = 0.1; // Adjust this to control throw strength

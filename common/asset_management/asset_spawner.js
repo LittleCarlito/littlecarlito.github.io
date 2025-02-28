@@ -19,32 +19,32 @@ function generateIndices(geometry) {
     return indices;
 }
 
-export class AssetManager {
+export class AssetSpawner {
     static instance = null;
     static instance_counter = 0;
-    name = "[AssetManager]";
+    name = "[AssetSpawner]";
     textureAtlasManager = TextureAtlasManager.getInstance();
     pendingTextures = new Map(); // Track textures waiting to be atlased
     
     constructor() {
-        if (AssetManager.instance) {
-            return AssetManager.instance;
+        if (AssetSpawner.instance) {
+            return AssetSpawner.instance;
         }
         this.storage = AssetStorage.get_instance();
         this.textureAtlasManager = TextureAtlasManager.getInstance();
         this.pendingTextures = new Map(); // Track textures waiting to be atlased
-        AssetManager.instance = this;
+        AssetSpawner.instance = this;
     }
 
     static get_instance() {
-        if (!AssetManager.instance) {
-            AssetManager.instance = new AssetManager();
+        if (!AssetSpawner.instance) {
+            AssetSpawner.instance = new AssetSpawner();
         }
-        return AssetManager.instance;
+        return AssetSpawner.instance;
     }
 
     get_new_instance_id() {
-        return AssetManager.instance_counter++;
+        return AssetSpawner.instance_counter++;
     }
 
     async processTexturesForAtlas(mesh) {

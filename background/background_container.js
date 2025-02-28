@@ -1,4 +1,4 @@
-import { FLAGS, THREE, AssetManager, NAMES } from "../common";
+import { FLAGS, THREE, AssetSpawner, NAMES } from "../common";
 import { ASSET_TYPE } from "../common/asset_management/asset_type";
 import { ControlMenu } from "./menus/control_menu";
 import { ScrollMenu } from "./menus/scroll_menu";
@@ -27,7 +27,7 @@ export class BackgroundContainer {
         this.world = incoming_world;
         this.object_container = new THREE.Object3D();
         this.parent.add(this.object_container);
-        const asset_loader = AssetManager.get_instance();
+        const asset_loader = AssetSpawner.get_instance();
 
         // Create a promise for the main assets
         const mainAssetsPromise = (async () => {
@@ -265,7 +265,7 @@ export class BackgroundContainer {
                 this
             );
 
-            const asset_loader = AssetManager.get_instance();
+            const asset_loader = AssetSpawner.get_instance();
             
             // Now we know the sign is fully initialized
             if (this.primary_instruction_sign.sign_mesh && this.primary_instruction_sign.sign_body) {
@@ -320,7 +320,7 @@ export class BackgroundContainer {
                 spawn_position
             );
 
-            const asset_loader = AssetManager.get_instance();
+            const asset_loader = AssetSpawner.get_instance();
             
             // Now we know the sign_mesh and sign_body exist
             this.secondary_instruction_sign.sign_mesh.name = `${TYPES.INTERACTABLE}secondary`;

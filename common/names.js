@@ -1,5 +1,5 @@
 
-// TODO Refactor into ASSET_MANAGER configs
+// TODO Refactor into asset_spawner configs
 export const NAMES = Object.freeze({
     PRIMARY: "primary",
     SECONDARY: "secondary",

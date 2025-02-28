@@ -6,7 +6,7 @@ import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewp
 import { AppRenderer } from './common/app_renderer';
 import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common';
 import { BackgroundContainer } from './background/background_container';
-import { AssetManager } from './common';
+import { AssetSpawner } from './common';
 import { AssetStorage } from './common/asset_management/asset_storage';
 import { AssetActivator } from './common/asset_management/asset_activator';
 
@@ -30,7 +30,7 @@ let grabbed_object = null;
 let left_mouse_down = false;
 let right_mouse_down = false;
 let construction_acknowledged = !FLAGS.CONSTRUCTION_GREETING;
-let asset_manager;
+let asset_spawner;
 let asset_activator;
 
 /** Updates the loading progress text */
@@ -103,7 +103,7 @@ async function init() {
         await RAPIER.init(); // Make sure Rapier is initialized
         
         updateLoadingProgress('Initializing scene...');
-        asset_manager = AssetManager.get_instance();
+        asset_spawner = AssetSpawner.get_instance();
         asset_activator = AssetActivator.get_instance();
         
         if(FLAGS.CONSTRUCTION_GREETING) {

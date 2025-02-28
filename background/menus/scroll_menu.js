@@ -1,6 +1,6 @@
 import { TYPES } from '../../viewport/overlay/overlay_common';
 import { FLAGS, NAMES, RAPIER, THREE } from '../../common';
-import { AssetManager } from '../../common';
+import { AssetSpawner } from '../../common';
 import { BackgroundLighting } from '../background_lighting';
 import { AssetStorage } from '../../common/asset_management/asset_storage';
 
