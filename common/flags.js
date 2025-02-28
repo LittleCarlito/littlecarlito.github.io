@@ -2,7 +2,7 @@ export const FLAGS = {
     // Functionality flags
     CONSTRUCTION_GREETING: true,
     LAYER: true,
-    COLLISION_VISUAL_DEBUG: true,
+    COLLISION_VISUAL_DEBUG: false,
     SPOTLIGHT_VISUAL_DEBUG: false,
     SIGN_VISUAL_DEBUG: false,
     LABEL_VISUAL_DEBUG: false,

@@ -177,6 +177,9 @@ export class AssetSpawner {
             const body = world.createRigidBody(
                 RAPIER.RigidBodyDesc.dynamic()
                     .setTranslation(position_offset.x, position_offset.y, position_offset.z)
+                    .setLinearDamping(0.5)  // Add damping to reduce bouncing
+                    .setAngularDamping(0.5) // Add angular damping to reduce spinning
+                    .setCanSleep(true)      // Allow the body to sleep when it comes to rest
             );
 
             if(FLAGS.ASSET_LOGS) console.log(`Created rigid body for ${asset_type}:`, body);
@@ -193,7 +196,8 @@ export class AssetSpawner {
                 if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating cube with name: ${mesh.name}, category: ${options.category}`);
                 const collider = RAPIER.ColliderDesc.cuboid(0.5, 0.5, 0.5)
                     .setMass(asset_config.mass)
-                    .setRestitution(asset_config.restitution);
+                    .setRestitution(0.3)     // Lower restitution to reduce bouncing
+                    .setFriction(0.8);       // Higher friction to help objects settle
                 const created_collider = world.createCollider(collider, body);
                 if(FLAGS.ASSET_LOGS) console.log(`Created cube collider:`, created_collider);
 
@@ -289,8 +293,8 @@ export class AssetSpawner {
                         // Always use trimesh for static collision meshes
                         const collider = RAPIER.ColliderDesc.trimesh(scaledVertices, indices)
                             .setMass(asset_config.mass)
-                            .setRestitution(asset_config.restitution)
-                            .setFriction(1.0); // Add friction to help prevent sliding
+                            .setRestitution(0.3)     // Lower restitution to reduce bouncing
+                            .setFriction(0.8);       // Higher friction to help objects settle
                         // Get the collision mesh's position relative to the model
                         const meshPosition = new THREE.Vector3();
                         collision_mesh.getWorldPosition(meshPosition);
@@ -343,8 +347,8 @@ export class AssetSpawner {
 
                         const collider = RAPIER.ColliderDesc.cuboid(half_width, half_height, half_depth)
                             .setMass(asset_config.mass)
-                            .setRestitution(asset_config.restitution)
-                            .setFriction(1.0); // Add friction to help prevent sliding
+                            .setRestitution(0.3)     // Lower restitution to reduce bouncing
+                            .setFriction(0.8);       // Higher friction to help objects settle
 
                         const created_collider = world.createCollider(collider, body);
 

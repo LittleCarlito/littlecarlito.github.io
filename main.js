@@ -132,10 +132,14 @@ async function init() {
         // Physics
         gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
         world = new RAPIER.World(gravity);
-        // Disable sleeping globally
+        // Physics optimization settings
         world.maxVelocityIterations = 4;
         world.maxVelocityFriction = 8;
         world.allowSleep = true;
+        // Set sleep thresholds for better performance
+        world.linearSleepThreshold = 0.2;  // Objects will sleep when moving slower than this
+        world.angularSleepThreshold = 0.1; // Objects will sleep when rotating slower than this
+        world.sleepThreshold = 0.1;        // Time an object needs to be below thresholds to sleep
         clock = new THREE.Clock();
 
         // UI creation
