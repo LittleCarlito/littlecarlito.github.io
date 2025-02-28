@@ -7,6 +7,7 @@ import { AppRenderer } from './common/app_renderer';
 import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common';
 import { BackgroundContainer } from './background/background_container';
 import { AssetManager } from './common';
+import { AssetStorage } from './common/asset_management/asset_storage';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'images/gradient.jpg';
@@ -205,7 +206,7 @@ function animate() {
     world.step();
     // Background object updates
     background_container.update(grabbed_object, viewable_container);
-    asset_manager.update();
+    AssetStorage.get_instance().update();
     // Update confetti particles
     viewable_container.get_overlay().update_confetti();
     // Scene reload

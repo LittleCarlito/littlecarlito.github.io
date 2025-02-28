@@ -2,6 +2,7 @@ import { TYPES } from '../../viewport/overlay/overlay_common';
 import { FLAGS, NAMES, RAPIER, THREE } from '../../common';
 import { AssetManager } from '../../common';
 import { BackgroundLighting } from '../background_lighting';
+import { AssetStorage } from '../../common/asset_management/asset_storage';
 
 export class ScrollMenu {
     parent;
@@ -329,8 +330,7 @@ export class ScrollMenu {
                     true
                 );
                 this.chain_joints.push(signJoint);
-                const asset_loader = AssetManager.get_instance();
-                asset_loader.add_object(this.sign_mesh, this.sign_body);
+                AssetStorage.get_instance().add_object(this.sign_mesh, this.sign_body);
 
                 // Store sign with specific identifier
                 this.dynamic_bodies.push({

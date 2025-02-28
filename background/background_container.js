@@ -2,6 +2,7 @@ import { FLAGS, THREE, AssetManager, ASSET_TYPE, NAMES } from "../common";
 import { ControlMenu } from "./menus/control_menu";
 import { ScrollMenu } from "./menus/scroll_menu";
 import { CATEGORIES, TYPES } from "../viewport/overlay/overlay_common";
+import { AssetStorage } from '../common/asset_management/asset_storage';
 
 export class BackgroundContainer {
     name = "[BackgroundContainer]"
@@ -138,7 +139,7 @@ export class BackgroundContainer {
 
                 // Add to manifest and register with asset manager
                 this.asset_manifest.add(mesh.name);
-                asset_loader.add_object(mesh, body);
+                AssetStorage.get_instance().add_object(mesh, body);
                 
                 if (FLAGS.ASSET_LOGS) {
                     console.log(`${this.name} Created cube with name: ${mesh.name}`);
@@ -240,9 +241,7 @@ export class BackgroundContainer {
     }
 
     contains_object(incoming_name) {
-        this.getNodeChildren().forEach(child => {
-            if(child.name == incoming_name) return true;
-        })
+        return AssetStorage.get_instance().contains_object(incoming_name);
     }
 
     async spawn_primary_instructions() {
@@ -274,7 +273,7 @@ export class BackgroundContainer {
                         child.name = `${TYPES.INTERACTABLE}primary`;
                     }
                 });
-                asset_loader.add_object(
+                AssetStorage.get_instance().add_object(
                     this.primary_instruction_sign.sign_mesh, 
                     this.primary_instruction_sign.sign_body
                 );
@@ -329,7 +328,10 @@ export class BackgroundContainer {
                 }
             });
             
-            asset_loader.add_object(this.secondary_instruction_sign.sign_mesh, this.secondary_instruction_sign.sign_body);
+            AssetStorage.get_instance().add_object(
+                this.secondary_instruction_sign.sign_mesh, 
+                this.secondary_instruction_sign.sign_body
+            );
             
             if (FLAGS.PHYSICS_LOGS) {
                 console.log("Secondary sign added to asset manager:", {
