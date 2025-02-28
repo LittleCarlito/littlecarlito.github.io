@@ -1,3 +1,10 @@
+# [0.1.0](https://github.com/LittleCarlito/threejs_site/compare/v0.0.8...v0.1.0) (2025-02-28)
+
+
+### Features
+
+* Max overlay width ([#36](https://github.com/LittleCarlito/threejs_site/issues/36)) ([a8e8c2c](https://github.com/LittleCarlito/threejs_site/commit/a8e8c2c8cd361ec881f085a096b3c2eec638c089))
+
 ## [0.0.8](https://github.com/LittleCarlito/threejs_site/compare/v0.0.7...v0.0.8) (2025-02-28)
 
 
