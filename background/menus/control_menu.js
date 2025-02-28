@@ -14,7 +14,7 @@ export const MENU_CONFIG = {
         },
         PHYSICS: {
             MASS: 0,
-            RESTITUTION: 1.1
+            RESTITUTION: 0.3
         }
     },
     SIGN: {
@@ -24,11 +24,11 @@ export const MENU_CONFIG = {
             DEPTH: 0.01
         },
         PHYSICS: {
-            LINEAR_DAMPING: 0.9,
-            ANGULAR_DAMPING: 0.9,
+            LINEAR_DAMPING: 0.7,
+            ANGULAR_DAMPING: 0.7,
             MASS: 5,
             RESTITUTION: 0.2,
-            USE_CCD: true
+            USE_CCD: false
         }
     },
     SPACING: 1.5,
@@ -73,16 +73,16 @@ export const GRAVITY_DELAY = 266;
 
 // Physics configuration for the sign
 export const SIGN_PHYSICS = {
-    LINEAR_DAMPING: .2,
-    ANGULAR_DAMPING: .9,
-    GRAVITY_SCALE: 2,
+    LINEAR_DAMPING: 0.2,
+    ANGULAR_DAMPING: 0.7,
+    GRAVITY_SCALE: 2.0,    // Increased for better falling
     MASS: 10,
-    RESTITUTION: 1.1,
+    RESTITUTION: 0.3,
     INITIAL_VELOCITY: {
         LINEAR: { x: 0, y: 0, z: 0 },
         ANGULAR: { x: 0, y: 0, z: 0 }
     },
-    USE_CCD: true
+    USE_CCD: false
 };
 
 export class ControlMenu {
@@ -218,8 +218,8 @@ export class ControlMenu {
                     .setAngvel({ x: 0, y: 0, z: 0 })
                     .setLinearDamping(MENU_CONFIG.SIGN.PHYSICS.LINEAR_DAMPING)
                     .setAngularDamping(2.0)
-                    .setCcdEnabled(MENU_CONFIG.SIGN.PHYSICS.USE_CCD)
-                    .setCanSleep(false)
+                    .setCcdEnabled(false)
+                    .setCanSleep(false)     // Sign should never sleep to ensure it falls when chains break
                 );
                 this.sign_shape = RAPIER.ColliderDesc.cuboid(
                     MENU_CONFIG.SIGN.DIMENSIONS.WIDTH/2, 

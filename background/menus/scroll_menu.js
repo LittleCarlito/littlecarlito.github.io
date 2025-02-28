@@ -24,16 +24,17 @@ export class ScrollMenu {
             Z: 0
         },
         SEGMENTS: {
-            COUNT: 5,
-            LENGTH: 0.5,
+            COUNT: 6,             // Back to 6 segments as requested
+            LENGTH: 0.5,          // Keep original size
             RADIUS: 0.1,
             DAMPING: 1,
             MASS: 1,
             RESTITUTION: 0.01,
             FRICTION: 1.0,
-            LINEAR_DAMPING: 1.0,    // Lighter damping for more natural chain movement
-            ANGULAR_DAMPING: 1.5,   // Lighter angular damping
-            GRAVITY_SCALE: 0.3      // Back to moderate gravity
+            LINEAR_DAMPING: 0.8,
+            ANGULAR_DAMPING: 1.0,
+            GRAVITY_SCALE: 0.3,
+            SPAWN_DELAY: 100      // Delay between segment spawns in ms
         },
         SIGN: {
             LOCAL_OFFSET: {
@@ -46,13 +47,14 @@ export class ScrollMenu {
                 HEIGHT: 2,
                 DEPTH: 0.01
             },
-            DAMPING: 1.0,          // Much lighter damping for responsive movement
-            MASS: 2,               // Back to original mass
+            DAMPING: 0.8,
+            MASS: 2,
             RESTITUTION: 0.01,
             FRICTION: 1.0,
-            ANGULAR_DAMPING: 1.5,   // Lighter angular damping
-            GRAVITY_SCALE: 2,     // Moderate gravity scale
-            IMAGE_PATH: 'images/ScrollControlMenu.svg'
+            ANGULAR_DAMPING: 1.0,
+            GRAVITY_SCALE: 2.0,
+            IMAGE_PATH: 'images/ScrollControlMenu.svg',
+            SPAWN_DELAY: 300      // Delay before spawning sign after last segment
         }
     };
     chain_joints = [];
@@ -81,6 +83,120 @@ export class ScrollMenu {
         return this.initialize(spawn_position);
     }
 
+    async createChainSegment(index, previous_body, rotation) {
+        // Calculate spawn position
+        const spawnY = this.CHAIN_CONFIG.POSITION.Y - (index + 1) * this.CHAIN_CONFIG.SEGMENTS.LENGTH;
+        
+        // Create the rigid body
+        const chain_body = this.world.createRigidBody(
+            RAPIER.RigidBodyDesc.dynamic()
+            .setTranslation(
+                this.CHAIN_CONFIG.POSITION.X,
+                spawnY,
+                this.CHAIN_CONFIG.POSITION.Z
+            )
+            .setRotation(rotation)
+            .setLinearDamping(this.CHAIN_CONFIG.SEGMENTS.LINEAR_DAMPING)
+            .setAngularDamping(this.CHAIN_CONFIG.SEGMENTS.ANGULAR_DAMPING)
+            .setAdditionalMass(this.CHAIN_CONFIG.SEGMENTS.MASS)
+            .setGravityScale(this.CHAIN_CONFIG.SEGMENTS.GRAVITY_SCALE)
+            .setCanSleep(true)
+        );
+
+        // Create collider
+        const collider = RAPIER.ColliderDesc.ball(this.CHAIN_CONFIG.SEGMENTS.RADIUS)
+            .setRestitution(this.CHAIN_CONFIG.SEGMENTS.RESTITUTION)
+            .setFriction(this.CHAIN_CONFIG.SEGMENTS.FRICTION);
+        this.world.createCollider(collider, chain_body);
+
+        // Create visual mesh
+        const segmentGeometry = new THREE.SphereGeometry(this.CHAIN_CONFIG.SEGMENTS.RADIUS);
+        const segmentMaterial = new THREE.MeshBasicMaterial({ visible: false });
+        const segmentMesh = new THREE.Mesh(segmentGeometry, segmentMaterial);
+        segmentMesh.name = `scroll_menu_chain_segment_${index}`;
+        this.parent.add(segmentMesh);
+
+        // Store in dynamic bodies
+        this.dynamic_bodies.push({
+            type: 'scroll_menu_chain',
+            mesh: segmentMesh,
+            body: chain_body
+        });
+
+        // Create joint with previous segment
+        const joint_desc = index === 0 
+            ? RAPIER.JointData.spherical(
+                {x: 0, y: 0, z: 0},  // Anchor point
+                {x: 0, y: this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0}  // Local point
+            )
+            : RAPIER.JointData.spherical(
+                {x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0},  // Previous point
+                {x: 0, y: this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0}    // Current point
+            );
+
+        joint_desc.limitsEnabled = true;
+        joint_desc.limits = [-Math.PI/12, Math.PI/12];
+        joint_desc.stiffness = 150.0;
+        joint_desc.damping = 30.0;
+
+        const created_joint = this.world.createImpulseJoint(
+            joint_desc,
+            previous_body,
+            chain_body,
+            true
+        );
+
+        // Set initial velocities
+        chain_body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+        chain_body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+
+        this.chain_joints.push(created_joint);
+
+        // Add debug visualization if enabled
+        if (FLAGS.SIGN_VISUAL_DEBUG) {
+            // Add debug mesh for segment
+            const debugSegment = new THREE.Mesh(
+                segmentGeometry,
+                new THREE.MeshBasicMaterial({
+                    color: 0x0000ff,
+                    wireframe: true,
+                    depthTest: false,
+                    transparent: true,
+                    opacity: 0.8
+                })
+            );
+            debugSegment.position.copy(segmentMesh.position);
+            debugSegment.quaternion.copy(segmentMesh.quaternion);
+            this.debug_meshes.segments.push(debugSegment);
+            this.parent.add(debugSegment);
+
+            // Add debug mesh for joint if not last segment
+            if (index < this.CHAIN_CONFIG.SEGMENTS.COUNT - 1) {
+                const jointDebug = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.1),
+                    new THREE.MeshBasicMaterial({
+                        color: 0xff0000,
+                        wireframe: true,
+                        depthTest: false,
+                        transparent: true,
+                        opacity: 0.8
+                    })
+                );
+                const currentPos = chain_body.translation();
+                const prevPos = previous_body.translation();
+                jointDebug.position.set(
+                    (prevPos.x + currentPos.x) / 2,
+                    (prevPos.y + currentPos.y) / 2,
+                    (prevPos.z + currentPos.z) / 2
+                );
+                this.debug_meshes.joints.push(jointDebug);
+                this.parent.add(jointDebug);
+            }
+        }
+
+        return chain_body;
+    }
+
     async initialize(spawn_position) {
         // Calculate rotation based on camera position
         const theta_rad = Math.atan2(
@@ -95,7 +211,7 @@ export class ScrollMenu {
             w: Math.cos(halfAngle)
         };
 
-        // Create anchor with rotation
+        // Create anchor
         this.anchor_body = this.world.createRigidBody(
             RAPIER.RigidBodyDesc.fixed()
             .setTranslation(
@@ -110,145 +226,40 @@ export class ScrollMenu {
         if (FLAGS.SIGN_VISUAL_DEBUG) {
             const anchorGeometry = new THREE.SphereGeometry(0.2);
             const anchorMaterial = new THREE.MeshBasicMaterial({
-                color: 0xffff00,  // Bright yellow
+                color: 0xffff00,
                 wireframe: true,
                 transparent: true,
-                opacity: 1.0,     // Full opacity
-                depthTest: false, // Always render on top
-                depthWrite: false // Don't write to depth buffer
+                opacity: 1.0,
+                depthTest: false,
+                depthWrite: false
             });
             this.debug_meshes.anchor = new THREE.Mesh(anchorGeometry, anchorMaterial);
             const anchorPos = this.anchor_body.translation();
             const anchorRot = this.anchor_body.rotation();
             this.debug_meshes.anchor.position.set(anchorPos.x, anchorPos.y, anchorPos.z);
             this.debug_meshes.anchor.quaternion.set(anchorRot.x, anchorRot.y, anchorRot.z, anchorRot.w);
-            this.debug_meshes.anchor.renderOrder = 999; // Ensure it renders last
+            this.debug_meshes.anchor.renderOrder = 999;
             this.parent.add(this.debug_meshes.anchor);
         }
 
-        // Create chain segments with same rotation
+        // Sequentially create chain segments
         let previous_body = this.anchor_body;
         for(let i = 0; i < this.CHAIN_CONFIG.SEGMENTS.COUNT; i++) {
-            const chain_body = this.world.createRigidBody(
-                RAPIER.RigidBodyDesc.dynamic()
-                .setTranslation(
-                    this.CHAIN_CONFIG.POSITION.X,
-                    this.CHAIN_CONFIG.POSITION.Y - (i + 1) * this.CHAIN_CONFIG.SEGMENTS.LENGTH,
-                    this.CHAIN_CONFIG.POSITION.Z
-                )
-                .setRotation(rotation)
-                .setLinearDamping(this.CHAIN_CONFIG.SEGMENTS.LINEAR_DAMPING)
-                .setAngularDamping(this.CHAIN_CONFIG.SEGMENTS.ANGULAR_DAMPING)
-                .setAdditionalMass(this.CHAIN_CONFIG.SEGMENTS.MASS)
-                .setGravityScale(this.CHAIN_CONFIG.SEGMENTS.GRAVITY_SCALE)
-                .setCanSleep(false)
-            );
-            const collider = RAPIER.ColliderDesc.ball(this.CHAIN_CONFIG.SEGMENTS.RADIUS)
-                .setRestitution(this.CHAIN_CONFIG.SEGMENTS.RESTITUTION)
-                .setFriction(this.CHAIN_CONFIG.SEGMENTS.FRICTION);
-            this.world.createCollider(collider, chain_body);
-
-            // Create visual mesh for chain segment (completely invisible)
-            const segmentGeometry = new THREE.SphereGeometry(this.CHAIN_CONFIG.SEGMENTS.RADIUS);
-            const segmentMaterial = new THREE.MeshBasicMaterial({ 
-                visible: false
-            });
-            const segmentMesh = new THREE.Mesh(segmentGeometry, segmentMaterial);
-            segmentMesh.name = `scroll_menu_chain_segment_${i}`;
-            this.parent.add(segmentMesh);
-            
-            // Store both mesh and body with identifier
-            this.dynamic_bodies.push({
-                type: 'scroll_menu_chain',
-                mesh: segmentMesh,
-                body: chain_body
-            });
-
-            // Create spherical joint between segments with softer constraints
-            const joint_desc = i === 0 
-                ? RAPIER.JointData.spherical(
-                    {x: 0, y: 0, z: 0},  // Anchor point
-                    {x: 0, y: this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0}  // Local point on chain segment
-                )
-                : RAPIER.JointData.spherical(
-                    {x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0},  // Point on previous segment
-                    {x: 0, y: this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0}    // Point on current segment
-                );
-            
-            // Moderate joint constraints
-            joint_desc.limitsEnabled = true;
-            joint_desc.limits = [-Math.PI/12, Math.PI/12];  // ±15° for balanced movement
-            
-            // Moderate stiffness and damping
-            joint_desc.stiffness = 150.0;    // Moderate stiffness
-            joint_desc.damping = 30.0;       // Moderate damping
-            
-            const created_joint = this.world.createImpulseJoint(
-                joint_desc,
-                previous_body,
-                chain_body,
-                true
-            );
-
-            // Set initial velocities to zero to prevent startup bounce
-            chain_body.setLinvel({ x: 0, y: 0, z: 0 }, true);
-            chain_body.setAngvel({ x: 0, y: 0, z: 0 }, true);
-
-            this.chain_joints.push(created_joint);
-            previous_body = chain_body;
-
-            // Add debug mesh for segment if debug is enabled
-            if (FLAGS.SIGN_VISUAL_DEBUG) {
-                // Log segment creation for debugging
-                if (FLAGS.PHYSICS_LOGS) {
-                    console.log(`Creating chain segment ${i} at Y: ${this.CHAIN_CONFIG.POSITION.Y - (i + 1) * this.CHAIN_CONFIG.SEGMENTS.LENGTH}`);
-                }
-
-                const segmentGeometry = new THREE.SphereGeometry(this.CHAIN_CONFIG.SEGMENTS.RADIUS);
-                const segmentMaterial = new THREE.MeshBasicMaterial({
-                    color: 0x0000ff,  // Blue
-                    wireframe: true,
-                    depthTest: false,  // Make sure it's always visible
-                    transparent: true,
-                    opacity: 0.8
-                });
-                const debugSegment = new THREE.Mesh(segmentGeometry, segmentMaterial);
-                debugSegment.position.copy(segmentMesh.position);
-                debugSegment.quaternion.copy(segmentMesh.quaternion);
-                this.debug_meshes.segments.push(debugSegment);
-                this.parent.add(debugSegment);
-
-                // Add debug mesh for joint - ONLY if not the last joint
-                if (i < this.CHAIN_CONFIG.SEGMENTS.COUNT - 1) {
-                    const jointGeometry = new THREE.SphereGeometry(0.1);
-                    const jointMaterial = new THREE.MeshBasicMaterial({
-                        color: 0xff0000,  // Red
-                        wireframe: true,
-                        depthTest: false,
-                        transparent: true,
-                        opacity: 0.8
-                    });
-                    const debugJoint = new THREE.Mesh(jointGeometry, jointMaterial);
-                    
-                    // Set initial joint position between current and next segments
-                    const currentPos = chain_body.translation();
-                    const prevPos = previous_body.translation();
-                    debugJoint.position.set(
-                        (prevPos.x + currentPos.x) / 2,
-                        (prevPos.y + currentPos.y) / 2,
-                        (prevPos.z + currentPos.z) / 2
-                    );
-                    
-                    this.debug_meshes.joints.push(debugJoint);
-                    this.parent.add(debugJoint);
-                }
+            if(FLAGS.PHYSICS_LOGS) {
+                console.log(`Creating chain segment ${i}`);
             }
+            previous_body = await this.createChainSegment(i, previous_body, rotation);
+            // Wait for physics to settle
+            await new Promise(resolve => setTimeout(resolve, this.CHAIN_CONFIG.SEGMENTS.SPAWN_DELAY));
         }
 
-        // Create and load the sign asynchronously
+        // Wait additional time before spawning sign
+        await new Promise(resolve => setTimeout(resolve, this.CHAIN_CONFIG.SIGN.SPAWN_DELAY));
+
+        // Create and load the sign
         await new Promise((resolve, reject) => {
             this.sign_image = new Image();
-            this.sign_image.onload = () => {
+            this.sign_image.onload = async () => {
                 const sign_canvas = document.createElement('canvas');
                 sign_canvas.width = this.sign_image.width;
                 sign_canvas.height = this.sign_image.height;
@@ -283,14 +294,11 @@ export class ScrollMenu {
                 
                 this.parent.add(this.sign_mesh);
                 
+                // Calculate sign spawn position
                 const sign_spawn_y = this.CHAIN_CONFIG.POSITION.Y - 
                     (this.CHAIN_CONFIG.SEGMENTS.COUNT * this.CHAIN_CONFIG.SEGMENTS.LENGTH) - 
                     (this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT / 2);
-                const theta_rad = Math.atan2(
-                    this.camera.position.x,
-                    this.camera.position.z
-                );
-                const halfAngle = theta_rad / 2;
+
                 this.sign_body = this.world.createRigidBody(
                     RAPIER.RigidBodyDesc.dynamic()
                     .setTranslation(
