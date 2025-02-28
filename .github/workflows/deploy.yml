@@ -6,42 +6,56 @@ on:
 
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
 
 jobs:
-  build-and-deploy:
+  release:
+    name: Release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Verify the integrity of commit messages
+        run: npx commitlint --from ${{ github.event.before }} --to ${{ github.event.after }} --verbose
+
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
+
+  build-and-deploy:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       
       - name: Setup Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: '18'
+          cache: 'npm'
           
       - name: Install Dependencies
-        run: npm install
-
-      - name: Determine Version
-        id: semver
-        uses: paulhatch/semantic-version@v5.0.2
-        with:
-          tag_prefix: "v"
-          
-      - name: Create Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Creating release ${{ steps.semver.outputs.version }}"
-          gh release create "v${{ steps.semver.outputs.version }}" \
-            --title "Release v${{ steps.semver.outputs.version }}" \
-            --notes "$(git log $(git describe --tags --abbrev=0 2>/dev/null || echo HEAD~1)..HEAD --pretty=format:'%h %s')"
+        run: npm ci
         
       - name: Build
         run: npm run build
-        env:
-          VITE_APP_VERSION: ${{ steps.semver.outputs.version }}
         
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
@@ -51,7 +65,5 @@ jobs:
 
       - name: Output Site URL
         run: |
-          echo "✨ Deployed successfully version ${{ steps.semver.outputs.version }}!"
-          echo "🌐 Site is live at: https://littlecarlito.github.io/threejs_site/"
-        env:
-          SITE_URL: ${{ github.event.repository.name }} 
+          echo "✨ Deployed successfully!"
+          echo "🌐 Site is live at: https://littlecarlito.github.io/threejs_site/" 
