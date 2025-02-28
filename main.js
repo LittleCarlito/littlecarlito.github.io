@@ -6,7 +6,7 @@ import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewp
 import { AppRenderer } from './common/app_renderer';
 import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common';
 import { BackgroundContainer } from './background/background_container';
-import { AssetManager } from './common/asset_manager';
+import { AssetManager } from './common';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'images/gradient.jpg';

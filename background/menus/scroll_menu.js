@@ -1,6 +1,6 @@
 import { TYPES } from '../../viewport/overlay/overlay_common';
 import { FLAGS, NAMES, RAPIER, THREE } from '../../common';
-import { AssetManager } from '../../common/asset_manager';
+import { AssetManager } from '../../common';
 import { BackgroundLighting } from '../background_lighting';
 
 export class ScrollMenu {

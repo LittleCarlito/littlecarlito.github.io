@@ -1,5 +1,5 @@
 import { FLAGS, RAPIER, THREE } from "../../common";
-import { AssetManager } from "../../common/asset_manager";
+import { AssetManager } from "../../common";
 
 const THROW_MULTIPLIER = 0.1; // Adjust this to control throw strength
 const SHOVE_FORCE = 4; // Adjust this value to control the force of the shove

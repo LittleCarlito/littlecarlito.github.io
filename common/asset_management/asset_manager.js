@@ -1,8 +1,8 @@
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
-import { Easing, Tween, RAPIER, THREE, NAMES } from ".";
-import { CATEGORIES, TYPES } from "../viewport/overlay/overlay_common";
-import { FLAGS } from "./flags";
-import { TextureAtlasManager } from './texture_atlas_manager';
+import { Easing, Tween, RAPIER, THREE, NAMES } from "..";
+import { CATEGORIES, TYPES } from "../../viewport/overlay/overlay_common";
+import { FLAGS } from "../flags";
+import { TextureAtlasManager } from '../texture_atlas_manager';
 
 /**
  * Generates triangle indices for a geometry that doesn't have them
@@ -285,7 +285,6 @@ export class AssetManager {
                             
                             // Get cached or new material
                             child.material = this.getMaterial(materialKey, originalMaterial);
-                            
                             // Clean up original material if it exists
                             if (originalMaterial) {
                                 if (originalMaterial.roughnessMap) originalMaterial.roughnessMap.dispose();
@@ -526,14 +525,12 @@ export class AssetManager {
     is_mesh_emissive(mesh) {
         if (!mesh) return false;
         let has_emissive = false;
-        
         const check_material = (material) => {
             return material && 
                    material.emissive && 
                    material.emissiveIntensity > 0 &&
                    material.emissiveIntensity === 9; // Our target intensity
         };
-        
         if (mesh.isGroup || mesh.isObject3D) {
             mesh.traverse((child) => {
                 if (child.isMesh && !child.name.startsWith('col_')) {
@@ -545,7 +542,6 @@ export class AssetManager {
         } else if (mesh.isMesh) {
             has_emissive = check_material(mesh.material);
         }
-        
         return has_emissive;
     }
 
@@ -750,7 +746,7 @@ export class AssetManager {
                     totalMeshes = 1;
                 }
 
-                const deactivateMesh = (targetMesh) => {
+                const deactivate_mesh = (targetMesh) => {
                     // Only proceed if we have an original material to restore to
                     if (targetMesh.userData.originalMaterial) {
                         // Create a new tween for the emission fade out
@@ -793,11 +789,11 @@ export class AssetManager {
                 if (mesh.isGroup || mesh.isObject3D) {
                     mesh.traverse((child) => {
                         if (child.isMesh && !child.name.startsWith('col_')) {
-                            deactivateMesh(child);
+                            deactivate_mesh(child);
                         }
                     });
                 } else if (mesh.isMesh) {
-                    deactivateMesh(mesh);
+                    deactivate_mesh(mesh);
                 }
                 break;
             }
