@@ -9,7 +9,6 @@ A dynamic, physics-based portfolio website built with Three.js, featuring intera
 ![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
 ![Rapier](https://img.shields.io/badge/Rapier-Physics-blue)
 ![Version](https://img.shields.io/github/v/release/LittleCarlito/threejs_site?include_prereleases)
-![Semantic Versioning](https://img.shields.io/badge/Semantic%20Versioning-✓-brightgreen)
 
 ## 🌟 Features
 
