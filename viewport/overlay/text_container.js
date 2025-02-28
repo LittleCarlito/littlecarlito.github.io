@@ -1,7 +1,8 @@
 import { clamp } from 'three/src/math/MathUtils.js';
 import { TextFrame, IFRAME } from './text_frame';
 import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, CATEGORIES, extract_type, PAN_SPEED, TYPES, VALID_DIRECTIONS } from './overlay_common';
-import { Easing, FLAGS, NAMES, THREE, Tween, AssetManager, ASSET_TYPE, ASSET_CONFIGS } from '../../common';
+import { Easing, FLAGS, NAMES, THREE, Tween, AssetManager } from '../../common';
+import { ASSET_TYPE, ASSET_CONFIGS } from '../../common/asset_management/asset_type';
 import { AssetStorage } from '../../common/asset_management/asset_storage';
 
 export class TextContainer {

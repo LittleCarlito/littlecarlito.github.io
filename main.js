@@ -8,6 +8,7 @@ import { shove_object, translate_object, update_mouse_position, zoom_object_in, 
 import { BackgroundContainer } from './background/background_container';
 import { AssetManager } from './common';
 import { AssetStorage } from './common/asset_management/asset_storage';
+import { AssetActivator } from './common/asset_management/asset_activator';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'images/gradient.jpg';
@@ -30,6 +31,7 @@ let left_mouse_down = false;
 let right_mouse_down = false;
 let construction_acknowledged = !FLAGS.CONSTRUCTION_GREETING;
 let asset_manager;
+let asset_activator;
 
 /** Updates the loading progress text */
 function updateLoadingProgress(text) {
@@ -102,6 +104,7 @@ async function init() {
         
         updateLoadingProgress('Initializing scene...');
         asset_manager = AssetManager.get_instance();
+        asset_activator = AssetActivator.get_instance();
         
         if(FLAGS.CONSTRUCTION_GREETING) {
             const response = await fetch('pages/under_construction.html');
@@ -192,15 +195,15 @@ function animate() {
     }
     // Handle the physics objects
     if(viewable_container.get_overlay().is_intersected() != null) {
-        asset_manager.activate_object(viewable_container.get_intersected_name());
+        asset_activator.activate_object(viewable_container.get_intersected_name());
     } else if(grabbed_object) {
         translate_object(grabbed_object, viewable_container.get_camera());
     } else if(hovered_cube_name != "") {
-        asset_manager.activate_object(hovered_cube_name);
+        asset_activator.activate_object(hovered_cube_name);
     } else if(viewable_container.is_text_active()) {
-        asset_manager.activate_object(viewable_container.get_active_name());
+        asset_activator.activate_object(viewable_container.get_active_name());
     } else {
-        asset_manager.deactivate_all_objects();
+        asset_activator.deactivate_all_objects();
     }
     world.timestep = Math.min(delta, 0.1);
     world.step();

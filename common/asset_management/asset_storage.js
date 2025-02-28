@@ -1,6 +1,7 @@
 import { THREE } from "..";
-import { GLTFLoader } from "three/examples/jsm/Addons.js";
-import { ASSET_CONFIGS } from "./asset_manager";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { ASSET_CONFIGS } from "./asset_type";
+import { FLAGS } from "../flags";
 
 export class AssetStorage {
     static instance = null;
