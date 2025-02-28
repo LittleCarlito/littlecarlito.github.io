@@ -2,6 +2,7 @@ import { THREE } from "..";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { ASSET_CONFIGS } from "./asset_type";
 import { FLAGS } from "../flags";
+import { AssetSpawner } from "./asset_spawner";
 
 /**
  * Class responsible for managing asset loading, storage, and caching.
@@ -103,6 +104,8 @@ export class AssetStorage {
                 mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
             }
         });
+        // Update debug wireframes
+        AssetSpawner.get_instance().update_debug_wireframes();
     }
 
     /**

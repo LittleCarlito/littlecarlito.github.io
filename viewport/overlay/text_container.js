@@ -55,7 +55,7 @@ export class TextContainer {
             this.text_box_container.add(text_box);
             switch(category.value) {
                 case CATEGORIES.EDUCATION.value:
-                    const rotation = new THREE.Euler(-Math.PI/2, 0, Math.PI, 'XYZ');
+                    const rotation = new THREE.Euler(-Math.PI/2, -Math.PI, -Math.PI, 'XYZ');
                     const position_one_offset = new THREE.Vector3(0, 3, 0);
                     const position_two_offset = new THREE.Vector3(0, -3, 0);
                     
@@ -64,14 +64,12 @@ export class TextContainer {
                         // Load the diploma asset first
                         const asset_config = ASSET_CONFIGS[ASSET_TYPE.DIPLOMA];
                         const gltf = await AssetStorage.get_instance().loader.loadAsync(asset_config.PATH);
-                        
                         // Create two instances
                         [position_one_offset, position_two_offset].forEach(position => {
                             const diploma = gltf.scene.clone();
                             diploma.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
                             diploma.position.copy(position);
                             diploma.rotation.copy(rotation);
-                            
                             // Handle materials
                             diploma.traverse((child) => {
                                 if (child.isMesh) {
