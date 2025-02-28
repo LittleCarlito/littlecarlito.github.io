@@ -337,7 +337,10 @@ export class TextContainer {
     
     /** Calculates the text boxes width based off camera position and window size */
     get_text_box_width() {
-        return clamp(get_screen_size(this.camera).x * .5, 12, 18);
+        // Match the base width calculation used by TextFrame
+        const base_width = clamp(get_screen_size(this.camera).x * .5, 12, 18);
+        // Add exactly 0.5 units padding on each side to match TextFrame's WIDTH_OFFSET
+        return base_width + 1;
     }
 
     /** Returns if there is an active text box or not */
