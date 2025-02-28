@@ -42,6 +42,7 @@ export class OverlayContainer {
     // Set this to true when the first object is grabbed, camera is frist moved, or first object is pushed
     secondary_control_trigger = false;
     artist_block;
+    MAX_WIDTH_PIXELS = 2000;  // Maximum width in pixels
     
     constructor(incoming_parent, incoming_camera) {
         this.parent = incoming_parent;
@@ -53,6 +54,10 @@ export class OverlayContainer {
         this.overlay_container.traverse((child) => {
             child.renderOrder = 999;
         });
+
+        // Initial scale calculation
+        this.update_scale_factor();
+
         this.title_block = new TitleBlock(this.overlay_container, this.camera);
         this.text_box_container = new TextContainer(this.overlay_container, this.camera);
         this.label_container = new LabelContainer(this.overlay_container, this.camera);
@@ -63,6 +68,21 @@ export class OverlayContainer {
         this.parent.add(this.overlay_container);
     }
 
+    update_scale_factor() {
+        const fov = this.camera.fov * Math.PI / 180;
+        const height_at_distance = 2 * Math.tan(fov / 2) * 15;  // 15 is the distance used in get_screen_size
+        const pixels_per_unit = window.innerHeight / height_at_distance;
+        const max_width_units = this.MAX_WIDTH_PIXELS / pixels_per_unit;
+        const current_width = (window.innerWidth / pixels_per_unit);
+        const target_scale = Math.min(1, max_width_units / current_width);
+        
+        // Use tween for smooth scale transition
+        new Tween(this.overlay_container.scale)
+            .to({ x: target_scale, y: target_scale }, 200)
+            .easing(Easing.Elastic.Out)
+            .start();
+    }
+
     create_confetti_burst() {
         if(FLAGS.PHYSICS_LOGS) {
             const cam_pos = this.camera.position;
@@ -70,26 +90,21 @@ export class OverlayContainer {
             console.log(`Camera Position: (${cam_pos.x.toFixed(2)}, ${cam_pos.y.toFixed(2)}, ${cam_pos.z.toFixed(2)})`);
             console.log(`Overlay Position: (${overlay_pos.x.toFixed(2)}, ${overlay_pos.y.toFixed(2)}, ${overlay_pos.z.toFixed(2)})`);
         }
-
         // Calculate burst position in front of camera (similar to overlay positioning)
         const forward = new THREE.Vector3(0, 0, -3);
         forward.applyQuaternion(this.camera.quaternion);
         const burst_position = this.camera.position.clone().add(forward);
-        
         if(FLAGS.PHYSICS_LOGS) {
             console.log(`Burst Position: (${burst_position.x.toFixed(2)}, ${burst_position.y.toFixed(2)}, ${burst_position.z.toFixed(2)})`);
         }
-
         // Convert angles to radians
         const burst_angles = [
             LEFT_BURST_ANGLE * Math.PI / 180,
             RIGHT_BURST_ANGLE * Math.PI / 180
         ];
-
         // Create two fountain bursts
         burst_angles.forEach((base_angle, index) => {
             const xOffset = index === 0 ? -1 : 1;  // Offset the bursts slightly left and right
-            
             for (let i = 0; i < PARTICLE_COUNT / 2; i++) {
                 const geometry = new THREE.PlaneGeometry(PARTICLE_SIZE, PARTICLE_SIZE);
                 const material = new THREE.MeshBasicMaterial({
@@ -99,9 +114,7 @@ export class OverlayContainer {
                     transparent: true,
                     opacity: 1
                 });
-
                 const particle = new THREE.Mesh(geometry, material);
-                
                 // Position particle with slight offset
                 const offset_position = burst_position.clone().add(
                     new THREE.Vector3(
@@ -113,35 +126,27 @@ export class OverlayContainer {
                 particle.position.copy(offset_position);
                 this.parent.add(particle);
                 particle.renderOrder = 999;
-
                 // Calculate spread from base angle
                 const spread = (Math.random() - 0.5) * SPREAD_ANGLE * Math.PI / 180;
                 const angle = base_angle + spread;
-
                 // Create velocity relative to camera orientation
                 const direction = new THREE.Vector3();
                 const camera_right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
                 const camera_up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion);
-                
                 direction.addScaledVector(camera_right, Math.cos(angle));
                 direction.addScaledVector(camera_up, Math.sin(angle));
-                
                 const speed = 0.08 + Math.random() * 0.12;
                 const upward_force = 0.15 + Math.random() * 0.1;
-                
                 particle.velocity = new THREE.Vector3(
                     direction.x * speed,
                     direction.y * speed + upward_force,
                     direction.z * speed
                 );
-
                 // Orient particle to face camera
                 particle.lookAt(this.camera.position);
                 particle.rotation.z = Math.random() * Math.PI * 2;
                 particle.rotationSpeed = (Math.random() - 0.5) * 0.2;
-
                 this.particles.push(particle);
-
                 new Tween(particle.material)
                     .to({ opacity: 0 }, 2000)
                     .easing(Easing.Quadratic.Out)
@@ -228,6 +233,7 @@ export class OverlayContainer {
      * FOR USE WHEN ONSCREEN ONLY
      */
     resize_reposition() {
+        this.update_scale_factor();  // Add scale update here
         this.text_box_container.resize();
         this.text_box_container.reposition(this.label_container.is_column_left);
         this.label_container.reposition();
@@ -244,6 +250,7 @@ export class OverlayContainer {
      * FOR USE WHEN OFFSCREEN ONLY
      */
     resize_reposition_offscreen() {
+        this.update_scale_factor();  // Add scale update here
         this.text_box_container.resize();
         this.text_box_container.offscreen_reposition();
         this.label_container.offscreen_reposition();
