@@ -8,7 +8,7 @@ export const ASSET_TYPE = {
     CHAIR: 'CHAIR',
     BOOK: 'BOOK',
     ROOM: 'ROOM',
-    TABLET: 'TABLET',
+    TABLET: 'contact',
     DESKPHOTO: 'DESK_PHOTO',
     CUBE: 'CUBE'  // Simple geometric primitive for testing
 };

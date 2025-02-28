@@ -72,7 +72,9 @@ export class BackgroundContainer {
             .filter(([key, value]) => {
                 // Only include actual category entries (not helper methods)
                 return key === key.toUpperCase() && // All category keys are uppercase
+                // TODO Get these to use category constants
                        key !== 'EDUCATION' && // Skip education category
+                       key !== 'CONTACT' && // Skip contact category
                        typeof value === 'object' && // Must be an object
                        value !== null && // Must not be null
                        'color' in value && // Must have a color property
