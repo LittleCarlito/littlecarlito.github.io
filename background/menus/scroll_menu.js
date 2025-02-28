@@ -406,6 +406,13 @@ export class ScrollMenu {
 
     async break_chains() {
         if (!this.chains_broken) {
+            // Wake up all chain segments and sign
+            this.dynamic_bodies.forEach(data => {
+                if ((data.type === 'scroll_menu_chain' || data.type === 'scroll_menu_sign') && data.body) {
+                    data.body.wakeUp();
+                }
+            });
+
             // Remove debug meshes if they exist
             if (FLAGS.SIGN_VISUAL_DEBUG) {
                 if (this.debug_meshes.anchor) {
