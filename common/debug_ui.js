@@ -64,7 +64,7 @@ export function createDebugUI() {
     title.style.paddingBottom = '5px';
     debugUI.appendChild(title);
     
-    // Add FPS display
+    // Add FPS display - always visible
     const fpsDisplay = document.createElement('div');
     fpsDisplay.id = 'fps-display';
     fpsDisplay.textContent = 'FPS: --';
@@ -72,45 +72,84 @@ export function createDebugUI() {
     fpsDisplay.style.marginBottom = '8px';
     debugUI.appendChild(fpsDisplay);
     
+    // Create a container for detailed performance metrics (collapsible)
+    const metricsContainer = document.createElement('div');
+    metricsContainer.id = 'metrics-container';
+    metricsContainer.style.overflow = 'hidden';
+    metricsContainer.style.maxHeight = '0'; // Hidden by default
+    metricsContainer.style.transition = 'max-height 0.3s ease-in-out';
+    
     // Add resolution scale display
     const resolutionDisplay = document.createElement('div');
     resolutionDisplay.id = 'resolution-scale-display';
     resolutionDisplay.textContent = 'Resolution Scale: 100%';
     resolutionDisplay.style.marginBottom = '8px';
-    debugUI.appendChild(resolutionDisplay);
+    metricsContainer.appendChild(resolutionDisplay);
     
     // Add draw calls info
     const drawCallsInfo = document.createElement('div');
     drawCallsInfo.id = 'draw-calls-info';
     drawCallsInfo.textContent = 'Draw calls: --';
     drawCallsInfo.style.marginBottom = '8px';
-    debugUI.appendChild(drawCallsInfo);
+    metricsContainer.appendChild(drawCallsInfo);
     
     // Add triangles info
     const trianglesInfo = document.createElement('div');
     trianglesInfo.id = 'triangles-info';
     trianglesInfo.textContent = 'Triangles: --';
     trianglesInfo.style.marginBottom = '8px';
-    debugUI.appendChild(trianglesInfo);
+    metricsContainer.appendChild(trianglesInfo);
     
     // Add geometries info
     const geometriesInfo = document.createElement('div');
     geometriesInfo.id = 'geometries-info';
     geometriesInfo.textContent = 'Geometries: --';
     geometriesInfo.style.marginBottom = '8px';
-    debugUI.appendChild(geometriesInfo);
+    metricsContainer.appendChild(geometriesInfo);
     
     // Add textures info
     const texturesInfo = document.createElement('div');
     texturesInfo.id = 'textures-info';
     texturesInfo.textContent = 'Textures: --';
     texturesInfo.style.marginBottom = '8px';
-    debugUI.appendChild(texturesInfo);
+    metricsContainer.appendChild(texturesInfo);
+    
+    // Add the metrics container to the debug UI
+    debugUI.appendChild(metricsContainer);
+    
+    // Add a subtle toggle for metrics (small dots)
+    const metricsToggle = document.createElement('div');
+    metricsToggle.style.textAlign = 'center';
+    metricsToggle.style.margin = '0 0 10px 0';
+    metricsToggle.style.cursor = 'pointer';
+    metricsToggle.style.fontSize = '10px';
+    metricsToggle.style.color = '#777';
+    metricsToggle.innerHTML = '•••';
+    metricsToggle.title = 'Toggle performance details';
+    
+    // Add hover effect for metrics toggle
+    metricsToggle.addEventListener('mouseenter', function() {
+        this.style.color = '#aaa';
+    });
+    
+    metricsToggle.addEventListener('mouseleave', function() {
+        this.style.color = '#777';
+    });
+    
+    // Add click event to toggle metrics visibility
+    let isMetricsVisible = false;
+    metricsToggle.addEventListener('click', function() {
+        isMetricsVisible = !isMetricsVisible;
+        metricsContainer.style.maxHeight = isMetricsVisible ? '300px' : '0';
+        this.innerHTML = isMetricsVisible ? '•••' : '•••';
+    });
+    
+    debugUI.appendChild(metricsToggle);
     
     // Add divider
     const divider = document.createElement('div');
     divider.style.borderBottom = '1px solid #555';
-    divider.style.margin = '10px 0';
+    divider.style.margin = '0 0 10px 0';
     debugUI.appendChild(divider);
     
     // Add resolution control section title
@@ -296,23 +335,115 @@ export function createDebugUI() {
     divider2.style.margin = '10px 0';
     debugUI.appendChild(divider2);
     
-    // Add debug toggles section title
-    const togglesTitle = document.createElement('div');
-    togglesTitle.textContent = 'Debug Toggles';
-    togglesTitle.style.fontWeight = 'bold';
-    togglesTitle.style.marginBottom = '8px';
-    debugUI.appendChild(togglesTitle);
+    // Create a container for the debug toggles section (keep this visible)
+    const debugTogglesTitle = document.createElement('div');
+    debugTogglesTitle.textContent = 'Debug Toggles';
+    debugTogglesTitle.style.fontWeight = 'bold';
+    debugTogglesTitle.style.marginBottom = '8px';
+    debugUI.appendChild(debugTogglesTitle);
     
-    // Add debug toggles
+    // Add debug toggles (these remain visible)
     addToggle(debugUI, 'SPOTLIGHT_VISUAL_DEBUG', 'Spotlight Debug');
     addToggle(debugUI, 'SIGN_VISUAL_DEBUG', 'Sign Debug');
     
+    // Add divider
+    const divider3 = document.createElement('div');
+    divider3.style.borderBottom = '1px solid #555';
+    divider3.style.margin = '10px 0';
+    debugUI.appendChild(divider3);
+    
+    // Create a container for the log flags section
+    const logFlagsContainer = document.createElement('div');
+    logFlagsContainer.id = 'log-flags-container';
+    logFlagsContainer.style.overflow = 'hidden';
+    logFlagsContainer.style.maxHeight = '0';
+    logFlagsContainer.style.transition = 'max-height 0.3s ease-in-out';
+    logFlagsContainer.style.marginTop = '5px';
+    
+    // Add log flags section title
+    const logFlagsTitle = document.createElement('div');
+    logFlagsTitle.textContent = 'Log Flags';
+    logFlagsTitle.style.fontWeight = 'bold';
+    logFlagsTitle.style.marginBottom = '8px';
+    logFlagsContainer.appendChild(logFlagsTitle);
+    
+    // Add log flags toggles
+    addToggle(logFlagsContainer, 'SELECT_LOGS', 'Selection Logs');
+    addToggle(logFlagsContainer, 'TWEEN_LOGS', 'Animation Logs');
+    addToggle(logFlagsContainer, 'HTML_LOGS', 'HTML Logs');
+    addToggle(logFlagsContainer, 'PHYSICS_LOGS', 'Physics Logs');
+    addToggle(logFlagsContainer, 'ASSET_LOGS', 'Asset Logs');
+    addToggle(logFlagsContainer, 'ACTIVATE_LOGS', 'Activation Logs');
+    addToggle(logFlagsContainer, 'EFFECT_LOGS', 'Effect Logs');
+    
+    // Add the container to the debug UI
+    debugUI.appendChild(logFlagsContainer);
+    
+    // Create a caret button container for better styling
+    const caretContainer = document.createElement('div');
+    caretContainer.style.position = 'relative';
+    caretContainer.style.width = '100%';
+    caretContainer.style.height = '20px';
+    caretContainer.style.marginTop = '5px';
+    caretContainer.style.cursor = 'pointer';
+    caretContainer.style.textAlign = 'center';
+    caretContainer.style.borderTop = '1px solid #444';
+    
+    // Add the caret icon
+    const caret = document.createElement('div');
+    caret.innerHTML = '▼';
+    caret.style.position = 'absolute';
+    caret.style.top = '0';
+    caret.style.left = '50%';
+    caret.style.transform = 'translateX(-50%) translateY(-50%)';
+    caret.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    caret.style.padding = '0 10px';
+    caret.style.fontSize = '12px';
+    caret.style.color = '#888';
+    caret.style.transition = 'transform 0.2s ease, color 0.2s ease';
+    caretContainer.appendChild(caret);
+    
+    // Add hover effect
+    caretContainer.addEventListener('mouseenter', function() {
+        caret.style.color = '#fff';
+        // Add wiggle animation
+        caret.style.animation = 'wiggle 0.5s ease infinite';
+    });
+    
+    caretContainer.addEventListener('mouseleave', function() {
+        caret.style.color = '#888';
+        // Remove wiggle animation
+        caret.style.animation = '';
+    });
+    
+    // Add keyframes for wiggle animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes wiggle {
+            0%, 100% { transform: translateX(-50%) translateY(-50%) rotate(0deg); }
+            25% { transform: translateX(-50%) translateY(-50%) rotate(10deg); }
+            75% { transform: translateX(-50%) translateY(-50%) rotate(-10deg); }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Add event listener to toggle the log flags section
+    let isLogFlagsSectionVisible = false;
+    caretContainer.addEventListener('click', function() {
+        isLogFlagsSectionVisible = !isLogFlagsSectionVisible;
+        logFlagsContainer.style.maxHeight = isLogFlagsSectionVisible ? '300px' : '0';
+        caret.innerHTML = isLogFlagsSectionVisible ? '▲' : '▼';
+    });
+    
+    debugUI.appendChild(caretContainer);
+    
     // Add keyboard shortcut info
     const shortcutInfo = document.createElement('div');
-    shortcutInfo.textContent = 'Press S to toggle';
+    shortcutInfo.textContent = 'Press S to toggle UI';
     shortcutInfo.style.fontSize = '12px';
     shortcutInfo.style.color = '#aaa';
     shortcutInfo.style.marginTop = '10px';
+    shortcutInfo.style.textAlign = 'center';
     debugUI.appendChild(shortcutInfo);
     
     // Add to document
