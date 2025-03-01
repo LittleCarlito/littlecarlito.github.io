@@ -319,4 +319,42 @@ export class BackgroundLighting {
             }
         });
     }
+
+    /**
+     * Updates the debug visualization for all spotlights based on the current flag state
+     */
+    async updateDebugVisualizations() {
+        // Find all spotlights in the lighting container
+        const spotlights = this.lighting_container.children.filter(child => child.isSpotLight);
+        
+        if (FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
+            // Create debug helpers for spotlights that don't have them
+            for (const spotlight of spotlights) {
+                if (!spotlight.userData.debugHelpers) {
+                    const helpers = await this.create_spotlight_helper(spotlight);
+                    spotlight.userData.debugHelpers = helpers;
+                } else {
+                    // Show existing helpers
+                    if (spotlight.userData.debugHelpers.helper) {
+                        spotlight.userData.debugHelpers.helper.visible = true;
+                    }
+                    if (spotlight.userData.debugHelpers.cone) {
+                        spotlight.userData.debugHelpers.cone.visible = true;
+                    }
+                }
+            }
+        } else {
+            // Hide all debug helpers
+            for (const spotlight of spotlights) {
+                if (spotlight.userData.debugHelpers) {
+                    if (spotlight.userData.debugHelpers.helper) {
+                        spotlight.userData.debugHelpers.helper.visible = false;
+                    }
+                    if (spotlight.userData.debugHelpers.cone) {
+                        spotlight.userData.debugHelpers.cone.visible = false;
+                    }
+                }
+            }
+        }
+    }
 }

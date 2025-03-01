@@ -395,4 +395,21 @@ export class ControlMenu {
             }
         }
     }
+
+    /**
+     * Updates the debug visualization for the control menu based on the current flag state
+     */
+    updateDebugVisualizations() {
+        // Control menu doesn't have debug meshes yet, but we need this method
+        // to match the interface expected by BackgroundContainer.updateSignDebugVisualizations
+        
+        // In the future, we could add debug visualization for the control menu
+        // similar to how it's done in the ScrollMenu class
+        if (FLAGS.SIGN_VISUAL_DEBUG) {
+            // Future implementation would create debug meshes here if they don't exist
+            console.log("Control menu debug visualization requested but not implemented yet");
+        } else {
+            // Future implementation would hide debug meshes here
+        }
+    }
 }

@@ -9,6 +9,7 @@ import { BackgroundContainer } from './background/background_container';
 import { AssetSpawner } from './common';
 import { AssetStorage } from './common/asset_management/asset_storage';
 import { AssetActivator } from './common/asset_management/asset_activator';
+import { toggleDebugUI, createDebugUI, setBackgroundContainer } from './common/debug_ui.js';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'images/gradient.jpg';
@@ -32,6 +33,7 @@ let right_mouse_down = false;
 let construction_acknowledged = !FLAGS.CONSTRUCTION_GREETING;
 let asset_spawner;
 let asset_activator;
+let performanceScore;
 
 /** Updates the loading progress text */
 function updateLoadingProgress(text) {
@@ -151,6 +153,8 @@ async function init() {
         
         // Renderer
         app_renderer = new AppRenderer(scene, viewable_container.get_camera());
+        // Make renderer available globally for debug UI
+        window.renderer = app_renderer.get_renderer();
         
         // Background creation
         updateLoadingProgress('Loading background assets...');
@@ -181,6 +185,21 @@ async function init() {
         // Hide loading screen and start animation
         hideLoadingScreen();
         app_renderer.set_animation_loop(animate);
+        
+        // Initialize debug UI (hidden by default)
+        createDebugUI();
+        // Set background container reference for debug UI
+        setBackgroundContainer(background_container);
+        console.log("Debug UI initialized. Press 's' to toggle.");
+        
+        // Add keyboard event listener for debug UI toggle
+        window.addEventListener('keydown', function(event) {
+            // Toggle debug UI when 's' is pressed
+            if (event.key === 's') {
+                toggleDebugUI();
+                console.log("Debug UI toggled:", FLAGS.DEBUG_UI);
+            }
+        });
     } catch (error) {
         console.error('Error during initialization:', error);
         updateLoadingProgress('Error loading application. Please refresh the page.');
