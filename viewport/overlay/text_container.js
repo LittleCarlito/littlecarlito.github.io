@@ -309,10 +309,24 @@ export class TextContainer {
     }
 
     offscreen_reposition() {
+        const offscreen_x = -(this.container_width * 3);
+        const y_position = this.get_text_box_y(this.camera);
+        
         this.text_box_container.children.forEach(c => {
-            c.position.x = -(this.container_width * 3);
-            c.position.y = this.get_text_box_y(this.camera);
-        })
+            // If this is the focused text box, keep it in its focused position
+            if (this.focused_text_name && c.name === this.focused_text_name) {
+                new Tween(c.position)
+                    .to({ x: this.get_focused_text_x(), y: y_position })
+                    .easing(Easing.Elastic.Out)
+                    .start();
+            } else {
+                // Otherwise move it offscreen with animation
+                new Tween(c.position)
+                    .to({ x: offscreen_x, y: y_position })
+                    .easing(Easing.Elastic.Out)
+                    .start();
+            }
+        });
     }
 
     set_content_layer(incoming_object_name, incoming_layer) {

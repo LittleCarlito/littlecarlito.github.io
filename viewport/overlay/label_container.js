@@ -119,7 +119,12 @@ export class LabelContainer {
     }
 
     offscreen_reposition() {
-        this.container_column.position.x = get_associated_position(WEST, this.camera);        
+        const x_position = get_associated_position(WEST, this.camera);
+        // Move button column across the screen with animation
+        new Tween(this.container_column.position)
+            .to({ x: x_position })
+            .easing(Easing.Elastic.Out)
+            .start();
     }
 
     handle_hover(intersected_object) {
