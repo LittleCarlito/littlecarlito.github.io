@@ -343,6 +343,7 @@ export function createDebugUI() {
     debugUI.appendChild(debugTogglesTitle);
     
     // Add debug toggles (these remain visible)
+    addToggle(debugUI, 'COLLISION_VISUAL_DEBUG', 'Collision Debug');
     addToggle(debugUI, 'SPOTLIGHT_VISUAL_DEBUG', 'Spotlight Debug');
     addToggle(debugUI, 'SIGN_VISUAL_DEBUG', 'Sign Debug');
     
@@ -608,6 +609,14 @@ function addToggle(parent, flagName, label, initialState, onChange) {
                 if (backgroundContainer) {
                     backgroundContainer.updateSignDebugVisualizations();
                 }
+            } else if (flagName === 'COLLISION_VISUAL_DEBUG') {
+                // For collision debug, we need to refresh the scene to show/hide wireframes
+                // The wireframes will be created/updated in the next frame if the flag is enabled
+                console.log(`Collision debug visualization ${checked ? 'enabled' : 'disabled'}`);
+                
+                // The visibility of wireframes is controlled in the update_debug_wireframes method
+                // which is called every frame during the physics update
+                console.log(`All collision wireframes will be ${checked ? 'shown' : 'hidden'}`);
             }
         }
         
