@@ -7,6 +7,7 @@ export const FLAGS = {
     SIGN_VISUAL_DEBUG: false,
     LABEL_VISUAL_DEBUG: false,
     DEBUG_UI: false,
+    AUTO_THROTTLE: true,
     // Log flags
     SELECT_LOGS: false,
     TWEEN_LOGS: false,

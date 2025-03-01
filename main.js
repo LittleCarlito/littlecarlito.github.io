@@ -9,7 +9,7 @@ import { BackgroundContainer } from './background/background_container';
 import { AssetSpawner } from './common';
 import { AssetStorage } from './common/asset_management/asset_storage';
 import { AssetActivator } from './common/asset_management/asset_activator';
-import { toggleDebugUI, createDebugUI, setBackgroundContainer } from './common/debug_ui.js';
+import { toggleDebugUI, createDebugUI, setBackgroundContainer, setResolutionScale } from './common/debug_ui.js';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'images/gradient.jpg';
@@ -190,6 +190,15 @@ async function init() {
         createDebugUI();
         // Set background container reference for debug UI
         setBackgroundContainer(background_container);
+        // Initialize resolution scale based on device capabilities
+        if (FLAGS.AUTO_THROTTLE) {
+            // Start with a resolution scale based on device pixel ratio
+            // Higher pixel ratio devices (like Retina displays) get a lower initial scale
+            // to maintain performance
+            const initialScale = window.devicePixelRatio > 1 ? 0.75 : 1.0;
+            setResolutionScale(initialScale);
+            console.log(`Initial resolution scale set to ${initialScale.toFixed(2)} based on device pixel ratio ${window.devicePixelRatio}`);
+        }
         console.log("Debug UI initialized. Press 's' to toggle.");
         
         // Add keyboard event listener for debug UI toggle
