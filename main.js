@@ -9,7 +9,7 @@ import { BackgroundContainer } from './background/background_container';
 import { AssetSpawner } from './common';
 import { AssetStorage } from './common/asset_management/asset_storage';
 import { AssetActivator } from './common/asset_management/asset_activator';
-import { toggleDebugUI, createDebugUI, setBackgroundContainer, setResolutionScale } from './common/debug_ui.js';
+import { toggleDebugUI, createDebugUI, setBackgroundContainer, setResolutionScale, updateLabelWireframes } from './common/debug_ui.js';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'images/gradient.jpg';
@@ -33,7 +33,6 @@ let right_mouse_down = false;
 let construction_acknowledged = !FLAGS.CONSTRUCTION_GREETING;
 let asset_spawner;
 let asset_activator;
-let performanceScore;
 
 /** Updates the loading progress text */
 function updateLoadingProgress(text) {
@@ -97,6 +96,9 @@ async function init() {
     try {
         await showLoadingScreen();
         
+        // Ensure LABEL_VISUAL_DEBUG is synchronized with COLLISION_VISUAL_DEBUG
+        FLAGS.LABEL_VISUAL_DEBUG = FLAGS.COLLISION_VISUAL_DEBUG;
+        
         updateLoadingProgress('Loading Three.js...');
         await loadThree(); // Still load async but we already have THREE available
 
@@ -150,9 +152,13 @@ async function init() {
         // UI creation
         updateLoadingProgress('Creating UI components...');
         viewable_container = new ViewableContainer(scene, world);
+        // Make viewable_container available globally for debug UI
+        window.viewable_container = viewable_container;
         
         // Renderer
         app_renderer = new AppRenderer(scene, viewable_container.get_camera());
+        // Make renderer available globally for debug UI
+        window.renderer = app_renderer.get_renderer();
         // Make renderer available globally for debug UI
         window.renderer = app_renderer.get_renderer();
         
@@ -201,12 +207,25 @@ async function init() {
         }
         console.log("Debug UI initialized. Press 's' to toggle.");
         
+        // Ensure label wireframes are updated if debug visualization is enabled
+        if (FLAGS.LABEL_VISUAL_DEBUG && viewable_container && viewable_container.get_overlay()) {
+            const labelContainer = viewable_container.get_overlay().label_container;
+            if (labelContainer && typeof labelContainer.updateDebugVisualizations === 'function') {
+                console.log('Directly updating label wireframes after initialization');
+                labelContainer.updateDebugVisualizations();
+            }
+        }
+        
         // Add keyboard event listener for debug UI toggle
         window.addEventListener('keydown', function(event) {
             // Toggle debug UI when 's' is pressed
             if (event.key === 's') {
                 toggleDebugUI();
                 console.log("Debug UI toggled:", FLAGS.DEBUG_UI);
+                // Update label wireframes when debug UI is toggled
+                if (FLAGS.DEBUG_UI && FLAGS.COLLISION_VISUAL_DEBUG) {
+                    updateLabelWireframes();
+                }
             }
         });
     } catch (error) {
