@@ -1,3 +1,10 @@
+## [0.3.1](https://github.com/LittleCarlito/threejs_site/compare/v0.3.0...v0.3.1) (2025-03-01)
+
+
+### Bug Fixes
+
+* label wireframes ([#44](https://github.com/LittleCarlito/threejs_site/issues/44)) ([e35a1aa](https://github.com/LittleCarlito/threejs_site/commit/e35a1aaa03e9ed689bf84597cc5e3537b61aae5f))
+
 # [0.3.0](https://github.com/LittleCarlito/threejs_site/compare/v0.2.1...v0.3.0) (2025-03-01)
 
 
