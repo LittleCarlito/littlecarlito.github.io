@@ -114,6 +114,101 @@ export class TextContainer {
                     
                     create_background(category, text_box);
                     break;
+                case CATEGORIES.CONTACT.value:
+                    // For contact, we want the tablet.glb with iframe but NO background
+                    // Calculate dimensions to match where the background would be
+                    this.container_width = this.get_text_box_width();
+                    this.container_height = this.get_text_box_height();
+                    
+                    // Fine-tuning stretch factors
+                    const horizontalStretchFactor = 1.1; // Adjust to stretch horizontally
+                    const verticalStretchFactor = .6;   // Adjust to stretch vertically
+                    
+                    // Adjust tablet to fill the same space as background would
+                    const tabletRotation = new THREE.Euler(-Math.PI/2, 0, Math.PI, 'XYZ');
+                    // Position slightly behind where the background would be and adjust y position
+                    const tabletPosition = new THREE.Vector3(0, 0, -0.05);
+                    
+                    // Create tablet with iframe
+                    (async () => {
+                        // Load the tablet asset
+                        const asset_config = ASSET_CONFIGS[ASSET_TYPE.TABLET];
+                        const gltf = await AssetStorage.get_instance().loader.loadAsync(asset_config.PATH);
+                        
+                        // Create tablet instance
+                        const tablet = gltf.scene.clone();
+                        
+                        // Calculate scale to match the background dimensions
+                        // We'll scale it to match the width of the background
+                        const tabletBoundingBox = new THREE.Box3().setFromObject(tablet);
+                        const tabletWidth = (tabletBoundingBox.max.x - tabletBoundingBox.min.x);
+                        const tabletHeight = tabletBoundingBox.max.y - tabletBoundingBox.min.y;
+                        
+                        // Scale to match the container width - use a much smaller scale factor
+                        const widthScale = this.container_width / tabletWidth * 0.12; // Base width scale
+                        const heightScale = this.container_height / tabletHeight * 0.12; // Base height scale
+                        
+                        // Apply stretch factors to the scales
+                        const finalWidthScale = widthScale * horizontalStretchFactor;
+                        const finalHeightScale = heightScale * verticalStretchFactor;
+                        
+                        // Use the smaller scale to ensure it fits within the container
+                        const baseScale = Math.min(finalWidthScale, finalHeightScale) * asset_config.scale;
+                        
+                        // Apply non-uniform scaling if stretch factors are different
+                        if (horizontalStretchFactor !== verticalStretchFactor) {
+                            const xScale = baseScale * (horizontalStretchFactor / verticalStretchFactor);
+                            const yScale = baseScale;
+                            tablet.scale.set(xScale, yScale, baseScale);
+                        } else {
+                            tablet.scale.set(baseScale, baseScale, baseScale);
+                        }
+                        
+                        tablet.position.copy(tabletPosition);
+                        tablet.rotation.copy(tabletRotation);
+                        
+                        // Handle materials
+                        tablet.traverse((child) => {
+                            if (child.isMesh) {
+                                // Hide collision mesh
+                                if (child.name.startsWith('col_')) {
+                                    child.visible = false;
+                                    return;
+                                }
+
+                                // Get the original material's properties
+                                const originalMaterial = child.material;
+                                if(FLAGS.ASSET_LOGS) console.log('Original material:', {
+                                    name: child.name,
+                                    map: originalMaterial.map?.image?.src,
+                                    color: originalMaterial.color.getHexString()
+                                });
+
+                                // Try using the original material but with basic properties
+                                child.material = new THREE.MeshBasicMaterial();
+                                child.material.copy(originalMaterial);
+                                child.material.needsUpdate = true;
+                                
+                                // Force some UI-specific properties
+                                child.material.transparent = true;
+                                child.material.depthTest = false;
+                                child.material.side = THREE.DoubleSide;
+                                child.renderOrder = 998; // Set to 998 so iframe (999) appears in front
+                                
+                                if(FLAGS.ASSET_LOGS) console.log('New material:', {
+                                    name: child.name,
+                                    map: child.material.map?.image?.src,
+                                    color: child.material.color.getHexString()
+                                });
+                            }
+                        });
+                        
+                        text_box.add(tablet);
+                    })();
+                    
+                    // Create iframe but NO background
+                    create_text_frame(category, text_box);
+                    break;
                 case CATEGORIES.ABOUT.value:
                     // About doesn't want any background asset or box
                     create_text_frame(category, text_box);

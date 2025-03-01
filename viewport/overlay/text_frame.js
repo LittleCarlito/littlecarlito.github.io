@@ -34,6 +34,15 @@ export class TextFrame {
         this.css_div = new CSS2DObject(this.div);
         this.css_div.simple_name = `${incoming_parent.simple_name}`;
         this.css_div.name = `${IFRAME}${this.css_div.simple_name}`;
+        
+        // Ensure iframe is always in front of 3D objects
+        this.css_div.renderOrder = 999;
+        
+        // Special handling for contact frame - position it slightly forward
+        if (incoming_parent.simple_name === CATEGORIES.CONTACT.value) {
+            this.css_div.position.z = 0.05;
+        }
+        
         this.parent.add(this.css_div);
         // Set initial size
         this.update_size(incoming_width, incoming_height);
