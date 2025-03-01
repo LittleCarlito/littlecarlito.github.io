@@ -1,3 +1,10 @@
+# [0.3.0](https://github.com/LittleCarlito/threejs_site/compare/v0.2.1...v0.3.0) (2025-03-01)
+
+
+### Features
+
+* debug ui ([#43](https://github.com/LittleCarlito/threejs_site/issues/43)) ([14c9c59](https://github.com/LittleCarlito/threejs_site/commit/14c9c59a7d594497f73a4cc8e3704602381764bd))
+
 ## [0.2.1](https://github.com/LittleCarlito/threejs_site/compare/v0.2.0...v0.2.1) (2025-02-28)
 
 
