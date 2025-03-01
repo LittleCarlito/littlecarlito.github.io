@@ -105,6 +105,11 @@ export class ControlMenu {
     sign_mesh;
     sign_body;
     sign_shape;
+    // Debug meshes
+    debug_meshes = {
+        sign: null,
+        beam: null
+    };
     // Assembly position
     assembly_position;
     sign_joint;
@@ -164,6 +169,25 @@ export class ControlMenu {
             .setRestitution(MENU_CONFIG.BEAM.PHYSICS.RESTITUTION);
         this.world.createCollider(this.top_beam_shape, this.top_beam_body);
         primary_container.dynamic_bodies.push([this.top_beam_mesh, this.top_beam_body]);
+
+        // Create debug mesh for beam - always create it, but control visibility with flag
+        const beamDebugGeometry = new THREE.BoxGeometry(
+            MENU_CONFIG.BEAM.DIMENSIONS.WIDTH,
+            MENU_CONFIG.BEAM.DIMENSIONS.HEIGHT,
+            MENU_CONFIG.BEAM.DIMENSIONS.DEPTH
+        );
+        const beamDebugMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,  // Cyan for beam
+            wireframe: true,
+            transparent: true,
+            opacity: 0.7
+        });
+        this.debug_meshes.beam = new THREE.Mesh(beamDebugGeometry, beamDebugMaterial);
+        this.debug_meshes.beam.position.copy(this.top_beam_mesh.position);
+        this.debug_meshes.beam.quaternion.copy(this.top_beam_mesh.quaternion);
+        this.debug_meshes.beam.renderOrder = 999; // Ensure it renders on top
+        this.debug_meshes.beam.visible = FLAGS.SIGN_VISUAL_DEBUG; // Set initial visibility based on flag
+        this.parent.add(this.debug_meshes.beam);
 
         // Create and load the sign asynchronously
         await new Promise((resolve) => {
@@ -251,6 +275,26 @@ export class ControlMenu {
                     console.log("Joint created with motor configuration");
                 }
                 primary_container.dynamic_bodies.push([this.sign_mesh, this.sign_body]);
+                
+                // Create debug mesh for sign - always create it, but control visibility with flag
+                const signDebugGeometry = new THREE.BoxGeometry(
+                    MENU_CONFIG.SIGN.DIMENSIONS.WIDTH,
+                    MENU_CONFIG.SIGN.DIMENSIONS.HEIGHT,
+                    MENU_CONFIG.SIGN.DIMENSIONS.DEPTH
+                );
+                const signDebugMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xff00ff,  // Magenta for sign
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                this.debug_meshes.sign = new THREE.Mesh(signDebugGeometry, signDebugMaterial);
+                this.debug_meshes.sign.position.copy(this.sign_mesh.position);
+                this.debug_meshes.sign.quaternion.copy(this.sign_mesh.quaternion);
+                this.debug_meshes.sign.renderOrder = 999; // Ensure it renders on top
+                this.debug_meshes.sign.visible = FLAGS.SIGN_VISUAL_DEBUG; // Set initial visibility based on flag
+                this.parent.add(this.debug_meshes.sign);
+                
                 resolve();
             };
             this.sign_image.src = IMAGE_PATH;
@@ -286,6 +330,12 @@ export class ControlMenu {
                 this.sign_body.setGravityScale(1.0);
             }
 
+            // Hide beam debug mesh when chains break, but don't remove it
+            // This way it can be shown again if debug is toggled
+            if (this.debug_meshes.beam) {
+                this.debug_meshes.beam.visible = false;
+            }
+
             this.chains_broken = true;
             if (FLAGS.PHYSICS_LOGS) {
                 console.log("Control menu chains broken");
@@ -294,11 +344,11 @@ export class ControlMenu {
     }
 
     async update() {
-        // Skip if sign_joint isn't created yet or has been removed
-        if (!this.sign_joint || this.chains_broken) return;
-
         // Get current time for logging
         const currentTime = performance.now();
+        
+        // Skip joint check if chains are broken, but continue updating
+        if (!this.chains_broken && (!this.sign_joint)) return;
         
         // Log positions periodically
         if (currentTime - this.last_log_time > this.log_interval) {
@@ -323,6 +373,26 @@ export class ControlMenu {
             }
             this.last_log_time = currentTime;
         }
+
+        // Always update debug mesh positions if they exist, regardless of visibility
+        // This ensures they're in the right position when the flag is toggled
+        if (this.debug_meshes.sign && this.sign_body) {
+            const signPos = this.sign_body.translation();
+            const signRot = this.sign_body.rotation();
+            this.debug_meshes.sign.position.set(signPos.x, signPos.y, signPos.z);
+            this.debug_meshes.sign.quaternion.set(signRot.x, signRot.y, signRot.z, signRot.w);
+        }
+
+        // Only update beam debug mesh if chains are not broken
+        if (!this.chains_broken && this.debug_meshes.beam && this.top_beam_body) {
+            const beamPos = this.top_beam_body.translation();
+            const beamRot = this.top_beam_body.rotation();
+            this.debug_meshes.beam.position.set(beamPos.x, beamPos.y, beamPos.z);
+            this.debug_meshes.beam.quaternion.set(beamRot.x, beamRot.y, beamRot.z, beamRot.w);
+        }
+
+        // Skip the rest if chains are broken
+        if (this.chains_broken) return;
 
         // Check for stopping condition
         if (!this.reached_target && this.top_beam_mesh.position.z >= MENU_CONFIG.POSITION.Z_TARGET) {
@@ -393,6 +463,20 @@ export class ControlMenu {
                 console.log('Changed body type to Fixed');
                 console.log(`Final Position: (${finalPos.x.toFixed(2)}, ${finalPos.y.toFixed(2)}, ${finalPos.z.toFixed(2)})`);
             }
+        }
+    }
+
+    /**
+     * Updates the debug visualization for the control menu based on the current flag state
+     */
+    updateDebugVisualizations() {
+        // Toggle visibility of existing debug meshes based on flag
+        if (this.debug_meshes.sign) {
+            this.debug_meshes.sign.visible = FLAGS.SIGN_VISUAL_DEBUG;
+        }
+        
+        if (this.debug_meshes.beam) {
+            this.debug_meshes.beam.visible = FLAGS.SIGN_VISUAL_DEBUG;
         }
     }
 }

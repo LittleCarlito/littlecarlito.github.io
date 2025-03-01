@@ -42,20 +42,16 @@ export class TextFrame {
     update_size(incoming_width, incoming_height) {
         this.frame_width = incoming_width - WIDTH_OFFSET;
         this.frame_height = incoming_height - HEIGHT_OFFSET;
-        
         // Convert world units to pixels using the same scale as Three.js
         const fov = this.camera.fov * Math.PI / 180;
         const height_at_distance = 2 * Math.tan(fov / 2) * 15;
         const pixels_per_unit = window.innerHeight / height_at_distance;
-        
-        // Apply conversions with maximum size limits
-        this.pixel_width = Math.min(800, Math.round(this.frame_width * pixels_per_unit));
-        this.pixel_height = Math.min(600, Math.round(this.frame_height * pixels_per_unit));
-        
+        // Apply conversions
+        this.pixel_width = Math.round(this.frame_width * pixels_per_unit);
+        this.pixel_height = Math.round(this.frame_height * pixels_per_unit);
         // Apply to both div and iframe
         this.div.style.width = `${this.pixel_width}px`;
         this.div.style.height = `${this.pixel_height}px`;
-        
         this.iframe.style.width = `${this.pixel_width}px`;
         this.iframe.style.height = `${this.pixel_height}px`;
         this.iframe.style.border = '0px';

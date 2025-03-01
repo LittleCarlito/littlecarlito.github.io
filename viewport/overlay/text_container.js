@@ -55,7 +55,7 @@ export class TextContainer {
             this.text_box_container.add(text_box);
             switch(category.value) {
                 case CATEGORIES.EDUCATION.value:
-                    const rotation = new THREE.Euler(-Math.PI/2, -Math.PI, -Math.PI, 'XYZ');
+                    const rotation = new THREE.Euler(-Math.PI/2, Math.PI, Math.PI, 'XYZ');
                     const position_one_offset = new THREE.Vector3(0, 3, 0);
                     const position_two_offset = new THREE.Vector3(0, -3, 0);
                     
@@ -64,12 +64,14 @@ export class TextContainer {
                         // Load the diploma asset first
                         const asset_config = ASSET_CONFIGS[ASSET_TYPE.DIPLOMA];
                         const gltf = await AssetStorage.get_instance().loader.loadAsync(asset_config.PATH);
+                        
                         // Create two instances
                         [position_one_offset, position_two_offset].forEach(position => {
                             const diploma = gltf.scene.clone();
                             diploma.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
                             diploma.position.copy(position);
                             diploma.rotation.copy(rotation);
+                            
                             // Handle materials
                             diploma.traverse((child) => {
                                 if (child.isMesh) {
@@ -265,11 +267,9 @@ export class TextContainer {
     }
 
     resize() {
-        this.container_width = this.get_text_box_width();
-        this.container_height = this.get_text_box_height();
+        this.container_width = this.get_text_box_width(this.camera);
+        this.container_height = this.get_text_box_height(this.camera);
         const new_text_geometry = new THREE.BoxGeometry(this.container_width, this.container_height, 0);
-        
-        // Update all text boxes
         this.text_box_container.children.forEach(c => {
             c.children.forEach(inner_c => {
                 if (!inner_c || !inner_c.name) return;
@@ -281,14 +281,7 @@ export class TextContainer {
                         break;
                     case IFRAME:
                         if (inner_c.simple_name) {
-                            // Base everything off height to maintain consistent proportions
-                            const baseHeight = this.container_height;
-                            
-                            // Use a narrower aspect ratio
-                            const width = baseHeight * 0.8; // Reduced from 1.5 to 0.8 for a narrower box
-                            const height = baseHeight;
-                            
-                            this.update_iframe_size(inner_c.simple_name, width, height);
+                            this.update_iframe_size(inner_c.simple_name, this.container_width, this.container_height);
                         }
                         break;
                 }
@@ -346,17 +339,7 @@ export class TextContainer {
     
     /** Calculates the text boxes width based off camera position and window size */
     get_text_box_width() {
-        // First calculate base width
-        const base_width = clamp(get_screen_size(this.camera).x * .5, 12, 18);
-        
-        // Convert to pixels (same calculation as TextFrame)
-        const fov = this.camera.fov * Math.PI / 180;
-        const height_at_distance = 2 * Math.tan(fov / 2) * 15;
-        const pixels_per_unit = window.innerHeight / height_at_distance;
-        const pixel_width = Math.round((base_width + 1) * pixels_per_unit);
-        
-        // Convert back to world units after applying pixel limit
-        return (Math.min(1050, pixel_width) / pixels_per_unit);
+        return clamp(get_screen_size(this.camera).x * .5, 12, 18);
     }
 
     /** Returns if there is an active text box or not */

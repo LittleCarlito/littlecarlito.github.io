@@ -412,4 +412,19 @@ export class BackgroundContainer {
         }
         return false;
     }
+
+    /**
+     * Updates the debug visualization for all signs based on the current flag state
+     */
+    updateSignDebugVisualizations() {
+        // Update primary instruction sign if it exists
+        if (this.primary_instruction_sign) {
+            this.primary_instruction_sign.updateDebugVisualizations();
+        }
+        
+        // Update secondary instruction sign if it exists
+        if (this.secondary_instruction_sign) {
+            this.secondary_instruction_sign.updateDebugVisualizations();
+        }
+    }
 }

@@ -3,6 +3,7 @@ import { FLAGS, ASSET_TYPE, RAPIER, THREE } from '../../common';
 import { AssetSpawner } from '../../common';
 import { BackgroundLighting } from '../background_lighting';
 import { AssetStorage } from '../../common/asset_management/asset_storage';
+import { SPOTLIGHT_HEIGHT, SPOTLIGHT_DISTANCE } from '../background_lighting';
 
 export class ScrollMenu {
     parent;
@@ -611,6 +612,50 @@ export class ScrollMenu {
                     const signRot = signBodyData.body.rotation();
                     this.debug_meshes.sign.position.set(signPos.x, signPos.y, signPos.z);
                     this.debug_meshes.sign.quaternion.set(signRot.x, signRot.y, signRot.z, signRot.w);
+                }
+            }
+        }
+    }
+
+    /**
+     * Updates the debug visualization for all signs based on the current flag state
+     */
+    updateDebugVisualizations() {
+        // Toggle visibility of existing debug meshes
+        if (this.debug_meshes && this.debug_meshes.length > 0) {
+            for (const mesh of this.debug_meshes) {
+                if (mesh) {
+                    mesh.visible = FLAGS.SIGN_VISUAL_DEBUG;
+                }
+            }
+        } else if (FLAGS.SIGN_VISUAL_DEBUG && this.segments) {
+            // If debug meshes don't exist but should be shown, create them
+            this.debug_meshes = [];
+            
+            // Create debug meshes for segments
+            for (const segment of this.segments) {
+                if (segment && segment.mesh) {
+                    const segmentGeometry = new THREE.BoxGeometry(
+                        segment.size.x, 
+                        segment.size.y, 
+                        segment.size.z
+                    );
+                    
+                    const debugMesh = new THREE.Mesh(
+                        segmentGeometry,
+                        new THREE.MeshBasicMaterial({
+                            color: 0x0000ff,
+                            wireframe: true,
+                            depthTest: false,
+                            transparent: true,
+                            opacity: 0.8
+                        })
+                    );
+                    
+                    debugMesh.position.copy(segment.mesh.position);
+                    debugMesh.quaternion.copy(segment.mesh.quaternion);
+                    this.container.add(debugMesh);
+                    this.debug_meshes.push(debugMesh);
                 }
             }
         }

@@ -72,4 +72,14 @@ export class AppRenderer {
     set_animation_loop(incoming_function) {
         this.webgl_renderer.setAnimationLoop(incoming_function);
     }
+    
+    // ----- Getters
+    
+    /**
+     * Returns the WebGL renderer instance
+     * @returns {THREE.WebGLRenderer} The WebGL renderer
+     */
+    get_renderer() {
+        return this.webgl_renderer;
+    }
 }

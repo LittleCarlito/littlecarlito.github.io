@@ -446,7 +446,8 @@ export class AssetSpawner {
      * @returns {THREE.Mesh} The debug wireframe mesh
      */
     createDebugWireframe(type, dimensions, position, rotation) {
-        if (!FLAGS.COLLISION_VISUAL_DEBUG) return null;
+        // Always create the wireframe, but control visibility with the flag
+        // if (!FLAGS.COLLISION_VISUAL_DEBUG) return null;
 
         let geometry;
         switch (type) {
@@ -458,25 +459,36 @@ export class AssetSpawner {
                 );
                 break;
             case 'trimesh':
-                geometry = dimensions.geometry.clone();
+                // For trimesh, we use the provided geometry
+                if (dimensions.geometry) {
+                    geometry = dimensions.geometry.clone();
+                } else {
+                    console.warn('No geometry provided for trimesh debug wireframe');
+                    return null;
+                }
                 break;
             case 'sphere':
-                geometry = new THREE.SphereGeometry(dimensions.radius);
+                geometry = new THREE.SphereGeometry(dimensions.radius, 16, 12);
                 break;
             default:
-                console.warn('Unknown debug wireframe type:', type);
+                console.warn(`Unknown collider type: ${type}`);
                 return null;
         }
-
+        
         // Use pooled debug material
         const material = this.getDebugMaterial();
+        
         const mesh = new THREE.Mesh(geometry, material);
-        mesh.position.copy(position);
-        if (rotation) {
-            mesh.quaternion.copy(rotation);
-        }
+        
+        // Set position and rotation
+        if (position) mesh.position.copy(position);
+        if (rotation) mesh.quaternion.copy(rotation);
+        
         mesh.renderOrder = 999;
-
+        
+        // Set initial visibility based on flag
+        mesh.visible = FLAGS.COLLISION_VISUAL_DEBUG;
+        
         return mesh;
     }
 
@@ -584,24 +596,25 @@ export class AssetSpawner {
                 if(FLAGS.ASSET_LOGS) console.log(`Created cube collider:`, created_collider);
 
                 // Add debug wireframe if enabled
-                if (FLAGS.COLLISION_VISUAL_DEBUG) {
-                    const debugMesh = this.createDebugWireframe(
-                        'cuboid',
-                        { width: 0.5, height: 0.5, depth: 0.5 },
-                        mesh.position,
-                        mesh.quaternion
-                    );
-                    if (debugMesh) {
-                        parent.add(debugMesh);
-                        // Store debug mesh with a unique key
-                        const debugKey = `${mesh.uuid}_debug`;
-                        this.debugMeshes.set(debugKey, {
-                            mesh: debugMesh,
-                            body: body,
-                            type: 'cube'
-                        });
-                    }
+                // Always create debug wireframes, visibility is controlled by the mesh.visible property
+                // if (FLAGS.COLLISION_VISUAL_DEBUG) {
+                const debugMesh = this.createDebugWireframe(
+                    'cuboid',
+                    { width: 0.5, height: 0.5, depth: 0.5 },
+                    mesh.position,
+                    mesh.quaternion
+                );
+                if (debugMesh) {
+                    parent.add(debugMesh);
+                    // Store debug mesh with a unique key
+                    const debugKey = `${mesh.uuid}_debug`;
+                    this.debugMeshes.set(debugKey, {
+                        mesh: debugMesh,
+                        body: body,
+                        type: 'cuboid'
+                    });
                 }
+                // }
 
                 // Add to parent
                 parent.add(mesh);
@@ -685,26 +698,27 @@ export class AssetSpawner {
                         const created_collider = world.createCollider(collider, body);
 
                         // Add debug wireframe if enabled
-                        if (FLAGS.COLLISION_VISUAL_DEBUG) {
-                            const debugMesh = this.createDebugWireframe(
-                                'trimesh',
-                                { geometry: collision_mesh.geometry },
-                                meshPosition,
-                                collision_mesh.quaternion
-                            );
-                            if (debugMesh) {
-                                // Scale the debug mesh to match the asset scale
-                                debugMesh.scale.multiplyScalar(asset_config.scale);
-                                parent.add(debugMesh);
-                                // Store debug mesh with a unique key
-                                const debugKey = `${collision_mesh.uuid}_debug`;
-                                this.debugMeshes.set(debugKey, {
-                                    mesh: debugMesh,
-                                    body: body,
-                                    type: 'trimesh'
-                                });
-                            }
+                        // Always create debug wireframes, visibility is controlled by the mesh.visible property
+                        // if (FLAGS.COLLISION_VISUAL_DEBUG) {
+                        const debugMesh = this.createDebugWireframe(
+                            'trimesh',
+                            { geometry: collision_mesh.geometry },
+                            meshPosition,
+                            collision_mesh.quaternion
+                        );
+                        if (debugMesh) {
+                            // Scale the debug mesh to match the asset scale
+                            debugMesh.scale.multiplyScalar(asset_config.scale);
+                            parent.add(debugMesh);
+                            // Store debug mesh with a unique key
+                            const debugKey = `${collision_mesh.uuid}_debug`;
+                            this.debugMeshes.set(debugKey, {
+                                mesh: debugMesh,
+                                body: body,
+                                type: 'trimesh'
+                            });
                         }
+                        // }
                     });
                 } else {
                     if(FLAGS.ASSET_LOGS) console.warn(`No collision mesh found for ${asset_type}, falling back to bounding box`);
@@ -731,28 +745,29 @@ export class AssetSpawner {
                         const created_collider = world.createCollider(collider, body);
 
                         // Add debug wireframe if enabled
-                        if (FLAGS.COLLISION_VISUAL_DEBUG) {
-                            const debugMesh = this.createDebugWireframe(
-                                'cuboid',
-                                { 
-                                    width: half_width,
-                                    height: half_height,
-                                    depth: half_depth
-                                },
-                                mesh.position,
-                                mesh.quaternion
-                            );
-                            if (debugMesh) {
-                                parent.add(debugMesh);
-                                // Store debug mesh with a unique key
-                                const debugKey = `${mesh.uuid}_debug`;
-                                this.debugMeshes.set(debugKey, {
-                                    mesh: debugMesh,
-                                    body: body,
-                                    type: 'boundingBox'
-                                });
-                            }
+                        // Always create debug wireframes, visibility is controlled by the mesh.visible property
+                        // if (FLAGS.COLLISION_VISUAL_DEBUG) {
+                        const debugMesh = this.createDebugWireframe(
+                            'cuboid',
+                            { 
+                                width: half_width,
+                                height: half_height,
+                                depth: half_depth
+                            },
+                            mesh.position,
+                            mesh.quaternion
+                        );
+                        if (debugMesh) {
+                            parent.add(debugMesh);
+                            // Store debug mesh with a unique key
+                            const debugKey = `${mesh.uuid}_debug_box`;
+                            this.debugMeshes.set(debugKey, {
+                                mesh: debugMesh,
+                                body: body,
+                                type: 'cuboid'
+                            });
                         }
+                        // }
 
                         if(FLAGS.ASSET_LOGS) console.log(`Created bounding box collider:`, created_collider);
                         if(FLAGS.ASSET_LOGS) console.log(`Collider dimensions:`, {
@@ -851,15 +866,22 @@ export class AssetSpawner {
      * Should be called each frame during the physics update
      */
     update_debug_wireframes() {
-        if (!FLAGS.COLLISION_VISUAL_DEBUG) return;
+        // Always update the wireframes, but only if they exist
+        // if (!FLAGS.COLLISION_VISUAL_DEBUG) return;
 
         this.debugMeshes.forEach((debugData) => {
             if (debugData.mesh && debugData.body) {
-                const position = debugData.body.translation();
-                const rotation = debugData.body.rotation();
+                // Update visibility based on current flag state
+                debugData.mesh.visible = FLAGS.COLLISION_VISUAL_DEBUG;
                 
-                debugData.mesh.position.set(position.x, position.y, position.z);
-                debugData.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+                // Only update position if visible (optimization)
+                if (debugData.mesh.visible) {
+                    const position = debugData.body.translation();
+                    const rotation = debugData.body.rotation();
+                    
+                    debugData.mesh.position.set(position.x, position.y, position.z);
+                    debugData.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+                }
             }
         });
     }

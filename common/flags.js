@@ -6,6 +6,8 @@ export const FLAGS = {
     SPOTLIGHT_VISUAL_DEBUG: false,
     SIGN_VISUAL_DEBUG: false,
     LABEL_VISUAL_DEBUG: false,
+    DEBUG_UI: false,
+    AUTO_THROTTLE: true,
     // Log flags
     SELECT_LOGS: false,
     TWEEN_LOGS: false,
@@ -15,5 +17,3 @@ export const FLAGS = {
     ACTIVATE_LOGS: false,
     EFFECT_LOGS: false
 };
-
-Object.freeze(FLAGS);
