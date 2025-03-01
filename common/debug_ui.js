@@ -343,9 +343,19 @@ export function createDebugUI() {
     debugUI.appendChild(debugTogglesTitle);
     
     // Add debug toggles (these remain visible)
-    addToggle(debugUI, 'COLLISION_VISUAL_DEBUG', 'Collision Debug');
+    addToggle(debugUI, 'COLLISION_VISUAL_DEBUG', 'Collision Debug', FLAGS.COLLISION_VISUAL_DEBUG, (checked) => {
+        // Also update SIGN_VISUAL_DEBUG to match COLLISION_VISUAL_DEBUG
+        FLAGS.SIGN_VISUAL_DEBUG = checked;
+        
+        // Update sign debug visualizations
+        if (backgroundContainer) {
+            backgroundContainer.updateSignDebugVisualizations();
+        }
+        
+        console.log(`Collision and Sign debug visualization ${checked ? 'enabled' : 'disabled'}`);
+        console.log(`All collision wireframes will be ${checked ? 'shown' : 'hidden'}`);
+    });
     addToggle(debugUI, 'SPOTLIGHT_VISUAL_DEBUG', 'Spotlight Debug');
-    addToggle(debugUI, 'SIGN_VISUAL_DEBUG', 'Sign Debug');
     
     // Add divider
     const divider3 = document.createElement('div');
@@ -605,7 +615,8 @@ function addToggle(parent, flagName, label, initialState, onChange) {
                 if (lighting) {
                     lighting.updateDebugVisualizations();
                 }
-            } else if (flagName === 'SIGN_VISUAL_DEBUG') {
+            } else if (flagName === 'SIGN_VISUAL_DEBUG' && flagName !== 'COLLISION_VISUAL_DEBUG') {
+                // Only handle SIGN_VISUAL_DEBUG here if it's not being controlled by COLLISION_VISUAL_DEBUG
                 if (backgroundContainer) {
                     backgroundContainer.updateSignDebugVisualizations();
                 }
