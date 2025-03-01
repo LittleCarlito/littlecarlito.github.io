@@ -352,9 +352,27 @@ export function createDebugUI() {
             backgroundContainer.updateSignDebugVisualizations();
         }
         
+        // Also update LABEL_VISUAL_DEBUG to match COLLISION_VISUAL_DEBUG
+        FLAGS.LABEL_VISUAL_DEBUG = checked;
+        
+        // Update label wireframes
+        if (window.viewable_container && window.viewable_container.get_overlay()) {
+            const labelContainer = window.viewable_container.get_overlay().label_container;
+            if (labelContainer && typeof labelContainer.updateDebugVisualizations === 'function') {
+                console.log('Updating label wireframes from collision toggle');
+                labelContainer.updateDebugVisualizations();
+            } else {
+                console.error('Unable to update label wireframes - labelContainer or updateDebugVisualizations not available');
+            }
+        } else {
+            console.error('Unable to update label wireframes - viewable_container or overlay not available');
+        }
+        
         console.log(`Collision and Sign debug visualization ${checked ? 'enabled' : 'disabled'}`);
         console.log(`All collision wireframes will be ${checked ? 'shown' : 'hidden'}`);
+        console.log(`Label wireframes ${checked ? 'enabled' : 'disabled'}`);
     });
+    
     addToggle(debugUI, 'SPOTLIGHT_VISUAL_DEBUG', 'Spotlight Debug');
     
     // Add divider
@@ -463,7 +481,127 @@ export function createDebugUI() {
     // Start FPS counter
     updateFPS();
     
+    // Force update label wireframes if they exist
+    setTimeout(() => {
+        console.log('Attempting to force update label wireframes...');
+        if (window.viewable_container && window.viewable_container.get_overlay()) {
+            console.log('viewable_container and overlay exist');
+            const labelContainer = window.viewable_container.get_overlay().label_container;
+            if (labelContainer) {
+                console.log('labelContainer exists');
+                if (typeof labelContainer.updateDebugVisualizations === 'function') {
+                    console.log('updateDebugVisualizations method exists, calling it');
+                    labelContainer.updateDebugVisualizations();
+                } else {
+                    console.error('updateDebugVisualizations method does not exist on labelContainer');
+                    console.log('Available methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(labelContainer)));
+                }
+            } else {
+                console.error('labelContainer does not exist on overlay');
+                console.log('Overlay properties:', Object.keys(window.viewable_container.get_overlay()));
+            }
+        } else {
+            console.error('viewable_container or overlay does not exist');
+            if (window.viewable_container) {
+                console.log('viewable_container exists, but get_overlay() returned:', window.viewable_container.get_overlay());
+            } else {
+                console.log('viewable_container does not exist');
+            }
+        }
+    }, 3000); // Wait 3 seconds to ensure everything is loaded
+    
+    // Set up periodic checks to update label wireframes
+    let checkCount = 0;
+    const maxChecks = 10; // Increase max checks to 10
+    const checkInterval = setInterval(() => {
+        checkCount++;
+        console.log(`Periodic check ${checkCount}/${maxChecks} for label wireframes...`);
+        
+        if (window.viewable_container && window.viewable_container.get_overlay()) {
+            const labelContainer = window.viewable_container.get_overlay().label_container;
+            if (labelContainer && typeof labelContainer.updateDebugVisualizations === 'function') {
+                console.log('Periodic update of label wireframes');
+                labelContainer.updateDebugVisualizations();
+                // If successful, we can stop checking
+                clearInterval(checkInterval);
+                console.log('Successfully updated label wireframes, stopping periodic checks');
+            }
+        }
+        
+        if (checkCount >= maxChecks) {
+            clearInterval(checkInterval);
+            console.log('Finished periodic checks for label wireframes');
+        }
+    }, 2000); // Check every 2 seconds instead of 5
+    
+    // Add a MutationObserver to detect when viewable_container becomes available
+    if (!window.viewable_container) {
+        console.log('Setting up MutationObserver to detect viewable_container initialization');
+        
+        // Function to check if viewable_container is available
+        const checkForViewableContainer = () => {
+            if (window.viewable_container) {
+                console.log('viewable_container detected by observer!');
+                
+                // Wait a short time for it to be fully initialized
+                setTimeout(() => {
+                    if (window.viewable_container.get_overlay()) {
+                        const labelContainer = window.viewable_container.get_overlay().label_container;
+                        if (labelContainer && typeof labelContainer.updateDebugVisualizations === 'function') {
+                            console.log('Observer: Updating label wireframes after detection');
+                            labelContainer.updateDebugVisualizations();
+                        }
+                    }
+                }, 500);
+                
+                // Disconnect the observer as it's no longer needed
+                observer.disconnect();
+            }
+        };
+        
+        // Create a MutationObserver to watch for changes to the window object
+        const observer = new MutationObserver((mutations) => {
+            checkForViewableContainer();
+        });
+        
+        // Start observing the document with the configured parameters
+        observer.observe(document, { childList: true, subtree: true });
+        
+        // Also check periodically in case the MutationObserver misses it
+        const viewableContainerInterval = setInterval(() => {
+            if (window.viewable_container) {
+                console.log('viewable_container detected by interval check!');
+                
+                if (window.viewable_container.get_overlay()) {
+                    const labelContainer = window.viewable_container.get_overlay().label_container;
+                    if (labelContainer && typeof labelContainer.updateDebugVisualizations === 'function') {
+                        console.log('Interval check: Updating label wireframes after detection');
+                        labelContainer.updateDebugVisualizations();
+                    }
+                }
+                
+                clearInterval(viewableContainerInterval);
+            }
+        }, 1000);
+    }
+    
     return debugUI;
+}
+
+/**
+ * Updates the label wireframes if they exist
+ * This can be called from anywhere in the code to ensure wireframes are updated
+ */
+export function updateLabelWireframes() {
+    if (window.viewable_container && window.viewable_container.get_overlay()) {
+        const labelContainer = window.viewable_container.get_overlay().label_container;
+        if (labelContainer && typeof labelContainer.updateDebugVisualizations === 'function') {
+            console.log('Updating label wireframes via direct call');
+            labelContainer.updateDebugVisualizations();
+            return true;
+        }
+    }
+    return false;
 }
 
 /**

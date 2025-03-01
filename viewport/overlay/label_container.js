@@ -250,4 +250,58 @@ export class LabelContainer {
     get_column_y_rotation(is_column_left) {
         return (is_column_left ? 1 : -1);
     }
+
+    /**
+     * Updates the debug visualizations based on the current flag state
+     * This ensures wireframes are created if they don't exist and their visibility is updated
+     */
+    updateDebugVisualizations() {
+        // If wireframes don't exist but should be visible, create them
+        if (this.wireframe_boxes.length === 0 && FLAGS.LABEL_VISUAL_DEBUG) {
+            // Find all button options
+            const buttons = [];
+            this.container_column.traverse(child => {
+                if (child.name && child.name.startsWith(TYPES.LABEL)) {
+                    buttons.push(child);
+                }
+            });
+            
+            // Create wireframes for each button
+            buttons.forEach(button => {
+                const wireframe_geometry = new THREE.BoxGeometry(5, 3, 0.2);
+                const category = button.simple_name;
+                const wireframe_material = new THREE.MeshBasicMaterial({
+                    color: this.wireframe_colors[category] || 0xffffff,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.7,
+                    depthTest: false
+                });
+                const wireframe_box = new THREE.Mesh(wireframe_geometry, wireframe_material);
+                wireframe_box.raycast = () => null; // Disable raycasting
+                button.add(wireframe_box);
+                this.wireframe_boxes.push(wireframe_box);
+            });
+            
+            console.log(`Created ${this.wireframe_boxes.length} label wireframes`);
+        }
+        
+        // Update visibility of existing wireframes
+        if (this.wireframe_boxes.length > 0) {
+            // By default, all wireframes are hidden
+            this.wireframe_boxes.forEach(box => {
+                box.visible = FLAGS.LABEL_VISUAL_DEBUG;
+            });
+            
+            // If we have a current intersected object, make its wireframe visible
+            if (FLAGS.LABEL_VISUAL_DEBUG && this.current_intersected) {
+                const index = parseInt(this.current_intersected.name.replace(/[^0-9]/g, '')) - 1;
+                if (this.wireframe_boxes[index]) {
+                    this.wireframe_boxes[index].visible = true;
+                }
+            }
+            
+            console.log(`Updated visibility of ${this.wireframe_boxes.length} label wireframes to ${FLAGS.LABEL_VISUAL_DEBUG}`);
+        }
+    }
 }
