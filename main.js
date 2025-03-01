@@ -33,7 +33,6 @@ let right_mouse_down = false;
 let construction_acknowledged = !FLAGS.CONSTRUCTION_GREETING;
 let asset_spawner;
 let asset_activator;
-let performanceScore;
 
 /** Updates the loading progress text */
 function updateLoadingProgress(text) {
@@ -158,6 +157,8 @@ async function init() {
         
         // Renderer
         app_renderer = new AppRenderer(scene, viewable_container.get_camera());
+        // Make renderer available globally for debug UI
+        window.renderer = app_renderer.get_renderer();
         // Make renderer available globally for debug UI
         window.renderer = app_renderer.get_renderer();
         
