@@ -1,3 +1,10 @@
+# [0.4.0](https://github.com/LittleCarlito/threejs_site/compare/v0.3.1...v0.4.0) (2025-03-01)
+
+
+### Features
+
+* tablet added ([#46](https://github.com/LittleCarlito/threejs_site/issues/46)) ([f241893](https://github.com/LittleCarlito/threejs_site/commit/f2418935a0b6f882747523d6ba61466c113db920))
+
 ## [0.3.1](https://github.com/LittleCarlito/threejs_site/compare/v0.3.0...v0.3.1) (2025-03-01)
 
 
