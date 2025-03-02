@@ -2,6 +2,8 @@ import { get_screen_size, get_associated_position, WEST } from "./overlay_common
 import { CATEGORIES } from './overlay_common/categories';
 import { TEXTURE_LOADER, TYPES, PAN_SPEED, ROTATE_SPEED, FOCUS_ROTATION } from './overlay_common/index'
 import { Easing, FLAGS, THREE, Tween } from '../../common';
+import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
+import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 
 export class LabelContainer {
     in_tween_map = new Map();
@@ -9,6 +11,8 @@ export class LabelContainer {
     is_column_left = true;
     current_intersected = null;
     wireframe_boxes = [];
+    font_loader = new FontLoader();
+    font = null;
 
     // Define colors for wireframes - high visibility versions of category colors
     wireframe_colors = {
@@ -25,33 +29,121 @@ export class LabelContainer {
         this.container_column = new THREE.Object3D();
         this.container_column.name = `${TYPES.CONATINER}column`
         this.parent.add(this.container_column);
+        
+        // Load font first, then create labels
+        this.loadFont().then(() => {
+            this.createLabels();
+        }).catch(error => {
+            console.error("Error loading font:", error);
+            // Create labels without font if there's an error
+            this.createLabels();
+        });
+        
+        this.container_column.position.x = this.get_column_x_position(true);
+        this.container_column.position.y = this.get_column_y_position(true);
+        this.container_column.rotation.y = this.get_column_y_rotation(true);
+    }
+
+    async loadFont() {
+        try {
+            this.font = await this.font_loader.loadAsync('/fonts/quicksand_regular.json');
+            if (FLAGS.ASSET_LOGS) console.log('Font loaded successfully');
+            return this.font;
+        } catch (error) {
+            console.error("Error loading font:", error);
+            return null;
+        }
+    }
+
+    createLabels() {
         // Create section labels
         Object.values(CATEGORIES).forEach((category, i) => {
             if (typeof category === 'function') return; // Skip helper methods
+            
             const button_container = new THREE.Object3D();
             button_container.simple_name = category.value;
-            button_container.name = `${TYPES.CONATINER}${category.value}`
+            button_container.name = `${TYPES.CONATINER}${category.value}`;
             this.container_column.add(button_container);
-            const button_texture = TEXTURE_LOADER.load(category.icon);
-            button_texture.colorSpace = THREE.SRGBColorSpace;
-            const button_option = new THREE.Mesh(
-                // TODO Get demensions to constants
-                new THREE.BoxGeometry(5, 3, 0),
-                new THREE.MeshBasicMaterial({
-                    map: button_texture,
+            button_container.position.y = i * 3;
+            
+            // Create invisible collision box with the same dimensions as the original SVGs
+            const collisionGeometry = new THREE.BoxGeometry(5, 3, 0.2);
+            const collisionMaterial = new THREE.MeshBasicMaterial({
+                transparent: true,
+                opacity: 0,
+                colorWrite: false,
+                depthWrite: false,
+                depthTest: false
+            });
+            
+            const collisionBox = new THREE.Mesh(collisionGeometry, collisionMaterial);
+            collisionBox.simple_name = category.value;
+            collisionBox.name = `${TYPES.LABEL}${category.value}_collision`;
+            button_container.add(collisionBox);
+            
+            // Create text if font is loaded
+            if (this.font) {
+                // Create text geometry for the category name
+                const textGeometry = new TextGeometry(category.value.toUpperCase(), {
+                    font: this.font,
+                    size: 1.0,
+                    height: 0.1,
+                    curveSegments: 12,
+                    bevelEnabled: false
+                });
+                
+                // Center the text geometry
+                textGeometry.computeBoundingBox();
+                const textWidth = textGeometry.boundingBox.max.x - textGeometry.boundingBox.min.x;
+                const textHeight = textGeometry.boundingBox.max.y - textGeometry.boundingBox.min.y;
+                
+                // Create material with the category color
+                const textMaterial = new THREE.MeshBasicMaterial({
+                    color: category.color,
                     transparent: true,
                     depthTest: false
-                }));
-            button_option.simple_name = category.value;
-            button_option.name = `${TYPES.LABEL}${category.value}`
-            button_option.position.y = i * 3;
-            button_container.add(button_option);
-
+                });
+                
+                const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+                textMesh.simple_name = category.value;
+                textMesh.name = `${TYPES.LABEL}${category.value}`;
+                
+                // Center the text
+                textMesh.position.set(-textWidth/2, -textHeight/2, 0.1);
+                textMesh.renderOrder = 2; // Ensure text renders on top
+                button_container.add(textMesh);
+            } else {
+                // Fallback to using a text canvas if font failed to load
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = 256;
+                canvas.height = 64;
+                context.font = 'Bold 40px Arial';
+                context.fillStyle = '#' + category.color.toString(16).padStart(6, '0');
+                context.textAlign = 'center';
+                context.fillText(category.value.toUpperCase(), 128, 44);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                const material = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    transparent: true,
+                    depthTest: false
+                });
+                
+                const geometry = new THREE.PlaneGeometry(4, 1);
+                const textMesh = new THREE.Mesh(geometry, material);
+                textMesh.simple_name = category.value;
+                textMesh.name = `${TYPES.LABEL}${category.value}`;
+                textMesh.position.z = 0.1;
+                textMesh.renderOrder = 2;
+                button_container.add(textMesh);
+            }
+            
             // Add wireframe box for visual debugging
             if (FLAGS.LABEL_VISUAL_DEBUG) {
-                const wireframe_geometry = new THREE.BoxGeometry(5, 3, 0.2); // Added depth for 3D visualization
+                const wireframe_geometry = new THREE.BoxGeometry(5, 3, 0.2);
                 const wireframe_material = new THREE.MeshBasicMaterial({
-                    color: this.wireframe_colors[category.value] || 0xffffff, // fallback to white if category not found
+                    color: this.wireframe_colors[category.value] || 0xffffff,
                     wireframe: true,
                     transparent: true,
                     opacity: 0.7,
@@ -59,13 +151,11 @@ export class LabelContainer {
                 });
                 const wireframe_box = new THREE.Mesh(wireframe_geometry, wireframe_material);
                 wireframe_box.raycast = () => null; // Disable raycasting
-                button_option.add(wireframe_box);
+                wireframe_box.visible = false; // Hidden by default
+                button_container.add(wireframe_box);
                 this.wireframe_boxes.push(wireframe_box);
             }
         });
-        this.container_column.position.x = this.get_column_x_position(true);
-        this.container_column.position.y = this.get_column_y_position(true);
-        this.container_column.rotation.y = this.get_column_y_rotation(true);
     }
 
     trigger_overlay(is_overlay_hidden, tween_map) {
@@ -149,24 +239,38 @@ export class LabelContainer {
             return;
         }
 
+        // Check if this is a collision box
+        let target_object = intersected_object;
+        let container = intersected_object.parent;
+        
+        if (intersected_object.name.includes('_collision')) {
+            // Find the actual label in the same container
+            container.children.forEach(child => {
+                if (child.name && child.name.startsWith(TYPES.LABEL) && !child.name.includes('_collision')) {
+                    target_object = child;
+                }
+            });
+        }
+        
         // Check if tween exists for this object already
-        const object_name = intersected_object.name;
+        const object_name = target_object.name;
         let in_tween = this.in_tween_map.get(object_name);
         
         if(in_tween == null) {
-            if(this.current_intersected !== intersected_object) {
+            if(this.current_intersected !== target_object) {
                 // Reset previously intersected object if one existed
                 this.reset_previous_intersected();
                 
                 // Set intersected object to current
-                this.current_intersected = intersected_object;
+                this.current_intersected = target_object;
                 
-                // Show the corresponding static wireframe
+                // Show the corresponding wireframe
                 if (FLAGS.LABEL_VISUAL_DEBUG) {
-                    const index = parseInt(object_name.replace(/[^0-9]/g, '')) - 1;
-                    if (this.wireframe_boxes[index]) {
-                        this.wireframe_boxes[index].visible = true;
-                    }
+                    container.children.forEach(child => {
+                        if (child.material && child.material.wireframe) {
+                            child.visible = true;
+                        }
+                    });
                 }
                 
                 // Apply rotation to current
@@ -179,9 +283,9 @@ export class LabelContainer {
                 .start()
                 .onComplete(() => {
                     if (FLAGS.ROTATION_TWEEN_LOGS) {
-                        console.log(`[RotationTween] Tween complete for ${object_name}. Final rotation:`, intersected_object.rotation.y);
+                        console.log(`[RotationTween] Tween complete for ${object_name}. Final rotation:`, target_object.rotation.y);
                     }
-                    intersected_object.rotation.y = final_rotation;
+                    target_object.rotation.y = final_rotation;
                     this.in_tween_map.delete(object_name);
                 });
                 this.in_tween_map.set(object_name, in_tween);
@@ -197,11 +301,17 @@ export class LabelContainer {
             }
             const object_to_reset = this.current_intersected;
             
-            // Hide the corresponding static wireframe
+            // Hide the corresponding wireframe
             if (FLAGS.LABEL_VISUAL_DEBUG) {
-                const index = parseInt(object_to_reset.name.replace(/[^0-9]/g, '')) - 1;
-                if (this.wireframe_boxes[index]) {
-                    this.wireframe_boxes[index].visible = false;
+                // Find the parent container
+                const container = object_to_reset.parent;
+                if (container) {
+                    // Find and hide any wireframe children of the container
+                    container.children.forEach(child => {
+                        if (child.material && child.material.wireframe) {
+                            child.visible = false;
+                        }
+                    });
                 }
             }
             
@@ -261,52 +371,26 @@ export class LabelContainer {
      * This ensures wireframes are created if they don't exist and their visibility is updated
      */
     updateDebugVisualizations() {
-        // If wireframes don't exist but should be visible, create them
-        if (this.wireframe_boxes.length === 0 && FLAGS.LABEL_VISUAL_DEBUG) {
-            // Find all button options
-            const buttons = [];
-            this.container_column.traverse(child => {
-                if (child.name && child.name.startsWith(TYPES.LABEL)) {
-                    buttons.push(child);
-                }
-            });
-            
-            // Create wireframes for each button
-            buttons.forEach(button => {
-                const wireframe_geometry = new THREE.BoxGeometry(5, 3, 0.2);
-                const category = button.simple_name;
-                const wireframe_material = new THREE.MeshBasicMaterial({
-                    color: this.wireframe_colors[category] || 0xffffff,
-                    wireframe: true,
-                    transparent: true,
-                    opacity: 0.7,
-                    depthTest: false
-                });
-                const wireframe_box = new THREE.Mesh(wireframe_geometry, wireframe_material);
-                wireframe_box.raycast = () => null; // Disable raycasting
-                button.add(wireframe_box);
-                this.wireframe_boxes.push(wireframe_box);
-            });
-            
-            console.log(`Created ${this.wireframe_boxes.length} label wireframes`);
-        }
-        
         // Update visibility of existing wireframes
         if (this.wireframe_boxes.length > 0) {
             // By default, all wireframes are hidden
             this.wireframe_boxes.forEach(box => {
-                box.visible = FLAGS.LABEL_VISUAL_DEBUG;
+                box.visible = FLAGS.LABEL_VISUAL_DEBUG === true;
             });
             
             // If we have a current intersected object, make its wireframe visible
-            if (FLAGS.LABEL_VISUAL_DEBUG && this.current_intersected) {
-                const index = parseInt(this.current_intersected.name.replace(/[^0-9]/g, '')) - 1;
-                if (this.wireframe_boxes[index]) {
-                    this.wireframe_boxes[index].visible = true;
+            if (FLAGS.LABEL_VISUAL_DEBUG === true && this.current_intersected) {
+                // Find the parent container of the intersected object
+                let container = this.current_intersected.parent;
+                if (container) {
+                    // Find wireframe children of the container
+                    container.children.forEach(child => {
+                        if (child.material && child.material.wireframe) {
+                            child.visible = true;
+                        }
+                    });
                 }
             }
-            
-            console.log(`Updated visibility of ${this.wireframe_boxes.length} label wireframes to ${FLAGS.LABEL_VISUAL_DEBUG}`);
         }
     }
 }
