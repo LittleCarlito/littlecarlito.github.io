@@ -46,13 +46,12 @@ export const MENU_CONFIG = {
             Y: 100,  // Spawn high above the camera
             Z: 13    // Initial Z offset
         },
-        Z_TARGET: 13,  // Target Z position (from original code)
-        Y_TARGET: 8   // Target Y position
+        Z_TARGET: 13,  // Target Z position
+        Y_TARGET: 8,   // Target Y position
     },
-    MOVEMENT: {
-        DEFAULT_SPEED: .000005,      // Vertical speed
-        GRAVITY_DELAY: 266,
-        DIRECTION: { x: 0, y: -1, z: 0 }  // Moving downward
+    ANIMATION: {
+        DURATION: 2.0,  // Animation duration in seconds
+        EASING: 0.05    // Easing factor (lower = smoother, higher = faster)
     }
 };
 
@@ -114,6 +113,7 @@ export class ControlMenu {
     };
     // Assembly position
     assembly_position;
+    target_position;
     sign_joint;
     chains_broken = false;
     reached_target = false;
@@ -121,18 +121,30 @@ export class ControlMenu {
     log_interval = 500;
     menu_spotlight = null;
     lighting = null;
+    // Animation variables
+    animation_start_time = 0;
+    is_animating = false;
 
     constructor(incoming_parent, incoming_camera, incoming_world, primary_container, incoming_speed = DEFAULT_SPEED) {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.world = incoming_world;
         this.lighting = BackgroundLighting.getInstance(this.parent);
+        
         // Calculate assembly position based on camera using MENU_CONFIG
         this.assembly_position = {
             x: this.camera.position.x + MENU_CONFIG.POSITION.OFFSET.X,
             y: this.camera.position.y + MENU_CONFIG.POSITION.OFFSET.Y,
-            z: this.camera.position.z - MENU_CONFIG.POSITION.OFFSET.Z  // Keep the original Z calculation
+            z: this.camera.position.z - MENU_CONFIG.POSITION.OFFSET.Z
         };
+        
+        // Calculate target position
+        this.target_position = {
+            x: this.camera.position.x + MENU_CONFIG.POSITION.OFFSET.X,
+            y: this.camera.position.y + MENU_CONFIG.POSITION.Y_TARGET,
+            z: this.camera.position.z - MENU_CONFIG.POSITION.Z_TARGET
+        };
+        
         return this.initialize(primary_container, incoming_speed);
     }
 
@@ -150,22 +162,19 @@ export class ControlMenu {
         });
         this.top_beam_mesh = new THREE.Mesh(this.top_beam_geometry, this.top_beam_material);
         this.parent.add(this.top_beam_mesh);
+        
+        // Create kinematic body instead of dynamic for smooth movement
         this.top_beam_body = this.world.createRigidBody(
             RAPIER.RigidBodyDesc
-            .dynamic()
+            .kinematicPositionBased()  // Use kinematic instead of dynamic
             .setTranslation(
                 this.assembly_position.x,
                 this.assembly_position.y,
                 this.assembly_position.z
             )
-            .setLinvel(
-                MENU_CONFIG.MOVEMENT.DIRECTION.x * incoming_speed,
-                MENU_CONFIG.MOVEMENT.DIRECTION.y * incoming_speed,
-                MENU_CONFIG.MOVEMENT.DIRECTION.z * incoming_speed
-            )
-            .setGravityScale(0)
             .setCanSleep(false)
         );
+        
         this.top_beam_shape = RAPIER.ColliderDesc.cuboid(
             MENU_CONFIG.BEAM.DIMENSIONS.WIDTH/2, 
             MENU_CONFIG.BEAM.DIMENSIONS.HEIGHT/2, 
@@ -306,6 +315,10 @@ export class ControlMenu {
             this.sign_image.src = IMAGE_PATH;
         });
 
+        // Start the animation
+        this.animation_start_time = performance.now();
+        this.is_animating = true;
+
         this.reached_target = false;
         this.last_log_time = 0;
         this.log_interval = 5000;
@@ -347,6 +360,11 @@ export class ControlMenu {
                 console.log("Control menu chains broken");
             }
         }
+    }
+
+    // Smooth easing function (ease-out cubic)
+    easeOutCubic(t) {
+        return 1 - Math.pow(1 - t, 3);
     }
 
     async update() {
@@ -400,74 +418,68 @@ export class ControlMenu {
         // Skip the rest if chains are broken
         if (this.chains_broken) return;
 
-        // Check for stopping condition - now checking Y position instead of Z
-        if (!this.reached_target && this.top_beam_mesh.position.y <= MENU_CONFIG.POSITION.Y_TARGET) {
-            if(FLAGS.PHYSICS_LOGS) {
-                console.log('=== Attempting to Stop Beam ===');
-            }
-
-            // Get current position before changing anything
-            const currentPos = this.top_beam_body.translation();
-            if(FLAGS.PHYSICS_LOGS) {
-                console.log(`Current Position before stop: (${currentPos.x.toFixed(2)}, ${currentPos.y.toFixed(2)}, ${currentPos.z.toFixed(2)})`);
-            }
-
-            // Immediately stop all motion
-            this.top_beam_body.setLinvel(0, 0, 0);
-            this.top_beam_body.setAngvel(0, 0, 0);
+        // Handle smooth animation if still animating
+        if (this.is_animating) {
+            const elapsed = (currentTime - this.animation_start_time) / 1000; // Convert to seconds
             
-            // Force the position to exactly Y_TARGET and Z_TARGET
-            this.top_beam_body.setTranslation({
-                x: currentPos.x,
-                y: MENU_CONFIG.POSITION.Y_TARGET,
-                z: this.camera.position.z - MENU_CONFIG.POSITION.Z_TARGET // Ensure correct Z position relative to camera
-            });
-
-            // Set strong damping and immediately configure joint
-            if (this.sign_joint && !this.chains_broken) {
-                this.sign_body.setAngularDamping(0.9);
-                this.sign_body.setLinearDamping(0.9);
-                // Set strong motor with high stiffness to hold position
-                this.sign_joint.configureMotorPosition(0, 10000.0, 1000.0);
-            }
-
-            // Immediately set gravity and change body type
-            if (this.sign_body) {
-                this.sign_body.setGravityScale(1);
-            }
-            this.top_beam_body.setBodyType(RAPIER.RigidBodyType.Fixed);
-
-            // Create spotlight if needed (but don't wait for it)
-            if (!this.menu_spotlight && this.sign_mesh) {
-                const spotlightPosition = new THREE.Vector3();
-                spotlightPosition.copy(this.camera.position);
-                const backVector = new THREE.Vector3(0, 0, 15);
-                backVector.applyQuaternion(this.camera.quaternion);
-                spotlightPosition.add(backVector);
-
-                const targetPosition = new THREE.Vector3();
-                targetPosition.copy(this.sign_mesh.position);
-                const direction = new THREE.Vector3().subVectors(targetPosition, spotlightPosition);
-                const rotationY = Math.atan2(direction.x, direction.z);
-                const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
-
-                this.lighting.create_spotlight(
-                    spotlightPosition,
-                    rotationX,
-                    rotationY,
-                    50 * Math.tan(Math.PI / 16),
-                    0
-                ).then(spotlight => {
-                    this.menu_spotlight = spotlight;
+            if (elapsed >= MENU_CONFIG.ANIMATION.DURATION) {
+                // Animation complete, set final position
+                this.top_beam_body.setNextKinematicTranslation({
+                    x: this.target_position.x,
+                    y: this.target_position.y,
+                    z: this.target_position.z
                 });
-            }
+                
+                // Create spotlight if needed (but don't wait for it)
+                if (!this.menu_spotlight && this.sign_mesh) {
+                    const spotlightPosition = new THREE.Vector3();
+                    spotlightPosition.copy(this.camera.position);
+                    const backVector = new THREE.Vector3(0, 0, 15);
+                    backVector.applyQuaternion(this.camera.quaternion);
+                    spotlightPosition.add(backVector);
 
-            this.reached_target = true;
+                    const targetPosition = new THREE.Vector3();
+                    targetPosition.copy(this.sign_mesh.position);
+                    const direction = new THREE.Vector3().subVectors(targetPosition, spotlightPosition);
+                    const rotationY = Math.atan2(direction.x, direction.z);
+                    const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
 
-            if(FLAGS.PHYSICS_LOGS) {
-                const finalPos = this.top_beam_body.translation();
-                console.log('Changed body type to Fixed');
-                console.log(`Final Position: (${finalPos.x.toFixed(2)}, ${finalPos.y.toFixed(2)}, ${finalPos.z.toFixed(2)})`);
+                    this.lighting.create_spotlight(
+                        spotlightPosition,
+                        rotationX,
+                        rotationY,
+                        50 * Math.tan(Math.PI / 16),
+                        0
+                    ).then(spotlight => {
+                        this.menu_spotlight = spotlight;
+                    });
+                }
+                
+                this.is_animating = false;
+                this.reached_target = true;
+                
+                if(FLAGS.PHYSICS_LOGS) {
+                    console.log('=== Animation Complete ===');
+                    console.log(`Final Position: (${this.target_position.x.toFixed(2)}, ${this.target_position.y.toFixed(2)}, ${this.target_position.z.toFixed(2)})`);
+                }
+            } else {
+                // Calculate progress with easing
+                const progress = this.easeOutCubic(Math.min(elapsed / MENU_CONFIG.ANIMATION.DURATION, 1.0));
+                
+                // Interpolate position
+                const newPosition = {
+                    x: this.assembly_position.x,
+                    y: this.assembly_position.y + (this.target_position.y - this.assembly_position.y) * progress,
+                    z: this.assembly_position.z
+                };
+                
+                // Update kinematic body position
+                this.top_beam_body.setNextKinematicTranslation(newPosition);
+                
+                if(FLAGS.PHYSICS_LOGS && currentTime - this.last_log_time > 1000) {
+                    console.log(`Animation progress: ${(progress * 100).toFixed(1)}%`);
+                    console.log(`Current position: (${newPosition.x.toFixed(2)}, ${newPosition.y.toFixed(2)}, ${newPosition.z.toFixed(2)})`);
+                }
             }
         }
     }
