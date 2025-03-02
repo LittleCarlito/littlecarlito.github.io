@@ -1,3 +1,10 @@
+# [0.5.0](https://github.com/LittleCarlito/threejs_site/compare/v0.4.0...v0.5.0) (2025-03-02)
+
+
+### Features
+
+* svgs to text ([#48](https://github.com/LittleCarlito/threejs_site/issues/48)) ([00cca0e](https://github.com/LittleCarlito/threejs_site/commit/00cca0e5ebddd7aeab4bd1d5be8feb23731d0b3c))
+
 # [0.4.0](https://github.com/LittleCarlito/threejs_site/compare/v0.3.1...v0.4.0) (2025-03-01)
 
 
