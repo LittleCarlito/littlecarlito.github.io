@@ -43,14 +43,16 @@ export const MENU_CONFIG = {
     POSITION: {
         OFFSET: {
             X: 0,
-            Y: 8,
-            Z: 400
+            Y: 100,  // Spawn high above the camera
+            Z: 13    // Initial Z offset
         },
-        Z_TARGET: 7
+        Z_TARGET: 13,  // Target Z position (from original code)
+        Y_TARGET: 8   // Target Y position
     },
     MOVEMENT: {
-        DEFAULT_SPEED: 80,
-        GRAVITY_DELAY: 266
+        DEFAULT_SPEED: .000005,      // Vertical speed
+        GRAVITY_DELAY: 266,
+        DIRECTION: { x: 0, y: -1, z: 0 }  // Moving downward
     }
 };
 
@@ -129,7 +131,7 @@ export class ControlMenu {
         this.assembly_position = {
             x: this.camera.position.x + MENU_CONFIG.POSITION.OFFSET.X,
             y: this.camera.position.y + MENU_CONFIG.POSITION.OFFSET.Y,
-            z: this.camera.position.z - MENU_CONFIG.POSITION.OFFSET.Z
+            z: this.camera.position.z - MENU_CONFIG.POSITION.OFFSET.Z  // Keep the original Z calculation
         };
         return this.initialize(primary_container, incoming_speed);
     }
@@ -156,7 +158,11 @@ export class ControlMenu {
                 this.assembly_position.y,
                 this.assembly_position.z
             )
-            .setLinvel(0, 0, incoming_speed)
+            .setLinvel(
+                MENU_CONFIG.MOVEMENT.DIRECTION.x * incoming_speed,
+                MENU_CONFIG.MOVEMENT.DIRECTION.y * incoming_speed,
+                MENU_CONFIG.MOVEMENT.DIRECTION.z * incoming_speed
+            )
             .setGravityScale(0)
             .setCanSleep(false)
         );
@@ -394,8 +400,8 @@ export class ControlMenu {
         // Skip the rest if chains are broken
         if (this.chains_broken) return;
 
-        // Check for stopping condition
-        if (!this.reached_target && this.top_beam_mesh.position.z >= MENU_CONFIG.POSITION.Z_TARGET) {
+        // Check for stopping condition - now checking Y position instead of Z
+        if (!this.reached_target && this.top_beam_mesh.position.y <= MENU_CONFIG.POSITION.Y_TARGET) {
             if(FLAGS.PHYSICS_LOGS) {
                 console.log('=== Attempting to Stop Beam ===');
             }
@@ -410,11 +416,11 @@ export class ControlMenu {
             this.top_beam_body.setLinvel(0, 0, 0);
             this.top_beam_body.setAngvel(0, 0, 0);
             
-            // Force the position to exactly Z_TARGET
+            // Force the position to exactly Y_TARGET and Z_TARGET
             this.top_beam_body.setTranslation({
                 x: currentPos.x,
-                y: currentPos.y,
-                z: MENU_CONFIG.POSITION.Z_TARGET
+                y: MENU_CONFIG.POSITION.Y_TARGET,
+                z: this.camera.position.z - MENU_CONFIG.POSITION.Z_TARGET // Ensure correct Z position relative to camera
             });
 
             // Set strong damping and immediately configure joint
