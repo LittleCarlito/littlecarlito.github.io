@@ -66,8 +66,24 @@ export class LabelContainer {
             this.container_column.add(button_container);
             button_container.position.y = i * 3;
             
-            // Create invisible collision box with the same dimensions as the original SVGs
-            const collisionGeometry = new THREE.BoxGeometry(5, 3, 0.2);
+            // Create text first to measure its width
+            let textWidth = 5; // Default width
+            if (this.font) {
+                // Create temporary geometry just to measure width
+                const measureGeometry = new TextGeometry(category.value.toUpperCase(), {
+                    font: this.font,
+                    size: 1.0,
+                    height: 0.1,
+                    curveSegments: 12,
+                    bevelEnabled: false
+                });
+                measureGeometry.computeBoundingBox();
+                textWidth = Math.max(5, measureGeometry.boundingBox.max.x - measureGeometry.boundingBox.min.x + 1);
+                measureGeometry.dispose(); // Clean up temporary geometry
+            }
+            
+            // Create invisible collision box with width matching the text
+            const boxGeometry = new THREE.BoxGeometry(textWidth, 3, 0.2);
             const collisionMaterial = new THREE.MeshBasicMaterial({
                 transparent: true,
                 opacity: 0,
@@ -76,10 +92,27 @@ export class LabelContainer {
                 depthTest: false
             });
             
-            const collisionBox = new THREE.Mesh(collisionGeometry, collisionMaterial);
+            const collisionBox = new THREE.Mesh(boxGeometry, collisionMaterial);
             collisionBox.simple_name = category.value;
             collisionBox.name = `${TYPES.LABEL}${category.value}_collision`;
             button_container.add(collisionBox);
+            
+            // Add wireframe box for visual debugging
+            if (FLAGS.COLLISION_VISUAL_DEBUG) {
+                const wireframe_material = new THREE.MeshBasicMaterial({
+                    color: this.wireframe_colors[category.value] || 0xffffff,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.7,
+                    depthTest: false
+                });
+                // Use the same geometry instance for perfect alignment
+                const wireframe_box = new THREE.Mesh(boxGeometry, wireframe_material);
+                wireframe_box.raycast = () => null; // Disable raycasting
+                wireframe_box.visible = true;
+                button_container.add(wireframe_box);
+                this.wireframe_boxes.push(wireframe_box);
+            }
             
             // Create text if font is loaded
             if (this.font) {
@@ -137,23 +170,6 @@ export class LabelContainer {
                 textMesh.position.z = 0.1;
                 textMesh.renderOrder = 2;
                 button_container.add(textMesh);
-            }
-            
-            // Add wireframe box for visual debugging
-            if (FLAGS.LABEL_VISUAL_DEBUG) {
-                const wireframe_geometry = new THREE.BoxGeometry(5, 3, 0.2);
-                const wireframe_material = new THREE.MeshBasicMaterial({
-                    color: this.wireframe_colors[category.value] || 0xffffff,
-                    wireframe: true,
-                    transparent: true,
-                    opacity: 0.7,
-                    depthTest: false
-                });
-                const wireframe_box = new THREE.Mesh(wireframe_geometry, wireframe_material);
-                wireframe_box.raycast = () => null; // Disable raycasting
-                wireframe_box.visible = false; // Hidden by default
-                button_container.add(wireframe_box);
-                this.wireframe_boxes.push(wireframe_box);
             }
         });
     }
@@ -265,10 +281,10 @@ export class LabelContainer {
                 this.current_intersected = target_object;
                 
                 // Show the corresponding wireframe
-                if (FLAGS.LABEL_VISUAL_DEBUG) {
+                if (FLAGS.COLLISION_VISUAL_DEBUG) {
                     container.children.forEach(child => {
                         if (child.material && child.material.wireframe) {
-                            child.visible = true;
+                            // Don't change visibility here since they should always be visible when debug is on
                         }
                     });
                 }
@@ -302,16 +318,11 @@ export class LabelContainer {
             const object_to_reset = this.current_intersected;
             
             // Hide the corresponding wireframe
-            if (FLAGS.LABEL_VISUAL_DEBUG) {
+            if (FLAGS.COLLISION_VISUAL_DEBUG) {
                 // Find the parent container
                 const container = object_to_reset.parent;
                 if (container) {
-                    // Find and hide any wireframe children of the container
-                    container.children.forEach(child => {
-                        if (child.material && child.material.wireframe) {
-                            child.visible = false;
-                        }
-                    });
+                    // Don't hide wireframes anymore - they should stay visible
                 }
             }
             
@@ -371,26 +382,43 @@ export class LabelContainer {
      * This ensures wireframes are created if they don't exist and their visibility is updated
      */
     updateDebugVisualizations() {
+        if (FLAGS.COLLISION_VISUAL_DEBUG) {
+            // If we have no wireframe boxes and debug is enabled, create them
+            if (this.wireframe_boxes.length === 0) {
+                // Create wireframes for each category container
+                this.container_column.children.forEach(button_container => {
+                    if (!button_container.name.startsWith(TYPES.CONATINER)) return;
+                    
+                    // Find the collision box to match its dimensions
+                    const collisionBox = button_container.children.find(child => 
+                        child.name && child.name.includes('_collision')
+                    );
+                    
+                    if (collisionBox) {
+                        const wireframe_material = new THREE.MeshBasicMaterial({
+                            color: this.wireframe_colors[button_container.simple_name] || 0xffffff,
+                            wireframe: true,
+                            transparent: true,
+                            opacity: 0.7,
+                            depthTest: false
+                        });
+                        // Use the collision box's geometry for perfect matching
+                        const wireframe_box = new THREE.Mesh(collisionBox.geometry, wireframe_material);
+                        wireframe_box.raycast = () => null; // Disable raycasting
+                        wireframe_box.visible = true;
+                        button_container.add(wireframe_box);
+                        this.wireframe_boxes.push(wireframe_box);
+                    }
+                });
+            }
+        }
+
         // Update visibility of existing wireframes
         if (this.wireframe_boxes.length > 0) {
-            // By default, all wireframes are hidden
+            // Set visibility based on debug flag
             this.wireframe_boxes.forEach(box => {
-                box.visible = FLAGS.LABEL_VISUAL_DEBUG === true;
+                box.visible = FLAGS.COLLISION_VISUAL_DEBUG;
             });
-            
-            // If we have a current intersected object, make its wireframe visible
-            if (FLAGS.LABEL_VISUAL_DEBUG === true && this.current_intersected) {
-                // Find the parent container of the intersected object
-                let container = this.current_intersected.parent;
-                if (container) {
-                    // Find wireframe children of the container
-                    container.children.forEach(child => {
-                        if (child.material && child.material.wireframe) {
-                            child.visible = true;
-                        }
-                    });
-                }
-            }
         }
     }
 }
