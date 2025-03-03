@@ -1,3 +1,10 @@
+## [0.5.4](https://github.com/LittleCarlito/threejs_site/compare/v0.5.3...v0.5.4) (2025-03-03)
+
+
+### Bug Fixes
+
+* deployed font path ([#53](https://github.com/LittleCarlito/threejs_site/issues/53)) ([059b454](https://github.com/LittleCarlito/threejs_site/commit/059b454002110fbda2c25f9e8ea49c6a32e54570))
+
 ## [0.5.3](https://github.com/LittleCarlito/threejs_site/compare/v0.5.2...v0.5.3) (2025-03-03)
 
 
