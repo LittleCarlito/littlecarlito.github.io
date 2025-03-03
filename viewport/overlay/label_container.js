@@ -66,8 +66,24 @@ export class LabelContainer {
             this.container_column.add(button_container);
             button_container.position.y = i * 3;
             
-            // Create invisible collision box with the same dimensions as the original SVGs
-            const boxGeometry = new THREE.BoxGeometry(5, 3, 0.2);
+            // Create text first to measure its width
+            let textWidth = 5; // Default width
+            if (this.font) {
+                // Create temporary geometry just to measure width
+                const measureGeometry = new TextGeometry(category.value.toUpperCase(), {
+                    font: this.font,
+                    size: 1.0,
+                    height: 0.1,
+                    curveSegments: 12,
+                    bevelEnabled: false
+                });
+                measureGeometry.computeBoundingBox();
+                textWidth = Math.max(5, measureGeometry.boundingBox.max.x - measureGeometry.boundingBox.min.x + 1);
+                measureGeometry.dispose(); // Clean up temporary geometry
+            }
+            
+            // Create invisible collision box with width matching the text
+            const boxGeometry = new THREE.BoxGeometry(textWidth, 3, 0.2);
             const collisionMaterial = new THREE.MeshBasicMaterial({
                 transparent: true,
                 opacity: 0,
@@ -94,10 +110,6 @@ export class LabelContainer {
                 const wireframe_box = new THREE.Mesh(boxGeometry, wireframe_material);
                 wireframe_box.raycast = () => null; // Disable raycasting
                 wireframe_box.visible = true;
-                // Position wireframe to exactly match collision box
-                wireframe_box.position.copy(collisionBox.position);
-                wireframe_box.rotation.copy(collisionBox.rotation);
-                wireframe_box.scale.copy(collisionBox.scale);
                 button_container.add(wireframe_box);
                 this.wireframe_boxes.push(wireframe_box);
             }
@@ -377,13 +389,12 @@ export class LabelContainer {
                 this.container_column.children.forEach(button_container => {
                     if (!button_container.name.startsWith(TYPES.CONATINER)) return;
                     
-                    // Find the collision box in this container
+                    // Find the collision box to match its dimensions
                     const collisionBox = button_container.children.find(child => 
                         child.name && child.name.includes('_collision')
                     );
                     
                     if (collisionBox) {
-                        // Create wireframe box using the same geometry as the collision box
                         const wireframe_material = new THREE.MeshBasicMaterial({
                             color: this.wireframe_colors[button_container.simple_name] || 0xffffff,
                             wireframe: true,
@@ -391,13 +402,10 @@ export class LabelContainer {
                             opacity: 0.7,
                             depthTest: false
                         });
+                        // Use the collision box's geometry for perfect matching
                         const wireframe_box = new THREE.Mesh(collisionBox.geometry, wireframe_material);
                         wireframe_box.raycast = () => null; // Disable raycasting
                         wireframe_box.visible = true;
-                        // Position wireframe to exactly match collision box
-                        wireframe_box.position.copy(collisionBox.position);
-                        wireframe_box.rotation.copy(collisionBox.rotation);
-                        wireframe_box.scale.copy(collisionBox.scale);
                         button_container.add(wireframe_box);
                         this.wireframe_boxes.push(wireframe_box);
                     }
