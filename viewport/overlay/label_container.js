@@ -46,11 +46,19 @@ export class LabelContainer {
 
     async loadFont() {
         try {
-            this.font = await this.font_loader.loadAsync('/fonts/quicksand_regular.json');
+            // Determine the correct font path based on deployment environment
+            const fontPath = window.location.hostname === 'littlecarlito.github.io' 
+                ? '/threejs_site/fonts/quicksand_regular.json'
+                : '/fonts/quicksand_regular.json';
+                
+            if (FLAGS.ASSET_LOGS) console.log(`Attempting to load font from: ${fontPath}`);
+            
+            this.font = await this.font_loader.loadAsync(fontPath);
             if (FLAGS.ASSET_LOGS) console.log('Font loaded successfully');
             return this.font;
         } catch (error) {
             console.error("Error loading font:", error);
+            // If font fails to load, we'll fall back to canvas-based text rendering
             return null;
         }
     }
