@@ -1,3 +1,24 @@
+## [0.5.2](https://github.com/LittleCarlito/threejs_site/compare/v0.5.1...v0.5.2) (2025-03-03)
+
+
+### Bug Fixes
+
+* .blend file update ([8fbc66f](https://github.com/LittleCarlito/threejs_site/commit/8fbc66fefd7e099b773c35ebc13b1517cd73a648))
+
+## [0.5.1](https://github.com/LittleCarlito/threejs_site/compare/v0.5.0...v0.5.1) (2025-03-03)
+
+
+### Bug Fixes
+
+* full model set update ([45a3855](https://github.com/LittleCarlito/threejs_site/commit/45a38551314d24d32e707009adf3d5264330c594))
+
+# [0.5.0](https://github.com/LittleCarlito/threejs_site/compare/v0.4.0...v0.5.0) (2025-03-02)
+
+
+### Features
+
+* svgs to text ([#48](https://github.com/LittleCarlito/threejs_site/issues/48)) ([00cca0e](https://github.com/LittleCarlito/threejs_site/commit/00cca0e5ebddd7aeab4bd1d5be8feb23731d0b3c))
+
 # [0.4.0](https://github.com/LittleCarlito/threejs_site/compare/v0.3.1...v0.4.0) (2025-03-01)
 
 
