@@ -1,3 +1,10 @@
+## [0.5.1](https://github.com/LittleCarlito/threejs_site/compare/v0.5.0...v0.5.1) (2025-03-03)
+
+
+### Bug Fixes
+
+* full model set update ([45a3855](https://github.com/LittleCarlito/threejs_site/commit/45a38551314d24d32e707009adf3d5264330c594))
+
 # [0.5.0](https://github.com/LittleCarlito/threejs_site/compare/v0.4.0...v0.5.0) (2025-03-02)
 
 
