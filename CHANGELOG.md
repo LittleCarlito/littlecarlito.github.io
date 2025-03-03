@@ -1,3 +1,10 @@
+## [0.5.5](https://github.com/LittleCarlito/threejs_site/compare/v0.5.4...v0.5.5) (2025-03-03)
+
+
+### Bug Fixes
+
+* UVMap updates ([1ecf7ed](https://github.com/LittleCarlito/threejs_site/commit/1ecf7ed619fbed7836aacfee9bf689f4eacc3375))
+
 ## [0.5.4](https://github.com/LittleCarlito/threejs_site/compare/v0.5.3...v0.5.4) (2025-03-03)
 
 
