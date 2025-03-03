@@ -5,7 +5,6 @@ export const FLAGS = {
     COLLISION_VISUAL_DEBUG: false,
     SPOTLIGHT_VISUAL_DEBUG: false,
     SIGN_VISUAL_DEBUG: false,
-    LABEL_VISUAL_DEBUG: false,
     DEBUG_UI: false,
     AUTO_THROTTLE: true,
     // Log flags

@@ -96,9 +96,6 @@ async function init() {
     try {
         await showLoadingScreen();
         
-        // Ensure LABEL_VISUAL_DEBUG is synchronized with COLLISION_VISUAL_DEBUG
-        FLAGS.LABEL_VISUAL_DEBUG = FLAGS.COLLISION_VISUAL_DEBUG;
-        
         updateLoadingProgress('Loading Three.js...');
         await loadThree(); // Still load async but we already have THREE available
 
@@ -208,7 +205,7 @@ async function init() {
         console.log("Debug UI initialized. Press 's' to toggle.");
         
         // Ensure label wireframes are updated if debug visualization is enabled
-        if (FLAGS.LABEL_VISUAL_DEBUG && viewable_container && viewable_container.get_overlay()) {
+        if (FLAGS.COLLISION_VISUAL_DEBUG && viewable_container && viewable_container.get_overlay()) {
             const labelContainer = viewable_container.get_overlay().label_container;
             if (labelContainer && typeof labelContainer.updateDebugVisualizations === 'function') {
                 console.log('Directly updating label wireframes after initialization');

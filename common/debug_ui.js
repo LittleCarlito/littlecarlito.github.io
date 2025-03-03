@@ -352,25 +352,16 @@ export function createDebugUI() {
             backgroundContainer.updateSignDebugVisualizations();
         }
         
-        // Also update LABEL_VISUAL_DEBUG to match COLLISION_VISUAL_DEBUG
-        FLAGS.LABEL_VISUAL_DEBUG = checked;
-        
         // Update label wireframes
         if (window.viewable_container && window.viewable_container.get_overlay()) {
             const labelContainer = window.viewable_container.get_overlay().label_container;
             if (labelContainer && typeof labelContainer.updateDebugVisualizations === 'function') {
-                console.log('Updating label wireframes from collision toggle');
                 labelContainer.updateDebugVisualizations();
-            } else {
-                console.error('Unable to update label wireframes - labelContainer or updateDebugVisualizations not available');
             }
-        } else {
-            console.error('Unable to update label wireframes - viewable_container or overlay not available');
         }
         
         console.log(`Collision and Sign debug visualization ${checked ? 'enabled' : 'disabled'}`);
         console.log(`All collision wireframes will be ${checked ? 'shown' : 'hidden'}`);
-        console.log(`Label wireframes ${checked ? 'enabled' : 'disabled'}`);
     });
     
     addToggle(debugUI, 'SPOTLIGHT_VISUAL_DEBUG', 'Spotlight Debug');
