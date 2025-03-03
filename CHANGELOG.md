@@ -1,3 +1,10 @@
+## [0.5.3](https://github.com/LittleCarlito/threejs_site/compare/v0.5.2...v0.5.3) (2025-03-03)
+
+
+### Bug Fixes
+
+* labels to text ([#52](https://github.com/LittleCarlito/threejs_site/issues/52)) ([7b80eed](https://github.com/LittleCarlito/threejs_site/commit/7b80eedfdf92370f5088fe05fc4be18789b845b9))
+
 ## [0.5.2](https://github.com/LittleCarlito/threejs_site/compare/v0.5.1...v0.5.2) (2025-03-03)
 
 
