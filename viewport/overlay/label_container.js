@@ -47,10 +47,11 @@ export class LabelContainer {
     async loadFont() {
         try {
             this.font = await this.font_loader.loadAsync('/fonts/quicksand_regular.json');
-            if (FLAGS.ASSET_LOGS) console.log('Font loaded successfully');
+            if (FLAGS.ASSET_LOGS) console.log('Font loaded successfully from local file');
             return this.font;
         } catch (error) {
             console.error("Error loading font:", error);
+            // If font fails to load, we'll fall back to canvas-based text rendering
             return null;
         }
     }
