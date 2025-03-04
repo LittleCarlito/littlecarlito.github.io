@@ -54,6 +54,13 @@ export function createDebugUI() {
     debugUI.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
     debugUI.style.minWidth = '200px';
     
+    // Add event listeners to prevent click-through to elements below
+    debugUI.addEventListener('mousedown', e => e.stopPropagation());
+    debugUI.addEventListener('click', e => e.stopPropagation());
+    debugUI.addEventListener('dblclick', e => e.stopPropagation());
+    debugUI.addEventListener('mouseup', e => e.stopPropagation());
+    debugUI.addEventListener('wheel', e => e.stopPropagation());
+    
     // Add title
     const title = document.createElement('div');
     title.textContent = 'Performance Monitor';
