@@ -90,6 +90,7 @@ export class ControlMenu {
     parent;
     camera;
     world;
+    primary_container;
     // Top beam variables
     top_beam_geometry;
     top_beam_material;
@@ -132,6 +133,7 @@ export class ControlMenu {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.world = incoming_world;
+        this.primary_container = primary_container;
         this.lighting = BackgroundLighting.getInstance(this.parent);
         
         // Store initial camera state
@@ -334,38 +336,97 @@ export class ControlMenu {
     }
 
     async break_chains() {
-        if (!this.chains_broken) {
-            // Remove joint with null check
-            if (this.sign_joint && this.world.getImpulseJoint(this.sign_joint.handle)) {
-                try {
-                    this.world.removeImpulseJoint(this.sign_joint);
-                } catch (e) {
-                    console.warn('Failed to remove joint:', e);
+        if (this.chains_broken) {
+            // Already broken, just log a warning and return
+            console.warn("Attempted to break chains again, but they were already broken.");
+            return;
+        }
+        
+        // Remove joint with null check
+        if (this.sign_joint && this.world.getImpulseJoint(this.sign_joint.handle)) {
+            try {
+                this.world.removeImpulseJoint(this.sign_joint);
+            } catch (e) {
+                console.warn('Failed to remove joint:', e);
+            }
+        }
+        this.sign_joint = null;
+
+        // Remove spotlight if it exists
+        if (this.menu_spotlight) {
+            await this.lighting.despawn_spotlight(this.menu_spotlight);
+            this.menu_spotlight = null;
+        }
+
+        // Set gravity scale for sign body
+        if (this.sign_body) {
+            this.sign_body.setGravityScale(1.0);
+        }
+
+        // Properly remove the beam and its collider, not just hide it
+        if (this.top_beam_body) {
+            // Find the collider handle for the beam
+            const beam_collider_handle = this.top_beam_body.collider(0);
+            if (beam_collider_handle) {
+                // Remove the collider from the world
+                this.world.removeCollider(beam_collider_handle, true);
+            }
+            
+            // Remove the rigid body from the world
+            this.world.removeRigidBody(this.top_beam_body);
+            
+            // Remove the beam from dynamic_bodies array
+            if (this.primary_container && this.primary_container.dynamic_bodies) {
+                // Find the index of the beam in the dynamic_bodies array
+                const beamIndex = this.primary_container.dynamic_bodies.findIndex(
+                    pair => Array.isArray(pair) && pair[0] === this.top_beam_mesh && pair[1] === this.top_beam_body
+                );
+                
+                // Remove it if found
+                if (beamIndex !== -1) {
+                    this.primary_container.dynamic_bodies.splice(beamIndex, 1);
                 }
             }
-            this.sign_joint = null;
-
-            // Remove spotlight if it exists
-            if (this.menu_spotlight) {
-                await this.lighting.despawn_spotlight(this.menu_spotlight);
-                this.menu_spotlight = null;
+            
+            // Clean up references
+            this.top_beam_body = null;
+        }
+        
+        // Remove the beam mesh from the scene
+        if (this.top_beam_mesh) {
+            this.parent.remove(this.top_beam_mesh);
+            
+            // Dispose of geometry and material
+            if (this.top_beam_mesh.geometry) {
+                this.top_beam_mesh.geometry.dispose();
             }
-
-            // Set gravity scale for sign body
-            if (this.sign_body) {
-                this.sign_body.setGravityScale(1.0);
+            
+            if (this.top_beam_mesh.material) {
+                this.top_beam_mesh.material.dispose();
             }
-
-            // Hide beam debug mesh when chains break, but don't remove it
-            // This way it can be shown again if debug is toggled
-            if (this.debug_meshes.beam) {
-                this.debug_meshes.beam.visible = false;
+            
+            this.top_beam_mesh = null;
+        }
+        
+        // Remove the beam debug mesh
+        if (this.debug_meshes.beam) {
+            this.parent.remove(this.debug_meshes.beam);
+            
+            // Dispose of geometry and material
+            if (this.debug_meshes.beam.geometry) {
+                this.debug_meshes.beam.geometry.dispose();
             }
-
-            this.chains_broken = true;
-            if (FLAGS.PHYSICS_LOGS) {
-                console.log("Control menu chains broken");
+            
+            if (this.debug_meshes.beam.material) {
+                this.debug_meshes.beam.material.dispose();
             }
+            
+            this.debug_meshes.beam = null;
+        }
+
+        this.chains_broken = true;
+        if (FLAGS.PHYSICS_LOGS) {
+            console.log("Control menu chains broken and beam completely removed");
         }
     }
 
@@ -383,19 +444,25 @@ export class ControlMenu {
         
         // Log positions periodically
         if (currentTime - this.last_log_time > this.log_interval) {
-            const beamPos = this.top_beam_mesh.position;
-            const beamVel = this.top_beam_body.linvel();
-            if(FLAGS.PHYSICS_LOGS) {
-                console.log('=== Position Update ===');
-                console.log(`Top Beam - Position: (${beamPos.x.toFixed(2)}, ${beamPos.y.toFixed(2)}, ${beamPos.z.toFixed(2)})`);
-                console.log(`Top Beam - Velocity: (${beamVel.x.toFixed(2)}, ${beamVel.y.toFixed(2)}, ${beamVel.z.toFixed(2)})`);
-                if (this.sign_mesh && this.sign_body) {
-                    const signPos = this.sign_mesh.position;
-                    const signVel = this.sign_body.linvel();
-                    const rotation = this.sign_body.rotation();
-                    const euler = new THREE.Euler().setFromQuaternion(
-                        new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w)
-                    );
+            if (!this.chains_broken && this.top_beam_mesh && this.top_beam_body) {
+                const beamPos = this.top_beam_mesh.position;
+                const beamVel = this.top_beam_body.linvel();
+                if(FLAGS.PHYSICS_LOGS) {
+                    console.log('=== Position Update ===');
+                    console.log(`Top Beam - Position: (${beamPos.x.toFixed(2)}, ${beamPos.y.toFixed(2)}, ${beamPos.z.toFixed(2)})`);
+                    console.log(`Top Beam - Velocity: (${beamVel.x.toFixed(2)}, ${beamVel.y.toFixed(2)}, ${beamVel.z.toFixed(2)})`);
+                }
+            }
+            
+            if (this.sign_mesh && this.sign_body) {
+                const signPos = this.sign_mesh.position;
+                const signVel = this.sign_body.linvel();
+                const rotation = this.sign_body.rotation();
+                const euler = new THREE.Euler().setFromQuaternion(
+                    new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w)
+                );
+                
+                if(FLAGS.PHYSICS_LOGS) {
                     console.log(`Sign - Position: (${signPos.x.toFixed(2)}, ${signPos.y.toFixed(2)}, ${signPos.z.toFixed(2)})`);
                     console.log(`Sign - Velocity: (${signVel.x.toFixed(2)}, ${signVel.y.toFixed(2)}, ${signVel.z.toFixed(2)})`);
                     console.log(`Sign - Rotation (rad): x:${euler.x.toFixed(2)}, y:${euler.y.toFixed(2)}, z:${euler.z.toFixed(2)}`);
@@ -414,7 +481,7 @@ export class ControlMenu {
             this.debug_meshes.sign.quaternion.set(signRot.x, signRot.y, signRot.z, signRot.w);
         }
 
-        // Only update beam debug mesh if chains are not broken
+        // Only update beam debug mesh if chains are not broken and the beam still exists
         if (!this.chains_broken && this.debug_meshes.beam && this.top_beam_body) {
             const beamPos = this.top_beam_body.translation();
             const beamRot = this.top_beam_body.rotation();
@@ -426,7 +493,7 @@ export class ControlMenu {
         if (this.chains_broken) return;
 
         // Handle smooth animation if still animating
-        if (this.is_animating) {
+        if (this.is_animating && this.top_beam_body) {
             const elapsed = (currentTime - this.animation_start_time) / 1000; // Convert to seconds
             
             if (elapsed >= MENU_CONFIG.ANIMATION.DURATION) {
@@ -500,7 +567,9 @@ export class ControlMenu {
             this.debug_meshes.sign.visible = FLAGS.SIGN_VISUAL_DEBUG;
         }
         
-        if (this.debug_meshes.beam) {
+        // Only set beam visibility if chains are not broken
+        // If chains are broken, the beam should have been completely removed
+        if (!this.chains_broken && this.debug_meshes.beam) {
             this.debug_meshes.beam.visible = FLAGS.SIGN_VISUAL_DEBUG;
         }
     }
