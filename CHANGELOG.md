@@ -1,3 +1,12 @@
+## [0.5.6](https://github.com/LittleCarlito/threejs_site/compare/v0.5.5...v0.5.6) (2025-03-05)
+
+
+### Bug Fixes
+
+* debug clickthrough ([d6110ec](https://github.com/LittleCarlito/threejs_site/commit/d6110ec7b1fbbfd305428506e5b97a6b81b2dc63))
+* double cursor ([d6d487f](https://github.com/LittleCarlito/threejs_site/commit/d6d487fad0aeeebbb7d1f13f55aba7239250b318))
+* work cursor ([20a51ef](https://github.com/LittleCarlito/threejs_site/commit/20a51efb32d1643f13bb31bcd48175a4fc0bfa41))
+
 ## [0.5.5](https://github.com/LittleCarlito/threejs_site/compare/v0.5.4...v0.5.5) (2025-03-03)
 
 
