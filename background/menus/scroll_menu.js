@@ -30,15 +30,15 @@ export class ScrollMenu {
             Z: 0
         },
         SEGMENTS: {
-            COUNT: 6,             // Back to 6 segments as requested
+            COUNT: 4,             // Reduced from 6 to 4 segments
             LENGTH: 0.5,          // Keep original size
             RADIUS: 0.1,
             DAMPING: 1,
             MASS: 1,
             RESTITUTION: 0.01,
             FRICTION: 1.0,
-            LINEAR_DAMPING: 0.8,
-            ANGULAR_DAMPING: 1.0,
+            LINEAR_DAMPING: 2.0,  // Increased from 0.8
+            ANGULAR_DAMPING: 2.0, // Increased from 1.0
             GRAVITY_SCALE: 0.3,
             SPAWN_DELAY: 100      // Delay between segment spawns in ms
         },
@@ -164,12 +164,12 @@ export class ScrollMenu {
         // Create joint with previous segment
         const joint_desc = index === 0 
             ? RAPIER.JointData.spherical(
-                {x: 0, y: 0, z: 0},  // Anchor point
-                {x: 0, y: this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0}  // Local point
+                {x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/3 - 0.15, z: 0},  // Add spacing for first joint
+                {x: 0, y: this.CHAIN_CONFIG.SEGMENTS.LENGTH/2 + 0.15, z: 0}
             )
             : RAPIER.JointData.spherical(
-                {x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0},  // Previous point
-                {x: 0, y: this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0}    // Current point
+                {x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/2 - 0.15, z: 0},  // Add spacing between segments
+                {x: 0, y: this.CHAIN_CONFIG.SEGMENTS.LENGTH/2 + 0.15, z: 0}
             );
 
         joint_desc.limitsEnabled = true;
@@ -368,10 +368,10 @@ export class ScrollMenu {
                 // Force the sign to sleep initially
                 this.sign_body?.sleep();
                 
-                // Connect sign to last chain segment with adjusted joint positions
+                // Connect sign to last chain segment with adjusted joint positions and spacing
                 const finalJointDesc = RAPIER.JointData.spherical(
-                    {x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0},  // Bottom of last chain segment
-                    {x: 0, y: this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT/2, z: 0}   // Top of sign
+                    {x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/2 - 0.15, z: 0},  // Match chain segment spacing
+                    {x: 0, y: this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT/2 + 0.15, z: 0}   // Match chain segment spacing
                 );
                 const signJoint = this.world.createImpulseJoint(
                     finalJointDesc,
