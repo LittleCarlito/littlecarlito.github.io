@@ -689,27 +689,36 @@ export class ScrollMenu {
      * Updates the debug visualization for all signs based on the current flag state
      */
     updateDebugVisualizations() {
-        // Toggle visibility of existing debug meshes
-        if (this.debug_meshes && this.debug_meshes.length > 0) {
-            for (const mesh of this.debug_meshes) {
-                if (mesh) {
-                    mesh.visible = FLAGS.SIGN_VISUAL_DEBUG;
-                }
+        if (FLAGS.SIGN_VISUAL_DEBUG) {
+            // Create and show anchor debug mesh if it doesn't exist
+            if (!this.debug_meshes.anchor && this.anchor_body) {
+                const anchorGeometry = new THREE.SphereGeometry(0.2);
+                const anchorMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xffff00,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 1.0,
+                    depthTest: false,
+                    depthWrite: false
+                });
+                this.debug_meshes.anchor = new THREE.Mesh(anchorGeometry, anchorMaterial);
+                const anchorPos = this.anchor_body.translation();
+                const anchorRot = this.anchor_body.rotation();
+                this.debug_meshes.anchor.position.set(anchorPos.x, anchorPos.y, anchorPos.z);
+                this.debug_meshes.anchor.quaternion.set(anchorRot.x, anchorRot.y, anchorRot.z, anchorRot.w);
+                this.debug_meshes.anchor.renderOrder = 999;
+                this.parent.add(this.debug_meshes.anchor);
             }
-        } else if (FLAGS.SIGN_VISUAL_DEBUG && this.segments) {
-            // If debug meshes don't exist but should be shown, create them
-            this.debug_meshes = [];
-            
-            // Create debug meshes for segments
-            for (const segment of this.segments) {
-                if (segment && segment.mesh) {
-                    const segmentGeometry = new THREE.BoxGeometry(
-                        segment.size.x, 
-                        segment.size.y, 
-                        segment.size.z
-                    );
-                    
-                    const debugMesh = new THREE.Mesh(
+
+            // Create and show segment debug meshes if they don't exist
+            const chainBodies = this.dynamic_bodies
+                .filter(data => data.type === 'scroll_menu_chain' && data.body)
+                .map(data => data.body);
+
+            if (this.debug_meshes.segments.length === 0 && chainBodies.length > 0) {
+                chainBodies.forEach((body, index) => {
+                    const segmentGeometry = new THREE.SphereGeometry(this.CHAIN_CONFIG.SEGMENTS.RADIUS);
+                    const debugSegment = new THREE.Mesh(
                         segmentGeometry,
                         new THREE.MeshBasicMaterial({
                             color: 0x0000ff,
@@ -719,13 +728,97 @@ export class ScrollMenu {
                             opacity: 0.8
                         })
                     );
-                    
-                    debugMesh.position.copy(segment.mesh.position);
-                    debugMesh.quaternion.copy(segment.mesh.quaternion);
-                    this.container.add(debugMesh);
-                    this.debug_meshes.push(debugMesh);
+                    const pos = body.translation();
+                    const rot = body.rotation();
+                    debugSegment.position.set(pos.x, pos.y, pos.z);
+                    debugSegment.quaternion.set(rot.x, rot.y, rot.z, rot.w);
+                    this.debug_meshes.segments.push(debugSegment);
+                    this.parent.add(debugSegment);
+                });
+            }
+
+            // Create and show joint debug meshes if they don't exist
+            if (this.debug_meshes.joints.length === 0 && chainBodies.length > 0) {
+                for (let i = 0; i < chainBodies.length - 1; i++) {
+                    const body1 = chainBodies[i];
+                    const body2 = chainBodies[i + 1];
+                    const jointDebug = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.1),
+                        new THREE.MeshBasicMaterial({
+                            color: 0xff0000,
+                            wireframe: true,
+                            depthTest: false,
+                            transparent: true,
+                            opacity: 0.8
+                        })
+                    );
+                    const pos1 = body1.translation();
+                    const pos2 = body2.translation();
+                    jointDebug.position.set(
+                        (pos1.x + pos2.x) / 2,
+                        (pos1.y + pos2.y) / 2,
+                        (pos1.z + pos2.z) / 2
+                    );
+                    this.debug_meshes.joints.push(jointDebug);
+                    this.parent.add(jointDebug);
+                }
+
+                // Add sign joint if sign exists
+                if (this.sign_body) {
+                    const lastChainBody = chainBodies[chainBodies.length - 1];
+                    const signJointDebug = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.1),
+                        new THREE.MeshBasicMaterial({
+                            color: 0xff0000,
+                            wireframe: true,
+                            depthTest: false,
+                            transparent: true,
+                            opacity: 0.8
+                        })
+                    );
+                    const chainPos = lastChainBody.translation();
+                    signJointDebug.position.set(
+                        chainPos.x,
+                        chainPos.y - this.CHAIN_CONFIG.SEGMENTS.LENGTH/2,
+                        chainPos.z
+                    );
+                    this.debug_meshes.joints.push(signJointDebug);
+                    this.parent.add(signJointDebug);
                 }
             }
+
+            // Create and show sign debug mesh if it doesn't exist
+            if (!this.debug_meshes.sign && this.sign_body) {
+                const signDebugGeometry = new THREE.BoxGeometry(
+                    this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH,
+                    this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT,
+                    this.CHAIN_CONFIG.SIGN.DIMENSIONS.DEPTH
+                );
+                const signDebugMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xff00ff,
+                    wireframe: true
+                });
+                this.debug_meshes.sign = new THREE.Mesh(signDebugGeometry, signDebugMaterial);
+                const signPos = this.sign_body.translation();
+                const signRot = this.sign_body.rotation();
+                this.debug_meshes.sign.position.set(signPos.x, signPos.y, signPos.z);
+                this.debug_meshes.sign.quaternion.set(signRot.x, signRot.y, signRot.z, signRot.w);
+                this.parent.add(this.debug_meshes.sign);
+            }
+        }
+
+        // Toggle visibility for all debug meshes
+        if (this.debug_meshes.anchor) {
+            this.debug_meshes.anchor.visible = FLAGS.SIGN_VISUAL_DEBUG;
+        }
+        this.debug_meshes.segments.forEach(mesh => {
+            if (mesh) mesh.visible = FLAGS.SIGN_VISUAL_DEBUG;
+        });
+        this.debug_meshes.joints.forEach(mesh => {
+            if (mesh) mesh.visible = FLAGS.SIGN_VISUAL_DEBUG;
+        });
+        if (this.debug_meshes.sign) {
+            this.debug_meshes.sign.visible = FLAGS.SIGN_VISUAL_DEBUG;
         }
     }
 }
