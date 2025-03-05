@@ -17,6 +17,11 @@ export class ScrollMenu {
         sign: null,
         anchor: null
     };
+    // Animation state
+    is_animating = false;
+    animation_start_time = 0;
+    animation_duration = 1.0; // seconds
+    initial_offset = 15; // How far to the right to spawn
     // Chain settings
     CHAIN_CONFIG = {
         POSITION: {
@@ -71,6 +76,12 @@ export class ScrollMenu {
     // Store initial camera state
     initial_camera_position = new THREE.Vector3();
     initial_camera_quaternion = new THREE.Quaternion();
+    // Store target position (original spawn position before offset)
+    target_position = {
+        x: 0,
+        y: 0,
+        z: 0
+    };
 
     constructor(incoming_parent, incoming_camera, incoming_world, incoming_container, spawn_position) {
         this.parent = incoming_parent;
@@ -83,10 +94,29 @@ export class ScrollMenu {
         this.initial_camera_position.copy(this.camera.position);
         this.initial_camera_quaternion.copy(this.camera.quaternion);
 
+        // Calculate the right vector in local space
+        const right = new THREE.Vector3(1, 0, 0);
+        right.applyQuaternion(this.camera.quaternion);
+        
+        // Offset the spawn position to the right
+        spawn_position.x += right.x * this.initial_offset;
+        spawn_position.y += right.y * this.initial_offset;
+        spawn_position.z += right.z * this.initial_offset;
+
+        // Store target position (original spawn position before offset)
+        this.target_position = {
+            x: spawn_position.x - right.x * this.initial_offset,
+            y: spawn_position.y - right.y * this.initial_offset,
+            z: spawn_position.z - right.z * this.initial_offset
+        };
+
         // Use spawn position
         this.CHAIN_CONFIG.POSITION.X = spawn_position.x;
         this.CHAIN_CONFIG.POSITION.Y = spawn_position.y;
         this.CHAIN_CONFIG.POSITION.Z = spawn_position.z;
+
+        this.animation_start_time = performance.now();
+        this.is_animating = true;
 
         return this.initialize(spawn_position);
     }
@@ -486,6 +516,31 @@ export class ScrollMenu {
     async update() {
         const currentTime = performance.now();
         
+        // Handle animation
+        if (this.is_animating) {
+            const elapsed = (currentTime - this.animation_start_time) / 1000; // Convert to seconds
+            if (elapsed >= this.animation_duration) {
+                // Animation complete
+                this.is_animating = false;
+                // Set final position
+                if (this.anchor_body) {
+                    this.anchor_body.setTranslation(this.target_position);
+                }
+            } else {
+                // Calculate progress with simple easing
+                const progress = elapsed / this.animation_duration;
+                const eased_progress = progress * (2 - progress); // Simple easing function
+                
+                if (this.anchor_body) {
+                    const current = this.anchor_body.translation();
+                    const new_x = current.x + (this.target_position.x - current.x) * 0.05; // Smooth interpolation
+                    const new_y = current.y;
+                    const new_z = current.z + (this.target_position.z - current.z) * 0.05;
+                    this.anchor_body.setTranslation({ x: new_x, y: new_y, z: new_z });
+                }
+            }
+        }
+
         // Update only spotlight direction if it exists, position stays fixed
         if (this.menu_spotlight && !this.chains_broken && this.sign_mesh) {
             // Update spotlight direction to point at sign
