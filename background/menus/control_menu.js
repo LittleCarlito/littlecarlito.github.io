@@ -124,12 +124,19 @@ export class ControlMenu {
     // Animation variables
     animation_start_time = 0;
     is_animating = false;
+    // Store initial camera state
+    initial_camera_position = new THREE.Vector3();
+    initial_camera_quaternion = new THREE.Quaternion();
 
     constructor(incoming_parent, incoming_camera, incoming_world, primary_container, incoming_speed = DEFAULT_SPEED) {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.world = incoming_world;
         this.lighting = BackgroundLighting.getInstance(this.parent);
+        
+        // Store initial camera state
+        this.initial_camera_position.copy(this.camera.position);
+        this.initial_camera_quaternion.copy(this.camera.quaternion);
         
         // Calculate assembly position based on camera using MENU_CONFIG
         this.assembly_position = {
@@ -433,9 +440,9 @@ export class ControlMenu {
                 // Create spotlight if needed (but don't wait for it)
                 if (!this.menu_spotlight && this.sign_mesh) {
                     const spotlightPosition = new THREE.Vector3();
-                    spotlightPosition.copy(this.camera.position);
+                    spotlightPosition.copy(this.initial_camera_position);
                     const backVector = new THREE.Vector3(0, 0, 15);
-                    backVector.applyQuaternion(this.camera.quaternion);
+                    backVector.applyQuaternion(this.initial_camera_quaternion);
                     spotlightPosition.add(backVector);
 
                     const targetPosition = new THREE.Vector3();
