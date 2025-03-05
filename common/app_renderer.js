@@ -51,6 +51,45 @@ export class AppRenderer {
         this.css_renderer.domElement.addEventListener(incoming_event_name, handler_method);
     }
 
+    remove_event_listener(incoming_event_name, handler_method) {
+        this.webgl_renderer.domElement.removeEventListener(incoming_event_name, handler_method);
+        this.css_renderer.domElement.removeEventListener(incoming_event_name, handler_method);
+    }
+
+    /**
+     * Properly disposes of all renderer resources to prevent memory leaks
+     */
+    dispose() {
+        // Stop animation loop
+        this.webgl_renderer.setAnimationLoop(null);
+        
+        // Dispose of composer passes
+        if (this.composer) {
+            this.composer.passes.forEach(pass => {
+                if (pass.dispose) {
+                    pass.dispose();
+                }
+            });
+        }
+        
+        // Dispose of renderers
+        if (this.webgl_renderer) {
+            this.webgl_renderer.dispose();
+            if (document.body.contains(this.webgl_renderer.domElement)) {
+                document.body.removeChild(this.webgl_renderer.domElement);
+            }
+        }
+        
+        if (this.css_renderer && document.body.contains(this.css_renderer.domElement)) {
+            document.body.removeChild(this.css_renderer.domElement);
+        }
+        
+        // Clear references
+        this.composer = null;
+        this.webgl_renderer = null;
+        this.css_renderer = null;
+    }
+
     render() {
         this.composer.render();
         this.css_renderer.render(this.parent, this.camera);

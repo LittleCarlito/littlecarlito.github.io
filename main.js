@@ -33,6 +33,73 @@ let right_mouse_down = false;
 let construction_acknowledged = !FLAGS.CONSTRUCTION_GREETING;
 let asset_spawner;
 let asset_activator;
+let isCleanedUp = false; // Track if cleanup has been performed
+
+/** Cleans up resources to prevent memory leaks */
+function cleanup() {
+    if (isCleanedUp) return; // Prevent multiple cleanups
+    
+    // Remove event listeners
+    window.removeEventListener('resize', handle_resize);
+    window.removeEventListener('mousemove', handle_mouse_move);
+    window.removeEventListener('mousedown', handle_mouse_down);
+    window.removeEventListener('mouseup', handle_mouse_up);
+    window.removeEventListener('contextmenu', handle_context_menu);
+    window.removeEventListener('wheel', handle_wheel);
+    window.removeEventListener('keydown', toggle_debug_ui);
+    
+    // Dispose of major components
+    if (app_renderer) {
+        app_renderer.dispose();
+        app_renderer = null;
+    }
+    
+    // Cleanup asset systems
+    if (asset_spawner) {
+        asset_spawner.cleanup();
+        asset_spawner = null;
+    }
+    
+    // Force garbage collection on Three.js objects
+    if (scene) {
+        scene.traverse(object => {
+            if (object.geometry) object.geometry.dispose();
+            
+            if (object.material) {
+                if (Array.isArray(object.material)) {
+                    object.material.forEach(material => {
+                        if (material.map) material.map.dispose();
+                        material.dispose();
+                    });
+                } else {
+                    if (object.material.map) object.material.map.dispose();
+                    object.material.dispose();
+                }
+            }
+        });
+        
+        scene.clear();
+        scene = null;
+    }
+    
+    // Release Rapier physics world
+    if (world) {
+        world = null;
+    }
+    
+    // Clear other references
+    viewable_container = null;
+    background_container = null;
+    clock = null;
+    gravity = null;
+    grabbed_object = null;
+    
+    isCleanedUp = true;
+    
+    if (FLAGS.PHYSICS_LOGS) {
+        console.log("Application resources cleaned up");
+    }
+}
 
 /** Updates the loading progress text */
 function updateLoadingProgress(text) {
@@ -214,17 +281,9 @@ async function init() {
         }
         
         // Add keyboard event listener for debug UI toggle
-        window.addEventListener('keydown', function(event) {
-            // Toggle debug UI when 's' is pressed
-            if (event.key === 's') {
-                toggleDebugUI();
-                console.log("Debug UI toggled:", FLAGS.DEBUG_UI);
-                // Update label wireframes when debug UI is toggled
-                if (FLAGS.DEBUG_UI && FLAGS.COLLISION_VISUAL_DEBUG) {
-                    updateLabelWireframes();
-                }
-            }
-        });
+        window.addEventListener('keydown', toggle_debug_ui);
+        // Add unload event to clean up resources
+        window.addEventListener('unload', cleanup);
     } catch (error) {
         console.error('Error during initialization:', error);
         updateLoadingProgress('Error loading application. Please refresh the page.');
@@ -256,14 +315,24 @@ function animate() {
     } else {
         asset_activator.deactivate_all_objects();
     }
+    
+    // Run physics simulation
     world.timestep = Math.min(delta, 0.1);
     world.step();
+    
     // Background object updates
     background_container.update(grabbed_object, viewable_container);
     AssetStorage.get_instance().update();
+    
     // Update confetti particles
     viewable_container.get_overlay().update_confetti();
-    // Scene reload
+    
+    // Ensure regular cleanup of unused resources
+    if (asset_spawner) {
+        asset_spawner.performCleanup();
+    }
+    
+    // Render the scene
     app_renderer.render();
 }
 
@@ -398,6 +467,19 @@ function handle_wheel(e) {
             }
             zoom_event = true;
             resize_move = true;
+        }
+    }
+}
+
+/** Toggle debug UI when 's' key is pressed */
+function toggle_debug_ui(event) {
+    // Toggle debug UI when 's' is pressed
+    if (event.key === 's') {
+        toggleDebugUI();
+        console.log("Debug UI toggled:", FLAGS.DEBUG_UI);
+        // Update label wireframes when debug UI is toggled
+        if (FLAGS.DEBUG_UI && FLAGS.COLLISION_VISUAL_DEBUG) {
+            updateLabelWireframes();
         }
     }
 }

@@ -356,26 +356,47 @@ export class AssetSpawner {
     performCleanup() {
         const currentTime = Date.now();
         if (currentTime - this.lastCleanupTime < this.cleanupInterval) return;
-
+        
+        if (this.disposalQueue.size === 0) {
+            this.lastCleanupTime = currentTime;
+            return;
+        }
+        
+        if (FLAGS.PHYSICS_LOGS) {
+            console.log(`${this.name} Cleaning up ${this.disposalQueue.size} objects`);
+        }
+        
         this.disposalQueue.forEach(object => {
-            if (object.mesh) {
-                if (object.mesh.parent) {
-                    object.mesh.parent.remove(object.mesh);
-                }
-                if (object.mesh.geometry) object.mesh.geometry.dispose();
-                if (object.mesh.material) {
-                    if (Array.isArray(object.mesh.material)) {
-                        object.mesh.material.forEach(mat => mat.dispose());
-                    } else {
-                        object.mesh.material.dispose();
-                    }
+            // Properly dispose of geometries
+            if (object.mesh && object.mesh.geometry) {
+                object.mesh.geometry.dispose();
+            }
+            
+            // Properly dispose of materials (handle arrays of materials)
+            if (object.mesh && object.mesh.material) {
+                if (Array.isArray(object.mesh.material)) {
+                    object.mesh.material.forEach(mat => {
+                        if (mat.map) mat.map.dispose();
+                        mat.dispose();
+                    });
+                } else {
+                    if (object.mesh.material.map) object.mesh.material.map.dispose();
+                    object.mesh.material.dispose();
                 }
             }
-            if (object.body && object.body.parent) {
-                object.body.parent.remove(object.body);
+            
+            // Remove from physics world if needed
+            if (object.body && this.world) {
+                this.world.removeRigidBody(object.body);
+            }
+            
+            // Remove from parent
+            if (object.mesh && object.mesh.parent) {
+                object.mesh.parent.remove(object.mesh);
             }
         });
-
+        
+        // Clear the disposal queue
         this.disposalQueue.clear();
         this.lastCleanupTime = currentTime;
     }
