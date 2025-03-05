@@ -41,5 +41,7 @@ export function get_intersect_list(e, incoming_camera, incoming_scene) {
     mouse_location.x = ndc.x;
     mouse_location.y = ndc.y;
     raycaster.setFromCamera(mouse_location, incoming_camera);
-    return raycaster.intersectObject(incoming_scene, true);
+    const intersections = raycaster.intersectObject(incoming_scene, true);
+    // Sort intersections by distance (furthest first)
+    return intersections.sort((a, b) => b.distance - a.distance);
 }
