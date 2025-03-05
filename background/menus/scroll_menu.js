@@ -972,6 +972,14 @@ export class ScrollMenu {
             return;
         }
 
+        // Update visibility based on the collision debug toggle
+        this.assembly_container.visible = FLAGS.COLLISION_VISUAL_DEBUG;
+
+        // If not visible, no need to update dimensions
+        if (!this.assembly_container.visible) {
+            return;
+        }
+
         // Initialize min/max values for bounding box
         const min = new THREE.Vector3(Infinity, Infinity, Infinity);
         const max = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
