@@ -68,6 +68,9 @@ export class ScrollMenu {
     sign_mesh;
     sign_body;
     anchor_body;
+    // Store initial camera state
+    initial_camera_position = new THREE.Vector3();
+    initial_camera_quaternion = new THREE.Quaternion();
 
     constructor(incoming_parent, incoming_camera, incoming_world, incoming_container, spawn_position) {
         this.parent = incoming_parent;
@@ -75,6 +78,10 @@ export class ScrollMenu {
         this.world = incoming_world;
         this.dynamic_bodies = incoming_container.dynamic_bodies;
         this.lighting = BackgroundLighting.getInstance(this.parent);
+
+        // Store initial camera state
+        this.initial_camera_position.copy(this.camera.position);
+        this.initial_camera_quaternion.copy(this.camera.quaternion);
 
         // Use spawn position
         this.CHAIN_CONFIG.POSITION.X = spawn_position.x;
@@ -399,6 +406,26 @@ export class ScrollMenu {
             this.sign_image.src = this.CHAIN_CONFIG.SIGN.IMAGE_PATH;
         });
 
+        // Create spotlight after sign is initialized
+        if (!this.menu_spotlight && this.sign_mesh) {
+            // Calculate spotlight position 15 units behind initial camera position
+            const spotlightPosition = new THREE.Vector3();
+            spotlightPosition.copy(this.initial_camera_position);
+            const backVector = new THREE.Vector3(0, 0, 15);
+            backVector.applyQuaternion(this.initial_camera_quaternion);
+            spotlightPosition.add(backVector);
+
+            // Create spotlight using the stored lighting instance
+            this.menu_spotlight = await this.lighting.create_spotlight(
+                spotlightPosition,
+                0, // Initial rotationX, will be updated immediately
+                0, // Initial rotationY, will be updated immediately
+                5, // circle radius
+                0, // unlimited distance
+                0x00FFFF // Cyan color for scroll menu
+            );
+        }
+
         this.last_log_time = 0;
         this.log_interval = 500;
 
@@ -459,33 +486,19 @@ export class ScrollMenu {
     async update() {
         const currentTime = performance.now();
         
-        // Create spotlight if it doesn't exist and we have a sign
-        if (!this.menu_spotlight && !this.chains_broken && this.sign_mesh) {
-            // Calculate spotlight position 15 units behind camera
-            const spotlightPosition = new THREE.Vector3();
-            spotlightPosition.copy(this.camera.position);
-            const backVector = new THREE.Vector3(0, 0, 15);
-            backVector.applyQuaternion(this.camera.quaternion);
-            spotlightPosition.add(backVector);
-
-            // Calculate direction to sign
+        // Update only spotlight direction if it exists, position stays fixed
+        if (this.menu_spotlight && !this.chains_broken && this.sign_mesh) {
+            // Update spotlight direction to point at sign
             const targetPosition = new THREE.Vector3();
             targetPosition.copy(this.sign_mesh.position);
-
-            // Calculate angles for spotlight
-            const direction = new THREE.Vector3().subVectors(targetPosition, spotlightPosition);
+            const direction = new THREE.Vector3().subVectors(targetPosition, this.menu_spotlight.position);
             const rotationY = Math.atan2(direction.x, direction.z);
             const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
 
-            // Create spotlight using the stored lighting instance
-            this.menu_spotlight = await this.lighting.create_spotlight(
-                spotlightPosition,
-                rotationX,
-                rotationY,
-                5, // circle radius
-                0, // unlimited distance
-                0x00FFFF // Cyan color for scroll menu
-            );
+            // Update spotlight rotation
+            this.menu_spotlight.rotation.set(rotationX, rotationY, 0);
+            this.menu_spotlight.target.position.copy(targetPosition);
+            this.menu_spotlight.target.updateMatrixWorld();
         }
         
         // Update sign rotation based on camera angles
