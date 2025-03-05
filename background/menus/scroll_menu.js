@@ -82,6 +82,9 @@ export class ScrollMenu {
         y: 0,
         z: 0
     };
+    // Position logging
+    last_position_log_time = 0;
+    position_log_interval = 500; // 500ms
 
     constructor(incoming_parent, incoming_camera, incoming_world, incoming_container, spawn_position) {
         this.parent = incoming_parent;
@@ -94,6 +97,10 @@ export class ScrollMenu {
         this.initial_camera_position.copy(this.camera.position);
         this.initial_camera_quaternion.copy(this.camera.quaternion);
 
+        // Log initial spawn position before any modifications
+        console.log("📦 INITIAL SPAWN POSITION (before offset):");
+        console.log(`X: ${spawn_position.x.toFixed(2)}, Y: ${spawn_position.y.toFixed(2)}, Z: ${spawn_position.z.toFixed(2)}`);
+
         // Calculate the right vector in local space
         const right = new THREE.Vector3(1, 0, 0);
         right.applyQuaternion(this.camera.quaternion);
@@ -103,6 +110,10 @@ export class ScrollMenu {
         spawn_position.y += right.y * this.initial_offset;
         spawn_position.z += right.z * this.initial_offset;
 
+        // Log modified spawn position after offset
+        console.log("📌 ACTUAL SPAWN POSITION (after offset):");
+        console.log(`X: ${spawn_position.x.toFixed(2)}, Y: ${spawn_position.y.toFixed(2)}, Z: ${spawn_position.z.toFixed(2)}`);
+
         // Store target position (original spawn position before offset)
         this.target_position = {
             x: spawn_position.x - right.x * this.initial_offset,
@@ -110,10 +121,18 @@ export class ScrollMenu {
             z: spawn_position.z - right.z * this.initial_offset
         };
 
+        // Log calculated target position
+        console.log("🎯 TARGET POSITION (spawn minus offset):");
+        console.log(`X: ${this.target_position.x.toFixed(2)}, Y: ${this.target_position.y.toFixed(2)}, Z: ${this.target_position.z.toFixed(2)}`);
+
         // Use spawn position
         this.CHAIN_CONFIG.POSITION.X = spawn_position.x;
         this.CHAIN_CONFIG.POSITION.Y = spawn_position.y;
         this.CHAIN_CONFIG.POSITION.Z = spawn_position.z;
+
+        // Log animation start position
+        console.log("🏁 ANIMATION START POSITION (CHAIN_CONFIG.POSITION):");
+        console.log(`X: ${this.CHAIN_CONFIG.POSITION.X.toFixed(2)}, Y: ${this.CHAIN_CONFIG.POSITION.Y.toFixed(2)}, Z: ${this.CHAIN_CONFIG.POSITION.Z.toFixed(2)}`);
 
         this.animation_start_time = performance.now();
         this.is_animating = true;
@@ -516,6 +535,44 @@ export class ScrollMenu {
     async update() {
         const currentTime = performance.now();
         
+        // Log animation start position on first update after animation begins
+        if (this.is_animating && this.anchor_body && 
+            currentTime - this.animation_start_time < 100) { // Only log in the first 100ms of animation
+            
+            const anchorPos = this.anchor_body.translation();
+            console.log("🚀 ANIMATION ACTUALLY STARTING FROM:");
+            console.log(`Anchor X: ${anchorPos.x.toFixed(2)}, Y: ${anchorPos.y.toFixed(2)}, Z: ${anchorPos.z.toFixed(2)}`);
+            console.log(`Start Config X: ${this.CHAIN_CONFIG.POSITION.X.toFixed(2)}, Y: ${this.CHAIN_CONFIG.POSITION.Y.toFixed(2)}, Z: ${this.CHAIN_CONFIG.POSITION.Z.toFixed(2)}`);
+            console.log(`Target X: ${this.target_position.x.toFixed(2)}, Y: ${this.target_position.y.toFixed(2)}, Z: ${this.target_position.z.toFixed(2)}`);
+        }
+        
+        // Position logging during animation
+        if (this.is_animating && this.sign_body && currentTime - this.last_position_log_time > this.position_log_interval) {
+            this.last_position_log_time = currentTime;
+            
+            // Add log to show current target position
+            console.log("🎯 CURRENT TARGET POSITION:");
+            console.log(`X: ${this.target_position.x.toFixed(2)}, Y: ${this.target_position.y.toFixed(2)}, Z: ${this.target_position.z.toFixed(2)}`);
+            
+            const signPos = this.sign_body.translation();
+            const signVel = this.sign_body.linvel();
+            const rotation = this.sign_body.rotation();
+            const euler = new THREE.Euler().setFromQuaternion(
+                new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w)
+            );
+            
+            console.log("🔄 SCROLL SIGN - ANIMATING");
+            console.log(`⏱️ Animation progress: ${((currentTime - this.animation_start_time) / 1000 / this.animation_duration * 100).toFixed(1)}%`);
+            console.log(`📍 Position X: ${signPos.x.toFixed(2)}, Y: ${signPos.y.toFixed(2)}, Z: ${signPos.z.toFixed(2)}`);
+            console.log(`🏃 Velocity X: ${signVel.x.toFixed(2)}, Y: ${signVel.y.toFixed(2)}, Z: ${signVel.z.toFixed(2)}`);
+            console.log(`🔄 Rotation (deg) X: ${(euler.x * 180/Math.PI).toFixed(1)}°, Y: ${(euler.y * 180/Math.PI).toFixed(1)}°, Z: ${(euler.z * 180/Math.PI).toFixed(1)}°`);
+            
+            // Also log anchor position
+            const anchorPos = this.anchor_body.translation();
+            console.log(`⚓ Anchor Position X: ${anchorPos.x.toFixed(2)}, Y: ${anchorPos.y.toFixed(2)}, Z: ${anchorPos.z.toFixed(2)}`);
+            console.log("-------------------");
+        }
+        
         // Handle animation
         if (this.is_animating) {
             const elapsed = (currentTime - this.animation_start_time) / 1000; // Convert to seconds
@@ -524,7 +581,36 @@ export class ScrollMenu {
                 this.is_animating = false;
                 // Set final position
                 if (this.anchor_body) {
+                    // Log the expected delta movement before setting final position
+                    console.log("📏 EXPECTED DELTA MOVEMENT:");
+                    const deltaX = this.target_position.x - this.CHAIN_CONFIG.POSITION.X;
+                    const deltaY = this.target_position.y - this.CHAIN_CONFIG.POSITION.Y;
+                    const deltaZ = this.target_position.z - this.CHAIN_CONFIG.POSITION.Z;
+                    console.log(`Delta X: ${deltaX.toFixed(2)}, Y: ${deltaY.toFixed(2)}, Z: ${deltaZ.toFixed(2)}`);
+                    
                     this.anchor_body.setTranslation(this.target_position);
+                    
+                    // Log final position
+                    if (this.sign_body) {
+                        const finalPos = this.sign_body.translation();
+                        const finalVel = this.sign_body.linvel();
+                        const finalRot = this.sign_body.rotation();
+                        const finalEuler = new THREE.Euler().setFromQuaternion(
+                            new THREE.Quaternion(finalRot.x, finalRot.y, finalRot.z, finalRot.w)
+                        );
+                        
+                        console.log("✅ SCROLL SIGN - ANIMATION COMPLETE");
+                        console.log(`📍 Final Position X: ${finalPos.x.toFixed(2)}, Y: ${finalPos.y.toFixed(2)}, Z: ${finalPos.z.toFixed(2)}`);
+                        console.log(`🏃 Final Velocity X: ${finalVel.x.toFixed(2)}, Y: ${finalVel.y.toFixed(2)}, Z: ${finalVel.z.toFixed(2)}`);
+                        console.log(`🔄 Final Rotation (deg) X: ${(finalEuler.x * 180/Math.PI).toFixed(1)}°, Y: ${(finalEuler.y * 180/Math.PI).toFixed(1)}°, Z: ${(finalEuler.z * 180/Math.PI).toFixed(1)}°`);
+                        
+                        // Log final positions again
+                        console.log("🎯 FINAL TARGET POSITION:");
+                        console.log(`X: ${this.target_position.x.toFixed(2)}, Y: ${this.target_position.y.toFixed(2)}, Z: ${this.target_position.z.toFixed(2)}`);
+                        console.log("📌 FINAL CHAIN CONFIG POSITION (spawn):");
+                        console.log(`X: ${this.CHAIN_CONFIG.POSITION.X.toFixed(2)}, Y: ${this.CHAIN_CONFIG.POSITION.Y.toFixed(2)}, Z: ${this.CHAIN_CONFIG.POSITION.Z.toFixed(2)}`);
+                        console.log("====================");
+                    }
                 }
             } else {
                 // Calculate progress with simple easing
@@ -532,6 +618,14 @@ export class ScrollMenu {
                 const eased_progress = progress * (2 - progress); // Simple easing function
                 
                 if (this.anchor_body) {
+                    // Log calculation details periodically
+                    if (currentTime - this.last_log_time > this.log_interval) {
+                        const current = this.anchor_body.translation();
+                        console.log(`⏱️ Progress: ${progress.toFixed(2)}, Eased: ${eased_progress.toFixed(2)}`);
+                        console.log(`📐 Current: ${current.x.toFixed(2)}, Target: ${this.target_position.x.toFixed(2)}, Step: ${((this.target_position.x - current.x) * 0.05).toFixed(2)}`);
+                        this.last_log_time = currentTime;
+                    }
+                    
                     const current = this.anchor_body.translation();
                     const new_x = current.x + (this.target_position.x - current.x) * 0.05; // Smooth interpolation
                     const new_y = current.y;
