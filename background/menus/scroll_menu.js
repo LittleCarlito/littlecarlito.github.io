@@ -398,15 +398,18 @@ export class ScrollMenu {
                 );
                 this.chain_joints.push(signJoint);
                 AssetStorage.get_instance().add_object(this.sign_mesh, this.sign_body);
-
+                
                 // Store sign with specific identifier
                 this.dynamic_bodies.push({
                     type: 'scroll_menu_sign',
                     mesh: this.sign_mesh,
                     body: this.sign_body
                 });
-
-                // Add debug mesh for sign
+                
+                // Create assembly container
+                this.createAssemblyContainer();
+                
+                // Add debug visual if enabled
                 if (FLAGS.SIGN_VISUAL_DEBUG) {
                     const signDebugGeometry = new THREE.BoxGeometry(
                         this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH,
@@ -479,6 +482,38 @@ export class ScrollMenu {
         return this;
     }
 
+    /**
+     * Creates an assembly container with a red wireframe mesh to represent the bounds of the assembly
+     */
+    createAssemblyContainer() {
+        // Create an initial placeholder geometry (will be updated in updateAssemblyContainerBounds)
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        
+        // Create a red wireframe material
+        const material = new THREE.MeshBasicMaterial({
+            color: 0xff0000,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.8
+        });
+        
+        // Create the mesh
+        this.assembly_container = new THREE.Mesh(geometry, material);
+        this.assembly_container.name = "assembly_container";
+        
+        // Add to the scene
+        this.parent.add(this.assembly_container);
+        
+        if (FLAGS.PHYSICS_LOGS) {
+            console.log("Created assembly container - dimensions will be updated dynamically");
+        }
+        
+        // Initialize bounds immediately
+        this.updateAssemblyContainerBounds();
+        
+        return this.assembly_container;
+    }
+
     async break_chains() {
         if (!this.chains_broken) {
             // Wake up all chain segments and sign
@@ -487,6 +522,18 @@ export class ScrollMenu {
                     data.body.wakeUp();
                 }
             });
+
+            // Clean up assembly container if it exists
+            if (this.assembly_container) {
+                this.parent.remove(this.assembly_container);
+                if (this.assembly_container.geometry) {
+                    this.assembly_container.geometry.dispose();
+                }
+                if (this.assembly_container.material) {
+                    this.assembly_container.material.dispose();
+                }
+                this.assembly_container = null;
+            }
 
             // Remove debug meshes if they exist
             if (FLAGS.SIGN_VISUAL_DEBUG) {
@@ -532,6 +579,9 @@ export class ScrollMenu {
 
     async update() {
         const currentTime = performance.now();
+        
+        // Update assembly container to match the bounds of the assembly
+        this.updateAssemblyContainerBounds();
         
         // Log animation start position on first update after animation begins
         if (this.is_animating && this.anchor_body && 
@@ -912,5 +962,114 @@ export class ScrollMenu {
         if (this.debug_meshes.sign) {
             this.debug_meshes.sign.visible = FLAGS.SIGN_VISUAL_DEBUG;
         }
+    }
+
+    /**
+     * Updates the assembly container dimensions and position to match the current bounds of the entire assembly
+     */
+    updateAssemblyContainerBounds() {
+        if (!this.assembly_container || !this.anchor_body) {
+            return;
+        }
+
+        // Initialize min/max values for bounding box
+        const min = new THREE.Vector3(Infinity, Infinity, Infinity);
+        const max = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
+
+        // Include anchor position
+        const anchorPos = this.anchor_body.translation();
+        min.x = Math.min(min.x, anchorPos.x);
+        min.y = Math.min(min.y, anchorPos.y);
+        min.z = Math.min(min.z, anchorPos.z);
+        max.x = Math.max(max.x, anchorPos.x);
+        max.y = Math.max(max.y, anchorPos.y);
+        max.z = Math.max(max.z, anchorPos.z);
+
+        // Include all chain segments
+        this.dynamic_bodies.forEach(data => {
+            if (data.type === 'scroll_menu_chain' && data.body) {
+                const pos = data.body.translation();
+                min.x = Math.min(min.x, pos.x);
+                min.y = Math.min(min.y, pos.y);
+                min.z = Math.min(min.z, pos.z);
+                max.x = Math.max(max.x, pos.x);
+                max.y = Math.max(max.y, pos.y);
+                max.z = Math.max(max.z, pos.z);
+            }
+        });
+
+        // Include sign dimensions
+        if (this.sign_body) {
+            const signPos = this.sign_body.translation();
+            const halfWidth = this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH / 2;
+            const halfHeight = this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT / 2;
+            const halfDepth = this.CHAIN_CONFIG.SIGN.DIMENSIONS.DEPTH / 2;
+            
+            // Get the sign's rotation
+            const rotation = this.sign_body.rotation();
+            const quaternion = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+            
+            // Calculate the corners of the sign in local space
+            const corners = [
+                new THREE.Vector3(-halfWidth, -halfHeight, -halfDepth),
+                new THREE.Vector3(-halfWidth, -halfHeight, halfDepth),
+                new THREE.Vector3(-halfWidth, halfHeight, -halfDepth),
+                new THREE.Vector3(-halfWidth, halfHeight, halfDepth),
+                new THREE.Vector3(halfWidth, -halfHeight, -halfDepth),
+                new THREE.Vector3(halfWidth, -halfHeight, halfDepth),
+                new THREE.Vector3(halfWidth, halfHeight, -halfDepth),
+                new THREE.Vector3(halfWidth, halfHeight, halfDepth)
+            ];
+            
+            // Transform corners to world space and update bounds
+            corners.forEach(corner => {
+                // Apply rotation
+                corner.applyQuaternion(quaternion);
+                // Add position offset
+                corner.x += signPos.x;
+                corner.y += signPos.y;
+                corner.z += signPos.z;
+                
+                // Update bounds
+                min.x = Math.min(min.x, corner.x);
+                min.y = Math.min(min.y, corner.y);
+                min.z = Math.min(min.z, corner.z);
+                max.x = Math.max(max.x, corner.x);
+                max.y = Math.max(max.y, corner.y);
+                max.z = Math.max(max.z, corner.z);
+            });
+        }
+
+        // Add a small buffer to the bounds
+        const buffer = 0.2;
+        min.x -= buffer;
+        min.y -= buffer;
+        min.z -= buffer;
+        max.x += buffer;
+        max.y += buffer;
+        max.z += buffer;
+
+        // Calculate dimensions and center position
+        const size = new THREE.Vector3(
+            Math.max(0.1, max.x - min.x),
+            Math.max(0.1, max.y - min.y),
+            Math.max(0.1, max.z - min.z)
+        );
+        const center = new THREE.Vector3(
+            (min.x + max.x) / 2,
+            (min.y + max.y) / 2,
+            (min.z + max.z) / 2
+        );
+
+        // Remove old geometry
+        if (this.assembly_container.geometry) {
+            this.assembly_container.geometry.dispose();
+        }
+
+        // Create new geometry with updated dimensions
+        this.assembly_container.geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+        
+        // Update position to the center of the bounding box
+        this.assembly_container.position.copy(center);
     }
 }
