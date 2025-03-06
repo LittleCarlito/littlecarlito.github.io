@@ -796,12 +796,12 @@
                             // Enhanced mouse ripple effect - larger radius and stronger effect
                             // First condition: mouse button pressed - creates strong ripples
                             if (iMouse.z > 0.5 && 18.0 - length(iMouse.xy - coord) > 0.0) {
-                                t = 1.5; // Stronger ripple when mouse is pressed
+                                t = 1.4; // Reduced from 1.8 for more subtle ripples when mouse is pressed
                             } 
                             // Second condition: mouse motion only - creates subtle ripples
                             // We use sin(iTime) to create a continuous ripple effect while moving
                             else if (25.0 - length(iMouse.xy - coord) > 0.0) {
-                                float mouseRippleIntensity = 0.3 + 0.2 * sin(iTime * 10.0);
+                                float mouseRippleIntensity = 0.25 + 0.2 * sin(iTime * 10.0); // Reduced intensity
                                 t += mouseRippleIntensity * (1.0 - length(iMouse.xy - coord) / 25.0);
                             }
                         }
@@ -953,9 +953,9 @@
                     void main() {
                         vec2 coord = uvToPixel(vUv);
                         
-                        // Make water more blue by adjusting the base color
-                        vec3 waterColor = vec3(0.2, 0.3, 0.9) + 
-                            dot(vec2(dA(coord, vec2(1.0, 0.0)), 
+                        // Make water more blue by adjusting the base color - reduce intensity for more translucency
+                        vec3 waterColor = vec3(0.12, 0.2, 0.7) + 
+                            0.5 * dot(vec2(dA(coord, vec2(1.0, 0.0)), 
                                      dA(coord, vec2(0.0, 1.0))), l);
                         
                         // Add the particle influence (similar to Shadertoy)
@@ -970,27 +970,40 @@
                                            * max(1.0 - 0.5 * length(coord - B(coord)), 0.0);
                         }
                         
-                        // Enhance blue tint and make it glow a bit more
+                        // Enhance blue tint but keep it more transparent
                         vec3 finalColor = waterColor;
-                        finalColor.b += 0.2; // Boost blue channel
-                        finalColor.r *= 0.7; // Reduce red channel
+                        finalColor.b += 0.08; // Reduced for less intensity
+                        finalColor.r *= 0.9; // Less reduction to preserve visibility
                         
                         // Add subtle shimmer/variation to make the water feel more alive
                         float shimmerEffect = shimmer(coord, iTime);
-                        finalColor.b += shimmerEffect;
-                        finalColor.g += shimmerEffect * 0.5;
+                        finalColor.b += shimmerEffect * 0.4;
+                        finalColor.g += shimmerEffect * 0.15;
                         
                         // Create a gradient from deeper blue (center) to lighter blue (edges)
                         float distFromCenter = length(coord - iResolution * 0.5) / length(iResolution * 0.5);
                         float edgeFade = smoothstep(0.7, 1.0, distFromCenter);
                         
                         // Blend toward a lighter blue at the edges
-                        vec3 edgeColor = vec3(0.4, 0.6, 1.0);
-                        finalColor = mix(finalColor, edgeColor, edgeFade * 0.3);
+                        vec3 edgeColor = vec3(0.25, 0.4, 0.8);
+                        finalColor = mix(finalColor, edgeColor, edgeFade * 0.2);
                         
-                        // Make more translucent by reducing the alpha value
-                        // Use distance from center to fade out alpha at edges
-                        float alpha = 0.45 * (1.0 - edgeFade * 0.3);
+                        // Calculate ripple intensity - used to make ripples more visible
+                        // Reduce the intensity to make ripples more subtle
+                        float rippleIntensity = abs(dA(coord, vec2(1.0, 0.0))) + abs(dA(coord, vec2(0.0, 1.0)));
+                        rippleIntensity *= 0.7; // Scale down ripple intensity overall
+                        
+                        // Make the base water extremely translucent
+                        float baseAlpha = 0.12 * (1.0 - edgeFade * 0.3);
+                        
+                        // Make ripples only slightly more opaque than the base water
+                        float alphaBoost = min(0.4, rippleIntensity * 1.8); // Reduced boost factor for more translucent ripples
+                        float alpha = mix(baseAlpha, min(0.25, baseAlpha + 0.15), alphaBoost);
+                        
+                        // Adjust the color based on ripple intensity - make ripples slightly brighter
+                        // Reduce the brightness boost to make ripples less intense
+                        finalColor = mix(finalColor, finalColor * 1.1, min(0.4, rippleIntensity * 0.8));
+                        
                         gl_FragColor = vec4(finalColor, alpha);
                     }
                 `,
