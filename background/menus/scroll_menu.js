@@ -169,8 +169,13 @@ export class ScrollMenu {
         const segmentMaterial = new THREE.MeshBasicMaterial({ visible: false });
         const segmentMesh = new THREE.Mesh(segmentGeometry, segmentMaterial);
         segmentMesh.name = `scroll_menu_chain_segment_${index}`;
-        this.parent.add(segmentMesh);
-
+        
+        // Rotate the segment visualization to match the rigidbody orientation
+        segmentMesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+        
+        // Add to the assembly container
+        this.assembly_container.add(segmentMesh);
+        
         // Store in dynamic bodies
         this.dynamic_bodies.push({
             type: 'scroll_menu_chain',
@@ -224,7 +229,7 @@ export class ScrollMenu {
             debugSegment.position.copy(segmentMesh.position);
             debugSegment.quaternion.copy(segmentMesh.quaternion);
             this.debug_meshes.segments.push(debugSegment);
-            this.parent.add(debugSegment);
+            this.assembly_container.add(debugSegment);
 
             // Add debug mesh for joint if not last segment
             if (index < this.CHAIN_CONFIG.SEGMENTS.COUNT - 1) {
@@ -246,7 +251,7 @@ export class ScrollMenu {
                     (prevPos.z + currentPos.z) / 2
                 );
                 this.debug_meshes.joints.push(jointDebug);
-                this.parent.add(jointDebug);
+                this.assembly_container.add(jointDebug);
             }
         }
 
@@ -254,6 +259,9 @@ export class ScrollMenu {
     }
 
     async initialize(spawn_position) {
+        // Create the assembly container first
+        this.createAssemblyContainer();
+        
         // Calculate rotation based on camera position
         const theta_rad = Math.atan2(
             this.camera.position.x,
@@ -295,7 +303,7 @@ export class ScrollMenu {
             this.debug_meshes.anchor.position.set(anchorPos.x, anchorPos.y, anchorPos.z);
             this.debug_meshes.anchor.quaternion.set(anchorRot.x, anchorRot.y, anchorRot.z, anchorRot.w);
             this.debug_meshes.anchor.renderOrder = 999;
-            this.parent.add(this.debug_meshes.anchor);
+            this.assembly_container.add(this.debug_meshes.anchor);
         }
 
         // Sequentially create chain segments
@@ -348,7 +356,7 @@ export class ScrollMenu {
                 // Rotate the sign 90 degrees around X axis
                 this.sign_mesh.rotation.x = Math.PI / 2;
                 
-                this.parent.add(this.sign_mesh);
+                this.assembly_container.add(this.sign_mesh);
                 
                 // Calculate sign spawn position
                 const sign_spawn_y = this.CHAIN_CONFIG.POSITION.Y - 
@@ -423,7 +431,7 @@ export class ScrollMenu {
                     this.debug_meshes.sign = new THREE.Mesh(signDebugGeometry, signDebugMaterial);
                     this.debug_meshes.sign.position.copy(this.sign_mesh.position);
                     this.debug_meshes.sign.quaternion.copy(this.sign_mesh.quaternion);
-                    this.parent.add(this.debug_meshes.sign);
+                    this.assembly_container.add(this.debug_meshes.sign);
                 }
 
                 // Add debug visualization for sign joint
@@ -447,7 +455,7 @@ export class ScrollMenu {
                     );
                     
                     this.debug_meshes.joints.push(signJointDebug);
-                    this.parent.add(signJointDebug);
+                    this.assembly_container.add(signJointDebug);
                 }
 
                 resolve();
@@ -497,19 +505,26 @@ export class ScrollMenu {
             opacity: 0.8
         });
         
-        // Create the mesh
-        this.assembly_container = new THREE.Mesh(geometry, material);
+        // Create the assembly container as a Group instead of a Mesh
+        this.assembly_container = new THREE.Group();
         this.assembly_container.name = "assembly_container";
         
-        // Set initial visibility based on debug flags
-        this.assembly_container.visible = FLAGS.DEBUG_UI && FLAGS.COLLISION_VISUAL_DEBUG;
+        // Create a separate wireframe mesh for visualization
+        this.assembly_wireframe = new THREE.Mesh(geometry, material);
+        this.assembly_wireframe.name = "assembly_wireframe";
+        
+        // Set initial visibility of wireframe based on debug flags
+        this.assembly_wireframe.visible = FLAGS.DEBUG_UI && FLAGS.COLLISION_VISUAL_DEBUG;
+        
+        // Add wireframe to the container
+        this.assembly_container.add(this.assembly_wireframe);
         
         // Add to the scene
         this.parent.add(this.assembly_container);
         
         if (FLAGS.PHYSICS_LOGS) {
             console.log("Created assembly container - dimensions will be updated dynamically");
-            console.log("Initial visibility:", this.assembly_container.visible);
+            console.log("Initial wireframe visibility:", this.assembly_wireframe.visible);
         }
         
         // Initialize bounds immediately
@@ -527,19 +542,69 @@ export class ScrollMenu {
                 }
             });
 
+            // If sign mesh exists, move it to the parent before removing assembly container
+            if (this.sign_mesh) {
+                // Save the world position and rotation
+                const worldPosition = new THREE.Vector3();
+                const worldQuaternion = new THREE.Quaternion();
+                
+                this.sign_mesh.getWorldPosition(worldPosition);
+                this.sign_mesh.getWorldQuaternion(worldQuaternion);
+                
+                // Remove from assembly container
+                this.assembly_container.remove(this.sign_mesh);
+                
+                // Add to parent with preserved world position
+                this.parent.add(this.sign_mesh);
+                this.sign_mesh.position.copy(worldPosition);
+                this.sign_mesh.quaternion.copy(worldQuaternion);
+                
+                if (FLAGS.PHYSICS_LOGS) {
+                    console.log("Moved sign mesh to parent scene");
+                }
+            }
+
+            // If sign debug mesh exists, move it to the parent before removing assembly container
+            if (FLAGS.SIGN_VISUAL_DEBUG && this.debug_meshes.sign) {
+                // Save the world position and rotation
+                const worldPosition = new THREE.Vector3();
+                const worldQuaternion = new THREE.Quaternion();
+                
+                this.debug_meshes.sign.getWorldPosition(worldPosition);
+                this.debug_meshes.sign.getWorldQuaternion(worldQuaternion);
+                
+                // Remove from assembly container
+                this.assembly_container.remove(this.debug_meshes.sign);
+                
+                // Add to parent with preserved world position
+                this.parent.add(this.debug_meshes.sign);
+                this.debug_meshes.sign.position.copy(worldPosition);
+                this.debug_meshes.sign.quaternion.copy(worldQuaternion);
+                
+                if (FLAGS.PHYSICS_LOGS) {
+                    console.log("Moved sign debug mesh to parent scene");
+                }
+            }
+
             // Clean up assembly container if it exists
             if (this.assembly_container) {
                 if (FLAGS.PHYSICS_LOGS) {
                     console.log("Cleaning up assembly container when chains break");
                 }
                 this.parent.remove(this.assembly_container);
-                if (this.assembly_container.geometry) {
-                    this.assembly_container.geometry.dispose();
+                
+                // Dispose of wireframe geometry and material if they exist
+                if (this.assembly_wireframe) {
+                    if (this.assembly_wireframe.geometry) {
+                        this.assembly_wireframe.geometry.dispose();
+                    }
+                    if (this.assembly_wireframe.material) {
+                        this.assembly_wireframe.material.dispose();
+                    }
                 }
-                if (this.assembly_container.material) {
-                    this.assembly_container.material.dispose();
-                }
+                
                 this.assembly_container = null;
+                this.assembly_wireframe = null;
             }
 
             // Remove debug meshes if they exist
@@ -859,7 +924,7 @@ export class ScrollMenu {
                 this.debug_meshes.anchor.position.set(anchorPos.x, anchorPos.y, anchorPos.z);
                 this.debug_meshes.anchor.quaternion.set(anchorRot.x, anchorRot.y, anchorRot.z, anchorRot.w);
                 this.debug_meshes.anchor.renderOrder = 999;
-                this.parent.add(this.debug_meshes.anchor);
+                this.assembly_container.add(this.debug_meshes.anchor);
             }
 
             // Create and show segment debug meshes if they don't exist
@@ -885,7 +950,7 @@ export class ScrollMenu {
                     debugSegment.position.set(pos.x, pos.y, pos.z);
                     debugSegment.quaternion.set(rot.x, rot.y, rot.z, rot.w);
                     this.debug_meshes.segments.push(debugSegment);
-                    this.parent.add(debugSegment);
+                    this.assembly_container.add(debugSegment);
                 });
             }
 
@@ -912,7 +977,7 @@ export class ScrollMenu {
                         (pos1.z + pos2.z) / 2
                     );
                     this.debug_meshes.joints.push(jointDebug);
-                    this.parent.add(jointDebug);
+                    this.assembly_container.add(jointDebug);
                 }
 
                 // Add sign joint if sign exists
@@ -935,7 +1000,7 @@ export class ScrollMenu {
                         chainPos.z
                     );
                     this.debug_meshes.joints.push(signJointDebug);
-                    this.parent.add(signJointDebug);
+                    this.assembly_container.add(signJointDebug);
                 }
             }
 
@@ -955,7 +1020,7 @@ export class ScrollMenu {
                 const signRot = this.sign_body.rotation();
                 this.debug_meshes.sign.position.set(signPos.x, signPos.y, signPos.z);
                 this.debug_meshes.sign.quaternion.set(signRot.x, signRot.y, signRot.z, signRot.w);
-                this.parent.add(this.debug_meshes.sign);
+                this.assembly_container.add(this.debug_meshes.sign);
             }
         }
 
@@ -986,10 +1051,10 @@ export class ScrollMenu {
         }
         
         // Update visibility based on debug flags - only show when debug UI is enabled and collision debug is on
-        this.assembly_container.visible = FLAGS.DEBUG_UI && FLAGS.COLLISION_VISUAL_DEBUG;
+        this.assembly_wireframe.visible = FLAGS.DEBUG_UI && FLAGS.COLLISION_VISUAL_DEBUG;
         
         // If not visible, we can skip the rest of the calculations
-        if (!this.assembly_container.visible) {
+        if (!this.assembly_wireframe.visible) {
             return;
         }
         
@@ -1090,14 +1155,17 @@ export class ScrollMenu {
         );
 
         // Remove old geometry
-        if (this.assembly_container.geometry) {
-            this.assembly_container.geometry.dispose();
+        if (this.assembly_wireframe.geometry) {
+            this.assembly_wireframe.geometry.dispose();
         }
 
         // Create new geometry with updated dimensions
-        this.assembly_container.geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+        this.assembly_wireframe.geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
         
-        // Update position to the center of the bounding box
+        // Update position of the wireframe relative to the container
+        this.assembly_wireframe.position.set(0, 0, 0);
+        
+        // Update position of the container to the center of the bounding box
         this.assembly_container.position.copy(center);
     }
 }
