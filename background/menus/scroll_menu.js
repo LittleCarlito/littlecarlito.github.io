@@ -353,7 +353,10 @@ export class ScrollMenu {
                 this.sign_mesh.castShadow = true;
                 this.sign_mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.SECONDARY}_SCROLL_MENU`;
                 
-                // Rotate the sign 90 degrees around X axis
+                // Add a reference to this ScrollMenu instance in the userData
+                this.sign_mesh.userData.scrollMenu = this;
+                
+                // Adjust rotation to match our coordinate system
                 this.sign_mesh.rotation.x = Math.PI / 2;
                 
                 this.assembly_container.add(this.sign_mesh);
@@ -507,6 +510,9 @@ export class ScrollMenu {
         // Create the assembly container as a Group instead of a Mesh
         this.assembly_container = new THREE.Group();
         this.assembly_container.name = "assembly_container";
+        
+        // Add a reference to this ScrollMenu instance in the userData
+        this.assembly_container.userData.scrollMenu = this;
         
         // Create a separate wireframe mesh for visualization
         this.assembly_wireframe = new THREE.Mesh(geometry, material);
@@ -1114,6 +1120,42 @@ export class ScrollMenu {
                 // Keep the same rotation as the anchor
                 signData.body.setRotation(anchorRot);
             }
+        }
+    }
+
+    // New method to make all chain segments dynamic when the sign is released
+    makeEntireChainDynamic() {
+        // Make all chain segments dynamic
+        const chainBodies = this.dynamic_bodies
+            .filter(data => data.type === 'scroll_menu_chain' && data.body)
+            .map(data => data.body);
+            
+        // Convert all chain segments to dynamic bodies
+        chainBodies.forEach(body => {
+            // Only convert if it's not already dynamic
+            if (body.bodyType() !== RAPIER.RigidBodyType.Dynamic) {
+                body.setBodyType(RAPIER.RigidBodyType.Dynamic);
+                
+                // Optional: Apply appropriate physics properties that were previously commented out
+                body.setLinearDamping(this.CHAIN_CONFIG.SEGMENTS.LINEAR_DAMPING);
+                body.setAngularDamping(this.CHAIN_CONFIG.SEGMENTS.ANGULAR_DAMPING);
+                body.setGravityScale(this.CHAIN_CONFIG.SEGMENTS.GRAVITY_SCALE);
+            }
+        });
+        
+        // Also convert the anchor body to dynamic if it exists and isn't already dynamic
+        if (this.anchor_body && this.anchor_body.bodyType() !== RAPIER.RigidBodyType.Dynamic) {
+            this.anchor_body.setBodyType(RAPIER.RigidBodyType.Dynamic);
+            
+            // Apply default physics properties for the anchor since CHAIN_CONFIG.ANCHOR doesn't exist
+            this.anchor_body.setLinearDamping(0.5);  // Default value
+            this.anchor_body.setAngularDamping(0.5); // Default value
+            this.anchor_body.setGravityScale(1.0);   // Default value
+        }
+        
+        // Log the conversion if physics logs are enabled
+        if (FLAGS.PHYSICS_LOGS) {
+            console.log(`Converted ${chainBodies.length} chain segments and anchor to dynamic bodies`);
         }
     }
 }

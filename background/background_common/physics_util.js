@@ -100,8 +100,10 @@ export function release_object(incoming_object) {
     const body_pair = AssetStorage.get_instance().get_body_pair_by_mesh(incoming_object);
     if (!body_pair) return;
     const [_, body] = body_pair;
+    
     // Change back to dynamic body
     body.setBodyType(RAPIER.RigidBodyType.Dynamic);
+    
     // Apply velocity as impulse
     body.applyImpulse(
         { 
@@ -111,4 +113,26 @@ export function release_object(incoming_object) {
         },
         true
     );
+    
+    // Check if this is a scroll menu sign and make the entire chain dynamic if so
+    // First, check if this is a scroll menu component by looking at its parent hierarchy
+    let currentObject = incoming_object;
+    let scrollMenuInstance = null;
+    
+    // Navigate up the parent hierarchy to find the ScrollMenu instance
+    while (currentObject && !scrollMenuInstance) {
+        // Check if the current object is the scroll_menu's assembly_container or if it has a scrollMenu reference
+        if (currentObject.userData && currentObject.userData.scrollMenu) {
+            scrollMenuInstance = currentObject.userData.scrollMenu;
+        } else if (currentObject.parent) {
+            currentObject = currentObject.parent;
+        } else {
+            break;
+        }
+    }
+    
+    // If we found a ScrollMenu instance, make the entire chain dynamic
+    if (scrollMenuInstance && typeof scrollMenuInstance.makeEntireChainDynamic === 'function') {
+        scrollMenuInstance.makeEntireChainDynamic();
+    }
 }
