@@ -547,6 +547,28 @@ export class ScrollMenu {
                 }
             });
 
+            // Convert sign body from kinematic to dynamic if it exists
+            if (this.sign_body && this.world) {
+                try {
+                    // Change body type to dynamic
+                    this.sign_body.setBodyType(RAPIER.RigidBodyType.Dynamic);
+                    
+                    // Set physics properties
+                    this.sign_body.setLinearDamping(0.5);    // Default damping
+                    this.sign_body.setAngularDamping(0.5);   // Default damping
+                    this.sign_body.setGravityScale(1.0);     // Normal gravity
+                    
+                    // Wake up the body to ensure it starts simulating
+                    this.sign_body.wakeUp();
+                    
+                    if (FLAGS.PHYSICS_LOGS) {
+                        console.log("Converted sign from kinematic to dynamic");
+                    }
+                } catch (e) {
+                    console.warn('Failed to convert sign to dynamic:', e);
+                }
+            }
+
             // If sign mesh exists, move it to the parent before removing assembly container
             if (this.sign_mesh && this.assembly_container && this.assembly_container.children.includes(this.sign_mesh)) {
                 // Save the world position and rotation
