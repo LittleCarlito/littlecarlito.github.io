@@ -15,7 +15,8 @@ export class ScrollMenu {
         sign: null,
         anchor: null
     };
-    // Animation state
+    // Object state
+    is_grabbed = false;
     is_animating = false;
     animation_start_time = 0;
     animation_duration = 100.0; // seconds - changed from 1.0 to 100.0 to slow down animation by 100x
@@ -548,7 +549,7 @@ export class ScrollMenu {
             });
 
             // Convert sign body from kinematic to dynamic if it exists
-            if (this.sign_body && this.world) {
+            if (this.sign_body && this.world && !this.is_grabbed) {
                 try {
                     // Change body type to dynamic
                     this.sign_body.setBodyType(RAPIER.RigidBodyType.Dynamic);
@@ -735,11 +736,6 @@ export class ScrollMenu {
                 });
                 this.debug_meshes.joints = [];
             }
-            
-            // DO NOT REMOVE THE SIGN DEBUG MESH - KEEP IT
-            // if (this.debug_meshes.sign) {
-            //     this.parent.remove(this.debug_meshes.sign);
-            // }
 
             // Remove all joints with null check
             if (this.chain_joints) {

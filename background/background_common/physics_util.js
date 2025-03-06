@@ -115,6 +115,7 @@ export function grab_object(incoming_object, incoming_camera) {
     // If we found a ScrollMenu instance, make the entire chain dynamic
     if (scrollMenuInstance && typeof scrollMenuInstance.makeEntireChainDynamic === 'function') {
         scrollMenuInstance.makeEntireChainDynamic();
+        scrollMenuInstance.is_grabbed = true;
     }
 }
 
@@ -146,6 +147,7 @@ export function release_object(incoming_object) {
         // Check if the current object is the scroll_menu's assembly_container or if it has a scrollMenu reference
         if (currentObject.userData && currentObject.userData.scrollMenu) {
             scrollMenuInstance = currentObject.userData.scrollMenu;
+            scrollMenuInstance.is_grabbed = false;
         } else if (currentObject.parent) {
             currentObject = currentObject.parent;
         } else {
