@@ -296,13 +296,69 @@ function togglePhysicsPause() {
     const wasPaused = isPhysicsPaused;
     isPhysicsPaused = !isPhysicsPaused;
     
-    // Update the button text and style if it exists
+    // Update the button style if it exists
     const pauseButton = document.getElementById('physics-pause-button');
     if (pauseButton) {
-        pauseButton.innerHTML = isPhysicsPaused ? 
-            '<span style="display: inline-block; width: 16px; letter-spacing: -2px; font-weight: bold;">▶</span> Play Physics' : 
-            '<span style="display: inline-block; width: 16px; letter-spacing: -2px; font-weight: bold;">❚ ❚</span> Pause Physics';
+        // Update button color
         pauseButton.style.backgroundColor = isPhysicsPaused ? '#F9A825' : '#4CAF50'; // Yellow when paused, green when playing
+        
+        // Clear the button content
+        pauseButton.innerHTML = '';
+        
+        // Recreate the icon container
+        const iconSpan = document.createElement('span');
+        iconSpan.style.display = 'inline-block';
+        iconSpan.style.width = '18px';
+        iconSpan.style.height = '12px';
+        iconSpan.style.position = 'relative';
+        iconSpan.style.marginRight = '5px';
+        iconSpan.style.top = '1px';
+        
+        // Create the appropriate icon based on state
+        if (isPhysicsPaused) {
+            // Create play icon (triangle)
+            const playIcon = document.createElement('span');
+            playIcon.style.display = 'block';
+            playIcon.style.width = '0';
+            playIcon.style.height = '0';
+            playIcon.style.borderTop = '6px solid transparent';
+            playIcon.style.borderBottom = '6px solid transparent';
+            playIcon.style.borderLeft = '12px solid white';
+            playIcon.style.position = 'absolute';
+            playIcon.style.left = '3px';
+            playIcon.style.top = '0';
+            iconSpan.appendChild(playIcon);
+        } else {
+            // Create pause icon (two bars)
+            // First bar
+            const bar1 = document.createElement('span');
+            bar1.style.display = 'inline-block';
+            bar1.style.width = '4px';
+            bar1.style.height = '12px';
+            bar1.style.backgroundColor = 'white';
+            bar1.style.position = 'absolute';
+            bar1.style.left = '3px';
+            
+            // Second bar
+            const bar2 = document.createElement('span');
+            bar2.style.display = 'inline-block';
+            bar2.style.width = '4px';
+            bar2.style.height = '12px';
+            bar2.style.backgroundColor = 'white';
+            bar2.style.position = 'absolute';
+            bar2.style.right = '3px';
+            
+            iconSpan.appendChild(bar1);
+            iconSpan.appendChild(bar2);
+        }
+        
+        // Create text span
+        const textSpan = document.createElement('span');
+        textSpan.textContent = isPhysicsPaused ? 'Play Physics' : 'Pause Physics';
+        
+        // Append everything to the button
+        pauseButton.appendChild(iconSpan);
+        pauseButton.appendChild(textSpan);
     }
     
     // If newly paused, freeze all objects in place

@@ -178,7 +178,68 @@ export function createDebugUI() {
     // Add pause/play physics button
     const pauseButton = document.createElement('button');
     pauseButton.id = 'physics-pause-button';
-    pauseButton.innerHTML = '<span style="display: inline-block; width: 16px; letter-spacing: -2px; font-weight: bold;">❚ ❚</span> Pause Physics';
+    
+    // Create a container for the icon
+    const iconSpan = document.createElement('span');
+    iconSpan.style.display = 'inline-block';
+    iconSpan.style.width = '18px';
+    iconSpan.style.height = '12px';
+    iconSpan.style.position = 'relative';
+    iconSpan.style.marginRight = '5px';
+    iconSpan.style.top = '1px';
+    
+    // Create play icon (single triangle)
+    const playIcon = document.createElement('span');
+    playIcon.style.display = 'none'; // Initially hidden
+    playIcon.style.width = '0';
+    playIcon.style.height = '0';
+    playIcon.style.borderTop = '6px solid transparent';
+    playIcon.style.borderBottom = '6px solid transparent';
+    playIcon.style.borderLeft = '12px solid white';
+    playIcon.style.position = 'absolute';
+    playIcon.style.left = '3px';
+    playIcon.style.top = '0';
+    
+    // Create pause icon (two bars)
+    const pauseIcon = document.createElement('span');
+    pauseIcon.style.display = 'inline-block'; // Initially shown
+    pauseIcon.style.position = 'absolute';
+    pauseIcon.style.width = '100%';
+    pauseIcon.style.height = '100%';
+    pauseIcon.style.left = '0';
+    
+    // First bar
+    const bar1 = document.createElement('span');
+    bar1.style.display = 'inline-block';
+    bar1.style.width = '4px';
+    bar1.style.height = '12px';
+    bar1.style.backgroundColor = 'white';
+    bar1.style.position = 'absolute';
+    bar1.style.left = '3px';
+    
+    // Second bar
+    const bar2 = document.createElement('span');
+    bar2.style.display = 'inline-block';
+    bar2.style.width = '4px';
+    bar2.style.height = '12px';
+    bar2.style.backgroundColor = 'white';
+    bar2.style.position = 'absolute';
+    bar2.style.right = '3px';
+    
+    // Assemble icons
+    pauseIcon.appendChild(bar1);
+    pauseIcon.appendChild(bar2);
+    iconSpan.appendChild(pauseIcon);
+    iconSpan.appendChild(playIcon);
+    
+    // Create text span
+    const textSpan = document.createElement('span');
+    textSpan.textContent = 'Pause Physics';
+    
+    // Add both to button
+    pauseButton.appendChild(iconSpan);
+    pauseButton.appendChild(textSpan);
+    
     pauseButton.style.width = '100%';
     pauseButton.style.padding = '6px';
     pauseButton.style.backgroundColor = '#4CAF50'; // Green when physics is active
@@ -189,6 +250,7 @@ export function createDebugUI() {
     pauseButton.style.marginBottom = '10px';
     pauseButton.style.fontWeight = 'bold';
     pauseButton.style.transition = 'all 0.2s';
+    pauseButton.style.textAlign = 'center';
     
     // Add hover effect
     pauseButton.addEventListener('mouseenter', function() {
@@ -203,7 +265,7 @@ export function createDebugUI() {
     pauseButton.addEventListener('click', function() {
         if (window.togglePhysicsPause) {
             const isPaused = window.togglePhysicsPause();
-            this.style.backgroundColor = isPaused ? '#F9A825' : '#4CAF50'; // Yellow when paused, green when playing
+            // The togglePhysicsPause function now handles rebuilding the button
         }
     });
     
