@@ -548,7 +548,7 @@ export class ScrollMenu {
             });
 
             // If sign mesh exists, move it to the parent before removing assembly container
-            if (this.sign_mesh) {
+            if (this.sign_mesh && this.assembly_container && this.assembly_container.children.includes(this.sign_mesh)) {
                 // Save the world position and rotation
                 const worldPosition = new THREE.Vector3();
                 const worldQuaternion = new THREE.Quaternion();
@@ -573,7 +573,7 @@ export class ScrollMenu {
             }
 
             // If sign debug mesh exists, move it to the parent before removing assembly container
-            if (this.debug_meshes.sign) {
+            if (this.debug_meshes.sign && this.assembly_container && this.assembly_container.children.includes(this.debug_meshes.sign)) {
                 // Save the world position and rotation
                 const worldPosition = new THREE.Vector3();
                 const worldQuaternion = new THREE.Quaternion();
@@ -594,12 +594,60 @@ export class ScrollMenu {
                 }
             }
 
+            // Remove all chain segment meshes from scene
+            this.dynamic_bodies.forEach(data => {
+                if (data.type === 'scroll_menu_chain' && data.mesh) {
+                    // Remove from scene hierarchy regardless of parent
+                    if (data.mesh.parent) {
+                        data.mesh.parent.remove(data.mesh);
+                    }
+                    
+                    // Dispose of geometry and material
+                    if (data.mesh.geometry) {
+                        data.mesh.geometry.dispose();
+                    }
+                    if (data.mesh.material) {
+                        data.mesh.material.dispose();
+                    }
+                    
+                    if (FLAGS.PHYSICS_LOGS) {
+                        console.log("Removed chain segment mesh from scene");
+                    }
+                }
+            });
+
             // Clean up assembly container if it exists
             if (this.assembly_container) {
                 if (FLAGS.PHYSICS_LOGS) {
                     console.log("Cleaning up assembly container when chains break");
                 }
-                this.parent.remove(this.assembly_container);
+                
+                // Remove all children from assembly container before removing it
+                while (this.assembly_container.children && this.assembly_container.children.length > 0) {
+                    const child = this.assembly_container.children[0];
+                    
+                    // Dispose of geometry and material if they exist
+                    if (child.geometry) {
+                        child.geometry.dispose();
+                    }
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(mat => {
+                                if (mat) mat.dispose();
+                            });
+                        } else if (child.material) {
+                            child.material.dispose();
+                        }
+                    }
+                    
+                    this.assembly_container.remove(child);
+                }
+                
+                if (this.assembly_container.parent) {
+                    this.assembly_container.parent.remove(this.assembly_container);
+                } else if (this.parent) {
+                    this.parent.remove(this.assembly_container);
+                }
                 
                 // Dispose of wireframe geometry and material if they exist
                 if (this.assembly_wireframe) {
@@ -617,39 +665,120 @@ export class ScrollMenu {
 
             // Remove debug meshes if they exist
             if (this.debug_meshes.anchor) {
-                this.parent.remove(this.debug_meshes.anchor);
+                if (this.debug_meshes.anchor.parent) {
+                    this.debug_meshes.anchor.parent.remove(this.debug_meshes.anchor);
+                }
+                if (this.debug_meshes.anchor.geometry) {
+                    this.debug_meshes.anchor.geometry.dispose();
+                }
+                if (this.debug_meshes.anchor.material) {
+                    this.debug_meshes.anchor.material.dispose();
+                }
+                this.debug_meshes.anchor = null;
             }
-            this.debug_meshes.segments.forEach(segment => {
-                this.parent.remove(segment);
-            });
-            this.debug_meshes.joints.forEach(joint => {
-                this.parent.remove(joint);
-            });
+            
+            // Dispose of segment debug meshes
+            if (this.debug_meshes.segments) {
+                this.debug_meshes.segments.forEach(segment => {
+                    if (segment && segment.parent) {
+                        segment.parent.remove(segment);
+                    }
+                    if (segment && segment.geometry) {
+                        segment.geometry.dispose();
+                    }
+                    if (segment && segment.material) {
+                        segment.material.dispose();
+                    }
+                });
+                this.debug_meshes.segments = [];
+            }
+            
+            // Dispose of joint debug meshes
+            if (this.debug_meshes.joints) {
+                this.debug_meshes.joints.forEach(joint => {
+                    if (joint && joint.parent) {
+                        joint.parent.remove(joint);
+                    }
+                    if (joint && joint.geometry) {
+                        joint.geometry.dispose();
+                    }
+                    if (joint && joint.material) {
+                        joint.material.dispose();
+                    }
+                });
+                this.debug_meshes.joints = [];
+            }
+            
             // DO NOT REMOVE THE SIGN DEBUG MESH - KEEP IT
             // if (this.debug_meshes.sign) {
             //     this.parent.remove(this.debug_meshes.sign);
             // }
 
             // Remove all joints with null check
-            for (let i = 0; i < this.chain_joints.length; i++) {
-                const joint = this.chain_joints[i];
-                if (joint && this.world.getImpulseJoint(joint.handle)) {
-                    try {
-                        this.world.removeImpulseJoint(joint);
-                    } catch (e) {
-                        console.warn('Failed to remove joint:', e);
+            if (this.chain_joints) {
+                for (let i = 0; i < this.chain_joints.length; i++) {
+                    const joint = this.chain_joints[i];
+                    if (joint && this.world && this.world.getImpulseJoint && this.world.getImpulseJoint(joint.handle)) {
+                        try {
+                            this.world.removeImpulseJoint(joint);
+                        } catch (e) {
+                            console.warn('Failed to remove joint:', e);
+                        }
                     }
                 }
+                this.chain_joints = [];
             }
-            this.chain_joints = [];
+
+            // Dispose of the anchor body
+            if (this.anchor_body && this.world) {
+                try {
+                    this.world.removeRigidBody(this.anchor_body);
+                    this.anchor_body = null;
+                } catch (e) {
+                    console.warn('Failed to remove anchor body:', e);
+                }
+            }
+            
+            // Dispose of chain segment bodies
+            if (this.dynamic_bodies) {
+                const segmentsToRemove = [];
+                this.dynamic_bodies.forEach((data, index) => {
+                    if (data.type === 'scroll_menu_chain' && data.body && this.world) {
+                        try {
+                            // Remove the body from the physics world
+                            this.world.removeRigidBody(data.body);
+                            
+                            // Mark for removal from dynamic_bodies
+                            segmentsToRemove.push(index);
+                        } catch (e) {
+                            console.warn('Failed to remove chain segment body:', e);
+                        }
+                    }
+                });
+                
+                // Remove the segments from dynamic_bodies (in reverse order to avoid index issues)
+                for (let i = segmentsToRemove.length - 1; i >= 0; i--) {
+                    this.dynamic_bodies.splice(segmentsToRemove[i], 1);
+                }
+            }
 
             // Remove spotlight and its debug meshes if they exist
-            if (this.menu_spotlight) {
-                // First despawn the spotlight helpers
-                await this.lighting.despawn_spotlight_helpers(this.menu_spotlight);
-                // Then despawn the spotlight itself
-                await this.lighting.despawn_spotlight(this.menu_spotlight);
-                this.menu_spotlight = null;
+            if (this.menu_spotlight && this.lighting) {
+                try {
+                    // First despawn the spotlight helpers
+                    await this.lighting.despawn_spotlight_helpers(this.menu_spotlight);
+                    // Then despawn the spotlight itself
+                    await this.lighting.despawn_spotlight(this.menu_spotlight);
+                    this.menu_spotlight = null;
+                } catch (e) {
+                    console.warn('Failed to remove spotlight:', e);
+                    this.menu_spotlight = null;
+                }
+            }
+
+            // Force a garbage collection when done (recommendation only, JS decides when to actually collect)
+            if (FLAGS.PHYSICS_LOGS) {
+                console.log("Chains break completed, all components disposed except sign and its debug mesh");
             }
 
             this.chains_broken = true;
