@@ -18,13 +18,13 @@ export class ScrollMenu {
     // Animation state
     is_animating = false;
     animation_start_time = 0;
-    animation_duration = 1.0; // seconds
+    animation_duration = 100.0; // seconds - changed from 1.0 to 100.0 to slow down animation by 100x
     initial_offset = 15; // How far to the right to spawn
     // Chain settings
     CHAIN_CONFIG = {
         POSITION: {
             X: 0,
-            Y: 10,
+            Y: 5,
             Z: 0
         },
         SEGMENTS: {
@@ -142,20 +142,21 @@ export class ScrollMenu {
         // Calculate spawn position
         const spawnY = this.CHAIN_CONFIG.POSITION.Y - (index + 1) * this.CHAIN_CONFIG.SEGMENTS.LENGTH;
         
-        // Create the rigid body
+        // Create the rigid body - changed from dynamic to kinematicPositionBased
         const chain_body = this.world.createRigidBody(
-            RAPIER.RigidBodyDesc.dynamic()
+            RAPIER.RigidBodyDesc.kinematicPositionBased()
             .setTranslation(
                 this.CHAIN_CONFIG.POSITION.X,
                 spawnY,
                 this.CHAIN_CONFIG.POSITION.Z
             )
             .setRotation(rotation)
-            .setLinearDamping(this.CHAIN_CONFIG.SEGMENTS.LINEAR_DAMPING)
-            .setAngularDamping(this.CHAIN_CONFIG.SEGMENTS.ANGULAR_DAMPING)
-            .setAdditionalMass(this.CHAIN_CONFIG.SEGMENTS.MASS)
-            .setGravityScale(this.CHAIN_CONFIG.SEGMENTS.GRAVITY_SCALE)
-            .setCanSleep(true)
+            // These properties are not needed for kinematic bodies but kept for reference
+            // .setLinearDamping(this.CHAIN_CONFIG.SEGMENTS.LINEAR_DAMPING)
+            // .setAngularDamping(this.CHAIN_CONFIG.SEGMENTS.ANGULAR_DAMPING)
+            // .setAdditionalMass(this.CHAIN_CONFIG.SEGMENTS.MASS)
+            // .setGravityScale(this.CHAIN_CONFIG.SEGMENTS.GRAVITY_SCALE)
+            .setCanSleep(false) // Kinematic bodies shouldn't sleep
         );
 
         // Create collider
@@ -363,18 +364,19 @@ export class ScrollMenu {
                     (this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT / 2);
 
                 this.sign_body = this.world.createRigidBody(
-                    RAPIER.RigidBodyDesc.dynamic()
+                    RAPIER.RigidBodyDesc.kinematicPositionBased() // Changed from dynamic to kinematicPositionBased
                     .setTranslation(
                         this.CHAIN_CONFIG.POSITION.X,
                         sign_spawn_y,
                         this.CHAIN_CONFIG.POSITION.Z
                     )
                     .setRotation(rotation)
-                    .setLinearDamping(this.CHAIN_CONFIG.SIGN.DAMPING)
-                    .setAngularDamping(this.CHAIN_CONFIG.SIGN.ANGULAR_DAMPING)
-                    .setAdditionalMass(this.CHAIN_CONFIG.SIGN.MASS)
-                    .setGravityScale(this.CHAIN_CONFIG.SIGN.GRAVITY_SCALE)
-                    .setCanSleep(true)
+                    // These properties are not needed for kinematic bodies but kept for reference
+                    // .setLinearDamping(this.CHAIN_CONFIG.SIGN.DAMPING)
+                    // .setAngularDamping(this.CHAIN_CONFIG.SIGN.ANGULAR_DAMPING)
+                    // .setAdditionalMass(this.CHAIN_CONFIG.SIGN.MASS)
+                    // .setGravityScale(this.CHAIN_CONFIG.SIGN.GRAVITY_SCALE)
+                    .setCanSleep(false) // Kinematic bodies shouldn't sleep
                 );
                 const sign_collider = RAPIER.ColliderDesc.cuboid(
                     this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH/2,
@@ -385,12 +387,12 @@ export class ScrollMenu {
                     .setFriction(this.CHAIN_CONFIG.SIGN.FRICTION);
                 this.world.createCollider(sign_collider, this.sign_body);
                 
-                // Set initial velocities to zero for sign
-                this.sign_body.setLinvel({ x: 0, y: 0, z: 0 }, true);
-                this.sign_body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+                // Set initial velocities not needed for kinematic bodies
+                // this.sign_body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+                // this.sign_body.setAngvel({ x: 0, y: 0, z: 0 }, true);
                 
-                // Force the sign to sleep initially
-                this.sign_body?.sleep();
+                // Force the sign to sleep initially - not needed for kinematic bodies
+                // this.sign_body?.sleep();
                 
                 // Connect sign to last chain segment with adjusted joint positions and spacing
                 const finalJointDesc = RAPIER.JointData.spherical(
@@ -681,7 +683,7 @@ export class ScrollMenu {
             console.log(`X: ${this.target_position.x.toFixed(2)}, Y: ${this.target_position.y.toFixed(2)}, Z: ${this.target_position.z.toFixed(2)}`);
             
             const signPos = this.sign_body.translation();
-            const signVel = this.sign_body.linvel();
+            const signVel = this.sign_body.linvel ? this.sign_body.linvel() : { x: 0, y: 0, z: 0 };
             const rotation = this.sign_body.rotation();
             const euler = new THREE.Euler().setFromQuaternion(
                 new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w)
@@ -690,7 +692,9 @@ export class ScrollMenu {
             console.log("🔄 SCROLL SIGN - ANIMATING");
             console.log(`⏱️ Animation progress: ${((currentTime - this.animation_start_time) / 1000 / this.animation_duration * 100).toFixed(1)}%`);
             console.log(`📍 Position X: ${signPos.x.toFixed(2)}, Y: ${signPos.y.toFixed(2)}, Z: ${signPos.z.toFixed(2)}`);
-            console.log(`🏃 Velocity X: ${signVel.x.toFixed(2)}, Y: ${signVel.y.toFixed(2)}, Z: ${signVel.z.toFixed(2)}`);
+            if (this.sign_body.linvel) {
+                console.log(`🏃 Velocity X: ${signVel.x.toFixed(2)}, Y: ${signVel.y.toFixed(2)}, Z: ${signVel.z.toFixed(2)}`);
+            }
             console.log(`🔄 Rotation (deg) X: ${(euler.x * 180/Math.PI).toFixed(1)}°, Y: ${(euler.y * 180/Math.PI).toFixed(1)}°, Z: ${(euler.z * 180/Math.PI).toFixed(1)}°`);
             
             // Also log anchor position
@@ -716,10 +720,12 @@ export class ScrollMenu {
                     
                     this.anchor_body.setTranslation(this.target_position);
                     
+                    // Now update the positions of kinematic chain segments and sign
+                    this.updateKinematicChainPositions();
+                    
                     // Log final position
                     if (this.sign_body) {
                         const finalPos = this.sign_body.translation();
-                        const finalVel = this.sign_body.linvel();
                         const finalRot = this.sign_body.rotation();
                         const finalEuler = new THREE.Euler().setFromQuaternion(
                             new THREE.Quaternion(finalRot.x, finalRot.y, finalRot.z, finalRot.w)
@@ -727,7 +733,6 @@ export class ScrollMenu {
                         
                         console.log("✅ SCROLL SIGN - ANIMATION COMPLETE");
                         console.log(`📍 Final Position X: ${finalPos.x.toFixed(2)}, Y: ${finalPos.y.toFixed(2)}, Z: ${finalPos.z.toFixed(2)}`);
-                        console.log(`🏃 Final Velocity X: ${finalVel.x.toFixed(2)}, Y: ${finalVel.y.toFixed(2)}, Z: ${finalVel.z.toFixed(2)}`);
                         console.log(`🔄 Final Rotation (deg) X: ${(finalEuler.x * 180/Math.PI).toFixed(1)}°, Y: ${(finalEuler.y * 180/Math.PI).toFixed(1)}°, Z: ${(finalEuler.z * 180/Math.PI).toFixed(1)}°`);
                         
                         // Log final positions again
@@ -757,6 +762,9 @@ export class ScrollMenu {
                     const new_y = current.y;
                     const new_z = current.z + (this.target_position.z - current.z) * 0.05;
                     this.anchor_body.setTranslation({ x: new_x, y: new_y, z: new_z });
+                    
+                    // Now update the positions of kinematic chain segments and sign
+                    this.updateKinematicChainPositions();
                 }
             }
         }
@@ -1019,6 +1027,81 @@ export class ScrollMenu {
         if (FLAGS.PHYSICS_LOGS) {
             console.log(`Updated assembly container bounds: ${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}`);
             console.log(`Assembly container position: ${center.x.toFixed(2)}, ${center.y.toFixed(2)}, ${center.z.toFixed(2)}`);
+        }
+    }
+
+    // New method to update kinematic chain segments and sign positions
+    updateKinematicChainPositions() {
+        if (!this.anchor_body) return;
+        
+        // Get anchor position
+        const anchorPos = this.anchor_body.translation();
+        const anchorRot = this.anchor_body.rotation();
+        
+        // Get chain segment bodies
+        const chainBodies = this.dynamic_bodies
+            .filter(data => data.type === 'scroll_menu_chain' && data.body && typeof data.body.translation === 'function')
+            .map(data => data.body);
+            
+        // Update chain segment positions
+        chainBodies.forEach((body, index) => {
+            // Calculate new position based on index and segment length
+            const segmentY = anchorPos.y - (index + 1) * this.CHAIN_CONFIG.SEGMENTS.LENGTH;
+            
+            // Move the kinematic body
+            if (body.setNextKinematicTranslation) {
+                // For newer versions of Rapier
+                body.setNextKinematicTranslation({
+                    x: anchorPos.x,
+                    y: segmentY,
+                    z: anchorPos.z
+                });
+                
+                // Keep the same rotation as the anchor
+                body.setNextKinematicRotation(anchorRot);
+            } else {
+                // For older versions of Rapier
+                body.setTranslation({
+                    x: anchorPos.x,
+                    y: segmentY,
+                    z: anchorPos.z
+                });
+                
+                // Keep the same rotation as the anchor
+                body.setRotation(anchorRot);
+            }
+        });
+        
+        // Update sign position at the end of the chain
+        const signData = this.dynamic_bodies.find(data => data.type === 'scroll_menu_sign' && data.body);
+        if (signData && signData.body) {
+            // Calculate sign position at the end of the chain
+            const signY = anchorPos.y - 
+                (this.CHAIN_CONFIG.SEGMENTS.COUNT * this.CHAIN_CONFIG.SEGMENTS.LENGTH) - 
+                (this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT / 2);
+                
+            // Move the kinematic sign body
+            if (signData.body.setNextKinematicTranslation) {
+                // For newer versions of Rapier
+                signData.body.setNextKinematicTranslation({
+                    x: anchorPos.x,
+                    y: signY,
+                    z: anchorPos.z
+                });
+                
+                // Keep the same rotation as the anchor
+                signData.body.setNextKinematicRotation(anchorRot);
+            } else {
+                // For older versions of Rapier
+                signData.body.setTranslation({
+                    x: anchorPos.x,
+                    y: signY,
+                    z: anchorPos.z
+                });
+                
+                // Keep the same rotation as the anchor
+                signData.body.setRotation(anchorRot);
+            }
         }
     }
 }
