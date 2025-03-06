@@ -94,6 +94,28 @@ export function grab_object(incoming_object, incoming_camera) {
     last_time = performance.now();
     current_velocity.set(0, 0, 0);
     body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased);
+    
+    // Check if this is a scroll menu sign and make the entire chain dynamic
+    // First, check if this is a scroll menu component by looking at its parent hierarchy
+    let currentObject = incoming_object;
+    let scrollMenuInstance = null;
+    
+    // Navigate up the parent hierarchy to find the ScrollMenu instance
+    while (currentObject && !scrollMenuInstance) {
+        // Check if the current object has a scrollMenu reference
+        if (currentObject.userData && currentObject.userData.scrollMenu) {
+            scrollMenuInstance = currentObject.userData.scrollMenu;
+        } else if (currentObject.parent) {
+            currentObject = currentObject.parent;
+        } else {
+            break;
+        }
+    }
+    
+    // If we found a ScrollMenu instance, make the entire chain dynamic
+    if (scrollMenuInstance && typeof scrollMenuInstance.makeEntireChainDynamic === 'function') {
+        scrollMenuInstance.makeEntireChainDynamic();
+    }
 }
 
 export function release_object(incoming_object) {
