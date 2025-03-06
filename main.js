@@ -492,6 +492,29 @@ function animate() {
         resize_move = false;
     }
     
+    // Check if a text container is active, and pause physics if needed
+    const isTextActive = viewable_container.is_text_active();
+    
+    // Track text container state to detect changes
+    if (!window.previousTextContainerState && isTextActive && !isPhysicsPaused) {
+        // Text container just became active, pause physics
+        if (FLAGS.SELECT_LOGS) {
+            console.log('Pausing physics due to text container activation');
+        }
+        window.textContainerPausedPhysics = true;
+        togglePhysicsPause();
+    } else if (window.previousTextContainerState && !isTextActive && isPhysicsPaused && window.textContainerPausedPhysics) {
+        // Text container was active but is no longer active, restore physics
+        if (FLAGS.SELECT_LOGS) {
+            console.log('Resuming physics due to text container deactivation');
+        }
+        window.textContainerPausedPhysics = false;
+        togglePhysicsPause();
+    }
+    
+    // Store current state for next frame comparison
+    window.previousTextContainerState = isTextActive;
+    
     // Handle the physics objects
     if(viewable_container.get_overlay().is_intersected() != null) {
         asset_activator.activate_object(viewable_container.get_intersected_name());
