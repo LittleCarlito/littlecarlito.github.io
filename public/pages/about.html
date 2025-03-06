@@ -348,26 +348,31 @@
 
         const PHYSICS_CONSTANTS = {
             // Core movement
-            SWIM_FORCE: 0.003,
-            MAX_SPEED: 3,
-            MIN_SPEED: 0.1,
-            INITIAL_SPEED_FACTOR: 0.5,
+            SWIM_FORCE: 0.004,
+            MAX_SPEED: 4,
+            MIN_SPEED: 0.3,              // Increased from 0.2 to avoid very slow choppy movement
+            INITIAL_SPEED_FACTOR: 0.6,
             // Speed variation
-            SPEED_VARIATION_FREQUENCY: 0.001,
-            SPEED_VARIATION_RANGE: 0.3,
-            SPEED_VARIATION_BASE: 0.6,
-            // Movement chances - reduce the chance to save CPU
-            VERTICAL_DRIFT_CHANCE: 0.001,    // reduced from 0.002
-            VERTICAL_DRIFT_FORCE: 0.00005,
-            DIRECTION_CHANGE_CHANCE: 0.0002, // reduced from 0.0005
+            SPEED_VARIATION_FREQUENCY: 0.0015,
+            SPEED_VARIATION_RANGE: 0.4,
+            SPEED_VARIATION_BASE: 0.7,
+            // Movement chances
+            VERTICAL_DRIFT_CHANCE: 0.002,
+            VERTICAL_DRIFT_FORCE: 0.0001,
+            DIRECTION_CHANGE_CHANCE: 0.0005,
             // Avoidance
-            AVOIDANCE_RADIUS_FACTOR: 2.5,    // reduced from 3
-            AVOIDANCE_FORCE_X: 0.0005,
-            AVOIDANCE_FORCE_Y: 0.0001,
+            AVOIDANCE_RADIUS_FACTOR: 3.0,
+            AVOIDANCE_FORCE_X: 0.001,
+            AVOIDANCE_FORCE_Y: 0.0005,
             // Icon scale
             ICON_SCALE: 1,
-            // Optimization - skip frames occasionally to reduce CPU usage
-            CALCULATION_THROTTLE: 2          // Only run calculations every N frames
+            // Animation smoothness
+            CALCULATION_THROTTLE: 1,
+            VELOCITY_DAMPING: 0.9,       // New: smooths direction changes
+            INTERPOLATION_FACTOR: 0.08,  // New: for smoother force application
+            // Mouse specific settings
+            MOUSE_AVOIDANCE_RADIUS_FACTOR: 6,
+            MOUSE_FORCE_MULTIPLIER: 4
         };
 
         function initPhysics() {
@@ -379,7 +384,7 @@
             engine.world.gravity.y = 0;
             
             // Add some air resistance to make movement fluid
-            engine.world.airFriction = 0.05;
+            engine.world.airFriction = 0.01; // Reduced from 0.03 for smoother slow movement
 
             // Check if this page is initially visible (in focus)
             // Default to paused if we can't determine
@@ -495,9 +500,16 @@
                         
                         if (currentSpeed < PHYSICS_CONSTANTS.MIN_SPEED) {
                             const direction = Math.random() > 0.5 ? 1 : -1;
-                            Matter.Body.setVelocity(logo, {
+                            // Apply a smooth acceleration rather than an instant velocity change
+                            const targetVelocity = {
                                 x: direction * PHYSICS_CONSTANTS.MAX_SPEED * PHYSICS_CONSTANTS.INITIAL_SPEED_FACTOR,
                                 y: 0
+                            };
+                            
+                            // Blend the current velocity with target velocity for smooth transition
+                            Matter.Body.setVelocity(logo, {
+                                x: velocity.x + (targetVelocity.x - velocity.x) * PHYSICS_CONSTANTS.INTERPOLATION_FACTOR * 3,
+                                y: velocity.y + (targetVelocity.y - velocity.y) * PHYSICS_CONSTANTS.INTERPOLATION_FACTOR * 2
                             });
                         } else {
                             // Use individual properties for speed variation
@@ -508,25 +520,39 @@
                             const speedAdjustment = (targetSpeed - currentSpeed) * 0.1;
                             const directionX = velocity.x > 0 ? 1 : -1;
                             
+                            // Apply smooth force transitions
+                            let forceX = directionX * speedAdjustment * PHYSICS_CONSTANTS.SWIM_FORCE;
+                            let forceY = 0;
+                            
                             if (Math.random() < PHYSICS_CONSTANTS.VERTICAL_DRIFT_CHANCE) {
-                                Matter.Body.applyForce(logo, logo.position, {
-                                    x: directionX * speedAdjustment * PHYSICS_CONSTANTS.SWIM_FORCE,
-                                    y: (Math.random() - 0.5) * PHYSICS_CONSTANTS.VERTICAL_DRIFT_FORCE
-                                });
-                            } else {
-                                Matter.Body.applyForce(logo, logo.position, {
-                                    x: directionX * speedAdjustment * PHYSICS_CONSTANTS.SWIM_FORCE,
-                                    y: 0
-                                });
+                                forceY = (Math.random() - 0.5) * PHYSICS_CONSTANTS.VERTICAL_DRIFT_FORCE;
                             }
+                            
+                            // Store previous forces for interpolation if not already present
+                            if (!logo.previousForce) {
+                                logo.previousForce = { x: forceX, y: forceY };
+                            }
+                            
+                            // Interpolate between previous and current forces for smoothness
+                            const interpolatedForce = {
+                                x: logo.previousForce.x + (forceX - logo.previousForce.x) * PHYSICS_CONSTANTS.INTERPOLATION_FACTOR,
+                                y: logo.previousForce.y + (forceY - logo.previousForce.y) * PHYSICS_CONSTANTS.INTERPOLATION_FACTOR
+                            };
+                            
+                            Matter.Body.applyForce(logo, logo.position, interpolatedForce);
+                            
+                            // Store current force for next frame
+                            logo.previousForce = { x: forceX, y: forceY };
                         }
 
-                        // Direction changes
+                        // Direction changes with damping for smoothness
                         if (Math.random() < PHYSICS_CONSTANTS.DIRECTION_CHANGE_CHANCE) {
-                            Matter.Body.setVelocity(logo, {
-                                x: -velocity.x,
+                            // Instead of instant direction change, gradually change direction
+                            const dampedVelocity = {
+                                x: -velocity.x * PHYSICS_CONSTANTS.VELOCITY_DAMPING,
                                 y: velocity.y
-                            });
+                            };
+                            Matter.Body.setVelocity(logo, dampedVelocity);
                         }
 
                         // Avoidance logic for other logos
@@ -549,11 +575,16 @@
                             const dx = mouseConstraint.mouse.position.x - logo.position.x;
                             const dy = mouseConstraint.mouse.position.y - logo.position.y;
                             const mouseDistance = Math.sqrt(dx * dx + dy * dy);
-                            const mouseAvoidanceRadius = radius * 5;
+                            const mouseAvoidanceRadius = radius * PHYSICS_CONSTANTS.MOUSE_AVOIDANCE_RADIUS_FACTOR;
                             
                             if (mouseDistance < mouseAvoidanceRadius) {
-                                avoidanceForce.x -= (dx / mouseDistance) * PHYSICS_CONSTANTS.AVOIDANCE_FORCE_X * 2;
-                                avoidanceForce.y -= (dy / mouseDistance) * PHYSICS_CONSTANTS.AVOIDANCE_FORCE_Y * 2;
+                                // Use inverse square law for more natural avoidance behavior
+                                const force = Math.min(1, (mouseAvoidanceRadius / mouseDistance) - 1);
+                                const strengthX = PHYSICS_CONSTANTS.AVOIDANCE_FORCE_X * PHYSICS_CONSTANTS.MOUSE_FORCE_MULTIPLIER * force;
+                                const strengthY = PHYSICS_CONSTANTS.AVOIDANCE_FORCE_Y * PHYSICS_CONSTANTS.MOUSE_FORCE_MULTIPLIER * force;
+                                
+                                avoidanceForce.x -= (dx / mouseDistance) * strengthX;
+                                avoidanceForce.y -= (dy / mouseDistance) * strengthY;
                             }
                         }
 
@@ -563,7 +594,10 @@
                 });
 
                 // Keep the runner and walls
-                runner = Matter.Runner.create();
+                runner = Matter.Runner.create({
+                    isFixed: true,  // Use fixed timestep for smoother animation
+                    delta: 1000/60  // Target 60 FPS
+                });
                 Matter.Runner.run(runner, engine);
                 Matter.Render.run(render);
 
