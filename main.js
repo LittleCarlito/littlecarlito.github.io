@@ -384,7 +384,9 @@ function handle_mouse_move(e) {
                 case TYPES.INTERACTABLE:
                     if(viewable_container.is_overlay_hidden()) {
                         hovered_cube_name = object_name;
-                        console.log("Hover detected on cube:", object_name);
+                        if (FLAGS.ACTIVATE_LOGS) {
+                            console.log("Hover detected on cube:", object_name);
+                        }
                     } else {
                         hovered_cube_name = "";
                     }
