@@ -245,6 +245,16 @@ export class TextContainer {
                     const currentCategory = this.focused_text_name.replace(TYPES.TEXT, '');
                     const currentFrame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${currentCategory}`);
                     if (currentFrame && currentFrame.iframe.contentWindow) {
+                        // Send visibility:false message to the current frame
+                        try {
+                            currentFrame.iframe.contentWindow.postMessage(
+                                { type: 'visibility', visible: false }, 
+                                '*'
+                            );
+                        } catch (e) {
+                            console.error('Error sending visibility message:', e);
+                        }
+                        
                         // Only trigger visibility change for education page
                         if (currentFrame.simple_name === CATEGORIES.EDUCATION.value) {
                             const visibilityEvent = new Event('visibilitychange');
@@ -273,10 +283,21 @@ export class TextContainer {
                     });
                 }
 
-                // Trigger frame animation
-                if (frame && frame.iframe.contentWindow && 
-                    typeof frame.iframe.contentWindow.trigger_frame_animation === 'function') {
-                    frame.iframe.contentWindow.trigger_frame_animation();
+                // Send visibility:true message to the new frame
+                if (frame && frame.iframe.contentWindow) {
+                    try {
+                        frame.iframe.contentWindow.postMessage(
+                            { type: 'visibility', visible: true },
+                            '*'
+                        );
+                    } catch (e) {
+                        console.error('Error sending visibility message:', e);
+                    }
+                    
+                    // Trigger frame animation
+                    if (typeof frame.iframe.contentWindow.trigger_frame_animation === 'function') {
+                        frame.iframe.contentWindow.trigger_frame_animation();
+                    }
                 }
             }
             // Get and move text box
@@ -298,6 +319,21 @@ export class TextContainer {
         if(this.focused_text_name != "") {
             if(move_direction == "" || VALID_DIRECTIONS.includes(move_direction)) {
                 const existing_focus_box = this.text_box_container.getObjectByName(this.focused_text_name);
+                
+                // Send visibility:false message when losing focus
+                const category = this.focused_text_name.replace(TYPES.TEXT, '');
+                const frame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${category}`);
+                if (frame && frame.iframe.contentWindow) {
+                    try {
+                        frame.iframe.contentWindow.postMessage(
+                            { type: 'visibility', visible: false },
+                            '*'
+                        );
+                    } catch (e) {
+                        console.error('Error sending visibility message:', e);
+                    }
+                }
+                
                 if(move_direction == "") {
                     existing_focus_box.position.x = get_associated_position(WEST, this.camera);
                 } else {

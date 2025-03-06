@@ -343,6 +343,8 @@
         ];
 
         let engine, render, world, walls;
+        let runner;
+        let isVisible = true;
 
         const PHYSICS_CONSTANTS = {
             // Core movement
@@ -354,16 +356,18 @@
             SPEED_VARIATION_FREQUENCY: 0.001,
             SPEED_VARIATION_RANGE: 0.3,
             SPEED_VARIATION_BASE: 0.6,
-            // Movement chances
-            VERTICAL_DRIFT_CHANCE: 0.002,
+            // Movement chances - reduce the chance to save CPU
+            VERTICAL_DRIFT_CHANCE: 0.001,    // reduced from 0.002
             VERTICAL_DRIFT_FORCE: 0.00005,
-            DIRECTION_CHANGE_CHANCE: 0.0005,
+            DIRECTION_CHANGE_CHANCE: 0.0002, // reduced from 0.0005
             // Avoidance
-            AVOIDANCE_RADIUS_FACTOR: 3,
+            AVOIDANCE_RADIUS_FACTOR: 2.5,    // reduced from 3
             AVOIDANCE_FORCE_X: 0.0005,
             AVOIDANCE_FORCE_Y: 0.0001,
             // Icon scale
-            ICON_SCALE: 1
+            ICON_SCALE: 1,
+            // Optimization - skip frames occasionally to reduce CPU usage
+            CALCULATION_THROTTLE: 2          // Only run calculations every N frames
         };
 
         function initPhysics() {
@@ -376,6 +380,18 @@
             
             // Add some air resistance to make movement fluid
             engine.world.airFriction = 0.05;
+
+            // Check if this page is initially visible (in focus)
+            // Default to paused if we can't determine
+            isVisible = false;
+            
+            // Try to detect if we're the active frame by checking if we're visible
+            // This is an approximation
+            if (document.visibilityState === 'visible') {
+                // We're visible, but we might not be the active iframe
+                // We'll assume we're not active until we receive a message
+                isVisible = false;
+            }
 
             const render = Matter.Render.create({
                 element: container,
@@ -462,7 +478,14 @@
                 render.mouse = mouse;
 
                 // Keep all the existing physics logic exactly as is
+                let frameCounter = 0;
                 Matter.Events.on(engine, 'beforeUpdate', () => {
+                    // Skip calculations occasionally to save CPU
+                    frameCounter++;
+                    if (frameCounter % PHYSICS_CONSTANTS.CALCULATION_THROTTLE !== 0) {
+                        return; // Skip this frame's calculations
+                    }
+
                     logos.forEach(logo => {
                         const position = Matter.Vector.create(logo.position.x, logo.position.y);
                         const velocity = Matter.Vector.create(logo.velocity.x, logo.velocity.y);
@@ -540,9 +563,22 @@
                 });
 
                 // Keep the runner and walls
-                const runner = Matter.Runner.create();
+                runner = Matter.Runner.create();
                 Matter.Runner.run(runner, engine);
                 Matter.Render.run(render);
+
+                // Add event listener for visibility changes
+                document.addEventListener('visibilitychange', handleVisibilityChange);
+                
+                // Add a custom event listener for when this iframe gains/loses focus
+                window.addEventListener('message', function(event) {
+                    if (event.data && typeof event.data === 'object') {
+                        if (event.data.type === 'visibility') {
+                            isVisible = event.data.visible;
+                            handleVisibilityChange();
+                        }
+                    }
+                });
 
                 walls = [
                     Matter.Bodies.rectangle(container.clientWidth/2, -10, container.clientWidth, 20, { isStatic: true }),
@@ -554,6 +590,21 @@
             }).catch(error => {
                 console.error('Error during physics initialization:', error);
             });
+        }
+
+        // Function to handle visibility changes
+        function handleVisibilityChange() {
+            if (runner) {
+                if (document.hidden || !isVisible) {
+                    // Pause the physics simulation when not visible
+                    Matter.Runner.stop(runner);
+                    if (render) Matter.Render.stop(render);
+                } else {
+                    // Resume the physics simulation when visible
+                    Matter.Runner.start(runner, engine);
+                    if (render) Matter.Render.run(render);
+                }
+            }
         }
 
         window.addEventListener('load', initPhysics);
