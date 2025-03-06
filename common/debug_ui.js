@@ -168,6 +168,52 @@ export function createDebugUI() {
     divider.style.margin = '0 0 10px 0';
     debugUI.appendChild(divider);
     
+    // Add physics control section title
+    const physicsTitle = document.createElement('div');
+    physicsTitle.textContent = 'Physics Control';
+    physicsTitle.style.fontWeight = 'bold';
+    physicsTitle.style.marginBottom = '8px';
+    debugUI.appendChild(physicsTitle);
+    
+    // Add pause/play physics button
+    const pauseButton = document.createElement('button');
+    pauseButton.id = 'physics-pause-button';
+    pauseButton.textContent = '❚❚ Pause Physics';
+    pauseButton.style.width = '100%';
+    pauseButton.style.padding = '6px';
+    pauseButton.style.backgroundColor = '#444';
+    pauseButton.style.border = 'none';
+    pauseButton.style.borderRadius = '3px';
+    pauseButton.style.color = 'white';
+    pauseButton.style.cursor = 'pointer';
+    pauseButton.style.marginBottom = '10px';
+    pauseButton.style.fontWeight = 'bold';
+    pauseButton.style.transition = 'background-color 0.2s';
+    
+    // Add hover effect
+    pauseButton.addEventListener('mouseenter', function() {
+        this.style.backgroundColor = '#555';
+    });
+    
+    pauseButton.addEventListener('mouseleave', function() {
+        this.style.backgroundColor = '#444';
+    });
+    
+    // Add click event to toggle physics
+    pauseButton.addEventListener('click', function() {
+        if (window.togglePhysicsPause) {
+            window.togglePhysicsPause();
+        }
+    });
+    
+    debugUI.appendChild(pauseButton);
+    
+    // Add another divider
+    const divider2 = document.createElement('div');
+    divider2.style.borderBottom = '1px solid #555';
+    divider2.style.margin = '0 0 10px 0';
+    debugUI.appendChild(divider2);
+    
     // Add resolution control section title
     const resolutionTitle = document.createElement('div');
     resolutionTitle.textContent = 'Resolution Control';
@@ -346,10 +392,10 @@ export function createDebugUI() {
     debugUI.appendChild(fpsDropdownContainer);
     
     // Add divider
-    const divider2 = document.createElement('div');
-    divider2.style.borderBottom = '1px solid #555';
-    divider2.style.margin = '10px 0';
-    debugUI.appendChild(divider2);
+    const divider3 = document.createElement('div');
+    divider3.style.borderBottom = '1px solid #555';
+    divider3.style.margin = '10px 0';
+    debugUI.appendChild(divider3);
     
     // Create a container for the debug toggles section (keep this visible)
     const debugTogglesTitle = document.createElement('div');
@@ -383,10 +429,10 @@ export function createDebugUI() {
     addToggle(debugUI, 'SPOTLIGHT_VISUAL_DEBUG', 'Spotlight Debug');
     
     // Add divider
-    const divider3 = document.createElement('div');
-    divider3.style.borderBottom = '1px solid #555';
-    divider3.style.margin = '10px 0';
-    debugUI.appendChild(divider3);
+    const divider4 = document.createElement('div');
+    divider4.style.borderBottom = '1px solid #555';
+    divider4.style.margin = '10px 0';
+    debugUI.appendChild(divider4);
     
     // Create a container for the log flags section
     const logFlagsContainer = document.createElement('div');

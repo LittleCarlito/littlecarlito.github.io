@@ -34,6 +34,7 @@ let construction_acknowledged = !FLAGS.CONSTRUCTION_GREETING;
 let asset_spawner;
 let asset_activator;
 let isCleanedUp = false; // Track if cleanup has been performed
+let isPhysicsPaused = false; // Track if physics simulation is paused
 
 /** Cleans up resources to prevent memory leaks */
 function cleanup() {
@@ -290,11 +291,33 @@ async function init() {
     }
 }
 
+/** Toggle physics simulation pause state */
+function togglePhysicsPause() {
+    isPhysicsPaused = !isPhysicsPaused;
+    
+    // Update the button text if it exists
+    const pauseButton = document.getElementById('physics-pause-button');
+    if (pauseButton) {
+        pauseButton.textContent = isPhysicsPaused ? '▶ Play Physics' : '❚❚ Pause Physics';
+    }
+    
+    if (FLAGS.PHYSICS_LOGS) {
+        console.log(`Physics simulation ${isPhysicsPaused ? 'paused' : 'resumed'}`);
+    }
+    
+    return isPhysicsPaused;
+}
+
+// Make the function available globally for the debug UI
+window.togglePhysicsPause = togglePhysicsPause;
+
 /** Primary animation function run every frame by renderer */
 function animate() {
     const delta = clock.getDelta();
-    // Handle the overlay
+    
+    // Handle tweens and UI animations (always run regardless of physics pause)
     updateTween();
+    
     if(resize_move) {
         if(!zoom_event) {
             viewable_container.resize_reposition();
@@ -303,6 +326,7 @@ function animate() {
         }
         resize_move = false;
     }
+    
     // Handle the physics objects
     if(viewable_container.get_overlay().is_intersected() != null) {
         asset_activator.activate_object(viewable_container.get_intersected_name());
@@ -316,15 +340,25 @@ function animate() {
         asset_activator.deactivate_all_objects();
     }
     
-    // Run physics simulation
+    // Process physics simulation (can be paused)
     world.timestep = Math.min(delta, 0.1);
-    world.step();
+    if (!isPhysicsPaused) {
+        world.step();
+    }
     
-    // Background object updates
-    background_container.update(grabbed_object, viewable_container);
-    AssetStorage.get_instance().update();
+    // Always update menu animations and user interactions
+    // These handle spawning and sign animations, even when physics is paused
+    if (background_container) {
+        background_container.update(grabbed_object, viewable_container);
+    }
     
-    // Update confetti particles
+    // Only update physics-dependent objects when not paused
+    if (!isPhysicsPaused && AssetStorage.get_instance()) {
+        AssetStorage.get_instance().update();
+    }
+    
+    // Always update visual elements even when physics is paused
+    // Update confetti particles (immune from physics pause - uses its own physics calculations)
     viewable_container.get_overlay().update_confetti();
     
     // Ensure regular cleanup of unused resources
