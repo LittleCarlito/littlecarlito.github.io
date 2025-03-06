@@ -233,6 +233,7 @@
             width: 100%;
             height: 100%;
             z-index: 0;
+            pointer-events: none;
         }
 
         .skill-ball {
@@ -244,14 +245,26 @@
             color: white;
             font-size: 12px;
             font-weight: bold;
-            cursor: pointer;
+            cursor: grab;
             user-select: none;
             transition: transform 0.2s;
             z-index: 1;
+            /* Add subtle shadow to make icons look like they're floating above water */
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
 
         .skill-ball:hover {
             transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .skill-ball:active {
+            cursor: grabbing;
+            transform: scale(1.15);
+        }
+        
+        canvas {
+            cursor: grab;
         }
 
         .frontend {
@@ -477,14 +490,16 @@
                         friction: 0.001,
                         density: 0.0005,
                         frictionAir: 0.03,
-                        individualProperties
+                        individualProperties,
+                        isSkillBall: true, // Tag these bodies as skill balls
+                        skill: skill.name // Store the skill name for reference
                     });
 
                     Matter.World.add(world, logo);
                     logos.push(logo);
                 });
 
-                // Keep mouse constraint for avoidance only
+                // Improve mouse constraint for better interaction
                 const mouse = Matter.Mouse.create(render.canvas);
                 const mouseConstraint = Matter.MouseConstraint.create(engine, {
                     mouse: mouse,
@@ -493,6 +508,16 @@
                         render: { visible: false }
                     }
                 });
+                
+                // Make cursor change to grabbing when dragging objects
+                render.canvas.addEventListener('mousedown', () => {
+                    render.canvas.style.cursor = 'grabbing';
+                });
+                
+                render.canvas.addEventListener('mouseup', () => {
+                    render.canvas.style.cursor = 'grab';
+                });
+                
                 Matter.World.add(world, mouseConstraint);
                 render.mouse = mouse;
 
@@ -711,16 +736,17 @@
             let currentBufferB = bufferB1;
             let previousBufferB = bufferB2;
             
-            // Mouse position
-            let mousePosition = new THREE.Vector2(0, 0);
+            // Mouse position - initialize to off-screen to prevent idle ripple at (0,0)
+            let mousePosition = new THREE.Vector2(-1000, -1000);
             let mousePressed = false;
+            let hasMouseEntered = false; // Flag to track if mouse has entered the container
             
             // Shader for Buffer A (water physics)
             const bufferAMaterial = new THREE.ShaderMaterial({
                 uniforms: {
                     iTime: { value: 0 },
                     iFrame: { value: 0 },
-                    iMouse: { value: new THREE.Vector4(0, 0, 0, 0) },
+                    iMouse: { value: new THREE.Vector4(-1000, -1000, 0, 0) }, // Initialize off-screen
                     iResolution: { value: new THREE.Vector2(width, height) },
                     iChannel0: { value: null }, // Previous buffer A
                     iChannel1: { value: null }  // Current buffer B
@@ -765,26 +791,20 @@
                         
                         float t = 0.99 * (h - T(0, 0).y);
                         
-                        // Enhanced mouse ripple effect - larger radius and stronger effect
-                        // First condition: mouse button pressed - creates strong ripples
-                        if (iMouse.z > 0.5 && 18.0 - length(iMouse.xy - coord) > 0.0) {
-                            t = 1.5; // Stronger ripple when mouse is pressed
-                        } 
-                        // Second condition: mouse motion only - creates subtle ripples
-                        // We use sin(iTime) to create a continuous ripple effect while moving
-                        else if (25.0 - length(iMouse.xy - coord) > 0.0) {
-                            float mouseRippleIntensity = 0.3 + 0.2 * sin(iTime * 10.0);
-                            t += mouseRippleIntensity * (1.0 - length(iMouse.xy - coord) / 25.0);
+                        // Only apply ripple effects if mouse has entered the container
+                        if (iMouse.x > -999.0) { // Check if mouse is no longer at the initialized off-screen position
+                            // Enhanced mouse ripple effect - larger radius and stronger effect
+                            // First condition: mouse button pressed - creates strong ripples
+                            if (iMouse.z > 0.5 && 18.0 - length(iMouse.xy - coord) > 0.0) {
+                                t = 1.5; // Stronger ripple when mouse is pressed
+                            } 
+                            // Second condition: mouse motion only - creates subtle ripples
+                            // We use sin(iTime) to create a continuous ripple effect while moving
+                            else if (25.0 - length(iMouse.xy - coord) > 0.0) {
+                                float mouseRippleIntensity = 0.3 + 0.2 * sin(iTime * 10.0);
+                                t += mouseRippleIntensity * (1.0 - length(iMouse.xy - coord) / 25.0);
+                            }
                         }
-                        
-                        // Remove automatic ripples as requested - only mouse events should cause ripples
-                        /* 
-                        // Automatic ripples every 60 frames
-                        vec2 randomPos = iResolution * fract(sin(vec2(float(iFrame) * 0.01, float(iFrame) * 0.023)) * 43758.5453);
-                        if (iFrame % 60 == 0 && 10.0 - length(randomPos - coord) > 0.0) {
-                            t = 1.0;
-                        }
-                        */
                         
                         // Get particle info from buffer B
                         vec4 bData = B(coord);
@@ -991,7 +1011,38 @@
             scene.add(renderMesh);
             
             // Event listeners for mouse interaction
-            container.addEventListener('mousemove', (event) => {
+            const physicsContainer = document.getElementById('physics-container');
+            
+            // Track when mouse enters the container for the first time
+            physicsContainer.addEventListener('mouseenter', (event) => {
+                hasMouseEntered = true;
+                
+                // Get the initial mouse position when entering
+                const rect = container.getBoundingClientRect();
+                mousePosition.x = event.clientX - rect.left;
+                mousePosition.y = height - (event.clientY - rect.top); // Flip Y for WebGL coordinates
+                
+                // Update the mouse position in the shaders
+                bufferAMaterial.uniforms.iMouse.value.x = mousePosition.x;
+                bufferAMaterial.uniforms.iMouse.value.y = mousePosition.y;
+                bufferBMaterial.uniforms.iMouse.value.x = mousePosition.x;
+                bufferBMaterial.uniforms.iMouse.value.y = mousePosition.y;
+            });
+            
+            // Add mouseleave handler to stop ripples when mouse leaves
+            physicsContainer.addEventListener('mouseleave', () => {
+                // Move mouse position off-screen to stop ripples
+                bufferAMaterial.uniforms.iMouse.value.x = -1000;
+                bufferAMaterial.uniforms.iMouse.value.y = -1000;
+                bufferBMaterial.uniforms.iMouse.value.x = -1000;
+                bufferBMaterial.uniforms.iMouse.value.y = -1000;
+            });
+            
+            physicsContainer.addEventListener('mousemove', (event) => {
+                if (!hasMouseEntered) {
+                    hasMouseEntered = true;
+                }
+                
                 // Convert to pixel coordinates
                 const rect = container.getBoundingClientRect();
                 mousePosition.x = event.clientX - rect.left;
@@ -1007,10 +1058,22 @@
                 }
             });
             
-            container.addEventListener('mousedown', () => {
+            physicsContainer.addEventListener('mousedown', (event) => {
                 mousePressed = true;
+                
+                // Make sure coordinates are updated
+                const rect = container.getBoundingClientRect();
+                mousePosition.x = event.clientX - rect.left;
+                mousePosition.y = height - (event.clientY - rect.top);
+                
+                bufferAMaterial.uniforms.iMouse.value.x = mousePosition.x;
+                bufferAMaterial.uniforms.iMouse.value.y = mousePosition.y;
                 bufferAMaterial.uniforms.iMouse.value.z = 1.0;
+                
+                bufferBMaterial.uniforms.iMouse.value.x = mousePosition.x;
+                bufferBMaterial.uniforms.iMouse.value.y = mousePosition.y;
                 bufferBMaterial.uniforms.iMouse.value.z = 1.0;
+                
                 bufferAMaterial.uniforms.iMouse.value.w = 0.0; // Reset movement indicator
             });
             
