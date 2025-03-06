@@ -553,16 +553,21 @@ export class ScrollMenu {
                     // Change body type to dynamic
                     this.sign_body.setBodyType(RAPIER.RigidBodyType.Dynamic);
                     
-                    // Set physics properties
-                    this.sign_body.setLinearDamping(0.5);    // Default damping
-                    this.sign_body.setAngularDamping(0.5);   // Default damping
-                    this.sign_body.setGravityScale(1.0);     // Normal gravity
+                    // Use the configured values from CHAIN_CONFIG instead of defaults but with increased gravity
+                    this.sign_body.setLinearDamping(this.CHAIN_CONFIG.SIGN.DAMPING);           // Use configured damping
+                    this.sign_body.setAngularDamping(this.CHAIN_CONFIG.SIGN.ANGULAR_DAMPING);  // Use configured angular damping
+                    this.sign_body.setGravityScale(5.0);                                       // Increased gravity scale to 5.0
+                    
+                    // Set mass if supported by the physics engine
+                    if (typeof this.sign_body.setAdditionalMass === 'function') {
+                        this.sign_body.setAdditionalMass(this.CHAIN_CONFIG.SIGN.MASS);
+                    }
                     
                     // Wake up the body to ensure it starts simulating
                     this.sign_body.wakeUp();
                     
                     if (FLAGS.PHYSICS_LOGS) {
-                        console.log("Converted sign from kinematic to dynamic");
+                        console.log("Converted sign from kinematic to dynamic with increased gravity");
                     }
                 } catch (e) {
                     console.warn('Failed to convert sign to dynamic:', e);
