@@ -1,9 +1,7 @@
 import { TYPES } from '../../viewport/overlay/overlay_common';
 import { FLAGS, ASSET_TYPE, RAPIER, THREE } from '../../common';
-import { AssetSpawner } from '../../common';
 import { BackgroundLighting } from '../background_lighting';
 import { AssetStorage } from '../../common/asset_management/asset_storage';
-import { SPOTLIGHT_HEIGHT, SPOTLIGHT_DISTANCE } from '../background_lighting';
 
 export class ScrollMenu {
     parent;
@@ -17,23 +15,28 @@ export class ScrollMenu {
         sign: null,
         anchor: null
     };
+    // Animation state
+    is_animating = false;
+    animation_start_time = 0;
+    animation_duration = 100.0; // seconds - changed from 1.0 to 100.0 to slow down animation by 100x
+    initial_offset = 15; // How far to the right to spawn
     // Chain settings
     CHAIN_CONFIG = {
         POSITION: {
             X: 0,
-            Y: 10,
+            Y: 5,
             Z: 0
         },
         SEGMENTS: {
-            COUNT: 6,             // Back to 6 segments as requested
+            COUNT: 4,             // Reduced from 6 to 4 segments
             LENGTH: 0.5,          // Keep original size
             RADIUS: 0.1,
             DAMPING: 1,
             MASS: 1,
             RESTITUTION: 0.01,
             FRICTION: 1.0,
-            LINEAR_DAMPING: 0.8,
-            ANGULAR_DAMPING: 1.0,
+            LINEAR_DAMPING: 2.0,  // Increased from 0.8
+            ANGULAR_DAMPING: 2.0, // Increased from 1.0
             GRAVITY_SCALE: 0.3,
             SPAWN_DELAY: 100      // Delay between segment spawns in ms
         },
@@ -68,6 +71,18 @@ export class ScrollMenu {
     sign_mesh;
     sign_body;
     anchor_body;
+    // Store initial camera state
+    initial_camera_position = new THREE.Vector3();
+    initial_camera_quaternion = new THREE.Quaternion();
+    // Store target position (original spawn position before offset)
+    target_position = {
+        x: 0,
+        y: 0,
+        z: 0
+    };
+    // Position logging
+    last_position_log_time = 0;
+    position_log_interval = 500; // 500ms
 
     constructor(incoming_parent, incoming_camera, incoming_world, incoming_container, spawn_position) {
         this.parent = incoming_parent;
@@ -76,10 +91,49 @@ export class ScrollMenu {
         this.dynamic_bodies = incoming_container.dynamic_bodies;
         this.lighting = BackgroundLighting.getInstance(this.parent);
 
+        // Store initial camera state
+        this.initial_camera_position.copy(this.camera.position);
+        this.initial_camera_quaternion.copy(this.camera.quaternion);
+
+        // Log initial spawn position before any modifications
+        console.log("📦 INITIAL SPAWN POSITION (before offset):");
+        console.log(`X: ${spawn_position.x.toFixed(2)}, Y: ${spawn_position.y.toFixed(2)}, Z: ${spawn_position.z.toFixed(2)}`);
+
+        // Calculate the right vector in local space
+        const right = new THREE.Vector3(1, 0, 0);
+        right.applyQuaternion(this.camera.quaternion);
+        
+        // Offset the spawn position to the right
+        spawn_position.x += right.x * this.initial_offset;
+        spawn_position.y += right.y * this.initial_offset;
+        spawn_position.z += right.z * this.initial_offset;
+
+        // Log modified spawn position after offset
+        console.log("📌 ACTUAL SPAWN POSITION (after offset):");
+        console.log(`X: ${spawn_position.x.toFixed(2)}, Y: ${spawn_position.y.toFixed(2)}, Z: ${spawn_position.z.toFixed(2)}`);
+
+        // Store target position (original spawn position before offset)
+        this.target_position = {
+            x: spawn_position.x - right.x * this.initial_offset,
+            y: spawn_position.y - right.y * this.initial_offset,
+            z: spawn_position.z - right.z * this.initial_offset
+        };
+
+        // Log calculated target position
+        console.log("🎯 TARGET POSITION (spawn minus offset):");
+        console.log(`X: ${this.target_position.x.toFixed(2)}, Y: ${this.target_position.y.toFixed(2)}, Z: ${this.target_position.z.toFixed(2)}`);
+
         // Use spawn position
         this.CHAIN_CONFIG.POSITION.X = spawn_position.x;
         this.CHAIN_CONFIG.POSITION.Y = spawn_position.y;
         this.CHAIN_CONFIG.POSITION.Z = spawn_position.z;
+
+        // Log animation start position
+        console.log("🏁 ANIMATION START POSITION (CHAIN_CONFIG.POSITION):");
+        console.log(`X: ${this.CHAIN_CONFIG.POSITION.X.toFixed(2)}, Y: ${this.CHAIN_CONFIG.POSITION.Y.toFixed(2)}, Z: ${this.CHAIN_CONFIG.POSITION.Z.toFixed(2)}`);
+
+        this.animation_start_time = performance.now();
+        this.is_animating = true;
 
         return this.initialize(spawn_position);
     }
@@ -88,20 +142,21 @@ export class ScrollMenu {
         // Calculate spawn position
         const spawnY = this.CHAIN_CONFIG.POSITION.Y - (index + 1) * this.CHAIN_CONFIG.SEGMENTS.LENGTH;
         
-        // Create the rigid body
+        // Create the rigid body - changed from dynamic to kinematicPositionBased
         const chain_body = this.world.createRigidBody(
-            RAPIER.RigidBodyDesc.dynamic()
+            RAPIER.RigidBodyDesc.kinematicPositionBased()
             .setTranslation(
                 this.CHAIN_CONFIG.POSITION.X,
                 spawnY,
                 this.CHAIN_CONFIG.POSITION.Z
             )
             .setRotation(rotation)
-            .setLinearDamping(this.CHAIN_CONFIG.SEGMENTS.LINEAR_DAMPING)
-            .setAngularDamping(this.CHAIN_CONFIG.SEGMENTS.ANGULAR_DAMPING)
-            .setAdditionalMass(this.CHAIN_CONFIG.SEGMENTS.MASS)
-            .setGravityScale(this.CHAIN_CONFIG.SEGMENTS.GRAVITY_SCALE)
-            .setCanSleep(true)
+            // These properties are not needed for kinematic bodies but kept for reference
+            // .setLinearDamping(this.CHAIN_CONFIG.SEGMENTS.LINEAR_DAMPING)
+            // .setAngularDamping(this.CHAIN_CONFIG.SEGMENTS.ANGULAR_DAMPING)
+            // .setAdditionalMass(this.CHAIN_CONFIG.SEGMENTS.MASS)
+            // .setGravityScale(this.CHAIN_CONFIG.SEGMENTS.GRAVITY_SCALE)
+            .setCanSleep(false) // Kinematic bodies shouldn't sleep
         );
 
         // Create collider
@@ -115,8 +170,13 @@ export class ScrollMenu {
         const segmentMaterial = new THREE.MeshBasicMaterial({ visible: false });
         const segmentMesh = new THREE.Mesh(segmentGeometry, segmentMaterial);
         segmentMesh.name = `scroll_menu_chain_segment_${index}`;
-        this.parent.add(segmentMesh);
-
+        
+        // Rotate the segment visualization to match the rigidbody orientation
+        segmentMesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+        
+        // Add to the assembly container
+        this.assembly_container.add(segmentMesh);
+        
         // Store in dynamic bodies
         this.dynamic_bodies.push({
             type: 'scroll_menu_chain',
@@ -127,12 +187,12 @@ export class ScrollMenu {
         // Create joint with previous segment
         const joint_desc = index === 0 
             ? RAPIER.JointData.spherical(
-                {x: 0, y: 0, z: 0},  // Anchor point
-                {x: 0, y: this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0}  // Local point
+                {x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/3 - 0.15, z: 0},  // Add spacing for first joint
+                {x: 0, y: this.CHAIN_CONFIG.SEGMENTS.LENGTH/2 + 0.15, z: 0}
             )
             : RAPIER.JointData.spherical(
-                {x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0},  // Previous point
-                {x: 0, y: this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0}    // Current point
+                {x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/2 - 0.15, z: 0},  // Add spacing between segments
+                {x: 0, y: this.CHAIN_CONFIG.SEGMENTS.LENGTH/2 + 0.15, z: 0}
             );
 
         joint_desc.limitsEnabled = true;
@@ -154,52 +214,55 @@ export class ScrollMenu {
 
         this.chain_joints.push(created_joint);
 
-        // Add debug visualization if enabled
-        if (FLAGS.SIGN_VISUAL_DEBUG) {
-            // Add debug mesh for segment
-            const debugSegment = new THREE.Mesh(
-                segmentGeometry,
+        // Add debug visualization (always create, control visibility with flag)
+        // Add debug mesh for segment
+        const debugSegment = new THREE.Mesh(
+            segmentGeometry,
+            new THREE.MeshBasicMaterial({
+                color: 0x0000ff,
+                wireframe: true,
+                depthTest: false,
+                transparent: true,
+                opacity: 0.8
+            })
+        );
+        debugSegment.position.copy(segmentMesh.position);
+        debugSegment.quaternion.copy(segmentMesh.quaternion);
+        debugSegment.visible = FLAGS.SIGN_VISUAL_DEBUG; // Set initial visibility based on flag
+        this.debug_meshes.segments.push(debugSegment);
+        this.assembly_container.add(debugSegment);
+
+        // Add debug mesh for joint if not last segment
+        if (index < this.CHAIN_CONFIG.SEGMENTS.COUNT - 1) {
+            const jointDebug = new THREE.Mesh(
+                new THREE.SphereGeometry(0.1),
                 new THREE.MeshBasicMaterial({
-                    color: 0x0000ff,
+                    color: 0xff0000,
                     wireframe: true,
                     depthTest: false,
                     transparent: true,
                     opacity: 0.8
                 })
             );
-            debugSegment.position.copy(segmentMesh.position);
-            debugSegment.quaternion.copy(segmentMesh.quaternion);
-            this.debug_meshes.segments.push(debugSegment);
-            this.parent.add(debugSegment);
-
-            // Add debug mesh for joint if not last segment
-            if (index < this.CHAIN_CONFIG.SEGMENTS.COUNT - 1) {
-                const jointDebug = new THREE.Mesh(
-                    new THREE.SphereGeometry(0.1),
-                    new THREE.MeshBasicMaterial({
-                        color: 0xff0000,
-                        wireframe: true,
-                        depthTest: false,
-                        transparent: true,
-                        opacity: 0.8
-                    })
-                );
-                const currentPos = chain_body.translation();
-                const prevPos = previous_body.translation();
-                jointDebug.position.set(
-                    (prevPos.x + currentPos.x) / 2,
-                    (prevPos.y + currentPos.y) / 2,
-                    (prevPos.z + currentPos.z) / 2
-                );
-                this.debug_meshes.joints.push(jointDebug);
-                this.parent.add(jointDebug);
-            }
+            const currentPos = chain_body.translation();
+            const prevPos = previous_body.translation();
+            jointDebug.position.set(
+                (prevPos.x + currentPos.x) / 2,
+                (prevPos.y + currentPos.y) / 2,
+                (prevPos.z + currentPos.z) / 2
+            );
+            jointDebug.visible = FLAGS.SIGN_VISUAL_DEBUG; // Set initial visibility based on flag
+            this.debug_meshes.joints.push(jointDebug);
+            this.assembly_container.add(jointDebug);
         }
 
         return chain_body;
     }
 
     async initialize(spawn_position) {
+        // Create the assembly container first
+        this.createAssemblyContainer();
+        
         // Calculate rotation based on camera position
         const theta_rad = Math.atan2(
             this.camera.position.x,
@@ -224,25 +287,24 @@ export class ScrollMenu {
             .setRotation(rotation)
         );
 
-        // Add debug mesh for anchor
-        if (FLAGS.SIGN_VISUAL_DEBUG) {
-            const anchorGeometry = new THREE.SphereGeometry(0.2);
-            const anchorMaterial = new THREE.MeshBasicMaterial({
-                color: 0xffff00,
-                wireframe: true,
-                transparent: true,
-                opacity: 1.0,
-                depthTest: false,
-                depthWrite: false
-            });
-            this.debug_meshes.anchor = new THREE.Mesh(anchorGeometry, anchorMaterial);
-            const anchorPos = this.anchor_body.translation();
-            const anchorRot = this.anchor_body.rotation();
-            this.debug_meshes.anchor.position.set(anchorPos.x, anchorPos.y, anchorPos.z);
-            this.debug_meshes.anchor.quaternion.set(anchorRot.x, anchorRot.y, anchorRot.z, anchorRot.w);
-            this.debug_meshes.anchor.renderOrder = 999;
-            this.parent.add(this.debug_meshes.anchor);
-        }
+        // Add debug mesh for anchor (always create, control visibility with flag)
+        const anchorGeometry = new THREE.SphereGeometry(0.2);
+        const anchorMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffff00,
+            wireframe: true,
+            transparent: true,
+            opacity: 1.0,
+            depthTest: false,
+            depthWrite: false
+        });
+        this.debug_meshes.anchor = new THREE.Mesh(anchorGeometry, anchorMaterial);
+        const anchorPos = this.anchor_body.translation();
+        const anchorRot = this.anchor_body.rotation();
+        this.debug_meshes.anchor.position.set(anchorPos.x, anchorPos.y, anchorPos.z);
+        this.debug_meshes.anchor.quaternion.set(anchorRot.x, anchorRot.y, anchorRot.z, anchorRot.w);
+        this.debug_meshes.anchor.renderOrder = 999;
+        this.debug_meshes.anchor.visible = FLAGS.SIGN_VISUAL_DEBUG; // Set initial visibility based on flag
+        this.assembly_container.add(this.debug_meshes.anchor);
 
         // Sequentially create chain segments
         let previous_body = this.anchor_body;
@@ -291,10 +353,13 @@ export class ScrollMenu {
                 this.sign_mesh.castShadow = true;
                 this.sign_mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.SECONDARY}_SCROLL_MENU`;
                 
-                // Rotate the sign 90 degrees around X axis
+                // Add a reference to this ScrollMenu instance in the userData
+                this.sign_mesh.userData.scrollMenu = this;
+                
+                // Adjust rotation to match our coordinate system
                 this.sign_mesh.rotation.x = Math.PI / 2;
                 
-                this.parent.add(this.sign_mesh);
+                this.assembly_container.add(this.sign_mesh);
                 
                 // Calculate sign spawn position
                 const sign_spawn_y = this.CHAIN_CONFIG.POSITION.Y - 
@@ -302,18 +367,19 @@ export class ScrollMenu {
                     (this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT / 2);
 
                 this.sign_body = this.world.createRigidBody(
-                    RAPIER.RigidBodyDesc.dynamic()
+                    RAPIER.RigidBodyDesc.kinematicPositionBased() // Changed from dynamic to kinematicPositionBased
                     .setTranslation(
                         this.CHAIN_CONFIG.POSITION.X,
                         sign_spawn_y,
                         this.CHAIN_CONFIG.POSITION.Z
                     )
                     .setRotation(rotation)
-                    .setLinearDamping(this.CHAIN_CONFIG.SIGN.DAMPING)
-                    .setAngularDamping(this.CHAIN_CONFIG.SIGN.ANGULAR_DAMPING)
-                    .setAdditionalMass(this.CHAIN_CONFIG.SIGN.MASS)
-                    .setGravityScale(this.CHAIN_CONFIG.SIGN.GRAVITY_SCALE)
-                    .setCanSleep(true)
+                    // These properties are not needed for kinematic bodies but kept for reference
+                    // .setLinearDamping(this.CHAIN_CONFIG.SIGN.DAMPING)
+                    // .setAngularDamping(this.CHAIN_CONFIG.SIGN.ANGULAR_DAMPING)
+                    // .setAdditionalMass(this.CHAIN_CONFIG.SIGN.MASS)
+                    // .setGravityScale(this.CHAIN_CONFIG.SIGN.GRAVITY_SCALE)
+                    .setCanSleep(false) // Kinematic bodies shouldn't sleep
                 );
                 const sign_collider = RAPIER.ColliderDesc.cuboid(
                     this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH/2,
@@ -324,17 +390,17 @@ export class ScrollMenu {
                     .setFriction(this.CHAIN_CONFIG.SIGN.FRICTION);
                 this.world.createCollider(sign_collider, this.sign_body);
                 
-                // Set initial velocities to zero for sign
-                this.sign_body.setLinvel({ x: 0, y: 0, z: 0 }, true);
-                this.sign_body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+                // Set initial velocities not needed for kinematic bodies
+                // this.sign_body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+                // this.sign_body.setAngvel({ x: 0, y: 0, z: 0 }, true);
                 
-                // Force the sign to sleep initially
-                this.sign_body?.sleep();
+                // Force the sign to sleep initially - not needed for kinematic bodies
+                // this.sign_body?.sleep();
                 
-                // Connect sign to last chain segment with adjusted joint positions
+                // Connect sign to last chain segment with adjusted joint positions and spacing
                 const finalJointDesc = RAPIER.JointData.spherical(
-                    {x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/2, z: 0},  // Bottom of last chain segment
-                    {x: 0, y: this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT/2, z: 0}   // Top of sign
+                    {x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/2 - 0.15, z: 0},  // Match chain segment spacing
+                    {x: 0, y: this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT/2 + 0.15, z: 0}   // Match chain segment spacing
                 );
                 const signJoint = this.world.createImpulseJoint(
                     finalJointDesc,
@@ -344,54 +410,55 @@ export class ScrollMenu {
                 );
                 this.chain_joints.push(signJoint);
                 AssetStorage.get_instance().add_object(this.sign_mesh, this.sign_body);
-
+                
                 // Store sign with specific identifier
                 this.dynamic_bodies.push({
                     type: 'scroll_menu_sign',
                     mesh: this.sign_mesh,
                     body: this.sign_body
                 });
+                
+                // Create assembly container
+                this.createAssemblyContainer();
+                
+                // Add debug visual (always create, control visibility with flag)
+                const signDebugGeometry = new THREE.BoxGeometry(
+                    this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH,
+                    this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT,
+                    this.CHAIN_CONFIG.SIGN.DIMENSIONS.DEPTH
+                );
+                const signDebugMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xff00ff,  // Bright magenta for better visibility
+                    wireframe: true
+                });
+                this.debug_meshes.sign = new THREE.Mesh(signDebugGeometry, signDebugMaterial);
+                this.debug_meshes.sign.position.copy(this.sign_mesh.position);
+                this.debug_meshes.sign.quaternion.copy(this.sign_mesh.quaternion);
+                this.debug_meshes.sign.visible = FLAGS.SIGN_VISUAL_DEBUG; // Set initial visibility based on flag
+                this.assembly_container.add(this.debug_meshes.sign);
 
-                // Add debug mesh for sign
-                if (FLAGS.SIGN_VISUAL_DEBUG) {
-                    const signDebugGeometry = new THREE.BoxGeometry(
-                        this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH,
-                        this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT,
-                        this.CHAIN_CONFIG.SIGN.DIMENSIONS.DEPTH
-                    );
-                    const signDebugMaterial = new THREE.MeshBasicMaterial({
-                        color: 0xff00ff,  // Bright magenta for better visibility
-                        wireframe: true
-                    });
-                    this.debug_meshes.sign = new THREE.Mesh(signDebugGeometry, signDebugMaterial);
-                    this.debug_meshes.sign.position.copy(this.sign_mesh.position);
-                    this.debug_meshes.sign.quaternion.copy(this.sign_mesh.quaternion);
-                    this.parent.add(this.debug_meshes.sign);
-                }
-
-                // Add debug visualization for sign joint
-                if (FLAGS.SIGN_VISUAL_DEBUG) {
-                    const signJointGeometry = new THREE.SphereGeometry(0.1);
-                    const signJointMaterial = new THREE.MeshBasicMaterial({
-                        color: 0xff0000,
-                        wireframe: true,
-                        depthTest: false,
-                        transparent: true,
-                        opacity: 0.8
-                    });
-                    const signJointDebug = new THREE.Mesh(signJointGeometry, signJointMaterial);
-                    
-                    // Position the joint at the connection point between last chain segment and sign
-                    const lastChainPos = previous_body.translation();
-                    signJointDebug.position.set(
-                        lastChainPos.x,
-                        lastChainPos.y - this.CHAIN_CONFIG.SEGMENTS.LENGTH/2,
-                        lastChainPos.z
-                    );
-                    
-                    this.debug_meshes.joints.push(signJointDebug);
-                    this.parent.add(signJointDebug);
-                }
+                // Add debug visualization for sign joint (always create, control visibility with flag)
+                const signJointGeometry = new THREE.SphereGeometry(0.1);
+                const signJointMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xff0000,
+                    wireframe: true,
+                    depthTest: false,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const signJointDebug = new THREE.Mesh(signJointGeometry, signJointMaterial);
+                
+                // Position the joint at the connection point between last chain segment and sign
+                const lastChainPos = previous_body.translation();
+                signJointDebug.position.set(
+                    lastChainPos.x,
+                    lastChainPos.y - this.CHAIN_CONFIG.SEGMENTS.LENGTH/2,
+                    lastChainPos.z
+                );
+                
+                signJointDebug.visible = FLAGS.SIGN_VISUAL_DEBUG; // Set initial visibility based on flag
+                this.debug_meshes.joints.push(signJointDebug);
+                this.assembly_container.add(signJointDebug);
 
                 resolve();
             };
@@ -399,10 +466,76 @@ export class ScrollMenu {
             this.sign_image.src = this.CHAIN_CONFIG.SIGN.IMAGE_PATH;
         });
 
+        // Create spotlight after sign is initialized
+        if (!this.menu_spotlight && this.sign_mesh) {
+            // Calculate spotlight position 15 units behind initial camera position
+            const spotlightPosition = new THREE.Vector3();
+            spotlightPosition.copy(this.initial_camera_position);
+            const backVector = new THREE.Vector3(0, 0, 15);
+            backVector.applyQuaternion(this.initial_camera_quaternion);
+            spotlightPosition.add(backVector);
+
+            // Create spotlight using the stored lighting instance
+            this.menu_spotlight = await this.lighting.create_spotlight(
+                spotlightPosition,
+                0, // Initial rotationX, will be updated immediately
+                0, // Initial rotationY, will be updated immediately
+                5, // circle radius
+                0, // unlimited distance
+                0x00FFFF // Cyan color for scroll menu
+            );
+        }
+
         this.last_log_time = 0;
         this.log_interval = 500;
 
         return this;
+    }
+
+    /**
+     * Creates an assembly container with a red wireframe mesh to represent the bounds of the assembly
+     */
+    createAssemblyContainer() {
+        // Create an initial placeholder geometry (will be updated in updateAssemblyContainerBounds)
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        
+        // Create a red wireframe material
+        const material = new THREE.MeshBasicMaterial({
+            color: 0xff0000,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.8
+        });
+        
+        // Create the assembly container as a Group instead of a Mesh
+        this.assembly_container = new THREE.Group();
+        this.assembly_container.name = "assembly_container";
+        
+        // Add a reference to this ScrollMenu instance in the userData
+        this.assembly_container.userData.scrollMenu = this;
+        
+        // Create a separate wireframe mesh for visualization
+        this.assembly_wireframe = new THREE.Mesh(geometry, material);
+        this.assembly_wireframe.name = "assembly_wireframe";
+        
+        // Set initial visibility of wireframe based on debug flags
+        this.assembly_wireframe.visible = FLAGS.DEBUG_UI && FLAGS.COLLISION_VISUAL_DEBUG;
+        
+        // Add wireframe to the container
+        this.assembly_container.add(this.assembly_wireframe);
+        
+        // Add to the scene
+        this.parent.add(this.assembly_container);
+        
+        if (FLAGS.PHYSICS_LOGS) {
+            console.log("Created assembly container - dimensions will be updated dynamically");
+            console.log("Initial wireframe visibility:", this.assembly_wireframe.visible);
+        }
+        
+        // Initialize bounds immediately
+        this.updateAssemblyContainerBounds();
+        
+        return this.assembly_container;
     }
 
     async break_chains() {
@@ -414,42 +547,265 @@ export class ScrollMenu {
                 }
             });
 
-            // Remove debug meshes if they exist
-            if (FLAGS.SIGN_VISUAL_DEBUG) {
-                if (this.debug_meshes.anchor) {
-                    this.parent.remove(this.debug_meshes.anchor);
-                }
-                this.debug_meshes.segments.forEach(segment => {
-                    this.parent.remove(segment);
-                });
-                this.debug_meshes.joints.forEach(joint => {
-                    this.parent.remove(joint);
-                });
-                if (this.debug_meshes.sign) {
-                    this.parent.remove(this.debug_meshes.sign);
+            // Convert sign body from kinematic to dynamic if it exists
+            if (this.sign_body && this.world) {
+                try {
+                    // Change body type to dynamic
+                    this.sign_body.setBodyType(RAPIER.RigidBodyType.Dynamic);
+                    
+                    // Use the configured values from CHAIN_CONFIG instead of defaults but with increased gravity
+                    this.sign_body.setLinearDamping(this.CHAIN_CONFIG.SIGN.DAMPING);           // Use configured damping
+                    this.sign_body.setAngularDamping(this.CHAIN_CONFIG.SIGN.ANGULAR_DAMPING);  // Use configured angular damping
+                    this.sign_body.setGravityScale(5.0);                                       // Increased gravity scale to 5.0
+                    
+                    // Set mass if supported by the physics engine
+                    if (typeof this.sign_body.setAdditionalMass === 'function') {
+                        this.sign_body.setAdditionalMass(this.CHAIN_CONFIG.SIGN.MASS);
+                    }
+                    
+                    // Wake up the body to ensure it starts simulating
+                    this.sign_body.wakeUp();
+                    
+                    if (FLAGS.PHYSICS_LOGS) {
+                        console.log("Converted sign from kinematic to dynamic with increased gravity");
+                    }
+                } catch (e) {
+                    console.warn('Failed to convert sign to dynamic:', e);
                 }
             }
 
-            // Remove all joints with null check
-            for (let i = 0; i < this.chain_joints.length; i++) {
-                const joint = this.chain_joints[i];
-                if (joint && this.world.getImpulseJoint(joint.handle)) {
-                    try {
-                        this.world.removeImpulseJoint(joint);
-                    } catch (e) {
-                        console.warn('Failed to remove joint:', e);
+            // If sign mesh exists, move it to the parent before removing assembly container
+            if (this.sign_mesh && this.assembly_container && this.assembly_container.children.includes(this.sign_mesh)) {
+                // Save the world position and rotation
+                const worldPosition = new THREE.Vector3();
+                const worldQuaternion = new THREE.Quaternion();
+                
+                this.sign_mesh.getWorldPosition(worldPosition);
+                this.sign_mesh.getWorldQuaternion(worldQuaternion);
+                
+                // Remove from assembly container
+                this.assembly_container.remove(this.sign_mesh);
+                
+                // Add to parent with preserved world position
+                this.parent.add(this.sign_mesh);
+                this.sign_mesh.position.copy(worldPosition);
+                this.sign_mesh.quaternion.copy(worldQuaternion);
+                
+                // Ensure the sign mesh is visible
+                this.sign_mesh.visible = true;
+                
+                if (FLAGS.PHYSICS_LOGS) {
+                    console.log("Moved sign mesh to parent scene");
+                }
+            }
+
+            // If sign debug mesh exists, move it to the parent before removing assembly container
+            if (this.debug_meshes.sign && this.assembly_container && this.assembly_container.children.includes(this.debug_meshes.sign)) {
+                // Save the world position and rotation
+                const worldPosition = new THREE.Vector3();
+                const worldQuaternion = new THREE.Quaternion();
+                
+                this.debug_meshes.sign.getWorldPosition(worldPosition);
+                this.debug_meshes.sign.getWorldQuaternion(worldQuaternion);
+                
+                // Remove from assembly container
+                this.assembly_container.remove(this.debug_meshes.sign);
+                
+                // Add to parent with preserved world position
+                this.parent.add(this.debug_meshes.sign);
+                this.debug_meshes.sign.position.copy(worldPosition);
+                this.debug_meshes.sign.quaternion.copy(worldQuaternion);
+                
+                if (FLAGS.PHYSICS_LOGS) {
+                    console.log("Moved sign debug mesh to parent scene");
+                }
+            }
+
+            // Remove all chain segment meshes from scene
+            this.dynamic_bodies.forEach(data => {
+                if (data.type === 'scroll_menu_chain' && data.mesh) {
+                    // Remove from scene hierarchy regardless of parent
+                    if (data.mesh.parent) {
+                        data.mesh.parent.remove(data.mesh);
+                    }
+                    
+                    // Dispose of geometry and material
+                    if (data.mesh.geometry) {
+                        data.mesh.geometry.dispose();
+                    }
+                    if (data.mesh.material) {
+                        data.mesh.material.dispose();
+                    }
+                    
+                    if (FLAGS.PHYSICS_LOGS) {
+                        console.log("Removed chain segment mesh from scene");
                     }
                 }
+            });
+
+            // Clean up assembly container if it exists
+            if (this.assembly_container) {
+                if (FLAGS.PHYSICS_LOGS) {
+                    console.log("Cleaning up assembly container when chains break");
+                }
+                
+                // Remove all children from assembly container before removing it
+                while (this.assembly_container.children && this.assembly_container.children.length > 0) {
+                    const child = this.assembly_container.children[0];
+                    
+                    // Dispose of geometry and material if they exist
+                    if (child.geometry) {
+                        child.geometry.dispose();
+                    }
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(mat => {
+                                if (mat) mat.dispose();
+                            });
+                        } else if (child.material) {
+                            child.material.dispose();
+                        }
+                    }
+                    
+                    this.assembly_container.remove(child);
+                }
+                
+                if (this.assembly_container.parent) {
+                    this.assembly_container.parent.remove(this.assembly_container);
+                } else if (this.parent) {
+                    this.parent.remove(this.assembly_container);
+                }
+                
+                // Dispose of wireframe geometry and material if they exist
+                if (this.assembly_wireframe) {
+                    if (this.assembly_wireframe.geometry) {
+                        this.assembly_wireframe.geometry.dispose();
+                    }
+                    if (this.assembly_wireframe.material) {
+                        this.assembly_wireframe.material.dispose();
+                    }
+                }
+                
+                this.assembly_container = null;
+                this.assembly_wireframe = null;
             }
-            this.chain_joints = [];
+
+            // Remove debug meshes if they exist
+            if (this.debug_meshes.anchor) {
+                if (this.debug_meshes.anchor.parent) {
+                    this.debug_meshes.anchor.parent.remove(this.debug_meshes.anchor);
+                }
+                if (this.debug_meshes.anchor.geometry) {
+                    this.debug_meshes.anchor.geometry.dispose();
+                }
+                if (this.debug_meshes.anchor.material) {
+                    this.debug_meshes.anchor.material.dispose();
+                }
+                this.debug_meshes.anchor = null;
+            }
+            
+            // Dispose of segment debug meshes
+            if (this.debug_meshes.segments) {
+                this.debug_meshes.segments.forEach(segment => {
+                    if (segment && segment.parent) {
+                        segment.parent.remove(segment);
+                    }
+                    if (segment && segment.geometry) {
+                        segment.geometry.dispose();
+                    }
+                    if (segment && segment.material) {
+                        segment.material.dispose();
+                    }
+                });
+                this.debug_meshes.segments = [];
+            }
+            
+            // Dispose of joint debug meshes
+            if (this.debug_meshes.joints) {
+                this.debug_meshes.joints.forEach(joint => {
+                    if (joint && joint.parent) {
+                        joint.parent.remove(joint);
+                    }
+                    if (joint && joint.geometry) {
+                        joint.geometry.dispose();
+                    }
+                    if (joint && joint.material) {
+                        joint.material.dispose();
+                    }
+                });
+                this.debug_meshes.joints = [];
+            }
+            
+            // DO NOT REMOVE THE SIGN DEBUG MESH - KEEP IT
+            // if (this.debug_meshes.sign) {
+            //     this.parent.remove(this.debug_meshes.sign);
+            // }
+
+            // Remove all joints with null check
+            if (this.chain_joints) {
+                for (let i = 0; i < this.chain_joints.length; i++) {
+                    const joint = this.chain_joints[i];
+                    if (joint && this.world && this.world.getImpulseJoint && this.world.getImpulseJoint(joint.handle)) {
+                        try {
+                            this.world.removeImpulseJoint(joint);
+                        } catch (e) {
+                            console.warn('Failed to remove joint:', e);
+                        }
+                    }
+                }
+                this.chain_joints = [];
+            }
+
+            // Dispose of the anchor body
+            if (this.anchor_body && this.world) {
+                try {
+                    this.world.removeRigidBody(this.anchor_body);
+                    this.anchor_body = null;
+                } catch (e) {
+                    console.warn('Failed to remove anchor body:', e);
+                }
+            }
+            
+            // Dispose of chain segment bodies
+            if (this.dynamic_bodies) {
+                const segmentsToRemove = [];
+                this.dynamic_bodies.forEach((data, index) => {
+                    if (data.type === 'scroll_menu_chain' && data.body && this.world) {
+                        try {
+                            // Remove the body from the physics world
+                            this.world.removeRigidBody(data.body);
+                            
+                            // Mark for removal from dynamic_bodies
+                            segmentsToRemove.push(index);
+                        } catch (e) {
+                            console.warn('Failed to remove chain segment body:', e);
+                        }
+                    }
+                });
+                
+                // Remove the segments from dynamic_bodies (in reverse order to avoid index issues)
+                for (let i = segmentsToRemove.length - 1; i >= 0; i--) {
+                    this.dynamic_bodies.splice(segmentsToRemove[i], 1);
+                }
+            }
 
             // Remove spotlight and its debug meshes if they exist
-            if (this.menu_spotlight) {
-                // First despawn the spotlight helpers
-                await this.lighting.despawn_spotlight_helpers(this.menu_spotlight);
-                // Then despawn the spotlight itself
-                await this.lighting.despawn_spotlight(this.menu_spotlight);
-                this.menu_spotlight = null;
+            if (this.menu_spotlight && this.lighting) {
+                try {
+                    // First despawn the spotlight helpers
+                    await this.lighting.despawn_spotlight_helpers(this.menu_spotlight);
+                    // Then despawn the spotlight itself
+                    await this.lighting.despawn_spotlight(this.menu_spotlight);
+                    this.menu_spotlight = null;
+                } catch (e) {
+                    console.warn('Failed to remove spotlight:', e);
+                    this.menu_spotlight = null;
+                }
+            }
+
+            // Force a garbage collection when done (recommendation only, JS decides when to actually collect)
+            if (FLAGS.PHYSICS_LOGS) {
+                console.log("Chains break completed, all components disposed except sign and its debug mesh");
             }
 
             this.chains_broken = true;
@@ -459,33 +815,147 @@ export class ScrollMenu {
     async update() {
         const currentTime = performance.now();
         
-        // Create spotlight if it doesn't exist and we have a sign
-        if (!this.menu_spotlight && !this.chains_broken && this.sign_mesh) {
-            // Calculate spotlight position 15 units behind camera
-            const spotlightPosition = new THREE.Vector3();
-            spotlightPosition.copy(this.camera.position);
-            const backVector = new THREE.Vector3(0, 0, 15);
-            backVector.applyQuaternion(this.camera.quaternion);
-            spotlightPosition.add(backVector);
+        // Update assembly container to match the bounds of the assembly
+        if (this.assembly_container) {
+            this.updateAssemblyContainerBounds();
+        }
+        
+        // Always ensure sign mesh is visible regardless of where it is in the scene hierarchy
+        if (this.sign_mesh) {
+            this.sign_mesh.visible = true;
+        }
+        
+        // Log animation start position on first update after animation begins
+        if (this.is_animating && this.anchor_body && 
+            currentTime - this.animation_start_time < 100) { // Only log in the first 100ms of animation
+            
+            const anchorPos = this.anchor_body.translation();
+            if (FLAGS.PHYSICS_LOGS) {
+                console.log("🚀 ANIMATION ACTUALLY STARTING FROM:");
+                console.log(`Anchor X: ${anchorPos.x.toFixed(2)}, Y: ${anchorPos.y.toFixed(2)}, Z: ${anchorPos.z.toFixed(2)}`);
+                console.log(`Start Config X: ${this.CHAIN_CONFIG.POSITION.X.toFixed(2)}, Y: ${this.CHAIN_CONFIG.POSITION.Y.toFixed(2)}, Z: ${this.CHAIN_CONFIG.POSITION.Z.toFixed(2)}`);
+                console.log(`Target X: ${this.target_position.x.toFixed(2)}, Y: ${this.target_position.y.toFixed(2)}, Z: ${this.target_position.z.toFixed(2)}`);
+            }
+        }
+        
+        // Position logging during animation
+        if (this.is_animating && this.sign_body && currentTime - this.last_position_log_time > this.position_log_interval) {
+            this.last_position_log_time = currentTime;
+            
+            // Add log to show current target position
+            if (FLAGS.PHYSICS_LOGS) {
+                console.log("🎯 CURRENT TARGET POSITION:");
+                console.log(`X: ${this.target_position.x.toFixed(2)}, Y: ${this.target_position.y.toFixed(2)}, Z: ${this.target_position.z.toFixed(2)}`);
+            }
+            
+            const signPos = this.sign_body.translation();
+            const signVel = this.sign_body.linvel ? this.sign_body.linvel() : { x: 0, y: 0, z: 0 };
+            const rotation = this.sign_body.rotation();
+            const euler = new THREE.Euler().setFromQuaternion(
+                new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w)
+            );
+            
+            if (FLAGS.PHYSICS_LOGS) {
+                console.log("🔄 SCROLL SIGN - ANIMATING");
+                console.log(`⏱️ Animation progress: ${((currentTime - this.animation_start_time) / 1000 / this.animation_duration * 100).toFixed(1)}%`);
+                console.log(`📍 Position X: ${signPos.x.toFixed(2)}, Y: ${signPos.y.toFixed(2)}, Z: ${signPos.z.toFixed(2)}`);
+                if (this.sign_body.linvel) {
+                    console.log(`🏃 Velocity X: ${signVel.x.toFixed(2)}, Y: ${signVel.y.toFixed(2)}, Z: ${signVel.z.toFixed(2)}`);
+                }
+                console.log(`🔄 Rotation (deg) X: ${(euler.x * 180/Math.PI).toFixed(1)}°, Y: ${(euler.y * 180/Math.PI).toFixed(1)}°, Z: ${(euler.z * 180/Math.PI).toFixed(1)}°`);
+                
+                // Also log anchor position
+                const anchorPos = this.anchor_body.translation();
+                console.log(`⚓ Anchor Position X: ${anchorPos.x.toFixed(2)}, Y: ${anchorPos.y.toFixed(2)}, Z: ${anchorPos.z.toFixed(2)}`);
+                console.log("-------------------");
+            }
+        }
+        
+        // Handle animation
+        if (this.is_animating) {
+            const elapsed = (currentTime - this.animation_start_time) / 1000; // Convert to seconds
+            if (elapsed >= this.animation_duration) {
+                // Animation complete
+                this.is_animating = false;
+                // Set final position
+                if (this.anchor_body) {
+                    // Log the expected delta movement before setting final position
+                    if (FLAGS.PHYSICS_LOGS) {
+                        console.log("📏 EXPECTED DELTA MOVEMENT:");
+                        const deltaX = this.target_position.x - this.CHAIN_CONFIG.POSITION.X;
+                        const deltaY = this.target_position.y - this.CHAIN_CONFIG.POSITION.Y;
+                        const deltaZ = this.target_position.z - this.CHAIN_CONFIG.POSITION.Z;
+                        console.log(`Delta X: ${deltaX.toFixed(2)}, Y: ${deltaY.toFixed(2)}, Z: ${deltaZ.toFixed(2)}`);
+                    }
+                    
+                    this.anchor_body.setTranslation(this.target_position);
+                    
+                    // Now update the positions of kinematic chain segments and sign
+                    this.updateKinematicChainPositions();
+                    
+                    // Log final position
+                    if (this.sign_body) {
+                        const finalPos = this.sign_body.translation();
+                        const finalRot = this.sign_body.rotation();
+                        const finalEuler = new THREE.Euler().setFromQuaternion(
+                            new THREE.Quaternion(finalRot.x, finalRot.y, finalRot.z, finalRot.w)
+                        );
+                        
+                        if (FLAGS.PHYSICS_LOGS) {
+                            console.log("✅ SCROLL SIGN - ANIMATION COMPLETE");
+                            console.log(`📍 Final Position X: ${finalPos.x.toFixed(2)}, Y: ${finalPos.y.toFixed(2)}, Z: ${finalPos.z.toFixed(2)}`);
+                            console.log(`🔄 Final Rotation (deg) X: ${(finalEuler.x * 180/Math.PI).toFixed(1)}°, Y: ${(finalEuler.y * 180/Math.PI).toFixed(1)}°, Z: ${(finalEuler.z * 180/Math.PI).toFixed(1)}°`);
+                            
+                            // Log final positions again
+                            console.log("🎯 FINAL TARGET POSITION:");
+                            console.log(`X: ${this.target_position.x.toFixed(2)}, Y: ${this.target_position.y.toFixed(2)}, Z: ${this.target_position.z.toFixed(2)}`);
+                            console.log("📌 FINAL CHAIN CONFIG POSITION (spawn):");
+                            console.log(`X: ${this.CHAIN_CONFIG.POSITION.X.toFixed(2)}, Y: ${this.CHAIN_CONFIG.POSITION.Y.toFixed(2)}, Z: ${this.CHAIN_CONFIG.POSITION.Z.toFixed(2)}`);
+                            console.log("====================");
+                        }
+                    }
+                }
+            } else {
+                // Calculate progress with simple easing
+                const progress = elapsed / this.animation_duration;
+                const eased_progress = progress * (2 - progress); // Simple easing function
+                
+                if (this.anchor_body) {
+                    // Log calculation details periodically
+                    if (currentTime - this.last_log_time > this.log_interval) {
+                        const current = this.anchor_body.translation();
+                        if (FLAGS.PHYSICS_LOGS) {
+                            console.log(`⏱️ Progress: ${progress.toFixed(2)}, Eased: ${eased_progress.toFixed(2)}`);
+                            console.log(`📐 Current: ${current.x.toFixed(2)}, Target: ${this.target_position.x.toFixed(2)}, Step: ${((this.target_position.x - current.x) * 0.05).toFixed(2)}`);
+                        }
+                        this.last_log_time = currentTime;
+                    }
+                    
+                    const current = this.anchor_body.translation();
+                    const new_x = current.x + (this.target_position.x - current.x) * 0.05; // Smooth interpolation
+                    const new_y = current.y;
+                    const new_z = current.z + (this.target_position.z - current.z) * 0.05;
+                    this.anchor_body.setTranslation({ x: new_x, y: new_y, z: new_z });
+                    
+                    // Now update the positions of kinematic chain segments and sign
+                    this.updateKinematicChainPositions();
+                }
+            }
+        }
 
-            // Calculate direction to sign
+        // Update only spotlight direction if it exists, position stays fixed
+        if (this.menu_spotlight && !this.chains_broken && this.sign_mesh) {
+            // Update spotlight direction to point at sign
             const targetPosition = new THREE.Vector3();
             targetPosition.copy(this.sign_mesh.position);
-
-            // Calculate angles for spotlight
-            const direction = new THREE.Vector3().subVectors(targetPosition, spotlightPosition);
+            const direction = new THREE.Vector3().subVectors(targetPosition, this.menu_spotlight.position);
             const rotationY = Math.atan2(direction.x, direction.z);
             const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
 
-            // Create spotlight using the stored lighting instance
-            this.menu_spotlight = await this.lighting.create_spotlight(
-                spotlightPosition,
-                rotationX,
-                rotationY,
-                5, // circle radius
-                0, // unlimited distance
-                0x00FFFF // Cyan color for scroll menu
-            );
+            // Update spotlight rotation
+            this.menu_spotlight.rotation.set(rotationX, rotationY, 0);
+            this.menu_spotlight.target.position.copy(targetPosition);
+            this.menu_spotlight.target.updateMatrixWorld();
         }
         
         // Update sign rotation based on camera angles
@@ -549,70 +1019,68 @@ export class ScrollMenu {
             this.last_log_time = currentTime;
         }
         
-        // Update debug mesh positions if enabled
-        if (FLAGS.SIGN_VISUAL_DEBUG) {
-            // Update anchor debug mesh
-            if (this.debug_meshes.anchor) {
-                const anchorPos = this.anchor_body.translation();
-                const anchorRot = this.anchor_body.rotation();
-                this.debug_meshes.anchor.position.set(anchorPos.x, anchorPos.y, anchorPos.z);
-                this.debug_meshes.anchor.quaternion.set(anchorRot.x, anchorRot.y, anchorRot.z, anchorRot.w);
+        // Update debug mesh positions
+        // Update anchor debug mesh
+        if (this.debug_meshes.anchor) {
+            const anchorPos = this.anchor_body.translation();
+            const anchorRot = this.anchor_body.rotation();
+            this.debug_meshes.anchor.position.set(anchorPos.x, anchorPos.y, anchorPos.z);
+            this.debug_meshes.anchor.quaternion.set(anchorRot.x, anchorRot.y, anchorRot.z, anchorRot.w);
+        }
+
+        // Get all chain segment bodies
+        const chainBodies = this.dynamic_bodies
+            .filter(data => data.type === 'scroll_menu_chain' && data.body && typeof data.body.translation === 'function')
+            .map(data => data.body);
+
+        // Update segment debug meshes
+        this.debug_meshes.segments.forEach((debugMesh, index) => {
+            const body = chainBodies[index];
+            if (body && typeof body.translation === 'function') {
+                const pos = body.translation();
+                const rot = body.rotation();
+                debugMesh.position.set(pos.x, pos.y, pos.z);
+                debugMesh.quaternion.set(rot.x, rot.y, rot.z, rot.w);
             }
+        });
 
-            // Get all chain segment bodies
-            const chainBodies = this.dynamic_bodies
-                .filter(data => data.type === 'scroll_menu_chain' && data.body && typeof data.body.translation === 'function')
-                .map(data => data.body);
-
-            // Update segment debug meshes
-            this.debug_meshes.segments.forEach((debugMesh, index) => {
-                const body = chainBodies[index];
-                if (body && typeof body.translation === 'function') {
-                    const pos = body.translation();
-                    const rot = body.rotation();
-                    debugMesh.position.set(pos.x, pos.y, pos.z);
-                    debugMesh.quaternion.set(rot.x, rot.y, rot.z, rot.w);
+        // Update joint debug meshes
+        this.debug_meshes.joints.forEach((debugMesh, index) => {
+            if (index < chainBodies.length - 1) {
+                // Regular chain joints
+                const body1 = chainBodies[index];
+                const body2 = chainBodies[index + 1];
+                if (body1 && body2 && typeof body1.translation === 'function' && typeof body2.translation === 'function') {
+                    const pos1 = body1.translation();
+                    const pos2 = body2.translation();
+                    debugMesh.position.set(
+                        (pos1.x + pos2.x) / 2,
+                        (pos1.y + pos2.y) / 2,
+                        (pos1.z + pos2.z) / 2
+                    );
                 }
-            });
-
-            // Update joint debug meshes
-            this.debug_meshes.joints.forEach((debugMesh, index) => {
-                if (index < chainBodies.length - 1) {
-                    // Regular chain joints
-                    const body1 = chainBodies[index];
-                    const body2 = chainBodies[index + 1];
-                    if (body1 && body2 && typeof body1.translation === 'function' && typeof body2.translation === 'function') {
-                        const pos1 = body1.translation();
-                        const pos2 = body2.translation();
-                        debugMesh.position.set(
-                            (pos1.x + pos2.x) / 2,
-                            (pos1.y + pos2.y) / 2,
-                            (pos1.z + pos2.z) / 2
-                        );
-                    }
-                } else if (index === chainBodies.length - 1 && this.sign_body) {
-                    // Sign joint
-                    const lastChainBody = chainBodies[chainBodies.length - 1];
-                    if (lastChainBody && typeof lastChainBody.translation === 'function') {
-                        const chainPos = lastChainBody.translation();
-                        debugMesh.position.set(
-                            chainPos.x,
-                            chainPos.y - this.CHAIN_CONFIG.SEGMENTS.LENGTH/2,
-                            chainPos.z
-                        );
-                    }
+            } else if (index === chainBodies.length - 1 && this.sign_body) {
+                // Sign joint
+                const lastChainBody = chainBodies[chainBodies.length - 1];
+                if (lastChainBody && typeof lastChainBody.translation === 'function') {
+                    const chainPos = lastChainBody.translation();
+                    debugMesh.position.set(
+                        chainPos.x,
+                        chainPos.y - this.CHAIN_CONFIG.SEGMENTS.LENGTH/2,
+                        chainPos.z
+                    );
                 }
-            });
+            }
+        });
 
-            // Update sign debug mesh
-            if (this.debug_meshes.sign && this.sign_body && typeof this.sign_body.translation === 'function') {
-                const signBodyData = this.dynamic_bodies.find(data => data.type === 'scroll_menu_sign');
-                if (signBodyData && signBodyData.body && typeof signBodyData.body.translation === 'function') {
-                    const signPos = signBodyData.body.translation();
-                    const signRot = signBodyData.body.rotation();
-                    this.debug_meshes.sign.position.set(signPos.x, signPos.y, signPos.z);
-                    this.debug_meshes.sign.quaternion.set(signRot.x, signRot.y, signRot.z, signRot.w);
-                }
+        // Update sign debug mesh
+        if (this.debug_meshes.sign && this.sign_body && typeof this.sign_body.translation === 'function') {
+            const signBodyData = this.dynamic_bodies.find(data => data.type === 'scroll_menu_sign');
+            if (signBodyData && signBodyData.body && typeof signBodyData.body.translation === 'function') {
+                const signPos = signBodyData.body.translation();
+                const signRot = signBodyData.body.rotation();
+                this.debug_meshes.sign.position.set(signPos.x, signPos.y, signPos.z);
+                this.debug_meshes.sign.quaternion.set(signRot.x, signRot.y, signRot.z, signRot.w);
             }
         }
     }
@@ -621,43 +1089,229 @@ export class ScrollMenu {
      * Updates the debug visualization for all signs based on the current flag state
      */
     updateDebugVisualizations() {
-        // Toggle visibility of existing debug meshes
-        if (this.debug_meshes && this.debug_meshes.length > 0) {
-            for (const mesh of this.debug_meshes) {
-                if (mesh) {
-                    mesh.visible = FLAGS.SIGN_VISUAL_DEBUG;
-                }
+        // Toggle visibility for all debug meshes
+        if (this.debug_meshes.anchor) {
+            this.debug_meshes.anchor.visible = FLAGS.SIGN_VISUAL_DEBUG;
+        }
+        this.debug_meshes.segments.forEach(mesh => {
+            if (mesh) mesh.visible = FLAGS.SIGN_VISUAL_DEBUG;
+        });
+        this.debug_meshes.joints.forEach(mesh => {
+            if (mesh) mesh.visible = FLAGS.SIGN_VISUAL_DEBUG;
+        });
+        if (this.debug_meshes.sign) {
+            this.debug_meshes.sign.visible = FLAGS.SIGN_VISUAL_DEBUG;
+        }
+    }
+
+    /**
+     * Updates the assembly container dimensions and position to match the current bounds of the entire assembly
+     */
+    updateAssemblyContainerBounds() {
+        if (!this.assembly_container) {
+            if (FLAGS.PHYSICS_LOGS) {
+                console.log("Can't update assembly container - it doesn't exist");
             }
-        } else if (FLAGS.SIGN_VISUAL_DEBUG && this.segments) {
-            // If debug meshes don't exist but should be shown, create them
-            this.debug_meshes = [];
+            return;
+        }
+        
+        // Update wireframe visibility based on debug flags - only show when debug UI is enabled and collision debug is on
+        this.assembly_wireframe.visible = FLAGS.DEBUG_UI && FLAGS.COLLISION_VISUAL_DEBUG;
+        
+        // Ensure the sign mesh is always visible regardless of debug settings
+        if (this.sign_mesh) {
+            this.sign_mesh.visible = true;
+        }
+        
+        // If wireframe is not visible, we don't need to update its geometry
+        if (!this.assembly_wireframe.visible) {
+            return;
+        }
+        
+        // Initialize min/max values for bounding box
+        const min = new THREE.Vector3(Infinity, Infinity, Infinity);
+        const max = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
+        let hasValidBounds = false;
+
+        // If chains are not broken, include anchor and chain positions
+        if (!this.chains_broken && this.anchor_body) {
+            // Include anchor position
+            const anchorPos = this.anchor_body.translation();
+            min.x = Math.min(min.x, anchorPos.x);
+            min.y = Math.min(min.y, anchorPos.y);
+            min.z = Math.min(min.z, anchorPos.z);
+            max.x = Math.max(max.x, anchorPos.x);
+            max.y = Math.max(max.y, anchorPos.y);
+            max.z = Math.max(max.z, anchorPos.z);
+            hasValidBounds = true;
+
+            // Include all chain segments
+            this.dynamic_bodies.forEach(data => {
+                if (data.type === 'scroll_menu_chain' && data.body) {
+                    const pos = data.body.translation();
+                    min.x = Math.min(min.x, pos.x);
+                    min.y = Math.min(min.y, pos.y);
+                    min.z = Math.min(min.z, pos.z);
+                    max.x = Math.max(max.x, pos.x);
+                    max.y = Math.max(max.y, pos.y);
+                    max.z = Math.max(max.z, pos.z);
+                    hasValidBounds = true;
+                }
+            });
+        }
+
+        // Always include sign dimensions
+        if (this.sign_body) {
+            const signPos = this.sign_body.translation();
+            const halfWidth = this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH / 2;
+            const halfHeight = this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT / 2;
+            const halfDepth = this.CHAIN_CONFIG.SIGN.DIMENSIONS.DEPTH / 2;
             
-            // Create debug meshes for segments
-            for (const segment of this.segments) {
-                if (segment && segment.mesh) {
-                    const segmentGeometry = new THREE.BoxGeometry(
-                        segment.size.x, 
-                        segment.size.y, 
-                        segment.size.z
-                    );
-                    
-                    const debugMesh = new THREE.Mesh(
-                        segmentGeometry,
-                        new THREE.MeshBasicMaterial({
-                            color: 0x0000ff,
-                            wireframe: true,
-                            depthTest: false,
-                            transparent: true,
-                            opacity: 0.8
-                        })
-                    );
-                    
-                    debugMesh.position.copy(segment.mesh.position);
-                    debugMesh.quaternion.copy(segment.mesh.quaternion);
-                    this.container.add(debugMesh);
-                    this.debug_meshes.push(debugMesh);
-                }
+            min.x = Math.min(min.x, signPos.x - halfWidth);
+            min.y = Math.min(min.y, signPos.y - halfHeight);
+            min.z = Math.min(min.z, signPos.z - halfDepth);
+            max.x = Math.max(max.x, signPos.x + halfWidth);
+            max.y = Math.max(max.y, signPos.y + halfHeight);
+            max.z = Math.max(max.z, signPos.z + halfDepth);
+            hasValidBounds = true;
+        }
+        
+        // If we don't have any valid bounds, hide the wireframe and return
+        if (!hasValidBounds) {
+            this.assembly_wireframe.visible = false;
+            return;
+        }
+        
+        // Calculate center and size of bounding box
+        const center = new THREE.Vector3().addVectors(min, max).multiplyScalar(0.5);
+        const size = new THREE.Vector3().subVectors(max, min);
+        
+        // Ensure size is never zero or negative (which could cause NaN issues)
+        size.x = Math.max(0.1, size.x);
+        size.y = Math.max(0.1, size.y);
+        size.z = Math.max(0.1, size.z);
+        
+        // Update assembly container position to match center of bounding box
+        this.assembly_container.position.copy(center);
+        
+        // Update wireframe geometry to match size of bounding box
+        this.assembly_wireframe.geometry.dispose(); // Clean up old geometry
+        this.assembly_wireframe.geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+        
+        if (FLAGS.PHYSICS_LOGS) {
+            console.log(`Updated assembly container bounds: ${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}`);
+            console.log(`Assembly container position: ${center.x.toFixed(2)}, ${center.y.toFixed(2)}, ${center.z.toFixed(2)}`);
+        }
+    }
+
+    // New method to update kinematic chain segments and sign positions
+    updateKinematicChainPositions() {
+        if (!this.anchor_body) return;
+        
+        // Get anchor position
+        const anchorPos = this.anchor_body.translation();
+        const anchorRot = this.anchor_body.rotation();
+        
+        // Get chain segment bodies
+        const chainBodies = this.dynamic_bodies
+            .filter(data => data.type === 'scroll_menu_chain' && data.body && typeof data.body.translation === 'function')
+            .map(data => data.body);
+            
+        // Update chain segment positions
+        chainBodies.forEach((body, index) => {
+            // Calculate new position based on index and segment length
+            const segmentY = anchorPos.y - (index + 1) * this.CHAIN_CONFIG.SEGMENTS.LENGTH;
+            
+            // Move the kinematic body
+            if (body.setNextKinematicTranslation) {
+                // For newer versions of Rapier
+                body.setNextKinematicTranslation({
+                    x: anchorPos.x,
+                    y: segmentY,
+                    z: anchorPos.z
+                });
+                
+                // Keep the same rotation as the anchor
+                body.setNextKinematicRotation(anchorRot);
+            } else {
+                // For older versions of Rapier
+                body.setTranslation({
+                    x: anchorPos.x,
+                    y: segmentY,
+                    z: anchorPos.z
+                });
+                
+                // Keep the same rotation as the anchor
+                body.setRotation(anchorRot);
             }
+        });
+        
+        // Update sign position at the end of the chain
+        const signData = this.dynamic_bodies.find(data => data.type === 'scroll_menu_sign' && data.body);
+        if (signData && signData.body) {
+            // Calculate sign position at the end of the chain
+            const signY = anchorPos.y - 
+                (this.CHAIN_CONFIG.SEGMENTS.COUNT * this.CHAIN_CONFIG.SEGMENTS.LENGTH) - 
+                (this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT / 2);
+                
+            // Move the kinematic sign body
+            if (signData.body.setNextKinematicTranslation) {
+                // For newer versions of Rapier
+                signData.body.setNextKinematicTranslation({
+                    x: anchorPos.x,
+                    y: signY,
+                    z: anchorPos.z
+                });
+                
+                // Keep the same rotation as the anchor
+                signData.body.setNextKinematicRotation(anchorRot);
+            } else {
+                // For older versions of Rapier
+                signData.body.setTranslation({
+                    x: anchorPos.x,
+                    y: signY,
+                    z: anchorPos.z
+                });
+                
+                // Keep the same rotation as the anchor
+                signData.body.setRotation(anchorRot);
+            }
+        }
+    }
+
+    // New method to make all chain segments dynamic when the sign is released
+    makeEntireChainDynamic() {
+        // Make all chain segments dynamic
+        const chainBodies = this.dynamic_bodies
+            .filter(data => data.type === 'scroll_menu_chain' && data.body)
+            .map(data => data.body);
+            
+        // Convert all chain segments to dynamic bodies
+        chainBodies.forEach(body => {
+            // Only convert if it's not already dynamic
+            if (body.bodyType() !== RAPIER.RigidBodyType.Dynamic) {
+                body.setBodyType(RAPIER.RigidBodyType.Dynamic);
+                
+                // Optional: Apply appropriate physics properties that were previously commented out
+                body.setLinearDamping(this.CHAIN_CONFIG.SEGMENTS.LINEAR_DAMPING);
+                body.setAngularDamping(this.CHAIN_CONFIG.SEGMENTS.ANGULAR_DAMPING);
+                body.setGravityScale(this.CHAIN_CONFIG.SEGMENTS.GRAVITY_SCALE);
+            }
+        });
+        
+        // Also convert the anchor body to dynamic if it exists and isn't already dynamic
+        if (this.anchor_body && this.anchor_body.bodyType() !== RAPIER.RigidBodyType.Dynamic) {
+            this.anchor_body.setBodyType(RAPIER.RigidBodyType.Dynamic);
+            
+            // Apply default physics properties for the anchor since CHAIN_CONFIG.ANCHOR doesn't exist
+            this.anchor_body.setLinearDamping(0.5);  // Default value
+            this.anchor_body.setAngularDamping(0.5); // Default value
+            this.anchor_body.setGravityScale(1.0);   // Default value
+        }
+        
+        // Log the conversion if physics logs are enabled
+        if (FLAGS.PHYSICS_LOGS) {
+            console.log(`Converted ${chainBodies.length} chain segments and anchor to dynamic bodies`);
         }
     }
 }

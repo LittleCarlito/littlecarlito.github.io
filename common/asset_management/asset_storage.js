@@ -114,10 +114,77 @@ export class AssetStorage {
     cleanup() {
         // Dispose of all cached materials
         for (const material of this.material_cache.values()) {
-            if (material.map) material.map.dispose();
-            material.dispose();
+            if (material) {
+                if (material.map) material.map.dispose();
+                if (material.normalMap) material.normalMap.dispose();
+                if (material.roughnessMap) material.roughnessMap.dispose();
+                if (material.metalnessMap) material.metalnessMap.dispose();
+                if (material.aoMap) material.aoMap.dispose();
+                if (material.emissiveMap) material.emissiveMap.dispose();
+                if (material.bumpMap) material.bumpMap.dispose();
+                if (material.displacementMap) material.displacementMap.dispose();
+                if (material.envMap) material.envMap.dispose();
+                if (material.alphaMap) material.alphaMap.dispose();
+                if (material.lightMap) material.lightMap.dispose();
+                material.dispose();
+            }
         }
         this.material_cache.clear();
+
+        // Dispose of dynamic bodies
+        this.dynamic_bodies.forEach(([mesh, body]) => {
+            // Dispose of the mesh
+            if (mesh) {
+                // Dispose of geometry
+                if (mesh.geometry) mesh.geometry.dispose();
+                
+                // Dispose of materials (handle arrays of materials)
+                if (mesh.material) {
+                    if (Array.isArray(mesh.material)) {
+                        mesh.material.forEach(mat => {
+                            if (mat) {
+                                if (mat.map) mat.map.dispose();
+                                mat.dispose();
+                            }
+                        });
+                    } else if (mesh.material) {
+                        if (mesh.material.map) mesh.material.map.dispose();
+                        mesh.material.dispose();
+                    }
+                }
+                
+                // Remove from parent
+                if (mesh.parent) {
+                    mesh.parent.remove(mesh);
+                }
+            }
+        });
+        
+        // Dispose of static meshes
+        this.static_meshes.forEach(mesh => {
+            if (mesh) {
+                if (mesh.geometry) mesh.geometry.dispose();
+                
+                if (mesh.material) {
+                    if (Array.isArray(mesh.material)) {
+                        mesh.material.forEach(mat => {
+                            if (mat) {
+                                if (mat.map) mat.map.dispose();
+                                mat.dispose();
+                            }
+                        });
+                    } else {
+                        if (mesh.material.map) mesh.material.map.dispose();
+                        mesh.material.dispose();
+                    }
+                }
+                
+                if (mesh.parent) {
+                    mesh.parent.remove(mesh);
+                }
+            }
+        });
+        
         // Clear all other storage
         this.loaded_assets.clear();
         this.dynamic_bodies.clear();

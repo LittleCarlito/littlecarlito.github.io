@@ -415,11 +415,8 @@ export class TextContainer {
                     .easing(Easing.Elastic.Out)
                     .start();
             } else {
-                // Otherwise move it offscreen with animation
-                new Tween(c.position)
-                    .to({ x: offscreen_x, y: y_position })
-                    .easing(Easing.Elastic.Out)
-                    .start();
+                c.position.x = offscreen_x;
+                c.position.y = y_position;
             }
         });
     }
