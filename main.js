@@ -293,17 +293,126 @@ async function init() {
 
 /** Toggle physics simulation pause state */
 function togglePhysicsPause() {
+    const wasPaused = isPhysicsPaused;
     isPhysicsPaused = !isPhysicsPaused;
     
-    // Update the button text if it exists
+    // Update the button text and style if it exists
     const pauseButton = document.getElementById('physics-pause-button');
     if (pauseButton) {
-        pauseButton.textContent = isPhysicsPaused ? '▶ Play Physics' : '❚❚ Pause Physics';
+        pauseButton.innerHTML = isPhysicsPaused ? 
+            '<span style="display: inline-block; width: 16px; letter-spacing: -2px; font-weight: bold;">▶</span> Play Physics' : 
+            '<span style="display: inline-block; width: 16px; letter-spacing: -2px; font-weight: bold;">❚ ❚</span> Pause Physics';
+        pauseButton.style.backgroundColor = isPhysicsPaused ? '#F9A825' : '#4CAF50'; // Yellow when paused, green when playing
+    }
+    
+    // If newly paused, freeze all objects in place
+    if (!wasPaused && isPhysicsPaused && AssetStorage.get_instance()) {
+        // Get all dynamic bodies
+        const dynamicBodies = AssetStorage.get_instance().get_all_dynamic_bodies();
+        
+        // Store current state and freeze bodies
+        dynamicBodies.forEach(([mesh, body]) => {
+            // Don't modify grabbed objects
+            if (grabbed_object && mesh.uuid === grabbed_object.uuid) {
+                return;
+            }
+            
+            // Store current velocities
+            const linvel = body.linvel();
+            const angvel = body.angvel();
+            
+            // Also store whether the body was asleep
+            mesh.userData.pausedState = {
+                linvel: { x: linvel.x, y: linvel.y, z: linvel.z },
+                angvel: { x: angvel.x, y: angvel.y, z: angvel.z },
+                wasAsleep: body.isSleeping(),
+                originalPosition: { ...body.translation() }
+            };
+            
+            // Effectively "freeze" the body by removing velocity and adding extreme damping
+            if (body.bodyType() === RAPIER.RigidBodyType.Dynamic) {
+                body.setGravityScale(0, true);
+                body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+                body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+                body.setLinearDamping(999, true);  // Very high damping
+                body.setAngularDamping(999, true);
+                body.sleep();  // Force sleep to save CPU
+            }
+        });
+    }
+    
+    // If resuming physics, restore state of paused objects
+    if (wasPaused && !isPhysicsPaused && AssetStorage.get_instance()) {
+        // Get all dynamic bodies
+        const dynamicBodies = AssetStorage.get_instance().get_all_dynamic_bodies();
+        
+        // Restore physics state for bodies that have stored paused state
+        dynamicBodies.forEach(([mesh, body]) => {
+            if (mesh.userData.pausedState) {
+                // Restore gravity scale (typical value is 1.0)
+                body.setGravityScale(1.0, true);
+                
+                // Reset damping to normal values
+                body.setLinearDamping(0.2, true); // Normal damping
+                body.setAngularDamping(0.7, true);
+                
+                // Check if position has changed during pause
+                const currentPos = body.translation();
+                const originalPos = mesh.userData.pausedState.originalPosition;
+                const wasMovedDuringPause = 
+                    mesh.userData.pausedState.wasMoved || // Check explicit flag
+                    (originalPos && 
+                    (Math.abs(currentPos.x - originalPos.x) > 0.001 || 
+                     Math.abs(currentPos.y - originalPos.y) > 0.001 || 
+                     Math.abs(currentPos.z - originalPos.z) > 0.001));
+                
+                // Apply stored velocity or impulse if available
+                if (mesh.userData.pausedState.plannedImpulse) {
+                    body.applyImpulse(mesh.userData.pausedState.plannedImpulse, true);
+                    body.wakeUp(); // Always wake up objects with applied impulse
+                } else if (mesh.userData.pausedState.linvel && !wasMovedDuringPause) {
+                    // Only restore velocity if the object wasn't moved during pause
+                    body.setLinvel(mesh.userData.pausedState.linvel, true);
+                    
+                    // Set angular velocity if available
+                    if (mesh.userData.pausedState.angvel) {
+                        body.setAngvel(mesh.userData.pausedState.angvel, true);
+                    }
+                    
+                    // Wake up only if it wasn't asleep before OR if there's velocity
+                    const hasVelocity = 
+                        Math.abs(mesh.userData.pausedState.linvel.x) > 0.001 || 
+                        Math.abs(mesh.userData.pausedState.linvel.y) > 0.001 || 
+                        Math.abs(mesh.userData.pausedState.linvel.z) > 0.001;
+                        
+                    if (!mesh.userData.pausedState.wasAsleep || hasVelocity) {
+                        body.wakeUp();
+                    }
+                } else {
+                    // Always wake up objects that were moved during pause
+                    // This ensures gravity will act on them
+                    if (wasMovedDuringPause) {
+                        // For objects moved during pause, ensure they're awake to be affected by gravity
+                        body.wakeUp();
+                        
+                        // Apply a tiny impulse to ensure the physics engine recognizes it's not at rest
+                        // This helps prevent the "floating objects" issue
+                        body.applyImpulse({ x: 0, y: 0.001, z: 0 }, true);
+                    }
+                }
+                
+                // Clear the paused state
+                delete mesh.userData.pausedState;
+            }
+        });
     }
     
     if (FLAGS.PHYSICS_LOGS) {
         console.log(`Physics simulation ${isPhysicsPaused ? 'paused' : 'resumed'}`);
     }
+    
+    // Make the state available to other modules
+    window.isPhysicsPaused = isPhysicsPaused;
     
     return isPhysicsPaused;
 }
@@ -352,9 +461,22 @@ function animate() {
         background_container.update(grabbed_object, viewable_container);
     }
     
-    // Only update physics-dependent objects when not paused
-    if (!isPhysicsPaused && AssetStorage.get_instance()) {
-        AssetStorage.get_instance().update();
+    // Update physics-dependent objects
+    if (AssetStorage.get_instance()) {
+        if (!isPhysicsPaused) {
+            // Full physics update when not paused
+            AssetStorage.get_instance().update();
+        } else if (grabbed_object) {
+            // When paused, only update grabbed objects
+            const body_pair = AssetStorage.get_instance().get_body_pair_by_mesh(grabbed_object);
+            if (body_pair) {
+                const [mesh, body] = body_pair;
+                const position = body.translation();
+                mesh.position.set(position.x, position.y, position.z);
+                const rotation = body.rotation();
+                mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+            }
+        }
     }
     
     // Always update visual elements even when physics is paused

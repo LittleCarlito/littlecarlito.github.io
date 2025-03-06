@@ -83,15 +83,31 @@ export function grab_object(incoming_object, incoming_camera) {
     if(FLAGS.ACTIVATE_LOGS) console.log(`Grabbing ${incoming_object.name}`);
     if (!body_pair) return;
     const [_, body] = body_pair;
+    
     // Store initial distance from camera when grabbed
     const camera_pos = new THREE.Vector3();
     incoming_camera.getWorldPosition(camera_pos);
     const object_pos = new THREE.Vector3();
     object_pos.copy(body.translation());
     initial_grab_distance = camera_pos.distanceTo(object_pos);
+    
     // Reset velocity tracking
     last_position.copy(object_pos);
     last_time = performance.now();
+    
+    // Store the current velocity if physics is paused
+    // This will be used when physics is resumed
+    if (window.isPhysicsPaused) {
+        // Store linear and angular velocity on the object's userData
+        const linvel = body.linvel();
+        const angvel = body.angvel();
+        
+        incoming_object.userData.pausedState = {
+            linvel: { x: linvel.x, y: linvel.y, z: linvel.z },
+            angvel: { x: angvel.x, y: angvel.y, z: angvel.z }
+        };
+    }
+    
     current_velocity.set(0, 0, 0);
     body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased);
     
@@ -127,15 +143,46 @@ export function release_object(incoming_object) {
     // Change back to dynamic body
     body.setBodyType(RAPIER.RigidBodyType.Dynamic);
     
-    // Apply velocity as impulse
-    body.applyImpulse(
-        { 
-            x: current_velocity.x * THROW_MULTIPLIER, 
-            y: current_velocity.y * THROW_MULTIPLIER, 
-            z: current_velocity.z * THROW_MULTIPLIER 
-        },
-        true
-    );
+    if (window.isPhysicsPaused) {
+        // If physics is paused, store the current state to be restored when physics resumes
+        // We'll still show the object at its new position, but won't apply impulses until physics resumes
+        
+        // If the object had a previous paused state, blend with new position
+        const pausedState = incoming_object.userData.pausedState || { 
+            linvel: { x: 0, y: 0, z: 0 }, 
+            angvel: { x: 0, y: 0, z: 0 } 
+        };
+        
+        // Store the current position and planned impulse for when physics resumes
+        // Mark that this object has been moved during pause
+        incoming_object.userData.pausedState = {
+            ...pausedState,
+            position: body.translation(),
+            wasMoved: true, // Add this flag to indicate it was explicitly moved
+            plannedImpulse: { 
+                x: current_velocity.x * THROW_MULTIPLIER, 
+                y: current_velocity.y * THROW_MULTIPLIER, 
+                z: current_velocity.z * THROW_MULTIPLIER 
+            }
+        };
+        
+        // When physics is paused, we don't actually apply impulses
+        // But we need to explicitly disable gravity and damping to keep it in place
+        body.setGravityScale(0, true);
+        body.setLinearDamping(999, true); // High damping to prevent movement
+        body.setAngularDamping(999, true);
+        body.sleep(); // Force the body to sleep until physics is resumed
+    } else {
+        // If physics is active, apply impulse as normal
+        body.applyImpulse(
+            { 
+                x: current_velocity.x * THROW_MULTIPLIER, 
+                y: current_velocity.y * THROW_MULTIPLIER, 
+                z: current_velocity.z * THROW_MULTIPLIER 
+            },
+            true
+        );
+    }
     
     // Check if this is a scroll menu sign and make the entire chain dynamic if so
     // First, check if this is a scroll menu component by looking at its parent hierarchy

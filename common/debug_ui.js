@@ -178,31 +178,32 @@ export function createDebugUI() {
     // Add pause/play physics button
     const pauseButton = document.createElement('button');
     pauseButton.id = 'physics-pause-button';
-    pauseButton.textContent = '❚❚ Pause Physics';
+    pauseButton.innerHTML = '<span style="display: inline-block; width: 16px; letter-spacing: -2px; font-weight: bold;">❚ ❚</span> Pause Physics';
     pauseButton.style.width = '100%';
     pauseButton.style.padding = '6px';
-    pauseButton.style.backgroundColor = '#444';
+    pauseButton.style.backgroundColor = '#4CAF50'; // Green when physics is active
     pauseButton.style.border = 'none';
     pauseButton.style.borderRadius = '3px';
     pauseButton.style.color = 'white';
     pauseButton.style.cursor = 'pointer';
     pauseButton.style.marginBottom = '10px';
     pauseButton.style.fontWeight = 'bold';
-    pauseButton.style.transition = 'background-color 0.2s';
+    pauseButton.style.transition = 'all 0.2s';
     
     // Add hover effect
     pauseButton.addEventListener('mouseenter', function() {
-        this.style.backgroundColor = '#555';
+        this.style.opacity = '0.9';
     });
     
     pauseButton.addEventListener('mouseleave', function() {
-        this.style.backgroundColor = '#444';
+        this.style.opacity = '1';
     });
     
     // Add click event to toggle physics
     pauseButton.addEventListener('click', function() {
         if (window.togglePhysicsPause) {
-            window.togglePhysicsPause();
+            const isPaused = window.togglePhysicsPause();
+            this.style.backgroundColor = isPaused ? '#F9A825' : '#4CAF50'; // Yellow when paused, green when playing
         }
     });
     
