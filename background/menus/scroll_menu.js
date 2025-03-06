@@ -559,6 +559,9 @@ export class ScrollMenu {
                 this.sign_mesh.position.copy(worldPosition);
                 this.sign_mesh.quaternion.copy(worldQuaternion);
                 
+                // Ensure the sign mesh is visible
+                this.sign_mesh.visible = true;
+                
                 if (FLAGS.PHYSICS_LOGS) {
                     console.log("Moved sign mesh to parent scene");
                 }
@@ -656,6 +659,11 @@ export class ScrollMenu {
         // Update assembly container to match the bounds of the assembly
         if (this.assembly_container) {
             this.updateAssemblyContainerBounds();
+        }
+        
+        // Always ensure sign mesh is visible regardless of where it is in the scene hierarchy
+        if (this.sign_mesh) {
+            this.sign_mesh.visible = true;
         }
         
         // Log animation start position on first update after animation begins
@@ -1050,21 +1058,23 @@ export class ScrollMenu {
             return;
         }
         
-        // Update visibility based on debug flags - only show when debug UI is enabled and collision debug is on
+        // Update wireframe visibility based on debug flags - only show when debug UI is enabled and collision debug is on
         this.assembly_wireframe.visible = FLAGS.DEBUG_UI && FLAGS.COLLISION_VISUAL_DEBUG;
         
-        // If not visible, we can skip the rest of the calculations
+        // Ensure the sign mesh is always visible regardless of debug settings
+        if (this.sign_mesh) {
+            this.sign_mesh.visible = true;
+        }
+        
+        // If wireframe is not visible, we don't need to update its geometry
         if (!this.assembly_wireframe.visible) {
             return;
         }
         
-        if (FLAGS.PHYSICS_LOGS && this.chains_broken) {
-            console.log("Updating assembly container in chains_broken mode");
-        }
-
         // Initialize min/max values for bounding box
         const min = new THREE.Vector3(Infinity, Infinity, Infinity);
         const max = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
+        let hasValidBounds = false;
 
         // If chains are not broken, include anchor and chain positions
         if (!this.chains_broken && this.anchor_body) {
@@ -1076,6 +1086,7 @@ export class ScrollMenu {
             max.x = Math.max(max.x, anchorPos.x);
             max.y = Math.max(max.y, anchorPos.y);
             max.z = Math.max(max.z, anchorPos.z);
+            hasValidBounds = true;
 
             // Include all chain segments
             this.dynamic_bodies.forEach(data => {
@@ -1087,6 +1098,7 @@ export class ScrollMenu {
                     max.x = Math.max(max.x, pos.x);
                     max.y = Math.max(max.y, pos.y);
                     max.z = Math.max(max.z, pos.z);
+                    hasValidBounds = true;
                 }
             });
         }
@@ -1098,74 +1110,40 @@ export class ScrollMenu {
             const halfHeight = this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT / 2;
             const halfDepth = this.CHAIN_CONFIG.SIGN.DIMENSIONS.DEPTH / 2;
             
-            // Get the sign's rotation
-            const rotation = this.sign_body.rotation();
-            const quaternion = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
-            
-            // Calculate the corners of the sign in local space
-            const corners = [
-                new THREE.Vector3(-halfWidth, -halfHeight, -halfDepth),
-                new THREE.Vector3(-halfWidth, -halfHeight, halfDepth),
-                new THREE.Vector3(-halfWidth, halfHeight, -halfDepth),
-                new THREE.Vector3(-halfWidth, halfHeight, halfDepth),
-                new THREE.Vector3(halfWidth, -halfHeight, -halfDepth),
-                new THREE.Vector3(halfWidth, -halfHeight, halfDepth),
-                new THREE.Vector3(halfWidth, halfHeight, -halfDepth),
-                new THREE.Vector3(halfWidth, halfHeight, halfDepth)
-            ];
-            
-            // Transform corners to world space and update bounds
-            corners.forEach(corner => {
-                // Apply rotation
-                corner.applyQuaternion(quaternion);
-                // Add position offset
-                corner.x += signPos.x;
-                corner.y += signPos.y;
-                corner.z += signPos.z;
-                
-                // Update bounds
-                min.x = Math.min(min.x, corner.x);
-                min.y = Math.min(min.y, corner.y);
-                min.z = Math.min(min.z, corner.z);
-                max.x = Math.max(max.x, corner.x);
-                max.y = Math.max(max.y, corner.y);
-                max.z = Math.max(max.z, corner.z);
-            });
+            min.x = Math.min(min.x, signPos.x - halfWidth);
+            min.y = Math.min(min.y, signPos.y - halfHeight);
+            min.z = Math.min(min.z, signPos.z - halfDepth);
+            max.x = Math.max(max.x, signPos.x + halfWidth);
+            max.y = Math.max(max.y, signPos.y + halfHeight);
+            max.z = Math.max(max.z, signPos.z + halfDepth);
+            hasValidBounds = true;
         }
-
-        // Add a small buffer to the bounds
-        const buffer = 0.2;
-        min.x -= buffer;
-        min.y -= buffer;
-        min.z -= buffer;
-        max.x += buffer;
-        max.y += buffer;
-        max.z += buffer;
-
-        // Calculate dimensions and center position
-        const size = new THREE.Vector3(
-            Math.max(0.1, max.x - min.x),
-            Math.max(0.1, max.y - min.y),
-            Math.max(0.1, max.z - min.z)
-        );
-        const center = new THREE.Vector3(
-            (min.x + max.x) / 2,
-            (min.y + max.y) / 2,
-            (min.z + max.z) / 2
-        );
-
-        // Remove old geometry
-        if (this.assembly_wireframe.geometry) {
-            this.assembly_wireframe.geometry.dispose();
+        
+        // If we don't have any valid bounds, hide the wireframe and return
+        if (!hasValidBounds) {
+            this.assembly_wireframe.visible = false;
+            return;
         }
-
-        // Create new geometry with updated dimensions
+        
+        // Calculate center and size of bounding box
+        const center = new THREE.Vector3().addVectors(min, max).multiplyScalar(0.5);
+        const size = new THREE.Vector3().subVectors(max, min);
+        
+        // Ensure size is never zero or negative (which could cause NaN issues)
+        size.x = Math.max(0.1, size.x);
+        size.y = Math.max(0.1, size.y);
+        size.z = Math.max(0.1, size.z);
+        
+        // Update assembly container position to match center of bounding box
+        this.assembly_container.position.copy(center);
+        
+        // Update wireframe geometry to match size of bounding box
+        this.assembly_wireframe.geometry.dispose(); // Clean up old geometry
         this.assembly_wireframe.geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
         
-        // Update position of the wireframe relative to the container
-        this.assembly_wireframe.position.set(0, 0, 0);
-        
-        // Update position of the container to the center of the bounding box
-        this.assembly_container.position.copy(center);
+        if (FLAGS.PHYSICS_LOGS) {
+            console.log(`Updated assembly container bounds: ${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}`);
+            console.log(`Assembly container position: ${center.x.toFixed(2)}, ${center.y.toFixed(2)}, ${center.z.toFixed(2)}`);
+        }
     }
 }
