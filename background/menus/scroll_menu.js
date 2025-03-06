@@ -501,11 +501,15 @@ export class ScrollMenu {
         this.assembly_container = new THREE.Mesh(geometry, material);
         this.assembly_container.name = "assembly_container";
         
+        // Set initial visibility based on debug flags
+        this.assembly_container.visible = FLAGS.DEBUG_UI && FLAGS.COLLISION_VISUAL_DEBUG;
+        
         // Add to the scene
         this.parent.add(this.assembly_container);
         
         if (FLAGS.PHYSICS_LOGS) {
             console.log("Created assembly container - dimensions will be updated dynamically");
+            console.log("Initial visibility:", this.assembly_container.visible);
         }
         
         // Initialize bounds immediately
@@ -525,6 +529,9 @@ export class ScrollMenu {
 
             // Clean up assembly container if it exists
             if (this.assembly_container) {
+                if (FLAGS.PHYSICS_LOGS) {
+                    console.log("Cleaning up assembly container when chains break");
+                }
                 this.parent.remove(this.assembly_container);
                 if (this.assembly_container.geometry) {
                     this.assembly_container.geometry.dispose();
@@ -546,9 +553,10 @@ export class ScrollMenu {
                 this.debug_meshes.joints.forEach(joint => {
                     this.parent.remove(joint);
                 });
-                if (this.debug_meshes.sign) {
-                    this.parent.remove(this.debug_meshes.sign);
-                }
+                // DO NOT REMOVE THE SIGN DEBUG MESH - KEEP IT
+                // if (this.debug_meshes.sign) {
+                //     this.parent.remove(this.debug_meshes.sign);
+                // }
             }
 
             // Remove all joints with null check
@@ -581,7 +589,9 @@ export class ScrollMenu {
         const currentTime = performance.now();
         
         // Update assembly container to match the bounds of the assembly
-        this.updateAssemblyContainerBounds();
+        if (this.assembly_container) {
+            this.updateAssemblyContainerBounds();
+        }
         
         // Log animation start position on first update after animation begins
         if (this.is_animating && this.anchor_body && 
@@ -968,45 +978,55 @@ export class ScrollMenu {
      * Updates the assembly container dimensions and position to match the current bounds of the entire assembly
      */
     updateAssemblyContainerBounds() {
-        if (!this.assembly_container || !this.anchor_body) {
+        if (!this.assembly_container) {
+            if (FLAGS.PHYSICS_LOGS) {
+                console.log("Can't update assembly container - it doesn't exist");
+            }
             return;
         }
-
-        // Update visibility based on the collision debug toggle
-        this.assembly_container.visible = FLAGS.COLLISION_VISUAL_DEBUG;
-
-        // If not visible, no need to update dimensions
+        
+        // Update visibility based on debug flags - only show when debug UI is enabled and collision debug is on
+        this.assembly_container.visible = FLAGS.DEBUG_UI && FLAGS.COLLISION_VISUAL_DEBUG;
+        
+        // If not visible, we can skip the rest of the calculations
         if (!this.assembly_container.visible) {
             return;
+        }
+        
+        if (FLAGS.PHYSICS_LOGS && this.chains_broken) {
+            console.log("Updating assembly container in chains_broken mode");
         }
 
         // Initialize min/max values for bounding box
         const min = new THREE.Vector3(Infinity, Infinity, Infinity);
         const max = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
 
-        // Include anchor position
-        const anchorPos = this.anchor_body.translation();
-        min.x = Math.min(min.x, anchorPos.x);
-        min.y = Math.min(min.y, anchorPos.y);
-        min.z = Math.min(min.z, anchorPos.z);
-        max.x = Math.max(max.x, anchorPos.x);
-        max.y = Math.max(max.y, anchorPos.y);
-        max.z = Math.max(max.z, anchorPos.z);
+        // If chains are not broken, include anchor and chain positions
+        if (!this.chains_broken && this.anchor_body) {
+            // Include anchor position
+            const anchorPos = this.anchor_body.translation();
+            min.x = Math.min(min.x, anchorPos.x);
+            min.y = Math.min(min.y, anchorPos.y);
+            min.z = Math.min(min.z, anchorPos.z);
+            max.x = Math.max(max.x, anchorPos.x);
+            max.y = Math.max(max.y, anchorPos.y);
+            max.z = Math.max(max.z, anchorPos.z);
 
-        // Include all chain segments
-        this.dynamic_bodies.forEach(data => {
-            if (data.type === 'scroll_menu_chain' && data.body) {
-                const pos = data.body.translation();
-                min.x = Math.min(min.x, pos.x);
-                min.y = Math.min(min.y, pos.y);
-                min.z = Math.min(min.z, pos.z);
-                max.x = Math.max(max.x, pos.x);
-                max.y = Math.max(max.y, pos.y);
-                max.z = Math.max(max.z, pos.z);
-            }
-        });
+            // Include all chain segments
+            this.dynamic_bodies.forEach(data => {
+                if (data.type === 'scroll_menu_chain' && data.body) {
+                    const pos = data.body.translation();
+                    min.x = Math.min(min.x, pos.x);
+                    min.y = Math.min(min.y, pos.y);
+                    min.z = Math.min(min.z, pos.z);
+                    max.x = Math.max(max.x, pos.x);
+                    max.y = Math.max(max.y, pos.y);
+                    max.z = Math.max(max.z, pos.z);
+                }
+            });
+        }
 
-        // Include sign dimensions
+        // Always include sign dimensions
         if (this.sign_body) {
             const signPos = this.sign_body.translation();
             const halfWidth = this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH / 2;
