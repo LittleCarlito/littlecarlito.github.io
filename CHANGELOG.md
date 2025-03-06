@@ -1,3 +1,31 @@
+# [0.6.0](https://github.com/LittleCarlito/threejs_site/compare/v0.5.6...v0.6.0) (2025-03-06)
+
+
+### Bug Fixes
+
+* calming chain ([f06bb17](https://github.com/LittleCarlito/threejs_site/commit/f06bb1767467afed3f5e3871357f06f857ac49bc))
+* chain wakeup timing ([c20ada8](https://github.com/LittleCarlito/threejs_site/commit/c20ada881a98663ffd7e27ebb8904a0adf18aaa6))
+* control menu beam despawn ([7f210ff](https://github.com/LittleCarlito/threejs_site/commit/7f210ff82e8bd8e91c613827f275c233c1141755))
+* control menu spotlight ([21e6f39](https://github.com/LittleCarlito/threejs_site/commit/21e6f39f036ac2ef6871707728ebe7cf7622473c))
+* grab order ([4928c1e](https://github.com/LittleCarlito/threejs_site/commit/4928c1e8ce02c7a3491d44b3bd3d0da744af589c))
+* keep scroll mesh ([ffc7d71](https://github.com/LittleCarlito/threejs_site/commit/ffc7d71346490064d72512e33b7f897176c4b3e0))
+* memory management ([1bd4bdc](https://github.com/LittleCarlito/threejs_site/commit/1bd4bdcd2ff722b7c3b1c30319864ea394cf6b9e))
+* scroll break chain cleanup ([00a6e4a](https://github.com/LittleCarlito/threejs_site/commit/00a6e4ad9ed4439cce2fe5cb3a4a57e778b1be70))
+* scroll break chains dynamic ([6153c70](https://github.com/LittleCarlito/threejs_site/commit/6153c70fd669b9b7d0229dd50447d3a6740d1c5c))
+* scroll chain adjust ([281e991](https://github.com/LittleCarlito/threejs_site/commit/281e991b261c669ea15dc9264f6ee514c1cc72ef))
+* scroll debug meshes ([929a2b9](https://github.com/LittleCarlito/threejs_site/commit/929a2b9835ef380d49236a1c72ff59b86133739d))
+* scroll debug meshes ([3cdb226](https://github.com/LittleCarlito/threejs_site/commit/3cdb226940a70f554efbc72324182cc5bd911a10))
+* scroll menu animation ([1f4496f](https://github.com/LittleCarlito/threejs_site/commit/1f4496f59f9d522fc8debd34f30e825fcc2c9cb4))
+* scroll visibility ([d0c6ffc](https://github.com/LittleCarlito/threejs_site/commit/d0c6ffc066ac6b7a480f52ae6c1b3e5dee439b33))
+* text container off screen position ([6315ff8](https://github.com/LittleCarlito/threejs_site/commit/6315ff8f8d691fc70ecd4bdc9daf6da0dce313a1))
+
+
+### Features
+
+* assembly box despawn ([c3c60c9](https://github.com/LittleCarlito/threejs_site/commit/c3c60c9507fc6d72039301820da1b1c3b94c9aa1))
+* chain dynamic conversion ([171b25c](https://github.com/LittleCarlito/threejs_site/commit/171b25c3aee2cfbfd4b05b5786ecdd94688dfe8c))
+* scroll kinematic ([68b65f7](https://github.com/LittleCarlito/threejs_site/commit/68b65f78f173478bf148df102c74f19a1916eb2d))
+
 ## [0.5.6](https://github.com/LittleCarlito/threejs_site/compare/v0.5.5...v0.5.6) (2025-03-05)
 
 
