@@ -4,7 +4,6 @@ const SCALE_FACTOR = 5;
 
 // Define all possible asset types that can be loaded and spawned
 export const ASSET_TYPE = {
-    AXE: 'AXE',
     BOOK: 'BOOK',
     CAT: 'CAT',
     CHAIR: 'CHAIR',
@@ -22,7 +21,6 @@ export const ASSET_TYPE = {
     PLANT: 'PLANT',
     TABLET: 'contact',
     ROOM: 'ROOM',
-    CUBE: 'CUBE',  // Simple geometric primitive for testing
     PRIMARY: 'primary',
     SECONDARY: 'secondary',
     UNIQUE: 'unique'
@@ -31,12 +29,6 @@ Object.freeze(ASSET_TYPE);
 
 // Configuration for each asset type, including model paths, physics properties, and scaling
 export const ASSET_CONFIGS = {
-    [ASSET_TYPE.AXE]: {
-        PATH: "assets/Axe.glb",
-        scale: SCALE_FACTOR,
-        mass: 5,
-        restitution: .1,
-    },
     [ASSET_TYPE.BOOK]: {
         PATH: "assets/book.glb",
         scale: SCALE_FACTOR,
@@ -141,14 +133,5 @@ export const ASSET_CONFIGS = {
         scale: SCALE_FACTOR,
         mass: 1,
         restitution: .2
-    },
-    [ASSET_TYPE.CUBE]: {
-        // No PATH needed as it's a primitive
-        scale: 1,
-        mass: 1,
-        restitution: 1.1,
-        geometry: new THREE.BoxGeometry(1, 1, 1),
-        // Function to create material - allows for dynamic color assignment
-        create_material: (color) => new THREE.MeshStandardMaterial({ color: color })
     }
 };

@@ -27,7 +27,7 @@ let viewable_container;
 let app_renderer;
 let background_container;
 let resizeTimeout;
-let hovered_cube_name = "";
+let hovered_interactable_name = "";
 let grabbed_object = null;
 let left_mouse_down = false;
 let right_mouse_down = false;
@@ -521,8 +521,8 @@ function animate() {
         asset_activator.activate_object(viewable_container.get_intersected_name());
     } else if(grabbed_object) {
         translate_object(grabbed_object, viewable_container.get_camera());
-    } else if(hovered_cube_name != "") {
-        asset_activator.activate_object(hovered_cube_name);
+    } else if(hovered_interactable_name != "") {
+        asset_activator.activate_object(hovered_interactable_name);
     } else if(viewable_container.is_text_active()) {
         asset_activator.activate_object(viewable_container.get_active_name());
     } else {
@@ -619,19 +619,19 @@ function handle_mouse_move(e) {
                     break;
                 case TYPES.INTERACTABLE:
                     if(viewable_container.is_overlay_hidden()) {
-                        hovered_cube_name = object_name;
+                        hovered_interactable_name = object_name;
                         if (FLAGS.ACTIVATE_LOGS) {
-                            console.log("Hover detected on cube:", object_name);
+                            console.log("Hover detected on interactable:", object_name);
                         }
                     } else {
-                        hovered_cube_name = "";
+                        hovered_interactable_name = "";
                     }
                 default:
                     break;
             }
         } else {
             viewable_container.get_overlay().reset_hover();
-            hovered_cube_name = "";
+            hovered_interactable_name = "";
         }
     }
 }
