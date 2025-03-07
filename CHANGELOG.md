@@ -1,3 +1,10 @@
+## [0.7.1](https://github.com/LittleCarlito/threejs_site/compare/v0.7.0...v0.7.1) (2025-03-07)
+
+
+### Bug Fixes
+
+* reverting config change ([#59](https://github.com/LittleCarlito/threejs_site/issues/59)) ([52fa292](https://github.com/LittleCarlito/threejs_site/commit/52fa2920f49a1986a752c57f01c608bf00665b5e))
+
 # [0.7.0](https://github.com/LittleCarlito/threejs_site/compare/v0.6.0...v0.7.0) (2025-03-07)
 
 
