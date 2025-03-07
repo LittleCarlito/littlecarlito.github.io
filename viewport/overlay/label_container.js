@@ -4,7 +4,7 @@ import { TEXTURE_LOADER, TYPES, PAN_SPEED, ROTATE_SPEED, FOCUS_ROTATION } from '
 import { Easing, FLAGS, THREE, Tween } from '../../common';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
-import { getFontPath } from '../../common/utils/fontUtils.js';
+import { getFontPath } from '../../common/config.js';
 
 export class LabelContainer {
     in_tween_map = new Map();
