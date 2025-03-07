@@ -18,7 +18,7 @@ export const ASSET_TYPE = {
     MOUSE: 'MOUSE',
     MOUSEPAD: 'MOUSEPAD',
     NOTEBOOK_CLOSED: 'NOTEBOOK_CLOSED',
-    NOTEBOOK_OPENED: 'NOTEBOOK_OPENED',
+    NOTEBOOK_OPENED: 'projects',
     PLANT: 'PLANT',
     TABLET: 'contact',
     ROOM: 'ROOM',

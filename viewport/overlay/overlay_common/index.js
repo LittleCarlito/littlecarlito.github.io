@@ -5,7 +5,7 @@ export * from './ui_util';
 export * from './screen';
 
 // Re-export everything from primary_categories.js
-export * from './categories';
+export * from '../../../common/categories';
 
 // Re-export everything from types.js
 export * from '../../../common/types';
