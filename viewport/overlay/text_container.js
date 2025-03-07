@@ -54,9 +54,17 @@ export class TextContainer {
                 horizontalStretch: 1.0,
                 verticalStretch: 1.0,
                 position: new THREE.Vector3(0, 0, -0.05),
+                positionOffsetX: 0,
+                positionOffsetY: 0,
+                positionOffsetZ: 0,
                 scaleFactor: 0.12,
                 ...options
             };
+            
+            // Apply position offsets if provided
+            config.position.x += config.positionOffsetX;
+            config.position.y += config.positionOffsetY;
+            config.position.z += config.positionOffsetZ;
             
             // Load the asset
             const asset_config = ASSET_CONFIGS[asset_type];
@@ -275,10 +283,26 @@ export class TextContainer {
                         await create_asset_background(text_box, ASSET_TYPE.MONITOR, {
                             horizontalStretch: 2,
                             verticalStretch: 2,
+                            positionOffsetX: 2.85,
+                            positionOffsetY: -9.27,
+                            positionOffsetZ: 0,
                             rotation: new THREE.Euler(Math.PI, Math.PI, Math.PI, 'XYZ')
                         });
                     })();
-                    // create_text_frame(category, text_box);
+                    // Custom width and height adjustments for work iframe
+                    const workWidthFactor = 1.2;  // Increase width by 50%
+                    const workHeightFactor = 1.0; // Default height (can be adjusted)
+                    create_text_frame(category, text_box);
+                    // Apply custom sizing to the work iframe
+                    const workFrame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${category.value}`);
+                    if (workFrame) {
+                        const adjustedWidth = this.container_width * workWidthFactor;
+                        const adjustedHeight = this.container_height * workHeightFactor;
+                        workFrame.update_size(adjustedWidth, adjustedHeight);
+                        // Store adjustment factors for use during resize
+                        workFrame.widthFactor = workWidthFactor;
+                        workFrame.heightFactor = workHeightFactor;
+                    }
                     break;
                 default:
                     create_background(category, text_box);
@@ -493,7 +517,19 @@ export class TextContainer {
                         break;
                     case IFRAME:
                         if (inner_c.simple_name) {
-                            this.update_iframe_size(inner_c.simple_name, this.container_width, this.container_height);
+                            let width = this.container_width;
+                            let height = this.container_height;
+                            
+                            // Apply category-specific sizing
+                            const frame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${inner_c.simple_name}`);
+                            if (frame) {
+                                if (inner_c.simple_name === CATEGORIES.WORK.value && frame.widthFactor) {
+                                    width = width * frame.widthFactor;
+                                    height = height * (frame.heightFactor || 1.0);
+                                }
+                            }
+                            
+                            this.update_iframe_size(inner_c.simple_name, width, height);
                         }
                         break;
                 }
@@ -506,6 +542,12 @@ export class TextContainer {
         if (matched_frame) {
             // Store previous width before update for comparison
             const previousWidth = matched_frame.pixel_width || 0;
+
+            // Apply category-specific adjustments if available
+            if (matched_frame.simple_name === CATEGORIES.WORK.value && matched_frame.widthFactor) {
+                incoming_width = incoming_width * matched_frame.widthFactor;
+                incoming_height = incoming_height * (matched_frame.heightFactor || 1.0);
+            }
 
             matched_frame.update_size(incoming_width, incoming_height);
 
