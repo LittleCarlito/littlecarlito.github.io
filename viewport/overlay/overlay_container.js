@@ -244,6 +244,9 @@ export class OverlayContainer {
     }
 
     reset_hover() {
+        if(FLAGS.SELECT_LOGS) {
+            console.log('Resetting hover state');
+        }
         this.label_container.reset_previous_intersected();
     }
 

@@ -225,92 +225,106 @@ export class TextContainer {
      ** container column MUST be on the right side
     */
     focus_text_box(incoming_name, is_column_left) {
-        if(!is_column_left) {
-            // Get text box name
-            const found_index = incoming_name.indexOf('_');
-            const new_name = TYPES.TEXT + incoming_name.substring(found_index + 1);
+        // Get text box name
+        const found_index = incoming_name.indexOf('_');
+        const new_name = TYPES.TEXT + incoming_name.substring(found_index + 1);
+        
+        if(FLAGS.SELECT_LOGS) {
+            console.log('Focusing text box:', {
+                incoming_name,
+                new_name,
+                category: incoming_name.substring(found_index + 1),
+                available_frames: Array.from(this.text_frames.keys()),
+                is_column_left
+            });
+        }
+
+        // If the column is on the left side, we should simply return
+        // Instead of checking !is_column_left which might lead to inconsistent behavior
+        if(is_column_left) {
             if(FLAGS.SELECT_LOGS) {
-                console.log('Focusing text box:', {
-                    incoming_name,
-                    new_name,
-                    category: incoming_name.substring(found_index + 1),
-                    available_frames: Array.from(this.text_frames.keys())
-                });
+                console.log('Cannot focus text box while column is on left side');
             }
-
-            if(new_name != this.focused_text_name) {
-                // If existing focus text box move it
-                if(this.focused_text_name != "") {
-                    // Stop any running animations in the current frame before switching
-                    const currentCategory = this.focused_text_name.replace(TYPES.TEXT, '');
-                    const currentFrame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${currentCategory}`);
-                    if (currentFrame && currentFrame.iframe.contentWindow) {
-                        // Send visibility:false message to the current frame
-                        try {
-                            currentFrame.iframe.contentWindow.postMessage(
-                                { type: 'visibility', visible: false }, 
-                                '*'
-                            );
-                        } catch (e) {
-                            console.error('Error sending visibility message:', e);
-                        }
-                        
-                        // Only trigger visibility change for education page
-                        if (currentFrame.simple_name === CATEGORIES.EDUCATION.value) {
-                            const visibilityEvent = new Event('visibilitychange');
-                            Object.defineProperty(currentFrame.iframe.contentDocument, 'hidden', {
-                                value: true,
-                                writable: false
-                            });
-                            currentFrame.iframe.contentDocument.dispatchEvent(visibilityEvent);
-                        }
-                    }
-                    this.lose_focus_text_box(SOUTH);
-                }
-                this.focused_text_name = new_name;
-                
-                // Get the category and find corresponding frame
-                const category = incoming_name.substring(found_index + 1);
-                const frame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${category}`);
-                
-                if(FLAGS.SELECT_LOGS) {
-                    console.log('Frame lookup:', {
-                        category,
-                        frameKey: `${TYPES.TEXT_BLOCK}${category}`,
-                        frameFound: !!frame,
-                        frameWindow: frame?.iframe?.contentWindow ? 'exists' : 'missing',
-                        hasAnimation: frame?.iframe?.contentWindow?.trigger_frame_animation ? 'yes' : 'no'
-                    });
-                }
-
-                // Send visibility:true message to the new frame
-                if (frame && frame.iframe.contentWindow) {
+            // We'll opt to lose focus instead
+            this.lose_focus_text_box(WEST);
+            return;
+        }
+        
+        // Only proceed with focus changes if it's a new text box
+        if(new_name != this.focused_text_name) {
+            // If existing focus text box move it
+            if(this.focused_text_name != "") {
+                // Stop any running animations in the current frame before switching
+                const currentCategory = this.focused_text_name.replace(TYPES.TEXT, '');
+                const currentFrame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${currentCategory}`);
+                if (currentFrame && currentFrame.iframe.contentWindow) {
+                    // Send visibility:false message to the current frame
                     try {
-                        frame.iframe.contentWindow.postMessage(
-                            { type: 'visibility', visible: true },
+                        currentFrame.iframe.contentWindow.postMessage(
+                            { type: 'visibility', visible: false }, 
                             '*'
                         );
                     } catch (e) {
                         console.error('Error sending visibility message:', e);
                     }
                     
-                    // Trigger frame animation
-                    if (typeof frame.iframe.contentWindow.trigger_frame_animation === 'function') {
-                        frame.iframe.contentWindow.trigger_frame_animation();
+                    // Only trigger visibility change for education page
+                    if (currentFrame.simple_name === CATEGORIES.EDUCATION.value) {
+                        const visibilityEvent = new Event('visibilitychange');
+                        Object.defineProperty(currentFrame.iframe.contentDocument, 'hidden', {
+                            value: true,
+                            writable: false
+                        });
+                        currentFrame.iframe.contentDocument.dispatchEvent(visibilityEvent);
                     }
                 }
+                this.lose_focus_text_box(SOUTH);
             }
-            // Get and move text box
-            const selected_text_box = this.text_box_container.getObjectByName(this.focused_text_name);
+            this.focused_text_name = new_name;
+            
+            // Get the category and find corresponding frame
+            const category = incoming_name.substring(found_index + 1);
+            const frame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${category}`);
+            
+            if(FLAGS.SELECT_LOGS) {
+                console.log('Frame lookup:', {
+                    category,
+                    frameKey: `${TYPES.TEXT_BLOCK}${category}`,
+                    frameFound: !!frame,
+                    frameWindow: frame?.iframe?.contentWindow ? 'exists' : 'missing',
+                    hasAnimation: frame?.iframe?.contentWindow?.trigger_frame_animation ? 'yes' : 'no'
+                });
+            }
+
+            // Send visibility:true message to the new frame
+            if (frame && frame.iframe.contentWindow) {
+                try {
+                    frame.iframe.contentWindow.postMessage(
+                        { type: 'visibility', visible: true },
+                        '*'
+                    );
+                } catch (e) {
+                    console.error('Error sending visibility message:', e);
+                }
+                
+                // Trigger frame animation
+                if (typeof frame.iframe.contentWindow.trigger_frame_animation === 'function') {
+                    frame.iframe.contentWindow.trigger_frame_animation();
+                }
+            }
+        }
+        // Get and move text box
+        const selected_text_box = this.text_box_container.getObjectByName(this.focused_text_name);
+        if(selected_text_box) {
             if(FLAGS.LAYER){
                 this.set_content_layer(this.focused_text_name, 0);
             }
             new Tween(selected_text_box.position)
             .to({ x: this.get_focused_text_x() }, 285)
             .easing(Easing.Sinusoidal.Out)
-            .start()
-        } else {
-            this.lose_focus_text_box(WEST);
+            .start();
+        } else if(FLAGS.SELECT_LOGS) {
+            console.error(`Failed to find text box: ${this.focused_text_name}`);
         }
     }
 
