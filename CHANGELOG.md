@@ -1,3 +1,28 @@
+# [0.7.0](https://github.com/LittleCarlito/threejs_site/compare/v0.6.0...v0.7.0) (2025-03-07)
+
+
+### Bug Fixes
+
+* actually fixing right side hover ([eb9d653](https://github.com/LittleCarlito/threejs_site/commit/eb9d653e6b8ea382d12e2123e3267ea9b24862aa))
+* contact text bubbles ([39e0005](https://github.com/LittleCarlito/threejs_site/commit/39e0005ce44a57ec6566651d66fb91510f1ea2ad))
+* easing water ([d0ce69a](https://github.com/LittleCarlito/threejs_site/commit/d0ce69abf365afee0dc050e8b0e99c1c90fb72e2))
+* pause button icon ([e4eb730](https://github.com/LittleCarlito/threejs_site/commit/e4eb730693e51527daaf2b21cd7084b28b73030c))
+* pond expand ([f08b05e](https://github.com/LittleCarlito/threejs_site/commit/f08b05ea6746914253bc2cf54d2cf88eb0a15d54))
+* query error ([9142ab2](https://github.com/LittleCarlito/threejs_site/commit/9142ab22af30eb4494874da2c5dec8222576a3b7))
+* right side hover ([a32fa6f](https://github.com/LittleCarlito/threejs_site/commit/a32fa6f1928fbe3c7b8c1dcb5ebe359dca13da64))
+* scroll dynamic switch ([0dda927](https://github.com/LittleCarlito/threejs_site/commit/0dda927783a226cc872b44232ecfbd66f25b8ba4))
+* sleeping objects wakeup ([19ef3fe](https://github.com/LittleCarlito/threejs_site/commit/19ef3fe469c2f93f9466d0ac7187b43cd6f2e34c))
+* smoothing scaling ([c6b03ee](https://github.com/LittleCarlito/threejs_site/commit/c6b03ee51598c86adba8d63d9373d83803072d87))
+* swim animation improvments ([e1b03b0](https://github.com/LittleCarlito/threejs_site/commit/e1b03b0ee3b8cd2ac5d014bf0c1848f6628d9cd8))
+* water resize ([e6ea2c0](https://github.com/LittleCarlito/threejs_site/commit/e6ea2c06af500abe2d034b5571ace55a495e5b1b))
+* water shader large bug ([4c08e34](https://github.com/LittleCarlito/threejs_site/commit/4c08e347eadc8fb05524111aa8a23c1384541fa5))
+
+
+### Features
+
+* about ripple ([c379140](https://github.com/LittleCarlito/threejs_site/commit/c3791409133f9edc8f46ef5f527cfb44a571e8b9))
+* debug ui pause ([292e776](https://github.com/LittleCarlito/threejs_site/commit/292e776e89241cfdd134e144dac02e0df6873b33))
+
 # [0.6.0](https://github.com/LittleCarlito/threejs_site/compare/v0.5.6...v0.6.0) (2025-03-06)
 
 
