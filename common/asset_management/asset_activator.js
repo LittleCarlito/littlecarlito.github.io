@@ -162,11 +162,11 @@ export class AssetActivator {
                         // For primitive objects like cubes
                         if (!mesh.userData.originalMaterial) {
                             mesh.userData.originalMaterial = mesh.material;
-                            if (FLAGS.ACTIVATE_LOGS) console.log("Stored original material for cube:", object_name);
+                            if (FLAGS.ACTIVATE_LOGS) console.log("Stored original material for primitive:", object_name);
                         }
                         if (mesh.material) mesh.material.dispose();
                         mesh.material = emissionMaterial;
-                        if (FLAGS.ACTIVATE_LOGS) console.log("Applied shared emission material to cube:", object_name);
+                        if (FLAGS.ACTIVATE_LOGS) console.log("Applied shared emission material to primitive:", object_name);
                         // Verify emission for primitive mesh
                         if (this.is_mesh_emissive(mesh)) {
                             this.storage.set_emission_state(object_name, 'active');

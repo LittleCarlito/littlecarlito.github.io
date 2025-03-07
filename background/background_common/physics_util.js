@@ -16,13 +16,13 @@ export function shove_object(incoming_object, incoming_source) {
     const body_pair = AssetStorage.get_instance().get_body_pair_by_mesh(incoming_object);
     if (body_pair){
         const [mesh, body] = body_pair;
-        // Calculate direction from camera to cube
+        // Calculate direction from camera to interactable
         const camera_position = new THREE.Vector3();
         incoming_source.getWorldPosition(camera_position);
-        const cube_position = new THREE.Vector3();
-        incoming_object.getWorldPosition(cube_position);
+        const interactable_position = new THREE.Vector3();
+        incoming_object.getWorldPosition(interactable_position);
         const direction = new THREE.Vector3()
-            .subVectors(cube_position, camera_position)
+            .subVectors(interactable_position, camera_position)
             .normalize();
         // Apply the impulse force in the calculated direction
         body.applyImpulse(

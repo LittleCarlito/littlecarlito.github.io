@@ -61,26 +61,26 @@ export class TextContainer {
                     
                     // Create diplomas with specific UI handling
                     (async () => {
-                        // Load the diploma asset first
-                        const asset_config = ASSET_CONFIGS[ASSET_TYPE.DIPLOMA_BOT];
-                        const gltf = await AssetStorage.get_instance().loader.loadAsync(asset_config.PATH);
-                        
-                        // Create two instances
-                        [position_one_offset, position_two_offset].forEach(position => {
-                            const diploma = gltf.scene.clone();
-                            diploma.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
-                            diploma.position.copy(position);
-                            diploma.rotation.copy(rotation);
-                            
+                        // Load assets first
+                        const top_asset_config = ASSET_CONFIGS[ASSET_TYPE.DIPLOMA_TOP];
+                        const top_gltf = await AssetStorage.get_instance().loader.loadAsync(top_asset_config.PATH);
+                        // Create top diploma
+                        [position_one_offset].forEach(position => {
+                            const top_diploma = top_gltf.scene.clone();
+                            top_diploma.scale.set(top_asset_config.ui_scale, top_asset_config.ui_scale, top_asset_config.ui_scale);
+                            top_diploma.position.copy(position);
+                            top_diploma.rotation.copy(rotation);
+                            // Add debug logging
+                            console.log('Top Diploma UI Scale:', top_asset_config.ui_scale);
+                            console.log('Top Diploma Applied Scale:', top_diploma.scale);
                             // Handle materials
-                            diploma.traverse((child) => {
+                            top_diploma.traverse((child) => {
                                 if (child.isMesh) {
                                     // Hide collision mesh
                                     if (child.name.startsWith('col_')) {
                                         child.visible = false;
                                         return;
                                     }
-
                                     // Get the original material's properties
                                     const originalMaterial = child.material;
                                     if(FLAGS.ASSET_LOGS) console.log('Original material:', {
@@ -88,18 +88,15 @@ export class TextContainer {
                                         map: originalMaterial.map?.image?.src,
                                         color: originalMaterial.color.getHexString()
                                     });
-
                                     // Try using the original material but with basic properties
                                     child.material = new THREE.MeshBasicMaterial();
                                     child.material.copy(originalMaterial);
                                     child.material.needsUpdate = true;
-                                    
                                     // Force some UI-specific properties
                                     child.material.transparent = true;
                                     child.material.depthTest = false;
                                     child.material.side = THREE.DoubleSide;
                                     child.renderOrder = 999;
-
                                     if(FLAGS.ASSET_LOGS) console.log('New material:', {
                                         name: child.name,
                                         map: child.material.map?.image?.src,
@@ -107,11 +104,57 @@ export class TextContainer {
                                     });
                                 }
                             });
-                            
-                            text_box.add(diploma);
+                            text_box.add(top_diploma);
+                        });
+                        // Load assets first
+                        const bot_asset_config = ASSET_CONFIGS[ASSET_TYPE.DIPLOMA_BOT];
+                        const bot_gltf = await AssetStorage.get_instance().loader.loadAsync(bot_asset_config.PATH);
+                        // Create bottom diploma
+                        [position_two_offset].forEach(position => {
+                            const bot_diploma = bot_gltf.scene.clone();
+                            bot_diploma.scale.set(bot_asset_config.ui_scale, bot_asset_config.ui_scale, bot_asset_config.ui_scale);
+                            bot_diploma.position.copy(position);
+                            bot_diploma.rotation.copy(rotation);
+                            // Add debug logging
+                            console.log('Bottom Diploma UI Scale:', bot_asset_config.ui_scale);
+                            console.log('Bottom Diploma Applied Scale:', bot_diploma.scale);
+                            // Handle materials
+                            bot_diploma.traverse((child) => {
+                                if (child.isMesh) {
+                                    // Hide collision mesh
+                                    if (child.name.startsWith('col_')) {
+                                        child.visible = false;
+                                        return;
+                                    }
+                                    // Get the original material's properties
+                                    const originalMaterial = child.material;
+                                    if(FLAGS.ASSET_LOGS) console.log('Original material:', {
+                                        name: child.name,
+                                        map: originalMaterial.map?.image?.src,
+                                        color: originalMaterial.color.getHexString()
+                                    });
+                                    // Try using the original material but with basic properties
+                                    child.material = new THREE.MeshBasicMaterial();
+                                    child.material.copy(originalMaterial);
+                                    child.material.needsUpdate = true;
+                                    // Force some UI-specific properties
+                                    child.material.transparent = true;
+                                    child.material.depthTest = false;
+                                    child.material.side = THREE.DoubleSide;
+                                    child.renderOrder = 999;
+                                    if(FLAGS.ASSET_LOGS) console.log('New material:', {
+                                        name: child.name,
+                                        map: child.material.map?.image?.src,
+                                        color: child.material.color.getHexString()
+                                    });
+                                }
+                            });
+                            text_box.add(bot_diploma);
                         });
                     })();
-                    
+                    // Log text_box properties before adding diplomas
+                    console.log('Text Box Container Scale:', text_box.scale);
+                    console.log('Text Box Container Size:', text_box.geometry ? text_box.geometry.parameters : 'No geometry');
                     create_background(category, text_box);
                     break;
                 case CATEGORIES.CONTACT.value:

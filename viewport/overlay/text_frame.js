@@ -1,5 +1,5 @@
 import { CSS2DObject } from "three/examples/jsm/Addons.js";
-import { CATEGORIES } from "./overlay_common/categories.js";
+import { CATEGORIES } from "../../common/categories.js";
 
 const WIDTH_OFFSET = .5;
 const HEIGHT_OFFSET = .5;

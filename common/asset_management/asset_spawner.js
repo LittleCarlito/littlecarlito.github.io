@@ -518,7 +518,7 @@ export class AssetSpawner {
      * @param {string} asset_type - Type of asset from ASSET_TYPE enum.
      * @param {THREE.Object3D} parent - Parent object to add the mesh to.
      * @param {RAPIER.World} world - Physics world to create the body in.
-     * @param {Object} options - Additional options (e.g., color for cubes).
+     * @param {Object} options - Additional options (e.g., color).
      * @param {THREE.Vector3} position_offset - Position offset from parent.
      * @returns {Promise<Array>} Promise resolving to [mesh, body] pair for physics updates.
      */
@@ -595,51 +595,6 @@ export class AssetSpawner {
             );
 
             if(FLAGS.ASSET_LOGS) console.log(`Created rigid body for ${asset_type}:`, body);
-            if (asset_type === ASSET_TYPE.CUBE) {
-                // Use pooled basic material for cubes
-                const material = this.materialPool.get('basic_white').clone();
-                if (options.color) {
-                    material.color.setHex(options.color);
-                }
-                mesh = new THREE.Mesh(asset_config.geometry, material);
-                mesh.position.copy(position_offset);
-                mesh.castShadow = true;
-                mesh.receiveShadow = true;
-                // Add name for cube using the category value
-                mesh.name = `${TYPES.INTERACTABLE}${options.category}`;
-                if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating cube with name: ${mesh.name}, category: ${options.category}`);
-                const collider = RAPIER.ColliderDesc.cuboid(0.5, 0.5, 0.5)
-                    .setMass(asset_config.mass)
-                    .setRestitution(0.3)     // Lower restitution to reduce bouncing
-                    .setFriction(0.8)        // Higher friction to help objects settle
-                    .setCollisionGroups(0x00010001);  // Set collision groups to reduce checks
-                const created_collider = world.createCollider(collider, body);
-                if(FLAGS.ASSET_LOGS) console.log(`Created cube collider:`, created_collider);
-
-                // Add debug wireframe if enabled
-                // Always create debug wireframes, visibility is controlled by the mesh.visible property
-                // if (FLAGS.COLLISION_VISUAL_DEBUG) {
-                const debugMesh = this.createDebugWireframe(
-                    'cuboid',
-                    { width: 0.5, height: 0.5, depth: 0.5 },
-                    mesh.position,
-                    mesh.quaternion
-                );
-                if (debugMesh) {
-                    parent.add(debugMesh);
-                    // Store debug mesh with a unique key
-                    const debugKey = `${mesh.uuid}_debug`;
-                    this.debugMeshes.set(debugKey, {
-                        mesh: debugMesh,
-                        body: body,
-                        type: 'cuboid'
-                    });
-                }
-                // }
-
-                // Add to parent
-                parent.add(mesh);
-            } else {
                 // Normal GLB asset loading path
                 if (!this.storage.has_loaded_asset(asset_type)) await this.storage.load_asset_type(asset_type);
                 const gltf = this.storage.get_loaded_asset(asset_type);
@@ -800,7 +755,6 @@ export class AssetSpawner {
                         });
                     }
                 }
-            }
             // Add mesh to parent
             parent.add(mesh);
             // Generate a truly unique ID using counter instead of timestamp
@@ -832,47 +786,39 @@ export class AssetSpawner {
         if (!Object.values(ASSET_TYPE).includes(asset_type)) throw new Error(`Invalid asset type: ${asset_type}`);
         const asset_config = ASSET_CONFIGS[asset_type];
         let mesh;
-        if (asset_type === ASSET_TYPE.CUBE) {
-            mesh = new THREE.Mesh(
-                asset_config.geometry, 
-                this.materialPool.get('basic_white').clone()
-            );
-            mesh.castShadow = true;
-        } else {
-            if (!this.storage.has_loaded_asset(asset_type)) await this.storage.load_asset_type(asset_type);
-            const gltf = this.storage.get_loaded_asset(asset_type);
-            mesh = gltf.scene.clone();
-            mesh.position.copy(position_offset);
-            mesh.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
-            
-            if(FLAGS.ASSET_LOGS) console.log('Creating static mesh for UI:', {
-                assetType: asset_type,
-                parentType: parent.type,
-                parentName: parent.name,
-                isOverlay: parent.parent?.parent?.name?.includes('overlay')
-            });
-            mesh.traverse((child) => {
-                if (child.isMesh) {
-                    const materialKey = `static_${asset_type}_${child.name}`;
-                    let material = this.materialPool.get(materialKey);
-                    
-                    if (!material) {
-                        material = new THREE.MeshBasicMaterial({
-                            map: child.material.map,
-                            color: child.material.color,
-                            transparent: true,
-                            depthTest: false,
-                            side: THREE.DoubleSide,
-                            opacity: 1
-                        });
-                        this.materialPool.set(materialKey, material);
-                    }
-                    
-                    child.material = material;
-                    child.renderOrder = 999; // Ensure it renders on top
+        if (!this.storage.has_loaded_asset(asset_type)) await this.storage.load_asset_type(asset_type);
+        const gltf = this.storage.get_loaded_asset(asset_type);
+        mesh = gltf.scene.clone();
+        mesh.position.copy(position_offset);
+        mesh.scale.set(asset_config.scale, asset_config.scale, asset_config.scale);
+        
+        if(FLAGS.ASSET_LOGS) console.log('Creating static mesh for UI:', {
+            assetType: asset_type,
+            parentType: parent.type,
+            parentName: parent.name,
+            isOverlay: parent.parent?.parent?.name?.includes('overlay')
+        });
+        mesh.traverse((child) => {
+            if (child.isMesh) {
+                const materialKey = `static_${asset_type}_${child.name}`;
+                let material = this.materialPool.get(materialKey);
+                
+                if (!material) {
+                    material = new THREE.MeshBasicMaterial({
+                        map: child.material.map,
+                        color: child.material.color,
+                        transparent: true,
+                        depthTest: false,
+                        side: THREE.DoubleSide,
+                        opacity: 1
+                    });
+                    this.materialPool.set(materialKey, material);
                 }
-            });
-        }
+                
+                child.material = material;
+                child.renderOrder = 999; // Ensure it renders on top
+            }
+        });
         mesh.position.copy(position_offset);
         if (rotation) mesh.rotation.copy(rotation);
         mesh.renderOrder = 999;

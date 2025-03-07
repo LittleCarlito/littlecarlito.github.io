@@ -179,7 +179,7 @@ export class BackgroundContainer {
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.NOTEBOOK_OPENED}`;
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Notebook opened with name: ${mesh.name}`);
-            // TODO Spawn Plant
+            // Spawn Plant
             [mesh, body] = await asset_loader.spawn_asset(
                 ASSET_TYPE.PLANT,
                 this.object_container,
@@ -214,107 +214,12 @@ export class BackgroundContainer {
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Tablet with name: ${mesh.name}`);
         })();
 
-        // Create all cubes asynchronously
-        const validCategories = Object.entries(CATEGORIES)
-            .filter(([key, value]) => {
-                // Only include actual category entries (not helper methods)
-                return key === key.toUpperCase() && // All category keys are uppercase
-                // TODO Get these to use category constants
-                       key !== 'EDUCATION' && // Skip education category
-                       key !== 'CONTACT' && // Skip contact category
-                       key !== 'ABOUT' && // Skip about category
-                       typeof value === 'object' && // Must be an object
-                       value !== null && // Must not be null
-                       'color' in value && // Must have a color property
-                       'value' in value; // Must have a value property
-            })
-            .map(([_, category]) => category);
-
-        if (FLAGS.ASSET_LOGS) {
-            console.log('Valid categories for cube creation:', validCategories);
-        }
-
-        // Ensure we have valid categories before proceeding
-        if (!validCategories || validCategories.length === 0) {
-            console.error('No valid categories found for cube creation');
-            this.loading_complete = true;
-            this.loading_promise = Promise.resolve();
-            return;
-        }
-
-        const cube_promises = validCategories.map(async (category, i) => {
-            try {
-                if (!category || typeof category !== 'object') {
-                    console.error('Invalid category object:', category);
-                    return null;
-                }
-
-                if (FLAGS.ASSET_LOGS) {
-                    console.log(`Creating cube for category:`, category);
-                }
-
-                // Create position vector
-                const position = new THREE.Vector3(((i * 2) - 3), -2, -5);
-
-                // Wait a small amount between spawns to avoid lock conflicts
-                await new Promise(resolve => setTimeout(resolve, i * 100));
-
-                // Create cube with proper color
-                const result = await asset_loader.spawn_asset(
-                    ASSET_TYPE.CUBE,
-                    this.object_container,
-                    this.world,
-                    { 
-                        color: category.color,
-                        category: category.value,
-                        scale: 1,
-                        mass: 1,
-                        restitution: 1.1
-                    },
-                    position
-                );
-
-                if (!result) {
-                    console.error(`Spawn failed for category ${category.value}`);
-                    return null;
-                }
-
-                const [mesh, body] = result;
-
-                if (!mesh || !body) {
-                    console.error(`Failed to create mesh or body for category ${category.value}. Mesh:`, mesh, 'Body:', body);
-                    return null;
-                }
-
-                // Add to parent
-                this.object_container.add(mesh);
-
-                // Add to manifest and register with asset manager
-                this.asset_manifest.add(mesh.name);
-                AssetStorage.get_instance().add_object(mesh, body);
-                
-                if (FLAGS.ASSET_LOGS) {
-                    console.log(`${this.name} Created cube with name: ${mesh.name}`);
-                }
-                
-                return mesh;
-            } catch (error) {
-                console.error(`Error creating cube for category ${category?.value}:`, error);
-                console.error('Error stack:', error.stack);
-                return null;
-            }
-        });
-
         // Store the loading promise for external checking
         this.loading_promise = Promise.all([
             mainAssetsPromise.catch(error => {
                 console.error('Error in mainAssetsPromise:', error);
                 return null;
-            }),
-            ...cube_promises.map(p => p.catch(error => {
-                console.error('Error in cube promise:', error);
-                return null;
-            }))
+            })
         ]).then(results => {
             if (FLAGS.PHYSICS_LOGS) {
                 console.log('All assets initialized:', results);
