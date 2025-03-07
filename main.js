@@ -521,7 +521,8 @@ function animate() {
         asset_activator.activate_object(viewable_container.get_intersected_name());
     } else if(grabbed_object) {
         translate_object(grabbed_object, viewable_container.get_camera());
-    } else if(hovered_interactable_name != "") {
+    } else if(hovered_interactable_name != "" && viewable_container.is_overlay_hidden()) {
+        // Only activate hovered objects when the overlay is hidden
         asset_activator.activate_object(hovered_interactable_name);
     } else if(viewable_container.is_text_active()) {
         asset_activator.activate_object(viewable_container.get_active_name());
@@ -605,33 +606,55 @@ function handle_mouse_move(e) {
     if(construction_acknowledged) {
         // Handle intersections
         const found_intersections = get_intersect_list(e, viewable_container.get_camera(), scene);
-        if(found_intersections.length > 0 && ! viewable_container.get_overlay().is_swapping_sides()) {
-            const intersected_object = found_intersections[0].object;
+        
+        // Check if UI overlay is visible
+        const is_overlay_hidden = viewable_container.is_overlay_hidden();
+        
+        // If overlay is not hidden, filter out background objects from intersection list
+        let relevant_intersections = found_intersections;
+        if(!is_overlay_hidden) {
+            // Only consider LABEL items when overlay is visible
+            relevant_intersections = found_intersections.filter(intersection => {
+                const object_name = intersection.object.name;
+                const name_type = object_name.split("_")[0] + "_";
+                return name_type === TYPES.LABEL;
+            });
+        }
+        
+        if(relevant_intersections.length > 0 && !viewable_container.get_overlay().is_swapping_sides()) {
+            const intersected_object = relevant_intersections[0].object;
             const object_name = intersected_object.name;
             const name_type = object_name.split("_")[0] + "_";
-            // Handle label hover
+            
+            // Handle label hover - now we know it's either a label or an appropriate object
             switch(name_type) {
                 case TYPES.LABEL:
                     viewable_container.get_overlay().handle_hover(intersected_object);
                     break;
                 case TYPES.FLOOR:
+                    // We know overlay is hidden if we get here, due to the filtering above
                     viewable_container.get_overlay().reset_hover();
                     break;
                 case TYPES.INTERACTABLE:
-                    if(viewable_container.is_overlay_hidden()) {
-                        hovered_interactable_name = object_name;
-                        if (FLAGS.ACTIVATE_LOGS) {
-                            console.log("Hover detected on interactable:", object_name);
-                        }
-                    } else {
-                        hovered_interactable_name = "";
+                    // We know overlay is hidden if we get here, due to the filtering above
+                    hovered_interactable_name = object_name;
+                    if (FLAGS.ACTIVATE_LOGS) {
+                        console.log("Hover detected on interactable:", object_name);
                     }
+                    break;
                 default:
+                    // We know overlay is hidden if we get here, due to the filtering above
+                    viewable_container.get_overlay().reset_hover();
                     break;
             }
         } else {
             viewable_container.get_overlay().reset_hover();
-            hovered_interactable_name = "";
+            
+            // Only reset hovered_interactable_name if the overlay is hidden
+            // This prevents background objects from losing hover state when UI is open
+            if (is_overlay_hidden) {
+                hovered_interactable_name = "";
+            }
         }
     }
 }
