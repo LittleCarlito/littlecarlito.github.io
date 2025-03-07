@@ -42,6 +42,101 @@ export class TextContainer {
             new_frame.name = `${TYPES.TEXT_BLOCK}${incoming_category.value}`;
             this.text_frames.set(new_frame.name, new_frame);
         };
+        
+        // Create asset background private method
+        const create_asset_background = async (incoming_category, incoming_box, asset_type, options = {}) => {
+            // Calculate dimensions to match where the background would be
+            this.container_width = this.get_text_box_width();
+            this.container_height = this.get_text_box_height();
+            
+            // Default configuration that can be overridden with options
+            const config = {
+                horizontalStretch: 1.0,
+                verticalStretch: 1.0,
+                rotation: new THREE.Euler(-Math.PI / 2, 0, Math.PI, 'XYZ'),
+                position: new THREE.Vector3(0, 0, -0.05),
+                scaleFactor: 0.12,
+                ...options
+            };
+            
+            // Load the asset
+            const asset_config = ASSET_CONFIGS[asset_type];
+            const gltf = await AssetStorage.get_instance().loader.loadAsync(asset_config.PATH);
+            
+            // Create instance
+            const asset = gltf.scene.clone();
+            
+            // Calculate scale to match the background dimensions
+            const asset_bounding_box = new THREE.Box3().setFromObject(asset);
+            const asset_width = (asset_bounding_box.max.x - asset_bounding_box.min.x);
+            const asset_height = asset_bounding_box.max.y - asset_bounding_box.min.y;
+            
+            // Scale to match the container width
+            const width_scale = this.container_width / asset_width * config.scaleFactor;
+            const height_scale = this.container_height / asset_height * config.scaleFactor;
+            
+            // Apply stretch factors to the scales
+            const final_width_scale = width_scale * config.horizontalStretch;
+            const final_height_scale = height_scale * config.verticalStretch;
+            
+            // Use the smaller scale to ensure it fits within the container
+            const base_scale = Math.min(final_width_scale, final_height_scale) * asset_config.scale;
+            
+            // Apply scaling
+            if (config.horizontalStretch !== config.verticalStretch) {
+                const x_scale = base_scale * (config.horizontalStretch / config.verticalStretch);
+                const y_scale = base_scale;
+                asset.scale.set(x_scale, y_scale, base_scale);
+            } else {
+                asset.scale.set(base_scale, base_scale, base_scale);
+            }
+            
+            // Position and rotate
+            asset.position.copy(config.position);
+            asset.rotation.copy(config.rotation);
+            
+            // Handle materials
+            asset.traverse((child) => {
+                if (child.isMesh) {
+                    // Hide collision mesh
+                    if (child.name.startsWith('col_')) {
+                        child.visible = false;
+                        return;
+                    }
+                    
+                    // Get the original material's properties
+                    const original_material = child.material;
+                    if (FLAGS.ASSET_LOGS) console.log('Original material:', {
+                        name: child.name,
+                        map: original_material.map?.image?.src,
+                        color: original_material.color?.getHexString()
+                    });
+                    
+                    // Try using the original material but with basic properties
+                    child.material = new THREE.MeshBasicMaterial();
+                    child.material.copy(original_material);
+                    child.material.needsUpdate = true;
+                    
+                    // Force some UI-specific properties
+                    child.material.transparent = true;
+                    child.material.depthTest = false;
+                    child.material.side = THREE.DoubleSide;
+                    child.renderOrder = 998; // Set to 998 so iframe (999) appears in front
+                    
+                    if (FLAGS.ASSET_LOGS) console.log('New material:', {
+                        name: child.name,
+                        map: child.material.map?.image?.src,
+                        color: child.material.color?.getHexString()
+                    });
+                }
+            });
+            
+            // Add asset to the box
+            incoming_box.add(asset);
+            
+            return asset;
+        };
+        
         Object.values(CATEGORIES).forEach((category, i) => {
             if (typeof category === 'function') return; // Skip helper methods
             const text_box = new THREE.Object3D();
@@ -158,79 +253,11 @@ export class TextContainer {
                     break;
                 case CATEGORIES.CONTACT.value:
                     // For contact, we want the tablet.glb with iframe but NO background
-                    // Calculate dimensions to match where the background would be
-                    this.container_width = this.get_text_box_width();
-                    this.container_height = this.get_text_box_height();
-                    // Fine-tuning stretch factors
-                    const horizontal_stretch = 1.1; // Adjust to stretch horizontally
-                    const vertical_stretch = .6;   // Adjust to stretch vertically
-                    // Adjust tablet to fill the same space as background would
-                    const tablet_rotation = new THREE.Euler(-Math.PI / 2, 0, Math.PI, 'XYZ');
-                    // Position slightly behind where the background would be and adjust y position
-                    const tablet_position = new THREE.Vector3(0, 0, -0.05);
-                    // Create tablet with iframe
                     (async () => {
-                        // Load the tablet asset
-                        const asset_config = ASSET_CONFIGS[ASSET_TYPE.TABLET];
-                        const gltf = await AssetStorage.get_instance().loader.loadAsync(asset_config.PATH);
-                        // Create tablet instance
-                        const tablet = gltf.scene.clone();
-                        // Calculate scale to match the background dimensions
-                        // We'll scale it to match the width of the background
-                        const tablet_bounding_box = new THREE.Box3().setFromObject(tablet);
-                        const tablet_width = (tablet_bounding_box.max.x - tablet_bounding_box.min.x);
-                        const tablet_height = tablet_bounding_box.max.y - tablet_bounding_box.min.y;
-                        // Scale to match the container width - use a much smaller scale factor
-                        const width_scale = this.container_width / tablet_width * 0.12; // Base width scale
-                        const height_scale = this.container_height / tablet_height * 0.12; // Base height scale
-                        // Apply stretch factors to the scales
-                        const final_width_scale = width_scale * horizontal_stretch;
-                        const final_height_scale = height_scale * vertical_stretch;
-                        // Use the smaller scale to ensure it fits within the container
-                        const base_scale = Math.min(final_width_scale, final_height_scale) * asset_config.scale;
-                        // Apply non-uniform scaling if stretch factors are different
-                        if (horizontal_stretch !== vertical_stretch) {
-                            const x_scale = base_scale * (horizontal_stretch / vertical_stretch);
-                            const y_scale = base_scale;
-                            tablet.scale.set(x_scale, y_scale, base_scale);
-                        } else {
-                            tablet.scale.set(base_scale, base_scale, base_scale);
-                        }
-                        tablet.position.copy(tablet_position);
-                        tablet.rotation.copy(tablet_rotation);
-                        // Handle materials
-                        tablet.traverse((child) => {
-                            if (child.isMesh) {
-                                // Hide collision mesh
-                                if (child.name.startsWith('col_')) {
-                                    child.visible = false;
-                                    return;
-                                }
-                                // Get the original material's properties
-                                const original_material = child.material;
-                                if (FLAGS.ASSET_LOGS) console.log('Original material:', {
-                                    name: child.name,
-                                    map: original_material.map?.image?.src,
-                                    color: original_material.color.getHexString()
-                                });
-
-                                // Try using the original material but with basic properties
-                                child.material = new THREE.MeshBasicMaterial();
-                                child.material.copy(original_material);
-                                child.material.needsUpdate = true;
-                                // Force some UI-specific properties
-                                child.material.transparent = true;
-                                child.material.depthTest = false;
-                                child.material.side = THREE.DoubleSide;
-                                child.renderOrder = 998; // Set to 998 so iframe (999) appears in front
-                                if (FLAGS.ASSET_LOGS) console.log('New material:', {
-                                    name: child.name,
-                                    map: child.material.map?.image?.src,
-                                    color: child.material.color.getHexString()
-                                });
-                            }
+                        await create_asset_background(category, text_box, ASSET_TYPE.TABLET, {
+                            horizontalStretch: 1.1,
+                            verticalStretch: 0.6
                         });
-                        text_box.add(tablet);
                     })();
                     // Create iframe but NO background
                     create_text_frame(category, text_box);
@@ -240,6 +267,13 @@ export class TextContainer {
                     create_text_frame(category, text_box);
                     break;
                 case CATEGORIES.WORK.value:
+                    // Use monitor as background with iframe
+                    (async () => {
+                        await create_asset_background(category, text_box, ASSET_TYPE.MONITOR, {
+                            horizontalStretch: 1.2,
+                            verticalStretch: 0.8
+                        });
+                    })();
                     create_text_frame(category, text_box);
                     break;
                 default:
