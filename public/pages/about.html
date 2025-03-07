@@ -769,6 +769,53 @@
             const newWidth = container.clientWidth;
             const newHeight = container.clientHeight;
             
+            // Check if this is a significant expansion (growing size by more than 10%)
+            const widthIncreaseFactor = newWidth / waterEffect.renderer.domElement.width;
+            const heightIncreaseFactor = newHeight / waterEffect.renderer.domElement.height;
+            const isSignificantExpansion = (widthIncreaseFactor > 1.1 || heightIncreaseFactor > 1.1);
+            
+            // For significant expansions, completely reinitialize the water effect
+            if (isSignificantExpansion) {
+                // Clean up the current water effect
+                cleanupWaterEffect();
+                
+                // Remove the old canvas
+                if (waterEffect.renderer && waterEffect.renderer.domElement) {
+                    const oldCanvas = waterEffect.renderer.domElement;
+                    if (oldCanvas.parentNode) {
+                        oldCanvas.parentNode.removeChild(oldCanvas);
+                    }
+                }
+                
+                // Reset the water effect object
+                waterEffect = {
+                    renderer: null,
+                    scene: null,
+                    camera: null,
+                    bufferA: null,
+                    bufferB: null,
+                    bufferB1: null, 
+                    bufferB2: null,
+                    currentBufferA: null,
+                    previousBufferA: null,
+                    currentBufferB: null,
+                    previousBufferB: null,
+                    geometry: null,
+                    bufferAMaterial: null,
+                    bufferBMaterial: null,
+                    renderMaterial: null,
+                    initialized: false
+                };
+                
+                // Reinitialize the water effect
+                setTimeout(() => {
+                    initWaterEffect();
+                }, 50);
+                
+                return;
+            }
+            
+            // For minor size changes, perform normal resize
             // Update the renderer size
             waterEffect.renderer.setSize(newWidth, newHeight);
             
@@ -792,7 +839,7 @@
             waterEffect.bufferBMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
             waterEffect.renderMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
             
-            // Recreate render targets with new size
+            // Cleanup old render targets
             waterEffect.bufferA.dispose();
             waterEffect.bufferB.dispose();
             waterEffect.bufferB1.dispose();
@@ -832,6 +879,96 @@
             waterEffect.previousBufferA = waterEffect.bufferB;
             waterEffect.currentBufferB = waterEffect.bufferB1;
             waterEffect.previousBufferB = waterEffect.bufferB2;
+            
+            // Always reset buffers after resize
+            resetWaterBuffers();
+        }
+        
+        // Function to completely clean up the water effect
+        function cleanupWaterEffect() {
+            if (!waterEffect.initialized) return;
+            
+            // Dispose of all resources
+            if (waterEffect.bufferA) waterEffect.bufferA.dispose();
+            if (waterEffect.bufferB) waterEffect.bufferB.dispose();
+            if (waterEffect.bufferB1) waterEffect.bufferB1.dispose();
+            if (waterEffect.bufferB2) waterEffect.bufferB2.dispose();
+            
+            if (waterEffect.geometry) waterEffect.geometry.dispose();
+            
+            if (waterEffect.bufferAMaterial) waterEffect.bufferAMaterial.dispose();
+            if (waterEffect.bufferBMaterial) waterEffect.bufferBMaterial.dispose();
+            if (waterEffect.renderMaterial) waterEffect.renderMaterial.dispose();
+            
+            if (waterEffect.renderMesh && waterEffect.scene) {
+                waterEffect.scene.remove(waterEffect.renderMesh);
+            }
+            
+            if (waterEffect.renderer) {
+                waterEffect.renderer.dispose();
+                // Force a WebGL context reset for a cleaner state
+                waterEffect.renderer.forceContextLoss();
+            }
+        }
+        
+        // Function to reset water buffer state
+        function resetWaterBuffers() {
+            if (!waterEffect.initialized) return;
+            
+            const width = waterEffect.renderer.domElement.width;
+            const height = waterEffect.renderer.domElement.height;
+            
+            // Create a clear buffer with black transparent pixels
+            const clearData = new Float32Array(width * height * 4);
+            for (let i = 0; i < clearData.length; i++) {
+                clearData[i] = 0.0;
+            }
+            
+            // Reset all buffers to initial state
+            const tempScene = new THREE.Scene();
+            const clearMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0 });
+            const clearPlane = new THREE.Mesh(
+                new THREE.PlaneGeometry(width, height),
+                clearMaterial
+            );
+            tempScene.add(clearPlane);
+            
+            // Clear all buffer textures by rendering a black transparent plane
+            waterEffect.renderer.setRenderTarget(waterEffect.bufferA);
+            waterEffect.renderer.clear();  // Actually clear the buffer first
+            waterEffect.renderer.render(tempScene, waterEffect.camera);
+            
+            waterEffect.renderer.setRenderTarget(waterEffect.bufferB);
+            waterEffect.renderer.clear();
+            waterEffect.renderer.render(tempScene, waterEffect.camera);
+            
+            waterEffect.renderer.setRenderTarget(waterEffect.bufferB1);
+            waterEffect.renderer.clear();
+            waterEffect.renderer.render(tempScene, waterEffect.camera);
+            
+            waterEffect.renderer.setRenderTarget(waterEffect.bufferB2);
+            waterEffect.renderer.clear();
+            waterEffect.renderer.render(tempScene, waterEffect.camera);
+            
+            // Clear render target
+            waterEffect.renderer.setRenderTarget(null);
+            waterEffect.renderer.clear();
+            
+            // Reset frame counter in the shaders
+            if (waterEffect.bufferAMaterial && waterEffect.bufferAMaterial.uniforms) {
+                waterEffect.bufferAMaterial.uniforms.iFrame.value = 0;
+                waterEffect.bufferAMaterial.uniforms.iTime.value = 0;
+            }
+            
+            if (waterEffect.bufferBMaterial && waterEffect.bufferBMaterial.uniforms) {
+                waterEffect.bufferBMaterial.uniforms.iFrame.value = 0;
+                waterEffect.bufferBMaterial.uniforms.iTime.value = 0;
+            }
+            
+            // Clean up
+            tempScene.remove(clearPlane);
+            clearPlane.geometry.dispose();
+            clearMaterial.dispose();
         }
 
         // Water ripple effect
