@@ -302,6 +302,10 @@ export class TextContainer {
                         // Store adjustment factors for use during resize
                         workFrame.widthFactor = workWidthFactor;
                         workFrame.heightFactor = workHeightFactor;
+                        // Store the original dimensions and container width for comparison during resize
+                        workFrame.original_width = adjustedWidth;
+                        workFrame.original_height = adjustedHeight;
+                        workFrame.initial_container_width = this.container_width;
                     }
                     break;
                 default:
@@ -503,8 +507,14 @@ export class TextContainer {
     }
 
     resize() {
+        // Store previous container dimensions for comparison
+        const prevWidth = this.container_width;
+        const prevHeight = this.container_height;
+        
+        // Update current container dimensions
         this.container_width = this.get_text_box_width(this.camera);
         this.container_height = this.get_text_box_height(this.camera);
+        
         const new_text_geometry = new THREE.BoxGeometry(this.container_width, this.container_height, 0);
         this.text_box_container.children.forEach(c => {
             c.children.forEach(inner_c => {
@@ -524,8 +534,24 @@ export class TextContainer {
                             const frame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${inner_c.simple_name}`);
                             if (frame) {
                                 if (inner_c.simple_name === CATEGORIES.WORK.value && frame.widthFactor) {
-                                    width = width * frame.widthFactor;
-                                    height = height * (frame.heightFactor || 1.0);
+                                    // Calculate iframe dimensions based on container size * initial factor
+                                    // This ensures we always calculate relative to the current container size
+                                    // with a fixed factor, preventing compounding of resize factors
+                                    width = this.container_width * frame.widthFactor;
+                                    height = this.container_height * (frame.heightFactor || 1.0);
+                                    
+                                    // Detect if we're back at original window size (within 5% tolerance)
+                                    // This is important for restoring the exact original size
+                                    if (frame.original_width && frame.original_height && 
+                                        Math.abs(this.container_width - prevWidth) > 5 && // Only check after significant changes
+                                        Math.abs(this.container_width - frame.initial_container_width) < 5) {
+                                        // We're back at the original window size, restore original iframe dimensions
+                                        width = frame.original_width;
+                                        height = frame.original_height;
+                                    } else if (!frame.initial_container_width) {
+                                        // First resize - store the initial container width for future comparison
+                                        frame.initial_container_width = this.container_width;
+                                    }
                                 }
                             }
                             
@@ -542,12 +568,6 @@ export class TextContainer {
         if (matched_frame) {
             // Store previous width before update for comparison
             const previousWidth = matched_frame.pixel_width || 0;
-
-            // Apply category-specific adjustments if available
-            if (matched_frame.simple_name === CATEGORIES.WORK.value && matched_frame.widthFactor) {
-                incoming_width = incoming_width * matched_frame.widthFactor;
-                incoming_height = incoming_height * (matched_frame.heightFactor || 1.0);
-            }
 
             matched_frame.update_size(incoming_width, incoming_height);
 
