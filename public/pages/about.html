@@ -372,6 +372,7 @@
         let engine, render, world, walls;
         let runner;
         let isVisible = true;
+        let resizeTimeout;  // Add this variable for debouncing resize
 
         const PHYSICS_CONSTANTS = {
             // Core movement
@@ -400,6 +401,26 @@
             // Mouse specific settings
             MOUSE_AVOIDANCE_RADIUS_FACTOR: 6,
             MOUSE_FORCE_MULTIPLIER: 4
+        };
+
+        // Store global references to water effect components
+        let waterEffect = {
+            renderer: null,
+            scene: null,
+            camera: null,
+            bufferA: null,
+            bufferB: null,
+            bufferB1: null, 
+            bufferB2: null,
+            currentBufferA: null,
+            previousBufferA: null,
+            currentBufferB: null,
+            previousBufferB: null,
+            geometry: null,
+            bufferAMaterial: null,
+            bufferBMaterial: null,
+            renderMaterial: null,
+            initialized: false
         };
 
         function initPhysics() {
@@ -680,6 +701,139 @@
             }
         }
 
+        // Function to handle window resize for both physics and water effect
+        function handleResize() {
+            // Clear the timeout if it exists to debounce multiple resize events
+            if (resizeTimeout) {
+                clearTimeout(resizeTimeout);
+            }
+            
+            // Set a timeout to actually perform the resize operation
+            resizeTimeout = setTimeout(() => {
+                const container = document.getElementById('physics-container');
+                const waterContainer = document.getElementById('water-container');
+                
+                // Only proceed if the containers exist
+                if (!container || !waterContainer) return;
+                
+                const newWidth = container.clientWidth;
+                const newHeight = container.clientHeight;
+                
+                // Resize the physics engine if it exists
+                if (engine && render && world && walls) {
+                    // Update renderer dimensions
+                    render.options.width = newWidth;
+                    render.options.height = newHeight;
+                    render.canvas.width = newWidth;
+                    render.canvas.height = newHeight;
+                    
+                    // Remove old walls
+                    Matter.Composite.remove(world, walls);
+                    
+                    // Create new walls
+                    walls = [
+                        Matter.Bodies.rectangle(newWidth/2, -10, newWidth, 20, { isStatic: true }),
+                        Matter.Bodies.rectangle(newWidth/2, newHeight + 10, newWidth, 20, { isStatic: true }),
+                        Matter.Bodies.rectangle(-10, newHeight/2, 20, newHeight, { isStatic: true }),
+                        Matter.Bodies.rectangle(newWidth + 10, newHeight/2, 20, newHeight, { isStatic: true })
+                    ];
+                    Matter.World.add(world, walls);
+                    
+                    // Update mouse constraint if it exists
+                    if (render.mouse) {
+                        render.mouse.element.removeEventListener('mousewheel', render.mouse.mousewheel);
+                        render.mouse.element.removeEventListener('DOMMouseScroll', render.mouse.mousewheel);
+                        render.mouse = Matter.Mouse.create(render.canvas);
+                        
+                        // Update mouse constraint if it exists
+                        const mouseConstraint = Matter.Query.one(world.constraints, (c) => c.label === 'mouse');
+                        if (mouseConstraint) {
+                            mouseConstraint.mouse = render.mouse;
+                        }
+                    }
+                }
+                
+                // Resize the water effect if it's initialized
+                if (waterEffect.initialized) {
+                    resizeWaterEffect();
+                }
+                
+            }, 250); // Wait 250ms after the last resize event
+        }
+        
+        // Separate function to resize just the water effect
+        function resizeWaterEffect() {
+            if (!waterEffect.initialized) return;
+            
+            const container = document.getElementById('water-container');
+            const newWidth = container.clientWidth;
+            const newHeight = container.clientHeight;
+            
+            // Update the renderer size
+            waterEffect.renderer.setSize(newWidth, newHeight);
+            
+            // Update camera
+            waterEffect.camera.left = -newWidth / 2;
+            waterEffect.camera.right = newWidth / 2;
+            waterEffect.camera.top = newHeight / 2;
+            waterEffect.camera.bottom = -newHeight / 2;
+            waterEffect.camera.updateProjectionMatrix();
+            
+            // Update the geometry
+            waterEffect.scene.remove(waterEffect.renderMesh);
+            waterEffect.geometry.dispose();
+            waterEffect.geometry = new THREE.PlaneGeometry(newWidth, newHeight);
+            waterEffect.renderMesh = new THREE.Mesh(waterEffect.geometry, waterEffect.renderMaterial);
+            waterEffect.renderMesh.position.set(0, 0, 0);
+            waterEffect.scene.add(waterEffect.renderMesh);
+            
+            // Update all shader uniforms
+            waterEffect.bufferAMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
+            waterEffect.bufferBMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
+            waterEffect.renderMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
+            
+            // Recreate render targets with new size
+            waterEffect.bufferA.dispose();
+            waterEffect.bufferB.dispose();
+            waterEffect.bufferB1.dispose();
+            waterEffect.bufferB2.dispose();
+            
+            // Create new render targets
+            waterEffect.bufferA = new THREE.WebGLRenderTarget(newWidth, newHeight, {
+                minFilter: THREE.NearestFilter,
+                magFilter: THREE.NearestFilter,
+                format: THREE.RGBAFormat,
+                type: THREE.FloatType
+            });
+            
+            waterEffect.bufferB = new THREE.WebGLRenderTarget(newWidth, newHeight, {
+                minFilter: THREE.NearestFilter,
+                magFilter: THREE.NearestFilter,
+                format: THREE.RGBAFormat,
+                type: THREE.FloatType
+            });
+            
+            waterEffect.bufferB1 = new THREE.WebGLRenderTarget(newWidth, newHeight, {
+                minFilter: THREE.NearestFilter,
+                magFilter: THREE.NearestFilter,
+                format: THREE.RGBAFormat,
+                type: THREE.FloatType
+            });
+            
+            waterEffect.bufferB2 = new THREE.WebGLRenderTarget(newWidth, newHeight, {
+                minFilter: THREE.NearestFilter,
+                magFilter: THREE.NearestFilter,
+                format: THREE.RGBAFormat,
+                type: THREE.FloatType
+            });
+            
+            // Update buffer references
+            waterEffect.currentBufferA = waterEffect.bufferA;
+            waterEffect.previousBufferA = waterEffect.bufferB;
+            waterEffect.currentBufferB = waterEffect.bufferB1;
+            waterEffect.previousBufferB = waterEffect.bufferB2;
+        }
+
         // Water ripple effect
         const initWaterEffect = () => {
             const container = document.getElementById('water-container');
@@ -735,6 +889,19 @@
             
             let currentBufferB = bufferB1;
             let previousBufferB = bufferB2;
+            
+            // Store references in the global object
+            waterEffect.renderer = renderer;
+            waterEffect.scene = scene;
+            waterEffect.camera = camera;
+            waterEffect.bufferA = bufferA;
+            waterEffect.bufferB = bufferB;
+            waterEffect.bufferB1 = bufferB1;
+            waterEffect.bufferB2 = bufferB2;
+            waterEffect.currentBufferA = currentBufferA;
+            waterEffect.previousBufferA = previousBufferA;
+            waterEffect.currentBufferB = currentBufferB;
+            waterEffect.previousBufferB = previousBufferB;
             
             // Mouse position - initialize to off-screen to prevent idle ripple at (0,0)
             let mousePosition = new THREE.Vector2(-1000, -1000);
@@ -1016,6 +1183,13 @@
             const bufferBMesh = new THREE.Mesh(geometry, bufferBMaterial);
             const renderMesh = new THREE.Mesh(geometry, renderMaterial);
             
+            // Store in global object
+            waterEffect.geometry = geometry;
+            waterEffect.bufferAMaterial = bufferAMaterial;
+            waterEffect.bufferBMaterial = bufferBMaterial;
+            waterEffect.renderMaterial = renderMaterial;
+            waterEffect.renderMesh = renderMesh;
+            
             // Center meshes
             bufferAMesh.position.set(0, 0, 0);
             bufferBMesh.position.set(0, 0, 0);
@@ -1148,34 +1322,8 @@
                 frameCount++;
             };
             
-            // Handle resize
-            const onResize = () => {
-                const newWidth = container.clientWidth;
-                const newHeight = container.clientHeight;
-                
-                // Update camera
-                camera.left = -newWidth / 2;
-                camera.right = newWidth / 2;
-                camera.top = newHeight / 2;
-                camera.bottom = -newHeight / 2;
-                camera.updateProjectionMatrix();
-                
-                // Update renderer
-                renderer.setSize(newWidth, newHeight);
-                
-                // Update uniforms
-                bufferAMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
-                bufferBMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
-                renderMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
-                
-                // Recreate render targets
-                bufferA.setSize(newWidth, newHeight);
-                bufferB.setSize(newWidth, newHeight);
-                bufferB1.setSize(newWidth, newHeight);
-                bufferB2.setSize(newWidth, newHeight);
-            };
-            
-            window.addEventListener('resize', onResize);
+            // Mark water effect as initialized
+            waterEffect.initialized = true;
             
             // Start animation
             animate();
@@ -1190,6 +1338,9 @@
             setTimeout(() => {
                 initWaterEffect();
             }, 100);
+            
+            // Add global resize handler
+            window.addEventListener('resize', handleResize);
         });
     </script>
 </body>
