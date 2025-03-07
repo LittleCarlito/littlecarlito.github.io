@@ -782,11 +782,15 @@
                         render.mouse = Matter.Mouse.create(render.canvas);
                         
                         // Find and update the mouse constraint
-                        const mouseConstraint = Matter.Query.one(
-                            world.constraints, 
-                            c => c.label === 'mouse' || 
-                                (c.mouseConstraint && c.bodyB === null)
-                        );
+                        let mouseConstraint = null;
+                        for (let i = 0; i < world.constraints.length; i++) {
+                            const constraint = world.constraints[i];
+                            if (constraint.label === 'mouse' || 
+                                (constraint.mouseConstraint && constraint.bodyB === null)) {
+                                mouseConstraint = constraint;
+                                break;
+                            }
+                        }
                         
                         if (mouseConstraint) {
                             mouseConstraint.mouse = render.mouse;
