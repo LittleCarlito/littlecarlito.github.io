@@ -3,13 +3,23 @@ import { THREE } from "..";
 // Define all possible asset types that can be loaded and spawned
 export const ASSET_TYPE = {
     AXE: 'AXE',
-    DIPLOMA: 'education',
-    DESK: 'DESK',
-    CHAIR: 'CHAIR',
     BOOK: 'BOOK',
-    ROOM: 'ROOM',
-    TABLET: 'contact',
+    CAT: 'CAT',
+    CHAIR: 'CHAIR',
+    COMPUTER: 'COMPUTER',
+    DESK: 'DESK',
     DESKPHOTO: 'about',
+    DIPLOMA_BOT: 'education',
+    DIPLOMA_TOP: 'DIPOLOMA_TOP',
+    KEYBOARD: 'KEYBOARD',
+    MONITOR: 'MONITOR',
+    MOUSE: 'MOUSE',
+    MOUSEPAD: 'MOUSEPAD',
+    NOTEBOOK_CLOSED: 'NOTEBOOK_CLOSED',
+    NOTEBOOK_OPENED: 'NOTEBOOK_OPENED',
+    PLANT: 'PLANT',
+    TABLET: 'contact',
+    ROOM: 'ROOM',
     CUBE: 'CUBE',  // Simple geometric primitive for testing
     PRIMARY: 'primary',
     SECONDARY: 'secondary',
@@ -21,42 +31,99 @@ Object.freeze(ASSET_TYPE);
 export const ASSET_CONFIGS = {
     [ASSET_TYPE.AXE]: {
         PATH: "assets/Axe.glb",
-        scale: 20,
+        scale: 1,
         mass: 5,
         restitution: .1,
     },
-    [ASSET_TYPE.DIPLOMA]: {
-        PATH: "assets/diploma_bot.glb",
-        scale: 10,
+    [ASSET_TYPE.BOOK]: {
+        PATH: "assets/book.glb",
+        scale: 1,
         mass: 1,
-        restitution: .2,
+        restitution: 1
+    },
+    [ASSET_TYPE.CAT]: {
+        PATH: "assets/cat.glb",
+        scale: 1,
+        mass: 1,
+        restitution: 3
+    },
+    [ASSET_TYPE.CHAIR]: {
+        PATH: "assets/chair.glb",
+        scale: 1,
+        mass: 1.2,
+        restitution: 1
+    },
+    [ASSET_TYPE.COMPUTER]: {
+        PATH: "assets/computer.glb",
+        scale: 1,
+        mass: 8,
+        restitution: 1
     },
     [ASSET_TYPE.DESK]: {
         PATH: "assets/desk.glb",
-        scale: 2,
+        scale: 1,
         mass: 1,
         restitution: .5,
     },
-    // Load in room
-    [ASSET_TYPE.ROOM]: {
-        PATH: "assets/room.glb",
-        scale: 5,
-        mass: 1,
-        restitution: .2
-    },
-    // Load in book
-    [ASSET_TYPE.BOOK]: {
-        PATH: "assets/book.glb",
-        scale: 5,
+    [ASSET_TYPE.DESKPHOTO]: {
+        PATH: "assets/deskphoto.glb",
+        scale: 1,
         mass: 1,
         restitution: 1
     },
-    // Load in chair
-    [ASSET_TYPE.CHAIR]: {
-        PATH: "assets/chair.glb",
-        scale: 5,
-        mass: 1.2,
-        restitution: 1
+    [ASSET_TYPE.DIPLOMA_BOT]: {
+        PATH: "assets/diploma_bot.glb",
+        scale: 1,
+        mass: 1,
+        restitution: 1,
+    },
+    [ASSET_TYPE.DIPLOMA_TOP]: {
+        PATH: "assets/diploma_top.glb",
+        scale: 1,
+        mass: 1,
+        restitution: 1,
+    },
+    [ASSET_TYPE.KEYBOARD]: {
+        PATH: "assets/keyboard.glb",
+        scale: 1,
+        mass: 1,
+        restitution: .2,
+    },
+    [ASSET_TYPE.MONITOR]: {
+        PATH: "assets/monitor.glb",
+        scale: 1,
+        mass: 1,
+        restitution: .2,
+    },
+    [ASSET_TYPE.MOUSE]: {
+        PATH: "assets/mouse.glb",
+        scale: 1,
+        mass: 1,
+        restitution: .2,
+    },
+    [ASSET_TYPE.MOUSEPAD]: {
+        PATH: "assets/mousepad.glb",
+        scale: 1,
+        mass: 1,
+        restitution: .2,
+    },
+    [ASSET_TYPE.NOTEBOOK_CLOSED]: {
+        PATH: "assets/notebook_closed.glb",
+        scale: 1,
+        mass: 1,
+        restitution: 1,
+    },
+    [ASSET_TYPE.NOTEBOOK_OPENED]: {
+        PATH: "assets/notebook_open.glb",
+        scale: 1,
+        mass: 1,
+        restitution: 1,
+    },
+    [ASSET_TYPE.PLANT]: {
+        PATH: "assets/plant.glb",
+        scale: 1,
+        mass: 1,
+        restitution: 1,
     },
     [ASSET_TYPE.TABLET]: {
         PATH: "assets/tablet.glb",
@@ -64,11 +131,12 @@ export const ASSET_CONFIGS = {
         mass: 1,
         restitution: 1
     },
-    [ASSET_TYPE.DESKPHOTO]: {
-        PATH: "assets/deskphoto.glb",
-        scale: 5,
+    // Load in room
+    [ASSET_TYPE.ROOM]: {
+        PATH: "assets/room.glb",
+        scale: 1,
         mass: 1,
-        restitution: 1
+        restitution: .2
     },
     [ASSET_TYPE.CUBE]: {
         // No PATH needed as it's a primitive

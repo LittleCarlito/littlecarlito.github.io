@@ -62,7 +62,7 @@ export class TextContainer {
                     // Create diplomas with specific UI handling
                     (async () => {
                         // Load the diploma asset first
-                        const asset_config = ASSET_CONFIGS[ASSET_TYPE.DIPLOMA];
+                        const asset_config = ASSET_CONFIGS[ASSET_TYPE.DIPLOMA_BOT];
                         const gltf = await AssetStorage.get_instance().loader.loadAsync(asset_config.PATH);
                         
                         // Create two instances
