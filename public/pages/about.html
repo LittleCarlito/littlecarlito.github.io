@@ -373,6 +373,7 @@
         let runner;
         let isVisible = true;
         let resizeTimeout;  // Add this variable for debouncing resize
+        let physicsObjects = []; // Track all physics objects for repositioning
 
         const PHYSICS_CONSTANTS = {
             // Core movement
@@ -425,8 +426,8 @@
 
         function initPhysics() {
             const container = document.getElementById('physics-container');
-            const engine = Matter.Engine.create();
-            const world = engine.world;
+            engine = Matter.Engine.create();
+            world = engine.world;
             
             // Remove gravity entirely
             engine.world.gravity.y = 0;
@@ -446,7 +447,7 @@
                 isVisible = false;
             }
 
-            const render = Matter.Render.create({
+            render = Matter.Render.create({
                 element: container,
                 engine: engine,
                 options: {
@@ -519,6 +520,9 @@
                     Matter.World.add(world, logo);
                     logos.push(logo);
                 });
+
+                // Store logos in global array for resize handling
+                physicsObjects = logos;
 
                 // Improve mouse constraint for better interaction
                 const mouse = Matter.Mouse.create(render.canvas);
@@ -718,17 +722,24 @@
                 
                 const newWidth = container.clientWidth;
                 const newHeight = container.clientHeight;
+                const oldWidth = render ? render.options.width : newWidth;
+                const oldHeight = render ? render.options.height : newHeight;
                 
                 // Resize the physics engine if it exists
-                if (engine && render && world && walls) {
+                if (engine && render && world) {
+                    // Check if we're expanding the container
+                    const isExpanding = newWidth > oldWidth || newHeight > oldHeight;
+                    
                     // Update renderer dimensions
                     render.options.width = newWidth;
                     render.options.height = newHeight;
                     render.canvas.width = newWidth;
                     render.canvas.height = newHeight;
                     
-                    // Remove old walls
-                    Matter.Composite.remove(world, walls);
+                    // Remove old walls if they exist
+                    if (walls && walls.length) {
+                        Matter.Composite.remove(world, walls);
+                    }
                     
                     // Create new walls
                     walls = [
@@ -739,14 +750,44 @@
                     ];
                     Matter.World.add(world, walls);
                     
+                    // If expanding, redistribute any physics objects that might be outside the old bounds
+                    if (isExpanding && physicsObjects.length > 0) {
+                        const radius = 30; // Same as in the initialization
+                        
+                        physicsObjects.forEach(obj => {
+                            // Check if object is too close to the edge or outside the bounds
+                            const isNearEdge = (
+                                obj.position.x < radius + 10 || 
+                                obj.position.x > oldWidth - radius - 10 ||
+                                obj.position.y < radius + 10 || 
+                                obj.position.y > oldHeight - radius - 10
+                            );
+                            
+                            // Reposition objects near the edge to ensure proper distribution
+                            if (isNearEdge) {
+                                const newX = Math.random() * (newWidth - radius * 2) + radius;
+                                const newY = Math.random() * (newHeight - radius * 2) + radius;
+                                
+                                Matter.Body.setPosition(obj, { x: newX, y: newY });
+                                // Also reset velocity to prevent fast objects from immediately hitting walls
+                                Matter.Body.setVelocity(obj, { x: 0, y: 0 });
+                            }
+                        });
+                    }
+                    
                     // Update mouse constraint if it exists
                     if (render.mouse) {
                         render.mouse.element.removeEventListener('mousewheel', render.mouse.mousewheel);
                         render.mouse.element.removeEventListener('DOMMouseScroll', render.mouse.mousewheel);
                         render.mouse = Matter.Mouse.create(render.canvas);
                         
-                        // Update mouse constraint if it exists
-                        const mouseConstraint = Matter.Query.one(world.constraints, (c) => c.label === 'mouse');
+                        // Find and update the mouse constraint
+                        const mouseConstraint = Matter.Query.one(
+                            world.constraints, 
+                            c => c.label === 'mouse' || 
+                                (c.mouseConstraint && c.bodyB === null)
+                        );
+                        
                         if (mouseConstraint) {
                             mouseConstraint.mouse = render.mouse;
                         }
