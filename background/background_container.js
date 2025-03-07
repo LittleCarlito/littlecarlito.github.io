@@ -29,40 +29,189 @@ export class BackgroundContainer {
 
         // Create a promise for the main assets
         const mainAssetsPromise = (async () => {
-            let [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DESKPHOTO, this.object_container, this.world, {},new THREE.Vector3(-5, 5, 5));
-            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DESKPHOTO}`;
-            this.asset_manifest.add(mesh.name);
-            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Desk photo with name: ${mesh.name}`);
-
-            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.TABLET, this.object_container, this.world, {}, new THREE.Vector3(-10, 5, 5));
-            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.TABLET}`;
-            this.asset_manifest.add(mesh.name);
-            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Tablet with name: ${mesh.name}`);
-
-            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DIPLOMA_BOT, this.object_container, this.world, {}, new THREE.Vector3(-10, 5, 0));
-            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DIPLOMA_BOT}`;
-            this.asset_manifest.add(mesh.name);
-            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma with name: ${mesh.name}`);
-
-            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.DESK, this.object_container, this.world, {}, new THREE.Vector3(-5, 15, 0));
-            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DESK}`;
-            this.asset_manifest.add(mesh.name);
-            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Desk with name: ${mesh.name}`);
-
-            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.CHAIR, this.object_container, this.world, {}, new THREE.Vector3(-0, 5, 0));
-            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.CHAIR}`;
-            this.asset_manifest.add(mesh.name);
-            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Chair with name: ${mesh.name}`);
-
-            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.ROOM, this.object_container, this.world, {}, new THREE.Vector3(25, 5, 0));
-            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.ROOM}`;
-            this.asset_manifest.add(mesh.name);
-            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Room with name: ${mesh.name}`);
-
-            [mesh, body] = await asset_loader.spawn_asset(ASSET_TYPE.BOOK, this.object_container, this.world, {}, new THREE.Vector3(10, 5, 0));
+            // Spawn Book
+            let [mesh, body] = await asset_loader.spawn_asset(
+                ASSET_TYPE.BOOK, 
+                this.object_container, 
+                this.world, {}, 
+                new THREE.Vector3(-15, 5, -5)
+            );
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.BOOK}`;
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Book with name: ${mesh.name}`);
+            // Spawn cat
+            [mesh, body] = await asset_loader.spawn_asset(
+                ASSET_TYPE.CAT,
+                this.object_container,
+                this.world, {},
+                new THREE.Vector3(-10, 5, -5)
+            );
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.CAT}`;
+            this.asset_manifest.add(mesh.name);
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Cat with name: ${mesh.name}`);
+            // Spawn Chair
+            [mesh, body] = await asset_loader.spawn_asset(
+                ASSET_TYPE.CHAIR,
+                this.object_container,
+                this.world, {},
+                new THREE.Vector3(-5, 5, -5)
+            );
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.CHAIR}`;
+            this.asset_manifest.add(mesh.name);
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Chair with name: ${mesh.name}`);
+            // Spawn computer
+            [mesh, body] = await asset_loader.spawn_asset(
+                ASSET_TYPE.COMPUTER,
+                this.object_container,
+                this.world, {},
+                new THREE.Vector3(0, 5, -5)
+            );
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.COMPUTER}`;
+            this.asset_manifest.add(mesh.name);
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Computer with name: ${mesh.name}`);
+            // Spawn Desk
+            [mesh, body] = await asset_loader.spawn_asset(
+                ASSET_TYPE.DESK,
+                this.object_container,
+                this.world,
+                {},
+                new THREE.Vector3(5, 5, -5)
+            );
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DESK}`;
+            this.asset_manifest.add(mesh.name);
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Desk with name: ${mesh.name}`);
+            // Spawn Desk photo
+            [mesh, body] = await asset_loader.spawn_asset(
+                ASSET_TYPE.DESKPHOTO,
+                this.object_container,
+                this.world,
+                {},
+                new THREE.Vector3(10, 5, -5)
+            );
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DESKPHOTO}`;
+            this.asset_manifest.add(mesh.name);
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Desk photo with name: ${mesh.name}`);
+            // Spawn Diploma bot
+            [mesh, body] = await asset_loader.spawn_asset(
+                ASSET_TYPE.DIPLOMA_BOT,
+                this.object_container,
+                this.world,
+                {},
+                new THREE.Vector3(15, 5, -5)
+            );
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DIPLOMA_BOT}`;
+            this.asset_manifest.add(mesh.name);
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma Bot with name: ${mesh.name}`);
+            // Spawn Diploma top
+            [mesh, body] = await asset_loader.spawn_asset(
+                ASSET_TYPE.DIPLOMA_TOP,
+                this.object_container,
+                this.world,
+                {},
+                new THREE.Vector3(-15, 5, 0)
+            );
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DIPLOMA_TOP}`;
+            this.asset_manifest.add(mesh.name);
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma Top with name: ${mesh.name}`);
+            // Spawn Keyboard
+            [mesh, body] = await asset_loader.spawn_asset(
+                ASSET_TYPE.KEYBOARD,
+                this.object_container,
+                this.world,
+                {},
+                new THREE.Vector3(-10, 5, 0)
+            );
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.KEYBOARD}`;
+            this.asset_manifest.add(mesh.name);
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Keyboard with name: ${mesh.name}`);
+            // Spawn Monitor
+            [mesh, body] = await asset_loader.spawn_asset(
+                ASSET_TYPE.MONITOR,
+                this.object_container,
+                this.world,
+                {},
+                new THREE.Vector3(-5, 5, 0)
+            );
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.MONITOR}`;
+            this.asset_manifest.add(mesh.name);
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Monitor with name: ${mesh.name}`);
+            // Spawn Mouse
+            [mesh, body] = await asset_loader.spawn_asset(
+                ASSET_TYPE.MOUSE,
+                this.object_container,
+                this.world,
+                {},
+                new THREE.Vector3(0, 5, 0)
+            );
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.MOUSE}`;
+            this.asset_manifest.add(mesh.name);
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Mouse with name: ${mesh.name}`);
+            // Spawn Mousepad
+            [mesh, body] = await asset_loader.spawn_asset(
+                ASSET_TYPE.MOUSEPAD,
+                this.object_container,
+                this.world,
+                {},
+                new THREE.Vector3(5, 5, 0)
+            );
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.MOUSEPAD}`;
+            this.asset_manifest.add(mesh.name);
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Mousepad with name: ${mesh.name}`);
+            // Spawn Notebook closed
+            [mesh, body] = await asset_loader.spawn_asset(
+                ASSET_TYPE.NOTEBOOK_CLOSED,
+                this.object_container,
+                this.world,
+                {},
+                new THREE.Vector3(10, 5, 0)
+            );
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.NOTEBOOK_CLOSED}`;
+            this.asset_manifest.add(mesh.name);
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Notebook closed with name: ${mesh.name}`);
+            // Spawn Notebook opened
+            [mesh, body] = await asset_loader.spawn_asset(
+                ASSET_TYPE.NOTEBOOK_OPENED,
+                this.object_container,
+                this.world,
+                {},
+                new THREE.Vector3(15, 5, 0)
+            );
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.NOTEBOOK_OPENED}`;
+            this.asset_manifest.add(mesh.name);
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Notebook opened with name: ${mesh.name}`);
+            // TODO Spawn Plant
+            [mesh, body] = await asset_loader.spawn_asset(
+                ASSET_TYPE.PLANT,
+                this.object_container,
+                this.world,
+                {},
+                new THREE.Vector3(-15, 5, 5)
+            );
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.PLANT}`;
+            this.asset_manifest.add(mesh.name);
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Plant with name: ${mesh.name}`);
+            // Spawn Room
+            [mesh, body] = await asset_loader.spawn_asset(
+                ASSET_TYPE.ROOM,
+                this.object_container,
+                this.world,
+                {},
+                new THREE.Vector3(-10, 0, 5)
+            );
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.ROOM}`;
+            this.asset_manifest.add(mesh.name);
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Room with name: ${mesh.name}`);
+            // Spawn Tablet
+            [mesh, body] = await asset_loader.spawn_asset(
+                ASSET_TYPE.TABLET,
+                this.object_container,
+                this.world,
+                {},
+                new THREE.Vector3(-15, 5, 5)
+            );
+            mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.TABLET}`;
+            this.asset_manifest.add(mesh.name);
+            if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Tablet with name: ${mesh.name}`);
         })();
 
         // Create all cubes asynchronously
