@@ -437,7 +437,49 @@ export class TextContainer {
     update_iframe_size(incoming_simple_name, incoming_width, incoming_height) {
         const matched_frame = Array.from(this.text_frames.values()).find(frame => (frame.simple_name == incoming_simple_name));
         if(matched_frame) {
+            // Store previous width before update for comparison
+            const previousWidth = matched_frame.pixel_width || 0;
+            
             matched_frame.update_size(incoming_width, incoming_height);
+            
+            // Special handling for contact iframe - notify it about resize
+            // but keep other properties intact to preserve initial positioning
+            if (incoming_simple_name === CATEGORIES.CONTACT.value && matched_frame.iframe.contentWindow) {
+                // Detect extreme resize (from very small to large)
+                const isExtremeResize = previousWidth < 500 && matched_frame.pixel_width > 800;
+                
+                // Send resize message to iframe with additional info for extreme cases
+                matched_frame.iframe.contentWindow.postMessage(
+                    isExtremeResize ? 'extreme-resize' : 'resize', 
+                    '*'
+                );
+                
+                // For extreme resize, also adjust the tablet position slightly
+                if (isExtremeResize) {
+                    // Find the tablet model if available
+                    const tabletModels = this.text_box_container.children
+                        .filter(child => child.name?.includes('tablet'))
+                        .map(child => child.children[0]);
+                    
+                    if (tabletModels.length > 0) {
+                        // Apply subtle scale increase to ensure content fits
+                        tabletModels.forEach(model => {
+                            // Smoothly adjust scale
+                            if (!model.userData.originalScale) {
+                                model.userData.originalScale = model.scale.clone();
+                            }
+                            
+                            // Apply a slight scale increase for extreme resize
+                            const scaleMultiplier = 1.02;
+                            model.scale.set(
+                                model.userData.originalScale.x * scaleMultiplier,
+                                model.userData.originalScale.y * scaleMultiplier,
+                                model.userData.originalScale.z * scaleMultiplier
+                            );
+                        });
+                    }
+                }
+            }
         }
     }
 
