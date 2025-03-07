@@ -44,7 +44,7 @@ export class TextContainer {
         };
         
         // Create asset background private method
-        const create_asset_background = async (incoming_category, incoming_box, asset_type, options = {}) => {
+        const create_asset_background = async (incoming_box, asset_type, options = {}) => {
             // Calculate dimensions to match where the background would be
             this.container_width = this.get_text_box_width();
             this.container_height = this.get_text_box_height();
@@ -53,7 +53,6 @@ export class TextContainer {
             const config = {
                 horizontalStretch: 1.0,
                 verticalStretch: 1.0,
-                rotation: new THREE.Euler(-Math.PI / 2, 0, Math.PI, 'XYZ'),
                 position: new THREE.Vector3(0, 0, -0.05),
                 scaleFactor: 0.12,
                 ...options
@@ -93,7 +92,10 @@ export class TextContainer {
             
             // Position and rotate
             asset.position.copy(config.position);
-            asset.rotation.copy(config.rotation);
+            // Only apply rotation if it was provided in options
+            if (config.rotation) {
+                asset.rotation.copy(config.rotation);
+            }
             
             // Handle materials
             asset.traverse((child) => {
@@ -254,9 +256,10 @@ export class TextContainer {
                 case CATEGORIES.CONTACT.value:
                     // For contact, we want the tablet.glb with iframe but NO background
                     (async () => {
-                        await create_asset_background(category, text_box, ASSET_TYPE.TABLET, {
+                        await create_asset_background(text_box, ASSET_TYPE.TABLET, {
                             horizontalStretch: 1.1,
-                            verticalStretch: 0.6
+                            verticalStretch: 0.6,
+                            rotation: new THREE.Euler(-Math.PI / 2, 0, Math.PI, 'XYZ')
                         });
                     })();
                     // Create iframe but NO background
@@ -269,12 +272,13 @@ export class TextContainer {
                 case CATEGORIES.WORK.value:
                     // Use monitor as background with iframe
                     (async () => {
-                        await create_asset_background(category, text_box, ASSET_TYPE.MONITOR, {
-                            horizontalStretch: 1.2,
-                            verticalStretch: 0.8
+                        await create_asset_background(text_box, ASSET_TYPE.MONITOR, {
+                            horizontalStretch: 2,
+                            verticalStretch: 2,
+                            rotation: new THREE.Euler(Math.PI, Math.PI, Math.PI, 'XYZ')
                         });
                     })();
-                    create_text_frame(category, text_box);
+                    // create_text_frame(category, text_box);
                     break;
                 default:
                     create_background(category, text_box);
