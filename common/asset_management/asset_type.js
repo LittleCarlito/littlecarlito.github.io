@@ -14,7 +14,7 @@ export const ASSET_TYPE = {
     DIPLOMA_BOT: 'education',
     DIPLOMA_TOP: 'DIPOLOMA_TOP',
     KEYBOARD: 'KEYBOARD',
-    MONITOR: 'MONITOR',
+    MONITOR: 'work',
     MOUSE: 'MOUSE',
     MOUSEPAD: 'MOUSEPAD',
     NOTEBOOK_CLOSED: 'NOTEBOOK_CLOSED',
