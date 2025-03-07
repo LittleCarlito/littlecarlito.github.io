@@ -42,6 +42,28 @@ export function get_intersect_list(e, incoming_camera, incoming_scene) {
     mouse_location.y = ndc.y;
     raycaster.setFromCamera(mouse_location, incoming_camera);
     const intersections = raycaster.intersectObject(incoming_scene, true);
-    // Sort intersections by distance (furthest first)
-    return intersections.sort((a, b) => b.distance - a.distance);
+    
+    // First sort by renderOrder (higher values first)
+    // This ensures UI elements with high renderOrder are prioritized
+    // Then sort by distance within the same renderOrder group
+    return intersections.sort((a, b) => {
+        const renderOrderA = a.object.renderOrder || 0;
+        const renderOrderB = b.object.renderOrder || 0;
+        
+        // If renderOrder is different, prioritize higher renderOrder
+        if (renderOrderB !== renderOrderA) {
+            return renderOrderB - renderOrderA;
+        }
+        
+        // Check if either object is a label or contains "label" in its name
+        const isLabelA = a.object.name.includes('label_') || a.object.name.includes('_collision');
+        const isLabelB = b.object.name.includes('label_') || b.object.name.includes('_collision');
+        
+        // If only one is a label, prioritize it
+        if (isLabelA && !isLabelB) return -1;
+        if (!isLabelA && isLabelB) return 1;
+        
+        // Otherwise, sort by distance (closer first for UI elements)
+        return a.distance - b.distance;
+    });
 }

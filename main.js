@@ -34,6 +34,7 @@ let construction_acknowledged = !FLAGS.CONSTRUCTION_GREETING;
 let asset_spawner;
 let asset_activator;
 let isCleanedUp = false; // Track if cleanup has been performed
+let isPhysicsPaused = false; // Track if physics simulation is paused
 
 /** Cleans up resources to prevent memory leaks */
 function cleanup() {
@@ -290,11 +291,198 @@ async function init() {
     }
 }
 
+/** Toggle physics simulation pause state */
+function togglePhysicsPause() {
+    const wasPaused = isPhysicsPaused;
+    isPhysicsPaused = !isPhysicsPaused;
+    
+    // Update the button style if it exists
+    const pauseButton = document.getElementById('physics-pause-button');
+    if (pauseButton) {
+        // Update button color
+        pauseButton.style.backgroundColor = isPhysicsPaused ? '#F9A825' : '#4CAF50'; // Yellow when paused, green when playing
+        
+        // Clear the button content
+        pauseButton.innerHTML = '';
+        
+        // Recreate the icon container
+        const iconSpan = document.createElement('span');
+        iconSpan.style.display = 'inline-block';
+        iconSpan.style.width = '18px';
+        iconSpan.style.height = '12px';
+        iconSpan.style.position = 'relative';
+        iconSpan.style.marginRight = '5px';
+        iconSpan.style.top = '1px';
+        
+        // Create the appropriate icon based on state
+        if (isPhysicsPaused) {
+            // Create play icon (triangle)
+            const playIcon = document.createElement('span');
+            playIcon.style.display = 'block';
+            playIcon.style.width = '0';
+            playIcon.style.height = '0';
+            playIcon.style.borderTop = '6px solid transparent';
+            playIcon.style.borderBottom = '6px solid transparent';
+            playIcon.style.borderLeft = '12px solid white';
+            playIcon.style.position = 'absolute';
+            playIcon.style.left = '3px';
+            playIcon.style.top = '0';
+            iconSpan.appendChild(playIcon);
+        } else {
+            // Create pause icon (two bars)
+            // First bar
+            const bar1 = document.createElement('span');
+            bar1.style.display = 'inline-block';
+            bar1.style.width = '4px';
+            bar1.style.height = '12px';
+            bar1.style.backgroundColor = 'white';
+            bar1.style.position = 'absolute';
+            bar1.style.left = '3px';
+            
+            // Second bar
+            const bar2 = document.createElement('span');
+            bar2.style.display = 'inline-block';
+            bar2.style.width = '4px';
+            bar2.style.height = '12px';
+            bar2.style.backgroundColor = 'white';
+            bar2.style.position = 'absolute';
+            bar2.style.right = '3px';
+            
+            iconSpan.appendChild(bar1);
+            iconSpan.appendChild(bar2);
+        }
+        
+        // Create text span
+        const textSpan = document.createElement('span');
+        textSpan.textContent = isPhysicsPaused ? 'Play Physics' : 'Pause Physics';
+        
+        // Append everything to the button
+        pauseButton.appendChild(iconSpan);
+        pauseButton.appendChild(textSpan);
+    }
+    
+    // If newly paused, freeze all objects in place
+    if (!wasPaused && isPhysicsPaused && AssetStorage.get_instance()) {
+        // Get all dynamic bodies
+        const dynamicBodies = AssetStorage.get_instance().get_all_dynamic_bodies();
+        
+        // Store current state and freeze bodies
+        dynamicBodies.forEach(([mesh, body]) => {
+            // Don't modify grabbed objects
+            if (grabbed_object && mesh.uuid === grabbed_object.uuid) {
+                return;
+            }
+            
+            // Store current velocities
+            const linvel = body.linvel();
+            const angvel = body.angvel();
+            
+            // Also store whether the body was asleep
+            mesh.userData.pausedState = {
+                linvel: { x: linvel.x, y: linvel.y, z: linvel.z },
+                angvel: { x: angvel.x, y: angvel.y, z: angvel.z },
+                wasAsleep: body.isSleeping(),
+                originalPosition: { ...body.translation() }
+            };
+            
+            // Effectively "freeze" the body by removing velocity and adding extreme damping
+            if (body.bodyType() === RAPIER.RigidBodyType.Dynamic) {
+                body.setGravityScale(0, true);
+                body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+                body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+                body.setLinearDamping(999, true);  // Very high damping
+                body.setAngularDamping(999, true);
+                body.sleep();  // Force sleep to save CPU
+            }
+        });
+    }
+    
+    // If resuming physics, restore state of paused objects
+    if (wasPaused && !isPhysicsPaused && AssetStorage.get_instance()) {
+        // Get all dynamic bodies
+        const dynamicBodies = AssetStorage.get_instance().get_all_dynamic_bodies();
+        
+        // Restore physics state for bodies that have stored paused state
+        dynamicBodies.forEach(([mesh, body]) => {
+            if (mesh.userData.pausedState) {
+                // Restore gravity scale (typical value is 1.0)
+                body.setGravityScale(1.0, true);
+                
+                // Reset damping to normal values
+                body.setLinearDamping(0.2, true); // Normal damping
+                body.setAngularDamping(0.7, true);
+                
+                // Check if position has changed during pause
+                const currentPos = body.translation();
+                const originalPos = mesh.userData.pausedState.originalPosition;
+                const wasMovedDuringPause = 
+                    mesh.userData.pausedState.wasMoved || // Check explicit flag
+                    (originalPos && 
+                    (Math.abs(currentPos.x - originalPos.x) > 0.001 || 
+                     Math.abs(currentPos.y - originalPos.y) > 0.001 || 
+                     Math.abs(currentPos.z - originalPos.z) > 0.001));
+                
+                // Apply stored velocity or impulse if available
+                if (mesh.userData.pausedState.plannedImpulse) {
+                    body.applyImpulse(mesh.userData.pausedState.plannedImpulse, true);
+                    body.wakeUp(); // Always wake up objects with applied impulse
+                } else if (mesh.userData.pausedState.linvel && !wasMovedDuringPause) {
+                    // Only restore velocity if the object wasn't moved during pause
+                    body.setLinvel(mesh.userData.pausedState.linvel, true);
+                    
+                    // Set angular velocity if available
+                    if (mesh.userData.pausedState.angvel) {
+                        body.setAngvel(mesh.userData.pausedState.angvel, true);
+                    }
+                    
+                    // Wake up only if it wasn't asleep before OR if there's velocity
+                    const hasVelocity = 
+                        Math.abs(mesh.userData.pausedState.linvel.x) > 0.001 || 
+                        Math.abs(mesh.userData.pausedState.linvel.y) > 0.001 || 
+                        Math.abs(mesh.userData.pausedState.linvel.z) > 0.001;
+                        
+                    if (!mesh.userData.pausedState.wasAsleep || hasVelocity) {
+                        body.wakeUp();
+                    }
+                } else {
+                    // Always wake up objects that were moved during pause
+                    // This ensures gravity will act on them
+                    if (wasMovedDuringPause) {
+                        // For objects moved during pause, ensure they're awake to be affected by gravity
+                        body.wakeUp();
+                        
+                        // Apply a tiny impulse to ensure the physics engine recognizes it's not at rest
+                        // This helps prevent the "floating objects" issue
+                        body.applyImpulse({ x: 0, y: 0.001, z: 0 }, true);
+                    }
+                }
+                
+                // Clear the paused state
+                delete mesh.userData.pausedState;
+            }
+        });
+    }
+    
+    if (FLAGS.PHYSICS_LOGS) {
+        console.log(`Physics simulation ${isPhysicsPaused ? 'paused' : 'resumed'}`);
+    }
+    
+    // Make the state available to other modules
+    window.isPhysicsPaused = isPhysicsPaused;
+    
+    return isPhysicsPaused;
+}
+
+// Make the function available globally for the debug UI
+window.togglePhysicsPause = togglePhysicsPause;
+
 /** Primary animation function run every frame by renderer */
 function animate() {
     const delta = clock.getDelta();
-    // Handle the overlay
+    
+    // Handle tweens and UI animations (always run regardless of physics pause)
     updateTween();
+    
     if(resize_move) {
         if(!zoom_event) {
             viewable_container.resize_reposition();
@@ -303,6 +491,30 @@ function animate() {
         }
         resize_move = false;
     }
+    
+    // Check if a text container is active, and pause physics if needed
+    const isTextActive = viewable_container.is_text_active();
+    
+    // Track text container state to detect changes
+    if (!window.previousTextContainerState && isTextActive && !isPhysicsPaused) {
+        // Text container just became active, pause physics
+        if (FLAGS.SELECT_LOGS) {
+            console.log('Pausing physics due to text container activation');
+        }
+        window.textContainerPausedPhysics = true;
+        togglePhysicsPause();
+    } else if (window.previousTextContainerState && !isTextActive && isPhysicsPaused && window.textContainerPausedPhysics) {
+        // Text container was active but is no longer active, restore physics
+        if (FLAGS.SELECT_LOGS) {
+            console.log('Resuming physics due to text container deactivation');
+        }
+        window.textContainerPausedPhysics = false;
+        togglePhysicsPause();
+    }
+    
+    // Store current state for next frame comparison
+    window.previousTextContainerState = isTextActive;
+    
     // Handle the physics objects
     if(viewable_container.get_overlay().is_intersected() != null) {
         asset_activator.activate_object(viewable_container.get_intersected_name());
@@ -316,15 +528,38 @@ function animate() {
         asset_activator.deactivate_all_objects();
     }
     
-    // Run physics simulation
+    // Process physics simulation (can be paused)
     world.timestep = Math.min(delta, 0.1);
-    world.step();
+    if (!isPhysicsPaused) {
+        world.step();
+    }
     
-    // Background object updates
-    background_container.update(grabbed_object, viewable_container);
-    AssetStorage.get_instance().update();
+    // Always update menu animations and user interactions
+    // These handle spawning and sign animations, even when physics is paused
+    if (background_container) {
+        background_container.update(grabbed_object, viewable_container);
+    }
     
-    // Update confetti particles
+    // Update physics-dependent objects
+    if (AssetStorage.get_instance()) {
+        if (!isPhysicsPaused) {
+            // Full physics update when not paused
+            AssetStorage.get_instance().update();
+        } else if (grabbed_object) {
+            // When paused, only update grabbed objects
+            const body_pair = AssetStorage.get_instance().get_body_pair_by_mesh(grabbed_object);
+            if (body_pair) {
+                const [mesh, body] = body_pair;
+                const position = body.translation();
+                mesh.position.set(position.x, position.y, position.z);
+                const rotation = body.rotation();
+                mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+            }
+        }
+    }
+    
+    // Always update visual elements even when physics is paused
+    // Update confetti particles (immune from physics pause - uses its own physics calculations)
     viewable_container.get_overlay().update_confetti();
     
     // Ensure regular cleanup of unused resources

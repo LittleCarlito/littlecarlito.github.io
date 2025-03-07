@@ -91,6 +91,16 @@ export class ViewableContainer {
     }
     
     handle_mouse_up(found_intersections){
+        // Log the state when debugging is enabled
+        if(FLAGS.SELECT_LOGS) {
+            console.log("Mouse up handler:", {
+                is_column_left: this.is_column_left_side(),
+                found_intersections: found_intersections.length > 0 ? 
+                    found_intersections[0].object.name : 'none',
+                focused_text: this.is_text_active() ? this.get_active_name() : 'none'
+            });
+        }
+
         if(this.is_column_left_side()){
             if(found_intersections.length > 0){
                 const intersected_object = found_intersections[0].object;
@@ -119,21 +129,45 @@ export class ViewableContainer {
                 const intersected_object = found_intersections[0].object;
                 const object_name = intersected_object.name;
                 const name_type = extract_type(intersected_object);
+                
+                if(FLAGS.SELECT_LOGS) {
+                    console.log("Right column click:", {
+                        object_name,
+                        name_type
+                    });
+                }
+                
                 switch(name_type) {
                     case TYPES.LABEL:
                         if(FLAGS.SELECT_LOGS) {
-                            console.log(object_name, "clicked up");
+                            console.log(object_name, "clicked up on right side");
                         }
+                        // When labels are on right side, clicking a label should focus that text box
                         this.focus_text_box(object_name);
                         break;
                     case TYPES.LINK:
                         this.open_link(object_name.split("_")[1].trim());
                         break;
+                    case TYPES.TEXT:
+                    case TYPES.TEXT_BLOCK:
+                    case TYPES.BACKGROUND:
+                        // Clicking on text elements should not swap sides
+                        if(FLAGS.SELECT_LOGS) {
+                            console.log("Clicked on text element, not swapping sides");
+                        }
+                        break;
                     default:
+                        if(FLAGS.SELECT_LOGS) {
+                            console.log("Clicked outside elements, swapping sides");
+                        }
                         this.swap_sides();
                         this.lose_focus_text_box(WEST);
                 }
             } else {
+                // No intersection when labels are on right side - swap sides
+                if(FLAGS.SELECT_LOGS) {
+                    console.log("No intersection, swapping sides");
+                }
                 this.swap_sides();
                 this.lose_focus_text_box(WEST);
             }
@@ -141,6 +175,14 @@ export class ViewableContainer {
     }
 
     handle_mouse_down(found_intersections) {
+        if(FLAGS.SELECT_LOGS) {
+            console.log("Mouse down handler:", {
+                is_column_left: this.is_column_left_side(),
+                found_intersections: found_intersections.length > 0 ? 
+                    found_intersections[0].object.name : 'none'
+            });
+        }
+
         if(found_intersections.length > 0) {
             const intersected_object = found_intersections[0].object;
             const object_name = intersected_object.name;

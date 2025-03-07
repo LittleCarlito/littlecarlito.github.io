@@ -15,7 +15,8 @@ export class ScrollMenu {
         sign: null,
         anchor: null
     };
-    // Animation state
+    // Object state
+    is_grabbed = false;
     is_animating = false;
     animation_start_time = 0;
     animation_duration = 100.0; // seconds - changed from 1.0 to 100.0 to slow down animation by 100x
@@ -33,10 +34,10 @@ export class ScrollMenu {
             RADIUS: 0.1,
             DAMPING: 1,
             MASS: 1,
-            RESTITUTION: 0.01,
+            RESTITUTION: 0.01,    // Keep low restitution to prevent bouncing
             FRICTION: 1.0,
-            LINEAR_DAMPING: 2.0,  // Increased from 0.8
-            ANGULAR_DAMPING: 2.0, // Increased from 1.0
+            LINEAR_DAMPING: 1.2,  // Reduced from 2.0 to allow more natural movement
+            ANGULAR_DAMPING: 1.5, // Reduced from 2.0 to allow more natural rotation
             GRAVITY_SCALE: 0.3,
             SPAWN_DELAY: 100      // Delay between segment spawns in ms
         },
@@ -196,9 +197,9 @@ export class ScrollMenu {
             );
 
         joint_desc.limitsEnabled = true;
-        joint_desc.limits = [-Math.PI/12, Math.PI/12];
-        joint_desc.stiffness = 150.0;
-        joint_desc.damping = 30.0;
+        joint_desc.limits = [-Math.PI/2, Math.PI/2]; // Increased from PI/12 to allow more stretching
+        joint_desc.stiffness = 250.0; // Increased from 150.0 to make it more resistant to initial stretching
+        joint_desc.damping = 15.0;   // Reduced from 30.0 to make it less "underwater" feeling but still absorb energy
 
         const created_joint = this.world.createImpulseJoint(
             joint_desc,
@@ -402,6 +403,13 @@ export class ScrollMenu {
                     {x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/2 - 0.15, z: 0},  // Match chain segment spacing
                     {x: 0, y: this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT/2 + 0.15, z: 0}   // Match chain segment spacing
                 );
+                
+                // Apply the same joint properties to the sign joint
+                finalJointDesc.limitsEnabled = true;
+                finalJointDesc.limits = [-Math.PI/8, Math.PI/8];
+                finalJointDesc.stiffness = 250.0;
+                finalJointDesc.damping = 15.0;
+                
                 const signJoint = this.world.createImpulseJoint(
                     finalJointDesc,
                     previous_body,
@@ -548,7 +556,7 @@ export class ScrollMenu {
             });
 
             // Convert sign body from kinematic to dynamic if it exists
-            if (this.sign_body && this.world) {
+            if (this.sign_body && this.world && !this.is_grabbed) {
                 try {
                     // Change body type to dynamic
                     this.sign_body.setBodyType(RAPIER.RigidBodyType.Dynamic);
@@ -735,11 +743,6 @@ export class ScrollMenu {
                 });
                 this.debug_meshes.joints = [];
             }
-            
-            // DO NOT REMOVE THE SIGN DEBUG MESH - KEEP IT
-            // if (this.debug_meshes.sign) {
-            //     this.parent.remove(this.debug_meshes.sign);
-            // }
 
             // Remove all joints with null check
             if (this.chain_joints) {

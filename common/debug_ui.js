@@ -13,12 +13,18 @@ let autoThrottleEnabled = true;
 let manualResolutionScale = 1.0;
 let currentResolutionScale = 1.0;
 let lastThrottleCheck = 0;
-const THROTTLE_CHECK_INTERVAL = 1000; // Check every 1 second
-const DEFAULT_LOW_FPS_THRESHOLD = 35;  // Default threshold for reducing resolution
-const DEFAULT_HIGH_FPS_THRESHOLD = 50; // Default threshold for increasing resolution
+const THROTTLE_CHECK_INTERVAL = 2000; // Check every 2 seconds (increased from 1 second)
+const DEFAULT_LOW_FPS_THRESHOLD = 30;  // Lower threshold (was 35)
+const DEFAULT_HIGH_FPS_THRESHOLD = 55; // Higher threshold (was 50)
 let LOW_FPS_THRESHOLD = DEFAULT_LOW_FPS_THRESHOLD;
 let HIGH_FPS_THRESHOLD = DEFAULT_HIGH_FPS_THRESHOLD;
-let throttleStabilityCounter = 0; // Counter to prevent rapid oscillations
+let throttleStabilityCounter = 0;
+// Add counters for both up and down transitions
+let throttleUpStabilityCounter = 0;
+let throttleDownStabilityCounter = 0;
+// Required stability counts
+const REQUIRED_STABILITY_COUNT_UP = 4;   // More stability required for upscaling (was 3)
+const REQUIRED_STABILITY_COUNT_DOWN = 2; // Less stability required for downscaling
 let maxFpsLimit = 60; // Default max FPS limit
 
 // FPS limiting variables
@@ -27,6 +33,9 @@ let frameDelta = 0;
 
 // Reference to the background container
 let backgroundContainer = null;
+
+// Add a new variable for tracking when a resolution change is in progress
+let resolutionChangeInProgress = false;
 
 /**
  * Creates a debug UI that shows performance metrics
@@ -158,6 +167,115 @@ export function createDebugUI() {
     divider.style.borderBottom = '1px solid #555';
     divider.style.margin = '0 0 10px 0';
     debugUI.appendChild(divider);
+    
+    // Add physics control section title
+    const physicsTitle = document.createElement('div');
+    physicsTitle.textContent = 'Physics Control';
+    physicsTitle.style.fontWeight = 'bold';
+    physicsTitle.style.marginBottom = '8px';
+    debugUI.appendChild(physicsTitle);
+    
+    // Add pause/play physics button
+    const pauseButton = document.createElement('button');
+    pauseButton.id = 'physics-pause-button';
+    
+    // Create a container for the icon
+    const iconSpan = document.createElement('span');
+    iconSpan.style.display = 'inline-block';
+    iconSpan.style.width = '18px';
+    iconSpan.style.height = '12px';
+    iconSpan.style.position = 'relative';
+    iconSpan.style.marginRight = '5px';
+    iconSpan.style.top = '1px';
+    
+    // Create play icon (single triangle)
+    const playIcon = document.createElement('span');
+    playIcon.style.display = 'none'; // Initially hidden
+    playIcon.style.width = '0';
+    playIcon.style.height = '0';
+    playIcon.style.borderTop = '6px solid transparent';
+    playIcon.style.borderBottom = '6px solid transparent';
+    playIcon.style.borderLeft = '12px solid white';
+    playIcon.style.position = 'absolute';
+    playIcon.style.left = '3px';
+    playIcon.style.top = '0';
+    
+    // Create pause icon (two bars)
+    const pauseIcon = document.createElement('span');
+    pauseIcon.style.display = 'inline-block'; // Initially shown
+    pauseIcon.style.position = 'absolute';
+    pauseIcon.style.width = '100%';
+    pauseIcon.style.height = '100%';
+    pauseIcon.style.left = '0';
+    
+    // First bar
+    const bar1 = document.createElement('span');
+    bar1.style.display = 'inline-block';
+    bar1.style.width = '4px';
+    bar1.style.height = '12px';
+    bar1.style.backgroundColor = 'white';
+    bar1.style.position = 'absolute';
+    bar1.style.left = '3px';
+    
+    // Second bar
+    const bar2 = document.createElement('span');
+    bar2.style.display = 'inline-block';
+    bar2.style.width = '4px';
+    bar2.style.height = '12px';
+    bar2.style.backgroundColor = 'white';
+    bar2.style.position = 'absolute';
+    bar2.style.right = '3px';
+    
+    // Assemble icons
+    pauseIcon.appendChild(bar1);
+    pauseIcon.appendChild(bar2);
+    iconSpan.appendChild(pauseIcon);
+    iconSpan.appendChild(playIcon);
+    
+    // Create text span
+    const textSpan = document.createElement('span');
+    textSpan.textContent = 'Pause Physics';
+    
+    // Add both to button
+    pauseButton.appendChild(iconSpan);
+    pauseButton.appendChild(textSpan);
+    
+    pauseButton.style.width = '100%';
+    pauseButton.style.padding = '6px';
+    pauseButton.style.backgroundColor = '#4CAF50'; // Green when physics is active
+    pauseButton.style.border = 'none';
+    pauseButton.style.borderRadius = '3px';
+    pauseButton.style.color = 'white';
+    pauseButton.style.cursor = 'pointer';
+    pauseButton.style.marginBottom = '10px';
+    pauseButton.style.fontWeight = 'bold';
+    pauseButton.style.transition = 'all 0.2s';
+    pauseButton.style.textAlign = 'center';
+    
+    // Add hover effect
+    pauseButton.addEventListener('mouseenter', function() {
+        this.style.opacity = '0.9';
+    });
+    
+    pauseButton.addEventListener('mouseleave', function() {
+        this.style.opacity = '1';
+    });
+    
+    // Add click event to toggle physics
+    pauseButton.addEventListener('click', function() {
+        if (window.togglePhysicsPause) {
+            const isPaused = window.togglePhysicsPause();
+            // The togglePhysicsPause function now handles rebuilding the button
+        }
+    });
+    
+    debugUI.appendChild(pauseButton);
+    
+    // Add another divider
+    const divider2 = document.createElement('div');
+    divider2.style.borderBottom = '1px solid #555';
+    divider2.style.margin = '0 0 10px 0';
+    debugUI.appendChild(divider2);
     
     // Add resolution control section title
     const resolutionTitle = document.createElement('div');
@@ -337,10 +455,10 @@ export function createDebugUI() {
     debugUI.appendChild(fpsDropdownContainer);
     
     // Add divider
-    const divider2 = document.createElement('div');
-    divider2.style.borderBottom = '1px solid #555';
-    divider2.style.margin = '10px 0';
-    debugUI.appendChild(divider2);
+    const divider3 = document.createElement('div');
+    divider3.style.borderBottom = '1px solid #555';
+    divider3.style.margin = '10px 0';
+    debugUI.appendChild(divider3);
     
     // Create a container for the debug toggles section (keep this visible)
     const debugTogglesTitle = document.createElement('div');
@@ -374,10 +492,10 @@ export function createDebugUI() {
     addToggle(debugUI, 'SPOTLIGHT_VISUAL_DEBUG', 'Spotlight Debug');
     
     // Add divider
-    const divider3 = document.createElement('div');
-    divider3.style.borderBottom = '1px solid #555';
-    divider3.style.margin = '10px 0';
-    debugUI.appendChild(divider3);
+    const divider4 = document.createElement('div');
+    divider4.style.borderBottom = '1px solid #555';
+    divider4.style.margin = '10px 0';
+    debugUI.appendChild(divider4);
     
     // Create a container for the log flags section
     const logFlagsContainer = document.createElement('div');
@@ -617,30 +735,61 @@ export function setBackgroundContainer(container) {
 export function setResolutionScale(scale) {
     // Clamp scale between 0.25 and 1.5
     scale = Math.max(0.25, Math.min(1.5, scale));
+    
+    // If no change in scale or change already in progress, just return
+    if (Math.abs(currentResolutionScale - scale) < 0.01 || resolutionChangeInProgress) {
+        return scale;
+    }
+    
+    // Mark resolution change as in progress
+    resolutionChangeInProgress = true;
+    
+    // Store previous scale for reference
+    const previousScale = currentResolutionScale;
     currentResolutionScale = scale;
     
-    // Update renderer if available
+    console.log(`Resolution scale changing from ${previousScale.toFixed(2)} to ${scale.toFixed(2)}`);
+    
     if (window.renderer) {
-        window.renderer.setPixelRatio(window.devicePixelRatio * scale);
-    }
-    
-    // Update display
-    const resolutionDisplay = document.getElementById('resolution-scale-display');
-    if (resolutionDisplay) {
-        // Add indicator if auto-throttle is enabled
-        const indicator = autoThrottleEnabled ? ' 🔄' : '';
-        resolutionDisplay.textContent = `Resolution Scale: ${Math.round(scale * 100)}%${indicator}`;
+        // First update the UI to reflect the change
+        const resolutionDisplay = document.getElementById('resolution-scale-display');
+        if (resolutionDisplay) {
+            // Add indicator if auto-throttle is enabled
+            const indicator = autoThrottleEnabled ? ' 🔄' : '';
+            resolutionDisplay.textContent = `Resolution Scale: ${Math.round(scale * 100)}%${indicator}`;
+            
+            // Flash the display briefly when changed
+            resolutionDisplay.style.transition = 'color 0.5s';
+            resolutionDisplay.style.color = '#4CAF50'; // Green flash
+            setTimeout(() => {
+                resolutionDisplay.style.color = 'white';
+            }, 500);
+        }
         
-        // Flash the display briefly when changed
-        resolutionDisplay.style.transition = 'color 0.5s';
-        resolutionDisplay.style.color = '#4CAF50'; // Green flash
-        setTimeout(() => {
-            resolutionDisplay.style.color = 'white';
-        }, 500);
+        // Update dropdown value if it exists
+        updateDropdownValue(scale);
+        
+        // Apply the new pixel ratio with proper handling to avoid flash
+        if (typeof window.renderer.setPixelRatio === 'function') {
+            window.renderer.setPixelRatio(window.devicePixelRatio * scale);
+            
+            // After a short delay, mark resolution change as complete
+            setTimeout(() => {
+                resolutionChangeInProgress = false;
+            }, 600); // Wait longer than the full transition to prevent rapid changes
+        } else {
+            // Fallback to basic renderer pixel ratio change
+            window.renderer.setPixelRatio(window.devicePixelRatio * scale);
+            
+            // After a short delay, mark resolution change as complete
+            setTimeout(() => {
+                resolutionChangeInProgress = false;
+            }, 300);
+        }
+    } else {
+        // If no renderer available, just mark as complete
+        resolutionChangeInProgress = false;
     }
-    
-    // Update dropdown value if it exists
-    updateDropdownValue(scale);
     
     return scale;
 }
@@ -807,6 +956,9 @@ function updateFPS() {
     
     if (elapsed >= 1000) {
         currentFps = Math.round((frameCount * 1000) / elapsed);
+        frameCount = 0;
+        lastTime = now;
+        
         const fpsDisplay = document.getElementById('fps-display');
         if (fpsDisplay) {
             // Show current FPS with target if not using auto-throttle
@@ -824,31 +976,46 @@ function updateFPS() {
             }
         }
         
+        // Update other debug info if visible
+        updateDebugInfo();
+        
         // Check if we should adjust resolution based on performance
-        if (autoThrottleEnabled && now - lastThrottleCheck > THROTTLE_CHECK_INTERVAL) {
+        if (autoThrottleEnabled && now - lastThrottleCheck > THROTTLE_CHECK_INTERVAL && !resolutionChangeInProgress) {
             lastThrottleCheck = now;
             
             // Auto-throttle logic with stepped values and stability control
             const steps = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5];
             const currentIndex = steps.findIndex(step => step >= currentResolutionScale);
             
+            // Use separate stability counters for up and down scaling
             if (currentFps < LOW_FPS_THRESHOLD && currentResolutionScale > 0.25) {
-                // Reduce resolution immediately when FPS is too low
-                const newScale = steps[Math.max(0, currentIndex - 1)];
+                // Increment down counter and reset up counter
+                throttleDownStabilityCounter++;
+                throttleUpStabilityCounter = 0;
                 
-                // Only update if it's actually a change
-                if (newScale < currentResolutionScale) {
-                    setResolutionScale(newScale);
-                    console.log(`Auto-throttle: Reducing resolution to ${newScale.toFixed(2)} (${Math.round(newScale * 100)}%) - FPS: ${currentFps}`);
-                    // Reset stability counter when we change resolution
-                    throttleStabilityCounter = 0;
+                // Only downscale after sustained low performance
+                if (throttleDownStabilityCounter >= REQUIRED_STABILITY_COUNT_DOWN) {
+                    // Reduce resolution when FPS is consistently too low
+                    const newScale = steps[Math.max(0, currentIndex - 1)];
+                    
+                    // Only update if it's actually a change
+                    if (newScale < currentResolutionScale) {
+                        setResolutionScale(newScale);
+                        console.log(`Auto-throttle: Reducing resolution to ${newScale.toFixed(2)} (${Math.round(newScale * 100)}%) - FPS: ${currentFps}`);
+                        // Reset stability counters
+                        throttleDownStabilityCounter = 0;
+                        throttleUpStabilityCounter = 0;
+                    }
+                } else {
+                    console.log(`Auto-throttle: Low performance detected (${throttleDownStabilityCounter}/${REQUIRED_STABILITY_COUNT_DOWN}) - FPS: ${currentFps}`);
                 }
-            } else if (currentFps > HIGH_FPS_THRESHOLD && currentResolutionScale < 1.0) {
-                // For increasing resolution, use stability counter to ensure sustained good performance
-                throttleStabilityCounter++;
+            } else if (currentFps > HIGH_FPS_THRESHOLD && currentResolutionScale < 1.5) {
+                // Increment up counter and reset down counter
+                throttleUpStabilityCounter++;
+                throttleDownStabilityCounter = 0;
                 
-                // Only increase resolution if we've had good performance for at least 3 consecutive checks
-                if (throttleStabilityCounter >= 3) {
+                // Only increase resolution if we've had good performance for required checks
+                if (throttleUpStabilityCounter >= REQUIRED_STABILITY_COUNT_UP) {
                     const newScale = steps[Math.min(steps.length - 1, currentIndex + 1)];
                     
                     // Only update if it's actually a change
@@ -856,14 +1023,16 @@ function updateFPS() {
                         setResolutionScale(newScale);
                         console.log(`Auto-throttle: Increasing resolution to ${newScale.toFixed(2)} (${Math.round(newScale * 100)}%) - FPS: ${currentFps}`);
                     }
-                    // Reset stability counter after changing resolution
-                    throttleStabilityCounter = 0;
+                    // Reset stability counters
+                    throttleUpStabilityCounter = 0;
+                    throttleDownStabilityCounter = 0;
                 } else {
-                    console.log(`Auto-throttle: Good performance detected (${throttleStabilityCounter}/3) - FPS: ${currentFps}`);
+                    console.log(`Auto-throttle: Good performance detected (${throttleUpStabilityCounter}/${REQUIRED_STABILITY_COUNT_UP}) - FPS: ${currentFps}`);
                 }
             } else {
-                // Reset stability counter if FPS is in the middle range
-                throttleStabilityCounter = 0;
+                // Reset stability counters if FPS is in the middle range
+                throttleUpStabilityCounter = 0;
+                throttleDownStabilityCounter = 0;
             }
         }
         
@@ -895,12 +1064,58 @@ function updateFPS() {
                 texturesInfo.textContent = `Textures: ${info.memory.textures || '--'}`;
             }
         }
-        
-        frameCount = 0;
-        lastTime = now;
     }
     
+    // Request next frame
     requestAnimationFrame(updateFPS);
+}
+
+/**
+ * Updates additional debug info like draw calls, triangles, etc.
+ */
+function updateDebugInfo() {
+    // Only update if renderer is available
+    if (!window.renderer) return;
+    
+    // Get renderer info
+    const renderer = window.renderer;
+    let info;
+    
+    // Handle both direct WebGLRenderer and our AppRenderer class
+    if (renderer.info) {
+        // Direct WebGLRenderer
+        info = renderer.info;
+    } else if (renderer.get_renderer && renderer.get_renderer().info) {
+        // Our AppRenderer class
+        info = renderer.get_renderer().info;
+    } else {
+        // Can't get info
+        return;
+    }
+    
+    // Update draw calls
+    const drawCallsInfo = document.getElementById('draw-calls-info');
+    if (drawCallsInfo && info.render) {
+        drawCallsInfo.textContent = `Draw calls: ${info.render.calls || 0}`;
+    }
+    
+    // Update triangles
+    const trianglesInfo = document.getElementById('triangles-info');
+    if (trianglesInfo && info.render) {
+        trianglesInfo.textContent = `Triangles: ${info.render.triangles || 0}`;
+    }
+    
+    // Update geometries
+    const geometriesInfo = document.getElementById('geometries-info');
+    if (geometriesInfo && info.memory) {
+        geometriesInfo.textContent = `Geometries: ${info.memory.geometries || 0}`;
+    }
+    
+    // Update textures
+    const texturesInfo = document.getElementById('textures-info');
+    if (texturesInfo && info.memory) {
+        texturesInfo.textContent = `Textures: ${info.memory.textures || 0}`;
+    }
 }
 
 /**

@@ -18,6 +18,7 @@ export class TextFrame {
     iframe;
     css_div;
     particles = [];
+    wasVerySmall = false;
     
     constructor(incoming_parent, incoming_camera, incoming_width, incoming_height) {
         this.parent = incoming_parent;
@@ -64,5 +65,31 @@ export class TextFrame {
         this.iframe.style.width = `${this.pixel_width}px`;
         this.iframe.style.height = `${this.pixel_height}px`;
         this.iframe.style.border = '0px';
+        
+        // Special handling for contact iframe - add transition for smooth resizing
+        if (this.css_div && this.css_div.simple_name === CATEGORIES.CONTACT.value) {
+            // Add a smooth transition for size changes
+            this.iframe.style.transition = 'width 0.3s ease, height 0.3s ease';
+            
+            // Check for extreme resize case
+            const isExtremeResize = this.wasVerySmall && this.pixel_width > 800;
+            
+            if (isExtremeResize) {
+                // Add special handling for extreme resize cases
+                // Very slight z-position adjustment to ensure content stays visible
+                this.css_div.position.z = 0.055;
+            } else {
+                // Normal z-position
+                this.css_div.position.z = 0.05;
+            }
+            
+            // Track if we were in a very small state
+            this.wasVerySmall = this.pixel_width < 500;
+            
+            // Notify the iframe content window about the resize
+            if (this.iframe.contentWindow) {
+                this.iframe.contentWindow.postMessage('resize', '*');
+            }
+        }
     }
 }

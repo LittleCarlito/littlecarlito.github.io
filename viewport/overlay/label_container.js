@@ -4,6 +4,7 @@ import { TEXTURE_LOADER, TYPES, PAN_SPEED, ROTATE_SPEED, FOCUS_ROTATION } from '
 import { Easing, FLAGS, THREE, Tween } from '../../common';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
+import { getFontPath } from '../../common/utils/fontUtils.js';
 
 export class LabelContainer {
     in_tween_map = new Map();
@@ -46,10 +47,8 @@ export class LabelContainer {
 
     async loadFont() {
         try {
-            // Determine the correct font path based on deployment environment
-            const fontPath = window.location.hostname === 'littlecarlito.github.io' 
-                ? '/threejs_site/fonts/quicksand_regular.json'
-                : '/fonts/quicksand_regular.json';
+            // Use the utility to determine the correct font path
+            const fontPath = getFontPath('quicksand_regular.json');
                 
             if (FLAGS.ASSET_LOGS) console.log(`Attempting to load font from: ${fontPath}`);
             
@@ -201,10 +200,17 @@ export class LabelContainer {
     }
 
     swap_sides() {
+        // Reset any hover state when swapping sides to prevent hover issues
+        this.reset_previous_intersected();
+        
         this.is_column_left = !this.is_column_left;
         const x_position = this.get_column_x_position(this.is_column_left);
         const y_position = this.get_column_y_position(this.is_column_left);
         const y_rotation = this.get_column_y_rotation(this.is_column_left);
+        
+        if (FLAGS.ROTATION_TWEEN_LOGS) {
+            console.log(`[RotationTween] Swapping sides to ${this.is_column_left ? 'left' : 'right'}`);
+        }
         
         // Move column across the screen
         this.swapping_column_sides = true;
@@ -214,6 +220,9 @@ export class LabelContainer {
         .start()
         .onComplete(() => {
             this.swapping_column_sides = false;
+            if (FLAGS.ROTATION_TWEEN_LOGS) {
+                console.log('[RotationTween] Swap sides complete');
+            }
         });
 
         // Rotate the column as it moves
@@ -253,6 +262,7 @@ export class LabelContainer {
             console.log(`[RotationTween] Hover detected on object: ${intersected_object.name}`);
             console.log(`[RotationTween] Current rotation: ${JSON.stringify(intersected_object.rotation)}`);
             console.log(`[RotationTween] Swapping sides status: ${this.swapping_column_sides}`);
+            console.log(`[RotationTween] Is column left: ${this.is_column_left}`);
         }
 
         // Don't process hovers while swapping sides
@@ -281,6 +291,8 @@ export class LabelContainer {
         let in_tween = this.in_tween_map.get(object_name);
         
         if(in_tween == null) {
+            // Only change hover if we're hovering over a different element
+            // This prevents hover state from being reset on the same element
             if(this.current_intersected !== target_object) {
                 // Reset previously intersected object if one existed
                 this.reset_previous_intersected();
@@ -309,6 +321,7 @@ export class LabelContainer {
                     if (FLAGS.ROTATION_TWEEN_LOGS) {
                         console.log(`[RotationTween] Tween complete for ${object_name}. Final rotation:`, target_object.rotation.y);
                     }
+                    // Explicitly set the rotation to ensure it reached the target value
                     target_object.rotation.y = final_rotation;
                     this.in_tween_map.delete(object_name);
                 });
@@ -334,12 +347,14 @@ export class LabelContainer {
                 }
             }
             
+            // Stop any existing animation
             const existing_tween = this.in_tween_map.get(object_to_reset.name);
             if (existing_tween) {
                 existing_tween.stop();
                 this.in_tween_map.delete(object_to_reset.name);
             }
             
+            // Reset to default rotation
             let deselected_rotation = 0;
             const reset_tween = new Tween(object_to_reset.rotation)
             .to({ y: deselected_rotation}, 400)
@@ -349,9 +364,11 @@ export class LabelContainer {
                 if (FLAGS.ROTATION_TWEEN_LOGS) {
                     console.log(`[RotationTween] Reset complete for ${object_to_reset.name}. Final rotation:`, object_to_reset.rotation.y);
                 }
-                object_to_reset.rotation.y = 0;
+                // Explicitly set rotation to ensure it reached the target value
+                object_to_reset.rotation.y = deselected_rotation;
             });
             
+            // Clear the current intersected reference
             this.current_intersected = null;
         }
     }
