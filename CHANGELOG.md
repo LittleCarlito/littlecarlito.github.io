@@ -1,3 +1,14 @@
+## [0.7.2](https://github.com/LittleCarlito/threejs_site/compare/v0.7.1...v0.7.2) (2025-03-08)
+
+
+### Bug Fixes
+
+* background hover ui filter ([4dbee6c](https://github.com/LittleCarlito/threejs_site/commit/4dbee6c72b551df8b42306e0a26aa9bce8b84395))
+* build error ([fbe54da](https://github.com/LittleCarlito/threejs_site/commit/fbe54da3d935dd4e59b7e0afa69e323839a59118))
+* merge pull request [#62](https://github.com/LittleCarlito/threejs_site/issues/62) from LittleCarlito/MonitorBackground ([40f3641](https://github.com/LittleCarlito/threejs_site/commit/40f364189fb6ad9ca6190dca9bb82c22781c0887))
+* more monitor adjusts ([19414b9](https://github.com/LittleCarlito/threejs_site/commit/19414b92d7dcffab32465eebf63cca617c4a2bf2))
+* partial fix for work resizing ([5332e03](https://github.com/LittleCarlito/threejs_site/commit/5332e039e9d0c24183b922457d1ecc280e86fe3f))
+
 ## [0.7.1](https://github.com/LittleCarlito/threejs_site/compare/v0.7.0...v0.7.1) (2025-03-07)
 
 
