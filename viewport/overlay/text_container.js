@@ -279,22 +279,17 @@ export class TextContainer {
                     break;
                 case CATEGORIES.WORK.value:
                     // Use monitor as background with iframe
-                    (async () => {
-                        await create_asset_background(text_box, ASSET_TYPE.MONITOR, {
-                            horizontalStretch: 2,
-                            verticalStretch: 2,
-                            positionOffsetX: 2.85,
-                            positionOffsetY: -9.27,
-                            positionOffsetZ: 0,
-                            rotation: new THREE.Euler(Math.PI, Math.PI, Math.PI, 'XYZ')
-                        });
-                    })();
+                    let workFrame; // Declare outside async function to access later
+                    
+                    // Create text frame first to ensure it exists before we try to reference it
+                    create_text_frame(category, text_box);
+                    workFrame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${category.value}`);
+                    
                     // Custom width and height adjustments for work iframe
                     const workWidthFactor = 1.2;  // Increase width by 50%
                     const workHeightFactor = 1.0; // Default height (can be adjusted)
-                    create_text_frame(category, text_box);
+                    
                     // Apply custom sizing to the work iframe
-                    const workFrame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${category.value}`);
                     if (workFrame) {
                         const adjustedWidth = this.container_width * workWidthFactor;
                         const adjustedHeight = this.container_height * workHeightFactor;
@@ -307,6 +302,36 @@ export class TextContainer {
                         workFrame.original_height = adjustedHeight;
                         workFrame.initial_container_width = this.container_width;
                     }
+                    
+                    // Create monitor asset background after setting up the iframe
+                    (async () => {
+                        await create_asset_background(text_box, ASSET_TYPE.MONITOR, {
+                            horizontalStretch: 2,
+                            verticalStretch: 2,
+                            positionOffsetX: 2.85,
+                            positionOffsetY: -9.27,
+                            positionOffsetZ: 0,
+                            rotation: new THREE.Euler(Math.PI, Math.PI, Math.PI, 'XYZ')
+                        });
+                        
+                        // Now the monitor model should be created, so capture its scale
+                        setTimeout(() => {
+                            // Find the created monitor model and store its initial scale for reference during resize
+                            const monitorModels = text_box.children.filter(child => child.name?.includes('monitor'));
+                            if (monitorModels.length > 0 && monitorModels[0].children.length > 0) {
+                                const monitorModel = monitorModels[0].children[0];
+                                
+                                if (workFrame) {
+                                    workFrame.originalMonitorScale = {
+                                        x: monitorModel.scale.x,
+                                        y: monitorModel.scale.y,
+                                        z: monitorModel.scale.z
+                                    };
+                                    workFrame.originalMonitorRatio = monitorModel.scale.x / monitorModel.scale.y;
+                                }
+                            }
+                        }, 100); // Small delay to ensure monitor is fully loaded
+                    })();
                     break;
                 default:
                     create_background(category, text_box);
@@ -534,14 +559,52 @@ export class TextContainer {
                             const frame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${inner_c.simple_name}`);
                             if (frame) {
                                 if (inner_c.simple_name === CATEGORIES.WORK.value && frame.widthFactor) {
-                                    // Calculate iframe dimensions based on container size * initial factor
-                                    // This ensures we always calculate relative to the current container size
-                                    // with a fixed factor, preventing compounding of resize factors
-                                    width = this.container_width * frame.widthFactor;
-                                    height = this.container_height * (frame.heightFactor || 1.0);
+                                    // Find the monitor model to maintain proper aspect ratio
+                                    const monitorModels = this.text_box_container.children
+                                        .filter(child => child.name?.includes('monitor'))
+                                        .map(child => child.children[0]);
+                                    
+                                    // If we found the monitor model, use its scale to inform the iframe size
+                                    if (monitorModels.length > 0) {
+                                        const monitorModel = monitorModels[0];
+                                        
+                                        // Store original monitor scale if not already stored
+                                        if (!frame.originalMonitorScale && monitorModel.scale) {
+                                            frame.originalMonitorScale = {
+                                                x: monitorModel.scale.x,
+                                                y: monitorModel.scale.y,
+                                                z: monitorModel.scale.z
+                                            };
+                                            frame.originalMonitorRatio = monitorModel.scale.x / monitorModel.scale.y;
+                                        }
+                                        
+                                        if (frame.originalMonitorScale) {
+                                            // Calculate current monitor scale ratio compared to original
+                                            const currentXRatio = monitorModel.scale.x / frame.originalMonitorScale.x;
+                                            const currentYRatio = monitorModel.scale.y / frame.originalMonitorScale.y;
+                                            
+                                            // Apply these same ratios to the iframe size calculation
+                                            // This ensures the iframe scales proportionally with the monitor
+                                            if (frame.original_width && frame.original_height) {
+                                                width = frame.original_width * currentXRatio;
+                                                height = frame.original_height * currentYRatio;
+                                            } else {
+                                                // Fallback to standard calculation with adjustment for aspect ratio
+                                                width = this.container_width * frame.widthFactor * currentXRatio;
+                                                height = this.container_height * frame.heightFactor;
+                                            }
+                                        } else {
+                                            // Fallback to standard calculation if we don't have the original monitor scale
+                                            width = this.container_width * frame.widthFactor;
+                                            height = this.container_height * frame.heightFactor;
+                                        }
+                                    } else {
+                                        // Fallback to standard calculation if monitor not found
+                                        width = this.container_width * frame.widthFactor;
+                                        height = this.container_height * frame.heightFactor;
+                                    }
                                     
                                     // Detect if we're back at original window size (within 5% tolerance)
-                                    // This is important for restoring the exact original size
                                     if (frame.original_width && frame.original_height && 
                                         Math.abs(this.container_width - prevWidth) > 5 && // Only check after significant changes
                                         Math.abs(this.container_width - frame.initial_container_width) < 5) {
@@ -568,6 +631,28 @@ export class TextContainer {
         if (matched_frame) {
             // Store previous width before update for comparison
             const previousWidth = matched_frame.pixel_width || 0;
+
+            // For Work iframe, adjust based on monitor scale if available
+            if (incoming_simple_name === CATEGORIES.WORK.value && matched_frame.originalMonitorScale) {
+                // Try to find the monitor model to get current scale
+                const monitorModels = this.text_box_container.children
+                    .filter(child => child.name?.includes('monitor'))
+                    .map(child => child.children[0]);
+                
+                if (monitorModels.length > 0 && monitorModels[0]) {
+                    const monitorModel = monitorModels[0];
+                    
+                    // Calculate current monitor scale ratio compared to original
+                    const currentXRatio = monitorModel.scale.x / matched_frame.originalMonitorScale.x;
+                    const currentYRatio = monitorModel.scale.y / matched_frame.originalMonitorScale.y;
+                    
+                    // Apply these same ratios to the iframe size
+                    if (matched_frame.original_width && matched_frame.original_height) {
+                        incoming_width = matched_frame.original_width * currentXRatio;
+                        incoming_height = matched_frame.original_height * currentYRatio;
+                    }
+                }
+            }
 
             matched_frame.update_size(incoming_width, incoming_height);
 
