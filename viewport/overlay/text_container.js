@@ -339,6 +339,42 @@ export class TextContainer {
                     break;
             }
         });
+
+        // Replace the existing setTimeout with an improved version
+        // that ensures work iframe maintains fixed size and proper alignment
+        setTimeout(() => {
+            // Find the work frame
+            const workFrame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${CATEGORIES.WORK.value}`);
+            if (workFrame) {
+                // Store fixed size for the work iframe to prevent resizing
+                if (workFrame.original_width && workFrame.original_height) {
+                    workFrame.fixedWidth = workFrame.original_width;
+                    workFrame.fixedHeight = workFrame.original_height;
+                }
+                
+                // Find monitor model for position calibration
+                const monitorModels = this.text_box_container.children
+                    .filter(child => child.name?.includes('monitor'))
+                    .map(child => child.children[0]);
+                
+                if (monitorModels.length > 0 && monitorModels[0]) {
+                    const monitorModel = monitorModels[0];
+                    
+                    // Calculate and store the exact position offset
+                    const textBoxPos = this.get_focused_text_x();
+                    workFrame.originalPositionOffset = monitorModel.position.x - textBoxPos;
+                    workFrame.positionInitialized = true;
+                    
+                    if (FLAGS.SELECT_LOGS) {
+                        console.log('Work frame initialized with fixed size:', {
+                            fixedWidth: workFrame.fixedWidth,
+                            fixedHeight: workFrame.fixedHeight,
+                            positionOffset: workFrame.originalPositionOffset
+                        });
+                    }
+                }
+            }
+        }, 500);
     }
 
     /** Brings the text box associated with the given name into focus
@@ -432,7 +468,60 @@ export class TextContainer {
                     frame.iframe.contentWindow.trigger_frame_animation();
                 }
             }
+            
+            // Special handling for the work category - align monitor with iframe
+            if (category === CATEGORIES.WORK.value && frame) {
+                // Find the monitor model
+                const monitorModels = this.text_box_container.children
+                    .filter(child => child.name?.includes('monitor'))
+                    .map(child => child.children[0]);
+                
+                if (monitorModels.length > 0) {
+                    const monitorModel = monitorModels[0];
+                    
+                    // Get the target position for the text box
+                    const focusedX = this.get_focused_text_x();
+                    
+                    // Apply position adjustment to ensure alignment with iframe
+                    if (frame.originalPositionOffset !== undefined) {
+                        // Use the stored offset to maintain correct relationship between monitor and iframe
+                        new Tween(monitorModel.position)
+                            .to({ x: focusedX + frame.originalPositionOffset }, 285)
+                            .easing(Easing.Sinusoidal.Out)
+                            .start();
+                            
+                        if (FLAGS.SELECT_LOGS) {
+                            console.log('Aligning monitor with work iframe:', {
+                                iframeX: focusedX,
+                                monitorX: focusedX + frame.originalPositionOffset,
+                                offset: frame.originalPositionOffset
+                            });
+                        }
+                    } else {
+                        // For the first time, calculate and store the offset
+                        const currentOffset = monitorModel.position.x - focusedX;
+                        frame.originalPositionOffset = currentOffset;
+                        
+                        if (FLAGS.SELECT_LOGS) {
+                            console.log('First-time monitor alignment:', {
+                                offset: currentOffset,
+                                monitorX: monitorModel.position.x,
+                                iframeX: focusedX
+                            });
+                        }
+                    }
+                    
+                    // Ensure fixed size for work iframe
+                    if (frame.fixedWidth && frame.fixedHeight) {
+                        // Update the iframe with the fixed size
+                        setTimeout(() => {
+                            this.update_iframe_size(frame.simple_name, frame.fixedWidth, frame.fixedHeight);
+                        }, 300); // Delay to ensure it happens after the animation
+                    }
+                }
+            }
         }
+        
         // Get and move text box
         const selected_text_box = this.text_box_container.getObjectByName(this.focused_text_name);
         if (selected_text_box) {
@@ -558,71 +647,72 @@ export class TextContainer {
                             // Apply category-specific sizing
                             const frame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${inner_c.simple_name}`);
                             if (frame) {
-                                if (inner_c.simple_name === CATEGORIES.WORK.value && frame.widthFactor) {
-                                    // Find the monitor model to maintain proper aspect ratio
+                                // For work frame, maintain fixed size and only handle positioning
+                                if (inner_c.simple_name === CATEGORIES.WORK.value) {
+                                    // Find the monitor model
                                     const monitorModels = this.text_box_container.children
                                         .filter(child => child.name?.includes('monitor'))
                                         .map(child => child.children[0]);
                                     
-                                    // If we found the monitor model, use its scale to inform the iframe size
+                                    // If we found the monitor model, only adjust position (not size)
                                     if (monitorModels.length > 0) {
                                         const monitorModel = monitorModels[0];
                                         
-                                        // Store original monitor scale if not already stored
-                                        if (!frame.originalMonitorScale && monitorModel.scale) {
-                                            frame.originalMonitorScale = {
-                                                x: monitorModel.scale.x,
-                                                y: monitorModel.scale.y,
-                                                z: monitorModel.scale.z
-                                            };
-                                            frame.originalMonitorRatio = monitorModel.scale.x / monitorModel.scale.y;
+                                        // One-time initialization of position tracking
+                                        if (!frame.positionInitialized && monitorModel) {
+                                            // Store fixed size for the iframe
+                                            if (!frame.fixedWidth && frame.original_width) {
+                                                frame.fixedWidth = frame.original_width;
+                                                frame.fixedHeight = frame.original_height;
+                                            }
+                                            
+                                            // Store monitor position and focused text offset
+                                            const textBoxPos = this.get_focused_text_x();
+                                            frame.originalPositionOffset = monitorModel.position.x - textBoxPos;
+                                            frame.positionInitialized = true;
+                                            
+                                            if (FLAGS.SELECT_LOGS) {
+                                                console.log('Work frame position initialized:', {
+                                                    monitorX: monitorModel.position.x,
+                                                    textBoxX: textBoxPos,
+                                                    offset: frame.originalPositionOffset,
+                                                    fixedWidth: frame.fixedWidth,
+                                                    fixedHeight: frame.fixedHeight
+                                                });
+                                            }
                                         }
                                         
-                                        if (frame.originalMonitorScale) {
-                                            // Calculate current monitor scale ratio compared to original
-                                            const currentXRatio = monitorModel.scale.x / frame.originalMonitorScale.x;
-                                            const currentYRatio = monitorModel.scale.y / frame.originalMonitorScale.y;
-                                            
-                                            // Apply these same ratios to the iframe size calculation
-                                            // This ensures the iframe scales proportionally with the monitor
-                                            if (frame.original_width && frame.original_height) {
-                                                width = frame.original_width * currentXRatio;
-                                                height = frame.original_height * currentYRatio;
-                                            } else {
-                                                // Fallback to standard calculation with adjustment for aspect ratio
-                                                width = this.container_width * frame.widthFactor * currentXRatio;
-                                                height = this.container_height * frame.heightFactor;
-                                            }
-                                        } else {
-                                            // Fallback to standard calculation if we don't have the original monitor scale
-                                            width = this.container_width * frame.widthFactor;
-                                            height = this.container_height * frame.heightFactor;
+                                        // If this is the focused frame, update monitor position to maintain alignment
+                                        if (this.focused_text_name === `${TYPES.TEXT}${CATEGORIES.WORK.value}`) {
+                                            const currentTextBoxPos = this.get_focused_text_x();
+                                            const offset = frame.originalPositionOffset || 0.5;
+                                            monitorModel.position.x = currentTextBoxPos + offset;
                                         }
-                                    } else {
-                                        // Fallback to standard calculation if monitor not found
+                                        
+                                        // Use fixed size if available, otherwise fall back to original
+                                        if (frame.fixedWidth && frame.fixedHeight) {
+                                            width = frame.fixedWidth;
+                                            height = frame.fixedHeight;
+                                        } else if (frame.original_width && frame.original_height) {
+                                            width = frame.original_width;
+                                            height = frame.original_height;
+                                        }
+                                    }
+                                } else {
+                                    // For all other frames, apply standard resizing
+                                    if (frame.widthFactor) {
                                         width = this.container_width * frame.widthFactor;
                                         height = this.container_height * frame.heightFactor;
                                     }
-                                    
-                                    // Detect if we're back at original window size (within 5% tolerance)
-                                    if (frame.original_width && frame.original_height && 
-                                        Math.abs(this.container_width - prevWidth) > 5 && // Only check after significant changes
-                                        Math.abs(this.container_width - frame.initial_container_width) < 5) {
-                                        // We're back at the original window size, restore original iframe dimensions
-                                        width = frame.original_width;
-                                        height = frame.original_height;
-                                    } else if (!frame.initial_container_width) {
-                                        // First resize - store the initial container width for future comparison
-                                        frame.initial_container_width = this.container_width;
-                                    }
                                 }
+                                
+                                // Update iframe size
+                                this.update_iframe_size(inner_c.simple_name, width, height);
                             }
-                            
-                            this.update_iframe_size(inner_c.simple_name, width, height);
                         }
                         break;
                 }
-            })
+            });
         });
     }
 
@@ -632,26 +722,10 @@ export class TextContainer {
             // Store previous width before update for comparison
             const previousWidth = matched_frame.pixel_width || 0;
 
-            // For Work iframe, adjust based on monitor scale if available
-            if (incoming_simple_name === CATEGORIES.WORK.value && matched_frame.originalMonitorScale) {
-                // Try to find the monitor model to get current scale
-                const monitorModels = this.text_box_container.children
-                    .filter(child => child.name?.includes('monitor'))
-                    .map(child => child.children[0]);
-                
-                if (monitorModels.length > 0 && monitorModels[0]) {
-                    const monitorModel = monitorModels[0];
-                    
-                    // Calculate current monitor scale ratio compared to original
-                    const currentXRatio = monitorModel.scale.x / matched_frame.originalMonitorScale.x;
-                    const currentYRatio = monitorModel.scale.y / matched_frame.originalMonitorScale.y;
-                    
-                    // Apply these same ratios to the iframe size
-                    if (matched_frame.original_width && matched_frame.original_height) {
-                        incoming_width = matched_frame.original_width * currentXRatio;
-                        incoming_height = matched_frame.original_height * currentYRatio;
-                    }
-                }
+            // For Work iframe, use fixed size if available
+            if (incoming_simple_name === CATEGORIES.WORK.value && matched_frame.fixedWidth) {
+                incoming_width = matched_frame.fixedWidth;
+                incoming_height = matched_frame.fixedHeight;
             }
 
             matched_frame.update_size(incoming_width, incoming_height);
@@ -700,7 +774,41 @@ export class TextContainer {
     reposition(is_column_left) {
         if (this.focused_text_name != "") {
             this.focus_text_box(this.focused_text_name, is_column_left);
+            
+            // If the focused text is the work category, ensure monitor alignment
+            if (this.focused_text_name === `${TYPES.TEXT}${CATEGORIES.WORK.value}`) {
+                const frame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${CATEGORIES.WORK.value}`);
+                if (frame) {
+                    // Find the monitor model
+                    const monitorModels = this.text_box_container.children
+                        .filter(child => child.name?.includes('monitor'))
+                        .map(child => child.children[0]);
+                    
+                    if (monitorModels.length > 0) {
+                        const monitorModel = monitorModels[0];
+                        // Apply same position as focused iframe with correct offset for proper alignment
+                        const focusedX = this.get_focused_text_x();
+                        
+                        // Use the stored offset if available, otherwise calculate it
+                        let offset = frame.originalPositionOffset;
+                        if (offset === undefined) {
+                            offset = monitorModel.position.x - focusedX;
+                            frame.originalPositionOffset = offset;
+                        }
+                        
+                        // Set exact position
+                        monitorModel.position.x = focusedX + offset;
+                        
+                        // Make sure we're using fixed size
+                        if (frame.fixedWidth && frame.fixedHeight) {
+                            // Apply the fixed size to ensure consistent dimensions
+                            this.update_iframe_size(frame.simple_name, frame.fixedWidth, frame.fixedHeight);
+                        }
+                    }
+                }
+            }
         }
+        
         this.text_box_container.children.forEach(c => {
             if (c.name != this.focused_text_name) {
                 c.position.x = get_associated_position(WEST, this.camera) * 2;
