@@ -895,7 +895,7 @@ export class AssetSpawner {
     }
 
     createAsset(asset_config) {
-        const model = asset_config.model.clone();
+        let model = asset_config.model.clone();  // Changed from const to let
         model.frustumCulled = true;  // Enable frustum culling
         
         // Add LOD (Level of Detail) for complex models

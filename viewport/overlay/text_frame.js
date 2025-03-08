@@ -19,6 +19,8 @@ export class TextFrame {
     css_div;
     particles = [];
     wasVerySmall = false;
+    original_width;
+    original_height;
     
     constructor(incoming_parent, incoming_camera, incoming_width, incoming_height) {
         this.parent = incoming_parent;
@@ -42,6 +44,12 @@ export class TextFrame {
         // Special handling for contact frame - position it slightly forward
         if (incoming_parent.simple_name === CATEGORIES.CONTACT.value) {
             this.css_div.position.z = 0.05;
+        }
+        
+        // Store original dimensions for Work frame to allow proper restoration
+        if (incoming_parent.simple_name === CATEGORIES.WORK.value) {
+            this.original_width = incoming_width;
+            this.original_height = incoming_height;
         }
         
         this.parent.add(this.css_div);
