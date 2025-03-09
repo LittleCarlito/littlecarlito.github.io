@@ -82,32 +82,65 @@ export class AssetStorage {
         return result;
     }
 
-    // The rest of the implementation needs to be moved as well
-    // Continue with all remaining methods...
-
+    /**
+     * Adds an object to the storage system.
+     * @param {THREE.Object3D} incoming_mesh - The mesh to add
+     * @param {RAPIER.RigidBody} incoming_body - The physics body (optional)
+     * @returns {string} The instance ID of the added object
+     */
     add_object(incoming_mesh, incoming_body) {
         const instance_id = this.get_new_instance_id();
         
         if (incoming_body) {
+            // Store as dynamic physics object
             this.store_dynamic_body(instance_id, [incoming_mesh, incoming_body]);
+            
+            // Ensure the object has a userData reference to its physics body for easy access
+            incoming_mesh.userData.physicsBody = incoming_body;
+            incoming_mesh.userData.instanceId = instance_id;
+            
+            // Make sure the physics body position matches the mesh
+            const position = incoming_body.translation();
+            incoming_mesh.position.set(position.x, position.y, position.z);
+            
+            const rotation = incoming_body.rotation();
+            incoming_mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+            
             if (FLAGS.PHYSICS_LOGS) console.log(`Added dynamic body with ID: ${instance_id}`);
         } else {
+            // Store as static mesh (no physics)
             this.store_static_mesh(instance_id, incoming_mesh);
+            incoming_mesh.userData.instanceId = instance_id;
             if (FLAGS.ASSET_LOGS) console.log(`Added static mesh with ID: ${instance_id}`);
         }
         
         return instance_id;
     }
 
+    /**
+     * Updates physics bodies and their corresponding meshes.
+     * Called every frame to synchronize visual representation with physics.
+     */
     update() {
         // Update physics for dynamic bodies
         this.get_all_dynamic_bodies().forEach(([mesh, body]) => {
             if (body && mesh) {
+                // Skip if the body is sleeping and hasn't moved
+                if (body.isSleeping() && !body.isKinematic()) {
+                    return;
+                }
+                
+                // Get the position and rotation from the physics body
                 const position = body.translation();
                 mesh.position.set(position.x, position.y, position.z);
                 
                 const rotation = body.rotation();
                 mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+                
+                // Ensure the body is awake if it's being moved
+                if (mesh.userData.isMoving && body.isSleeping()) {
+                    body.wakeUp();
+                }
             }
         });
     }
@@ -222,12 +255,39 @@ export class AssetStorage {
     }
 
     get_body_pair_by_mesh(mesh) {
+        // First try direct match
         for (const [id, [object_mesh, body]] of this.dynamic_bodies.entries()) {
             if (object_mesh === mesh) {
                 // Return array format for backwards compatibility with existing code
                 return [object_mesh, body];
             }
+            
+            // If the object is a child of a mesh in our storage
+            if (object_mesh.children && object_mesh.children.includes(mesh)) {
+                return [object_mesh, body];
+            }
+            
+            // Check if the mesh is a child somewhere in the hierarchy
+            let foundInHierarchy = false;
+            object_mesh.traverse((child) => {
+                if (child === mesh) {
+                    foundInHierarchy = true;
+                }
+            });
+            
+            if (foundInHierarchy) {
+                return [object_mesh, body];
+            }
         }
+        
+        // If direct match fails, try matching by name for legacy support
+        const meshName = mesh.name;
+        for (const [id, [object_mesh, body]] of this.dynamic_bodies.entries()) {
+            if (object_mesh.name === meshName) {
+                return [object_mesh, body];
+            }
+        }
+        
         return null;
     }
 

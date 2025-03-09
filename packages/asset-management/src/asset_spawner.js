@@ -71,50 +71,123 @@ export class AssetSpawner {
                 return null;
             }
 
+            // Get asset configuration for scaling
+            const asset_config = ASSET_CONFIGS[asset_type];
+            if (!asset_config) {
+                console.error(`No configuration found for asset type: ${asset_type}`);
+                return null;
+            }
+
             // Clone the model
             const originalModel = gltfData.scene;
             const model = AssetUtils.cloneSkinnedMesh(originalModel);
+            
+            // Apply scaling based on asset_config
+            const scale = asset_config.scale || 1.0;
+            model.scale.set(scale, scale, scale);
             
             // Apply position and rotation
             model.position.copy(position);
             model.quaternion.copy(rotation);
             
+            // Hide collision meshes (objects with names starting with "col_")
+            // And collect them for potential physics use
+            const collisionMeshes = [];
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    if (child.name.startsWith('col_')) {
+                        // This is a collision mesh - hide it and collect for physics
+                        child.visible = false;
+                        collisionMeshes.push(child);
+                    }
+                }
+            });
+            
             // Add to scene
             this.scene.add(model);
+            
+            // Make the model and all its children accessible for physics
+            model.userData.assetType = asset_type;
             
             let physicsBody = null;
             
             // Add physics if enabled
             if (options.enablePhysics !== false && this.world) {
-                const asset_config = ASSET_CONFIGS[asset_type];
-                
                 // Create a basic physics body
                 const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
                     .setTranslation(position.x, position.y, position.z)
                     .setLinearDamping(0.5)
                     .setAngularDamping(0.6);
                 
+                // Explicitly set gravity scale to ensure gravity affects this object
+                rigidBodyDesc.setGravityScale(1.0);
+                
+                // Set initial rotation if provided
+                if (rotation) {
+                    rigidBodyDesc.setRotation(rotation);
+                }
+                
                 physicsBody = this.world.createRigidBody(rigidBodyDesc);
                 
-                // Create a collider
-                const colliderDesc = RAPIER.ColliderDesc.cuboid(
-                    asset_config.scale / 2,
-                    asset_config.scale / 2,
-                    asset_config.scale / 2
-                );
-                
-                if (asset_config.mass) {
-                    colliderDesc.setMass(asset_config.mass);
+                // Check if we have collision meshes to use for more accurate colliders
+                if (collisionMeshes.length > 0) {
+                    // Use the collision meshes for physics
+                    for (const collisionMesh of collisionMeshes) {
+                        this.createColliderFromMesh(collisionMesh, physicsBody, scale, asset_config);
+                    }
+                } else {
+                    // Fallback to simple cuboid collider
+                    const halfScale = asset_config.scale / 2;
+                    let colliderDesc;
+                    
+                    // Use different collider shapes based on asset type or configuration
+                    if (options.colliderType === 'sphere') {
+                        colliderDesc = RAPIER.ColliderDesc.ball(halfScale);
+                    } else if (options.colliderType === 'capsule') {
+                        colliderDesc = RAPIER.ColliderDesc.capsule(halfScale, halfScale * 0.5);
+                    } else {
+                        // Default to cuboid
+                        colliderDesc = RAPIER.ColliderDesc.cuboid(halfScale, halfScale, halfScale);
+                    }
+                    
+                    // Set mass and material properties
+                    if (asset_config.mass) {
+                        colliderDesc.setMass(asset_config.mass);
+                    } else {
+                        // Default mass if not specified
+                        colliderDesc.setMass(1.0);
+                    }
+                    
+                    if (asset_config.restitution) {
+                        colliderDesc.setRestitution(asset_config.restitution);
+                    } else {
+                        // Default restitution (bounciness) if not specified
+                        colliderDesc.setRestitution(0.2);
+                    }
+                    
+                    // Set friction
+                    colliderDesc.setFriction(0.7);
+                    
+                    // Create the collider and attach it to the physics body
+                    this.world.createCollider(colliderDesc, physicsBody);
                 }
                 
-                if (asset_config.restitution) {
-                    colliderDesc.setRestitution(asset_config.restitution);
-                }
+                // Store physics body as a direct property on the model for very direct access
+                model.physicsBody = physicsBody;
                 
-                this.world.createCollider(colliderDesc, physicsBody);
+                // Store a reference to the physics body in the model and all its children
+                model.userData.physicsBody = physicsBody;
+                model.traverse((child) => {
+                    if (child.isMesh) {
+                        child.userData.physicsBody = physicsBody;
+                        child.userData.rootModel = model;
+                        // Also store on the child directly for maximum compatibility
+                        child.physicsBody = physicsBody;
+                    }
+                });
                 
                 if (FLAGS.PHYSICS_LOGS) {
-                    console.log(`Created physics body for ${asset_type}`);
+                    console.log(`Created physics body for ${asset_type} with mass: ${asset_config.mass || 1.0}, scale: ${scale}`);
                 }
             }
             
@@ -235,5 +308,91 @@ export class AssetSpawner {
         }
         
         // Any other periodic cleanup tasks can be added here
+    }
+
+    /**
+     * Creates a collider based on a mesh's geometry.
+     * @param {THREE.Mesh} mesh - The mesh to create a collider from
+     * @param {RAPIER.RigidBody} body - The rigid body to attach the collider to
+     * @param {number} scale - The scale factor for the model
+     * @param {Object} asset_config - Configuration for the asset
+     */
+    createColliderFromMesh(mesh, body, scale, asset_config) {
+        if (!mesh || !body) return null;
+        
+        // Get the geometry
+        const geometry = mesh.geometry;
+        if (!geometry) return null;
+        
+        // Get mesh world position (relative to the model)
+        const position = new THREE.Vector3();
+        const quaternion = new THREE.Quaternion();
+        const meshScale = new THREE.Vector3();
+        
+        mesh.updateMatrixWorld();
+        mesh.matrixWorld.decompose(position, quaternion, meshScale);
+        
+        // Adjust position for physics (since we're adding a collider to an existing body)
+        const bodyPos = body.translation();
+        const relativePos = {
+            x: position.x - bodyPos.x,
+            y: position.y - bodyPos.y,
+            z: position.z - bodyPos.z
+        };
+        
+        let colliderDesc;
+        
+        // Detect shape from name (often models use naming conventions)
+        if (mesh.name.includes('sphere') || mesh.name.includes('ball')) {
+            // Create a sphere collider
+            // Estimate radius from geometry bounds
+            geometry.computeBoundingSphere();
+            const radius = geometry.boundingSphere.radius * scale;
+            colliderDesc = RAPIER.ColliderDesc.ball(radius);
+            
+        } else if (mesh.name.includes('capsule')) {
+            // Create a capsule collider
+            geometry.computeBoundingBox();
+            const box = geometry.boundingBox;
+            const height = (box.max.y - box.min.y) * scale;
+            const radius = Math.max(
+                (box.max.x - box.min.x), 
+                (box.max.z - box.min.z)
+            ) * scale * 0.5;
+            
+            colliderDesc = RAPIER.ColliderDesc.capsule(height * 0.5, radius);
+            
+        } else {
+            // Default to cuboid
+            geometry.computeBoundingBox();
+            const box = geometry.boundingBox;
+            const hx = (box.max.x - box.min.x) * scale * 0.5 * meshScale.x;
+            const hy = (box.max.y - box.min.y) * scale * 0.5 * meshScale.y;
+            const hz = (box.max.z - box.min.z) * scale * 0.5 * meshScale.z;
+            
+            colliderDesc = RAPIER.ColliderDesc.cuboid(hx, hy, hz);
+        }
+        
+        // Apply position offset
+        colliderDesc.setTranslation(relativePos.x, relativePos.y, relativePos.z);
+        
+        // Apply rotation
+        colliderDesc.setRotation(quaternion);
+        
+        // Set physical properties
+        if (asset_config.mass) {
+            colliderDesc.setMass(asset_config.mass);
+        }
+        
+        if (asset_config.restitution) {
+            colliderDesc.setRestitution(asset_config.restitution);
+        }
+        
+        colliderDesc.setFriction(0.7);
+        
+        // Create the collider
+        const collider = this.world.createCollider(colliderDesc, body);
+        
+        return collider;
     }
 } 
