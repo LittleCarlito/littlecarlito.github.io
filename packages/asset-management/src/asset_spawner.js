@@ -202,6 +202,8 @@ export class AssetSpawner {
                             // Clone the geometry to create an exact wireframe representation
                             const clonedGeometry = colMesh.geometry.clone();
                             
+                            console.log(`Creating asset wireframe for: ${colMesh.name}`);
+                            
                             // Create a wireframe using the actual collision mesh geometry
                             this.createDebugWireframe(
                                 'mesh',
@@ -213,7 +215,8 @@ export class AssetSpawner {
                                     geometry: clonedGeometry,
                                     originalObject: colMesh,
                                     objectId: colMesh.id,
-                                    scale: worldScale
+                                    scale: worldScale,
+                                    isStatic: false // Explicitly mark as NOT static
                                 }
                             );
                         });
@@ -222,6 +225,8 @@ export class AssetSpawner {
                         const boundingBox = new THREE.Box3().setFromObject(model);
                         const size = boundingBox.getSize(new THREE.Vector3());
                         const center = boundingBox.getCenter(new THREE.Vector3());
+                        
+                        console.log(`Creating fallback asset wireframe for: ${model.name}`);
                         
                         // Create the debug wireframe
                         this.createDebugWireframe(
@@ -236,7 +241,8 @@ export class AssetSpawner {
                             { 
                                 bodyId: physicsBody.handle,
                                 originalObject: model,
-                                objectId: model.id
+                                objectId: model.id,
+                                isStatic: false // Explicitly mark as NOT static
                             }
                         );
                     }
@@ -296,29 +302,47 @@ export class AssetSpawner {
             }
         }
         
-        // Create wireframe material with randomized colors based on object ID
-        const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff, 0xffa500, 0x00ffaa];
+        // Define the colors we'll use
+        const staticColor = 0x00FF00; // Green for static objects
         
-        // Generate a consistent color for the same object
-        let colorIndex = 0;
-        if (options.bodyId) {
-            colorIndex = options.bodyId % colors.length;
-        } else if (options.objectId) {
-            colorIndex = options.objectId % colors.length;
+        // Set of blue colors for dynamic objects
+        const blueColors = [
+            0x0000FF, // Pure blue
+            0x4444FF, // Light blue
+            0x0088FF, // Sky blue
+            0x00AAFF, // Azure
+            0x00FFFF, // Cyan
+            0x0066CC, // Medium blue
+            0x0033AA, // Dark blue
+            0x3366FF, // Royal blue
+            0x6666FF, // Periwinkle
+            0x0099CC  // Ocean blue
+        ];
+        
+        // Choose a color based on position hash to ensure consistent but varied colors
+        let color;
+        
+        if (options.isStatic === true) {
+            // Static objects (like rooms) are green
+            color = staticColor;
         } else {
-            // Generate a stable hash from position for consistent colors
-            const posHash = Math.abs(
-                Math.round(position.x * 100) + 
-                Math.round(position.y * 10) + 
-                Math.round(position.z)
-            );
-            colorIndex = posHash % colors.length;
+            // Generate a simple hash based on the object's position
+            // This ensures the same object gets the same color, but different objects get different colors
+            let hash = 0;
+            
+            // Use position for a simple hash
+            const posX = Math.round(position.x * 10);
+            const posY = Math.round(position.y * 10);
+            const posZ = Math.round(position.z * 10);
+            
+            hash = Math.abs(posX + posY * 31 + posZ * 47) % blueColors.length;
+            
+            // Select a blue color using the hash
+            color = blueColors[hash];
         }
         
-        const color = options.color || colors[colorIndex];
-        
         const material = new THREE.MeshBasicMaterial({ 
-            color, 
+            color: color,
             wireframe: true,
             transparent: true,
             opacity: 0.7
@@ -339,6 +363,7 @@ export class AssetSpawner {
         mesh.userData.physicsBodyId = options.bodyId;
         mesh.userData.debugType = type;
         mesh.userData.originalObject = options.originalObject;
+        mesh.userData.isStatic = options.isStatic;
         
         // Only add to scene and store if debug is enabled
         if (FLAGS.COLLISION_VISUAL_DEBUG) {
@@ -601,6 +626,8 @@ export class AssetSpawner {
         });
         this.debugMeshes.clear();
         
+        console.log("Creating all debug wireframes");
+        
         // Get all dynamic bodies from storage
         const dynamicBodies = this.storage.get_all_dynamic_bodies();
         
@@ -634,6 +661,8 @@ export class AssetSpawner {
                     // Clone the geometry to create an exact wireframe representation
                     const clonedGeometry = colMesh.geometry.clone();
                     
+                    console.log(`Creating dynamic wireframe for: ${colMesh.name}`);
+                    
                     // Create a wireframe using the actual collision mesh geometry
                     this.createDebugWireframe(
                         'mesh',
@@ -645,7 +674,8 @@ export class AssetSpawner {
                             geometry: clonedGeometry,
                             originalObject: colMesh,
                             objectId: colMesh.id,
-                            scale: worldScale
+                            scale: worldScale,
+                            isStatic: false // Explicitly mark as NOT static
                         }
                     );
                 });
@@ -654,6 +684,8 @@ export class AssetSpawner {
                 const boundingBox = new THREE.Box3().setFromObject(mesh);
                 const size = boundingBox.getSize(new THREE.Vector3());
                 const center = boundingBox.getCenter(new THREE.Vector3());
+                
+                console.log(`Creating fallback dynamic wireframe for: ${mesh.name}`);
                 
                 // Create the debug wireframe
                 this.createDebugWireframe(
@@ -668,7 +700,8 @@ export class AssetSpawner {
                     { 
                         bodyId: body.handle,
                         originalObject: mesh,
-                        objectId: mesh.id
+                        objectId: mesh.id,
+                        isStatic: false // Explicitly mark as NOT static
                     }
                 );
             }
@@ -681,63 +714,30 @@ export class AssetSpawner {
             
             // Only process static meshes that might have collision (like rooms)
             if (mesh.name.includes('ROOM') || mesh.name.includes('FLOOR')) {
-                // Try to find collision meshes in static objects too
-                const collisionMeshes = [];
-                mesh.traverse((child) => {
-                    if (child.isMesh && child.name.startsWith('col_')) {
-                        collisionMeshes.push(child);
-                    }
-                });
+                console.log(`Processing static mesh: ${mesh.name}`);
                 
-                if (collisionMeshes.length > 0) {
-                    // Create wireframes for each collision mesh
-                    collisionMeshes.forEach((colMesh) => {
-                        // Get the world transform of the collision mesh
-                        const worldPosition = new THREE.Vector3();
-                        const worldQuaternion = new THREE.Quaternion();
-                        const worldScale = new THREE.Vector3();
-                        
-                        colMesh.updateWorldMatrix(true, false);
-                        colMesh.matrixWorld.decompose(worldPosition, worldQuaternion, worldScale);
-                        
-                        // Clone the geometry to create an exact wireframe representation
-                        const clonedGeometry = colMesh.geometry.clone();
-                        
-                        // Create a wireframe using the actual collision mesh geometry
-                        this.createDebugWireframe(
-                            'mesh',
-                            null,  // Dimensions not needed when using actual geometry
-                            worldPosition,
-                            worldQuaternion,
-                            { 
-                                geometry: clonedGeometry,
-                                originalObject: colMesh,
-                                objectId: colMesh.id,
-                                scale: worldScale
-                            }
-                        );
-                    });
-                } else {
-                    // No collision meshes, fallback to bounding box
-                    const boundingBox = new THREE.Box3().setFromObject(mesh);
-                    const size = boundingBox.getSize(new THREE.Vector3());
-                    const center = boundingBox.getCenter(new THREE.Vector3());
-                    
-                    this.createDebugWireframe(
-                        'cuboid', 
-                        { 
-                            x: size.x * 0.5, 
-                            y: size.y * 0.5, 
-                            z: size.z * 0.5 
-                        }, 
-                        center, 
-                        mesh.quaternion,
-                        { 
-                            originalObject: mesh,
-                            objectId: mesh.id
-                        }
-                    );
-                }
+                // Create a simple green wireframe for the static mesh
+                const boundingBox = new THREE.Box3().setFromObject(mesh);
+                const size = boundingBox.getSize(new THREE.Vector3());
+                const center = boundingBox.getCenter(new THREE.Vector3());
+                
+                console.log(`Creating static wireframe for room: ${mesh.name}`);
+                
+                this.createDebugWireframe(
+                    'cuboid', 
+                    { 
+                        x: size.x * 0.5, 
+                        y: size.y * 0.5, 
+                        z: size.z * 0.5 
+                    }, 
+                    center, 
+                    mesh.quaternion,
+                    { 
+                        originalObject: mesh,
+                        objectId: mesh.id,
+                        isStatic: true  // Explicitly mark as static
+                    }
+                );
             }
         });
     }
