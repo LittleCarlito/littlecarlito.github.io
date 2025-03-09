@@ -186,6 +186,67 @@ export class AssetSpawner {
                     }
                 });
                 
+                // Create debug wireframe if debug is enabled
+                if (FLAGS.COLLISION_VISUAL_DEBUG) {
+                    if (collisionMeshes.length > 0) {
+                        // Create wireframes for each collision mesh
+                        collisionMeshes.forEach((colMesh) => {
+                            // Get the world transform of the collision mesh
+                            const worldPosition = new THREE.Vector3();
+                            const worldQuaternion = new THREE.Quaternion();
+                            const worldScale = new THREE.Vector3();
+                            
+                            // Temporarily update matrices to get accurate world position and scale
+                            colMesh.updateWorldMatrix(true, false);
+                            colMesh.matrixWorld.decompose(worldPosition, worldQuaternion, worldScale);
+                            
+                            // Clone the actual geometry for accurate representation
+                            const clonedGeometry = colMesh.geometry.clone();
+                            
+                            // Create a wireframe using the actual collision mesh geometry
+                            this.createDebugWireframe(
+                                'mesh',
+                                null, // dimensions not needed when using the actual geometry
+                                worldPosition,
+                                worldQuaternion,
+                                { 
+                                    bodyId: physicsBody.handle,
+                                    geometry: clonedGeometry,
+                                    originalObject: colMesh,
+                                    objectId: colMesh.id,
+                                    scale: worldScale
+                                }
+                            );
+                        });
+                    } else {
+                        // No collision meshes, create wireframe based on object bounds
+                        const boundingBox = new THREE.Box3().setFromObject(model);
+                        const size = boundingBox.getSize(new THREE.Vector3());
+                        const center = boundingBox.getCenter(new THREE.Vector3());
+                        
+                        // Calculate the scale based on the object's actual size
+                        const modelScale = model.scale.clone();
+                        
+                        // Create the debug wireframe
+                        this.createDebugWireframe(
+                            'cuboid', 
+                            { 
+                                x: size.x * 0.5, 
+                                y: size.y * 0.5, 
+                                z: size.z * 0.5 
+                            }, 
+                            center, 
+                            model.quaternion,
+                            { 
+                                bodyId: physicsBody.handle,
+                                originalObject: model,
+                                scale: modelScale,
+                                objectId: model.id
+                            }
+                        );
+                    }
+                }
+                
                 if (FLAGS.PHYSICS_LOGS) {
                     console.log(`Created physics body for ${asset_type} with mass: ${asset_config.mass || 1.0}, scale: ${scale}`);
                 }
@@ -211,47 +272,94 @@ export class AssetSpawner {
      * @param {Object} dimensions - The dimensions of the wireframe.
      * @param {THREE.Vector3} position - The position of the wireframe.
      * @param {THREE.Quaternion} rotation - The rotation of the wireframe.
+     * @param {Object} options - Additional options for the wireframe.
      * @returns {THREE.Mesh} The created wireframe mesh.
      */
-    createDebugWireframe(type, dimensions, position, rotation) {
-        if (!FLAGS.COLLISION_VISUAL_DEBUG) return null;
-        
+    createDebugWireframe(type, dimensions, position, rotation, options = {}) {
         let geometry;
-        const size = dimensions || { x: 1, y: 1, z: 1 };
         
-        switch (type) {
-            case 'cuboid':
-                geometry = new THREE.BoxGeometry(size.x * 2, size.y * 2, size.z * 2);
-                break;
-            case 'sphere':
-                geometry = new THREE.SphereGeometry(size.radius || 1, 16, 16);
-                break;
-            case 'capsule':
-                // Approximate capsule with cylinder and two spheres
-                geometry = new THREE.CylinderGeometry(size.radius, size.radius, size.height, 16);
-                break;
-            default:
-                geometry = new THREE.BoxGeometry(1, 1, 1);
+        // Handle mesh type (using provided geometry)
+        if (type === 'mesh' && options.geometry) {
+            geometry = options.geometry;
+        } else {
+            // Create primitive geometry based on dimensions
+            const size = dimensions || { x: 1, y: 1, z: 1 };
+            
+            switch (type) {
+                case 'cuboid':
+                    // Create box with FULL dimensions (not half dimensions)
+                    geometry = new THREE.BoxGeometry(size.x * 2, size.y * 2, size.z * 2);
+                    break;
+                case 'sphere':
+                    geometry = new THREE.SphereGeometry(size.radius || 1, 16, 16);
+                    break;
+                case 'capsule':
+                    // Approximate capsule with cylinder
+                    geometry = new THREE.CylinderGeometry(size.radius, size.radius, size.height, 16);
+                    break;
+                default:
+                    geometry = new THREE.BoxGeometry(1, 1, 1);
+            }
         }
         
-        // Create wireframe material with cycling colors for distinction
-        const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff];
-        const color = colors[this.debugColorIndex % colors.length];
-        this.debugColorIndex++;
+        // Create wireframe material with randomized colors
+        const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff, 0xffa500, 0x00ffaa, 0xaaaaff, 0xffaaaa];
+        
+        // Generate a unique color index based on object's ID or position
+        let colorIndex = 0;
+        if (options.bodyId) {
+            colorIndex = options.bodyId % colors.length;
+        } else if (options.objectId) {
+            colorIndex = options.objectId % colors.length;
+        } else {
+            // Generate a hash from position - this ensures different objects get different colors
+            const posHash = Math.abs(
+                Math.round(position.x * 100) + 
+                Math.round(position.y * 10) + 
+                Math.round(position.z)
+            );
+            colorIndex = posHash % colors.length;
+        }
+        
+        const color = colors[colorIndex];
         
         const material = new THREE.MeshBasicMaterial({ 
             color, 
             wireframe: true,
             transparent: true,
-            opacity: 0.5
+            opacity: 0.7
         });
         
         const mesh = new THREE.Mesh(geometry, material);
+        
+        // Apply position and rotation
         mesh.position.copy(position);
         mesh.quaternion.copy(rotation);
         
-        this.scene.add(mesh);
-        this.debugMeshes.set(mesh.uuid, mesh);
+        // Handle scale - crucial for correct wireframe size
+        if (options.scale) {
+            // Apply scale to the mesh
+            mesh.scale.copy(options.scale);
+        }
+        
+        mesh.renderOrder = 999; // Ensure wireframes render on top
+        
+        // Store any references needed to update this wireframe
+        mesh.userData.physicsBodyId = options.bodyId;
+        mesh.userData.debugType = type;
+        mesh.userData.originalObject = options.originalObject;
+        
+        // Debug logging for scale issues
+        if (options.scale) {
+            console.log(`Creating wireframe for ${options.originalObject ? options.originalObject.name : 'unknown'} with scale:`, 
+                options.scale.x.toFixed(2), options.scale.y.toFixed(2), options.scale.z.toFixed(2));
+        }
+        
+        // Only add to scene and store if debug is enabled
+        if (FLAGS.COLLISION_VISUAL_DEBUG) {
+            this.scene.add(mesh);
+            this.debugMeshes.set(mesh.uuid, mesh);
+        }
         
         return mesh;
     }
@@ -262,15 +370,47 @@ export class AssetSpawner {
     update_debug_wireframes() {
         if (!FLAGS.COLLISION_VISUAL_DEBUG) return;
         
-        // Update wireframe positions based on physics bodies
-        this.debugMeshes.forEach((mesh) => {
-            const bodyPair = this.storage.get_body_pair_by_mesh(mesh);
-            if (bodyPair && bodyPair.body) {
-                const position = bodyPair.body.translation();
-                mesh.position.set(position.x, position.y, position.z);
+        // Get all dynamic bodies from storage
+        const dynamicBodies = this.storage.get_all_dynamic_bodies();
+        
+        // Update existing wireframes
+        this.debugMeshes.forEach((wireframeMesh) => {
+            // Skip if this is a static wireframe (no physics body)
+            if (!wireframeMesh.userData.physicsBodyId) return;
+            
+            // Find the matching body for this wireframe
+            let foundBody = null;
+            
+            // Find the body with this ID
+            for (const [bodyMesh, body] of dynamicBodies) {
+                if (body.handle === wireframeMesh.userData.physicsBodyId) {
+                    foundBody = body;
+                    break;
+                }
+            }
+            
+            // Update position and rotation if body found
+            if (foundBody) {
+                const position = foundBody.translation();
+                const rotation = foundBody.rotation();
                 
-                const rotation = bodyPair.body.rotation();
-                mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+                // Apply position and rotation updates
+                wireframeMesh.position.set(position.x, position.y, position.z);
+                wireframeMesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+                
+                // If we have the original object, update scale if needed
+                const originalObject = wireframeMesh.userData.originalObject;
+                if (originalObject) {
+                    // Check if the original object's world scale has changed
+                    const worldScale = new THREE.Vector3();
+                    originalObject.updateWorldMatrix(true, false);
+                    originalObject.matrixWorld.decompose(new THREE.Vector3(), new THREE.Quaternion(), worldScale);
+                    
+                    // If scale has changed, update the wireframe scale
+                    if (!wireframeMesh.scale.equals(worldScale)) {
+                        wireframeMesh.scale.copy(worldScale);
+                    }
+                }
             }
         });
     }
@@ -394,5 +534,204 @@ export class AssetSpawner {
         const collider = this.world.createCollider(colliderDesc, body);
         
         return collider;
+    }
+
+    /**
+     * Sets the collision debug state for this spawner.
+     * This allows the main application to control debug visualization.
+     * @param {boolean} enabled - Whether collision debug should be enabled
+     */
+    setCollisionDebug(enabled) {
+        // Note: We're using the internal FLAGS but also accepting external control
+        FLAGS.COLLISION_VISUAL_DEBUG = enabled;
+        
+        // Clear all existing wireframes if disabling
+        if (!enabled) {
+            this.debugMeshes.forEach((mesh) => {
+                if (mesh.parent) {
+                    mesh.parent.remove(mesh);
+                }
+                if (mesh.geometry) {
+                    mesh.geometry.dispose();
+                }
+                if (mesh.material) {
+                    mesh.material.dispose();
+                }
+            });
+            this.debugMeshes.clear();
+            return;
+        }
+        
+        // If enabling, create wireframes for all bodies
+        this.createDebugWireframesForAllBodies();
+    }
+    
+    /**
+     * Creates debug wireframes for all physics bodies.
+     * This is used when enabling debug visualization after objects are already created.
+     */
+    createDebugWireframesForAllBodies() {
+        // First clear any existing wireframes
+        this.debugMeshes.forEach((mesh) => {
+            if (mesh.parent) {
+                mesh.parent.remove(mesh);
+            }
+            if (mesh.geometry) {
+                mesh.geometry.dispose();
+            }
+            if (mesh.material) {
+                mesh.material.dispose();
+            }
+        });
+        this.debugMeshes.clear();
+        
+        // Get all dynamic bodies from storage
+        const dynamicBodies = this.storage.get_all_dynamic_bodies();
+        
+        // Create a debug wireframe for each body
+        dynamicBodies.forEach(([mesh, body]) => {
+            if (!body) return;
+            
+            // Get the body position and rotation
+            const position = body.translation();
+            const rotation = body.rotation();
+            
+            // Try to find collision meshes in the object hierarchy
+            const collisionMeshes = [];
+            mesh.traverse((child) => {
+                if (child.isMesh && child.name.startsWith('col_')) {
+                    collisionMeshes.push(child);
+                }
+            });
+            
+            if (collisionMeshes.length > 0) {
+                // Create wireframes for each collision mesh - using actual geometry
+                collisionMeshes.forEach((colMesh) => {
+                    // Get the world transform of the collision mesh
+                    const worldPosition = new THREE.Vector3();
+                    const worldQuaternion = new THREE.Quaternion();
+                    const worldScale = new THREE.Vector3();
+                    
+                    // Temporarily update matrices to get world position
+                    colMesh.updateWorldMatrix(true, false);
+                    colMesh.matrixWorld.decompose(worldPosition, worldQuaternion, worldScale);
+                    
+                    // Clone the actual geometry for accurate representation
+                    const clonedGeometry = colMesh.geometry.clone();
+                    
+                    // Create a wireframe using the actual collision mesh geometry
+                    this.createDebugWireframe(
+                        'mesh',
+                        null, // dimensions not needed when using the actual geometry
+                        worldPosition,
+                        worldQuaternion,
+                        { 
+                            bodyId: body.handle,
+                            geometry: clonedGeometry,
+                            originalObject: colMesh,
+                            objectId: colMesh.id,
+                            scale: worldScale
+                        }
+                    );
+                });
+            } else {
+                // No collision meshes, create wireframe based on object bounds
+                const boundingBox = new THREE.Box3().setFromObject(mesh);
+                const size = boundingBox.getSize(new THREE.Vector3());
+                const center = boundingBox.getCenter(new THREE.Vector3());
+                
+                // Calculate the scale based on the object's actual size
+                const modelScale = mesh.scale.clone();
+                
+                // Create the debug wireframe
+                this.createDebugWireframe(
+                    'cuboid', 
+                    { 
+                        x: size.x * 0.5, 
+                        y: size.y * 0.5, 
+                        z: size.z * 0.5 
+                    }, 
+                    center, 
+                    mesh.quaternion,
+                    { 
+                        bodyId: body.handle,
+                        originalObject: mesh,
+                        scale: modelScale,
+                        objectId: mesh.id
+                    }
+                );
+            }
+        });
+        
+        // Also check for static bodies that might have physics
+        const staticMeshes = this.storage.get_all_static_meshes();
+        staticMeshes.forEach((mesh) => {
+            if (!mesh) return;
+            
+            // Only process static meshes that might have collision (like rooms)
+            if (mesh.name.includes('ROOM') || mesh.name.includes('FLOOR')) {
+                // Try to find collision meshes in static objects too
+                const collisionMeshes = [];
+                mesh.traverse((child) => {
+                    if (child.isMesh && child.name.startsWith('col_')) {
+                        collisionMeshes.push(child);
+                    }
+                });
+                
+                if (collisionMeshes.length > 0) {
+                    // Create wireframes for each collision mesh
+                    collisionMeshes.forEach((colMesh) => {
+                        // Get the world transform of the collision mesh
+                        const worldPosition = new THREE.Vector3();
+                        const worldQuaternion = new THREE.Quaternion();
+                        const worldScale = new THREE.Vector3();
+                        
+                        colMesh.updateWorldMatrix(true, false);
+                        colMesh.matrixWorld.decompose(worldPosition, worldQuaternion, worldScale);
+                        
+                        // Clone the actual geometry for accurate representation
+                        const clonedGeometry = colMesh.geometry.clone();
+                        
+                        // Create a wireframe using the actual collision mesh geometry
+                        this.createDebugWireframe(
+                            'mesh',
+                            null, // dimensions not needed when using the actual geometry
+                            worldPosition,
+                            worldQuaternion,
+                            { 
+                                geometry: clonedGeometry,
+                                originalObject: colMesh,
+                                objectId: colMesh.id,
+                                scale: worldScale
+                            }
+                        );
+                    });
+                } else {
+                    // No collision meshes, fallback to bounding box
+                    const boundingBox = new THREE.Box3().setFromObject(mesh);
+                    const size = boundingBox.getSize(new THREE.Vector3());
+                    const center = boundingBox.getCenter(new THREE.Vector3());
+                    
+                    // Calculate the scale based on the object's actual size
+                    const modelScale = mesh.scale.clone();
+                    
+                    this.createDebugWireframe(
+                        'cuboid', 
+                        { 
+                            x: size.x * 0.5, 
+                            y: size.y * 0.5, 
+                            z: size.z * 0.5 
+                        }, 
+                        center, 
+                        mesh.quaternion,
+                        { 
+                            originalObject: mesh,
+                            scale: modelScale,
+                            objectId: mesh.id
+                        }
+                    );
+                }
+            }
+        });
     }
 } 

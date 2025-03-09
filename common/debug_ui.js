@@ -469,22 +469,27 @@ export function createDebugUI() {
     
     // Add debug toggles (these remain visible)
     addToggle(debugUI, 'COLLISION_VISUAL_DEBUG', 'Collision Debug', FLAGS.COLLISION_VISUAL_DEBUG, (checked) => {
+        // Update flags
+        FLAGS.COLLISION_VISUAL_DEBUG = checked;
+        
         // Also update SIGN_VISUAL_DEBUG to match COLLISION_VISUAL_DEBUG
         FLAGS.SIGN_VISUAL_DEBUG = checked;
         
         // Update sign debug visualizations
-        if (backgroundContainer) {
-            backgroundContainer.updateSignDebugVisualizations();
+        if (window.background_container) {
+            background_container.updateSignDebugVisualizations();
+        }
+        
+        // Update collision debug in the asset spawner if available
+        if (window.asset_spawner) {
+            console.log(`Setting collision debug to ${checked}`);
+            asset_spawner.setCollisionDebug(checked);
         }
         
         // Update label wireframes
-        if (window.viewable_container && window.viewable_container.get_overlay()) {
-            const labelContainer = window.viewable_container.get_overlay().label_container;
-            if (labelContainer && typeof labelContainer.updateDebugVisualizations === 'function') {
-                labelContainer.updateDebugVisualizations();
-            }
-        }
+        updateLabelWireframes();
         
+        // Log the change for debugging
         console.log(`Collision and Sign debug visualization ${checked ? 'enabled' : 'disabled'}`);
         console.log(`All collision wireframes will be ${checked ? 'shown' : 'hidden'}`);
     });

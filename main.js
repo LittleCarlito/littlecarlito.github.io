@@ -203,6 +203,8 @@ async function init() {
 
         // Now initialize the asset spawner after world is created
         asset_spawner = AssetSpawner.get_instance(scene, world);
+        // Make asset_spawner available globally for debug UI
+        window.asset_spawner = asset_spawner;
         
         // UI creation
         updateLoadingProgress('Creating UI components...');
