@@ -191,32 +191,138 @@ export class AssetSpawner {
                     if (collisionMeshes.length > 0) {
                         // Create wireframes for each collision mesh
                         collisionMeshes.forEach((colMesh) => {
-                            // Get the world transform of the collision mesh
-                            const worldPosition = new THREE.Vector3();
-                            const worldQuaternion = new THREE.Quaternion();
-                            const worldScale = new THREE.Vector3();
-                            
-                            // Temporarily update matrices to get accurate world position and scale
-                            colMesh.updateWorldMatrix(true, false);
-                            colMesh.matrixWorld.decompose(worldPosition, worldQuaternion, worldScale);
-                            
-                            // Clone the actual geometry for accurate representation
-                            const clonedGeometry = colMesh.geometry.clone();
-                            
-                            // Create a wireframe using the actual collision mesh geometry
-                            this.createDebugWireframe(
-                                'mesh',
-                                null, // dimensions not needed when using the actual geometry
-                                worldPosition,
-                                worldQuaternion,
-                                { 
-                                    bodyId: physicsBody.handle,
-                                    geometry: clonedGeometry,
-                                    originalObject: colMesh,
-                                    objectId: colMesh.id,
-                                    scale: worldScale
+                            // We need to wait for physics to be created before creating wireframes
+                            // This is important because we want to visualize the EXACT collider shape
+                            // that was created, not just the mesh shape
+                            setTimeout(() => {
+                                if (!colMesh.userData.physicsCollider) {
+                                    console.warn("No collider found for mesh, using approximate wireframe");
+                                    
+                                    // Get the world transform of the collision mesh
+                                    const worldPosition = new THREE.Vector3();
+                                    const worldQuaternion = new THREE.Quaternion();
+                                    const worldScale = new THREE.Vector3();
+                                    
+                                    colMesh.updateWorldMatrix(true, false);
+                                    colMesh.matrixWorld.decompose(worldPosition, worldQuaternion, worldScale);
+                                    
+                                    // Clone the actual geometry for accurate representation
+                                    const clonedGeometry = colMesh.geometry.clone();
+                                    
+                                    // Create a wireframe using the actual collision mesh geometry
+                                    this.createDebugWireframe(
+                                        'mesh',
+                                        null, // dimensions not needed when using the actual geometry
+                                        worldPosition,
+                                        worldQuaternion,
+                                        { 
+                                            bodyId: physicsBody.handle,
+                                            geometry: clonedGeometry,
+                                            originalObject: colMesh,
+                                            objectId: colMesh.id,
+                                            scale: worldScale
+                                        }
+                                    );
+                                } else {
+                                    // Use the exact collider shape and position
+                                    const collider = colMesh.userData.physicsCollider;
+                                    
+                                    // Get the parent body position and rotation
+                                    const bodyPos = physicsBody.translation();
+                                    const bodyRot = physicsBody.rotation();
+                                    
+                                    // Get the collider's local position relative to the body
+                                    const localPos = collider.translation();
+                                    
+                                    // Calculate world position by combining body position and local offset
+                                    const worldPos = new THREE.Vector3(
+                                        bodyPos.x + localPos.x,
+                                        bodyPos.y + localPos.y,
+                                        bodyPos.z + localPos.z
+                                    );
+                                    
+                                    // Get combined rotation
+                                    const worldRot = new THREE.Quaternion(
+                                        bodyRot.x, bodyRot.y, bodyRot.z, bodyRot.w
+                                    );
+                                    
+                                    // Create wireframe based on collider type and dimensions
+                                    const colliderType = collider.shape.type;
+                                    
+                                    // Log for debugging
+                                    console.log(`Creating wireframe for collider`, {
+                                        type: colliderType,
+                                        position: `${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)}, ${worldPos.z.toFixed(2)}`,
+                                    });
+                                    
+                                    if (colliderType === RAPIER.ShapeType.Cuboid) {
+                                        const halfExtents = collider.shape.halfExtents;
+                                        this.createDebugWireframe(
+                                            'cuboid',
+                                            { 
+                                                x: halfExtents.x, 
+                                                y: halfExtents.y, 
+                                                z: halfExtents.z 
+                                            },
+                                            worldPos,
+                                            worldRot,
+                                            { 
+                                                bodyId: physicsBody.handle,
+                                                originalObject: colMesh,
+                                                objectId: colMesh.id
+                                            }
+                                        );
+                                    } else if (colliderType === RAPIER.ShapeType.Ball) {
+                                        const radius = collider.shape.radius;
+                                        this.createDebugWireframe(
+                                            'sphere',
+                                            { radius },
+                                            worldPos,
+                                            worldRot,
+                                            { 
+                                                bodyId: physicsBody.handle,
+                                                originalObject: colMesh,
+                                                objectId: colMesh.id
+                                            }
+                                        );
+                                    } else if (colliderType === RAPIER.ShapeType.Capsule) {
+                                        const radius = collider.shape.radius;
+                                        const halfHeight = collider.shape.halfHeight;
+                                        this.createDebugWireframe(
+                                            'capsule',
+                                            { 
+                                                radius,
+                                                height: halfHeight * 2
+                                            },
+                                            worldPos,
+                                            worldRot,
+                                            { 
+                                                bodyId: physicsBody.handle,
+                                                originalObject: colMesh,
+                                                objectId: colMesh.id
+                                            }
+                                        );
+                                    } else {
+                                        // Fallback to mesh geometry for other types
+                                        const worldScale = new THREE.Vector3(1, 1, 1);
+                                        const clonedGeometry = colMesh.geometry.clone();
+                                        
+                                        this.createDebugWireframe(
+                                            'mesh',
+                                            null,
+                                            worldPos,
+                                            worldRot,
+                                            { 
+                                                bodyId: physicsBody.handle,
+                                                geometry: clonedGeometry,
+                                                originalObject: colMesh,
+                                                objectId: colMesh.id,
+                                                scale: worldScale
+                                            }
+                                        );
+                                    }
                                 }
-                            );
+                            }, 50); // Small delay to ensure physics is initialized
                         });
                     } else {
                         // No collision meshes, create wireframe based on object bounds
@@ -281,6 +387,11 @@ export class AssetSpawner {
         // Handle mesh type (using provided geometry)
         if (type === 'mesh' && options.geometry) {
             geometry = options.geometry;
+            
+            // If mesh geometry doesn't have a bounding box, compute it
+            if (!geometry.boundingBox) {
+                geometry.computeBoundingBox();
+            }
         } else {
             // Create primitive geometry based on dimensions
             const size = dimensions || { x: 1, y: 1, z: 1 };
@@ -338,7 +449,7 @@ export class AssetSpawner {
         
         // Handle scale - crucial for correct wireframe size
         if (options.scale) {
-            // Apply scale to the mesh
+            // For mesh type, apply the scale directly
             mesh.scale.copy(options.scale);
         }
         
@@ -350,10 +461,12 @@ export class AssetSpawner {
         mesh.userData.originalObject = options.originalObject;
         
         // Debug logging for scale issues
-        if (options.scale) {
-            console.log(`Creating wireframe for ${options.originalObject ? options.originalObject.name : 'unknown'} with scale:`, 
-                options.scale.x.toFixed(2), options.scale.y.toFixed(2), options.scale.z.toFixed(2));
-        }
+        const objectName = options.originalObject ? options.originalObject.name : 'unknown';
+        const scaleStr = options.scale ? 
+            `${options.scale.x.toFixed(2)}, ${options.scale.y.toFixed(2)}, ${options.scale.z.toFixed(2)}` : 
+            'none';
+        
+        console.log(`Creating wireframe for ${objectName} with scale: ${scaleStr} at position: ${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)}`);
         
         // Only add to scene and store if debug is enabled
         if (FLAGS.COLLISION_VISUAL_DEBUG) {
@@ -469,7 +582,8 @@ export class AssetSpawner {
         const quaternion = new THREE.Quaternion();
         const meshScale = new THREE.Vector3();
         
-        mesh.updateMatrixWorld();
+        // Ensure matrix is updated to get accurate world position
+        mesh.updateWorldMatrix(true, false);
         mesh.matrixWorld.decompose(position, quaternion, meshScale);
         
         // Adjust position for physics (since we're adding a collider to an existing body)
@@ -480,6 +594,14 @@ export class AssetSpawner {
             z: position.z - bodyPos.z
         };
         
+        // Log for debugging
+        console.log(`Creating collider for ${mesh.name}:`, {
+            worldPos: `${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)}`,
+            bodyPos: `${bodyPos.x.toFixed(2)}, ${bodyPos.y.toFixed(2)}, ${bodyPos.z.toFixed(2)}`,
+            relativePos: `${relativePos.x.toFixed(2)}, ${relativePos.y.toFixed(2)}, ${relativePos.z.toFixed(2)}`,
+            meshScale: `${meshScale.x.toFixed(2)}, ${meshScale.y.toFixed(2)}, ${meshScale.z.toFixed(2)}`
+        });
+        
         let colliderDesc;
         
         // Detect shape from name (often models use naming conventions)
@@ -487,18 +609,18 @@ export class AssetSpawner {
             // Create a sphere collider
             // Estimate radius from geometry bounds
             geometry.computeBoundingSphere();
-            const radius = geometry.boundingSphere.radius * scale;
+            const radius = geometry.boundingSphere.radius * meshScale.x;
             colliderDesc = RAPIER.ColliderDesc.ball(radius);
             
         } else if (mesh.name.includes('capsule')) {
             // Create a capsule collider
             geometry.computeBoundingBox();
             const box = geometry.boundingBox;
-            const height = (box.max.y - box.min.y) * scale;
+            const height = (box.max.y - box.min.y) * meshScale.y;
             const radius = Math.max(
                 (box.max.x - box.min.x), 
                 (box.max.z - box.min.z)
-            ) * scale * 0.5;
+            ) * meshScale.x * 0.5;
             
             colliderDesc = RAPIER.ColliderDesc.capsule(height * 0.5, radius);
             
@@ -506,9 +628,11 @@ export class AssetSpawner {
             // Default to cuboid
             geometry.computeBoundingBox();
             const box = geometry.boundingBox;
-            const hx = (box.max.x - box.min.x) * scale * 0.5 * meshScale.x;
-            const hy = (box.max.y - box.min.y) * scale * 0.5 * meshScale.y;
-            const hz = (box.max.z - box.min.z) * scale * 0.5 * meshScale.z;
+            
+            // Use exact dimensions from mesh's bounding box, scaled by the mesh's world scale
+            const hx = (box.max.x - box.min.x) * meshScale.x * 0.5;
+            const hy = (box.max.y - box.min.y) * meshScale.y * 0.5;
+            const hz = (box.max.z - box.min.z) * meshScale.z * 0.5;
             
             colliderDesc = RAPIER.ColliderDesc.cuboid(hx, hy, hz);
         }
@@ -532,6 +656,9 @@ export class AssetSpawner {
         
         // Create the collider
         const collider = this.world.createCollider(colliderDesc, body);
+        
+        // Store reference to the collider on the mesh for debugging
+        mesh.userData.physicsCollider = collider;
         
         return collider;
     }
@@ -605,7 +732,7 @@ export class AssetSpawner {
             });
             
             if (collisionMeshes.length > 0) {
-                // Create wireframes for each collision mesh - using actual geometry
+                // Create wireframes for each collision mesh
                 collisionMeshes.forEach((colMesh) => {
                     // Get the world transform of the collision mesh
                     const worldPosition = new THREE.Vector3();
@@ -615,6 +742,13 @@ export class AssetSpawner {
                     // Temporarily update matrices to get world position
                     colMesh.updateWorldMatrix(true, false);
                     colMesh.matrixWorld.decompose(worldPosition, worldQuaternion, worldScale);
+                    
+                    // Scale down the worldScale if needed - adjust this as needed
+                    // In some cases, the original scale might be too large for the wireframe
+                    const adjustedScale = worldScale.clone();
+                    if (adjustedScale.x > 1 || adjustedScale.y > 1 || adjustedScale.z > 1) {
+                        adjustedScale.multiplyScalar(0.2); // Scale it down
+                    }
                     
                     // Clone the actual geometry for accurate representation
                     const clonedGeometry = colMesh.geometry.clone();
@@ -626,11 +760,11 @@ export class AssetSpawner {
                         worldPosition,
                         worldQuaternion,
                         { 
-                            bodyId: body.handle,
+                            bodyId: body.handle, // Use body.handle NOT physicsBody.handle
                             geometry: clonedGeometry,
                             originalObject: colMesh,
                             objectId: colMesh.id,
-                            scale: worldScale
+                            scale: adjustedScale // Use adjusted scale
                         }
                     );
                 });
@@ -639,9 +773,6 @@ export class AssetSpawner {
                 const boundingBox = new THREE.Box3().setFromObject(mesh);
                 const size = boundingBox.getSize(new THREE.Vector3());
                 const center = boundingBox.getCenter(new THREE.Vector3());
-                
-                // Calculate the scale based on the object's actual size
-                const modelScale = mesh.scale.clone();
                 
                 // Create the debug wireframe
                 this.createDebugWireframe(
@@ -654,10 +785,10 @@ export class AssetSpawner {
                     center, 
                     mesh.quaternion,
                     { 
-                        bodyId: body.handle,
+                        bodyId: body.handle, // Use body.handle NOT physicsBody.handle
                         originalObject: mesh,
-                        scale: modelScale,
-                        objectId: mesh.id
+                        objectId: mesh.id,
+                        scale: new THREE.Vector3(1, 1, 1) // Use a default scale
                     }
                 );
             }
@@ -689,6 +820,12 @@ export class AssetSpawner {
                         colMesh.updateWorldMatrix(true, false);
                         colMesh.matrixWorld.decompose(worldPosition, worldQuaternion, worldScale);
                         
+                        // Scale down the worldScale if needed
+                        const adjustedScale = worldScale.clone();
+                        if (adjustedScale.x > 1 || adjustedScale.y > 1 || adjustedScale.z > 1) {
+                            adjustedScale.multiplyScalar(0.2); // Scale it down to 20%
+                        }
+                        
                         // Clone the actual geometry for accurate representation
                         const clonedGeometry = colMesh.geometry.clone();
                         
@@ -702,7 +839,7 @@ export class AssetSpawner {
                                 geometry: clonedGeometry,
                                 originalObject: colMesh,
                                 objectId: colMesh.id,
-                                scale: worldScale
+                                scale: adjustedScale
                             }
                         );
                     });
@@ -712,22 +849,19 @@ export class AssetSpawner {
                     const size = boundingBox.getSize(new THREE.Vector3());
                     const center = boundingBox.getCenter(new THREE.Vector3());
                     
-                    // Calculate the scale based on the object's actual size
-                    const modelScale = mesh.scale.clone();
-                    
                     this.createDebugWireframe(
                         'cuboid', 
                         { 
-                            x: size.x * 0.5, 
-                            y: size.y * 0.5, 
-                            z: size.z * 0.5 
+                            x: size.x * 0.5 * 0.2, // Scale down by 80%
+                            y: size.y * 0.5 * 0.2,
+                            z: size.z * 0.5 * 0.2
                         }, 
                         center, 
                         mesh.quaternion,
                         { 
                             originalObject: mesh,
-                            scale: modelScale,
-                            objectId: mesh.id
+                            objectId: mesh.id,
+                            scale: new THREE.Vector3(1, 1, 1) 
                         }
                     );
                 }
