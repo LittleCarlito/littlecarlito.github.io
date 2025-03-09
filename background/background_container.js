@@ -1,8 +1,8 @@
-import { FLAGS, THREE, AssetSpawner, ASSET_TYPE } from "../common";
+import { THREE, FLAGS, RAPIER } from '../common';
+import { AssetStorage, AssetSpawner, ASSET_TYPE } from 'asset-management';
 import { ControlMenu } from "./menus/control_menu";
 import { ScrollMenu } from "./menus/scroll_menu";
 import { CATEGORIES, TYPES } from "../viewport/overlay/overlay_common";
-import { AssetStorage } from '../common/asset_management/asset_storage';
 
 export class BackgroundContainer {
     name = "[BackgroundContainer]"
@@ -25,190 +25,228 @@ export class BackgroundContainer {
         this.world = incoming_world;
         this.object_container = new THREE.Object3D();
         this.parent.add(this.object_container);
-        const asset_loader = AssetSpawner.get_instance();
+        const asset_loader = AssetSpawner.get_instance(this.object_container, this.world);
 
         // Create a promise for the main assets
         const mainAssetsPromise = (async () => {
             // Spawn Book
-            let [mesh, body] = await asset_loader.spawn_asset(
-                ASSET_TYPE.BOOK, 
-                this.object_container, 
-                this.world, {}, 
-                new THREE.Vector3(-15, 5, -5)
+            const bookPosition = new THREE.Vector3(-15, 5, -5);
+            const result = await asset_loader.spawn_asset(
+                ASSET_TYPE.BOOK,
+                bookPosition,
+                new THREE.Quaternion(),
+                {}
             );
+            let mesh = result.mesh;
+            let body = result.body;
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.BOOK}`;
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Book with name: ${mesh.name}`);
-            // Spawn cat
-            [mesh, body] = await asset_loader.spawn_asset(
+            // Spawn Cat
+            const catPosition = new THREE.Vector3(15, 5, -5);
+            const catResult = await asset_loader.spawn_asset(
                 ASSET_TYPE.CAT,
-                this.object_container,
-                this.world, {},
-                new THREE.Vector3(-10, 5, -5)
+                catPosition,
+                new THREE.Quaternion(),
+                {}
             );
+            mesh = catResult.mesh;
+            body = catResult.body;
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.CAT}`;
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Cat with name: ${mesh.name}`);
             // Spawn Chair
-            [mesh, body] = await asset_loader.spawn_asset(
+            const chairPosition = new THREE.Vector3(0, 0, 0);
+            const chairResult = await asset_loader.spawn_asset(
                 ASSET_TYPE.CHAIR,
-                this.object_container,
-                this.world, {},
-                new THREE.Vector3(-5, 5, -5)
+                chairPosition,
+                new THREE.Quaternion(),
+                {}
             );
+            mesh = chairResult.mesh;
+            body = chairResult.body;
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.CHAIR}`;
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Chair with name: ${mesh.name}`);
-            // Spawn computer
-            [mesh, body] = await asset_loader.spawn_asset(
+            // Spawn Computer
+            const computerPosition = new THREE.Vector3(0, 3, -6);
+            const computerResult = await asset_loader.spawn_asset(
                 ASSET_TYPE.COMPUTER,
-                this.object_container,
-                this.world, {},
-                new THREE.Vector3(0, 5, -5)
+                computerPosition,
+                new THREE.Quaternion(),
+                {}
             );
+            mesh = computerResult.mesh;
+            body = computerResult.body;
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.COMPUTER}`;
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Computer with name: ${mesh.name}`);
             // Spawn Desk
-            [mesh, body] = await asset_loader.spawn_asset(
+            const deskPosition = new THREE.Vector3(0, 1, -5.5);
+            const deskResult = await asset_loader.spawn_asset(
                 ASSET_TYPE.DESK,
-                this.object_container,
-                this.world,
-                {},
-                new THREE.Vector3(5, 5, -5)
+                deskPosition,
+                new THREE.Quaternion(),
+                {}
             );
+            mesh = deskResult.mesh;
+            body = deskResult.body;
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DESK}`;
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Desk with name: ${mesh.name}`);
             // Spawn Desk photo
-            [mesh, body] = await asset_loader.spawn_asset(
+            const deskPhotoPosition = new THREE.Vector3(-5, 5, -5);
+            const deskPhotoResult = await asset_loader.spawn_asset(
                 ASSET_TYPE.DESKPHOTO,
-                this.object_container,
-                this.world,
-                {},
-                new THREE.Vector3(10, 5, -5)
+                deskPhotoPosition,
+                new THREE.Quaternion(),
+                {}
             );
+            mesh = deskPhotoResult.mesh;
+            body = deskPhotoResult.body;
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DESKPHOTO}`;
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Desk photo with name: ${mesh.name}`);
             // Spawn Diploma bot
-            [mesh, body] = await asset_loader.spawn_asset(
+            const diplomaBotPosition = new THREE.Vector3(6, 5, -5);
+            const diplomaBotResult = await asset_loader.spawn_asset(
                 ASSET_TYPE.DIPLOMA_BOT,
-                this.object_container,
-                this.world,
-                {},
-                new THREE.Vector3(15, 5, -5)
+                diplomaBotPosition,
+                new THREE.Quaternion(),
+                {}
             );
+            mesh = diplomaBotResult.mesh;
+            body = diplomaBotResult.body;
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DIPLOMA_BOT}`;
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma Bot with name: ${mesh.name}`);
             // Spawn Diploma top
-            [mesh, body] = await asset_loader.spawn_asset(
+            const diplomaTopPosition = new THREE.Vector3(6, 8, -5);
+            const diplomaTopResult = await asset_loader.spawn_asset(
                 ASSET_TYPE.DIPLOMA_TOP,
-                this.object_container,
-                this.world,
-                {},
-                new THREE.Vector3(-15, 5, 0)
+                diplomaTopPosition,
+                new THREE.Quaternion(),
+                {}
             );
+            mesh = diplomaTopResult.mesh;
+            body = diplomaTopResult.body;
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DIPLOMA_TOP}`;
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma Top with name: ${mesh.name}`);
             // Spawn Keyboard
-            [mesh, body] = await asset_loader.spawn_asset(
+            const keyboardPosition = new THREE.Vector3(1, 3, -4);
+            const keyboardResult = await asset_loader.spawn_asset(
                 ASSET_TYPE.KEYBOARD,
-                this.object_container,
-                this.world,
-                {},
-                new THREE.Vector3(-10, 5, 0)
+                keyboardPosition,
+                new THREE.Quaternion(),
+                {}
             );
+            mesh = keyboardResult.mesh;
+            body = keyboardResult.body;
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.KEYBOARD}`;
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Keyboard with name: ${mesh.name}`);
             // Spawn Monitor
-            [mesh, body] = await asset_loader.spawn_asset(
+            const monitorPosition = new THREE.Vector3(0, 8, -8);
+            const monitorResult = await asset_loader.spawn_asset(
                 ASSET_TYPE.MONITOR,
-                this.object_container,
-                this.world,
-                {},
-                new THREE.Vector3(-5, 5, 0)
+                monitorPosition,
+                new THREE.Quaternion(),
+                {}
             );
+            mesh = monitorResult.mesh;
+            body = monitorResult.body;
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.MONITOR}`;
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Monitor with name: ${mesh.name}`);
             // Spawn Mouse
-            [mesh, body] = await asset_loader.spawn_asset(
+            const mousePosition = new THREE.Vector3(3, 3, -4);
+            const mouseResult = await asset_loader.spawn_asset(
                 ASSET_TYPE.MOUSE,
-                this.object_container,
-                this.world,
-                {},
-                new THREE.Vector3(0, 5, 0)
+                mousePosition,
+                new THREE.Quaternion(),
+                {}
             );
+            mesh = mouseResult.mesh;
+            body = mouseResult.body;
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.MOUSE}`;
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Mouse with name: ${mesh.name}`);
             // Spawn Mousepad
-            [mesh, body] = await asset_loader.spawn_asset(
+            const mousepadPosition = new THREE.Vector3(3, 3.25, -5);
+            const mousepadResult = await asset_loader.spawn_asset(
                 ASSET_TYPE.MOUSEPAD,
-                this.object_container,
-                this.world,
-                {},
-                new THREE.Vector3(5, 5, 0)
+                mousepadPosition,
+                new THREE.Quaternion(),
+                {}
             );
+            mesh = mousepadResult.mesh;
+            body = mousepadResult.body;
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.MOUSEPAD}`;
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Mousepad with name: ${mesh.name}`);
             // Spawn Notebook closed
-            [mesh, body] = await asset_loader.spawn_asset(
+            const notebookClosedPosition = new THREE.Vector3(5, 5, 0);
+            const notebookClosedResult = await asset_loader.spawn_asset(
                 ASSET_TYPE.NOTEBOOK_CLOSED,
-                this.object_container,
-                this.world,
-                {},
-                new THREE.Vector3(10, 5, 0)
+                notebookClosedPosition,
+                new THREE.Quaternion(),
+                {}
             );
+            mesh = notebookClosedResult.mesh;
+            body = notebookClosedResult.body;
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.NOTEBOOK_CLOSED}`;
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Notebook closed with name: ${mesh.name}`);
             // Spawn Notebook opened
-            [mesh, body] = await asset_loader.spawn_asset(
+            const notebookOpenedPosition = new THREE.Vector3(-5, 5, 0);
+            const notebookOpenedResult = await asset_loader.spawn_asset(
                 ASSET_TYPE.NOTEBOOK_OPENED,
-                this.object_container,
-                this.world,
-                {},
-                new THREE.Vector3(15, 5, 0)
+                notebookOpenedPosition,
+                new THREE.Quaternion(),
+                {}
             );
+            mesh = notebookOpenedResult.mesh;
+            body = notebookOpenedResult.body;
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.NOTEBOOK_OPENED}`;
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Notebook opened with name: ${mesh.name}`);
             // Spawn Plant
-            [mesh, body] = await asset_loader.spawn_asset(
+            const plantPosition = new THREE.Vector3(10, 5, 0);
+            const plantResult = await asset_loader.spawn_asset(
                 ASSET_TYPE.PLANT,
-                this.object_container,
-                this.world,
-                {},
-                new THREE.Vector3(-15, 5, 5)
+                plantPosition,
+                new THREE.Quaternion(),
+                {}
             );
+            mesh = plantResult.mesh;
+            body = plantResult.body;
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.PLANT}`;
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Plant with name: ${mesh.name}`);
             // Spawn Room
-            [mesh, body] = await asset_loader.spawn_asset(
+            const roomPosition = new THREE.Vector3(0, 0, 0);
+            const roomResult = await asset_loader.spawn_asset(
                 ASSET_TYPE.ROOM,
-                this.object_container,
-                this.world,
-                {},
-                new THREE.Vector3(-10, 0, 5)
+                roomPosition,
+                new THREE.Quaternion(),
+                { enablePhysics: false }  // Room should be static
             );
+            mesh = roomResult.mesh;
+            body = roomResult.body;
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.ROOM}`;
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Room with name: ${mesh.name}`);
             // Spawn Tablet
-            [mesh, body] = await asset_loader.spawn_asset(
+            const tabletPosition = new THREE.Vector3(-10, 5, 0);
+            const tabletResult = await asset_loader.spawn_asset(
                 ASSET_TYPE.TABLET,
-                this.object_container,
-                this.world,
-                {},
-                new THREE.Vector3(-15, 5, 5)
+                tabletPosition,
+                new THREE.Quaternion(),
+                {}
             );
+            mesh = tabletResult.mesh;
+            body = tabletResult.body;
             mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.TABLET}`;
             this.asset_manifest.add(mesh.name);
             if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Tablet with name: ${mesh.name}`);
@@ -302,14 +340,17 @@ export class BackgroundContainer {
     }
 
     async spawn_primary_instructions() {
-        // Check if already spawning or spawned
-        if (this.is_spawning_primary || this.is_primary_spawned()) {
-            if(FLAGS.PHYSICS_LOGS) console.log(`${this.name} Primary instructions already spawning or spawned`);
+        // Set state to prevent overlapping calls
+        if (this.is_spawning_primary) {
+            console.log("Already spawning primary instructions!");
             return;
         }
-
+        
+        this.is_spawning_primary = true;
+        
+        const asset_loader = AssetSpawner.get_instance(this.object_container, this.world);
+        
         try {
-            this.is_spawning_primary = true;  // Set spawn lock
             if(FLAGS.PHYSICS_LOGS) console.log(`${this.name} Starting primary instructions spawn`);
 
             // Create and await the ControlMenu initialization
@@ -320,8 +361,6 @@ export class BackgroundContainer {
                 this
             );
 
-            const asset_loader = AssetSpawner.get_instance();
-            
             // Now we know the sign is fully initialized
             if (this.primary_instruction_sign.sign_mesh && this.primary_instruction_sign.sign_body) {
                 this.primary_instruction_sign.sign_mesh.name = `${TYPES.INTERACTABLE}primary`;
@@ -404,6 +443,7 @@ export class BackgroundContainer {
     }
 
     async break_primary_chains() {
+        const asset_loader = AssetSpawner.get_instance(this.object_container, this.world);
         if(this.is_primary_spawned()) {
             if(!this.primary_instruction_sign.chains_broken) {
                 await this.primary_instruction_sign.break_chains();
@@ -445,7 +485,6 @@ export class BackgroundContainer {
             return !this.is_primary_chains_broken();
         }
         return false;
-
     }
     
     is_secondary_spawned() {

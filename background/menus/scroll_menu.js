@@ -1,7 +1,8 @@
-import { TYPES } from '../../viewport/overlay/overlay_common';
-import { FLAGS, ASSET_TYPE, RAPIER, THREE } from '../../common';
+import { THREE, FLAGS } from "../../common";
+import { AssetStorage, ASSET_TYPE } from 'asset-management';
+import { TYPES } from "../../viewport/overlay/overlay_common";
 import { BackgroundLighting } from '../background_lighting';
-import { AssetStorage } from '../../common/asset_management/asset_storage';
+import { RAPIER } from '../../common';
 
 export class ScrollMenu {
     parent;

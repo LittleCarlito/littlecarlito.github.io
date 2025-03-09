@@ -13,6 +13,6 @@ export const FLAGS = {
     HTML_LOGS: false,
     PHYSICS_LOGS: false,
     ASSET_LOGS: false,
-    ACTIVATE_LOGS: false,
+    ACTIVATE_LOGS: true,
     EFFECT_LOGS: false
 };

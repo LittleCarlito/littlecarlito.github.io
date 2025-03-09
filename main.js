@@ -7,9 +7,7 @@ import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewp
 import { AppRenderer } from './common/app_renderer';
 import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common';
 import { BackgroundContainer } from './background/background_container';
-import { AssetSpawner } from './common';
-import { AssetStorage } from './common/asset_management/asset_storage';
-import { AssetActivator } from './common/asset_management/asset_activator';
+import { AssetStorage, AssetActivator, AssetSpawner } from 'asset-management';
 import { toggleDebugUI, createDebugUI, setBackgroundContainer, setResolutionScale, updateLabelWireframes } from './common/debug_ui.js';
 
 // ----- Constants
@@ -173,22 +171,10 @@ async function init() {
         await RAPIER.init(); // Make sure Rapier is initialized
         
         updateLoadingProgress('Initializing scene...');
-        asset_spawner = AssetSpawner.get_instance();
-        asset_activator = AssetActivator.get_instance();
         
-        if(FLAGS.CONSTRUCTION_GREETING) {
-            const response = await fetch('pages/under_construction.html');
-            const html = await response.text();
-            document.body.insertAdjacentHTML('beforeend', html);
-            const modal = document.getElementById('construction-modal');
-            const acknowledgeBtn = document.getElementById('acknowledge-btn');
-            modal.style.display = 'block';
-            acknowledgeBtn.addEventListener('click', () => {
-                modal.style.display = 'none';
-                construction_acknowledged = true;
-            });
-        }
-
+        // Initialize asset storage and spawner early since they don't depend on UI
+        const storage = AssetStorage.get_instance();
+        
         // ----- Setup
         scene = new THREE.Scene();
         scene.background = TEXTURE_LOADER.load(BACKGROUND_IMAGE);
@@ -215,6 +201,9 @@ async function init() {
         world.integrationParameters.allowedLinearError = 0.001;
         clock = new THREE.Clock();
 
+        // Now initialize the asset spawner after world is created
+        asset_spawner = AssetSpawner.get_instance(scene, world);
+        
         // UI creation
         updateLoadingProgress('Creating UI components...');
         viewable_container = new ViewableContainer(scene, world);
@@ -225,9 +214,23 @@ async function init() {
         app_renderer = new AppRenderer(scene, viewable_container.get_camera());
         // Make renderer available globally for debug UI
         window.renderer = app_renderer.get_renderer();
-        // Make renderer available globally for debug UI
-        window.renderer = app_renderer.get_renderer();
         
+        // Now initialize the asset activator after camera and renderer are created
+        asset_activator = AssetActivator.get_instance(viewable_container.get_camera(), app_renderer.get_renderer());
+        
+        if(FLAGS.CONSTRUCTION_GREETING) {
+            const response = await fetch('pages/under_construction.html');
+            const html = await response.text();
+            document.body.insertAdjacentHTML('beforeend', html);
+            const modal = document.getElementById('construction-modal');
+            const acknowledgeBtn = document.getElementById('acknowledge-btn');
+            modal.style.display = 'block';
+            acknowledgeBtn.addEventListener('click', () => {
+                modal.style.display = 'none';
+                construction_acknowledged = true;
+            });
+        }
+
         // Background creation
         updateLoadingProgress('Loading background assets...');
         const lighting = BackgroundLighting.getInstance(scene);

@@ -2,6 +2,11 @@ import { defineConfig } from 'vite'
 
 export default defineConfig(({ command }) => ({
   base: command === 'serve' ? '' : '/threejs_site/',
+  resolve: {
+    alias: {
+      'asset-management': '/packages/asset-management/dist'
+    }
+  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
@@ -19,6 +24,10 @@ export default defineConfig(({ command }) => ({
         external: [
           /^development\/.*/  // Excludes anything in the development folder
         ]
+      },
+      input: {
+        main: 'index.html',
+        packageTest: 'package-test.html'
       }
     },
     sourcemap: true,

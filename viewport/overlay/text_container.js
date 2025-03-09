@@ -1,9 +1,8 @@
 import { clamp } from 'three/src/math/MathUtils.js';
 import { TextFrame, IFRAME } from './text_frame';
 import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, CATEGORIES, extract_type, PAN_SPEED, TYPES, VALID_DIRECTIONS } from './overlay_common';
-import { Easing, FLAGS, ASSET_TYPE, THREE, Tween, AssetSpawner } from '../../common';
-import { ASSET_CONFIGS } from '../../common/asset_management/asset_type';
-import { AssetStorage } from '../../common/asset_management/asset_storage';
+import { Easing, FLAGS, THREE, Tween } from '../../common';
+import { ASSET_CONFIGS, AssetStorage, AssetSpawner, ASSET_TYPE } from 'asset-management';
 
 export class TextContainer {
     container_width;
@@ -17,7 +16,8 @@ export class TextContainer {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.text_box_container = new THREE.Object3D();
-        this.asset_spawner = AssetSpawner.get_instance();
+        // Need to pass parent and null for world since this is UI without physics
+        this.asset_spawner = AssetSpawner.get_instance(this.parent, null);
         // Create text displays
         this.parent.add(this.text_box_container);
         // Creat background private method

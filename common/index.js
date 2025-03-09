@@ -35,5 +35,6 @@ export async function loadRapier() {
 export * from './flags'
 export * from './app_renderer'
 export * from './types'
-export * from './asset_management/asset_spawner'
-export * from './asset_management/asset_type'
+
+// Asset management is now a separate package
+// import { AssetStorage, AssetSpawner, AssetActivator, ASSET_TYPE, ASSET_CONFIGS } from 'asset-management';

@@ -1,6 +1,5 @@
 import { FLAGS, RAPIER, THREE } from "../../common";
-import { AssetSpawner } from "../../common";
-import { AssetStorage } from '../../common/asset_management/asset_storage';
+import { AssetStorage, AssetSpawner } from 'asset-management';
 
 const THROW_MULTIPLIER = 0.1; // Adjust this to control throw strength
 const SHOVE_FORCE = 4; // Adjust this value to control the force of the shove

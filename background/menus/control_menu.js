@@ -1,5 +1,6 @@
 import { TYPES } from '../../viewport/overlay/overlay_common';
-import { FLAGS, ASSET_TYPE, RAPIER, THREE } from '../../common';
+import { FLAGS, RAPIER, THREE } from '../../common';
+import { ASSET_TYPE } from 'asset-management';
 import { BackgroundLighting } from '../background_lighting';
 
 export const IMAGE_PATH = 'images/MouseControlMenu.svg';
