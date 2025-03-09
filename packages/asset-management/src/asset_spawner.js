@@ -90,6 +90,11 @@ export class AssetSpawner {
             model.position.copy(position);
             model.quaternion.copy(rotation);
             
+            // Add interactable_ prefix to the model name to make it grabbable
+            // Format: interactable_assetType_uniqueId
+            const uniqueId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+            model.name = `interactable_${asset_type}_${uniqueId}`;
+            
             // Hide collision meshes (objects with names starting with "col_")
             // And collect them for potential physics use
             const collisionMeshes = [];
@@ -99,6 +104,11 @@ export class AssetSpawner {
                         // This is a collision mesh - hide it and collect for physics
                         child.visible = false;
                         collisionMeshes.push(child);
+                    } else {
+                        // Add interactable_ prefix to all visible meshes to make them grabbable
+                        // Use the same naming convention for child meshes
+                        const childId = child.id || Math.floor(Math.random() * 10000);
+                        child.name = `interactable_${asset_type}_${child.name || 'part'}_${childId}`;
                     }
                 }
             });
