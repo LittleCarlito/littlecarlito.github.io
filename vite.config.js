@@ -27,7 +27,7 @@ export default defineConfig(({ command }) => ({
       },
       input: {
         main: 'index.html',
-        packageTest: 'package-test.html'
+        packageTest: 'tests/package-test.html'
       }
     },
     sourcemap: true,

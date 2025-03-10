@@ -7,7 +7,7 @@ import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewp
 import { AppRenderer } from './common/app_renderer';
 import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common';
 import { BackgroundContainer } from './background/background_container';
-import { AssetStorage, AssetActivator, AssetSpawner } from 'asset-management';
+import { AssetStorage, AssetActivator, AssetSpawner, ManifestManager } from 'asset-management';
 import { toggleDebugUI, createDebugUI, setBackgroundContainer, setResolutionScale, updateLabelWireframes } from './common/debug_ui.js';
 
 // ----- Constants
@@ -175,6 +175,14 @@ async function init() {
         // Initialize asset storage and spawner early since they don't depend on UI
         const storage = AssetStorage.get_instance();
         
+        // Initialize the ManifestManager and load the manifest
+        updateLoadingProgress("Loading manifest...");
+        const manifest_manager = ManifestManager.get_instance();
+        await manifest_manager.load_manifest('resources/manifest.json');
+        
+        // Apply scene settings from manifest
+        const scene_data = manifest_manager.get_scene_data();
+        
         // ----- Setup
         scene = new THREE.Scene();
         scene.background = TEXTURE_LOADER.load(BACKGROUND_IMAGE);
@@ -291,6 +299,56 @@ async function init() {
         window.addEventListener('keydown', toggle_debug_ui);
         // Add unload event to clean up resources
         window.addEventListener('unload', cleanup);
+
+        // Load and spawn assets defined in the manifest
+        updateLoadingProgress("Loading assets from manifest...");
+        const asset_groups = manifest_manager.get_all_asset_groups();
+        if (asset_groups) {
+            // Find active asset groups
+            const active_groups = asset_groups.filter(group => group.active);
+            
+            for (const group of active_groups) {
+                updateLoadingProgress(`Loading asset group: ${group.name}...`);
+                
+                for (const asset_id of group.assets) {
+                    const asset_data = manifest_manager.get_asset(asset_id);
+                    if (asset_data) {
+                        // Use the asset type to determine how to load and spawn
+                        const asset_type = asset_data.asset_type;
+                        const custom_type = manifest_manager.get_custom_type(asset_type);
+                        
+                        if (custom_type) {
+                            // Get asset path from custom type
+                            const asset_path = custom_type.paths?.asset;
+                            
+                            // Load the asset type if needed
+                            // ... load asset code
+                            
+                            // Position and rotation from asset data
+                            const position = new THREE.Vector3(
+                                asset_data.position.x || 0, 
+                                asset_data.position.y || 0, 
+                                asset_data.position.z || 0
+                            );
+                            
+                            const rotation = new THREE.Euler(
+                                asset_data.rotation.x || 0,
+                                asset_data.rotation.y || 0,
+                                asset_data.rotation.z || 0
+                            );
+                            
+                            const quaternion = new THREE.Quaternion().setFromEuler(rotation);
+                            
+                            // Spawn the asset
+                            // const { mesh, body } = await asset_spawner.spawn_asset(...);
+                            
+                            // Additional properties like materials, etc.
+                            // ... apply properties code
+                        }
+                    }
+                }
+            }
+        }
     } catch (error) {
         console.error('Error during initialization:', error);
         updateLoadingProgress('Error loading application. Please refresh the page.');

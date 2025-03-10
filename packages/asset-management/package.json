@@ -6,7 +6,10 @@
   "module": "dist/index.js",
   "type": "module",
   "scripts": {
-    "build": "vite build"
+    "build": "vite build",
+    "test": "npm run build && node examples/manifest-test.js",
+    "example:usage": "npm run build && node examples/usage-example.js",
+    "example:manifest": "npm run build && node examples/manifest-test.js"
   },
   "dependencies": {
     "three": "^0.172.0",
