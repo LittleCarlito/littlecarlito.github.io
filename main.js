@@ -194,29 +194,28 @@ async function init() {
         window.addEventListener('contextmenu', handle_context_menu);
         window.addEventListener('wheel', handle_wheel);
 
-        // Physics - Use gravity from manifest if available
-        if (scene_data && scene_data.environment && scene_data.environment.gravity) {
-            if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
-                console.log("Base gravity:", scene_data.environment.gravity);
-            }
-            const gravityData = scene_data.environment.gravity;
-            gravity = new RAPIER.Vector3(
-                gravityData.x, 
-                gravityData.y, 
-                gravityData.z
-            );
-        } else {
-            console.warn("No gravity data found in manifest; Defaulting to 0 gravity");
-            gravity = new RAPIER.Vector3(0.0, 0.0, 0.0);
+        // Physics - Get gravity from manifest manager
+        if (!manifest_manager.is_manifest_loaded()) {
+            console.warn("Manifest not loaded yet, using default gravity");
         }
+        const gravityData = manifest_manager.get_gravity();
+        if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
+            console.log("Using gravity:", gravityData);
+        }
+        gravity = new RAPIER.Vector3(
+            gravityData.x, 
+            gravityData.y, 
+            gravityData.z
+        );
+        
         world = new RAPIER.World(gravity);
         // Physics optimization settings
         world.allowSleep = true;
         world.linearSleepThreshold = 0.2;
         world.angularSleepThreshold = 0.1;
         world.sleepThreshold = 0.1;
-        world.maxVelocityIterations = 2;  // Reduced from 4
-        world.maxVelocityFriction = 4;    // Reduced from 8
+        world.maxVelocityIterations = 2;
+        world.maxVelocityFriction = 4;
         world.integrationParameters.dt = 1/60;  // Fixed timestep
         world.integrationParameters.erp = 0.8;  // Error reduction parameter
         world.integrationParameters.warmstartCoeff = 0.8;

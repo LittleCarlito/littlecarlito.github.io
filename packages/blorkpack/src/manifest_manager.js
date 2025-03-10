@@ -10,6 +10,8 @@
  */
 
 import { typeDefs } from './manifest_types.js';
+import { DEFAULT_ENVIRONMENT, DEFAULT_PHYSICS, DEFAULT_RENDERING } from '../resources/default_configs.js';
+import { BLORKPACK_FLAGS } from './blorkpack_flags.js';
 
 /**
  * Singleton class for managing manifest.json data
@@ -450,6 +452,101 @@ export class ManifestManager {
         
         this.manifest_data.scene_data = scene_data;
         return true;
+    }
+    
+    /**
+     * Gets the gravity configuration from the manifest.
+     * If gravity is not defined in the manifest, returns the default gravity.
+     * @returns {Object} The gravity configuration with x, y, z properties
+     */
+    get_gravity() {
+        const scene_data = this.get_scene_data();
+        if (scene_data?.environment?.gravity) {
+            return scene_data.environment.gravity;
+        }
+        
+        // Log that we're using the default value
+        if (typeof BLORKPACK_FLAGS !== 'undefined' && BLORKPACK_FLAGS.DEFAULT_CONFIG_LOGS) {
+            console.debug("Using default gravity configuration from blorkpack defaults");
+        }
+        
+        return DEFAULT_ENVIRONMENT.gravity;
+    }
+    
+    /**
+     * Gets the ambient light configuration from the manifest.
+     * If not defined in the manifest, returns the default.
+     * @returns {Object} The ambient light configuration
+     */
+    get_ambient_light() {
+        const scene_data = this.get_scene_data();
+        if (scene_data?.environment?.ambient_light) {
+            return scene_data.environment.ambient_light;
+        }
+        
+        // Log that we're using the default value
+        if (typeof BLORKPACK_FLAGS !== 'undefined' && BLORKPACK_FLAGS.DEFAULT_CONFIG_LOGS) {
+            console.debug("Using default ambient light configuration from blorkpack defaults");
+        }
+        
+        return DEFAULT_ENVIRONMENT.ambient_light;
+    }
+    
+    /**
+     * Gets the fog configuration from the manifest.
+     * If not defined in the manifest, returns the default.
+     * @returns {Object} The fog configuration
+     */
+    get_fog() {
+        const scene_data = this.get_scene_data();
+        if (scene_data?.environment?.fog) {
+            return scene_data.environment.fog;
+        }
+        
+        // Log that we're using the default value
+        if (typeof BLORKPACK_FLAGS !== 'undefined' && BLORKPACK_FLAGS.DEFAULT_CONFIG_LOGS) {
+            console.debug("Using default fog configuration from blorkpack defaults");
+        }
+        
+        return DEFAULT_ENVIRONMENT.fog;
+    }
+    
+    /**
+     * Gets the physics configuration from the manifest.
+     * If not defined in the manifest, returns the default.
+     * @returns {Object} The physics configuration
+     */
+    get_physics_config() {
+        const scene_data = this.get_scene_data();
+        if (scene_data?.physics) {
+            return scene_data.physics;
+        }
+        
+        // Log that we're using the default value
+        if (typeof BLORKPACK_FLAGS !== 'undefined' && BLORKPACK_FLAGS.DEFAULT_CONFIG_LOGS) {
+            console.debug("Using default physics configuration from blorkpack defaults");
+        }
+        
+        return DEFAULT_PHYSICS;
+    }
+    
+    /**
+     * Gets the rendering configuration from the manifest.
+     * If not defined in the manifest, returns the default.
+     * @returns {Object} The rendering configuration
+     */
+    get_rendering_config() {
+        const scene_data = this.get_scene_data();
+        if (scene_data?.rendering) {
+            return scene_data.rendering;
+        }
+        
+        // Log that we're using the default value
+        if (typeof BLORKPACK_FLAGS !== 'undefined' && BLORKPACK_FLAGS.DEFAULT_CONFIG_LOGS) {
+            console.debug("Using default rendering configuration from blorkpack defaults");
+        }
+        
+        return DEFAULT_RENDERING;
     }
     
     /**

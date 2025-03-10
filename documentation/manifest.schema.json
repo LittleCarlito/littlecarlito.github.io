@@ -409,7 +409,22 @@
             "enabled": { "type": "boolean", "default": true },
             "update_rate": { "type": "number", "default": 60 },
             "substeps": { "type": "number", "default": 1 },
-            "debug_draw": { "type": "boolean", "default": false }
+            "debug_draw": { "type": "boolean", "default": false },
+            "allow_sleep": { "type": "boolean", "default": true },
+            "linear_sleep_threshold": { "type": "number", "default": 0.2 },
+            "angular_sleep_threshold": { "type": "number", "default": 0.1 },
+            "sleep_threshold": { "type": "number", "default": 0.1 },
+            "max_velocity_iterations": { "type": "number", "default": 2 },
+            "max_velocity_friction": { "type": "number", "default": 4 },
+            "integration_parameters": {
+              "type": "object",
+              "properties": {
+                "dt": { "type": "number", "default": 0.01666667 },
+                "erp": { "type": "number", "default": 0.8 },
+                "warmstart_coeff": { "type": "number", "default": 0.8 },
+                "allowed_linear_error": { "type": "number", "default": 0.001 }
+              }
+            }
           }
         },
         "rendering": {

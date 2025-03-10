@@ -7,5 +7,6 @@ export const BLORKPACK_FLAGS = {
     ACTIVATE_LOGS: false,
     PHYSICS_LOGS: false,
     MANIFEST_LOGS: false,
-    ANIMATION_LOGS: false
+    ANIMATION_LOGS: false,
+    DEFAULT_CONFIG_LOGS: false  // Log when default configurations are used instead of manifest values
 }; 

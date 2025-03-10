@@ -158,6 +158,17 @@
  * @property {number} physics.update_rate - Physics update rate
  * @property {number} physics.substeps - Physics substeps
  * @property {boolean} physics.debug_draw - Whether to draw debug visualization
+ * @property {boolean} physics.allow_sleep - Whether to allow objects to sleep when inactive
+ * @property {number} physics.linear_sleep_threshold - Threshold for linear velocity sleep determination
+ * @property {number} physics.angular_sleep_threshold - Threshold for angular velocity sleep determination
+ * @property {number} physics.sleep_threshold - General sleep threshold
+ * @property {number} physics.max_velocity_iterations - Maximum velocity solver iterations
+ * @property {number} physics.max_velocity_friction - Maximum velocity iterations for friction
+ * @property {Object} physics.integration_parameters - Physics integration parameters
+ * @property {number} physics.integration_parameters.dt - Fixed timestep delta time
+ * @property {number} physics.integration_parameters.erp - Error reduction parameter
+ * @property {number} physics.integration_parameters.warmstart_coeff - Coefficient for warm starting
+ * @property {number} physics.integration_parameters.allowed_linear_error - Allowed linear error tolerance
  * @property {Object} rendering - Rendering settings
  * @property {boolean} rendering.shadows - Whether to enable shadows
  * @property {boolean} rendering.antialiasing - Whether to enable antialiasing

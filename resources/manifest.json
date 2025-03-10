@@ -197,7 +197,19 @@
             "enabled": true,
             "update_rate": 60,
             "substeps": 1,
-            "debug_draw": false
+            "debug_draw": false,
+            "allow_sleep": true,
+            "linear_sleep_threshold": 0.2,
+            "angular_sleep_threshold": 0.1,
+            "sleep_threshold": 0.1,
+            "max_velocity_iterations": 2,
+            "max_velocity_friction": 4,
+            "integration_parameters": {
+                "dt": 0.01666667,
+                "erp": 0.8,
+                "warmstart_coeff": 0.8,
+                "allowed_linear_error": 0.001
+            }
         },
         "rendering": {
             "shadows": true,

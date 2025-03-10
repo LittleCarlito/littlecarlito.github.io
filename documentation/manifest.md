@@ -419,6 +419,27 @@ The `environment` section defines global environment settings for the scene.
 | `fog.near` | Distance where fog starts | 1 |
 | `fog.far` | Distance where fog is at maximum density | 1000 |
 
+## Physics Properties
+
+The `physics` section in `scene_data` defines global physics settings for the scene.
+
+| Property | Description | Default |
+|----------|-------------|---------|
+| `physics.enabled` | Whether the physics engine is enabled | true |
+| `physics.update_rate` | Physics update rate in Hz | 60 |
+| `physics.substeps` | Number of substeps per physics update | 1 |
+| `physics.debug_draw` | Whether to render physics debug visualization | false |
+| `physics.allow_sleep` | Whether objects can sleep when inactive | true |
+| `physics.linear_sleep_threshold` | Linear velocity threshold for sleep | 0.2 |
+| `physics.angular_sleep_threshold` | Angular velocity threshold for sleep | 0.1 |
+| `physics.sleep_threshold` | General sleep threshold | 0.1 |
+| `physics.max_velocity_iterations` | Maximum velocity solver iterations | 2 |
+| `physics.max_velocity_friction` | Maximum velocity iterations for friction | 4 |
+| `physics.integration_parameters.dt` | Fixed timestep delta time | 0.01666667 |
+| `physics.integration_parameters.erp` | Error reduction parameter | 0.8 |
+| `physics.integration_parameters.warmstart_coeff` | Coefficient for warm starting | 0.8 |
+| `physics.integration_parameters.allowed_linear_error` | Allowed linear error tolerance | 0.001 |
+
 ## Usage Examples
 
 ### Basic Scene Configuration
@@ -445,6 +466,15 @@ The `environment` section defines global environment settings for the scene.
             "ambient_light": {
                 "color": "0xffffff",
                 "intensity": 0.5
+            }
+        },
+        "physics": {
+            "enabled": true,
+            "update_rate": 60,
+            "allow_sleep": true,
+            "linear_sleep_threshold": 0.2,
+            "integration_parameters": {
+                "erp": 0.8
             }
         }
     }
@@ -528,4 +558,4 @@ The `environment` section defines global environment settings for the scene.
 
 ## Schema Validation
 
-For automated validation of your manifest file, consider using a JSON Schema validator with the accompanying schema file. This helps catch errors before they cause problems at runtime. 
+For automated validation of your manifest file, consider using a JSON Schema validator with the accompanying schema file. This helps catch errors before they cause problems at runtime.

@@ -120,16 +120,18 @@ async function test_manifest_manager() {
             console.log(`- Description: ${scene_data.description}`);
             console.log(`- Version: ${scene_data.version}`);
             
-            if (scene_data.environment) {
-                console.log(`- Gravity: x=${scene_data.environment.gravity.x}, y=${scene_data.environment.gravity.y}, z=${scene_data.environment.gravity.z}`);
-                if (scene_data.environment.ambient_light) {
-                    console.log(`- Ambient Light: ${scene_data.environment.ambient_light.color} (intensity: ${scene_data.environment.ambient_light.intensity})`);
-                }
-            }
+            // Use the getter methods for environment settings
+            const gravity = manifest_manager.get_gravity();
+            console.log(`- Gravity: x=${gravity.x}, y=${gravity.y}, z=${gravity.z}`);
             
-            if (scene_data.physics) {
-                console.log(`- Physics Enabled: ${scene_data.physics.enabled}`);
-                console.log(`- Physics Update Rate: ${scene_data.physics.update_rate}`);
+            const ambient_light = manifest_manager.get_ambient_light();
+            console.log(`- Ambient Light: ${ambient_light.color} (intensity: ${ambient_light.intensity})`);
+            
+            // Get physics config using the getter method
+            const physics_config = manifest_manager.get_physics_config();
+            if (physics_config) {
+                console.log(`- Physics Enabled: ${physics_config.enabled}`);
+                console.log(`- Physics Update Rate: ${physics_config.update_rate}`);
             }
         } else {
             console.log('\n🌎 No scene data found in the manifest.');
