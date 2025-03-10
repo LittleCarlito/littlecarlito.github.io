@@ -1,0 +1,480 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Asset Configuration Manifest",
+  "description": "Schema for validating ThreeJS asset configuration manifest files",
+  "type": "object",
+  "required": ["manifest_version", "custom_types", "scene_data"],
+  "properties": {
+    "manifest_version": {
+      "type": "string",
+      "description": "Version of the manifest format"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name for this manifest"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of this manifest"
+    },
+    "author": {
+      "type": "string",
+      "description": "Author of this manifest"
+    },
+    "created_date": {
+      "type": "string",
+      "description": "Date when this manifest was created",
+      "format": "date-time"
+    },
+    "updated_date": {
+      "type": "string",
+      "description": "Date when this manifest was last updated",
+      "format": "date-time"
+    },
+    "custom_types": {
+      "type": "array",
+      "description": "Array of custom asset type definitions",
+      "items": {
+        "$ref": "#/definitions/customType"
+      }
+    },
+    "asset_groups": {
+      "type": "array",
+      "description": "Array of asset group definitions",
+      "items": {
+        "$ref": "#/definitions/assetGroup"
+      }
+    },
+    "application_assets": {
+      "type": "array",
+      "description": "Array of application-specific asset definitions",
+      "items": {
+        "$ref": "#/definitions/assetData"
+      }
+    },
+    "system_assets": {
+      "type": "array",
+      "description": "Array of system asset definitions",
+      "items": {
+        "$ref": "#/definitions/assetData"
+      }
+    },
+    "scene_data": {
+      "$ref": "#/definitions/sceneData"
+    }
+  },
+  "definitions": {
+    "vector3": {
+      "type": "object",
+      "properties": {
+        "x": { "type": "number", "default": 0 },
+        "y": { "type": "number", "default": 0 },
+        "z": { "type": "number", "default": 0 }
+      }
+    },
+    "minMax": {
+      "type": "object",
+      "properties": {
+        "min": { "type": "number", "default": 0 },
+        "max": { "type": "number", "default": 0 }
+      }
+    },
+    "customType": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique identifier for this custom type"
+        },
+        "version": {
+          "type": "string",
+          "description": "Version of this custom type",
+          "default": "1.0"
+        },
+        "load_layers": {
+          "type": "object",
+          "properties": {
+            "viewable": { "type": "boolean", "default": true },
+            "collision": { "type": "boolean", "default": false },
+            "display": { "type": "boolean", "default": false }
+          }
+        },
+        "paths": {
+          "type": "object",
+          "properties": {
+            "asset": { "type": "string" },
+            "script": { "type": "string" }
+          }
+        },
+        "size": {
+          "type": "object",
+          "properties": {
+            "radius": { "type": "number", "default": 0 },
+            "width": { "type": "number", "default": 0 },
+            "height": { "type": "number", "default": 0 },
+            "depth": { "type": "number", "default": 0 }
+          }
+        },
+        "scale": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number", "default": 1 },
+            "y": { "type": "number", "default": 1 },
+            "z": { "type": "number", "default": 1 },
+            "ui": {
+              "type": "object",
+              "properties": {
+                "x": { "type": "number", "default": 1 },
+                "y": { "type": "number", "default": 1 },
+                "z": { "type": "number", "default": 1 }
+              }
+            }
+          }
+        },
+        "physics": {
+          "type": "object",
+          "properties": {
+            "restitution": { "type": "number", "default": 1.0 },
+            "sleep_timer": { "type": "number", "default": 500 },
+            "mass": { "type": "number", "default": 1.0 },
+            "gravity_scale": { "type": "number", "default": 1.0 },
+            "friction": { "type": "number", "default": 0.5 },
+            "collision_groups": { 
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "collision_mask": { 
+              "type": "array", 
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "visual": {
+          "type": "object",
+          "properties": {
+            "emitting": { "type": "boolean", "default": false },
+            "emission_color": { "type": "string", "default": "0xffffff" },
+            "emission_intensity": { "type": "number", "default": 1.0 },
+            "opacity": { "type": "number", "default": 1.0 },
+            "cast_shadow": { "type": "boolean", "default": false },
+            "receive_shadow": { "type": "boolean", "default": true },
+            "debug": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean", "default": true },
+                "opacity": { "type": "number", "default": 0.6 },
+                "color": { "type": "string", "default": "0xffffff" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "jointData": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Type of joint (RAPIER joint type)",
+          "enum": ["FIXED", "BALL", "PRISMATIC", "REVOLUTE"]
+        },
+        "position": { "$ref": "#/definitions/vector3" },
+        "rotation": { "$ref": "#/definitions/vector3" },
+        "target_id": {
+          "type": "string",
+          "description": "ID of the target asset this asset is jointed to"
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "angular": {
+              "type": "object",
+              "properties": {
+                "x": { "$ref": "#/definitions/minMax" },
+                "y": { "$ref": "#/definitions/minMax" },
+                "z": { "$ref": "#/definitions/minMax" }
+              }
+            },
+            "linear": {
+              "type": "object",
+              "properties": {
+                "x": { "$ref": "#/definitions/minMax" },
+                "y": { "$ref": "#/definitions/minMax" },
+                "z": { "$ref": "#/definitions/minMax" }
+              }
+            }
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "stiffness": { "type": "number", "default": 0 },
+            "damping": { "type": "number", "default": 0 }
+          }
+        }
+      }
+    },
+    "assetGroup": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for this group"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of this group"
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "assets": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of asset IDs in this group"
+        },
+        "active": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether the group is initially active"
+        },
+        "toggle_behavior": {
+          "type": "string",
+          "enum": ["ALL", "SEQUENCE"],
+          "default": "ALL",
+          "description": "How assets in this group are activated"
+        }
+      }
+    },
+    "assetData": {
+      "type": "object",
+      "required": ["id", "type", "asset_type"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for this asset"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["SYSTEM", "CUSTOM"],
+          "description": "Whether this is a system or custom asset"
+        },
+        "asset_type": {
+          "type": "string",
+          "description": "Type of asset (custom type name or system type)"
+        },
+        "version": {
+          "type": "string",
+          "default": "1.0",
+          "description": "Version of this asset configuration"
+        },
+        "config": {
+          "type": "object",
+          "properties": {
+            "collidable": { "type": "boolean", "default": true },
+            "hidden": { "type": "boolean", "default": false },
+            "disabled": { "type": "boolean", "default": false },
+            "sleeping": { "type": "boolean", "default": true },
+            "gravity": { "type": "boolean", "default": true },
+            "interactable": { "type": "boolean", "default": true },
+            "selectable": { "type": "boolean", "default": true },
+            "highlightable": { "type": "boolean", "default": true }
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "group_id": {
+          "type": "string",
+          "description": "ID of the asset group this asset belongs to"
+        },
+        "joints": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/jointData" }
+        },
+        "parent": { "$ref": "#/definitions/assetData" },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/assetData" }
+        },
+        "position": { "$ref": "#/definitions/vector3" },
+        "rotation": { "$ref": "#/definitions/vector3" },
+        "target": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "position": { "$ref": "#/definitions/vector3" }
+          }
+        },
+        "additional_properties": {
+          "type": "object",
+          "properties": {
+            "color": { "type": "string" },
+            "intensity": { "type": "number" },
+            "max_distance": { "type": "number" },
+            "angle": { "type": "number" },
+            "penumbra": { "type": "number" },
+            "sharpness": { "type": "number" },
+            "cast_shadows": { "type": "boolean" },
+            "blur_samples": { "type": "number" },
+            "fov": { "type": "number" },
+            "near": { "type": "number" },
+            "far": { "type": "number" },
+            "bias": { "type": "number" },
+            "normal_bias": { "type": "number" },
+            "aspect_ratio": { "type": "number" },
+            "near_clipping": { "type": "number" },
+            "far_clipping": { "type": "number" },
+            "animations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "autoplay": { "type": "boolean" },
+                  "loop": { "type": "boolean" },
+                  "duration": { "type": "number" },
+                  "clamp": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "sceneData": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "default": "1.0"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "base_url": {
+          "type": "string"
+        },
+        "background": {
+          "type": "object",
+          "properties": {
+            "path": { "type": "string" },
+            "color": { "type": "string", "default": "0x000000" },
+            "skybox": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean", "default": false },
+                "path": { "type": "string" }
+              }
+            }
+          }
+        },
+        "environment": {
+          "type": "object",
+          "properties": {
+            "gravity": { "type": "number", "default": 9.8 },
+            "ambient_light": {
+              "type": "object",
+              "properties": {
+                "color": { "type": "string", "default": "0xffffff" },
+                "intensity": { "type": "number", "default": 0.5 }
+              }
+            },
+            "fog": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean", "default": false },
+                "color": { "type": "string", "default": "0xffffff" },
+                "near": { "type": "number", "default": 1 },
+                "far": { "type": "number", "default": 1000 }
+              }
+            }
+          }
+        },
+        "physics": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": true },
+            "update_rate": { "type": "number", "default": 60 },
+            "substeps": { "type": "number", "default": 1 },
+            "debug_draw": { "type": "boolean", "default": false }
+          }
+        },
+        "rendering": {
+          "type": "object",
+          "properties": {
+            "shadows": { "type": "boolean", "default": true },
+            "antialiasing": { "type": "boolean", "default": true },
+            "tone_mapping_exposure": { "type": "number", "default": 1.0 },
+            "output_encoding": { "type": "string", "default": "sRGB_ENCODING" }
+          }
+        },
+        "post_processing": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "bloom": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean", "default": false },
+                "strength": { "type": "number", "default": 0.5 },
+                "threshold": { "type": "number", "default": 0.9 },
+                "radius": { "type": "number", "default": 0.5 }
+              }
+            },
+            "ssao": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean", "default": false },
+                "radius": { "type": "number", "default": 4 },
+                "intensity": { "type": "number", "default": 1.5 },
+                "blur": { "type": "boolean", "default": true }
+              }
+            }
+          }
+        },
+        "default_camera": {
+          "type": "object",
+          "properties": {
+            "position": { "$ref": "#/definitions/vector3" },
+            "target": { "$ref": "#/definitions/vector3" },
+            "fov": { "type": "number", "default": 75 },
+            "near": { "type": "number", "default": 0.1 },
+            "far": { "type": "number", "default": 1000 },
+            "controls": {
+              "type": "object",
+              "properties": {
+                "type": { 
+                  "type": "string", 
+                  "enum": ["ORBIT", "FIRST_PERSON", "FLY"],
+                  "default": "ORBIT"
+                },
+                "enable_damping": { "type": "boolean", "default": true },
+                "damping_factor": { "type": "number", "default": 0.05 },
+                "min_distance": { "type": "number", "default": 1 },
+                "max_distance": { "type": "number", "default": 100 },
+                "min_polar_angle": { "type": "number", "default": 0 },
+                "max_polar_angle": { "type": "number", "default": 3.14159 },
+                "enable_zoom": { "type": "boolean", "default": true },
+                "enable_rotate": { "type": "boolean", "default": true },
+                "enable_pan": { "type": "boolean", "default": true }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+} 

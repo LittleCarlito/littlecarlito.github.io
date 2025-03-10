@@ -1,0 +1,239 @@
+{
+    "manifest_version": "1.0",
+    "name": "PortfolioSite", 
+    "description": "Portfolio website showing small cubical and displaying relevant work information",
+    "author": "Steven Meier",
+    "created_date": "03/10/2025",
+    "updated_date": "03/10/2025",
+    
+    "custom_types": [{
+        "name": "example_type",
+        "version": "1.0",
+        "load_layers": {
+            "viewable": true,
+            "collision": false,
+            "display": false
+        },
+        "paths": {
+            "asset": "path/to/model.glb",
+            "script": "path/to/script.js"
+        },
+        "size": {
+            "radius": 0, 
+            "width": 0,
+            "height": 0,
+            "depth": 0
+        },
+        "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1,
+            "ui": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            }
+        },
+        "physics": {
+            "restitution": 1.0,
+            "sleep_timer": 500,
+            "mass": 1.0,
+            "gravity_scale": 1.0,
+            "friction": 0.5,
+            "collision_groups": [],
+            "collision_mask": []
+        },
+        "visual": {
+            "emitting": false,
+            "emission_color": "0xffffff",
+            "emission_intensity": 1.0,
+            "opacity": 1.0,
+            "cast_shadow": false,
+            "receive_shadow": true,
+            "debug": {
+                "enabled": true,
+                "opacity": 0.6,
+                "color": "0xffffff"
+            }
+        }
+    }],
+    "joint_data": {
+        "type": "FIXED",
+        "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+        },
+        "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+        },
+        "target_id": "",
+        "limits": {
+            "angular": {
+                "x": { "min": 0, "max": 0 },
+                "y": { "min": 0, "max": 0 },
+                "z": { "min": 0, "max": 0 }
+            },
+            "linear": {
+                "x": { "min": 0, "max": 0 },
+                "y": { "min": 0, "max": 0 },
+                "z": { "min": 0, "max": 0 }
+            }
+        },
+        "parameters": {
+            "stiffness": 0,
+            "damping": 0
+        }
+    },
+    "asset_groups": [{
+        "id": "example_group",
+        "name": "Furniture Group", 
+        "description": "All furniture assets",
+        "tags": ["furniture", "indoor"],
+        "assets": ["desk1", "chair1"],
+        "active": true,
+        "toggle_behavior": "ALL"
+    }],
+    
+    "asset_data": { 
+        "id": "example_asset",
+        "type": "CUSTOM",
+        "asset_type": "example_type",
+        "version": "1.0",
+        "config": {
+            "collidable": true,
+            "hidden": false,
+            "disabled": false,
+            "sleeping": true,
+            "gravity": true,
+            "interactable": true,
+            "selectable": true,
+            "highlightable": true
+        },
+        "tags": ["furniture"],
+        "group_id": "example_group",
+        "joints": [],
+        "parent": {},
+        "children": [],
+        "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+        },
+        "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+        },
+        "target": {
+            "id": "",
+            "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            }
+        },
+        "additional_properties": {
+            "color": "0xffffff",
+            "intensity": 0.0,
+            "max_distance": 0,
+            "angle": 0.0,
+            "penumbra": 0.0,
+            "sharpness": 0.0,
+            "cast_shadows": true,
+            "blur_samples": 0,
+            "fov": 0,
+            "near": 0,
+            "far": 0,
+            "bias": 0.0,
+            "normal_bias": 0.0,
+            "aspect_ratio": 1.6,
+            "near_clipping": 0.1,
+            "far_clipping": 10000.0,
+            "animations": [{
+                "name": "",
+                "autoplay": false,
+                "loop": false,
+                "duration": 1.0,
+                "clamp": true
+            }]
+        }
+    },
+    "application_assets": [],
+    "system_assets": [],
+    "scene_data": {
+        "version": "1.0",
+        "name": "Main Scene",
+        "description": "The main interactive scene",
+        "base_url": "",
+        "background": {
+            "path": "",
+            "color": "0x000000",
+            "skybox": {
+                "enabled": false,
+                "path": ""
+            }
+        },
+        "environment": {
+            "gravity": 9.8,
+            "ambient_light": {
+                "color": "0xffffff",
+                "intensity": 0.5
+            },
+            "fog": {
+                "enabled": false,
+                "color": "0xffffff",
+                "near": 1,
+                "far": 1000
+            }
+        },
+        "physics": {
+            "enabled": true,
+            "update_rate": 60,
+            "substeps": 1,
+            "debug_draw": false
+        },
+        "rendering": {
+            "shadows": true,
+            "antialiasing": true,
+            "tone_mapping_exposure": 1.0,
+            "output_encoding": "sRGB_ENCODING"
+        },
+        "post_processing": {
+            "enabled": false,
+            "bloom": {
+                "enabled": false,
+                "strength": 0.5,
+                "threshold": 0.9,
+                "radius": 0.5
+            },
+            "ssao": {
+                "enabled": false,
+                "radius": 4,
+                "intensity": 1.5,
+                "blur": true
+            }
+        },
+        "default_camera": {
+            "position": {"x": 0, "y": 5, "z": 10},
+            "target": {"x": 0, "y": 0, "z": 0},
+            "fov": 75,
+            "near": 0.1,
+            "far": 1000,
+            "controls": {
+                "type": "ORBIT",
+                "enable_damping": true,
+                "damping_factor": 0.05,
+                "min_distance": 1,
+                "max_distance": 100,
+                "min_polar_angle": 0,
+                "max_polar_angle": 3.14159,
+                "enable_zoom": true,
+                "enable_rotate": true,
+                "enable_pan": true
+            }
+        }
+    }
+} 
