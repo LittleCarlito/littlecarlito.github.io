@@ -8,7 +8,7 @@ import {
     THREE,
     RAPIER,
     AssetUtils
-} from 'asset-management';
+} from 'BlorkPack';
 
 console.log('Asset Management Package Test');
 console.log('Available ASSET_TYPEs:', Object.keys(ASSET_TYPE));

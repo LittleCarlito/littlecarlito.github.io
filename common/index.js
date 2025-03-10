@@ -37,4 +37,4 @@ export * from './app_renderer'
 export * from './types'
 
 // Asset management is now a separate package
-// import { AssetStorage, AssetSpawner, AssetActivator, ASSET_TYPE, ASSET_CONFIGS } from 'asset-management';
+// import { AssetStorage, AssetSpawner, AssetActivator, ASSET_TYPE, ASSET_CONFIGS } from 'BlorkPack';

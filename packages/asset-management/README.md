@@ -1,4 +1,4 @@
-# Asset Management Package
+# BlorkPack
 
 This package provides core asset management utilities for 3D scenes built with Three.js and Rapier physics.
 
@@ -14,7 +14,7 @@ This package provides core asset management utilities for 3D scenes built with T
 ## Installation
 
 ```bash
-npm install asset-management
+npm install BlorkPack
 ```
 
 ## Usage
@@ -27,7 +27,7 @@ import {
   ASSET_TYPE, 
   ASSET_CONFIGS,
   ManifestManager 
-} from 'asset-management';
+} from 'BlorkPack';
 
 // Initialize storage
 const assetStorage = AssetStorage.get_instance();

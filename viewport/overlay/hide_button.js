@@ -1,6 +1,6 @@
 import { get_screen_size, get_associated_position, EAST, TYPES, HIDE_HEIGHT, HIDE_WIDTH } from './overlay_common';
 import { Easing, THREE, Tween } from '../../common';
-import { ASSET_TYPE } from 'asset-management';
+import { ASSET_TYPE } from 'BlorkPack';
 
 export class HideButton {
     is_overlay_hidden = false;

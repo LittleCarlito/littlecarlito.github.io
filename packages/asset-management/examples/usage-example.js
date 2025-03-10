@@ -5,7 +5,7 @@
  * Run with: node examples/usage-example.js
  */
 
-// In real usage, you'd import from 'asset-management'
+// In real usage, you'd import from 'BlorkPack'
 // Here we're importing from our local build
 import { 
   AssetStorage, 

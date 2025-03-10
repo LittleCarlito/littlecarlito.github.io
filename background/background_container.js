@@ -1,5 +1,5 @@
 import { THREE, FLAGS, RAPIER } from '../common';
-import { AssetStorage, AssetSpawner, ASSET_TYPE } from 'asset-management';
+import { AssetStorage, AssetSpawner, ASSET_TYPE } from 'BlorkPack';
 import { ControlMenu } from "./menus/control_menu";
 import { ScrollMenu } from "./menus/scroll_menu";
 import { CATEGORIES, TYPES } from "../viewport/overlay/overlay_common";
