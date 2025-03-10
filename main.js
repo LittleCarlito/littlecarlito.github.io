@@ -1,5 +1,5 @@
 // Import the global config first to ensure it's available to all modules
-import { FLAGS, THREE, RAPIER, loadThree, loadRapier, updateTween } from './common';
+import { FLAGS, THREE, RAPIER, load_three, load_rapier, updateTween } from './common';
 import { BackgroundFloor } from './background/background_floor';
 import { ViewableContainer } from './viewport/viewable_container';
 import { BackgroundLighting } from './background/background_lighting';
@@ -165,10 +165,10 @@ async function init() {
         await showLoadingScreen();
         
         updateLoadingProgress('Loading Three.js...');
-        await loadThree(); // Still load async but we already have THREE available
+        await load_three(); // Still load async but we already have THREE available
 
         updateLoadingProgress('Loading Rapier Physics...');
-        await loadRapier(); // Initialize Rapier
+        await load_rapier(); // Initialize Rapier
         await RAPIER.init(); // Make sure Rapier is initialized
         
         updateLoadingProgress('Initializing scene...');
