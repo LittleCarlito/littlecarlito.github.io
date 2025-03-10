@@ -121,7 +121,7 @@ async function test_manifest_manager() {
             console.log(`- Version: ${scene_data.version}`);
             
             if (scene_data.environment) {
-                console.log(`- Gravity: ${scene_data.environment.gravity}`);
+                console.log(`- Gravity: x=${scene_data.environment.gravity.x}, y=${scene_data.environment.gravity.y}, z=${scene_data.environment.gravity.z}`);
                 if (scene_data.environment.ambient_light) {
                     console.log(`- Ambient Light: ${scene_data.environment.ambient_light.color} (intensity: ${scene_data.environment.ambient_light.intensity})`);
                 }

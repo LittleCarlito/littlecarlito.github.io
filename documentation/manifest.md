@@ -338,7 +338,11 @@ Scene data provides global configuration for the entire scene.
         }
     },
     "environment": {
-        "gravity": 9.8,
+        "gravity": {
+            "x": 0.0,
+            "y": 9.8,
+            "z": 0.0
+        },
         "ambient_light": {
             "color": "0xffffff",
             "intensity": 0.5
@@ -399,6 +403,22 @@ Scene data provides global configuration for the entire scene.
 }
 ```
 
+## Environment Properties
+
+The `environment` section defines global environment settings for the scene.
+
+| Property | Description | Default |
+|----------|-------------|---------|
+| `gravity.x` | X component of gravity vector | 0.0 |
+| `gravity.y` | Y component of gravity vector (typically positive for downward gravity) | 9.8 |
+| `gravity.z` | Z component of gravity vector | 0.0 |
+| `ambient_light.color` | Hex color code for ambient light | "0xffffff" |
+| `ambient_light.intensity` | Intensity of ambient light | 0.5 |
+| `fog.enabled` | Whether fog is enabled | false |
+| `fog.color` | Hex color code for fog | "0xffffff" |
+| `fog.near` | Distance where fog starts | 1 |
+| `fog.far` | Distance where fog is at maximum density | 1000 |
+
 ## Usage Examples
 
 ### Basic Scene Configuration
@@ -417,7 +437,11 @@ Scene data provides global configuration for the entire scene.
             "color": "0x87CEEB"
         },
         "environment": {
-            "gravity": 9.8,
+            "gravity": {
+                "x": 0.0,
+                "y": 9.8,
+                "z": 0.0
+            },
             "ambient_light": {
                 "color": "0xffffff",
                 "intensity": 0.5

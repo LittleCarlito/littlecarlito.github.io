@@ -173,7 +173,7 @@ async function init() {
         updateLoadingProgress('Initializing scene...');
         
         // Initialize asset storage and spawner early since they don't depend on UI
-        const storage = AssetStorage.get_instance();
+        AssetStorage.get_instance();
         
         // Initialize the ManifestManager and load the manifest
         updateLoadingProgress("Loading manifest...");
@@ -193,8 +193,18 @@ async function init() {
         window.addEventListener('contextmenu', handle_context_menu);
         window.addEventListener('wheel', handle_wheel);
 
-        // Physics
-        gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
+        // Physics - Use gravity from manifest if available
+        if (scene_data && scene_data.environment && scene_data.environment.gravity) {
+            const gravityData = scene_data.environment.gravity;
+            gravity = new RAPIER.Vector3(
+                gravityData.x || 0.0, 
+                gravityData.y || -9.81, 
+                gravityData.z || 0.0
+            );
+        } else {
+            // Fallback to default gravity
+            gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
+        }
         world = new RAPIER.World(gravity);
         // Physics optimization settings
         world.allowSleep = true;

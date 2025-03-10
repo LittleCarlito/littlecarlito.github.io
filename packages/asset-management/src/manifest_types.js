@@ -144,7 +144,7 @@
  * @property {boolean} background.skybox.enabled - Whether skybox is enabled
  * @property {string} background.skybox.path - Path to skybox
  * @property {Object} environment - Environment settings
- * @property {number} environment.gravity - Gravity value
+ * @property {Vector3} environment.gravity - Gravity vector
  * @property {Object} environment.ambient_light - Ambient light settings
  * @property {string} environment.ambient_light.color - Light color hex
  * @property {number} environment.ambient_light.intensity - Light intensity

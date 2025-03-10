@@ -234,7 +234,11 @@ async function manifest_manager_example() {
       name: "Office Scene",
       description: "An office environment for the example",
       environment: {
-        gravity: 9.81,
+        gravity: {
+          x: 0.0,
+          y: 9.81,
+          z: 0.0
+        },
         ambient_light: {
           color: "0xcccccc",
           intensity: 0.7
@@ -287,7 +291,12 @@ async function manifest_manager_example() {
     // Configure physics
     if (scene_data.physics?.enabled) {
       console.log(`- Setting up physics (update rate: ${scene_data.physics.update_rate})`);
-      // In a real app: const gravity = new RAPIER.Vector3(0, -scene_data.environment.gravity, 0);
+      // In a real app:
+      // const gravity = new RAPIER.Vector3(
+      //   scene_data.environment.gravity.x,
+      //   scene_data.environment.gravity.y,
+      //   scene_data.environment.gravity.z
+      // );
     }
     
     // Spawn assets from manifest

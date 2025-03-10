@@ -217,7 +217,11 @@ export class ManifestManager {
                 name: "Main Scene",
                 description: "Default scene",
                 environment: {
-                    gravity: 9.8,
+                    gravity: {
+                        x: 0.0,
+                        y: 9.8,
+                        z: 0.0
+                    },
                     ambient_light: {
                         color: "0xffffff",
                         intensity: 0.5
