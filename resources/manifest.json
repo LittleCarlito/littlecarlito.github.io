@@ -179,7 +179,7 @@
         "environment": {
             "gravity": {
                 "x": 0.0,
-                "y": 9.8,
+                "y": -9.8,
                 "z": 0.0
             },
             "ambient_light": {

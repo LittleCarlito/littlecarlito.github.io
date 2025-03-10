@@ -5,5 +5,6 @@ export const BLORKPACK_FLAGS = {
     // Log flags
     ASSET_LOGS: false,
     ACTIVATE_LOGS: false,
-    PHYSICS_LOGS: false
+    PHYSICS_LOGS: false,
+    MANIFEST_LOGS: false
 }; 

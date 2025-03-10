@@ -9,6 +9,7 @@ import { shove_object, translate_object, update_mouse_position, zoom_object_in, 
 import { BackgroundContainer } from './background/background_container';
 import { AssetStorage, AssetActivator, AssetSpawner, ManifestManager } from 'blorkpack';
 import { toggleDebugUI, createDebugUI, setBackgroundContainer, setResolutionScale, updateLabelWireframes } from './common/debug_ui.js';
+import { BLORKPACK_FLAGS } from './packages/blorkpack/src/blorkpack_flags.js';
 
 // ----- Constants
 const BACKGROUND_IMAGE = 'images/gradient.jpg';
@@ -195,15 +196,18 @@ async function init() {
 
         // Physics - Use gravity from manifest if available
         if (scene_data && scene_data.environment && scene_data.environment.gravity) {
+            if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
+                console.log("Base gravity:", scene_data.environment.gravity);
+            }
             const gravityData = scene_data.environment.gravity;
             gravity = new RAPIER.Vector3(
-                gravityData.x || 0.0, 
-                gravityData.y || -9.81, 
-                gravityData.z || 0.0
+                gravityData.x, 
+                gravityData.y, 
+                gravityData.z
             );
         } else {
-            // Fallback to default gravity
-            gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
+            console.warn("No gravity data found in manifest; Defaulting to 0 gravity");
+            gravity = new RAPIER.Vector3(0.0, 0.0, 0.0);
         }
         world = new RAPIER.World(gravity);
         // Physics optimization settings

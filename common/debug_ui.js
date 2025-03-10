@@ -2,6 +2,7 @@
 import { FLAGS } from './flags';
 import { BackgroundLighting } from '../background/background_lighting';
 import { BackgroundContainer } from '../background/background_container';
+import { BLORKPACK_FLAGS } from '../packages/blorkpack/src';
 
 // FPS tracking variables
 let frameCount = 0;
@@ -606,27 +607,41 @@ export function createDebugUI() {
     setTimeout(() => {
         console.log('Attempting to force update label wireframes...');
         if (window.viewable_container && window.viewable_container.get_overlay()) {
-            console.log('viewable_container and overlay exist');
+            if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                console.log('viewable_container and overlay exist');
+            }
             const labelContainer = window.viewable_container.get_overlay().label_container;
             if (labelContainer) {
-                console.log('labelContainer exists');
+                if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                    console.log('labelContainer exists');
+                }
                 if (typeof labelContainer.updateDebugVisualizations === 'function') {
-                    console.log('updateDebugVisualizations method exists, calling it');
+                    if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                        console.log('updateDebugVisualizations method exists, calling it');
+                    }
                     labelContainer.updateDebugVisualizations();
                 } else {
                     console.error('updateDebugVisualizations method does not exist on labelContainer');
-                    console.log('Available methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(labelContainer)));
+                    if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                        console.log('Available methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(labelContainer)));
+                    }
                 }
             } else {
                 console.error('labelContainer does not exist on overlay');
-                console.log('Overlay properties:', Object.keys(window.viewable_container.get_overlay()));
+                if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                    console.log('Overlay properties:', Object.keys(window.viewable_container.get_overlay()));
+                }
             }
         } else {
             console.error('viewable_container or overlay does not exist');
             if (window.viewable_container) {
-                console.log('viewable_container exists, but get_overlay() returned:', window.viewable_container.get_overlay());
+                if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                    console.log('viewable_container exists, but get_overlay() returned:', window.viewable_container.get_overlay());
+                }
             } else {
-                console.log('viewable_container does not exist');
+                if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                    console.log('viewable_container does not exist');
+                }
             }
         }
     }, 3000); // Wait 3 seconds to ensure everything is loaded

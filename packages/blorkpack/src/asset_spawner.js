@@ -143,7 +143,7 @@ export class AssetSpawner {
                 if (collisionMeshes.length > 0) {
                     // Use the collision meshes for physics
                     for (const collisionMesh of collisionMeshes) {
-                        this.createColliderFromMesh(collisionMesh, physicsBody, scale, asset_config);
+                        this.createColliderFromMesh(collisionMesh, physicsBody, asset_config);
                     }
                 } else {
                     // Fallback to simple cuboid collider
@@ -467,10 +467,9 @@ export class AssetSpawner {
      * Creates a collider based on a mesh's geometry.
      * @param {THREE.Mesh} mesh - The mesh to create a collider from
      * @param {RAPIER.RigidBody} body - The rigid body to attach the collider to
-     * @param {number} scale - The scale factor for the model
      * @param {Object} asset_config - Configuration for the asset
      */
-    createColliderFromMesh(mesh, body, scale, asset_config) {
+    createColliderFromMesh(mesh, body, asset_config) {
         if (!mesh || !body) return null;
         
         // Get the geometry
@@ -515,21 +514,23 @@ export class AssetSpawner {
             relativePos.x += rotatedCenter.x * meshScale.x;
             relativePos.y += rotatedCenter.y * meshScale.y;
             relativePos.z += rotatedCenter.z * meshScale.z;
-            
-            console.log(`Adjusted position for ${mesh.name} due to non-centered geometry:`, {
-                localCenter: `${localCenter.x.toFixed(2)}, ${localCenter.y.toFixed(2)}, ${localCenter.z.toFixed(2)}`,
-                rotatedCenter: `${rotatedCenter.x.toFixed(2)}, ${rotatedCenter.y.toFixed(2)}, ${rotatedCenter.z.toFixed(2)}`,
-                newRelativePos: `${relativePos.x.toFixed(2)}, ${relativePos.y.toFixed(2)}, ${relativePos.z.toFixed(2)}`
+            if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                console.log(`Adjusted position for ${mesh.name} due to non-centered geometry:`, {
+                    localCenter: `${localCenter.x.toFixed(2)}, ${localCenter.y.toFixed(2)}, ${localCenter.z.toFixed(2)}`,
+                    rotatedCenter: `${rotatedCenter.x.toFixed(2)}, ${rotatedCenter.y.toFixed(2)}, ${rotatedCenter.z.toFixed(2)}`,
+                        newRelativePos: `${relativePos.x.toFixed(2)}, ${relativePos.y.toFixed(2)}, ${relativePos.z.toFixed(2)}`
+                    });
+            }
+        }
+        if(BLORKPACK_FLAGS.ASSET_LOGS) {
+        // Log for debugging
+            console.log(`Creating collider for ${mesh.name}:`, {
+                worldPos: `${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)}`,
+                bodyPos: `${bodyPos.x.toFixed(2)}, ${bodyPos.y.toFixed(2)}, ${bodyPos.z.toFixed(2)}`,
+                relativePos: `${relativePos.x.toFixed(2)}, ${relativePos.y.toFixed(2)}, ${relativePos.z.toFixed(2)}`,
+                meshScale: `${meshScale.x.toFixed(2)}, ${meshScale.y.toFixed(2)}, ${meshScale.z.toFixed(2)}`
             });
         }
-        
-        // Log for debugging
-        console.log(`Creating collider for ${mesh.name}:`, {
-            worldPos: `${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)}`,
-            bodyPos: `${bodyPos.x.toFixed(2)}, ${bodyPos.y.toFixed(2)}, ${bodyPos.z.toFixed(2)}`,
-            relativePos: `${relativePos.x.toFixed(2)}, ${relativePos.y.toFixed(2)}, ${relativePos.z.toFixed(2)}`,
-            meshScale: `${meshScale.x.toFixed(2)}, ${meshScale.y.toFixed(2)}, ${meshScale.z.toFixed(2)}`
-        });
         
         let colliderDesc;
         
@@ -635,8 +636,9 @@ export class AssetSpawner {
             }
         });
         this.debugMeshes.clear();
-        
-        console.log("Creating all debug wireframes");
+        if(BLORKPACK_FLAGS.ASSET_LOGS) {
+            console.log("Creating all debug wireframes");
+        }
         
         // Get all dynamic bodies from storage
         const dynamicBodies = this.storage.get_all_dynamic_bodies();
@@ -670,8 +672,9 @@ export class AssetSpawner {
                     
                     // Clone the geometry to create an exact wireframe representation
                     const clonedGeometry = colMesh.geometry.clone();
-                    
-                    console.log(`Creating dynamic wireframe for: ${colMesh.name}`);
+                    if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                        console.log(`Creating dynamic wireframe for: ${colMesh.name}`);
+                    }
                     
                     // Create a wireframe using the actual collision mesh geometry
                     this.createDebugWireframe(
@@ -694,8 +697,9 @@ export class AssetSpawner {
                 const boundingBox = new THREE.Box3().setFromObject(mesh);
                 const size = boundingBox.getSize(new THREE.Vector3());
                 const center = boundingBox.getCenter(new THREE.Vector3());
-                
-                console.log(`Creating fallback dynamic wireframe for: ${mesh.name}`);
+                if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                    console.log(`Creating fallback dynamic wireframe for: ${mesh.name}`);
+                }
                 
                 // Create the debug wireframe
                 this.createDebugWireframe(
@@ -724,14 +728,18 @@ export class AssetSpawner {
             
             // Only process static meshes that might have collision (like rooms)
             if (mesh.name.includes('ROOM') || mesh.name.includes('FLOOR')) {
-                console.log(`Processing static mesh: ${mesh.name}`);
+                if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                    console.log(`Processing static mesh: ${mesh.name}`);
+                }
                 
                 // Create a simple green wireframe for the static mesh
                 const boundingBox = new THREE.Box3().setFromObject(mesh);
                 const size = boundingBox.getSize(new THREE.Vector3());
                 const center = boundingBox.getCenter(new THREE.Vector3());
                 
-                console.log(`Creating static wireframe for room: ${mesh.name}`);
+                if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                    console.log(`Creating static wireframe for room: ${mesh.name}`);
+                }
                 
                 this.createDebugWireframe(
                     'cuboid', 
