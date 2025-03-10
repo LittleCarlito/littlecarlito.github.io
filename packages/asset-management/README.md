@@ -14,7 +14,7 @@ This package provides core asset management utilities for 3D scenes built with T
 ## Installation
 
 ```bash
-npm install BlorkPack
+npm install blorkpack
 ```
 
 ## Usage
@@ -27,7 +27,7 @@ import {
   ASSET_TYPE, 
   ASSET_CONFIGS,
   ManifestManager 
-} from 'BlorkPack';
+} from 'blorkpack';
 
 // Initialize storage
 const assetStorage = AssetStorage.get_instance();

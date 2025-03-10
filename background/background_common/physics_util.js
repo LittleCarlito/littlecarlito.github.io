@@ -1,5 +1,5 @@
 import { FLAGS, RAPIER, THREE } from "../../common";
-import { AssetStorage, AssetSpawner } from 'BlorkPack';
+import { AssetStorage, AssetSpawner } from 'blorkpack';
 
 const THROW_MULTIPLIER = 0.1; // Adjust this to control throw strength
 const SHOVE_FORCE = 4; // Adjust this value to control the force of the shove

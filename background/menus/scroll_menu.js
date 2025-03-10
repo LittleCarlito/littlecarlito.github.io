@@ -1,5 +1,5 @@
 import { THREE, FLAGS } from "../../common";
-import { AssetStorage, ASSET_TYPE } from 'BlorkPack';
+import { AssetStorage, ASSET_TYPE } from 'blorkpack';
 import { TYPES } from "../../viewport/overlay/overlay_common";
 import { BackgroundLighting } from '../background_lighting';
 import { RAPIER } from '../../common';

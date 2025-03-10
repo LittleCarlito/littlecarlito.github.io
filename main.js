@@ -7,7 +7,7 @@ import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewp
 import { AppRenderer } from './common/app_renderer';
 import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common';
 import { BackgroundContainer } from './background/background_container';
-import { AssetStorage, AssetActivator, AssetSpawner, ManifestManager } from 'BlorkPack';
+import { AssetStorage, AssetActivator, AssetSpawner, ManifestManager } from 'blorkpack';
 import { toggleDebugUI, createDebugUI, setBackgroundContainer, setResolutionScale, updateLabelWireframes } from './common/debug_ui.js';
 
 // ----- Constants
