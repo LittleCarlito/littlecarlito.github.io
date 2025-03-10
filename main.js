@@ -202,13 +202,8 @@ async function init() {
         if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
             console.log("Using gravity:", gravityData);
         }
-        gravity = new RAPIER.Vector3(
-            gravityData.x, 
-            gravityData.y, 
-            gravityData.z
-        );
         
-        world = new RAPIER.World(gravity);
+        world = new RAPIER.World(gravityData);
         // Physics optimization settings
         world.allowSleep = true;
         world.linearSleepThreshold = 0.2;
