@@ -2,7 +2,7 @@ import { CSS2DRenderer, UnrealBloomPass } from 'three/examples/jsm/Addons.js';
 import { EffectComposer } from 'three/examples/jsm/Addons.js';
 import { RenderPass } from 'three/examples/jsm/Addons.js';
 import { OutputPass } from 'three/examples/jsm/Addons.js';
-import { THREE } from '.';
+import { THREE } from './index.js';
 
 export class AppRenderer {
     webgl_renderer;
@@ -190,4 +190,4 @@ export class AppRenderer {
     get_renderer() {
         return this.webgl_renderer;
     }
-}
+} 

@@ -19,4 +19,5 @@ export * from './asset_spawner.js';
 export * from './blorkpack_flags.js';
 export * from './manifest_manager.js';
 export * from './manifest_types.js';
-export * from './loaders.js'; 
+export * from './loaders.js';
+export * from './app_renderer.js'; 
