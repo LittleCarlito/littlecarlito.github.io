@@ -1,5 +1,5 @@
 // Import the global config first to ensure it's available to all modules
-import { FLAGS, loadThree, loadRapier, THREE, RAPIER, updateTween } from './common';
+import { FLAGS, THREE, RAPIER, loadThree, loadRapier, updateTween } from './common';
 import { BackgroundFloor } from './background/background_floor';
 import { ViewableContainer } from './viewport/viewable_container';
 import { BackgroundLighting } from './background/background_lighting';
