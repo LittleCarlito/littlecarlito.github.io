@@ -10,6 +10,7 @@ This package provides core asset management utilities for 3D scenes built with T
 - Material caching and management
 - Physics body integration
 - Manifest file management and parsing
+- Direct exports of THREE and RAPIER libraries for convenience
 
 ## Installation
 
@@ -18,6 +19,23 @@ npm install blorkpack
 ```
 
 ## Usage
+
+### Importing THREE and RAPIER
+
+The package exports THREE and RAPIER directly for convenience:
+
+```javascript
+import { THREE, RAPIER } from 'blorkpack';
+
+// Now you can use THREE and RAPIER directly
+const scene = new THREE.Scene();
+
+// Initialize RAPIER and create a world
+RAPIER.init().then(() => {
+  const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
+  // Use the physics world...
+});
+```
 
 ```javascript
 import { 
