@@ -1,7 +1,7 @@
 import { THREE } from "./index.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { ASSET_CONFIGS } from "./asset_type.js";
-import { FLAGS } from "./flags.js";
+import { BLORKPACK_FLAGS } from "./blorkpack_flags.js";
 import { AssetSpawner } from "./asset_spawner.js";
 
 /**
@@ -65,7 +65,7 @@ export class AssetStorage {
                 asset_config.PATH,
                 (gltf) => {
                     this.store_loaded_asset(asset_type, gltf);
-                    if (FLAGS.ASSET_LOGS) console.log(`Loaded asset: ${asset_type}`);
+                    if (BLORKPACK_FLAGS.ASSET_LOGS) console.log(`Loaded asset: ${asset_type}`);
                     resolve(gltf);
                 },
                 undefined,
@@ -106,12 +106,12 @@ export class AssetStorage {
             const rotation = incoming_body.rotation();
             incoming_mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
             
-            if (FLAGS.PHYSICS_LOGS) console.log(`Added dynamic body with ID: ${instance_id}`);
+            if (BLORKPACK_FLAGS.PHYSICS_LOGS) console.log(`Added dynamic body with ID: ${instance_id}`);
         } else {
             // Store as static mesh (no physics)
             this.store_static_mesh(instance_id, incoming_mesh);
             incoming_mesh.userData.instanceId = instance_id;
-            if (FLAGS.ASSET_LOGS) console.log(`Added static mesh with ID: ${instance_id}`);
+            if (BLORKPACK_FLAGS.ASSET_LOGS) console.log(`Added static mesh with ID: ${instance_id}`);
         }
         
         return instance_id;
@@ -206,7 +206,7 @@ export class AssetStorage {
         this.instance_counter = 0;
         this.currently_activated_name = "";
         
-        if (FLAGS.ASSET_LOGS) console.log("Asset storage cleaned up");
+        if (BLORKPACK_FLAGS.ASSET_LOGS) console.log("Asset storage cleaned up");
     }
 
     get_new_instance_id() {
@@ -242,7 +242,7 @@ export class AssetStorage {
     }
 
     store_dynamic_body(instance_id, body_pair) {
-        if (FLAGS.PHYSICS_LOGS) console.log(`Storing dynamic body: ${instance_id}`);
+        if (BLORKPACK_FLAGS.PHYSICS_LOGS) console.log(`Storing dynamic body: ${instance_id}`);
         this.dynamic_bodies.set(instance_id, body_pair);
     }
 

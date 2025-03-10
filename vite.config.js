@@ -4,7 +4,7 @@ export default defineConfig(({ command }) => ({
   base: command === 'serve' ? '' : '/threejs_site/',
   resolve: {
     alias: {
-      'asset-management': '/packages/asset-management/dist'
+      'blorkpack': '/packages/blorkpack/dist'
     }
   },
   build: {

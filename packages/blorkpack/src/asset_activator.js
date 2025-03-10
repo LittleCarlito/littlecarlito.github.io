@@ -1,6 +1,6 @@
 import { THREE } from "./index.js";
 import { ASSET_TYPE } from "./asset_type.js";
-import { FLAGS } from "./flags.js";
+import { BLORKPACK_FLAGS } from "./blorkpack_flags.js";
 import { AssetStorage } from "./asset_storage.js";
 
 /**
@@ -74,24 +74,24 @@ export class AssetActivator {
      * @returns {boolean} True if activation was successful.
      */
     activate_object(object_name) {
-        if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Activating: ${object_name}`);
+        if (BLORKPACK_FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Activating: ${object_name}`);
         
         // Check if object exists
         if (!this.storage.contains_object(object_name)) {
-            if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Object not found: ${object_name}`);
+            if (BLORKPACK_FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Object not found: ${object_name}`);
             return false;
         }
         
         // Check if already activated
-        if (this.active_objects.has(object_name)) {
-            if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Object already activated: ${object_name}`);
+        if (this.storage.get_currently_activated_name() === object_name) {
+            if (BLORKPACK_FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Object already activated: ${object_name}`);
             return true;
         }
         
         // Get the mesh from storage
         const mesh = this.storage.get_static_mesh(object_name);
         if (!mesh) {
-            if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Mesh not found for: ${object_name}`);
+            if (BLORKPACK_FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Mesh not found for: ${object_name}`);
             return false;
         }
         
@@ -132,7 +132,7 @@ export class AssetActivator {
      * @returns {boolean} True if deactivation was successful.
      */
     deactivate_object(object_name) {
-        if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Deactivating: ${object_name}`);
+        if (BLORKPACK_FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Deactivating: ${object_name}`);
         
         if (!this.storage.contains_object(object_name)) {
             return false;
@@ -176,7 +176,7 @@ export class AssetActivator {
      * @returns {void}
      */
     deactivate_all_objects() {
-        if (FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Deactivating all objects`);
+        if (BLORKPACK_FLAGS.ACTIVATE_LOGS) console.log(`${this.name} Deactivating all objects`);
         
         // Create a copy of the active objects set to avoid modification during iteration
         const activeObjectsCopy = new Set(this.active_objects);

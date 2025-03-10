@@ -1,8 +1,8 @@
 import { THREE, RAPIER } from "./index.js";
 import { AssetUtils } from "./index.js";
 import { ASSET_CONFIGS, ASSET_TYPE } from "./asset_type.js";
-import { FLAGS } from "./flags.js";
 import { AssetStorage } from "./asset_storage.js";
+import { BLORKPACK_FLAGS } from "./blorkpack_flags.js";
 
 /**
  * Generates triangle indices for a geometry that doesn't have them
@@ -197,7 +197,7 @@ export class AssetSpawner {
                 });
                 
                 // Create debug wireframe if debug is enabled
-                if (FLAGS.COLLISION_VISUAL_DEBUG) {
+                if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
                     if (collisionMeshes.length > 0) {
                         // Create wireframes for each collision mesh
                         collisionMeshes.forEach((colMesh) => {
@@ -258,7 +258,7 @@ export class AssetSpawner {
                     }
                 }
                 
-                if (FLAGS.PHYSICS_LOGS) {
+                if (BLORKPACK_FLAGS.PHYSICS_LOGS) {
                     console.log(`Created physics body for ${asset_type} with mass: ${asset_config.mass || 1.0}, scale: ${scale}`);
                 }
             }
@@ -376,7 +376,7 @@ export class AssetSpawner {
         mesh.userData.isStatic = options.isStatic;
         
         // Only add to scene and store if debug is enabled
-        if (FLAGS.COLLISION_VISUAL_DEBUG) {
+        if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
             this.scene.add(mesh);
             this.debugMeshes.set(mesh.uuid, mesh);
         }
@@ -388,7 +388,7 @@ export class AssetSpawner {
      * Updates the positions of debug wireframes based on physics bodies.
      */
     update_debug_wireframes() {
-        if (!FLAGS.COLLISION_VISUAL_DEBUG) return;
+        if (!BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) return;
         
         // Get all dynamic bodies from storage
         const dynamicBodies = this.storage.get_all_dynamic_bodies();
@@ -456,7 +456,7 @@ export class AssetSpawner {
      */
     performCleanup() {
         // Update debug wireframes if needed
-        if (FLAGS.COLLISION_VISUAL_DEBUG) {
+        if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
             this.update_debug_wireframes();
         }
         
@@ -593,8 +593,8 @@ export class AssetSpawner {
      * @param {boolean} enabled - Whether collision debug should be enabled
      */
     setCollisionDebug(enabled) {
-        // Note: We're using the internal FLAGS but also accepting external control
-        FLAGS.COLLISION_VISUAL_DEBUG = enabled;
+        // Note: We're using the internal BLORKPACK_FLAGS but also accepting external control
+        BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG = enabled;
         
         // Clear all existing wireframes if disabling
         if (!enabled) {

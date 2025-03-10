@@ -15,6 +15,6 @@ export * from './asset_type.js';
 export * from './asset_storage.js';
 export * from './asset_activator.js';
 export * from './asset_spawner.js';
-export * from './flags.js';
+export * from './blorkpack_flags.js';
 export * from './manifest_manager.js';
 export * from './manifest_types.js'; 
