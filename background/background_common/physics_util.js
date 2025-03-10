@@ -1,5 +1,6 @@
 import { FLAGS, RAPIER, THREE } from "../../common";
 import { AssetStorage, AssetSpawner } from 'blorkpack';
+import { BLORKPACK_FLAGS } from "../../packages/blorkpack/src";
 
 const THROW_MULTIPLIER = 0.1; // Adjust this to control throw strength
 const SHOVE_FORCE = 4; // Adjust this value to control the force of the shove
@@ -151,7 +152,7 @@ export function zoom_object_out(incoming_object) {
 export function grab_object(incoming_object, incoming_camera) {
     if (!incoming_object) return;
     
-    if (FLAGS.ACTIVATE_LOGS) console.log(`Grabbing ${incoming_object.name}`);
+    if (BLORKPACK_FLAGS.ACTIVATE_LOGS) console.log(`Grabbing ${incoming_object.name}`);
     
     // First, try to get the physics body directly from the object as a property
     let physicsBody = incoming_object.physicsBody || null;
@@ -218,8 +219,10 @@ export function grab_object(incoming_object, incoming_camera) {
         return;
     }
     
-    // We successfully found a physics body, proceed with grabbing
-    console.log(`Successfully found physics body for ${incoming_object.name}`, physicsBody);
+    if(BLORKPACK_FLAGS.ACTIVATE_LOGS) {
+        // We successfully found a physics body, proceed with grabbing
+        console.log(`Successfully found physics body for ${incoming_object.name}`, physicsBody);
+    }
     
     // Store initial distance from camera when grabbed
     const camera_pos = new THREE.Vector3();
@@ -307,8 +310,10 @@ export function release_object(incoming_object) {
         return;
     }
     
-    // We successfully found a physics body, proceed with releasing
-    console.log(`Successfully releasing physics body for ${incoming_object.name}`);
+    if(BLORKPACK_FLAGS.ACTIVATE_LOGS) {
+        // We successfully found a physics body, proceed with releasing
+        console.log(`Successfully releasing physics body for ${incoming_object.name}`);
+    }
     
     // Change back to dynamic body
     physicsBody.setBodyType(RAPIER.RigidBodyType.Dynamic);

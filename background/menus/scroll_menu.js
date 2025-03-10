@@ -3,6 +3,7 @@ import { AssetStorage, ASSET_TYPE } from 'blorkpack';
 import { TYPES } from "../../viewport/overlay/overlay_common";
 import { BackgroundLighting } from '../background_lighting';
 import { RAPIER } from '../../common';
+import { BLORKPACK_FLAGS } from "../../packages/blorkpack/src";
 
 export class ScrollMenu {
     parent;
@@ -97,9 +98,11 @@ export class ScrollMenu {
         this.initial_camera_position.copy(this.camera.position);
         this.initial_camera_quaternion.copy(this.camera.quaternion);
 
-        // Log initial spawn position before any modifications
-        console.log("📦 INITIAL SPAWN POSITION (before offset):");
-        console.log(`X: ${spawn_position.x.toFixed(2)}, Y: ${spawn_position.y.toFixed(2)}, Z: ${spawn_position.z.toFixed(2)}`);
+        if(BLORKPACK_FLAGS.ANIMATION_LOGS) {
+            // Log initial spawn position before any modifications
+            console.log("📦 INITIAL SPAWN POSITION (before offset):");
+            console.log(`X: ${spawn_position.x.toFixed(2)}, Y: ${spawn_position.y.toFixed(2)}, Z: ${spawn_position.z.toFixed(2)}`);
+        }
 
         // Calculate the right vector in local space
         const right = new THREE.Vector3(1, 0, 0);
@@ -110,10 +113,11 @@ export class ScrollMenu {
         spawn_position.y += right.y * this.initial_offset;
         spawn_position.z += right.z * this.initial_offset;
 
-        // Log modified spawn position after offset
-        console.log("📌 ACTUAL SPAWN POSITION (after offset):");
-        console.log(`X: ${spawn_position.x.toFixed(2)}, Y: ${spawn_position.y.toFixed(2)}, Z: ${spawn_position.z.toFixed(2)}`);
-
+        if(BLORKPACK_FLAGS.ANIMATION_LOGS) {
+            // Log modified spawn position after offset
+            console.log("📌 ACTUAL SPAWN POSITION (after offset):");
+            console.log(`X: ${spawn_position.x.toFixed(2)}, Y: ${spawn_position.y.toFixed(2)}, Z: ${spawn_position.z.toFixed(2)}`);
+        }
         // Store target position (original spawn position before offset)
         this.target_position = {
             x: spawn_position.x - right.x * this.initial_offset,
@@ -121,18 +125,22 @@ export class ScrollMenu {
             z: spawn_position.z - right.z * this.initial_offset
         };
 
-        // Log calculated target position
-        console.log("🎯 TARGET POSITION (spawn minus offset):");
-        console.log(`X: ${this.target_position.x.toFixed(2)}, Y: ${this.target_position.y.toFixed(2)}, Z: ${this.target_position.z.toFixed(2)}`);
+        if(BLORKPACK_FLAGS.ANIMATION_LOGS) {
+            // Log calculated target position
+            console.log("🎯 TARGET POSITION (spawn minus offset):");
+            console.log(`X: ${this.target_position.x.toFixed(2)}, Y: ${this.target_position.y.toFixed(2)}, Z: ${this.target_position.z.toFixed(2)}`);
+        }
 
         // Use spawn position
         this.CHAIN_CONFIG.POSITION.X = spawn_position.x;
         this.CHAIN_CONFIG.POSITION.Y = spawn_position.y;
         this.CHAIN_CONFIG.POSITION.Z = spawn_position.z;
 
-        // Log animation start position
-        console.log("🏁 ANIMATION START POSITION (CHAIN_CONFIG.POSITION):");
-        console.log(`X: ${this.CHAIN_CONFIG.POSITION.X.toFixed(2)}, Y: ${this.CHAIN_CONFIG.POSITION.Y.toFixed(2)}, Z: ${this.CHAIN_CONFIG.POSITION.Z.toFixed(2)}`);
+        if(BLORKPACK_FLAGS.ANIMATION_LOGS) {
+            // Log animation start position
+            console.log("🏁 ANIMATION START POSITION (CHAIN_CONFIG.POSITION):");
+            console.log(`X: ${this.CHAIN_CONFIG.POSITION.X.toFixed(2)}, Y: ${this.CHAIN_CONFIG.POSITION.Y.toFixed(2)}, Z: ${this.CHAIN_CONFIG.POSITION.Z.toFixed(2)}`);
+        }
 
         this.animation_start_time = performance.now();
         this.is_animating = true;

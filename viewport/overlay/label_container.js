@@ -81,7 +81,7 @@ export class LabelContainer {
                 const measureGeometry = new TextGeometry(category.value.toUpperCase(), {
                     font: this.font,
                     size: 1.0,
-                    height: 0.1,
+                    depth: 0.1,
                     curveSegments: 12,
                     bevelEnabled: false
                 });
@@ -128,7 +128,7 @@ export class LabelContainer {
                 const textGeometry = new TextGeometry(category.value.toUpperCase(), {
                     font: this.font,
                     size: 1.0,
-                    height: 0.1,
+                    depth: 0.1,
                     curveSegments: 12,
                     bevelEnabled: false
                 });

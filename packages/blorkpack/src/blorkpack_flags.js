@@ -6,5 +6,6 @@ export const BLORKPACK_FLAGS = {
     ASSET_LOGS: false,
     ACTIVATE_LOGS: false,
     PHYSICS_LOGS: false,
-    MANIFEST_LOGS: false
+    MANIFEST_LOGS: false,
+    ANIMATION_LOGS: false
 }; 
