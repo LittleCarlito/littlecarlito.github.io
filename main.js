@@ -137,8 +137,8 @@ async function init() {
         const manifest_manager = ManifestManager.get_instance();
         await manifest_manager.load_manifest();
         // Get greeting data from manifest, default to false if not present
-        const scene_data = manifest_manager.get_scene_data();
-        construction_acknowledged = !(scene_data && scene_data.greeting_data && scene_data.greeting_data.display === true);
+        const greeting_data = manifest_manager.get_greeting_data();
+        construction_acknowledged = !(greeting_data && greeting_data.display === true);
         if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
             console.log("Manifest loaded:", manifest_manager.get_manifest());
         }
@@ -203,6 +203,7 @@ async function init() {
         window.clock = new THREE.Clock();
         // UI creation
         update_loading_progress('Creating UI components...');
+        // TODO One day get teh UI portion into the Manifest
         window.viewable_container = new ViewableContainer(window.scene, window.world);
         // Renderer
         window.app_renderer = new AppRenderer(window.scene, window.viewable_container.get_camera());
@@ -210,8 +211,8 @@ async function init() {
         // Now initialize the asset activator after camera and renderer are created
         window.asset_activator = AssetActivator.get_instance(window.viewable_container.get_camera(), window.app_renderer.get_renderer());
         // Show construction greeting if enabled in manifest
-        if(scene_data && scene_data.greeting_data && scene_data.greeting_data.display === true) {
-            const modal_path = scene_data.greeting_data.modal_path;
+        if(greeting_data.display === true) {
+            const modal_path = greeting_data.modal_path;
             // Load the modal from the path specified in the manifest
             fetch(modal_path)
                 .then(response => {

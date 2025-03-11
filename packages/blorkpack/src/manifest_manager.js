@@ -17,6 +17,15 @@ import { BLORKPACK_FLAGS } from './blorkpack_flags.js';
  * Singleton class for managing manifest.json data
  */
 export class ManifestManager {
+    /**
+     * IMPORTANT: Always use the getter methods to access manifest data instead of direct access.
+     * The getter methods handle null checks and provide default values when properties are missing.
+     * This prevents having to do redundant null checks throughout the codebase.
+     * 
+     * Example:
+     * - GOOD: manifest_manager.get_greeting_data().display
+     * - BAD:  manifest_manager.get_scene_data()?.greeting_data?.display
+     */
     static instance = null;
     
     constructor() {
@@ -452,6 +461,28 @@ export class ManifestManager {
         
         this.manifest_data.scene_data = scene_data;
         return true;
+    }
+    
+    /**
+     * Gets the greeting data configuration from the manifest.
+     * If not defined in the manifest, returns a default with display set to false.
+     * @returns {Object} The greeting data configuration
+     */
+    get_greeting_data() {
+        const scene_data = this.get_scene_data();
+        if (scene_data?.greeting_data) {
+            return {
+                display: scene_data.greeting_data.display === true,
+                modal_path: scene_data.greeting_data.modal_path || ''
+            };
+        }
+        
+        // Log that we're using the default value
+        if (typeof BLORKPACK_FLAGS !== 'undefined' && BLORKPACK_FLAGS.DEFAULT_CONFIG_LOGS) {
+            console.debug("No greeting data found in manifest, using default (display: false)");
+        }
+        
+        return DEFAULT_ENVIRONMENT.greeting_data;
     }
     
     /**

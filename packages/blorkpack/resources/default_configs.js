@@ -44,6 +44,14 @@ export const DEFAULT_ENVIRONMENT = {
     background: {
         type: 'COLOR',
         color_value: '0x000000'
+    },
+    
+    /**
+     * Default greeting data settings
+     */
+    greeting_data: {
+        display: false,
+        modal_path: ''
     }
 };
 
