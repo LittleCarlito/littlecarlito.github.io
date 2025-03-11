@@ -262,6 +262,14 @@ async function init() {
         if (BLORKPACK_FLAGS.ASSET_LOGS) {
             console.log('Loaded application assets:', application_assets);
         }
+        
+        // Load system assets from manifest (including the background floor)
+        update_loading_progress('Loading system assets...');
+        const system_assets = await window.asset_spawner.spawn_system_assets(window.manifest_manager, update_loading_progress);
+        if (BLORKPACK_FLAGS.ASSET_LOGS) {
+            console.log('Loaded system assets:', system_assets);
+        }
+        
         // Wait for all assets to be loaded
         update_loading_progress('Loading scene assets...');
         await new Promise(async (resolve) => {

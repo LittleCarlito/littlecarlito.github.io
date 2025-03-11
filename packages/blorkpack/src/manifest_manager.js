@@ -731,6 +731,28 @@ export class ManifestManager {
     }
 
     /**
+     * Gets the system_assets array from the manifest.
+     * @returns {Array} The system assets array (empty array if not found)
+     */
+    get_system_assets() {
+        if (BLORKPACK_FLAGS.ASSET_LOGS) {
+            console.log('Getting system assets from manifest...');
+        }
+        return this.manifest_data?.system_assets || [];
+    }
+    
+    /**
+     * Sets the system_assets array in the manifest.
+     * @param {Array} system_assets - The system assets array to set
+     */
+    set_system_assets(system_assets) {
+        if (!this.manifest_data) {
+            this.manifest_data = this.create_new_manifest();
+        }
+        this.manifest_data.system_assets = system_assets;
+    }
+
+    /**
      * Gets the camera configuration from the scene_data.
      * @returns {Object} The camera configuration with defaults applied
      */
