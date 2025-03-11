@@ -9,27 +9,39 @@ export const UI_Z_DIST = 25;
 export class ViewableContainer {
     detect_rotation = false;
     overlay_container;
-    leftMouseDown = false;
-    rightMouseDown = false;
+    left_mouse_down = false;
+    right_mouse_down = false;
     camera_manager;
 
-    constructor(incoming_parent, incoming_world) {
+    constructor(window) {
         this.viewable_container_container = new THREE.Object3D();
-        this.parent = incoming_parent;
-        this.world = incoming_world;
+        this.parent = window.scene;
+        this.world = window.world;
+        
+        // Get camera configuration from manifest
+        const camera_config = window.manifest_manager.get_camera_config();
+        
+        // Create camera using manifest config
         this.camera = new THREE.PerspectiveCamera(
             // FOV
-            75,
+            camera_config.fov,
             // Aspect ratio
             window.innerWidth/window.innerHeight,
             // Near clipping
-            0.1,
+            camera_config.near,
             // Far clipping
-            1000
+            camera_config.far
         );
         
-        // Initialize camera manager
-        this.camera_manager = new CameraManager(this.parent, this.camera, UI_Z_DIST);
+        // Set camera position from manifest
+        this.camera.position.set(
+            camera_config.position.x,
+            camera_config.position.y,
+            camera_config.position.z
+        );
+        
+        // Initialize camera manager with UI distance from manifest
+        this.camera_manager = new CameraManager(this.parent, this.camera, camera_config.ui_distance);
         
         // Create overlay and connect it to camera manager
         this.overlay_container = new OverlayContainer(this.viewable_container_container, this.get_camera());

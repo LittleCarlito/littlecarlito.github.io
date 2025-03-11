@@ -233,12 +233,9 @@ async function init() {
         // UI creation
         update_loading_progress('Creating UI components...');
         // TODO OOOOO
-        // TODO Get camera spawned from manifest
         // TODO Get lighting spawned from manifest
         // TODO One day get the UI portion into the Manifest
-        // FUTURE: Use default_camera configuration from manifest to create camera
-        // FUTURE: const cameraConfig = window.manifest_manager.get_camera_config();
-        window.viewable_container = new ViewableContainer(window.scene, window.world);
+        window.viewable_container = new ViewableContainer(window);
         // Renderer
         window.app_renderer = new AppRenderer(window.scene, window.viewable_container.get_camera());
         window.renderer = window.app_renderer.get_renderer();
