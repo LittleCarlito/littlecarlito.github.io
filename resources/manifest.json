@@ -169,6 +169,7 @@
         "name": "Main Scene",
         "description": "The main interactive scene",
         "base_url": "",
+        "auto_throttle": true,
         "greeting_data": {
             "display": true,
             "modal_path": "pages/under_construction.html"

@@ -486,6 +486,25 @@ export class ManifestManager {
     }
     
     /**
+     * Gets the auto_throttle setting from the manifest.
+     * If not defined in the manifest, returns the default (true).
+     * @returns {boolean} Whether automatic resolution throttling is enabled
+     */
+    get_auto_throttle() {
+        const scene_data = this.get_scene_data();
+        if (scene_data && 'auto_throttle' in scene_data) {
+            return scene_data.auto_throttle === true;
+        }
+        
+        // Log that we're using the default value
+        if (typeof BLORKPACK_FLAGS !== 'undefined' && BLORKPACK_FLAGS.DEFAULT_CONFIG_LOGS) {
+            console.debug("No auto_throttle setting found in manifest, using default (true)");
+        }
+        
+        return true; // Default to true for backward compatibility
+    }
+    
+    /**
      * Gets the gravity configuration from the manifest.
      * If not defined in the manifest, returns the default.
      * @returns {Object} The gravity configuration with x, y, z properties

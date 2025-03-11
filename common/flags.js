@@ -1,6 +1,5 @@
 export const FLAGS = {
     // Functionality flags
-    AUTO_THROTTLE: true,
     GREETING: true,
     LAYER: true,
     COLLISION_VISUAL_DEBUG: false,

@@ -198,6 +198,7 @@
         "name": "Main Scene",
         "description": "The main interactive scene",
         "base_url": "",
+        "auto_throttle": true, // Whether to automatically adjust resolution based on device capabilities
         "greeting_data": {
             "display": true, // Whether to show a greeting message
             "modal_path": "pages/under_construction.html" // Path to the modal HTML file (required if display is true)

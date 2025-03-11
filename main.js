@@ -286,7 +286,7 @@ async function init() {
         // Set background container reference for debug UI
         set_background_container(window.background_container);
         // Initialize resolution scale based on device capabilities
-        if (FLAGS.AUTO_THROTTLE) {
+        if (manifest_manager.get_auto_throttle()) {
             // Start with a resolution scale based on device pixel ratio
             // Higher pixel ratio devices (like Retina displays) get a lower initial scale
             // to maintain performance

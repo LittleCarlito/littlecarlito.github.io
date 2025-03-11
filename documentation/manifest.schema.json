@@ -367,6 +367,11 @@
         "base_url": {
           "type": "string"
         },
+        "auto_throttle": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to automatically adjust resolution based on device capabilities"
+        },
         "greeting_data": {
           "type": "object",
           "description": "Configuration for greeting message display",
