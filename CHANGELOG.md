@@ -1,3 +1,10 @@
+## [0.7.3](https://github.com/LittleCarlito/threejs_site/compare/v0.7.2...v0.7.3) (2025-03-11)
+
+
+### Bug Fixes
+
+* monitor display test ([0d1d935](https://github.com/LittleCarlito/threejs_site/commit/0d1d935edd4e28047e1d7c561102f442ce210731))
+
 ## [0.7.2](https://github.com/LittleCarlito/threejs_site/compare/v0.7.1...v0.7.2) (2025-03-08)
 
 
