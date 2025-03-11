@@ -550,6 +550,74 @@ export class ManifestManager {
     }
     
     /**
+     * Gets the background configuration from the manifest.
+     * If not defined in the manifest, returns the default.
+     * Validates all fields to ensure they have appropriate values.
+     * @returns {Object} The background configuration
+     */
+    get_background_config() {
+        const scene_data = this.get_scene_data();
+        let background = DEFAULT_ENVIRONMENT.background;
+        
+        if (scene_data?.background) {
+            background = scene_data.background;
+            
+            // Ensure type is valid
+            if (!['COLOR', 'IMAGE', 'SKYBOX'].includes(background.type)) {
+                if (typeof BLORKPACK_FLAGS !== 'undefined' && BLORKPACK_FLAGS.DEFAULT_CONFIG_LOGS) {
+                    console.debug(`Invalid background type "${background.type}", using default type "${DEFAULT_ENVIRONMENT.background.type}"`);
+                }
+                background.type = DEFAULT_ENVIRONMENT.background.type;
+            }
+            
+            // Ensure color_value is present for COLOR type
+            if (background.type === 'COLOR' && !background.color_value) {
+                if (typeof BLORKPACK_FLAGS !== 'undefined' && BLORKPACK_FLAGS.DEFAULT_CONFIG_LOGS) {
+                    console.debug(`Background type is COLOR but color_value is missing, using default value "${DEFAULT_ENVIRONMENT.background.color_value}"`);
+                }
+                background.color_value = DEFAULT_ENVIRONMENT.background.color_value;
+            }
+            
+            // Ensure image_path is present for IMAGE type
+            if (background.type === 'IMAGE' && !background.image_path) {
+                if (typeof BLORKPACK_FLAGS !== 'undefined' && BLORKPACK_FLAGS.DEFAULT_CONFIG_LOGS) {
+                    console.debug(`Background type is IMAGE but image_path is missing, caller will use fallback image`);
+                }
+                // We'll let the caller handle the fallback with BACKGROUND_IMAGE
+            }
+            
+            // Ensure skybox properties are valid for SKYBOX type
+            if (background.type === 'SKYBOX') {
+                if (!background.skybox) {
+                    if (typeof BLORKPACK_FLAGS !== 'undefined' && BLORKPACK_FLAGS.DEFAULT_CONFIG_LOGS) {
+                        console.debug(`Background type is SKYBOX but skybox object is missing, using default values enabled: false, skybox_path: ""`);
+                    }
+                    background.skybox = { enabled: false, skybox_path: '' };
+                } else {
+                    if (!background.skybox.enabled) {
+                        if (typeof BLORKPACK_FLAGS !== 'undefined' && BLORKPACK_FLAGS.DEFAULT_CONFIG_LOGS) {
+                            console.debug(`Background type is SKYBOX but skybox.enabled is false, skybox will not be used`);
+                        }
+                    } else if (!background.skybox.skybox_path) {
+                        if (typeof BLORKPACK_FLAGS !== 'undefined' && BLORKPACK_FLAGS.DEFAULT_CONFIG_LOGS) {
+                            console.debug(`Background type is SKYBOX but skybox_path is missing, using default value ""`);
+                        }
+                        background.skybox.skybox_path = '';
+                        background.skybox.enabled = false;
+                    }
+                }
+            }
+        } else {
+            // Log that we're using the default value
+            if (typeof BLORKPACK_FLAGS !== 'undefined' && BLORKPACK_FLAGS.DEFAULT_CONFIG_LOGS) {
+                console.debug(`Using default background configuration: type "${DEFAULT_ENVIRONMENT.background.type}", color_value "${DEFAULT_ENVIRONMENT.background.color_value}"`);
+            }
+        }
+        
+        return background;
+    }
+    
+    /**
      * Gets the joint data.
      * @returns {JointData|null} The joint data or null if not loaded.
      */

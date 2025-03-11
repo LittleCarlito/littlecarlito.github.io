@@ -11,9 +11,6 @@ import { AssetStorage, AssetActivator, AssetSpawner, ManifestManager } from 'blo
 import { toggleDebugUI, createDebugUI, setBackgroundContainer, setResolutionScale, updateLabelWireframes } from './common/debug_ui.js';
 import { BLORKPACK_FLAGS } from './packages/blorkpack/src/blorkpack_flags.js';
 
-// ----- Constants
-const BACKGROUND_IMAGE = 'images/gradient.jpg';
-
 // ----- Variables
 let resize_move = false;
 let zoom_event = false;
@@ -146,32 +143,25 @@ async function init() {
         // Apply scene settings from manifest
         // ----- Setup
         scene = new THREE.Scene();
-        
         // Set background based on manifest settings
-        const manifest = manifest_manager.get_manifest();
-        if (manifest && manifest.scene_data && manifest.scene_data.background) {
-            const bg = manifest.scene_data.background;
-            switch (bg.type) {
-                case 'IMAGE':
-                    scene.background = TEXTURE_LOADER.load(bg.image_path || BACKGROUND_IMAGE);
-                    break;
-                case 'COLOR':
-                    scene.background = new THREE.Color(bg.color_value || '0x000000');
-                    break;
-                case 'SKYBOX':
-                    if (bg.skybox && bg.skybox.enabled && bg.skybox.skybox_path) {
-                        // Load skybox (implementation depends on your skybox format)
-                        // This is a placeholder for skybox loading
-                        console.log('Loading skybox from:', bg.skybox.skybox_path);
-                    }
-                    break;
-                default:
-                    // Fallback to default background image
-                    scene.background = TEXTURE_LOADER.load(BACKGROUND_IMAGE);
-            }
-        } else {
-            // Fallback to default background image
-            scene.background = TEXTURE_LOADER.load(BACKGROUND_IMAGE);
+        const bg = manifest_manager.get_background_config();
+        switch (bg.type) {
+            case 'IMAGE':
+                scene.background = TEXTURE_LOADER.load(bg.image_path);
+                break;
+            case 'COLOR':
+                scene.background = new THREE.Color(bg.color_value);
+                break;
+            case 'SKYBOX':
+                if (bg.skybox && bg.skybox.enabled) {
+                    // Load skybox (implementation depends on your skybox format)
+                    console.log('Loading skybox from:', bg.skybox.skybox_path);
+                }
+                break;
+            default:
+                // This shouldn't happen since the getter validates the type
+                console.error(`Background type \"${bg.type}\" is not supported`);
+                scene.background = new THREE.Color('0x000000');
         }
         
         window.addEventListener('resize', handle_resize);

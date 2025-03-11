@@ -36,6 +36,14 @@ export const DEFAULT_ENVIRONMENT = {
         color: "0xaaaaaa",
         near: 10,
         far: 100
+    },
+    
+    /**
+     * Default background settings
+     */
+    background: {
+        type: 'COLOR',
+        color_value: '0x000000'
     }
 };
 
