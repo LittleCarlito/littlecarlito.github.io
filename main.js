@@ -24,20 +24,20 @@ let clock;
 let viewable_container;
 let app_renderer;
 let background_container;
-let resizeTimeout;
+let resize_timeout;
 let hovered_interactable_name = "";
 let grabbed_object = null;
 let left_mouse_down = false;
 let right_mouse_down = false;
-let construction_acknowledged = !FLAGS.CONSTRUCTION_GREETING;
+let construction_acknowledged = false; // Will be set based on manifest
 let asset_spawner;
 let asset_activator;
-let isCleanedUp = false; // Track if cleanup has been performed
-let isPhysicsPaused = false; // Track if physics simulation is paused
+let is_cleaned_up = false; // Track if cleanup has been performed
+let is_physics_paused = false; // Track if physics simulation is paused
 
 /** Cleans up resources to prevent memory leaks */
 function cleanup() {
-    if (isCleanedUp) return; // Prevent multiple cleanups
+    if (is_cleaned_up) return; // Prevent multiple cleanups
     
     // Remove event listeners
     window.removeEventListener('resize', handle_resize);
@@ -94,7 +94,7 @@ function cleanup() {
     gravity = null;
     grabbed_object = null;
     
-    isCleanedUp = true;
+    is_cleaned_up = true;
     
     if (FLAGS.PHYSICS_LOGS) {
         console.log("Application resources cleaned up");
@@ -102,86 +102,60 @@ function cleanup() {
 }
 
 /** Updates the loading progress text */
-function updateLoadingProgress(text) {
-    const loadingProgress = document.getElementById('loading-progress');
-    if (loadingProgress) {
-        loadingProgress.textContent = text;
+function update_loading_progress(text) {
+    const loading_progress = document.getElementById('loading-progress');
+    if (loading_progress) {
+        loading_progress.textContent = text;
     }
 }
 
 /** Shows the loading screen */
-async function showLoadingScreen() {
-    const html = `
-        <div id="loading-screen">
-            <div class="loading-spinner"></div>
-            <div id="loading-progress">Loading assets...</div>
-        </div>
-        <style>
-            #loading-screen {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background-color: #000000;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-                z-index: 9999;
-                color: white;
-                font-family: Arial, sans-serif;
-            }
-            .loading-spinner {
-                width: 50px;
-                height: 50px;
-                border: 5px solid #f3f3f3;
-                border-top: 5px solid #3498db;
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-                margin-bottom: 20px;
-            }
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-        </style>
-    `;
+async function show_loading_screen() {
+    // Load the loading screen HTML from the external file
+    const response = await fetch('pages/loading.html');
+    const html = await response.text();
     document.body.insertAdjacentHTML('beforeend', html);
 }
 
 /** Hides the loading screen */
-function hideLoadingScreen() {
-    const loadingScreen = document.getElementById('loading-screen');
-    if (loadingScreen) {
-        loadingScreen.remove();
+function hide_loading_screen() {
+    const loading_screen = document.getElementById('loading-screen');
+    if (loading_screen) {
+        loading_screen.remove();
     }
 }
 
 /** Initializes the main scene */
 async function init() {
     try {
-        await showLoadingScreen();
+        await show_loading_screen();
         
-        updateLoadingProgress('Loading Three.js...');
+        update_loading_progress('Loading Three.js...');
         await load_three(); // Still load async but we already have THREE available
 
-        updateLoadingProgress('Loading Rapier Physics...');
+        update_loading_progress('Loading Rapier Physics...');
         await load_rapier(); // Initialize Rapier
         await RAPIER.init(); // Make sure Rapier is initialized
         
-        updateLoadingProgress('Initializing scene...');
+        update_loading_progress('Initializing scene...');
         
         // Initialize asset storage and spawner early since they don't depend on UI
         AssetStorage.get_instance();
         
         // Initialize the ManifestManager and load the manifest
-        updateLoadingProgress("Loading manifest...");
+        update_loading_progress("Loading manifest...");
         const manifest_manager = ManifestManager.get_instance();
         await manifest_manager.load_manifest('resources/manifest.json');
         
-        // Apply scene settings from manifest
+        // Get construction_greeting from manifest, default to false if not present
         const scene_data = manifest_manager.get_scene_data();
+        construction_acknowledged = !(scene_data && scene_data.construction_greeting === true);
+        
+        if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
+            console.log("Manifest loaded:", manifest_manager.get_manifest_data());
+        }
+        
+        // Apply scene settings from manifest
         
         // ----- Setup
         scene = new THREE.Scene();
@@ -222,7 +196,7 @@ async function init() {
         window.asset_spawner = asset_spawner;
         
         // UI creation
-        updateLoadingProgress('Creating UI components...');
+        update_loading_progress('Creating UI components...');
         viewable_container = new ViewableContainer(scene, world);
         // Make viewable_container available globally for debug UI
         window.viewable_container = viewable_container;
@@ -235,27 +209,34 @@ async function init() {
         // Now initialize the asset activator after camera and renderer are created
         asset_activator = AssetActivator.get_instance(viewable_container.get_camera(), app_renderer.get_renderer());
         
-        if(FLAGS.CONSTRUCTION_GREETING) {
-            const response = await fetch('pages/under_construction.html');
-            const html = await response.text();
-            document.body.insertAdjacentHTML('beforeend', html);
-            const modal = document.getElementById('construction-modal');
-            const acknowledgeBtn = document.getElementById('acknowledge-btn');
-            modal.style.display = 'block';
-            acknowledgeBtn.addEventListener('click', () => {
-                modal.style.display = 'none';
-                construction_acknowledged = true;
-            });
+        // Show construction greeting if enabled in manifest
+        if(scene_data && scene_data.construction_greeting === true) {
+            // Load the under construction modal from the external file
+            fetch('pages/under_construction.html')
+                .then(response => response.text())
+                .then(html => {
+                    document.body.insertAdjacentHTML('beforeend', html);
+                    const modal = document.getElementById('construction-modal');
+                    modal.style.display = 'block';
+                    
+                    document.getElementById('acknowledge-btn').addEventListener('click', () => {
+                        modal.style.display = 'none';
+                        construction_acknowledged = true;
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading construction message:', error);
+                });
         }
 
         // Background creation
-        updateLoadingProgress('Loading background assets...');
+        update_loading_progress('Loading background assets...');
         const lighting = BackgroundLighting.getInstance(scene);
         background_container = new BackgroundContainer(scene, viewable_container.get_camera(), world);
         new BackgroundFloor(world, scene, viewable_container.get_camera());
 
         // Wait for all assets to be loaded
-        updateLoadingProgress('Loading scene assets...');
+        update_loading_progress('Loading scene assets...');
         await new Promise(async (resolve) => {
             const checkAssetsLoaded = async () => {
                 const isComplete = await background_container.is_loading_complete();
@@ -275,7 +256,7 @@ async function init() {
         });
 
         // Hide loading screen and start animation
-        hideLoadingScreen();
+        hide_loading_screen();
         app_renderer.set_animation_loop(animate);
         
         // Initialize debug UI (hidden by default)
@@ -308,14 +289,14 @@ async function init() {
         window.addEventListener('unload', cleanup);
 
         // Load and spawn assets defined in the manifest
-        updateLoadingProgress("Loading assets from manifest...");
+        update_loading_progress("Loading assets from manifest...");
         const asset_groups = manifest_manager.get_all_asset_groups();
         if (asset_groups) {
             // Find active asset groups
             const active_groups = asset_groups.filter(group => group.active);
             
             for (const group of active_groups) {
-                updateLoadingProgress(`Loading asset group: ${group.name}...`);
+                update_loading_progress(`Loading asset group: ${group.name}...`);
                 
                 for (const asset_id of group.assets) {
                     const asset_data = manifest_manager.get_asset(asset_id);
@@ -358,194 +339,29 @@ async function init() {
         }
     } catch (error) {
         console.error('Error during initialization:', error);
-        updateLoadingProgress('Error loading application. Please refresh the page.');
+        update_loading_progress('Error loading application. Please refresh the page.');
     }
 }
 
 /** Toggle physics simulation pause state */
-function togglePhysicsPause() {
-    const wasPaused = isPhysicsPaused;
-    isPhysicsPaused = !isPhysicsPaused;
-    
-    // Update the button style if it exists
-    const pauseButton = document.getElementById('physics-pause-button');
-    if (pauseButton) {
-        // Update button color
-        pauseButton.style.backgroundColor = isPhysicsPaused ? '#F9A825' : '#4CAF50'; // Yellow when paused, green when playing
-        
-        // Clear the button content
-        pauseButton.innerHTML = '';
-        
-        // Recreate the icon container
-        const iconSpan = document.createElement('span');
-        iconSpan.style.display = 'inline-block';
-        iconSpan.style.width = '18px';
-        iconSpan.style.height = '12px';
-        iconSpan.style.position = 'relative';
-        iconSpan.style.marginRight = '5px';
-        iconSpan.style.top = '1px';
-        
-        // Create the appropriate icon based on state
-        if (isPhysicsPaused) {
-            // Create play icon (triangle)
-            const playIcon = document.createElement('span');
-            playIcon.style.display = 'block';
-            playIcon.style.width = '0';
-            playIcon.style.height = '0';
-            playIcon.style.borderTop = '6px solid transparent';
-            playIcon.style.borderBottom = '6px solid transparent';
-            playIcon.style.borderLeft = '12px solid white';
-            playIcon.style.position = 'absolute';
-            playIcon.style.left = '3px';
-            playIcon.style.top = '0';
-            iconSpan.appendChild(playIcon);
-        } else {
-            // Create pause icon (two bars)
-            // First bar
-            const bar1 = document.createElement('span');
-            bar1.style.display = 'inline-block';
-            bar1.style.width = '4px';
-            bar1.style.height = '12px';
-            bar1.style.backgroundColor = 'white';
-            bar1.style.position = 'absolute';
-            bar1.style.left = '3px';
-            
-            // Second bar
-            const bar2 = document.createElement('span');
-            bar2.style.display = 'inline-block';
-            bar2.style.width = '4px';
-            bar2.style.height = '12px';
-            bar2.style.backgroundColor = 'white';
-            bar2.style.position = 'absolute';
-            bar2.style.right = '3px';
-            
-            iconSpan.appendChild(bar1);
-            iconSpan.appendChild(bar2);
-        }
-        
-        // Create text span
-        const textSpan = document.createElement('span');
-        textSpan.textContent = isPhysicsPaused ? 'Play Physics' : 'Pause Physics';
-        
-        // Append everything to the button
-        pauseButton.appendChild(iconSpan);
-        pauseButton.appendChild(textSpan);
-    }
-    
-    // If newly paused, freeze all objects in place
-    if (!wasPaused && isPhysicsPaused && AssetStorage.get_instance()) {
-        // Get all dynamic bodies
-        const dynamicBodies = AssetStorage.get_instance().get_all_dynamic_bodies();
-        
-        // Store current state and freeze bodies
-        dynamicBodies.forEach(([mesh, body]) => {
-            // Don't modify grabbed objects
-            if (grabbed_object && mesh.uuid === grabbed_object.uuid) {
-                return;
-            }
-            
-            // Store current velocities
-            const linvel = body.linvel();
-            const angvel = body.angvel();
-            
-            // Also store whether the body was asleep
-            mesh.userData.pausedState = {
-                linvel: { x: linvel.x, y: linvel.y, z: linvel.z },
-                angvel: { x: angvel.x, y: angvel.y, z: angvel.z },
-                wasAsleep: body.isSleeping(),
-                originalPosition: { ...body.translation() }
-            };
-            
-            // Effectively "freeze" the body by removing velocity and adding extreme damping
-            if (body.bodyType() === RAPIER.RigidBodyType.Dynamic) {
-                body.setGravityScale(0, true);
-                body.setLinvel({ x: 0, y: 0, z: 0 }, true);
-                body.setAngvel({ x: 0, y: 0, z: 0 }, true);
-                body.setLinearDamping(999, true);  // Very high damping
-                body.setAngularDamping(999, true);
-                body.sleep();  // Force sleep to save CPU
-            }
-        });
-    }
-    
-    // If resuming physics, restore state of paused objects
-    if (wasPaused && !isPhysicsPaused && AssetStorage.get_instance()) {
-        // Get all dynamic bodies
-        const dynamicBodies = AssetStorage.get_instance().get_all_dynamic_bodies();
-        
-        // Restore physics state for bodies that have stored paused state
-        dynamicBodies.forEach(([mesh, body]) => {
-            if (mesh.userData.pausedState) {
-                // Restore gravity scale (typical value is 1.0)
-                body.setGravityScale(1.0, true);
-                
-                // Reset damping to normal values
-                body.setLinearDamping(0.2, true); // Normal damping
-                body.setAngularDamping(0.7, true);
-                
-                // Check if position has changed during pause
-                const currentPos = body.translation();
-                const originalPos = mesh.userData.pausedState.originalPosition;
-                const wasMovedDuringPause = 
-                    mesh.userData.pausedState.wasMoved || // Check explicit flag
-                    (originalPos && 
-                    (Math.abs(currentPos.x - originalPos.x) > 0.001 || 
-                     Math.abs(currentPos.y - originalPos.y) > 0.001 || 
-                     Math.abs(currentPos.z - originalPos.z) > 0.001));
-                
-                // Apply stored velocity or impulse if available
-                if (mesh.userData.pausedState.plannedImpulse) {
-                    body.applyImpulse(mesh.userData.pausedState.plannedImpulse, true);
-                    body.wakeUp(); // Always wake up objects with applied impulse
-                } else if (mesh.userData.pausedState.linvel && !wasMovedDuringPause) {
-                    // Only restore velocity if the object wasn't moved during pause
-                    body.setLinvel(mesh.userData.pausedState.linvel, true);
-                    
-                    // Set angular velocity if available
-                    if (mesh.userData.pausedState.angvel) {
-                        body.setAngvel(mesh.userData.pausedState.angvel, true);
-                    }
-                    
-                    // Wake up only if it wasn't asleep before OR if there's velocity
-                    const hasVelocity = 
-                        Math.abs(mesh.userData.pausedState.linvel.x) > 0.001 || 
-                        Math.abs(mesh.userData.pausedState.linvel.y) > 0.001 || 
-                        Math.abs(mesh.userData.pausedState.linvel.z) > 0.001;
-                        
-                    if (!mesh.userData.pausedState.wasAsleep || hasVelocity) {
-                        body.wakeUp();
-                    }
-                } else {
-                    // Always wake up objects that were moved during pause
-                    // This ensures gravity will act on them
-                    if (wasMovedDuringPause) {
-                        // For objects moved during pause, ensure they're awake to be affected by gravity
-                        body.wakeUp();
-                        
-                        // Apply a tiny impulse to ensure the physics engine recognizes it's not at rest
-                        // This helps prevent the "floating objects" issue
-                        body.applyImpulse({ x: 0, y: 0.001, z: 0 }, true);
-                    }
-                }
-                
-                // Clear the paused state
-                delete mesh.userData.pausedState;
-            }
-        });
-    }
+function toggle_physics_pause() {
+    is_physics_paused = !is_physics_paused;
     
     if (FLAGS.PHYSICS_LOGS) {
-        console.log(`Physics simulation ${isPhysicsPaused ? 'paused' : 'resumed'}`);
+        console.log(`Physics simulation ${is_physics_paused ? 'paused' : 'resumed'}`);
     }
     
-    // Make the state available to other modules
-    window.isPhysicsPaused = isPhysicsPaused;
-    
-    return isPhysicsPaused;
+    // Update UI if debug UI is active
+    if (FLAGS.DEBUG_UI) {
+        const pause_button = document.getElementById('pause-physics-btn');
+        if (pause_button) {
+            pause_button.textContent = is_physics_paused ? 'Resume Physics' : 'Pause Physics';
+        }
+    }
 }
 
 // Make the function available globally for the debug UI
-window.togglePhysicsPause = togglePhysicsPause;
+window.toggle_physics_pause = toggle_physics_pause;
 
 /** Primary animation function run every frame by renderer */
 function animate() {
@@ -567,20 +383,20 @@ function animate() {
     const isTextActive = viewable_container.is_text_active();
     
     // Track text container state to detect changes
-    if (!window.previousTextContainerState && isTextActive && !isPhysicsPaused) {
+    if (!window.previousTextContainerState && isTextActive && !is_physics_paused) {
         // Text container just became active, pause physics
         if (FLAGS.SELECT_LOGS) {
             console.log('Pausing physics due to text container activation');
         }
         window.textContainerPausedPhysics = true;
-        togglePhysicsPause();
-    } else if (window.previousTextContainerState && !isTextActive && isPhysicsPaused && window.textContainerPausedPhysics) {
+        toggle_physics_pause();
+    } else if (window.previousTextContainerState && !isTextActive && is_physics_paused && window.textContainerPausedPhysics) {
         // Text container was active but is no longer active, restore physics
         if (FLAGS.SELECT_LOGS) {
             console.log('Resuming physics due to text container deactivation');
         }
         window.textContainerPausedPhysics = false;
-        togglePhysicsPause();
+        toggle_physics_pause();
     }
     
     // Store current state for next frame comparison
@@ -602,7 +418,7 @@ function animate() {
     
     // Process physics simulation (can be paused)
     world.timestep = Math.min(delta, 0.1);
-    if (!isPhysicsPaused) {
+    if (!is_physics_paused) {
         world.step();
     }
     
@@ -614,7 +430,7 @@ function animate() {
     
     // Update physics-dependent objects
     if (AssetStorage.get_instance()) {
-        if (!isPhysicsPaused) {
+        if (!is_physics_paused) {
             // Full physics update when not paused
             AssetStorage.get_instance().update();
         } else if (grabbed_object) {
@@ -647,21 +463,12 @@ function animate() {
 
 /** Handles resize events */
 function handle_resize() {
-    // Clear any existing timeout
-    if (resizeTimeout) {
-        clearTimeout(resizeTimeout);
-    }
-    // Set variables
-    resize_move = true;
-    // Determine if it was a zoom event
-    const current_pixel_ratio = window.devicePixelRatio;
-    if (last_pixel_ratio != current_pixel_ratio) {
-        last_pixel_ratio = current_pixel_ratio;
-        zoom_event = true;
-    }
-    // Immediate camera update
-    viewable_container.reset_camera();
-    app_renderer.resize();
+    if (resize_timeout) clearTimeout(resize_timeout);
+    
+    resize_timeout = setTimeout(() => {
+        if (app_renderer) app_renderer.handle_resize();
+        if (viewable_container) viewable_container.handle_resize();
+    }, 100);
 }
 
 function handle_mouse_move(e) {

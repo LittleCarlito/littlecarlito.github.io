@@ -168,6 +168,7 @@
         "name": "Main Scene",
         "description": "The main interactive scene",
         "base_url": "",
+        "construction_greeting": true,
         "background": {
             "path": "",
             "color": "0x000000",
