@@ -150,6 +150,8 @@ async function init() {
         window.addEventListener('mouseup', handle_mouse_up);
         window.addEventListener('contextmenu', handle_context_menu);
         window.addEventListener('wheel', handle_wheel);
+        window.addEventListener('keydown', toggle_debug_ui);
+        window.addEventListener('unload', cleanup);
         window.scene = new THREE.Scene();
         // Apply scene settings from manifest
         // Set background based on manifest settings
@@ -295,10 +297,7 @@ async function init() {
             }
         }
         
-        // Add keyboard event listener for debug UI toggle
-        window.addEventListener('keydown', toggle_debug_ui);
-        // Add unload event to clean up resources
-        window.addEventListener('unload', cleanup);
+
 
         // Load and spawn assets defined in the manifest
         update_loading_progress("Loading assets from manifest...");
@@ -478,7 +477,7 @@ function handle_resize() {
     if (resize_timeout) clearTimeout(resize_timeout);
     
     resize_timeout = setTimeout(() => {
-        if (window.app_renderer) window.app_renderer.handle_resize();
+        if (window.app_renderer) window.app_renderer.resize();
         if (window.viewable_container) window.viewable_container.handle_resize();
     }, 100);
 }
