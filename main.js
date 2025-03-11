@@ -22,7 +22,7 @@ let left_mouse_down = false;
 let right_mouse_down = false;
 let is_cleaned_up = false; // Track if cleanup has been performed
 let is_physics_paused = false; // Track if physics simulation is paused
-let construction_acknowledged = false; // Declare the variable here
+let greeting_acknowledged = false; // Declare the variable here
 
 /** Cleans up resources to prevent memory leaks */
 function cleanup() {
@@ -170,7 +170,7 @@ async function init() {
         await manifest_manager.load_manifest();
         // Get greeting data from manifest, default to false if not present
         const greeting_data = manifest_manager.get_greeting_data();
-        construction_acknowledged = !(greeting_data && greeting_data.display === true);
+        greeting_acknowledged = !(greeting_data && greeting_data.display === true);
         if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
             console.log("Manifest loaded:", manifest_manager.get_manifest());
         }
@@ -246,9 +246,9 @@ async function init() {
         if(greeting_data.display === true) {
             await display_modal(
                 greeting_data.modal_path,
-                'construction-modal',
+                'greeting-modal',
                 'acknowledge-btn',
-                () => { construction_acknowledged = true; }
+                () => { greeting_acknowledged = true; }
             );
         }
         // Background creation
@@ -498,7 +498,7 @@ function handle_mouse_move(e) {
             e.movementY * sensitivity
         );
     }
-    if(construction_acknowledged) {
+    if(greeting_acknowledged) {
         // Handle intersections
         const found_intersections = get_intersect_list(e, window.viewable_container.get_camera(), window.scene);
         
@@ -555,7 +555,7 @@ function handle_mouse_move(e) {
 }
 
 function handle_mouse_up(e) {
-    if(construction_acknowledged) {
+    if(greeting_acknowledged) {
         if(grabbed_object) {
             release_object(grabbed_object, window.background_container);
             grabbed_object = null;
@@ -573,7 +573,7 @@ function handle_mouse_up(e) {
 }
 
 function handle_mouse_down(e) {
-    if(construction_acknowledged) {
+    if(greeting_acknowledged) {
         if(e.button === 0) {
             left_mouse_down = true;
         }
@@ -612,7 +612,7 @@ function handle_context_menu(e) {
 }
 
 function handle_wheel(e) {
-    if(construction_acknowledged) {
+    if(greeting_acknowledged) {
         if(grabbed_object) {
             if(e.deltaY < 0) {
                 window.background_container.break_secondary_chains();
