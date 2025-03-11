@@ -494,12 +494,15 @@ export class ScrollMenu {
 
             // Create spotlight using the stored lighting instance
             this.menu_spotlight = await this.lighting.create_spotlight(
+                "scroll_menu_spotlight",
                 spotlightPosition,
-                0, // Initial rotationX, will be updated immediately
-                0, // Initial rotationY, will be updated immediately
-                5, // circle radius
-                0, // unlimited distance
-                0x00FFFF // Cyan color for scroll menu
+                { x: 0, y: 0 }, // rotation object with x and y properties
+                {
+                    circle_radius: 5,
+                    max_distance: 0,
+                    color: 0x00FFFF // Cyan color for scroll menu
+                },
+                {} // empty asset_data
             );
         }
 

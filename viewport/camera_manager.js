@@ -77,13 +77,15 @@ export class CameraManager {
             const rotation_x = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
             
             this.left_shoulder_light = await this.lighting.create_spotlight(
+                "left_shoulder_light",
                 leftPos,
-                rotation_x,
-                rotation_y,
-                lights_config.left.position.y * Math.tan(ANGLES.toRadians(lights_config.left.angle)),
-                lights_config.left.max_distance,
-                null,  // Default color
-                lights_config.left.intensity
+                { x: rotation_x, y: rotation_y },
+                {
+                    circle_radius: lights_config.left.position.y * Math.tan(ANGLES.toRadians(lights_config.left.angle)),
+                    max_distance: lights_config.left.max_distance,
+                    intensity: lights_config.left.intensity
+                },
+                {} // empty asset_data
             );
             this.left_shoulder_light.target.position.copy(target);
         }
@@ -114,13 +116,15 @@ export class CameraManager {
             const rotation_x = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
             
             this.right_shoulder_light = await this.lighting.create_spotlight(
+                "right_shoulder_light",
                 rightPos,
-                rotation_x,
-                rotation_y,
-                lights_config.right.position.y * Math.tan(ANGLES.toRadians(lights_config.right.angle)),
-                lights_config.right.max_distance,
-                null,  // Default color
-                lights_config.right.intensity
+                { x: rotation_x, y: rotation_y },
+                {
+                    circle_radius: lights_config.right.position.y * Math.tan(ANGLES.toRadians(lights_config.right.angle)),
+                    max_distance: lights_config.right.max_distance,
+                    intensity: lights_config.right.intensity
+                },
+                {} // empty asset_data
             );
             this.right_shoulder_light.target.position.copy(target);
         }

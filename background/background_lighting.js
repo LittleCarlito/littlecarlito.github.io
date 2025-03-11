@@ -60,14 +60,25 @@ export class BackgroundLighting {
         0x8000FF  // Purple
     ];
 
-    async create_spotlight(origin, rotation_x, rotation_y, circle_radius, max_distance, color = null, intensity = SPOTLIGHT_INTENSITY) {
+    async create_spotlight(id, position, rotation, options, asset_data) {
+        // Unpack parameters from the new signature to maintain compatibility
+        const origin = position || new THREE.Vector3();
+        const rotation_x = rotation?.x || 0;
+        const rotation_y = rotation?.y || 0;
+        
+        // Extract values from options or asset_data
+        const circle_radius = options?.circle_radius || asset_data?.additional_properties?.circle_radius || 0;
+        const max_distance = options?.max_distance || asset_data?.additional_properties?.max_distance || 0;
+        const color = options?.color || asset_data?.additional_properties?.color || SPOTLIGHT_COLOR;
+        const intensity = options?.intensity || asset_data?.additional_properties?.intensity || SPOTLIGHT_INTENSITY;
+        
         // Calculate angle from circle radius if provided, otherwise use constant
         const angle = circle_radius > 0 
             ? Math.atan2(circle_radius, SPOTLIGHT_HEIGHT)
             : SPOTLIGHT_ANGLE;
         
         const spotlight = new THREE.SpotLight(
-            color || SPOTLIGHT_COLOR,  // Use provided color or fall back to constant
+            color,  // Use provided color or fall back to constant
             intensity,
             max_distance,
             angle,

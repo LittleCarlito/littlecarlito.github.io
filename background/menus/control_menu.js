@@ -520,11 +520,14 @@ export class ControlMenu {
                     const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
 
                     this.lighting.create_spotlight(
+                        "control_menu_spotlight",
                         spotlightPosition,
-                        rotationX,
-                        rotationY,
-                        50 * Math.tan(Math.PI / 16),
-                        0
+                        { x: rotationX, y: rotationY },
+                        {
+                            circle_radius: 50 * Math.tan(Math.PI / 16),
+                            max_distance: 0
+                        },
+                        {} // empty asset_data
                     ).then(spotlight => {
                         this.menu_spotlight = spotlight;
                     });
