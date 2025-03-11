@@ -495,7 +495,17 @@ export function createDebugUI() {
         console.log(`All collision wireframes will be ${checked ? 'shown' : 'hidden'}`);
     });
     
-    addToggle(debugUI, 'SPOTLIGHT_VISUAL_DEBUG', 'Spotlight Debug');
+    addToggle(debugUI, 'SPOTLIGHT_VISUAL_DEBUG', 'Spotlight Debug', undefined, function(checked) {
+        // Update BLORKPACK_FLAGS instead of FLAGS
+        BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG = checked;
+        console.log(`SPOTLIGHT_VISUAL_DEBUG set to ${checked}`);
+        
+        // Call the updateDebugVisualizations method as before
+        const lighting = BackgroundLighting.getInstance();
+        if (lighting) {
+            lighting.updateDebugVisualizations();
+        }
+    });
     
     // Add divider
     const divider4 = document.createElement('div');
@@ -873,8 +883,13 @@ function addToggle(parent, flagName, label, initialState, onChange) {
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     
-    // Use provided initial state or get from FLAGS
-    const isChecked = initialState !== undefined ? initialState : (FLAGS[flagName] || false);
+    // Use provided initial state or get from FLAGS or BLORKPACK_FLAGS
+    let isChecked = initialState !== undefined ? initialState : false;
+    if (flagName === 'SPOTLIGHT_VISUAL_DEBUG') {
+        isChecked = BLORKPACK_FLAGS[flagName] || false;
+    } else {
+        isChecked = FLAGS[flagName] || false;
+    }
     checkbox.checked = isChecked;
     
     checkbox.style.opacity = '0';
@@ -911,18 +926,22 @@ function addToggle(parent, flagName, label, initialState, onChange) {
         slider.style.backgroundColor = checked ? '#4CAF50' : '#ccc';
         circle.style.left = checked ? '13px' : '2px';
         
-        // If flagName exists in FLAGS, update it
+        // Special case for SPOTLIGHT_VISUAL_DEBUG which now uses BLORKPACK_FLAGS
+        if (flagName === 'SPOTLIGHT_VISUAL_DEBUG') {
+            // Skip the default FLAG update
+            if (onChange && typeof onChange === 'function') {
+                onChange(checked);
+            }
+            return;
+        }
+        
+        // For all other flags, update FLAGS as before
         if (flagName in FLAGS) {
             FLAGS[flagName] = checked;
             console.log(`${flagName} set to ${checked}`);
             
             // Call specific update functions based on the flag
-            if (flagName === 'SPOTLIGHT_VISUAL_DEBUG') {
-                const lighting = BackgroundLighting.getInstance();
-                if (lighting) {
-                    lighting.updateDebugVisualizations();
-                }
-            } else if (flagName === 'SIGN_VISUAL_DEBUG' && flagName !== 'COLLISION_VISUAL_DEBUG') {
+            if (flagName === 'SIGN_VISUAL_DEBUG' && flagName !== 'COLLISION_VISUAL_DEBUG') {
                 // Only handle SIGN_VISUAL_DEBUG here if it's not being controlled by COLLISION_VISUAL_DEBUG
                 if (backgroundContainer) {
                     backgroundContainer.updateSignDebugVisualizations();

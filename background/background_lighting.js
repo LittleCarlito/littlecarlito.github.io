@@ -1,5 +1,6 @@
 import { THREE } from "../common";
 import { FLAGS } from "../common/flags";
+import { BLORKPACK_FLAGS } from "../packages/blorkpack/src/blorkpack_flags.js";
 
 export const SPOTLIGHT_HEIGHT = 50;
 export const SPOTLIGHT_DISTANCE = 0; // Light position on z-axis
@@ -57,7 +58,7 @@ export class BackgroundLighting {
             );
 
             // Create debug visualization if enabled
-            if (FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
+            if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
                 await this.create_spotlight_helper(primary_light);
             }
         })();
@@ -124,7 +125,7 @@ export class BackgroundLighting {
         this.lighting_container.add(spotlight);
 
         // Create debug visualization if enabled
-        if (FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
+        if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
             const helpers = await this.create_spotlight_helper(spotlight);
             // Store helpers reference on the spotlight for cleanup
             spotlight.userData.debugHelpers = helpers;
@@ -202,7 +203,7 @@ export class BackgroundLighting {
         this.lighting_container.remove(spotlight);
 
         // Remove debug helpers if they exist
-        if (FLAGS.SPOTLIGHT_VISUAL_DEBUG && spotlight.userData.debugHelpers) {
+        if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG && spotlight.userData.debugHelpers) {
             const { helper, cone } = spotlight.userData.debugHelpers;
             if (helper) {
                 // Remove the helper and its children from the scene
@@ -327,7 +328,7 @@ export class BackgroundLighting {
         // Find all spotlights in the lighting container
         const spotlights = this.lighting_container.children.filter(child => child.isSpotLight);
         
-        if (FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
+        if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
             // Create debug helpers for spotlights that don't have them
             for (const spotlight of spotlights) {
                 if (!spotlight.userData.debugHelpers) {
