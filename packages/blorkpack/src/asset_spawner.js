@@ -9,7 +9,7 @@ import { BLORKPACK_FLAGS } from "./blorkpack_flags.js";
  * @param {THREE.BufferGeometry} geometry - The geometry to generate indices for
  * @returns {Uint32Array} The generated indices
  */
-function generateIndices(geometry) {
+function generate_indices(geometry) {
     const vertexCount = geometry.attributes.position.count;
     const indices = new Uint32Array(vertexCount);
     for (let i = 0; i < vertexCount; i++) {
@@ -1009,6 +1009,150 @@ export class AssetSpawner {
     }
 
     /**
+     * Creates a spotlight with the specified properties.
+     * 
+     * @param {string} id - The ID of the spotlight
+     * @param {THREE.Vector3} position - Position of the spotlight
+     * @param {THREE.Euler} rotation - Rotation of the spotlight
+     * @param {Object} options - Additional options for the spotlight
+     * @param {Object} asset_data - The original asset data from the manifest
+     * @returns {Object} The created spotlight with all necessary components
+     */
+    create_spotlight(id, position, rotation, options, asset_data) {
+        if (BLORKPACK_FLAGS.ASSET_LOGS) {
+            console.log(`Creating spotlight for ${id}`);
+        }
+        
+        // Get spotlight specific properties from additional_properties
+        const color = parseInt(options.color || "0xffffff", 16);
+        const intensity = asset_data.additional_properties?.intensity || 1.0;
+        const max_distance = asset_data.additional_properties?.max_distance || 0;
+        const angle = asset_data.additional_properties?.angle || Math.PI / 4;
+        const penumbra = asset_data.additional_properties?.penumbra || 0.0;
+        const sharpness = asset_data.additional_properties?.sharpness || 0.0;
+        
+        // Create the spotlight
+        const spotlight = new THREE.SpotLight(
+            color,
+            intensity,
+            max_distance,
+            angle,
+            penumbra,
+            sharpness
+        );
+        
+        // Set the spotlight's position
+        spotlight.position.copy(position);
+        
+        // Set shadow properties if the spotlight should cast shadows
+        if (options.cast_shadow) {
+            spotlight.castShadow = true;
+            
+            // Set shadow quality settings if provided
+            if (asset_data.additional_properties?.shadow) {
+                const shadow_props = asset_data.additional_properties.shadow;
+                
+                // Shadow map size
+                if (shadow_props.map_size) {
+                    spotlight.shadow.mapSize.width = shadow_props.map_size.width || 2048;
+                    spotlight.shadow.mapSize.height = shadow_props.map_size.height || 2048;
+                }
+                
+                // Shadow blur
+                if (shadow_props.blur_samples) {
+                    spotlight.shadow.blurSamples = shadow_props.blur_samples;
+                }
+                
+                if (shadow_props.radius !== undefined) {
+                    spotlight.shadow.radius = shadow_props.radius;
+                }
+                
+                // Camera settings
+                if (shadow_props.camera) {
+                    spotlight.shadow.camera.near = shadow_props.camera.near || 10;
+                    spotlight.shadow.camera.far = shadow_props.camera.far || 100;
+                    spotlight.shadow.camera.fov = shadow_props.camera.fov || 30;
+                }
+                
+                // Bias settings
+                if (shadow_props.bias !== undefined) {
+                    spotlight.shadow.bias = shadow_props.bias;
+                }
+                
+                if (shadow_props.normal_bias !== undefined) {
+                    spotlight.shadow.normalBias = shadow_props.normal_bias;
+                }
+            } else {
+                // Default shadow settings
+                spotlight.shadow.blurSamples = 32;
+                spotlight.shadow.radius = 4;
+                spotlight.shadow.mapSize.width = 2048;
+                spotlight.shadow.mapSize.height = 2048;
+                spotlight.shadow.camera.near = 10;
+                spotlight.shadow.camera.far = 100;
+                spotlight.shadow.camera.fov = 30;
+                spotlight.shadow.bias = -0.002;
+                spotlight.shadow.normalBias = 0.02;
+            }
+        }
+        
+        // Create and position target
+        const target = new THREE.Object3D();
+        
+        // If target data is provided in the asset data, use that
+        if (asset_data.target && asset_data.target.position) {
+            target.position.set(
+                asset_data.target.position.x || 0, 
+                asset_data.target.position.y || 0, 
+                asset_data.target.position.z || 0
+            );
+        } else {
+            // Otherwise calculate target position based on rotation
+            const targetDistance = 100; // Use a fixed distance for the target
+            const rotX = rotation.x || 0;
+            const rotY = rotation.y || 0;
+            
+            // Calculate target position based on spherical coordinates
+            const x = Math.sin(rotY) * Math.cos(rotX) * targetDistance;
+            const y = Math.sin(rotX) * targetDistance;
+            const z = Math.cos(rotY) * Math.cos(rotX) * targetDistance;
+            
+            target.position.set(
+                position.x + x,
+                position.y + y,
+                position.z + z
+            );
+        }
+        
+        // Set the target
+        spotlight.target = target;
+        
+        // Add the spotlight and target to the scene
+        this.scene.add(spotlight);
+        this.scene.add(target);
+        
+        // Set type in userData for later identification
+        spotlight.userData = { 
+            ...spotlight.userData,
+            type: 'spotlight'
+        };
+        
+        // Store references for later cleanup
+        const asset_object = {
+            mesh: spotlight,
+            body: null, // No physics for lights
+            objects: [spotlight, target],
+            type: 'spotlight'
+        };
+        
+        // Store in asset storage for proper cleanup
+        const spotlight_id = this.storage.get_new_instance_id();
+        this.storage.store_static_mesh(spotlight_id, spotlight);
+        
+        return asset_object;
+    }
+
+    /**
      * Spawns assets from the manifest's system_assets array.
      * This method handles system-level assets defined in the manifest.
      * 
@@ -1112,17 +1256,10 @@ export class AssetSpawner {
                 
                 if (asset_type === 'primitive_box') {
                     // Create a primitive box with the specified dimensions and properties
-                    const dimensions = options.dimensions;
-                    
-                    if (BLORKPACK_FLAGS.ASSET_LOGS) {
-                        console.log(`Creating primitive box for ${asset_data.id} with dimensions:`, dimensions);
-                    }
-                    
-                    // Create a primitive box
                     result = this.create_primitive_box(
-                        dimensions.width, 
-                        dimensions.height, 
-                        dimensions.depth, 
+                        options.dimensions.width, 
+                        options.dimensions.height, 
+                        options.dimensions.depth, 
                         position, 
                         quaternion, 
                         options
@@ -1130,140 +1267,53 @@ export class AssetSpawner {
                 } 
                 // Handle spotlight asset type
                 else if (asset_type === 'spotlight') {
-                    if (BLORKPACK_FLAGS.ASSET_LOGS) {
-                        console.log(`Creating spotlight for ${asset_data.id}`);
-                    }
-                    
-                    // Get spotlight specific properties from additional_properties
-                    const color = parseInt(options.color || "0xffffff", 16);
-                    const intensity = asset_data.additional_properties?.intensity || 1.0;
-                    const max_distance = asset_data.additional_properties?.max_distance || 0;
-                    const angle = asset_data.additional_properties?.angle || Math.PI / 4;
-                    const penumbra = asset_data.additional_properties?.penumbra || 0.0;
-                    const sharpness = asset_data.additional_properties?.sharpness || 0.0;
-                    
-                    // Create the spotlight
-                    const spotlight = new THREE.SpotLight(
-                        color,
-                        intensity,
-                        max_distance,
-                        angle,
-                        penumbra,
-                        sharpness
+                    result = this.create_spotlight(
+                        asset_data.id,
+                        position,
+                        rotation,
+                        options,
+                        asset_data
                     );
-                    
-                    // Set the spotlight's position
-                    spotlight.position.copy(position);
-                    
-                    // Set shadow properties if the spotlight should cast shadows
-                    if (options.cast_shadow) {
-                        spotlight.castShadow = true;
-                        
-                        // Set shadow quality settings if provided
-                        if (asset_data.additional_properties?.shadow) {
-                            const shadow_props = asset_data.additional_properties.shadow;
-                            
-                            // Shadow map size
-                            if (shadow_props.map_size) {
-                                spotlight.shadow.mapSize.width = shadow_props.map_size.width || 2048;
-                                spotlight.shadow.mapSize.height = shadow_props.map_size.height || 2048;
-                            }
-                            
-                            // Shadow blur
-                            if (shadow_props.blur_samples) {
-                                spotlight.shadow.blurSamples = shadow_props.blur_samples;
-                            }
-                            
-                            if (shadow_props.radius !== undefined) {
-                                spotlight.shadow.radius = shadow_props.radius;
-                            }
-                            
-                            // Camera settings
-                            if (shadow_props.camera) {
-                                spotlight.shadow.camera.near = shadow_props.camera.near || 10;
-                                spotlight.shadow.camera.far = shadow_props.camera.far || 100;
-                                spotlight.shadow.camera.fov = shadow_props.camera.fov || 30;
-                            }
-                            
-                            // Bias settings
-                            if (shadow_props.bias !== undefined) {
-                                spotlight.shadow.bias = shadow_props.bias;
-                            }
-                            
-                            if (shadow_props.normal_bias !== undefined) {
-                                spotlight.shadow.normalBias = shadow_props.normal_bias;
-                            }
-                        } else {
-                            // Default shadow settings
-                            spotlight.shadow.blurSamples = 32;
-                            spotlight.shadow.radius = 4;
-                            spotlight.shadow.mapSize.width = 2048;
-                            spotlight.shadow.mapSize.height = 2048;
-                            spotlight.shadow.camera.near = 10;
-                            spotlight.shadow.camera.far = 100;
-                            spotlight.shadow.camera.fov = 30;
-                            spotlight.shadow.bias = -0.002;
-                            spotlight.shadow.normalBias = 0.02;
-                        }
-                    }
-                    
-                    // Create and position target
-                    const target = new THREE.Object3D();
-                    
-                    // If target data is provided in the asset data, use that
-                    if (asset_data.target && asset_data.target.position) {
-                        target.position.set(
-                            asset_data.target.position.x || 0, 
-                            asset_data.target.position.y || 0, 
-                            asset_data.target.position.z || 0
-                        );
-                    } else {
-                        // Otherwise calculate target position based on rotation
-                        const targetDistance = 100; // Use a fixed distance for the target
-                        const rotX = rotation.x || 0;
-                        const rotY = rotation.y || 0;
-                        
-                        // Calculate target position based on spherical coordinates
-                        const x = Math.sin(rotY) * Math.cos(rotX) * targetDistance;
-                        const y = Math.sin(rotX) * targetDistance;
-                        const z = Math.cos(rotY) * Math.cos(rotX) * targetDistance;
-                        
-                        target.position.set(
-                            position.x + x,
-                            position.y + y,
-                            position.z + z
-                        );
-                    }
-                    
-                    // Set the target
-                    spotlight.target = target;
-                    
-                    // Add the spotlight and target to the scene
-                    this.scene.add(spotlight);
-                    this.scene.add(target);
-                    
-                    // Set type in userData for later identification
-                    spotlight.userData = { 
-                        ...spotlight.userData,
-                        type: 'spotlight'
-                    };
-                    
-                    // Store references for later cleanup
-                    const asset_object = {
-                        mesh: spotlight,
-                        body: null, // No physics for lights
-                        objects: [spotlight, target],
-                        type: 'spotlight'
-                    };
-                    
-                    // Store in asset storage for proper cleanup
-                    const spotlight_id = this.storage.get_new_instance_id();
-                    this.storage.store_static_mesh(spotlight_id, spotlight);
-                    
-                    result = asset_object;
+                }
+                // Handle primitive sphere asset type
+                else if (asset_type === 'primitive_sphere') {
+                    const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
+                    result = this.create_primitive_sphere(
+                        asset_data.id,
+                        radius,
+                        position, 
+                        quaternion,
+                        options
+                    );
+                }
+                // Handle primitive capsule asset type
+                else if (asset_type === 'primitive_capsule') {
+                    const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
+                    const height = options.dimensions?.height || 1.0;
+                    result = this.create_primitive_capsule(
+                        asset_data.id,
+                        radius,
+                        height,
+                        position,
+                        quaternion,
+                        options
+                    );
+                }
+                // Handle primitive cylinder asset type
+                else if (asset_type === 'primitive_cylinder') {
+                    const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
+                    const height = options.dimensions?.height || 1.0;
+                    result = this.create_primitive_cylinder(
+                        asset_data.id,
+                        radius,
+                        height,
+                        position,
+                        quaternion,
+                        options
+                    );
                 }
                 // Add other system asset types here as needed
-                // Example: else if (asset_type === 'primitive_sphere') { ... }
+                // Example: else if (asset_type === 'primitive_cone') { ... }
                 
                 if (result) {
                     // Store the asset ID and type with the spawned asset data
@@ -1422,6 +1472,368 @@ export class AssetSpawner {
             body,
             instance_id,
             type: 'primitive_box',
+            options
+        };
+    }
+
+    /**
+     * Creates a primitive sphere with the specified properties.
+     * 
+     * @param {string} id - The ID of the sphere
+     * @param {number} radius - Radius of the sphere
+     * @param {THREE.Vector3} position - Position of the sphere
+     * @param {THREE.Quaternion} rotation - Rotation of the sphere
+     * @param {Object} options - Additional options for the sphere
+     * @returns {Object} The created sphere with mesh and physics body
+     */
+    create_primitive_sphere(id, radius, position, rotation, options = {}) {
+        // Make sure position and rotation are valid
+        position = position || new THREE.Vector3();
+        rotation = rotation || new THREE.Quaternion();
+        
+        if (BLORKPACK_FLAGS.ASSET_LOGS) {
+            console.log(`Creating primitive sphere for ${id} with radius: ${radius}`);
+        }
+        
+        // Create geometry and material
+        const geometry = new THREE.SphereGeometry(radius, 32, 24);
+        
+        // Convert color from string to number if needed
+        let color_value = options.color || 0x808080;
+        if (typeof color_value === 'string') {
+            if (color_value.startsWith('0x')) {
+                color_value = parseInt(color_value, 16);
+            } else if (color_value.startsWith('#')) {
+                color_value = parseInt(color_value.substring(1), 16);
+            }
+        }
+        
+        const material = new THREE.MeshStandardMaterial({ 
+            color: color_value,
+            transparent: options.opacity < 1.0,
+            opacity: options.opacity || 1.0
+        });
+        
+        // Create mesh
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.copy(position);
+        mesh.quaternion.copy(rotation);
+        
+        // Set shadow properties
+        mesh.castShadow = options.cast_shadow || false;
+        mesh.receiveShadow = options.receive_shadow || false;
+        
+        // Add to scene
+        this.scene.add(mesh);
+        
+        // Disable raycasting if specified
+        if (options.raycast_disabled) {
+            mesh.raycast = () => null;
+        }
+        
+        // Create physics body if collidable
+        let body = null;
+        
+        if (options.collidable !== false && this.world) {
+            // Determine body type based on mass and options
+            let body_desc;
+            if (options.mass <= 0 || options.gravity === false) {
+                body_desc = RAPIER.RigidBodyDesc.fixed();
+            } else {
+                body_desc = RAPIER.RigidBodyDesc.dynamic()
+                    .setMass(options.mass)
+                    .setCanSleep(options.sleeping !== false);
+            }
+            
+            // Set position and rotation
+            body_desc.setTranslation(position.x, position.y, position.z);
+            body_desc.setRotation({
+                x: rotation.x,
+                y: rotation.y,
+                z: rotation.z,
+                w: rotation.w
+            });
+            
+            // Create body
+            body = this.world.createRigidBody(body_desc);
+            
+            // Create sphere collider
+            const collider_desc = RAPIER.ColliderDesc.ball(radius);
+            
+            // Set restitution and friction
+            collider_desc.setRestitution(options.restitution || 0.5);
+            collider_desc.setFriction(options.friction || 0.5);
+            
+            // Create collider and attach to body
+            const collider = this.world.createCollider(collider_desc, body);
+            
+            // Create debug wireframe if debug is enabled
+            if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
+                try {
+                    this.create_debug_wireframe(
+                        'sphere',
+                        { radius: radius },
+                        position,
+                        rotation,
+                        { color: 0x00ff00, opacity: 0.3, body }
+                    );
+                } catch (error) {
+                    console.warn('Failed to create debug wireframe:', error);
+                }
+            }
+        }
+        
+        // Generate a unique ID for this asset
+        const instance_id = this.generate_asset_id();
+        
+        // Return the result
+        return {
+            mesh,
+            body,
+            instance_id,
+            type: 'primitive_sphere',
+            options
+        };
+    }
+
+    /**
+     * Creates a primitive capsule with the specified properties.
+     * 
+     * @param {string} id - The ID of the capsule
+     * @param {number} radius - Radius of the capsule
+     * @param {number} height - Height of the capsule (not including the hemispherical caps)
+     * @param {THREE.Vector3} position - Position of the capsule
+     * @param {THREE.Quaternion} rotation - Rotation of the capsule
+     * @param {Object} options - Additional options for the capsule
+     * @returns {Object} The created capsule with mesh and physics body
+     */
+    create_primitive_capsule(id, radius, height, position, rotation, options = {}) {
+        // Make sure position and rotation are valid
+        position = position || new THREE.Vector3();
+        rotation = rotation || new THREE.Quaternion();
+        
+        if (BLORKPACK_FLAGS.ASSET_LOGS) {
+            console.log(`Creating primitive capsule for ${id} with radius: ${radius}, height: ${height}`);
+        }
+        
+        // Create geometry (use cylinder for now)
+        const geometry = new THREE.CapsuleGeometry(radius, height, 16, 32);
+        
+        // Convert color from string to number if needed
+        let color_value = options.color || 0x808080;
+        if (typeof color_value === 'string') {
+            if (color_value.startsWith('0x')) {
+                color_value = parseInt(color_value, 16);
+            } else if (color_value.startsWith('#')) {
+                color_value = parseInt(color_value.substring(1), 16);
+            }
+        }
+        
+        const material = new THREE.MeshStandardMaterial({ 
+            color: color_value,
+            transparent: options.opacity < 1.0,
+            opacity: options.opacity || 1.0
+        });
+        
+        // Create mesh
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.copy(position);
+        mesh.quaternion.copy(rotation);
+        
+        // Set shadow properties
+        mesh.castShadow = options.cast_shadow || false;
+        mesh.receiveShadow = options.receive_shadow || false;
+        
+        // Add to scene
+        this.scene.add(mesh);
+        
+        // Disable raycasting if specified
+        if (options.raycast_disabled) {
+            mesh.raycast = () => null;
+        }
+        
+        // Create physics body if collidable
+        let body = null;
+        
+        if (options.collidable !== false && this.world) {
+            // Determine body type based on mass and options
+            let body_desc;
+            if (options.mass <= 0 || options.gravity === false) {
+                body_desc = RAPIER.RigidBodyDesc.fixed();
+            } else {
+                body_desc = RAPIER.RigidBodyDesc.dynamic()
+                    .setMass(options.mass)
+                    .setCanSleep(options.sleeping !== false);
+            }
+            
+            // Set position and rotation
+            body_desc.setTranslation(position.x, position.y, position.z);
+            body_desc.setRotation({
+                x: rotation.x,
+                y: rotation.y,
+                z: rotation.z,
+                w: rotation.w
+            });
+            
+            // Create body
+            body = this.world.createRigidBody(body_desc);
+            
+            // Create capsule collider
+            const collider_desc = RAPIER.ColliderDesc.capsule(height / 2, radius);
+            
+            // Set restitution and friction
+            collider_desc.setRestitution(options.restitution || 0.5);
+            collider_desc.setFriction(options.friction || 0.5);
+            
+            // Create collider and attach to body
+            const collider = this.world.createCollider(collider_desc, body);
+            
+            // Create debug wireframe if debug is enabled
+            if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
+                try {
+                    this.create_debug_wireframe(
+                        'capsule',
+                        { radius: radius, height: height },
+                        position,
+                        rotation,
+                        { color: 0x00ff00, opacity: 0.3, body }
+                    );
+                } catch (error) {
+                    console.warn('Failed to create debug wireframe:', error);
+                }
+            }
+        }
+        
+        // Generate a unique ID for this asset
+        const instance_id = this.generate_asset_id();
+        
+        // Return the result
+        return {
+            mesh,
+            body,
+            instance_id,
+            type: 'primitive_capsule',
+            options
+        };
+    }
+
+    /**
+     * Creates a primitive cylinder with the specified properties.
+     * 
+     * @param {string} id - The ID of the cylinder
+     * @param {number} radius - Radius of the cylinder
+     * @param {number} height - Height of the cylinder
+     * @param {THREE.Vector3} position - Position of the cylinder
+     * @param {THREE.Quaternion} rotation - Rotation of the cylinder
+     * @param {Object} options - Additional options for the cylinder
+     * @returns {Object} The created cylinder with mesh and physics body
+     */
+    create_primitive_cylinder(id, radius, height, position, rotation, options = {}) {
+        // Make sure position and rotation are valid
+        position = position || new THREE.Vector3();
+        rotation = rotation || new THREE.Quaternion();
+        
+        if (BLORKPACK_FLAGS.ASSET_LOGS) {
+            console.log(`Creating primitive cylinder for ${id} with radius: ${radius}, height: ${height}`);
+        }
+        
+        // Create geometry
+        const geometry = new THREE.CylinderGeometry(radius, radius, height, 32);
+        
+        // Convert color from string to number if needed
+        let color_value = options.color || 0x808080;
+        if (typeof color_value === 'string') {
+            if (color_value.startsWith('0x')) {
+                color_value = parseInt(color_value, 16);
+            } else if (color_value.startsWith('#')) {
+                color_value = parseInt(color_value.substring(1), 16);
+            }
+        }
+        
+        const material = new THREE.MeshStandardMaterial({ 
+            color: color_value,
+            transparent: options.opacity < 1.0,
+            opacity: options.opacity || 1.0
+        });
+        
+        // Create mesh
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.copy(position);
+        mesh.quaternion.copy(rotation);
+        
+        // Set shadow properties
+        mesh.castShadow = options.cast_shadow || false;
+        mesh.receiveShadow = options.receive_shadow || false;
+        
+        // Add to scene
+        this.scene.add(mesh);
+        
+        // Disable raycasting if specified
+        if (options.raycast_disabled) {
+            mesh.raycast = () => null;
+        }
+        
+        // Create physics body if collidable
+        let body = null;
+        
+        if (options.collidable !== false && this.world) {
+            // Determine body type based on mass and options
+            let body_desc;
+            if (options.mass <= 0 || options.gravity === false) {
+                body_desc = RAPIER.RigidBodyDesc.fixed();
+            } else {
+                body_desc = RAPIER.RigidBodyDesc.dynamic()
+                    .setMass(options.mass)
+                    .setCanSleep(options.sleeping !== false);
+            }
+            
+            // Set position and rotation
+            body_desc.setTranslation(position.x, position.y, position.z);
+            body_desc.setRotation({
+                x: rotation.x,
+                y: rotation.y,
+                z: rotation.z,
+                w: rotation.w
+            });
+            
+            // Create body
+            body = this.world.createRigidBody(body_desc);
+            
+            // Create cylinder collider
+            const collider_desc = RAPIER.ColliderDesc.cylinder(height / 2, radius);
+            
+            // Set restitution and friction
+            collider_desc.setRestitution(options.restitution || 0.5);
+            collider_desc.setFriction(options.friction || 0.5);
+            
+            // Create collider and attach to body
+            const collider = this.world.createCollider(collider_desc, body);
+            
+            // Create debug wireframe if debug is enabled
+            if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
+                try {
+                    this.create_debug_wireframe(
+                        'cylinder',
+                        { radius: radius, height: height },
+                        position,
+                        rotation,
+                        { color: 0x00ff00, opacity: 0.3, body }
+                    );
+                } catch (error) {
+                    console.warn('Failed to create debug wireframe:', error);
+                }
+            }
+        }
+        
+        // Generate a unique ID for this asset
+        const instance_id = this.generate_asset_id();
+        
+        // Return the result
+        return {
+            mesh,
+            body,
+            instance_id,
+            type: 'primitive_cylinder',
             options
         };
     }
