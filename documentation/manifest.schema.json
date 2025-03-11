@@ -551,15 +551,68 @@
                 },
                 "enable_damping": { "type": "boolean", "default": true },
                 "damping_factor": { "type": "number", "default": 0.05 },
-                "min_distance": { "type": "number", "default": 1 },
-                "max_distance": { "type": "number", "default": 100 },
-                "min_polar_angle": { "type": "number", "default": 0 },
-                "max_polar_angle": { "type": "number", "default": 3.14159 },
+                "min_distance": { "type": "number", "default": 5 },
+                "max_distance": { "type": "number", "default": 30 },
+                "min_polar_angle": { "type": "number", "default": -60 },
+                "max_polar_angle": { "type": "number", "default": 60 },
                 "enable_zoom": { "type": "boolean", "default": true },
                 "enable_rotate": { "type": "boolean", "default": true },
                 "enable_pan": { "type": "boolean", "default": true }
               }
-            }
+            },
+            "shoulder_lights": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean", "default": true },
+                "left": {
+                  "type": "object",
+                  "properties": {
+                    "position": {
+                      "type": "object",
+                      "properties": {
+                        "x": { "type": "number", "default": -3 },
+                        "y": { "type": "number", "default": 2.5 },
+                        "z": { "type": "number", "default": 40 }
+                      }
+                    },
+                    "rotation": {
+                      "type": "object",
+                      "properties": {
+                        "pitch": { "type": "number", "default": 190 },
+                        "yaw": { "type": "number", "default": 0 }
+                      }
+                    },
+                    "angle": { "type": "number", "default": 80 },
+                    "max_distance": { "type": "number", "default": 0 },
+                    "intensity": { "type": "number", "default": 2 }
+                  }
+                },
+                "right": {
+                  "type": "object",
+                  "properties": {
+                    "position": {
+                      "type": "object",
+                      "properties": {
+                        "x": { "type": "number", "default": 3 },
+                        "y": { "type": "number", "default": 2.5 },
+                        "z": { "type": "number", "default": 40 }
+                      }
+                    },
+                    "rotation": {
+                      "type": "object",
+                      "properties": {
+                        "pitch": { "type": "number", "default": 190 },
+                        "yaw": { "type": "number", "default": 0 }
+                      }
+                    },
+                    "angle": { "type": "number", "default": 80 },
+                    "max_distance": { "type": "number", "default": 0 },
+                    "intensity": { "type": "number", "default": 2 }
+                  }
+                }
+              }
+            },
+            "ui_distance": { "type": "number", "default": 25 }
           }
         }
       }

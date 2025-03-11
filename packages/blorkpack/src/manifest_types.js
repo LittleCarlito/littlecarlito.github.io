@@ -196,6 +196,7 @@
  * @property {number} default_camera.fov - Field of view
  * @property {number} default_camera.near - Near clipping plane
  * @property {number} default_camera.far - Far clipping plane
+ * @property {number} default_camera.ui_distance - Distance for UI placement in front of camera
  * @property {Object} default_camera.controls - Camera controls
  * @property {string} default_camera.controls.type - Control type (ORBIT, FLY, etc.)
  * @property {boolean} default_camera.controls.enable_damping - Whether to enable damping
@@ -207,6 +208,30 @@
  * @property {boolean} default_camera.controls.enable_zoom - Whether to enable zoom
  * @property {boolean} default_camera.controls.enable_rotate - Whether to enable rotation
  * @property {boolean} default_camera.controls.enable_pan - Whether to enable panning
+ * @property {Object} default_camera.shoulder_lights - Shoulder light settings
+ * @property {boolean} default_camera.shoulder_lights.enabled - Whether shoulder lights are enabled
+ * @property {Object} default_camera.shoulder_lights.left - Left shoulder light settings
+ * @property {Object} default_camera.shoulder_lights.left.position - Position of left shoulder light
+ * @property {number} default_camera.shoulder_lights.left.position.x - X position
+ * @property {number} default_camera.shoulder_lights.left.position.y - Y position
+ * @property {number} default_camera.shoulder_lights.left.position.z - Z position
+ * @property {Object} default_camera.shoulder_lights.left.rotation - Rotation of left shoulder light
+ * @property {number} default_camera.shoulder_lights.left.rotation.pitch - Pitch rotation 
+ * @property {number} default_camera.shoulder_lights.left.rotation.yaw - Yaw rotation
+ * @property {number} default_camera.shoulder_lights.left.angle - Angle of left spotlight cone
+ * @property {number} default_camera.shoulder_lights.left.max_distance - Maximum distance (0 = unlimited)
+ * @property {number} default_camera.shoulder_lights.left.intensity - Light intensity
+ * @property {Object} default_camera.shoulder_lights.right - Right shoulder light settings
+ * @property {Object} default_camera.shoulder_lights.right.position - Position of right shoulder light
+ * @property {number} default_camera.shoulder_lights.right.position.x - X position
+ * @property {number} default_camera.shoulder_lights.right.position.y - Y position
+ * @property {number} default_camera.shoulder_lights.right.position.z - Z position
+ * @property {Object} default_camera.shoulder_lights.right.rotation - Rotation of right shoulder light
+ * @property {number} default_camera.shoulder_lights.right.rotation.pitch - Pitch rotation
+ * @property {number} default_camera.shoulder_lights.right.rotation.yaw - Yaw rotation
+ * @property {number} default_camera.shoulder_lights.right.angle - Angle of right spotlight cone
+ * @property {number} default_camera.shoulder_lights.right.max_distance - Maximum distance (0 = unlimited)
+ * @property {number} default_camera.shoulder_lights.right.intensity - Light intensity
  */
 
 /**

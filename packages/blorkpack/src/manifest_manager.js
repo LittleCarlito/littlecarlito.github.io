@@ -729,4 +729,155 @@ export class ManifestManager {
         }
         this.manifest_data.application_assets = application_assets;
     }
+
+    /**
+     * Gets the camera configuration from the scene_data.
+     * @returns {Object} The camera configuration with defaults applied
+     */
+    get_camera_config() {
+        const scene_data = this.get_scene_data();
+        const default_camera = {
+            position: { x: 0, y: 5, z: 10 },
+            target: { x: 0, y: 0, z: 0 },
+            fov: 75,
+            near: 0.1,
+            far: 1000,
+            ui_distance: 25,
+            controls: {
+                type: "ORBIT",
+                enable_damping: true,
+                damping_factor: 0.05,
+                min_distance: 5,
+                max_distance: 30,
+                min_polar_angle: -60,
+                max_polar_angle: 60,
+                enable_zoom: true,
+                enable_rotate: true,
+                enable_pan: true
+            },
+            shoulder_lights: {
+                enabled: true,
+                left: {
+                    position: { x: -3, y: 2.5, z: 40 },
+                    rotation: { pitch: 190, yaw: 0 },
+                    angle: 80,
+                    max_distance: 0,
+                    intensity: 2
+                },
+                right: {
+                    position: { x: 3, y: 2.5, z: 40 },
+                    rotation: { pitch: 190, yaw: 0 },
+                    angle: 80,
+                    max_distance: 0,
+                    intensity: 2
+                }
+            }
+        };
+
+        if (!scene_data || !scene_data.default_camera) {
+            if (BLORKPACK_FLAGS.MANIFEST_LOGS) {
+                console.warn('No camera configuration found in scene_data, using defaults');
+            }
+            return default_camera;
+        }
+
+        // Deep merge the provided camera config with defaults
+        const camera_config = { ...default_camera };
+        
+        // Merge position and target
+        if (scene_data.default_camera.position) {
+            camera_config.position = {
+                x: scene_data.default_camera.position.x ?? default_camera.position.x,
+                y: scene_data.default_camera.position.y ?? default_camera.position.y,
+                z: scene_data.default_camera.position.z ?? default_camera.position.z
+            };
+        }
+        
+        if (scene_data.default_camera.target) {
+            camera_config.target = {
+                x: scene_data.default_camera.target.x ?? default_camera.target.x,
+                y: scene_data.default_camera.target.y ?? default_camera.target.y,
+                z: scene_data.default_camera.target.z ?? default_camera.target.z
+            };
+        }
+        
+        // Merge simple properties
+        camera_config.fov = scene_data.default_camera.fov ?? default_camera.fov;
+        camera_config.near = scene_data.default_camera.near ?? default_camera.near;
+        camera_config.far = scene_data.default_camera.far ?? default_camera.far;
+        camera_config.ui_distance = scene_data.default_camera.ui_distance ?? default_camera.ui_distance;
+        
+        // Merge controls
+        if (scene_data.default_camera.controls) {
+            camera_config.controls = {
+                type: scene_data.default_camera.controls.type ?? default_camera.controls.type,
+                enable_damping: scene_data.default_camera.controls.enable_damping ?? default_camera.controls.enable_damping,
+                damping_factor: scene_data.default_camera.controls.damping_factor ?? default_camera.controls.damping_factor,
+                min_distance: scene_data.default_camera.controls.min_distance ?? default_camera.controls.min_distance,
+                max_distance: scene_data.default_camera.controls.max_distance ?? default_camera.controls.max_distance,
+                min_polar_angle: scene_data.default_camera.controls.min_polar_angle ?? default_camera.controls.min_polar_angle,
+                max_polar_angle: scene_data.default_camera.controls.max_polar_angle ?? default_camera.controls.max_polar_angle,
+                enable_zoom: scene_data.default_camera.controls.enable_zoom ?? default_camera.controls.enable_zoom,
+                enable_rotate: scene_data.default_camera.controls.enable_rotate ?? default_camera.controls.enable_rotate,
+                enable_pan: scene_data.default_camera.controls.enable_pan ?? default_camera.controls.enable_pan
+            };
+        }
+        
+        // Merge shoulder lights
+        if (scene_data.default_camera.shoulder_lights) {
+            camera_config.shoulder_lights = {
+                enabled: scene_data.default_camera.shoulder_lights.enabled ?? default_camera.shoulder_lights.enabled
+            };
+            
+            // Merge left light
+            if (scene_data.default_camera.shoulder_lights.left) {
+                camera_config.shoulder_lights.left = { ...default_camera.shoulder_lights.left };
+                
+                if (scene_data.default_camera.shoulder_lights.left.position) {
+                    camera_config.shoulder_lights.left.position = {
+                        x: scene_data.default_camera.shoulder_lights.left.position.x ?? default_camera.shoulder_lights.left.position.x,
+                        y: scene_data.default_camera.shoulder_lights.left.position.y ?? default_camera.shoulder_lights.left.position.y,
+                        z: scene_data.default_camera.shoulder_lights.left.position.z ?? default_camera.shoulder_lights.left.position.z
+                    };
+                }
+                
+                if (scene_data.default_camera.shoulder_lights.left.rotation) {
+                    camera_config.shoulder_lights.left.rotation = {
+                        pitch: scene_data.default_camera.shoulder_lights.left.rotation.pitch ?? default_camera.shoulder_lights.left.rotation.pitch,
+                        yaw: scene_data.default_camera.shoulder_lights.left.rotation.yaw ?? default_camera.shoulder_lights.left.rotation.yaw
+                    };
+                }
+                
+                camera_config.shoulder_lights.left.angle = scene_data.default_camera.shoulder_lights.left.angle ?? default_camera.shoulder_lights.left.angle;
+                camera_config.shoulder_lights.left.max_distance = scene_data.default_camera.shoulder_lights.left.max_distance ?? default_camera.shoulder_lights.left.max_distance;
+                camera_config.shoulder_lights.left.intensity = scene_data.default_camera.shoulder_lights.left.intensity ?? default_camera.shoulder_lights.left.intensity;
+            }
+            
+            // Merge right light
+            if (scene_data.default_camera.shoulder_lights.right) {
+                camera_config.shoulder_lights.right = { ...default_camera.shoulder_lights.right };
+                
+                if (scene_data.default_camera.shoulder_lights.right.position) {
+                    camera_config.shoulder_lights.right.position = {
+                        x: scene_data.default_camera.shoulder_lights.right.position.x ?? default_camera.shoulder_lights.right.position.x,
+                        y: scene_data.default_camera.shoulder_lights.right.position.y ?? default_camera.shoulder_lights.right.position.y,
+                        z: scene_data.default_camera.shoulder_lights.right.position.z ?? default_camera.shoulder_lights.right.position.z
+                    };
+                }
+                
+                if (scene_data.default_camera.shoulder_lights.right.rotation) {
+                    camera_config.shoulder_lights.right.rotation = {
+                        pitch: scene_data.default_camera.shoulder_lights.right.rotation.pitch ?? default_camera.shoulder_lights.right.rotation.pitch,
+                        yaw: scene_data.default_camera.shoulder_lights.right.rotation.yaw ?? default_camera.shoulder_lights.right.rotation.yaw
+                    };
+                }
+                
+                camera_config.shoulder_lights.right.angle = scene_data.default_camera.shoulder_lights.right.angle ?? default_camera.shoulder_lights.right.angle;
+                camera_config.shoulder_lights.right.max_distance = scene_data.default_camera.shoulder_lights.right.max_distance ?? default_camera.shoulder_lights.right.max_distance;
+                camera_config.shoulder_lights.right.intensity = scene_data.default_camera.shoulder_lights.right.intensity ?? default_camera.shoulder_lights.right.intensity;
+            }
+        }
+        
+        return camera_config;
+    }
 } 

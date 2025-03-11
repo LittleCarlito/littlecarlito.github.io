@@ -119,6 +119,30 @@ async function testManifestManager() {
                 console.log(`- Unknown background type: ${background.type}`);
         }
         
+        // Test camera configuration
+        console.log(`\nCamera Configuration:`);
+        const camera = sceneData.default_camera;
+        if (camera) {
+            console.log(`- Position: (${camera.position.x}, ${camera.position.y}, ${camera.position.z})`);
+            console.log(`- FOV: ${camera.fov}`);
+            console.log(`- Control Type: ${camera.controls.type}`);
+            console.log(`- Min/Max Distance: ${camera.controls.min_distance}/${camera.controls.max_distance}`);
+            
+            if (camera.shoulder_lights) {
+                console.log(`- Shoulder Lights: ${camera.shoulder_lights.enabled ? 'Enabled' : 'Disabled'}`);
+                if (camera.shoulder_lights.enabled) {
+                    console.log(`  - Left Light Position: (${camera.shoulder_lights.left.position.x}, ${camera.shoulder_lights.left.position.y}, ${camera.shoulder_lights.left.position.z})`);
+                    console.log(`  - Right Light Position: (${camera.shoulder_lights.right.position.x}, ${camera.shoulder_lights.right.position.y}, ${camera.shoulder_lights.right.position.z})`);
+                }
+            }
+            
+            if (camera.ui_distance) {
+                console.log(`- UI Distance: ${camera.ui_distance}`);
+            }
+        } else {
+            console.log('- No camera configuration found');
+        }
+        
         // Validate the manifest
         const validation = manifestManager.validateManifest();
         if (validation.isValid) {

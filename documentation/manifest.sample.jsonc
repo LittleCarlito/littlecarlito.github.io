@@ -288,14 +288,46 @@
                 "type": "ORBIT", // ORBIT, FIRST_PERSON, FLY
                 "enable_damping": true,
                 "damping_factor": 0.05,
-                "min_distance": 1,
-                "max_distance": 100,
-                "min_polar_angle": 0,
-                "max_polar_angle": 3.14159,
+                "min_distance": 5,
+                "max_distance": 30,
+                "min_polar_angle": -60,
+                "max_polar_angle": 60,
                 "enable_zoom": true,
                 "enable_rotate": true,
                 "enable_pan": true
-            }
+            },
+            "shoulder_lights": {
+                "enabled": true,
+                "left": {
+                    "position": {
+                        "x": -3,
+                        "y": 2.5,
+                        "z": 40
+                    },
+                    "rotation": {
+                        "pitch": 190,
+                        "yaw": 0
+                    },
+                    "angle": 80,
+                    "max_distance": 0,
+                    "intensity": 2
+                },
+                "right": {
+                    "position": {
+                        "x": 3,
+                        "y": 2.5,
+                        "z": 40
+                    },
+                    "rotation": {
+                        "pitch": 190,
+                        "yaw": 0
+                    },
+                    "angle": 80,
+                    "max_distance": 0,
+                    "intensity": 2
+                }
+            },
+            "ui_distance": 25
         }
     }
 } 

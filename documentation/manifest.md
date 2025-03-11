@@ -417,6 +417,44 @@ The top-level properties in the `scene_data` section define basic information ab
 | `greeting_data.display` | Whether to show a greeting message | false |
 | `greeting_data.modal_path` | Path to the modal HTML file to display (required if display is true) | - |
 
+## Camera Properties
+
+The `default_camera` section defines the properties of the main camera in the scene.
+
+| Property | Description | Default |
+|----------|-------------|---------|
+| `position.x` | X position of the camera | 0 |
+| `position.y` | Y position of the camera | 5 |
+| `position.z` | Z position of the camera | 10 |
+| `target.x` | X position of camera target | 0 |
+| `target.y` | Y position of camera target | 0 |
+| `target.z` | Z position of camera target | 0 |
+| `fov` | Field of view in degrees | 75 |
+| `near` | Near clipping plane | 0.1 |
+| `far` | Far clipping plane | 1000 |
+| `ui_distance` | Distance for UI placement in front of camera | 25 |
+| `controls.type` | Type of camera controls | "ORBIT" |
+| `controls.enable_damping` | Whether to enable damping for smoothing | true |
+| `controls.damping_factor` | Damping strength factor | 0.05 |
+| `controls.min_distance` | Minimum zoom distance | 5 |
+| `controls.max_distance` | Maximum zoom distance | 30 |
+| `controls.min_polar_angle` | Minimum vertical angle in degrees | -60 |
+| `controls.max_polar_angle` | Maximum vertical angle in degrees | 60 |
+| `controls.enable_zoom` | Whether zoom is enabled | true |
+| `controls.enable_rotate` | Whether rotation is enabled | true |
+| `controls.enable_pan` | Whether panning is enabled | true |
+| `shoulder_lights.enabled` | Whether to enable shoulder lights | true |
+| `shoulder_lights.left.position` | Position of left shoulder light | {x: -3, y: 2.5, z: 40} |
+| `shoulder_lights.left.rotation` | Rotation of left shoulder light | {pitch: 190, yaw: 0} |
+| `shoulder_lights.left.angle` | Angle of left spotlight cone in degrees | 80 |
+| `shoulder_lights.left.max_distance` | Maximum distance of left light (0 = unlimited) | 0 |
+| `shoulder_lights.left.intensity` | Intensity of left light | 2 |
+| `shoulder_lights.right.position` | Position of right shoulder light | {x: 3, y: 2.5, z: 40} |
+| `shoulder_lights.right.rotation` | Rotation of right shoulder light | {pitch: 190, yaw: 0} |
+| `shoulder_lights.right.angle` | Angle of right spotlight cone in degrees | 80 |
+| `shoulder_lights.right.max_distance` | Maximum distance of right light (0 = unlimited) | 0 |
+| `shoulder_lights.right.intensity` | Intensity of right light | 2 |
+
 ## Environment Properties
 
 The `environment` section defines global environment settings for the scene.

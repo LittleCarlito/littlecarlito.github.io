@@ -121,16 +121,13 @@ async function display_modal(modal_path, modal_id, button_id, onAcknowledge) {
         if (!response.ok) {
             throw new Error(`Failed to load modal: ${response.status} ${response.statusText}`);
         }
-        
         const html = await response.text();
         document.body.insertAdjacentHTML('beforeend', html);
-        
         const modal = document.getElementById(modal_id);
         if (!modal) {
             throw new Error(`Modal HTML does not contain an element with ID '${modal_id}'`);
         }
         modal.style.display = 'block';
-        
         const acknowledge_btn = document.getElementById(button_id);
         if (!acknowledge_btn) {
             console.warn(`Modal is missing an '${button_id}' element, user won't be able to dismiss it.`);
@@ -165,13 +162,13 @@ async function init() {
         AssetStorage.get_instance();
         // Initialize the ManifestManager and load the manifest
         update_loading_progress("Loading manifest...");
-        const manifest_manager = ManifestManager.get_instance();
-        await manifest_manager.load_manifest();
+        window.manifest_manager = ManifestManager.get_instance();
+        await window.manifest_manager.load_manifest();
         // Get greeting data from manifest, default to false if not present
-        const greeting_data = manifest_manager.get_greeting_data();
+        const greeting_data = window.manifest_manager.get_greeting_data();
         greeting_acknowledged = !(greeting_data && greeting_data.display === true);
         if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
-            console.log("Manifest loaded:", manifest_manager.get_manifest());
+            console.log("Manifest loaded:", window.manifest_manager.get_manifest());
         }
         // ----- Setup
         // Add event listeners
@@ -186,7 +183,7 @@ async function init() {
         window.scene = new THREE.Scene();
         // Apply scene settings from manifest
         // Set background based on manifest settings
-        const bg = manifest_manager.get_background_config();
+        const bg = window.manifest_manager.get_background_config();
         if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
             console.log("Using background configuration:", bg);
         }
@@ -209,15 +206,16 @@ async function init() {
                 window.scene.background = new THREE.Color('0x000000');
         }
         // Physics - Get gravity from manifest manager
-        const gravityData = manifest_manager.get_gravity();
+        const gravityData = window.manifest_manager.get_gravity();
         if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
             console.log("Using gravity:", gravityData);
         }
         // Create world and spawner
-        window.world = new RAPIER.World(gravityData);
+        window.world = new RAPIER.World();
+        window.world.gravity = new RAPIER.Vector3(gravityData.x, gravityData.y, gravityData.z);
         window.asset_spawner = AssetSpawner.get_instance(window.scene, window.world);
         // Physics optimization settings
-        const physicsOptimization = manifest_manager.get_physics_optimization_settings();
+        const physicsOptimization = window.manifest_manager.get_physics_optimization_settings();
         if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
             console.log("Using physics optimization settings:", physicsOptimization);
         }
@@ -234,7 +232,12 @@ async function init() {
         window.clock = new THREE.Clock();
         // UI creation
         update_loading_progress('Creating UI components...');
+        // TODO OOOOO
+        // TODO Get camera spawned from manifest
+        // TODO Get lighting spawned from manifest
         // TODO One day get the UI portion into the Manifest
+        // FUTURE: Use default_camera configuration from manifest to create camera
+        // FUTURE: const cameraConfig = window.manifest_manager.get_camera_config();
         window.viewable_container = new ViewableContainer(window.scene, window.world);
         // Renderer
         window.app_renderer = new AppRenderer(window.scene, window.viewable_container.get_camera());
@@ -258,7 +261,7 @@ async function init() {
         window.background_container = new BackgroundContainer(window.scene, window.viewable_container.get_camera(), window.world);
         // Load application assets from manifest (including background floor)
         update_loading_progress('Loading application assets...');
-        const application_assets = await window.asset_spawner.spawn_application_assets(manifest_manager, update_loading_progress);
+        const application_assets = await window.asset_spawner.spawn_application_assets(window.manifest_manager, update_loading_progress);
         if (BLORKPACK_FLAGS.ASSET_LOGS) {
             console.log('Loaded application assets:', application_assets);
         }
@@ -289,7 +292,7 @@ async function init() {
         // Set background container reference for debug UI
         set_background_container(window.background_container);
         // Initialize resolution scale based on device capabilities
-        if (manifest_manager.get_auto_throttle()) {
+        if (window.manifest_manager.get_auto_throttle()) {
             // Start with a resolution scale based on device pixel ratio
             // Higher pixel ratio devices (like Retina displays) get a lower initial scale
             // to maintain performance
@@ -307,7 +310,7 @@ async function init() {
         }
         // Load and spawn assets defined in the manifest
         update_loading_progress("Loading assets from manifest...");
-        const spawned_assets = await window.asset_spawner.spawn_asset_groups(manifest_manager, update_loading_progress);
+        const spawned_assets = await window.asset_spawner.spawn_asset_groups(window.manifest_manager, update_loading_progress);
     } catch (error) {
         console.error('Error during initialization:', error);
         update_loading_progress('Error loading application. Please refresh the page.');
@@ -438,7 +441,10 @@ function handle_resize() {
     
     resize_timeout = setTimeout(() => {
         if (window.app_renderer) window.app_renderer.resize();
-        if (window.viewable_container) window.viewable_container.handle_resize();
+        if (window.viewable_container) {
+            window.viewable_container.reset_camera();
+            window.viewable_container.resize_reposition();
+        }
     }, 100);
 }
 
