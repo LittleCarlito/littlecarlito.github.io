@@ -335,6 +335,33 @@
             "aspect_ratio": { "type": "number" },
             "near_clipping": { "type": "number" },
             "far_clipping": { "type": "number" },
+            "shadow": {
+              "type": "object",
+              "description": "Shadow settings for lights",
+              "properties": {
+                "blur_samples": { "type": "number", "description": "Number of blur samples for shadow maps" },
+                "radius": { "type": "number", "description": "Blur radius for shadows" },
+                "map_size": {
+                  "type": "object",
+                  "description": "Shadow map dimensions",
+                  "properties": {
+                    "width": { "type": "number", "description": "Width of the shadow map" },
+                    "height": { "type": "number", "description": "Height of the shadow map" }
+                  }
+                },
+                "camera": {
+                  "type": "object",
+                  "description": "Shadow camera settings",
+                  "properties": {
+                    "near": { "type": "number", "description": "Near clipping plane of shadow camera" },
+                    "far": { "type": "number", "description": "Far clipping plane of shadow camera" },
+                    "fov": { "type": "number", "description": "Field of view of shadow camera" }
+                  }
+                },
+                "bias": { "type": "number", "description": "Shadow bias to prevent shadow acne" },
+                "normal_bias": { "type": "number", "description": "Normal bias for shadows" }
+              }
+            },
             "physical_dimensions": {
               "type": "object",
               "properties": {

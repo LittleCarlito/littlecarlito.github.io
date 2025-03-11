@@ -129,6 +129,45 @@
  * @property {string} target.id - ID of target asset
  * @property {Vector3} target.position - Position of target
  * @property {Object} additional_properties - Extra properties specific to asset type
+ * @property {string} [additional_properties.color] - Color in hex format
+ * @property {number} [additional_properties.intensity] - Light intensity
+ * @property {number} [additional_properties.max_distance] - Maximum distance (0 = unlimited)
+ * @property {number} [additional_properties.angle] - Spotlight cone angle
+ * @property {number} [additional_properties.penumbra] - Spotlight edge softness
+ * @property {number} [additional_properties.sharpness] - Spotlight sharpness
+ * @property {boolean} [additional_properties.cast_shadows] - Whether it casts shadows
+ * @property {boolean} [additional_properties.receive_shadows] - Whether it receives shadows
+ * @property {Object} [additional_properties.shadow] - Shadow configuration
+ * @property {number} [additional_properties.shadow.blur_samples] - Number of blur samples
+ * @property {number} [additional_properties.shadow.radius] - Blur radius
+ * @property {Object} [additional_properties.shadow.map_size] - Shadow map dimensions
+ * @property {number} [additional_properties.shadow.map_size.width] - Shadow map width
+ * @property {number} [additional_properties.shadow.map_size.height] - Shadow map height
+ * @property {Object} [additional_properties.shadow.camera] - Shadow camera settings
+ * @property {number} [additional_properties.shadow.camera.near] - Shadow camera near plane
+ * @property {number} [additional_properties.shadow.camera.far] - Shadow camera far plane
+ * @property {number} [additional_properties.shadow.camera.fov] - Shadow camera field of view
+ * @property {number} [additional_properties.shadow.bias] - Shadow bias
+ * @property {number} [additional_properties.shadow.normal_bias] - Shadow normal bias
+ * @property {number} [additional_properties.fov] - Field of view for cameras
+ * @property {number} [additional_properties.near] - Near clipping plane
+ * @property {number} [additional_properties.far] - Far clipping plane
+ * @property {number} [additional_properties.aspect_ratio] - Camera aspect ratio
+ * @property {number} [additional_properties.near_clipping] - Near clipping distance
+ * @property {number} [additional_properties.far_clipping] - Far clipping distance
+ * @property {Object} [additional_properties.physical_dimensions] - Physical dimensions
+ * @property {number} [additional_properties.physical_dimensions.width] - Width
+ * @property {number} [additional_properties.physical_dimensions.height] - Height
+ * @property {number} [additional_properties.physical_dimensions.depth] - Depth
+ * @property {Object} [additional_properties.collider_dimensions] - Collider dimensions
+ * @property {number} [additional_properties.collider_dimensions.width] - Collider width
+ * @property {number} [additional_properties.collider_dimensions.height] - Collider height
+ * @property {number} [additional_properties.collider_dimensions.depth] - Collider depth
+ * @property {number} [additional_properties.restitution] - Bounciness factor
+ * @property {number} [additional_properties.mass] - Physics mass
+ * @property {number} [additional_properties.friction] - Surface friction
+ * @property {boolean} [additional_properties.raycast_disabled] - Whether raycast is disabled
+ * @property {Array} [additional_properties.animations] - Animation configurations
  */
 
 /**

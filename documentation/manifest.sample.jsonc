@@ -190,7 +190,115 @@
     
     // Lists of assets
     "application_assets": [], // App-specific assets
-    "system_assets": [], // System/engine assets
+    "system_assets": [
+        {
+            "id": "background_floor",
+            "type": "SYSTEM",
+            "asset_type": "primitive_box",
+            "version": "1.0",
+            "config": {
+                "collidable": true,
+                "hidden": false,
+                "disabled": false,
+                "sleeping": false,
+                "gravity": false,
+                "interactable": false,
+                "selectable": false,
+                "highlightable": false
+            },
+            "tags": ["environment", "floor"],
+            "group_id": "",
+            "position": {
+                "x": 0,
+                "y": -10.2,
+                "z": 0
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "additional_properties": {
+                "color": "0x808080",
+                "cast_shadows": false,
+                "receive_shadows": true,
+                "physical_dimensions": {
+                    "width": 100,
+                    "height": 1,
+                    "depth": 100
+                },
+                "collider_dimensions": {
+                    "width": 50,
+                    "height": 0.5,
+                    "depth": 50
+                },
+                "restitution": 0.3,
+                "mass": 0,
+                "friction": 0.8,
+                "raycast_disabled": true
+            }
+        },
+        {
+            "id": "primary_spotlight",
+            "type": "SYSTEM",
+            "asset_type": "spotlight",
+            "version": "1.0",
+            "config": {
+                "collidable": false,
+                "hidden": false,
+                "disabled": false,
+                "sleeping": false,
+                "gravity": false,
+                "interactable": false,
+                "selectable": false,
+                "highlightable": false
+            },
+            "tags": ["lighting", "spotlight"],
+            "group_id": "",
+            "position": {
+                "x": 0,
+                "y": 50,
+                "z": 0
+            },
+            "rotation": {
+                "x": -1.5707963267948966, // -Math.PI/2 (pointing straight down)
+                "y": 0,
+                "z": 0
+            },
+            "target": {
+                "id": "primary_spotlight_target",
+                "position": {
+                    "x": 0,
+                    "y": 0,
+                    "z": 0
+                }
+            },
+            "additional_properties": {
+                "color": "0xffffff",
+                "intensity": 5.0,
+                "max_distance": 0, // Unlimited distance
+                "angle": 0.19634954084936207, // Math.PI/16
+                "penumbra": 0.05,
+                "sharpness": 0.5,
+                "cast_shadows": true,
+                "shadow": {
+                    "blur_samples": 32,
+                    "radius": 4,
+                    "map_size": {
+                        "width": 2048,
+                        "height": 2048
+                    },
+                    "camera": {
+                        "near": 10,
+                        "far": 100,
+                        "fov": 30
+                    },
+                    "bias": -0.002,
+                    "normal_bias": 0.02
+                }
+            }
+        }
+    ],
     
     // Global scene configuration
     "scene_data": {

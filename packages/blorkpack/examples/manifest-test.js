@@ -97,11 +97,53 @@ async function test_manifest_manager() {
             if (Array.isArray(assets)) {
                 assets.forEach(asset => {
                     console.log(`- ${asset.id}: ${asset.type} (${asset.asset_type})`);
+                    
+                    // Check for spotlight assets and print their shadow details
+                    if (asset.asset_type === 'spotlight') {
+                        console.log(`  Spotlight Details:`);
+                        console.log(`  - Position: (${asset.position.x}, ${asset.position.y}, ${asset.position.z})`);
+                        console.log(`  - Color: ${asset.additional_properties?.color || 'N/A'}`);
+                        console.log(`  - Intensity: ${asset.additional_properties?.intensity || 'N/A'}`);
+                        console.log(`  - Angle: ${asset.additional_properties?.angle || 'N/A'}`);
+                        console.log(`  - Cast Shadows: ${asset.additional_properties?.cast_shadows ? 'Yes' : 'No'}`);
+                        
+                        // If there are shadow settings, show them
+                        if (asset.additional_properties?.shadow) {
+                            const shadow = asset.additional_properties.shadow;
+                            console.log(`  - Shadow Configuration:`);
+                            console.log(`    - Blur Samples: ${shadow.blur_samples || 'N/A'}`);
+                            console.log(`    - Radius: ${shadow.radius || 'N/A'}`);
+                            console.log(`    - Map Size: ${shadow.map_size?.width || 'N/A'} x ${shadow.map_size?.height || 'N/A'}`);
+                            console.log(`    - Bias: ${shadow.bias || 'N/A'}`);
+                            console.log(`    - Normal Bias: ${shadow.normal_bias || 'N/A'}`);
+                        }
+                    }
                 });
             } else if (typeof assets === 'object') {
                 Object.keys(assets).forEach(asset_id => {
                     const asset = assets[asset_id];
                     console.log(`- ${asset_id}: ${asset.type} (${asset.asset_type})`);
+                    
+                    // Check for spotlight assets and print their shadow details
+                    if (asset.asset_type === 'spotlight') {
+                        console.log(`  Spotlight Details:`);
+                        console.log(`  - Position: (${asset.position.x}, ${asset.position.y}, ${asset.position.z})`);
+                        console.log(`  - Color: ${asset.additional_properties?.color || 'N/A'}`);
+                        console.log(`  - Intensity: ${asset.additional_properties?.intensity || 'N/A'}`);
+                        console.log(`  - Angle: ${asset.additional_properties?.angle || 'N/A'}`);
+                        console.log(`  - Cast Shadows: ${asset.additional_properties?.cast_shadows ? 'Yes' : 'No'}`);
+                        
+                        // If there are shadow settings, show them
+                        if (asset.additional_properties?.shadow) {
+                            const shadow = asset.additional_properties.shadow;
+                            console.log(`  - Shadow Configuration:`);
+                            console.log(`    - Blur Samples: ${shadow.blur_samples || 'N/A'}`);
+                            console.log(`    - Radius: ${shadow.radius || 'N/A'}`);
+                            console.log(`    - Map Size: ${shadow.map_size?.width || 'N/A'} x ${shadow.map_size?.height || 'N/A'}`);
+                            console.log(`    - Bias: ${shadow.bias || 'N/A'}`);
+                            console.log(`    - Normal Bias: ${shadow.normal_bias || 'N/A'}`);
+                        }
+                    }
                 });
             }
             

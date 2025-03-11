@@ -131,6 +131,21 @@
 //             "sharpness": 0.0,
 //             "cast_shadows": true,
 //             "blur_samples": 0,
+//             "shadow": {
+//                 "blur_samples": 32,
+//                 "radius": 4,
+//                 "map_size": {
+//                     "width": 2048,
+//                     "height": 2048
+//                 },
+//                 "camera": {
+//                     "near": 10,
+//                     "far": 100,
+//                     "fov": 30
+//                 },
+//                 "bias": -0.002,
+//                 "normal_bias": 0.02
+//             },
 //             "fov": 0, // From camera as well (spotlight is spotlight.camera.fov so just a deeper version)
 //             "near": 0,
 //             "far": 0,

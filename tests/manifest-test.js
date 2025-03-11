@@ -77,6 +77,52 @@ async function testManifestManager() {
             }
         });
         
+        // Display system assets
+        const systemAssets = manifestManager.get_system_assets();
+        console.log(`\nSystem Assets (${systemAssets.length}):`);
+        systemAssets.forEach(asset => {
+            console.log(`- ${asset.id}: ${asset.type} (${asset.asset_type})`);
+            
+            // Check for spotlight assets
+            if (asset.asset_type === 'spotlight') {
+                console.log(`  Spotlight Properties:`);
+                console.log(`  - Position: (${asset.position.x}, ${asset.position.y}, ${asset.position.z})`);
+                console.log(`  - Rotation: (${asset.rotation.x}, ${asset.rotation.y}, ${asset.rotation.z})`);
+                if (asset.target) {
+                    console.log(`  - Target ID: ${asset.target.id || 'N/A'}`);
+                    console.log(`  - Target Position: (${asset.target.position.x}, ${asset.target.position.y}, ${asset.target.position.z})`);
+                }
+                
+                if (asset.additional_properties) {
+                    const props = asset.additional_properties;
+                    console.log(`  - Color: ${props.color || 'N/A'}`);
+                    console.log(`  - Intensity: ${props.intensity || 'N/A'}`);
+                    console.log(`  - Angle: ${props.angle || 'N/A'}`);
+                    console.log(`  - Penumbra: ${props.penumbra || 'N/A'}`);
+                    console.log(`  - Sharpness: ${props.sharpness || 'N/A'}`);
+                    console.log(`  - Cast Shadows: ${props.cast_shadows ? 'Yes' : 'No'}`);
+                    
+                    // Shadow configuration
+                    if (props.shadow) {
+                        console.log(`  - Shadow Configuration:`);
+                        console.log(`    - Blur Samples: ${props.shadow.blur_samples || 'N/A'}`);
+                        console.log(`    - Radius: ${props.shadow.radius || 'N/A'}`);
+                        
+                        if (props.shadow.map_size) {
+                            console.log(`    - Map Size: ${props.shadow.map_size.width} x ${props.shadow.map_size.height}`);
+                        }
+                        
+                        if (props.shadow.camera) {
+                            console.log(`    - Camera: near=${props.shadow.camera.near}, far=${props.shadow.camera.far}, fov=${props.shadow.camera.fov}`);
+                        }
+                        
+                        console.log(`    - Bias: ${props.shadow.bias || 'N/A'}`);
+                        console.log(`    - Normal Bias: ${props.shadow.normal_bias || 'N/A'}`);
+                    }
+                }
+            }
+        });
+        
         // Test spawning application assets if in browser context
         if (typeof window !== 'undefined' && window.asset_spawner) {
             console.log('\nTesting application asset spawning...');
