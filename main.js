@@ -133,18 +133,28 @@ async function init() {
         // Initialize the ManifestManager and load the manifest
         update_loading_progress("Loading manifest...");
         const manifest_manager = ManifestManager.get_instance();
-        await manifest_manager.load_manifest('resources/manifest.json');
+        await manifest_manager.load_manifest();
         // Get construction_greeting from manifest, default to false if not present
         const scene_data = manifest_manager.get_scene_data();
         construction_acknowledged = !(scene_data && scene_data.construction_greeting === true);
         if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
             console.log("Manifest loaded:", manifest_manager.get_manifest());
         }
-        // Apply scene settings from manifest
         // ----- Setup
+        // Add event listeners
+        window.addEventListener('resize', handle_resize);
+        window.addEventListener('mousemove', handle_mouse_move);
+        window.addEventListener('mousedown', handle_mouse_down);
+        window.addEventListener('mouseup', handle_mouse_up);
+        window.addEventListener('contextmenu', handle_context_menu);
+        window.addEventListener('wheel', handle_wheel);
         scene = new THREE.Scene();
+        // Apply scene settings from manifest
         // Set background based on manifest settings
         const bg = manifest_manager.get_background_config();
+        if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
+            console.log("Using background configuration:", bg);
+        }
         switch (bg.type) {
             case 'IMAGE':
                 scene.background = TEXTURE_LOADER.load(bg.image_path);
@@ -163,18 +173,7 @@ async function init() {
                 console.error(`Background type \"${bg.type}\" is not supported`);
                 scene.background = new THREE.Color('0x000000');
         }
-        
-        window.addEventListener('resize', handle_resize);
-        window.addEventListener('mousemove', handle_mouse_move);
-        window.addEventListener('mousedown', handle_mouse_down);
-        window.addEventListener('mouseup', handle_mouse_up);
-        window.addEventListener('contextmenu', handle_context_menu);
-        window.addEventListener('wheel', handle_wheel);
-
         // Physics - Get gravity from manifest manager
-        if (!manifest_manager.is_manifest_loaded()) {
-            console.warn("Manifest not loaded yet, using default gravity");
-        }
         const gravityData = manifest_manager.get_gravity();
         if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
             console.log("Using gravity:", gravityData);
@@ -182,16 +181,20 @@ async function init() {
         
         world = new RAPIER.World(gravityData);
         // Physics optimization settings
-        world.allowSleep = true;
-        world.linearSleepThreshold = 0.2;
-        world.angularSleepThreshold = 0.1;
-        world.sleepThreshold = 0.1;
-        world.maxVelocityIterations = 2;
-        world.maxVelocityFriction = 4;
-        world.integrationParameters.dt = 1/60;  // Fixed timestep
-        world.integrationParameters.erp = 0.8;  // Error reduction parameter
-        world.integrationParameters.warmstartCoeff = 0.8;
-        world.integrationParameters.allowedLinearError = 0.001;
+        const physicsOptimization = manifest_manager.get_physics_optimization_settings();
+        if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
+            console.log("Using physics optimization settings:", physicsOptimization);
+        }
+        world.allowSleep = physicsOptimization.allow_sleep;
+        world.linearSleepThreshold = physicsOptimization.linear_sleep_threshold;
+        world.angularSleepThreshold = physicsOptimization.angular_sleep_threshold;
+        world.sleepThreshold = physicsOptimization.sleep_threshold;
+        world.maxVelocityIterations = physicsOptimization.max_velocity_iterations;
+        world.maxVelocityFriction = physicsOptimization.max_velocity_friction;
+        world.integrationParameters.dt = physicsOptimization.integration_parameters.dt;
+        world.integrationParameters.erp = physicsOptimization.integration_parameters.erp;
+        world.integrationParameters.warmstartCoeff = physicsOptimization.integration_parameters.warmstart_coeff;
+        world.integrationParameters.allowedLinearError = physicsOptimization.integration_parameters.allowed_linear_error;
         clock = new THREE.Clock();
 
         // Now initialize the asset spawner after world is created

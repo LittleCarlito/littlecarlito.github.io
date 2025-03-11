@@ -456,7 +456,7 @@ export class ManifestManager {
     
     /**
      * Gets the gravity configuration from the manifest.
-     * If gravity is not defined in the manifest, returns the default gravity.
+     * If not defined in the manifest, returns the default.
      * @returns {Object} The gravity configuration with x, y, z properties
      */
     get_gravity() {
@@ -471,6 +471,25 @@ export class ManifestManager {
         }
         
         return DEFAULT_ENVIRONMENT.gravity;
+    }
+    
+    /**
+     * Gets the physics optimization settings from the manifest.
+     * If not defined in the manifest, returns the default.
+     * @returns {Object} The physics optimization settings
+     */
+    get_physics_optimization_settings() {
+        const scene_data = this.get_scene_data();
+        if (scene_data?.physics?.optimization) {
+            return scene_data.physics.optimization;
+        }
+        
+        // Log that we're using the default value
+        if (typeof BLORKPACK_FLAGS !== 'undefined' && BLORKPACK_FLAGS.DEFAULT_CONFIG_LOGS) {
+            console.debug("Using default physics optimization settings from blorkpack defaults");
+        }
+        
+        return DEFAULT_PHYSICS;
     }
     
     /**
