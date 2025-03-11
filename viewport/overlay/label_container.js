@@ -404,42 +404,39 @@ export class LabelContainer {
     }
 
     /**
-     * Updates the debug visualizations based on the current flag state
      * This ensures wireframes are created if they don't exist and their visibility is updated
      */
     updateDebugVisualizations() {
-        if (FLAGS.COLLISION_VISUAL_DEBUG) {
-            // If we have no wireframe boxes and debug is enabled, create them
-            if (this.wireframe_boxes.length === 0) {
-                // Create wireframes for each category container
-                this.container_column.children.forEach(button_container => {
-                    if (!button_container.name.startsWith(TYPES.CONATINER)) return;
-                    
-                    // Find the collision box to match its dimensions
-                    const collisionBox = button_container.children.find(child => 
-                        child.name && child.name.includes('_collision')
-                    );
-                    
-                    if (collisionBox) {
-                        const wireframe_material = new THREE.MeshBasicMaterial({
-                            color: this.wireframe_colors[button_container.simple_name] || 0xffffff,
-                            wireframe: true,
-                            transparent: true,
-                            opacity: 0.7,
-                            depthTest: false
-                        });
-                        // Use the collision box's geometry for perfect matching
-                        const wireframe_box = new THREE.Mesh(collisionBox.geometry, wireframe_material);
-                        wireframe_box.raycast = () => null; // Disable raycasting
-                        wireframe_box.visible = true;
-                        button_container.add(wireframe_box);
-                        this.wireframe_boxes.push(wireframe_box);
-                    }
-                });
-            }
+        // Always create wireframes if they don't exist, regardless of flag
+        if (this.wireframe_boxes.length === 0) {
+            // Create wireframes for each category container
+            this.container_column.children.forEach(button_container => {
+                if (!button_container.name.startsWith(TYPES.CONATINER)) return;
+                
+                // Find the collision box to match its dimensions
+                const collisionBox = button_container.children.find(child => 
+                    child.name && child.name.includes('_collision')
+                );
+                
+                if (collisionBox) {
+                    const wireframe_material = new THREE.MeshBasicMaterial({
+                        color: this.wireframe_colors[button_container.simple_name] || 0xffffff,
+                        wireframe: true,
+                        transparent: true,
+                        opacity: 0.7,
+                        depthTest: false
+                    });
+                    // Use the collision box's geometry for perfect matching
+                    const wireframe_box = new THREE.Mesh(collisionBox.geometry, wireframe_material);
+                    wireframe_box.raycast = () => null; // Disable raycasting
+                    wireframe_box.visible = FLAGS.COLLISION_VISUAL_DEBUG; // Initial visibility based on flag
+                    button_container.add(wireframe_box);
+                    this.wireframe_boxes.push(wireframe_box);
+                }
+            });
         }
 
-        // Update visibility of existing wireframes
+        // Always update visibility of existing wireframes based on the flag
         if (this.wireframe_boxes.length > 0) {
             // Set visibility based on debug flag
             this.wireframe_boxes.forEach(box => {

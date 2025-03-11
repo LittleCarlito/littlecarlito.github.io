@@ -169,7 +169,10 @@
         "name": "Main Scene",
         "description": "The main interactive scene",
         "base_url": "",
-        "construction_greeting": true,
+        "greeting_data": {
+            "display": true,
+            "modal_path": "pages/under_construction.html"
+        },
         "background": {
             "type": "IMAGE",
             "image_path": "images/gradient.jpg"

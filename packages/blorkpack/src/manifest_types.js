@@ -137,6 +137,9 @@
  * @property {string} name - Scene name
  * @property {string} description - Scene description
  * @property {string} base_url - Base URL for assets
+ * @property {Object} greeting_data - Configuration for greeting message display
+ * @property {boolean} greeting_data.display - Whether to show a greeting message
+ * @property {string} greeting_data.modal_path - Path to the modal HTML file to display (required if display is true)
  * @property {Object} background - Background settings
  * @property {string} background.type - Type of background (IMAGE, COLOR, or SKYBOX)
  * @property {string} background.image_path - Path to background image (only include when type is IMAGE)

@@ -367,6 +367,28 @@
         "base_url": {
           "type": "string"
         },
+        "greeting_data": {
+          "type": "object",
+          "description": "Configuration for greeting message display",
+          "properties": {
+            "display": {
+              "type": "boolean",
+              "default": false,
+              "description": "Whether to show a greeting message"
+            },
+            "modal_path": {
+              "type": "string",
+              "description": "Path to the modal HTML file to display for the greeting (required if display is true)"
+            }
+          },
+          "required": ["display"],
+          "allOf": [
+            {
+              "if": { "properties": { "display": { "enum": [true] } } },
+              "then": { "required": ["modal_path"] }
+            }
+          ]
+        },
         "background": {
           "type": "object",
           "properties": {

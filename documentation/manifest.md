@@ -329,6 +329,10 @@ Scene data provides global configuration for the entire scene.
     "name": "Main Scene",
     "description": "The main interactive scene",
     "base_url": "",
+    "greeting_data": {
+        "display": true,
+        "modal_path": "pages/under_construction.html"
+    },
     "background": {
         "type": "IMAGE",
         "image_path": "images/skybox.jpg"
@@ -398,6 +402,20 @@ Scene data provides global configuration for the entire scene.
     }
 }
 ```
+
+## Scene Data Properties
+
+The top-level properties in the `scene_data` section define basic information about the scene.
+
+| Property | Description | Default |
+|----------|-------------|---------|
+| `version` | Version of the scene data | "1.0" |
+| `name` | Name of the scene | - |
+| `description` | Description of the scene | - |
+| `base_url` | Base URL for relative paths | "" |
+| `greeting_data` | Configuration for greeting message display | - |
+| `greeting_data.display` | Whether to show a greeting message | false |
+| `greeting_data.modal_path` | Path to the modal HTML file to display (required if display is true) | - |
 
 ## Environment Properties
 

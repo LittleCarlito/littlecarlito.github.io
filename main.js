@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Import the global config first to ensure it's available to all modules
 import { FLAGS, THREE, RAPIER, load_three, load_rapier, updateTween } from './common';
 import { BackgroundFloor } from './background/background_floor';
@@ -8,26 +9,27 @@ import { AppRenderer } from './common';
 import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common';
 import { BackgroundContainer } from './background/background_container';
 import { AssetStorage, AssetActivator, AssetSpawner, ManifestManager } from 'blorkpack';
-import { toggleDebugUI, createDebugUI, setBackgroundContainer, setResolutionScale, updateLabelWireframes } from './common/debug_ui.js';
+import { toggleDebugUI, createDebugUI as create_debug_UI, setBackgroundContainer as set_background_container, setResolutionScale as set_resolution_scale, updateLabelWireframes } from './common/debug_ui.js';
 import { BLORKPACK_FLAGS } from './packages/blorkpack/src/blorkpack_flags.js';
 
 // ----- Variables
 let resize_move = false;
 let zoom_event = false;
-let scene;
-let world;
-let clock;
-let viewable_container;
-let app_renderer;
-let background_container;
+// Directly use window properties instead of local variables
+// let scene;
+// let world;
+// let clock;
+// let viewable_container;
+// let app_renderer;
+// let background_container;
 let resize_timeout;
 let hovered_interactable_name = "";
 let grabbed_object = null;
 let left_mouse_down = false;
 let right_mouse_down = false;
 let construction_acknowledged = false; // Will be set based on manifest
-let asset_spawner;
-let asset_activator;
+// let asset_spawner;
+// let asset_activator;
 let is_cleaned_up = false; // Track if cleanup has been performed
 let is_physics_paused = false; // Track if physics simulation is paused
 
@@ -48,18 +50,18 @@ function cleanup() {
     window.removeEventListener('wheel', handle_wheel);
     window.removeEventListener('keydown', toggle_debug_ui);
     // Dispose of major components
-    if (app_renderer) {
-        app_renderer.dispose();
-        app_renderer = null;
+    if (window.app_renderer) {
+        window.app_renderer.dispose();
+        window.app_renderer = null;
     }
     // Cleanup asset systems
-    if (asset_spawner) {
-        asset_spawner.cleanup();
-        asset_spawner = null;
+    if (window.asset_spawner) {
+        window.asset_spawner.cleanup();
+        window.asset_spawner = null;
     }
     // Force garbage collection on Three.js objects
-    if (scene) {
-        scene.traverse(object => {
+    if (window.scene) {
+        window.scene.traverse(object => {
             if (object.geometry) object.geometry.dispose();
             if (object.material) {
                 if (Array.isArray(object.material)) {
@@ -73,17 +75,17 @@ function cleanup() {
                 }
             }
         });
-        scene.clear();
-        scene = null;
+        window.scene.clear();
+        window.scene = null;
     }
     // Release Rapier physics world
-    if (world) {
-        world = null;
+    if (window.world) {
+        window.world = null;
     }
     // Clear other references
-    viewable_container = null;
-    background_container = null;
-    clock = null;
+    window.viewable_container = null;
+    window.background_container = null;
+    window.clock = null;
     grabbed_object = null;
     is_cleaned_up = true;
     if (BLORKPACK_FLAGS.DEBUG_LOGS) {
@@ -134,9 +136,9 @@ async function init() {
         update_loading_progress("Loading manifest...");
         const manifest_manager = ManifestManager.get_instance();
         await manifest_manager.load_manifest();
-        // Get construction_greeting from manifest, default to false if not present
+        // Get greeting data from manifest, default to false if not present
         const scene_data = manifest_manager.get_scene_data();
-        construction_acknowledged = !(scene_data && scene_data.construction_greeting === true);
+        construction_acknowledged = !(scene_data && scene_data.greeting_data && scene_data.greeting_data.display === true);
         if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
             console.log("Manifest loaded:", manifest_manager.get_manifest());
         }
@@ -148,7 +150,7 @@ async function init() {
         window.addEventListener('mouseup', handle_mouse_up);
         window.addEventListener('contextmenu', handle_context_menu);
         window.addEventListener('wheel', handle_wheel);
-        scene = new THREE.Scene();
+        window.scene = new THREE.Scene();
         // Apply scene settings from manifest
         // Set background based on manifest settings
         const bg = manifest_manager.get_background_config();
@@ -157,10 +159,10 @@ async function init() {
         }
         switch (bg.type) {
             case 'IMAGE':
-                scene.background = TEXTURE_LOADER.load(bg.image_path);
+                window.scene.background = TEXTURE_LOADER.load(bg.image_path);
                 break;
             case 'COLOR':
-                scene.background = new THREE.Color(bg.color_value);
+                window.scene.background = new THREE.Color(bg.color_value);
                 break;
             case 'SKYBOX':
                 if (bg.skybox && bg.skybox.enabled) {
@@ -171,89 +173,95 @@ async function init() {
             default:
                 // This shouldn't happen since the getter validates the type
                 console.error(`Background type \"${bg.type}\" is not supported`);
-                scene.background = new THREE.Color('0x000000');
+                window.scene.background = new THREE.Color('0x000000');
         }
         // Physics - Get gravity from manifest manager
         const gravityData = manifest_manager.get_gravity();
         if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
             console.log("Using gravity:", gravityData);
         }
-        
-        world = new RAPIER.World(gravityData);
+        // Create world and spawner
+        window.world = new RAPIER.World(gravityData);
+        window.asset_spawner = AssetSpawner.get_instance(window.scene, window.world);
         // Physics optimization settings
         const physicsOptimization = manifest_manager.get_physics_optimization_settings();
         if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
             console.log("Using physics optimization settings:", physicsOptimization);
         }
-        world.allowSleep = physicsOptimization.allow_sleep;
-        world.linearSleepThreshold = physicsOptimization.linear_sleep_threshold;
-        world.angularSleepThreshold = physicsOptimization.angular_sleep_threshold;
-        world.sleepThreshold = physicsOptimization.sleep_threshold;
-        world.maxVelocityIterations = physicsOptimization.max_velocity_iterations;
-        world.maxVelocityFriction = physicsOptimization.max_velocity_friction;
-        world.integrationParameters.dt = physicsOptimization.integration_parameters.dt;
-        world.integrationParameters.erp = physicsOptimization.integration_parameters.erp;
-        world.integrationParameters.warmstartCoeff = physicsOptimization.integration_parameters.warmstart_coeff;
-        world.integrationParameters.allowedLinearError = physicsOptimization.integration_parameters.allowed_linear_error;
-        clock = new THREE.Clock();
-
-        // Now initialize the asset spawner after world is created
-        asset_spawner = AssetSpawner.get_instance(scene, world);
-        // Make asset_spawner available globally for debug UI
-        window.asset_spawner = asset_spawner;
-        
+        window.world.allowSleep = physicsOptimization.allow_sleep;
+        window.world.linearSleepThreshold = physicsOptimization.linear_sleep_threshold;
+        window.world.angularSleepThreshold = physicsOptimization.angular_sleep_threshold;
+        window.world.sleepThreshold = physicsOptimization.sleep_threshold;
+        window.world.maxVelocityIterations = physicsOptimization.max_velocity_iterations;
+        window.world.maxVelocityFriction = physicsOptimization.max_velocity_friction;
+        window.world.integrationParameters.dt = physicsOptimization.integration_parameters.dt;
+        window.world.integrationParameters.erp = physicsOptimization.integration_parameters.erp;
+        window.world.integrationParameters.warmstartCoeff = physicsOptimization.integration_parameters.warmstart_coeff;
+        window.world.integrationParameters.allowedLinearError = physicsOptimization.integration_parameters.allowed_linear_error;
+        window.clock = new THREE.Clock();
         // UI creation
         update_loading_progress('Creating UI components...');
-        viewable_container = new ViewableContainer(scene, world);
-        // Make viewable_container available globally for debug UI
-        window.viewable_container = viewable_container;
-        
+        window.viewable_container = new ViewableContainer(window.scene, window.world);
         // Renderer
-        app_renderer = new AppRenderer(scene, viewable_container.get_camera());
-        // Make renderer available globally for debug UI
-        window.renderer = app_renderer.get_renderer();
-        
+        window.app_renderer = new AppRenderer(window.scene, window.viewable_container.get_camera());
+        window.renderer = window.app_renderer.get_renderer();
         // Now initialize the asset activator after camera and renderer are created
-        asset_activator = AssetActivator.get_instance(viewable_container.get_camera(), app_renderer.get_renderer());
-        
+        window.asset_activator = AssetActivator.get_instance(window.viewable_container.get_camera(), window.app_renderer.get_renderer());
         // Show construction greeting if enabled in manifest
-        if(scene_data && scene_data.construction_greeting === true) {
-            // Load the under construction modal from the external file
-            fetch('pages/under_construction.html')
-                .then(response => response.text())
+        if(scene_data && scene_data.greeting_data && scene_data.greeting_data.display === true) {
+            const modal_path = scene_data.greeting_data.modal_path;
+            // Load the modal from the path specified in the manifest
+            fetch(modal_path)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Failed to load modal: ${response.status} ${response.statusText}`);
+                    }
+                    return response.text();
+                })
                 .then(html => {
                     document.body.insertAdjacentHTML('beforeend', html);
                     const modal = document.getElementById('construction-modal');
+                    if (!modal) {
+                        throw new Error(`Modal HTML does not contain an element with ID 'construction-modal'`);
+                    }
                     modal.style.display = 'block';
-                    
-                    document.getElementById('acknowledge-btn').addEventListener('click', () => {
-                        modal.style.display = 'none';
-                        construction_acknowledged = true;
-                    });
+                    const acknowledge_btn = document.getElementById('acknowledge-btn');
+                    if (!acknowledge_btn) {
+                        console.warn(`Modal is missing an 'acknowledge-btn' element, user won't be able to dismiss it.`);
+                    } else {
+                        acknowledge_btn.addEventListener('click', () => {
+                            modal.style.display = 'none';
+                            construction_acknowledged = true;
+                        });
+                    }
                 })
                 .catch(error => {
-                    console.error('Error loading construction message:', error);
+                    console.error(`Error loading greeting modal from path "${modal_path}": ${error.message}`);
+                    // Set construction_acknowledged to true so the app continues to function
+                    construction_acknowledged = true;
                 });
         }
 
         // Background creation
         update_loading_progress('Loading background assets...');
-        const lighting = BackgroundLighting.getInstance(scene);
-        background_container = new BackgroundContainer(scene, viewable_container.get_camera(), world);
-        new BackgroundFloor(world, scene, viewable_container.get_camera());
-
+        // TODO Refactor BackgroundLighting to use Manifest setup
+        const lighting = BackgroundLighting.getInstance(window.scene);
+        // TODO Refactor BackgroundContainer to use Manifest setup
+        window.background_container = new BackgroundContainer(window.scene, window.viewable_container.get_camera(), window.world);
+        // TODO Refactor Background floor to just be a asset data passed in the manifest (its just a big primitive cube)
+        new BackgroundFloor(window.world, window.scene, window.viewable_container.get_camera());
         // Wait for all assets to be loaded
         update_loading_progress('Loading scene assets...');
         await new Promise(async (resolve) => {
             const checkAssetsLoaded = async () => {
-                const isComplete = await background_container.is_loading_complete();
+                const isComplete = await window.background_container.is_loading_complete();
                 if (isComplete) {
-                    if (FLAGS.ASSET_LOGS) {
-                        console.log('All assets loaded:', Array.from(background_container.get_asset_manifest()));
+                    if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                        console.log('All assets loaded:', Array.from(window.background_container.get_asset_manifest()));
                     }
                     resolve();
                 } else {
-                    if (FLAGS.ASSET_LOGS) {
+                    if (BLORKPACK_FLAGS.ASSET_LOGS) {
                         console.log('Waiting for assets to complete loading...');
                     }
                     setTimeout(checkAssetsLoaded, 100);
@@ -261,29 +269,26 @@ async function init() {
             };
             await checkAssetsLoaded();
         });
-
         // Hide loading screen and start animation
         hide_loading_screen();
-        app_renderer.set_animation_loop(animate);
-        
+        window.app_renderer.set_animation_loop(animate);
         // Initialize debug UI (hidden by default)
-        createDebugUI();
+        create_debug_UI();
         // Set background container reference for debug UI
-        setBackgroundContainer(background_container);
+        set_background_container(window.background_container);
         // Initialize resolution scale based on device capabilities
         if (FLAGS.AUTO_THROTTLE) {
             // Start with a resolution scale based on device pixel ratio
             // Higher pixel ratio devices (like Retina displays) get a lower initial scale
             // to maintain performance
             const initialScale = window.devicePixelRatio > 1 ? 0.75 : 1.0;
-            setResolutionScale(initialScale);
+            set_resolution_scale(initialScale);
             console.log(`Initial resolution scale set to ${initialScale.toFixed(2)} based on device pixel ratio ${window.devicePixelRatio}`);
         }
         console.log("Debug UI initialized. Press 's' to toggle.");
-        
-        // Ensure label wireframes are updated if debug visualization is enabled
-        if (FLAGS.COLLISION_VISUAL_DEBUG && viewable_container && viewable_container.get_overlay()) {
-            const labelContainer = viewable_container.get_overlay().label_container;
+        // Ensure label wireframes are updated regardless of debug visualization state
+        if (window.viewable_container && window.viewable_container.get_overlay()) {
+            const labelContainer = window.viewable_container.get_overlay().label_container;
             if (labelContainer && typeof labelContainer.updateDebugVisualizations === 'function') {
                 console.log('Directly updating label wireframes after initialization');
                 labelContainer.updateDebugVisualizations();
@@ -372,14 +377,14 @@ window.toggle_physics_pause = toggle_physics_pause;
 
 /** Primary animation function run every frame by renderer */
 function animate() {
-    const delta = clock.getDelta();
+    const delta = window.clock.getDelta();
     
     // Handle tweens and UI animations (always run regardless of physics pause)
     updateTween();
     
     if(resize_move) {
         if(!zoom_event) {
-            viewable_container.resize_reposition();
+            window.viewable_container.resize_reposition();
         } else {
             zoom_event = false;
         }
@@ -387,7 +392,7 @@ function animate() {
     }
     
     // Check if a text container is active, and pause physics if needed
-    const isTextActive = viewable_container.is_text_active();
+    const isTextActive = window.viewable_container.is_text_active();
     
     // Track text container state to detect changes
     if (!window.previousTextContainerState && isTextActive && !is_physics_paused) {
@@ -410,29 +415,29 @@ function animate() {
     window.previousTextContainerState = isTextActive;
     
     // Handle the physics objects
-    if(viewable_container.get_overlay().is_intersected() != null) {
-        asset_activator.activate_object(viewable_container.get_intersected_name());
+    if(window.viewable_container.get_overlay().is_intersected() != null) {
+        window.asset_activator.activate_object(window.viewable_container.get_intersected_name());
     } else if(grabbed_object) {
-        translate_object(grabbed_object, viewable_container.get_camera());
-    } else if(hovered_interactable_name != "" && viewable_container.is_overlay_hidden()) {
+        translate_object(grabbed_object, window.viewable_container.get_camera());
+    } else if(hovered_interactable_name != "" && window.viewable_container.is_overlay_hidden()) {
         // Only activate hovered objects when the overlay is hidden
-        asset_activator.activate_object(hovered_interactable_name);
-    } else if(viewable_container.is_text_active()) {
-        asset_activator.activate_object(viewable_container.get_active_name());
+        window.asset_activator.activate_object(hovered_interactable_name);
+    } else if(window.viewable_container.is_text_active()) {
+        window.asset_activator.activate_object(window.viewable_container.get_active_name());
     } else {
-        asset_activator.deactivate_all_objects();
+        window.asset_activator.deactivate_all_objects();
     }
     
     // Process physics simulation (can be paused)
-    world.timestep = Math.min(delta, 0.1);
+    window.world.timestep = Math.min(delta, 0.1);
     if (!is_physics_paused) {
-        world.step();
+        window.world.step();
     }
     
     // Always update menu animations and user interactions
     // These handle spawning and sign animations, even when physics is paused
-    if (background_container) {
-        background_container.update(grabbed_object, viewable_container);
+    if (window.background_container) {
+        window.background_container.update(grabbed_object, window.viewable_container);
     }
     
     // Update physics-dependent objects
@@ -455,15 +460,15 @@ function animate() {
     
     // Always update visual elements even when physics is paused
     // Update confetti particles (immune from physics pause - uses its own physics calculations)
-    viewable_container.get_overlay().update_confetti();
+    window.viewable_container.get_overlay().update_confetti();
     
     // Ensure regular cleanup of unused resources
-    if (asset_spawner) {
-        asset_spawner.performCleanup();
+    if (window.asset_spawner) {
+        window.asset_spawner.performCleanup();
     }
     
     // Render the scene
-    app_renderer.render();
+    window.app_renderer.render();
 }
 
 // ----- Handlers
@@ -473,26 +478,26 @@ function handle_resize() {
     if (resize_timeout) clearTimeout(resize_timeout);
     
     resize_timeout = setTimeout(() => {
-        if (app_renderer) app_renderer.handle_resize();
-        if (viewable_container) viewable_container.handle_resize();
+        if (window.app_renderer) window.app_renderer.handle_resize();
+        if (window.viewable_container) window.viewable_container.handle_resize();
     }, 100);
 }
 
 function handle_mouse_move(e) {
     update_mouse_position(e);
-    if(viewable_container.detect_rotation) {
+    if(window.viewable_container.detect_rotation) {
         const sensitivity = 0.02;  // Reduced sensitivity since we're not dividing by 1000 anymore
-        viewable_container.get_camera_manager().rotate(
+        window.viewable_container.get_camera_manager().rotate(
             e.movementX * sensitivity,
             e.movementY * sensitivity
         );
     }
     if(construction_acknowledged) {
         // Handle intersections
-        const found_intersections = get_intersect_list(e, viewable_container.get_camera(), scene);
+        const found_intersections = get_intersect_list(e, window.viewable_container.get_camera(), window.scene);
         
         // Check if UI overlay is visible
-        const is_overlay_hidden = viewable_container.is_overlay_hidden();
+        const is_overlay_hidden = window.viewable_container.is_overlay_hidden();
         
         // If overlay is not hidden, filter out background objects from intersection list
         let relevant_intersections = found_intersections;
@@ -505,7 +510,7 @@ function handle_mouse_move(e) {
             });
         }
         
-        if(relevant_intersections.length > 0 && !viewable_container.get_overlay().is_swapping_sides()) {
+        if(relevant_intersections.length > 0 && !window.viewable_container.get_overlay().is_swapping_sides()) {
             const intersected_object = relevant_intersections[0].object;
             const object_name = intersected_object.name;
             const name_type = object_name.split("_")[0] + "_";
@@ -513,11 +518,11 @@ function handle_mouse_move(e) {
             // Handle label hover - now we know it's either a label or an appropriate object
             switch(name_type) {
                 case TYPES.LABEL:
-                    viewable_container.get_overlay().handle_hover(intersected_object);
+                    window.viewable_container.get_overlay().handle_hover(intersected_object);
                     break;
                 case TYPES.FLOOR:
                     // We know overlay is hidden if we get here, due to the filtering above
-                    viewable_container.get_overlay().reset_hover();
+                    window.viewable_container.get_overlay().reset_hover();
                     break;
                 case TYPES.INTERACTABLE:
                     // We know overlay is hidden if we get here, due to the filtering above
@@ -528,11 +533,11 @@ function handle_mouse_move(e) {
                     break;
                 default:
                     // We know overlay is hidden if we get here, due to the filtering above
-                    viewable_container.get_overlay().reset_hover();
+                    window.viewable_container.get_overlay().reset_hover();
                     break;
             }
         } else {
-            viewable_container.get_overlay().reset_hover();
+            window.viewable_container.get_overlay().reset_hover();
             
             // Only reset hovered_interactable_name if the overlay is hidden
             // This prevents background objects from losing hover state when UI is open
@@ -546,16 +551,16 @@ function handle_mouse_move(e) {
 function handle_mouse_up(e) {
     if(construction_acknowledged) {
         if(grabbed_object) {
-            release_object(grabbed_object, background_container);
+            release_object(grabbed_object, window.background_container);
             grabbed_object = null;
         }
-        viewable_container.handle_mouse_up(get_intersect_list(e, viewable_container.get_camera(), scene));
+        window.viewable_container.handle_mouse_up(get_intersect_list(e, window.viewable_container.get_camera(), window.scene));
         if (e.button === 0) {
-            viewable_container.detect_rotation = false;
+            window.viewable_container.detect_rotation = false;
             left_mouse_down = false;
         }
         if (e.button === 2) {
-            viewable_container.detect_rotation = false;
+            window.viewable_container.detect_rotation = false;
             right_mouse_down = false;
         }
     }
@@ -574,18 +579,18 @@ function handle_mouse_down(e) {
                 grabbed_object = null;
             }
         }
-        if(left_mouse_down && right_mouse_down && viewable_container.is_overlay_hidden()) {
-            viewable_container.detect_rotation = true;
-        } else if(viewable_container.is_overlay_hidden()) {
-            const found_intersections = get_intersect_list(e, viewable_container.get_camera(), scene);
+        if(left_mouse_down && right_mouse_down && window.viewable_container.is_overlay_hidden()) {
+            window.viewable_container.detect_rotation = true;
+        } else if(window.viewable_container.is_overlay_hidden()) {
+            const found_intersections = get_intersect_list(e, window.viewable_container.get_camera(), window.scene);
             found_intersections.forEach(i => {
                 switch(extract_type(i.object)) {
                     case TYPES.INTERACTABLE:
                         if(left_mouse_down) {
                             grabbed_object = i.object;
-                            grab_object(grabbed_object, viewable_container.get_camera());
+                            grab_object(grabbed_object, window.viewable_container.get_camera());
                         } else {
-                            shove_object(i.object, viewable_container.get_camera());
+                            shove_object(i.object, window.viewable_container.get_camera());
                         }
                         break;
                     default:
@@ -604,10 +609,10 @@ function handle_wheel(e) {
     if(construction_acknowledged) {
         if(grabbed_object) {
             if(e.deltaY < 0) {
-                background_container.break_secondary_chains();
+                window.background_container.break_secondary_chains();
                 zoom_object_in(grabbed_object);
             } else {
-                background_container.break_secondary_chains();
+                window.background_container.break_secondary_chains();
                 zoom_object_out(grabbed_object);
             }
             zoom_event = true;
