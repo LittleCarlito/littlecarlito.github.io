@@ -198,14 +198,29 @@
         "name": "Main Scene",
         "description": "The main interactive scene",
         "base_url": "",
+        // Example of IMAGE type background
         "background": {
-            "path": "",
-            "color": "0x000000",
-            "skybox": {
-                "enabled": false,
-                "path": ""
-            }
+            "type": "IMAGE",
+            "image_path": "images/background.jpg"
         },
+        
+        // Other background type examples (choose only one):
+        //
+        // Example of COLOR type background:
+        // "background": {
+        //     "type": "COLOR",
+        //     "color_value": "0x87CEEB"
+        // },
+        //
+        // Example of SKYBOX type background:
+        // "background": {
+        //     "type": "SKYBOX",
+        //     "skybox": {
+        //         "enabled": true,
+        //         "skybox_path": "images/skybox/"
+        //     }
+        // },
+        
         "environment": {
             "gravity": 9.8,
             "ambient_light": {

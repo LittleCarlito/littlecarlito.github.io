@@ -370,16 +370,44 @@
         "background": {
           "type": "object",
           "properties": {
-            "path": { "type": "string" },
-            "color": { "type": "string", "default": "0x000000" },
+            "type": { 
+              "type": "string", 
+              "enum": ["IMAGE", "COLOR", "SKYBOX"],
+              "description": "Type of background to use (IMAGE, COLOR, or SKYBOX)"
+            },
+            "image_path": { 
+              "type": "string",
+              "description": "Path to background image (only include when type is IMAGE)" 
+            },
+            "color_value": { 
+              "type": "string", 
+              "default": "0x000000",
+              "description": "Background color hex (only include when type is COLOR)" 
+            },
             "skybox": {
               "type": "object",
+              "description": "Skybox settings (only include when type is SKYBOX)",
               "properties": {
                 "enabled": { "type": "boolean", "default": false },
-                "path": { "type": "string" }
+                "skybox_path": { "type": "string" }
               }
             }
-          }
+          },
+          "required": ["type"],
+          "allOf": [
+            {
+              "if": { "properties": { "type": { "enum": ["IMAGE"] } } },
+              "then": { "required": ["image_path"] }
+            },
+            {
+              "if": { "properties": { "type": { "enum": ["COLOR"] } } },
+              "then": { "required": ["color_value"] }
+            },
+            {
+              "if": { "properties": { "type": { "enum": ["SKYBOX"] } } },
+              "then": { "required": ["skybox"] }
+            }
+          ]
         },
         "environment": {
           "type": "object",

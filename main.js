@@ -17,7 +17,6 @@ const BACKGROUND_IMAGE = 'images/gradient.jpg';
 // ----- Variables
 let resize_move = false;
 let zoom_event = false;
-let last_pixel_ratio = window.devicePixelRatio;
 let scene;
 let world;
 let clock;
@@ -37,8 +36,12 @@ let is_physics_paused = false; // Track if physics simulation is paused
 
 /** Cleans up resources to prevent memory leaks */
 function cleanup() {
-    if (is_cleaned_up) return; // Prevent multiple cleanups
-    
+    if (is_cleaned_up) {
+        if(BLORKPACK_FLAGS.DEBUG_LOGS) {
+            console.debug("Scene already clean; Skipping cleanup");
+        }
+        return; // Prevent multiple cleanups
+    }
     // Remove event listeners
     window.removeEventListener('resize', handle_resize);
     window.removeEventListener('mousemove', handle_mouse_move);
@@ -47,24 +50,20 @@ function cleanup() {
     window.removeEventListener('contextmenu', handle_context_menu);
     window.removeEventListener('wheel', handle_wheel);
     window.removeEventListener('keydown', toggle_debug_ui);
-    
     // Dispose of major components
     if (app_renderer) {
         app_renderer.dispose();
         app_renderer = null;
     }
-    
     // Cleanup asset systems
     if (asset_spawner) {
         asset_spawner.cleanup();
         asset_spawner = null;
     }
-    
     // Force garbage collection on Three.js objects
     if (scene) {
         scene.traverse(object => {
             if (object.geometry) object.geometry.dispose();
-            
             if (object.material) {
                 if (Array.isArray(object.material)) {
                     object.material.forEach(material => {
@@ -77,26 +76,20 @@ function cleanup() {
                 }
             }
         });
-        
         scene.clear();
         scene = null;
     }
-    
     // Release Rapier physics world
     if (world) {
         world = null;
     }
-    
     // Clear other references
     viewable_container = null;
     background_container = null;
     clock = null;
-    gravity = null;
     grabbed_object = null;
-    
     is_cleaned_up = true;
-    
-    if (FLAGS.PHYSICS_LOGS) {
+    if (BLORKPACK_FLAGS.DEBUG_LOGS) {
         console.log("Application resources cleaned up");
     }
 }
@@ -129,37 +122,58 @@ function hide_loading_screen() {
 async function init() {
     try {
         await show_loading_screen();
-        
+        // Load three
         update_loading_progress('Loading Three.js...');
         await load_three(); // Still load async but we already have THREE available
-
+        // Load rapier
         update_loading_progress('Loading Rapier Physics...');
         await load_rapier(); // Initialize Rapier
         await RAPIER.init(); // Make sure Rapier is initialized
-        
+        // Load scene
         update_loading_progress('Initializing scene...');
-        
         // Initialize asset storage and spawner early since they don't depend on UI
         AssetStorage.get_instance();
-        
         // Initialize the ManifestManager and load the manifest
         update_loading_progress("Loading manifest...");
         const manifest_manager = ManifestManager.get_instance();
         await manifest_manager.load_manifest('resources/manifest.json');
-        
         // Get construction_greeting from manifest, default to false if not present
         const scene_data = manifest_manager.get_scene_data();
         construction_acknowledged = !(scene_data && scene_data.construction_greeting === true);
-        
         if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
-            console.log("Manifest loaded:", manifest_manager.get_manifest_data());
+            console.log("Manifest loaded:", manifest_manager.get_manifest());
         }
-        
         // Apply scene settings from manifest
-        
         // ----- Setup
         scene = new THREE.Scene();
-        scene.background = TEXTURE_LOADER.load(BACKGROUND_IMAGE);
+        
+        // Set background based on manifest settings
+        const manifest = manifest_manager.get_manifest();
+        if (manifest && manifest.scene_data && manifest.scene_data.background) {
+            const bg = manifest.scene_data.background;
+            switch (bg.type) {
+                case 'IMAGE':
+                    scene.background = TEXTURE_LOADER.load(bg.image_path || BACKGROUND_IMAGE);
+                    break;
+                case 'COLOR':
+                    scene.background = new THREE.Color(bg.color_value || '0x000000');
+                    break;
+                case 'SKYBOX':
+                    if (bg.skybox && bg.skybox.enabled && bg.skybox.skybox_path) {
+                        // Load skybox (implementation depends on your skybox format)
+                        // This is a placeholder for skybox loading
+                        console.log('Loading skybox from:', bg.skybox.skybox_path);
+                    }
+                    break;
+                default:
+                    // Fallback to default background image
+                    scene.background = TEXTURE_LOADER.load(BACKGROUND_IMAGE);
+            }
+        } else {
+            // Fallback to default background image
+            scene.background = TEXTURE_LOADER.load(BACKGROUND_IMAGE);
+        }
+        
         window.addEventListener('resize', handle_resize);
         window.addEventListener('mousemove', handle_mouse_move);
         window.addEventListener('mousedown', handle_mouse_down);

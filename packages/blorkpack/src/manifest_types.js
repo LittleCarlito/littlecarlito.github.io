@@ -138,11 +138,12 @@
  * @property {string} description - Scene description
  * @property {string} base_url - Base URL for assets
  * @property {Object} background - Background settings
- * @property {string} background.path - Path to background image
- * @property {string} background.color - Background color hex
- * @property {Object} background.skybox - Skybox settings
+ * @property {string} background.type - Type of background (IMAGE, COLOR, or SKYBOX)
+ * @property {string} background.image_path - Path to background image (only include when type is IMAGE)
+ * @property {string} background.color_value - Background color hex (only include when type is COLOR)
+ * @property {Object} background.skybox - Skybox settings (only include when type is SKYBOX)
  * @property {boolean} background.skybox.enabled - Whether skybox is enabled
- * @property {string} background.skybox.path - Path to skybox
+ * @property {string} background.skybox.skybox_path - Path to skybox
  * @property {Object} environment - Environment settings
  * @property {Vector3} environment.gravity - Gravity vector
  * @property {Object} environment.ambient_light - Ambient light settings

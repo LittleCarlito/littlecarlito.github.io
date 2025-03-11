@@ -64,7 +64,29 @@ async function testManifestManager() {
         
         // Display scene data
         const sceneData = manifestManager.getSceneData();
-        console.log(`\nScene Data:`, sceneData);
+        console.log(`\nScene Data:`);
+        console.log(`- Name: ${sceneData.name}`);
+        console.log(`- Description: ${sceneData.description}`);
+        
+        // Test background type
+        console.log(`\nBackground Configuration:`);
+        const background = sceneData.background;
+        console.log(`- Type: ${background.type}`);
+        
+        switch (background.type) {
+            case 'IMAGE':
+                console.log(`- Image Path: ${background.image_path}`);
+                break;
+            case 'COLOR':
+                console.log(`- Color Value: ${background.color_value}`);
+                break;
+            case 'SKYBOX':
+                console.log(`- Skybox Enabled: ${background.skybox.enabled}`);
+                console.log(`- Skybox Path: ${background.skybox.skybox_path}`);
+                break;
+            default:
+                console.log(`- Unknown background type: ${background.type}`);
+        }
         
         // Validate the manifest
         const validation = manifestManager.validateManifest();

@@ -6,6 +6,7 @@
     "created_date": "03/10/2025",
     "updated_date": "03/10/2025",
     
+    
     "custom_types": [{
         "name": "example_type",
         "version": "1.0",
@@ -170,12 +171,8 @@
         "base_url": "",
         "construction_greeting": true,
         "background": {
-            "path": "",
-            "color": "0x000000",
-            "skybox": {
-                "enabled": false,
-                "path": ""
-            }
+            "type": "IMAGE",
+            "image_path": "images/gradient.jpg"
         },
         "environment": {
             "gravity": {

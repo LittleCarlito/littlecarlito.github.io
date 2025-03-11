@@ -330,12 +330,8 @@ Scene data provides global configuration for the entire scene.
     "description": "The main interactive scene",
     "base_url": "",
     "background": {
-        "path": "images/skybox.jpg",
-        "color": "0x000000",
-        "skybox": {
-            "enabled": true,
-            "path": "images/skybox/"
-        }
+        "type": "IMAGE",
+        "image_path": "images/skybox.jpg"
     },
     "environment": {
         "gravity": {
@@ -439,6 +435,42 @@ The `physics` section in `scene_data` defines global physics settings for the sc
 | `physics.integration_parameters.erp` | Error reduction parameter | 0.8 |
 | `physics.integration_parameters.warmstart_coeff` | Coefficient for warm starting | 0.8 |
 | `physics.integration_parameters.allowed_linear_error` | Allowed linear error tolerance | 0.001 |
+
+## Background Types
+
+The `background` section in `scene_data` supports three different types of backgrounds:
+
+### IMAGE Type
+Use an image as the background:
+```json
+"background": {
+    "type": "IMAGE",
+    "image_path": "images/background.jpg"
+}
+```
+
+### COLOR Type
+Use a solid color as the background:
+```json
+"background": {
+    "type": "COLOR",
+    "color_value": "0x87CEEB"
+}
+```
+
+### SKYBOX Type
+Use a skybox as the background:
+```json
+"background": {
+    "type": "SKYBOX",
+    "skybox": {
+        "enabled": true,
+        "skybox_path": "images/skybox/"
+    }
+}
+```
+
+Note: Only include the properties relevant to the selected type. For example, if using the IMAGE type, only include the "type" and "image_path" properties.
 
 ## Usage Examples
 
