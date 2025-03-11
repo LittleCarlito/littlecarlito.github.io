@@ -46,22 +46,6 @@ export class BackgroundLighting {
                 opacity: 0.6
             })
         };
-
-        // Create main spotlight pointing straight down asynchronously
-        (async () => {
-            const primary_light = await this.create_spotlight(
-                new THREE.Vector3(SPOTLIGHT_OFFSET, SPOTLIGHT_HEIGHT, SPOTLIGHT_DISTANCE),
-                -Math.PI/2, // Point straight down
-                0,          // No rotation around Y
-                SPOTLIGHT_HEIGHT * Math.tan(SPOTLIGHT_ANGLE), // Calculate radius from height and angle
-                0          // Unlimited distance
-            );
-
-            // Create debug visualization if enabled
-            if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
-                await this.create_spotlight_helper(primary_light);
-            }
-        })();
     }
 
     // Add debug colors array

@@ -352,4 +352,31 @@ export class AssetStorage {
     contains_object(object_name) {
         return this.emission_states.has(object_name);
     }
+
+    /**
+     * Gets all assets (both dynamic bodies and static meshes).
+     * @returns {Array} Array of all assets.
+     */
+    get_all_assets() {
+        // Get dynamic bodies
+        const dynamic = this.get_all_dynamic_bodies().map(([mesh, body]) => {
+            return {
+                mesh: mesh,
+                body: body,
+                type: mesh.userData?.type || 'unknown'
+            };
+        });
+        
+        // Get static meshes
+        const static_meshes = this.get_all_static_meshes().map(mesh => {
+            return {
+                mesh: mesh,
+                body: null,
+                type: mesh.userData?.type || 'unknown'
+            };
+        });
+        
+        // Combine both arrays
+        return [...dynamic, ...static_meshes];
+    }
 } 

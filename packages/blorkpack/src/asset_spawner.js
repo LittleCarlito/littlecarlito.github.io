@@ -399,8 +399,38 @@ export class AssetSpawner {
         });
         this.debugMeshes.clear();
         
+        // Clean up any spotlights
+        this.cleanup_spotlights();
+        
         // Reset instance
         AssetSpawner.instance = null;
+    }
+    
+    /**
+     * Cleans up spotlight resources
+     */
+    cleanup_spotlights() {
+        // Get all assets from storage
+        const allAssets = this.storage.get_all_assets();
+        
+        // Find and clean up spotlight assets
+        allAssets.forEach(asset => {
+            if (asset && asset.type === 'spotlight') {
+                // Remove spotlight and its target from the scene
+                if (asset.objects) {
+                    asset.objects.forEach(obj => {
+                        if (obj && obj.parent) {
+                            obj.parent.remove(obj);
+                        }
+                    });
+                }
+                
+                // Remove the main spotlight mesh
+                if (asset.mesh && asset.mesh.parent) {
+                    asset.mesh.parent.remove(asset.mesh);
+                }
+            }
+        });
     }
     
     /**
@@ -1098,6 +1128,140 @@ export class AssetSpawner {
                         options
                     );
                 } 
+                // Handle spotlight asset type
+                else if (asset_type === 'spotlight') {
+                    if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                        console.log(`Creating spotlight for ${asset_data.id}`);
+                    }
+                    
+                    // Get spotlight specific properties from additional_properties
+                    const color = parseInt(options.color || "0xffffff", 16);
+                    const intensity = asset_data.additional_properties?.intensity || 1.0;
+                    const max_distance = asset_data.additional_properties?.max_distance || 0;
+                    const angle = asset_data.additional_properties?.angle || Math.PI / 4;
+                    const penumbra = asset_data.additional_properties?.penumbra || 0.0;
+                    const sharpness = asset_data.additional_properties?.sharpness || 0.0;
+                    
+                    // Create the spotlight
+                    const spotlight = new THREE.SpotLight(
+                        color,
+                        intensity,
+                        max_distance,
+                        angle,
+                        penumbra,
+                        sharpness
+                    );
+                    
+                    // Set the spotlight's position
+                    spotlight.position.copy(position);
+                    
+                    // Set shadow properties if the spotlight should cast shadows
+                    if (options.cast_shadow) {
+                        spotlight.castShadow = true;
+                        
+                        // Set shadow quality settings if provided
+                        if (asset_data.additional_properties?.shadow) {
+                            const shadow_props = asset_data.additional_properties.shadow;
+                            
+                            // Shadow map size
+                            if (shadow_props.map_size) {
+                                spotlight.shadow.mapSize.width = shadow_props.map_size.width || 2048;
+                                spotlight.shadow.mapSize.height = shadow_props.map_size.height || 2048;
+                            }
+                            
+                            // Shadow blur
+                            if (shadow_props.blur_samples) {
+                                spotlight.shadow.blurSamples = shadow_props.blur_samples;
+                            }
+                            
+                            if (shadow_props.radius !== undefined) {
+                                spotlight.shadow.radius = shadow_props.radius;
+                            }
+                            
+                            // Camera settings
+                            if (shadow_props.camera) {
+                                spotlight.shadow.camera.near = shadow_props.camera.near || 10;
+                                spotlight.shadow.camera.far = shadow_props.camera.far || 100;
+                                spotlight.shadow.camera.fov = shadow_props.camera.fov || 30;
+                            }
+                            
+                            // Bias settings
+                            if (shadow_props.bias !== undefined) {
+                                spotlight.shadow.bias = shadow_props.bias;
+                            }
+                            
+                            if (shadow_props.normal_bias !== undefined) {
+                                spotlight.shadow.normalBias = shadow_props.normal_bias;
+                            }
+                        } else {
+                            // Default shadow settings
+                            spotlight.shadow.blurSamples = 32;
+                            spotlight.shadow.radius = 4;
+                            spotlight.shadow.mapSize.width = 2048;
+                            spotlight.shadow.mapSize.height = 2048;
+                            spotlight.shadow.camera.near = 10;
+                            spotlight.shadow.camera.far = 100;
+                            spotlight.shadow.camera.fov = 30;
+                            spotlight.shadow.bias = -0.002;
+                            spotlight.shadow.normalBias = 0.02;
+                        }
+                    }
+                    
+                    // Create and position target
+                    const target = new THREE.Object3D();
+                    
+                    // If target data is provided in the asset data, use that
+                    if (asset_data.target && asset_data.target.position) {
+                        target.position.set(
+                            asset_data.target.position.x || 0, 
+                            asset_data.target.position.y || 0, 
+                            asset_data.target.position.z || 0
+                        );
+                    } else {
+                        // Otherwise calculate target position based on rotation
+                        const targetDistance = 100; // Use a fixed distance for the target
+                        const rotX = rotation.x || 0;
+                        const rotY = rotation.y || 0;
+                        
+                        // Calculate target position based on spherical coordinates
+                        const x = Math.sin(rotY) * Math.cos(rotX) * targetDistance;
+                        const y = Math.sin(rotX) * targetDistance;
+                        const z = Math.cos(rotY) * Math.cos(rotX) * targetDistance;
+                        
+                        target.position.set(
+                            position.x + x,
+                            position.y + y,
+                            position.z + z
+                        );
+                    }
+                    
+                    // Set the target
+                    spotlight.target = target;
+                    
+                    // Add the spotlight and target to the scene
+                    this.scene.add(spotlight);
+                    this.scene.add(target);
+                    
+                    // Set type in userData for later identification
+                    spotlight.userData = { 
+                        ...spotlight.userData,
+                        type: 'spotlight'
+                    };
+                    
+                    // Store references for later cleanup
+                    const asset_object = {
+                        mesh: spotlight,
+                        body: null, // No physics for lights
+                        objects: [spotlight, target],
+                        type: 'spotlight'
+                    };
+                    
+                    // Store in asset storage for proper cleanup
+                    const spotlight_id = this.storage.get_new_instance_id();
+                    this.storage.store_static_mesh(spotlight_id, spotlight);
+                    
+                    result = asset_object;
+                }
                 // Add other system asset types here as needed
                 // Example: else if (asset_type === 'primitive_sphere') { ... }
                 
