@@ -15,23 +15,14 @@ import { BLORKPACK_FLAGS } from './packages/blorkpack/src/blorkpack_flags.js';
 // ----- Variables
 let resize_move = false;
 let zoom_event = false;
-// Directly use window properties instead of local variables
-// let scene;
-// let world;
-// let clock;
-// let viewable_container;
-// let app_renderer;
-// let background_container;
 let resize_timeout;
 let hovered_interactable_name = "";
 let grabbed_object = null;
 let left_mouse_down = false;
 let right_mouse_down = false;
-let construction_acknowledged = false; // Will be set based on manifest
-// let asset_spawner;
-// let asset_activator;
 let is_cleaned_up = false; // Track if cleanup has been performed
 let is_physics_paused = false; // Track if physics simulation is paused
+let construction_acknowledged = false; // Declare the variable here
 
 /** Cleans up resources to prevent memory leaks */
 function cleanup() {
@@ -114,6 +105,47 @@ function hide_loading_screen() {
     const loading_screen = document.getElementById('loading-screen');
     if (loading_screen) {
         loading_screen.remove();
+    }
+}
+
+/**
+ * Displays a modal loaded from a remote HTML file
+ * @param {string} modal_path - Path to the HTML file containing the modal content
+ * @param {string} modal_id - ID of the modal element in the HTML
+ * @param {string} button_id - ID of the button element to acknowledge the modal
+ * @param {Function} onAcknowledge - Callback function to be executed when the modal is acknowledged
+ * @returns {Promise} Promise that resolves when the modal is loaded and displayed
+ */
+async function display_modal(modal_path, modal_id, button_id, onAcknowledge) {
+    try {
+        const response = await fetch(modal_path);
+        if (!response.ok) {
+            throw new Error(`Failed to load modal: ${response.status} ${response.statusText}`);
+        }
+        
+        const html = await response.text();
+        document.body.insertAdjacentHTML('beforeend', html);
+        
+        const modal = document.getElementById(modal_id);
+        if (!modal) {
+            throw new Error(`Modal HTML does not contain an element with ID '${modal_id}'`);
+        }
+        modal.style.display = 'block';
+        
+        const acknowledge_btn = document.getElementById(button_id);
+        if (!acknowledge_btn) {
+            console.warn(`Modal is missing an '${button_id}' element, user won't be able to dismiss it.`);
+        } else {
+            acknowledge_btn.addEventListener('click', () => {
+                modal.style.display = 'none';
+                if (onAcknowledge) onAcknowledge();
+            });
+        }
+        return true;
+    } catch (error) {
+        console.error(`Error loading modal from path "${modal_path}": ${error.message}`);
+        if (onAcknowledge) onAcknowledge();
+        return false;
     }
 }
 
@@ -203,7 +235,7 @@ async function init() {
         window.clock = new THREE.Clock();
         // UI creation
         update_loading_progress('Creating UI components...');
-        // TODO One day get teh UI portion into the Manifest
+        // TODO One day get the UI portion into the Manifest
         window.viewable_container = new ViewableContainer(window.scene, window.world);
         // Renderer
         window.app_renderer = new AppRenderer(window.scene, window.viewable_container.get_camera());
@@ -212,39 +244,13 @@ async function init() {
         window.asset_activator = AssetActivator.get_instance(window.viewable_container.get_camera(), window.app_renderer.get_renderer());
         // Show construction greeting if enabled in manifest
         if(greeting_data.display === true) {
-            const modal_path = greeting_data.modal_path;
-            // Load the modal from the path specified in the manifest
-            fetch(modal_path)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`Failed to load modal: ${response.status} ${response.statusText}`);
-                    }
-                    return response.text();
-                })
-                .then(html => {
-                    document.body.insertAdjacentHTML('beforeend', html);
-                    const modal = document.getElementById('construction-modal');
-                    if (!modal) {
-                        throw new Error(`Modal HTML does not contain an element with ID 'construction-modal'`);
-                    }
-                    modal.style.display = 'block';
-                    const acknowledge_btn = document.getElementById('acknowledge-btn');
-                    if (!acknowledge_btn) {
-                        console.warn(`Modal is missing an 'acknowledge-btn' element, user won't be able to dismiss it.`);
-                    } else {
-                        acknowledge_btn.addEventListener('click', () => {
-                            modal.style.display = 'none';
-                            construction_acknowledged = true;
-                        });
-                    }
-                })
-                .catch(error => {
-                    console.error(`Error loading greeting modal from path "${modal_path}": ${error.message}`);
-                    // Set construction_acknowledged to true so the app continues to function
-                    construction_acknowledged = true;
-                });
+            await display_modal(
+                greeting_data.modal_path,
+                'construction-modal',
+                'acknowledge-btn',
+                () => { construction_acknowledged = true; }
+            );
         }
-
         // Background creation
         update_loading_progress('Loading background assets...');
         // TODO Refactor BackgroundLighting to use Manifest setup
