@@ -759,4 +759,98 @@ export class AssetSpawner {
             }
         });
     }
+
+    /**
+     * Spawns assets from asset groups defined in the manifest
+     * @param {Object} manifest_manager - Instance of ManifestManager
+     * @param {Function} progress_callback - Optional callback function for progress updates
+     * @returns {Promise<Array>} Array of spawned assets
+     */
+    async spawn_asset_groups(manifest_manager, progress_callback = null) {
+        const spawned_assets = [];
+        
+        try {
+            // Get all asset groups from manifest
+            const asset_groups = manifest_manager.get_all_asset_groups();
+            if (!asset_groups || asset_groups.length === 0) {
+                if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                    console.log("No asset groups found in manifest");
+                }
+                return spawned_assets;
+            }
+
+            // Find active asset groups
+            const active_groups = asset_groups.filter(group => group.active);
+            
+            // Process each active group
+            for (const group of active_groups) {
+                if (progress_callback) {
+                    progress_callback(`Loading asset group: ${group.name}...`);
+                }
+                
+                // Process each asset in the group
+                for (const asset_id of group.assets) {
+                    const asset_data = manifest_manager.get_asset(asset_id);
+                    
+                    if (asset_data) {
+                        // Get asset type information
+                        const asset_type = asset_data.asset_type;
+                        const custom_type = manifest_manager.get_custom_type(asset_type);
+                        
+                        if (custom_type) {
+                            // Extract position and rotation from asset data
+                            const position = new THREE.Vector3(
+                                asset_data.position?.x || 0, 
+                                asset_data.position?.y || 0, 
+                                asset_data.position?.z || 0
+                            );
+                            
+                            // Create rotation from Euler angles
+                            const rotation = new THREE.Euler(
+                                asset_data.rotation?.x || 0,
+                                asset_data.rotation?.y || 0,
+                                asset_data.rotation?.z || 0
+                            );
+                            const quaternion = new THREE.Quaternion().setFromEuler(rotation);
+                            
+                            // Prepare options from asset data
+                            const options = {
+                                scale: asset_data.scale,
+                                material: asset_data.material,
+                                collider: asset_data.collider,
+                                mass: asset_data.mass,
+                                ...asset_data.options
+                            };
+                            
+                            // Spawn the asset using the existing spawn_asset method
+                            const result = await this.spawn_asset(
+                                asset_type,
+                                position,
+                                quaternion,
+                                options
+                            );
+                            
+                            if (result) {
+                                // Store the asset ID with the spawned asset data
+                                result.id = asset_id;
+                                spawned_assets.push(result);
+                            }
+                        } else if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                            console.warn(`Custom type "${asset_type}" not found for asset ${asset_id}`);
+                        }
+                    } else if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                        console.warn(`Asset with ID "${asset_id}" not found in manifest`);
+                    }
+                }
+            }
+            
+            if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                console.log(`Spawned ${spawned_assets.length} assets from manifest`);
+            }
+        } catch (error) {
+            console.error('Error spawning asset groups:', error);
+        }
+        
+        return spawned_assets;
+    }
 } 

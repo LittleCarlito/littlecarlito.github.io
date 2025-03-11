@@ -720,7 +720,9 @@ export function createDebugUI() {
             }
         }, 1000);
     }
-    
+    if(BLORKPACK_FLAGS.ASSET_LOGS) {
+        console.log("Debug UI initialized. Press 's' to toggle.");
+    }
     return debugUI;
 }
 

@@ -294,7 +294,6 @@ async function init() {
             set_resolution_scale(initialScale);
             console.log(`Initial resolution scale set to ${initialScale.toFixed(2)} based on device pixel ratio ${window.devicePixelRatio}`);
         }
-        console.log("Debug UI initialized. Press 's' to toggle.");
         // Ensure label wireframes are updated regardless of debug visualization state
         if (window.viewable_container && window.viewable_container.get_overlay()) {
             const labelContainer = window.viewable_container.get_overlay().label_container;
@@ -303,58 +302,9 @@ async function init() {
                 labelContainer.updateDebugVisualizations();
             }
         }
-        
-
-
         // Load and spawn assets defined in the manifest
         update_loading_progress("Loading assets from manifest...");
-        const asset_groups = manifest_manager.get_all_asset_groups();
-        if (asset_groups) {
-            // Find active asset groups
-            const active_groups = asset_groups.filter(group => group.active);
-            
-            for (const group of active_groups) {
-                update_loading_progress(`Loading asset group: ${group.name}...`);
-                
-                for (const asset_id of group.assets) {
-                    const asset_data = manifest_manager.get_asset(asset_id);
-                    if (asset_data) {
-                        // Use the asset type to determine how to load and spawn
-                        const asset_type = asset_data.asset_type;
-                        const custom_type = manifest_manager.get_custom_type(asset_type);
-                        
-                        if (custom_type) {
-                            // Get asset path from custom type
-                            const asset_path = custom_type.paths?.asset;
-                            
-                            // Load the asset type if needed
-                            // ... load asset code
-                            
-                            // Position and rotation from asset data
-                            const position = new THREE.Vector3(
-                                asset_data.position.x || 0, 
-                                asset_data.position.y || 0, 
-                                asset_data.position.z || 0
-                            );
-                            
-                            const rotation = new THREE.Euler(
-                                asset_data.rotation.x || 0,
-                                asset_data.rotation.y || 0,
-                                asset_data.rotation.z || 0
-                            );
-                            
-                            const quaternion = new THREE.Quaternion().setFromEuler(rotation);
-                            
-                            // Spawn the asset
-                            // const { mesh, body } = await asset_spawner.spawn_asset(...);
-                            
-                            // Additional properties like materials, etc.
-                            // ... apply properties code
-                        }
-                    }
-                }
-            }
-        }
+        const spawned_assets = await window.asset_spawner.spawn_asset_groups(manifest_manager, update_loading_progress);
     } catch (error) {
         console.error('Error during initialization:', error);
         update_loading_progress('Error loading application. Please refresh the page.');
