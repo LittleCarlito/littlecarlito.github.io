@@ -484,7 +484,7 @@ export function createDebugUI() {
         // Update collision debug in the asset spawner if available
         if (window.asset_spawner) {
             console.log(`Setting collision debug to ${checked}`);
-            asset_spawner.setCollisionDebug(checked);
+            asset_spawner.set_collision_debug(checked);
         }
         
         // Update label wireframes

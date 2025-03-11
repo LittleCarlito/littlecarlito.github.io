@@ -551,6 +551,35 @@ Note: Only include the properties relevant to the selected type. For example, if
                 "cast_shadow": true,
                 "receive_shadow": true
             }
+        },
+        {
+            "name": "background_floor",
+            "version": "1.0",
+            "load_layers": {
+                "viewable": true,
+                "collision": true,
+                "display": true
+            },
+            "paths": {
+                "script": "background/background_floor.js"
+            },
+            "size": {
+                "width": 100,
+                "height": 1,
+                "depth": 100
+            },
+            "physics": {
+                "restitution": 0.3,
+                "mass": 0,
+                "gravity_scale": 0,
+                "friction": 0.8
+            },
+            "visual": {
+                "emission_color": "0x808080",
+                "opacity": 1.0,
+                "cast_shadow": false,
+                "receive_shadow": true
+            }
         }
     ]
 }
@@ -575,6 +604,43 @@ Note: Only include the properties relevant to the selected type. For example, if
             },
             "rotation": {
                 "y": 1.57
+            }
+        },
+        {
+            "id": "background_floor",
+            "type": "CUSTOM",
+            "asset_type": "background_floor",
+            "version": "1.0",
+            "config": {
+                "collidable": true,
+                "hidden": false,
+                "disabled": false,
+                "sleeping": false,
+                "gravity": false,
+                "interactable": false,
+                "selectable": false,
+                "highlightable": false
+            },
+            "position": {
+                "x": 0,
+                "y": -10.2,
+                "z": 0
+            },
+            "additional_properties": {
+                "color": "0x808080",
+                "cast_shadows": false,
+                "receive_shadows": true,
+                "physical_dimensions": {
+                    "width": 100,
+                    "height": 1,
+                    "depth": 100
+                },
+                "collider_dimensions": {
+                    "width": 50,
+                    "height": 0.5,
+                    "depth": 50
+                },
+                "raycast_disabled": true
             }
         }
     ]

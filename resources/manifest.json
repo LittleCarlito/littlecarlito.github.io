@@ -57,6 +57,56 @@
                 "color": "0xffffff"
             }
         }
+    },
+    {
+        "name": "background_floor",
+        "version": "1.0",
+        "load_layers": {
+            "viewable": true,
+            "collision": true,
+            "display": true
+        },
+        "paths": {
+            "script": "background/background_floor.js"
+        },
+        "size": {
+            "radius": 0, 
+            "width": 100,
+            "height": 1,
+            "depth": 100
+        },
+        "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1,
+            "ui": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            }
+        },
+        "physics": {
+            "restitution": 0.3,
+            "sleep_timer": 0,
+            "mass": 0,
+            "gravity_scale": 0,
+            "friction": 0.8,
+            "collision_groups": [],
+            "collision_mask": []
+        },
+        "visual": {
+            "emitting": false,
+            "emission_color": "0x808080",
+            "emission_intensity": 0.0,
+            "opacity": 1.0,
+            "cast_shadow": false,
+            "receive_shadow": true,
+            "debug": {
+                "enabled": false,
+                "opacity": 0.6,
+                "color": "0x808080"
+            }
+        }
     }],
     "joint_data": {
         "type": "FIXED",
@@ -162,7 +212,63 @@
             }]
         }
     },
-    "application_assets": [],
+    "application_assets": [
+        {
+            "id": "background_floor",
+            "type": "CUSTOM",
+            "asset_type": "background_floor",
+            "version": "1.0",
+            "config": {
+                "collidable": true,
+                "hidden": false,
+                "disabled": false,
+                "sleeping": false,
+                "gravity": false,
+                "interactable": false,
+                "selectable": false,
+                "highlightable": false
+            },
+            "tags": ["environment", "floor"],
+            "group_id": "",
+            "joints": [],
+            "parent": {},
+            "children": [],
+            "position": {
+                "x": 0,
+                "y": -10.2,
+                "z": 0
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "target": {
+                "id": "",
+                "position": {
+                    "x": 0,
+                    "y": 0,
+                    "z": 0
+                }
+            },
+            "additional_properties": {
+                "color": "0x808080",
+                "cast_shadows": false,
+                "receive_shadows": true,
+                "physical_dimensions": {
+                    "width": 100,
+                    "height": 1,
+                    "depth": 100
+                },
+                "collider_dimensions": {
+                    "width": 50,
+                    "height": 0.5,
+                    "depth": 50
+                },
+                "raycast_disabled": true
+            }
+        }
+    ],
     "system_assets": [],
     "scene_data": {
         "version": "1.0",

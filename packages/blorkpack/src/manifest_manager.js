@@ -221,8 +221,11 @@ export class ManifestManager {
             created_date: timestamp,
             updated_date: timestamp,
             custom_types: [],
+            joint_data: {},
             asset_groups: [],
             asset_data: {},
+            application_assets: [],
+            system_assets: [],
             scene_data: {
                 version: "1.0",
                 name: "Main Scene",
@@ -687,24 +690,43 @@ export class ManifestManager {
     }
     
     /**
-     * Gets the joint data.
-     * @returns {JointData|null} The joint data or null if not loaded.
+     * Gets the joint data from the manifest.
+     * @returns {Object} The joint data or an empty object if not defined
      */
     get_joint_data() {
-        return this.is_loaded ? this.manifest_data?.joint_data || null : null;
+        return this.manifest_data?.joint_data || {};
     }
     
     /**
-     * Sets the joint data.
-     * @param {JointData} joint_data - The joint data to set
-     * @returns {boolean} True if successful
+     * Sets the joint data in the manifest.
+     * @param {Object} joint_data - The joint data to set
      */
     set_joint_data(joint_data) {
-        if (!this.is_loaded) {
-            return false;
+        if (!this.manifest_data) {
+            this.manifest_data = this.create_new_manifest();
         }
-        
         this.manifest_data.joint_data = joint_data;
-        return true;
+    }
+    
+    /**
+     * Gets the application_assets array from the manifest.
+     * @returns {Array} Array of application-specific assets or an empty array if not defined
+     */
+    get_application_assets() {
+        if (BLORKPACK_FLAGS.ASSET_LOGS) {
+            console.log('Getting application assets from manifest...');
+        }
+        return this.manifest_data?.application_assets || [];
+    }
+    
+    /**
+     * Sets the application_assets array in the manifest.
+     * @param {Array} application_assets - The application assets array to set
+     */
+    set_application_assets(application_assets) {
+        if (!this.manifest_data) {
+            this.manifest_data = this.create_new_manifest();
+        }
+        this.manifest_data.application_assets = application_assets;
     }
 } 

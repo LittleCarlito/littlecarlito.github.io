@@ -143,43 +143,43 @@ export class AssetSpawner {
                 if (collisionMeshes.length > 0) {
                     // Use the collision meshes for physics
                     for (const collisionMesh of collisionMeshes) {
-                        this.createColliderFromMesh(collisionMesh, physicsBody, asset_config);
+                        this.create_collider_from_mesh(collisionMesh, physicsBody, asset_config, options);
                     }
                 } else {
                     // Fallback to simple cuboid collider
                     const halfScale = asset_config.scale / 2;
-                    let colliderDesc;
+                    let collider_desc;
                     
                     // Use different collider shapes based on asset type or configuration
                     if (options.colliderType === 'sphere') {
-                        colliderDesc = RAPIER.ColliderDesc.ball(halfScale);
+                        collider_desc = RAPIER.ColliderDesc.ball(halfScale);
                     } else if (options.colliderType === 'capsule') {
-                        colliderDesc = RAPIER.ColliderDesc.capsule(halfScale, halfScale * 0.5);
+                        collider_desc = RAPIER.ColliderDesc.capsule(halfScale, halfScale * 0.5);
                     } else {
                         // Default to cuboid
-                        colliderDesc = RAPIER.ColliderDesc.cuboid(halfScale, halfScale, halfScale);
+                        collider_desc = RAPIER.ColliderDesc.cuboid(halfScale, halfScale, halfScale);
                     }
                     
                     // Set mass and material properties
                     if (asset_config.mass) {
-                        colliderDesc.setMass(asset_config.mass);
+                        collider_desc.setMass(asset_config.mass);
                     } else {
                         // Default mass if not specified
-                        colliderDesc.setMass(1.0);
+                        collider_desc.setMass(1.0);
                     }
                     
                     if (asset_config.restitution) {
-                        colliderDesc.setRestitution(asset_config.restitution);
+                        collider_desc.setRestitution(asset_config.restitution);
                     } else {
                         // Default restitution (bounciness) if not specified
-                        colliderDesc.setRestitution(0.2);
+                        collider_desc.setRestitution(0.2);
                     }
                     
                     // Set friction
-                    colliderDesc.setFriction(0.7);
+                    collider_desc.setFriction(0.7);
                     
                     // Create the collider and attach it to the physics body
-                    this.world.createCollider(colliderDesc, physicsBody);
+                    this.world.createCollider(collider_desc, physicsBody);
                 }
                 
                 // Store physics body as a direct property on the model for very direct access
@@ -198,63 +198,16 @@ export class AssetSpawner {
                 
                 // Create debug wireframe if debug is enabled
                 if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
-                    if (collisionMeshes.length > 0) {
-                        // Create wireframes for each collision mesh
-                        collisionMeshes.forEach((colMesh) => {
-                            // Get the world transform of the collision mesh
-                            const worldPosition = new THREE.Vector3();
-                            const worldQuaternion = new THREE.Quaternion();
-                            const worldScale = new THREE.Vector3();
-                            
-                            colMesh.updateWorldMatrix(true, false);
-                            colMesh.matrixWorld.decompose(worldPosition, worldQuaternion, worldScale);
-                            
-                            // Clone the geometry to create an exact wireframe representation
-                            const clonedGeometry = colMesh.geometry.clone();
-                            
-                            console.log(`Creating asset wireframe for: ${colMesh.name}`);
-                            
-                            // Create a wireframe using the actual collision mesh geometry
-                            this.createDebugWireframe(
-                                'mesh',
-                                null,  // Dimensions not needed when using actual geometry
-                                worldPosition,
-                                worldQuaternion,
-                                { 
-                                    bodyId: physicsBody.handle,
-                                    geometry: clonedGeometry,
-                                    originalObject: colMesh,
-                                    objectId: colMesh.id,
-                                    scale: worldScale,
-                                    isStatic: false // Explicitly mark as NOT static
-                                }
-                            );
-                        });
-                    } else {
-                        // No collision meshes, create wireframe based on object bounds
-                        const boundingBox = new THREE.Box3().setFromObject(model);
-                        const size = boundingBox.getSize(new THREE.Vector3());
-                        const center = boundingBox.getCenter(new THREE.Vector3());
-                        
-                        console.log(`Creating fallback asset wireframe for: ${model.name}`);
-                        
-                        // Create the debug wireframe
-                        this.createDebugWireframe(
-                            'cuboid', 
-                            { 
-                                x: size.x * 0.5, 
-                                y: size.y * 0.5, 
-                                z: size.z * 0.5 
-                            }, 
-                            center, 
-                            model.quaternion,
-                            { 
-                                bodyId: physicsBody.handle,
-                                originalObject: model,
-                                objectId: model.id,
-                                isStatic: false // Explicitly mark as NOT static
-                            }
+                    try {
+                        this.create_debug_wireframe(
+                            'box',
+                            { width: halfScale * 2, height: halfScale * 2, depth: halfScale * 2 },
+                            position,
+                            rotation,
+                            { color: 0x00ff00, opacity: 0.3, body }
                         );
+                    } catch (error) {
+                        console.warn('Failed to create debug wireframe:', error);
                     }
                 }
                 
@@ -286,7 +239,7 @@ export class AssetSpawner {
      * @param {Object} options - Additional options for the wireframe.
      * @returns {THREE.Mesh} The created wireframe mesh.
      */
-    createDebugWireframe(type, dimensions, position, rotation, options = {}) {
+    create_debug_wireframe(type, dimensions, position, rotation, options = {}) {
         let geometry;
         
         // If we have a mesh geometry provided, use it directly for maximum accuracy
@@ -464,15 +417,18 @@ export class AssetSpawner {
     }
 
     /**
-     * Creates a collider based on a mesh's geometry.
-     * @param {THREE.Mesh} mesh - The mesh to create a collider from
+     * Creates a physics collider from a mesh.
+     * Used for generating colliders from mesh geometry.
+     * 
+     * @param {THREE.Mesh} mesh - The mesh to create a collider for
      * @param {RAPIER.RigidBody} body - The rigid body to attach the collider to
-     * @param {Object} asset_config - Configuration for the asset
+     * @param {Object} asset_config - Asset configuration data
+     * @param {Object} [options={}] - Additional options for collider creation
+     * @returns {RAPIER.Collider} The created collider
      */
-    createColliderFromMesh(mesh, body, asset_config) {
+    create_collider_from_mesh(mesh, body, asset_config, options = {}) {
         if (!mesh || !body) return null;
         
-        // Get the geometry
         const geometry = mesh.geometry;
         if (!geometry) return null;
         
@@ -500,6 +456,11 @@ export class AssetSpawner {
         
         // Get the bounding box in local space
         const box = geometry.boundingBox;
+        
+        // Calculate dimensions from the bounding box
+        const box_width = (box.max.x - box.min.x) * meshScale.x;
+        const box_height = (box.max.y - box.min.y) * meshScale.y;
+        const box_depth = (box.max.z - box.min.z) * meshScale.z;
         
         // Check the local center of the bounding box to adjust for offset meshes
         const localCenter = new THREE.Vector3();
@@ -532,7 +493,7 @@ export class AssetSpawner {
             });
         }
         
-        let colliderDesc;
+        let collider_desc;
         
         // Detect shape from name (often models use naming conventions)
         if (mesh.name.includes('sphere') || mesh.name.includes('ball')) {
@@ -540,7 +501,7 @@ export class AssetSpawner {
             // Estimate radius from geometry bounds
             geometry.computeBoundingSphere();
             const radius = geometry.boundingSphere.radius * meshScale.x;
-            colliderDesc = RAPIER.ColliderDesc.ball(radius);
+            collider_desc = RAPIER.ColliderDesc.ball(radius);
             
         } else if (mesh.name.includes('capsule')) {
             // Create a capsule collider
@@ -550,37 +511,40 @@ export class AssetSpawner {
                 (box.max.z - box.min.z)
             ) * meshScale.x * 0.5;
             
-            colliderDesc = RAPIER.ColliderDesc.capsule(height * 0.5, radius);
+            collider_desc = RAPIER.ColliderDesc.capsule(height * 0.5, radius);
             
         } else {
             // Default to cuboid
             // Use exact dimensions from mesh's bounding box, scaled by the mesh's world scale
-            const hx = (box.max.x - box.min.x) * meshScale.x * 0.5;
-            const hy = (box.max.y - box.min.y) * meshScale.y * 0.5;
-            const hz = (box.max.z - box.min.z) * meshScale.z * 0.5;
+            const collider_width = (options.collider_dimensions?.width !== undefined) ? 
+                options.collider_dimensions.width : box_width / 2;
+            const collider_height = (options.collider_dimensions?.height !== undefined) ? 
+                options.collider_dimensions.height : box_height / 2;
+            const collider_depth = (options.collider_dimensions?.depth !== undefined) ? 
+                options.collider_dimensions.depth : box_depth / 2;
             
-            colliderDesc = RAPIER.ColliderDesc.cuboid(hx, hy, hz);
+            collider_desc = RAPIER.ColliderDesc.cuboid(collider_width, collider_height, collider_depth);
         }
         
         // Apply position offset (for standard colliders)
-        colliderDesc.setTranslation(relativePos.x, relativePos.y, relativePos.z);
+        collider_desc.setTranslation(relativePos.x, relativePos.y, relativePos.z);
         
         // Apply rotation
-        colliderDesc.setRotation(quaternion);
+        collider_desc.setRotation(quaternion);
         
         // Set physical properties
         if (asset_config.mass) {
-            colliderDesc.setMass(asset_config.mass);
+            collider_desc.setMass(asset_config.mass);
         }
         
         if (asset_config.restitution) {
-            colliderDesc.setRestitution(asset_config.restitution);
+            collider_desc.setRestitution(asset_config.restitution);
         }
         
-        colliderDesc.setFriction(0.7);
+        collider_desc.setFriction(0.7);
         
         // Create the collider
-        const collider = this.world.createCollider(colliderDesc, body);
+        const collider = this.world.createCollider(collider_desc, body);
         
         // Store reference to the collider on the mesh for debugging
         mesh.userData.physicsCollider = collider;
@@ -593,7 +557,7 @@ export class AssetSpawner {
      * This allows the main application to control debug visualization.
      * @param {boolean} enabled - Whether collision debug should be enabled
      */
-    setCollisionDebug(enabled) {
+    set_collision_debug(enabled) {
         // Note: We're using the internal BLORKPACK_FLAGS but also accepting external control
         BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG = enabled;
         
@@ -615,14 +579,14 @@ export class AssetSpawner {
         }
         
         // If enabling, create wireframes for all bodies
-        this.createDebugWireframesForAllBodies();
+        this.create_debug_wireframes_for_all_bodies();
     }
     
     /**
      * Creates debug wireframes for all physics bodies.
      * This is used when enabling debug visualization after objects are already created.
      */
-    createDebugWireframesForAllBodies() {
+    create_debug_wireframes_for_all_bodies() {
         // First clear any existing wireframes
         this.debugMeshes.forEach((mesh) => {
             if (mesh.parent) {
@@ -677,7 +641,7 @@ export class AssetSpawner {
                     }
                     
                     // Create a wireframe using the actual collision mesh geometry
-                    this.createDebugWireframe(
+                    this.create_debug_wireframe(
                         'mesh',
                         null,  // Dimensions not needed when using actual geometry
                         worldPosition,
@@ -702,7 +666,7 @@ export class AssetSpawner {
                 }
                 
                 // Create the debug wireframe
-                this.createDebugWireframe(
+                this.create_debug_wireframe(
                     'cuboid', 
                     { 
                         x: size.x * 0.5, 
@@ -741,7 +705,7 @@ export class AssetSpawner {
                     console.log(`Creating static wireframe for room: ${mesh.name}`);
                 }
                 
-                this.createDebugWireframe(
+                this.create_debug_wireframe(
                     'cuboid', 
                     { 
                         x: size.x * 0.5, 
@@ -852,5 +816,314 @@ export class AssetSpawner {
         }
         
         return spawned_assets;
+    }
+
+    /**
+     * Spawns assets from the manifest's application_assets array.
+     * This method handles application-specific assets defined in the manifest.
+     * 
+     * @param {Object} manifest_manager - Instance of ManifestManager
+     * @param {Function} progress_callback - Optional callback function for progress updates
+     * @returns {Promise<Array>} Array of spawned application assets
+     */
+    async spawn_application_assets(manifest_manager, progress_callback = null) {
+        const spawned_assets = [];
+        
+        try {
+            // Get all application assets from manifest
+            const application_assets = manifest_manager.get_application_assets();
+            if (!application_assets || application_assets.length === 0) {
+                if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                    console.log("No application assets found in manifest");
+                }
+                return spawned_assets;
+            }
+
+            if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                console.log(`Found ${application_assets.length} application assets to spawn`);
+            }
+            
+            // Process each application asset
+            for (const asset_data of application_assets) {
+                if (progress_callback) {
+                    progress_callback(`Loading application asset: ${asset_data.id}...`);
+                }
+                
+                // Get asset type information
+                const asset_type = asset_data.asset_type;
+                const custom_type = manifest_manager.get_custom_type(asset_type);
+                
+                if (!custom_type) {
+                    console.warn(`Custom type "${asset_type}" not found for application asset ${asset_data.id}`);
+                    continue;
+                }
+                
+                // Extract position and rotation from asset data
+                const position = new THREE.Vector3(
+                    asset_data.position?.x || 0, 
+                    asset_data.position?.y || 0, 
+                    asset_data.position?.z || 0
+                );
+                
+                // Create rotation from Euler angles
+                const rotation = new THREE.Euler(
+                    asset_data.rotation?.x || 0,
+                    asset_data.rotation?.y || 0,
+                    asset_data.rotation?.z || 0
+                );
+                const quaternion = new THREE.Quaternion().setFromEuler(rotation);
+                
+                // Prepare options based on the asset's configuration and custom type
+                const options = {
+                    // Asset configuration
+                    collidable: asset_data.config?.collidable !== undefined ? asset_data.config.collidable : true,
+                    hidden: asset_data.config?.hidden !== undefined ? asset_data.config.hidden : false,
+                    disabled: asset_data.config?.disabled !== undefined ? asset_data.config.disabled : false,
+                    sleeping: asset_data.config?.sleeping !== undefined ? asset_data.config.sleeping : true,
+                    gravity: asset_data.config?.gravity !== undefined ? asset_data.config.gravity : true,
+                    
+                    // Visual properties from custom type
+                    color: asset_data.additional_properties?.color || custom_type.visual?.emission_color,
+                    emission_intensity: custom_type.visual?.emission_intensity || 0,
+                    opacity: custom_type.visual?.opacity || 1.0,
+                    cast_shadow: asset_data.additional_properties?.cast_shadows !== undefined ? 
+                        asset_data.additional_properties.cast_shadows : custom_type.visual?.cast_shadow,
+                    receive_shadow: asset_data.additional_properties?.receive_shadows !== undefined ? 
+                        asset_data.additional_properties.receive_shadows : custom_type.visual?.receive_shadow,
+                    
+                    // Physics properties from custom type
+                    mass: custom_type.physics?.mass || 1.0,
+                    restitution: custom_type.physics?.restitution || 0.5,
+                    friction: custom_type.physics?.friction || 0.5,
+                    
+                    // Size properties
+                    dimensions: asset_data.additional_properties?.physical_dimensions || {
+                        width: custom_type.size?.width || 1.0,
+                        height: custom_type.size?.height || 1.0,
+                        depth: custom_type.size?.depth || 1.0
+                    },
+                    
+                    // Collider dimensions if specified
+                    collider_dimensions: asset_data.additional_properties?.collider_dimensions,
+                    
+                    // Additional properties
+                    custom_data: asset_data.additional_properties,
+                    raycast_disabled: asset_data.additional_properties?.raycast_disabled
+                };
+
+                // Log the asset being created for debugging
+                if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                    console.log(`Creating application asset: ${asset_data.id} (${asset_type})`, {
+                        position,
+                        dimensions: options.dimensions,
+                        color: options.color
+                    });
+                }
+
+                // Determine if we need to create a primitive or load a model
+                let result = null;
+                
+                // Check if this is a primitive (no asset path) or a model-based asset
+                if (!custom_type.paths?.asset) {
+                    // This is a primitive asset, create it based on size
+                    const dimensions = options.dimensions;
+                    
+                    if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                        console.log(`Creating primitive box for ${asset_data.id} with dimensions:`, dimensions);
+                    }
+                    
+                    // Create a primitive box with the specified dimensions and color
+                    result = this.create_primitive_box(
+                        dimensions.width, 
+                        dimensions.height, 
+                        dimensions.depth, 
+                        position, 
+                        quaternion, 
+                        options
+                    );
+                } else {
+                    // This is a model-based asset, spawn it using the standard method
+                    if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                        console.log(`Loading model for ${asset_data.id} from path: ${custom_type.paths.asset}`);
+                    }
+                    
+                    result = await this.spawn_asset(
+                        asset_type,
+                        position,
+                        quaternion,
+                        options
+                    );
+                }
+                
+                if (result) {
+                    // Store the asset ID and type with the spawned asset data
+                    result.id = asset_data.id;
+                    result.asset_type = asset_type;
+                    spawned_assets.push(result);
+                    
+                    if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                        console.log(`Spawned application asset: ${asset_data.id} (${asset_type})`);
+                    }
+                }
+            }
+            
+            if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                console.log(`Spawned ${spawned_assets.length} application assets from manifest`);
+            }
+            
+            return spawned_assets;
+        } catch (error) {
+            console.error("Error spawning application assets:", error);
+            return spawned_assets;
+        }
+    }
+    
+    /**
+     * Creates a primitive box with the specified dimensions and properties.
+     * This is used for simple assets that don't require a full 3D model.
+     * 
+     * @param {number} width - Width of the box
+     * @param {number} height - Height of the box
+     * @param {number} depth - Depth of the box
+     * @param {THREE.Vector3} position - Position of the box
+     * @param {THREE.Quaternion} rotation - Rotation of the box
+     * @param {Object} options - Additional options for the box
+     * @returns {Object} The created box with mesh and body
+     */
+    create_primitive_box(width, height, depth, position, rotation, options = {}) {
+        // Make sure position and rotation are valid
+        position = position || new THREE.Vector3();
+        
+        // Handle different rotation types or create default
+        let quaternion;
+        if (rotation instanceof THREE.Quaternion) {
+            quaternion = rotation;
+        } else if (rotation instanceof THREE.Euler) {
+            quaternion = new THREE.Quaternion().setFromEuler(rotation);
+        } else {
+            quaternion = new THREE.Quaternion();
+        }
+        
+        // Create geometry and material
+        const geometry = new THREE.BoxGeometry(width, height, depth);
+        
+        // Convert color from string to number if needed
+        let color_value = options.color || 0x808080;
+        if (typeof color_value === 'string') {
+            if (color_value.startsWith('0x')) {
+                color_value = parseInt(color_value, 16);
+            } else if (color_value.startsWith('#')) {
+                color_value = parseInt(color_value.substring(1), 16);
+            }
+        }
+        
+        const material = new THREE.MeshStandardMaterial({ 
+            color: color_value,
+            transparent: options.opacity < 1.0,
+            opacity: options.opacity || 1.0
+        });
+        
+        // Create mesh
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.copy(position);
+        mesh.quaternion.copy(quaternion);
+        
+        // Set shadow properties
+        mesh.castShadow = options.cast_shadow || false;
+        mesh.receiveShadow = options.receive_shadow || false;
+        
+        // Add to scene
+        this.scene.add(mesh);
+        
+        // Disable raycasting if specified
+        if (options.raycast_disabled) {
+            mesh.raycast = () => null;
+        }
+        
+        // Create physics body if collidable
+        let body = null;
+        
+        if (options.collidable !== false) {
+            // Determine body type based on mass and options
+            let body_desc;
+            if (options.mass <= 0 || options.gravity === false) {
+                body_desc = RAPIER.RigidBodyDesc.fixed();
+            } else {
+                body_desc = RAPIER.RigidBodyDesc.dynamic()
+                    .setMass(options.mass)
+                    .setCanSleep(options.sleeping !== false);
+            }
+            
+            // Set position and rotation
+            body_desc.setTranslation(position.x, position.y, position.z);
+            body_desc.setRotation({
+                x: quaternion.x,
+                y: quaternion.y,
+                z: quaternion.z,
+                w: quaternion.w
+            });
+            
+            // Create body
+            body = this.world.createRigidBody(body_desc);
+            
+            // Create collider
+            let collider_desc;
+            
+            // Use custom collider dimensions if specified, otherwise use mesh dimensions
+            const collider_width = (options.collider_dimensions?.width !== undefined) ? 
+                options.collider_dimensions.width : width / 2;
+            const collider_height = (options.collider_dimensions?.height !== undefined) ? 
+                options.collider_dimensions.height : height / 2;
+            const collider_depth = (options.collider_dimensions?.depth !== undefined) ? 
+                options.collider_dimensions.depth : depth / 2;
+            
+            // Create cuboid collider
+            collider_desc = RAPIER.ColliderDesc.cuboid(collider_width, collider_height, collider_depth);
+            
+            // Set restitution and friction
+            collider_desc.setRestitution(options.restitution || 0.5);
+            collider_desc.setFriction(options.friction || 0.5);
+            
+            // Create collider and attach to body
+            const collider = this.world.createCollider(collider_desc, body);
+            
+            // Create debug wireframe if debug is enabled
+            if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
+                try {
+                    this.create_debug_wireframe(
+                        'box',
+                        { width: collider_width * 2, height: collider_height * 2, depth: collider_depth * 2 },
+                        position,
+                        quaternion,
+                        { color: 0x00ff00, opacity: 0.3, body }
+                    );
+                } catch (error) {
+                    console.warn('Failed to create debug wireframe:', error);
+                }
+            }
+        }
+        
+        // Generate a unique ID for this asset
+        const instance_id = this.generate_asset_id();
+        
+        // Return the result
+        return {
+            mesh,
+            body,
+            instance_id,
+            type: 'primitive_box',
+            options
+        };
+    }
+
+    /**
+     * Generates a unique asset ID for spawned assets.
+     * @returns {string} A unique ID string
+     */
+    generate_asset_id() {
+        // Simple implementation using timestamp and random numbers
+        const timestamp = Date.now();
+        const random = Math.floor(Math.random() * 10000);
+        return `asset_${timestamp}_${random}`;
     }
 } 

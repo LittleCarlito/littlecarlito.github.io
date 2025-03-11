@@ -62,6 +62,37 @@ async function testManifestManager() {
             }
         }
         
+        // Display application assets
+        const applicationAssets = manifestManager.get_application_assets();
+        console.log(`\nApplication Assets (${applicationAssets.length}):`);
+        applicationAssets.forEach(asset => {
+            console.log(`- ${asset.id}: ${asset.type} (${asset.asset_type})`);
+            if (asset.asset_type === 'background_floor') {
+                console.log(`  Background Floor Properties:`);
+                console.log(`  - Position: (${asset.position.x}, ${asset.position.y}, ${asset.position.z})`);
+                if (asset.additional_properties && asset.additional_properties.physical_dimensions) {
+                    const dims = asset.additional_properties.physical_dimensions;
+                    console.log(`  - Dimensions: ${dims.width} x ${dims.height} x ${dims.depth}`);
+                }
+            }
+        });
+        
+        // Test spawning application assets if in browser context
+        if (typeof window !== 'undefined' && window.asset_spawner) {
+            console.log('\nTesting application asset spawning...');
+            try {
+                const spawned_assets = await window.asset_spawner.spawn_application_assets(manifestManager);
+                console.log(`✅ Successfully spawned ${spawned_assets.length} application assets`);
+                spawned_assets.forEach(asset => {
+                    console.log(`- Spawned ${asset.id} (${asset.asset_type})`);
+                });
+            } catch (error) {
+                console.error('❌ Error spawning application assets:', error);
+            }
+        } else {
+            console.log('\nSkipping asset spawning test in non-browser environment');
+        }
+        
         // Display scene data
         const sceneData = manifestManager.getSceneData();
         console.log(`\nScene Data:`);

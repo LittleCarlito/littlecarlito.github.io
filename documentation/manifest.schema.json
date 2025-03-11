@@ -325,6 +325,7 @@
             "penumbra": { "type": "number" },
             "sharpness": { "type": "number" },
             "cast_shadows": { "type": "boolean" },
+            "receive_shadows": { "type": "boolean" },
             "blur_samples": { "type": "number" },
             "fov": { "type": "number" },
             "near": { "type": "number" },
@@ -334,6 +335,23 @@
             "aspect_ratio": { "type": "number" },
             "near_clipping": { "type": "number" },
             "far_clipping": { "type": "number" },
+            "physical_dimensions": {
+              "type": "object",
+              "properties": {
+                "width": { "type": "number" },
+                "height": { "type": "number" },
+                "depth": { "type": "number" }
+              }
+            },
+            "collider_dimensions": {
+              "type": "object", 
+              "properties": {
+                "width": { "type": "number" },
+                "height": { "type": "number" },
+                "depth": { "type": "number" }
+              }
+            },
+            "raycast_disabled": { "type": "boolean" },
             "animations": {
               "type": "array",
               "items": {

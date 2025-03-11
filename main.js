@@ -1,7 +1,6 @@
 // @ts-nocheck
 // Import the global config first to ensure it's available to all modules
 import { FLAGS, THREE, RAPIER, load_three, load_rapier, updateTween } from './common';
-import { BackgroundFloor } from './background/background_floor';
 import { ViewableContainer } from './viewport/viewable_container';
 import { BackgroundLighting } from './background/background_lighting';
 import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/overlay_common';
@@ -257,8 +256,12 @@ async function init() {
         const lighting = BackgroundLighting.getInstance(window.scene);
         // TODO Refactor BackgroundContainer to use Manifest setup
         window.background_container = new BackgroundContainer(window.scene, window.viewable_container.get_camera(), window.world);
-        // TODO Refactor Background floor to just be a asset data passed in the manifest (its just a big primitive cube)
-        new BackgroundFloor(window.world, window.scene, window.viewable_container.get_camera());
+        // Load application assets from manifest (including background floor)
+        update_loading_progress('Loading application assets...');
+        const application_assets = await window.asset_spawner.spawn_application_assets(manifest_manager, update_loading_progress);
+        if (BLORKPACK_FLAGS.ASSET_LOGS) {
+            console.log('Loaded application assets:', application_assets);
+        }
         // Wait for all assets to be loaded
         update_loading_progress('Loading scene assets...');
         await new Promise(async (resolve) => {
