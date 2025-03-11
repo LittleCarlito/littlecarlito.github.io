@@ -1436,4 +1436,42 @@ export class AssetSpawner {
         const random = Math.floor(Math.random() * 10000);
         return `asset_${timestamp}_${random}`;
     }
+
+    /**
+     * Spawns a scene camera based on the camera configuration from the manifest.
+     * This method creates a simple camera without any additional functionality.
+     * 
+     * @param {Object} camera_config - The camera configuration object from manifest
+     * @returns {THREE.PerspectiveCamera} The created camera
+     */
+    spawn_scene_camera(camera_config) {
+        if (!camera_config) {
+            console.error("No camera configuration provided to spawn_scene_camera");
+            return null;
+        }
+
+        // Create the camera using the configuration
+        const camera = new THREE.PerspectiveCamera(
+            // Field of view
+            camera_config.fov || 75,
+            // Default aspect ratio (will be updated when added to scene)
+            window.innerWidth / window.innerHeight,
+            // Near and far clipping planes
+            camera_config.near || 0.1,
+            camera_config.far || 1000
+        );
+
+        // Set camera position from config
+        camera.position.set(
+            camera_config.position?.x || 0,
+            camera_config.position?.y || 5,
+            camera_config.position?.z || 10
+        );
+
+        // Store camera reference in asset storage
+        const camera_id = this.generate_asset_id();
+        this.storage.store_static_mesh(camera_id, camera);
+        
+        return camera;
+    }
 } 

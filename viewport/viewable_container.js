@@ -12,33 +12,21 @@ export class ViewableContainer {
     left_mouse_down = false;
     right_mouse_down = false;
     camera_manager;
+    asset_spawner;
 
     constructor(window) {
         this.viewable_container_container = new THREE.Object3D();
         this.parent = window.scene;
         this.world = window.world;
         
+        // Get the asset spawner instance
+        this.asset_spawner = window.asset_spawner || window.world.asset_spawner;
+        
         // Get camera configuration from manifest
         const camera_config = window.manifest_manager.get_camera_config();
         
-        // Create camera using manifest config
-        this.camera = new THREE.PerspectiveCamera(
-            // FOV
-            camera_config.fov,
-            // Aspect ratio
-            window.innerWidth/window.innerHeight,
-            // Near clipping
-            camera_config.near,
-            // Far clipping
-            camera_config.far
-        );
-        
-        // Set camera position from manifest
-        this.camera.position.set(
-            camera_config.position.x,
-            camera_config.position.y,
-            camera_config.position.z
-        );
+        // Create camera using manifest config via asset spawner
+        this.camera = this.asset_spawner.spawn_scene_camera(camera_config);
         
         // Initialize camera manager with UI distance from manifest
         this.camera_manager = new CameraManager(this.parent, this.camera, camera_config.ui_distance);
@@ -53,6 +41,7 @@ export class ViewableContainer {
                 this.overlay_container.resize_reposition_offscreen();
             }
         });
+        
         this.viewable_container_container.add(this.camera);
         // this.viewable_container_container.rotation.x = -0.261799;
         this.parent.add(this.viewable_container_container);
