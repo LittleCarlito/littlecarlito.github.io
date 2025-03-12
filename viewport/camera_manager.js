@@ -206,12 +206,6 @@ export class CameraManager {
             leftPos.applyQuaternion(this.camera.quaternion);
             // Add camera's position
             leftPos.add(this.camera.position);
-            
-            // Log shoulder light updating (once per 100 frames to avoid console spam)
-            if (Math.random() < 0.01) {
-                console.log("Updating left shoulder light position:", leftPos);
-            }
-            
             if (!this.left_shoulder_light.mesh) {
                 console.warn("Left shoulder light exists but has no mesh property!");
             } else {
@@ -238,12 +232,6 @@ export class CameraManager {
             rightPos.applyQuaternion(this.camera.quaternion);
             // Add camera's position
             rightPos.add(this.camera.position);
-            
-            // Log shoulder light updating (once per 100 frames to avoid console spam)
-            if (Math.random() < 0.01) {
-                console.log("Updating right shoulder light position:", rightPos);
-            }
-            
             if (!this.right_shoulder_light.mesh) {
                 console.warn("Right shoulder light exists but has no mesh property!");
             } else {

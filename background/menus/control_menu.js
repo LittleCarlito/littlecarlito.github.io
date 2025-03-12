@@ -1,6 +1,7 @@
 import { TYPES } from '../../viewport/overlay/overlay_common';
 import { FLAGS, RAPIER, THREE } from '../../common';
 import { ASSET_TYPE, AssetSpawner }  from '@littlecarlito/blorkpack';
+import { BLORKPACK_FLAGS } from '../../packages/blorkpack/src';
 
 export const IMAGE_PATH = 'images/MouseControlMenu.svg';
 
@@ -441,13 +442,6 @@ export class ControlMenu {
     updateSpotlight() {
         // Only update if spotlight and sign exist
         if (this.menu_spotlight && this.sign_mesh) {
-            // Occasionally log spotlight updates
-            const shouldLog = Math.random() < 0.01;
-            if (shouldLog) {
-                console.log("==== UPDATING CONTROL MENU SPOTLIGHT ====");
-                console.log("menu_spotlight object:", this.menu_spotlight);
-            }
-            
             // Ensure menu_spotlight has needed properties
             if (!this.menu_spotlight.position && !this.menu_spotlight.mesh) {
                 console.warn('ControlMenu: menu_spotlight is missing position property and mesh property');
@@ -455,64 +449,36 @@ export class ControlMenu {
                 console.log("menu_spotlight object:", this.menu_spotlight);
                 return;
             }
-            
             // Check specifically for position
             if (!this.menu_spotlight.position && this.menu_spotlight.mesh) {
                 console.log("Using menu_spotlight.mesh.position instead of direct position");
                 this.menu_spotlight.position = this.menu_spotlight.mesh.position;
             }
-            
             // Ensure menu_spotlight.position exists before proceeding
             if (!this.menu_spotlight.position) {
                 console.warn('ControlMenu: menu_spotlight.position is undefined');
                 return;
             }
-            
-            // Occasionally log spotlight updates
-            if (shouldLog) {
-                console.log("Updating control menu spotlight, targeting sign at:", 
-                    `x=${this.sign_mesh.position.x}, y=${this.sign_mesh.position.y}, z=${this.sign_mesh.position.z}`);
-                console.log("Spotlight position:", 
-                    `x=${this.menu_spotlight.position.x}, y=${this.menu_spotlight.position.y}, z=${this.menu_spotlight.position.z}`);
-            }
-            
             // Update spotlight direction to point at sign
             const targetPosition = new THREE.Vector3();
             targetPosition.copy(this.sign_mesh.position);
-            
             try {
                 const direction = new THREE.Vector3().subVectors(targetPosition, this.menu_spotlight.position);
                 const rotationY = Math.atan2(direction.x, direction.z);
                 const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
-                
-                if (shouldLog) {
-                    console.log(`Calculated rotation: x=${rotationX}, y=${rotationY}`);
-                }
-    
                 // Update spotlight rotation
                 if (this.menu_spotlight.rotation) {
                     this.menu_spotlight.rotation.set(rotationX, rotationY, 0);
-                    if (shouldLog) console.log("Updated menu_spotlight.rotation");
                 } else if (this.menu_spotlight.mesh) {
                     this.menu_spotlight.mesh.rotation.set(rotationX, rotationY, 0);
-                    if (shouldLog) console.log("Updated menu_spotlight.mesh.rotation");
                 }
-                
                 // Update target
                 if (this.menu_spotlight.target) {
                     this.menu_spotlight.target.position.copy(targetPosition);
                     this.menu_spotlight.target.updateMatrixWorld();
-                    if (shouldLog) console.log("Updated menu_spotlight.target position");
                 } else if (this.menu_spotlight.mesh && this.menu_spotlight.mesh.target) {
                     this.menu_spotlight.mesh.target.position.copy(targetPosition);
                     this.menu_spotlight.mesh.target.updateMatrixWorld();
-                    if (shouldLog) console.log("Updated menu_spotlight.mesh.target position");
-                } else if (shouldLog) {
-                    console.log("No target found to update");
-                }
-                
-                if (shouldLog) {
-                    console.log("==== FINISHED UPDATING CONTROL MENU SPOTLIGHT ====");
                 }
             } catch (error) {
                 console.error("Error updating control menu spotlight:", error);
@@ -608,11 +574,8 @@ export class ControlMenu {
                     
                     // Create spotlight if needed (but don't wait for it)
                     if (!this.menu_spotlight && this.sign_mesh) {
-                        console.log("==== ATTEMPTING TO CREATE CONTROL MENU SPOTLIGHT ====");
-                        console.log("SPOTLIGHT_VISUAL_DEBUG flag is:", FLAGS.SPOTLIGHT_VISUAL_DEBUG);
                         
                         const spotlightPosition = this.calculate_spotlight_position(this.camera.position, this.camera.quaternion);
-                        console.log(`Control menu spotlight position: ${JSON.stringify(spotlightPosition)}`);
                         
                         // Make sure we have valid positions before calculating direction
                         if (!spotlightPosition) {
@@ -622,13 +585,11 @@ export class ControlMenu {
 
                         const targetPosition = new THREE.Vector3();
                         targetPosition.copy(this.sign_mesh.position);
-                        console.log("Control menu spotlight target position:", targetPosition);
                         
                         try {
                             const direction = new THREE.Vector3().subVectors(targetPosition, spotlightPosition);
                             const rotationY = Math.atan2(direction.x, direction.z);
                             const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
-                            console.log(`Control menu spotlight rotation: x=${rotationX}, y=${rotationY}`);
                             
                             // Adjust properties for a clearer edge but keep a larger radius
                             // Larger radius for control menu (white with higher intensity)
@@ -646,29 +607,17 @@ export class ControlMenu {
                                 },
                                 {} // empty asset_data
                             );
-                            
-                            console.log("Control menu spotlight created:", this.menu_spotlight ? "success" : "failed");
-                            if (this.menu_spotlight) {
-                                console.log("Control menu spotlight properties:", {
-                                    mesh: this.menu_spotlight.mesh ? "exists" : "missing",
-                                    position: this.menu_spotlight.mesh?.position ? 
-                                        `x=${this.menu_spotlight.mesh.position.x}, y=${this.menu_spotlight.mesh.position.y}, z=${this.menu_spotlight.mesh.position.z}` : 
-                                        "missing",
-                                    target: this.menu_spotlight.mesh?.target ? "exists" : "missing"
-                                });
+                            if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                                console.log("Control menu spotlight created:", this.menu_spotlight ? "success" : "failed");
                             }
                         } catch (error) {
                             console.error("Error creating control menu spotlight:", error);
                         }
-                        console.log("==== FINISHED CREATING CONTROL MENU SPOTLIGHT ====");
                     }
-                    
                     this.is_animating = false;
                     this.reached_target = true;
-                    
                     if(FLAGS.PHYSICS_LOGS) {
-                        console.log('=== Animation Complete ===');
-                        console.log(`Final Position: (${this.target_position.x.toFixed(2)}, ${this.target_position.y.toFixed(2)}, ${this.target_position.z.toFixed(2)})`);
+                        console.log(`Control Menu animation complete final Position: (${this.target_position.x.toFixed(2)}, ${this.target_position.y.toFixed(2)}, ${this.target_position.z.toFixed(2)})`);
                     }
                 } else {
                     // Calculate progress with easing
@@ -706,13 +655,11 @@ export class ControlMenu {
 
     // Add this method to calculate spotlight position
     calculate_spotlight_position(camera_position, camera_quaternion) {
-        console.log("Calculating control menu spotlight position");
         const spotlightPosition = new THREE.Vector3();
         spotlightPosition.copy(camera_position);
         const backVector = new THREE.Vector3(0, 0, 15);
         backVector.applyQuaternion(camera_quaternion);
         spotlightPosition.add(backVector);
-        console.log("Calculated control menu spotlight position:", spotlightPosition);
         return spotlightPosition;
     }
 }
