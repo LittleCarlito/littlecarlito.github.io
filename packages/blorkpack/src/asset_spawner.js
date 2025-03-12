@@ -1251,39 +1251,23 @@ export class AssetSpawner {
      * Called from the main animation loop.
      */
     update_spotlight_helpers() {
-        // Log occasionally to avoid console spam
-        if (Math.random() < 0.05) {
-            console.log(`==== UPDATING SPOTLIGHT HELPERS ====`);
-            console.log(`Checking for spotlights with debug helpers...`);
-        }
-        
         // Find all spotlights in the scene
         this.scene.children.forEach(child => {
             if (child.isSpotLight && child.userData.debugHelpers) {
                 const { helper, cone } = child.userData.debugHelpers;
-                
-                // Log occasionally to avoid console spam
-                if (Math.random() < 0.01) {
-                    console.log(`Updating helpers for spotlight at position: x=${child.position.x}, y=${child.position.y}, z=${child.position.z}`);
-                    console.log(`Target position: x=${child.target.position.x}, y=${child.target.position.y}, z=${child.target.position.z}`);
-                }
-                
                 // Update the standard helper
                 if (helper) {
                     helper.update();
                 }
-                
                 // Update the cone position and orientation
                 if (cone) {
                     // Update position
                     cone.position.copy(child.position);
-                    
                     // Update orientation
                     const spotlightToTarget = new THREE.Vector3().subVectors(
                         child.target.position,
                         child.position
                     ).normalize();
-                    
                     const quaternion = new THREE.Quaternion();
                     quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), spotlightToTarget);
                     cone.quaternion.copy(quaternion);
@@ -1297,25 +1281,29 @@ export class AssetSpawner {
      * Shows or hides debug helpers based on the SPOTLIGHT_VISUAL_DEBUG flag.
      */
     async update_spotlight_debug_visualizations() {
-        console.log(`==== UPDATING SPOTLIGHT DEBUG VISUALIZATIONS ====`);
-        console.log(`SPOTLIGHT_VISUAL_DEBUG flag is: ${BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG}`);
-        
         // Find all spotlights in the scene
         const spotlights = this.scene.children.filter(child => child.isSpotLight);
-        console.log(`Found ${spotlights.length} spotlights in the scene`);
-        
+        if(BLORKPACK_FLAGS.ASSET_LOGS) {
+            console.log(`Found ${spotlights.length} spotlights in the scene`);
+        }
         if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
             console.log(`Debug visualization is enabled - creating or showing helpers`);
             // Create debug helpers for spotlights that don't have them
             for (const spotlight of spotlights) {
                 if (!spotlight.userData.debugHelpers) {
-                    console.log(`Creating new debug helpers for spotlight at position: x=${spotlight.position.x}, y=${spotlight.position.y}, z=${spotlight.position.z}`);
+                    if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                        console.log(`Creating new debug helpers for spotlight at position: x=${spotlight.position.x}, y=${spotlight.position.y}, z=${spotlight.position.z}`);
+                    }
                     const helpers = await this.create_spotlight_helper(spotlight);
                     spotlight.userData.debugHelpers = helpers;
-                    console.log(`Debug helpers created: ${helpers ? "success" : "failed"}`);
+                    if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                        console.log(`Debug helpers created: ${helpers ? "success" : "failed"}`);
+                    }
                 } else {
                     // Show existing helpers
-                    console.log(`Showing existing debug helpers for spotlight at position: x=${spotlight.position.x}, y=${spotlight.position.y}, z=${spotlight.position.z}`);
+                    if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                        console.log(`Showing existing debug helpers for spotlight at position: x=${spotlight.position.x}, y=${spotlight.position.y}, z=${spotlight.position.z}`);
+                    }
                     if (spotlight.userData.debugHelpers.helper) {
                         spotlight.userData.debugHelpers.helper.visible = true;
                     }
@@ -1325,11 +1313,15 @@ export class AssetSpawner {
                 }
             }
         } else {
-            console.log(`Debug visualization is disabled - hiding helpers`);
+            if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                console.log(`Debug visualization is disabled - hiding helpers`);
+            }
             // Hide all debug helpers
             for (const spotlight of spotlights) {
                 if (spotlight.userData.debugHelpers) {
-                    console.log(`Hiding debug helpers for spotlight at position: x=${spotlight.position.x}, y=${spotlight.position.y}, z=${spotlight.position.z}`);
+                    if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                        console.log(`Hiding debug helpers for spotlight at position: x=${spotlight.position.x}, y=${spotlight.position.y}, z=${spotlight.position.z}`);
+                    }
                     if (spotlight.userData.debugHelpers.helper) {
                         spotlight.userData.debugHelpers.helper.visible = false;
                     }
@@ -1339,8 +1331,6 @@ export class AssetSpawner {
                 }
             }
         }
-        
-        console.log(`==== SPOTLIGHT DEBUG VISUALIZATION UPDATE COMPLETE ====`);
     }
 
     /**
@@ -1354,16 +1344,6 @@ export class AssetSpawner {
      * @returns {Promise<Object>} The created spotlight with all necessary components
      */
     async create_spotlight(id, position, rotation, options, asset_data) {
-        console.log(`==== CREATING SPOTLIGHT: ${id} ====`);
-        console.log(`Position: x=${position.x}, y=${position.y}, z=${position.z}`);
-        console.log(`Rotation:`, rotation);
-        console.log(`Options:`, JSON.stringify(options, null, 2));
-        console.log(`SPOTLIGHT_VISUAL_DEBUG: ${BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG}`);
-        
-        if (BLORKPACK_FLAGS.ASSET_LOGS) {
-            console.log(`Creating spotlight for ${id}`);
-        }
-        
         // Get spotlight specific properties from additional_properties
         const color = parseInt(options.color || "0xffffff", 16);
         const intensity = asset_data?.additional_properties?.intensity || options.intensity || 0.3; // Lower default intensity
@@ -1371,12 +1351,14 @@ export class AssetSpawner {
         const angle = asset_data?.additional_properties?.angle || options.angle || Math.PI / 8; // Default to narrower angle
         const penumbra = asset_data?.additional_properties?.penumbra || options.penumbra || 0.1; // Default to sharper edge
         const sharpness = asset_data?.additional_properties?.sharpness || options.sharpness || 0.5; // More sharpness
-        
-        console.log(`Spotlight properties: color=${color.toString(16)}, intensity=${intensity}, max_distance=${max_distance}, angle=${angle}, penumbra=${penumbra}, sharpness=${sharpness}`);
-        
+        if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                console.log(`Creating spotlight for ${id}`);
+                console.log(`Spotlight properties: color=${color.toString(16)}, 
+                intensity=${intensity}, max_distance=${max_distance}, angle=${angle}, 
+                penumbra=${penumbra}, sharpness=${sharpness}`);
+        }
         // Create the spotlight
         try {
-            console.log(`Creating new THREE.SpotLight instance...`);
             const spotlight = new THREE.SpotLight(
                 color,
                 intensity,
@@ -1385,15 +1367,10 @@ export class AssetSpawner {
                 penumbra,
                 sharpness
             );
-            
             // Set the spotlight's position
-            console.log(`Setting spotlight position to: x=${position.x}, y=${position.y}, z=${position.z}`);
             spotlight.position.copy(position);
-            console.log(`Spotlight position after setting: x=${spotlight.position.x}, y=${spotlight.position.y}, z=${spotlight.position.z}`);
-            
             // Set shadow properties if the spotlight should cast shadows
             if (options.cast_shadow) {
-                console.log(`Enabling shadow casting for spotlight: ${id}`);
                 spotlight.castShadow = true;
                 
                 // Set shadow quality settings if provided
@@ -1443,14 +1420,10 @@ export class AssetSpawner {
                     spotlight.shadow.normalBias = 0.02;
                 }
             }
-            
             // Create and position target
-            console.log(`Creating spotlight target object`);
             const target = new THREE.Object3D();
-            
             // If target data is provided in the asset data, use that
             if (asset_data?.target && asset_data.target.position) {
-                console.log(`Using target position from asset_data: x=${asset_data.target.position.x || 0}, y=${asset_data.target.position.y || 0}, z=${asset_data.target.position.z || 0}`);
                 target.position.set(
                     asset_data.target.position.x || 0, 
                     asset_data.target.position.y || 0, 
@@ -1458,60 +1431,43 @@ export class AssetSpawner {
                 );
             } else {
                 // Otherwise calculate target position based on rotation
-                console.log(`Calculating target position based on rotation`);
                 const targetDistance = 100; // Use a fixed distance for the target
                 let rotX, rotY;
                 
                 if (rotation instanceof THREE.Euler) {
                     rotX = rotation.x || 0;
                     rotY = rotation.y || 0;
-                    console.log(`Using Euler rotation: x=${rotX}, y=${rotY}`);
                 } else {
                     // Default values if rotation is not provided as Euler
                     rotX = rotation.x || 0;
                     rotY = rotation.y || 0;
-                    console.log(`Using rotation object: x=${rotX}, y=${rotY}`);
                 }
-                
                 // Calculate target position based on spherical coordinates
                 const x = Math.sin(rotY) * Math.cos(rotX) * targetDistance;
                 const y = Math.sin(rotX) * targetDistance;
                 const z = Math.cos(rotY) * Math.cos(rotX) * targetDistance;
-                
-                console.log(`Calculated target offset: x=${x}, y=${y}, z=${z}`);
-                
                 target.position.set(
                     position.x + x,
                     position.y + y,
                     position.z + z
                 );
-                console.log(`Final target position: x=${target.position.x}, y=${target.position.y}, z=${target.position.z}`);
             }
-            
             // Set the target
             spotlight.target = target;
-            console.log(`Set spotlight target - spotlight now pointing from (${spotlight.position.x}, ${spotlight.position.y}, ${spotlight.position.z}) to (${target.position.x}, ${target.position.y}, ${target.position.z})`);
-            
             // Add objects to scene in next frame to prevent stuttering
-            console.log(`Waiting for next frame before adding to scene...`);
             await new Promise(resolve => setTimeout(resolve, 0));
-            
             // Add the spotlight and target to the scene
             try {
-                console.log(`Adding spotlight and target to scene...`);
                 this.scene.add(spotlight);
                 this.scene.add(target);
-                console.log(`Added spotlight and target to scene. Spotlight parent:`, spotlight.parent ? spotlight.parent.name || "unnamed" : "none");
             } catch (sceneError) {
                 console.error(`Error adding spotlight to scene:`, sceneError);
             }
-            
             // Set type in userData for later identification
             spotlight.userData = { 
                 ...spotlight.userData,
                 type: 'spotlight'
             };
-            
             // Create debug visualization if enabled
             if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
                 console.log(`Creating debug visualization for spotlight ${id} (SPOTLIGHT_VISUAL_DEBUG is enabled)`);
@@ -1529,7 +1485,6 @@ export class AssetSpawner {
             } else {
                 console.log(`Skipping debug visualization for spotlight ${id} (SPOTLIGHT_VISUAL_DEBUG is disabled)`);
             }
-            
             // Store references for later cleanup
             const asset_object = {
                 mesh: spotlight,
@@ -1537,21 +1492,16 @@ export class AssetSpawner {
                 objects: [spotlight, target],
                 type: 'spotlight'
             };
-            
             // Store in asset storage for proper cleanup
             try {
-                console.log(`Storing spotlight in asset storage...`);
                 const spotlight_id = this.storage.get_new_instance_id();
                 this.storage.store_static_mesh(spotlight_id, spotlight);
-                console.log(`Stored spotlight with ID: ${spotlight_id}`);
             } catch (storageError) {
                 console.error(`Error storing spotlight in asset storage:`, storageError);
             }
-            
-            console.log(`==== COMPLETED CREATING SPOTLIGHT: ${id} ====`);
             return asset_object;
         } catch (spotlightError) {
-            console.error(`==== ERROR CREATING SPOTLIGHT: ${id} ====`, spotlightError);
+            console.error(`ERROR CREATING SPOTLIGHT: ${id}`, spotlightError);
             return null;
         }
     }
