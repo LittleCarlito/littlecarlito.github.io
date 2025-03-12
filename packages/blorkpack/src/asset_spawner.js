@@ -98,12 +98,31 @@ export class AssetSpawner {
             // Hide collision meshes (objects with names starting with "col_")
             // And collect them for potential physics use
             const collisionMeshes = [];
+            const displayMeshes = [];
             model.traverse((child) => {
                 if (child.isMesh) {
                     if (child.name.startsWith('col_')) {
                         // This is a collision mesh - hide it and collect for physics
                         child.visible = false;
                         collisionMeshes.push(child);
+                    } else if (child.name.startsWith('display_')) {
+                        // This is a display mesh - make it visible and bright green for testing
+                        child.visible = true;
+                        
+                        // Create a bright green material for testing
+                        const greenMaterial = new THREE.MeshStandardMaterial({
+                            color: 0x00ff00,
+                            emissive: 0x00ff00,
+                            emissiveIntensity: 0.5
+                        });
+                        
+                        // Apply the material to the display mesh
+                        child.material = greenMaterial;
+                        displayMeshes.push(child);
+                        
+                        if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                            console.log(`Found display mesh: ${child.name} in ${asset_type}`);
+                        }
                     } else {
                         // Add interactable_ prefix to all visible meshes to make them grabbable
                         // Use the same naming convention for child meshes
@@ -112,6 +131,11 @@ export class AssetSpawner {
                     }
                 }
             });
+            
+            // Store reference to display meshes in model's userData if available
+            if (displayMeshes.length > 0) {
+                model.userData.displayMeshes = displayMeshes;
+            }
             
             // Add objects to scene in next frame to prevent stuttering
             await new Promise(resolve => setTimeout(resolve, 0));

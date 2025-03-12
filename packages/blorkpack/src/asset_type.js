@@ -90,7 +90,8 @@ export const ASSET_CONFIGS = {
         scale: SCALE_FACTOR,
         mass: 1,
         restitution: .2,
-        ui_scale: 10
+        ui_scale: 10,
+        display_layer: true
     },
     [ASSET_TYPE.MOUSE]: {
         PATH: "assets/mouse.glb",
