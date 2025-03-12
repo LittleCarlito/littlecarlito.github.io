@@ -1,3 +1,13 @@
+## [0.8.1](https://github.com/LittleCarlito/threejs_site/compare/v0.8.0...v0.8.1) (2025-03-12)
+
+
+### Bug Fixes
+
+* blorkpack pipeline ([71dfa8f](https://github.com/LittleCarlito/threejs_site/commit/71dfa8fa1cf86155dfcb68a99c4c4b715b218bbb))
+* blorkpack pipeline ([eadd290](https://github.com/LittleCarlito/threejs_site/commit/eadd2907ad92269513e64f71f456b386a2bd1d5f))
+* name in pipeline ([5f441d0](https://github.com/LittleCarlito/threejs_site/commit/5f441d086b02f66bfdd56380dc056ee784f8004a))
+* name in pipeline ([67bf545](https://github.com/LittleCarlito/threejs_site/commit/67bf545e64e544e387c0eea385b515fd916aef16))
+
 # [0.8.0](https://github.com/LittleCarlito/threejs_site/compare/v0.7.3...v0.8.0) (2025-03-12)
 
 
