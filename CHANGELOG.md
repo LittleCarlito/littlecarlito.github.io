@@ -1,3 +1,11 @@
+## [0.8.3](https://github.com/LittleCarlito/threejs_site/compare/v0.8.2...v0.8.3) (2025-03-12)
+
+
+### Bug Fixes
+
+* using public package ([93f9edc](https://github.com/LittleCarlito/threejs_site/commit/93f9edc2a0ef02fa268a98560b43eb934b4b9066))
+* using public package [#68](https://github.com/LittleCarlito/threejs_site/issues/68) ([af79b6a](https://github.com/LittleCarlito/threejs_site/commit/af79b6a7a5a437b1709de826e74171b9ac169f00))
+
 ## [0.8.2](https://github.com/LittleCarlito/threejs_site/compare/v0.8.1...v0.8.2) (2025-03-12)
 
 
