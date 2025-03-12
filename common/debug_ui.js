@@ -299,15 +299,86 @@ export function createDebugUI() {
     divider2.style.margin = '0 0 10px 0';
     debugUI.appendChild(divider2);
     
-    // Add resolution control section title
+    // Add resolution control section title - moved outside the container
     const resolutionTitle = document.createElement('div');
     resolutionTitle.textContent = 'Resolution Control';
     resolutionTitle.style.fontWeight = 'bold';
-    resolutionTitle.style.marginBottom = '8px';
+    resolutionTitle.style.marginBottom = '5px';
     debugUI.appendChild(resolutionTitle);
     
-    // Add auto-throttle toggle
-    addToggle(debugUI, 'AUTO_THROTTLE', 'Auto-Throttle', autoThrottleEnabled, (checked) => {
+    // Create a container for both the toggle and collapsible content
+    const resolutionSectionContainer = document.createElement('div');
+    resolutionSectionContainer.style.position = 'relative';
+    resolutionSectionContainer.style.marginBottom = '0'; // No margin by default
+    resolutionSectionContainer.style.transition = 'margin-bottom 0.3s ease-in-out';
+    debugUI.appendChild(resolutionSectionContainer);
+    
+    // Add toggle indicator for resolution control section
+    const resolutionToggle = document.createElement('div');
+    resolutionToggle.style.position = 'relative';
+    resolutionToggle.style.backgroundColor = '#444';
+    resolutionToggle.style.color = '#eee';
+    resolutionToggle.style.padding = '4px 0';
+    resolutionToggle.style.borderRadius = '3px';
+    resolutionToggle.style.textAlign = 'center';
+    resolutionToggle.style.cursor = 'pointer';
+    resolutionToggle.style.fontSize = '11px';
+    resolutionToggle.style.letterSpacing = '1px';
+    resolutionToggle.style.transition = 'all 0.2s ease';
+    resolutionToggle.style.border = '1px solid #555';
+    resolutionToggle.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
+    resolutionToggle.style.marginBottom = '0'; // No bottom margin on the button
+    resolutionToggle.innerHTML = 'SHOW CONTROLS';
+    resolutionToggle.title = 'Toggle resolution controls';
+    resolutionSectionContainer.appendChild(resolutionToggle);
+    
+    // Add hover effect for resolution toggle
+    resolutionToggle.addEventListener('mouseenter', function() {
+        this.style.backgroundColor = '#555';
+        this.style.color = '#fff';
+        this.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+    });
+    
+    resolutionToggle.addEventListener('mouseleave', function() {
+        this.style.backgroundColor = isResolutionVisible ? '#555' : '#444';
+        this.style.color = isResolutionVisible ? '#fff' : '#eee';
+        this.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
+    });
+    
+    // Create collapsible container for resolution controls
+    const resolutionContainer = document.createElement('div');
+    resolutionContainer.id = 'resolution-container';
+    resolutionContainer.style.marginTop = '0';
+    resolutionContainer.style.padding = '10px';
+    resolutionContainer.style.border = '1px solid #444';
+    resolutionContainer.style.borderRadius = '5px';
+    resolutionContainer.style.maxHeight = '0'; // Start collapsed
+    resolutionContainer.style.overflow = 'hidden';
+    resolutionContainer.style.transition = 'max-height 0.3s ease-in-out, opacity 0.2s ease-in-out, margin-top 0.3s ease-in-out';
+    resolutionContainer.style.opacity = '0';
+    resolutionSectionContainer.appendChild(resolutionContainer);
+    
+    // Add click event to toggle resolution controls visibility
+    let isResolutionVisible = false;
+    resolutionToggle.addEventListener('click', function() {
+        isResolutionVisible = !isResolutionVisible;
+        
+        resolutionContainer.style.maxHeight = isResolutionVisible ? '300px' : '0';
+        resolutionContainer.style.opacity = isResolutionVisible ? '1' : '0';
+        resolutionContainer.style.marginTop = isResolutionVisible ? '8px' : '0';
+        resolutionSectionContainer.style.marginBottom = isResolutionVisible ? '15px' : '0';
+        
+        // Update the divider margin too
+        divider3.style.margin = isResolutionVisible ? '10px 0' : '5px 0 10px 0';
+        
+        // Update the toggle button styling
+        this.innerHTML = isResolutionVisible ? 'HIDE CONTROLS' : 'SHOW CONTROLS';
+        this.style.backgroundColor = isResolutionVisible ? '#555' : '#444';
+        this.style.color = isResolutionVisible ? '#fff' : '#eee';
+    });
+    
+    // Add auto-throttle toggle - moved inside the container
+    addToggle(resolutionContainer, 'AUTO_THROTTLE', 'Auto-Throttle', autoThrottleEnabled, (checked) => {
         autoThrottleEnabled = checked;
         
         // Enable/disable resolution dropdown based on auto-throttle state
@@ -364,7 +435,7 @@ export function createDebugUI() {
         console.log(`Auto-throttle ${checked ? 'enabled' : 'disabled'}`);
     });
     
-    // Add resolution dropdown instead of slider
+    // Add resolution dropdown instead of slider - moved inside the container
     const dropdownContainer = document.createElement('div');
     dropdownContainer.style.marginBottom = '10px';
     
@@ -414,9 +485,9 @@ export function createDebugUI() {
     });
     
     dropdownContainer.appendChild(dropdown);
-    debugUI.appendChild(dropdownContainer);
+    resolutionContainer.appendChild(dropdownContainer);
     
-    // Add Max FPS dropdown
+    // Add Max FPS dropdown - moved inside the container
     const fpsDropdownContainer = document.createElement('div');
     fpsDropdownContainer.style.marginBottom = '10px';
     
@@ -474,27 +545,92 @@ export function createDebugUI() {
     });
     
     fpsDropdownContainer.appendChild(fpsDropdown);
-    debugUI.appendChild(fpsDropdownContainer);
+    resolutionContainer.appendChild(fpsDropdownContainer);
     
-    // Add divider
+    // Add divider with transition for margin
     const divider3 = document.createElement('div');
     divider3.style.borderBottom = '1px solid #555';
-    divider3.style.margin = '10px 0';
+    divider3.style.margin = '5px 0 10px 0'; // Adjusted margin for collapsed state by default
+    divider3.style.transition = 'margin 0.3s ease-in-out';
     debugUI.appendChild(divider3);
     
-    // Add Display Mesh Control section
-    const displayMeshContainer = document.createElement('div');
-    displayMeshContainer.style.marginTop = '10px';
-    displayMeshContainer.style.padding = '10px';
-    displayMeshContainer.style.border = '1px solid #444';
-    displayMeshContainer.style.borderRadius = '5px';
-    
-    // Title for display mesh section
+    // Title for display mesh section - moved outside the container
     const displayMeshTitle = document.createElement('div');
     displayMeshTitle.textContent = 'DISPLAY MESH CONTROL';
     displayMeshTitle.style.fontWeight = 'bold';
-    displayMeshTitle.style.marginBottom = '10px';
-    displayMeshContainer.appendChild(displayMeshTitle);
+    displayMeshTitle.style.marginBottom = '5px';
+    debugUI.appendChild(displayMeshTitle);
+    
+    // Create a container for both the toggle and collapsible content
+    const displayMeshSectionContainer = document.createElement('div');
+    displayMeshSectionContainer.style.position = 'relative';
+    displayMeshSectionContainer.style.marginBottom = '0'; // No margin by default
+    displayMeshSectionContainer.style.transition = 'margin-bottom 0.3s ease-in-out';
+    debugUI.appendChild(displayMeshSectionContainer);
+    
+    // Add toggle indicator for display mesh section
+    const displayMeshToggle = document.createElement('div');
+    displayMeshToggle.style.position = 'relative';
+    displayMeshToggle.style.backgroundColor = '#444';
+    displayMeshToggle.style.color = '#eee';
+    displayMeshToggle.style.padding = '4px 0';
+    displayMeshToggle.style.borderRadius = '3px';
+    displayMeshToggle.style.textAlign = 'center';
+    displayMeshToggle.style.cursor = 'pointer';
+    displayMeshToggle.style.fontSize = '11px';
+    displayMeshToggle.style.letterSpacing = '1px';
+    displayMeshToggle.style.transition = 'all 0.2s ease';
+    displayMeshToggle.style.border = '1px solid #555';
+    displayMeshToggle.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
+    displayMeshToggle.style.marginBottom = '0'; // No bottom margin on the button
+    displayMeshToggle.innerHTML = 'SHOW CONTROLS';
+    displayMeshToggle.title = 'Toggle display mesh controls';
+    displayMeshSectionContainer.appendChild(displayMeshToggle);
+    
+    // Add hover effect for display mesh toggle
+    displayMeshToggle.addEventListener('mouseenter', function() {
+        this.style.backgroundColor = '#555';
+        this.style.color = '#fff';
+        this.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+    });
+    
+    displayMeshToggle.addEventListener('mouseleave', function() {
+        this.style.backgroundColor = isDisplayMeshVisible ? '#555' : '#444';
+        this.style.color = isDisplayMeshVisible ? '#fff' : '#eee';
+        this.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
+    });
+    
+    // Create collapsible container for display mesh controls
+    const displayMeshContainer = document.createElement('div');
+    displayMeshContainer.id = 'display-mesh-container';
+    displayMeshContainer.style.marginTop = '0';
+    displayMeshContainer.style.padding = '10px';
+    displayMeshContainer.style.border = '1px solid #444';
+    displayMeshContainer.style.borderRadius = '5px';
+    displayMeshContainer.style.maxHeight = '0'; // Start collapsed
+    displayMeshContainer.style.overflow = 'hidden';
+    displayMeshContainer.style.transition = 'max-height 0.3s ease-in-out, opacity 0.2s ease-in-out, margin-top 0.3s ease-in-out';
+    displayMeshContainer.style.opacity = '0';
+    displayMeshSectionContainer.appendChild(displayMeshContainer);
+    
+    // Add click event to toggle display mesh controls visibility
+    let isDisplayMeshVisible = false;
+    displayMeshToggle.addEventListener('click', function() {
+        isDisplayMeshVisible = !isDisplayMeshVisible;
+        
+        displayMeshContainer.style.maxHeight = isDisplayMeshVisible ? '300px' : '0';
+        displayMeshContainer.style.opacity = isDisplayMeshVisible ? '1' : '0';
+        displayMeshContainer.style.marginTop = isDisplayMeshVisible ? '8px' : '0';
+        displayMeshSectionContainer.style.marginBottom = isDisplayMeshVisible ? '15px' : '0';
+        
+        // Update the divider margin too
+        displayDivider.style.margin = isDisplayMeshVisible ? '10px 0' : '5px 0 10px 0';
+        
+        // Update the toggle button styling
+        this.innerHTML = isDisplayMeshVisible ? 'HIDE CONTROLS' : 'SHOW CONTROLS';
+        this.style.backgroundColor = isDisplayMeshVisible ? '#555' : '#444';
+        this.style.color = isDisplayMeshVisible ? '#fff' : '#eee';
+    });
     
     // Container for object selection
     const objectSelectContainer = document.createElement('div');
@@ -577,7 +713,8 @@ export function createDebugUI() {
     // Add divider before the Debug Toggles section
     const displayDivider = document.createElement('div');
     displayDivider.style.borderBottom = '1px solid #555';
-    displayDivider.style.margin = '10px 0';
+    displayDivider.style.margin = isDisplayMeshVisible ? '10px 0' : '5px 0 10px 0'; // Adjusted margin
+    displayDivider.style.transition = 'margin 0.3s ease-in-out';
     debugUI.appendChild(displayDivider);
     
     // Create a container for the debug toggles section (keep this visible)
@@ -973,122 +1110,6 @@ function updateDropdownValue(scale) {
     if (closestOption) {
         dropdown.value = closestOption.value;
     }
-}
-
-/**
- * Adds a toggle switch for a debug flag
- * @param {HTMLElement} parent - The parent element to append to
- * @param {string} flagName - The name of the flag in FLAGS object
- * @param {string} label - The display label for the toggle
- * @param {boolean} initialState - Initial state of the toggle (optional)
- * @param {Function} onChange - Callback function when toggle changes (optional)
- */
-function addToggle(parent, flagName, label, initialState, onChange) {
-    const toggleContainer = document.createElement('div');
-    toggleContainer.style.display = 'flex';
-    toggleContainer.style.justifyContent = 'space-between';
-    toggleContainer.style.alignItems = 'center';
-    toggleContainer.style.marginBottom = '5px';
-    
-    const toggleLabel = document.createElement('span');
-    toggleLabel.textContent = label;
-    toggleContainer.appendChild(toggleLabel);
-    
-    const toggle = document.createElement('label');
-    toggle.className = 'switch';
-    toggle.style.position = 'relative';
-    toggle.style.display = 'inline-block';
-    toggle.style.width = '30px';
-    toggle.style.height = '17px';
-    
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    
-    // Use provided initial state or get from FLAGS or BLORKPACK_FLAGS
-    let isChecked = initialState !== undefined ? initialState : false;
-    if (flagName === 'SPOTLIGHT_VISUAL_DEBUG') {
-        isChecked = BLORKPACK_FLAGS[flagName] || false;
-    } else {
-        isChecked = FLAGS[flagName] || false;
-    }
-    checkbox.checked = isChecked;
-    
-    checkbox.style.opacity = '0';
-    checkbox.style.width = '0';
-    checkbox.style.height = '0';
-    
-    const slider = document.createElement('span');
-    slider.className = 'slider';
-    slider.style.position = 'absolute';
-    slider.style.cursor = 'pointer';
-    slider.style.top = '0';
-    slider.style.left = '0';
-    slider.style.right = '0';
-    slider.style.bottom = '0';
-    slider.style.backgroundColor = isChecked ? '#4CAF50' : '#ccc';
-    slider.style.transition = '.4s';
-    slider.style.borderRadius = '17px';
-    
-    // Create the circle on the slider
-    const circle = document.createElement('span');
-    circle.style.position = 'absolute';
-    circle.style.height = '13px';
-    circle.style.width = '13px';
-    circle.style.left = isChecked ? '13px' : '2px';
-    circle.style.bottom = '2px';
-    circle.style.backgroundColor = 'white';
-    circle.style.transition = '.4s';
-    circle.style.borderRadius = '50%';
-    slider.appendChild(circle);
-    
-    // Add event listener to toggle the flag
-    checkbox.addEventListener('change', function() {
-        const checked = this.checked;
-        slider.style.backgroundColor = checked ? '#4CAF50' : '#ccc';
-        circle.style.left = checked ? '13px' : '2px';
-        
-        // Special case for SPOTLIGHT_VISUAL_DEBUG which now uses BLORKPACK_FLAGS
-        if (flagName === 'SPOTLIGHT_VISUAL_DEBUG') {
-            // Skip the default FLAG update
-            if (onChange && typeof onChange === 'function') {
-                onChange(checked);
-            }
-            return;
-        }
-        
-        // For all other flags, update FLAGS as before
-        if (flagName in FLAGS) {
-            FLAGS[flagName] = checked;
-            console.log(`${flagName} set to ${checked}`);
-            
-            // Call specific update functions based on the flag
-            if (flagName === 'SIGN_VISUAL_DEBUG' && flagName !== 'COLLISION_VISUAL_DEBUG') {
-                // Only handle SIGN_VISUAL_DEBUG here if it's not being controlled by COLLISION_VISUAL_DEBUG
-                if (backgroundContainer) {
-                    backgroundContainer.updateSignDebugVisualizations();
-                }
-            } else if (flagName === 'COLLISION_VISUAL_DEBUG') {
-                // For collision debug, we need to refresh the scene to show/hide wireframes
-                // The wireframes will be created/updated in the next frame if the flag is enabled
-                console.log(`Collision debug visualization ${checked ? 'enabled' : 'disabled'}`);
-                
-                // The visibility of wireframes is controlled in the update_debug_wireframes method
-                // which is called every frame during the physics update
-                console.log(`All collision wireframes will be ${checked ? 'shown' : 'hidden'}`);
-            }
-        }
-        
-        // Call onChange callback if provided
-        if (onChange && typeof onChange === 'function') {
-            onChange(checked);
-        }
-    });
-    
-    toggle.appendChild(checkbox);
-    toggle.appendChild(slider);
-    toggleContainer.appendChild(toggle);
-    
-    parent.appendChild(toggleContainer);
 }
 
 /**
@@ -1872,4 +1893,120 @@ function startDisplayMeshFallbackTimer() {
     }, 30000); // Check every 30 seconds
     
     console.log('Started display mesh fallback timer (checking every 30 seconds)');
+}
+
+/**
+ * Adds a toggle switch for a debug flag
+ * @param {HTMLElement} parent - The parent element to append to
+ * @param {string} flagName - The name of the flag in FLAGS object
+ * @param {string} label - The display label for the toggle
+ * @param {boolean} initialState - Initial state of the toggle (optional)
+ * @param {Function} onChange - Callback function when toggle changes (optional)
+ */
+function addToggle(parent, flagName, label, initialState, onChange) {
+    const toggleContainer = document.createElement('div');
+    toggleContainer.style.display = 'flex';
+    toggleContainer.style.justifyContent = 'space-between';
+    toggleContainer.style.alignItems = 'center';
+    toggleContainer.style.marginBottom = '5px';
+    
+    const toggleLabel = document.createElement('span');
+    toggleLabel.textContent = label;
+    toggleContainer.appendChild(toggleLabel);
+    
+    const toggle = document.createElement('label');
+    toggle.className = 'switch';
+    toggle.style.position = 'relative';
+    toggle.style.display = 'inline-block';
+    toggle.style.width = '30px';
+    toggle.style.height = '17px';
+    
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    
+    // Use provided initial state or get from FLAGS or BLORKPACK_FLAGS
+    let isChecked = initialState !== undefined ? initialState : false;
+    if (flagName === 'SPOTLIGHT_VISUAL_DEBUG') {
+        isChecked = BLORKPACK_FLAGS[flagName] || false;
+    } else {
+        isChecked = FLAGS[flagName] || false;
+    }
+    checkbox.checked = isChecked;
+    
+    checkbox.style.opacity = '0';
+    checkbox.style.width = '0';
+    checkbox.style.height = '0';
+    
+    const slider = document.createElement('span');
+    slider.className = 'slider';
+    slider.style.position = 'absolute';
+    slider.style.cursor = 'pointer';
+    slider.style.top = '0';
+    slider.style.left = '0';
+    slider.style.right = '0';
+    slider.style.bottom = '0';
+    slider.style.backgroundColor = isChecked ? '#4CAF50' : '#ccc';
+    slider.style.transition = '.4s';
+    slider.style.borderRadius = '17px';
+    
+    // Create the circle on the slider
+    const circle = document.createElement('span');
+    circle.style.position = 'absolute';
+    circle.style.height = '13px';
+    circle.style.width = '13px';
+    circle.style.left = isChecked ? '13px' : '2px';
+    circle.style.bottom = '2px';
+    circle.style.backgroundColor = 'white';
+    circle.style.transition = '.4s';
+    circle.style.borderRadius = '50%';
+    slider.appendChild(circle);
+    
+    // Add event listener to toggle the flag
+    checkbox.addEventListener('change', function() {
+        const checked = this.checked;
+        slider.style.backgroundColor = checked ? '#4CAF50' : '#ccc';
+        circle.style.left = checked ? '13px' : '2px';
+        
+        // Special case for SPOTLIGHT_VISUAL_DEBUG which now uses BLORKPACK_FLAGS
+        if (flagName === 'SPOTLIGHT_VISUAL_DEBUG') {
+            // Skip the default FLAG update
+            if (onChange && typeof onChange === 'function') {
+                onChange(checked);
+            }
+            return;
+        }
+        
+        // For all other flags, update FLAGS as before
+        if (flagName in FLAGS) {
+            FLAGS[flagName] = checked;
+            console.log(`${flagName} set to ${checked}`);
+            
+            // Call specific update functions based on the flag
+            if (flagName === 'SIGN_VISUAL_DEBUG' && flagName !== 'COLLISION_VISUAL_DEBUG') {
+                // Only handle SIGN_VISUAL_DEBUG here if it's not being controlled by COLLISION_VISUAL_DEBUG
+                if (backgroundContainer) {
+                    backgroundContainer.updateSignDebugVisualizations();
+                }
+            } else if (flagName === 'COLLISION_VISUAL_DEBUG') {
+                // For collision debug, we need to refresh the scene to show/hide wireframes
+                // The wireframes will be created/updated in the next frame if the flag is enabled
+                console.log(`Collision debug visualization ${checked ? 'enabled' : 'disabled'}`);
+                
+                // The visibility of wireframes is controlled in the update_debug_wireframes method
+                // which is called every frame during the physics update
+                console.log(`All collision wireframes will be ${checked ? 'shown' : 'hidden'}`);
+            }
+        }
+        
+        // Call onChange callback if provided
+        if (onChange && typeof onChange === 'function') {
+            onChange(checked);
+        }
+    });
+    
+    toggle.appendChild(checkbox);
+    toggle.appendChild(slider);
+    toggleContainer.appendChild(toggle);
+    
+    parent.appendChild(toggleContainer);
 } 
