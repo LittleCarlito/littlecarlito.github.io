@@ -519,7 +519,7 @@ export class ControlMenu {
                     const rotationY = Math.atan2(direction.x, direction.z);
                     const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
 
-                    this.lighting.create_spotlight(
+                    this.menu_spotlight = await this.lighting.create_spotlight(
                         "control_menu_spotlight",
                         spotlightPosition,
                         { x: rotationX, y: rotationY },
@@ -528,9 +528,7 @@ export class ControlMenu {
                             max_distance: 0
                         },
                         {} // empty asset_data
-                    ).then(spotlight => {
-                        this.menu_spotlight = spotlight;
-                    });
+                    );
                 }
                 
                 this.is_animating = false;

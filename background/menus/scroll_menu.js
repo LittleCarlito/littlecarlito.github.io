@@ -1,9 +1,8 @@
 import { THREE, FLAGS } from "../../common";
-import { AssetStorage, ASSET_TYPE } from 'blorkpack';
+import { AssetStorage, ASSET_TYPE, BLORKPACK_FLAGS } from 'blorkpack';
 import { TYPES } from "../../viewport/overlay/overlay_common";
 import { BackgroundLighting } from '../background_lighting';
 import { RAPIER } from '../../common';
-import { BLORKPACK_FLAGS } from "../../packages/blorkpack/src";
 
 export class ScrollMenu {
     parent;

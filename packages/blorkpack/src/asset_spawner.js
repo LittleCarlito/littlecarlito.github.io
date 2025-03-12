@@ -113,6 +113,9 @@ export class AssetSpawner {
                 }
             });
             
+            // Add objects to scene in next frame to prevent stuttering
+            await new Promise(resolve => setTimeout(resolve, 0));
+            
             // Add to scene
             this.scene.add(model);
             
@@ -143,7 +146,7 @@ export class AssetSpawner {
                 if (collisionMeshes.length > 0) {
                     // Use the collision meshes for physics
                     for (const collisionMesh of collisionMeshes) {
-                        this.create_collider_from_mesh(collisionMesh, physicsBody, asset_config, options);
+                        await this.create_collider_from_mesh(collisionMesh, physicsBody, asset_config, options);
                     }
                 } else {
                     // Fallback to simple cuboid collider
@@ -199,7 +202,7 @@ export class AssetSpawner {
                 // Create debug wireframe if debug is enabled
                 if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
                     try {
-                        this.create_debug_wireframe(
+                        await this.create_debug_wireframe(
                             'box',
                             { width: halfScale * 2, height: halfScale * 2, depth: halfScale * 2 },
                             position,
@@ -237,9 +240,9 @@ export class AssetSpawner {
      * @param {THREE.Vector3} position - The position of the wireframe.
      * @param {THREE.Quaternion} rotation - The rotation of the wireframe.
      * @param {Object} options - Additional options for the wireframe.
-     * @returns {THREE.Mesh} The created wireframe mesh.
+     * @returns {Promise<THREE.Mesh>} The created wireframe mesh.
      */
-    create_debug_wireframe(type, dimensions, position, rotation, options = {}) {
+    async create_debug_wireframe(type, dimensions, position, rotation, options = {}) {
         let geometry;
         
         // If we have a mesh geometry provided, use it directly for maximum accuracy
@@ -327,6 +330,9 @@ export class AssetSpawner {
         mesh.userData.debugType = type;
         mesh.userData.originalObject = options.originalObject;
         mesh.userData.isStatic = options.isStatic;
+        
+        // Add objects to scene in next frame to prevent stuttering
+        await new Promise(resolve => setTimeout(resolve, 0));
         
         // Only add to scene and store if debug is enabled
         if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
@@ -454,9 +460,9 @@ export class AssetSpawner {
      * @param {RAPIER.RigidBody} body - The rigid body to attach the collider to
      * @param {Object} asset_config - Asset configuration data
      * @param {Object} [options={}] - Additional options for collider creation
-     * @returns {RAPIER.Collider} The created collider
+     * @returns {Promise<RAPIER.Collider>} The created collider
      */
-    create_collider_from_mesh(mesh, body, asset_config, options = {}) {
+    async create_collider_from_mesh(mesh, body, asset_config, options = {}) {
         if (!mesh || !body) return null;
         
         const geometry = mesh.geometry;
@@ -587,7 +593,7 @@ export class AssetSpawner {
      * This allows the main application to control debug visualization.
      * @param {boolean} enabled - Whether collision debug should be enabled
      */
-    set_collision_debug(enabled) {
+    async set_collision_debug(enabled) {
         // Note: We're using the internal BLORKPACK_FLAGS but also accepting external control
         BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG = enabled;
         
@@ -609,14 +615,14 @@ export class AssetSpawner {
         }
         
         // If enabling, create wireframes for all bodies
-        this.create_debug_wireframes_for_all_bodies();
+        await this.create_debug_wireframes_for_all_bodies();
     }
     
     /**
      * Creates debug wireframes for all physics bodies.
      * This is used when enabling debug visualization after objects are already created.
      */
-    create_debug_wireframes_for_all_bodies() {
+    async create_debug_wireframes_for_all_bodies() {
         // First clear any existing wireframes
         this.debugMeshes.forEach((mesh) => {
             if (mesh.parent) {
@@ -638,8 +644,8 @@ export class AssetSpawner {
         const dynamicBodies = this.storage.get_all_dynamic_bodies();
         
         // Create a debug wireframe for each body
-        dynamicBodies.forEach(([mesh, body]) => {
-            if (!body) return;
+        for (const [mesh, body] of dynamicBodies) {
+            if (!body) continue;
             
             // Get the body position and rotation
             const position = body.translation();
@@ -655,7 +661,7 @@ export class AssetSpawner {
             
             if (collisionMeshes.length > 0) {
                 // Create wireframes for each collision mesh
-                collisionMeshes.forEach((colMesh) => {
+                for (const colMesh of collisionMeshes) {
                     // Get the world transform of the collision mesh
                     const worldPosition = new THREE.Vector3();
                     const worldQuaternion = new THREE.Quaternion();
@@ -671,7 +677,7 @@ export class AssetSpawner {
                     }
                     
                     // Create a wireframe using the actual collision mesh geometry
-                    this.create_debug_wireframe(
+                    await this.create_debug_wireframe(
                         'mesh',
                         null,  // Dimensions not needed when using actual geometry
                         worldPosition,
@@ -685,7 +691,7 @@ export class AssetSpawner {
                             isStatic: false // Explicitly mark as NOT static
                         }
                     );
-                });
+                }
             } else {
                 // No collision meshes, create wireframe based on object bounds
                 const boundingBox = new THREE.Box3().setFromObject(mesh);
@@ -696,7 +702,7 @@ export class AssetSpawner {
                 }
                 
                 // Create the debug wireframe
-                this.create_debug_wireframe(
+                await this.create_debug_wireframe(
                     'cuboid', 
                     { 
                         x: size.x * 0.5, 
@@ -713,12 +719,12 @@ export class AssetSpawner {
                     }
                 );
             }
-        });
+        }
         
         // Also check for static bodies that might have physics
         const staticMeshes = this.storage.get_all_static_meshes();
-        staticMeshes.forEach((mesh) => {
-            if (!mesh) return;
+        for (const mesh of staticMeshes) {
+            if (!mesh) continue;
             
             // Only process static meshes that might have collision (like rooms)
             if (mesh.name.includes('ROOM') || mesh.name.includes('FLOOR')) {
@@ -735,7 +741,7 @@ export class AssetSpawner {
                     console.log(`Creating static wireframe for room: ${mesh.name}`);
                 }
                 
-                this.create_debug_wireframe(
+                await this.create_debug_wireframe(
                     'cuboid', 
                     { 
                         x: size.x * 0.5, 
@@ -751,7 +757,7 @@ export class AssetSpawner {
                     }
                 );
             }
-        });
+        }
     }
 
     /**
@@ -963,7 +969,7 @@ export class AssetSpawner {
                     }
                     
                     // Create a primitive box with the specified dimensions and color
-                    result = this.create_primitive_box(
+                    result = await this.create_primitive_box(
                         dimensions.width, 
                         dimensions.height, 
                         dimensions.depth, 
@@ -1016,9 +1022,9 @@ export class AssetSpawner {
      * @param {THREE.Euler} rotation - Rotation of the spotlight
      * @param {Object} options - Additional options for the spotlight
      * @param {Object} asset_data - The original asset data from the manifest
-     * @returns {Object} The created spotlight with all necessary components
+     * @returns {Promise<Object>} The created spotlight with all necessary components
      */
-    create_spotlight(id, position, rotation, options, asset_data) {
+    async create_spotlight(id, position, rotation, options, asset_data) {
         if (BLORKPACK_FLAGS.ASSET_LOGS) {
             console.log(`Creating spotlight for ${id}`);
         }
@@ -1126,6 +1132,9 @@ export class AssetSpawner {
         
         // Set the target
         spotlight.target = target;
+        
+        // Add objects to scene in next frame to prevent stuttering
+        await new Promise(resolve => setTimeout(resolve, 0));
         
         // Add the spotlight and target to the scene
         this.scene.add(spotlight);
@@ -1256,7 +1265,7 @@ export class AssetSpawner {
                 
                 if (asset_type === 'primitive_box') {
                     // Create a primitive box with the specified dimensions and properties
-                    result = this.create_primitive_box(
+                    result = await this.create_primitive_box(
                         options.dimensions.width, 
                         options.dimensions.height, 
                         options.dimensions.depth, 
@@ -1267,7 +1276,7 @@ export class AssetSpawner {
                 } 
                 // Handle spotlight asset type
                 else if (asset_type === 'spotlight') {
-                    result = this.create_spotlight(
+                    result = await this.create_spotlight(
                         asset_data.id,
                         position,
                         rotation,
@@ -1278,7 +1287,7 @@ export class AssetSpawner {
                 // Handle primitive sphere asset type
                 else if (asset_type === 'primitive_sphere') {
                     const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
-                    result = this.create_primitive_sphere(
+                    result = await this.create_primitive_sphere(
                         asset_data.id,
                         radius,
                         position, 
@@ -1290,7 +1299,7 @@ export class AssetSpawner {
                 else if (asset_type === 'primitive_capsule') {
                     const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
                     const height = options.dimensions?.height || 1.0;
-                    result = this.create_primitive_capsule(
+                    result = await this.create_primitive_capsule(
                         asset_data.id,
                         radius,
                         height,
@@ -1303,7 +1312,7 @@ export class AssetSpawner {
                 else if (asset_type === 'primitive_cylinder') {
                     const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
                     const height = options.dimensions?.height || 1.0;
-                    result = this.create_primitive_cylinder(
+                    result = await this.create_primitive_cylinder(
                         asset_data.id,
                         radius,
                         height,
@@ -1348,9 +1357,9 @@ export class AssetSpawner {
      * @param {THREE.Vector3} position - Position of the box
      * @param {THREE.Quaternion} rotation - Rotation of the box
      * @param {Object} options - Additional options for the box
-     * @returns {Object} The created box with mesh and body
+     * @returns {Promise<Object>} The created box with mesh and body
      */
-    create_primitive_box(width, height, depth, position, rotation, options = {}) {
+    async create_primitive_box(width, height, depth, position, rotation, options = {}) {
         // Make sure position and rotation are valid
         position = position || new THREE.Vector3();
         
@@ -1391,6 +1400,9 @@ export class AssetSpawner {
         // Set shadow properties
         mesh.castShadow = options.cast_shadow || false;
         mesh.receiveShadow = options.receive_shadow || false;
+        
+        // Add objects to scene in next frame to prevent stuttering
+        await new Promise(resolve => setTimeout(resolve, 0));
         
         // Add to scene
         this.scene.add(mesh);
@@ -1450,7 +1462,7 @@ export class AssetSpawner {
             // Create debug wireframe if debug is enabled
             if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
                 try {
-                    this.create_debug_wireframe(
+                    await this.create_debug_wireframe(
                         'box',
                         { width: collider_width * 2, height: collider_height * 2, depth: collider_depth * 2 },
                         position,
@@ -1484,9 +1496,9 @@ export class AssetSpawner {
      * @param {THREE.Vector3} position - Position of the sphere
      * @param {THREE.Quaternion} rotation - Rotation of the sphere
      * @param {Object} options - Additional options for the sphere
-     * @returns {Object} The created sphere with mesh and physics body
+     * @returns {Promise<Object>} The created sphere with mesh and physics body
      */
-    create_primitive_sphere(id, radius, position, rotation, options = {}) {
+    async create_primitive_sphere(id, radius, position, rotation, options = {}) {
         // Make sure position and rotation are valid
         position = position || new THREE.Vector3();
         rotation = rotation || new THREE.Quaternion();
@@ -1522,6 +1534,9 @@ export class AssetSpawner {
         // Set shadow properties
         mesh.castShadow = options.cast_shadow || false;
         mesh.receiveShadow = options.receive_shadow || false;
+        
+        // Add objects to scene in next frame to prevent stuttering
+        await new Promise(resolve => setTimeout(resolve, 0));
         
         // Add to scene
         this.scene.add(mesh);
@@ -1570,7 +1585,7 @@ export class AssetSpawner {
             // Create debug wireframe if debug is enabled
             if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
                 try {
-                    this.create_debug_wireframe(
+                    await this.create_debug_wireframe(
                         'sphere',
                         { radius: radius },
                         position,
@@ -1605,9 +1620,9 @@ export class AssetSpawner {
      * @param {THREE.Vector3} position - Position of the capsule
      * @param {THREE.Quaternion} rotation - Rotation of the capsule
      * @param {Object} options - Additional options for the capsule
-     * @returns {Object} The created capsule with mesh and physics body
+     * @returns {Promise<Object>} The created capsule with mesh and physics body
      */
-    create_primitive_capsule(id, radius, height, position, rotation, options = {}) {
+    async create_primitive_capsule(id, radius, height, position, rotation, options = {}) {
         // Make sure position and rotation are valid
         position = position || new THREE.Vector3();
         rotation = rotation || new THREE.Quaternion();
@@ -1643,6 +1658,9 @@ export class AssetSpawner {
         // Set shadow properties
         mesh.castShadow = options.cast_shadow || false;
         mesh.receiveShadow = options.receive_shadow || false;
+        
+        // Add objects to scene in next frame to prevent stuttering
+        await new Promise(resolve => setTimeout(resolve, 0));
         
         // Add to scene
         this.scene.add(mesh);
@@ -1691,7 +1709,7 @@ export class AssetSpawner {
             // Create debug wireframe if debug is enabled
             if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
                 try {
-                    this.create_debug_wireframe(
+                    await this.create_debug_wireframe(
                         'capsule',
                         { radius: radius, height: height },
                         position,
@@ -1726,9 +1744,9 @@ export class AssetSpawner {
      * @param {THREE.Vector3} position - Position of the cylinder
      * @param {THREE.Quaternion} rotation - Rotation of the cylinder
      * @param {Object} options - Additional options for the cylinder
-     * @returns {Object} The created cylinder with mesh and physics body
+     * @returns {Promise<Object>} The created cylinder with mesh and physics body
      */
-    create_primitive_cylinder(id, radius, height, position, rotation, options = {}) {
+    async create_primitive_cylinder(id, radius, height, position, rotation, options = {}) {
         // Make sure position and rotation are valid
         position = position || new THREE.Vector3();
         rotation = rotation || new THREE.Quaternion();
@@ -1764,6 +1782,9 @@ export class AssetSpawner {
         // Set shadow properties
         mesh.castShadow = options.cast_shadow || false;
         mesh.receiveShadow = options.receive_shadow || false;
+        
+        // Add objects to scene in next frame to prevent stuttering
+        await new Promise(resolve => setTimeout(resolve, 0));
         
         // Add to scene
         this.scene.add(mesh);
@@ -1812,7 +1833,7 @@ export class AssetSpawner {
             // Create debug wireframe if debug is enabled
             if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
                 try {
-                    this.create_debug_wireframe(
+                    await this.create_debug_wireframe(
                         'cylinder',
                         { radius: radius, height: height },
                         position,

@@ -13,11 +13,11 @@ export default defineConfig(({ command }) => ({
     rollupOptions: {
       output: {
         manualChunks: {
-          'vendor': ['three/examples/jsm/libs/tween.module.js'],
           'three-core': ['three'],
           'three-addons': [
             'three/examples/jsm/controls/OrbitControls',
-            'three/examples/jsm/Addons.js'
+            'three/examples/jsm/Addons.js',
+            'three/examples/jsm/libs/tween.module.js'
           ],
           'physics': ['@dimforge/rapier3d-compat']
         },

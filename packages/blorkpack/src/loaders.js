@@ -1,8 +1,8 @@
 // Async loaders for Three.js and Rapier
-import { update as updateTween } from 'three/examples/jsm/libs/tween.module.js';
+import { update as updateTween, Easing, Tween } from 'three/examples/jsm/libs/tween.module.js';
 
 // Export for direct use
-export { updateTween };
+export { updateTween, Easing, Tween };
 
 let loadedTHREE = null;
 let loadedRAPER = null;
@@ -14,7 +14,7 @@ let loadedRAPER = null;
 export async function load_three() {
     if (!loadedTHREE) {
         const threeModule = await import('three');
-        const { Easing, Tween } = await import('three/examples/jsm/libs/tween.module.js');
+        // Use the static imports instead of dynamic imports
         loadedTHREE = { 
             THREE: threeModule, 
             Easing, 

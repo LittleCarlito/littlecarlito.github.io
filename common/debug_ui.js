@@ -2,7 +2,7 @@
 import { FLAGS } from './flags';
 import { BackgroundLighting } from '../background/background_lighting';
 import { BackgroundContainer } from '../background/background_container';
-import { BLORKPACK_FLAGS } from '../packages/blorkpack/src';
+import { BLORKPACK_FLAGS } from 'blorkpack';
 
 // FPS tracking variables
 let frameCount = 0;

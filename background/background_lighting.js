@@ -1,6 +1,6 @@
 import { THREE } from "../common";
 import { FLAGS } from "../common/flags";
-import { BLORKPACK_FLAGS } from "../packages/blorkpack/src/blorkpack_flags.js";
+import { BLORKPACK_FLAGS } from "blorkpack";
 
 export const SPOTLIGHT_HEIGHT = 50;
 export const SPOTLIGHT_DISTANCE = 0; // Light position on z-axis
