@@ -1,3 +1,11 @@
+## [0.8.2](https://github.com/LittleCarlito/threejs_site/compare/v0.8.1...v0.8.2) (2025-03-12)
+
+
+### Bug Fixes
+
+* skipping tests ([5973f05](https://github.com/LittleCarlito/threejs_site/commit/5973f0583b085dc0adeeab975ab25bcf90b88665))
+* skipping tests ([2c9865e](https://github.com/LittleCarlito/threejs_site/commit/2c9865e42b662a883c49d275c8cd395beaf438ba))
+
 ## [0.8.1](https://github.com/LittleCarlito/threejs_site/compare/v0.8.0...v0.8.1) (2025-03-12)
 
 
