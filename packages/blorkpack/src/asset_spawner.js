@@ -449,6 +449,11 @@ export class AssetSpawner {
             this.update_debug_wireframes();
         }
         
+        // Update spotlight helpers if needed
+        if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
+            this.update_spotlight_helpers();
+        }
+        
         // Any other periodic cleanup tasks can be added here
     }
 
@@ -1015,7 +1020,269 @@ export class AssetSpawner {
     }
 
     /**
-     * Creates a spotlight with the specified properties.
+     * Creates a spotlight helper to visualize the spotlight cone and direction.
+     * Used for debugging purposes.
+     * 
+     * @param {THREE.SpotLight} spotlight - The spotlight to create helpers for
+     * @returns {Promise<Object>} The created helper objects
+     */
+    async create_spotlight_helper(spotlight) {
+        if (!spotlight) return null;
+        
+        // Create shared materials for debug visualization with a single static color
+        const sharedDebugMaterials = {
+            helper: new THREE.LineBasicMaterial({ color: 0x00FF00 }), // Green for visibility
+            cone: new THREE.MeshBasicMaterial({ 
+                color: 0x00FF00,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.6
+            })
+        };
+        
+        // Create the standard helper with shared material
+        const helper = new THREE.SpotLightHelper(spotlight);
+        helper.material = sharedDebugMaterials.helper;
+        
+        // Store original update method
+        const originalUpdate = helper.update;
+        helper.update = () => {
+            // Call original update
+            originalUpdate.call(helper);
+            // After update, ensure all children use our shared material
+            helper.traverse(child => {
+                if (child.material && child !== helper) {
+                    child.material = sharedDebugMaterials.helper;
+                }
+            });
+        };
+        
+        // Make helper and all its children non-interactive
+        helper.raycast = () => null;
+        helper.traverse(child => {
+            child.raycast = () => null;
+        });
+        
+        // Add helper in next frame
+        await new Promise(resolve => setTimeout(resolve, 0));
+        this.scene.add(helper);
+
+        // Create the cone visualization with shared material
+        const spotlightToTarget = new THREE.Vector3().subVectors(
+            spotlight.target.position,
+            spotlight.position
+        );
+        const distance = spotlightToTarget.length();
+        const height = distance;
+        const radius = Math.tan(spotlight.angle) * height;
+        const geometry = new THREE.ConeGeometry(radius, height, 32, 32, true);
+        geometry.translate(0, -height/2, 0);
+        
+        const cone = new THREE.Mesh(geometry, sharedDebugMaterials.cone);
+        cone.raycast = () => null;
+        cone.traverse(child => {
+            child.raycast = () => null;
+        });
+        cone.position.copy(spotlight.position);
+        
+        const direction = spotlightToTarget.normalize();
+        const quaternion = new THREE.Quaternion();
+        quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), direction);
+        cone.quaternion.copy(quaternion);
+        
+        await new Promise(resolve => setTimeout(resolve, 0));
+        this.scene.add(cone);
+        
+        return {
+            helper,
+            cone
+        };
+    }
+
+    /**
+     * Despawns a spotlight, removing it and its helpers from the scene.
+     * 
+     * @param {THREE.SpotLight} spotlight - The spotlight to despawn
+     * @returns {Promise<void>}
+     */
+    async despawn_spotlight(spotlight) {
+        if (!spotlight) return;
+        
+        // Remove the spotlight's target and the spotlight itself
+        await new Promise(resolve => setTimeout(resolve, 0));
+        this.scene.remove(spotlight.target);
+        this.scene.remove(spotlight);
+
+        // Remove debug helpers if they exist
+        if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG && spotlight.userData.debugHelpers) {
+            const { helper, cone } = spotlight.userData.debugHelpers;
+            if (helper) {
+                // Remove the helper and its children from the scene
+                this.scene.remove(helper);
+                if (helper.children) {
+                    helper.children.forEach(child => {
+                        if (child.geometry) {
+                            child.geometry.dispose();
+                        }
+                    });
+                }
+                if (helper.geometry) {
+                    helper.geometry.dispose();
+                }
+            }
+            if (cone) {
+                this.scene.remove(cone);
+                if (cone.geometry) {
+                    cone.geometry.dispose();
+                }
+            }
+        }
+
+        // Clean up any orphaned helpers that might have been missed
+        const helpers = this.scene.children.filter(child => {
+            // Only match helpers that belong to this specific spotlight
+            if (child.isSpotLightHelper) {
+                return child.light === spotlight;
+            }
+            if (child.isMesh && child.material && child.material.wireframe && 
+                child.geometry && child.geometry.type === 'ConeGeometry') {
+                // Check if this cone belongs to our spotlight by checking position
+                return child.position.equals(spotlight.position);
+            }
+            return false;
+        });
+        
+        for (const helper of helpers) {
+            // Remove from scene
+            this.scene.remove(helper);
+            
+            // Dispose geometries
+            if (helper.children) {
+                helper.children.forEach(child => {
+                    if (child.geometry) {
+                        child.geometry.dispose();
+                    }
+                });
+            }
+            if (helper.geometry) {
+                helper.geometry.dispose();
+            }
+        }
+    }
+
+    /**
+     * Removes only the debug helpers for a spotlight, keeping the spotlight itself.
+     * 
+     * @param {THREE.SpotLight} spotlight - The spotlight whose helpers should be removed
+     * @returns {Promise<void>}
+     */
+    async despawn_spotlight_helpers(spotlight) {
+        if (!spotlight || !spotlight.userData.debugHelpers) return;
+
+        const { helper, cone } = spotlight.userData.debugHelpers;
+        
+        // Remove and dispose helper
+        if (helper) {
+            this.scene.remove(helper);
+            if (helper.children) {
+                helper.children.forEach(child => {
+                    if (child.geometry) {
+                        child.geometry.dispose();
+                    }
+                });
+            }
+            if (helper.geometry) {
+                helper.geometry.dispose();
+            }
+        }
+        
+        // Remove and dispose cone
+        if (cone) {
+            this.scene.remove(cone);
+            if (cone.geometry) {
+                cone.geometry.dispose();
+            }
+        }
+
+        // Clear the debug helpers reference
+        spotlight.userData.debugHelpers = null;
+    }
+
+    /**
+     * Updates all spotlight helpers to match their associated spotlights.
+     * Called from the main animation loop.
+     */
+    update_spotlight_helpers() {
+        // Find all spotlights in the scene
+        this.scene.children.forEach(child => {
+            if (child.isSpotLight && child.userData.debugHelpers) {
+                const { helper, cone } = child.userData.debugHelpers;
+                
+                // Update the standard helper
+                if (helper) {
+                    helper.update();
+                }
+                
+                // Update the cone
+                if (cone) {
+                    // Update cone position
+                    cone.position.copy(child.position);
+                    
+                    // Update cone orientation
+                    const spotlightToTarget = new THREE.Vector3().subVectors(
+                        child.target.position,
+                        child.position
+                    );
+                    const direction = spotlightToTarget.normalize();
+                    const quaternion = new THREE.Quaternion();
+                    quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), direction);
+                    cone.quaternion.copy(quaternion);
+                }
+            }
+        });
+    }
+
+    /**
+     * Updates the debug visualization for all spotlights based on the current flag state.
+     * Shows or hides debug helpers based on the SPOTLIGHT_VISUAL_DEBUG flag.
+     */
+    async update_spotlight_debug_visualizations() {
+        // Find all spotlights in the scene
+        const spotlights = this.scene.children.filter(child => child.isSpotLight);
+        
+        if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
+            // Create debug helpers for spotlights that don't have them
+            for (const spotlight of spotlights) {
+                if (!spotlight.userData.debugHelpers) {
+                    const helpers = await this.create_spotlight_helper(spotlight);
+                    spotlight.userData.debugHelpers = helpers;
+                } else {
+                    // Show existing helpers
+                    if (spotlight.userData.debugHelpers.helper) {
+                        spotlight.userData.debugHelpers.helper.visible = true;
+                    }
+                    if (spotlight.userData.debugHelpers.cone) {
+                        spotlight.userData.debugHelpers.cone.visible = true;
+                    }
+                }
+            }
+        } else {
+            // Hide all debug helpers
+            for (const spotlight of spotlights) {
+                if (spotlight.userData.debugHelpers) {
+                    if (spotlight.userData.debugHelpers.helper) {
+                        spotlight.userData.debugHelpers.helper.visible = false;
+                    }
+                    if (spotlight.userData.debugHelpers.cone) {
+                        spotlight.userData.debugHelpers.cone.visible = false;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Updates the existing create_spotlight method to include helper creation
      * 
      * @param {string} id - The ID of the spotlight
      * @param {THREE.Vector3} position - Position of the spotlight
@@ -1031,11 +1298,11 @@ export class AssetSpawner {
         
         // Get spotlight specific properties from additional_properties
         const color = parseInt(options.color || "0xffffff", 16);
-        const intensity = asset_data.additional_properties?.intensity || 1.0;
-        const max_distance = asset_data.additional_properties?.max_distance || 0;
-        const angle = asset_data.additional_properties?.angle || Math.PI / 4;
-        const penumbra = asset_data.additional_properties?.penumbra || 0.0;
-        const sharpness = asset_data.additional_properties?.sharpness || 0.0;
+        const intensity = asset_data?.additional_properties?.intensity || options.intensity || 1.0;
+        const max_distance = asset_data?.additional_properties?.max_distance || options.max_distance || 0;
+        const angle = asset_data?.additional_properties?.angle || options.angle || Math.PI / 4;
+        const penumbra = asset_data?.additional_properties?.penumbra || options.penumbra || 0.0;
+        const sharpness = asset_data?.additional_properties?.sharpness || options.sharpness || 0.0;
         
         // Create the spotlight
         const spotlight = new THREE.SpotLight(
@@ -1055,7 +1322,7 @@ export class AssetSpawner {
             spotlight.castShadow = true;
             
             // Set shadow quality settings if provided
-            if (asset_data.additional_properties?.shadow) {
+            if (asset_data?.additional_properties?.shadow) {
                 const shadow_props = asset_data.additional_properties.shadow;
                 
                 // Shadow map size
@@ -1106,7 +1373,7 @@ export class AssetSpawner {
         const target = new THREE.Object3D();
         
         // If target data is provided in the asset data, use that
-        if (asset_data.target && asset_data.target.position) {
+        if (asset_data?.target && asset_data.target.position) {
             target.position.set(
                 asset_data.target.position.x || 0, 
                 asset_data.target.position.y || 0, 
@@ -1115,8 +1382,16 @@ export class AssetSpawner {
         } else {
             // Otherwise calculate target position based on rotation
             const targetDistance = 100; // Use a fixed distance for the target
-            const rotX = rotation.x || 0;
-            const rotY = rotation.y || 0;
+            let rotX, rotY;
+            
+            if (rotation instanceof THREE.Euler) {
+                rotX = rotation.x || 0;
+                rotY = rotation.y || 0;
+            } else {
+                // Default values if rotation is not provided as Euler
+                rotX = 0;
+                rotY = 0;
+            }
             
             // Calculate target position based on spherical coordinates
             const x = Math.sin(rotY) * Math.cos(rotX) * targetDistance;
@@ -1145,6 +1420,13 @@ export class AssetSpawner {
             ...spotlight.userData,
             type: 'spotlight'
         };
+        
+        // Create debug visualization if enabled
+        if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
+            const helpers = await this.create_spotlight_helper(spotlight);
+            // Store helpers reference on the spotlight for cleanup
+            spotlight.userData.debugHelpers = helpers;
+        }
         
         // Store references for later cleanup
         const asset_object = {
