@@ -1,5 +1,27 @@
 import { defineConfig } from 'vite'
 import path from 'path'
+import fs from 'fs'
+
+// Helper function to get HTML files in tools directory
+function getToolsEntryPoints() {
+  const toolsDir = path.resolve(__dirname, 'tools');
+  const entries = {};
+  
+  // Check if tools directory exists
+  if (fs.existsSync(toolsDir)) {
+    const files = fs.readdirSync(toolsDir);
+    
+    files.forEach(file => {
+      if (file.endsWith('.html')) {
+        // Create an entry point for each HTML file in tools directory
+        const entryName = `tools_${path.basename(file, '.html')}`;
+        entries[entryName] = path.resolve(toolsDir, file);
+      }
+    });
+  }
+  
+  return entries;
+}
 
 export default defineConfig(({ command }) => {
   const isProduction = command === 'build';
@@ -33,7 +55,11 @@ export default defineConfig(({ command }) => {
         external: isProduction ? ['@littlecarlito/blorkpack'] : [],
         input: {
           main: 'index.html',
-          ...(isProduction ? {} : { packageTest: 'tests/package-test.html' })
+          ...(isProduction ? {} : { 
+            packageTest: 'tests/package-test.html',
+            // Include tools HTML files only in development mode
+            ...(!isProduction ? getToolsEntryPoints() : {})
+          })
         }
       },
       sourcemap: true,

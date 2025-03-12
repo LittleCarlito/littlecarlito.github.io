@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Development Tools</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #121212;
+      color: #e1e1e1;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1, h2 {
+      color: #5d8fff;
+    }
+    .tools-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 20px;
+      margin-top: 30px;
+    }
+    .tool-card {
+      background-color: #1e1e1e;
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .tool-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+    }
+    .tool-card h3 {
+      margin-top: 0;
+      color: #5d8fff;
+    }
+    .tool-card p {
+      margin-bottom: 15px;
+      color: #b0b0b0;
+    }
+    .tool-card a {
+      display: inline-block;
+      background-color: #5d8fff;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 4px;
+      text-decoration: none;
+      font-weight: bold;
+      transition: background-color 0.2s;
+    }
+    .tool-card a:hover {
+      background-color: #4a75d1;
+    }
+    .note {
+      margin-top: 30px;
+      padding: 15px;
+      background-color: #2d2d2d;
+      border-left: 4px solid #5d8fff;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Development Tools</h1>
+  <p>
+    This page provides access to various development tools for the threejs_site project.
+    These tools are only available during development and won't be included in the production build.
+  </p>
+  
+  <div class="tools-container">
+    <div class="tool-card">
+      <h3>3D Asset Debugger</h3>
+      <p>Debug UV maps, textures, and meshes in 3D models. Includes features for toggling mesh visibility and inspecting UV coordinates.</p>
+      <a href="asset_debugger.html">Open Asset Debugger</a>
+    </div>
+    
+    <!-- Add more tool cards here as you develop more tools -->
+  </div>
+  
+  <div class="note">
+    <h2>Note:</h2>
+    <p>
+      These tools are for development purposes only and will not be included in the production build.
+      Feel free to add more tools to this directory as needed for your development workflow.
+    </p>
+  </div>
+</body>
+</html> 
