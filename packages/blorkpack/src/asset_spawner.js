@@ -106,18 +106,54 @@ export class AssetSpawner {
                         child.visible = false;
                         collisionMeshes.push(child);
                     } else if (child.name.startsWith('display_')) {
-                        // This is a display mesh - make it visible and bright green for testing
+                        // This is a display mesh - make it visible and load a texture from atlas-test.jpg
                         child.visible = true;
                         
-                        // Create a bright green material for testing
-                        const greenMaterial = new THREE.MeshStandardMaterial({
-                            color: 0x00ff00,
-                            emissive: 0x00ff00,
-                            emissiveIntensity: 0.5
+                        // Create a texture loader
+                        const textureLoader = new THREE.TextureLoader();
+                        
+                        // Load the atlas texture
+                        textureLoader.load('/images/atlas-test.jpg', (texture) => {
+                            // Set up texture to show just the first image (assuming 3 images arranged horizontally)
+                            // Set repeat to 1/3 to only show 1/3 of the texture
+                            texture.repeat.set(1/3, 1);
+                            // Set offset to 0 to start from the left
+                            texture.offset.set(0, 0);
+                            // Ensure the texture wrapping is set to ClampToEdge to prevent repeating
+                            texture.wrapS = THREE.ClampToEdgeWrapping;
+                            texture.wrapT = THREE.ClampToEdgeWrapping;
+                            
+                            // Create a material with the loaded texture - use MeshStandardMaterial with emissive for better visibility
+                            const displayMaterial = new THREE.MeshStandardMaterial({
+                                map: texture,
+                                side: THREE.DoubleSide,
+                                emissive: 0xffffff,       // Add white emissive color
+                                emissiveMap: texture,     // Use same texture as emissive map
+                                emissiveIntensity: 1.0,   // Full intensity emission
+                                color: 0xffffff          // White base color to not affect texture
+                            });
+                            
+                            // Apply the material to the display mesh
+                            child.material = displayMaterial;
+                            
+                            if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                                console.log(`Applied atlas texture to display mesh: ${child.name} in ${asset_type}`);
+                            }
+                        }, 
+                        undefined, // onProgress callback not needed
+                        (error) => {
+                            console.error('Error loading atlas texture:', error);
+                            
+                            // Fallback to green material if texture loading fails
+                            const greenMaterial = new THREE.MeshStandardMaterial({
+                                color: 0x00ff00,
+                                emissive: 0x00ff00,
+                                emissiveIntensity: 0.5
+                            });
+                            
+                            child.material = greenMaterial;
                         });
                         
-                        // Apply the material to the display mesh
-                        child.material = greenMaterial;
                         displayMeshes.push(child);
                         
                         if (BLORKPACK_FLAGS.ASSET_LOGS) {
@@ -135,6 +171,24 @@ export class AssetSpawner {
             // Store reference to display meshes in model's userData if available
             if (displayMeshes.length > 0) {
                 model.userData.displayMeshes = displayMeshes;
+                
+                // Add a helper function to switch between atlas images
+                model.userData.switchDisplayImage = (imageIndex) => {
+                    if (imageIndex < 0 || imageIndex > 2) {
+                        console.error(`Invalid image index: ${imageIndex}. Must be between 0 and 2.`);
+                        return;
+                    }
+                    
+                    displayMeshes.forEach(mesh => {
+                        if (mesh.material && mesh.material.map) {
+                            const texture = mesh.material.map;
+                            // Set offset based on the selected image (0, 1, or 2)
+                            texture.offset.x = imageIndex / 3;
+                            // Ensure the texture is updated
+                            texture.needsUpdate = true;
+                        }
+                    });
+                };
             }
             
             // Add objects to scene in next frame to prevent stuttering
