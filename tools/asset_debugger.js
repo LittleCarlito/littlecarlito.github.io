@@ -662,6 +662,198 @@ function updateDebugUI() {
       <span class="mesh-count-item">Total: <strong>${debugInfo.allMeshes ? debugInfo.allMeshes.length : 0}</strong></span>
     `;
   }
+  
+  // Update atlas visualization
+  updateAtlasVisualization();
+}
+
+// Function to create and update the atlas visualization
+function updateAtlasVisualization() {
+  if (!atlasTexture) return;
+  
+  const atlasContainer = document.getElementById('atlas-container');
+  if (!atlasContainer) return;
+  
+  // Clear existing content
+  atlasContainer.innerHTML = '';
+  
+  // Add header
+  const header = document.createElement('div');
+  header.className = 'debug-header';
+  header.textContent = 'Atlas Texture Visualization:';
+  atlasContainer.appendChild(header);
+  
+  // Create a container for the atlas image
+  const atlasImageContainer = document.createElement('div');
+  atlasImageContainer.className = 'atlas-image-container';
+  atlasContainer.appendChild(atlasImageContainer);
+  
+  // Create canvas to display the texture
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  canvas.className = 'atlas-canvas';
+  atlasImageContainer.appendChild(canvas);
+  
+  // Get the canvas context
+  const ctx = canvas.getContext('2d');
+  
+  // Create an image from the texture
+  const image = new Image();
+  image.onload = () => {
+    // Draw the image on the canvas
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    
+    // Draw UV grid overlay
+    drawUVGrid(ctx, canvas.width, canvas.height);
+    
+    // Highlight the active UV region if we have UV data
+    highlightActiveUVRegion(ctx, canvas.width, canvas.height);
+    
+    // Add explanation
+    const explanation = document.createElement('div');
+    explanation.className = 'atlas-explanation';
+    explanation.innerHTML = `
+      <p><strong>Atlas Explanation:</strong></p>
+      <p>This is the atlas texture used by the model. The texture contains different display images (numbers 1, 2, 3) 
+      in different regions. When you switch between UV maps, the model selects different parts of this texture.</p>
+      <p>The grid overlay shows UV coordinates (0-1). The highlighted region shows the approximate area
+      being used by the current UV mapping.</p>
+    `;
+    atlasContainer.appendChild(explanation);
+  };
+  
+  // Set image source - since atlasTexture is a Three.js texture, we need to get its image source
+  if (atlasTexture.image && atlasTexture.image.src) {
+    image.src = atlasTexture.image.src;
+  } else {
+    // If we can't get the src directly, try to use a Canvas to extract the image data
+    // This is a bit of a hack since we don't have direct access to the texture data
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = atlasTexture.image ? atlasTexture.image.width : 256;
+    tempCanvas.height = atlasTexture.image ? atlasTexture.image.height : 256;
+    const tempCtx = tempCanvas.getContext('2d');
+    
+    if (atlasTexture.image) {
+      tempCtx.drawImage(atlasTexture.image, 0, 0);
+      image.src = tempCanvas.toDataURL();
+    } else {
+      // If we can't get the image at all, just show a message
+      ctx.fillStyle = '#333';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'white';
+      ctx.font = '16px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Unable to display texture', canvas.width / 2, canvas.height / 2);
+    }
+  }
+}
+
+// Draw a UV grid on the atlas texture visualization
+function drawUVGrid(ctx, width, height) {
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+  ctx.lineWidth = 1;
+  
+  // Draw vertical grid lines
+  for (let i = 0; i <= 10; i++) {
+    const x = (i / 10) * width;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+    
+    // Add labels for 0, 0.5, and 1
+    if (i === 0 || i === 5 || i === 10) {
+      ctx.fillStyle = 'white';
+      ctx.font = '12px Arial';
+      ctx.fillText((i / 10).toFixed(1), x + 5, 15);
+    }
+  }
+  
+  // Draw horizontal grid lines
+  for (let i = 0; i <= 10; i++) {
+    const y = (i / 10) * height;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+    
+    // Add labels for 0, 0.5, and 1
+    if (i === 0 || i === 5 || i === 10) {
+      ctx.fillStyle = 'white';
+      ctx.font = '12px Arial';
+      ctx.fillText((i / 10).toFixed(1), 5, y + 15);
+    }
+  }
+}
+
+// Highlight the active UV region
+function highlightActiveUVRegion(ctx, width, height) {
+  // Only proceed if we have the display screen mesh and it has geometry
+  if (!displayScreenMesh || !displayScreenMesh.geometry) return;
+  
+  // Get the UV attribute
+  const uvAttribute = displayScreenMesh.geometry.attributes.uv;
+  if (!uvAttribute) return;
+  
+  // Extract UV data
+  const uv = uvAttribute.array;
+  let minU = 1, minV = 1, maxU = 0, maxV = 0;
+  
+  // Find the UV bounds
+  for (let i = 0; i < uv.length; i += 2) {
+    const u = uv[i];
+    const v = uv[i + 1];
+    
+    minU = Math.min(minU, u);
+    minV = Math.min(minV, v);
+    maxU = Math.max(maxU, u);
+    maxV = Math.max(maxV, v);
+  }
+  
+  // Draw the UV region
+  ctx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.rect(minU * width, (1 - maxV) * height, (maxU - minU) * width, (maxV - minV) * height);
+  ctx.stroke();
+  
+  // Add a label
+  ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
+  ctx.font = '14px Arial';
+  ctx.fillText('Current UV Region', minU * width + 5, (1 - maxV) * height - 5);
+  
+  // Store the UV bounds for debugging
+  debugInfo.currentUVBounds = { minU, minV, maxU, maxV };
+  
+  // Check for potential issues
+  checkUVIssues(minU, minV, maxU, maxV);
+}
+
+// Check for common UV mapping issues
+function checkUVIssues(minU, minV, maxU, maxV) {
+  const statusElement = document.getElementById('status');
+  if (!statusElement) return;
+  
+  // Issue 1: UV coordinates outside the 0-1 range
+  if (minU < 0 || minV < 0 || maxU > 1 || maxV > 1) {
+    updateStatus("WARNING: UV coordinates are outside the 0-1 range. This may cause texture issues.", "warning");
+  }
+  
+  // Issue 2: Very small UV region (might indicate wrong mapping)
+  const uvWidth = maxU - minU;
+  const uvHeight = maxV - minV;
+  if (uvWidth < 0.1 || uvHeight < 0.1) {
+    updateStatus("WARNING: UV region is very small. The texture may appear stretched or compressed.", "warning");
+  }
+  
+  // Issue 3: UV region covers most/all of the texture (might be using the whole texture instead of part of the atlas)
+  if (uvWidth > 0.9 && uvHeight > 0.9) {
+    updateStatus("NOTE: UV region covers almost the entire texture. If this is an atlas, you may not be using the correct part.", "info");
+  }
+  
+  // Print the UV bounds to the status for debugging
+  updateStatus(`Current UV bounds: U(${minU.toFixed(3)}-${maxU.toFixed(3)}), V(${minV.toFixed(3)}-${maxV.toFixed(3)})`, "info");
 }
 
 // Create UI for debugging and controls
@@ -793,6 +985,13 @@ function createUI() {
   // Create debug info container
   const debugContainer = document.createElement('div');
   debugContainer.className = 'debug-container';
+  
+  // Atlas texture visualization
+  const atlasContainer = document.createElement('div');
+  atlasContainer.className = 'debug-panel';
+  atlasContainer.id = 'atlas-container';
+  atlasContainer.innerHTML = '<div class="panel-title">Atlas Texture</div>';
+  debugContainer.appendChild(atlasContainer);
   
   // Mesh list
   const meshListContainer = document.createElement('div');
@@ -1010,12 +1209,12 @@ function addStyles() {
       background-color: rgba(0, 0, 0, 0.7);
       padding: 10px;
       border-radius: 5px;
-      max-height: 300px;
+      max-height: 500px;
       overflow-y: auto;
     }
     
     .debug-panel {
-      margin-bottom: 10px;
+      margin-bottom: 20px;
     }
     
     .debug-header {
@@ -1054,6 +1253,25 @@ function addStyles() {
     
     .hidden {
       display: none;
+    }
+    
+    .atlas-image-container {
+      text-align: center;
+      margin: 10px 0;
+    }
+    
+    .atlas-canvas {
+      border: 2px solid #444;
+      max-width: 100%;
+    }
+    
+    .atlas-explanation {
+      font-size: 12px;
+      color: #bbb;
+      margin-top: 10px;
+      padding: 10px;
+      background-color: rgba(50, 50, 50, 0.5);
+      border-radius: 4px;
     }
   `;
   document.head.appendChild(styleElement);
