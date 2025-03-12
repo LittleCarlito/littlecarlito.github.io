@@ -22,6 +22,9 @@ function init() {
   // Setup drag and drop functionality
   setupDragAndDrop();
   
+  // Create the atlas visualization
+  createAtlasVisualization();
+  
   // Hide loading screen
   setTimeout(() => {
     document.getElementById('loading').style.display = 'none';
@@ -407,6 +410,9 @@ function applyTextureToModel() {
     }
   });
   
+  // Draw or update the atlas visualization with default offset/repeat
+  updateAtlasVisualization(new THREE.Vector2(0, 0), new THREE.Vector2(1, 1));
+  
   // After applying the texture, switch to the current UV channel to ensure proper display
   if (currentUvSet < availableUvSets.length) {
     switchUvChannel(availableUvSets[currentUvSet]);
@@ -670,6 +676,20 @@ function switchUvChannel(uvChannel) {
   let meshesWithThisUV = 0;
   let screenMeshesProcessed = 0;
   
+  // Special case for UV3/uv4 - if we're trying to show the 3rd atlas section
+  const isUv3Selection = uvChannel === 'uv4';
+  
+  // Store the current offset and repeat for visualization
+  let currentOffset = new THREE.Vector2(0, 0);
+  let currentRepeat = new THREE.Vector2(1, 1);
+  
+  // Special case for UV3 - set the atlas section 3 coordinates (last third of the atlas)
+  if (isUv3Selection) {
+    // For a 3-section atlas, section 3 starts at 2/3 of the width
+    currentOffset.set(0.66, 0);
+    currentRepeat.set(0.34, 1);
+  }
+  
   modelObject.traverse((child) => {
     if (child.isMesh) {
       // Store original material if not already done
@@ -688,15 +708,48 @@ function switchUvChannel(uvChannel) {
         
         // Check if this mesh has this UV channel
         const hasUvChannel = child.geometry && child.geometry.attributes[uvChannel] !== undefined;
-        if (hasUvChannel) {
+        const hasUv0 = child.geometry && child.geometry.attributes['uv'] !== undefined;
+        
+        // Log for debugging
+        console.log(`Processing screen mesh: ${child.name}, has ${mapping.displayName}: ${hasUvChannel}, has UV0: ${hasUv0}`);
+        
+        // Special case for UV3 when it's missing but UV0 exists
+        if (isUv3Selection && !hasUvChannel && hasUv0 && textureObject) {
+          console.log(`*** SPECIAL CASE *** Using UV0 with offset for UV3 on ${child.name}`);
           meshesWithThisUV++;
+          
+          // Create new material based on original
+          const newMaterial = new THREE.MeshStandardMaterial();
+          newMaterial.roughness = 0.1;
+          newMaterial.metalness = 0.2;
+          
+          // Clone texture and apply offset to show the third section
+          const tex = textureObject.clone();
+          
+          // Set offset to show the third section (assuming 3 equal parts)
+          tex.offset.copy(currentOffset);
+          tex.repeat.copy(currentRepeat);
+          
+          // Use UV0 channel
+          tex.channel = 0;
+          
+          // Apply the texture
+          newMaterial.map = tex;
+          newMaterial.emissiveMap = tex;
+          newMaterial.emissive.set(1, 1, 1);
+          
+          // Apply material
+          child.material = newMaterial;
+          child.material.needsUpdate = true;
+          tex.needsUpdate = true;
+          
+          console.log(`Applied special case UV3 material to ${child.name} using UV0 with offset`);
         }
-        
-        console.log(`Processing screen mesh: ${child.name}, has ${mapping.displayName}: ${hasUvChannel}`);
-        
-        // If the mesh has the texture and the UV channel, update its material
-        if (textureObject && hasUvChannel) {
-          // Create a fresh material based on original
+        // Regular case: mesh has the UV channel
+        else if (textureObject && hasUvChannel) {
+          meshesWithThisUV++;
+          
+          // Create a fresh material
           const newMaterial = new THREE.MeshStandardMaterial();
           newMaterial.roughness = 0.1;
           newMaterial.metalness = 0.2;
@@ -704,35 +757,40 @@ function switchUvChannel(uvChannel) {
           // Clone the texture to avoid affecting other materials
           const tex = textureObject.clone();
           
-          // IMPORTANT: Don't modify texture offset/repeat
-          // Let the actual UV coordinates in the mesh control how the texture is displayed
+          // Reset offset/repeat for normal case
+          tex.offset.set(0, 0);
+          tex.repeat.set(1, 1);
           
-          // Apply the texture
-          newMaterial.map = tex;
+          // Update current offset/repeat for visualization
+          if (!isUv3Selection) {
+            currentOffset.set(0, 0);
+            currentRepeat.set(1, 1);
+          }
           
           // Set which UV channel the texture should use
-          // In Three.js, the channel property determines which UV set is used
           const uvIndex = parseInt(uvChannel.replace('uv', '')) || 0;
           
-          // Only set channel for supported UV channels to avoid shader errors
+          // Only set channel for supported UV channels
           if (uvChannel === 'uv' || uvChannel === 'uv2' || uvChannel === 'uv3') {
-            newMaterial.map.channel = uvIndex > 0 ? uvIndex - 1 : 0;
-            console.log(`Set UV channel ${newMaterial.map.channel} for ${mapping.displayName}`);
+            tex.channel = uvIndex > 0 ? uvIndex - 1 : 0;
+            console.log(`Set UV channel ${tex.channel} for ${mapping.displayName}`);
           } else {
             console.log(`Skipping channel setting for ${mapping.displayName} (shader doesn't support ${uvChannel})`);
           }
           
-          // Apply emissive to make the screen visible
-          newMaterial.emissiveMap = newMaterial.map;
+          // Apply the texture
+          newMaterial.map = tex;
+          newMaterial.emissiveMap = tex;
           newMaterial.emissive.set(1, 1, 1);
           
           // Apply the material
           child.material = newMaterial;
           child.material.needsUpdate = true;
-          newMaterial.map.needsUpdate = true;
+          tex.needsUpdate = true;
         }
-        // If the mesh doesn't have this UV channel, use a fallback color
-        else if (isScreenMesh && !hasUvChannel) {
+        // Fallback for missing UV channel
+        else if (isScreenMesh && !hasUvChannel && (!isUv3Selection || !hasUv0)) {
+          console.log(`Applying fallback material for ${child.name} - missing ${mapping.displayName}`);
           // Apply a simple colored material for channels that don't exist
           const fallbackMaterial = new THREE.MeshStandardMaterial({
             emissive: new THREE.Color(0.5, 0.5, 0.5),
@@ -741,29 +799,57 @@ function switchUvChannel(uvChannel) {
           child.material = fallbackMaterial;
         }
       } 
-      // Regular non-screen mesh handling
-      else if (child.geometry && child.geometry.attributes[uvChannel] && textureObject) {
-        meshesWithThisUV++;
+      // Regular non-screen mesh handling with special case for UV3
+      else if (child.geometry && textureObject) {
+        const hasUvChannel = child.geometry.attributes[uvChannel] !== undefined;
+        const hasUv0 = child.geometry.attributes['uv'] !== undefined;
         
-        // Only apply UV channel switching for supported channels (uv, uv2, uv3)
-        if (uvChannel === 'uv' || uvChannel === 'uv2' || uvChannel === 'uv3') {
-          // Apply texture with the correct UV channel
+        // Special case for UV3
+        if (isUv3Selection && !hasUvChannel && hasUv0) {
+          meshesWithThisUV++;
+          
+          // Apply texture with offset for section 3
           const newMaterial = child.userData.originalMaterial.clone();
           newMaterial.map = textureObject.clone();
-          
-          // Set the UV channel to use
-          const uvIndex = parseInt(uvChannel.replace('uv', '')) || 0;
-          newMaterial.map.channel = uvIndex > 0 ? uvIndex - 1 : 0;
+          newMaterial.map.offset.copy(currentOffset);
+          newMaterial.map.repeat.copy(currentRepeat);
+          newMaterial.map.channel = 0; // Use UV0
           
           // Apply material
           child.material = newMaterial;
           child.material.needsUpdate = true;
+        }
+        // Regular case
+        else if (hasUvChannel) {
+          meshesWithThisUV++;
+          
+          // Only apply UV channel switching for supported channels
+          if (uvChannel === 'uv' || uvChannel === 'uv2' || uvChannel === 'uv3') {
+            // Apply texture with the correct UV channel
+            const newMaterial = child.userData.originalMaterial.clone();
+            newMaterial.map = textureObject.clone();
+            
+            // Reset texture transform
+            newMaterial.map.offset.set(0, 0);
+            newMaterial.map.repeat.set(1, 1);
+            
+            // Set the UV channel
+            const uvIndex = parseInt(uvChannel.replace('uv', '')) || 0;
+            newMaterial.map.channel = uvIndex > 0 ? uvIndex - 1 : 0;
+            
+            // Apply material
+            child.material = newMaterial;
+            child.material.needsUpdate = true;
+          }
         }
       }
     }
   });
   
   console.log(`Applied ${mapping.displayName} to ${meshesWithThisUV} meshes (${screenMeshesProcessed} screen meshes)`);
+  
+  // Update the atlas visualization with current offset/repeat
+  updateAtlasVisualization(currentOffset, currentRepeat);
   
   // Force a re-render
   renderer.render(scene, camera);
@@ -1040,6 +1126,348 @@ function loadNumberAtlasTexture() {
   // Apply to model if it's loaded
   if (modelObject) {
     applyTextureToModel();
+  }
+}
+
+// Create a visual representation of the atlas texture
+function createAtlasVisualization() {
+  // Create container for the atlas visualization
+  const atlasVisContainer = document.createElement('div');
+  atlasVisContainer.id = 'atlas-visualization';
+  atlasVisContainer.style.position = 'absolute';
+  atlasVisContainer.style.bottom = '20px';
+  atlasVisContainer.style.left = '20px'; // Changed from right to left
+  atlasVisContainer.style.width = '300px';
+  atlasVisContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+  atlasVisContainer.style.border = '1px solid #666';
+  atlasVisContainer.style.borderRadius = '5px';
+  atlasVisContainer.style.padding = '10px';
+  atlasVisContainer.style.color = 'white';
+  atlasVisContainer.style.fontFamily = 'monospace';
+  atlasVisContainer.style.fontSize = '12px';
+  atlasVisContainer.style.zIndex = '1000';
+  atlasVisContainer.style.cursor = 'move'; // Cursor indicates draggable
+  atlasVisContainer.style.transition = 'opacity 0.3s ease'; // Smooth transition for collapse
+  
+  // Create header with title and toggle button
+  const header = document.createElement('div');
+  header.style.display = 'flex';
+  header.style.justifyContent = 'space-between';
+  header.style.alignItems = 'center';
+  header.style.marginBottom = '10px';
+  header.style.cursor = 'pointer'; // Make the whole header clickable
+  
+  // Add title
+  const title = document.createElement('div');
+  title.textContent = 'Atlas Texture Map';
+  title.style.fontWeight = 'bold';
+  header.appendChild(title);
+  
+  // Add toggle caret
+  const caret = document.createElement('div');
+  caret.textContent = '▼'; // Down caret (expanded)
+  caret.style.marginLeft = '5px';
+  caret.style.transition = 'transform 0.3s ease';
+  header.appendChild(caret);
+  
+  atlasVisContainer.appendChild(header);
+  
+  // Create content container (for collapsing)
+  const contentContainer = document.createElement('div');
+  contentContainer.id = 'atlas-content';
+  contentContainer.style.transition = 'height 0.3s ease, opacity 0.3s ease, max-height 0.4s cubic-bezier(0, 1, 0, 1)';
+  contentContainer.style.overflow = 'hidden';
+  atlasVisContainer.appendChild(contentContainer);
+  
+  // Create canvas for atlas visualization
+  const atlasCanvas = document.createElement('canvas');
+  atlasCanvas.id = 'atlas-canvas';
+  atlasCanvas.width = 280;
+  atlasCanvas.height = 280;
+  atlasCanvas.style.border = '1px solid #333';
+  atlasCanvas.style.backgroundColor = '#111';
+  contentContainer.appendChild(atlasCanvas);
+  
+  // Add to body
+  document.body.appendChild(atlasVisContainer);
+  
+  // Initially hide until the texture is loaded
+  atlasVisContainer.style.display = 'none';
+  
+  // Track mouse movement to detect drag vs. click
+  let mouseDownPosition = null;
+  let hasDragged = false;
+  const dragThreshold = 5; // pixels of movement to consider it a drag
+  
+  // Make the panel collapsible
+  let isCollapsed = false;
+  
+  // Toggle collapse state
+  function toggleCollapseState() {
+    isCollapsed = !isCollapsed;
+    
+    if (isCollapsed) {
+      // Get the current height for smooth animation
+      const currentHeight = contentContainer.scrollHeight;
+      contentContainer.style.height = currentHeight + 'px';
+      
+      // Trigger reflow
+      contentContainer.offsetHeight;
+      
+      // Animate to collapsed state
+      contentContainer.style.height = '0';
+      contentContainer.style.opacity = '0';
+      contentContainer.style.maxHeight = '0';
+      caret.textContent = '►'; // Right caret (collapsed)
+      caret.style.transform = 'rotate(0deg)';
+    } else {
+      // Get target height for animation
+      const targetHeight = atlasCanvas.offsetHeight + 
+                         parseInt(atlasCanvas.style.borderTopWidth || 0) + 
+                         parseInt(atlasCanvas.style.borderBottomWidth || 0);
+      
+      // Start animation
+      contentContainer.style.maxHeight = '1000px'; // Large enough value
+      contentContainer.style.height = targetHeight + 'px';
+      contentContainer.style.opacity = '1';
+      caret.textContent = '▼'; // Down caret (expanded)
+      caret.style.transform = 'rotate(0deg)';
+      
+      // Remove fixed height after animation completes
+      setTimeout(() => {
+        contentContainer.style.height = '';
+      }, 400);
+    }
+  }
+  
+  // Handle header click for collapsing
+  header.addEventListener('mousedown', (e) => {
+    mouseDownPosition = { x: e.clientX, y: e.clientY };
+    hasDragged = false;
+  });
+  
+  header.addEventListener('mouseup', (e) => {
+    if (!mouseDownPosition) return;
+    
+    // Calculate distance moved
+    const dx = Math.abs(e.clientX - mouseDownPosition.x);
+    const dy = Math.abs(e.clientY - mouseDownPosition.y);
+    const distance = Math.sqrt(dx*dx + dy*dy);
+    
+    // Only toggle if it's a clean click (minimal movement)
+    if (distance < dragThreshold && !hasDragged) {
+      toggleCollapseState();
+    }
+    
+    // Reset tracking
+    mouseDownPosition = null;
+  });
+  
+  // Make the panel draggable
+  let isDragging = false;
+  let offsetX, offsetY;
+  
+  // Store original position for magnetic snapping
+  const originalPosition = { left: '20px', bottom: '20px' };
+  
+  // Handle mouse events for dragging
+  atlasVisContainer.addEventListener('mousedown', startDrag);
+  
+  function startDrag(e) {
+    // Avoid dragging when clicking on canvas
+    if (e.target === atlasCanvas) return;
+    
+    // Save initial position for drag detection
+    mouseDownPosition = { x: e.clientX, y: e.clientY };
+    
+    // Calculate the offset from the mouse position to the panel's corner
+    const rect = atlasVisContainer.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+    
+    // Add event listeners for dragging and drop
+    document.addEventListener('mousemove', dragMove);
+    document.addEventListener('mouseup', dragEnd);
+    
+    // Stop event propagation to prevent other handlers
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  
+  function dragMove(e) {
+    // Check if we've moved enough to consider it a drag
+    if (mouseDownPosition) {
+      const dx = Math.abs(e.clientX - mouseDownPosition.x);
+      const dy = Math.abs(e.clientY - mouseDownPosition.y);
+      const distance = Math.sqrt(dx*dx + dy*dy);
+      
+      if (distance >= dragThreshold) {
+        isDragging = true;
+        hasDragged = true;
+        
+        // When drag starts, switch from bottom-based to top-based positioning
+        if (!atlasVisContainer.style.top) {
+          const rect = atlasVisContainer.getBoundingClientRect();
+          atlasVisContainer.style.bottom = 'auto';
+          atlasVisContainer.style.top = `${window.innerHeight - rect.bottom}px`;
+        }
+      }
+    }
+    
+    if (isDragging) {
+      // Calculate new position
+      const x = e.clientX - offsetX;
+      const y = e.clientY - offsetY;
+      
+      // Update panel position
+      atlasVisContainer.style.left = `${x}px`;
+      atlasVisContainer.style.top = `${y}px`;
+    }
+  }
+  
+  function dragEnd(e) {
+    // Remove event listeners regardless
+    document.removeEventListener('mousemove', dragMove);
+    document.removeEventListener('mouseup', dragEnd);
+    
+    if (isDragging) {
+      // Check if we should snap back to original position
+      const rect = atlasVisContainer.getBoundingClientRect();
+      const snapDistance = 50; // Distance in pixels to trigger snap
+      
+      // Calculate distance from original position (bottom left)
+      const distanceToOriginal = Math.sqrt(
+        Math.pow(rect.left - 20, 2) + 
+        Math.pow((window.innerHeight - rect.bottom) - 20, 2)
+      );
+      
+      // If close enough to original position, snap back
+      if (distanceToOriginal < snapDistance) {
+        atlasVisContainer.style.transition = 'left 0.3s ease, top 0.3s ease, bottom 0.3s ease';
+        atlasVisContainer.style.left = originalPosition.left;
+        atlasVisContainer.style.top = 'auto';
+        atlasVisContainer.style.bottom = originalPosition.bottom;
+        
+        // Reset transition after animation
+        setTimeout(() => {
+          atlasVisContainer.style.transition = 'opacity 0.3s ease';
+        }, 300);
+      }
+      
+      // Reset state
+      isDragging = false;
+    }
+    
+    // Reset tracking
+    mouseDownPosition = null;
+    hasDragged = false;
+  }
+}
+
+// Update the atlas visualization with the actual texture and UV mapping
+function updateAtlasVisualization(currentOffset, currentRepeat) {
+  // Get the container and show it
+  const container = document.getElementById('atlas-visualization');
+  if (!container) return;
+  
+  // Only show the visualization if we have both texture and model
+  if (!textureObject || !modelObject) {
+    container.style.display = 'none';
+    return;
+  }
+  
+  container.style.display = 'block';
+  
+  // Get the canvas and context
+  const canvas = document.getElementById('atlas-canvas');
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  const width = canvas.width;
+  const height = canvas.height;
+  
+  // Clear the canvas
+  ctx.clearRect(0, 0, width, height);
+  
+  // If we have a texture, draw it to fill the canvas
+  if (textureObject) {
+    // For procedural texture which is a CanvasTexture, we can access its source
+    if (textureObject instanceof THREE.CanvasTexture && textureObject.image) {
+      // Draw the entire texture to the canvas
+      ctx.drawImage(textureObject.image, 0, 0, width, height);
+    } 
+    // For loaded image texture
+    else if (textureObject.image) {
+      // Draw the image texture to fit the canvas
+      ctx.drawImage(textureObject.image, 0, 0, width, height);
+    }
+    
+    // Draw grid overlay for reference (lighter and more subtle)
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 0.5;
+    
+    // Draw horizontal grid lines at 0.25, 0.5, 0.75
+    for (let y = 0.25; y < 1; y += 0.25) {
+      ctx.beginPath();
+      ctx.moveTo(0, y * height);
+      ctx.lineTo(width, y * height);
+      ctx.stroke();
+      
+      // Add subtle coordinate label
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = '10px monospace';
+      ctx.fillText(y.toFixed(2), 5, y * height - 3);
+    }
+    
+    // Draw vertical grid lines at 0.25, 0.5, 0.75
+    for (let x = 0.25; x < 1; x += 0.25) {
+      ctx.beginPath();
+      ctx.moveTo(x * width, 0);
+      ctx.lineTo(x * width, height);
+      ctx.stroke();
+      
+      // Add subtle coordinate label
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = '10px monospace';
+      ctx.fillText(x.toFixed(2), x * width + 2, 10);
+    }
+    
+    // Draw the current viewing area based on offset and repeat
+    if (currentOffset !== undefined && currentRepeat !== undefined) {
+      // Convert offset and repeat to canvas coordinates
+      const x = currentOffset.x * width;
+      const y = currentOffset.y * height;
+      const w = currentRepeat.x * width;
+      const h = currentRepeat.y * height;
+      
+      // Draw a highlighted box for the current view
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'red';
+      ctx.strokeRect(x, y, w, h);
+      
+      // Add "Current View" label near the highlighted area if outside of canvas
+      if (x < 0 || y < 0 || x + w > width || y + h > height) {
+        ctx.fillStyle = 'red';
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('View extends outside atlas', width/2, height-10);
+      }
+    }
+    
+    // Add coordinate info at the top if the texture is displayed
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, width, 20);
+    ctx.fillStyle = 'white';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`Offset: (${currentOffset?.x.toFixed(2) || '0.00'}, ${currentOffset?.y.toFixed(2) || '0.00'})`, width/2, 12);
+  } else {
+    // If no texture, show placeholder text
+    ctx.fillStyle = 'white';
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('No texture loaded', width/2, height/2);
   }
 }
 
