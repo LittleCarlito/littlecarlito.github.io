@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Asset Debugger</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background-color: #111;
+      color: white;
+    }
+    #info {
+      position: absolute;
+      bottom: 10px;
+      width: 100%;
+      text-align: center;
+      color: white;
+      z-index: 100;
+    }
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      flex-direction: column;
+    }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #3498db;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* Drop zones styling */
+    #drop-container {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      padding: 40px;
+      background-color: rgba(0, 0, 0, 0.7);
+      border-radius: 10px;
+      z-index: 200;
+      text-align: center;
+    }
+    .drop-zone {
+      width: 300px;
+      height: 150px;
+      border: 3px dashed #3498db;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background-color: rgba(52, 152, 219, 0.1);
+    }
+    .drop-zone:hover, .drop-zone.active {
+      background-color: rgba(52, 152, 219, 0.2);
+      border-color: #5dade2;
+    }
+    .drop-zone p {
+      margin: 5px 0;
+    }
+    .drop-zone-prompt {
+      font-size: 1.2em;
+      font-weight: bold;
+      color: #3498db;
+    }
+    .drop-zone-formats {
+      font-size: 0.8em;
+      color: #999;
+    }
+    .drop-zone-icon {
+      font-size: 2em;
+      margin-bottom: 10px;
+      color: #3498db;
+    }
+    #drop-zone-model.has-file, #drop-zone-texture.has-file {
+      border-color: #27ae60;
+      background-color: rgba(39, 174, 96, 0.1);
+    }
+    #drop-zone-model.has-file .drop-zone-prompt, 
+    #drop-zone-texture.has-file .drop-zone-prompt,
+    #drop-zone-model.has-file .drop-zone-icon, 
+    #drop-zone-texture.has-file .drop-zone-icon {
+      color: #27ae60;
+    }
+    .file-info {
+      margin-top: 5px;
+      font-size: 0.9em;
+      color: #bbb;
+      max-width: 280px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #start-button {
+      background-color: #27ae60;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      padding: 10px 20px;
+      font-size: 1em;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      display: none;
+    }
+    #start-button:hover {
+      background-color: #2ecc71;
+    }
+    #start-button:disabled {
+      background-color: #95a5a6;
+      cursor: not-allowed;
+    }
+    
+    /* Back button styling */
+    #back-button {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      padding: 8px 16px;
+      cursor: pointer;
+      z-index: 1000;
+      text-decoration: none;
+    }
+    #back-button:hover {
+      background-color: #2980b9;
+    }
+    
+    /* Debug panel styling */
+    #debug-panel {
+      position: fixed;
+      bottom: 40px;
+      right: 20px;
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 15px;
+      border-radius: 8px;
+      width: 300px;
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+    }
+    #debug-panel h3 {
+      margin-top: 0;
+      color: #3498db;
+    }
+    .debug-section {
+      margin-bottom: 15px;
+    }
+    .debug-label {
+      font-weight: bold;
+      margin-bottom: 5px;
+      color: #95a5a6;
+    }
+    .debug-value {
+      font-family: monospace;
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 5px;
+      border-radius: 3px;
+      word-break: break-word;
+    }
+    .debug-button {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      padding: 5px 10px;
+      margin: 5px 5px 5px 0;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <!-- Back button -->
+  <a href="./index.html" id="back-button">← Back to Tools</a>
+  
+  <div id="info">
+    3D Asset Debugger - Examine and debug UV maps, textures, and mesh geometry
+  </div>
+  
+  <!-- Loading screen -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <div>Initializing 3D Asset Debugger...</div>
+  </div>
+  
+  <!-- Drop zones for model and texture -->
+  <div id="drop-container">
+    <h2>3D Asset Debugger</h2>
+    <p>Drop your model and texture files to begin debugging</p>
+    
+    <div id="drop-zone-model" class="drop-zone">
+      <div class="drop-zone-icon">📦</div>
+      <p class="drop-zone-prompt">Drop 3D Model Here</p>
+      <p class="drop-zone-formats">Supported format: .glb</p>
+      <p class="file-info" id="model-file-info"></p>
+    </div>
+    
+    <div id="drop-zone-texture" class="drop-zone">
+      <div class="drop-zone-icon">🖼️</div>
+      <p class="drop-zone-prompt">Drop Texture Atlas Here</p>
+      <p class="drop-zone-formats">Supported formats: .jpg, .png</p>
+      <p class="file-info" id="texture-file-info"></p>
+    </div>
+    
+    <button id="start-button" disabled>Start Debugging</button>
+  </div>
+  
+  <!-- Debug panel -->
+  <div id="debug-panel">
+    <h3>Asset Debug Info</h3>
+    
+    <div class="debug-section">
+      <div class="debug-label">Model Info:</div>
+      <div id="model-info" class="debug-value">No model loaded</div>
+    </div>
+    
+    <div class="debug-section">
+      <div class="debug-label">Texture Info:</div>
+      <div id="texture-info" class="debug-value">No texture loaded</div>
+    </div>
+    
+    <div class="debug-section">
+      <div class="debug-label">Mesh Visibility:</div>
+      <div id="mesh-toggles"></div>
+      <div style="font-size: 0.85em; color: #999; margin-top: 5px;">
+        Toggle visibility of individual meshes or entire groups.
+      </div>
+    </div>
+    
+    <div class="debug-section" id="uv-info-section">
+      <!-- UV controls and info will be added here dynamically -->
+    </div>
+  </div>
+
+  <!-- Import Three.js from CDN -->
+  <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.150.1/build/three.module.js",
+        "three/examples/jsm/controls/OrbitControls.js": "https://unpkg.com/three@0.150.1/examples/jsm/controls/OrbitControls.js",
+        "three/examples/jsm/loaders/GLTFLoader.js": "https://unpkg.com/three@0.150.1/examples/jsm/loaders/GLTFLoader.js"
+      }
+    }
+  </script>
+  
+  <!-- Import our debug tool script -->
+  <script type="module" src="./asset_debugger.js"></script>
+</body>
+</html> 

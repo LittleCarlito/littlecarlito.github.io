@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "semantic-release": "semantic-release"
+    "semantic-release": "semantic-release",
+    "tools": "cd packages/blorktools && npm run tools"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.14.0",
@@ -20,9 +21,10 @@
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^9.2.6",
-    "express": "^4.21.2",
+    "express": "^4.18.3",
     "semantic-release": "^23.0.2",
-    "vite": "^6.0.11"
+    "vite": "^6.0.11",
+    "@littlecarlito/blorktools": "file:packages/blorktools"
   },
   "resolutions": {
     "@littlecarlito/blorkpack": "1.0.1"
