@@ -1,6 +1,6 @@
 // Debug UI for displaying framerate and performance metrics
 import { FLAGS, RAPIER, THREE } from '../common';
-import { BLORKPACK_FLAGS } from '@littlecarlito/blorkpack';
+import { BLORKPACK_FLAGS, AssetSpawner } from '@littlecarlito/blorkpack';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
@@ -49,8 +49,9 @@ let currentSelectedImageIndex = 0;
 
 // Define image options for the display mesh
 const imageOptions = [
-    { value: 0, text: 'Display Black Screen' },
-    { value: 1, text: 'Display White Screen' }
+    { value: 0, text: 'Display Transparent' },
+    { value: 1, text: 'Display Black Screen' },
+    { value: 2, text: 'Display White Screen' }
 ];
 
 /**
@@ -1439,8 +1440,21 @@ function populateDisplayMeshObjects() {
         obj.traverse(child => {
             if (child.isMesh && child.name.toLowerCase().includes('display_')) {
                 displayMeshName = child.name;
+                
+                // DEBUG: Log the current material settings of the display mesh
+                console.log(`Display mesh ${child.name} current material:`, 
+                    child.material ? {
+                        type: child.material.type,
+                        transparent: child.material.transparent,
+                        opacity: child.material.opacity,
+                        color: child.material.color ? child.material.color.getHexString() : 'none',
+                        emissive: child.material.emissive ? child.material.emissive.getHexString() : 'none'
+                    } : 'no material');
             }
         });
+        
+        // DEBUG: Log the userData of the object
+        console.log(`Object ${obj.name} userData:`, obj.userData);
         
         if (displayMeshName) {
             displayName = `Monitor (${displayMeshName})`;
@@ -1462,10 +1476,12 @@ function populateDisplayMeshObjects() {
             // Set the channel dropdown to the current image index if possible
             const selectedObject = findObjectByUuid(selectedObjectId);
             if (selectedObject && selectedObject.userData.currentDisplayImage !== undefined) {
+                console.log(`Object ${selectedObject.name} has currentDisplayImage = ${selectedObject.userData.currentDisplayImage}`);
                 channelDropdown.value = selectedObject.userData.currentDisplayImage;
                 currentSelectedImageIndex = selectedObject.userData.currentDisplayImage;
             } else {
                 // Default to stored image index
+                console.log(`Using default image index: ${currentSelectedImageIndex}`);
                 channelDropdown.value = currentSelectedImageIndex;
             }
         } else {
@@ -1666,30 +1682,12 @@ function updateDisplayImage() {
         
         // Update all display meshes based on the selected option
         displayMeshes.forEach(mesh => {
-            // Create a new material based on the selected option
-            let material;
+            // Create a new material based on the selected option using the shared function
+            const material = AssetSpawner.createDisplayMeshMaterial(selectedImageIndex);
             
-            if (selectedImageIndex === 0) {
-                // Display Black Screen option
-                material = new THREE.MeshStandardMaterial({
-                    color: 0x000000,            // Black base color
-                    emissive: 0x000000,         // No emission (black)
-                    emissiveIntensity: 0,       // No emission intensity
-                    side: THREE.DoubleSide
-                });
-                
-                console.log(`Set mesh ${mesh.name} to black screen`);
-            } else {
-                // Display White Screen option
-                material = new THREE.MeshStandardMaterial({
-                    color: 0xffffff,            // White base color
-                    emissive: 0xffffff,         // White emission
-                    emissiveIntensity: 0.3,     // Moderate emission intensity to avoid too bright
-                    side: THREE.DoubleSide
-                });
-                
-                console.log(`Set mesh ${mesh.name} to white screen`);
-            }
+            // Log which mode was applied
+            const modes = ['transparent', 'black screen', 'white screen'];
+            console.log(`Set mesh ${mesh.name} to ${modes[selectedImageIndex]}`);
             
             // Apply the new material
             mesh.material = material;

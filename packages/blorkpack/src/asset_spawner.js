@@ -106,54 +106,29 @@ export class AssetSpawner {
                         child.visible = false;
                         collisionMeshes.push(child);
                     } else if (child.name.startsWith('display_')) {
-                        // This is a display mesh - make it visible and load a texture from atlas-test.jpg
+                        // This is a display mesh - make it visible but transparent by default
                         child.visible = true;
                         
-                        // Create a texture loader
-                        const textureLoader = new THREE.TextureLoader();
+                        console.log(`Setting display mesh ${child.name} to transparent by default`);
                         
-                        // Load the atlas texture
-                        textureLoader.load('/images/atlas-test.jpg', (texture) => {
-                            // Set up texture to show just the first image (assuming 3 images arranged horizontally)
-                            // Set repeat to 1/3 to only show 1/3 of the texture
-                            texture.repeat.set(1/3, 1);
-                            // Set offset to 0 to start from the left
-                            texture.offset.set(0, 0);
-                            // Ensure the texture wrapping is set to ClampToEdge to prevent repeating
-                            texture.wrapS = THREE.ClampToEdgeWrapping;
-                            texture.wrapT = THREE.ClampToEdgeWrapping;
-                            
-                            // Create a material with the loaded texture - use MeshStandardMaterial with emissive for better visibility
-                            const displayMaterial = new THREE.MeshStandardMaterial({
-                                map: texture,
-                                side: THREE.DoubleSide,
-                                emissive: 0xffffff,       // Add white emissive color
-                                emissiveMap: texture,     // Use same texture as emissive map
-                                emissiveIntensity: 1.0,   // Full intensity emission
-                                color: 0xffffff          // White base color to not affect texture
-                            });
-                            
-                            // Apply the material to the display mesh
-                            child.material = displayMaterial;
-                            
-                            if (BLORKPACK_FLAGS.ASSET_LOGS) {
-                                console.log(`Applied atlas texture to display mesh: ${child.name} in ${asset_type}`);
-                            }
-                        }, 
-                        undefined, // onProgress callback not needed
-                        (error) => {
-                            console.error('Error loading atlas texture:', error);
-                            
-                            // Fallback to green material if texture loading fails
-                            const greenMaterial = new THREE.MeshStandardMaterial({
-                                color: 0x00ff00,
-                                emissive: 0x00ff00,
-                                emissiveIntensity: 0.5
-                            });
-                            
-                            child.material = greenMaterial;
-                        });
+                        // Create a transparent material as the default for display meshes
+                        const displayMaterial = AssetSpawner.createDisplayMeshMaterial(0); // 0 = transparent
                         
+                        // Apply the material to the display mesh
+                        child.material = displayMaterial;
+                        
+                        // Explicitly set display state to transparent (0) in userData
+                        // This ensures the debug UI will recognize it as transparent
+                        if (model.userData) {
+                            model.userData.currentDisplayImage = 0;
+                            console.log(`Set userData.currentDisplayImage to 0 (transparent) for ${model.name}`);
+                        }
+                        
+                        if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                            console.log(`Applied transparent material to display mesh: ${child.name} in ${asset_type}`);
+                        }
+                        
+                        // Keep track of display meshes
                         displayMeshes.push(child);
                         
                         if (BLORKPACK_FLAGS.ASSET_LOGS) {
@@ -518,8 +493,7 @@ export class AssetSpawner {
     }
     
     /**
-     * Performs periodic cleanup of unused resources.
-     * This is called regularly from the main animation loop.
+     * Legacy method for backward compatibility - calls cleanup()
      */
     performCleanup() {
         // Update debug wireframes if needed
@@ -534,12 +508,59 @@ export class AssetSpawner {
         
         // Any other periodic cleanup tasks can be added here
     }
-
+    
     /**
-     * Creates a physics collider from a mesh.
-     * Used for generating colliders from mesh geometry.
-     * 
-     * @param {THREE.Mesh} mesh - The mesh to create a collider for
+     * Creates a material for display meshes based on the specified display mode
+     * @param {number} displayMode - 0: Transparent, 1: Black Screen, 2: White Screen
+     * @returns {THREE.Material} The created material
+     */
+    static createDisplayMeshMaterial(displayMode = 0) {
+        let material;
+        
+        switch(displayMode) {
+            case 0: // Transparent
+                material = new THREE.MeshStandardMaterial({
+                    color: 0xffffff,            // White base color
+                    transparent: true,           // Enable transparency
+                    opacity: 0.0,                // Fully transparent
+                    side: THREE.DoubleSide
+                });
+                break;
+                
+            case 1: // Black Screen
+                material = new THREE.MeshStandardMaterial({
+                    color: 0x000000,            // Black base color
+                    emissive: 0x000000,         // No emission (black)
+                    emissiveIntensity: 0,       // No emission intensity
+                    side: THREE.DoubleSide
+                });
+                break;
+                
+            case 2: // White Screen
+                material = new THREE.MeshStandardMaterial({
+                    color: 0xffffff,            // White base color
+                    emissive: 0xffffff,         // White emission
+                    emissiveIntensity: 0.3,     // Moderate emission intensity to avoid too bright
+                    side: THREE.DoubleSide
+                });
+                break;
+                
+            default: // Default to transparent if invalid mode
+                console.warn(`Invalid display mode: ${displayMode}, defaulting to transparent`);
+                material = new THREE.MeshStandardMaterial({
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.0,
+                    side: THREE.DoubleSide
+                });
+        }
+        
+        return material;
+    }
+    
+    /**
+     * Creates a collider from a mesh
+     * @param {THREE.Mesh} mesh - The mesh to create a collider from
      * @param {RAPIER.RigidBody} body - The rigid body to attach the collider to
      * @param {Object} asset_config - Asset configuration data
      * @param {Object} [options={}] - Additional options for collider creation
