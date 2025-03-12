@@ -1,0 +1,50 @@
+name: Publish Package to GitHub Packages
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'packages/blorkpack/**'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20.x'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@littlecarlito'
+      
+      - name: Update package.json
+        run: |
+          cd packages/blorkpack
+          # Update package name to use GitHub scoped name
+          jq '.name = "@littlecarlito/blorkpack"' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          # Ensure version is properly set (extract from tag or increment)
+          if [[ "${{ github.ref }}" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            VERSION=${GITHUB_REF/refs\/tags\/v/}
+            jq --arg version "$VERSION" '.version = $version' package.json > package.json.tmp
+            mv package.json.tmp package.json
+          fi
+      
+      - name: Install dependencies and build
+        run: |
+          cd packages/blorkpack
+          npm ci
+          npm run build
+      
+      - name: Publish to GitHub Packages
+        run: |
+          cd packages/blorkpack
+          npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 

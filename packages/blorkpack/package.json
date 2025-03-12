@@ -18,5 +18,13 @@
   },
   "devDependencies": {
     "vite": "^6.0.11"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/littlecarlito/threejs_site.git",
+    "directory": "packages/blorkpack"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   }
 } 
