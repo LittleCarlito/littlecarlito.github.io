@@ -1,3 +1,48 @@
+# [0.8.0](https://github.com/LittleCarlito/threejs_site/compare/v0.7.3...v0.8.0) (2025-03-12)
+
+
+### Bug Fixes
+
+* all objects grabbable ([d10ce3a](https://github.com/LittleCarlito/threejs_site/commit/d10ce3a7baf00db8b6106b3e077ab7346076d7e2))
+* asset spawn functions async ([94d53fd](https://github.com/LittleCarlito/threejs_site/commit/94d53fd882d3778c846da07644e0bf4493facd25))
+* auto throttle to manifest ([1db2dae](https://github.com/LittleCarlito/threejs_site/commit/1db2daedede0c67b07db150a0b8cb0895dac736a))
+* background defaulting ([04b4df3](https://github.com/LittleCarlito/threejs_site/commit/04b4df30dd6aade7e6d2f975625fa1525d3929ca))
+* camera from manifest ([6bbecb7](https://github.com/LittleCarlito/threejs_site/commit/6bbecb7d9c756bf1052d41cac7c4ece5fa304882))
+* camera properties ([f9abcf2](https://github.com/LittleCarlito/threejs_site/commit/f9abcf2e03c67021b475f477d72b383b5b2da4a7))
+* camera through manifest ([fadb296](https://github.com/LittleCarlito/threejs_site/commit/fadb296dd04de089e0574d174e3e7568f8161893))
+* collision align ([712fd7f](https://github.com/LittleCarlito/threejs_site/commit/712fd7f52729b726bfce1bb5e0fd55a17bb24300))
+* correcting casing ([a0c7245](https://github.com/LittleCarlito/threejs_site/commit/a0c7245dc1af082006d8440739e62a9605737b08))
+* debug mesh updates ([2a411d2](https://github.com/LittleCarlito/threejs_site/commit/2a411d2fc64d86b341f7dd9ab78c608d71936900))
+* floor to system ([b2ce68d](https://github.com/LittleCarlito/threejs_site/commit/b2ce68d9668bdf69c2995499d4e31d2efae0606c))
+* forcing col layer ([07944dc](https://github.com/LittleCarlito/threejs_site/commit/07944dc42866e2772e3deabf4cf10914be2f06ad))
+* fucntion casing ([6934ae9](https://github.com/LittleCarlito/threejs_site/commit/6934ae9df1ecd3725a6f5e8cb8c2bb025946b59c))
+* function name ([bba4ce4](https://github.com/LittleCarlito/threejs_site/commit/bba4ce47a4a9039d4a663afc761403ff35503e9c))
+* getter null checks ([6ad02c7](https://github.com/LittleCarlito/threejs_site/commit/6ad02c72a80ef96819cebd6a358279632bf855b3))
+* gravity set ([05cdaa4](https://github.com/LittleCarlito/threejs_site/commit/05cdaa42eea7924c4a9da79c86b76ed21d8d5f2e))
+* gravity to vector3 ([ce497d6](https://github.com/LittleCarlito/threejs_site/commit/ce497d68b47d0d110e458ec24b3edd9c48945173))
+* mesh sizing ([39474be](https://github.com/LittleCarlito/threejs_site/commit/39474be0a3623cd903432c96de2648f6393063b0))
+* more log fixes ([49cd0f3](https://github.com/LittleCarlito/threejs_site/commit/49cd0f300bd6fd598864172b4c3a523897144dd1))
+* multicolored wireframes ([f0c5923](https://github.com/LittleCarlito/threejs_site/commit/f0c592334f029d837653f35748a4418e84e87194))
+* package and flag renaming ([f2ac994](https://github.com/LittleCarlito/threejs_site/commit/f2ac9948428b0139e2890f4508ead0e448859a06))
+* physics optimization settings ([8e98690](https://github.com/LittleCarlito/threejs_site/commit/8e9869027c8e20be835157b5e5fa67c5bb1cef6c))
+* primary spotlight through manifest ([5f23d28](https://github.com/LittleCarlito/threejs_site/commit/5f23d2889e1d894badee83f469d3b2330939666d))
+* silencing logs ([b3b43a4](https://github.com/LittleCarlito/threejs_site/commit/b3b43a4ab1597d3a8e56974e992b8224fe1b5401))
+* single spotlight mesh flag ([85b7cc9](https://github.com/LittleCarlito/threejs_site/commit/85b7cc9cfb25d68bc85f63633f079a2a3f615986))
+* spawn manifest assets to blorkpack ([5feb015](https://github.com/LittleCarlito/threejs_site/commit/5feb015d969fdb29dddacd154cbbd61f252c71ef))
+* spotlight fields ([af895d9](https://github.com/LittleCarlito/threejs_site/commit/af895d94595ba32bece9d1c2104a60c387d56cc5))
+* spotlight helper methods copied ([f1fb1f1](https://github.com/LittleCarlito/threejs_site/commit/f1fb1f1aaa7cd5cc88524826b1e8c0fbf2ca15e4))
+* spotlights to asset spawner ([65e3073](https://github.com/LittleCarlito/threejs_site/commit/65e307301d1f42ef6c170849a3a7f0f15cabc00f))
+* test restructure/manifest types created ([950248e](https://github.com/LittleCarlito/threejs_site/commit/950248e77b74e7665b9f8029a5216402109139f1))
+* wireframe connection ([82a5f16](https://github.com/LittleCarlito/threejs_site/commit/82a5f1682715bc6a99cc653a3c20128abce99558))
+* wording ([6d5d846](https://github.com/LittleCarlito/threejs_site/commit/6d5d846fc04191bd001399c4636e7738c9ad8a26))
+
+
+### Features
+
+* blorkpack alpha ([26b0722](https://github.com/LittleCarlito/threejs_site/commit/26b07222b49893d35a100d8a28c080bdb55524c3))
+* editor break ([c11818b](https://github.com/LittleCarlito/threejs_site/commit/c11818b1a69aac5eaf810b694e9158711ee263ff))
+* manifest base ([bce5b75](https://github.com/LittleCarlito/threejs_site/commit/bce5b75dc6a53a32a73e1bb0a4a48f18e3efbcd5))
+
 ## [0.7.3](https://github.com/LittleCarlito/threejs_site/compare/v0.7.2...v0.7.3) (2025-03-11)
 
 
