@@ -57,8 +57,12 @@ jobs:
       - name: Update package.json for production
         run: |
           # Update dependency to use the GitHub package instead of the local version
-          jq '.dependencies."@littlecarlito/blorkpack" = "@littlecarlito/blorkpack"' package.json > package.json.tmp
+          jq '.dependencies."@littlecarlito/blorkpack" = "@littlecarlito/blorkpack@1.0.1"' package.json > package.json.tmp
           mv package.json.tmp package.json
+          
+          # Create patch that excludes tests from build
+          echo 'Creating temporary build directory without tests'
+          rm -rf tests/
           
       - name: Install Dependencies
         run: npm install
@@ -66,7 +70,13 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         
       - name: Build
-        run: npm run build
+        run: |
+          # Create .npmrc for authentication
+          echo "@littlecarlito:registry=https://npm.pkg.github.com/" > .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.PACKAGE_TOKEN }}" >> .npmrc
+          npm run build
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
