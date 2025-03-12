@@ -2,11 +2,10 @@
 // Import the global config first to ensure it's available to all modules
 import { FLAGS, THREE, RAPIER, load_three, load_rapier, updateTween } from './common';
 import { ViewableContainer } from './viewport/viewable_container';
-import { BackgroundLighting } from './background/background_lighting';
+import { BackgroundContainer } from './background/background_container';
 import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/overlay_common';
 import { AppRenderer } from './common';
 import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common';
-import { BackgroundContainer } from './background/background_container';
 import { AssetStorage, AssetActivator, AssetSpawner, ManifestManager, BLORKPACK_FLAGS } from 'blorkpack';
 import { toggleDebugUI, createDebugUI as create_debug_UI, setBackgroundContainer as set_background_container, setResolutionScale as set_resolution_scale, updateLabelWireframes } from './common/debug_ui.js';
 
@@ -251,9 +250,7 @@ async function init() {
         }
         // Background creation
         update_loading_progress('Loading background assets...');
-        // TODO Refactor BackgroundLighting to use Manifest setup
-        const lighting = BackgroundLighting.getInstance(window.scene);
-        // TODO Refactor BackgroundContainer to use Manifest setup
+        // Use AssetSpawner which is already initialized earlier
         window.background_container = new BackgroundContainer(window.scene, window.viewable_container.get_camera(), window.world);
         // Load application assets from manifest (including background floor)
         update_loading_progress('Loading application assets...');
@@ -431,6 +428,11 @@ function animate() {
     // Ensure regular cleanup of unused resources
     if (window.asset_spawner) {
         window.asset_spawner.performCleanup();
+        
+        // Explicitly update spotlight debug visualizations
+        if (window.asset_spawner.update_spotlight_debug_visualizations) {
+            window.asset_spawner.update_spotlight_debug_visualizations();
+        }
     }
     
     // Render the scene

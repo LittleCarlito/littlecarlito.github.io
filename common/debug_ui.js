@@ -1,8 +1,8 @@
 // Debug UI for displaying framerate and performance metrics
-import { FLAGS } from './flags';
-import { BackgroundLighting } from '../background/background_lighting';
-import { BackgroundContainer } from '../background/background_container';
+import { FLAGS, RAPIER, THREE } from '../common';
 import { BLORKPACK_FLAGS } from 'blorkpack';
+import Stats from 'three/examples/jsm/libs/stats.module.js';
+import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 // FPS tracking variables
 let frameCount = 0;
@@ -500,10 +500,9 @@ export function createDebugUI() {
         BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG = checked;
         console.log(`SPOTLIGHT_VISUAL_DEBUG set to ${checked}`);
         
-        // Call the updateDebugVisualizations method as before
-        const lighting = BackgroundLighting.getInstance();
-        if (lighting) {
-            lighting.updateDebugVisualizations();
+        // Use AssetSpawner instead of BackgroundLighting
+        if (window.asset_spawner) {
+            window.asset_spawner.update_spotlight_debug_visualizations();
         }
     });
     

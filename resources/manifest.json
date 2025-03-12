@@ -204,7 +204,7 @@
             },
             "additional_properties": {
                 "color": "0xffffff",
-                "intensity": 5.0,
+                "intensity": 0.8,
                 "max_distance": 0,
                 "angle": 0.19634954084936207,
                 "penumbra": 0.05,
@@ -330,7 +330,7 @@
                     },
                     "angle": 80,
                     "max_distance": 0,
-                    "intensity": 2
+                    "intensity": 0.5
                 },
                 "right": {
                     "position": {
@@ -344,7 +344,7 @@
                     },
                     "angle": 80,
                     "max_distance": 0,
-                    "intensity": 2
+                    "intensity": 0.5
                 }
             },
             "ui_distance": 25
