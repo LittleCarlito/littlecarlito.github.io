@@ -1,0 +1,176 @@
+// // --------------------------------------
+// // Data structures 
+// // * next to REQUIRED fields
+// // --------------------------------------
+
+// // Custom type
+// // --------------------------------------
+// {
+//     "custom_type": {
+//         "name": "", //*
+//         // These can't be overwritten as they are used for file ingestion (scripts would ignore/exclude them specifically this just makes them available to do so)
+//         "load_layers": {
+//             "viewable": true, // If it has a visible mesh; Optional defaults to true
+//             "collision": false, // If it has a collision mesh "col_" layer; Optional defaults to false
+//             "display": false // If it has a display layer "display_" layer; Optional defaults to false
+//         },
+//         // All values below here can be provided in "asset_data" to overwrite their value
+//         "paths": { //* Neither are required but but there must be at least one
+//             "asset": "",
+//             "script": "" // Assetless script would be something like a global singleton util
+//         },
+//         "size": { // Default for this is null
+//             "radius": 0, 
+//             "width": 0,
+//             "height": 0
+//         },
+//         "scale": {
+//             "x": 1,
+//             "y": 1,
+//             "z": 1,
+//             "ui": {
+//                 "x": 1,
+//                 "y": 1,
+//                 "z": 1
+//             }
+//         },
+//         "restitution": 1.0,
+//         "sleep_timer": 500, // Idle state in ms before sleeping; 0 means cannot sleep (unless spawned that way)
+//         "mass": 1.0,
+//         "gravity_scale": 1.0,
+//         "visual": {
+//             "emitting": false,
+//             "emission_color": "0xffffff",
+//             "opacity": 1.0,
+//             "debug": {
+//                 "enabled": true,
+//                 "opacity": 0.6,
+//                 "color": "0xffffff"
+//             }
+//         }
+//     }
+// }
+
+// // Joint data 
+// //  - If an asset declares joint data with another asset both must declare the matching joint data
+// // --------------------------------------
+// {
+//     "joint_data": {
+//         "type": "", //* Must map to an existing supported RAPIER joint type
+//         "position": { // Defaults to values below
+//             "x": 0,
+//             "y": 0,
+//             "z": 0
+//         },
+//         "rotation": { // Defaults to values below
+//             "x": 0,
+//             "y": 0,
+//             "z": 0
+//         },
+//         "target_id": "" // Defaults to null (allowing for one sided joints); id of asset this asset is jointed to
+//     }
+// }
+
+// // Asset data
+// //  - type: SYSTEM or CUSTOM
+// //  - asset_type: If CUSTOM type must match provided custom_type if SYSTEM must match supported RAPIER or THREE type
+// //  - config types:
+// //      - collidable: Collides with other objects
+// //      - hidden: Visible or not
+// //      - disabled: Logic is enabled or disabled
+// //      - sleeping: Asleep in the physics engine
+// //      - gravity: Affected by gravity
+// //      - interactable: Can be picked up
+// // - tags: Used for things like activation logic to tie a label and asset(s) together for activation
+// // - parent: If an asset says it has a parent the parent data must declare it as a child
+// // - children: If the asset declares an asset as a child the asset better declare it as its parent
+// // - taret: Where the asset focuses; Both cannot be populated ONLY ONE of the two fields
+// // --------------------------------------
+// {
+//     "asset_data": { 
+//         "id": "<unique-id_asset-type>",//*
+//         "type": "", //*
+//         "asset_type": "", //*
+//         "config": { // Defaults to values below
+//             "collidable": true,
+//             "hidden": false,
+//             "disabled": false,
+//             "sleeping": true,
+//             "gravity": true,
+//             "interactable": true,
+//         },
+//         "tags": [""], // Default for this is null
+//         "joints": [{}], // Default for this is null; <joint_data>
+//         "parent": {}, // Default for this is null; <asset_data>
+//         "children": [{}], // Default for this is null; <asset_data>
+//         "position": {
+//             "x": 0,
+//             "y": 0,
+//             "z": 0
+//         },
+//         "rotation": {
+//             "x": 0,
+//             "y": 0,
+//             "z": 0
+//         },
+//         "target": { // Default for this is null
+//             "id": "",
+//             "position": {
+//                 "x": 0,
+//                 "y": 0,
+//                 "z": 0
+//             }
+//         },
+//         "additional_properties": { // Default for this is null
+//             // From spotlight
+//             "color": "0xfffffff",
+//             "intensity": 0.0,
+//             "max_distance": 0, // 0 implies no max distance (for lights specifically)
+//             "angle": 0.0,
+//             "penumbra": 0.0,
+//             "sharpness": 0.0,
+//             "cast_shadows": true,
+//             "blur_samples": 0,
+//             "shadow": {
+//                 "blur_samples": 32,
+//                 "radius": 4,
+//                 "map_size": {
+//                     "width": 2048,
+//                     "height": 2048
+//                 },
+//                 "camera": {
+//                     "near": 10,
+//                     "far": 100,
+//                     "fov": 30
+//                 },
+//                 "bias": -0.002,
+//                 "normal_bias": 0.02
+//             },
+//             "fov": 0, // From camera as well (spotlight is spotlight.camera.fov so just a deeper version)
+//             "near": 0,
+//             "far": 0,
+//             "bias": 0.0,
+//             "normal_bias": 0.0,
+//             // From camera
+//             "aspect_ratio": 1.6, // TODO make this optional and if not present default to window.innerWidth/window.innerHeight
+//             "near_clipping": 0.1,
+//             "far_clipping": 10000.0
+//         }
+//     } 
+// }
+
+// // --------------------------------------
+// // File json structure
+// // --------------------------------------
+// {
+//     "custom_types":[{}], // <custom_type structure>
+//     "application_assets": [{}], // <asset_data structure>
+//     "system_assets": [{}], // <asset_data structure>
+//     "scene_data": {
+//         "base_url": "",
+//         "background": {
+//             "path": ""
+//         },
+//         "gravity": 9.8
+//     }
+// }

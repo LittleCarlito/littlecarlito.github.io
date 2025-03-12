@@ -1,10 +1,8 @@
 export const FLAGS = {
     // Functionality flags
-    AUTO_THROTTLE: true,
-    CONSTRUCTION_GREETING: true,
+    GREETING: true,
     LAYER: true,
     COLLISION_VISUAL_DEBUG: false,
-    SPOTLIGHT_VISUAL_DEBUG: false,
     SIGN_VISUAL_DEBUG: false,
     DEBUG_UI: false,
     // Log flags
@@ -12,7 +10,6 @@ export const FLAGS = {
     TWEEN_LOGS: false,
     HTML_LOGS: false,
     PHYSICS_LOGS: false,
-    ASSET_LOGS: false,
-    ACTIVATE_LOGS: false,
+    ACTIVATE_LOGS: true,
     EFFECT_LOGS: false
 };

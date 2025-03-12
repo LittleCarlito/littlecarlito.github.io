@@ -1,6 +1,6 @@
 import { TYPES } from '../../viewport/overlay/overlay_common';
-import { FLAGS, ASSET_TYPE, RAPIER, THREE } from '../../common';
-import { BackgroundLighting } from '../background_lighting';
+import { FLAGS, RAPIER, THREE } from '../../common';
+import { ASSET_TYPE, AssetSpawner } from 'blorkpack';
 
 export const IMAGE_PATH = 'images/MouseControlMenu.svg';
 
@@ -121,7 +121,7 @@ export class ControlMenu {
     last_log_time = 0;
     log_interval = 500;
     menu_spotlight = null;
-    lighting = null;
+    spawner = null;
     // Animation variables
     animation_start_time = 0;
     is_animating = false;
@@ -134,7 +134,7 @@ export class ControlMenu {
         this.camera = incoming_camera;
         this.world = incoming_world;
         this.primary_container = primary_container;
-        this.lighting = BackgroundLighting.getInstance(this.parent);
+        this.spawner = AssetSpawner.get_instance(this.parent);
         
         // Store initial camera state
         this.initial_camera_position.copy(this.camera.position);
@@ -354,7 +354,7 @@ export class ControlMenu {
 
         // Remove spotlight if it exists
         if (this.menu_spotlight) {
-            await this.lighting.despawn_spotlight(this.menu_spotlight);
+            await this.spawner.despawn_spotlight(this.menu_spotlight.mesh);
             this.menu_spotlight = null;
         }
 
@@ -435,124 +435,254 @@ export class ControlMenu {
         return 1 - Math.pow(1 - t, 3);
     }
 
+    /**
+     * Updates the spotlight to point at the sign
+     */
+    updateSpotlight() {
+        // Only update if spotlight and sign exist
+        if (this.menu_spotlight && this.sign_mesh) {
+            // Occasionally log spotlight updates
+            const shouldLog = Math.random() < 0.01;
+            if (shouldLog) {
+                console.log("==== UPDATING CONTROL MENU SPOTLIGHT ====");
+                console.log("menu_spotlight object:", this.menu_spotlight);
+            }
+            
+            // Ensure menu_spotlight has needed properties
+            if (!this.menu_spotlight.position && !this.menu_spotlight.mesh) {
+                console.warn('ControlMenu: menu_spotlight is missing position property and mesh property');
+                // Log the entire spotlight object to see what it contains
+                console.log("menu_spotlight object:", this.menu_spotlight);
+                return;
+            }
+            
+            // Check specifically for position
+            if (!this.menu_spotlight.position && this.menu_spotlight.mesh) {
+                console.log("Using menu_spotlight.mesh.position instead of direct position");
+                this.menu_spotlight.position = this.menu_spotlight.mesh.position;
+            }
+            
+            // Ensure menu_spotlight.position exists before proceeding
+            if (!this.menu_spotlight.position) {
+                console.warn('ControlMenu: menu_spotlight.position is undefined');
+                return;
+            }
+            
+            // Occasionally log spotlight updates
+            if (shouldLog) {
+                console.log("Updating control menu spotlight, targeting sign at:", 
+                    `x=${this.sign_mesh.position.x}, y=${this.sign_mesh.position.y}, z=${this.sign_mesh.position.z}`);
+                console.log("Spotlight position:", 
+                    `x=${this.menu_spotlight.position.x}, y=${this.menu_spotlight.position.y}, z=${this.menu_spotlight.position.z}`);
+            }
+            
+            // Update spotlight direction to point at sign
+            const targetPosition = new THREE.Vector3();
+            targetPosition.copy(this.sign_mesh.position);
+            
+            try {
+                const direction = new THREE.Vector3().subVectors(targetPosition, this.menu_spotlight.position);
+                const rotationY = Math.atan2(direction.x, direction.z);
+                const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
+                
+                if (shouldLog) {
+                    console.log(`Calculated rotation: x=${rotationX}, y=${rotationY}`);
+                }
+    
+                // Update spotlight rotation
+                if (this.menu_spotlight.rotation) {
+                    this.menu_spotlight.rotation.set(rotationX, rotationY, 0);
+                    if (shouldLog) console.log("Updated menu_spotlight.rotation");
+                } else if (this.menu_spotlight.mesh) {
+                    this.menu_spotlight.mesh.rotation.set(rotationX, rotationY, 0);
+                    if (shouldLog) console.log("Updated menu_spotlight.mesh.rotation");
+                }
+                
+                // Update target
+                if (this.menu_spotlight.target) {
+                    this.menu_spotlight.target.position.copy(targetPosition);
+                    this.menu_spotlight.target.updateMatrixWorld();
+                    if (shouldLog) console.log("Updated menu_spotlight.target position");
+                } else if (this.menu_spotlight.mesh && this.menu_spotlight.mesh.target) {
+                    this.menu_spotlight.mesh.target.position.copy(targetPosition);
+                    this.menu_spotlight.mesh.target.updateMatrixWorld();
+                    if (shouldLog) console.log("Updated menu_spotlight.mesh.target position");
+                } else if (shouldLog) {
+                    console.log("No target found to update");
+                }
+                
+                if (shouldLog) {
+                    console.log("==== FINISHED UPDATING CONTROL MENU SPOTLIGHT ====");
+                }
+            } catch (error) {
+                console.error("Error updating control menu spotlight:", error);
+            }
+        }
+    }
+
     async update() {
         // Get current time for logging
         const currentTime = performance.now();
         
-        // Skip joint check if chains are broken, but continue updating
-        if (!this.chains_broken && (!this.sign_joint)) return;
-        
-        // Log positions periodically
+        // Only log occasionally to avoid spamming the console
         if (currentTime - this.last_log_time > this.log_interval) {
-            if (!this.chains_broken && this.top_beam_mesh && this.top_beam_body) {
-                const beamPos = this.top_beam_mesh.position;
-                const beamVel = this.top_beam_body.linvel();
-                if(FLAGS.PHYSICS_LOGS) {
-                    console.log('=== Position Update ===');
-                    console.log(`Top Beam - Position: (${beamPos.x.toFixed(2)}, ${beamPos.y.toFixed(2)}, ${beamPos.z.toFixed(2)})`);
-                    console.log(`Top Beam - Velocity: (${beamVel.x.toFixed(2)}, ${beamVel.y.toFixed(2)}, ${beamVel.z.toFixed(2)})`);
-                }
-            }
-            
-            if (this.sign_mesh && this.sign_body) {
-                const signPos = this.sign_mesh.position;
-                const signVel = this.sign_body.linvel();
-                const rotation = this.sign_body.rotation();
-                const euler = new THREE.Euler().setFromQuaternion(
-                    new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w)
-                );
-                
-                if(FLAGS.PHYSICS_LOGS) {
-                    console.log(`Sign - Position: (${signPos.x.toFixed(2)}, ${signPos.y.toFixed(2)}, ${signPos.z.toFixed(2)})`);
-                    console.log(`Sign - Velocity: (${signVel.x.toFixed(2)}, ${signVel.y.toFixed(2)}, ${signVel.z.toFixed(2)})`);
-                    console.log(`Sign - Rotation (rad): x:${euler.x.toFixed(2)}, y:${euler.y.toFixed(2)}, z:${euler.z.toFixed(2)}`);
-                    console.log(`Sign - Rotation (deg): x:${(euler.x * 180/Math.PI).toFixed(2)}°, y:${(euler.y * 180/Math.PI).toFixed(2)}°, z:${(euler.z * 180/Math.PI).toFixed(2)}°`);
-                }
-            }
             this.last_log_time = currentTime;
-        }
-
-        // Always update debug mesh positions if they exist, regardless of visibility
-        // This ensures they're in the right position when the flag is toggled
-        if (this.debug_meshes.sign && this.sign_body) {
-            const signPos = this.sign_body.translation();
-            const signRot = this.sign_body.rotation();
-            this.debug_meshes.sign.position.set(signPos.x, signPos.y, signPos.z);
-            this.debug_meshes.sign.quaternion.set(signRot.x, signRot.y, signRot.z, signRot.w);
-        }
-
-        // Only update beam debug mesh if chains are not broken and the beam still exists
-        if (!this.chains_broken && this.debug_meshes.beam && this.top_beam_body) {
-            const beamPos = this.top_beam_body.translation();
-            const beamRot = this.top_beam_body.rotation();
-            this.debug_meshes.beam.position.set(beamPos.x, beamPos.y, beamPos.z);
-            this.debug_meshes.beam.quaternion.set(beamRot.x, beamRot.y, beamRot.z, beamRot.w);
-        }
-
-        // Skip the rest if chains are broken
-        if (this.chains_broken) return;
-
-        // Handle smooth animation if still animating
-        if (this.is_animating && this.top_beam_body) {
-            const elapsed = (currentTime - this.animation_start_time) / 1000; // Convert to seconds
             
-            if (elapsed >= MENU_CONFIG.ANIMATION.DURATION) {
-                // Animation complete, set final position
-                this.top_beam_body.setNextKinematicTranslation({
-                    x: this.target_position.x,
-                    y: this.target_position.y,
-                    z: this.target_position.z
-                });
+            if (FLAGS.PHYSICS_LOGS) {
+                console.log(`Control menu update at ${currentTime.toFixed(0)}ms`);
+            }
+        }
+        
+        // Update spotlight if it exists
+        this.updateSpotlight();
+        
+        // If we're animating, update the animation
+        if (this.is_animating) {
+            // Get current time for logging
+            const currentTime = performance.now();
+            
+            // Skip joint check if chains are broken, but continue updating
+            if (!this.chains_broken && (!this.sign_joint)) return;
+            
+            // Log positions periodically
+            if (currentTime - this.last_log_time > this.log_interval) {
+                if (!this.chains_broken && this.top_beam_mesh && this.top_beam_body) {
+                    const beamPos = this.top_beam_mesh.position;
+                    const beamVel = this.top_beam_body.linvel();
+                    if(FLAGS.PHYSICS_LOGS) {
+                        console.log('=== Position Update ===');
+                        console.log(`Top Beam - Position: (${beamPos.x.toFixed(2)}, ${beamPos.y.toFixed(2)}, ${beamPos.z.toFixed(2)})`);
+                        console.log(`Top Beam - Velocity: (${beamVel.x.toFixed(2)}, ${beamVel.y.toFixed(2)}, ${beamVel.z.toFixed(2)})`);
+                    }
+                }
                 
-                // Create spotlight if needed (but don't wait for it)
-                if (!this.menu_spotlight && this.sign_mesh) {
-                    const spotlightPosition = new THREE.Vector3();
-                    spotlightPosition.copy(this.initial_camera_position);
-                    const backVector = new THREE.Vector3(0, 0, 15);
-                    backVector.applyQuaternion(this.initial_camera_quaternion);
-                    spotlightPosition.add(backVector);
+                if (this.sign_mesh && this.sign_body) {
+                    const signPos = this.sign_mesh.position;
+                    const signVel = this.sign_body.linvel();
+                    const rotation = this.sign_body.rotation();
+                    const euler = new THREE.Euler().setFromQuaternion(
+                        new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w)
+                    );
+                    
+                    if(FLAGS.PHYSICS_LOGS) {
+                        console.log(`Sign - Position: (${signPos.x.toFixed(2)}, ${signPos.y.toFixed(2)}, ${signPos.z.toFixed(2)})`);
+                        console.log(`Sign - Velocity: (${signVel.x.toFixed(2)}, ${signVel.y.toFixed(2)}, ${signVel.z.toFixed(2)})`);
+                        console.log(`Sign - Rotation (rad): x:${euler.x.toFixed(2)}, y:${euler.y.toFixed(2)}, z:${euler.z.toFixed(2)}`);
+                        console.log(`Sign - Rotation (deg): x:${(euler.x * 180/Math.PI).toFixed(2)}°, y:${(euler.y * 180/Math.PI).toFixed(2)}°, z:${(euler.z * 180/Math.PI).toFixed(2)}°`);
+                    }
+                }
+                this.last_log_time = currentTime;
+            }
 
-                    const targetPosition = new THREE.Vector3();
-                    targetPosition.copy(this.sign_mesh.position);
-                    const direction = new THREE.Vector3().subVectors(targetPosition, spotlightPosition);
-                    const rotationY = Math.atan2(direction.x, direction.z);
-                    const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
+            // Always update debug mesh positions if they exist, regardless of visibility
+            // This ensures they're in the right position when the flag is toggled
+            if (this.debug_meshes.sign && this.sign_body) {
+                const signPos = this.sign_body.translation();
+                const signRot = this.sign_body.rotation();
+                this.debug_meshes.sign.position.set(signPos.x, signPos.y, signPos.z);
+                this.debug_meshes.sign.quaternion.set(signRot.x, signRot.y, signRot.z, signRot.w);
+            }
 
-                    this.lighting.create_spotlight(
-                        spotlightPosition,
-                        rotationX,
-                        rotationY,
-                        50 * Math.tan(Math.PI / 16),
-                        0
-                    ).then(spotlight => {
-                        this.menu_spotlight = spotlight;
+            // Only update beam debug mesh if chains are not broken and the beam still exists
+            if (!this.chains_broken && this.debug_meshes.beam && this.top_beam_body) {
+                const beamPos = this.top_beam_body.translation();
+                const beamRot = this.top_beam_body.rotation();
+                this.debug_meshes.beam.position.set(beamPos.x, beamPos.y, beamPos.z);
+                this.debug_meshes.beam.quaternion.set(beamRot.x, beamRot.y, beamRot.z, beamRot.w);
+            }
+
+            // Skip the rest if chains are broken
+            if (this.chains_broken) return;
+
+            // Handle smooth animation if still animating
+            if (this.is_animating && this.top_beam_body) {
+                const elapsed = (currentTime - this.animation_start_time) / 1000; // Convert to seconds
+                
+                if (elapsed >= MENU_CONFIG.ANIMATION.DURATION) {
+                    // Animation complete, set final position
+                    this.top_beam_body.setNextKinematicTranslation({
+                        x: this.target_position.x,
+                        y: this.target_position.y,
+                        z: this.target_position.z
                     });
-                }
-                
-                this.is_animating = false;
-                this.reached_target = true;
-                
-                if(FLAGS.PHYSICS_LOGS) {
-                    console.log('=== Animation Complete ===');
-                    console.log(`Final Position: (${this.target_position.x.toFixed(2)}, ${this.target_position.y.toFixed(2)}, ${this.target_position.z.toFixed(2)})`);
-                }
-            } else {
-                // Calculate progress with easing
-                const progress = this.easeOutCubic(Math.min(elapsed / MENU_CONFIG.ANIMATION.DURATION, 1.0));
-                
-                // Interpolate position
-                const newPosition = {
-                    x: this.assembly_position.x,
-                    y: this.assembly_position.y + (this.target_position.y - this.assembly_position.y) * progress,
-                    z: this.assembly_position.z
-                };
-                
-                // Update kinematic body position
-                this.top_beam_body.setNextKinematicTranslation(newPosition);
-                
-                if(FLAGS.PHYSICS_LOGS && currentTime - this.last_log_time > 1000) {
-                    console.log(`Animation progress: ${(progress * 100).toFixed(1)}%`);
-                    console.log(`Current position: (${newPosition.x.toFixed(2)}, ${newPosition.y.toFixed(2)}, ${newPosition.z.toFixed(2)})`);
+                    
+                    // Create spotlight if needed (but don't wait for it)
+                    if (!this.menu_spotlight && this.sign_mesh) {
+                        console.log("==== ATTEMPTING TO CREATE CONTROL MENU SPOTLIGHT ====");
+                        console.log("SPOTLIGHT_VISUAL_DEBUG flag is:", FLAGS.SPOTLIGHT_VISUAL_DEBUG);
+                        
+                        const spotlightPosition = this.calculate_spotlight_position(this.camera.position, this.camera.quaternion);
+                        console.log(`Control menu spotlight position: ${JSON.stringify(spotlightPosition)}`);
+                        
+                        // Make sure we have valid positions before calculating direction
+                        if (!spotlightPosition) {
+                            console.warn('ControlMenu: spotlightPosition is undefined');
+                            return;
+                        }
+
+                        const targetPosition = new THREE.Vector3();
+                        targetPosition.copy(this.sign_mesh.position);
+                        console.log("Control menu spotlight target position:", targetPosition);
+                        
+                        try {
+                            const direction = new THREE.Vector3().subVectors(targetPosition, spotlightPosition);
+                            const rotationY = Math.atan2(direction.x, direction.z);
+                            const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
+                            console.log(`Control menu spotlight rotation: x=${rotationX}, y=${rotationY}`);
+                            
+                            // Adjust properties for a clearer edge but keep a larger radius
+                            // Larger radius for control menu (white with higher intensity)
+                            this.menu_spotlight = await this.spawner.create_spotlight(
+                                "control_menu_spotlight",
+                                spotlightPosition,
+                                { x: rotationX, y: rotationY },
+                                {
+                                    circle_radius: 6,
+                                    color: "0xFFFFFF", // Standard white light instead of yellow
+                                    intensity: 1.2,    // Much higher intensity to draw attention
+                                    angle: Math.PI / 15, // Narrower angle for clearer edge
+                                    penumbra: 0.05,    // Lower penumbra for sharper edge
+                                    cast_shadow: false
+                                },
+                                {} // empty asset_data
+                            );
+                            
+                            console.log("Control menu spotlight created:", this.menu_spotlight ? "success" : "failed");
+                            if (this.menu_spotlight) {
+                                console.log("Control menu spotlight properties:", {
+                                    mesh: this.menu_spotlight.mesh ? "exists" : "missing",
+                                    position: this.menu_spotlight.mesh?.position ? 
+                                        `x=${this.menu_spotlight.mesh.position.x}, y=${this.menu_spotlight.mesh.position.y}, z=${this.menu_spotlight.mesh.position.z}` : 
+                                        "missing",
+                                    target: this.menu_spotlight.mesh?.target ? "exists" : "missing"
+                                });
+                            }
+                        } catch (error) {
+                            console.error("Error creating control menu spotlight:", error);
+                        }
+                        console.log("==== FINISHED CREATING CONTROL MENU SPOTLIGHT ====");
+                    }
+                    
+                    this.is_animating = false;
+                    this.reached_target = true;
+                    
+                    if(FLAGS.PHYSICS_LOGS) {
+                        console.log('=== Animation Complete ===');
+                        console.log(`Final Position: (${this.target_position.x.toFixed(2)}, ${this.target_position.y.toFixed(2)}, ${this.target_position.z.toFixed(2)})`);
+                    }
+                } else {
+                    // Calculate progress with easing
+                    const progress = this.easeOutCubic(Math.min(elapsed / MENU_CONFIG.ANIMATION.DURATION, 1.0));
+                    
+                    // Interpolate position
+                    const newPosition = {
+                        x: this.assembly_position.x,
+                        y: this.assembly_position.y + (this.target_position.y - this.assembly_position.y) * progress,
+                        z: this.assembly_position.z
+                    };
+                    
+                    // Update the kinematic body position
+                    this.top_beam_body.setNextKinematicTranslation(newPosition);
                 }
             }
         }
@@ -572,5 +702,17 @@ export class ControlMenu {
         if (!this.chains_broken && this.debug_meshes.beam) {
             this.debug_meshes.beam.visible = FLAGS.SIGN_VISUAL_DEBUG;
         }
+    }
+
+    // Add this method to calculate spotlight position
+    calculate_spotlight_position(camera_position, camera_quaternion) {
+        console.log("Calculating control menu spotlight position");
+        const spotlightPosition = new THREE.Vector3();
+        spotlightPosition.copy(camera_position);
+        const backVector = new THREE.Vector3(0, 0, 15);
+        backVector.applyQuaternion(camera_quaternion);
+        spotlightPosition.add(backVector);
+        console.log("Calculated control menu spotlight position:", spotlightPosition);
+        return spotlightPosition;
     }
 }

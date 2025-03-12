@@ -1,4 +1,4 @@
-import { THREE } from "..";
+import { THREE } from "./index.js";
 
 const SCALE_FACTOR = 5;
 
@@ -135,4 +135,4 @@ export const ASSET_CONFIGS = {
         mass: 1,
         restitution: .2
     }
-};
+}; 

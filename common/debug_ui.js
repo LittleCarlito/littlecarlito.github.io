@@ -1,7 +1,8 @@
 // Debug UI for displaying framerate and performance metrics
-import { FLAGS } from './flags';
-import { BackgroundLighting } from '../background/background_lighting';
-import { BackgroundContainer } from '../background/background_container';
+import { FLAGS, RAPIER, THREE } from '../common';
+import { BLORKPACK_FLAGS } from 'blorkpack';
+import Stats from 'three/examples/jsm/libs/stats.module.js';
+import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 // FPS tracking variables
 let frameCount = 0;
@@ -469,27 +470,41 @@ export function createDebugUI() {
     
     // Add debug toggles (these remain visible)
     addToggle(debugUI, 'COLLISION_VISUAL_DEBUG', 'Collision Debug', FLAGS.COLLISION_VISUAL_DEBUG, (checked) => {
+        // Update flags
+        FLAGS.COLLISION_VISUAL_DEBUG = checked;
+        
         // Also update SIGN_VISUAL_DEBUG to match COLLISION_VISUAL_DEBUG
         FLAGS.SIGN_VISUAL_DEBUG = checked;
         
         // Update sign debug visualizations
-        if (backgroundContainer) {
-            backgroundContainer.updateSignDebugVisualizations();
+        if (window.background_container) {
+            background_container.updateSignDebugVisualizations();
+        }
+        
+        // Update collision debug in the asset spawner if available
+        if (window.asset_spawner) {
+            console.log(`Setting collision debug to ${checked}`);
+            asset_spawner.set_collision_debug(checked);
         }
         
         // Update label wireframes
-        if (window.viewable_container && window.viewable_container.get_overlay()) {
-            const labelContainer = window.viewable_container.get_overlay().label_container;
-            if (labelContainer && typeof labelContainer.updateDebugVisualizations === 'function') {
-                labelContainer.updateDebugVisualizations();
-            }
-        }
+        updateLabelWireframes();
         
+        // Log the change for debugging
         console.log(`Collision and Sign debug visualization ${checked ? 'enabled' : 'disabled'}`);
         console.log(`All collision wireframes will be ${checked ? 'shown' : 'hidden'}`);
     });
     
-    addToggle(debugUI, 'SPOTLIGHT_VISUAL_DEBUG', 'Spotlight Debug');
+    addToggle(debugUI, 'SPOTLIGHT_VISUAL_DEBUG', 'Spotlight Debug', undefined, function(checked) {
+        // Update BLORKPACK_FLAGS instead of FLAGS
+        BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG = checked;
+        console.log(`SPOTLIGHT_VISUAL_DEBUG set to ${checked}`);
+        
+        // Use AssetSpawner instead of BackgroundLighting
+        if (window.asset_spawner) {
+            window.asset_spawner.update_spotlight_debug_visualizations();
+        }
+    });
     
     // Add divider
     const divider4 = document.createElement('div');
@@ -601,27 +616,41 @@ export function createDebugUI() {
     setTimeout(() => {
         console.log('Attempting to force update label wireframes...');
         if (window.viewable_container && window.viewable_container.get_overlay()) {
-            console.log('viewable_container and overlay exist');
+            if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                console.log('viewable_container and overlay exist');
+            }
             const labelContainer = window.viewable_container.get_overlay().label_container;
             if (labelContainer) {
-                console.log('labelContainer exists');
+                if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                    console.log('labelContainer exists');
+                }
                 if (typeof labelContainer.updateDebugVisualizations === 'function') {
-                    console.log('updateDebugVisualizations method exists, calling it');
+                    if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                        console.log('updateDebugVisualizations method exists, calling it');
+                    }
                     labelContainer.updateDebugVisualizations();
                 } else {
                     console.error('updateDebugVisualizations method does not exist on labelContainer');
-                    console.log('Available methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(labelContainer)));
+                    if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                        console.log('Available methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(labelContainer)));
+                    }
                 }
             } else {
                 console.error('labelContainer does not exist on overlay');
-                console.log('Overlay properties:', Object.keys(window.viewable_container.get_overlay()));
+                if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                    console.log('Overlay properties:', Object.keys(window.viewable_container.get_overlay()));
+                }
             }
         } else {
             console.error('viewable_container or overlay does not exist');
             if (window.viewable_container) {
-                console.log('viewable_container exists, but get_overlay() returned:', window.viewable_container.get_overlay());
+                if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                    console.log('viewable_container exists, but get_overlay() returned:', window.viewable_container.get_overlay());
+                }
             } else {
-                console.log('viewable_container does not exist');
+                if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                    console.log('viewable_container does not exist');
+                }
             }
         }
     }, 3000); // Wait 3 seconds to ensure everything is loaded
@@ -700,7 +729,9 @@ export function createDebugUI() {
             }
         }, 1000);
     }
-    
+    if(BLORKPACK_FLAGS.ASSET_LOGS) {
+        console.log("Debug UI initialized. Press 's' to toggle.");
+    }
     return debugUI;
 }
 
@@ -851,8 +882,13 @@ function addToggle(parent, flagName, label, initialState, onChange) {
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     
-    // Use provided initial state or get from FLAGS
-    const isChecked = initialState !== undefined ? initialState : (FLAGS[flagName] || false);
+    // Use provided initial state or get from FLAGS or BLORKPACK_FLAGS
+    let isChecked = initialState !== undefined ? initialState : false;
+    if (flagName === 'SPOTLIGHT_VISUAL_DEBUG') {
+        isChecked = BLORKPACK_FLAGS[flagName] || false;
+    } else {
+        isChecked = FLAGS[flagName] || false;
+    }
     checkbox.checked = isChecked;
     
     checkbox.style.opacity = '0';
@@ -889,18 +925,22 @@ function addToggle(parent, flagName, label, initialState, onChange) {
         slider.style.backgroundColor = checked ? '#4CAF50' : '#ccc';
         circle.style.left = checked ? '13px' : '2px';
         
-        // If flagName exists in FLAGS, update it
+        // Special case for SPOTLIGHT_VISUAL_DEBUG which now uses BLORKPACK_FLAGS
+        if (flagName === 'SPOTLIGHT_VISUAL_DEBUG') {
+            // Skip the default FLAG update
+            if (onChange && typeof onChange === 'function') {
+                onChange(checked);
+            }
+            return;
+        }
+        
+        // For all other flags, update FLAGS as before
         if (flagName in FLAGS) {
             FLAGS[flagName] = checked;
             console.log(`${flagName} set to ${checked}`);
             
             // Call specific update functions based on the flag
-            if (flagName === 'SPOTLIGHT_VISUAL_DEBUG') {
-                const lighting = BackgroundLighting.getInstance();
-                if (lighting) {
-                    lighting.updateDebugVisualizations();
-                }
-            } else if (flagName === 'SIGN_VISUAL_DEBUG' && flagName !== 'COLLISION_VISUAL_DEBUG') {
+            if (flagName === 'SIGN_VISUAL_DEBUG' && flagName !== 'COLLISION_VISUAL_DEBUG') {
                 // Only handle SIGN_VISUAL_DEBUG here if it's not being controlled by COLLISION_VISUAL_DEBUG
                 if (backgroundContainer) {
                     backgroundContainer.updateSignDebugVisualizations();

@@ -1,46 +1,34 @@
+// @ts-nocheck
 // Import the global config first to ensure it's available to all modules
-import { FLAGS, loadThree, loadRapier, THREE, RAPIER, updateTween } from './common';
-import { BackgroundFloor } from './background/background_floor';
+import { FLAGS, THREE, RAPIER, load_three, load_rapier, updateTween } from './common';
 import { ViewableContainer } from './viewport/viewable_container';
-import { BackgroundLighting } from './background/background_lighting';
-import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/overlay_common';
-import { AppRenderer } from './common/app_renderer';
-import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common';
 import { BackgroundContainer } from './background/background_container';
-import { AssetSpawner } from './common';
-import { AssetStorage } from './common/asset_management/asset_storage';
-import { AssetActivator } from './common/asset_management/asset_activator';
-import { toggleDebugUI, createDebugUI, setBackgroundContainer, setResolutionScale, updateLabelWireframes } from './common/debug_ui.js';
-
-// ----- Constants
-const BACKGROUND_IMAGE = 'images/gradient.jpg';
+import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/overlay_common';
+import { AppRenderer } from './common';
+import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common';
+import { AssetStorage, AssetActivator, AssetSpawner, ManifestManager, BLORKPACK_FLAGS } from 'blorkpack';
+import { toggleDebugUI, createDebugUI as create_debug_UI, setBackgroundContainer as set_background_container, setResolutionScale as set_resolution_scale, updateLabelWireframes } from './common/debug_ui.js';
 
 // ----- Variables
 let resize_move = false;
 let zoom_event = false;
-let last_pixel_ratio = window.devicePixelRatio;
-let scene;
-let gravity;
-let world;
-let clock;
-let viewable_container;
-let app_renderer;
-let background_container;
-let resizeTimeout;
+let resize_timeout;
 let hovered_interactable_name = "";
 let grabbed_object = null;
 let left_mouse_down = false;
 let right_mouse_down = false;
-let construction_acknowledged = !FLAGS.CONSTRUCTION_GREETING;
-let asset_spawner;
-let asset_activator;
-let isCleanedUp = false; // Track if cleanup has been performed
-let isPhysicsPaused = false; // Track if physics simulation is paused
+let is_cleaned_up = false; // Track if cleanup has been performed
+let is_physics_paused = false; // Track if physics simulation is paused
+let greeting_acknowledged = false; // Declare the variable here
 
 /** Cleans up resources to prevent memory leaks */
 function cleanup() {
-    if (isCleanedUp) return; // Prevent multiple cleanups
-    
+    if (is_cleaned_up) {
+        if(BLORKPACK_FLAGS.DEBUG_LOGS) {
+            console.debug("Scene already clean; Skipping cleanup");
+        }
+        return; // Prevent multiple cleanups
+    }
     // Remove event listeners
     window.removeEventListener('resize', handle_resize);
     window.removeEventListener('mousemove', handle_mouse_move);
@@ -49,24 +37,20 @@ function cleanup() {
     window.removeEventListener('contextmenu', handle_context_menu);
     window.removeEventListener('wheel', handle_wheel);
     window.removeEventListener('keydown', toggle_debug_ui);
-    
     // Dispose of major components
-    if (app_renderer) {
-        app_renderer.dispose();
-        app_renderer = null;
+    if (window.app_renderer) {
+        window.app_renderer.dispose();
+        window.app_renderer = null;
     }
-    
     // Cleanup asset systems
-    if (asset_spawner) {
-        asset_spawner.cleanup();
-        asset_spawner = null;
+    if (window.asset_spawner) {
+        window.asset_spawner.cleanup();
+        window.asset_spawner = null;
     }
-    
     // Force garbage collection on Three.js objects
-    if (scene) {
-        scene.traverse(object => {
+    if (window.scene) {
+        window.scene.traverse(object => {
             if (object.geometry) object.geometry.dispose();
-            
             if (object.material) {
                 if (Array.isArray(object.material)) {
                     object.material.forEach(material => {
@@ -79,173 +63,221 @@ function cleanup() {
                 }
             }
         });
-        
-        scene.clear();
-        scene = null;
+        window.scene.clear();
+        window.scene = null;
     }
-    
     // Release Rapier physics world
-    if (world) {
-        world = null;
+    if (window.world) {
+        window.world = null;
     }
-    
     // Clear other references
-    viewable_container = null;
-    background_container = null;
-    clock = null;
-    gravity = null;
+    window.viewable_container = null;
+    window.background_container = null;
+    window.clock = null;
     grabbed_object = null;
-    
-    isCleanedUp = true;
-    
-    if (FLAGS.PHYSICS_LOGS) {
+    is_cleaned_up = true;
+    if (BLORKPACK_FLAGS.DEBUG_LOGS) {
         console.log("Application resources cleaned up");
     }
 }
 
 /** Updates the loading progress text */
-function updateLoadingProgress(text) {
-    const loadingProgress = document.getElementById('loading-progress');
-    if (loadingProgress) {
-        loadingProgress.textContent = text;
+function update_loading_progress(text) {
+    const loading_progress = document.getElementById('loading-progress');
+    if (loading_progress) {
+        loading_progress.textContent = text;
     }
 }
 
 /** Shows the loading screen */
-async function showLoadingScreen() {
-    const html = `
-        <div id="loading-screen">
-            <div class="loading-spinner"></div>
-            <div id="loading-progress">Loading assets...</div>
-        </div>
-        <style>
-            #loading-screen {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background-color: #000000;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-                z-index: 9999;
-                color: white;
-                font-family: Arial, sans-serif;
-            }
-            .loading-spinner {
-                width: 50px;
-                height: 50px;
-                border: 5px solid #f3f3f3;
-                border-top: 5px solid #3498db;
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-                margin-bottom: 20px;
-            }
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-        </style>
-    `;
+async function show_loading_screen() {
+    // Load the loading screen HTML from the external file
+    const response = await fetch('pages/loading.html');
+    const html = await response.text();
     document.body.insertAdjacentHTML('beforeend', html);
 }
 
 /** Hides the loading screen */
-function hideLoadingScreen() {
-    const loadingScreen = document.getElementById('loading-screen');
-    if (loadingScreen) {
-        loadingScreen.remove();
+function hide_loading_screen() {
+    const loading_screen = document.getElementById('loading-screen');
+    if (loading_screen) {
+        loading_screen.remove();
+    }
+}
+
+/**
+ * Displays a modal loaded from a remote HTML file
+ * @param {string} modal_path - Path to the HTML file containing the modal content
+ * @param {string} modal_id - ID of the modal element in the HTML
+ * @param {string} button_id - ID of the button element to acknowledge the modal
+ * @param {Function} onAcknowledge - Callback function to be executed when the modal is acknowledged
+ * @returns {Promise} Promise that resolves when the modal is loaded and displayed
+ */
+async function display_modal(modal_path, modal_id, button_id, onAcknowledge) {
+    try {
+        const response = await fetch(modal_path);
+        if (!response.ok) {
+            throw new Error(`Failed to load modal: ${response.status} ${response.statusText}`);
+        }
+        const html = await response.text();
+        document.body.insertAdjacentHTML('beforeend', html);
+        const modal = document.getElementById(modal_id);
+        if (!modal) {
+            throw new Error(`Modal HTML does not contain an element with ID '${modal_id}'`);
+        }
+        modal.style.display = 'block';
+        const acknowledge_btn = document.getElementById(button_id);
+        if (!acknowledge_btn) {
+            console.warn(`Modal is missing an '${button_id}' element, user won't be able to dismiss it.`);
+        } else {
+            acknowledge_btn.addEventListener('click', () => {
+                modal.style.display = 'none';
+                if (onAcknowledge) onAcknowledge();
+            });
+        }
+        return true;
+    } catch (error) {
+        console.error(`Error loading modal from path "${modal_path}": ${error.message}`);
+        if (onAcknowledge) onAcknowledge();
+        return false;
     }
 }
 
 /** Initializes the main scene */
 async function init() {
     try {
-        await showLoadingScreen();
-        
-        updateLoadingProgress('Loading Three.js...');
-        await loadThree(); // Still load async but we already have THREE available
-
-        updateLoadingProgress('Loading Rapier Physics...');
-        await loadRapier(); // Initialize Rapier
+        await show_loading_screen();
+        // Load three
+        update_loading_progress('Loading Three.js...');
+        await load_three(); // Still load async but we already have THREE available
+        // Load rapier
+        update_loading_progress('Loading Rapier Physics...');
+        await load_rapier(); // Initialize Rapier
         await RAPIER.init(); // Make sure Rapier is initialized
-        
-        updateLoadingProgress('Initializing scene...');
-        asset_spawner = AssetSpawner.get_instance();
-        asset_activator = AssetActivator.get_instance();
-        
-        if(FLAGS.CONSTRUCTION_GREETING) {
-            const response = await fetch('pages/under_construction.html');
-            const html = await response.text();
-            document.body.insertAdjacentHTML('beforeend', html);
-            const modal = document.getElementById('construction-modal');
-            const acknowledgeBtn = document.getElementById('acknowledge-btn');
-            modal.style.display = 'block';
-            acknowledgeBtn.addEventListener('click', () => {
-                modal.style.display = 'none';
-                construction_acknowledged = true;
-            });
+        // Load scene
+        update_loading_progress('Initializing scene...');
+        // Initialize asset storage and spawner early since they don't depend on UI
+        AssetStorage.get_instance();
+        // Initialize the ManifestManager and load the manifest
+        update_loading_progress("Loading manifest...");
+        window.manifest_manager = ManifestManager.get_instance();
+        await window.manifest_manager.load_manifest();
+        // Get greeting data from manifest, default to false if not present
+        const greeting_data = window.manifest_manager.get_greeting_data();
+        greeting_acknowledged = !(greeting_data && greeting_data.display === true);
+        if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
+            console.log("Manifest loaded:", window.manifest_manager.get_manifest());
         }
-
         // ----- Setup
-        scene = new THREE.Scene();
-        scene.background = TEXTURE_LOADER.load(BACKGROUND_IMAGE);
+        // Add event listeners
         window.addEventListener('resize', handle_resize);
         window.addEventListener('mousemove', handle_mouse_move);
         window.addEventListener('mousedown', handle_mouse_down);
         window.addEventListener('mouseup', handle_mouse_up);
         window.addEventListener('contextmenu', handle_context_menu);
         window.addEventListener('wheel', handle_wheel);
-
-        // Physics
-        gravity = new RAPIER.Vector3(0.0, -9.81, 0.0);
-        world = new RAPIER.World(gravity);
+        window.addEventListener('keydown', toggle_debug_ui);
+        window.addEventListener('unload', cleanup);
+        window.scene = new THREE.Scene();
+        // Apply scene settings from manifest
+        // Set background based on manifest settings
+        const bg = window.manifest_manager.get_background_config();
+        if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
+            console.log("Using background configuration:", bg);
+        }
+        switch (bg.type) {
+            case 'IMAGE':
+                window.scene.background = TEXTURE_LOADER.load(bg.image_path);
+                break;
+            case 'COLOR':
+                window.scene.background = new THREE.Color(bg.color_value);
+                break;
+            case 'SKYBOX':
+                if (bg.skybox && bg.skybox.enabled) {
+                    // Load skybox (implementation depends on your skybox format)
+                    console.log('Loading skybox from:', bg.skybox.skybox_path);
+                }
+                break;
+            default:
+                // This shouldn't happen since the getter validates the type
+                console.error(`Background type \"${bg.type}\" is not supported`);
+                window.scene.background = new THREE.Color('0x000000');
+        }
+        // Physics - Get gravity from manifest manager
+        const gravityData = window.manifest_manager.get_gravity();
+        if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
+            console.log("Using gravity:", gravityData);
+        }
+        // Create world and spawner
+        window.world = new RAPIER.World();
+        window.world.gravity = new RAPIER.Vector3(gravityData.x, gravityData.y, gravityData.z);
+        window.asset_spawner = AssetSpawner.get_instance(window.scene, window.world);
         // Physics optimization settings
-        world.allowSleep = true;
-        world.linearSleepThreshold = 0.2;
-        world.angularSleepThreshold = 0.1;
-        world.sleepThreshold = 0.1;
-        world.maxVelocityIterations = 2;  // Reduced from 4
-        world.maxVelocityFriction = 4;    // Reduced from 8
-        world.integrationParameters.dt = 1/60;  // Fixed timestep
-        world.integrationParameters.erp = 0.8;  // Error reduction parameter
-        world.integrationParameters.warmstartCoeff = 0.8;
-        world.integrationParameters.allowedLinearError = 0.001;
-        clock = new THREE.Clock();
-
+        const physicsOptimization = window.manifest_manager.get_physics_optimization_settings();
+        if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
+            console.log("Using physics optimization settings:", physicsOptimization);
+        }
+        window.world.allowSleep = physicsOptimization.allow_sleep;
+        window.world.linearSleepThreshold = physicsOptimization.linear_sleep_threshold;
+        window.world.angularSleepThreshold = physicsOptimization.angular_sleep_threshold;
+        window.world.sleepThreshold = physicsOptimization.sleep_threshold;
+        window.world.maxVelocityIterations = physicsOptimization.max_velocity_iterations;
+        window.world.maxVelocityFriction = physicsOptimization.max_velocity_friction;
+        window.world.integrationParameters.dt = physicsOptimization.integration_parameters.dt;
+        window.world.integrationParameters.erp = physicsOptimization.integration_parameters.erp;
+        window.world.integrationParameters.warmstartCoeff = physicsOptimization.integration_parameters.warmstart_coeff;
+        window.world.integrationParameters.allowedLinearError = physicsOptimization.integration_parameters.allowed_linear_error;
+        window.clock = new THREE.Clock();
         // UI creation
-        updateLoadingProgress('Creating UI components...');
-        viewable_container = new ViewableContainer(scene, world);
-        // Make viewable_container available globally for debug UI
-        window.viewable_container = viewable_container;
-        
+        update_loading_progress('Creating UI components...');
+        // TODO OOOOO
+        // TODO Get lighting spawned from manifest
+        // TODO One day get the UI portion into the Manifest
+        window.viewable_container = new ViewableContainer(window);
         // Renderer
-        app_renderer = new AppRenderer(scene, viewable_container.get_camera());
-        // Make renderer available globally for debug UI
-        window.renderer = app_renderer.get_renderer();
-        // Make renderer available globally for debug UI
-        window.renderer = app_renderer.get_renderer();
-        
+        window.app_renderer = new AppRenderer(window.scene, window.viewable_container.get_camera());
+        window.renderer = window.app_renderer.get_renderer();
+        // Now initialize the asset activator after camera and renderer are created
+        window.asset_activator = AssetActivator.get_instance(window.viewable_container.get_camera(), window.app_renderer.get_renderer());
+        // Show construction greeting if enabled in manifest
+        if(greeting_data.display === true) {
+            await display_modal(
+                greeting_data.modal_path,
+                'greeting-modal',
+                'acknowledge-btn',
+                () => { greeting_acknowledged = true; }
+            );
+        }
         // Background creation
-        updateLoadingProgress('Loading background assets...');
-        const lighting = BackgroundLighting.getInstance(scene);
-        background_container = new BackgroundContainer(scene, viewable_container.get_camera(), world);
-        new BackgroundFloor(world, scene, viewable_container.get_camera());
-
+        update_loading_progress('Loading background assets...');
+        // Use AssetSpawner which is already initialized earlier
+        window.background_container = new BackgroundContainer(window.scene, window.viewable_container.get_camera(), window.world);
+        // Load application assets from manifest (including background floor)
+        update_loading_progress('Loading application assets...');
+        const application_assets = await window.asset_spawner.spawn_application_assets(window.manifest_manager, update_loading_progress);
+        if (BLORKPACK_FLAGS.ASSET_LOGS) {
+            console.log('Loaded application assets:', application_assets);
+        }
+        
+        // Load system assets from manifest (including the background floor)
+        update_loading_progress('Loading system assets...');
+        const system_assets = await window.asset_spawner.spawn_system_assets(window.manifest_manager, update_loading_progress);
+        if (BLORKPACK_FLAGS.ASSET_LOGS) {
+            console.log('Loaded system assets:', system_assets);
+        }
+        
         // Wait for all assets to be loaded
-        updateLoadingProgress('Loading scene assets...');
+        update_loading_progress('Loading scene assets...');
         await new Promise(async (resolve) => {
             const checkAssetsLoaded = async () => {
-                const isComplete = await background_container.is_loading_complete();
+                const isComplete = await window.background_container.is_loading_complete();
                 if (isComplete) {
-                    if (FLAGS.ASSET_LOGS) {
-                        console.log('All assets loaded:', Array.from(background_container.get_asset_manifest()));
+                    if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                        console.log('All assets loaded:', Array.from(window.background_container.get_asset_manifest()));
                     }
                     resolve();
                 } else {
-                    if (FLAGS.ASSET_LOGS) {
+                    if (BLORKPACK_FLAGS.ASSET_LOGS) {
                         console.log('Waiting for assets to complete loading...');
                     }
                     setTimeout(checkAssetsLoaded, 100);
@@ -253,240 +285,69 @@ async function init() {
             };
             await checkAssetsLoaded();
         });
-
         // Hide loading screen and start animation
-        hideLoadingScreen();
-        app_renderer.set_animation_loop(animate);
-        
+        hide_loading_screen();
+        window.app_renderer.set_animation_loop(animate);
         // Initialize debug UI (hidden by default)
-        createDebugUI();
+        create_debug_UI();
         // Set background container reference for debug UI
-        setBackgroundContainer(background_container);
+        set_background_container(window.background_container);
         // Initialize resolution scale based on device capabilities
-        if (FLAGS.AUTO_THROTTLE) {
+        if (window.manifest_manager.get_auto_throttle()) {
             // Start with a resolution scale based on device pixel ratio
             // Higher pixel ratio devices (like Retina displays) get a lower initial scale
             // to maintain performance
             const initialScale = window.devicePixelRatio > 1 ? 0.75 : 1.0;
-            setResolutionScale(initialScale);
+            set_resolution_scale(initialScale);
             console.log(`Initial resolution scale set to ${initialScale.toFixed(2)} based on device pixel ratio ${window.devicePixelRatio}`);
         }
-        console.log("Debug UI initialized. Press 's' to toggle.");
-        
-        // Ensure label wireframes are updated if debug visualization is enabled
-        if (FLAGS.COLLISION_VISUAL_DEBUG && viewable_container && viewable_container.get_overlay()) {
-            const labelContainer = viewable_container.get_overlay().label_container;
+        // Ensure label wireframes are updated regardless of debug visualization state
+        if (window.viewable_container && window.viewable_container.get_overlay()) {
+            const labelContainer = window.viewable_container.get_overlay().label_container;
             if (labelContainer && typeof labelContainer.updateDebugVisualizations === 'function') {
                 console.log('Directly updating label wireframes after initialization');
                 labelContainer.updateDebugVisualizations();
             }
         }
-        
-        // Add keyboard event listener for debug UI toggle
-        window.addEventListener('keydown', toggle_debug_ui);
-        // Add unload event to clean up resources
-        window.addEventListener('unload', cleanup);
+        // Load and spawn assets defined in the manifest
+        update_loading_progress("Loading assets from manifest...");
+        const spawned_assets = await window.asset_spawner.spawn_asset_groups(window.manifest_manager, update_loading_progress);
     } catch (error) {
         console.error('Error during initialization:', error);
-        updateLoadingProgress('Error loading application. Please refresh the page.');
+        update_loading_progress('Error loading application. Please refresh the page.');
     }
 }
 
 /** Toggle physics simulation pause state */
-function togglePhysicsPause() {
-    const wasPaused = isPhysicsPaused;
-    isPhysicsPaused = !isPhysicsPaused;
-    
-    // Update the button style if it exists
-    const pauseButton = document.getElementById('physics-pause-button');
-    if (pauseButton) {
-        // Update button color
-        pauseButton.style.backgroundColor = isPhysicsPaused ? '#F9A825' : '#4CAF50'; // Yellow when paused, green when playing
-        
-        // Clear the button content
-        pauseButton.innerHTML = '';
-        
-        // Recreate the icon container
-        const iconSpan = document.createElement('span');
-        iconSpan.style.display = 'inline-block';
-        iconSpan.style.width = '18px';
-        iconSpan.style.height = '12px';
-        iconSpan.style.position = 'relative';
-        iconSpan.style.marginRight = '5px';
-        iconSpan.style.top = '1px';
-        
-        // Create the appropriate icon based on state
-        if (isPhysicsPaused) {
-            // Create play icon (triangle)
-            const playIcon = document.createElement('span');
-            playIcon.style.display = 'block';
-            playIcon.style.width = '0';
-            playIcon.style.height = '0';
-            playIcon.style.borderTop = '6px solid transparent';
-            playIcon.style.borderBottom = '6px solid transparent';
-            playIcon.style.borderLeft = '12px solid white';
-            playIcon.style.position = 'absolute';
-            playIcon.style.left = '3px';
-            playIcon.style.top = '0';
-            iconSpan.appendChild(playIcon);
-        } else {
-            // Create pause icon (two bars)
-            // First bar
-            const bar1 = document.createElement('span');
-            bar1.style.display = 'inline-block';
-            bar1.style.width = '4px';
-            bar1.style.height = '12px';
-            bar1.style.backgroundColor = 'white';
-            bar1.style.position = 'absolute';
-            bar1.style.left = '3px';
-            
-            // Second bar
-            const bar2 = document.createElement('span');
-            bar2.style.display = 'inline-block';
-            bar2.style.width = '4px';
-            bar2.style.height = '12px';
-            bar2.style.backgroundColor = 'white';
-            bar2.style.position = 'absolute';
-            bar2.style.right = '3px';
-            
-            iconSpan.appendChild(bar1);
-            iconSpan.appendChild(bar2);
-        }
-        
-        // Create text span
-        const textSpan = document.createElement('span');
-        textSpan.textContent = isPhysicsPaused ? 'Play Physics' : 'Pause Physics';
-        
-        // Append everything to the button
-        pauseButton.appendChild(iconSpan);
-        pauseButton.appendChild(textSpan);
-    }
-    
-    // If newly paused, freeze all objects in place
-    if (!wasPaused && isPhysicsPaused && AssetStorage.get_instance()) {
-        // Get all dynamic bodies
-        const dynamicBodies = AssetStorage.get_instance().get_all_dynamic_bodies();
-        
-        // Store current state and freeze bodies
-        dynamicBodies.forEach(([mesh, body]) => {
-            // Don't modify grabbed objects
-            if (grabbed_object && mesh.uuid === grabbed_object.uuid) {
-                return;
-            }
-            
-            // Store current velocities
-            const linvel = body.linvel();
-            const angvel = body.angvel();
-            
-            // Also store whether the body was asleep
-            mesh.userData.pausedState = {
-                linvel: { x: linvel.x, y: linvel.y, z: linvel.z },
-                angvel: { x: angvel.x, y: angvel.y, z: angvel.z },
-                wasAsleep: body.isSleeping(),
-                originalPosition: { ...body.translation() }
-            };
-            
-            // Effectively "freeze" the body by removing velocity and adding extreme damping
-            if (body.bodyType() === RAPIER.RigidBodyType.Dynamic) {
-                body.setGravityScale(0, true);
-                body.setLinvel({ x: 0, y: 0, z: 0 }, true);
-                body.setAngvel({ x: 0, y: 0, z: 0 }, true);
-                body.setLinearDamping(999, true);  // Very high damping
-                body.setAngularDamping(999, true);
-                body.sleep();  // Force sleep to save CPU
-            }
-        });
-    }
-    
-    // If resuming physics, restore state of paused objects
-    if (wasPaused && !isPhysicsPaused && AssetStorage.get_instance()) {
-        // Get all dynamic bodies
-        const dynamicBodies = AssetStorage.get_instance().get_all_dynamic_bodies();
-        
-        // Restore physics state for bodies that have stored paused state
-        dynamicBodies.forEach(([mesh, body]) => {
-            if (mesh.userData.pausedState) {
-                // Restore gravity scale (typical value is 1.0)
-                body.setGravityScale(1.0, true);
-                
-                // Reset damping to normal values
-                body.setLinearDamping(0.2, true); // Normal damping
-                body.setAngularDamping(0.7, true);
-                
-                // Check if position has changed during pause
-                const currentPos = body.translation();
-                const originalPos = mesh.userData.pausedState.originalPosition;
-                const wasMovedDuringPause = 
-                    mesh.userData.pausedState.wasMoved || // Check explicit flag
-                    (originalPos && 
-                    (Math.abs(currentPos.x - originalPos.x) > 0.001 || 
-                     Math.abs(currentPos.y - originalPos.y) > 0.001 || 
-                     Math.abs(currentPos.z - originalPos.z) > 0.001));
-                
-                // Apply stored velocity or impulse if available
-                if (mesh.userData.pausedState.plannedImpulse) {
-                    body.applyImpulse(mesh.userData.pausedState.plannedImpulse, true);
-                    body.wakeUp(); // Always wake up objects with applied impulse
-                } else if (mesh.userData.pausedState.linvel && !wasMovedDuringPause) {
-                    // Only restore velocity if the object wasn't moved during pause
-                    body.setLinvel(mesh.userData.pausedState.linvel, true);
-                    
-                    // Set angular velocity if available
-                    if (mesh.userData.pausedState.angvel) {
-                        body.setAngvel(mesh.userData.pausedState.angvel, true);
-                    }
-                    
-                    // Wake up only if it wasn't asleep before OR if there's velocity
-                    const hasVelocity = 
-                        Math.abs(mesh.userData.pausedState.linvel.x) > 0.001 || 
-                        Math.abs(mesh.userData.pausedState.linvel.y) > 0.001 || 
-                        Math.abs(mesh.userData.pausedState.linvel.z) > 0.001;
-                        
-                    if (!mesh.userData.pausedState.wasAsleep || hasVelocity) {
-                        body.wakeUp();
-                    }
-                } else {
-                    // Always wake up objects that were moved during pause
-                    // This ensures gravity will act on them
-                    if (wasMovedDuringPause) {
-                        // For objects moved during pause, ensure they're awake to be affected by gravity
-                        body.wakeUp();
-                        
-                        // Apply a tiny impulse to ensure the physics engine recognizes it's not at rest
-                        // This helps prevent the "floating objects" issue
-                        body.applyImpulse({ x: 0, y: 0.001, z: 0 }, true);
-                    }
-                }
-                
-                // Clear the paused state
-                delete mesh.userData.pausedState;
-            }
-        });
-    }
+function toggle_physics_pause() {
+    is_physics_paused = !is_physics_paused;
     
     if (FLAGS.PHYSICS_LOGS) {
-        console.log(`Physics simulation ${isPhysicsPaused ? 'paused' : 'resumed'}`);
+        console.log(`Physics simulation ${is_physics_paused ? 'paused' : 'resumed'}`);
     }
     
-    // Make the state available to other modules
-    window.isPhysicsPaused = isPhysicsPaused;
-    
-    return isPhysicsPaused;
+    // Update UI if debug UI is active
+    if (FLAGS.DEBUG_UI) {
+        const pause_button = document.getElementById('pause-physics-btn');
+        if (pause_button) {
+            pause_button.textContent = is_physics_paused ? 'Resume Physics' : 'Pause Physics';
+        }
+    }
 }
 
 // Make the function available globally for the debug UI
-window.togglePhysicsPause = togglePhysicsPause;
+window.toggle_physics_pause = toggle_physics_pause;
 
 /** Primary animation function run every frame by renderer */
 function animate() {
-    const delta = clock.getDelta();
+    const delta = window.clock.getDelta();
     
     // Handle tweens and UI animations (always run regardless of physics pause)
     updateTween();
     
     if(resize_move) {
         if(!zoom_event) {
-            viewable_container.resize_reposition();
+            window.viewable_container.resize_reposition();
         } else {
             zoom_event = false;
         }
@@ -494,57 +355,57 @@ function animate() {
     }
     
     // Check if a text container is active, and pause physics if needed
-    const isTextActive = viewable_container.is_text_active();
+    const isTextActive = window.viewable_container.is_text_active();
     
     // Track text container state to detect changes
-    if (!window.previousTextContainerState && isTextActive && !isPhysicsPaused) {
+    if (!window.previousTextContainerState && isTextActive && !is_physics_paused) {
         // Text container just became active, pause physics
         if (FLAGS.SELECT_LOGS) {
             console.log('Pausing physics due to text container activation');
         }
         window.textContainerPausedPhysics = true;
-        togglePhysicsPause();
-    } else if (window.previousTextContainerState && !isTextActive && isPhysicsPaused && window.textContainerPausedPhysics) {
+        toggle_physics_pause();
+    } else if (window.previousTextContainerState && !isTextActive && is_physics_paused && window.textContainerPausedPhysics) {
         // Text container was active but is no longer active, restore physics
         if (FLAGS.SELECT_LOGS) {
             console.log('Resuming physics due to text container deactivation');
         }
         window.textContainerPausedPhysics = false;
-        togglePhysicsPause();
+        toggle_physics_pause();
     }
     
     // Store current state for next frame comparison
     window.previousTextContainerState = isTextActive;
     
     // Handle the physics objects
-    if(viewable_container.get_overlay().is_intersected() != null) {
-        asset_activator.activate_object(viewable_container.get_intersected_name());
+    if(window.viewable_container.get_overlay().is_intersected() != null) {
+        window.asset_activator.activate_object(window.viewable_container.get_intersected_name());
     } else if(grabbed_object) {
-        translate_object(grabbed_object, viewable_container.get_camera());
-    } else if(hovered_interactable_name != "" && viewable_container.is_overlay_hidden()) {
+        translate_object(grabbed_object, window.viewable_container.get_camera());
+    } else if(hovered_interactable_name != "" && window.viewable_container.is_overlay_hidden()) {
         // Only activate hovered objects when the overlay is hidden
-        asset_activator.activate_object(hovered_interactable_name);
-    } else if(viewable_container.is_text_active()) {
-        asset_activator.activate_object(viewable_container.get_active_name());
+        window.asset_activator.activate_object(hovered_interactable_name);
+    } else if(window.viewable_container.is_text_active()) {
+        window.asset_activator.activate_object(window.viewable_container.get_active_name());
     } else {
-        asset_activator.deactivate_all_objects();
+        window.asset_activator.deactivate_all_objects();
     }
     
     // Process physics simulation (can be paused)
-    world.timestep = Math.min(delta, 0.1);
-    if (!isPhysicsPaused) {
-        world.step();
+    window.world.timestep = Math.min(delta, 0.1);
+    if (!is_physics_paused) {
+        window.world.step();
     }
     
     // Always update menu animations and user interactions
     // These handle spawning and sign animations, even when physics is paused
-    if (background_container) {
-        background_container.update(grabbed_object, viewable_container);
+    if (window.background_container) {
+        window.background_container.update(grabbed_object, window.viewable_container);
     }
     
     // Update physics-dependent objects
     if (AssetStorage.get_instance()) {
-        if (!isPhysicsPaused) {
+        if (!is_physics_paused) {
             // Full physics update when not paused
             AssetStorage.get_instance().update();
         } else if (grabbed_object) {
@@ -562,53 +423,52 @@ function animate() {
     
     // Always update visual elements even when physics is paused
     // Update confetti particles (immune from physics pause - uses its own physics calculations)
-    viewable_container.get_overlay().update_confetti();
+    window.viewable_container.get_overlay().update_confetti();
     
     // Ensure regular cleanup of unused resources
-    if (asset_spawner) {
-        asset_spawner.performCleanup();
+    if (window.asset_spawner) {
+        window.asset_spawner.performCleanup();
+        
+        // Explicitly update spotlight debug visualizations
+        if (window.asset_spawner.update_spotlight_debug_visualizations) {
+            window.asset_spawner.update_spotlight_debug_visualizations();
+        }
     }
     
     // Render the scene
-    app_renderer.render();
+    window.app_renderer.render();
 }
 
 // ----- Handlers
 
 /** Handles resize events */
 function handle_resize() {
-    // Clear any existing timeout
-    if (resizeTimeout) {
-        clearTimeout(resizeTimeout);
-    }
-    // Set variables
-    resize_move = true;
-    // Determine if it was a zoom event
-    const current_pixel_ratio = window.devicePixelRatio;
-    if (last_pixel_ratio != current_pixel_ratio) {
-        last_pixel_ratio = current_pixel_ratio;
-        zoom_event = true;
-    }
-    // Immediate camera update
-    viewable_container.reset_camera();
-    app_renderer.resize();
+    if (resize_timeout) clearTimeout(resize_timeout);
+    
+    resize_timeout = setTimeout(() => {
+        if (window.app_renderer) window.app_renderer.resize();
+        if (window.viewable_container) {
+            window.viewable_container.reset_camera();
+            window.viewable_container.resize_reposition();
+        }
+    }, 100);
 }
 
 function handle_mouse_move(e) {
     update_mouse_position(e);
-    if(viewable_container.detect_rotation) {
+    if(window.viewable_container.detect_rotation) {
         const sensitivity = 0.02;  // Reduced sensitivity since we're not dividing by 1000 anymore
-        viewable_container.get_camera_manager().rotate(
+        window.viewable_container.get_camera_manager().rotate(
             e.movementX * sensitivity,
             e.movementY * sensitivity
         );
     }
-    if(construction_acknowledged) {
+    if(greeting_acknowledged) {
         // Handle intersections
-        const found_intersections = get_intersect_list(e, viewable_container.get_camera(), scene);
+        const found_intersections = get_intersect_list(e, window.viewable_container.get_camera(), window.scene);
         
         // Check if UI overlay is visible
-        const is_overlay_hidden = viewable_container.is_overlay_hidden();
+        const is_overlay_hidden = window.viewable_container.is_overlay_hidden();
         
         // If overlay is not hidden, filter out background objects from intersection list
         let relevant_intersections = found_intersections;
@@ -621,7 +481,7 @@ function handle_mouse_move(e) {
             });
         }
         
-        if(relevant_intersections.length > 0 && !viewable_container.get_overlay().is_swapping_sides()) {
+        if(relevant_intersections.length > 0 && !window.viewable_container.get_overlay().is_swapping_sides()) {
             const intersected_object = relevant_intersections[0].object;
             const object_name = intersected_object.name;
             const name_type = object_name.split("_")[0] + "_";
@@ -629,11 +489,11 @@ function handle_mouse_move(e) {
             // Handle label hover - now we know it's either a label or an appropriate object
             switch(name_type) {
                 case TYPES.LABEL:
-                    viewable_container.get_overlay().handle_hover(intersected_object);
+                    window.viewable_container.get_overlay().handle_hover(intersected_object);
                     break;
                 case TYPES.FLOOR:
                     // We know overlay is hidden if we get here, due to the filtering above
-                    viewable_container.get_overlay().reset_hover();
+                    window.viewable_container.get_overlay().reset_hover();
                     break;
                 case TYPES.INTERACTABLE:
                     // We know overlay is hidden if we get here, due to the filtering above
@@ -644,11 +504,11 @@ function handle_mouse_move(e) {
                     break;
                 default:
                     // We know overlay is hidden if we get here, due to the filtering above
-                    viewable_container.get_overlay().reset_hover();
+                    window.viewable_container.get_overlay().reset_hover();
                     break;
             }
         } else {
-            viewable_container.get_overlay().reset_hover();
+            window.viewable_container.get_overlay().reset_hover();
             
             // Only reset hovered_interactable_name if the overlay is hidden
             // This prevents background objects from losing hover state when UI is open
@@ -660,25 +520,25 @@ function handle_mouse_move(e) {
 }
 
 function handle_mouse_up(e) {
-    if(construction_acknowledged) {
+    if(greeting_acknowledged) {
         if(grabbed_object) {
-            release_object(grabbed_object, background_container);
+            release_object(grabbed_object, window.background_container);
             grabbed_object = null;
         }
-        viewable_container.handle_mouse_up(get_intersect_list(e, viewable_container.get_camera(), scene));
+        window.viewable_container.handle_mouse_up(get_intersect_list(e, window.viewable_container.get_camera(), window.scene));
         if (e.button === 0) {
-            viewable_container.detect_rotation = false;
+            window.viewable_container.detect_rotation = false;
             left_mouse_down = false;
         }
         if (e.button === 2) {
-            viewable_container.detect_rotation = false;
+            window.viewable_container.detect_rotation = false;
             right_mouse_down = false;
         }
     }
 }
 
 function handle_mouse_down(e) {
-    if(construction_acknowledged) {
+    if(greeting_acknowledged) {
         if(e.button === 0) {
             left_mouse_down = true;
         }
@@ -690,18 +550,18 @@ function handle_mouse_down(e) {
                 grabbed_object = null;
             }
         }
-        if(left_mouse_down && right_mouse_down && viewable_container.is_overlay_hidden()) {
-            viewable_container.detect_rotation = true;
-        } else if(viewable_container.is_overlay_hidden()) {
-            const found_intersections = get_intersect_list(e, viewable_container.get_camera(), scene);
+        if(left_mouse_down && right_mouse_down && window.viewable_container.is_overlay_hidden()) {
+            window.viewable_container.detect_rotation = true;
+        } else if(window.viewable_container.is_overlay_hidden()) {
+            const found_intersections = get_intersect_list(e, window.viewable_container.get_camera(), window.scene);
             found_intersections.forEach(i => {
                 switch(extract_type(i.object)) {
                     case TYPES.INTERACTABLE:
                         if(left_mouse_down) {
                             grabbed_object = i.object;
-                            grab_object(grabbed_object, viewable_container.get_camera());
+                            grab_object(grabbed_object, window.viewable_container.get_camera());
                         } else {
-                            shove_object(i.object, viewable_container.get_camera());
+                            shove_object(i.object, window.viewable_container.get_camera());
                         }
                         break;
                     default:
@@ -717,13 +577,13 @@ function handle_context_menu(e) {
 }
 
 function handle_wheel(e) {
-    if(construction_acknowledged) {
+    if(greeting_acknowledged) {
         if(grabbed_object) {
             if(e.deltaY < 0) {
-                background_container.break_secondary_chains();
+                window.background_container.break_secondary_chains();
                 zoom_object_in(grabbed_object);
             } else {
-                background_container.break_secondary_chains();
+                window.background_container.break_secondary_chains();
                 zoom_object_out(grabbed_object);
             }
             zoom_event = true;

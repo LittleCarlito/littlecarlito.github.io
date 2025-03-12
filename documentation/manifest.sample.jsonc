@@ -1,0 +1,441 @@
+// --------------------------------------
+// Asset Configuration Manifest - Reference Sample
+// * next to REQUIRED fields
+// --------------------------------------
+
+{
+    // Manifest version and metadata
+    "manifest_version": "1.0", // * Required
+    "name": "Scene Configuration", 
+    "description": "Configuration for 3D scene and assets",
+    "author": "",
+    "created_date": "",
+    "updated_date": "",
+    
+    // Custom type definitions - reusable templates for assets
+    "custom_types": [{
+        "name": "example_type", // * Required - unique identifier
+        "version": "1.0",
+        // These can't be overwritten as they are used for file ingestion
+        "load_layers": {
+            "viewable": true,  // If it has a visible mesh
+            "collision": false, // If it has a collision mesh "col_" layer
+            "display": false  // If it has a display layer "display_" layer
+        },
+        // All values below here can be provided in "asset_data" to overwrite their value
+        "paths": { // At least one path is required
+            "asset": "path/to/model.glb",
+            "script": "path/to/script.js" // Assetless script would be something like a global singleton util
+        },
+        "size": { // Default for this is null
+            "radius": 0, 
+            "width": 0,
+            "height": 0,
+            "depth": 0
+        },
+        "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1,
+            "ui": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            }
+        },
+        "physics": {
+            "restitution": 1.0,
+            "sleep_timer": 500, // Idle state in ms before sleeping; 0 means cannot sleep (unless spawned that way)
+            "mass": 1.0,
+            "gravity_scale": 1.0,
+            "friction": 0.5,
+            "collision_groups": [],
+            "collision_mask": []
+        },
+        "visual": {
+            "emitting": false,
+            "emission_color": "0xffffff",
+            "emission_intensity": 1.0,
+            "opacity": 1.0,
+            "cast_shadow": false,
+            "receive_shadow": true,
+            "debug": {
+                "enabled": true,
+                "opacity": 0.6,
+                "color": "0xffffff"
+            }
+        }
+    }],
+    
+    // Joint data definition - constraints between objects
+    // If an asset declares joint data with another asset both must declare the matching joint data
+    "joint_data": {
+        "type": "FIXED", // * Required - Must map to an existing supported RAPIER joint type
+        "position": { // Default values shown
+            "x": 0,
+            "y": 0,
+            "z": 0
+        },
+        "rotation": { // Default values shown
+            "x": 0,
+            "y": 0,
+            "z": 0
+        },
+        "target_id": "", // ID of asset this asset is jointed to
+        "limits": {
+            "angular": {
+                "x": { "min": 0, "max": 0 },
+                "y": { "min": 0, "max": 0 },
+                "z": { "min": 0, "max": 0 }
+            },
+            "linear": {
+                "x": { "min": 0, "max": 0 },
+                "y": { "min": 0, "max": 0 },
+                "z": { "min": 0, "max": 0 }
+            }
+        },
+        "parameters": {
+            "stiffness": 0,
+            "damping": 0
+        }
+    },
+    
+    // Asset Groups - organize related assets together
+    "asset_groups": [{
+        "id": "example_group", // * Required
+        "name": "Furniture Group", 
+        "description": "All furniture assets",
+        "tags": ["furniture", "indoor"],
+        "assets": ["desk1", "chair1"], // List of asset IDs in this group
+        "active": true, // Whether the group is initially active
+        "toggle_behavior": "ALL" // "ALL" or "SEQUENCE" - how assets in group are activated
+    }],
+    
+    // Asset data defines individual assets
+    // - type: SYSTEM or CUSTOM
+    // - asset_type: If CUSTOM type must match provided custom_type if SYSTEM must match supported RAPIER or THREE type
+    // - tags: Used for activation logic to tie a label and asset(s) together
+    // - parent: If an asset says it has a parent the parent data must declare it as a child
+    // - children: If the asset declares an asset as a child the asset better declare it as its parent
+    // - target: Where the asset focuses; Both cannot be populated ONLY ONE of the two fields
+    "asset_data": { 
+        "id": "example_asset", // * Required
+        "type": "CUSTOM", // * Required - SYSTEM or CUSTOM
+        "asset_type": "example_type", // * Required
+        "version": "1.0",
+        "config": { // Controls asset behavior
+            "collidable": true,    // Collides with other objects
+            "hidden": false,       // Visible or not
+            "disabled": false,     // Logic is enabled or disabled
+            "sleeping": true,      // Asleep in the physics engine
+            "gravity": true,       // Affected by gravity
+            "interactable": true,  // Can be picked up
+            "selectable": true,    // Can be selected
+            "highlightable": true  // Can be highlighted
+        },
+        "tags": ["furniture"],
+        "group_id": "example_group", // Optional reference to an asset group
+        "joints": [], // Array of joint data
+        "parent": {}, // Parent asset data (if any)
+        "children": [], // Array of child asset data
+        "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+        },
+        "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+        },
+        "target": { // Where the asset focuses
+            "id": "",
+            "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            }
+        },
+        "additional_properties": { // Type-specific properties
+            // Light properties
+            "color": "0xffffff",
+            "intensity": 0.0,
+            "max_distance": 0, // 0 implies no max distance (for lights specifically)
+            "angle": 0.0,
+            "penumbra": 0.0,
+            "sharpness": 0.0,
+            "cast_shadows": true,
+            "blur_samples": 0,
+            
+            // Camera properties
+            "fov": 0,
+            "near": 0,
+            "far": 0,
+            "bias": 0.0,
+            "normal_bias": 0.0,
+            "aspect_ratio": 1.6, // Optional - defaults to window.innerWidth/window.innerHeight
+            "near_clipping": 0.1,
+            "far_clipping": 10000.0,
+            
+            // Animation properties
+            "animations": [{
+                "name": "",
+                "autoplay": false,
+                "loop": false,
+                "duration": 1.0,
+                "clamp": true
+            }]
+        }
+    },
+    
+    // Lists of assets
+    "application_assets": [], // App-specific assets
+    "system_assets": [
+        {
+            "id": "background_floor",
+            "type": "SYSTEM",
+            "asset_type": "primitive_box",
+            "version": "1.0",
+            "config": {
+                "collidable": true,
+                "hidden": false,
+                "disabled": false,
+                "sleeping": false,
+                "gravity": false,
+                "interactable": false,
+                "selectable": false,
+                "highlightable": false
+            },
+            "tags": ["environment", "floor"],
+            "group_id": "",
+            "position": {
+                "x": 0,
+                "y": -10.2,
+                "z": 0
+            },
+            "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "additional_properties": {
+                "color": "0x808080",
+                "cast_shadows": false,
+                "receive_shadows": true,
+                "physical_dimensions": {
+                    "width": 100,
+                    "height": 1,
+                    "depth": 100
+                },
+                "collider_dimensions": {
+                    "width": 50,
+                    "height": 0.5,
+                    "depth": 50
+                },
+                "restitution": 0.3,
+                "mass": 0,
+                "friction": 0.8,
+                "raycast_disabled": true
+            }
+        },
+        {
+            "id": "primary_spotlight",
+            "type": "SYSTEM",
+            "asset_type": "spotlight",
+            "version": "1.0",
+            "config": {
+                "collidable": false,
+                "hidden": false,
+                "disabled": false,
+                "sleeping": false,
+                "gravity": false,
+                "interactable": false,
+                "selectable": false,
+                "highlightable": false
+            },
+            "tags": ["lighting", "spotlight"],
+            "group_id": "",
+            "position": {
+                "x": 0,
+                "y": 50,
+                "z": 0
+            },
+            "rotation": {
+                "x": -1.5707963267948966, // -Math.PI/2 (pointing straight down)
+                "y": 0,
+                "z": 0
+            },
+            "target": {
+                "id": "primary_spotlight_target",
+                "position": {
+                    "x": 0,
+                    "y": 0,
+                    "z": 0
+                }
+            },
+            "additional_properties": {
+                "color": "0xffffff",
+                "intensity": 5.0,
+                "max_distance": 0, // Unlimited distance
+                "angle": 0.19634954084936207, // Math.PI/16
+                "penumbra": 0.05,
+                "sharpness": 0.5,
+                "cast_shadows": true,
+                "shadow": {
+                    "blur_samples": 32,
+                    "radius": 4,
+                    "map_size": {
+                        "width": 2048,
+                        "height": 2048
+                    },
+                    "camera": {
+                        "near": 10,
+                        "far": 100,
+                        "fov": 30
+                    },
+                    "bias": -0.002,
+                    "normal_bias": 0.02
+                }
+            }
+        }
+    ],
+    
+    // Global scene configuration
+    "scene_data": {
+        "version": "1.0",
+        "name": "Main Scene",
+        "description": "The main interactive scene",
+        "base_url": "",
+        "auto_throttle": true, // Whether to automatically adjust resolution based on device capabilities
+        "greeting_data": {
+            "display": true, // Whether to show a greeting message
+            "modal_path": "pages/under_construction.html" // Path to the modal HTML file (required if display is true)
+        },
+        // Example of IMAGE type background
+        "background": {
+            "type": "IMAGE",
+            "image_path": "images/background.jpg"
+        },
+        
+        // Other background type examples (choose only one):
+        //
+        // Example of COLOR type background:
+        // "background": {
+        //     "type": "COLOR",
+        //     "color_value": "0x87CEEB"
+        // },
+        //
+        // Example of SKYBOX type background:
+        // "background": {
+        //     "type": "SKYBOX",
+        //     "skybox": {
+        //         "enabled": true,
+        //         "skybox_path": "images/skybox/"
+        //     }
+        // },
+        
+        "environment": {
+            "gravity": 9.8,
+            "ambient_light": {
+                "color": "0xffffff",
+                "intensity": 0.5
+            },
+            "fog": {
+                "enabled": false,
+                "color": "0xffffff",
+                "near": 1,
+                "far": 1000
+            }
+        },
+        "physics": {
+            "enabled": true,
+            "update_rate": 60,
+            "substeps": 1,
+            "debug_draw": false,
+            "allow_sleep": true,
+            "linear_sleep_threshold": 0.2,
+            "angular_sleep_threshold": 0.1, 
+            "sleep_threshold": 0.1,
+            "max_velocity_iterations": 2,
+            "max_velocity_friction": 4,
+            "integration_parameters": {
+                "dt": 0.01666667,
+                "erp": 0.8,
+                "warmstart_coeff": 0.8,
+                "allowed_linear_error": 0.001
+            }
+        },
+        "rendering": {
+            "shadows": true,
+            "antialiasing": true,
+            "tone_mapping_exposure": 1.0,
+            "output_encoding": "sRGB_ENCODING"
+        },
+        "post_processing": {
+            "enabled": false,
+            "bloom": {
+                "enabled": false,
+                "strength": 0.5,
+                "threshold": 0.9,
+                "radius": 0.5
+            },
+            "ssao": {
+                "enabled": false,
+                "radius": 4,
+                "intensity": 1.5,
+                "blur": true
+            }
+        },
+        "default_camera": {
+            "position": {"x": 0, "y": 5, "z": 10},
+            "target": {"x": 0, "y": 0, "z": 0},
+            "fov": 75,
+            "near": 0.1,
+            "far": 1000,
+            "controls": {
+                "type": "ORBIT", // ORBIT, FIRST_PERSON, FLY
+                "enable_damping": true,
+                "damping_factor": 0.05,
+                "min_distance": 5,
+                "max_distance": 30,
+                "min_polar_angle": -60,
+                "max_polar_angle": 60,
+                "enable_zoom": true,
+                "enable_rotate": true,
+                "enable_pan": true
+            },
+            "shoulder_lights": {
+                "enabled": true,
+                "left": {
+                    "position": {
+                        "x": -3,
+                        "y": 2.5,
+                        "z": 40
+                    },
+                    "rotation": {
+                        "pitch": 190,
+                        "yaw": 0
+                    },
+                    "angle": 80,
+                    "max_distance": 0,
+                    "intensity": 2
+                },
+                "right": {
+                    "position": {
+                        "x": 3,
+                        "y": 2.5,
+                        "z": 40
+                    },
+                    "rotation": {
+                        "pitch": 190,
+                        "yaw": 0
+                    },
+                    "angle": 80,
+                    "max_distance": 0,
+                    "intensity": 2
+                }
+            },
+            "ui_distance": 25
+        }
+    }
+} 

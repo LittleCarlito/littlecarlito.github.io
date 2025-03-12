@@ -1,0 +1,22 @@
+{
+  "name": "blorkpack",
+  "version": "1.0.0",
+  "description": "Asset management utilities for 3D scenes",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "test": "npm run build && node examples/manifest-test.js",
+    "example:usage": "npm run build && node examples/usage-example.js",
+    "example:manifest": "npm run build && node examples/manifest-test.js",
+    "example:exports": "npm run build && node examples/export-test.js"
+  },
+  "dependencies": {
+    "three": "^0.172.0",
+    "@dimforge/rapier3d-compat": "^0.14.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.11"
+  }
+} 

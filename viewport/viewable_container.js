@@ -9,27 +9,27 @@ export const UI_Z_DIST = 25;
 export class ViewableContainer {
     detect_rotation = false;
     overlay_container;
-    leftMouseDown = false;
-    rightMouseDown = false;
+    left_mouse_down = false;
+    right_mouse_down = false;
     camera_manager;
+    asset_spawner;
 
-    constructor(incoming_parent, incoming_world) {
+    constructor(window) {
         this.viewable_container_container = new THREE.Object3D();
-        this.parent = incoming_parent;
-        this.world = incoming_world;
-        this.camera = new THREE.PerspectiveCamera(
-            // FOV
-            75,
-            // Aspect ratio
-            window.innerWidth/window.innerHeight,
-            // Near clipping
-            0.1,
-            // Far clipping
-            1000
-        );
+        this.parent = window.scene;
+        this.world = window.world;
         
-        // Initialize camera manager
-        this.camera_manager = new CameraManager(this.parent, this.camera, UI_Z_DIST);
+        // Get the asset spawner instance
+        this.asset_spawner = window.asset_spawner || window.world.asset_spawner;
+        
+        // Get camera configuration from manifest
+        const camera_config = window.manifest_manager.get_camera_config();
+        
+        // Create camera using manifest config via asset spawner
+        this.camera = this.asset_spawner.spawn_scene_camera(camera_config);
+        
+        // Initialize camera manager with UI distance from manifest
+        this.camera_manager = new CameraManager(this.parent, this.camera, camera_config.ui_distance);
         
         // Create overlay and connect it to camera manager
         this.overlay_container = new OverlayContainer(this.viewable_container_container, this.get_camera());
@@ -41,6 +41,7 @@ export class ViewableContainer {
                 this.overlay_container.resize_reposition_offscreen();
             }
         });
+        
         this.viewable_container_container.add(this.camera);
         // this.viewable_container_container.rotation.x = -0.261799;
         this.parent.add(this.viewable_container_container);

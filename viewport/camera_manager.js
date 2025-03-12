@@ -1,5 +1,5 @@
-import { BackgroundLighting } from "../background/background_lighting";
 import { FLAGS, THREE } from "../common";
+import { AssetSpawner } from "blorkpack";
 
 // Utility functions for angle conversion
 const ANGLES = {
@@ -7,53 +7,36 @@ const ANGLES = {
     toDegrees: radians => radians * (180 / Math.PI)
 };
 
-// Spotlight configuration constants
-const SPOTLIGHT_CONFIG = {
-    LEFT: {
-        POSITION: {
-            X: -3,
-            Y: 2.5,
-            Z: 40
-        },
-        ROTATION: {
-            PITCH: 190,  // Point straight down (was Math.PI)
-            YAW: 0      // No rotation around Y
-        },
-        ANGLE: 80,      // Was Math.PI / 4 (45 degrees)
-        MAX_DISTANCE: 0, // Unlimited distance
-        INTENSITY: 2    // Adding intensity configuration
-    },
-    RIGHT: {
-        POSITION: {
-            X: 3,
-            Y: 2.5,
-            Z: 40
-        },
-        ROTATION: {
-            PITCH: 190,  // Point straight down (was Math.PI)
-            YAW: 0      // No rotation around Y
-        },
-        ANGLE: 80,      // Was Math.PI / 4 (45 degrees)
-        MAX_DISTANCE: 0, // Unlimited distance
-        INTENSITY: 2    // Adding intensity configuration
-    }
-};
-
 export class CameraManager {
     constructor(incoming_parent, incoming_camera, distance = 15) {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
-        this.lighting = BackgroundLighting.getInstance(this.parent);
+        this.spawner = AssetSpawner.get_instance(this.parent);
         this.distance = distance;
         this.target = new THREE.Vector3(0, 0, 0);
+        
+        // Get camera configuration from manifest
+        const camera_config = window.manifest_manager.get_camera_config();
+        const controls_config = camera_config.controls;
+        
         // Spherical coordinates (starting position)
         this.phi = 0;    // vertical angle (degrees)
         this.theta = 0;  // horizontal angle (degrees)
-        // Add constraints
-        this.min_phi = -60;  // minimum vertical angle
-        this.max_phi = 60;   // maximum vertical angle
-        this.min_dist = 5;
-        this.max_dist = 30;
+        // Add constraints from manifest
+        this.min_phi = controls_config.min_polar_angle;  // minimum vertical angle
+        this.max_phi = controls_config.max_polar_angle;  // maximum vertical angle
+        this.min_dist = controls_config.min_distance;
+        this.max_dist = controls_config.max_distance;
+        
+        // Set initial target from manifest
+        if (camera_config.target) {
+            this.target.set(
+                camera_config.target.x,
+                camera_config.target.y,
+                camera_config.target.z
+            );
+        }
+        
         // Add callback for position updates
         this.on_update_callbacks = new Set();
         // Add reference to overlay container
@@ -61,20 +44,32 @@ export class CameraManager {
         // Update the camera
         this.update_camera();
 
-        // Create left shoulder spotlight
-        (async () => {
+        // Create shoulder lights if enabled in manifest
+        if (camera_config.shoulder_lights && camera_config.shoulder_lights.enabled) {
+            this.create_shoulder_lights(camera_config.shoulder_lights);
+        }
+    }
+    
+    async create_shoulder_lights(lights_config) {
+        console.log("==== CREATING SHOULDER LIGHTS ====");
+        console.log("Lights config:", lights_config);
+        
+        // Create left shoulder spotlight if configuration exists
+        if (lights_config.left) {
+            console.log("Creating left shoulder light...");
             // Clean up any existing helpers first
             if (this.left_shoulder_light) {
-                await this.lighting.despawn_spotlight_helpers(this.left_shoulder_light);
+                await this.spawner.despawn_spotlight_helpers(this.left_shoulder_light.mesh);
             }
             
             const leftPos = new THREE.Vector3(
-                SPOTLIGHT_CONFIG.LEFT.POSITION.X,
-                SPOTLIGHT_CONFIG.LEFT.POSITION.Y,
-                SPOTLIGHT_CONFIG.LEFT.POSITION.Z
+                lights_config.left.position.x,
+                lights_config.left.position.y,
+                lights_config.left.position.z
             );
             leftPos.applyQuaternion(this.camera.quaternion);
             leftPos.add(this.camera.position);
+            console.log("Left shoulder light position:", leftPos);
 
             // Calculate target using forward direction
             const forward = new THREE.Vector3(0, 0, -100);
@@ -83,35 +78,41 @@ export class CameraManager {
             
             // Calculate angles for spotlight based on direction
             const direction = new THREE.Vector3().subVectors(target, leftPos);
-            const rotationY = Math.atan2(direction.x, direction.z);
-            const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
+            const rotation_y = Math.atan2(direction.x, direction.z);
+            const rotation_x = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
             
-            this.left_shoulder_light = await this.lighting.create_spotlight(
+            this.left_shoulder_light = await this.spawner.create_spotlight(
+                "left_shoulder_light",
                 leftPos,
-                rotationX,
-                rotationY,
-                SPOTLIGHT_CONFIG.LEFT.POSITION.Y * Math.tan(ANGLES.toRadians(SPOTLIGHT_CONFIG.LEFT.ANGLE)),
-                SPOTLIGHT_CONFIG.LEFT.MAX_DISTANCE,
-                null,  // Default color
-                SPOTLIGHT_CONFIG.LEFT.INTENSITY
+                { x: rotation_x, y: rotation_y },
+                {
+                    circle_radius: lights_config.left.position.y * Math.tan(ANGLES.toRadians(lights_config.left.angle)),
+                    max_distance: lights_config.left.max_distance,
+                    intensity: lights_config.left.intensity
+                },
+                {} // empty asset_data
             );
-            this.left_shoulder_light.target.position.copy(target);
-        })();
+            
+            console.log("Left shoulder light created:", this.left_shoulder_light ? "success" : "failed");
+            this.left_shoulder_light.mesh.target.position.copy(target);
+        }
 
-        // Create right shoulder spotlight
-        (async () => {
+        // Create right shoulder spotlight if configuration exists
+        if (lights_config.right) {
+            console.log("Creating right shoulder light...");
             // Clean up any existing helpers first
             if (this.right_shoulder_light) {
-                await this.lighting.despawn_spotlight_helpers(this.right_shoulder_light);
+                await this.spawner.despawn_spotlight_helpers(this.right_shoulder_light.mesh);
             }
             
             const rightPos = new THREE.Vector3(
-                SPOTLIGHT_CONFIG.RIGHT.POSITION.X,
-                SPOTLIGHT_CONFIG.RIGHT.POSITION.Y,
-                SPOTLIGHT_CONFIG.RIGHT.POSITION.Z
+                lights_config.right.position.x,
+                lights_config.right.position.y,
+                lights_config.right.position.z
             );
             rightPos.applyQuaternion(this.camera.quaternion);
             rightPos.add(this.camera.position);
+            console.log("Right shoulder light position:", rightPos);
 
             // Calculate target using forward direction
             const forward = new THREE.Vector3(0, 0, -100);
@@ -120,20 +121,26 @@ export class CameraManager {
             
             // Calculate angles for spotlight based on direction
             const direction = new THREE.Vector3().subVectors(target, rightPos);
-            const rotationY = Math.atan2(direction.x, direction.z);
-            const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
+            const rotation_y = Math.atan2(direction.x, direction.z);
+            const rotation_x = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
             
-            this.right_shoulder_light = await this.lighting.create_spotlight(
+            this.right_shoulder_light = await this.spawner.create_spotlight(
+                "right_shoulder_light",
                 rightPos,
-                rotationX,
-                rotationY,
-                SPOTLIGHT_CONFIG.RIGHT.POSITION.Y * Math.tan(ANGLES.toRadians(SPOTLIGHT_CONFIG.RIGHT.ANGLE)),
-                SPOTLIGHT_CONFIG.RIGHT.MAX_DISTANCE,
-                null,  // Default color
-                SPOTLIGHT_CONFIG.RIGHT.INTENSITY
+                { x: rotation_x, y: rotation_y },
+                {
+                    circle_radius: lights_config.right.position.y * Math.tan(ANGLES.toRadians(lights_config.right.angle)),
+                    max_distance: lights_config.right.max_distance,
+                    intensity: lights_config.right.intensity
+                },
+                {} // empty asset_data
             );
-            this.right_shoulder_light.target.position.copy(target);
-        })();
+            
+            console.log("Right shoulder light created:", this.right_shoulder_light ? "success" : "failed");
+            this.right_shoulder_light.mesh.target.position.copy(target);
+        }
+        
+        console.log("==== FINISHED CREATING SHOULDER LIGHTS ====");
     }
 
     add_update_callback(callback) {
@@ -167,10 +174,10 @@ export class CameraManager {
 
     async cleanupDebugMeshes() {
         if (this.left_shoulder_light) {
-            await this.lighting.despawn_spotlight_helpers(this.left_shoulder_light);
+            await this.spawner.despawn_spotlight_helpers(this.left_shoulder_light.mesh);
         }
         if (this.right_shoulder_light) {
-            await this.lighting.despawn_spotlight_helpers(this.right_shoulder_light);
+            await this.spawner.despawn_spotlight_helpers(this.right_shoulder_light.mesh);
         }
     }
 
@@ -194,53 +201,77 @@ export class CameraManager {
         this.camera.lookAt(this.target);
         this.camera.updateMatrix();
 
+        // Get camera configuration from manifest
+        const camera_config = window.manifest_manager.get_camera_config();
+        const lights_config = camera_config.shoulder_lights;
+
         // Update spotlight positions relative to camera
-        if (this.left_shoulder_light) {
+        if (this.left_shoulder_light && lights_config && lights_config.left) {
             const leftPos = new THREE.Vector3(
-                SPOTLIGHT_CONFIG.LEFT.POSITION.X,
-                SPOTLIGHT_CONFIG.LEFT.POSITION.Y,
-                SPOTLIGHT_CONFIG.LEFT.POSITION.Z
+                lights_config.left.position.x,
+                lights_config.left.position.y,
+                lights_config.left.position.z
             );
             // Transform the offset by camera's rotation
             leftPos.applyQuaternion(this.camera.quaternion);
             // Add camera's position
             leftPos.add(this.camera.position);
-            this.left_shoulder_light.position.copy(leftPos);
             
-            // Update target to point forward
-            const forward = new THREE.Vector3(0, 0, -100);
-            forward.applyQuaternion(this.camera.quaternion);
-            this.left_shoulder_light.target.position.copy(leftPos).add(forward);
+            // Log shoulder light updating (once per 100 frames to avoid console spam)
+            if (Math.random() < 0.01) {
+                console.log("Updating left shoulder light position:", leftPos);
+            }
             
-            // Update matrices
-            this.left_shoulder_light.updateMatrixWorld(true);
-            this.left_shoulder_light.target.updateMatrixWorld(true);
+            if (!this.left_shoulder_light.mesh) {
+                console.warn("Left shoulder light exists but has no mesh property!");
+            } else {
+                this.left_shoulder_light.mesh.position.copy(leftPos);
+                
+                // Update target to point forward
+                const forward = new THREE.Vector3(0, 0, -100);
+                forward.applyQuaternion(this.camera.quaternion);
+                this.left_shoulder_light.mesh.target.position.copy(leftPos).add(forward);
+                
+                // Update matrices
+                this.left_shoulder_light.mesh.updateMatrixWorld(true);
+                this.left_shoulder_light.mesh.target.updateMatrixWorld(true);
+            }
         }
 
-        if (this.right_shoulder_light) {
+        if (this.right_shoulder_light && lights_config && lights_config.right) {
             const rightPos = new THREE.Vector3(
-                SPOTLIGHT_CONFIG.RIGHT.POSITION.X,
-                SPOTLIGHT_CONFIG.RIGHT.POSITION.Y,
-                SPOTLIGHT_CONFIG.RIGHT.POSITION.Z
+                lights_config.right.position.x,
+                lights_config.right.position.y,
+                lights_config.right.position.z
             );
             // Transform the offset by camera's rotation
             rightPos.applyQuaternion(this.camera.quaternion);
             // Add camera's position
             rightPos.add(this.camera.position);
-            this.right_shoulder_light.position.copy(rightPos);
             
-            // Update target to point forward
-            const forward = new THREE.Vector3(0, 0, -100);
-            forward.applyQuaternion(this.camera.quaternion);
-            this.right_shoulder_light.target.position.copy(rightPos).add(forward);
+            // Log shoulder light updating (once per 100 frames to avoid console spam)
+            if (Math.random() < 0.01) {
+                console.log("Updating right shoulder light position:", rightPos);
+            }
             
-            // Update matrices
-            this.right_shoulder_light.updateMatrixWorld(true);
-            this.right_shoulder_light.target.updateMatrixWorld(true);
+            if (!this.right_shoulder_light.mesh) {
+                console.warn("Right shoulder light exists but has no mesh property!");
+            } else {
+                this.right_shoulder_light.mesh.position.copy(rightPos);
+                
+                // Update target to point forward
+                const forward = new THREE.Vector3(0, 0, -100);
+                forward.applyQuaternion(this.camera.quaternion);
+                this.right_shoulder_light.mesh.target.position.copy(rightPos).add(forward);
+                
+                // Update matrices
+                this.right_shoulder_light.mesh.updateMatrixWorld(true);
+                this.right_shoulder_light.mesh.target.updateMatrixWorld(true);
+            }
         }
 
-        // Let BackgroundLighting handle debug mesh updates
-        this.lighting.updateHelpers();
+        // Let AssetSpawner handle debug mesh updates
+        this.spawner.update_spotlight_helpers();
 
         // Update overlay position
         if (this.overlay_container) {
@@ -250,10 +281,11 @@ export class CameraManager {
             // Position overlay at camera position + forward vector
             this.overlay_container.overlay_container.position.copy(this.camera.position);
             this.overlay_container.overlay_container.position.add(forward);
-            // Make overlay face the camera
-            this.overlay_container.overlay_container.lookAt(this.camera.position);
+            // Make the overlay face the camera by copying the camera's quaternion
+            this.overlay_container.overlay_container.quaternion.copy(this.camera.quaternion);
         }
-        // Notify callbacks
-        this.on_update_callbacks.forEach(callback => callback());
+        
+        // Call update callbacks
+        this.on_update_callbacks.forEach(callback => callback(this.camera.position, this.camera.quaternion));
     }
 } 

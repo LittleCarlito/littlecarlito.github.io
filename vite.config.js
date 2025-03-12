@@ -2,23 +2,32 @@ import { defineConfig } from 'vite'
 
 export default defineConfig(({ command }) => ({
   base: command === 'serve' ? '' : '/threejs_site/',
+  resolve: {
+    alias: {
+      'blorkpack': '/packages/blorkpack/dist'
+    }
+  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
     rollupOptions: {
       output: {
         manualChunks: {
-          'vendor': ['three/examples/jsm/libs/tween.module.js'],
           'three-core': ['three'],
           'three-addons': [
             'three/examples/jsm/controls/OrbitControls',
-            'three/examples/jsm/Addons.js'
+            'three/examples/jsm/Addons.js',
+            'three/examples/jsm/libs/tween.module.js'
           ],
           'physics': ['@dimforge/rapier3d-compat']
         },
         external: [
           /^development\/.*/  // Excludes anything in the development folder
         ]
+      },
+      input: {
+        main: 'index.html',
+        packageTest: 'tests/package-test.html'
       }
     },
     sourcemap: true,

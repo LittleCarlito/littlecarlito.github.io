@@ -1,9 +1,8 @@
 import { clamp } from 'three/src/math/MathUtils.js';
 import { TextFrame, IFRAME } from './text_frame';
 import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, CATEGORIES, extract_type, PAN_SPEED, TYPES, VALID_DIRECTIONS } from './overlay_common';
-import { Easing, FLAGS, ASSET_TYPE, THREE, Tween, AssetSpawner } from '../../common';
-import { ASSET_CONFIGS } from '../../common/asset_management/asset_type';
-import { AssetStorage } from '../../common/asset_management/asset_storage';
+import { Easing, FLAGS, THREE, Tween } from '../../common';
+import { ASSET_CONFIGS, AssetStorage, AssetSpawner, ASSET_TYPE, BLORKPACK_FLAGS } from 'blorkpack';
 
 export class TextContainer {
     container_width;
@@ -17,7 +16,8 @@ export class TextContainer {
         this.parent = incoming_parent;
         this.camera = incoming_camera;
         this.text_box_container = new THREE.Object3D();
-        this.asset_spawner = AssetSpawner.get_instance();
+        // Need to pass parent and null for world since this is UI without physics
+        this.asset_spawner = AssetSpawner.get_instance(this.parent, null);
         // Create text displays
         this.parent.add(this.text_box_container);
         // Creat background private method
@@ -174,9 +174,11 @@ export class TextContainer {
                             top_diploma.scale.set(top_asset_config.ui_scale, top_asset_config.ui_scale, top_asset_config.ui_scale);
                             top_diploma.position.copy(position);
                             top_diploma.rotation.copy(rotation);
-                            // Add debug logging
-                            console.log('Top Diploma UI Scale:', top_asset_config.ui_scale);
-                            console.log('Top Diploma Applied Scale:', top_diploma.scale);
+                            if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                                // Add debug logging
+                                console.log('Top Diploma UI Scale:', top_asset_config.ui_scale);
+                                console.log('Top Diploma Applied Scale:', top_diploma.scale);
+                            }
                             // Handle materials
                             top_diploma.traverse((child) => {
                                 if (child.isMesh) {
@@ -219,9 +221,11 @@ export class TextContainer {
                             bot_diploma.scale.set(bot_asset_config.ui_scale, bot_asset_config.ui_scale, bot_asset_config.ui_scale);
                             bot_diploma.position.copy(position);
                             bot_diploma.rotation.copy(rotation);
-                            // Add debug logging
-                            console.log('Bottom Diploma UI Scale:', bot_asset_config.ui_scale);
-                            console.log('Bottom Diploma Applied Scale:', bot_diploma.scale);
+                            if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                                // Add debug logging
+                                console.log('Bottom Diploma UI Scale:', bot_asset_config.ui_scale);
+                                console.log('Bottom Diploma Applied Scale:', bot_diploma.scale);
+                            }
                             // Handle materials
                             bot_diploma.traverse((child) => {
                                 if (child.isMesh) {
@@ -256,9 +260,11 @@ export class TextContainer {
                             text_box.add(bot_diploma);
                         });
                     })();
-                    // Log text_box properties before adding diplomas
-                    console.log('Text Box Container Scale:', text_box.scale);
-                    console.log('Text Box Container Size:', text_box.geometry ? text_box.geometry.parameters : 'No geometry');
+                    if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                        // Log text_box properties before adding diplomas
+                        console.log('Text Box Container Scale:', text_box.scale);
+                        console.log('Text Box Container Size:', text_box.geometry ? text_box.geometry.parameters : 'No geometry');
+                    }
                     create_background(category, text_box);
                     break;
                 case CATEGORIES.CONTACT.value:
