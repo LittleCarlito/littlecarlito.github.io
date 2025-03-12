@@ -39,8 +39,10 @@ jobs:
       - name: Install dependencies and build
         run: |
           cd packages/blorkpack
-          npm ci
+          npm install
           npm run build
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
       - name: Publish to GitHub Packages
         run: |

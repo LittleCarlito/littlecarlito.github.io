@@ -28,7 +28,7 @@ jobs:
           cache: 'npm'
           
       - name: Install dependencies
-        run: npm ci
+        run: npm install
         
       - name: Verify commit message
         run: echo "${{ github.event.head_commit.message }}" | npx commitlint
@@ -57,11 +57,11 @@ jobs:
       - name: Update package.json for production
         run: |
           # Update dependency to use the GitHub package instead of the local version
-          jq '.dependencies.blorkpack = "@littlecarlito/blorkpack"' package.json > package.json.tmp
+          jq '.dependencies."@littlecarlito/blorkpack" = "@littlecarlito/blorkpack"' package.json > package.json.tmp
           mv package.json.tmp package.json
           
       - name: Install Dependencies
-        run: npm ci
+        run: npm install
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         
