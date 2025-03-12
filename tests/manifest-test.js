@@ -5,7 +5,7 @@
  * Run this file to test the ManifestManager functionality.
  */
 
-import { ManifestManager } from 'blorkpack';
+import { ManifestManager }  from '@littlecarlito/blorkpack';
 
 async function testManifestManager() {
     console.log('Testing ManifestManager...');

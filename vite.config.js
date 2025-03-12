@@ -30,10 +30,7 @@ export default defineConfig(({ command }) => {
         },
         // During production builds, treat @littlecarlito/blorkpack as external
         // This allows it to be resolved from node_modules
-        external: [
-          /^development\/.*/,  // Excludes anything in the development folder
-          ...(isProduction ? ['@littlecarlito/blorkpack'] : [])
-        ],
+        external: isProduction ? ['@littlecarlito/blorkpack'] : [],
         input: {
           main: 'index.html',
           ...(isProduction ? {} : { packageTest: 'tests/package-test.html' })

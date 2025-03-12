@@ -6,7 +6,7 @@ import { BackgroundContainer } from './background/background_container';
 import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/overlay_common';
 import { AppRenderer } from './common';
 import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common';
-import { AssetStorage, AssetActivator, AssetSpawner, ManifestManager, BLORKPACK_FLAGS } from 'blorkpack';
+import { AssetStorage, AssetActivator, AssetSpawner, ManifestManager, BLORKPACK_FLAGS } from '@littlecarlito/blorkpack';
 import { toggleDebugUI, createDebugUI as create_debug_UI, setBackgroundContainer as set_background_container, setResolutionScale as set_resolution_scale, updateLabelWireframes } from './common/debug_ui.js';
 
 // ----- Variables

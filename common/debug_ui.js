@@ -1,6 +1,6 @@
 // Debug UI for displaying framerate and performance metrics
 import { FLAGS, RAPIER, THREE } from '../common';
-import { BLORKPACK_FLAGS } from 'blorkpack';
+import { BLORKPACK_FLAGS }  from '@littlecarlito/blorkpack';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
