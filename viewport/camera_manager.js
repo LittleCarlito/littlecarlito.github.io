@@ -1,5 +1,5 @@
 import { FLAGS, THREE } from "../common";
-import { AssetSpawner } from "blorkpack";
+import { AssetSpawner }  from '@littlecarlito/blorkpack';
 
 // Utility functions for angle conversion
 const ANGLES = {
