@@ -134,7 +134,7 @@ function setupDragAndDrop() {
         modelFileInfo.textContent = `${file.name} (${formatFileSize(file.size)})`;
         dropZoneModel.classList.add('has-file');
         checkFilesReady();
-      } else {
+          } else {
         alert('Please drop a valid GLB file.');
       }
     }
@@ -219,7 +219,7 @@ function formatFileSize(bytes) {
     return bytes + ' bytes';
   } else if (bytes < 1024 * 1024) {
     return (bytes / 1024).toFixed(1) + ' KB';
-  } else {
+      } else {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   }
 }
@@ -243,7 +243,14 @@ function startDebugging() {
   
   // Load model and texture
   loadModelFromFile(modelFile);
-  loadTextureFromFile(textureFile);
+  
+  // Use the user's actual texture, not the procedural one
+  if (textureFile) {
+    loadTextureFromFile(textureFile);
+  } else {
+    // Only use procedural texture if no user texture is provided
+    loadNumberAtlasTexture();
+  }
 }
 
 // Load model from dropped file
@@ -304,12 +311,22 @@ function loadModelFromFile(file) {
 
 // Load texture from dropped file
 function loadTextureFromFile(file) {
+  console.log('Loading user-provided texture file:', file.name);
+  
   const reader = new FileReader();
   reader.onload = function(e) {
     const textureLoader = new THREE.TextureLoader();
     textureLoader.load(e.target.result, (texture) => {
       textureObject = texture;
       texture.flipY = false; // Often needed for GLB textures
+      
+      // Important - ensure proper texture settings for consistent behavior
+      texture.wrapS = THREE.ClampToEdgeWrapping;
+      texture.wrapT = THREE.ClampToEdgeWrapping;
+      texture.minFilter = THREE.LinearFilter; 
+      texture.magFilter = THREE.LinearFilter;
+
+      console.log('Successfully loaded user texture:', texture);
       
       // Update texture info in the debug panel
       updateTextureInfo();
@@ -336,36 +353,62 @@ function applyTextureToModel() {
   if (!modelObject || !textureObject) return;
   
   console.log('Applying texture to model...');
+  console.log('Texture object:', textureObject);
   
-  // Find all materials in the model
+  // Find all screen meshes and store their original materials
   modelObject.traverse((child) => {
     if (child.isMesh && child.material) {
-      // Store original material for later use
+      // Store original material for later reference
       child.userData.originalMaterial = child.material.clone();
       
-      // If it's a screen-like mesh (could be based on name or other properties)
-      if (child.name.toLowerCase().includes('screen') || 
-          child.name.toLowerCase().includes('display') ||
-          child.name.toLowerCase().includes('monitor')) {
-        
-        console.log(`Found screen mesh: ${child.name}`);
-        
-        // Apply texture as emissive map for screen objects
-        if (child.material.emissive) {
-          child.material.emissiveMap = textureObject;
-          child.material.emissive.set(1, 1, 1); // Full emissive intensity
-          child.material.needsUpdate = true;
-        }
-      }
+      const isScreenMesh = child.name.toLowerCase().includes('screen') || 
+                         child.name.toLowerCase().includes('display') ||
+                         child.name.toLowerCase().includes('monitor');
       
-      // Always apply as regular map too
-      child.material.map = textureObject;
-      child.material.needsUpdate = true;
+      if (isScreenMesh) {
+        console.log(`Setting up screen mesh: ${child.name}`);
+        
+        // Log available UV sets on this mesh
+        if (child.geometry) {
+          let uvSetInfo = 'UV Sets: ';
+          window.uvChannelMapping.forEach(mapping => {
+            if (child.geometry.attributes[mapping.threejsName]) {
+              uvSetInfo += `${mapping.displayName}, `;
+            }
+          });
+          console.log(uvSetInfo);
+        }
+        
+        // Create a fresh material to avoid affecting other meshes
+        const material = new THREE.MeshStandardMaterial();
+        
+        // Copy important properties from original material
+        material.roughness = 0.1; // Make it slightly glossy
+        material.metalness = 0.2;
+        
+        // Apply the texture - IMPORTANT: Clone to avoid cross-mesh references
+        material.map = textureObject.clone();
+        
+        // Make sure screen is visible with emissive
+        material.emissiveMap = material.map;
+        material.emissive.set(1, 1, 1); // Full emissive intensity
+        
+        // Start with no offset/repeat modification
+        material.map.offset.set(0, 0);
+        material.map.repeat.set(1, 1);
+        
+        // Make sure texture settings are applied
+        material.map.needsUpdate = true;
+        material.needsUpdate = true;
+        
+        // Apply to mesh
+        child.material = material;
+      }
     }
   });
   
   // After applying the texture, switch to the current UV channel to ensure proper display
-  if (availableUvSets.length > 0) {
+  if (currentUvSet < availableUvSets.length) {
     switchUvChannel(availableUvSets[currentUvSet]);
   }
   
@@ -380,34 +423,88 @@ function analyzeModelStructure() {
   availableUvSets = [];
   uvSetNames = [];
   
+  // Create a detailed mapping to eliminate naming confusion
+  const uvMappings = [
+    { threejsName: 'uv', artistName: 'UV0', displayName: 'UV0 (Atlas Section 1)', atlasSection: 1 },
+    { threejsName: 'uv2', artistName: 'UV1', displayName: 'UV1 - Lightmap', atlasSection: 1 },
+    { threejsName: 'uv3', artistName: 'UV2', displayName: 'UV2 (Atlas Section 2)', atlasSection: 2 },
+    { threejsName: 'uv4', artistName: 'UV3', displayName: 'UV3 (Atlas Section 3)', atlasSection: 3 }
+  ];
+  
+  // Store the mapping globally for other functions to use
+  window.uvChannelMapping = uvMappings;
+  
+  console.log('UV Channel Mapping Table:', uvMappings);
+  
+  // Count how many meshes have each UV channel
+  const uvChannelStats = {};
+  uvMappings.forEach(mapping => {
+    uvChannelStats[mapping.threejsName] = 0;
+  });
+  
+  // Now check which UV channels actually exist in the model
   modelObject.traverse((child) => {
     if (child.isMesh) {
       meshes.push(child);
       
-      // Check for UV sets on each mesh
-      if (child.geometry) {
-        // Look for standard UV attributes
-        if (child.geometry.attributes.uv && !availableUvSets.includes('uv')) {
-          availableUvSets.push('uv');
-          uvSetNames.push('uv (UV0)');
-        }
+      // Debug info for this specific mesh
+      if (child.name.toLowerCase().includes('screen') || 
+          child.name.toLowerCase().includes('display') || 
+          child.name.toLowerCase().includes('monitor')) {
+        console.log(`Found screen mesh: ${child.name}`);
         
-        // Look for additional UV sets (uv2, uv3, etc.)
-        for (let i = 2; i <= 8; i++) {
-          const uvName = `uv${i}`;
-          if (child.geometry.attributes[uvName] && !availableUvSets.includes(uvName)) {
-            availableUvSets.push(uvName);
-            uvSetNames.push(`${uvName} (UV${i-1})`);
+        // Log which UV channels this mesh has
+        const meshUvChannels = [];
+        uvMappings.forEach(mapping => {
+          if (child.geometry && child.geometry.attributes[mapping.threejsName]) {
+            meshUvChannels.push(mapping.displayName);
           }
-        }
+        });
+        console.log(`Screen mesh ${child.name} has UV channels:`, meshUvChannels);
+      }
+      
+      // Check for all possible UV channels
+      if (child.geometry) {
+        uvMappings.forEach(mapping => {
+          if (child.geometry.attributes[mapping.threejsName] && 
+              !availableUvSets.includes(mapping.threejsName)) {
+            availableUvSets.push(mapping.threejsName);
+            uvSetNames.push(mapping.displayName);
+            uvChannelStats[mapping.threejsName]++;
+          }
+        });
       }
     }
   });
   
+  // Log which UV channels were found across all meshes
+  console.log('UV Channel Stats:', uvChannelStats);
+  console.log('Available UV channels:', availableUvSets);
+  console.log('UV channel display names:', uvSetNames);
+  
+  // Always add all UV channels for testing with screens
+  const hasScreenMeshes = meshes.some(mesh => 
+    mesh.name.toLowerCase().includes('screen') || 
+    mesh.name.toLowerCase().includes('display') || 
+    mesh.name.toLowerCase().includes('monitor')
+  );
+  
+  if (hasScreenMeshes) {
+    console.log('Screen meshes found - ensuring all UV channels are available for testing');
+    
+    uvMappings.forEach(mapping => {
+      if (!availableUvSets.includes(mapping.threejsName)) {
+        availableUvSets.push(mapping.threejsName);
+        uvSetNames.push(mapping.displayName + ' (Not in model)');
+        console.log(`Added missing UV channel for testing: ${mapping.displayName}`);
+      }
+    });
+  }
+  
   // Create mesh toggle buttons
   createMeshToggles();
   
-  // Set up UV switcher if there are multiple UV sets
+  // Set up UV switcher
   setupUvSwitcher();
 }
 
@@ -560,55 +657,113 @@ function setupUvSwitcher() {
 function switchUvChannel(uvChannel) {
   console.log(`Switching to UV channel: ${uvChannel}`);
   
+  // Find the mapping info for this channel
+  const mapping = window.uvChannelMapping.find(m => m.threejsName === uvChannel);
+  if (!mapping) {
+    console.error(`No mapping information found for UV channel: ${uvChannel}`);
+    return;
+  }
+  
+  console.log(`Using artist's UV channel ${mapping.artistName}`);
+  
+  // Track how many meshes were affected
+  let meshesWithThisUV = 0;
+  let screenMeshesProcessed = 0;
+  
   modelObject.traverse((child) => {
-    if (child.isMesh && child.geometry) {
-      // Check if this mesh has the requested UV channel
-      const hasRequestedUvChannel = child.geometry.attributes[uvChannel] !== undefined;
-      
-      // Make a copy of the material to avoid affecting other meshes
+    if (child.isMesh) {
+      // Store original material if not already done
       if (!child.userData.originalMaterial) {
         child.userData.originalMaterial = child.material.clone();
       }
       
-      // Always work with a fresh clone of the original material
-      const newMaterial = child.userData.originalMaterial.clone();
+      // Check if this is a screen/display mesh
+      const isScreenMesh = child.name.toLowerCase().includes('screen') || 
+                          child.name.toLowerCase().includes('display') || 
+                          child.name.toLowerCase().includes('monitor');
       
-      if (hasRequestedUvChannel && textureObject) {
-        // Apply texture to the new material
-        newMaterial.map = textureObject.clone();
+      // Special handling for screen meshes
+      if (isScreenMesh) {
+        screenMeshesProcessed++;
         
-        // Now we need to set up the material to use the correct UV channel
-        if (uvChannel === 'uv') {
-          // Default UV channel (UV0) doesn't need special handling in Three.js
-          newMaterial.map.channel = 0;
-        } else if (uvChannel === 'uv2') {
-          // For uv2 (UV1) - Three.js uses 0-based indexing
-          newMaterial.map.channel = 1;
-        } else if (uvChannel === 'uv3') {
-          // For uv3 (UV2)
-          newMaterial.map.channel = 2;
-        } else if (uvChannel === 'uv4') {
-          // For uv4 (UV3)
-          newMaterial.map.channel = 3;
+        // Check if this mesh has this UV channel
+        const hasUvChannel = child.geometry && child.geometry.attributes[uvChannel] !== undefined;
+        if (hasUvChannel) {
+          meshesWithThisUV++;
         }
         
-        // Apply emissive map for screen meshes
-        if (child.name.toLowerCase().includes('screen') || 
-            child.name.toLowerCase().includes('display') ||
-            child.name.toLowerCase().includes('monitor')) {
+        console.log(`Processing screen mesh: ${child.name}, has ${mapping.displayName}: ${hasUvChannel}`);
+        
+        // If the mesh has the texture and the UV channel, update its material
+        if (textureObject && hasUvChannel) {
+          // Create a fresh material based on original
+          const newMaterial = new THREE.MeshStandardMaterial();
+          newMaterial.roughness = 0.1;
+          newMaterial.metalness = 0.2;
+          
+          // Clone the texture to avoid affecting other materials
+          const tex = textureObject.clone();
+          
+          // IMPORTANT: Don't modify texture offset/repeat
+          // Let the actual UV coordinates in the mesh control how the texture is displayed
+          
+          // Apply the texture
+          newMaterial.map = tex;
+          
+          // Set which UV channel the texture should use
+          // In Three.js, the channel property determines which UV set is used
+          const uvIndex = parseInt(uvChannel.replace('uv', '')) || 0;
+          
+          // Only set channel for supported UV channels to avoid shader errors
+          if (uvChannel === 'uv' || uvChannel === 'uv2' || uvChannel === 'uv3') {
+            newMaterial.map.channel = uvIndex > 0 ? uvIndex - 1 : 0;
+            console.log(`Set UV channel ${newMaterial.map.channel} for ${mapping.displayName}`);
+          } else {
+            console.log(`Skipping channel setting for ${mapping.displayName} (shader doesn't support ${uvChannel})`);
+          }
+          
+          // Apply emissive to make the screen visible
           newMaterial.emissiveMap = newMaterial.map;
           newMaterial.emissive.set(1, 1, 1);
+          
+          // Apply the material
+          child.material = newMaterial;
+          child.material.needsUpdate = true;
+          newMaterial.map.needsUpdate = true;
         }
+        // If the mesh doesn't have this UV channel, use a fallback color
+        else if (isScreenMesh && !hasUvChannel) {
+          // Apply a simple colored material for channels that don't exist
+          const fallbackMaterial = new THREE.MeshStandardMaterial({
+            emissive: new THREE.Color(0.5, 0.5, 0.5),
+            color: new THREE.Color(0.8, 0.8, 0.8)
+          });
+          child.material = fallbackMaterial;
+        }
+      } 
+      // Regular non-screen mesh handling
+      else if (child.geometry && child.geometry.attributes[uvChannel] && textureObject) {
+        meshesWithThisUV++;
         
-        // Apply the material
-        child.material = newMaterial;
-        child.material.needsUpdate = true;
-        
-        // Log the mapping for debugging
-        console.log(`Applied UV channel ${uvChannel} to mesh: ${child.name}`);
+        // Only apply UV channel switching for supported channels (uv, uv2, uv3)
+        if (uvChannel === 'uv' || uvChannel === 'uv2' || uvChannel === 'uv3') {
+          // Apply texture with the correct UV channel
+          const newMaterial = child.userData.originalMaterial.clone();
+          newMaterial.map = textureObject.clone();
+          
+          // Set the UV channel to use
+          const uvIndex = parseInt(uvChannel.replace('uv', '')) || 0;
+          newMaterial.map.channel = uvIndex > 0 ? uvIndex - 1 : 0;
+          
+          // Apply material
+          child.material = newMaterial;
+          child.material.needsUpdate = true;
+        }
       }
     }
   });
+  
+  console.log(`Applied ${mapping.displayName} to ${meshesWithThisUV} meshes (${screenMeshesProcessed} screen meshes)`);
   
   // Force a re-render
   renderer.render(scene, camera);
@@ -621,8 +776,16 @@ function updateUvInfo() {
   const uvInfo = document.getElementById('uv-info');
   const currentChannel = availableUvSets[currentUvSet];
   
+  // Find the mapping info for this channel
+  const mapping = window.uvChannelMapping.find(m => m.threejsName === currentChannel);
+  if (!mapping) {
+    uvInfo.innerHTML = `<div style="color: #ff5555;">No mapping information found for ${currentChannel}</div>`;
+    return;
+  }
+  
   // Count the number of meshes that have this UV channel
   let meshCount = 0;
+  let screenMeshCount = 0;
   let totalVertices = 0;
   let maxUCoord = -Infinity;
   let minUCoord = Infinity;
@@ -636,6 +799,14 @@ function updateUvInfo() {
   modelObject.traverse((child) => {
     if (child.isMesh && child.geometry && child.geometry.attributes[currentChannel]) {
       meshCount++;
+      
+      // Track screen meshes separately
+      const isScreenMesh = child.name.toLowerCase().includes('screen') || 
+                          child.name.toLowerCase().includes('display') ||
+                          child.name.toLowerCase().includes('monitor');
+      if (isScreenMesh) {
+        screenMeshCount++;
+      }
       
       const uvAttribute = child.geometry.attributes[currentChannel];
       totalVertices += uvAttribute.count;
@@ -653,7 +824,7 @@ function updateUvInfo() {
       }
       
       // Save a sample mesh for displaying UV coordinates
-      if (!sampleMesh) {
+      if (!sampleMesh && isScreenMesh) {
         sampleMesh = child;
         sampleUvs = uvArray;
       }
@@ -662,26 +833,44 @@ function updateUvInfo() {
   
   // Create info text
   let infoHTML = `
-    <b>Current UV Channel:</b> ${uvSetNames[currentUvSet]}<br>
-    <b>Meshes with this UV:</b> ${meshCount} of ${meshes.length}<br>
-    <b>Total Vertices:</b> ${totalVertices}<br>
-    <b>UV Range:</b> U: ${minUCoord.toFixed(4)} to ${maxUCoord.toFixed(4)}, V: ${minVCoord.toFixed(4)} to ${maxVCoord.toFixed(4)}<br>
+    <div style="margin-bottom: 10px; padding: 8px; background-color: #333; border-radius: 4px;">
+      <div style="font-weight: bold; color: #ffcc00; margin-bottom: 5px;">UV Channel Info:</div>
+      <div><b>Three.js Name:</b> ${mapping.threejsName}</div>
+      <div><b>Artist Convention:</b> ${mapping.artistName}</div>
+      <div><b>Atlas Section:</b> ${mapping.atlasSection}</div>
+      <div><b>Current Display:</b> ${mapping.displayName}</div>
+    </div>
+    
+    <div style="margin-bottom: 10px; padding: 8px; background-color: #333; border-radius: 4px;">
+      <div style="font-weight: bold; color: #ffcc00; margin-bottom: 5px;">Mesh Statistics:</div>
+      <div><b>Meshes with this UV:</b> ${meshCount} of ${meshes.length}</div>
+      <div><b>Screen Meshes:</b> ${screenMeshCount}</div>
+      <div><b>Total Vertices:</b> ${totalVertices.toLocaleString()}</div>
+      <div><b>UV Range:</b> U: ${minUCoord.toFixed(4)} to ${maxUCoord.toFixed(4)}, V: ${minVCoord.toFixed(4)} to ${maxVCoord.toFixed(4)}</div>
+    </div>
   `;
   
   // Display sample UV coordinates if available
   if (sampleMesh && sampleUvs) {
-    infoHTML += `<b>Sample Coordinates (from ${sampleMesh.name || 'unnamed mesh'}):</b><br>`;
+    infoHTML += `
+      <div style="padding: 8px; background-color: #333; border-radius: 4px;">
+        <div style="font-weight: bold; color: #ffcc00; margin-bottom: 5px;">
+          Sample UV Coordinates from ${sampleMesh.name || 'unnamed mesh'}:
+        </div>
+    `;
     
     const maxSamples = 5;
     for (let i = 0; i < Math.min(maxSamples, sampleMesh.geometry.attributes[currentChannel].count); i++) {
       const u = sampleUvs[i * 2].toFixed(4);
       const v = sampleUvs[i * 2 + 1].toFixed(4);
-      infoHTML += `[${i}]: (${u}, ${v})<br>`;
+      infoHTML += `<div>Vertex ${i}: (${u}, ${v})</div>`;
     }
     
     if (sampleMesh.geometry.attributes[currentChannel].count > maxSamples) {
-      infoHTML += `... and ${sampleMesh.geometry.attributes[currentChannel].count - maxSamples} more`;
+      infoHTML += `<div>... and ${sampleMesh.geometry.attributes[currentChannel].count - maxSamples} more vertices</div>`;
     }
+    
+    infoHTML += `</div>`;
   }
   
   uvInfo.innerHTML = infoHTML;
@@ -726,6 +915,18 @@ function updateTextureInfo() {
   
   const textureInfo = document.getElementById('texture-info');
   
+  // Handle procedurally generated texture
+  if (!textureFile) {
+    textureInfo.innerHTML = `
+      <b>Texture:</b> Procedural Atlas (1, 2, 3)<br>
+      <b>Size:</b> 600 × 200 px<br>
+      <b>Type:</b> Canvas Texture<br>
+      <b>Sections:</b> 3 (each 200px wide)<br>
+    `;
+    return;
+  }
+  
+  // Handle file-based texture
   textureInfo.innerHTML = `
     <b>File:</b> ${textureFile.name}<br>
     <b>Size:</b> ${formatFileSize(textureFile.size)}<br>
@@ -770,6 +971,76 @@ function resetToDropZone() {
   document.getElementById('start-button').disabled = true;
   
   isDebugMode = false;
+}
+
+// Create a procedural number atlas texture for testing - improved version
+function createNumberAtlasTexture() {
+  // Create a canvas to draw the texture
+  const canvas = document.createElement('canvas');
+  canvas.width = 600;
+  canvas.height = 200;
+  const ctx = canvas.getContext('2d');
+  
+  // Section 1: Number "1" - Bright Red
+  ctx.fillStyle = '#FF5733';
+  ctx.fillRect(0, 0, 200, 200);
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 120px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('1', 100, 100);
+  
+  // Section 2: Number "2" - Bright Green
+  ctx.fillStyle = '#33FF57';
+  ctx.fillRect(200, 0, 200, 200);
+  ctx.fillStyle = 'white';
+  ctx.fillText('2', 300, 100);
+  
+  // Section 3: Number "3" - Bright Blue 
+  ctx.fillStyle = '#3357FF';
+  ctx.fillRect(400, 0, 200, 200);
+  ctx.fillStyle = 'white';
+  ctx.fillText('3', 500, 100);
+  
+  // Create a texture from the canvas
+  const texture = new THREE.CanvasTexture(canvas);
+  
+  // Set the texture wrapping mode to allow proper offset/repeat
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  
+  // Important: Set proper filtering for better display
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  
+  // Add debugging to verify texture creation
+  console.log('Created texture atlas:', texture);
+  
+  return texture;
+}
+
+// Load the test number atlas texture with logging
+function loadNumberAtlasTexture() {
+  // Create a texture from a canvas
+  const texture = createNumberAtlasTexture();
+  textureObject = texture;
+  
+  // Log that we created a test texture
+  console.log('Created procedural number atlas texture for testing', texture);
+  
+  // Show texture info in the UI if textureFile is not available
+  if (!textureFile) {
+    textureFile = {
+      name: "number_atlas.png",
+      size: 1024 * 36 // Estimate
+    };
+    updateTextureInfo();
+  }
+  
+  // Apply to model if it's loaded
+  if (modelObject) {
+    applyTextureToModel();
+  }
 }
 
 // Initialize the application and start animation loop

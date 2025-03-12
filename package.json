@@ -21,10 +21,9 @@
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^9.2.6",
-    "express": "^4.18.3",
+    "express": "^4.21.2",
     "semantic-release": "^23.0.2",
-    "vite": "^6.0.11",
-    "@littlecarlito/blorktools": "file:packages/blorktools"
+    "vite": "^6.0.11"
   },
   "resolutions": {
     "@littlecarlito/blorkpack": "1.0.1"

@@ -1,5 +1,5 @@
 // Export all tools from the blorktools package
-export { default as AssetDebugger } from './asset_debugger_export.js';
+export { default as AssetDebugger } from './asset_debugger.js';
 
 // Main function to initialize the tools
 export function initializeTools(options = {}) {
