@@ -676,19 +676,9 @@ function switchUvChannel(uvChannel) {
   let meshesWithThisUV = 0;
   let screenMeshesProcessed = 0;
   
-  // Special case for UV3/uv4 - if we're trying to show the 3rd atlas section
-  const isUv3Selection = uvChannel === 'uv4';
-  
-  // Store the current offset and repeat for visualization
+  // Default offset and repeat for visualization (always show full texture)
   let currentOffset = new THREE.Vector2(0, 0);
   let currentRepeat = new THREE.Vector2(1, 1);
-  
-  // Special case for UV3 - set the atlas section 3 coordinates (last third of the atlas)
-  if (isUv3Selection) {
-    // For a 3-section atlas, section 3 starts at 2/3 of the width
-    currentOffset.set(0.66, 0);
-    currentRepeat.set(0.34, 1);
-  }
   
   modelObject.traverse((child) => {
     if (child.isMesh) {
@@ -708,45 +698,12 @@ function switchUvChannel(uvChannel) {
         
         // Check if this mesh has this UV channel
         const hasUvChannel = child.geometry && child.geometry.attributes[uvChannel] !== undefined;
-        const hasUv0 = child.geometry && child.geometry.attributes['uv'] !== undefined;
         
         // Log for debugging
-        console.log(`Processing screen mesh: ${child.name}, has ${mapping.displayName}: ${hasUvChannel}, has UV0: ${hasUv0}`);
+        console.log(`Processing screen mesh: ${child.name}, has ${mapping.displayName}: ${hasUvChannel}`);
         
-        // Special case for UV3 when it's missing but UV0 exists
-        if (isUv3Selection && !hasUvChannel && hasUv0 && textureObject) {
-          console.log(`*** SPECIAL CASE *** Using UV0 with offset for UV3 on ${child.name}`);
-          meshesWithThisUV++;
-          
-          // Create new material based on original
-          const newMaterial = new THREE.MeshStandardMaterial();
-          newMaterial.roughness = 0.1;
-          newMaterial.metalness = 0.2;
-          
-          // Clone texture and apply offset to show the third section
-          const tex = textureObject.clone();
-          
-          // Set offset to show the third section (assuming 3 equal parts)
-          tex.offset.copy(currentOffset);
-          tex.repeat.copy(currentRepeat);
-          
-          // Use UV0 channel
-          tex.channel = 0;
-          
-          // Apply the texture
-          newMaterial.map = tex;
-          newMaterial.emissiveMap = tex;
-          newMaterial.emissive.set(1, 1, 1);
-          
-          // Apply material
-          child.material = newMaterial;
-          child.material.needsUpdate = true;
-          tex.needsUpdate = true;
-          
-          console.log(`Applied special case UV3 material to ${child.name} using UV0 with offset`);
-        }
-        // Regular case: mesh has the UV channel
-        else if (textureObject && hasUvChannel) {
+        // Only apply texture if the mesh has this UV channel
+        if (textureObject && hasUvChannel) {
           meshesWithThisUV++;
           
           // Create a fresh material
@@ -757,15 +714,9 @@ function switchUvChannel(uvChannel) {
           // Clone the texture to avoid affecting other materials
           const tex = textureObject.clone();
           
-          // Reset offset/repeat for normal case
+          // Reset offset/repeat - we're using the actual UV coordinates
           tex.offset.set(0, 0);
           tex.repeat.set(1, 1);
-          
-          // Update current offset/repeat for visualization
-          if (!isUv3Selection) {
-            currentOffset.set(0, 0);
-            currentRepeat.set(1, 1);
-          }
           
           // Set which UV channel the texture should use
           const uvIndex = parseInt(uvChannel.replace('uv', '')) || 0;
@@ -789,7 +740,7 @@ function switchUvChannel(uvChannel) {
           tex.needsUpdate = true;
         }
         // Fallback for missing UV channel
-        else if (isScreenMesh && !hasUvChannel && (!isUv3Selection || !hasUv0)) {
+        else if (isScreenMesh && !hasUvChannel) {
           console.log(`Applying fallback material for ${child.name} - missing ${mapping.displayName}`);
           // Apply a simple colored material for channels that don't exist
           const fallbackMaterial = new THREE.MeshStandardMaterial({
@@ -799,28 +750,12 @@ function switchUvChannel(uvChannel) {
           child.material = fallbackMaterial;
         }
       } 
-      // Regular non-screen mesh handling with special case for UV3
+      // Regular non-screen mesh handling
       else if (child.geometry && textureObject) {
         const hasUvChannel = child.geometry.attributes[uvChannel] !== undefined;
-        const hasUv0 = child.geometry.attributes['uv'] !== undefined;
         
-        // Special case for UV3
-        if (isUv3Selection && !hasUvChannel && hasUv0) {
-          meshesWithThisUV++;
-          
-          // Apply texture with offset for section 3
-          const newMaterial = child.userData.originalMaterial.clone();
-          newMaterial.map = textureObject.clone();
-          newMaterial.map.offset.copy(currentOffset);
-          newMaterial.map.repeat.copy(currentRepeat);
-          newMaterial.map.channel = 0; // Use UV0
-          
-          // Apply material
-          child.material = newMaterial;
-          child.material.needsUpdate = true;
-        }
-        // Regular case
-        else if (hasUvChannel) {
+        // Only apply if this mesh has this UV channel
+        if (hasUvChannel) {
           meshesWithThisUV++;
           
           // Only apply UV channel switching for supported channels
@@ -829,7 +764,7 @@ function switchUvChannel(uvChannel) {
             const newMaterial = child.userData.originalMaterial.clone();
             newMaterial.map = textureObject.clone();
             
-            // Reset texture transform
+            // Reset texture transform - use the actual UV coordinates
             newMaterial.map.offset.set(0, 0);
             newMaterial.map.repeat.set(1, 1);
             
