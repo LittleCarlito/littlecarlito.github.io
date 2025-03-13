@@ -1,3 +1,36 @@
+# [0.9.0](https://github.com/LittleCarlito/threejs_site/compare/v0.8.3...v0.9.0) (2025-03-13)
+
+
+### Bug Fixes
+
+* adding tools to run script ([33138a8](https://github.com/LittleCarlito/threejs_site/commit/33138a89d9afbd42fd2548ed72b5fa2f7f05541c))
+* all but the textures and map ([512e1ff](https://github.com/LittleCarlito/threejs_site/commit/512e1ff55f40e758a6ca360352edce0d3bad1a57))
+* atlas loading ([9c541f3](https://github.com/LittleCarlito/threejs_site/commit/9c541f331303cb90b4cd897df1391e9d3f10b209))
+* atlas map fixed only ([1e8523e](https://github.com/LittleCarlito/threejs_site/commit/1e8523e0f6777a56d2443a0f63c108e8305f94f4))
+* atlas swapping kinda ([2321c09](https://github.com/LittleCarlito/threejs_site/commit/2321c09b05408cebd5a9cfd6b0c4a96d8543f411))
+* default to uv ([2583c87](https://github.com/LittleCarlito/threejs_site/commit/2583c87890748acef9c6b44a8ee5cbf84a62b358))
+* drag drop setup ([75763e3](https://github.com/LittleCarlito/threejs_site/commit/75763e38faeb1c055edd68aed2351ded50ebd250))
+* dynamic uv detection ([11d905c](https://github.com/LittleCarlito/threejs_site/commit/11d905c5038c7539258c5ca617332d47f2015139))
+* improvements to view ([7c561e5](https://github.com/LittleCarlito/threejs_site/commit/7c561e5cbf434648daf90ada3b997d6a21323b8b))
+* minimap fixes ([5838f03](https://github.com/LittleCarlito/threejs_site/commit/5838f03ca9dbe865c458a4364624077f930e9190))
+* more log silencing ([835bc7f](https://github.com/LittleCarlito/threejs_site/commit/835bc7f61630bbf692fa9628aafc10bf4f07af2e))
+* show hide group location ([01976b8](https://github.com/LittleCarlito/threejs_site/commit/01976b89d53375ae48de6564fe871c5e4a157462))
+* silencing logs ([1ff411a](https://github.com/LittleCarlito/threejs_site/commit/1ff411a22ef58a3a9e63da464daa393b3252260d))
+* uv select ([4622e3d](https://github.com/LittleCarlito/threejs_site/commit/4622e3dfe85877b3d8b299483a9c65c0b6348798))
+
+
+### Features
+
+* asset debugger ([d072b4b](https://github.com/LittleCarlito/threejs_site/commit/d072b4be72ec8c79b8fd04cca5d26957a4c147bb))
+* atlas minimap ([f076bff](https://github.com/LittleCarlito/threejs_site/commit/f076bff3d9e235506fe7705db2b6d09e05535045))
+* basic display controls ([4d7e226](https://github.com/LittleCarlito/threejs_site/commit/4d7e226ea39b9d7a22e3ce15e250e9ee2f193598))
+* blorktools ([fe5782b](https://github.com/LittleCarlito/threejs_site/commit/fe5782bda9a27847d58818509834d75d66102b78))
+* blorktools package release ([69379f4](https://github.com/LittleCarlito/threejs_site/commit/69379f415dfaf57d975f44af80f02cf24bb8f251))
+* blorktools release ([87103b8](https://github.com/LittleCarlito/threejs_site/commit/87103b83a5340110325c3d6d0853b21cadc88656))
+* display detection ([f49a61e](https://github.com/LittleCarlito/threejs_site/commit/f49a61e32cef877380dcc0b9791f3086d70923d8))
+* display transparent default ([40911f1](https://github.com/LittleCarlito/threejs_site/commit/40911f1c191df62035abcfc5d298b234cd118780))
+* still broke but more grouping ([ed7ef6b](https://github.com/LittleCarlito/threejs_site/commit/ed7ef6b983fb97d4ef1b15b83d582f920b6a3523))
+
 ## [0.8.3](https://github.com/LittleCarlito/threejs_site/compare/v0.8.2...v0.8.3) (2025-03-12)
 
 
