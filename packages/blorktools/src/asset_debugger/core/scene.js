@@ -46,12 +46,17 @@ export function initRenderer() {
 
 // Add standard lights to the scene
 function addLights(scene) {
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
   scene.add(ambientLight);
 
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
   directionalLight.position.set(1, 1, 1);
   scene.add(directionalLight);
+  
+  // Add a second directional light from another angle
+  const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.8);
+  directionalLight2.position.set(-1, 0.5, -1);
+  scene.add(directionalLight2);
 }
 
 // Handle window resize

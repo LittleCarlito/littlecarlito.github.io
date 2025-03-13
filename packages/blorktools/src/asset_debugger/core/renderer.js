@@ -21,7 +21,8 @@ export function setupRenderer(state) {
     // Configure renderer
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setClearColor(0x111111, 1);
+    renderer.setClearColor(0x000000, 1);
+    renderer.outputEncoding = THREE.sRGBEncoding;
     
     // Add to DOM
     document.body.appendChild(renderer.domElement);

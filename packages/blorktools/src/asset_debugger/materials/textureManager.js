@@ -87,30 +87,64 @@ export function applyTextureToModel(state) {
   
   console.log('Applying texture to model', state.textureObject);
   
-  // Apply to all meshes in the scene
-  let meshCount = 0;
-  let appliedCount = 0;
-  
-  state.modelObject.traverse((node) => {
-    if (node.isMesh) {
-      meshCount++;
+  // Find all screen meshes and store their original materials
+  state.modelObject.traverse((child) => {
+    if (child.isMesh && child.material) {
+      // Store original material for later reference
+      child.userData.originalMaterial = child.material.clone();
       
-      // Simply apply a MeshBasicMaterial with the texture
-      // This ensures the texture is clearly visible without any lighting effects
-      const newMaterial = new THREE.MeshBasicMaterial({
-        map: state.textureObject,
-        side: THREE.DoubleSide  // Show texture on both sides
-      });
+      // Check if this is a screen/display/monitor mesh
+      const isScreenMesh = child.name.toLowerCase().includes('screen') || 
+                         child.name.toLowerCase().includes('display') ||
+                         child.name.toLowerCase().includes('monitor');
       
-      // Assign the new material
-      node.material = newMaterial;
-      appliedCount++;
-      
-      console.log(`Applied basic material with texture to mesh ${node.name || 'unnamed'}`);
+      if (isScreenMesh) {
+        console.log(`Setting up screen mesh: ${child.name}`);
+        
+        // Log available UV sets on this mesh
+        if (child.geometry) {
+          let uvSetInfo = 'UV Sets: ';
+          // Check for any UV attributes directly
+          const potentialUvAttributes = [];
+          for (let i = 0; i < 8; i++) {
+            potentialUvAttributes.push(i === 0 ? 'uv' : `uv${i+1}`);
+          }
+          
+          potentialUvAttributes.forEach(attrName => {
+            if (child.geometry.attributes[attrName]) {
+              uvSetInfo += `${attrName}, `;
+            }
+          });
+          console.log(uvSetInfo);
+        }
+        
+        // Create a fresh material to avoid affecting other meshes
+        const material = new THREE.MeshStandardMaterial();
+        
+        // Copy important properties from original material
+        material.roughness = 0.1; // Make it slightly glossy
+        material.metalness = 0.2;
+        
+        // Apply the texture - IMPORTANT: Clone to avoid cross-mesh references
+        material.map = state.textureObject.clone();
+        
+        // Make sure screen is visible with emissive
+        material.emissiveMap = material.map;
+        material.emissive.set(1, 1, 1); // Full emissive intensity
+        
+        // Start with no offset/repeat modification
+        material.map.offset.set(0, 0);
+        material.map.repeat.set(1, 1);
+        
+        // Make sure texture settings are applied
+        material.map.needsUpdate = true;
+        material.needsUpdate = true;
+        
+        // Apply to mesh
+        child.material = material;
+      }
     }
   });
-  
-  console.log(`Applied texture to ${appliedCount} materials across ${meshCount} meshes`);
   
   // Force a render update
   if (state.renderer && state.camera && state.scene) {
@@ -135,12 +169,6 @@ export function applyTextureToModel(state) {
     } catch (error) {
       console.error('Failed to auto-show atlas visualization:', error);
     }
-  } else {
-    console.warn('Cannot force render update: Missing renderer, camera, or scene', {
-      rendererExists: !!state.renderer,
-      cameraExists: !!state.camera,
-      sceneExists: !!state.scene
-    });
   }
 }
 

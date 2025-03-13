@@ -544,28 +544,78 @@ export function createDebugPanel(state) {
   return panel;
 }
 
-// Auto-show atlas visualization when state is ready
+// Automatically show atlas visualization when both model and texture are loaded
 export function autoShowAtlasVisualization(state) {
-  if (state.textureObject && state.modelObject) {
-    // Make sure the current UV region is analyzed if it doesn't exist
-    if (!state.currentUvRegion) {
-      // Default to a full texture region
-      state.currentUvRegion = { min: [0, 0], max: [1, 1] };
-      
-      // Try to analyze the actual UV bounds if we can
-      if (state.scene && state.modelObject) {
-        import('../core/analyzer.js').then(module => {
-          // Trigger a UV channel switch which will analyze the current region
-          module.switchUvChannel(state, state.activeUVChannel || 0);
-        }).catch(error => {
-          console.error('Failed to analyze UV region:', error);
-        });
-      }
-    }
-    
-    // Wait a moment for the UI to be ready
-    setTimeout(() => {
-      createAtlasVisualization(state);
-    }, 1000);
+  if (!state.modelObject || !state.textureObject) {
+    console.log('Cannot show atlas visualization: Model or texture not loaded');
+    return;
   }
+  
+  console.log('Auto-showing atlas visualization');
+  
+  // First, analyze the model to find available UV channels
+  const availableUvSets = [];
+  const uvSetNames = [];
+  
+  // Create a list of potential UV attributes to check for in the model
+  const potentialUvAttributes = [];
+  for (let i = 0; i < 8; i++) {
+    potentialUvAttributes.push(i === 0 ? 'uv' : `uv${i+1}`);
+  }
+  
+  // Track which channels exist in the model
+  const detectedUvChannels = new Map();
+  
+  // First pass: collect all meshes and detect UV channels
+  state.modelObject.traverse((child) => {
+    if (child.isMesh && child.geometry) {
+      // Check which UV channels this mesh has
+      potentialUvAttributes.forEach(attr => {
+        if (child.geometry.attributes[attr]) {
+          if (!detectedUvChannels.has(attr)) {
+            detectedUvChannels.set(attr, []);
+          }
+          detectedUvChannels.get(attr).push(child);
+        }
+      });
+    }
+  });
+  
+  // Convert to arrays for easier use
+  detectedUvChannels.forEach((meshes, channel) => {
+    availableUvSets.push(channel);
+    uvSetNames.push(`${channel} - ${meshes.length} meshes`);
+  });
+  
+  console.log('Available UV sets:', availableUvSets);
+  
+  // Try to find a screen mesh with UV2 first (common for screens)
+  let foundScreenUv = false;
+  
+  state.modelObject.traverse((child) => {
+    if (child.isMesh && 
+        (child.name.toLowerCase().includes('screen') || 
+         child.name.toLowerCase().includes('display') || 
+         child.name.toLowerCase().includes('monitor'))) {
+      
+      // Check which UV channels this screen mesh has
+      potentialUvAttributes.forEach(attr => {
+        if (child.geometry.attributes[attr] && !foundScreenUv) {
+          console.log(`Found screen mesh with ${attr}: ${child.name}`);
+          // Switch to this UV channel
+          switchUvChannel(state, attr);
+          foundScreenUv = true;
+        }
+      });
+    }
+  });
+  
+  // If no screen-specific UV was found, just use the first available UV set
+  if (!foundScreenUv && availableUvSets.length > 0) {
+    console.log(`No screen-specific UV found, using ${availableUvSets[0]}`);
+    switchUvChannel(state, availableUvSets[0]);
+  }
+  
+  // Create the atlas visualization
+  createAtlasVisualization(state);
 }

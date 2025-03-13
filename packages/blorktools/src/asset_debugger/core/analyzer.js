@@ -117,90 +117,133 @@ function collectTexturesFromMaterial(material, textureSet) {
   });
 }
 
-/**
- * Switch the active UV channel for viewing
- * @param {Object} state - Global state object
- * @param {Number} channelIndex - Channel index to switch to (0 = uv, 1 = uv2, 2 = uv3)
- */
-export function switchUvChannel(state, channelIndex) {
-  if (!state.scene || !state.shader) {
-    console.warn('Cannot switch UV channel: Scene or shader not initialized');
+// Switch to a specific UV channel for texture display
+export function switchUvChannel(state, uvChannel) {
+  console.log(`Switching to UV channel: ${uvChannel}`);
+  
+  if (!state.modelObject || !state.textureObject) {
+    console.warn('Cannot switch UV channel: Model or texture not loaded');
     return;
   }
   
-  console.log(`Switching to UV channel: ${channelIndex}`);
+  // Track how many meshes were affected
+  let meshesWithThisUV = 0;
+  let screenMeshesProcessed = 0;
   
-  // Update the shader uniform to use the specified UV channel
-  if (state.shader.uniforms && state.shader.uniforms.uvChannel) {
-    state.shader.uniforms.uvChannel.value = channelIndex;
-  }
-  
-  // Update all materials in the scene that may have this uniform
-  state.scene.traverse(object => {
-    if (object.material && object.material.uniforms && object.material.uniforms.uvChannel) {
-      object.material.uniforms.uvChannel.value = channelIndex;
+  state.modelObject.traverse((child) => {
+    if (child.isMesh) {
+      // Store original material if not already done
+      if (!child.userData.originalMaterial) {
+        child.userData.originalMaterial = child.material.clone();
+      }
+      
+      // Check if this is a screen/display mesh
+      const isScreenMesh = child.name.toLowerCase().includes('screen') || 
+                          child.name.toLowerCase().includes('display') || 
+                          child.name.toLowerCase().includes('monitor');
+      
+      // Special handling for screen meshes
+      if (isScreenMesh) {
+        screenMeshesProcessed++;
+        
+        // Check if this mesh has this UV channel
+        const hasUvChannel = child.geometry && child.geometry.attributes[uvChannel] !== undefined;
+        
+        // Log for debugging
+        console.log(`Processing screen mesh: ${child.name}, has ${uvChannel}: ${hasUvChannel}`);
+        
+        // Only apply texture if the mesh has this UV channel
+        if (state.textureObject && hasUvChannel) {
+          meshesWithThisUV++;
+          
+          // Create a fresh material
+          const newMaterial = new THREE.MeshStandardMaterial();
+          newMaterial.roughness = 0.1;
+          newMaterial.metalness = 0.2;
+          
+          // Clone the texture to avoid affecting other materials
+          const tex = state.textureObject.clone();
+          
+          // Reset offset/repeat - we're using the actual UV coordinates
+          tex.offset.set(0, 0);
+          tex.repeat.set(1, 1);
+          
+          // Set which UV channel the texture should use
+          const uvIndex = parseInt(uvChannel.replace('uv', '')) || 0;
+          
+          // Important change: Define UV transform for materials
+          // We need to modify the material to use the specific UV channel
+          if (uvIndex === 0) {
+            // For default UV (uv), restore original UV data if we stored it
+            if (originalUvData.has(child)) {
+              // Restore the original UV data
+              child.geometry.attributes.uv = originalUvData.get(child);
+              console.log(`Restored original UV data for ${child.name}`);
+            } else {
+              console.log(`Using default UV mapping for ${child.name} (no stored original)`);
+            }
+          } else {
+            // For non-default UV channels, store original UV data if we haven't already
+            if (!originalUvData.has(child) && child.geometry.attributes.uv) {
+              // Store a clone of the original UV attribute
+              originalUvData.set(child, child.geometry.attributes.uv.clone());
+              console.log(`Stored original UV data for ${child.name}`);
+            }
+            
+            if (uvIndex === 2) {
+              // For uv2, use THREE.UVMapping and set uvTransform
+              newMaterial.defines = newMaterial.defines || {};
+              newMaterial.defines.USE_UV = '';
+              newMaterial.defines.USE_UV2 = '';
+              
+              // Force material to use uv2
+              child.geometry.attributes.uv = child.geometry.attributes.uv2;
+              console.log(`Mapped UV2 to UV for ${child.name}`);
+            } else if (uvIndex === 3) {
+              // For uv3, use THREE.UVMapping and set uvTransform
+              newMaterial.defines = newMaterial.defines || {};
+              newMaterial.defines.USE_UV = '';
+              newMaterial.defines.USE_UV3 = '';
+              
+              // Force material to use uv3
+              child.geometry.attributes.uv = child.geometry.attributes.uv3;
+              console.log(`Mapped UV3 to UV for ${child.name}`);
+            } else if (uvIndex > 3) {
+              console.log(`Warning: ${uvChannel} (index ${uvIndex}) exceeds Three.js support`);
+              // For higher UV indices, we need a custom approach
+              child.geometry.attributes.uv = child.geometry.attributes[uvChannel];
+              console.log(`Mapped ${uvChannel} to UV for ${child.name}`);
+            }
+          }
+          
+          // Apply the texture
+          newMaterial.map = tex;
+          newMaterial.emissiveMap = tex;
+          newMaterial.emissive.set(1, 1, 1);
+          
+          // Apply the material
+          child.material = newMaterial;
+          
+          // Force geometry update
+          child.geometry.attributes.uv.needsUpdate = true;
+        } else {
+          // If this mesh doesn't have this UV channel, restore original material
+          if (child.userData.originalMaterial) {
+            child.material = child.userData.originalMaterial;
+          }
+        }
+      }
     }
   });
   
-  // Analyze the UV bounds to find the current texture region being used
-  const uvBounds = analyzeUvBounds(state, channelIndex);
-  if (uvBounds) {
-    state.currentUvRegion = uvBounds;
-    console.log('Detected UV region:', state.currentUvRegion);
-  } else {
-    // Default to full texture if no bounds could be determined
-    state.currentUvRegion = { min: [0, 0], max: [1, 1] };
-  }
+  console.log(`Switched to UV channel ${uvChannel}: ${meshesWithThisUV}/${screenMeshesProcessed} screen meshes affected`);
   
-  // Update the atlas visualization to highlight current UV area
-  try {
-    // Dynamic import to avoid circular dependencies
-    import('../ui/atlasVisualization.js').then(module => {
-      // Update atlas visualization if it exists
-      module.updateAtlasVisualization(state);
-      
-      // If atlas visualization doesn't exist, create it
-      if (!document.querySelector('.atlas-visualization')) {
-        module.createAtlasVisualization(state);
-      }
-    });
-  } catch (error) {
-    console.error('Failed to update atlas visualization:', error);
-  }
-  
-  // Check if the model has this UV channel and show a warning if not
-  let hasChannel = false;
-  
-  state.scene.traverse(object => {
-    if (object.isMesh && object.geometry && object.geometry.attributes) {
-      const geometry = object.geometry;
-      
-      // Check for matching UV attribute
-      switch (channelIndex) {
-        case 0:
-          hasChannel = hasChannel || !!geometry.attributes.uv;
-          break;
-        case 1:
-          hasChannel = hasChannel || !!geometry.attributes.uv2;
-          break;
-        case 2:
-          hasChannel = hasChannel || !!geometry.attributes.uv3;
-          break;
-      }
-    }
-  });
-  
-  if (!hasChannel) {
-    console.warn(`Warning: UV channel ${channelIndex} not found in the model`);
-  }
-  
-  // Update the UI to reflect the change
-  updateUvDisplayInformation(state, channelIndex);
-  
-  // Force a render to update the view
+  // Force a render update
   if (state.renderer && state.camera && state.scene) {
     state.renderer.render(state.scene, state.camera);
   }
+  
+  return meshesWithThisUV;
 }
 
 /**
