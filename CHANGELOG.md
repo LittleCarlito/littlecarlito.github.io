@@ -1,3 +1,11 @@
+# [0.10.0](https://github.com/LittleCarlito/threejs_site/compare/v0.9.1...v0.10.0) (2025-03-13)
+
+
+### Features
+
+* **common:** semantic release sync ([d2a3a77](https://github.com/LittleCarlito/threejs_site/commit/d2a3a77c2c71ef7f920a84ecd7768349ae80f511))
+* **common:** semantic release sync [#73](https://github.com/LittleCarlito/threejs_site/issues/73) ([a840e58](https://github.com/LittleCarlito/threejs_site/commit/a840e5895d1ed88357dc955d21cddfc027db466a))
+
 # [0.9.0](https://github.com/LittleCarlito/threejs_site/compare/v0.8.3...v0.9.0) (2025-03-13)
 
 
