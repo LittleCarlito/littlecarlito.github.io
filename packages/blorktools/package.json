@@ -10,7 +10,8 @@
     "dev": "vite serve",
     "test": "echo \"No tests specified\"",
     "example:asset-debugger": "vite serve -c vite.config.js",
-    "tools": "vite serve src/"
+    "tools": "vite serve src/",
+    "tools:modular": "vite serve src/ --open /asset_debugger/asset_debugger.html"
   },
   "dependencies": {
     "three": "^0.172.0",
