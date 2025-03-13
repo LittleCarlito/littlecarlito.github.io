@@ -5,10 +5,11 @@ on:
     branches: [ main ]
     paths:
       - 'packages/blorkpack/**'
+      - 'packages/blorktools/**'
   workflow_dispatch:
 
 jobs:
-  publish:
+  publish-blorkpack:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -49,6 +50,51 @@ jobs:
       - name: Publish to GitHub Packages
         run: |
           cd packages/blorkpack
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+  publish-blorktools:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20.x'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@littlecarlito'
+      
+      - name: Update package.json
+        run: |
+          cd packages/blorktools
+          # Update package name to use GitHub scoped name
+          jq '.name = "@littlecarlito/blorktools"' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          # Ensure version is properly set (extract from tag or increment)
+          if [[ "${{ github.ref }}" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            VERSION=${GITHUB_REF/refs\/tags\/v/}
+            jq --arg version "$VERSION" '.version = $version' package.json > package.json.tmp
+            mv package.json.tmp package.json
+          fi
+      
+      - name: Install dependencies and build
+        run: |
+          cd packages/blorktools
+          npm install
+          npm run build
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+      
+      - name: Publish to GitHub Packages
+        run: |
+          cd packages/blorktools
           npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 

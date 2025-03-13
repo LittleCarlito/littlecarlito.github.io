@@ -1,7 +1,21 @@
 {
   "branches": ["main"],
   "plugins": [
-    "@semantic-release/commit-analyzer",
+    ["@semantic-release/commit-analyzer", {
+      "preset": "angular",
+      "releaseRules": [
+        {"type": "feat", "scope": "blorkpack", "release": "minor"},
+        {"type": "fix", "scope": "blorkpack", "release": "patch"},
+        {"type": "perf", "scope": "blorkpack", "release": "patch"},
+        {"type": "docs", "scope": "blorkpack", "release": "patch"},
+        {"type": "feat", "scope": "common", "release": "minor"},
+        {"type": "fix", "scope": "common", "release": "patch"}
+      ],
+      "parserOpts": {
+        "headerPattern": "^(\\w*)(?:\\(([\\w,]+)\\))?: (.*)$",
+        "headerCorrespondence": ["type", "scope", "subject"]
+      }
+    }],
     "@semantic-release/release-notes-generator",
     "@semantic-release/changelog",
     "@semantic-release/npm",
