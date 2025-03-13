@@ -1,3 +1,10 @@
+## [0.10.2](https://github.com/LittleCarlito/threejs_site/compare/v0.10.1...v0.10.2) (2025-03-13)
+
+
+### Bug Fixes
+
+* **common:** force versioning ([d62fad3](https://github.com/LittleCarlito/threejs_site/commit/d62fad375e84a3151d538074a0b4336677751150))
+
 ## [0.10.1](https://github.com/LittleCarlito/threejs_site/compare/v0.10.0...v0.10.1) (2025-03-13)
 
 
