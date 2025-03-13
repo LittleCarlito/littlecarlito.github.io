@@ -110,7 +110,6 @@ export class ControlMenu {
     sign_shape;
     // Debug meshes
     debug_meshes = {
-        sign: null,
         beam: null
     };
     // Assembly position
@@ -159,24 +158,7 @@ export class ControlMenu {
     }
 
     async initialize(primary_container, incoming_speed) {
-        // Create ALL debug meshes FIRST, before anything else
-        // Debug mesh for sign
-        const signDebugGeometry = new THREE.BoxGeometry(
-            MENU_CONFIG.SIGN.DIMENSIONS.WIDTH,
-            MENU_CONFIG.SIGN.DIMENSIONS.HEIGHT,
-            MENU_CONFIG.SIGN.DIMENSIONS.DEPTH
-        );
-        const signDebugMaterial = new THREE.MeshBasicMaterial({
-            color: 0xff00ff,  // Pink for sign
-            wireframe: true,
-            transparent: true,
-            opacity: 0.7
-        });
-        this.debug_meshes.sign = new THREE.Mesh(signDebugGeometry, signDebugMaterial);
-        this.debug_meshes.sign.renderOrder = 999;
-        this.debug_meshes.sign.visible = true;
-        this.parent.add(this.debug_meshes.sign);
-
+        // Create only the beam debug mesh, not the sign debug mesh
         // Debug mesh for beam
         const beamDebugGeometry = new THREE.BoxGeometry(
             MENU_CONFIG.BEAM.DIMENSIONS.WIDTH,
@@ -322,9 +304,32 @@ export class ControlMenu {
                 }
                 primary_container.dynamic_bodies.push([this.sign_mesh, this.sign_body]);
                 
-                // Update sign debug mesh position
-                this.debug_meshes.sign.position.copy(this.sign_mesh.position);
-                this.debug_meshes.sign.quaternion.copy(this.sign_mesh.quaternion);
+                // If collision debug is enabled, manually create a debug wireframe for the sign
+                if (FLAGS.COLLISION_VISUAL_DEBUG || BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
+                    // Get the current sign position from the physics body
+                    const position = this.sign_body.translation();
+                    const rotation = this.sign_body.rotation();
+                    
+                    // Create a debug wireframe for the sign through the asset spawner
+                    this.spawner.create_debug_wireframe(
+                        'cuboid',
+                        { 
+                            x: MENU_CONFIG.SIGN.DIMENSIONS.WIDTH/2, 
+                            y: MENU_CONFIG.SIGN.DIMENSIONS.HEIGHT/2, 
+                            z: MENU_CONFIG.SIGN.DIMENSIONS.DEPTH/2 
+                        },
+                        new THREE.Vector3(position.x, position.y, position.z),
+                        new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w),
+                        { 
+                            bodyId: this.sign_body.handle,
+                            originalObject: this.sign_mesh,
+                            objectId: this.sign_mesh.id,
+                            isStatic: false
+                        }
+                    ).catch(error => {
+                        console.warn('Failed to create debug wireframe for sign:', error);
+                    });
+                }
                 
                 resolve();
             };
@@ -416,6 +421,40 @@ export class ControlMenu {
             this.menu_spotlight = null;
         }
 
+        // Dispose of beam mesh and physics body
+        if (this.top_beam_mesh) {
+            // Remove from scene
+            this.parent.remove(this.top_beam_mesh);
+            // Dispose of geometry and material
+            if (this.top_beam_geometry) this.top_beam_geometry.dispose();
+            if (this.top_beam_material) this.top_beam_material.dispose();
+            this.top_beam_mesh = null;
+        }
+
+        // Remove beam physics body
+        if (this.top_beam_body) {
+            try {
+                // Remove all colliders attached to this body
+                const colliders = this.world.getBodyColliders(this.top_beam_body);
+                for (let i = 0; i < colliders.length; i++) {
+                    this.world.removeCollider(colliders[i]);
+                }
+                // Remove the body itself
+                this.world.removeRigidBody(this.top_beam_body);
+            } catch (e) {
+                console.warn('Failed to remove beam physics body:', e);
+            }
+            this.top_beam_body = null;
+        }
+
+        // Dispose of beam debug mesh
+        if (this.debug_meshes.beam) {
+            this.parent.remove(this.debug_meshes.beam);
+            this.debug_meshes.beam.geometry.dispose();
+            this.debug_meshes.beam.material.dispose();
+            this.debug_meshes.beam = null;
+        }
+
         // Set gravity scale and wake up sign body
         if (this.sign_body) {
             this.sign_body.setGravityScale(2.0);  // Increased gravity for better falling
@@ -456,17 +495,9 @@ export class ControlMenu {
         // Update spotlight if it exists
         this.updateSpotlight();
 
-        // Update sign debug mesh position using the physics body
-        if (this.debug_meshes.sign && this.sign_body) {
-            const signPos = this.sign_body.translation();
-            const signRot = this.sign_body.rotation();
-            this.debug_meshes.sign.position.set(signPos.x, signPos.y, signPos.z);
-            this.debug_meshes.sign.quaternion.set(signRot.x, signRot.y, signRot.z, signRot.w);
-            
-            // Don't constantly wake up the body - let physics behave normally
-        }
+        // Remove update of sign debug mesh since we removed it
 
-        // Update beam debug mesh if it still exists
+        // Update beam debug mesh if it still exists and chains are not broken
         if (!this.chains_broken && this.debug_meshes.beam && this.top_beam_mesh) {
             this.debug_meshes.beam.position.copy(this.top_beam_mesh.position);
             this.debug_meshes.beam.quaternion.copy(this.top_beam_mesh.quaternion);
@@ -510,7 +541,7 @@ export class ControlMenu {
             // Skip the rest if chains are broken
             if (this.chains_broken) return;
 
-            // Handle smooth animation if still animating
+            // Handle smooth animation if still animating and objects exist
             if (this.is_animating && this.top_beam_body) {
                 const elapsed = (currentTime - this.animation_start_time) / 1000; // Convert to seconds
                 
@@ -549,9 +580,9 @@ export class ControlMenu {
      * Updates the debug visualization for the control menu based on the current flag state
      */
     updateDebugVisualizations() {
-        // Only toggle visibility of sign debug mesh
-        if (this.debug_meshes.sign) {
-            this.debug_meshes.sign.visible = FLAGS.SIGN_VISUAL_DEBUG;
+        // Toggle visibility of beam debug mesh based on collision mesh toggle
+        if (this.debug_meshes.beam) {
+            this.debug_meshes.beam.visible = FLAGS.COLLISION_VISUAL_DEBUG;
         }
     }
 
