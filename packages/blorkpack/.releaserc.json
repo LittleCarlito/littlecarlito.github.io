@@ -9,7 +9,9 @@
         {"type": "perf", "scope": "blorkpack", "release": "patch"},
         {"type": "docs", "scope": "blorkpack", "release": "patch"},
         {"type": "feat", "scope": "common", "release": "minor"},
-        {"type": "fix", "scope": "common", "release": "patch"}
+        {"type": "fix", "scope": "common", "release": "patch"},
+        {"type": "perf", "scope": "common", "release": "patch"},
+        {"type": "chore", "scope": "common", "release": "patch"}
       ],
       "parserOpts": {
         "headerPattern": "^(\\w*)(?:\\(([\\w,]+)\\))?: (.*)$",
