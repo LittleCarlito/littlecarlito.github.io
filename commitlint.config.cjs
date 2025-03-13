@@ -36,5 +36,27 @@ module.exports = {
         'test'
       ],
     ],
+    // Define valid scopes
+    'scope-enum': [
+      2,
+      'always',
+      [
+        'blorkpack',
+        'blorktools',
+        'common',
+        'core',
+        'docs'
+      ]
+    ],
+    // Ensure scopes are lowercase
+    'scope-case': [2, 'always', 'lower-case'],
+    // Allow multiple scopes with comma delimiter
+    'scope-empty': [0, 'never'],
   },
+  parserPreset: {
+    parserOpts: {
+      headerPattern: /^(\w*)(?:\(([\w,]+)\))?: (.*)$/,
+      headerCorrespondence: ['type', 'scope', 'subject']
+    }
+  }
 }; 
