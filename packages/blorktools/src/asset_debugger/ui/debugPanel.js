@@ -539,47 +539,25 @@ export function autoShowAtlasVisualization(state) {
   let foundScreenUv = false;
   let bestUvChannel = null; // Start with no selection
 
-  // First try looking for a screen mesh with UV2 channel (common for screens)
-  state.modelObject.traverse((child) => {
-    if (child.isMesh && !foundScreenUv &&
-        (child.name.toLowerCase().includes('screen') || 
-         child.name.toLowerCase().includes('display') || 
-         child.name.toLowerCase().includes('monitor'))) {
-      
-      // First try UV2, then UV3, then UV as last resort
-      if (child.geometry.attributes.uv2) {
-        bestUvChannel = 'uv2';
-        foundScreenUv = true;
-      } else if (child.geometry.attributes.uv3) {
-        bestUvChannel = 'uv3';
-        foundScreenUv = true;
-      } else if (child.geometry.attributes.uv) {
-        bestUvChannel = 'uv';
-        foundScreenUv = true;
-      }
-      
-      if (foundScreenUv) {
-        console.log(`Found screen mesh with ${bestUvChannel}: ${child.name}`);
-      }
-    }
-  });
-  
-  // If no screen-specific UV was found, just use the first available UV set
-  if (!foundScreenUv && state.availableUvSets.length > 0) {
-    // Try to prefer UV2 if available
-    if (state.availableUvSets.includes('uv2')) {
-      bestUvChannel = 'uv2';
-    } else {
-      bestUvChannel = state.availableUvSets[0];
-    }
-    console.log(`No screen-specific UV found, using ${bestUvChannel}`);
-  }
-  
-  // If we still don't have a channel, default to 'uv'
-  if (!bestUvChannel && state.availableUvSets.includes('uv')) {
+  // Prioritize 'uv' (UV1) as the industry standard default
+  // First check if 'uv' exists in the available sets
+  if (state.availableUvSets.includes('uv')) {
     bestUvChannel = 'uv';
-  } else if (!bestUvChannel && state.availableUvSets.length > 0) {
+    foundScreenUv = true;
+    console.log('Using industry standard UV1 (uv) as default');
+  } 
+  // Only if 'uv' doesn't exist, check for other UV channels
+  else if (state.availableUvSets.length > 0) {
+    // If UV1 isn't available, use the first available UV set
     bestUvChannel = state.availableUvSets[0];
+    foundScreenUv = true;
+    console.log(`UV1 not found, using ${bestUvChannel} as fallback`);
+  }
+
+  // If we still don't have a channel (unlikely), default to 'uv'
+  if (!bestUvChannel) {
+    bestUvChannel = 'uv';
+    console.log('No UV channels found, defaulting to uv');
   }
   
   if (bestUvChannel) {
@@ -669,7 +647,11 @@ function setupUvSwitcher(state) {
     // Default to first option
     select.selectedIndex = 0;
     state.currentUvSet = 0;
+    console.log(`Defaulting dropdown to first UV set: ${state.availableUvSets[0]}`);
   }
+  
+  // Log the selected UV channel for debugging
+  console.log(`UV Dropdown initialized with value: ${select.value}, text: ${select.options[select.selectedIndex].text}`);
   
   // Add change event
   select.addEventListener('change', function() {
