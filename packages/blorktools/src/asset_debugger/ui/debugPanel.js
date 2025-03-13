@@ -358,6 +358,38 @@ export function createDebugPanel(state) {
       groupLabel.style.color = '#3498db';
       groupHeader.appendChild(groupLabel);
       
+      // Toggle button for the entire group - moved here from contentContainer
+      const groupToggle = document.createElement('button');
+      groupToggle.textContent = 'Hide';
+      groupToggle.className = 'debug-button';
+      groupToggle.style.marginLeft = '10px';
+      groupToggle.style.marginRight = '10px';
+      groupToggle.style.padding = '2px 8px';
+      groupToggle.style.minWidth = '45px';
+      groupToggle.style.backgroundColor = '#3498db'; // Start with blue (visible)
+      groupToggle.style.color = 'white';
+      groupToggle.style.fontWeight = 'bold';
+      
+      groupToggle.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent triggering the collapse/expand
+        const someVisible = group.some(mesh => mesh.visible);
+        
+        // Toggle visibility state based on current state
+        group.forEach(mesh => {
+          mesh.visible = !someVisible;
+        });
+        
+        // Update button text and color
+        groupToggle.textContent = someVisible ? 'Show' : 'Hide';
+        groupToggle.style.backgroundColor = someVisible ? '#95a5a6' : '#3498db';
+        
+        // Update button colors for all meshes in the group if the container is expanded
+        contentContainer.querySelectorAll('.mesh-toggle').forEach((button) => {
+          button.style.backgroundColor = !someVisible ? '#3498db' : '#95a5a6';
+        });
+      });
+      groupHeader.appendChild(groupToggle);
+      
       // Add collapse/expand icon
       const collapseIcon = document.createElement('span');
       collapseIcon.textContent = '▼';
@@ -369,27 +401,6 @@ export function createDebugPanel(state) {
       // Container for toggles and mesh list
       const contentContainer = document.createElement('div');
       contentContainer.style.display = 'none'; // Collapsed by default
-      
-      // Toggle button for the entire group
-      const groupToggle = document.createElement('button');
-      groupToggle.textContent = 'Toggle Group';
-      groupToggle.className = 'debug-button';
-      groupToggle.style.width = '100%';
-      groupToggle.style.marginBottom = '8px';
-      groupToggle.addEventListener('click', (e) => {
-        e.stopPropagation(); // Prevent triggering the collapse/expand
-        const someVisible = group.some(mesh => mesh.visible);
-        group.forEach(mesh => {
-          // Toggle opposite of current state
-          mesh.visible = !someVisible;
-        });
-        
-        // Update button colors for all meshes in the group
-        contentContainer.querySelectorAll('.mesh-toggle').forEach((button) => {
-          button.style.backgroundColor = !someVisible ? '#3498db' : '#95a5a6';
-        });
-      });
-      contentContainer.appendChild(groupToggle);
       
       // Show all meshes in group
       const meshList = document.createElement('div');
