@@ -152,71 +152,6 @@ export function createDebugPanel(state) {
   const uvSection = document.createElement('div');
   uvSection.className = 'debug-section';
   uvSection.id = 'uv-info-section';
-  
-  const uvLabel = document.createElement('div');
-  uvLabel.className = 'debug-label';
-  uvLabel.textContent = 'UV Channel:';
-  uvLabel.style.fontWeight = 'bold';
-  uvLabel.style.marginBottom = '5px';
-  uvLabel.style.color = '#95a5a6';
-  
-  // Create select dropdown for UV channels
-  const uvSelectContainer = document.createElement('div');
-  uvSelectContainer.style.marginBottom = '10px';
-  
-  const uvSelect = document.createElement('select');
-  uvSelect.id = 'uv-channel-select';
-  uvSelect.style.width = '100%';
-  uvSelect.style.backgroundColor = '#333';
-  uvSelect.style.color = 'white';
-  uvSelect.style.padding = '8px'; // Slightly larger padding
-  uvSelect.style.border = '1px solid #555';
-  uvSelect.style.borderRadius = '3px';
-  uvSelect.style.marginBottom = '10px';
-  uvSelect.style.cursor = 'pointer';
-  uvSelect.style.fontSize = '14px';
-  
-  // Default UV option
-  const defaultOption = document.createElement('option');
-  defaultOption.value = "uv";
-  defaultOption.textContent = "UV Channel (Default)";
-  uvSelect.appendChild(defaultOption);
-  
-  // UV2 option (initially disabled)
-  const uv2Option = document.createElement('option');
-  uv2Option.value = "uv2";
-  uv2Option.textContent = "UV2 Channel";
-  uv2Option.disabled = true;
-  uvSelect.appendChild(uv2Option);
-  
-  // UV3 option (initially disabled)
-  const uv3Option = document.createElement('option');
-  uv3Option.value = "uv3";
-  uv3Option.textContent = "UV3 Channel";
-  uv3Option.disabled = true;
-  uvSelect.appendChild(uv3Option);
-  
-  uvSelect.addEventListener('change', (e) => {
-    const channel = e.target.value;
-    switchUvChannel(state, channel === "uv" ? 0 : (channel === "uv2" ? 1 : 2));
-  });
-  
-  uvSelectContainer.appendChild(uvSelect);
-  uvSection.appendChild(uvLabel);
-  uvSection.appendChild(uvSelectContainer);
-  
-  // UV info container
-  const uvInfoContainer = document.createElement('div');
-  uvInfoContainer.id = 'uv-info-container';
-  uvInfoContainer.className = 'debug-value';
-  uvInfoContainer.style.fontFamily = 'monospace';
-  uvInfoContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-  uvInfoContainer.style.padding = '5px';
-  uvInfoContainer.style.borderRadius = '3px';
-  uvInfoContainer.style.marginBottom = '10px';
-  uvInfoContainer.textContent = 'No UV data available';
-  
-  uvSection.appendChild(uvInfoContainer);
   panel.appendChild(uvSection);
   
   // Atlas visualization button (for the minimap)
@@ -273,16 +208,9 @@ export function createDebugPanel(state) {
       // Add UV map availability with more prominence
       if (info.uvSets && info.uvSets.length > 0) {
         content += `<span style="color: #3498db; font-weight: bold;">UV Maps: ${info.uvSets.join(', ')}</span><br>`;
-        
-        // Ensure UV channel select options are updated based on available sets
-        updateUvSelectOptions(info.uvSets);
-        
         console.log('UV Sets detected:', info.uvSets);
       } else {
         content += `<span style="color: #e74c3c;">No UV maps detected</span><br>`;
-        
-        // Update UI to reflect no UV sets
-        updateUvSelectOptions([]);
       }
       
       // If we have mesh info, create mesh toggles
@@ -441,54 +369,6 @@ export function createDebugPanel(state) {
     }
   }
   
-  // Update UV channel select dropdown based on available UV sets
-  function updateUvSelectOptions(uvSets) {
-    const uvSelect = document.getElementById('uv-channel-select');
-    if (!uvSelect) return;
-    
-    console.log('Updating UV Select Options with sets:', uvSets);
-    
-    // Enable/disable options based on available UV sets
-    const options = uvSelect.options;
-    
-    // Always enable UV (default)
-    options[0].disabled = false;
-    
-    // UV2
-    const hasUv2 = uvSets.includes('uv2');
-    options[1].disabled = !hasUv2;
-    options[1].textContent = hasUv2 ? "UV2 Channel (Available)" : "UV2 Channel (Not Available)";
-    
-    // UV3
-    const hasUv3 = uvSets.includes('uv3');
-    options[2].disabled = !hasUv3;
-    options[2].textContent = hasUv3 ? "UV3 Channel (Available)" : "UV3 Channel (Not Available)";
-    
-    // Update the UV info container
-    updateUvInfo(uvSets);
-  }
-  
-  // Update UV info display
-  function updateUvInfo(uvSets) {
-    const uvInfoContainer = document.getElementById('uv-info-container');
-    if (!uvInfoContainer) return;
-    
-    if (!uvSets || uvSets.length === 0) {
-      uvInfoContainer.innerHTML = '<span style="color: #e74c3c; font-weight: bold;">No UV data available</span>';
-      return;
-    }
-    
-    let uvInfo = '<span style="color: #2ecc71; font-weight: bold;">Available UV Channels:</span><br>';
-    uvSets.forEach(set => {
-      uvInfo += `- <span style="color: #f1c40f;">${set}</span><br>`;
-    });
-    
-    // Add a tip about using the dropdown
-    uvInfo += '<br><span style="color: #95a5a6; font-style: italic;">Select a channel from the dropdown above to view it.</span>';
-    
-    uvInfoContainer.innerHTML = uvInfo;
-  }
-  
   function updateTextureInfoImpl(info) {
     const textureInfo = document.getElementById('texture-info');
     if (!textureInfo) return;
@@ -554,68 +434,265 @@ export function autoShowAtlasVisualization(state) {
   console.log('Auto-showing atlas visualization');
   
   // First, analyze the model to find available UV channels
-  const availableUvSets = [];
-  const uvSetNames = [];
+  state.availableUvSets = [];
+  state.uvSetNames = [];
   
   // Create a list of potential UV attributes to check for in the model
   const potentialUvAttributes = [];
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 8; i++) { // Check up to 8 possible UV channels
     potentialUvAttributes.push(i === 0 ? 'uv' : `uv${i+1}`);
   }
   
-  // Track which channels exist in the model
+  // Track which channels exist in the model with detailed information
   const detectedUvChannels = new Map();
   
   // First pass: collect all meshes and detect UV channels
   state.modelObject.traverse((child) => {
     if (child.isMesh && child.geometry) {
       // Check which UV channels this mesh has
-      potentialUvAttributes.forEach(attr => {
-        if (child.geometry.attributes[attr]) {
-          if (!detectedUvChannels.has(attr)) {
-            detectedUvChannels.set(attr, []);
+      potentialUvAttributes.forEach(attrName => {
+        if (child.geometry.attributes[attrName]) {
+          // If this channel wasn't detected before, add it
+          if (!detectedUvChannels.has(attrName)) {
+            detectedUvChannels.set(attrName, {
+              count: 0,
+              minU: Infinity,
+              maxU: -Infinity,
+              minV: Infinity,
+              maxV: -Infinity,
+              sampleUVs: null,
+              sampleMesh: null,
+              meshes: []
+            });
           }
-          detectedUvChannels.get(attr).push(child);
+          
+          const info = detectedUvChannels.get(attrName);
+          info.count++;
+          info.meshes.push(child);
+          
+          // Store sample UVs for analysis if this is a screen mesh
+          const isScreenMesh = child.name.toLowerCase().includes('screen') || 
+                              child.name.toLowerCase().includes('display') || 
+                              child.name.toLowerCase().includes('monitor');
+          
+          if (isScreenMesh && !info.sampleUVs) {
+            info.sampleUVs = child.geometry.attributes[attrName].array;
+            info.sampleMesh = child;
+          }
+          
+          // Analyze UV bounds
+          const attr = child.geometry.attributes[attrName];
+          for (let i = 0; i < attr.count; i++) {
+            const u = attr.getX(i);
+            const v = attr.getY(i);
+            
+            // Skip invalid values
+            if (isNaN(u) || isNaN(v)) continue;
+            
+            info.minU = Math.min(info.minU, u);
+            info.maxU = Math.max(info.maxU, u);
+            info.minV = Math.min(info.minV, v);
+            info.maxV = Math.max(info.maxV, v);
+          }
         }
       });
     }
   });
   
-  // Convert to arrays for easier use
-  detectedUvChannels.forEach((meshes, channel) => {
-    availableUvSets.push(channel);
-    uvSetNames.push(`${channel} - ${meshes.length} meshes`);
+  // Build availableUvSets and uvSetNames arrays from detected channels
+  detectedUvChannels.forEach((info, channelName) => {
+    // Determine what type of mapping this is
+    let mappingType = "Unknown";
+    let textureUsage = "Unknown";
+    
+    if (info.maxU > 1 || info.minU < 0 || info.maxV > 1 || info.minV < 0) {
+      mappingType = "Tiling";
+    } else {
+      mappingType = "Standard";
+      
+      // Check if it's using a small portion of the texture
+      const uRange = info.maxU - info.minU;
+      const vRange = info.maxV - info.minV;
+      
+      if (uRange < 0.5 || vRange < 0.5) {
+        textureUsage = "Partial Texture";
+      } else {
+        textureUsage = "Full Texture";
+      }
+    }
+    
+    // Add to the arrays
+    state.availableUvSets.push(channelName);
+    
+    // Create descriptive name with detailed info
+    const displayName = `${channelName.toUpperCase()} - ${textureUsage} (U: ${info.minU.toFixed(2)}-${info.maxU.toFixed(2)}, V: ${info.minV.toFixed(2)}-${info.maxV.toFixed(2)})`;
+    state.uvSetNames.push(displayName);
   });
   
-  console.log('Available UV sets:', availableUvSets);
+  console.log('Available UV sets:', state.availableUvSets);
+  console.log('UV set display names:', state.uvSetNames);
   
-  // Try to find a screen mesh with UV2 first (common for screens)
+  // Setup the UV switcher in the UI
+  setupUvSwitcher(state);
+  
+  // Try to find a screen mesh with UV2/UV3 first (common for screens)
   let foundScreenUv = false;
-  
+  let bestUvChannel = null; // Start with no selection
+
+  // First try looking for a screen mesh with UV2 channel (common for screens)
   state.modelObject.traverse((child) => {
-    if (child.isMesh && 
+    if (child.isMesh && !foundScreenUv &&
         (child.name.toLowerCase().includes('screen') || 
          child.name.toLowerCase().includes('display') || 
          child.name.toLowerCase().includes('monitor'))) {
       
-      // Check which UV channels this screen mesh has
-      potentialUvAttributes.forEach(attr => {
-        if (child.geometry.attributes[attr] && !foundScreenUv) {
-          console.log(`Found screen mesh with ${attr}: ${child.name}`);
-          // Switch to this UV channel
-          switchUvChannel(state, attr);
-          foundScreenUv = true;
-        }
-      });
+      // First try UV2, then UV3, then UV as last resort
+      if (child.geometry.attributes.uv2) {
+        bestUvChannel = 'uv2';
+        foundScreenUv = true;
+      } else if (child.geometry.attributes.uv3) {
+        bestUvChannel = 'uv3';
+        foundScreenUv = true;
+      } else if (child.geometry.attributes.uv) {
+        bestUvChannel = 'uv';
+        foundScreenUv = true;
+      }
+      
+      if (foundScreenUv) {
+        console.log(`Found screen mesh with ${bestUvChannel}: ${child.name}`);
+      }
     }
   });
   
   // If no screen-specific UV was found, just use the first available UV set
-  if (!foundScreenUv && availableUvSets.length > 0) {
-    console.log(`No screen-specific UV found, using ${availableUvSets[0]}`);
-    switchUvChannel(state, availableUvSets[0]);
+  if (!foundScreenUv && state.availableUvSets.length > 0) {
+    // Try to prefer UV2 if available
+    if (state.availableUvSets.includes('uv2')) {
+      bestUvChannel = 'uv2';
+    } else {
+      bestUvChannel = state.availableUvSets[0];
+    }
+    console.log(`No screen-specific UV found, using ${bestUvChannel}`);
+  }
+  
+  // If we still don't have a channel, default to 'uv'
+  if (!bestUvChannel && state.availableUvSets.includes('uv')) {
+    bestUvChannel = 'uv';
+  } else if (!bestUvChannel && state.availableUvSets.length > 0) {
+    bestUvChannel = state.availableUvSets[0];
+  }
+  
+  if (bestUvChannel) {
+    // Find the index in the availableUvSets array
+    const selectedIndex = state.availableUvSets.indexOf(bestUvChannel);
+    if (selectedIndex !== -1) {
+      state.currentUvSet = selectedIndex;
+      console.log(`Setting initial UV channel to ${bestUvChannel} (index: ${selectedIndex})`);
+      
+      // Apply the UV channel - pass the channel name directly
+      switchUvChannel(state, bestUvChannel);
+    }
   }
   
   // Create the atlas visualization
   createAtlasVisualization(state);
+}
+
+// Setup UV set switcher in the debug panel
+function setupUvSwitcher(state) {
+  const uvInfoSection = document.getElementById('uv-info-section');
+  if (!uvInfoSection) return;
+  
+  // Clear previous content
+  while (uvInfoSection.firstChild) {
+    uvInfoSection.removeChild(uvInfoSection.firstChild);
+  }
+  
+  // Create label
+  const uvLabel = document.createElement('div');
+  uvLabel.className = 'debug-label';
+  uvLabel.textContent = 'UV Information:';
+  uvLabel.style.fontWeight = 'bold';
+  uvLabel.style.marginBottom = '10px';
+  uvLabel.style.color = '#95a5a6';
+  uvInfoSection.appendChild(uvLabel);
+  
+  // If no UV sets found
+  if (state.availableUvSets.length === 0) {
+    const noUvInfo = document.createElement('div');
+    noUvInfo.className = 'debug-value';
+    noUvInfo.style.padding = '10px';
+    noUvInfo.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    noUvInfo.style.borderRadius = '5px';
+    noUvInfo.textContent = 'No UV data found in this model.';
+    uvInfoSection.appendChild(noUvInfo);
+    return;
+  }
+  
+  // Create UV controls
+  const uvControls = document.createElement('div');
+  uvControls.id = 'uv-controls';
+  uvControls.style.marginBottom = '15px';
+  
+  // Create a label for the dropdown
+  const dropdownLabel = document.createElement('div');
+  dropdownLabel.textContent = 'Select UV Channel:';
+  dropdownLabel.style.marginBottom = '5px';
+  dropdownLabel.style.color = 'white';
+  uvControls.appendChild(dropdownLabel);
+  
+  // Create select dropdown
+  const select = document.createElement('select');
+  select.id = 'uv-channel-select';
+  select.style.width = '100%';
+  select.style.backgroundColor = '#333';
+  select.style.color = 'white';
+  select.style.padding = '8px';
+  select.style.border = '1px solid #555';
+  select.style.borderRadius = '3px';
+  select.style.marginBottom = '10px';
+  select.style.cursor = 'pointer';
+  
+  // Add options for each UV set
+  state.uvSetNames.forEach((name, index) => {
+    const option = document.createElement('option');
+    option.value = index;
+    option.textContent = name;
+    select.appendChild(option);
+  });
+  
+  // Set current value - make sure it's properly initialized
+  if (state.currentUvSet !== undefined && state.currentUvSet >= 0 && state.currentUvSet < state.availableUvSets.length) {
+    select.value = state.currentUvSet;
+    console.log(`Setting dropdown to UV set index ${state.currentUvSet}: ${state.availableUvSets[state.currentUvSet]}`);
+  } else {
+    // Default to first option
+    select.selectedIndex = 0;
+    state.currentUvSet = 0;
+  }
+  
+  // Add change event
+  select.addEventListener('change', function() {
+    const selectedIndex = parseInt(this.value);
+    state.currentUvSet = selectedIndex;
+    const channelName = state.availableUvSets[selectedIndex];
+    // Pass the actual channel name (e.g., 'uv', 'uv2') to switchUvChannel
+    switchUvChannel(state, channelName);
+  });
+  
+  uvControls.appendChild(select);
+  uvInfoSection.appendChild(uvControls);
+  
+  // Add UV info container
+  const uvInfoContainer = document.createElement('div');
+  uvInfoContainer.id = 'uv-info-container';
+  uvInfoContainer.className = 'debug-value';
+  uvInfoContainer.style.fontFamily = 'monospace';
+  uvInfoContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+  uvInfoContainer.style.padding = '10px';
+  uvInfoContainer.style.borderRadius = '5px';
+  uvInfoContainer.style.marginBottom = '15px';
+  uvInfoContainer.style.color = '#ddd';
+  uvInfoContainer.style.lineHeight = '1.4';
+  uvInfoSection.appendChild(uvInfoContainer);
 }

@@ -27,7 +27,9 @@ export const state = {
   multiTextureMode: false,
   
   // UV data
-  screenMeshes: []
+  screenMeshes: [],
+  availableUvSets: [],
+  uvSetNames: []
 };
 
 // Initialize the application

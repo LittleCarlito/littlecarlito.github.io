@@ -126,12 +126,26 @@ export function switchUvChannel(state, uvChannel) {
     return;
   }
   
+  // Determine the channel name based on the input
+  // The input could be a number (0, 1, 2) or a string ('uv', 'uv2', 'uv3')
+  let channelName;
+  if (typeof uvChannel === 'number') {
+    // Convert numeric index to channel name
+    channelName = uvChannel === 0 ? 'uv' : `uv${uvChannel + 1}`;
+  } else if (typeof uvChannel === 'string') {
+    // If it's already a channel name, use it directly
+    channelName = uvChannel;
+    // Convert to numeric index for state tracking (0 for 'uv', 1 for 'uv2', etc.)
+    const uvIndex = channelName === 'uv' ? 0 : parseInt(channelName.replace('uv', '')) - 1;
+    state.currentUvSet = uvIndex;
+  } else {
+    console.error('Invalid UV channel type:', typeof uvChannel);
+    return;
+  }
+  
   // Track how many meshes were affected
   let meshesWithThisUV = 0;
   let screenMeshesProcessed = 0;
-  
-  // Store current UV channel in state
-  state.currentUvSet = uvChannel;
   
   state.modelObject.traverse((child) => {
     if (child.isMesh) {
@@ -150,10 +164,10 @@ export function switchUvChannel(state, uvChannel) {
         screenMeshesProcessed++;
         
         // Check if this mesh has this UV channel
-        const hasUvChannel = child.geometry && child.geometry.attributes[uvChannel] !== undefined;
+        const hasUvChannel = child.geometry && child.geometry.attributes[channelName] !== undefined;
         
         // Log for debugging
-        console.log(`Processing screen mesh: ${child.name}, has ${uvChannel}: ${hasUvChannel}`);
+        console.log(`Processing screen mesh: ${child.name}, has ${channelName}: ${hasUvChannel}`);
         
         // Only apply texture if the mesh has this UV channel
         if (state.textureObject && hasUvChannel) {
@@ -174,9 +188,6 @@ export function switchUvChannel(state, uvChannel) {
           tex.repeat.set(1, 1);
           tex.needsUpdate = true;
           
-          // Set which UV channel the texture should use
-          const uvIndex = uvChannel === 'uv' ? 0 : parseInt(uvChannel.replace('uv', '')) || 0;
-          
           // Store original UV data if we haven't already
           if (!originalUvData.has(child) && child.geometry.attributes.uv) {
             originalUvData.set(child, child.geometry.attributes.uv.clone());
@@ -188,45 +199,29 @@ export function switchUvChannel(state, uvChannel) {
           newMaterial.emissiveMap = tex;
           newMaterial.emissive.set(1, 1, 1);
           
-          if (uvIndex === 0) {
+          // Handle UV channel swapping
+          if (channelName === 'uv') {
             // For default UV channel, restore original UV data if available
             if (originalUvData.has(child)) {
-              child.geometry.attributes.uv.copy(originalUvData.get(child));
+              // Replace the entire UV attribute with the original, don't just copy values
+              child.geometry.attributes.uv = originalUvData.get(child).clone();
+              child.geometry.attributes.uv.needsUpdate = true;
               console.log(`Restored original UV data for ${child.name}`);
             }
-          } else if (child.geometry.attributes[`uv${uvIndex}`]) {
-            // For non-default UV channels, we need to swap the UV sets
-            // This works by copying the target UV set (uvN) to the primary UV attribute
-            // that Three.js always uses by default
+          } else if (child.geometry.attributes[channelName]) {
+            // For non-default UV channels (uv2, uv3, etc.), we need to swap the UV sets
+            // This works by replacing the primary UV attribute with the target UV set
             
             // Create a backup of the current UV data if we haven't already
             if (!originalUvData.has(child)) {
               originalUvData.set(child, child.geometry.attributes.uv.clone());
+              console.log(`Stored original UV data for ${child.name}`);
             }
             
-            // Copy the target UV set to the primary UV attribute
-            const targetAttribute = child.geometry.attributes[`uv${uvIndex}`];
-            const uvAttribute = child.geometry.attributes.uv;
-            
-            // Ensure the UV attribute has the right size
-            if (uvAttribute.count !== targetAttribute.count) {
-              console.warn(`UV attribute count mismatch: ${uvAttribute.count} vs ${targetAttribute.count}`);
-              // This shouldn't happen in well-formed models, but we'll handle it
-              child.geometry.attributes.uv = targetAttribute.clone();
-            } else {
-              // Copy the data from the target UV set to the primary UV attribute
-              for (let i = 0; i < targetAttribute.count; i++) {
-                uvAttribute.setXY(
-                  i,
-                  targetAttribute.getX(i),
-                  targetAttribute.getY(i)
-                );
-              }
-            }
-            
-            // Mark that the attribute needs update
-            uvAttribute.needsUpdate = true;
-            console.log(`Applied UV${uvIndex} to primary UV channel for ${child.name}`);
+            // Replace the primary UV attribute with the target UV attribute
+            child.geometry.attributes.uv = child.geometry.attributes[channelName].clone();
+            child.geometry.attributes.uv.needsUpdate = true;
+            console.log(`Applied ${channelName} to primary UV channel for ${child.name}`);
           }
           
           // Apply the new material
@@ -246,10 +241,11 @@ export function switchUvChannel(state, uvChannel) {
   });
 
   // Update UI with the newly selected UV channel
-  updateUvDisplayInformation(state, uvChannel);
+  updateUvDisplayInformation(state, typeof uvChannel === 'number' ? uvChannel : 
+      (channelName === 'uv' ? 0 : parseInt(channelName.replace('uv', '')) - 1));
   
   // Log the result
-  console.log(`Switched to UV channel ${uvChannel}: ${meshesWithThisUV}/${screenMeshesProcessed} screen meshes affected`);
+  console.log(`Switched to UV channel ${channelName}: ${meshesWithThisUV}/${screenMeshesProcessed} screen meshes affected`);
   
   // Force a render update
   if (state.renderer && state.camera && state.scene) {
@@ -257,13 +253,13 @@ export function switchUvChannel(state, uvChannel) {
   }
   
   // Analyze the current UV bounds
-  analyzeUvBounds(state, uvChannel);
+  analyzeUvBounds(state, channelName);
 }
 
 /**
  * Analyze UV coordinates to determine the bounds (min/max) of the used texture region
  * @param {Object} state - Global state object
- * @param {Number} channelIndex - UV channel to analyze
+ * @param {Number|String} channelIndex - UV channel to analyze (index or name)
  * @returns {Object} bounds object with min and max coordinates
  */
 function analyzeUvBounds(state, channelIndex) {
@@ -275,24 +271,24 @@ function analyzeUvBounds(state, channelIndex) {
   let maxV = 0;
   let hasValidUV = false;
   
+  // Determine which attribute to look for
+  let attributeName;
+  if (typeof channelIndex === 'number') {
+    attributeName = channelIndex === 0 ? 'uv' : `uv${channelIndex + 1}`;
+  } else if (typeof channelIndex === 'string') {
+    attributeName = channelIndex;
+  } else {
+    console.error('Invalid channel type in analyzeUvBounds:', typeof channelIndex);
+    return null;
+  }
+  
   // Traverse all meshes in the scene to collect UV data
   state.scene.traverse(object => {
     if (object.isMesh && object.geometry && object.geometry.attributes && object.visible) {
       const geometry = object.geometry;
       
-      // Get the appropriate UV attribute based on channel
-      let uvAttribute;
-      switch (channelIndex) {
-        case 0:
-          uvAttribute = geometry.attributes.uv;
-          break;
-        case 1:
-          uvAttribute = geometry.attributes.uv2;
-          break;
-        case 2:
-          uvAttribute = geometry.attributes.uv3;
-          break;
-      }
+      // Get the appropriate UV attribute
+      const uvAttribute = geometry.attributes[attributeName];
       
       if (uvAttribute && uvAttribute.array) {
         hasValidUV = true;
@@ -336,18 +332,38 @@ function analyzeUvBounds(state, channelIndex) {
 /**
  * Updates the UV display information in the debug UI
  * @param {Object} state - Global state object
- * @param {Number} activeChannel - Currently active UV channel
+ * @param {Number|String} activeChannel - Currently active UV channel (index or name)
  */
 function updateUvDisplayInformation(state, activeChannel) {
   const uvInfoContainer = document.getElementById('uv-info-container');
   if (!uvInfoContainer) return;
   
-  // Create a summary of UV information to display
-  let info = `Active Channel: UV${activeChannel === 0 ? '' : activeChannel + 1}<br>`;
+  // Get the UV channel name 
+  let channelName;
+  if (typeof activeChannel === 'number') {
+    channelName = activeChannel === 0 ? 'uv' : `uv${activeChannel + 1}`;
+  } else if (typeof activeChannel === 'string') {
+    channelName = activeChannel;
+  } else {
+    console.error('Invalid UV channel type in updateUvDisplayInformation:', typeof activeChannel);
+    return;
+  }
   
-  // Count meshes with this UV channel
+  // Check if any meshes have this UV channel
   let meshesWithChannel = 0;
+  let screenMeshesWithChannel = 0;
   let totalMeshes = 0;
+  let totalVertices = 0;
+  
+  // UV bounds analysis
+  let minU = Infinity;
+  let maxU = -Infinity;
+  let minV = Infinity;
+  let maxV = -Infinity;
+  
+  // Sample mesh for display
+  let sampleMeshName = "";
+  let sampleUvCoordinates = [];
   
   state.scene.traverse(object => {
     if (object.isMesh) {
@@ -355,24 +371,128 @@ function updateUvDisplayInformation(state, activeChannel) {
       const geometry = object.geometry;
       
       if (geometry && geometry.attributes) {
-        switch (activeChannel) {
-          case 0:
-            if (geometry.attributes.uv) meshesWithChannel++;
-            break;
-          case 1:
-            if (geometry.attributes.uv2) meshesWithChannel++;
-            break;
-          case 2:
-            if (geometry.attributes.uv3) meshesWithChannel++;
-            break;
+        const isScreenMesh = object.name.toLowerCase().includes('screen') || 
+                           object.name.toLowerCase().includes('display') ||
+                           object.name.toLowerCase().includes('monitor');
+        
+        // Check if mesh has this UV channel
+        const uvAttribute = geometry.attributes[channelName];
+        if (uvAttribute) {
+          meshesWithChannel++;
+          if (isScreenMesh) screenMeshesWithChannel++;
+          
+          // Count vertices
+          totalVertices += uvAttribute.count;
+          
+          // Analyze UV coordinates
+          for (let i = 0; i < uvAttribute.count; i++) {
+            const u = uvAttribute.getX(i);
+            const v = uvAttribute.getY(i);
+            
+            // Skip invalid values
+            if (isNaN(u) || isNaN(v)) continue;
+            
+            // Update bounds
+            minU = Math.min(minU, u);
+            maxU = Math.max(maxU, u);
+            minV = Math.min(minV, v);
+            maxV = Math.max(maxV, v);
+          }
+          
+          // Save sample UV coordinates from the first screen mesh
+          if (isScreenMesh && sampleUvCoordinates.length === 0) {
+            sampleMeshName = object.name;
+            // Save up to 5 vertex examples
+            const sampleCount = Math.min(5, uvAttribute.count);
+            for (let i = 0; i < sampleCount; i++) {
+              sampleUvCoordinates.push({
+                index: i,
+                u: uvAttribute.getX(i),
+                v: uvAttribute.getY(i)
+              });
+            }
+            
+            // Add a note about the total vertex count
+            if (uvAttribute.count > sampleCount) {
+              sampleUvCoordinates.push({
+                note: `... and ${uvAttribute.count - sampleCount} more vertices`
+              });
+            }
+          }
         }
       }
     }
   });
   
-  info += `Meshes with this channel: ${meshesWithChannel}/${totalMeshes}<br>`;
+  // Determine mapping type based on UV range
+  let mappingType = "Unknown";
+  let textureUsage = "Unknown";
   
-  uvInfoContainer.innerHTML = info;
+  if (minU === Infinity) {
+    // No valid UV data
+    uvInfoContainer.innerHTML = `<span style="color: #e74c3c; font-weight: bold;">No meshes with ${channelName} channel found</span>`;
+    return;
+  }
+  
+  if (maxU > 1 || minU < 0 || maxV > 1 || minV < 0) {
+    mappingType = "Tiling / Repeating";
+  } else {
+    mappingType = "Standard (0-1 Range)";
+    
+    // Check if it's using a small portion of the texture
+    const uRange = maxU - minU;
+    const vRange = maxV - minV;
+    
+    if (uRange < 0.5 || vRange < 0.5) {
+      textureUsage = "Partial Texture";
+    } else {
+      textureUsage = "Full Texture";
+    }
+  }
+  
+  // Update uvSelect options to show UV bounds
+  const uvSelect = document.getElementById('uv-channel-select');
+  if (uvSelect) {
+    // Find the option for this channel
+    for (let i = 0; i < uvSelect.options.length; i++) {
+      if (uvSelect.options[i].value === channelName) {
+        uvSelect.options[i].textContent = `${channelName.toUpperCase()} - ${textureUsage} (U: ${minU.toFixed(2)}-${maxU.toFixed(2)}, V: ${minV.toFixed(2)}-${maxV.toFixed(2)})`;
+      }
+    }
+  }
+  
+  // Create formatted HTML for display
+  let html = `<div style="background-color: #222; padding: 10px; border-radius: 5px;">`;
+  
+  // Channel info
+  html += `<div style="color: #f1c40f; font-weight: bold; margin-bottom: 5px;">UV Channel Info:</div>`;
+  html += `<div>Channel Name: <span style="color: #3498db;">${channelName}</span></div>`;
+  html += `<div>Mapping Type: <span style="color: #3498db;">${mappingType}</span></div>`;
+  html += `<div>Texture Usage: <span style="color: #3498db;">${textureUsage}</span></div>`;
+  
+  // Mesh statistics
+  html += `<div style="color: #f1c40f; font-weight: bold; margin-top: 10px; margin-bottom: 5px;">Mesh Statistics:</div>`;
+  html += `<div>Meshes with this UV: <span style="color: #3498db;">${meshesWithChannel} of ${totalMeshes}</span></div>`;
+  html += `<div>Screen Meshes: <span style="color: #3498db;">${screenMeshesWithChannel}</span></div>`;
+  html += `<div>Total Vertices: <span style="color: #3498db;">${totalVertices}</span></div>`;
+  html += `<div>UV Range: U: <span style="color: #3498db;">${minU.toFixed(4)} to ${maxU.toFixed(4)}</span>, V: <span style="color: #3498db;">${minV.toFixed(4)} to ${maxV.toFixed(4)}</span></div>`;
+  
+  // Sample UV coordinates
+  if (sampleMeshName && sampleUvCoordinates.length > 0) {
+    html += `<div style="color: #f1c40f; font-weight: bold; margin-top: 10px; margin-bottom: 5px;">Sample UV Coordinates from ${sampleMeshName}:</div>`;
+    
+    sampleUvCoordinates.forEach(coord => {
+      if (coord.note) {
+        html += `<div>${coord.note}</div>`;
+      } else {
+        html += `<div>Vertex ${coord.index}: (${coord.u.toFixed(4)}, ${coord.v.toFixed(4)})</div>`;
+      }
+    });
+  }
+  
+  html += `</div>`;
+  
+  uvInfoContainer.innerHTML = html;
 }
 
 /**
