@@ -35,7 +35,8 @@ export async function loadTexture(state, file) {
         state.textureObject = texture;
         
         // Configure texture
-        texture.flipY = true; // Flip texture vertically (common for 3D models)
+        texture.flipY = false; // Changed from true to false - matches the monitor.glb expectations
+        texture.encoding = THREE.sRGBEncoding; // Ensure proper color encoding
         
         // Apply to model if model is already loaded
         if (state.modelLoaded && state.modelObject) {
@@ -59,6 +60,9 @@ export async function loadTexture(state, file) {
         
         // Clean up URL
         URL.revokeObjectURL(fileUrl);
+        
+        // Dispatch event for texture loaded
+        document.dispatchEvent(new CustomEvent('textureLoaded'));
         
         resolve(texture);
       },
@@ -91,7 +95,9 @@ export function applyTextureToModel(state) {
   state.modelObject.traverse((child) => {
     if (child.isMesh && child.material) {
       // Store original material for later reference
-      child.userData.originalMaterial = child.material.clone();
+      if (!child.userData.originalMaterial) {
+        child.userData.originalMaterial = child.material.clone();
+      }
       
       // Check if this is a screen/display/monitor mesh
       const isScreenMesh = child.name.toLowerCase().includes('screen') || 
@@ -121,12 +127,25 @@ export function applyTextureToModel(state) {
         // Create a fresh material to avoid affecting other meshes
         const material = new THREE.MeshStandardMaterial();
         
-        // Copy important properties from original material
-        material.roughness = 0.1; // Make it slightly glossy
-        material.metalness = 0.2;
+        // Copy important properties from original material if available
+        if (child.userData.originalMaterial) {
+          material.roughness = child.userData.originalMaterial.roughness || 0.1;
+          material.metalness = child.userData.originalMaterial.metalness || 0.2;
+        } else {
+          material.roughness = 0.1; // Make it slightly glossy
+          material.metalness = 0.2;
+        }
         
         // Apply the texture - IMPORTANT: Clone to avoid cross-mesh references
         material.map = state.textureObject.clone();
+        
+        // Ensure texture properties are correctly set
+        material.map.flipY = false; // Important for proper orientation
+        material.map.encoding = THREE.sRGBEncoding;
+        material.map.wrapS = THREE.ClampToEdgeWrapping;
+        material.map.wrapT = THREE.ClampToEdgeWrapping;
+        material.map.minFilter = THREE.LinearFilter;
+        material.map.magFilter = THREE.LinearFilter;
         
         // Make sure screen is visible with emissive
         material.emissiveMap = material.map;
@@ -135,13 +154,24 @@ export function applyTextureToModel(state) {
         // Start with no offset/repeat modification
         material.map.offset.set(0, 0);
         material.map.repeat.set(1, 1);
+        material.emissiveMap.offset.set(0, 0);
+        material.emissiveMap.repeat.set(1, 1);
         
         // Make sure texture settings are applied
         material.map.needsUpdate = true;
+        material.emissiveMap.needsUpdate = true;
         material.needsUpdate = true;
         
         // Apply to mesh
         child.material = material;
+        
+        // Add to state.screenMeshes for tracking
+        if (!state.screenMeshes) {
+            state.screenMeshes = [];
+        }
+        if (!state.screenMeshes.includes(child)) {
+            state.screenMeshes.push(child);
+        }
       }
     }
   });

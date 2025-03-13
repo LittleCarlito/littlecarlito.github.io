@@ -130,6 +130,9 @@ export function switchUvChannel(state, uvChannel) {
   let meshesWithThisUV = 0;
   let screenMeshesProcessed = 0;
   
+  // Store current UV channel in state
+  state.currentUvSet = uvChannel;
+  
   state.modelObject.traverse((child) => {
     if (child.isMesh) {
       // Store original material if not already done
@@ -163,79 +166,89 @@ export function switchUvChannel(state, uvChannel) {
           
           // Clone the texture to avoid affecting other materials
           const tex = state.textureObject.clone();
+          tex.flipY = false; // Important - keep consistent with texture loading
+          tex.encoding = THREE.sRGBEncoding;
           
           // Reset offset/repeat - we're using the actual UV coordinates
           tex.offset.set(0, 0);
           tex.repeat.set(1, 1);
+          tex.needsUpdate = true;
           
           // Set which UV channel the texture should use
-          const uvIndex = parseInt(uvChannel.replace('uv', '')) || 0;
+          const uvIndex = uvChannel === 'uv' ? 0 : parseInt(uvChannel.replace('uv', '')) || 0;
           
-          // Important change: Define UV transform for materials
-          // We need to modify the material to use the specific UV channel
-          if (uvIndex === 0) {
-            // For default UV (uv), restore original UV data if we stored it
-            if (originalUvData.has(child)) {
-              // Restore the original UV data
-              child.geometry.attributes.uv = originalUvData.get(child);
-              console.log(`Restored original UV data for ${child.name}`);
-            } else {
-              console.log(`Using default UV mapping for ${child.name} (no stored original)`);
-            }
-          } else {
-            // For non-default UV channels, store original UV data if we haven't already
-            if (!originalUvData.has(child) && child.geometry.attributes.uv) {
-              // Store a clone of the original UV attribute
-              originalUvData.set(child, child.geometry.attributes.uv.clone());
-              console.log(`Stored original UV data for ${child.name}`);
-            }
-            
-            if (uvIndex === 2) {
-              // For uv2, use THREE.UVMapping and set uvTransform
-              newMaterial.defines = newMaterial.defines || {};
-              newMaterial.defines.USE_UV = '';
-              newMaterial.defines.USE_UV2 = '';
-              
-              // Force material to use uv2
-              child.geometry.attributes.uv = child.geometry.attributes.uv2;
-              console.log(`Mapped UV2 to UV for ${child.name}`);
-            } else if (uvIndex === 3) {
-              // For uv3, use THREE.UVMapping and set uvTransform
-              newMaterial.defines = newMaterial.defines || {};
-              newMaterial.defines.USE_UV = '';
-              newMaterial.defines.USE_UV3 = '';
-              
-              // Force material to use uv3
-              child.geometry.attributes.uv = child.geometry.attributes.uv3;
-              console.log(`Mapped UV3 to UV for ${child.name}`);
-            } else if (uvIndex > 3) {
-              console.log(`Warning: ${uvChannel} (index ${uvIndex}) exceeds Three.js support`);
-              // For higher UV indices, we need a custom approach
-              child.geometry.attributes.uv = child.geometry.attributes[uvChannel];
-              console.log(`Mapped ${uvChannel} to UV for ${child.name}`);
-            }
+          // Store original UV data if we haven't already
+          if (!originalUvData.has(child) && child.geometry.attributes.uv) {
+            originalUvData.set(child, child.geometry.attributes.uv.clone());
+            console.log(`Stored original UV data for ${child.name}`);
           }
           
-          // Apply the texture
+          // Apply texture to material
           newMaterial.map = tex;
           newMaterial.emissiveMap = tex;
           newMaterial.emissive.set(1, 1, 1);
           
-          // Apply the material
+          if (uvIndex === 0) {
+            // For default UV channel, restore original UV data if available
+            if (originalUvData.has(child)) {
+              child.geometry.attributes.uv.copy(originalUvData.get(child));
+              console.log(`Restored original UV data for ${child.name}`);
+            }
+          } else if (child.geometry.attributes[`uv${uvIndex}`]) {
+            // For non-default UV channels, we need to swap the UV sets
+            // This works by copying the target UV set (uvN) to the primary UV attribute
+            // that Three.js always uses by default
+            
+            // Create a backup of the current UV data if we haven't already
+            if (!originalUvData.has(child)) {
+              originalUvData.set(child, child.geometry.attributes.uv.clone());
+            }
+            
+            // Copy the target UV set to the primary UV attribute
+            const targetAttribute = child.geometry.attributes[`uv${uvIndex}`];
+            const uvAttribute = child.geometry.attributes.uv;
+            
+            // Ensure the UV attribute has the right size
+            if (uvAttribute.count !== targetAttribute.count) {
+              console.warn(`UV attribute count mismatch: ${uvAttribute.count} vs ${targetAttribute.count}`);
+              // This shouldn't happen in well-formed models, but we'll handle it
+              child.geometry.attributes.uv = targetAttribute.clone();
+            } else {
+              // Copy the data from the target UV set to the primary UV attribute
+              for (let i = 0; i < targetAttribute.count; i++) {
+                uvAttribute.setXY(
+                  i,
+                  targetAttribute.getX(i),
+                  targetAttribute.getY(i)
+                );
+              }
+            }
+            
+            // Mark that the attribute needs update
+            uvAttribute.needsUpdate = true;
+            console.log(`Applied UV${uvIndex} to primary UV channel for ${child.name}`);
+          }
+          
+          // Apply the new material
+          newMaterial.needsUpdate = true;
           child.material = newMaterial;
           
-          // Force geometry update
-          child.geometry.attributes.uv.needsUpdate = true;
-        } else {
-          // If this mesh doesn't have this UV channel, restore original material
-          if (child.userData.originalMaterial) {
-            child.material = child.userData.originalMaterial;
+          // Add to screen meshes array if not already there
+          if (!state.screenMeshes) {
+            state.screenMeshes = [];
+          }
+          if (!state.screenMeshes.includes(child)) {
+            state.screenMeshes.push(child);
           }
         }
       }
     }
   });
+
+  // Update UI with the newly selected UV channel
+  updateUvDisplayInformation(state, uvChannel);
   
+  // Log the result
   console.log(`Switched to UV channel ${uvChannel}: ${meshesWithThisUV}/${screenMeshesProcessed} screen meshes affected`);
   
   // Force a render update
@@ -243,7 +256,8 @@ export function switchUvChannel(state, uvChannel) {
     state.renderer.render(state.scene, state.camera);
   }
   
-  return meshesWithThisUV;
+  // Analyze the current UV bounds
+  analyzeUvBounds(state, uvChannel);
 }
 
 /**
