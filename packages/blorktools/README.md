@@ -2,6 +2,12 @@
 
 A collection of development and debugging tools for 3D assets in Three.js applications.
 
+## Installation
+
+```bash
+npm install @littlecarlito/blorktools
+```
+
 ## Features
 
 - **Asset Debugger**: Interactive tool for debugging 3D models and textures
@@ -10,6 +16,43 @@ A collection of development and debugging tools for 3D assets in Three.js applic
   - Atlas visualization for texture mapping
   - Detailed model information
   - Texture management and blending
+- **Performance Monitoring**: Track and optimize 3D scene performance
+- **Scene Inspection**: Debug scene hierarchy and object properties
+
+## Usage
+
+### As a Development Tool
+
+When used within the main project, the tools automatically start with:
+```bash
+npm run dev
+```
+
+The tools will start on the next available port after the main application.
+
+### Standalone Usage
+
+Run the tools independently:
+```bash
+npm run tools
+```
+
+Run the modular version (new architecture):
+```bash
+npm run tools:modular
+```
+
+### Programmatic Usage
+
+```javascript
+import { tools } from '@littlecarlito/blorktools';
+
+// Initialize the asset debugger
+await tools.assetDebugger.init();
+
+// Use utility functions
+import { formatFileSize, getFileExtension } from '@littlecarlito/blorktools';
+```
 
 ## Architecture
 
@@ -35,25 +78,16 @@ The codebase has been refactored into a modular architecture for better maintain
 - `helpers.js` - Common utility functions
 - `events.js` - Event listeners and keyboard shortcuts
 
-## Usage
-
-### Running the Asset Debugger
-
-Standard version:
-```bash
-npm run tools
-```
-
-Modular version (new architecture):
-```bash
-npm run tools:modular
-```
-
 ## Browser Support
 
 Requires a modern browser with WebGL support.
 
 ## Dependencies
 
-- Three.js
-- Vite (for development server) 
+- Three.js (^0.172.0)
+- Express (^4.18.3)
+- Vite (for development server)
+
+## Contributing
+
+This package is part of the [threejs_site](https://github.com/littlecarlito/threejs_site) monorepo. Please refer to the main repository for contribution guidelines. 

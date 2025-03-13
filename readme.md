@@ -1,6 +1,6 @@
 # Interactive 3D Portfolio Website
 
-A dynamic, physics-based portfolio website built with Three.js, featuring interactive 3D elements, real-time physics simulations, and engaging user interfaces.
+A dynamic, physics-based portfolio website built with Three.js, featuring interactive 3D elements, real-time physics simulations, and engaging user interfaces. Built with a modular architecture and powerful development tools.
 
 [![Live Site](https://img.shields.io/badge/🌐_Live_Site-Visit-blue)](https://littlecarlito.github.io/threejs_site/)
 ![Deployment Status](https://github.com/LittleCarlito/threejs_site/actions/workflows/deploy.yml/badge.svg)
@@ -12,44 +12,44 @@ A dynamic, physics-based portfolio website built with Three.js, featuring intera
 
 ## 🌟 Features
 
-- **Interactive 3D Environment**: Fully navigable 3D space built with Three.js
+- **Interactive 3D Environment**:
+  - Fully navigable 3D space with physics
+  - Dynamic object interactions
+  - Real-time physics simulations
+  - Performance-optimized rendering
+
+- **Asset Management System** (@littlecarlito/blorkpack):
+  - Smart asset loading and caching
+  - Instance pooling and optimization
+  - Physics body management
+  - Scene state persistence
+  - Material system with custom shaders
+
+- **Development Tools** (@littlecarlito/blorktools):
+  - Real-time asset inspection
+  - UV mapping visualization
+  - Performance monitoring
+  - Scene debugging
+  - Asset optimization tools
+
 - **Dynamic Lighting System**:
   - Real-time spotlight interactions
-  - Dynamic shadows and ambient lighting
+  - Dynamic shadow mapping
+  - Performance-optimized calculations
   - Interactive light controls
-- **Automated Version Management**:
-  - Semantic versioning with automated releases
-  - Changelog generation
-  - Version tracking and deployment history
-- **Physics Simulations**: Real-time physics using Rapier3D
-- **Dynamic Asset Loading**: Efficient asset management system for 3D models and textures
+
+- **Physics Integration**:
+  - Real-time Rapier3D physics
+  - Collision group management
+  - Dynamic state handling
+  - Custom collision shapes
+  - Physics-based interactions
+
 - **Interactive UI Elements**: 
-  - Draggable 3D objects
-  - Physics-based chains and signs
-  - Particle effects and animations
-- **Responsive Design**: Adapts to different screen sizes and device pixel ratios
-- **Multiple View Sections**:
-  - Projects showcase
-  - Education history
-  - Work experience
-  - Contact information
-
-## 🚀 Live Demo
-
-Visit the live site: [https://littlecarlito.github.io/threejs_site/](https://littlecarlito.github.io/threejs_site/)
-
-## 🛠️ Technology Stack
-
-- **Frontend Framework**: Three.js with custom physics integration
-- **Build Tool**: Vite with automated GitHub Pages deployment
-- **Physics Engine**: Rapier3D for realistic object interactions
-- **Version Control**: Semantic versioning with automated changelog generation
-- **Lighting System**: Advanced Three.js spotlight and shadow system
-- **3D Assets**: GLTF/GLB models with dynamic loading
-- **Animation**: Custom tweening system with particle effects
-- **CI/CD**: GitHub Actions for automated deployment
-- **Asset Management**: Dynamic loading with error handling
-- **UI Components**: Physics-based interactive elements
+  - Physics-based menus and signs
+  - Particle systems and effects
+  - Dynamic text animations
+  - Responsive overlays
 
 ## 🚀 Getting Started
 
@@ -69,65 +69,102 @@ Visit the live site: [https://littlecarlito.github.io/threejs_site/](https://lit
     npm run dev
     ```
 
-The site will be available at `http://localhost:5173`
+The development environment will start with:
+- Main website at `http://localhost:5173`
+- Development tools on the next available port
 
 ## 🎮 Controls
 
 - **Left Click**: Grab and move objects
-- **Right Click**: Push objects
-- **Both Mouse Buttons**: Rotate camera
+- **Right Click**: Push objects with physics
+- **Both Mouse Buttons**: Orbit camera
 - **Mouse Wheel**: Zoom grabbed objects
-- **Mouse Movement**: Hover over interactive elements
+- **Mouse Movement**: Interact with UI elements
 - **L Key**: Toggle spotlight controls
-- **Arrow Keys**: When in spotlight mode, adjust spotlight position
+- **Arrow Keys**: Adjust spotlight in light mode
+- **Space**: Reset physics state
+- **Esc**: Toggle development tools
 
 ## 🏗️ Project Structure
 
 ```
+├── packages/
+│   ├── blorkpack/     # Asset and physics management
+│   └── blorktools/    # Development and debugging tools
 ├── public/
-│   ├── assets/         # 3D models and textures
+│   ├── assets/        # 3D models and textures
 │   ├── fonts/         # Custom fonts
 │   ├── images/        # Image assets
 │   └── pages/         # HTML templates
-├── development/       # Source files for assets (not included in build)
-│   └── blender/      # Original Blender files
 ├── src/
 │   ├── background/    # 3D environment components
 │   ├── viewport/      # Camera and view management
-│   ├── common/        # Shared utilities
-│   ├── lights/        # Lighting system components
-│   └── main.js        # Application entry point
+│   ├── physics/       # Physics integration
+│   ├── ui/           # User interface components
+│   ├── effects/      # Visual effects and particles
+│   ├── lights/       # Lighting system
+│   └── main.js       # Application entry point
 ```
 
-### Development Assets
-The `development` folder contains source files for assets used in the project:
-- Original Blender (.blend) files
-- Work-in-progress assets
-- Asset documentation
-- Source files for textures and models
+## 📦 Internal Packages
 
-This folder is tracked in git for collaboration but excluded from the production build.
+### @littlecarlito/blorkpack
+Advanced asset and physics management system:
+- Smart asset loading and caching
+- Physics integration with Rapier3D
+- Instance pooling and optimization
+- Scene state management
+- Material system with custom shaders
 
-### Dynamic Lighting System
-- Real-time spotlight manipulation
-- Dynamic shadow mapping
-- Performance-optimized light calculations
-- Interactive light controls for user engagement
+### @littlecarlito/blorktools
+Comprehensive development and debugging toolkit:
+- Asset inspection and optimization
+- Performance monitoring
+- Scene debugging
+- UV mapping tools
+- Material editor
 
-### Automated Version Management
-- Semantic versioning following SemVer 2.0.0
-- Automated changelog generation
-- Version tracking across deployments
-- Release tagging and documentation
+## 🛠️ Development Tools
 
-### Performance Optimizations
+The project includes powerful development tools that start automatically with `npm run dev`:
 
-- Efficient asset loading with caching
-- Physics engine optimizations
-- Responsive image loading
-- Dynamic import of heavy components
-- Optimized lighting calculations and shadow mapping
-- Intelligent asset instancing
+1. **Main Website** (default port):
+   - Live reloading
+   - Error reporting
+   - Performance metrics
+
+2. **Development Tools** (auto-assigned port):
+   - Asset debugger
+   - Scene inspector
+   - Performance monitor
+   - Material editor
+   - UV mapping tools
+
+Additional commands:
+```bash
+# Run tools independently
+npm run tools
+
+# Run modular version with specific tools
+npm run tools:modular
+```
+
+## 🚀 Live Demo
+
+Visit the live site: [https://littlecarlito.github.io/threejs_site/](https://littlecarlito.github.io/threejs_site/)
+
+## 🛠️ Technology Stack
+
+- **Frontend Framework**: Three.js with custom physics integration
+- **Build Tool**: Vite with automated GitHub Pages deployment
+- **Physics Engine**: Rapier3D for realistic object interactions
+- **Version Control**: Semantic versioning with automated changelog generation
+- **Lighting System**: Advanced Three.js spotlight and shadow system
+- **3D Assets**: GLTF/GLB models with dynamic loading
+- **Animation**: Custom tweening system with particle effects
+- **CI/CD**: GitHub Actions for automated deployment
+- **Asset Management**: Dynamic loading with error handling
+- **UI Components**: Physics-based interactive elements
 
 ## 🎨 Features in Detail
 
