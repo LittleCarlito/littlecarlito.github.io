@@ -369,10 +369,9 @@ export class ControlMenu {
 
         // Set gravity scale and wake up sign body
         if (this.sign_body) {
-            this.sign_body.setGravityScale(1.0);
+            this.sign_body.setGravityScale(2.0);  // Increased gravity for better falling
             this.sign_body.wakeUp();
-            this.sign_body.setLinvel({ x: 0, y: -0.1, z: 0 });
-            this.sign_body.setCanSleep(false);
+            // Remove the tiny initial velocity and let gravity do its job
         }
 
         this.chains_broken = true;
@@ -449,7 +448,6 @@ export class ControlMenu {
         // Update spotlight if it exists
         this.updateSpotlight();
 
-        // MOVED: Debug mesh updates outside animation check so they always update
         // Update sign debug mesh position using the physics body
         if (this.debug_meshes.sign && this.sign_body) {
             const signPos = this.sign_body.translation();
@@ -457,10 +455,7 @@ export class ControlMenu {
             this.debug_meshes.sign.position.set(signPos.x, signPos.y, signPos.z);
             this.debug_meshes.sign.quaternion.set(signRot.x, signRot.y, signRot.z, signRot.w);
             
-            // Always wake up the sign body if chains are broken to ensure it updates position
-            if (this.chains_broken) {
-                this.sign_body.wakeUp();
-            }
+            // Don't constantly wake up the body - let physics behave normally
         }
 
         // Update beam debug mesh if it still exists
