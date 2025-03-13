@@ -4,24 +4,27 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"vite\" \"npm run tools\"",
     "build": "vite build",
     "preview": "vite preview",
-    "semantic-release": "semantic-release"
+    "semantic-release": "semantic-release",
+    "tools": "cd packages/blorktools && npm run tools"
   },
   "dependencies": {
-    "three": "^0.172.0",
     "@dimforge/rapier3d-compat": "^0.14.0",
-    "@littlecarlito/blorkpack": "file:packages/blorkpack"
+    "@littlecarlito/blorkpack": "file:packages/blorkpack",
+    "three": "^0.172.0"
   },
   "devDependencies": {
-    "vite": "^6.0.11",
+    "@commitlint/cli": "^18.6.1",
+    "@commitlint/config-conventional": "^18.6.2",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^9.2.6",
+    "concurrently": "^9.1.2",
+    "express": "^4.21.2",
     "semantic-release": "^23.0.2",
-    "@commitlint/cli": "^18.6.1",
-    "@commitlint/config-conventional": "^18.6.2"
+    "vite": "^6.0.11"
   },
   "resolutions": {
     "@littlecarlito/blorkpack": "1.0.1"

@@ -485,28 +485,18 @@ export class ScrollMenu {
 
         // Create spotlight after sign is initialized
         if (!this.menu_spotlight && this.sign_mesh) {
-            console.log("==== ATTEMPTING TO CREATE SCROLL MENU SPOTLIGHT ====");
-            console.log("SPOTLIGHT_VISUAL_DEBUG flag is:", BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG);
-            
             // Calculate spotlight position 15 units behind initial camera position
             const spotlightPosition = new THREE.Vector3();
             spotlightPosition.copy(this.initial_camera_position);
             const backVector = new THREE.Vector3(0, 0, 15);
             backVector.applyQuaternion(this.initial_camera_quaternion);
             spotlightPosition.add(backVector);
-            console.log("Scroll menu spotlight position:", spotlightPosition);
-
             // Create spotlight using the stored lighting instance
             try {
-                console.log("Creating scroll menu spotlight at position:", spotlightPosition);
-                console.log("Sign mesh position:", this.sign_mesh.position);
-                
                 // Calculate direction vector
                 const direction = new THREE.Vector3().subVectors(this.sign_mesh.position, spotlightPosition);
                 const rotationY = Math.atan2(direction.x, direction.z);
-                const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
-                console.log(`Scroll menu spotlight rotation: x=${rotationX}, y=${rotationY}`);
-                
+                const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));                
                 // Create a spotlight with smaller radius and sharper edge
                 // Use white light with higher intensity
                 const circle_radius = 3; // Smaller radius for scroll menu
@@ -524,21 +514,12 @@ export class ScrollMenu {
                     },
                     {} // empty asset_data
                 );
-                
-                console.log("Scroll menu spotlight created:", this.menu_spotlight ? "success" : "failed");
-                if (this.menu_spotlight) {
-                    console.log("Scroll menu spotlight properties:", {
-                        mesh: this.menu_spotlight.mesh ? "exists" : "missing",
-                        position: this.menu_spotlight.mesh?.position ? 
-                            `x=${this.menu_spotlight.mesh.position.x}, y=${this.menu_spotlight.mesh.position.y}, z=${this.menu_spotlight.mesh.position.z}` : 
-                            "missing",
-                        target: this.menu_spotlight.mesh?.target ? "exists" : "missing"
-                    });
+                if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                    console.log("Scroll menu spotlight created:", this.menu_spotlight ? "success" : "failed");
                 }
             } catch (error) {
                 console.error("Error creating scroll menu spotlight:", error);
             }
-            console.log("==== FINISHED CREATING SCROLL MENU SPOTLIGHT ====");
         }
 
         this.last_log_time = 0;
@@ -990,13 +971,6 @@ export class ScrollMenu {
 
         // Update only spotlight direction if it exists, position stays fixed
         if (this.menu_spotlight && !this.chains_broken && this.sign_mesh) {
-            // Occasionally log spotlight updates
-            const shouldLog = Math.random() < 0.01;
-            if (shouldLog) {
-                console.log("==== UPDATING SCROLL MENU SPOTLIGHT ====");
-                console.log("menu_spotlight object:", this.menu_spotlight);
-            }
-            
             // Ensure menu_spotlight has needed properties
             if (!this.menu_spotlight.position && !this.menu_spotlight.mesh) {
                 console.warn('ScrollMenu: menu_spotlight is missing position property and mesh property');
@@ -1016,52 +990,28 @@ export class ScrollMenu {
                 console.warn('ScrollMenu: menu_spotlight.position is undefined');
                 return;
             }
-            
-            // Occasionally log spotlight updates
-            if (shouldLog) {
-                console.log("Updating scroll menu spotlight, targeting sign at:", 
-                    `x=${this.sign_mesh.position.x}, y=${this.sign_mesh.position.y}, z=${this.sign_mesh.position.z}`);
-                console.log("Spotlight position:", 
-                    `x=${this.menu_spotlight.position.x}, y=${this.menu_spotlight.position.y}, z=${this.menu_spotlight.position.z}`);
-            }
-            
             // Update spotlight direction to point at sign
             const targetPosition = new THREE.Vector3();
             targetPosition.copy(this.sign_mesh.position);
-            
             try {
                 const direction = new THREE.Vector3().subVectors(targetPosition, this.menu_spotlight.position);
                 const rotationY = Math.atan2(direction.x, direction.z);
                 const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
-                
-                if (shouldLog) {
-                    console.log(`Calculated rotation: x=${rotationX}, y=${rotationY}`);
-                }
     
                 // Update spotlight rotation
                 if (this.menu_spotlight.rotation) {
                     this.menu_spotlight.rotation.set(rotationX, rotationY, 0);
-                    if (shouldLog) console.log("Updated menu_spotlight.rotation");
                 } else if (this.menu_spotlight.mesh) {
                     this.menu_spotlight.mesh.rotation.set(rotationX, rotationY, 0);
-                    if (shouldLog) console.log("Updated menu_spotlight.mesh.rotation");
                 }
                 
                 // Update target
                 if (this.menu_spotlight.target) {
                     this.menu_spotlight.target.position.copy(targetPosition);
                     this.menu_spotlight.target.updateMatrixWorld();
-                    if (shouldLog) console.log("Updated menu_spotlight.target position");
                 } else if (this.menu_spotlight.mesh && this.menu_spotlight.mesh.target) {
                     this.menu_spotlight.mesh.target.position.copy(targetPosition);
                     this.menu_spotlight.mesh.target.updateMatrixWorld();
-                    if (shouldLog) console.log("Updated menu_spotlight.mesh.target position");
-                } else if (shouldLog) {
-                    console.log("No target found to update");
-                }
-                
-                if (shouldLog) {
-                    console.log("==== FINISHED UPDATING SCROLL MENU SPOTLIGHT ====");
                 }
             } catch (error) {
                 console.error("Error updating scroll menu spotlight:", error);

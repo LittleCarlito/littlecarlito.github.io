@@ -20,6 +20,10 @@ Thumbs.db
 !development/
 !development/**
 
+# Similarly, make sure tools folder is NOT ignored
+!tools/
+!tools/**
+
 # But maybe ignore some temp/cache files within it
 development/**/*.blend1
 development/**/*.blend2

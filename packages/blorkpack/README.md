@@ -1,147 +1,212 @@
 # BlorkPack
 
-This package provides core asset management utilities for 3D scenes built with Three.js and Rapier physics.
-
-## Features
-
-- Asset loading and storage system
-- Asset spawning mechanisms
-- Asset activation and interaction handling
-- Material caching and management
-- Physics body integration
-- Manifest file management and parsing
-- Direct exports of THREE and RAPIER libraries for convenience
+Advanced asset management and physics integration system for Three.js applications, with a focus on performance and ease of use.
 
 ## Installation
 
 ```bash
-npm install blorkpack
+npm install @littlecarlito/blorkpack
 ```
+
+## Features
+
+- **Asset Management**:
+  - Efficient loading and storage system
+  - Smart caching and instance management
+  - Automatic memory optimization
+  - Asset state persistence
+  - Dynamic loading and unloading
+
+- **Physics Integration**:
+  - Seamless Rapier3D physics integration
+  - Automatic collision shape generation
+  - Physics body management and optimization
+  - Dynamic physics state handling
+  - Collision group management
+
+- **Scene Management**:
+  - Asset spawning and lifecycle management
+  - Instance pooling and reuse
+  - Scene state persistence
+  - Dynamic scene updates
+  - Performance-optimized rendering
+
+- **Material System**:
+  - Advanced material caching
+  - Dynamic texture loading
+  - Material instance management
+  - Custom shader support
+  - Material state persistence
+
+- **Configuration Management**:
+  - JSON manifest system
+  - Asset type definitions
+  - Scene configuration
+  - Dynamic configuration updates
+  - Validation and error handling
 
 ## Usage
 
-### Importing THREE and RAPIER
-
-The package exports THREE and RAPIER directly for convenience:
-
-```javascript
-import { THREE, RAPIER } from 'blorkpack';
-
-// Now you can use THREE and RAPIER directly
-const scene = new THREE.Scene();
-
-// Initialize RAPIER and create a world
-RAPIER.init().then(() => {
-  const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
-  // Use the physics world...
-});
-```
+### Basic Setup
 
 ```javascript
 import { 
   AssetStorage, 
   AssetSpawner, 
-  AssetActivator, 
-  ASSET_TYPE, 
-  ASSET_CONFIGS,
-  ManifestManager 
-} from 'blorkpack';
+  AssetActivator,
+  ManifestManager,
+  THREE,
+  RAPIER 
+} from '@littlecarlito/blorkpack';
 
-// Initialize storage
-const assetStorage = AssetStorage.get_instance();
+// Initialize the physics world
+await RAPIER.init();
+const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
 
-// Load assets
-await assetStorage.load_asset_type(ASSET_TYPE.SOME_MODEL);
+// Set up Three.js scene
+const scene = new THREE.Scene();
 
-// Create spawner with scene and physics world
+// Initialize core systems
+const storage = AssetStorage.get_instance();
 const spawner = AssetSpawner.get_instance(scene, world);
+const activator = AssetActivator.get_instance(camera, renderer);
+```
 
-// Spawn an asset
+### Asset Management
+
+```javascript
+// Load assets from manifest
+const manifest = ManifestManager.get_instance();
+await manifest.load_manifest('assets/manifest.json');
+
+// Load specific asset types
+await storage.load_asset_type('character');
+await storage.load_asset_type('environment');
+
+// Spawn assets with physics
 const { mesh, body, instance_id } = await spawner.spawn_asset(
-  ASSET_TYPE.SOME_MODEL,
-  new THREE.Vector3(0, 0, 0),
+  'character',
+  new THREE.Vector3(0, 1, 0),
   new THREE.Quaternion()
 );
 
-// Handle activation
-const activator = AssetActivator.get_instance(camera, renderer);
-activator.activate_object('object_name');
-
-// Load and use manifest data
-const manifestManager = ManifestManager.get_instance();
-await manifestManager.load_manifest('path/to/manifest.json');
-
-// Access manifest data
-const sceneData = manifestManager.get_scene_data();
-const customTypes = manifestManager.get_all_custom_types();
-const assetGroups = manifestManager.get_all_asset_groups();
+// Handle asset activation
+activator.activate_object(instance_id);
 ```
 
-### Using the ManifestManager
-
-The ManifestManager provides a convenient way to load, parse, and manage manifest.json configuration files:
+### Physics Integration
 
 ```javascript
-// Get the singleton instance
-const manifest_manager = ManifestManager.get_instance();
+// Create physics-enabled asset
+const config = {
+  mass: 1,
+  restitution: 0.5,
+  friction: 0.2,
+  collisionGroups: ['dynamic', 'character']
+};
 
-// Load a manifest file
-await manifest_manager.load_manifest('resources/manifest.json');
+const physicsObject = await spawner.spawn_physics_asset(
+  'crate',
+  position,
+  rotation,
+  config
+);
 
-// Get specific sections of the manifest
-const custom_type = manifest_manager.get_custom_type('example_type');
-const asset_group = manifest_manager.get_asset_group('example_group');
-const asset = manifest_manager.get_asset('example_asset');
-const scene_data = manifest_manager.get_scene_data();
+// Update physics state
+world.step();
+spawner.update_physics_state();
+```
 
-// Creating and editing manifests
-const new_manifest = manifest_manager.create_new_manifest('My Project', 'A description');
-manifest_manager.set_custom_type({
-  name: 'new_type',
-  version: '1.0',
-  // ... other properties
+### Scene Management
+
+```javascript
+// Load scene configuration
+const sceneConfig = manifest.get_scene_data();
+
+// Initialize scene with configuration
+await spawner.init_scene(sceneConfig);
+
+// Handle dynamic updates
+spawner.update_scene_state();
+
+// Clean up resources
+spawner.cleanup_inactive_instances();
+```
+
+## Advanced Features
+
+### Instance Pooling
+
+```javascript
+// Configure instance pool
+spawner.configure_instance_pool('character', {
+  poolSize: 10,
+  preload: true
 });
 
-// Save the manifest
-await manifest_manager.save_manifest('path/to/save.json');
+// Spawn from pool
+const instance = await spawner.spawn_from_pool('character');
 
-// Validate a manifest
-const validation = manifest_manager.validate_manifest();
-if (validation.is_valid) {
-  console.log('Manifest is valid');
-} else {
-  console.error('Validation errors:', validation.errors);
+// Return to pool
+spawner.return_to_pool(instance_id);
+```
+
+### Material Management
+
+```javascript
+// Create custom material
+const material = storage.create_custom_material({
+  type: 'physical',
+  properties: {
+    roughness: 0.5,
+    metalness: 0.8
+  }
+});
+
+// Apply to instance
+spawner.update_instance_material(instance_id, material);
+```
+
+### Manifest Management
+
+```javascript
+// Create new manifest
+const newManifest = manifest.create_new_manifest('Project Name', 'Description');
+
+// Add asset types
+manifest.add_asset_type({
+  name: 'character',
+  model: 'models/character.glb',
+  physics: {
+    type: 'dynamic',
+    shape: 'capsule'
+  }
+});
+
+// Validate and save
+const isValid = manifest.validate();
+if (isValid) {
+  await manifest.save('assets/manifest.json');
 }
 ```
 
 ## Examples
 
-The package includes several examples to help you get started:
+Check out the example files in the `examples` directory:
+- `basic-usage.js`: Simple asset loading and spawning
+- `physics-demo.js`: Physics integration example
+- `scene-management.js`: Complete scene management demo
 
-- **Basic Usage**: Check out the [usage-example.js](examples/usage-example.js) file for a complete demonstration of asset management and manifest handling.
-- **Manifest Testing**: The [manifest-test.js](examples/manifest-test.js) file shows how to test manifest functionality in a Node.js environment.
-
-To run the examples:
-
+To run examples:
 ```bash
-# Navigate to the package directory
-cd packages/asset-management
-
-# Build the package
-npm run build
-
-# Run the usage example
-node examples/usage-example.js
-
-# Run the manifest test
-node examples/manifest-test.js
+npm run example:basic
+npm run example:physics
+npm run example:scene
 ```
 
-## Development
+## Contributing
 
-1. Clone the repository
-2. Install dependencies: `npm install`
-3. Build the package: `npm run build`
+This package is part of the [threejs_site](https://github.com/littlecarlito/threejs_site) monorepo. Please refer to the main repository for contribution guidelines.
 
 ## License
 

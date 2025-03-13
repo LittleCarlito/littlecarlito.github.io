@@ -1,6 +1,6 @@
 // Debug UI for displaying framerate and performance metrics
 import { FLAGS, RAPIER, THREE } from '../common';
-import { BLORKPACK_FLAGS }  from '@littlecarlito/blorkpack';
+import { BLORKPACK_FLAGS, AssetSpawner } from '@littlecarlito/blorkpack';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
@@ -38,6 +38,22 @@ let backgroundContainer = null;
 // Add a new variable for tracking when a resolution change is in progress
 let resolutionChangeInProgress = false;
 
+// Add scene reference
+let sceneRef = null;
+
+// Add a variable for the display mesh refresh timer
+let displayMeshRefreshTimer = null;
+// Add variables to store current selections
+let currentSelectedObjectId = null;
+let currentSelectedImageIndex = 0;
+
+// Define image options for the display mesh
+const imageOptions = [
+    { value: 0, text: 'Display Transparent' },
+    { value: 1, text: 'Display Black Screen' },
+    { value: 2, text: 'Display White Screen' }
+];
+
 /**
  * Creates a debug UI that shows performance metrics
  */
@@ -45,6 +61,12 @@ export function createDebugUI() {
     // Check if debug UI already exists
     if (document.getElementById('debug-ui')) {
         return;
+    }
+    
+    // Try to set scene reference if it's not already set
+    if (!sceneRef && window.scene) {
+        console.log("Automatically setting scene reference from window.scene");
+        setSceneReference(window.scene);
     }
     
     // Create debug UI container
@@ -278,15 +300,86 @@ export function createDebugUI() {
     divider2.style.margin = '0 0 10px 0';
     debugUI.appendChild(divider2);
     
-    // Add resolution control section title
+    // Add resolution control section title - moved outside the container
     const resolutionTitle = document.createElement('div');
     resolutionTitle.textContent = 'Resolution Control';
     resolutionTitle.style.fontWeight = 'bold';
-    resolutionTitle.style.marginBottom = '8px';
+    resolutionTitle.style.marginBottom = '5px';
     debugUI.appendChild(resolutionTitle);
     
-    // Add auto-throttle toggle
-    addToggle(debugUI, 'AUTO_THROTTLE', 'Auto-Throttle', autoThrottleEnabled, (checked) => {
+    // Create a container for both the toggle and collapsible content
+    const resolutionSectionContainer = document.createElement('div');
+    resolutionSectionContainer.style.position = 'relative';
+    resolutionSectionContainer.style.marginBottom = '0'; // No margin by default
+    resolutionSectionContainer.style.transition = 'margin-bottom 0.3s ease-in-out';
+    debugUI.appendChild(resolutionSectionContainer);
+    
+    // Add toggle indicator for resolution control section
+    const resolutionToggle = document.createElement('div');
+    resolutionToggle.style.position = 'relative';
+    resolutionToggle.style.backgroundColor = '#444';
+    resolutionToggle.style.color = '#eee';
+    resolutionToggle.style.padding = '4px 0';
+    resolutionToggle.style.borderRadius = '3px';
+    resolutionToggle.style.textAlign = 'center';
+    resolutionToggle.style.cursor = 'pointer';
+    resolutionToggle.style.fontSize = '11px';
+    resolutionToggle.style.letterSpacing = '1px';
+    resolutionToggle.style.transition = 'all 0.2s ease';
+    resolutionToggle.style.border = '1px solid #555';
+    resolutionToggle.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
+    resolutionToggle.style.marginBottom = '0'; // No bottom margin on the button
+    resolutionToggle.innerHTML = 'SHOW CONTROLS';
+    resolutionToggle.title = 'Toggle resolution controls';
+    resolutionSectionContainer.appendChild(resolutionToggle);
+    
+    // Add hover effect for resolution toggle
+    resolutionToggle.addEventListener('mouseenter', function() {
+        this.style.backgroundColor = '#555';
+        this.style.color = '#fff';
+        this.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+    });
+    
+    resolutionToggle.addEventListener('mouseleave', function() {
+        this.style.backgroundColor = isResolutionVisible ? '#555' : '#444';
+        this.style.color = isResolutionVisible ? '#fff' : '#eee';
+        this.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
+    });
+    
+    // Create collapsible container for resolution controls
+    const resolutionContainer = document.createElement('div');
+    resolutionContainer.id = 'resolution-container';
+    resolutionContainer.style.marginTop = '0';
+    resolutionContainer.style.padding = '10px';
+    resolutionContainer.style.border = '1px solid #444';
+    resolutionContainer.style.borderRadius = '5px';
+    resolutionContainer.style.maxHeight = '0'; // Start collapsed
+    resolutionContainer.style.overflow = 'hidden';
+    resolutionContainer.style.transition = 'max-height 0.3s ease-in-out, opacity 0.2s ease-in-out, margin-top 0.3s ease-in-out';
+    resolutionContainer.style.opacity = '0';
+    resolutionSectionContainer.appendChild(resolutionContainer);
+    
+    // Add click event to toggle resolution controls visibility
+    let isResolutionVisible = false;
+    resolutionToggle.addEventListener('click', function() {
+        isResolutionVisible = !isResolutionVisible;
+        
+        resolutionContainer.style.maxHeight = isResolutionVisible ? '300px' : '0';
+        resolutionContainer.style.opacity = isResolutionVisible ? '1' : '0';
+        resolutionContainer.style.marginTop = isResolutionVisible ? '8px' : '0';
+        resolutionSectionContainer.style.marginBottom = isResolutionVisible ? '15px' : '0';
+        
+        // Update the divider margin too
+        divider3.style.margin = isResolutionVisible ? '10px 0' : '5px 0 10px 0';
+        
+        // Update the toggle button styling
+        this.innerHTML = isResolutionVisible ? 'HIDE CONTROLS' : 'SHOW CONTROLS';
+        this.style.backgroundColor = isResolutionVisible ? '#555' : '#444';
+        this.style.color = isResolutionVisible ? '#fff' : '#eee';
+    });
+    
+    // Add auto-throttle toggle - moved inside the container
+    addToggle(resolutionContainer, 'AUTO_THROTTLE', 'Auto-Throttle', autoThrottleEnabled, (checked) => {
         autoThrottleEnabled = checked;
         
         // Enable/disable resolution dropdown based on auto-throttle state
@@ -343,7 +436,7 @@ export function createDebugUI() {
         console.log(`Auto-throttle ${checked ? 'enabled' : 'disabled'}`);
     });
     
-    // Add resolution dropdown instead of slider
+    // Add resolution dropdown instead of slider - moved inside the container
     const dropdownContainer = document.createElement('div');
     dropdownContainer.style.marginBottom = '10px';
     
@@ -393,9 +486,9 @@ export function createDebugUI() {
     });
     
     dropdownContainer.appendChild(dropdown);
-    debugUI.appendChild(dropdownContainer);
+    resolutionContainer.appendChild(dropdownContainer);
     
-    // Add Max FPS dropdown
+    // Add Max FPS dropdown - moved inside the container
     const fpsDropdownContainer = document.createElement('div');
     fpsDropdownContainer.style.marginBottom = '10px';
     
@@ -453,13 +546,177 @@ export function createDebugUI() {
     });
     
     fpsDropdownContainer.appendChild(fpsDropdown);
-    debugUI.appendChild(fpsDropdownContainer);
+    resolutionContainer.appendChild(fpsDropdownContainer);
     
-    // Add divider
+    // Add divider with transition for margin
     const divider3 = document.createElement('div');
     divider3.style.borderBottom = '1px solid #555';
-    divider3.style.margin = '10px 0';
+    divider3.style.margin = '5px 0 10px 0'; // Adjusted margin for collapsed state by default
+    divider3.style.transition = 'margin 0.3s ease-in-out';
     debugUI.appendChild(divider3);
+    
+    // Title for display mesh section - moved outside the container
+    const displayMeshTitle = document.createElement('div');
+    displayMeshTitle.textContent = 'DISPLAY MESH CONTROL';
+    displayMeshTitle.style.fontWeight = 'bold';
+    displayMeshTitle.style.marginBottom = '5px';
+    debugUI.appendChild(displayMeshTitle);
+    
+    // Create a container for both the toggle and collapsible content
+    const displayMeshSectionContainer = document.createElement('div');
+    displayMeshSectionContainer.style.position = 'relative';
+    displayMeshSectionContainer.style.marginBottom = '0'; // No margin by default
+    displayMeshSectionContainer.style.transition = 'margin-bottom 0.3s ease-in-out';
+    debugUI.appendChild(displayMeshSectionContainer);
+    
+    // Add toggle indicator for display mesh section
+    const displayMeshToggle = document.createElement('div');
+    displayMeshToggle.style.position = 'relative';
+    displayMeshToggle.style.backgroundColor = '#444';
+    displayMeshToggle.style.color = '#eee';
+    displayMeshToggle.style.padding = '4px 0';
+    displayMeshToggle.style.borderRadius = '3px';
+    displayMeshToggle.style.textAlign = 'center';
+    displayMeshToggle.style.cursor = 'pointer';
+    displayMeshToggle.style.fontSize = '11px';
+    displayMeshToggle.style.letterSpacing = '1px';
+    displayMeshToggle.style.transition = 'all 0.2s ease';
+    displayMeshToggle.style.border = '1px solid #555';
+    displayMeshToggle.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
+    displayMeshToggle.style.marginBottom = '0'; // No bottom margin on the button
+    displayMeshToggle.innerHTML = 'SHOW CONTROLS';
+    displayMeshToggle.title = 'Toggle display mesh controls';
+    displayMeshSectionContainer.appendChild(displayMeshToggle);
+    
+    // Add hover effect for display mesh toggle
+    displayMeshToggle.addEventListener('mouseenter', function() {
+        this.style.backgroundColor = '#555';
+        this.style.color = '#fff';
+        this.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+    });
+    
+    displayMeshToggle.addEventListener('mouseleave', function() {
+        this.style.backgroundColor = isDisplayMeshVisible ? '#555' : '#444';
+        this.style.color = isDisplayMeshVisible ? '#fff' : '#eee';
+        this.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
+    });
+    
+    // Create collapsible container for display mesh controls
+    const displayMeshContainer = document.createElement('div');
+    displayMeshContainer.id = 'display-mesh-container';
+    displayMeshContainer.style.marginTop = '0';
+    displayMeshContainer.style.padding = '10px';
+    displayMeshContainer.style.border = '1px solid #444';
+    displayMeshContainer.style.borderRadius = '5px';
+    displayMeshContainer.style.maxHeight = '0'; // Start collapsed
+    displayMeshContainer.style.overflow = 'hidden';
+    displayMeshContainer.style.transition = 'max-height 0.3s ease-in-out, opacity 0.2s ease-in-out, margin-top 0.3s ease-in-out';
+    displayMeshContainer.style.opacity = '0';
+    displayMeshSectionContainer.appendChild(displayMeshContainer);
+    
+    // Add click event to toggle display mesh controls visibility
+    let isDisplayMeshVisible = false;
+    displayMeshToggle.addEventListener('click', function() {
+        isDisplayMeshVisible = !isDisplayMeshVisible;
+        
+        displayMeshContainer.style.maxHeight = isDisplayMeshVisible ? '300px' : '0';
+        displayMeshContainer.style.opacity = isDisplayMeshVisible ? '1' : '0';
+        displayMeshContainer.style.marginTop = isDisplayMeshVisible ? '8px' : '0';
+        displayMeshSectionContainer.style.marginBottom = isDisplayMeshVisible ? '15px' : '0';
+        
+        // Update the divider margin too
+        displayDivider.style.margin = isDisplayMeshVisible ? '10px 0' : '5px 0 10px 0';
+        
+        // Update the toggle button styling
+        this.innerHTML = isDisplayMeshVisible ? 'HIDE CONTROLS' : 'SHOW CONTROLS';
+        this.style.backgroundColor = isDisplayMeshVisible ? '#555' : '#444';
+        this.style.color = isDisplayMeshVisible ? '#fff' : '#eee';
+    });
+    
+    // Container for object selection
+    const objectSelectContainer = document.createElement('div');
+    objectSelectContainer.style.marginBottom = '10px';
+    displayMeshContainer.appendChild(objectSelectContainer);
+    
+    // Object dropdown label
+    const objectDropdownLabel = document.createElement('div');
+    objectDropdownLabel.textContent = 'Object:';
+    objectDropdownLabel.style.marginBottom = '5px';
+    objectSelectContainer.appendChild(objectDropdownLabel);
+    
+    // Object dropdown
+    const objectDropdown = document.createElement('select');
+    objectDropdown.id = 'display-object-dropdown';
+    objectDropdown.style.width = '100%';
+    objectDropdown.style.padding = '5px';
+    objectDropdown.style.backgroundColor = '#333';
+    objectDropdown.style.color = '#fff';
+    objectDropdown.style.border = '1px solid #555';
+    objectDropdown.style.borderRadius = '3px';
+    // Add placeholder option
+    const placeholderOption = document.createElement('option');
+    placeholderOption.value = '';
+    placeholderOption.textContent = 'Loading...';
+    placeholderOption.selected = true;
+    objectDropdown.appendChild(placeholderOption);
+    objectSelectContainer.appendChild(objectDropdown);
+    
+    // Container for channel selection
+    const channelSelectContainer = document.createElement('div');
+    channelSelectContainer.style.marginBottom = '10px';
+    displayMeshContainer.appendChild(channelSelectContainer);
+    
+    // Channel dropdown label
+    const channelDropdownLabel = document.createElement('div');
+    channelDropdownLabel.textContent = 'Display Image:';
+    channelDropdownLabel.style.marginBottom = '5px';
+    channelSelectContainer.appendChild(channelDropdownLabel);
+    
+    // Channel dropdown
+    const channelDropdown = document.createElement('select');
+    channelDropdown.id = 'display-channel-dropdown';
+    channelDropdown.style.width = '100%';
+    channelDropdown.style.padding = '5px';
+    channelDropdown.style.backgroundColor = '#333';
+    channelDropdown.style.color = '#fff';
+    channelDropdown.style.border = '1px solid #555';
+    channelDropdown.style.borderRadius = '3px';
+    channelDropdown.disabled = true;
+    
+    // Populate channel dropdown with options
+    imageOptions.forEach(option => {
+        const optionElement = document.createElement('option');
+        optionElement.value = option.value;
+        optionElement.textContent = option.text;
+        channelDropdown.appendChild(optionElement);
+    });
+    
+    channelSelectContainer.appendChild(channelDropdown);
+    
+    // Add change event to update the display image when a channel is selected
+    channelDropdown.onchange = updateDisplayImage;
+    
+    // Create refresh status element instead of a button
+    const refreshStatus = document.createElement('div');
+    refreshStatus.id = 'display-refresh-status';
+    refreshStatus.textContent = 'Auto-refreshing...';
+    refreshStatus.style.fontSize = '12px';
+    refreshStatus.style.color = '#aaa';
+    refreshStatus.style.marginTop = '5px';
+    refreshStatus.style.marginBottom = '10px';
+    refreshStatus.style.textAlign = 'center';
+    refreshStatus.style.fontStyle = 'italic';
+    displayMeshContainer.appendChild(refreshStatus);
+    
+    // Add the display mesh container to the debug UI
+    debugUI.appendChild(displayMeshContainer);
+    
+    // Add divider before the Debug Toggles section
+    const displayDivider = document.createElement('div');
+    displayDivider.style.borderBottom = '1px solid #555';
+    displayDivider.style.margin = isDisplayMeshVisible ? '10px 0' : '5px 0 10px 0'; // Adjusted margin
+    displayDivider.style.transition = 'margin 0.3s ease-in-out';
+    debugUI.appendChild(displayDivider);
     
     // Create a container for the debug toggles section (keep this visible)
     const debugTogglesTitle = document.createElement('div');
@@ -611,6 +868,9 @@ export function createDebugUI() {
     
     // Start FPS counter
     updateFPS();
+    
+    // Initialize the display mesh objects dropdown
+    setTimeout(populateDisplayMeshObjects, 1000); // Delay to ensure scene is loaded
     
     // Force update label wireframes if they exist
     setTimeout(() => {
@@ -854,122 +1114,6 @@ function updateDropdownValue(scale) {
 }
 
 /**
- * Adds a toggle switch for a debug flag
- * @param {HTMLElement} parent - The parent element to append to
- * @param {string} flagName - The name of the flag in FLAGS object
- * @param {string} label - The display label for the toggle
- * @param {boolean} initialState - Initial state of the toggle (optional)
- * @param {Function} onChange - Callback function when toggle changes (optional)
- */
-function addToggle(parent, flagName, label, initialState, onChange) {
-    const toggleContainer = document.createElement('div');
-    toggleContainer.style.display = 'flex';
-    toggleContainer.style.justifyContent = 'space-between';
-    toggleContainer.style.alignItems = 'center';
-    toggleContainer.style.marginBottom = '5px';
-    
-    const toggleLabel = document.createElement('span');
-    toggleLabel.textContent = label;
-    toggleContainer.appendChild(toggleLabel);
-    
-    const toggle = document.createElement('label');
-    toggle.className = 'switch';
-    toggle.style.position = 'relative';
-    toggle.style.display = 'inline-block';
-    toggle.style.width = '30px';
-    toggle.style.height = '17px';
-    
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    
-    // Use provided initial state or get from FLAGS or BLORKPACK_FLAGS
-    let isChecked = initialState !== undefined ? initialState : false;
-    if (flagName === 'SPOTLIGHT_VISUAL_DEBUG') {
-        isChecked = BLORKPACK_FLAGS[flagName] || false;
-    } else {
-        isChecked = FLAGS[flagName] || false;
-    }
-    checkbox.checked = isChecked;
-    
-    checkbox.style.opacity = '0';
-    checkbox.style.width = '0';
-    checkbox.style.height = '0';
-    
-    const slider = document.createElement('span');
-    slider.className = 'slider';
-    slider.style.position = 'absolute';
-    slider.style.cursor = 'pointer';
-    slider.style.top = '0';
-    slider.style.left = '0';
-    slider.style.right = '0';
-    slider.style.bottom = '0';
-    slider.style.backgroundColor = isChecked ? '#4CAF50' : '#ccc';
-    slider.style.transition = '.4s';
-    slider.style.borderRadius = '17px';
-    
-    // Create the circle on the slider
-    const circle = document.createElement('span');
-    circle.style.position = 'absolute';
-    circle.style.height = '13px';
-    circle.style.width = '13px';
-    circle.style.left = isChecked ? '13px' : '2px';
-    circle.style.bottom = '2px';
-    circle.style.backgroundColor = 'white';
-    circle.style.transition = '.4s';
-    circle.style.borderRadius = '50%';
-    slider.appendChild(circle);
-    
-    // Add event listener to toggle the flag
-    checkbox.addEventListener('change', function() {
-        const checked = this.checked;
-        slider.style.backgroundColor = checked ? '#4CAF50' : '#ccc';
-        circle.style.left = checked ? '13px' : '2px';
-        
-        // Special case for SPOTLIGHT_VISUAL_DEBUG which now uses BLORKPACK_FLAGS
-        if (flagName === 'SPOTLIGHT_VISUAL_DEBUG') {
-            // Skip the default FLAG update
-            if (onChange && typeof onChange === 'function') {
-                onChange(checked);
-            }
-            return;
-        }
-        
-        // For all other flags, update FLAGS as before
-        if (flagName in FLAGS) {
-            FLAGS[flagName] = checked;
-            console.log(`${flagName} set to ${checked}`);
-            
-            // Call specific update functions based on the flag
-            if (flagName === 'SIGN_VISUAL_DEBUG' && flagName !== 'COLLISION_VISUAL_DEBUG') {
-                // Only handle SIGN_VISUAL_DEBUG here if it's not being controlled by COLLISION_VISUAL_DEBUG
-                if (backgroundContainer) {
-                    backgroundContainer.updateSignDebugVisualizations();
-                }
-            } else if (flagName === 'COLLISION_VISUAL_DEBUG') {
-                // For collision debug, we need to refresh the scene to show/hide wireframes
-                // The wireframes will be created/updated in the next frame if the flag is enabled
-                console.log(`Collision debug visualization ${checked ? 'enabled' : 'disabled'}`);
-                
-                // The visibility of wireframes is controlled in the update_debug_wireframes method
-                // which is called every frame during the physics update
-                console.log(`All collision wireframes will be ${checked ? 'shown' : 'hidden'}`);
-            }
-        }
-        
-        // Call onChange callback if provided
-        if (onChange && typeof onChange === 'function') {
-            onChange(checked);
-        }
-    });
-    
-    toggle.appendChild(checkbox);
-    toggle.appendChild(slider);
-    toggleContainer.appendChild(toggle);
-    
-    parent.appendChild(toggleContainer);
-}
-
-/**
  * Updates the FPS counter and other debug information
  */
 function updateFPS() {
@@ -1175,6 +1319,15 @@ export function toggleDebugUI(show) {
     const existingUI = document.getElementById('debug-ui');
     
     if (FLAGS.DEBUG_UI) {
+        // Try to set scene reference if it's not already set
+        if (!sceneRef && window.scene) {
+            console.log("Setting scene reference during UI toggle");
+            setSceneReference(window.scene);
+        } else if (sceneRef) {
+            // If we already have a scene reference, just refresh the display objects
+            populateDisplayMeshObjects();
+        }
+        
         // If UI should be shown but doesn't exist, create it
         if (!existingUI) {
             createDebugUI();
@@ -1213,4 +1366,645 @@ export function getCurrentResolutionScale() {
  */
 export function isAutoThrottleEnabled() {
     return autoThrottleEnabled;
+}
+
+/**
+ * Finds all objects in the scene with display meshes and populates the dropdown
+ */
+function populateDisplayMeshObjects() {
+    const objectDropdown = document.getElementById('display-object-dropdown');
+    const channelDropdown = document.getElementById('display-channel-dropdown');
+    const refreshStatus = document.getElementById('display-refresh-status');
+    
+    if (!objectDropdown || !channelDropdown) {
+        console.log("Dropdown elements not found, cannot populate display mesh objects");
+        return;
+    }
+    
+    if (!sceneRef) {
+        console.log("No scene reference available, cannot populate display mesh objects");
+        if (refreshStatus) {
+            refreshStatus.textContent = 'Waiting for scene...';
+            refreshStatus.style.color = '#ff9900';
+        }
+        return;
+    }
+    
+    console.log("Attempting to populate display mesh objects dropdown");
+    
+    // Store current selections before updating
+    if (objectDropdown.value) {
+        currentSelectedObjectId = objectDropdown.value;
+        if (channelDropdown.value) {
+            currentSelectedImageIndex = parseInt(channelDropdown.value);
+        }
+    }
+    
+    // Clear existing options except the placeholder
+    while (objectDropdown.options.length > 1) {
+        objectDropdown.remove(1);
+    }
+    
+    // Reset channel dropdown to disabled state
+    channelDropdown.disabled = true;
+    
+    // Find all objects with display meshes in the scene
+    const displayMeshObjects = findDisplayMeshObjects();
+    
+    console.log(`Found ${displayMeshObjects.length} display mesh objects`);
+    
+    if (displayMeshObjects.length === 0) {
+        // If no objects found, show the placeholder
+        objectDropdown.options[0].selected = true;
+        objectDropdown.options[0].textContent = 'No objects found';
+        
+        if (refreshStatus) {
+            refreshStatus.textContent = 'No display mesh objects found';
+        }
+        return;
+    }
+    
+    // Update placeholder text
+    objectDropdown.options[0].textContent = 'Select an object';
+    
+    // Add the found objects to the dropdown
+    displayMeshObjects.forEach((obj, index) => {
+        const option = document.createElement('option');
+        option.value = obj.uuid;
+        
+        // Get a better display name for the object
+        let displayName = obj.name || 'Unnamed Object';
+        
+        // If the object has a display mesh, use that for better identification
+        let displayMeshName = '';
+        obj.traverse(child => {
+            if (child.isMesh && child.name.toLowerCase().includes('display_')) {
+                displayMeshName = child.name;
+                
+                // DEBUG: Log the current material settings of the display mesh
+                console.log(`Display mesh ${child.name} current material:`, 
+                    child.material ? {
+                        type: child.material.type,
+                        transparent: child.material.transparent,
+                        opacity: child.material.opacity,
+                        color: child.material.color ? child.material.color.getHexString() : 'none',
+                        emissive: child.material.emissive ? child.material.emissive.getHexString() : 'none'
+                    } : 'no material');
+            }
+        });
+        
+        // DEBUG: Log the userData of the object
+        console.log(`Object ${obj.name} userData:`, obj.userData);
+        
+        if (displayMeshName) {
+            displayName = `Monitor (${displayMeshName})`;
+        }
+        
+        option.textContent = displayName;
+        objectDropdown.appendChild(option);
+    });
+    
+    // Add change event to the object dropdown to enable/disable the channel dropdown
+    objectDropdown.onchange = function() {
+        const selectedObjectId = this.value;
+        currentSelectedObjectId = selectedObjectId;
+        
+        if (selectedObjectId) {
+            // Enable the channel dropdown
+            channelDropdown.disabled = false;
+            
+            // Set the channel dropdown to the current image index if possible
+            const selectedObject = findObjectByUuid(selectedObjectId);
+            if (selectedObject && selectedObject.userData.currentDisplayImage !== undefined) {
+                console.log(`Object ${selectedObject.name} has currentDisplayImage = ${selectedObject.userData.currentDisplayImage}`);
+                channelDropdown.value = selectedObject.userData.currentDisplayImage;
+                currentSelectedImageIndex = selectedObject.userData.currentDisplayImage;
+            } else {
+                // Default to stored image index
+                console.log(`Using default image index: ${currentSelectedImageIndex}`);
+                channelDropdown.value = currentSelectedImageIndex;
+            }
+        } else {
+            // Disable the channel dropdown
+            channelDropdown.disabled = true;
+        }
+    };
+    
+    // Restore previous selection if it exists in new list
+    let foundPreviousSelection = false;
+    
+    if (currentSelectedObjectId) {
+        // Try to find and select the previously selected object
+        for (let i = 0; i < objectDropdown.options.length; i++) {
+            if (objectDropdown.options[i].value === currentSelectedObjectId) {
+                objectDropdown.selectedIndex = i;
+                foundPreviousSelection = true;
+                
+                // Trigger the change event
+                const event = new Event('change');
+                objectDropdown.dispatchEvent(event);
+                break;
+            }
+        }
+    }
+    
+    // If we couldn't restore the previous selection, select the placeholder
+    if (!foundPreviousSelection) {
+        objectDropdown.selectedIndex = 0;
+        channelDropdown.disabled = true;
+    }
+    
+    // Update refresh status with timestamp
+    if (refreshStatus) {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString();
+        refreshStatus.textContent = `Found ${displayMeshObjects.length} object(s) at ${timeString}`;
+        
+        // Flash the status briefly to show it updated
+        refreshStatus.style.color = '#4CAF50'; // Green flash
+        setTimeout(() => {
+            refreshStatus.style.color = '#aaa';
+        }, 500);
+    }
+    
+    console.log(`Found ${displayMeshObjects.length} objects with display meshes`);
+}
+
+/**
+ * Find all objects in the scene that have display meshes
+ * @returns {Array} - Array of objects that have display meshes
+ */
+function findDisplayMeshObjects() {
+    if (!sceneRef) {
+        console.log("No scene reference, cannot find display mesh objects");
+        return [];
+    }
+    
+    const objects = [];
+    const processed = new Set(); // To avoid duplicates
+    let displayMeshCount = 0;
+    
+    console.log("Searching for display mesh objects in scene...");
+    
+    // Traverse the scene to find objects with display meshes
+    sceneRef.traverse(obj => {
+        // Skip if we've already processed this object or its parent
+        if (processed.has(obj.uuid)) return;
+        
+        // Check if this object has any mesh children with names containing 'display_'
+        let hasDisplayMesh = false;
+        if (obj.isMesh && obj.name.toLowerCase().includes('display_')) {
+            hasDisplayMesh = true;
+            displayMeshCount++;
+            console.log(`Found direct display mesh: ${obj.name}`);
+        } else {
+            // Check children recursively
+            obj.traverse(child => {
+                if (child.isMesh && child.name.toLowerCase().includes('display_')) {
+                    hasDisplayMesh = true;
+                    displayMeshCount++;
+                    console.log(`Found child display mesh: ${child.name} in parent: ${obj.name || 'unnamed'}`);
+                }
+            });
+        }
+        
+        // If this object has display meshes, add it to the list
+        if (hasDisplayMesh) {
+            // Add the top-level parent that has an assetType (if available)
+            let parentToAdd = obj;
+            let currentObj = obj;
+            
+            // Walk up the hierarchy to find the asset parent
+            while (currentObj.parent && currentObj.parent !== sceneRef) {
+                currentObj = currentObj.parent;
+                if (currentObj.userData && currentObj.userData.assetType) {
+                    parentToAdd = currentObj;
+                    console.log(`Found parent with assetType: ${parentToAdd.name} (${parentToAdd.userData.assetType})`);
+                    break;
+                }
+            }
+            
+            // Mark all children as processed to avoid duplicates
+            parentToAdd.traverse(child => {
+                processed.add(child.uuid);
+            });
+            
+            // Only add if not already in the list
+            if (!objects.some(o => o.uuid === parentToAdd.uuid)) {
+                objects.push(parentToAdd);
+                console.log(`Added object to display mesh list: ${parentToAdd.name}`);
+            }
+        }
+    });
+    
+    console.log(`Total display meshes found: ${displayMeshCount}, Total objects with display meshes: ${objects.length}`);
+    
+    return objects;
+}
+
+/**
+ * Find an object in the scene by its UUID
+ * @param {string} uuid - The UUID of the object to find
+ * @returns {Object3D|null} - The object if found, null otherwise
+ */
+function findObjectByUuid(uuid) {
+    if (!sceneRef) return null;
+    
+    let foundObject = null;
+    
+    sceneRef.traverse(obj => {
+        if (obj.uuid === uuid) {
+            foundObject = obj;
+        }
+    });
+    
+    return foundObject;
+}
+
+/**
+ * Updates the display image of the selected object
+ */
+function updateDisplayImage() {
+    const objectDropdown = document.getElementById('display-object-dropdown');
+    const channelDropdown = document.getElementById('display-channel-dropdown');
+    const refreshStatus = document.getElementById('display-refresh-status');
+    
+    const selectedObjectId = objectDropdown.value;
+    const selectedImageIndex = parseInt(channelDropdown.value);
+    
+    if (!selectedObjectId || isNaN(selectedImageIndex)) {
+        console.log('No valid object or image selected');
+        return;
+    }
+    
+    try {
+        // Find the selected object in the scene
+        const selectedObject = findObjectByUuid(selectedObjectId);
+        
+        if (!selectedObject) {
+            console.error(`Object with UUID ${selectedObjectId} not found`);
+            if (refreshStatus) {
+                refreshStatus.textContent = `Error: Object not found`;
+                refreshStatus.style.color = 'red';
+                setTimeout(() => {
+                    refreshStatus.style.color = '#aaa';
+                    refreshStatus.textContent = 'Auto-refreshing...';
+                }, 2000);
+            }
+            return;
+        }
+        
+        // Find all meshes with the 'display_' naming convention
+        const displayMeshes = [];
+        selectedObject.traverse(child => {
+            if (child.isMesh && child.name.toLowerCase().includes('display_')) {
+                displayMeshes.push(child);
+            }
+        });
+        
+        if (displayMeshes.length === 0) {
+            console.error(`No display meshes found in object ${selectedObject.name}`);
+            if (refreshStatus) {
+                refreshStatus.textContent = `Error: No display meshes found`;
+                refreshStatus.style.color = 'red';
+                setTimeout(() => {
+                    refreshStatus.style.color = '#aaa';
+                    refreshStatus.textContent = 'Auto-refreshing...';
+                }, 2000);
+            }
+            return;
+        }
+        
+        console.log(`Updating display image for ${selectedObject.name} to image ${selectedImageIndex}`);
+        
+        // Store the current display image index in the object's userData
+        selectedObject.userData.currentDisplayImage = selectedImageIndex;
+        
+        // Update all display meshes based on the selected option
+        displayMeshes.forEach(mesh => {
+            // Create a new material based on the selected option using the shared function
+            const material = AssetSpawner.createDisplayMeshMaterial(selectedImageIndex);
+            
+            // Log which mode was applied
+            const modes = ['transparent', 'black screen', 'white screen'];
+            console.log(`Set mesh ${mesh.name} to ${modes[selectedImageIndex]}`);
+            
+            // Apply the new material
+            mesh.material = material;
+            mesh.material.needsUpdate = true;
+            
+            if (refreshStatus) {
+                refreshStatus.textContent = `Updated to ${imageOptions[selectedImageIndex].text}`;
+                refreshStatus.style.color = '#4CAF50';
+                setTimeout(() => {
+                    refreshStatus.style.color = '#aaa';
+                    refreshStatus.textContent = 'Auto-refreshing...';
+                }, 2000);
+            }
+        });
+    } catch (error) {
+        console.error('Error updating display image:', error);
+        if (refreshStatus) {
+            refreshStatus.textContent = `Error: ${error.message}`;
+            refreshStatus.style.color = 'red';
+            setTimeout(() => {
+                refreshStatus.style.color = '#aaa';
+                refreshStatus.textContent = 'Auto-refreshing...';
+            }, 2000);
+        }
+    }
+}
+
+/**
+ * Sets the scene reference for debug UI functions
+ * @param {THREE.Scene} scene - The Three.js scene
+ */
+export function setSceneReference(scene) {
+    console.log("Setting scene reference for debug UI");
+    
+    // Store the scene reference
+    sceneRef = scene;
+    
+    if (scene) {
+        // Set up object detection by monkey-patching Object3D methods
+        setupSceneChangeDetection();
+        
+        // Populate the display mesh objects dropdown initially
+        populateDisplayMeshObjects();
+    }
+}
+
+/**
+ * Set up detection of scene graph changes by monkey-patching Object3D methods
+ */
+function setupSceneChangeDetection() {
+    if (!window.THREE || !sceneRef) return;
+    
+    console.log("Setting up scene change detection for display mesh objects");
+    
+    // Store original methods
+    const originalAdd = THREE.Object3D.prototype.add;
+    const originalRemove = THREE.Object3D.prototype.remove;
+    
+    // Keep track if we've already patched the methods
+    if (THREE.Object3D.prototype._displayMeshDetectionPatched) {
+        console.log("Scene change detection already set up");
+        return;
+    }
+    
+    // Flag to prevent multiple refreshes in a short period
+    let refreshPending = false;
+    
+    // Function to schedule a refresh with debouncing
+    const scheduleRefresh = () => {
+        if (refreshPending) return;
+        
+        refreshPending = true;
+        // Wait a short while to batch multiple changes
+        setTimeout(() => {
+            if (document.getElementById('debug-ui')?.style.display !== 'none') {
+                console.log("Scene changed - refreshing display mesh objects list");
+                populateDisplayMeshObjects();
+            }
+            refreshPending = false;
+        }, 500);
+    };
+    
+    // Override add method
+    THREE.Object3D.prototype.add = function(...objects) {
+        const result = originalAdd.apply(this, objects);
+        
+        // Only trigger if this object is part of our scene
+        let isPartOfScene = false;
+        let current = this;
+        
+        while (current) {
+            if (current === sceneRef) {
+                isPartOfScene = true;
+                break;
+            }
+            current = current.parent;
+        }
+        
+        if (isPartOfScene) {
+            // Check if any added object has a display mesh
+            const hasDisplayMesh = objects.some(obj => {
+                let found = false;
+                
+                // Check the object itself
+                if (obj.isMesh && obj.name.toLowerCase().includes('display_')) {
+                    found = true;
+                }
+                
+                // Check children recursively
+                if (!found) {
+                    obj.traverse(child => {
+                        if (child.isMesh && child.name.toLowerCase().includes('display_')) {
+                            found = true;
+                        }
+                    });
+                }
+                
+                return found;
+            });
+            
+            if (hasDisplayMesh) {
+                scheduleRefresh();
+            }
+        }
+        
+        return result;
+    };
+    
+    // Override remove method
+    THREE.Object3D.prototype.remove = function(...objects) {
+        // Check if any removed object has a display mesh before removing
+        const hasDisplayMesh = objects.some(obj => {
+            let found = false;
+            
+            // Check the object itself
+            if (obj.isMesh && obj.name.toLowerCase().includes('display_')) {
+                found = true;
+            }
+            
+            // Check children recursively
+            if (!found) {
+                obj.traverse(child => {
+                    if (child.isMesh && child.name.toLowerCase().includes('display_')) {
+                        found = true;
+                    }
+                });
+            }
+            
+            return found;
+        });
+        
+        const result = originalRemove.apply(this, objects);
+        
+        if (hasDisplayMesh) {
+            scheduleRefresh();
+        }
+        
+        return result;
+    };
+    
+    // Mark as patched to avoid double patching
+    THREE.Object3D.prototype._displayMeshDetectionPatched = true;
+    
+    // Set up an occasional fallback refresh (much less frequent)
+    startDisplayMeshFallbackTimer();
+}
+
+function startDisplayMeshRefreshTimer() {
+    // Clear any existing timer
+    stopDisplayMeshRefreshTimer();
+    
+    // Start a new timer that refreshes every 3 seconds
+    displayMeshRefreshTimer = setInterval(() => {
+        if (document.getElementById('debug-ui').style.display !== 'none') {
+            populateDisplayMeshObjects();
+        }
+    }, 3000);
+    
+    console.log('Started display mesh refresh timer');
+}
+
+function stopDisplayMeshRefreshTimer() {
+    if (displayMeshRefreshTimer) {
+        clearInterval(displayMeshRefreshTimer);
+        displayMeshRefreshTimer = null;
+        console.log('Stopped display mesh refresh timer');
+    }
+}
+
+function startDisplayMeshFallbackTimer() {
+    // Clear any existing timer
+    stopDisplayMeshRefreshTimer();
+    
+    // Start a new timer that refreshes much less frequently (every 30 seconds)
+    // This is just a fallback in case some objects are added through methods that bypass our patches
+    displayMeshRefreshTimer = setInterval(() => {
+        if (document.getElementById('debug-ui')?.style.display !== 'none') {
+            console.log("Fallback check for display mesh objects");
+            populateDisplayMeshObjects();
+        }
+    }, 30000); // Check every 30 seconds
+    
+    console.log('Started display mesh fallback timer (checking every 30 seconds)');
+}
+
+/**
+ * Adds a toggle switch for a debug flag
+ * @param {HTMLElement} parent - The parent element to append to
+ * @param {string} flagName - The name of the flag in FLAGS object
+ * @param {string} label - The display label for the toggle
+ * @param {boolean} initialState - Initial state of the toggle (optional)
+ * @param {Function} onChange - Callback function when toggle changes (optional)
+ */
+function addToggle(parent, flagName, label, initialState, onChange) {
+    const toggleContainer = document.createElement('div');
+    toggleContainer.style.display = 'flex';
+    toggleContainer.style.justifyContent = 'space-between';
+    toggleContainer.style.alignItems = 'center';
+    toggleContainer.style.marginBottom = '5px';
+    
+    const toggleLabel = document.createElement('span');
+    toggleLabel.textContent = label;
+    toggleContainer.appendChild(toggleLabel);
+    
+    const toggle = document.createElement('label');
+    toggle.className = 'switch';
+    toggle.style.position = 'relative';
+    toggle.style.display = 'inline-block';
+    toggle.style.width = '30px';
+    toggle.style.height = '17px';
+    
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    
+    // Use provided initial state or get from FLAGS or BLORKPACK_FLAGS
+    let isChecked = initialState !== undefined ? initialState : false;
+    if (flagName === 'SPOTLIGHT_VISUAL_DEBUG') {
+        isChecked = BLORKPACK_FLAGS[flagName] || false;
+    } else {
+        isChecked = FLAGS[flagName] || false;
+    }
+    checkbox.checked = isChecked;
+    
+    checkbox.style.opacity = '0';
+    checkbox.style.width = '0';
+    checkbox.style.height = '0';
+    
+    const slider = document.createElement('span');
+    slider.className = 'slider';
+    slider.style.position = 'absolute';
+    slider.style.cursor = 'pointer';
+    slider.style.top = '0';
+    slider.style.left = '0';
+    slider.style.right = '0';
+    slider.style.bottom = '0';
+    slider.style.backgroundColor = isChecked ? '#4CAF50' : '#ccc';
+    slider.style.transition = '.4s';
+    slider.style.borderRadius = '17px';
+    
+    // Create the circle on the slider
+    const circle = document.createElement('span');
+    circle.style.position = 'absolute';
+    circle.style.height = '13px';
+    circle.style.width = '13px';
+    circle.style.left = isChecked ? '13px' : '2px';
+    circle.style.bottom = '2px';
+    circle.style.backgroundColor = 'white';
+    circle.style.transition = '.4s';
+    circle.style.borderRadius = '50%';
+    slider.appendChild(circle);
+    
+    // Add event listener to toggle the flag
+    checkbox.addEventListener('change', function() {
+        const checked = this.checked;
+        slider.style.backgroundColor = checked ? '#4CAF50' : '#ccc';
+        circle.style.left = checked ? '13px' : '2px';
+        
+        // Special case for SPOTLIGHT_VISUAL_DEBUG which now uses BLORKPACK_FLAGS
+        if (flagName === 'SPOTLIGHT_VISUAL_DEBUG') {
+            // Skip the default FLAG update
+            if (onChange && typeof onChange === 'function') {
+                onChange(checked);
+            }
+            return;
+        }
+        
+        // For all other flags, update FLAGS as before
+        if (flagName in FLAGS) {
+            FLAGS[flagName] = checked;
+            console.log(`${flagName} set to ${checked}`);
+            
+            // Call specific update functions based on the flag
+            if (flagName === 'SIGN_VISUAL_DEBUG' && flagName !== 'COLLISION_VISUAL_DEBUG') {
+                // Only handle SIGN_VISUAL_DEBUG here if it's not being controlled by COLLISION_VISUAL_DEBUG
+                if (backgroundContainer) {
+                    backgroundContainer.updateSignDebugVisualizations();
+                }
+            } else if (flagName === 'COLLISION_VISUAL_DEBUG') {
+                // For collision debug, we need to refresh the scene to show/hide wireframes
+                // The wireframes will be created/updated in the next frame if the flag is enabled
+                console.log(`Collision debug visualization ${checked ? 'enabled' : 'disabled'}`);
+                
+                // The visibility of wireframes is controlled in the update_debug_wireframes method
+                // which is called every frame during the physics update
+                console.log(`All collision wireframes will be ${checked ? 'shown' : 'hidden'}`);
+            }
+        }
+        
+        // Call onChange callback if provided
+        if (onChange && typeof onChange === 'function') {
+            onChange(checked);
+        }
+    });
+    
+    toggle.appendChild(checkbox);
+    toggle.appendChild(slider);
+    toggleContainer.appendChild(toggle);
+    
+    parent.appendChild(toggleContainer);
 } 

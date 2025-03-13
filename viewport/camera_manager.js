@@ -1,5 +1,6 @@
 import { FLAGS, THREE } from "../common";
 import { AssetSpawner }  from '@littlecarlito/blorkpack';
+import { BLORKPACK_FLAGS } from "../packages/blorkpack/src";
 
 // Utility functions for angle conversion
 const ANGLES = {
@@ -51,17 +52,12 @@ export class CameraManager {
     }
     
     async create_shoulder_lights(lights_config) {
-        console.log("==== CREATING SHOULDER LIGHTS ====");
-        console.log("Lights config:", lights_config);
-        
         // Create left shoulder spotlight if configuration exists
         if (lights_config.left) {
-            console.log("Creating left shoulder light...");
             // Clean up any existing helpers first
             if (this.left_shoulder_light) {
                 await this.spawner.despawn_spotlight_helpers(this.left_shoulder_light.mesh);
             }
-            
             const leftPos = new THREE.Vector3(
                 lights_config.left.position.x,
                 lights_config.left.position.y,
@@ -69,13 +65,10 @@ export class CameraManager {
             );
             leftPos.applyQuaternion(this.camera.quaternion);
             leftPos.add(this.camera.position);
-            console.log("Left shoulder light position:", leftPos);
-
             // Calculate target using forward direction
             const forward = new THREE.Vector3(0, 0, -100);
             forward.applyQuaternion(this.camera.quaternion);
             const target = new THREE.Vector3().copy(leftPos).add(forward);
-            
             // Calculate angles for spotlight based on direction
             const direction = new THREE.Vector3().subVectors(target, leftPos);
             const rotation_y = Math.atan2(direction.x, direction.z);
@@ -92,14 +85,14 @@ export class CameraManager {
                 },
                 {} // empty asset_data
             );
-            
-            console.log("Left shoulder light created:", this.left_shoulder_light ? "success" : "failed");
+            if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                console.log("Left shoulder light created:", this.left_shoulder_light ? "success" : "failed");
+            }
             this.left_shoulder_light.mesh.target.position.copy(target);
         }
 
         // Create right shoulder spotlight if configuration exists
         if (lights_config.right) {
-            console.log("Creating right shoulder light...");
             // Clean up any existing helpers first
             if (this.right_shoulder_light) {
                 await this.spawner.despawn_spotlight_helpers(this.right_shoulder_light.mesh);
@@ -112,8 +105,6 @@ export class CameraManager {
             );
             rightPos.applyQuaternion(this.camera.quaternion);
             rightPos.add(this.camera.position);
-            console.log("Right shoulder light position:", rightPos);
-
             // Calculate target using forward direction
             const forward = new THREE.Vector3(0, 0, -100);
             forward.applyQuaternion(this.camera.quaternion);
@@ -135,12 +126,11 @@ export class CameraManager {
                 },
                 {} // empty asset_data
             );
-            
-            console.log("Right shoulder light created:", this.right_shoulder_light ? "success" : "failed");
+            if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                console.log("Right shoulder light created:", this.right_shoulder_light ? "success" : "failed");
+            }
             this.right_shoulder_light.mesh.target.position.copy(target);
         }
-        
-        console.log("==== FINISHED CREATING SHOULDER LIGHTS ====");
     }
 
     add_update_callback(callback) {
@@ -216,12 +206,6 @@ export class CameraManager {
             leftPos.applyQuaternion(this.camera.quaternion);
             // Add camera's position
             leftPos.add(this.camera.position);
-            
-            // Log shoulder light updating (once per 100 frames to avoid console spam)
-            if (Math.random() < 0.01) {
-                console.log("Updating left shoulder light position:", leftPos);
-            }
-            
             if (!this.left_shoulder_light.mesh) {
                 console.warn("Left shoulder light exists but has no mesh property!");
             } else {
@@ -248,12 +232,6 @@ export class CameraManager {
             rightPos.applyQuaternion(this.camera.quaternion);
             // Add camera's position
             rightPos.add(this.camera.position);
-            
-            // Log shoulder light updating (once per 100 frames to avoid console spam)
-            if (Math.random() < 0.01) {
-                console.log("Updating right shoulder light position:", rightPos);
-            }
-            
             if (!this.right_shoulder_light.mesh) {
                 console.warn("Right shoulder light exists but has no mesh property!");
             } else {
