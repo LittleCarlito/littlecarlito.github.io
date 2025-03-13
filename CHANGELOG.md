@@ -1,3 +1,11 @@
+## [0.10.1](https://github.com/LittleCarlito/threejs_site/compare/v0.10.0...v0.10.1) (2025-03-13)
+
+
+### Bug Fixes
+
+* **blorkpack:** adding common scope ([d672282](https://github.com/LittleCarlito/threejs_site/commit/d672282505fd5a30ba6c7e9a3d8841405988c351))
+* **blorkpack:** adding common scope [#74](https://github.com/LittleCarlito/threejs_site/issues/74) ([df3487a](https://github.com/LittleCarlito/threejs_site/commit/df3487a8952d47a3cfcaf46d5c328fa2e4bf2ce2))
+
 # [0.10.0](https://github.com/LittleCarlito/threejs_site/compare/v0.9.1...v0.10.0) (2025-03-13)
 
 
