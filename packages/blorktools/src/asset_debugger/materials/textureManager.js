@@ -121,6 +121,17 @@ export function applyTextureToModel(state) {
   if (state.renderer && state.camera && state.scene) {
     console.log('Forcing render update');
     state.renderer.render(state.scene, state.camera);
+    
+    // Automatically show the texture atlas visualization
+    try {
+      // Import and call createAtlasVisualization asynchronously to avoid circular dependencies
+      import('../ui/atlasVisualization.js').then(module => {
+        console.log('Auto-showing texture atlas visualization');
+        module.createAtlasVisualization(state);
+      });
+    } catch (error) {
+      console.error('Failed to auto-show atlas visualization:', error);
+    }
   } else {
     console.warn('Cannot force render update: Missing renderer, camera, or scene', {
       rendererExists: !!state.renderer,

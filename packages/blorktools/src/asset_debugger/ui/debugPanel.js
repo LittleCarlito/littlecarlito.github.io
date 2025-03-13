@@ -304,17 +304,34 @@ export function createDebugPanel(state) {
     
     meshTogglesContainer.innerHTML = '';
     
-    // Group meshes by parent name for better organization
+    // Group meshes by name prefix (up to first underscore)
     const meshGroups = {};
     
     meshes.forEach(mesh => {
-      const parentName = mesh.parent ? (mesh.parent.name || 'unnamed_parent') : 'root';
+      // Get prefix from mesh name (up to first underscore)
+      let groupName = 'unclassified';
       
-      if (!meshGroups[parentName]) {
-        meshGroups[parentName] = [];
+      if (mesh.name) {
+        const underscoreIndex = mesh.name.indexOf('_');
+        if (underscoreIndex > 0) {
+          // Use prefix if underscore found
+          groupName = mesh.name.substring(0, underscoreIndex);
+        } else {
+          // If no underscore, use the mesh name as is
+          groupName = mesh.name;
+        }
+      } else if (mesh.parent && mesh.parent.name) {
+        // Fallback to parent name if mesh has no name
+        groupName = mesh.parent.name;
       }
       
-      meshGroups[parentName].push(mesh);
+      // Initialize group array if needed
+      if (!meshGroups[groupName]) {
+        meshGroups[groupName] = [];
+      }
+      
+      // Add mesh to its group
+      meshGroups[groupName].push(mesh);
     });
     
     // Create toggle for each mesh group
@@ -322,18 +339,24 @@ export function createDebugPanel(state) {
       const group = meshGroups[groupName];
       
       const groupDiv = document.createElement('div');
-      groupDiv.style.marginBottom = '10px';
+      groupDiv.style.marginBottom = '15px';
+      groupDiv.style.padding = '8px';
+      groupDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
+      groupDiv.style.borderRadius = '5px';
       
       const groupLabel = document.createElement('div');
       groupLabel.textContent = `Group: ${groupName} (${group.length} mesh${group.length > 1 ? 'es' : ''})`;
-      groupLabel.style.marginBottom = '5px';
+      groupLabel.style.marginBottom = '8px';
       groupLabel.style.fontWeight = 'bold';
+      groupLabel.style.color = '#3498db';
       groupDiv.appendChild(groupLabel);
       
       // Toggle button for the entire group
       const groupToggle = document.createElement('button');
       groupToggle.textContent = 'Toggle Group';
       groupToggle.className = 'debug-button';
+      groupToggle.style.width = '100%';
+      groupToggle.style.marginBottom = '8px';
       groupToggle.addEventListener('click', () => {
         const someVisible = group.some(mesh => mesh.visible);
         group.forEach(mesh => {
@@ -477,4 +500,4 @@ export function createDebugPanel(state) {
   state.updateTextureInfo = updateTextureInfoImpl;
   
   return panel;
-} 
+}
