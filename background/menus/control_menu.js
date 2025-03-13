@@ -331,6 +331,55 @@ export class ControlMenu {
             this.sign_image.src = IMAGE_PATH;
         });
 
+        // Create spotlight immediately after control menu is initialized
+        if (!this.menu_spotlight && this.sign_mesh) {
+            const spotlightPosition = this.calculate_spotlight_position(this.camera.position, this.camera.quaternion);
+            
+            // Make sure we have valid positions before calculating direction
+            if (spotlightPosition) {
+                // Use the target position instead of the current sign position
+                const targetPosition = new THREE.Vector3(
+                    this.target_position.x,
+                    this.target_position.y - 7, // Offset downward to aim lower
+                    this.target_position.z
+                );
+                
+                try {
+                    const direction = new THREE.Vector3().subVectors(targetPosition, spotlightPosition);
+                    const rotationY = Math.atan2(direction.x, direction.z);
+                    const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
+                    
+                    // Adjust properties for a clearer edge but keep a larger radius
+                    // Larger radius for control menu (white with higher intensity)
+                    this.spawner.create_spotlight(
+                        "control_menu_spotlight",
+                        spotlightPosition,
+                        { x: rotationX, y: rotationY },
+                        {
+                            circle_radius: 6,
+                            color: "0xFFFFFF", // Standard white light instead of yellow
+                            intensity: 1.2,    // Much higher intensity to draw attention
+                            angle: Math.PI / 15, // Narrower angle for clearer edge
+                            penumbra: 0.05,    // Lower penumbra for sharper edge
+                            cast_shadow: false
+                        },
+                        {} // empty asset_data
+                    ).then(spotlight => {
+                        this.menu_spotlight = spotlight;
+                        if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                            console.log("Control menu spotlight created:", this.menu_spotlight ? "success" : "failed");
+                        }
+                    }).catch(error => {
+                        console.error("Error creating control menu spotlight:", error);
+                    });
+                } catch (error) {
+                    console.error("Error creating control menu spotlight:", error);
+                }
+            } else {
+                console.warn('ControlMenu: spotlightPosition is undefined');
+            }
+        }
+
         // Start the animation
         this.animation_start_time = performance.now();
         this.is_animating = true;
@@ -386,50 +435,9 @@ export class ControlMenu {
      * Updates the spotlight to point at the sign
      */
     updateSpotlight() {
-        // Only update if spotlight and sign exist
-        if (this.menu_spotlight && this.sign_mesh) {
-            // Ensure menu_spotlight has needed properties
-            if (!this.menu_spotlight.position && !this.menu_spotlight.mesh) {
-                console.warn('ControlMenu: menu_spotlight is missing position property and mesh property');
-                // Log the entire spotlight object to see what it contains
-                console.log("menu_spotlight object:", this.menu_spotlight);
-                return;
-            }
-            // Check specifically for position
-            if (!this.menu_spotlight.position && this.menu_spotlight.mesh) {
-                console.log("Using menu_spotlight.mesh.position instead of direct position");
-                this.menu_spotlight.position = this.menu_spotlight.mesh.position;
-            }
-            // Ensure menu_spotlight.position exists before proceeding
-            if (!this.menu_spotlight.position) {
-                console.warn('ControlMenu: menu_spotlight.position is undefined');
-                return;
-            }
-            // Update spotlight direction to point at sign
-            const targetPosition = new THREE.Vector3();
-            targetPosition.copy(this.sign_mesh.position);
-            try {
-                const direction = new THREE.Vector3().subVectors(targetPosition, this.menu_spotlight.position);
-                const rotationY = Math.atan2(direction.x, direction.z);
-                const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
-                // Update spotlight rotation
-                if (this.menu_spotlight.rotation) {
-                    this.menu_spotlight.rotation.set(rotationX, rotationY, 0);
-                } else if (this.menu_spotlight.mesh) {
-                    this.menu_spotlight.mesh.rotation.set(rotationX, rotationY, 0);
-                }
-                // Update target
-                if (this.menu_spotlight.target) {
-                    this.menu_spotlight.target.position.copy(targetPosition);
-                    this.menu_spotlight.target.updateMatrixWorld();
-                } else if (this.menu_spotlight.mesh && this.menu_spotlight.mesh.target) {
-                    this.menu_spotlight.mesh.target.position.copy(targetPosition);
-                    this.menu_spotlight.mesh.target.updateMatrixWorld();
-                }
-            } catch (error) {
-                console.error("Error updating control menu spotlight:", error);
-            }
-        }
+        // Removed spotlight tracking implementation since we want it to remain fixed
+        // pointing at the final destination of the control menu
+        // The spotlight is now set up at initialization and points at the target_position
     }
 
     async update() {
@@ -514,48 +522,6 @@ export class ControlMenu {
                         z: this.target_position.z
                     });
                     
-                    // Create spotlight if needed (but don't wait for it)
-                    if (!this.menu_spotlight && this.sign_mesh) {
-                        
-                        const spotlightPosition = this.calculate_spotlight_position(this.camera.position, this.camera.quaternion);
-                        
-                        // Make sure we have valid positions before calculating direction
-                        if (!spotlightPosition) {
-                            console.warn('ControlMenu: spotlightPosition is undefined');
-                            return;
-                        }
-
-                        const targetPosition = new THREE.Vector3();
-                        targetPosition.copy(this.sign_mesh.position);
-                        
-                        try {
-                            const direction = new THREE.Vector3().subVectors(targetPosition, spotlightPosition);
-                            const rotationY = Math.atan2(direction.x, direction.z);
-                            const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
-                            
-                            // Adjust properties for a clearer edge but keep a larger radius
-                            // Larger radius for control menu (white with higher intensity)
-                            this.menu_spotlight = await this.spawner.create_spotlight(
-                                "control_menu_spotlight",
-                                spotlightPosition,
-                                { x: rotationX, y: rotationY },
-                                {
-                                    circle_radius: 6,
-                                    color: "0xFFFFFF", // Standard white light instead of yellow
-                                    intensity: 1.2,    // Much higher intensity to draw attention
-                                    angle: Math.PI / 15, // Narrower angle for clearer edge
-                                    penumbra: 0.05,    // Lower penumbra for sharper edge
-                                    cast_shadow: false
-                                },
-                                {} // empty asset_data
-                            );
-                            if(BLORKPACK_FLAGS.ASSET_LOGS) {
-                                console.log("Control menu spotlight created:", this.menu_spotlight ? "success" : "failed");
-                            }
-                        } catch (error) {
-                            console.error("Error creating control menu spotlight:", error);
-                        }
-                    }
                     this.is_animating = false;
                     this.reached_target = true;
                     if(FLAGS.PHYSICS_LOGS) {
