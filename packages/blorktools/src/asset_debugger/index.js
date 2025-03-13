@@ -2,7 +2,7 @@
 
 import { setupScene, animate } from './core/scene.js';
 import { setupDragDrop } from './ui/dragdrop.js';
-import { setupDebugPanel } from './ui/debugPanel.js';
+import { setupDebugPanel, autoShowAtlasVisualization } from './ui/debugPanel.js';
 import { setupEventListeners } from './utils/events.js';
 
 // Application state - central store
@@ -54,6 +54,19 @@ export function init() {
   
   // Start the animation loop
   animate(state);
+  
+  // Listen for texture and model loaded events to show atlas visualization
+  document.addEventListener('textureLoaded', () => {
+    if (state.textureObject && state.modelObject) {
+      autoShowAtlasVisualization(state);
+    }
+  });
+  
+  document.addEventListener('modelLoaded', () => {
+    if (state.textureObject && state.modelObject) {
+      autoShowAtlasVisualization(state);
+    }
+  });
 }
 
 // Wait for DOM to load before initializing

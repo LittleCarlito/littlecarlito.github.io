@@ -11,7 +11,7 @@ export let updateTextureInfo = null;
 
 // Setup debug panel
 export function setupDebugPanel(state) {
-  createDebugPanel(state);
+  const panel = createDebugPanel(state);
 }
 
 // Start debugging (called from dragdrop.js)
@@ -344,12 +344,31 @@ export function createDebugPanel(state) {
       groupDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
       groupDiv.style.borderRadius = '5px';
       
+      // Header and toggle row
+      const groupHeader = document.createElement('div');
+      groupHeader.style.display = 'flex';
+      groupHeader.style.justifyContent = 'space-between';
+      groupHeader.style.alignItems = 'center';
+      groupHeader.style.marginBottom = '8px';
+      groupHeader.style.cursor = 'pointer';
+      
       const groupLabel = document.createElement('div');
       groupLabel.textContent = `Group: ${groupName} (${group.length} mesh${group.length > 1 ? 'es' : ''})`;
-      groupLabel.style.marginBottom = '8px';
       groupLabel.style.fontWeight = 'bold';
       groupLabel.style.color = '#3498db';
-      groupDiv.appendChild(groupLabel);
+      groupHeader.appendChild(groupLabel);
+      
+      // Add collapse/expand icon
+      const collapseIcon = document.createElement('span');
+      collapseIcon.textContent = '▼';
+      collapseIcon.style.transition = 'transform 0.3s';
+      groupHeader.appendChild(collapseIcon);
+      
+      groupDiv.appendChild(groupHeader);
+      
+      // Container for toggles and mesh list
+      const contentContainer = document.createElement('div');
+      contentContainer.style.display = 'none'; // Collapsed by default
       
       // Toggle button for the entire group
       const groupToggle = document.createElement('button');
@@ -357,7 +376,8 @@ export function createDebugPanel(state) {
       groupToggle.className = 'debug-button';
       groupToggle.style.width = '100%';
       groupToggle.style.marginBottom = '8px';
-      groupToggle.addEventListener('click', () => {
+      groupToggle.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent triggering the collapse/expand
         const someVisible = group.some(mesh => mesh.visible);
         group.forEach(mesh => {
           // Toggle opposite of current state
@@ -365,11 +385,11 @@ export function createDebugPanel(state) {
         });
         
         // Update button colors for all meshes in the group
-        groupDiv.querySelectorAll('.mesh-toggle').forEach((button, index) => {
+        contentContainer.querySelectorAll('.mesh-toggle').forEach((button) => {
           button.style.backgroundColor = !someVisible ? '#3498db' : '#95a5a6';
         });
       });
-      groupDiv.appendChild(groupToggle);
+      contentContainer.appendChild(groupToggle);
       
       // Show all meshes in group
       const meshList = document.createElement('div');
@@ -385,7 +405,8 @@ export function createDebugPanel(state) {
         toggle.className = 'debug-button mesh-toggle';
         toggle.style.backgroundColor = mesh.visible ? '#3498db' : '#95a5a6';
         
-        toggle.addEventListener('click', () => {
+        toggle.addEventListener('click', (e) => {
+          e.stopPropagation(); // Prevent triggering the collapse/expand
           mesh.visible = !mesh.visible;
           toggle.style.backgroundColor = mesh.visible ? '#3498db' : '#95a5a6';
         });
@@ -394,7 +415,17 @@ export function createDebugPanel(state) {
         meshList.appendChild(meshDiv);
       });
       
-      groupDiv.appendChild(meshList);
+      contentContainer.appendChild(meshList);
+      groupDiv.appendChild(contentContainer);
+      
+      // Add click handler to header for toggling collapse/expand
+      groupHeader.addEventListener('click', () => {
+        const isCollapsed = contentContainer.style.display === 'none';
+        contentContainer.style.display = isCollapsed ? 'block' : 'none';
+        collapseIcon.textContent = isCollapsed ? '▲' : '▼';
+        collapseIcon.style.transform = isCollapsed ? 'rotate(0deg)' : 'rotate(0deg)';
+      });
+      
       meshTogglesContainer.appendChild(groupDiv);
     }
   }
@@ -500,4 +531,30 @@ export function createDebugPanel(state) {
   state.updateTextureInfo = updateTextureInfoImpl;
   
   return panel;
+}
+
+// Auto-show atlas visualization when state is ready
+export function autoShowAtlasVisualization(state) {
+  if (state.textureObject && state.modelObject) {
+    // Make sure the current UV region is analyzed if it doesn't exist
+    if (!state.currentUvRegion) {
+      // Default to a full texture region
+      state.currentUvRegion = { min: [0, 0], max: [1, 1] };
+      
+      // Try to analyze the actual UV bounds if we can
+      if (state.scene && state.modelObject) {
+        import('../core/analyzer.js').then(module => {
+          // Trigger a UV channel switch which will analyze the current region
+          module.switchUvChannel(state, state.activeUVChannel || 0);
+        }).catch(error => {
+          console.error('Failed to analyze UV region:', error);
+        });
+      }
+    }
+    
+    // Wait a moment for the UI to be ready
+    setTimeout(() => {
+      createAtlasVisualization(state);
+    }, 1000);
+  }
 }

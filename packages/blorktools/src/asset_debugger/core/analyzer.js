@@ -118,9 +118,9 @@ function collectTexturesFromMaterial(material, textureSet) {
 }
 
 /**
- * Switch the UV channel displayed in the shader
+ * Switch the active UV channel for viewing
  * @param {Object} state - Global state object
- * @param {Number} channelIndex - UV channel index (0 = UV, 1 = UV2, 2 = UV3)
+ * @param {Number} channelIndex - Channel index to switch to (0 = uv, 1 = uv2, 2 = uv3)
  */
 export function switchUvChannel(state, channelIndex) {
   if (!state.scene || !state.shader) {
@@ -141,6 +141,32 @@ export function switchUvChannel(state, channelIndex) {
       object.material.uniforms.uvChannel.value = channelIndex;
     }
   });
+  
+  // Analyze the UV bounds to find the current texture region being used
+  const uvBounds = analyzeUvBounds(state, channelIndex);
+  if (uvBounds) {
+    state.currentUvRegion = uvBounds;
+    console.log('Detected UV region:', state.currentUvRegion);
+  } else {
+    // Default to full texture if no bounds could be determined
+    state.currentUvRegion = { min: [0, 0], max: [1, 1] };
+  }
+  
+  // Update the atlas visualization to highlight current UV area
+  try {
+    // Dynamic import to avoid circular dependencies
+    import('../ui/atlasVisualization.js').then(module => {
+      // Update atlas visualization if it exists
+      module.updateAtlasVisualization(state);
+      
+      // If atlas visualization doesn't exist, create it
+      if (!document.querySelector('.atlas-visualization')) {
+        module.createAtlasVisualization(state);
+      }
+    });
+  } catch (error) {
+    console.error('Failed to update atlas visualization:', error);
+  }
   
   // Check if the model has this UV channel and show a warning if not
   let hasChannel = false;
@@ -175,6 +201,79 @@ export function switchUvChannel(state, channelIndex) {
   if (state.renderer && state.camera && state.scene) {
     state.renderer.render(state.scene, state.camera);
   }
+}
+
+/**
+ * Analyze UV coordinates to determine the bounds (min/max) of the used texture region
+ * @param {Object} state - Global state object
+ * @param {Number} channelIndex - UV channel to analyze
+ * @returns {Object} bounds object with min and max coordinates
+ */
+function analyzeUvBounds(state, channelIndex) {
+  if (!state.scene) return null;
+  
+  let minU = 1;
+  let minV = 1;
+  let maxU = 0;
+  let maxV = 0;
+  let hasValidUV = false;
+  
+  // Traverse all meshes in the scene to collect UV data
+  state.scene.traverse(object => {
+    if (object.isMesh && object.geometry && object.geometry.attributes && object.visible) {
+      const geometry = object.geometry;
+      
+      // Get the appropriate UV attribute based on channel
+      let uvAttribute;
+      switch (channelIndex) {
+        case 0:
+          uvAttribute = geometry.attributes.uv;
+          break;
+        case 1:
+          uvAttribute = geometry.attributes.uv2;
+          break;
+        case 2:
+          uvAttribute = geometry.attributes.uv3;
+          break;
+      }
+      
+      if (uvAttribute && uvAttribute.array) {
+        hasValidUV = true;
+        
+        // Analyze each UV coordinate to find bounds
+        for (let i = 0; i < uvAttribute.count; i++) {
+          const u = uvAttribute.getX(i);
+          const v = uvAttribute.getY(i);
+          
+          // Skip invalid values
+          if (isNaN(u) || isNaN(v)) continue;
+          
+          // Update bounds
+          minU = Math.min(minU, u);
+          minV = Math.min(minV, v);
+          maxU = Math.max(maxU, u);
+          maxV = Math.max(maxV, v);
+        }
+      }
+    }
+  });
+  
+  if (!hasValidUV) {
+    return null;
+  }
+  
+  // Apply a small margin to ensure we capture everything
+  const margin = 0.01;
+  minU = Math.max(0, minU - margin);
+  minV = Math.max(0, minV - margin);
+  maxU = Math.min(1, maxU + margin);
+  maxV = Math.min(1, maxV + margin);
+  
+  // Return bounds
+  return {
+    min: [minU, minV],
+    max: [maxU, maxV]
+  };
 }
 
 /**

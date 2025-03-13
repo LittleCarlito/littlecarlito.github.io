@@ -8,29 +8,32 @@
  * import { init } from './index.js';
  */
 
+// Import from index.js
 import { init, state } from './index.js';
+import { autoShowAtlasVisualization } from './ui/debugPanel.js';
+
+// Listen for texture loaded event to show atlas visualization
+document.addEventListener('textureLoaded', () => {
+  if (state.textureObject && state.modelObject) {
+    autoShowAtlasVisualization(state);
+  }
+});
+
+// Listen for model loaded event to show atlas visualization
+document.addEventListener('modelLoaded', () => {
+  if (state.textureObject && state.modelObject) {
+    autoShowAtlasVisualization(state);
+  }
+});
 
 // Export state and main functions for backward compatibility
-export const scene = () => state.scene;
-export const camera = () => state.camera;
-export const renderer = () => state.renderer;
-export const modelObject = () => state.modelObject;
-export const textureObject = () => state.textureObject;
-
-// Export the init function as default for legacy imports
-export default function() {
-  console.warn('Warning: You are using the legacy asset_debugger.js entry point. ' +
-               'Consider upgrading to the modular version imported from index.js');
-  
-  // Initialize the application
-  init();
-  
-  // Return an API for backward compatibility
+export function getExportedMethods() {
   return {
     getState: () => state,
     getScene: () => state.scene,
-    getCamera: () => state.camera,
     getRenderer: () => state.renderer,
+    getCamera: () => state.camera,
+    getControls: () => state.controls,
     getModelObject: () => state.modelObject,
     getTextureObject: () => state.textureObject,
   };

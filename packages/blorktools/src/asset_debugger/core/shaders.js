@@ -185,10 +185,61 @@ export function createAtlasVisualizationShader(texture) {
     
     uniform sampler2D diffuseMap;
     uniform float opacity;
+    uniform vec2 highlightMin;
+    uniform vec2 highlightMax;
     
     void main() {
+      // Get the texture color
       vec4 texColor = texture2D(diffuseMap, vUv);
-      gl_FragColor = vec4(texColor.rgb, texColor.a * opacity);
+      
+      // Draw a grid
+      float gridSize = 10.0;
+      float lineWidth = 0.01;
+      vec2 grid = fract(vUv * gridSize);
+      float line = step(lineWidth, grid.x) * step(lineWidth, grid.y);
+      
+      // Grid lines at 0.0 and 0.5 intervals
+      vec2 halfGrid = fract(vUv * 2.0);
+      float halfLine = step(0.99, halfGrid.x) + step(0.99, halfGrid.y);
+      halfLine = clamp(halfLine, 0.0, 1.0);
+      
+      // Coordinates to display
+      float showCoords = 0.0;
+      if (vUv.x < 0.05 && vUv.y > 0.95) showCoords = 1.0; // Show 0.0, 1.0
+      if (vUv.x > 0.45 && vUv.x < 0.55 && vUv.y > 0.95) showCoords = 1.0; // Show 0.5, 1.0
+      if (vUv.x > 0.95 && vUv.y > 0.95) showCoords = 1.0; // Show 1.0, 1.0
+      if (vUv.x < 0.05 && vUv.y > 0.45 && vUv.y < 0.55) showCoords = 1.0; // Show 0.0, 0.5
+      if (vUv.x > 0.95 && vUv.y > 0.45 && vUv.y < 0.55) showCoords = 1.0; // Show 1.0, 0.5
+      if (vUv.x < 0.05 && vUv.y < 0.05) showCoords = 1.0; // Show 0.0, 0.0
+      if (vUv.x > 0.45 && vUv.x < 0.55 && vUv.y < 0.05) showCoords = 1.0; // Show 0.5, 0.0
+      if (vUv.x > 0.95 && vUv.y < 0.05) showCoords = 1.0; // Show 1.0, 0.0
+      
+      // Check if current UV point is in the highlight area (current selected UV area)
+      float isHighlighted = 0.0;
+      if (vUv.x >= highlightMin.x && vUv.x <= highlightMax.x && 
+          vUv.y >= highlightMin.y && vUv.y <= highlightMax.y) {
+        
+        // Create a highlight border
+        float borderWidth = 0.005;
+        if (vUv.x < highlightMin.x + borderWidth || vUv.x > highlightMax.x - borderWidth ||
+            vUv.y < highlightMin.y + borderWidth || vUv.y > highlightMax.y - borderWidth) {
+          isHighlighted = 1.0;
+        }
+      }
+      
+      // Mix texColor with grid
+      vec3 color = mix(texColor.rgb, vec3(0.0, 0.0, 0.0), 1.0 - line * 0.7);
+      
+      // Highlight major grid lines (0.0, 0.5, 1.0)
+      color = mix(color, vec3(0.0, 0.0, 0.0), halfLine * 0.7);
+      
+      // Add coordinate markers
+      color = mix(color, vec3(1.0, 1.0, 1.0), showCoords);
+      
+      // Add highlight (red border)
+      color = mix(color, vec3(1.0, 0.0, 0.0), isHighlighted);
+      
+      gl_FragColor = vec4(color, texColor.a * opacity);
     }
   `;
   
@@ -196,7 +247,9 @@ export function createAtlasVisualizationShader(texture) {
   return new THREE.ShaderMaterial({
     uniforms: {
       diffuseMap: { value: texture },
-      opacity: { value: 1.0 }
+      opacity: { value: 1.0 },
+      highlightMin: { value: new THREE.Vector2(0.7, 0.7) }, // Default highlight area
+      highlightMax: { value: new THREE.Vector2(0.8, 0.8) }
     },
     vertexShader: vertexShader,
     fragmentShader: fragmentShader,

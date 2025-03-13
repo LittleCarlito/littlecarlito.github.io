@@ -95,23 +95,18 @@ export function applyTextureToModel(state) {
     if (node.isMesh) {
       meshCount++;
       
-      if (node.material) {
-        if (Array.isArray(node.material)) {
-          // Handle multi-material objects
-          node.material.forEach((mat, index) => {
-            console.log(`Applying texture to multi-material[${index}] of mesh ${node.name || 'unnamed'}`);
-            applyTextureToMaterial(mat, state.textureObject);
-            appliedCount++;
-          });
-        } else {
-          // Single material object
-          console.log(`Applying texture to material of mesh ${node.name || 'unnamed'}`);
-          applyTextureToMaterial(node.material, state.textureObject);
-          appliedCount++;
-        }
-      } else {
-        console.warn(`Mesh ${node.name || 'unnamed'} has no material`);
-      }
+      // Simply apply a MeshBasicMaterial with the texture
+      // This ensures the texture is clearly visible without any lighting effects
+      const newMaterial = new THREE.MeshBasicMaterial({
+        map: state.textureObject,
+        side: THREE.DoubleSide  // Show texture on both sides
+      });
+      
+      // Assign the new material
+      node.material = newMaterial;
+      appliedCount++;
+      
+      console.log(`Applied basic material with texture to mesh ${node.name || 'unnamed'}`);
     }
   });
   
@@ -128,6 +123,14 @@ export function applyTextureToModel(state) {
       import('../ui/atlasVisualization.js').then(module => {
         console.log('Auto-showing texture atlas visualization');
         module.createAtlasVisualization(state);
+        
+        // Force another render to ensure atlas is visible
+        if (state.renderer && state.camera && state.scene) {
+          setTimeout(() => {
+            state.renderer.render(state.scene, state.camera);
+            console.log('Atlas visualization should now be visible');
+          }, 100);
+        }
       });
     } catch (error) {
       console.error('Failed to auto-show atlas visualization:', error);
