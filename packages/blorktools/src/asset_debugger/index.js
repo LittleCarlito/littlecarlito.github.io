@@ -1,7 +1,7 @@
 // Main entry point for the Asset Debugger tool
 
 import { setupScene, animate } from './core/scene.js';
-import { setupDragAndDrop } from './ui/dragdrop.js';
+import { setupDragDrop } from './ui/dragdrop.js';
 import { setupDebugPanel } from './ui/debugPanel.js';
 import { setupEventListeners } from './utils/events.js';
 
@@ -41,7 +41,7 @@ export function init() {
   setupDebugPanel(state);
   
   // Setup drag and drop functionality
-  setupDragAndDrop(state);
+  setupDragDrop(state);
   
   // Set up event listeners
   setupEventListeners(state);

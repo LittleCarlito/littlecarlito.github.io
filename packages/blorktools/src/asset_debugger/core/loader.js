@@ -2,53 +2,57 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { analyzeModelStructure } from './analyzer.js';
 import { updateModelInfo, updateTextureInfo } from '../ui/debugPanel.js';
+import { setupRenderer, setupSceneLighting } from './renderer.js';
+import { setupCamera } from './camera.js';
+import { createDefaultShader } from './shaders.js';
+import { analyzeModel } from './analyzer.js';
 import { applyTextureToModel } from '../materials/textureManager.js';
 import { resetToDropZone } from '../ui/dragdrop.js';
 
-// Load model from file
-export function loadModelFromFile(state) {
-  const file = state.modelFile;
-  if (!file) return;
-  
-  const loader = new GLTFLoader();
-  
-  // Convert file to array buffer
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const arrayBuffer = e.target.result;
+// Load a glTF or glb model
+export async function loadModel(state, file) {
+  return new Promise((resolve, reject) => {
+    if (!file) return;
     
-    // Load the model from array buffer
-    loader.parse(arrayBuffer, '', (gltf) => {
-      state.modelObject = gltf.scene;
-      state.scene.add(state.modelObject);
+    const loader = new GLTFLoader();
+    
+    // Convert file to array buffer
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const arrayBuffer = e.target.result;
       
-      // Center model
-      centerModel(state);
-      
-      // Process model structure
-      analyzeModelStructure(state);
-      
-      // Update model info in the debug panel
-      updateModelInfo(state);
-      
-      // Show debug panel
-      const debugPanel = document.getElementById('debug-panel');
-      if (debugPanel) {
-        debugPanel.style.display = 'block';
-      }
-      
-      // Check if both model and texture are loaded
-      checkLoadingComplete(state);
-    }, undefined, (error) => {
-      console.error('Error loading model:', error);
-      alert('Error loading the model file. Please try a different file.');
-      resetToDropZone(state);
-    });
-  };
-  
-  reader.readAsArrayBuffer(file);
+      // Load the model from array buffer
+      loader.parse(arrayBuffer, '', (gltf) => {
+        state.modelObject = gltf.scene;
+        state.scene.add(gltf.scene);
+        
+        // Center and size the model
+        centerModel(state);
+        
+        // Update scene lighting to accommodate model
+        setupSceneLighting(state);
+        
+        // Analyze the model structure
+        const modelInfo = analyzeModel(state);
+        
+        // Update model info in UI
+        if (updateModelInfo) {
+          updateModelInfo(modelInfo);
+        }
+        
+        console.log('Model loaded successfully:', gltf);
+        resolve(gltf);
+      }, undefined, (error) => {
+        console.error('Error loading model:', error);
+        alert('Error loading the model file. Please try a different file.');
+        resetToDropZone(state);
+        reject(error);
+      });
+    };
+    
+    reader.readAsArrayBuffer(file);
+  });
 }
 
 // Center model in scene and adjust camera

@@ -7,6 +7,7 @@ import { originalUvData } from '../core/analyzer.js';
 
 let textureEditor = null;
 let textureList = null;
+let editorWindow = null;
 
 // Create texture editor
 export function createTextureEditor(state) {
@@ -200,32 +201,81 @@ export function createTextureEditor(state) {
 
 // Toggle texture editor visibility
 export function toggleTextureEditor(state) {
-  if (!textureEditor) {
-    createTextureEditor(state);
+  if (!state.textureObject) {
+    alert('No texture loaded. Please load a texture first.');
+    return;
   }
   
-  const isVisible = textureEditor.container.style.display !== 'none';
-  
-  if (isVisible) {
-    textureEditor.container.style.display = 'none';
-    
-    // Update button text
-    const button = document.getElementById('texture-editor-button');
-    if (button) {
-      button.textContent = 'Open Texture Editor';
-    }
-  } else {
-    textureEditor.container.style.display = 'block';
-    
-    // Update UI based on current state
-    updateEditorUI(state);
-    
-    // Update button text
-    const button = document.getElementById('texture-editor-button');
-    if (button) {
-      button.textContent = 'Close Texture Editor';
-    }
+  if (editorWindow) {
+    // Toggle visibility of existing editor
+    const isVisible = editorWindow.style.display !== 'none';
+    editorWindow.style.display = isVisible ? 'none' : 'block';
+    return;
   }
+  
+  // Create editor window
+  editorWindow = document.createElement('div');
+  editorWindow.id = 'texture-editor';
+  editorWindow.style.position = 'fixed';
+  editorWindow.style.left = '50%';
+  editorWindow.style.top = '50%';
+  editorWindow.style.transform = 'translate(-50%, -50%)';
+  editorWindow.style.width = '80%';
+  editorWindow.style.maxWidth = '800px';
+  editorWindow.style.maxHeight = '80vh';
+  editorWindow.style.backgroundColor = 'rgba(40, 40, 40, 0.95)';
+  editorWindow.style.color = 'white';
+  editorWindow.style.padding = '20px';
+  editorWindow.style.borderRadius = '8px';
+  editorWindow.style.zIndex = '1000';
+  editorWindow.style.boxShadow = '0 0 20px rgba(0, 0, 0, 0.5)';
+  editorWindow.style.overflowY = 'auto';
+  
+  // Editor header
+  const header = document.createElement('div');
+  header.style.display = 'flex';
+  header.style.justifyContent = 'space-between';
+  header.style.alignItems = 'center';
+  header.style.marginBottom = '20px';
+  
+  const title = document.createElement('h2');
+  title.textContent = 'Texture Editor';
+  title.style.margin = '0';
+  
+  const closeButton = document.createElement('button');
+  closeButton.textContent = '×';
+  closeButton.style.background = 'none';
+  closeButton.style.border = 'none';
+  closeButton.style.color = 'white';
+  closeButton.style.fontSize = '24px';
+  closeButton.style.cursor = 'pointer';
+  closeButton.addEventListener('click', () => {
+    editorWindow.style.display = 'none';
+  });
+  
+  header.appendChild(title);
+  header.appendChild(closeButton);
+  editorWindow.appendChild(header);
+  
+  // Add placeholder message for future implementation
+  const placeholderMessage = document.createElement('div');
+  placeholderMessage.style.textAlign = 'center';
+  placeholderMessage.style.padding = '40px';
+  placeholderMessage.style.color = '#aaa';
+  placeholderMessage.innerHTML = `
+    <p>Texture Editor will be implemented in a future update.</p>
+    <p>Planned features include:</p>
+    <ul style="text-align: left; display: inline-block;">
+      <li>Basic adjustments (brightness, contrast, saturation)</li>
+      <li>Channel viewing and editing</li>
+      <li>UV island visualization</li>
+      <li>Texture baking tools</li>
+    </ul>
+  `;
+  editorWindow.appendChild(placeholderMessage);
+  
+  // Add to document
+  document.body.appendChild(editorWindow);
 }
 
 // Update texture editor UI based on current state
@@ -584,4 +634,14 @@ function applyTextureOffset(x, y, state) {
       }
     }
   });
+}
+
+/**
+ * Apply texture adjustments
+ * @param {Object} state - Global state object
+ * @param {Object} adjustments - Adjustment values
+ */
+export function applyTextureAdjustments(state, adjustments) {
+  // This will be implemented in the future
+  console.log('Texture adjustments will be implemented in a future update');
 } 

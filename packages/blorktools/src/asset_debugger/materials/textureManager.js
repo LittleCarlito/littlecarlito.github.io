@@ -4,90 +4,176 @@
 import * as THREE from 'three';
 import { createMultiTextureMaterial } from './multiTextureMaterial.js';
 import { originalUvData } from '../core/analyzer.js';
+import { updateTextureInfo } from '../ui/debugPanel.js';
 
-// Load texture from file
-export function loadTextureFromFile(state) {
-  const file = state.textureFile;
-  if (!file) return;
-  
-  // Create a URL from the file
-  const textureUrl = URL.createObjectURL(file);
-  
-  // Create a new texture loader
-  const loader = new THREE.TextureLoader();
-  
-  // Load the texture
-  loader.load(textureUrl, (texture) => {
-    // Store texture in state
-    state.textureObject = texture;
-    
-    // Set texture parameters
-    texture.wrapS = THREE.ClampToEdgeWrapping;
-    texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    
-    // Apply texture to model if it's loaded
-    if (state.modelObject) {
-      applyTextureToModel(state);
+/**
+ * Load texture from file
+ * @param {Object} state - Global state object
+ * @param {File} file - Texture file to load
+ * @returns {Promise} - Promise that resolves when texture is loaded
+ */
+export async function loadTexture(state, file) {
+  return new Promise((resolve, reject) => {
+    if (!file) {
+      reject(new Error('No texture file provided'));
+      return;
     }
     
-    // Revoke the object URL to free up memory
-    URL.revokeObjectURL(textureUrl);
+    // Create texture loader
+    const loader = new THREE.TextureLoader();
     
-    // Check if both model and texture are loaded and hide loading screen
-    if (state.modelObject) {
-      const loadingScreen = document.getElementById('loading');
-      if (loadingScreen) {
-        loadingScreen.style.display = 'none';
+    // Create object URL from file
+    const fileUrl = URL.createObjectURL(file);
+    
+    // Load texture
+    loader.load(
+      fileUrl,
+      (texture) => {
+        console.log('Texture loaded:', texture);
+        
+        // Store texture in state
+        state.textureObject = texture;
+        
+        // Configure texture
+        texture.flipY = true; // Flip texture vertically (common for 3D models)
+        
+        // Apply to model if model is already loaded
+        if (state.modelLoaded && state.modelObject) {
+          applyTextureToModel(state);
+        }
+        
+        // Create texture info for UI
+        const textureInfo = {
+          name: file.name,
+          size: file.size,
+          dimensions: {
+            width: texture.image.width,
+            height: texture.image.height
+          }
+        };
+        
+        // Update texture info in UI
+        if (updateTextureInfo) {
+          updateTextureInfo(textureInfo);
+        }
+        
+        // Clean up URL
+        URL.revokeObjectURL(fileUrl);
+        
+        resolve(texture);
+      },
+      undefined, // Progress callback
+      (error) => {
+        console.error('Error loading texture:', error);
+        URL.revokeObjectURL(fileUrl);
+        reject(error);
       }
-    }
-  }, 
-  undefined, // onProgress callback not needed
-  (error) => {
-    console.error('Error loading texture:', error);
-    alert('Error loading the texture file. Please try a different file.');
-    // Reset the UI if needed
+    );
   });
 }
 
-// Apply texture to model
+/**
+ * Apply loaded texture to all materials in the model
+ * @param {Object} state - Global state object
+ */
 export function applyTextureToModel(state) {
-  if (!state.modelObject || !state.textureObject) return;
-  
-  const isMultiTextureMode = state.multiTextureMode;
-  
-  // If multi-texture mode is enabled, apply multi-texture material
-  if (isMultiTextureMode && state.additionalTextures && state.additionalTextures.length > 0) {
-    applyMultiTextureMaterial(state);
+  if (!state.modelObject || !state.textureObject) {
+    console.warn('Cannot apply texture: Model or texture not loaded', {
+      modelExists: !!state.modelObject,
+      textureExists: !!state.textureObject
+    });
     return;
   }
   
-  // For standard single texture application
-  // Create a basic material with the texture
-  const material = new THREE.MeshStandardMaterial({
-    map: state.textureObject,
-    metalness: 0.0,
-    roughness: 0.8
-  });
+  console.log('Applying texture to model', state.textureObject);
   
-  // Apply material to all meshes in the model
+  // Apply to all meshes in the scene
+  let meshCount = 0;
+  let appliedCount = 0;
+  
   state.modelObject.traverse((node) => {
     if (node.isMesh) {
-      // Check if this is screen mesh
-      const isScreenMesh = (state.screenMeshes || []).includes(node);
+      meshCount++;
       
-      if (isScreenMesh) {
-        // Special handling for screen meshes
-        node.material = material;
+      if (node.material) {
+        if (Array.isArray(node.material)) {
+          // Handle multi-material objects
+          node.material.forEach((mat, index) => {
+            console.log(`Applying texture to multi-material[${index}] of mesh ${node.name || 'unnamed'}`);
+            applyTextureToMaterial(mat, state.textureObject);
+            appliedCount++;
+          });
+        } else {
+          // Single material object
+          console.log(`Applying texture to material of mesh ${node.name || 'unnamed'}`);
+          applyTextureToMaterial(node.material, state.textureObject);
+          appliedCount++;
+        }
       } else {
-        // Standard handling for regular meshes
-        node.material = material;
+        console.warn(`Mesh ${node.name || 'unnamed'} has no material`);
       }
     }
   });
   
-  console.log('Applied texture to model:', state.textureObject);
+  console.log(`Applied texture to ${appliedCount} materials across ${meshCount} meshes`);
+  
+  // Force a render update
+  if (state.renderer && state.camera && state.scene) {
+    console.log('Forcing render update');
+    state.renderer.render(state.scene, state.camera);
+  } else {
+    console.warn('Cannot force render update: Missing renderer, camera, or scene', {
+      rendererExists: !!state.renderer,
+      cameraExists: !!state.camera,
+      sceneExists: !!state.scene
+    });
+  }
+}
+
+/**
+ * Apply texture to a specific material
+ * @param {THREE.Material} material - Three.js material
+ * @param {THREE.Texture} texture - Three.js texture
+ */
+function applyTextureToMaterial(material, texture) {
+  if (!material) return;
+  
+  console.log(`Applying texture to material type: ${material.type}`);
+  
+  // Clone texture to avoid affecting other materials
+  const textureClone = texture.clone();
+  textureClone.needsUpdate = true;
+  
+  // Set basic properties for all material types
+  material.map = textureClone;
+  
+  // For MeshStandardMaterial (most common)
+  if (material.type === 'MeshStandardMaterial') {
+    // Use texture for all common map types as a starting point
+    material.roughnessMap = textureClone;
+    material.roughness = 0.8;
+    material.metalnessMap = textureClone;
+    material.metalness = 0.2;
+  } 
+  // For MeshBasicMaterial
+  else if (material.type === 'MeshBasicMaterial') {
+    material.color.set(0xffffff); // Reset color to white to show texture properly
+  }
+  
+  // Make sure to update the material
+  material.needsUpdate = true;
+}
+
+/**
+ * Toggle texture editor UI
+ * @param {Object} state - Global state object
+ */
+export function toggleTextureEditor(state) {
+  // Implementation will be in a separate file (textureEditor.js)
+  console.log('Toggle texture editor requested - implementation in textureEditor.js');
+  
+  // Display a message if texture editor is not yet implemented
+  alert('Texture editor will be implemented in a future update');
 }
 
 // Load additional texture (for multi-texture support)
