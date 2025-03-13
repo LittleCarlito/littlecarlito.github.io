@@ -11,6 +11,14 @@ let isDebugMode = false;
 let currentUvSet = 0; // Track which UV set is currently displayed
 let availableUvSets = []; // Available UV sets across all meshes
 let uvSetNames = []; // Names of UV sets
+let originalUvData = new WeakMap(); // Store original UV data for each mesh
+
+// New variables for multi-texture material editor
+let textures = []; // Array to store multiple textures
+let activeTextures = {}; // Map of UV channel to texture index
+let blendModes = {}; // Map of UV channel to blend mode
+let textureIntensities = {}; // Map of UV channel to intensity
+let isMultiTextureMode = false; // Toggle for multi-texture mode
 
 // Initialize the application
 function init() {
@@ -222,7 +230,7 @@ function formatFileSize(bytes) {
     return bytes + ' bytes';
   } else if (bytes < 1024 * 1024) {
     return (bytes / 1024).toFixed(1) + ' KB';
-      } else {
+          } else {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   }
 }
@@ -253,6 +261,36 @@ function startDebugging() {
   } else {
     // Only use procedural texture if no user texture is provided
     loadNumberAtlasTexture();
+  }
+  
+  // Add a button to toggle multi-texture editor
+  const debugPanel = document.getElementById('debug-panel');
+  if (debugPanel) {
+    const multiTextureButton = document.createElement('button');
+    multiTextureButton.textContent = 'Multi-Texture Editor';
+    multiTextureButton.className = 'debug-button';
+    multiTextureButton.style.marginTop = '10px';
+    multiTextureButton.style.width = '100%';
+    multiTextureButton.style.padding = '8px';
+    multiTextureButton.style.backgroundColor = '#3498db';
+    
+    multiTextureButton.addEventListener('click', () => {
+      const editor = document.getElementById('multi-texture-editor');
+      if (editor) {
+        // Toggle visibility
+        if (editor.style.display === 'none') {
+          editor.style.display = 'block';
+          updateMultiTextureEditor();
+          multiTextureButton.textContent = 'Hide Multi-Texture Editor';
+        } else {
+          editor.style.display = 'none';
+          multiTextureButton.textContent = 'Multi-Texture Editor';
+        }
+      }
+    });
+    
+    // Add the button to the top of the debug panel
+    debugPanel.insertBefore(multiTextureButton, debugPanel.firstChild);
   }
 }
 
@@ -492,10 +530,10 @@ function analyzeModelStructure() {
               info.maxU = Math.max(info.maxU, u);
               info.minV = Math.min(info.minV, v);
               info.maxV = Math.max(info.maxV, v);
-            }
-          }
-        });
-        
+      }
+    }
+  });
+  
         // Log detailed information for screen meshes
         if (child.name.toLowerCase().includes('screen') || 
             child.name.toLowerCase().includes('display') || 
@@ -754,31 +792,46 @@ function switchUvChannel(uvChannel) {
           // Important change: Define UV transform for materials
           // We need to modify the material to use the specific UV channel
           if (uvIndex === 0) {
-            // For default UV (uv) no special handling needed
-            console.log(`Using default UV mapping for ${child.name}`);
-          } else if (uvIndex === 2) {
-            // For uv2, use THREE.UVMapping and set uvTransform
-            newMaterial.defines = newMaterial.defines || {};
-            newMaterial.defines.USE_UV = '';
-            newMaterial.defines.USE_UV2 = '';
+            // For default UV (uv), restore original UV data if we stored it
+            if (originalUvData.has(child)) {
+              // Restore the original UV data
+              child.geometry.attributes.uv = originalUvData.get(child);
+              console.log(`Restored original UV data for ${child.name}`);
+            } else {
+              console.log(`Using default UV mapping for ${child.name} (no stored original)`);
+            }
+          } else {
+            // For non-default UV channels, store original UV data if we haven't already
+            if (!originalUvData.has(child) && child.geometry.attributes.uv) {
+              // Store a clone of the original UV attribute
+              originalUvData.set(child, child.geometry.attributes.uv.clone());
+              console.log(`Stored original UV data for ${child.name}`);
+            }
             
-            // Force material to use uv2
-            child.geometry.attributes.uv = child.geometry.attributes.uv2;
-            console.log(`Mapped UV2 to UV for ${child.name}`);
-          } else if (uvIndex === 3) {
-            // For uv3, use THREE.UVMapping and set uvTransform
-            newMaterial.defines = newMaterial.defines || {};
-            newMaterial.defines.USE_UV = '';
-            newMaterial.defines.USE_UV3 = '';
-            
-            // Force material to use uv3
-            child.geometry.attributes.uv = child.geometry.attributes.uv3;
-            console.log(`Mapped UV3 to UV for ${child.name}`);
-          } else if (uvIndex > 3) {
-            console.log(`Warning: ${uvChannel} (index ${uvIndex}) exceeds Three.js support`);
-            // For higher UV indices, we need a custom approach
-            child.geometry.attributes.uv = child.geometry.attributes[uvChannel];
-            console.log(`Mapped ${uvChannel} to UV for ${child.name}`);
+            if (uvIndex === 2) {
+              // For uv2, use THREE.UVMapping and set uvTransform
+              newMaterial.defines = newMaterial.defines || {};
+              newMaterial.defines.USE_UV = '';
+              newMaterial.defines.USE_UV2 = '';
+              
+              // Force material to use uv2
+              child.geometry.attributes.uv = child.geometry.attributes.uv2;
+              console.log(`Mapped UV2 to UV for ${child.name}`);
+            } else if (uvIndex === 3) {
+              // For uv3, use THREE.UVMapping and set uvTransform
+              newMaterial.defines = newMaterial.defines || {};
+              newMaterial.defines.USE_UV = '';
+              newMaterial.defines.USE_UV3 = '';
+              
+              // Force material to use uv3
+              child.geometry.attributes.uv = child.geometry.attributes.uv3;
+              console.log(`Mapped UV3 to UV for ${child.name}`);
+            } else if (uvIndex > 3) {
+              console.log(`Warning: ${uvChannel} (index ${uvIndex}) exceeds Three.js support`);
+              // For higher UV indices, we need a custom approach
+              child.geometry.attributes.uv = child.geometry.attributes[uvChannel];
+              console.log(`Mapped ${uvChannel} to UV for ${child.name}`);
+            }
           }
           
           // Apply the texture
@@ -825,8 +878,18 @@ function switchUvChannel(uvChannel) {
             
             // Important change: Use the same UV mapping approach as for screen meshes
             if (uvIndex === 0) {
-              // Default UV, no change needed
+              // For default UV, restore original data if available
+              if (originalUvData.has(child)) {
+                child.geometry.attributes.uv = originalUvData.get(child);
+                console.log(`Restored original UV data for ${child.name}`);
+              }
             } else {
+              // For non-default UV channels, store original UV data if not already stored
+              if (!originalUvData.has(child) && child.geometry.attributes.uv) {
+                originalUvData.set(child, child.geometry.attributes.uv.clone());
+                console.log(`Stored original UV data for ${child.name}`);
+              }
+              
               // For higher UV indices, temporarily map to the first UV channel
               child.geometry.attributes.uv = child.geometry.attributes[uvChannel];
               console.log(`Mapped ${uvChannel} to UV for ${child.name}`);
@@ -950,9 +1013,9 @@ function updateUvInfo() {
       <div><b>Screen Meshes:</b> ${screenMeshCount}</div>
       <div><b>Total Vertices:</b> ${totalVertices.toLocaleString()}</div>
       <div><b>UV Range:</b> U: ${minUCoord.toFixed(4)} to ${maxUCoord.toFixed(4)}, V: ${minVCoord.toFixed(4)} to ${maxVCoord.toFixed(4)}</div>
-    </div>
-  `;
-  
+        </div>
+      `;
+      
   // Display sample UV coordinates if available
   if (sampleMesh && sampleUvs) {
     infoHTML += `
@@ -997,7 +1060,7 @@ function updateModelInfo() {
       
       if (Array.isArray(child.material)) {
         materialCount += child.material.length;
-      } else {
+    } else {
         materialCount++;
       }
     }
@@ -1487,6 +1550,801 @@ function updateAtlasVisualization(currentOffset, currentRepeat) {
     ctx.fillText('No texture loaded', width/2, height/2);
   }
 }
+
+// Create the multi-texture material editor UI
+function createMultiTextureEditor() {
+  // Create the main container
+  const editorContainer = document.createElement('div');
+  editorContainer.id = 'multi-texture-editor';
+  editorContainer.style.position = 'absolute';
+  editorContainer.style.top = '20px';
+  editorContainer.style.right = '20px';
+  editorContainer.style.width = '350px';
+  editorContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+  editorContainer.style.border = '1px solid #666';
+  editorContainer.style.borderRadius = '5px';
+  editorContainer.style.padding = '15px';
+  editorContainer.style.color = 'white';
+  editorContainer.style.fontFamily = 'sans-serif';
+  editorContainer.style.fontSize = '14px';
+  editorContainer.style.zIndex = '1000';
+  editorContainer.style.maxHeight = '80vh';
+  editorContainer.style.overflowY = 'auto';
+  
+  // Create header
+  const header = document.createElement('div');
+  header.style.display = 'flex';
+  header.style.justifyContent = 'space-between';
+  header.style.alignItems = 'center';
+  header.style.marginBottom = '15px';
+  header.style.borderBottom = '1px solid #555';
+  header.style.paddingBottom = '10px';
+  
+  const title = document.createElement('div');
+  title.textContent = 'Multi-Texture Material Editor';
+  title.style.fontWeight = 'bold';
+  title.style.fontSize = '16px';
+  header.appendChild(title);
+  
+  // Add toggle button for multi-texture mode
+  const toggleButton = document.createElement('button');
+  toggleButton.textContent = isMultiTextureMode ? 'Disable' : 'Enable';
+  toggleButton.className = 'debug-button';
+  toggleButton.style.backgroundColor = isMultiTextureMode ? '#e74c3c' : '#2ecc71';
+  toggleButton.style.border = 'none';
+  toggleButton.style.borderRadius = '4px';
+  toggleButton.style.padding = '6px 12px';
+  toggleButton.style.cursor = 'pointer';
+  
+  toggleButton.addEventListener('click', () => {
+    isMultiTextureMode = !isMultiTextureMode;
+    toggleButton.textContent = isMultiTextureMode ? 'Disable' : 'Enable';
+    toggleButton.style.backgroundColor = isMultiTextureMode ? '#e74c3c' : '#2ecc71';
+    
+    // Apply the multi-texture material when mode is enabled
+    if (isMultiTextureMode) {
+      applyMultiTextureMaterial();
+    } else {
+      // When disabling multi-texture mode, ensure we restore original UV data
+      if (modelObject) {
+        modelObject.traverse((child) => {
+          if (child.isMesh && originalUvData.has(child)) {
+            // Restore original UV data when turning off multi-texture mode
+            child.geometry.attributes.uv = originalUvData.get(child);
+            console.log(`Restored original UV data for ${child.name} when disabling multi-texture mode`);
+          }
+        });
+      }
+      
+      // Revert to single texture mode
+      if (currentUvSet < availableUvSets.length) {
+        switchUvChannel(availableUvSets[currentUvSet]);
+      }
+    }
+    
+    // Update the UI
+    updateMultiTextureEditor();
+  });
+  
+  header.appendChild(toggleButton);
+  editorContainer.appendChild(header);
+  
+  // Create texture list section
+  const textureSection = document.createElement('div');
+  textureSection.id = 'texture-list-section';
+  textureSection.style.marginBottom = '20px';
+  
+  const textureSectionTitle = document.createElement('div');
+  textureSectionTitle.textContent = 'Available Textures';
+  textureSectionTitle.style.fontWeight = 'bold';
+  textureSectionTitle.style.marginBottom = '10px';
+  textureSection.appendChild(textureSectionTitle);
+  
+  // Add upload button
+  const uploadButton = document.createElement('button');
+  uploadButton.textContent = 'Upload Texture';
+  uploadButton.className = 'debug-button';
+  uploadButton.style.width = '100%';
+  uploadButton.style.marginBottom = '10px';
+  uploadButton.style.padding = '8px';
+  uploadButton.addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg, image/png, image/webp';
+    input.onchange = e => {
+      if (e.target.files.length) {
+        const file = e.target.files[0];
+        loadAdditionalTexture(file);
+      }
+    };
+    input.click();
+  });
+  
+  textureSection.appendChild(uploadButton);
+  
+  // Container for texture list (will be populated dynamically)
+  const textureList = document.createElement('div');
+  textureList.id = 'texture-list';
+  textureSection.appendChild(textureList);
+  
+  editorContainer.appendChild(textureSection);
+  
+  // Create UV channel mapping section
+  const mappingSection = document.createElement('div');
+  mappingSection.id = 'uv-mapping-section';
+  
+  const mappingSectionTitle = document.createElement('div');
+  mappingSectionTitle.textContent = 'UV Channel Mappings';
+  mappingSectionTitle.style.fontWeight = 'bold';
+  mappingSectionTitle.style.marginBottom = '10px';
+  mappingSection.appendChild(mappingSectionTitle);
+  
+  // Container for UV mapping controls (will be populated dynamically)
+  const mappingControls = document.createElement('div');
+  mappingControls.id = 'mapping-controls';
+  mappingSection.appendChild(mappingControls);
+  
+  editorContainer.appendChild(mappingSection);
+  
+  // Add to body
+  document.body.appendChild(editorContainer);
+  
+  // Initially hide until debug mode is activated
+  editorContainer.style.display = 'none';
+  
+  // Return the container for later reference
+  return editorContainer;
+}
+
+// Update the multi-texture editor UI based on current state
+function updateMultiTextureEditor() {
+  // Get containers
+  const editor = document.getElementById('multi-texture-editor');
+  const textureList = document.getElementById('texture-list');
+  const mappingControls = document.getElementById('mapping-controls');
+  
+  if (!editor || !textureList || !mappingControls) return;
+  
+  // Only show if in debug mode
+  if (!isDebugMode) {
+    editor.style.display = 'none';
+    return;
+  }
+  
+  editor.style.display = 'block';
+  
+  // Update texture list
+  textureList.innerHTML = '';
+  
+  // Always include the main texture first
+  if (textureObject) {
+    const textureItem = createTextureListItem(textureObject, 0, textureFile ? textureFile.name : 'Main Texture');
+    textureList.appendChild(textureItem);
+  }
+  
+  // Add other textures
+  textures.forEach((texture, index) => {
+    const textureItem = createTextureListItem(texture, index + 1, texture.userData?.fileName || `Texture ${index + 1}`);
+    textureList.appendChild(textureItem);
+  });
+  
+  if (textureList.children.length === 0) {
+    const noTextures = document.createElement('div');
+    noTextures.textContent = 'No textures available. Upload textures to begin.';
+    noTextures.style.fontStyle = 'italic';
+    noTextures.style.color = '#999';
+    noTextures.style.padding = '10px 0';
+    textureList.appendChild(noTextures);
+  }
+  
+  // Update UV mapping controls
+  mappingControls.innerHTML = '';
+  
+  if (availableUvSets.length === 0) {
+    const noUvs = document.createElement('div');
+    noUvs.textContent = 'No UV channels detected in model.';
+    noUvs.style.fontStyle = 'italic';
+    noUvs.style.color = '#999';
+    noUvs.style.padding = '10px 0';
+    mappingControls.appendChild(noUvs);
+    return;
+  }
+  
+  // Create controls for each UV channel
+  availableUvSets.forEach((uvChannel, index) => {
+    const channelControl = createUvChannelControl(uvChannel, uvSetNames[index]);
+    mappingControls.appendChild(channelControl);
+  });
+}
+
+// Create a texture list item for the editor
+function createTextureListItem(texture, index, name) {
+  const container = document.createElement('div');
+  container.className = 'texture-item';
+  container.style.display = 'flex';
+  container.style.alignItems = 'center';
+  container.style.marginBottom = '10px';
+  container.style.padding = '8px';
+  container.style.backgroundColor = '#333';
+  container.style.borderRadius = '4px';
+  
+  // Create thumbnail
+  const thumbnail = document.createElement('canvas');
+  thumbnail.width = 60;
+  thumbnail.height = 60;
+  thumbnail.style.border = '1px solid #555';
+  thumbnail.style.marginRight = '10px';
+  
+  // Draw texture to thumbnail
+  const ctx = thumbnail.getContext('2d');
+  if (texture.image) {
+    ctx.drawImage(texture.image, 0, 0, 60, 60);
+  } else {
+    ctx.fillStyle = '#222';
+    ctx.fillRect(0, 0, 60, 60);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('No Image', 30, 30);
+  }
+  
+  container.appendChild(thumbnail);
+  
+  // Create texture info
+  const info = document.createElement('div');
+  info.style.flex = '1';
+  
+  const textureName = document.createElement('div');
+  textureName.textContent = name;
+  textureName.style.fontWeight = 'bold';
+  info.appendChild(textureName);
+  
+  if (texture.image) {
+    const textureDimensions = document.createElement('div');
+    textureDimensions.textContent = `${texture.image.width} × ${texture.image.height}`;
+    textureDimensions.style.fontSize = '12px';
+    textureDimensions.style.color = '#aaa';
+    info.appendChild(textureDimensions);
+  }
+  
+  container.appendChild(info);
+  
+  // Create remove button (not for main texture)
+  if (index > 0) {
+    const removeButton = document.createElement('button');
+    removeButton.textContent = '×';
+    removeButton.className = 'debug-button';
+    removeButton.style.width = '30px';
+    removeButton.style.height = '30px';
+    removeButton.style.padding = '0';
+    removeButton.style.borderRadius = '50%';
+    removeButton.style.backgroundColor = '#e74c3c';
+    removeButton.style.marginLeft = '10px';
+    
+    removeButton.addEventListener('click', () => {
+      // Remove texture and update mappings
+      removeTexture(index - 1);
+    });
+    
+    container.appendChild(removeButton);
+  }
+  
+  return container;
+}
+
+// Create UI controls for a single UV channel
+function createUvChannelControl(uvChannel, displayName) {
+  const container = document.createElement('div');
+  container.className = 'uv-channel-control';
+  container.style.marginBottom = '15px';
+  container.style.padding = '10px';
+  container.style.backgroundColor = '#333';
+  container.style.borderRadius = '4px';
+  
+  // Channel name
+  const channelName = document.createElement('div');
+  channelName.textContent = displayName.split(' - ')[0]; // Just show the UV name, not the full description
+  channelName.style.fontWeight = 'bold';
+  channelName.style.marginBottom = '8px';
+  container.appendChild(channelName);
+  
+  // Create controls row
+  const controlsRow = document.createElement('div');
+  controlsRow.style.display = 'flex';
+  controlsRow.style.alignItems = 'center';
+  controlsRow.style.gap = '10px';
+  
+  // Texture selector
+  const textureSelect = document.createElement('select');
+  textureSelect.style.flex = '1';
+  textureSelect.style.padding = '5px';
+  textureSelect.style.backgroundColor = '#444';
+  textureSelect.style.color = 'white';
+  textureSelect.style.border = '1px solid #555';
+  textureSelect.style.borderRadius = '3px';
+  
+  // Add disabled option
+  const disabledOption = document.createElement('option');
+  disabledOption.value = '-1';
+  disabledOption.textContent = 'None';
+  textureSelect.appendChild(disabledOption);
+  
+  // Add main texture
+  if (textureObject) {
+    const mainOption = document.createElement('option');
+    mainOption.value = '0';
+    mainOption.textContent = textureFile ? textureFile.name : 'Main Texture';
+    textureSelect.appendChild(mainOption);
+  }
+  
+  // Add other textures
+  textures.forEach((texture, index) => {
+    const option = document.createElement('option');
+    option.value = (index + 1).toString();
+    option.textContent = texture.userData?.fileName || `Texture ${index + 1}`;
+    textureSelect.appendChild(option);
+  });
+  
+  // Set current value
+  textureSelect.value = activeTextures[uvChannel] !== undefined ? activeTextures[uvChannel].toString() : '-1';
+  
+  // Add change event
+  textureSelect.addEventListener('change', function() {
+    const value = parseInt(this.value);
+    if (value >= 0) {
+      activeTextures[uvChannel] = value;
+    } else {
+      delete activeTextures[uvChannel];
+    }
+    
+    // Update material if in multi-texture mode
+    if (isMultiTextureMode) {
+      applyMultiTextureMaterial();
+    }
+  });
+  
+  controlsRow.appendChild(textureSelect);
+  
+  // Blend mode selector
+  const blendSelect = document.createElement('select');
+  blendSelect.style.width = '100px';
+  blendSelect.style.padding = '5px';
+  blendSelect.style.backgroundColor = '#444';
+  blendSelect.style.color = 'white';
+  blendSelect.style.border = '1px solid #555';
+  blendSelect.style.borderRadius = '3px';
+  
+  // Add blend modes
+  const blendModeOptions = [
+    { value: 'normal', label: 'Normal' },
+    { value: 'add', label: 'Add' },
+    { value: 'multiply', label: 'Multiply' },
+    { value: 'screen', label: 'Screen' }
+  ];
+  
+  blendModeOptions.forEach(mode => {
+    const option = document.createElement('option');
+    option.value = mode.value;
+    option.textContent = mode.label;
+    blendSelect.appendChild(option);
+  });
+  
+  // Set current value
+  blendSelect.value = blendModes[uvChannel] || 'normal';
+  
+  // Add change event
+  blendSelect.addEventListener('change', function() {
+    blendModes[uvChannel] = this.value;
+    
+    // Update material if in multi-texture mode
+    if (isMultiTextureMode) {
+      applyMultiTextureMaterial();
+    }
+  });
+  
+  controlsRow.appendChild(blendSelect);
+  
+  container.appendChild(controlsRow);
+  
+  // Intensity slider
+  const intensityContainer = document.createElement('div');
+  intensityContainer.style.marginTop = '10px';
+  
+  const intensityLabel = document.createElement('div');
+  intensityLabel.textContent = 'Intensity:';
+  intensityLabel.style.marginBottom = '5px';
+  intensityLabel.style.fontSize = '12px';
+  intensityContainer.appendChild(intensityLabel);
+  
+  const intensityControls = document.createElement('div');
+  intensityControls.style.display = 'flex';
+  intensityControls.style.alignItems = 'center';
+  intensityControls.style.gap = '10px';
+  
+  const intensitySlider = document.createElement('input');
+  intensitySlider.type = 'range';
+  intensitySlider.min = '0';
+  intensitySlider.max = '100';
+  intensitySlider.step = '1';
+  intensitySlider.style.flex = '1';
+  
+  // Set current value
+  intensitySlider.value = Math.round((textureIntensities[uvChannel] || 1) * 100);
+  
+  const intensityValue = document.createElement('div');
+  intensityValue.textContent = `${intensitySlider.value}%`;
+  intensityValue.style.width = '40px';
+  intensityValue.style.textAlign = 'right';
+  
+  // Add change event
+  intensitySlider.addEventListener('input', function() {
+    const value = parseInt(this.value) / 100;
+    textureIntensities[uvChannel] = value;
+    intensityValue.textContent = `${this.value}%`;
+    
+    // Update material if in multi-texture mode
+    if (isMultiTextureMode) {
+      applyMultiTextureMaterial();
+    }
+  });
+  
+  intensityControls.appendChild(intensitySlider);
+  intensityControls.appendChild(intensityValue);
+  intensityContainer.appendChild(intensityControls);
+  
+  container.appendChild(intensityContainer);
+  
+  return container;
+}
+
+// Load additional texture
+function loadAdditionalTexture(file) {
+  console.log('Loading additional texture:', file.name);
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(e.target.result, (texture) => {
+      texture.flipY = false; // Often needed for GLB textures
+      
+      // Set proper texture settings
+      texture.wrapS = THREE.ClampToEdgeWrapping;
+      texture.wrapT = THREE.ClampToEdgeWrapping;
+      texture.minFilter = THREE.LinearFilter; 
+      texture.magFilter = THREE.LinearFilter;
+      
+      // Store metadata
+      texture.userData = {
+        fileName: file.name,
+        fileSize: file.size
+      };
+      
+      // Add to textures array
+      textures.push(texture);
+      console.log(`Added texture ${file.name} to library (index ${textures.length})`);
+      
+      // Update editor UI
+      updateMultiTextureEditor();
+      
+      // If multi-texture mode is active, update the material
+      if (isMultiTextureMode) {
+        applyMultiTextureMaterial();
+      }
+    }, undefined, (error) => {
+      console.error('Error loading texture:', error);
+      alert('Error loading the texture file. Please try a different file.');
+    });
+  };
+  
+  reader.readAsDataURL(file);
+}
+
+// Remove a texture from the library
+function removeTexture(index) {
+  if (index < 0 || index >= textures.length) return;
+  
+  // Remove texture
+  const removedTexture = textures.splice(index, 1)[0];
+  console.log(`Removed texture ${removedTexture.userData?.fileName || 'unknown'}`);
+  
+  // Update any mappings that used this texture
+  Object.keys(activeTextures).forEach(channel => {
+    const textureIndex = activeTextures[channel];
+    if (textureIndex === index + 1) {
+      // Texture was removed, so remove mapping
+      delete activeTextures[channel];
+    } else if (textureIndex > index + 1) {
+      // Texture was after the removed one, decrement index
+      activeTextures[channel] = textureIndex - 1;
+    }
+  });
+  
+  // Update editor UI
+  updateMultiTextureEditor();
+  
+  // If multi-texture mode is active, update the material
+  if (isMultiTextureMode) {
+    applyMultiTextureMaterial();
+  }
+}
+
+// Apply the multi-texture material to all screen meshes
+function applyMultiTextureMaterial() {
+  if (!modelObject) return;
+  
+  console.log('Applying multi-texture material...');
+  
+  // Check if we have any active texture mappings
+  const activeChannels = Object.keys(activeTextures);
+  if (activeChannels.length === 0) {
+    console.log('No active texture mappings defined');
+    return;
+  }
+  
+  // First, find all screen meshes
+  modelObject.traverse((child) => {
+    if (child.isMesh) {
+      const isScreenMesh = child.name.toLowerCase().includes('screen') || 
+                          child.name.toLowerCase().includes('display') || 
+                          child.name.toLowerCase().includes('monitor');
+      
+      if (isScreenMesh) {
+        console.log(`Setting up multi-texture material for: ${child.name}`);
+        
+        // Find which UV channels this mesh has
+        const meshUvChannels = [];
+        
+        // Check which active UV channels are present on this mesh
+        activeChannels.forEach(channel => {
+          if (child.geometry.attributes[channel]) {
+            meshUvChannels.push(channel);
+          }
+        });
+        
+        if (meshUvChannels.length === 0) {
+          console.log(`No mapped UV channels found on mesh: ${child.name}`);
+          return;
+        }
+        
+        // Create a custom multi-texture material
+        createMultiTextureMaterial(child, meshUvChannels);
+      }
+    }
+  });
+  
+  // Force a re-render
+  renderer.render(scene, camera);
+}
+
+// Create a custom multi-texture material for a mesh
+function createMultiTextureMaterial(mesh, uvChannels) {
+  // Collect textures for each channel
+  const textureInfos = [];
+  
+  uvChannels.forEach(channel => {
+    const textureIndex = activeTextures[channel];
+    if (textureIndex !== undefined) {
+      // Get the texture
+      const texture = textureIndex === 0 ? textureObject : textures[textureIndex - 1];
+      if (!texture) return;
+      
+      // Get blend mode and intensity
+      const blendMode = blendModes[channel] || 'normal';
+      const intensity = textureIntensities[channel] || 1.0;
+      
+      // Get UV index (0 for uv, 1 for uv2, etc.)
+      const uvIndex = parseInt(channel.replace('uv', '')) || 0;
+      
+      textureInfos.push({
+        texture: texture,
+        uvChannel: channel,
+        uvIndex: uvIndex,
+        blendMode: blendMode,
+        intensity: intensity
+      });
+    }
+  });
+  
+  if (textureInfos.length === 0) {
+    console.log(`No valid textures found for mesh: ${mesh.name}`);
+    return;
+  }
+  
+  console.log(`Creating material with ${textureInfos.length} textures for ${mesh.name}`);
+  
+  // For simple case with just one texture, use standard material
+  if (textureInfos.length === 1 && textureInfos[0].blendMode === 'normal') {
+    const info = textureInfos[0];
+    
+    // Create a standard material
+    const material = new THREE.MeshStandardMaterial();
+    material.roughness = 0.1;
+    material.metalness = 0.2;
+    
+    // Clone the texture to avoid cross-references
+    const tex = info.texture.clone();
+    
+    // If this is not the first UV channel, we need to map it
+    if (info.uvIndex > 0) {
+      // Store original UV data if we haven't already
+      if (!originalUvData.has(mesh) && mesh.geometry.attributes.uv) {
+        originalUvData.set(mesh, mesh.geometry.attributes.uv.clone());
+        console.log(`Stored original UV data for ${mesh.name} in multi-texture mode`);
+      }
+      
+      // Copy the UV data to the primary UV channel
+      mesh.geometry.attributes.uv = mesh.geometry.attributes[info.uvChannel];
+      console.log(`Mapped ${info.uvChannel} to UV for ${mesh.name}`);
+    } else if (originalUvData.has(mesh)) {
+      // For UV0, restore original data if needed
+      mesh.geometry.attributes.uv = originalUvData.get(mesh);
+      console.log(`Restored original UV data for ${mesh.name} in multi-texture mode`);
+    }
+    
+    // Apply the texture
+    material.map = tex;
+    material.emissiveMap = tex;
+    material.emissive.set(info.intensity, info.intensity, info.intensity);
+    
+    // Apply the material
+    mesh.material = material;
+    material.needsUpdate = true;
+    
+    console.log(`Applied single-texture material to ${mesh.name}`);
+    return;
+  }
+  
+  // For multiple textures, we need a custom shader material
+  
+  // Create uniforms and texture definitions for the shader
+  const uniforms = {
+    u_time: { value: 0 }
+  };
+  
+  // Texture definitions for shader
+  let textureUniforms = '';
+  let uvDefinitions = '';
+  let blendingCode = '';
+  
+  textureInfos.forEach((info, index) => {
+    // Create uniform for this texture
+    const texName = `u_texture${index}`;
+    uniforms[texName] = { value: info.texture };
+    
+    // Create uniform for intensity
+    const intensityName = `u_intensity${index}`;
+    uniforms[intensityName] = { value: info.intensity };
+    
+    // Add texture sampler to shader
+    textureUniforms += `uniform sampler2D ${texName};\n`;
+    textureUniforms += `uniform float ${intensityName};\n`;
+    
+    // Get attribute name for UVs
+    const uvAttributeName = info.uvIndex === 0 ? 'uv' : `uv${info.uvIndex + 1}`;
+    
+    // Add UV definition
+    if (info.uvIndex === 0) {
+      uvDefinitions += `vec2 texCoords${index} = vUv;\n`;
+    } else {
+      // Need to check if the vUv2, vUv3, etc. are already defined
+      if (uvDefinitions.indexOf(`varying vec2 vUv${info.uvIndex}`) === -1) {
+        // Add varying declaration to be used in vertex shader
+        uvDefinitions = `varying vec2 vUv${info.uvIndex};\n` + uvDefinitions;
+      }
+      uvDefinitions += `vec2 texCoords${index} = vUv${info.uvIndex};\n`;
+    }
+    
+    // Add blending code based on blend mode
+    if (index === 0) {
+      // First texture is base
+      blendingCode += `vec4 finalColor = texture2D(${texName}, texCoords${index}) * ${intensityName};\n`;
+    } else {
+      // Additional textures are blended
+      switch (info.blendMode) {
+        case 'add':
+          blendingCode += `finalColor += texture2D(${texName}, texCoords${index}) * ${intensityName};\n`;
+          break;
+        case 'multiply':
+          blendingCode += `finalColor *= mix(vec4(1.0), texture2D(${texName}, texCoords${index}), ${intensityName});\n`;
+          break;
+        case 'screen':
+          blendingCode += `{\n`;
+          blendingCode += `  vec4 texColor = texture2D(${texName}, texCoords${index});\n`;
+          blendingCode += `  finalColor = vec4(1.0) - (vec4(1.0) - finalColor) * (vec4(1.0) - texColor * ${intensityName});\n`;
+          blendingCode += `}\n`;
+          break;
+        default: // 'normal'
+          blendingCode += `{\n`;
+          blendingCode += `  vec4 texColor = texture2D(${texName}, texCoords${index});\n`;
+          blendingCode += `  finalColor = mix(finalColor, texColor, texColor.a * ${intensityName});\n`;
+          blendingCode += `}\n`;
+      }
+    }
+  });
+  
+  // Create the vertex shader
+  let vertexShader = `
+    varying vec2 vUv;
+    ${textureInfos.some(info => info.uvIndex > 0) ? 'attribute vec2 uv2;\nattribute vec2 uv3;\nattribute vec2 uv4;' : ''}
+    ${textureInfos.some(info => info.uvIndex === 1) ? 'varying vec2 vUv1;' : ''}
+    ${textureInfos.some(info => info.uvIndex === 2) ? 'varying vec2 vUv2;' : ''}
+    ${textureInfos.some(info => info.uvIndex === 3) ? 'varying vec2 vUv3;' : ''}
+    
+    void main() {
+      vUv = uv;
+      ${textureInfos.some(info => info.uvIndex === 1) ? 'vUv1 = uv2;' : ''}
+      ${textureInfos.some(info => info.uvIndex === 2) ? 'vUv2 = uv3;' : ''}
+      ${textureInfos.some(info => info.uvIndex === 3) ? 'vUv3 = uv4;' : ''}
+      
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `;
+  
+  // Create the fragment shader
+  let fragmentShader = `
+    uniform float u_time;
+    varying vec2 vUv;
+    ${textureUniforms}
+    
+    void main() {
+      ${uvDefinitions}
+      
+      ${blendingCode}
+      
+      // Make sure alpha is not premultiplied for emissive
+      finalColor.rgb *= finalColor.a;
+      
+      gl_FragColor = finalColor;
+    }
+  `;
+  
+  // Create the material
+  const material = new THREE.ShaderMaterial({
+    uniforms: uniforms,
+    vertexShader: vertexShader,
+    fragmentShader: fragmentShader,
+    transparent: true,
+    side: THREE.DoubleSide,
+    emissive: new THREE.Color(1, 1, 1),
+    emissiveIntensity: 1
+  });
+  
+  // Apply the material
+  mesh.material = material;
+  
+  console.log(`Applied multi-texture shader material to ${mesh.name}`);
+}
+
+// Update function to animate the shader material
+function updateShaderMaterials() {
+  // Update shader time uniform
+  const time = performance.now() * 0.001; // Time in seconds
+  
+  if (modelObject) {
+    modelObject.traverse((child) => {
+      if (child.isMesh && child.material instanceof THREE.ShaderMaterial && child.material.uniforms.u_time) {
+        child.material.uniforms.u_time.value = time;
+      }
+    });
+  }
+}
+
+// Add multi-texture editor initialization to main init function
+const originalInit = init;
+init = function() {
+  originalInit();
+  
+  // Create and initialize the multi-texture editor
+  createMultiTextureEditor();
+  
+  // Update animation function to include shader updates
+  const originalAnimate = animate;
+  animate = function() {
+    updateShaderMaterials();
+    originalAnimate();
+  };
+};
 
 // Initialize the application and start animation loop
 init(); 
