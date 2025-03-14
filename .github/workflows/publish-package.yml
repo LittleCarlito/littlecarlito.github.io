@@ -23,7 +23,7 @@ jobs:
       blorktools_version_changed: ${{ steps.extract-metadata.outputs.blorktools_version_changed }}
     steps:
       - name: Download version metadata
-        uses: dawidd6/action-download-artifact@v2
+        uses: dawidd6/action-download-artifact@v3
         with:
           workflow: release.yml
           name: version-metadata
