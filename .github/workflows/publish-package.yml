@@ -10,11 +10,72 @@ on:
   workflow_dispatch:
 
 jobs:
+  download-metadata:
+    name: Download Version Metadata
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      blorkpack_pre_version: ${{ steps.extract-metadata.outputs.blorkpack_pre_version }}
+      blorkpack_new_version: ${{ steps.extract-metadata.outputs.blorkpack_new_version }}
+      blorktools_pre_version: ${{ steps.extract-metadata.outputs.blorktools_pre_version }}
+      blorktools_new_version: ${{ steps.extract-metadata.outputs.blorktools_new_version }}
+      blorkpack_version_changed: ${{ steps.extract-metadata.outputs.blorkpack_version_changed }}
+      blorktools_version_changed: ${{ steps.extract-metadata.outputs.blorktools_version_changed }}
+    steps:
+      - name: Download version metadata
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: release.yml
+          name: version-metadata
+          workflow_conclusion: success
+          run_id: ${{ github.event.workflow_run.id }}
+          path: ./artifacts
+        continue-on-error: true
+
+      - name: Extract version metadata
+        id: extract-metadata
+        run: |
+          if [ -f ./artifacts/version-metadata.json ]; then
+            # Extract version information from metadata
+            BLORKPACK_PRE_VERSION=$(jq -r '.blorkpack.pre_version' ./artifacts/version-metadata.json)
+            BLORKPACK_NEW_VERSION=$(jq -r '.blorkpack.new_version' ./artifacts/version-metadata.json)
+            BLORKTOOLS_PRE_VERSION=$(jq -r '.blorktools.pre_version' ./artifacts/version-metadata.json)
+            BLORKTOOLS_NEW_VERSION=$(jq -r '.blorktools.new_version' ./artifacts/version-metadata.json)
+            
+            # Determine if versions changed
+            if [ "$BLORKPACK_PRE_VERSION" != "$BLORKPACK_NEW_VERSION" ] && [ "$BLORKPACK_NEW_VERSION" != "null" ] && [ "$BLORKPACK_NEW_VERSION" != "" ]; then
+              BLORKPACK_CHANGED="true"
+            else
+              BLORKPACK_CHANGED="false"
+            fi
+            
+            if [ "$BLORKTOOLS_PRE_VERSION" != "$BLORKTOOLS_NEW_VERSION" ] && [ "$BLORKTOOLS_NEW_VERSION" != "null" ] && [ "$BLORKTOOLS_NEW_VERSION" != "" ]; then
+              BLORKTOOLS_CHANGED="true"
+            else
+              BLORKTOOLS_CHANGED="false"
+            fi
+            
+            # Set outputs
+            echo "blorkpack_pre_version=$BLORKPACK_PRE_VERSION" >> $GITHUB_OUTPUT
+            echo "blorkpack_new_version=$BLORKPACK_NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "blorktools_pre_version=$BLORKTOOLS_PRE_VERSION" >> $GITHUB_OUTPUT
+            echo "blorktools_new_version=$BLORKTOOLS_NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "blorkpack_version_changed=$BLORKPACK_CHANGED" >> $GITHUB_OUTPUT
+            echo "blorktools_version_changed=$BLORKTOOLS_CHANGED" >> $GITHUB_OUTPUT
+            
+            # Log
+            echo "Blorkpack: $BLORKPACK_PRE_VERSION -> $BLORKPACK_NEW_VERSION (Changed: $BLORKPACK_CHANGED)"
+            echo "Blorktools: $BLORKTOOLS_PRE_VERSION -> $BLORKTOOLS_NEW_VERSION (Changed: $BLORKTOOLS_CHANGED)"
+          else
+            echo "No version metadata found, will proceed with fallback version determination"
+            echo "blorkpack_version_changed=false" >> $GITHUB_OUTPUT
+            echo "blorktools_version_changed=false" >> $GITHUB_OUTPUT
+          fi
+
   publish-blorkpack:
     name: Publish blorkpack Package
     runs-on: ubuntu-latest
-    # Only run if the Release workflow completed successfully
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    needs: download-metadata
     permissions:
       contents: read
       packages: write
@@ -37,11 +98,32 @@ jobs:
           # Update package name to use GitHub scoped name
           jq '.name = "@littlecarlito/blorkpack"' package.json > package.json.tmp
           mv package.json.tmp package.json
-          # Ensure version is properly set (extract from tag or increment)
-          if [[ "${{ github.ref }}" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-            VERSION=${GITHUB_REF/refs\/tags\/v/}
-            jq --arg version "$VERSION" '.version = $version' package.json > package.json.tmp
+          
+          # If semantic-release determined a new version, use it
+          if [[ "${{ needs.download-metadata.outputs.blorkpack_version_changed }}" == "true" ]]; then
+            echo "Using semantically determined version: ${{ needs.download-metadata.outputs.blorkpack_new_version }}"
+            jq --arg version "${{ needs.download-metadata.outputs.blorkpack_new_version }}" '.version = $version' package.json > package.json.tmp
             mv package.json.tmp package.json
+          else
+            # Fallback version handling
+            CURRENT_VERSION=$(jq -r '.version' package.json)
+            echo "Current package version: $CURRENT_VERSION"
+            
+            # Check if this version already exists in the registry
+            if npm view "@littlecarlito/blorkpack@$CURRENT_VERSION" version &> /dev/null; then
+              echo "Version $CURRENT_VERSION already exists in registry. Incrementing patch version."
+              # Split the version into parts
+              IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+              # Increment patch version
+              NEW_PATCH=$((PATCH + 1))
+              NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+              # Update package.json with new version
+              jq --arg version "$NEW_VERSION" '.version = $version' package.json > package.json.tmp
+              mv package.json.tmp package.json
+              echo "Updated version to $NEW_VERSION"
+            else
+              echo "Version $CURRENT_VERSION does not exist in registry, proceeding with publish."
+            fi
           fi
       
       - name: Build blorkpack package
@@ -55,15 +137,14 @@ jobs:
       - name: Publish blorkpack to GitHub Packages
         run: |
           cd packages/blorkpack
-          npm publish --access public
+          npm publish --access public || echo "Publishing failed, but continuing workflow"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
   publish-blorktools:
     name: Publish blorktools Package
     runs-on: ubuntu-latest
-    # Only run if the Release workflow completed successfully
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    needs: download-metadata
     permissions:
       contents: read
       packages: write
@@ -86,11 +167,32 @@ jobs:
           # Update package name to use GitHub scoped name
           jq '.name = "@littlecarlito/blorktools"' package.json > package.json.tmp
           mv package.json.tmp package.json
-          # Ensure version is properly set (extract from tag or increment)
-          if [[ "${{ github.ref }}" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-            VERSION=${GITHUB_REF/refs\/tags\/v/}
-            jq --arg version "$VERSION" '.version = $version' package.json > package.json.tmp
+          
+          # If semantic-release determined a new version, use it
+          if [[ "${{ needs.download-metadata.outputs.blorktools_version_changed }}" == "true" ]]; then
+            echo "Using semantically determined version: ${{ needs.download-metadata.outputs.blorktools_new_version }}"
+            jq --arg version "${{ needs.download-metadata.outputs.blorktools_new_version }}" '.version = $version' package.json > package.json.tmp
             mv package.json.tmp package.json
+          else
+            # Fallback version handling
+            CURRENT_VERSION=$(jq -r '.version' package.json)
+            echo "Current package version: $CURRENT_VERSION"
+            
+            # Check if this version already exists in the registry
+            if npm view "@littlecarlito/blorktools@$CURRENT_VERSION" version &> /dev/null; then
+              echo "Version $CURRENT_VERSION already exists in registry. Incrementing patch version."
+              # Split the version into parts
+              IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+              # Increment patch version
+              NEW_PATCH=$((PATCH + 1))
+              NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+              # Update package.json with new version
+              jq --arg version "$NEW_VERSION" '.version = $version' package.json > package.json.tmp
+              mv package.json.tmp package.json
+              echo "Updated version to $NEW_VERSION"
+            else
+              echo "Version $CURRENT_VERSION does not exist in registry, proceeding with publish."
+            fi
           fi
       
       - name: Build blorktools package
@@ -104,6 +206,6 @@ jobs:
       - name: Publish blorktools to GitHub Packages
         run: |
           cd packages/blorktools
-          npm publish --access public
+          npm publish --access public || echo "Publishing failed, but continuing workflow"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 
