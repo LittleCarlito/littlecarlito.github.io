@@ -61,7 +61,7 @@ jobs:
           cat package.json
           
       - name: Install Production Dependencies
-        run: npm ci
+        run: npm install
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         

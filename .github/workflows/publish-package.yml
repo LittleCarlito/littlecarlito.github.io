@@ -91,7 +91,6 @@ jobs:
           node-version: '20.x'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
-          cache: ''
       
       - name: Configure blorkpack package.json for publishing
         run: |
@@ -130,8 +129,8 @@ jobs:
       - name: Build blorkpack package
         run: |
           cd packages/blorkpack
-          # Use npm ci for better reproducibility now that lock files exist
-          npm ci
+          # Use npm install until lock files are fully committed
+          npm install
           npm run build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -162,7 +161,6 @@ jobs:
           node-version: '20.x'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
-          cache: ''
       
       - name: Configure blorktools package.json for publishing
         run: |
@@ -201,8 +199,8 @@ jobs:
       - name: Build blorktools package
         run: |
           cd packages/blorktools
-          # Use npm ci for better reproducibility now that lock files exist
-          npm ci
+          # Use npm install until lock files are fully committed
+          npm install
           npm run build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
