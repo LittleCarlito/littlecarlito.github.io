@@ -1,11 +1,12 @@
 import { defineConfig } from 'vite';
-import { resolve } from 'path';
+import path from 'path';
 
 export default defineConfig({
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/index.js'),
-      name: 'AssetManagement',
+      entry: path.resolve(__dirname, 'src/index.js'),
+      name: 'BlorkPack',
+      formats: ['es'],
       fileName: 'index'
     },
     rollupOptions: {
@@ -14,7 +15,8 @@ export default defineConfig({
         globals: {
           three: 'THREE',
           '@dimforge/rapier3d-compat': 'RAPIER'
-        }
+        },
+        sourcemap: true
       }
     }
   }

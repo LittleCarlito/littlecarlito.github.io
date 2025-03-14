@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "semantic-release": "semantic-release",
-    "tools": "cd packages/blorktools && npm run tools"
+    "tools": "cd packages/blorktools && npm run tools",
+    "preinstall": "node -e \"if(process.env.NODE_ENV === 'production') {process.exit(0)} try { require('fs').unlinkSync('./package-lock.json') } catch(e){}\""
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.14.0",
@@ -27,6 +28,9 @@
     "vite": "^6.0.11"
   },
   "resolutions": {
-    "@littlecarlito/blorkpack": "1.0.1"
+    "@littlecarlito/blorkpack": "file:packages/blorkpack"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }

@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   workflow_run:
-    workflows: ["Release"]
+    workflows: ["Publish Package to GitHub Packages"]
     types:
       - completed
 
@@ -16,7 +16,7 @@ jobs:
   build-and-deploy:
     name: Build and Deploy to GitHub Pages
     runs-on: ubuntu-latest
-    # Only run this job if the Release workflow completed successfully
+    # Only run this job if the Package Publishing workflow completed successfully
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout latest code
@@ -32,10 +32,21 @@ jobs:
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
           
+      - name: Get Latest package version
+        id: get_version
+        run: |
+          echo "LATEST_VERSION=$(npm view @littlecarlito/blorkpack version --registry=https://npm.pkg.github.com/)" >> $GITHUB_OUTPUT
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          
       - name: Configure package for production deployment
         run: |
-          # Update dependency to use the GitHub package instead of the local version
-          jq '.dependencies."@littlecarlito/blorkpack" = "@littlecarlito/blorkpack@1.0.1"' package.json > package.json.tmp
+          # Update dependency to use the GitHub package with latest version
+          jq --arg version "${{ steps.get_version.outputs.LATEST_VERSION }}" '.dependencies."@littlecarlito/blorkpack" = "@littlecarlito/blorkpack@" + $version' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Add a resolution to ensure the correct version is used
+          jq --arg version "${{ steps.get_version.outputs.LATEST_VERSION }}" '.resolutions."@littlecarlito/blorkpack" = $version' package.json > package.json.tmp
           mv package.json.tmp package.json
           
           # Remove tests directory to avoid build issues
@@ -44,6 +55,10 @@ jobs:
           # Create .npmrc for authentication
           echo "@littlecarlito:registry=https://npm.pkg.github.com/" > .npmrc
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.PACKAGE_TOKEN }}" >> .npmrc
+          
+          # Add debug output
+          echo "Updated package.json:"
+          cat package.json
           
       - name: Install Production Dependencies
         run: npm install
