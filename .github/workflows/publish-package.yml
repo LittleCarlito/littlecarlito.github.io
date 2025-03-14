@@ -1,16 +1,16 @@
 name: Publish Package to GitHub Packages
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'packages/blorkpack/**'
-      - 'packages/blorktools/**'
+  workflow_run:
+    workflows: ["Release"]
+    types:
+      - completed
   workflow_dispatch:
 
 jobs:
   publish-blorkpack:
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: read
       packages: write
@@ -56,6 +56,7 @@ jobs:
 
   publish-blorktools:
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: read
       packages: write
