@@ -1,3 +1,10 @@
+## [0.11.3](https://github.com/littlecarlito/threejs_site/compare/v0.11.2...v0.11.3) (2025-03-14)
+
+
+### Bug Fixes
+
+* blank cache ([#87](https://github.com/littlecarlito/threejs_site/issues/87)) ([ce2ad7c](https://github.com/littlecarlito/threejs_site/commit/ce2ad7c1dd60880de4fa788447472bc68c4ebffa))
+
 ## [0.11.2](https://github.com/littlecarlito/threejs_site/compare/v0.11.1...v0.11.2) (2025-03-14)
 
 
