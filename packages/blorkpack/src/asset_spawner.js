@@ -4,6 +4,13 @@ import { ASSET_CONFIGS, ASSET_TYPE } from "./asset_type.js";
 import { AssetStorage } from "./asset_storage.js";
 import { BLORKPACK_FLAGS } from "./blorkpack_flags.js";
 
+// Configuration constants
+/**
+ * Default length for debug visualization mesh of spotlights with unlimited range (distance=0)
+ * Adjust this value to make unlimited spotlight debug meshes longer or shorter
+ */
+const UNLIMITED_SPOTLIGHT_DEBUG_LENGTH = 400;
+
 /**
  * Generates triangle indices for a geometry that doesn't have them
  * @param {THREE.BufferGeometry} geometry - The geometry to generate indices for
@@ -1134,6 +1141,7 @@ export class AssetSpawner {
         console.log(`Creating helper for spotlight at position: x=${spotlight.position.x}, y=${spotlight.position.y}, z=${spotlight.position.z}`);
         console.log(`Spotlight properties: angle=${spotlight.angle}, distance=${spotlight.distance}, intensity=${spotlight.intensity}`);
         console.log(`Spotlight target position: x=${spotlight.target.position.x}, y=${spotlight.target.position.y}, z=${spotlight.target.position.z}`);
+        console.log(`Spotlight hasCustomTarget: ${spotlight.userData && spotlight.userData.hasCustomTarget}`);
         
         // Create shared materials for debug visualization with a single static color
         const sharedDebugMaterials = {
@@ -1193,11 +1201,24 @@ export class AssetSpawner {
             return { helper };
         }
         
-        const distance = spotlightToTarget.length();
-        const height = distance;
+        // Calculate distance to target (used for direction)
+        const distanceToTarget = spotlightToTarget.length();
+        
+        // Set the height of the cone based on the spotlight's distance property
+        let height;
+        if (spotlight.distance > 0) {
+            // If spotlight has a defined distance/range, use that exact value
+            height = spotlight.distance;
+            console.log(`Using spotlight's defined distance for height: ${height}`);
+        } else {
+            // For spotlights with unlimited range (distance=0), use a large value
+            height = UNLIMITED_SPOTLIGHT_DEBUG_LENGTH;
+            console.log(`Using large default height for unlimited spotlight: ${height}`);
+        }
+        
         const radius = Math.tan(spotlight.angle) * height;
         
-        console.log(`Cone dimensions: radius=${radius}, height=${height}, distance=${distance}`);
+        console.log(`Cone dimensions: radius=${radius}, height=${height}, distanceToTarget=${distanceToTarget}, spotlightDistance=${spotlight.distance}`);
         
         console.log(`Creating cone geometry...`);
         const geometry = new THREE.ConeGeometry(radius, height, 32, 32, true);
@@ -1502,6 +1523,9 @@ export class AssetSpawner {
             }
             // Create and position target
             const target = new THREE.Object3D();
+            // Flag to track if a custom target is used
+            let hasCustomTarget = false;
+            
             // If target data is provided in the asset data, use that
             if (asset_data?.target && asset_data.target.position) {
                 target.position.set(
@@ -1509,6 +1533,7 @@ export class AssetSpawner {
                     asset_data.target.position.y || 0, 
                     asset_data.target.position.z || 0
                 );
+                hasCustomTarget = true;
             } else {
                 // Otherwise calculate target position based on rotation
                 const targetDistance = 100; // Use a fixed distance for the target
@@ -1531,6 +1556,7 @@ export class AssetSpawner {
                     position.y + y,
                     position.z + z
                 );
+                hasCustomTarget = false;
             }
             // Set the target
             spotlight.target = target;
@@ -1546,7 +1572,8 @@ export class AssetSpawner {
             // Set type in userData for later identification
             spotlight.userData = { 
                 ...spotlight.userData,
-                type: 'spotlight'
+                type: 'spotlight',
+                hasCustomTarget: hasCustomTarget
             };
             // Create debug visualization always, regardless of flag
             console.log(`Creating debug visualization for spotlight ${id}`);
