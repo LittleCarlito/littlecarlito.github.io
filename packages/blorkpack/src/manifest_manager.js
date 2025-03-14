@@ -55,19 +55,19 @@ export class ManifestManager {
     }
     
     /**
-     * Gets the path that successfully loaded the manifest.
-     * @returns {string|null} The path that worked, or null if not loaded yet
+     * Gets the path that successfully loaded the manifest
+     * @returns {string|null} The successful path or null if manifest hasn't been loaded
      */
     get_successful_manifest_path() {
         return this.successful_manifest_path;
     }
     
     /**
-     * Loads the manifest.json file asynchronously.
-     * @param {string} [relativePath='manifest.json'] - Relative path to the manifest file
-     * @returns {Promise<Object>} A promise that resolves with the loaded manifest data.
+     * Loads the manifest file from specified path.
+     * @param {string} [relativePath='resources/manifest.json'] - Path to the manifest file
+     * @returns {Promise<Object>} Promise resolving to the manifest data
      */
-    async load_manifest(relativePath = 'manifest.json') {
+    async load_manifest(relativePath = 'resources/manifest.json') {
         if (this.is_loaded) {
             return this.manifest_data;
         }
@@ -76,11 +76,14 @@ export class ManifestManager {
             return this.load_promise;
         }
         
-        // Since we're using the public folder, the manifest will be at the root
-        console.log(`Loading manifest from: ${relativePath}`);
+        // Get the base path from the current URL
+        const basePath = window.location.pathname.includes('/threejs_site/') ? '/threejs_site' : '';
+        const fullPath = `${basePath}/${relativePath}`.replace(/\/+/g, '/');
+        
+        console.log(`Loading manifest from: ${fullPath}`);
         
         try {
-            const response = await fetch(relativePath);
+            const response = await fetch(fullPath);
             if (!response.ok) {
                 throw new Error(`Failed to load manifest: ${response.status}`);
             }
@@ -88,12 +91,12 @@ export class ManifestManager {
             const data = await response.json();
             this.manifest_data = data;
             this.is_loaded = true;
-            this.successful_manifest_path = relativePath;
+            this.successful_manifest_path = fullPath;
             
             // Log success with clear formatting
             console.log(`
 %cManifest Successfully Loaded
-%cPath: ${relativePath}
+%cPath: ${fullPath}
 %cThis is the path that worked - you can remove other manifest copies
 `, 
                 'color: green; font-weight: bold; font-size: 1.1em;',

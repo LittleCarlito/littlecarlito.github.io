@@ -97,6 +97,21 @@ export default defineConfig(({ command }) => {
         name: 'copy-resources',
         closeBundle() {
           if (isProduction) {
+            // Copy manifest from public/resources to dist/resources
+            const manifestSrc = path.resolve(__dirname, 'public/resources/manifest.json');
+            const manifestDest = path.resolve(__dirname, 'dist/resources/manifest.json');
+            if (fs.existsSync(manifestSrc)) {
+              // Create resources directory if it doesn't exist
+              const resourcesDir = path.resolve(__dirname, 'dist/resources');
+              if (!fs.existsSync(resourcesDir)) {
+                fs.mkdirSync(resourcesDir, { recursive: true });
+              }
+              console.log(`Copying manifest from ${manifestSrc} to ${manifestDest}`);
+              fs.copyFileSync(manifestSrc, manifestDest);
+            } else {
+              console.warn('No manifest.json found in public/resources directory');
+            }
+
             // Copy other static assets needed
             const pagesSrc = path.resolve(__dirname, 'pages');
             const pagesDest = path.resolve(__dirname, 'dist/pages');
