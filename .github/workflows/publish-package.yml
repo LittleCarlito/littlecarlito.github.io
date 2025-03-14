@@ -130,8 +130,8 @@ jobs:
       - name: Build blorkpack package
         run: |
           cd packages/blorkpack
-          # Use npm install to handle case where lock files may not exist yet
-          npm install
+          # Use npm ci for better reproducibility now that lock files exist
+          npm ci
           npm run build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -201,8 +201,8 @@ jobs:
       - name: Build blorktools package
         run: |
           cd packages/blorktools
-          # Use npm install to handle case where lock files may not exist yet
-          npm install
+          # Use npm ci for better reproducibility now that lock files exist
+          npm ci
           npm run build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
