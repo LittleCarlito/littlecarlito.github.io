@@ -1,3 +1,11 @@
+## [0.11.4](https://github.com/littlecarlito/threejs_site/compare/v0.11.3...v0.11.4) (2025-03-14)
+
+
+### Bug Fixes
+
+* back to ci from install ([#88](https://github.com/littlecarlito/threejs_site/issues/88)) ([b66d3b9](https://github.com/littlecarlito/threejs_site/commit/b66d3b9a275268b49e7947fa3bd05b36aaff758f))
+* back to install; sad ([#89](https://github.com/littlecarlito/threejs_site/issues/89)) ([6077abb](https://github.com/littlecarlito/threejs_site/commit/6077abb6bcc6bbd1cebcd668173a324ea60cb996))
+
 ## [0.11.3](https://github.com/littlecarlito/threejs_site/compare/v0.11.2...v0.11.3) (2025-03-14)
 
 
