@@ -91,7 +91,6 @@ jobs:
           node-version: '20.x'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
-          cache: false
       
       - name: Configure blorkpack package.json for publishing
         run: |
@@ -162,7 +161,6 @@ jobs:
           node-version: '20.x'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
-          cache: false
       
       - name: Configure blorktools package.json for publishing
         run: |
