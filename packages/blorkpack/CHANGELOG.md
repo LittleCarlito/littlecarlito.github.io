@@ -1,3 +1,23 @@
+## [0.10.3](https://github.com/littlecarlito/threejs_site/compare/v0.10.2...v0.10.3) (2025-03-14)
+
+
+### Bug Fixes
+
+* always create spotlight meshes ([31cbafe](https://github.com/littlecarlito/threejs_site/commit/31cbafed88cd286464a86239926ed96563a1c624))
+* break chains small fix ([ec60a99](https://github.com/littlecarlito/threejs_site/commit/ec60a99e109d8ab8dab3330cc50c155654b6ec64))
+* **common:** multiple bug fixes [#76](https://github.com/littlecarlito/threejs_site/issues/76) ([334180c](https://github.com/littlecarlito/threejs_site/commit/334180c319d0654e7c30f38b3ab8f25292845e48))
+* container debug lying mesh ([96c26d9](https://github.com/littlecarlito/threejs_site/commit/96c26d9fa8bdcd980d4c7ead63b81d1a290231ec))
+* control drop physics ([4498a49](https://github.com/littlecarlito/threejs_site/commit/4498a493f8ba830d53bff0f7c7d0f1cc95ee6709))
+* control menu debug spawn ([98ca165](https://github.com/littlecarlito/threejs_site/commit/98ca16526e83aeaa8e304c715b03f02b00080561))
+* control menu mesh ([ff815d4](https://github.com/littlecarlito/threejs_site/commit/ff815d46c3a2622f0f2ec64987140f8cc16e2180))
+* control menu spotlight ([ac7b899](https://github.com/littlecarlito/threejs_site/commit/ac7b899604ba88a3fa16b4e450508fbcae5bb157))
+* finding lights properly ([8aca54c](https://github.com/littlecarlito/threejs_site/commit/8aca54cec3eccd7000c62a0e0cfe7a33e4d930a3))
+* pink and red spots ([d0e31be](https://github.com/littlecarlito/threejs_site/commit/d0e31be9959496ed16904020aa4405ac02f51628))
+* prevent hide click ([c29709f](https://github.com/littlecarlito/threejs_site/commit/c29709f1caa804c2c90e23889e3a1b0d5f548bf4))
+* spotlight debug lengths ([98697ab](https://github.com/littlecarlito/threejs_site/commit/98697ab4eb1bc0be8e706cd2b4c6d0f836f9c838))
+* spotlight toggle control ([2e247b7](https://github.com/littlecarlito/threejs_site/commit/2e247b79831e4edc8c78ec68f9c3238339c93d1d))
+* update tween targets ([349d533](https://github.com/littlecarlito/threejs_site/commit/349d53353d8ff2a4098e1485fe3b42444fb16c7d))
+
 ## [0.9.1](https://github.com/littlecarlito/threejs_site/compare/v0.9.0...v0.9.1) (2025-03-13)
 
 
