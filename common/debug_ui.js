@@ -753,14 +753,11 @@ export function createDebugUI() {
     });
     
     addToggle(debugUI, 'SPOTLIGHT_VISUAL_DEBUG', 'Spotlight Debug', undefined, function(checked) {
-        // Update BLORKPACK_FLAGS instead of FLAGS
+        // Update flag for backwards compatibility, but it no longer affects visibility
         BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG = checked;
-        console.log(`SPOTLIGHT_VISUAL_DEBUG set to ${checked}`);
+        console.log(`Spotlight debug helpers are always visible regardless of this toggle.`);
         
-        // Use AssetSpawner instead of BackgroundLighting
-        if (window.asset_spawner) {
-            window.asset_spawner.update_spotlight_debug_visualizations();
-        }
+        // No need to call update_spotlight_debug_visualizations as it now ignores this flag entirely
     });
     
     // Add divider

@@ -501,10 +501,8 @@ export class AssetSpawner {
             this.update_debug_wireframes();
         }
         
-        // Update spotlight helpers if needed
-        if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
-            this.update_spotlight_helpers();
-        }
+        // Always update spotlight helpers
+        this.update_spotlight_helpers();
         
         // Any other periodic cleanup tasks can be added here
     }
@@ -1154,6 +1152,7 @@ export class AssetSpawner {
         console.log(`Creating SpotLightHelper...`);
         const helper = new THREE.SpotLightHelper(spotlight);
         helper.material = sharedDebugMaterials.helper;
+        helper.visible = true; // Explicitly set visible
         
         // Store original update method
         const originalUpdate = helper.update;
@@ -1206,6 +1205,7 @@ export class AssetSpawner {
         
         console.log(`Creating cone mesh...`);
         const cone = new THREE.Mesh(geometry, sharedDebugMaterials.cone);
+        cone.visible = true; // Explicitly set visible
         cone.raycast = () => null;
         cone.traverse(child => {
             child.raycast = () => null;
@@ -1251,7 +1251,7 @@ export class AssetSpawner {
         this.scene.remove(spotlight);
 
         // Remove debug helpers if they exist
-        if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG && spotlight.userData.debugHelpers) {
+        if (spotlight.userData.debugHelpers) {
             const { helper, cone } = spotlight.userData.debugHelpers;
             if (helper) {
                 // Remove the helper and its children from the scene
@@ -1376,33 +1376,30 @@ export class AssetSpawner {
     }
 
     /**
-     * Updates the debug visualization for all spotlights based on the current flag state.
-     * Shows or hides debug helpers based on the SPOTLIGHT_VISUAL_DEBUG flag.
+     * Updates the debug visualization for all spotlights.
+     * Ensures all spotlights have visible debug helpers.
      */
     async update_spotlight_debug_visualizations() {
         // Find all spotlights in the scene
         const spotlights = this.scene.children.filter(child => child.isSpotLight);
-        if(BLORKPACK_FLAGS.ASSET_LOGS) {
-            console.log(`Found ${spotlights.length} spotlights in the scene`);
-        }
-        if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
-            console.log(`Debug visualization is enabled - creating or showing helpers`);
-            // Create debug helpers for spotlights that don't have them
-            for (const spotlight of spotlights) {
+        
+        console.log(`Ensuring all ${spotlights.length} spotlights have visible debug helpers`);
+        
+        // Create or update debug helpers for all spotlights
+        for (const spotlight of spotlights) {
+            try {
                 if (!spotlight.userData.debugHelpers) {
-                    if(BLORKPACK_FLAGS.ASSET_LOGS) {
-                        console.log(`Creating new debug helpers for spotlight at position: x=${spotlight.position.x}, y=${spotlight.position.y}, z=${spotlight.position.z}`);
-                    }
+                    // Always create helpers and make them visible
                     const helpers = await this.create_spotlight_helper(spotlight);
                     spotlight.userData.debugHelpers = helpers;
-                    if(BLORKPACK_FLAGS.ASSET_LOGS) {
-                        console.log(`Debug helpers created: ${helpers ? "success" : "failed"}`);
+                    
+                    // Always make them visible
+                    if (helpers) {
+                        if (helpers.helper) helpers.helper.visible = true;
+                        if (helpers.cone) helpers.cone.visible = true;
                     }
                 } else {
-                    // Show existing helpers
-                    if(BLORKPACK_FLAGS.ASSET_LOGS) {
-                        console.log(`Showing existing debug helpers for spotlight at position: x=${spotlight.position.x}, y=${spotlight.position.y}, z=${spotlight.position.z}`);
-                    }
+                    // Always make existing helpers visible
                     if (spotlight.userData.debugHelpers.helper) {
                         spotlight.userData.debugHelpers.helper.visible = true;
                     }
@@ -1410,24 +1407,8 @@ export class AssetSpawner {
                         spotlight.userData.debugHelpers.cone.visible = true;
                     }
                 }
-            }
-        } else {
-            if(BLORKPACK_FLAGS.ASSET_LOGS) {
-                console.log(`Debug visualization is disabled - hiding helpers`);
-            }
-            // Hide all debug helpers
-            for (const spotlight of spotlights) {
-                if (spotlight.userData.debugHelpers) {
-                    if(BLORKPACK_FLAGS.ASSET_LOGS) {
-                        console.log(`Hiding debug helpers for spotlight at position: x=${spotlight.position.x}, y=${spotlight.position.y}, z=${spotlight.position.z}`);
-                    }
-                    if (spotlight.userData.debugHelpers.helper) {
-                        spotlight.userData.debugHelpers.helper.visible = false;
-                    }
-                    if (spotlight.userData.debugHelpers.cone) {
-                        spotlight.userData.debugHelpers.cone.visible = false;
-                    }
-                }
+            } catch (error) {
+                console.error(`Error updating debug helpers for spotlight:`, error);
             }
         }
     }
@@ -1567,22 +1548,18 @@ export class AssetSpawner {
                 ...spotlight.userData,
                 type: 'spotlight'
             };
-            // Create debug visualization if enabled
-            if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
-                console.log(`Creating debug visualization for spotlight ${id} (SPOTLIGHT_VISUAL_DEBUG is enabled)`);
-                try {
-                    const helpers = await this.create_spotlight_helper(spotlight);
-                    // Store helpers reference on the spotlight for cleanup
-                    spotlight.userData.debugHelpers = helpers;
-                    console.log(`Created debug helpers for spotlight ${id}: ${helpers ? JSON.stringify({
-                        helper: helpers.helper ? "created" : "missing",
-                        cone: helpers.cone ? "created" : "missing"
-                    }) : "null"}`);
-                } catch (helperError) {
-                    console.error(`Error creating spotlight helpers:`, helperError);
-                }
-            } else {
-                console.log(`Skipping debug visualization for spotlight ${id} (SPOTLIGHT_VISUAL_DEBUG is disabled)`);
+            // Create debug visualization always, regardless of flag
+            console.log(`Creating debug visualization for spotlight ${id}`);
+            try {
+                const helpers = await this.create_spotlight_helper(spotlight);
+                // Store helpers reference on the spotlight for cleanup
+                spotlight.userData.debugHelpers = helpers;
+                console.log(`Created debug helpers for spotlight ${id}: ${helpers ? JSON.stringify({
+                    helper: helpers.helper ? "created" : "missing",
+                    cone: helpers.cone ? "created" : "missing"
+                }) : "null"}`);
+            } catch (helperError) {
+                console.error(`Error creating spotlight helpers:`, helperError);
             }
             // Store references for later cleanup
             const asset_object = {

@@ -433,7 +433,7 @@ function animate() {
     if (window.asset_spawner) {
         window.asset_spawner.performCleanup();
         
-        // Explicitly update spotlight debug visualizations
+        // Always ensure spotlight debug meshes are visible
         if (window.asset_spawner.update_spotlight_debug_visualizations) {
             window.asset_spawner.update_spotlight_debug_visualizations();
         }
