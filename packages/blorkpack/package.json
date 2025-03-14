@@ -1,6 +1,6 @@
 {
   "name": "@littlecarlito/blorkpack",
-  "version": "0.11.4",
+  "version": "0.11.5",
   "description": "Asset management utilities for 3D scenes",
   "main": "dist/index.js",
   "module": "dist/index.js",

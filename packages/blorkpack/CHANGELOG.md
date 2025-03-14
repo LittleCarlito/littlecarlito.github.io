@@ -1,3 +1,10 @@
+## [0.11.5](https://github.com/littlecarlito/threejs_site/compare/v0.11.4...v0.11.5) (2025-03-14)
+
+
+### Bug Fixes
+
+* **common:** manifest pathing fix ([#91](https://github.com/littlecarlito/threejs_site/issues/91)) ([61bfada](https://github.com/littlecarlito/threejs_site/commit/61bfada4a5261208a5ce52c786d7c32763e0a5ce))
+
 ## [0.11.4](https://github.com/littlecarlito/threejs_site/compare/v0.11.3...v0.11.4) (2025-03-14)
 
 
