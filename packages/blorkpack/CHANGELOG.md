@@ -1,3 +1,11 @@
+## [0.11.2](https://github.com/littlecarlito/threejs_site/compare/v0.11.1...v0.11.2) (2025-03-14)
+
+
+### Bug Fixes
+
+* deploy lock file check ([#85](https://github.com/littlecarlito/threejs_site/issues/85)) ([f670849](https://github.com/littlecarlito/threejs_site/commit/f670849dce242632a1f524d3800e87eb57c3946a))
+* removing cache ([#86](https://github.com/littlecarlito/threejs_site/issues/86)) ([32d7fdd](https://github.com/littlecarlito/threejs_site/commit/32d7fdd75845b0afc8515c23aad97c3695a0cc6d))
+
 ## [0.11.1](https://github.com/littlecarlito/threejs_site/compare/v0.11.0...v0.11.1) (2025-03-14)
 
 
