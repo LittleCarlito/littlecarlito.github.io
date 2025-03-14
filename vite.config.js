@@ -29,11 +29,15 @@ export default defineConfig(({ command }) => {
   return {
     base: command === 'serve' ? '' : '/threejs_site/',
     resolve: {
-      alias: {
-        '@littlecarlito/blorkpack': isProduction ? 
-          '@littlecarlito/blorkpack' : 
-          path.resolve(__dirname, 'packages/blorkpack/dist/index.js')
+      // In development, alias @littlecarlito/blorkpack to the local package
+      // In production, don't alias it so it resolves from node_modules
+      alias: isProduction ? {} : {
+        '@littlecarlito/blorkpack': path.resolve(__dirname, 'packages/blorkpack/dist/index.js')
       }
+    },
+    optimizeDeps: {
+      // In development, include the local package for optimization
+      include: isProduction ? [] : ['@littlecarlito/blorkpack']
     },
     build: {
       outDir: 'dist',
@@ -50,9 +54,9 @@ export default defineConfig(({ command }) => {
             'physics': ['@dimforge/rapier3d-compat']
           }
         },
-        // During production builds, treat @littlecarlito/blorkpack as external
-        // This allows it to be resolved from node_modules
-        external: isProduction ? ['@littlecarlito/blorkpack'] : [],
+        // During production builds, don't treat @littlecarlito/blorkpack as external
+        // This ensures it's properly included in the bundle from node_modules
+        external: [], 
         input: {
           main: 'index.html',
           ...(isProduction ? {} : { 
