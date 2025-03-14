@@ -173,9 +173,9 @@ export class ControlMenu {
         });
         this.debug_meshes.beam = new THREE.Mesh(beamDebugGeometry, beamDebugMaterial);
         this.debug_meshes.beam.renderOrder = 999;
-        this.debug_meshes.beam.visible = true;
-        this.parent.add(this.debug_meshes.beam);
-
+        this.debug_meshes.beam.visible = false; // Initially set to invisible
+        // We'll add to the scene AFTER positioning
+        
         // Now create the actual objects
         // Top beam creation
         this.top_beam_geometry = new THREE.BoxGeometry(
@@ -216,6 +216,9 @@ export class ControlMenu {
         // Update beam debug mesh position
         this.debug_meshes.beam.position.copy(this.top_beam_mesh.position);
         this.debug_meshes.beam.quaternion.copy(this.top_beam_mesh.quaternion);
+        // Make visible based on flag and add to scene only AFTER positioning
+        this.debug_meshes.beam.visible = FLAGS.COLLISION_VISUAL_DEBUG;
+        this.parent.add(this.debug_meshes.beam);
 
         // Create and load the sign asynchronously
         await new Promise((resolve) => {
@@ -580,9 +583,39 @@ export class ControlMenu {
      * Updates the debug visualization for the control menu based on the current flag state
      */
     updateDebugVisualizations() {
-        // Toggle visibility of beam debug mesh based on collision mesh toggle
-        if (this.debug_meshes.beam) {
-            this.debug_meshes.beam.visible = FLAGS.COLLISION_VISUAL_DEBUG;
+        // Check if we should create or update the beam debug mesh
+        if (FLAGS.COLLISION_VISUAL_DEBUG) {
+            if (this.debug_meshes.beam) {
+                // Update existing mesh
+                if (this.top_beam_mesh) {
+                    this.debug_meshes.beam.position.copy(this.top_beam_mesh.position);
+                    this.debug_meshes.beam.quaternion.copy(this.top_beam_mesh.quaternion);
+                }
+                this.debug_meshes.beam.visible = true;
+            } else if (this.top_beam_mesh) {
+                // Create new mesh if needed
+                const beamDebugGeometry = new THREE.BoxGeometry(
+                    MENU_CONFIG.BEAM.DIMENSIONS.WIDTH,
+                    MENU_CONFIG.BEAM.DIMENSIONS.HEIGHT,
+                    MENU_CONFIG.BEAM.DIMENSIONS.DEPTH
+                );
+                const beamDebugMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x00ffff,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                this.debug_meshes.beam = new THREE.Mesh(beamDebugGeometry, beamDebugMaterial);
+                this.debug_meshes.beam.renderOrder = 999;
+                // Position BEFORE adding to scene
+                this.debug_meshes.beam.position.copy(this.top_beam_mesh.position);
+                this.debug_meshes.beam.quaternion.copy(this.top_beam_mesh.quaternion);
+                this.debug_meshes.beam.visible = true;
+                this.parent.add(this.debug_meshes.beam);
+            }
+        } else if (this.debug_meshes.beam) {
+            // Hide when debug is disabled
+            this.debug_meshes.beam.visible = false;
         }
     }
 
