@@ -1,13 +1,14 @@
 name: Release
 
 on:
+  # This is the primary workflow triggered on push to main
   push:
     branches:
       - main
 
 jobs:
   release:
-    name: Release
+    name: Create Semantic Release
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -16,13 +17,13 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.PACKAGE_TOKEN }}
 
-      - name: Git Identity
+      - name: Configure Git identity
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
@@ -30,30 +31,32 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
-      - name: Setup Node.js
+      - name: Setup Node.js environment
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
 
-      - name: Install dependencies
+      - name: Install project dependencies
         run: npm ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
-      - name: Pull latest changes
+      - name: Pull latest changes from remote
         run: |
           git pull origin main
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
-      - name: Build packages
+      - name: Build all packages
         run: |
+          # Build the blorkpack package
           cd packages/blorkpack && npm run build && cd ../..
+          # Build the blorktools package
           cd packages/blorktools && npm run build && cd ../..
 
-      - name: Release blorkpack
+      - name: Create semantic release for blorkpack
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -61,7 +64,7 @@ jobs:
           cd packages/blorkpack
           npx semantic-release --extends=./.releaserc.json
 
-      - name: Release blorktools
+      - name: Create semantic release for blorktools
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -69,7 +72,7 @@ jobs:
           cd packages/blorktools
           npx semantic-release --extends=./.releaserc.json
 
-      - name: Release main package
+      - name: Create semantic release for main project
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}

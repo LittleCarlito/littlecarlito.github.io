@@ -14,14 +14,17 @@ permissions:
 
 jobs:
   build-and-deploy:
+    name: Build and Deploy to GitHub Pages
     runs-on: ubuntu-latest
+    # Only run this job if the Release workflow completed successfully
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout latest code
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
       
-      - name: Setup Node.js
+      - name: Setup Node.js environment
         uses: actions/setup-node@v3
         with:
           node-version: '20.x'
@@ -29,7 +32,7 @@ jobs:
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
           
-      - name: Update package.json for production
+      - name: Configure package for production deployment
         run: |
           # Update dependency to use the GitHub package instead of the local version
           jq '.dependencies."@littlecarlito/blorkpack" = "@littlecarlito/blorkpack@1.0.1"' package.json > package.json.tmp
@@ -42,12 +45,12 @@ jobs:
           echo "@littlecarlito:registry=https://npm.pkg.github.com/" > .npmrc
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.PACKAGE_TOKEN }}" >> .npmrc
           
-      - name: Install Dependencies
+      - name: Install Production Dependencies
         run: npm install
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         
-      - name: Build
+      - name: Build Production Bundle
         run: npm run build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -58,7 +61,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
 
-      - name: Output Site URL
+      - name: Output Deployment Information
         run: |
           echo "✨ Deployed successfully!"
           echo "🌐 Site is live at: https://littlecarlito.github.io/threejs_site/" 

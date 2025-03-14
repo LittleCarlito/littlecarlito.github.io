@@ -1,32 +1,37 @@
 name: Publish Package to GitHub Packages
 
 on:
+  # Run this workflow after the Release workflow completes
   workflow_run:
     workflows: ["Release"]
     types:
       - completed
+  # Allow manual trigger
   workflow_dispatch:
 
 jobs:
   publish-blorkpack:
+    name: Publish blorkpack Package
     runs-on: ubuntu-latest
+    # Only run if the Release workflow completed successfully
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout latest code
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
       
-      - name: Set up Node.js
+      - name: Set up Node.js environment
         uses: actions/setup-node@v3
         with:
           node-version: '20.x'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
       
-      - name: Update package.json
+      - name: Configure blorkpack package.json for publishing
         run: |
           cd packages/blorkpack
           # Update package name to use GitHub scoped name
@@ -39,7 +44,7 @@ jobs:
             mv package.json.tmp package.json
           fi
       
-      - name: Install dependencies and build
+      - name: Build blorkpack package
         run: |
           cd packages/blorkpack
           npm install
@@ -47,7 +52,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
-      - name: Publish to GitHub Packages
+      - name: Publish blorkpack to GitHub Packages
         run: |
           cd packages/blorkpack
           npm publish --access public
@@ -55,24 +60,27 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
   publish-blorktools:
+    name: Publish blorktools Package
     runs-on: ubuntu-latest
+    # Only run if the Release workflow completed successfully
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout latest code
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
       
-      - name: Set up Node.js
+      - name: Set up Node.js environment
         uses: actions/setup-node@v3
         with:
           node-version: '20.x'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
       
-      - name: Update package.json
+      - name: Configure blorktools package.json for publishing
         run: |
           cd packages/blorktools
           # Update package name to use GitHub scoped name
@@ -85,7 +93,7 @@ jobs:
             mv package.json.tmp package.json
           fi
       
-      - name: Install dependencies and build
+      - name: Build blorktools package
         run: |
           cd packages/blorktools
           npm install
@@ -93,7 +101,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
-      - name: Publish to GitHub Packages
+      - name: Publish blorktools to GitHub Packages
         run: |
           cd packages/blorktools
           npm publish --access public
