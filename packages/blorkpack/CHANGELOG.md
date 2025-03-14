@@ -1,3 +1,17 @@
+# [0.11.0](https://github.com/littlecarlito/threejs_site/compare/v0.10.5...v0.11.0) (2025-03-14)
+
+
+### Bug Fixes
+
+* lock file creation ([#83](https://github.com/littlecarlito/threejs_site/issues/83)) ([5436195](https://github.com/littlecarlito/threejs_site/commit/5436195930753557e5cbd0df0799cdce4b6510d7))
+* package locks ([#82](https://github.com/littlecarlito/threejs_site/issues/82)) ([2f7d530](https://github.com/littlecarlito/threejs_site/commit/2f7d5308f01ded4ba1b3f811cb2c4ea0a2c1b1cb))
+* updating dependency version ([#81](https://github.com/littlecarlito/threejs_site/issues/81)) ([cad690c](https://github.com/littlecarlito/threejs_site/commit/cad690cf32bfe2d75b2303f196332da6753bff99))
+
+
+### Features
+
+* **common:** pipeline passes version ([#80](https://github.com/littlecarlito/threejs_site/issues/80)) ([22608d0](https://github.com/littlecarlito/threejs_site/commit/22608d000cbf8114aba4e6514f3bf0371e26d8f1))
+
 ## [0.10.5](https://github.com/littlecarlito/threejs_site/compare/v0.10.4...v0.10.5) (2025-03-14)
 
 
