@@ -1,3 +1,10 @@
+## [0.10.4](https://github.com/littlecarlito/threejs_site/compare/v0.10.3...v0.10.4) (2025-03-14)
+
+
+### Bug Fixes
+
+* waiting for completion ([1017bb0](https://github.com/littlecarlito/threejs_site/commit/1017bb0b9e84f35f5300e61f58813e531e1cb3fc))
+
 ## [0.10.3](https://github.com/littlecarlito/threejs_site/compare/v0.10.2...v0.10.3) (2025-03-14)
 
 
