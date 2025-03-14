@@ -29,7 +29,6 @@ export class ManifestManager {
     static instance = null;
     
     constructor() {
-        "sdfsdfadf"
         if (ManifestManager.instance) {
             return ManifestManager.instance;
         }

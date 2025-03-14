@@ -117,6 +117,26 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         
+      - name: Verify no source files in dist
+        run: |
+          echo "Verifying that no source files are included in the dist directory..."
+          if [ -d "dist/packages" ]; then
+            echo "ERROR: packages directory found in dist folder!"
+            echo "Removing packages directory from dist to prevent source code deployment"
+            rm -rf dist/packages
+          else
+            echo "✅ No packages directory found in dist. Good!"
+          fi
+          
+          # Double check for any source code files
+          SOURCE_FILES=$(find dist -name "*.ts" -o -name "*.tsx" -o -name "*.js.map" | grep -v "node_modules" || true)
+          if [ ! -z "$SOURCE_FILES" ]; then
+            echo "WARNING: Source files found in dist folder. Consider reviewing your build process."
+            echo "$SOURCE_FILES"
+          else
+            echo "✅ No source code files found in dist."
+          fi
+        
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
