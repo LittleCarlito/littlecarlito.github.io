@@ -1310,6 +1310,7 @@ export class AssetSpawner {
             return false;
         });
         
+        // Remove and dispose orphaned helpers
         for (const helper of helpers) {
             // Remove from scene
             this.scene.remove(helper);
@@ -1326,6 +1327,9 @@ export class AssetSpawner {
                 helper.geometry.dispose();
             }
         }
+        
+        // Force a full update of spotlight debug helpers
+        this.forceSpotlightDebugUpdate();
     }
 
     /**
@@ -1371,23 +1375,33 @@ export class AssetSpawner {
      * Called from the main animation loop.
      */
     update_spotlight_helpers() {
-        // Find all spotlights in the scene
-        this.scene.children.forEach(child => {
-            if (child.isSpotLight && child.userData.debugHelpers) {
-                const { helper, cone } = child.userData.debugHelpers;
+        // Use asset_storage to find all spotlights
+        const all_assets = this.storage.get_all_assets();
+        
+        all_assets.forEach(asset => {
+            // Check if it's a spotlight asset with debug helpers
+            if ((asset.type === 'spotlight' || asset.mesh?.userData?.type === 'spotlight') && 
+                asset.mesh && asset.mesh.isSpotLight && asset.mesh.userData.debugHelpers) {
+                
+                const spotlight = asset.mesh;
+                const { helper, cone } = spotlight.userData.debugHelpers;
+                
                 // Update the standard helper
                 if (helper) {
                     helper.update();
                 }
+                
                 // Update the cone position and orientation
                 if (cone) {
                     // Update position
-                    cone.position.copy(child.position);
+                    cone.position.copy(spotlight.position);
+                    
                     // Update orientation
                     const spotlightToTarget = new THREE.Vector3().subVectors(
-                        child.target.position,
-                        child.position
+                        spotlight.target.position,
+                        spotlight.position
                     ).normalize();
+                    
                     const quaternion = new THREE.Quaternion();
                     quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), spotlightToTarget);
                     cone.quaternion.copy(quaternion);
@@ -1401,13 +1415,63 @@ export class AssetSpawner {
      * Ensures all spotlights have visible debug helpers.
      */
     async update_spotlight_debug_visualizations() {
-        // Find all spotlights in the scene
-        const spotlights = this.scene.children.filter(child => child.isSpotLight);
+        // Initialize tracking variables if not already done
+        if (!this._knownSpotlights) {
+            this._knownSpotlights = new Set(); // Cache of known spotlights
+            this._needsFullUpdate = true; // Force initial full update
+        }
         
-        console.log(`Ensuring all ${spotlights.length} spotlights have visible debug helpers`);
+        // If no full update needed, just ensure existing helpers are visible
+        if (!this._needsFullUpdate) {
+            for (const spotlight of this._knownSpotlights) {
+                if (spotlight && spotlight.userData && spotlight.userData.debugHelpers) {
+                    const { helper, cone } = spotlight.userData.debugHelpers;
+                    if (helper) helper.visible = true;
+                    if (cone) cone.visible = true;
+                }
+            }
+            return;
+        }
+        
+        // Reset the full update flag
+        this._needsFullUpdate = false;
+        
+        // Full update process - find all spotlights from asset_storage only
+        const allSpotlights = new Set();
+        
+        // Get all spotlight assets from asset_storage
+        const all_assets = this.storage.get_all_assets();
+        all_assets.forEach(asset => {
+            // Check if it's a spotlight asset
+            if ((asset.type === 'spotlight' || asset.mesh?.userData?.type === 'spotlight') && 
+                asset.mesh && asset.mesh.isSpotLight) {
+                allSpotlights.add(asset.mesh);
+            }
+        });
+        
+        // Check if spotlights have changed
+        let spotlightsChanged = allSpotlights.size !== this._knownSpotlights.size;
+        
+        if (!spotlightsChanged) {
+            // Check if any spotlights have been added or removed
+            for (const spotlight of allSpotlights) {
+                if (!this._knownSpotlights.has(spotlight)) {
+                    spotlightsChanged = true;
+                    break;
+                }
+            }
+        }
+        
+        // Only log if spotlights have changed
+        if (spotlightsChanged) {
+            console.log(`Ensuring all ${allSpotlights.size} spotlights have visible debug helpers`);
+        }
+        
+        // Save the current set of known spotlights
+        this._knownSpotlights = allSpotlights;
         
         // Create or update debug helpers for all spotlights
-        for (const spotlight of spotlights) {
+        for (const spotlight of allSpotlights) {
             try {
                 if (!spotlight.userData.debugHelpers) {
                     // Always create helpers and make them visible
@@ -1599,6 +1663,14 @@ export class AssetSpawner {
             try {
                 const spotlight_id = this.storage.get_new_instance_id();
                 this.storage.store_static_mesh(spotlight_id, spotlight);
+                
+                // Ensure the spotlight is properly marked with its type for future queries
+                spotlight.userData.type = 'spotlight';
+                spotlight.userData.id = id;
+                spotlight.userData.instanceId = spotlight_id;
+                
+                // Force a full update of spotlight debug helpers
+                this.forceSpotlightDebugUpdate();
             } catch (storageError) {
                 console.error(`Error storing spotlight in asset storage:`, storageError);
             }
@@ -2354,5 +2426,13 @@ export class AssetSpawner {
         this.storage.store_static_mesh(camera_id, camera);
         
         return camera;
+    }
+
+    /**
+     * Forces a full update of all spotlight debug helpers on next call.
+     * Call this when you know spotlights have been added or removed.
+     */
+    forceSpotlightDebugUpdate() {
+        this._needsFullUpdate = true;
     }
 } 
