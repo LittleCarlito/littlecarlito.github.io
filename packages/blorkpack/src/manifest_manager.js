@@ -37,6 +37,8 @@ export class ManifestManager {
         this.manifest_data = null;
         this.load_promise = null;
         this.is_loaded = false;
+        /** @type {string|null} The path that successfully loaded the manifest */
+        this.successful_manifest_path = null;
         
         ManifestManager.instance = this;
     }
@@ -53,11 +55,19 @@ export class ManifestManager {
     }
     
     /**
+     * Gets the path that successfully loaded the manifest.
+     * @returns {string|null} The path that worked, or null if not loaded yet
+     */
+    get_successful_manifest_path() {
+        return this.successful_manifest_path;
+    }
+    
+    /**
      * Loads the manifest.json file asynchronously.
-     * @param {string} [relativePath='resources/manifest.json'] - Relative path to the manifest file
+     * @param {string} [relativePath='manifest.json'] - Relative path to the manifest file
      * @returns {Promise<Object>} A promise that resolves with the loaded manifest data.
      */
-    async load_manifest(relativePath = 'resources/manifest.json') {
+    async load_manifest(relativePath = 'manifest.json') {
         if (this.is_loaded) {
             return this.manifest_data;
         }
@@ -66,50 +76,118 @@ export class ManifestManager {
             return this.load_promise;
         }
         
-        // Get the base URL using window.location for web or default to "/"
-        let baseUrl = '/';
+        // For GitHub Pages or similar deployments, we'll try multiple paths in sequence
+        const attemptPaths = [];
         
         // Check if we're in a browser environment
         if (typeof window !== 'undefined' && window.location) {
-            // Extract the base path from the current deploy environment
-            // For GitHub Pages or similar deploys with path prefixes, this ensures we include the prefix
-            const pathParts = window.location.pathname.split('/');
-            // Remove the last part if it looks like a file (e.g., index.html)
-            if (pathParts[pathParts.length - 1].includes('.')) {
-                pathParts.pop();
-            }
-            // Build the base URL
-            baseUrl = pathParts.join('/');
-            if (!baseUrl.endsWith('/')) {
-                baseUrl += '/';
-            }
-        }
-        
-        // Ensure proper path joining
-        const path = relativePath.startsWith('/') ? baseUrl + relativePath.substring(1) : baseUrl + relativePath;
-        
-        if (BLORKPACK_FLAGS.DEBUG_LOGS) {
-            console.log(`Loading manifest from: ${path}`);
-        }
-        
-        this.load_promise = fetch(path)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Failed to load manifest: ${response.status}`);
+            const currentUrl = window.location.href;
+            console.log(`Current URL: ${currentUrl}`);
+            
+            // Check if this is a GitHub Pages deployment
+            const isGitHubPages = currentUrl.includes('github.io');
+            const origin = window.location.origin;
+            const pathname = window.location.pathname;
+            
+            if (isGitHubPages) {
+                // For GitHub Pages: Try multiple potential paths
+                console.log(`GitHub Pages detected at ${origin}${pathname}`);
+                
+                // Path 1: URL based on current path
+                const baseUrl = new URL(origin + pathname);
+                // Make sure we have a trailing slash
+                if (!baseUrl.href.endsWith('/')) {
+                    baseUrl.href += '/';
                 }
-                return response.json();
-            })
-            .then(data => {
+                // Remove any filename if present
+                const urlParts = baseUrl.href.split('/');
+                if (urlParts[urlParts.length - 1].includes('.')) {
+                    urlParts.pop();
+                    baseUrl.href = urlParts.join('/') + '/';
+                }
+                
+                // Add various path options in priority order
+                attemptPaths.push(new URL(relativePath, baseUrl.href).href);
+                
+                // Path 2: Direct from repo root
+                const pathSegments = pathname.split('/').filter(Boolean);
+                let repoPath = '';
+                if (pathSegments.length > 0) {
+                    repoPath = '/' + pathSegments[0];
+                }
+                attemptPaths.push(`${origin}${repoPath}/${relativePath}`);
+                
+                // Path 3: Just append to the origin
+                attemptPaths.push(`${origin}/${relativePath}`);
+            } else {
+                // For local or other deployments
+                let basePath = pathname;
+                // Remove filename if present
+                if (basePath.includes('.')) {
+                    basePath = basePath.substring(0, basePath.lastIndexOf('/') + 1);
+                } else if (!basePath.endsWith('/')) {
+                    basePath += '/';
+                }
+                
+                // Try relative paths
+                attemptPaths.push(relativePath); // Try direct relative path first
+                attemptPaths.push(basePath + relativePath); // Try current path + relative
+                attemptPaths.push(origin + basePath + relativePath); // Try full URL
+            }
+        } else {
+            // Non-browser environment (Node.js, etc.)
+            attemptPaths.push(relativePath);
+            console.log(`Non-browser environment. Using relative path: ${relativePath}`);
+        }
+        
+        console.log(`Will attempt to load manifest from these paths in sequence:`, attemptPaths);
+        
+        // Try each path in sequence until one works
+        let lastError = null;
+        
+        const tryNextPath = async (index = 0) => {
+            if (index >= attemptPaths.length) {
+                // All paths failed
+                console.error("All manifest paths failed:", lastError);
+                throw new Error("Failed to load manifest from any path");
+            }
+            
+            const path = attemptPaths[index];
+            console.log(`Attempt ${index + 1}/${attemptPaths.length}: Loading manifest from ${path}`);
+            
+            try {
+                const response = await fetch(path);
+                if (!response.ok) {
+                    console.warn(`Path ${path} failed with status ${response.status}`);
+                    lastError = new Error(`Failed to load manifest: ${response.status}`);
+                    return tryNextPath(index + 1);
+                }
+                
+                const data = await response.json();
                 this.manifest_data = data;
                 this.is_loaded = true;
-                console.log('Manifest loaded successfully');
+                this.successful_manifest_path = path;
+                
+                // Log success with clear formatting
+                console.log(`
+%cManifest Successfully Loaded
+%cPath: ${path}
+%cThis is the path that worked - you can remove other manifest copies
+`, 
+                    'color: green; font-weight: bold; font-size: 1.1em;',
+                    'color: blue; font-weight: bold;',
+                    'color: gray; font-style: italic;'
+                );
+                
                 return data;
-            })
-            .catch(error => {
-                console.error('Error loading manifest:', error);
-                throw error;
-            });
-            
+            } catch (error) {
+                console.warn(`Path ${path} failed with error: ${error.message}`);
+                lastError = error;
+                return tryNextPath(index + 1);
+            }
+        };
+        
+        this.load_promise = tryNextPath();
         return this.load_promise;
     }
     
