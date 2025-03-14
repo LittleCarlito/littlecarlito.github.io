@@ -29,15 +29,12 @@ export default defineConfig(({ command }) => {
   return {
     base: command === 'serve' ? '' : '/threejs_site/',
     resolve: {
-      // In development, alias @littlecarlito/blorkpack to the local package
-      // In production, don't alias it so it resolves from node_modules
-      alias: isProduction ? {} : {
-        '@littlecarlito/blorkpack': path.resolve(__dirname, 'packages/blorkpack/dist/index.js')
+      alias: {
+        '@littlecarlito/blorkpack': path.resolve(__dirname, 'packages/blorkpack/dist')
       }
     },
     optimizeDeps: {
-      // In development, include the local package for optimization
-      include: isProduction ? [] : ['@littlecarlito/blorkpack']
+      include: ['@littlecarlito/blorkpack']
     },
     build: {
       outDir: 'dist',
@@ -52,11 +49,12 @@ export default defineConfig(({ command }) => {
               'three/examples/jsm/libs/tween.module.js'
             ],
             'physics': ['@dimforge/rapier3d-compat']
+          },
+          globals: {
+            'three': 'THREE'
           }
         },
-        // During production builds, don't treat @littlecarlito/blorkpack as external
-        // This ensures it's properly included in the bundle from node_modules
-        external: [], 
+        external: ['three'],
         input: {
           main: 'index.html',
           ...(isProduction ? {} : { 
