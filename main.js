@@ -9,6 +9,26 @@ import { shove_object, translate_object, update_mouse_position, zoom_object_in, 
 import { AssetStorage, AssetActivator, AssetSpawner, ManifestManager, BLORKPACK_FLAGS } from '@littlecarlito/blorkpack';
 import { toggleDebugUI, createDebugUI as create_debug_UI, setBackgroundContainer as set_background_container, setResolutionScale as set_resolution_scale, updateLabelWireframes, setSceneReference } from './common/debug_ui.js';
 
+// Enable HMR for development
+if (import.meta.hot) {
+  // Accept updates from the current module without forcing reload
+  import.meta.hot.accept();
+  
+  // Accept updates for the blorkpack package
+  import.meta.hot.accept(['@littlecarlito/blorkpack'], (updatedModules) => {
+    console.log('HMR update detected for blorkpack dependencies:', updatedModules);
+    if (window.app_renderer) {
+      console.log('Applying updates without full page reload...');
+      // Only clean up rendering loop, but don't force page reload
+      if (window.app_renderer.get_animation_frame_id) {
+        cancelAnimationFrame(window.app_renderer.get_animation_frame_id());
+      }
+      // Restart animation
+      window.app_renderer.set_animation_loop(animate);
+    }
+  });
+}
+
 // ----- Variables
 let resize_move = false;
 let zoom_event = false;

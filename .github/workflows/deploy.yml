@@ -117,6 +117,79 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         
+      - name: Verify no source files in dist
+        run: |
+          echo "Verifying that no source files are included in the dist directory..."
+          if [ -d "dist/packages" ]; then
+            echo "ERROR: packages directory found in dist folder!"
+            echo "Removing packages directory from dist to prevent source code deployment"
+            rm -rf dist/packages
+          else
+            echo "✅ No packages directory found in dist. Good!"
+          fi
+          
+          # Double check for any source code files
+          SOURCE_FILES=$(find dist -name "*.ts" -o -name "*.tsx" -o -name "*.js.map" | grep -v "node_modules" || true)
+          if [ ! -z "$SOURCE_FILES" ]; then
+            echo "WARNING: Source files found in dist folder. Consider reviewing your build process."
+            echo "$SOURCE_FILES"
+          else
+            echo "✅ No source code files found in dist."
+          fi
+          
+          # Check for development and documentation files
+          echo "🔍 Checking for development and documentation files..."
+          # List of patterns to check for
+          DEV_PATTERNS=("development/" "dev/" "tests/" "test/" "spec/" "examples/" "demos/" "docs/" "documentation/" ".eslintrc" ".prettierrc" ".babelrc" "jest.config" "webpack.config" "README" "CHANGELOG" "LICENSE" "CONTRIBUTING" ".git" ".github" ".gitignore" "blorktools/" "tools/")
+          
+          # Function to check if a path matches any pattern
+          matches_pattern() {
+            local path="$1"
+            for pattern in "${DEV_PATTERNS[@]}"; do
+              if [[ "$path" == *"$pattern"* ]]; then
+                return 0
+              fi
+            done
+            return 1
+          }
+          
+          # Find development files
+          echo "Scanning for development files..."
+          DEV_FILES=$(find dist -type f -o -type d | grep -v "node_modules" | while read file; do
+            if matches_pattern "$file"; then
+              echo "$file"
+            fi
+          done || true)
+          
+          if [ ! -z "$DEV_FILES" ]; then
+            echo "WARNING: Development files found in dist folder. Removing them..."
+            echo "$DEV_FILES"
+            
+            # Remove each file or directory
+            echo "$DEV_FILES" | while read file; do
+              if [ -d "$file" ]; then
+                echo "Removing directory: $file"
+                rm -rf "$file"
+              elif [ -f "$file" ]; then
+                echo "Removing file: $file"
+                rm -f "$file"
+              fi
+            done
+          else
+            echo "✅ No development files found in dist."
+          fi
+          
+          # Analyze bundle size
+          echo "📊 Analyzing bundle size..."
+          TOTAL_SIZE=$(du -sh dist | cut -f1)
+          JS_SIZE=$(du -sh dist/*.js | awk '{s+=$1} END {print s "B"}')
+          echo "Total bundle size: $TOTAL_SIZE"
+          echo "JavaScript bundle size: $JS_SIZE"
+          
+          # List top 5 largest files
+          echo "Largest files in bundle:"
+          find dist -type f -name "*.js" -exec du -h {} \; | sort -rh | head -n 5
+        
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:

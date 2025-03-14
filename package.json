@@ -4,8 +4,11 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"vite\" \"npm run tools\"",
+    "dev": "concurrently \"vite\" \"npm run tools\" \"npm run watch:blorkpack\"",
+    "watch:blorkpack": "cd packages/blorkpack && npm run watch",
+    "prebuild": "rimraf dist",
     "build": "vite build",
+    "postbuild": "node scripts/verify-dist.js",
     "preview": "vite preview",
     "semantic-release": "semantic-release",
     "tools": "cd packages/blorktools && npm run tools",
@@ -24,8 +27,11 @@
     "@semantic-release/github": "^9.2.6",
     "concurrently": "^9.1.2",
     "express": "^4.21.2",
+    "rimraf": "^5.0.5",
     "semantic-release": "^23.0.2",
-    "vite": "^6.0.11"
+    "terser": "^5.26.0",
+    "vite": "^6.2.2",
+    "vite-plugin-image-optimizer": "^1.1.7"
   },
   "resolutions": {
     "@littlecarlito/blorkpack": "file:packages/blorkpack"

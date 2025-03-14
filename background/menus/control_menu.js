@@ -1,7 +1,7 @@
 import { TYPES } from '../../viewport/overlay/overlay_common';
 import { FLAGS, RAPIER, THREE } from '../../common';
 import { ASSET_TYPE, AssetSpawner }  from '@littlecarlito/blorkpack';
-import { BLORKPACK_FLAGS } from '../../packages/blorkpack/src';
+import { BLORKPACK_FLAGS } from '@littlecarlito/blorkpack';
 
 export const IMAGE_PATH = 'images/MouseControlMenu.svg';
 

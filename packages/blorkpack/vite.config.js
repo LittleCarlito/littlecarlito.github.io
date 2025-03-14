@@ -9,14 +9,14 @@ export default defineConfig({
       formats: ['es'],
       fileName: 'index'
     },
+    sourcemap: true,
     rollupOptions: {
       external: ['three', '@dimforge/rapier3d-compat'],
       output: {
         globals: {
           three: 'THREE',
           '@dimforge/rapier3d-compat': 'RAPIER'
-        },
-        sourcemap: true
+        }
       }
     }
   }
