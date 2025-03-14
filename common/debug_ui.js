@@ -753,12 +753,13 @@ export function createDebugUI() {
     });
     
     addToggle(debugUI, 'SPOTLIGHT_VISUAL_DEBUG', 'Spotlight Debug', undefined, function(checked) {
-        // Update BLORKPACK_FLAGS instead of FLAGS
+        // Update flag to control visibility
         BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG = checked;
-        console.log(`SPOTLIGHT_VISUAL_DEBUG set to ${checked}`);
+        console.log(`Spotlight debug helpers visibility set to ${checked ? 'visible' : 'hidden'}`);
         
-        // Use AssetSpawner instead of BackgroundLighting
-        if (window.asset_spawner) {
+        // Force update of spotlight debug visualizations to apply the change
+        if (window.asset_spawner && window.asset_spawner.forceSpotlightDebugUpdate) {
+            window.asset_spawner.forceSpotlightDebugUpdate();
             window.asset_spawner.update_spotlight_debug_visualizations();
         }
     });

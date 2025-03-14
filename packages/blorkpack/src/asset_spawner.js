@@ -4,6 +4,13 @@ import { ASSET_CONFIGS, ASSET_TYPE } from "./asset_type.js";
 import { AssetStorage } from "./asset_storage.js";
 import { BLORKPACK_FLAGS } from "./blorkpack_flags.js";
 
+// Configuration constants
+/**
+ * Default length for debug visualization mesh of spotlights with unlimited range (distance=0)
+ * Adjust this value to make unlimited spotlight debug meshes longer or shorter
+ */
+const UNLIMITED_SPOTLIGHT_DEBUG_LENGTH = 400;
+
 /**
  * Generates triangle indices for a geometry that doesn't have them
  * @param {THREE.BufferGeometry} geometry - The geometry to generate indices for
@@ -501,10 +508,8 @@ export class AssetSpawner {
             this.update_debug_wireframes();
         }
         
-        // Update spotlight helpers if needed
-        if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
-            this.update_spotlight_helpers();
-        }
+        // Always update spotlight helpers
+        this.update_spotlight_helpers();
         
         // Any other periodic cleanup tasks can be added here
     }
@@ -1136,6 +1141,10 @@ export class AssetSpawner {
         console.log(`Creating helper for spotlight at position: x=${spotlight.position.x}, y=${spotlight.position.y}, z=${spotlight.position.z}`);
         console.log(`Spotlight properties: angle=${spotlight.angle}, distance=${spotlight.distance}, intensity=${spotlight.intensity}`);
         console.log(`Spotlight target position: x=${spotlight.target.position.x}, y=${spotlight.target.position.y}, z=${spotlight.target.position.z}`);
+        console.log(`Spotlight hasCustomTarget: ${spotlight.userData && spotlight.userData.hasCustomTarget}`);
+        
+        // Get the current visibility state from the flag
+        const shouldBeVisible = BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG;
         
         // Create shared materials for debug visualization with a single static color
         const sharedDebugMaterials = {
@@ -1154,6 +1163,7 @@ export class AssetSpawner {
         console.log(`Creating SpotLightHelper...`);
         const helper = new THREE.SpotLightHelper(spotlight);
         helper.material = sharedDebugMaterials.helper;
+        helper.visible = shouldBeVisible; // Set initial visibility based on flag
         
         // Store original update method
         const originalUpdate = helper.update;
@@ -1194,11 +1204,24 @@ export class AssetSpawner {
             return { helper };
         }
         
-        const distance = spotlightToTarget.length();
-        const height = distance;
+        // Calculate distance to target (used for direction)
+        const distanceToTarget = spotlightToTarget.length();
+        
+        // Set the height of the cone based on the spotlight's distance property
+        let height;
+        if (spotlight.distance > 0) {
+            // If spotlight has a defined distance/range, use that exact value
+            height = spotlight.distance;
+            console.log(`Using spotlight's defined distance for height: ${height}`);
+        } else {
+            // For spotlights with unlimited range (distance=0), use a large value
+            height = UNLIMITED_SPOTLIGHT_DEBUG_LENGTH;
+            console.log(`Using large default height for unlimited spotlight: ${height}`);
+        }
+        
         const radius = Math.tan(spotlight.angle) * height;
         
-        console.log(`Cone dimensions: radius=${radius}, height=${height}, distance=${distance}`);
+        console.log(`Cone dimensions: radius=${radius}, height=${height}, distanceToTarget=${distanceToTarget}, spotlightDistance=${spotlight.distance}`);
         
         console.log(`Creating cone geometry...`);
         const geometry = new THREE.ConeGeometry(radius, height, 32, 32, true);
@@ -1206,6 +1229,7 @@ export class AssetSpawner {
         
         console.log(`Creating cone mesh...`);
         const cone = new THREE.Mesh(geometry, sharedDebugMaterials.cone);
+        cone.visible = shouldBeVisible; // Set initial visibility based on flag
         cone.raycast = () => null;
         cone.traverse(child => {
             child.raycast = () => null;
@@ -1251,7 +1275,7 @@ export class AssetSpawner {
         this.scene.remove(spotlight);
 
         // Remove debug helpers if they exist
-        if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG && spotlight.userData.debugHelpers) {
+        if (spotlight.userData.debugHelpers) {
             const { helper, cone } = spotlight.userData.debugHelpers;
             if (helper) {
                 // Remove the helper and its children from the scene
@@ -1289,6 +1313,7 @@ export class AssetSpawner {
             return false;
         });
         
+        // Remove and dispose orphaned helpers
         for (const helper of helpers) {
             // Remove from scene
             this.scene.remove(helper);
@@ -1305,6 +1330,9 @@ export class AssetSpawner {
                 helper.geometry.dispose();
             }
         }
+        
+        // Force a full update of spotlight debug helpers
+        this.forceSpotlightDebugUpdate();
     }
 
     /**
@@ -1350,23 +1378,33 @@ export class AssetSpawner {
      * Called from the main animation loop.
      */
     update_spotlight_helpers() {
-        // Find all spotlights in the scene
-        this.scene.children.forEach(child => {
-            if (child.isSpotLight && child.userData.debugHelpers) {
-                const { helper, cone } = child.userData.debugHelpers;
+        // Use asset_storage to find all spotlights
+        const all_assets = this.storage.get_all_assets();
+        
+        all_assets.forEach(asset => {
+            // Check if it's a spotlight asset with debug helpers
+            if ((asset.type === 'spotlight' || asset.mesh?.userData?.type === 'spotlight') && 
+                asset.mesh && asset.mesh.isSpotLight && asset.mesh.userData.debugHelpers) {
+                
+                const spotlight = asset.mesh;
+                const { helper, cone } = spotlight.userData.debugHelpers;
+                
                 // Update the standard helper
                 if (helper) {
                     helper.update();
                 }
+                
                 // Update the cone position and orientation
                 if (cone) {
                     // Update position
-                    cone.position.copy(child.position);
+                    cone.position.copy(spotlight.position);
+                    
                     // Update orientation
                     const spotlightToTarget = new THREE.Vector3().subVectors(
-                        child.target.position,
-                        child.position
+                        spotlight.target.position,
+                        spotlight.position
                     ).normalize();
+                    
                     const quaternion = new THREE.Quaternion();
                     quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), spotlightToTarget);
                     cone.quaternion.copy(quaternion);
@@ -1376,58 +1414,94 @@ export class AssetSpawner {
     }
 
     /**
-     * Updates the debug visualization for all spotlights based on the current flag state.
-     * Shows or hides debug helpers based on the SPOTLIGHT_VISUAL_DEBUG flag.
+     * Updates the debug visualization for all spotlights.
+     * Ensures all spotlights have visible debug helpers.
      */
     async update_spotlight_debug_visualizations() {
-        // Find all spotlights in the scene
-        const spotlights = this.scene.children.filter(child => child.isSpotLight);
-        if(BLORKPACK_FLAGS.ASSET_LOGS) {
-            console.log(`Found ${spotlights.length} spotlights in the scene`);
+        // Initialize tracking variables if not already done
+        if (!this._knownSpotlights) {
+            this._knownSpotlights = new Set(); // Cache of known spotlights
+            this._needsFullUpdate = true; // Force initial full update
         }
-        if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
-            console.log(`Debug visualization is enabled - creating or showing helpers`);
-            // Create debug helpers for spotlights that don't have them
-            for (const spotlight of spotlights) {
+        
+        // If no full update needed, just ensure existing helpers are visible/hidden based on flag
+        if (!this._needsFullUpdate) {
+            for (const spotlight of this._knownSpotlights) {
+                if (spotlight && spotlight.userData && spotlight.userData.debugHelpers) {
+                    const { helper, cone } = spotlight.userData.debugHelpers;
+                    const shouldBeVisible = BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG;
+                    
+                    if (helper) helper.visible = shouldBeVisible;
+                    if (cone) cone.visible = shouldBeVisible;
+                }
+            }
+            return;
+        }
+        
+        // Reset the full update flag
+        this._needsFullUpdate = false;
+        
+        // Full update process - find all spotlights from asset_storage only
+        const allSpotlights = new Set();
+        
+        // Get all spotlight assets from asset_storage
+        const all_assets = this.storage.get_all_assets();
+        all_assets.forEach(asset => {
+            // Check if it's a spotlight asset
+            if ((asset.type === 'spotlight' || asset.mesh?.userData?.type === 'spotlight') && 
+                asset.mesh && asset.mesh.isSpotLight) {
+                allSpotlights.add(asset.mesh);
+            }
+        });
+        
+        // Check if spotlights have changed
+        let spotlightsChanged = allSpotlights.size !== this._knownSpotlights.size;
+        
+        if (!spotlightsChanged) {
+            // Check if any spotlights have been added or removed
+            for (const spotlight of allSpotlights) {
+                if (!this._knownSpotlights.has(spotlight)) {
+                    spotlightsChanged = true;
+                    break;
+                }
+            }
+        }
+        
+        // Only log if spotlights have changed
+        if (spotlightsChanged) {
+            console.log(`Ensuring all ${allSpotlights.size} spotlights have visible debug helpers`);
+        }
+        
+        // Save the current set of known spotlights
+        this._knownSpotlights = allSpotlights;
+        
+        // Get the current visibility state from the flag
+        const shouldBeVisible = BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG;
+        
+        // Create or update debug helpers for all spotlights
+        for (const spotlight of allSpotlights) {
+            try {
                 if (!spotlight.userData.debugHelpers) {
-                    if(BLORKPACK_FLAGS.ASSET_LOGS) {
-                        console.log(`Creating new debug helpers for spotlight at position: x=${spotlight.position.x}, y=${spotlight.position.y}, z=${spotlight.position.z}`);
-                    }
+                    // Always create helpers and set visibility based on flag
                     const helpers = await this.create_spotlight_helper(spotlight);
                     spotlight.userData.debugHelpers = helpers;
-                    if(BLORKPACK_FLAGS.ASSET_LOGS) {
-                        console.log(`Debug helpers created: ${helpers ? "success" : "failed"}`);
+                    
+                    // Set visibility based on flag
+                    if (helpers) {
+                        if (helpers.helper) helpers.helper.visible = shouldBeVisible;
+                        if (helpers.cone) helpers.cone.visible = shouldBeVisible;
                     }
                 } else {
-                    // Show existing helpers
-                    if(BLORKPACK_FLAGS.ASSET_LOGS) {
-                        console.log(`Showing existing debug helpers for spotlight at position: x=${spotlight.position.x}, y=${spotlight.position.y}, z=${spotlight.position.z}`);
-                    }
+                    // Set visibility based on flag
                     if (spotlight.userData.debugHelpers.helper) {
-                        spotlight.userData.debugHelpers.helper.visible = true;
+                        spotlight.userData.debugHelpers.helper.visible = shouldBeVisible;
                     }
                     if (spotlight.userData.debugHelpers.cone) {
                         spotlight.userData.debugHelpers.cone.visible = true;
                     }
                 }
-            }
-        } else {
-            if(BLORKPACK_FLAGS.ASSET_LOGS) {
-                console.log(`Debug visualization is disabled - hiding helpers`);
-            }
-            // Hide all debug helpers
-            for (const spotlight of spotlights) {
-                if (spotlight.userData.debugHelpers) {
-                    if(BLORKPACK_FLAGS.ASSET_LOGS) {
-                        console.log(`Hiding debug helpers for spotlight at position: x=${spotlight.position.x}, y=${spotlight.position.y}, z=${spotlight.position.z}`);
-                    }
-                    if (spotlight.userData.debugHelpers.helper) {
-                        spotlight.userData.debugHelpers.helper.visible = false;
-                    }
-                    if (spotlight.userData.debugHelpers.cone) {
-                        spotlight.userData.debugHelpers.cone.visible = false;
-                    }
-                }
+            } catch (error) {
+                console.error(`Error updating debug helpers for spotlight:`, error);
             }
         }
     }
@@ -1521,6 +1595,9 @@ export class AssetSpawner {
             }
             // Create and position target
             const target = new THREE.Object3D();
+            // Flag to track if a custom target is used
+            let hasCustomTarget = false;
+            
             // If target data is provided in the asset data, use that
             if (asset_data?.target && asset_data.target.position) {
                 target.position.set(
@@ -1528,6 +1605,7 @@ export class AssetSpawner {
                     asset_data.target.position.y || 0, 
                     asset_data.target.position.z || 0
                 );
+                hasCustomTarget = true;
             } else {
                 // Otherwise calculate target position based on rotation
                 const targetDistance = 100; // Use a fixed distance for the target
@@ -1550,6 +1628,7 @@ export class AssetSpawner {
                     position.y + y,
                     position.z + z
                 );
+                hasCustomTarget = false;
             }
             // Set the target
             spotlight.target = target;
@@ -1565,24 +1644,21 @@ export class AssetSpawner {
             // Set type in userData for later identification
             spotlight.userData = { 
                 ...spotlight.userData,
-                type: 'spotlight'
+                type: 'spotlight',
+                hasCustomTarget: hasCustomTarget
             };
-            // Create debug visualization if enabled
-            if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
-                console.log(`Creating debug visualization for spotlight ${id} (SPOTLIGHT_VISUAL_DEBUG is enabled)`);
-                try {
-                    const helpers = await this.create_spotlight_helper(spotlight);
-                    // Store helpers reference on the spotlight for cleanup
-                    spotlight.userData.debugHelpers = helpers;
-                    console.log(`Created debug helpers for spotlight ${id}: ${helpers ? JSON.stringify({
-                        helper: helpers.helper ? "created" : "missing",
-                        cone: helpers.cone ? "created" : "missing"
-                    }) : "null"}`);
-                } catch (helperError) {
-                    console.error(`Error creating spotlight helpers:`, helperError);
-                }
-            } else {
-                console.log(`Skipping debug visualization for spotlight ${id} (SPOTLIGHT_VISUAL_DEBUG is disabled)`);
+            // Create debug visualization always, regardless of flag
+            console.log(`Creating debug visualization for spotlight ${id}`);
+            try {
+                const helpers = await this.create_spotlight_helper(spotlight);
+                // Store helpers reference on the spotlight for cleanup
+                spotlight.userData.debugHelpers = helpers;
+                console.log(`Created debug helpers for spotlight ${id}: ${helpers ? JSON.stringify({
+                    helper: helpers.helper ? "created" : "missing",
+                    cone: helpers.cone ? "created" : "missing"
+                }) : "null"}`);
+            } catch (helperError) {
+                console.error(`Error creating spotlight helpers:`, helperError);
             }
             // Store references for later cleanup
             const asset_object = {
@@ -1595,6 +1671,14 @@ export class AssetSpawner {
             try {
                 const spotlight_id = this.storage.get_new_instance_id();
                 this.storage.store_static_mesh(spotlight_id, spotlight);
+                
+                // Ensure the spotlight is properly marked with its type for future queries
+                spotlight.userData.type = 'spotlight';
+                spotlight.userData.id = id;
+                spotlight.userData.instanceId = spotlight_id;
+                
+                // Force a full update of spotlight debug helpers
+                this.forceSpotlightDebugUpdate();
             } catch (storageError) {
                 console.error(`Error storing spotlight in asset storage:`, storageError);
             }
@@ -2350,5 +2434,13 @@ export class AssetSpawner {
         this.storage.store_static_mesh(camera_id, camera);
         
         return camera;
+    }
+
+    /**
+     * Forces a full update of all spotlight debug helpers on next call.
+     * Call this when you know spotlights have been added or removed.
+     */
+    forceSpotlightDebugUpdate() {
+        this._needsFullUpdate = true;
     }
 } 

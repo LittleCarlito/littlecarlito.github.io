@@ -98,8 +98,17 @@ export class ViewableContainer {
                 is_column_left: this.is_column_left_side(),
                 found_intersections: found_intersections.length > 0 ? 
                     found_intersections[0].object.name : 'none',
-                focused_text: this.is_text_active() ? this.get_active_name() : 'none'
+                focused_text: this.is_text_active() ? this.get_active_name() : 'none',
+                is_animating: this.is_animating()
             });
+        }
+
+        // Skip all interaction processing if animations are running
+        if (this.is_animating()) {
+            if(FLAGS.SELECT_LOGS) {
+                console.log("Skipping interaction - animation in progress");
+            }
+            return;
         }
 
         if(this.is_column_left_side()){
@@ -180,8 +189,17 @@ export class ViewableContainer {
             console.log("Mouse down handler:", {
                 is_column_left: this.is_column_left_side(),
                 found_intersections: found_intersections.length > 0 ? 
-                    found_intersections[0].object.name : 'none'
+                    found_intersections[0].object.name : 'none',
+                is_animating: this.is_animating()
             });
+        }
+
+        // Skip all interaction processing if animations are running
+        if (this.is_animating()) {
+            if(FLAGS.SELECT_LOGS) {
+                console.log("Skipping interaction - animation in progress");
+            }
+            return;
         }
 
         if(found_intersections.length > 0) {
@@ -217,7 +235,15 @@ export class ViewableContainer {
     }
 
     is_overlay_hidden() {
-        return this.get_overlay().hide_button.is_overlay_hidden;
+        return this.get_overlay().is_overlay_hidden();
+    }
+
+    /**
+     * Checks if any hide/show animations are currently in progress
+     * @returns {boolean} True if animations are in progress
+     */
+    is_animating() {
+        return this.get_overlay().is_animating();
     }
 
     get_hide_transition_map() {

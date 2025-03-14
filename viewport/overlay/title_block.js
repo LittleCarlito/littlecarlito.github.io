@@ -34,6 +34,14 @@ export class TitleBlock {
         return clamp(get_screen_size(this.camera).x * .5, 12, 18);
     }
 
+    /**
+     * Gets the correct title Y position based on overlay state
+     * @returns {number} The Y position for the title
+     */
+    get_title_y() {
+        return get_associated_position(NORTH, this.camera);
+    }
+
     /** Hides/reveals the title block based off overlay status */
     trigger_overlay(is_overlay_hidden, tween_map) {
         const current_pos = this.title_box.position.clone();

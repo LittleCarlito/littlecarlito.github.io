@@ -110,7 +110,6 @@ export class ControlMenu {
     sign_shape;
     // Debug meshes
     debug_meshes = {
-        sign: null,
         beam: null
     };
     // Assembly position
@@ -159,6 +158,25 @@ export class ControlMenu {
     }
 
     async initialize(primary_container, incoming_speed) {
+        // Create only the beam debug mesh, not the sign debug mesh
+        // Debug mesh for beam
+        const beamDebugGeometry = new THREE.BoxGeometry(
+            MENU_CONFIG.BEAM.DIMENSIONS.WIDTH,
+            MENU_CONFIG.BEAM.DIMENSIONS.HEIGHT,
+            MENU_CONFIG.BEAM.DIMENSIONS.DEPTH
+        );
+        const beamDebugMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.7
+        });
+        this.debug_meshes.beam = new THREE.Mesh(beamDebugGeometry, beamDebugMaterial);
+        this.debug_meshes.beam.renderOrder = 999;
+        this.debug_meshes.beam.visible = false; // Initially set to invisible
+        // We'll add to the scene AFTER positioning
+        
+        // Now create the actual objects
         // Top beam creation
         this.top_beam_geometry = new THREE.BoxGeometry(
             MENU_CONFIG.BEAM.DIMENSIONS.WIDTH, 
@@ -195,23 +213,11 @@ export class ControlMenu {
         this.world.createCollider(this.top_beam_shape, this.top_beam_body);
         primary_container.dynamic_bodies.push([this.top_beam_mesh, this.top_beam_body]);
 
-        // Create debug mesh for beam - always create it, but control visibility with flag
-        const beamDebugGeometry = new THREE.BoxGeometry(
-            MENU_CONFIG.BEAM.DIMENSIONS.WIDTH,
-            MENU_CONFIG.BEAM.DIMENSIONS.HEIGHT,
-            MENU_CONFIG.BEAM.DIMENSIONS.DEPTH
-        );
-        const beamDebugMaterial = new THREE.MeshBasicMaterial({
-            color: 0x00ffff,  // Cyan for beam
-            wireframe: true,
-            transparent: true,
-            opacity: 0.7
-        });
-        this.debug_meshes.beam = new THREE.Mesh(beamDebugGeometry, beamDebugMaterial);
+        // Update beam debug mesh position
         this.debug_meshes.beam.position.copy(this.top_beam_mesh.position);
         this.debug_meshes.beam.quaternion.copy(this.top_beam_mesh.quaternion);
-        this.debug_meshes.beam.renderOrder = 999; // Ensure it renders on top
-        this.debug_meshes.beam.visible = FLAGS.SIGN_VISUAL_DEBUG; // Set initial visibility based on flag
+        // Make visible based on flag and add to scene only AFTER positioning
+        this.debug_meshes.beam.visible = FLAGS.COLLISION_VISUAL_DEBUG;
         this.parent.add(this.debug_meshes.beam);
 
         // Create and load the sign asynchronously
@@ -301,29 +307,86 @@ export class ControlMenu {
                 }
                 primary_container.dynamic_bodies.push([this.sign_mesh, this.sign_body]);
                 
-                // Create debug mesh for sign - always create it, but control visibility with flag
-                const signDebugGeometry = new THREE.BoxGeometry(
-                    MENU_CONFIG.SIGN.DIMENSIONS.WIDTH,
-                    MENU_CONFIG.SIGN.DIMENSIONS.HEIGHT,
-                    MENU_CONFIG.SIGN.DIMENSIONS.DEPTH
-                );
-                const signDebugMaterial = new THREE.MeshBasicMaterial({
-                    color: 0xff00ff,  // Magenta for sign
-                    wireframe: true,
-                    transparent: true,
-                    opacity: 0.7
-                });
-                this.debug_meshes.sign = new THREE.Mesh(signDebugGeometry, signDebugMaterial);
-                this.debug_meshes.sign.position.copy(this.sign_mesh.position);
-                this.debug_meshes.sign.quaternion.copy(this.sign_mesh.quaternion);
-                this.debug_meshes.sign.renderOrder = 999; // Ensure it renders on top
-                this.debug_meshes.sign.visible = FLAGS.SIGN_VISUAL_DEBUG; // Set initial visibility based on flag
-                this.parent.add(this.debug_meshes.sign);
+                // If collision debug is enabled, manually create a debug wireframe for the sign
+                if (FLAGS.COLLISION_VISUAL_DEBUG || BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
+                    // Get the current sign position from the physics body
+                    const position = this.sign_body.translation();
+                    const rotation = this.sign_body.rotation();
+                    
+                    // Create a debug wireframe for the sign through the asset spawner
+                    this.spawner.create_debug_wireframe(
+                        'cuboid',
+                        { 
+                            x: MENU_CONFIG.SIGN.DIMENSIONS.WIDTH/2, 
+                            y: MENU_CONFIG.SIGN.DIMENSIONS.HEIGHT/2, 
+                            z: MENU_CONFIG.SIGN.DIMENSIONS.DEPTH/2 
+                        },
+                        new THREE.Vector3(position.x, position.y, position.z),
+                        new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w),
+                        { 
+                            bodyId: this.sign_body.handle,
+                            originalObject: this.sign_mesh,
+                            objectId: this.sign_mesh.id,
+                            isStatic: false
+                        }
+                    ).catch(error => {
+                        console.warn('Failed to create debug wireframe for sign:', error);
+                    });
+                }
                 
                 resolve();
             };
             this.sign_image.src = IMAGE_PATH;
         });
+
+        // Create spotlight immediately after control menu is initialized
+        if (!this.menu_spotlight && this.sign_mesh) {
+            const spotlightPosition = this.calculate_spotlight_position(this.camera.position, this.camera.quaternion);
+            
+            // Make sure we have valid positions before calculating direction
+            if (spotlightPosition) {
+                // Use the target position instead of the current sign position
+                const targetPosition = new THREE.Vector3(
+                    this.target_position.x,
+                    this.target_position.y - 7, // Offset downward to aim lower
+                    this.target_position.z
+                );
+                
+                try {
+                    const direction = new THREE.Vector3().subVectors(targetPosition, spotlightPosition);
+                    const rotationY = Math.atan2(direction.x, direction.z);
+                    const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
+                    
+                    // Adjust properties for a clearer edge but keep a larger radius
+                    // Larger radius for control menu (white with higher intensity)
+                    this.spawner.create_spotlight(
+                        "control_menu_spotlight",
+                        spotlightPosition,
+                        { x: rotationX, y: rotationY },
+                        {
+                            circle_radius: 6,
+                            color: "0xFFFFFF", // Standard white light instead of yellow
+                            intensity: 1.2,    // Much higher intensity to draw attention
+                            angle: Math.PI / 15, // Narrower angle for clearer edge
+                            penumbra: 0.05,    // Lower penumbra for sharper edge
+                            cast_shadow: false
+                        },
+                        {} // empty asset_data
+                    ).then(spotlight => {
+                        this.menu_spotlight = spotlight;
+                        if(BLORKPACK_FLAGS.ASSET_LOGS) {
+                            console.log("Control menu spotlight created:", this.menu_spotlight ? "success" : "failed");
+                        }
+                    }).catch(error => {
+                        console.error("Error creating control menu spotlight:", error);
+                    });
+                } catch (error) {
+                    console.error("Error creating control menu spotlight:", error);
+                }
+            } else {
+                console.warn('ControlMenu: spotlightPosition is undefined');
+            }
+        }
 
         // Start the animation
         this.animation_start_time = performance.now();
@@ -333,12 +396,14 @@ export class ControlMenu {
         this.last_log_time = 0;
         this.log_interval = 5000;
 
+        // Set initial visibility based on flag after everything is created
+        this.updateDebugVisualizations();
+
         return this;
     }
 
     async break_chains() {
         if (this.chains_broken) {
-            // Already broken, just log a warning and return
             console.warn("Attempted to break chains again, but they were already broken.");
             return;
         }
@@ -359,76 +424,48 @@ export class ControlMenu {
             this.menu_spotlight = null;
         }
 
-        // Set gravity scale for sign body
-        if (this.sign_body) {
-            this.sign_body.setGravityScale(1.0);
-        }
-
-        // Properly remove the beam and its collider, not just hide it
-        if (this.top_beam_body) {
-            // Find the collider handle for the beam
-            const beam_collider_handle = this.top_beam_body.collider(0);
-            if (beam_collider_handle) {
-                // Remove the collider from the world
-                this.world.removeCollider(beam_collider_handle, true);
-            }
-            
-            // Remove the rigid body from the world
-            this.world.removeRigidBody(this.top_beam_body);
-            
-            // Remove the beam from dynamic_bodies array
-            if (this.primary_container && this.primary_container.dynamic_bodies) {
-                // Find the index of the beam in the dynamic_bodies array
-                const beamIndex = this.primary_container.dynamic_bodies.findIndex(
-                    pair => Array.isArray(pair) && pair[0] === this.top_beam_mesh && pair[1] === this.top_beam_body
-                );
-                
-                // Remove it if found
-                if (beamIndex !== -1) {
-                    this.primary_container.dynamic_bodies.splice(beamIndex, 1);
-                }
-            }
-            
-            // Clean up references
-            this.top_beam_body = null;
-        }
-        
-        // Remove the beam mesh from the scene
+        // Dispose of beam mesh and physics body
         if (this.top_beam_mesh) {
+            // Remove from scene
             this.parent.remove(this.top_beam_mesh);
-            
             // Dispose of geometry and material
-            if (this.top_beam_mesh.geometry) {
-                this.top_beam_mesh.geometry.dispose();
-            }
-            
-            if (this.top_beam_mesh.material) {
-                this.top_beam_mesh.material.dispose();
-            }
-            
+            if (this.top_beam_geometry) this.top_beam_geometry.dispose();
+            if (this.top_beam_material) this.top_beam_material.dispose();
             this.top_beam_mesh = null;
         }
-        
-        // Remove the beam debug mesh
+
+        // Remove beam physics body
+        if (this.top_beam_body) {
+            try {
+                // Remove all colliders attached to this body
+                const colliders = this.world.getBodyColliders(this.top_beam_body);
+                for (let i = 0; i < colliders.length; i++) {
+                    this.world.removeCollider(colliders[i]);
+                }
+                // Remove the body itself
+                this.world.removeRigidBody(this.top_beam_body);
+            } catch (e) {
+                console.warn('Failed to remove beam physics body:', e);
+            }
+            this.top_beam_body = null;
+        }
+
+        // Dispose of beam debug mesh
         if (this.debug_meshes.beam) {
             this.parent.remove(this.debug_meshes.beam);
-            
-            // Dispose of geometry and material
-            if (this.debug_meshes.beam.geometry) {
-                this.debug_meshes.beam.geometry.dispose();
-            }
-            
-            if (this.debug_meshes.beam.material) {
-                this.debug_meshes.beam.material.dispose();
-            }
-            
+            this.debug_meshes.beam.geometry.dispose();
+            this.debug_meshes.beam.material.dispose();
             this.debug_meshes.beam = null;
         }
 
-        this.chains_broken = true;
-        if (FLAGS.PHYSICS_LOGS) {
-            console.log("Control menu chains broken and beam completely removed");
+        // Set gravity scale and wake up sign body
+        if (this.sign_body) {
+            this.sign_body.setGravityScale(2.0);  // Increased gravity for better falling
+            this.sign_body.wakeUp();
+            // Remove the tiny initial velocity and let gravity do its job
         }
+
+        this.chains_broken = true;
     }
 
     // Smooth easing function (ease-out cubic)
@@ -440,50 +477,9 @@ export class ControlMenu {
      * Updates the spotlight to point at the sign
      */
     updateSpotlight() {
-        // Only update if spotlight and sign exist
-        if (this.menu_spotlight && this.sign_mesh) {
-            // Ensure menu_spotlight has needed properties
-            if (!this.menu_spotlight.position && !this.menu_spotlight.mesh) {
-                console.warn('ControlMenu: menu_spotlight is missing position property and mesh property');
-                // Log the entire spotlight object to see what it contains
-                console.log("menu_spotlight object:", this.menu_spotlight);
-                return;
-            }
-            // Check specifically for position
-            if (!this.menu_spotlight.position && this.menu_spotlight.mesh) {
-                console.log("Using menu_spotlight.mesh.position instead of direct position");
-                this.menu_spotlight.position = this.menu_spotlight.mesh.position;
-            }
-            // Ensure menu_spotlight.position exists before proceeding
-            if (!this.menu_spotlight.position) {
-                console.warn('ControlMenu: menu_spotlight.position is undefined');
-                return;
-            }
-            // Update spotlight direction to point at sign
-            const targetPosition = new THREE.Vector3();
-            targetPosition.copy(this.sign_mesh.position);
-            try {
-                const direction = new THREE.Vector3().subVectors(targetPosition, this.menu_spotlight.position);
-                const rotationY = Math.atan2(direction.x, direction.z);
-                const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
-                // Update spotlight rotation
-                if (this.menu_spotlight.rotation) {
-                    this.menu_spotlight.rotation.set(rotationX, rotationY, 0);
-                } else if (this.menu_spotlight.mesh) {
-                    this.menu_spotlight.mesh.rotation.set(rotationX, rotationY, 0);
-                }
-                // Update target
-                if (this.menu_spotlight.target) {
-                    this.menu_spotlight.target.position.copy(targetPosition);
-                    this.menu_spotlight.target.updateMatrixWorld();
-                } else if (this.menu_spotlight.mesh && this.menu_spotlight.mesh.target) {
-                    this.menu_spotlight.mesh.target.position.copy(targetPosition);
-                    this.menu_spotlight.mesh.target.updateMatrixWorld();
-                }
-            } catch (error) {
-                console.error("Error updating control menu spotlight:", error);
-            }
-        }
+        // Removed spotlight tracking implementation since we want it to remain fixed
+        // pointing at the final destination of the control menu
+        // The spotlight is now set up at initialization and points at the target_position
     }
 
     async update() {
@@ -501,12 +497,17 @@ export class ControlMenu {
         
         // Update spotlight if it exists
         this.updateSpotlight();
+
+        // Remove update of sign debug mesh since we removed it
+
+        // Update beam debug mesh if it still exists and chains are not broken
+        if (!this.chains_broken && this.debug_meshes.beam && this.top_beam_mesh) {
+            this.debug_meshes.beam.position.copy(this.top_beam_mesh.position);
+            this.debug_meshes.beam.quaternion.copy(this.top_beam_mesh.quaternion);
+        }
         
         // If we're animating, update the animation
         if (this.is_animating) {
-            // Get current time for logging
-            const currentTime = performance.now();
-            
             // Skip joint check if chains are broken, but continue updating
             if (!this.chains_broken && (!this.sign_joint)) return;
             
@@ -523,11 +524,11 @@ export class ControlMenu {
                 }
                 
                 if (this.sign_mesh && this.sign_body) {
-                    const signPos = this.sign_mesh.position;
+                    const signPos = this.sign_body.translation();
                     const signVel = this.sign_body.linvel();
-                    const rotation = this.sign_body.rotation();
+                    const signRot = this.sign_body.rotation();
                     const euler = new THREE.Euler().setFromQuaternion(
-                        new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w)
+                        new THREE.Quaternion(signRot.x, signRot.y, signRot.z, signRot.w)
                     );
                     
                     if(FLAGS.PHYSICS_LOGS) {
@@ -540,27 +541,10 @@ export class ControlMenu {
                 this.last_log_time = currentTime;
             }
 
-            // Always update debug mesh positions if they exist, regardless of visibility
-            // This ensures they're in the right position when the flag is toggled
-            if (this.debug_meshes.sign && this.sign_body) {
-                const signPos = this.sign_body.translation();
-                const signRot = this.sign_body.rotation();
-                this.debug_meshes.sign.position.set(signPos.x, signPos.y, signPos.z);
-                this.debug_meshes.sign.quaternion.set(signRot.x, signRot.y, signRot.z, signRot.w);
-            }
-
-            // Only update beam debug mesh if chains are not broken and the beam still exists
-            if (!this.chains_broken && this.debug_meshes.beam && this.top_beam_body) {
-                const beamPos = this.top_beam_body.translation();
-                const beamRot = this.top_beam_body.rotation();
-                this.debug_meshes.beam.position.set(beamPos.x, beamPos.y, beamPos.z);
-                this.debug_meshes.beam.quaternion.set(beamRot.x, beamRot.y, beamRot.z, beamRot.w);
-            }
-
             // Skip the rest if chains are broken
             if (this.chains_broken) return;
 
-            // Handle smooth animation if still animating
+            // Handle smooth animation if still animating and objects exist
             if (this.is_animating && this.top_beam_body) {
                 const elapsed = (currentTime - this.animation_start_time) / 1000; // Convert to seconds
                 
@@ -572,48 +556,6 @@ export class ControlMenu {
                         z: this.target_position.z
                     });
                     
-                    // Create spotlight if needed (but don't wait for it)
-                    if (!this.menu_spotlight && this.sign_mesh) {
-                        
-                        const spotlightPosition = this.calculate_spotlight_position(this.camera.position, this.camera.quaternion);
-                        
-                        // Make sure we have valid positions before calculating direction
-                        if (!spotlightPosition) {
-                            console.warn('ControlMenu: spotlightPosition is undefined');
-                            return;
-                        }
-
-                        const targetPosition = new THREE.Vector3();
-                        targetPosition.copy(this.sign_mesh.position);
-                        
-                        try {
-                            const direction = new THREE.Vector3().subVectors(targetPosition, spotlightPosition);
-                            const rotationY = Math.atan2(direction.x, direction.z);
-                            const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
-                            
-                            // Adjust properties for a clearer edge but keep a larger radius
-                            // Larger radius for control menu (white with higher intensity)
-                            this.menu_spotlight = await this.spawner.create_spotlight(
-                                "control_menu_spotlight",
-                                spotlightPosition,
-                                { x: rotationX, y: rotationY },
-                                {
-                                    circle_radius: 6,
-                                    color: "0xFFFFFF", // Standard white light instead of yellow
-                                    intensity: 1.2,    // Much higher intensity to draw attention
-                                    angle: Math.PI / 15, // Narrower angle for clearer edge
-                                    penumbra: 0.05,    // Lower penumbra for sharper edge
-                                    cast_shadow: false
-                                },
-                                {} // empty asset_data
-                            );
-                            if(BLORKPACK_FLAGS.ASSET_LOGS) {
-                                console.log("Control menu spotlight created:", this.menu_spotlight ? "success" : "failed");
-                            }
-                        } catch (error) {
-                            console.error("Error creating control menu spotlight:", error);
-                        }
-                    }
                     this.is_animating = false;
                     this.reached_target = true;
                     if(FLAGS.PHYSICS_LOGS) {
@@ -641,15 +583,39 @@ export class ControlMenu {
      * Updates the debug visualization for the control menu based on the current flag state
      */
     updateDebugVisualizations() {
-        // Toggle visibility of existing debug meshes based on flag
-        if (this.debug_meshes.sign) {
-            this.debug_meshes.sign.visible = FLAGS.SIGN_VISUAL_DEBUG;
-        }
-        
-        // Only set beam visibility if chains are not broken
-        // If chains are broken, the beam should have been completely removed
-        if (!this.chains_broken && this.debug_meshes.beam) {
-            this.debug_meshes.beam.visible = FLAGS.SIGN_VISUAL_DEBUG;
+        // Check if we should create or update the beam debug mesh
+        if (FLAGS.COLLISION_VISUAL_DEBUG) {
+            if (this.debug_meshes.beam) {
+                // Update existing mesh
+                if (this.top_beam_mesh) {
+                    this.debug_meshes.beam.position.copy(this.top_beam_mesh.position);
+                    this.debug_meshes.beam.quaternion.copy(this.top_beam_mesh.quaternion);
+                }
+                this.debug_meshes.beam.visible = true;
+            } else if (this.top_beam_mesh) {
+                // Create new mesh if needed
+                const beamDebugGeometry = new THREE.BoxGeometry(
+                    MENU_CONFIG.BEAM.DIMENSIONS.WIDTH,
+                    MENU_CONFIG.BEAM.DIMENSIONS.HEIGHT,
+                    MENU_CONFIG.BEAM.DIMENSIONS.DEPTH
+                );
+                const beamDebugMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x00ffff,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                this.debug_meshes.beam = new THREE.Mesh(beamDebugGeometry, beamDebugMaterial);
+                this.debug_meshes.beam.renderOrder = 999;
+                // Position BEFORE adding to scene
+                this.debug_meshes.beam.position.copy(this.top_beam_mesh.position);
+                this.debug_meshes.beam.quaternion.copy(this.top_beam_mesh.quaternion);
+                this.debug_meshes.beam.visible = true;
+                this.parent.add(this.debug_meshes.beam);
+            }
+        } else if (this.debug_meshes.beam) {
+            // Hide when debug is disabled
+            this.debug_meshes.beam.visible = false;
         }
     }
 

@@ -261,6 +261,11 @@ export class CameraManager {
             this.overlay_container.overlay_container.position.add(forward);
             // Make the overlay face the camera by copying the camera's quaternion
             this.overlay_container.overlay_container.quaternion.copy(this.camera.quaternion);
+            
+            // Update tween targets if animations are active
+            if (this.overlay_container.is_animating()) {
+                this.overlay_container.update_tween_targets();
+            }
         }
         
         // Call update callbacks
