@@ -33,6 +33,7 @@ jobs:
           node-version: 'lts/*'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
+          cache: ''
 
       - name: Create blorkpack lock file
         run: |
@@ -120,6 +121,7 @@ jobs:
           node-version: 'lts/*'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
+          cache: ''
 
       - name: Pull latest changes from remote
         run: |
