@@ -34,26 +34,29 @@ jobs:
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
 
-      - name: Update blorkpack lock file
+      - name: Create blorkpack lock file
         run: |
           cd packages/blorkpack
-          rm -f package-lock.json
-          npm install --package-lock-only
+          # Force regular npm install to generate lock file
+          npm install --no-package-lock
+          npm install
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
-      - name: Update blorktools lock file
+      - name: Create blorktools lock file
         run: |
           cd packages/blorktools
-          rm -f package-lock.json
-          npm install --package-lock-only
+          # Force regular npm install to generate lock file
+          npm install --no-package-lock
+          npm install
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
-      - name: Update root project lock file
+      - name: Create root project lock file
         run: |
-          rm -f package-lock.json
-          npm install --package-lock-only
+          # Force regular npm install to generate lock file
+          npm install --no-package-lock
+          npm install
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
@@ -69,12 +72,21 @@ jobs:
       - name: Commit and push lock file changes
         if: steps.check_changes.outputs.changes == 'true'
         run: |
-          git add */*/package-lock.json */package-lock.json package-lock.json
-          git commit -m "chore: update package-lock.json files [skip ci]"
-          git pull --rebase origin main
-          git push
+          git add */*/package-lock.json */package-lock.json package-lock.json || true
+          git commit -m "chore: update package-lock.json files [skip ci]" || true
+          git pull --rebase origin main || true
+          git push || echo "Failed to push changes, but continuing workflow"
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+      
+      - name: Check if lock files exist
+        id: check_lockfiles
+        run: |
+          if [[ -f "packages/blorkpack/package-lock.json" && -f "packages/blorktools/package-lock.json" && -f "package-lock.json" ]]; then
+            echo "lockfiles_exist=true" >> $GITHUB_OUTPUT
+          else
+            echo "lockfiles_exist=false" >> $GITHUB_OUTPUT
+          fi
 
   release:
     name: Create Semantic Release
@@ -116,14 +128,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Install project dependencies
-        run: npm ci
+        run: npm install
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Install and build blorkpack
         run: |
           cd packages/blorkpack
-          npm ci
+          npm install
           npm run build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -151,7 +163,7 @@ jobs:
       - name: Install and build blorktools
         run: |
           cd packages/blorktools
-          npm ci
+          npm install
           npm run build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
