@@ -64,6 +64,53 @@ jobs:
         run: npm install
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          
+      - name: Ensure blorkpack package is built and linked
+        run: |
+          echo "Building and linking blorkpack for local use..."
+          cd packages/blorkpack
+          npm install
+          npm run build
+          cd ../..
+          ls -la packages/blorkpack/dist
+          
+          # Update vite.config.js to ensure it can find blorkpack
+          cat > vite.config.js << 'EOL'
+          import { defineConfig } from 'vite'
+          import path from 'path'
+          import fs from 'fs'
+
+          export default defineConfig({
+            base: '/threejs_site/',
+            resolve: {
+              alias: {
+                '@littlecarlito/blorkpack': path.resolve(__dirname, 'packages/blorkpack/dist/index.js')
+              }
+            },
+            optimizeDeps: {
+              include: ['@littlecarlito/blorkpack']
+            },
+            build: {
+              rollupOptions: {
+                output: {
+                  manualChunks: {
+                    'three-core': ['three'],
+                    'three-addons': [
+                      'three/examples/jsm/controls/OrbitControls',
+                      'three/examples/jsm/Addons.js',
+                      'three/examples/jsm/libs/tween.module.js'
+                    ]
+                  }
+                }
+              }
+            }
+          })
+          EOL
+          
+          echo "Updated vite.config.js:"
+          cat vite.config.js
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         
       - name: Build Production Bundle
         run: npm run build
