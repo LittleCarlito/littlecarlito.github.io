@@ -129,7 +129,8 @@ jobs:
       - name: Build blorkpack package
         run: |
           cd packages/blorkpack
-          npm install
+          # Since lock files are now up-to-date, we can use npm ci
+          npm ci
           npm run build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -198,7 +199,8 @@ jobs:
       - name: Build blorktools package
         run: |
           cd packages/blorktools
-          npm install
+          # Since lock files are now up-to-date, we can use npm ci
+          npm ci
           npm run build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
