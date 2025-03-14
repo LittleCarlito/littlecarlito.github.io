@@ -1,3 +1,10 @@
+## [0.11.1](https://github.com/littlecarlito/threejs_site/compare/v0.11.0...v0.11.1) (2025-03-14)
+
+
+### Bug Fixes
+
+* intermediate fix ([#84](https://github.com/littlecarlito/threejs_site/issues/84)) ([64b9bfc](https://github.com/littlecarlito/threejs_site/commit/64b9bfc552cbe78daea45203cf0a6150e72874c9))
+
 # [0.11.0](https://github.com/littlecarlito/threejs_site/compare/v0.10.5...v0.11.0) (2025-03-14)
 
 
