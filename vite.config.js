@@ -23,6 +23,31 @@ function getToolsEntryPoints() {
   return entries;
 }
 
+// Helper function to copy directory contents to the dist folder
+function copyDirectory(src, dest) {
+  if (!fs.existsSync(src)) {
+    console.warn(`Source directory ${src} doesn't exist`);
+    return;
+  }
+  
+  if (!fs.existsSync(dest)) {
+    fs.mkdirSync(dest, { recursive: true });
+  }
+  
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+  
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    
+    if (entry.isDirectory()) {
+      copyDirectory(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
+}
+
 export default defineConfig(({ command }) => {
   const isProduction = command === 'build';
   
@@ -42,7 +67,6 @@ export default defineConfig(({ command }) => {
       rollupOptions: {
         output: {
           manualChunks: {
-            'three-core': ['three'],
             'three-addons': [
               'three/examples/jsm/controls/OrbitControls',
               'three/examples/jsm/Addons.js',
@@ -66,6 +90,26 @@ export default defineConfig(({ command }) => {
       },
       sourcemap: true,
       chunkSizeWarningLimit: 1000, // Increase warning limit to 1000kb
-    }
+    },
+    // Custom copy function for resources
+    plugins: [
+      {
+        name: 'copy-resources',
+        closeBundle() {
+          if (isProduction) {
+            const resourceSrc = path.resolve(__dirname, 'resources');
+            const resourceDest = path.resolve(__dirname, 'dist/resources');
+            console.log(`Copying resources from ${resourceSrc} to ${resourceDest}`);
+            copyDirectory(resourceSrc, resourceDest);
+            
+            // Also copy any other static assets needed
+            const pagesSrc = path.resolve(__dirname, 'pages');
+            const pagesDest = path.resolve(__dirname, 'dist/pages');
+            console.log(`Copying pages from ${pagesSrc} to ${pagesDest}`);
+            copyDirectory(pagesSrc, pagesDest);
+          }
+        }
+      }
+    ]
   };
 }) 
