@@ -130,14 +130,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Install project dependencies
-        run: npm install
+        run: npm ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Install and build blorkpack
         run: |
           cd packages/blorkpack
-          npm install
+          npm ci
           npm run build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -164,7 +164,7 @@ jobs:
       - name: Install and build blorktools
         run: |
           cd packages/blorktools
-          npm install
+          npm ci
           npm run build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
