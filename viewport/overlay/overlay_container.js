@@ -301,4 +301,16 @@ export class OverlayContainer {
             return this.text_box_container.get_active_text_box();
         }
     }
+
+    is_overlay_hidden() {
+        return this.hide_button.is_overlay_hidden;
+    }
+
+    /**
+     * Checks if any hide/show animations are currently in progress
+     * @returns {boolean} True if animations are in progress
+     */
+    is_animating() {
+        return this.hide_transition_map.size > 0;
+    }
 }

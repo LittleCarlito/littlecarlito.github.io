@@ -468,6 +468,11 @@ function handle_mouse_move(e) {
         );
     }
     if(greeting_acknowledged) {
+        // Check if animations are running - skip hover handling during animations
+        if(window.viewable_container.is_animating()) {
+            return;
+        }
+        
         // Handle intersections
         const found_intersections = get_intersect_list(e, window.viewable_container.get_camera(), window.scene);
         
