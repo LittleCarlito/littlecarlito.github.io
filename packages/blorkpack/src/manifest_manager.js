@@ -37,6 +37,8 @@ export class ManifestManager {
         this.manifest_data = null;
         this.load_promise = null;
         this.is_loaded = false;
+        /** @type {string|null} The path that successfully loaded the manifest */
+        this.successful_manifest_path = null;
         
         ManifestManager.instance = this;
     }
@@ -53,11 +55,19 @@ export class ManifestManager {
     }
     
     /**
+     * Gets the path that successfully loaded the manifest.
+     * @returns {string|null} The path that worked, or null if not loaded yet
+     */
+    get_successful_manifest_path() {
+        return this.successful_manifest_path;
+    }
+    
+    /**
      * Loads the manifest.json file asynchronously.
-     * @param {string} [relativePath='resources/manifest.json'] - Relative path to the manifest file
+     * @param {string} [relativePath='manifest.json'] - Relative path to the manifest file
      * @returns {Promise<Object>} A promise that resolves with the loaded manifest data.
      */
-    async load_manifest(relativePath = 'resources/manifest.json') {
+    async load_manifest(relativePath = 'manifest.json') {
         if (this.is_loaded) {
             return this.manifest_data;
         }
@@ -66,51 +76,36 @@ export class ManifestManager {
             return this.load_promise;
         }
         
-        // Get the base URL using window.location for web or default to "/"
-        let baseUrl = '/';
+        // Since we're using the public folder, the manifest will be at the root
+        console.log(`Loading manifest from: ${relativePath}`);
         
-        // Check if we're in a browser environment
-        if (typeof window !== 'undefined' && window.location) {
-            // Extract the base path from the current deploy environment
-            // For GitHub Pages or similar deploys with path prefixes, this ensures we include the prefix
-            const pathParts = window.location.pathname.split('/');
-            // Remove the last part if it looks like a file (e.g., index.html)
-            if (pathParts[pathParts.length - 1].includes('.')) {
-                pathParts.pop();
+        try {
+            const response = await fetch(relativePath);
+            if (!response.ok) {
+                throw new Error(`Failed to load manifest: ${response.status}`);
             }
-            // Build the base URL
-            baseUrl = pathParts.join('/');
-            if (!baseUrl.endsWith('/')) {
-                baseUrl += '/';
-            }
-        }
-        
-        // Ensure proper path joining
-        const path = relativePath.startsWith('/') ? baseUrl + relativePath.substring(1) : baseUrl + relativePath;
-        
-        if (BLORKPACK_FLAGS.DEBUG_LOGS) {
-            console.log(`Loading manifest from: ${path}`);
-        }
-        
-        this.load_promise = fetch(path)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Failed to load manifest: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                this.manifest_data = data;
-                this.is_loaded = true;
-                console.log('Manifest loaded successfully');
-                return data;
-            })
-            .catch(error => {
-                console.error('Error loading manifest:', error);
-                throw error;
-            });
             
-        return this.load_promise;
+            const data = await response.json();
+            this.manifest_data = data;
+            this.is_loaded = true;
+            this.successful_manifest_path = relativePath;
+            
+            // Log success with clear formatting
+            console.log(`
+%cManifest Successfully Loaded
+%cPath: ${relativePath}
+%cThis is the path that worked - you can remove other manifest copies
+`, 
+                'color: green; font-weight: bold; font-size: 1.1em;',
+                'color: blue; font-weight: bold;',
+                'color: gray; font-style: italic;'
+            );
+            
+            return data;
+        } catch (error) {
+            console.error("Failed to load manifest:", error);
+            throw error;
+        }
     }
     
     /**

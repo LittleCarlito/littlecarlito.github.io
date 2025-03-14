@@ -97,12 +97,7 @@ export default defineConfig(({ command }) => {
         name: 'copy-resources',
         closeBundle() {
           if (isProduction) {
-            const resourceSrc = path.resolve(__dirname, 'resources');
-            const resourceDest = path.resolve(__dirname, 'dist/resources');
-            console.log(`Copying resources from ${resourceSrc} to ${resourceDest}`);
-            copyDirectory(resourceSrc, resourceDest);
-            
-            // Also copy any other static assets needed
+            // Copy other static assets needed
             const pagesSrc = path.resolve(__dirname, 'pages');
             const pagesDest = path.resolve(__dirname, 'dist/pages');
             console.log(`Copying pages from ${pagesSrc} to ${pagesDest}`);
