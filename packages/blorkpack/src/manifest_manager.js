@@ -54,10 +54,10 @@ export class ManifestManager {
     
     /**
      * Loads the manifest.json file asynchronously.
-     * @param {string} [path='resources/manifest.json'] - Path to the manifest file
+     * @param {string} [relativePath='resources/manifest.json'] - Relative path to the manifest file
      * @returns {Promise<Object>} A promise that resolves with the loaded manifest data.
      */
-    async load_manifest(path = 'resources/manifest.json') {
+    async load_manifest(relativePath = 'resources/manifest.json') {
         if (this.is_loaded) {
             return this.manifest_data;
         }
@@ -66,10 +66,36 @@ export class ManifestManager {
             return this.load_promise;
         }
         
+        // Get the base URL using window.location for web or default to "/"
+        let baseUrl = '/';
+        
+        // Check if we're in a browser environment
+        if (typeof window !== 'undefined' && window.location) {
+            // Extract the base path from the current deploy environment
+            // For GitHub Pages or similar deploys with path prefixes, this ensures we include the prefix
+            const pathParts = window.location.pathname.split('/');
+            // Remove the last part if it looks like a file (e.g., index.html)
+            if (pathParts[pathParts.length - 1].includes('.')) {
+                pathParts.pop();
+            }
+            // Build the base URL
+            baseUrl = pathParts.join('/');
+            if (!baseUrl.endsWith('/')) {
+                baseUrl += '/';
+            }
+        }
+        
+        // Ensure proper path joining
+        const path = relativePath.startsWith('/') ? baseUrl + relativePath.substring(1) : baseUrl + relativePath;
+        
+        if (BLORKPACK_FLAGS.DEBUG_LOGS) {
+            console.log(`Loading manifest from: ${path}`);
+        }
+        
         this.load_promise = fetch(path)
             .then(response => {
                 if (!response.ok) {
-                    throw new Error(`Failed to load manifest: ${response.status} ${response.statusText}`);
+                    throw new Error(`Failed to load manifest: ${response.status}`);
                 }
                 return response.json();
             })
