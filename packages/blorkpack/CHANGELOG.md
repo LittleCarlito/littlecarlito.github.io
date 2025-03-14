@@ -1,3 +1,10 @@
+## [0.10.5](https://github.com/littlecarlito/threejs_site/compare/v0.10.4...v0.10.5) (2025-03-14)
+
+
+### Bug Fixes
+
+* having pipeline wait for deploy ([#79](https://github.com/littlecarlito/threejs_site/issues/79)) ([6197d7e](https://github.com/littlecarlito/threejs_site/commit/6197d7e8def579abf7004eb38bd5278ecb711288))
+
 ## [0.10.4](https://github.com/littlecarlito/threejs_site/compare/v0.10.3...v0.10.4) (2025-03-14)
 
 
