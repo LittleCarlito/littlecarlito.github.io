@@ -7,6 +7,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
+    "watch": "vite build --watch",
     "test": "npm run build && node examples/manifest-test.js",
     "example:usage": "npm run build && node examples/usage-example.js",
     "example:manifest": "npm run build && node examples/manifest-test.js",

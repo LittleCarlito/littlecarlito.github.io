@@ -91,6 +91,18 @@ export default defineConfig(({ command }) => {
       sourcemap: true,
       chunkSizeWarningLimit: 1000, // Increase warning limit to 1000kb
     },
+    // Server configuration for development
+    server: {
+      hmr: {
+        overlay: true, // Show errors as overlay
+        timeout: 10000, // Extended timeout for larger modules
+      },
+      watch: {
+        usePolling: true, // Enable polling for file changes
+        interval: 1000, // Check every second
+        ignored: ['!**/node_modules/@littlecarlito/blorkpack/**', '**/node_modules/**'],
+      }
+    },
     // Custom copy function for resources
     plugins: [
       {

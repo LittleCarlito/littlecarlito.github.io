@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"vite\" \"npm run tools\"",
+    "dev": "concurrently \"vite\" \"npm run tools\" \"npm run watch:blorkpack\"",
+    "watch:blorkpack": "cd packages/blorkpack && npm run watch",
     "build": "vite build",
     "preview": "vite preview",
     "semantic-release": "semantic-release",
@@ -25,7 +26,7 @@
     "concurrently": "^9.1.2",
     "express": "^4.21.2",
     "semantic-release": "^23.0.2",
-    "vite": "^6.0.11"
+    "vite": "^6.2.2"
   },
   "resolutions": {
     "@littlecarlito/blorkpack": "file:packages/blorkpack"
