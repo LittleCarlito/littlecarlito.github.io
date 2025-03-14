@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import path from 'path'
 import fs from 'fs'
+import { ViteImageOptimizer } from 'vite-plugin-image-optimizer'
 
 // Helper function to get HTML files in tools directory
 function getToolsEntryPoints() {
@@ -65,6 +66,13 @@ export default defineConfig(({ command }) => {
       outDir: 'dist',
       assetsDir: 'assets',
       emptyOutDir: true,
+      minify: isProduction ? 'terser' : false,
+      terserOptions: isProduction ? {
+        compress: {
+          drop_console: false,
+          drop_debugger: true
+        }
+      } : undefined,
       rollupOptions: {
         output: {
           manualChunks: {
@@ -89,7 +97,7 @@ export default defineConfig(({ command }) => {
           })
         }
       },
-      sourcemap: true,
+      sourcemap: !isProduction, // Only generate source maps in development
       chunkSizeWarningLimit: 1000, // Increase warning limit to 1000kb
     },
     // Server configuration for development
@@ -106,6 +114,41 @@ export default defineConfig(({ command }) => {
     },
     // Custom copy function for resources
     plugins: [
+      // Only use image optimizer in production
+      isProduction && ViteImageOptimizer({
+        // Image optimization options
+        png: {
+          quality: 80,
+        },
+        jpeg: {
+          quality: 80,
+        },
+        jpg: {
+          quality: 80,
+        },
+        webp: {
+          lossless: true,
+        },
+        avif: {
+          lossless: true,
+        },
+        gif: {
+          optimizationLevel: 3,
+        },
+        svg: {
+          multipass: true,
+          plugins: [
+            {
+              name: 'preset-default',
+              params: {
+                overrides: {
+                  removeViewBox: false,
+                },
+              },
+            },
+          ],
+        },
+      }),
       {
         name: 'copy-resources',
         closeBundle() {

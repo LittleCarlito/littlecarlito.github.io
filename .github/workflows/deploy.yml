@@ -136,6 +136,17 @@ jobs:
           else
             echo "✅ No source code files found in dist."
           fi
+          
+          # Analyze bundle size
+          echo "📊 Analyzing bundle size..."
+          TOTAL_SIZE=$(du -sh dist | cut -f1)
+          JS_SIZE=$(du -sh dist/*.js | awk '{s+=$1} END {print s "B"}')
+          echo "Total bundle size: $TOTAL_SIZE"
+          echo "JavaScript bundle size: $JS_SIZE"
+          
+          # List top 5 largest files
+          echo "Largest files in bundle:"
+          find dist -type f -name "*.js" -exec du -h {} \; | sort -rh | head -n 5
         
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3

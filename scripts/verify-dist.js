@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 
 // Check if packages directory exists in dist
 const distPath = path.resolve('dist');
@@ -62,4 +63,75 @@ if (sourceFiles.length > 0) {
   console.log('✅ No source code files found in dist.');
 }
 
-console.log('Verification complete!'); 
+// Analyze bundle size
+console.log('\n📊 Analyzing bundle size...');
+
+// Get file sizes
+function getFileSizesInDir(dir, extension) {
+  const results = [];
+  
+  function scan(directory) {
+    const entries = fs.readdirSync(directory, { withFileTypes: true });
+    
+    for (const entry of entries) {
+      const fullPath = path.join(directory, entry.name);
+      
+      if (entry.isDirectory()) {
+        scan(fullPath);
+      } else if (!extension || entry.name.endsWith(extension)) {
+        const stats = fs.statSync(fullPath);
+        results.push({
+          path: fullPath,
+          size: stats.size,
+          sizeFormatted: formatBytes(stats.size)
+        });
+      }
+    }
+  }
+  
+  scan(dir);
+  
+  // Sort by size (largest first)
+  return results.sort((a, b) => b.size - a.size);
+}
+
+// Format bytes to human-readable format
+function formatBytes(bytes, decimals = 2) {
+  if (bytes === 0) return '0 Bytes';
+  
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
+// Get largest JS files
+const jsFiles = getFileSizesInDir(distPath, '.js');
+const totalJsSize = jsFiles.reduce((total, file) => total + file.size, 0);
+
+// Get largest asset files
+const assetFiles = getFileSizesInDir(path.join(distPath, 'assets'));
+const totalAssetSize = assetFiles.reduce((total, file) => total + file.size, 0);
+
+// Total size
+const totalSize = totalJsSize + totalAssetSize;
+
+console.log(`Total bundle size: ${formatBytes(totalSize)}`);
+console.log(`JavaScript bundle size: ${formatBytes(totalJsSize)}`);
+console.log(`Assets size: ${formatBytes(totalAssetSize)}`);
+
+// Log top 5 largest files
+console.log('\nTop 5 largest JavaScript files:');
+jsFiles.slice(0, 5).forEach(file => {
+  console.log(`- ${file.sizeFormatted}: ${path.relative(distPath, file.path)}`);
+});
+
+console.log('\nTop 5 largest assets:');
+assetFiles.slice(0, 5).forEach(file => {
+  console.log(`- ${file.sizeFormatted}: ${path.relative(distPath, file.path)}`);
+});
+
+console.log('\nVerification complete!'); 
