@@ -34,58 +34,84 @@ jobs:
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
 
+      - name: Debug - list existing lock files
+        run: |
+          echo "Checking for existing lock files:"
+          find . -name "package-lock.json" || echo "No lock files found"
+
+      - name: Remove existing lock files if any
+        run: |
+          echo "Removing any existing lock files to force recreation"
+          find . -name "package-lock.json" -delete || echo "No lock files to delete"
+
       - name: Create blorkpack lock file
         run: |
           cd packages/blorkpack
+          echo "Creating lock file for blorkpack..."
           # Force regular npm install to generate lock file
-          npm install --no-package-lock
           npm install
+          ls -la package-lock.json || echo "No package-lock.json created"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Create blorktools lock file
         run: |
           cd packages/blorktools
+          echo "Creating lock file for blorktools..."
           # Force regular npm install to generate lock file
-          npm install --no-package-lock
           npm install
+          ls -la package-lock.json || echo "No package-lock.json created"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Create root project lock file
         run: |
+          echo "Creating lock file for root project..."
           # Force regular npm install to generate lock file
-          npm install --no-package-lock
           npm install
+          ls -la package-lock.json || echo "No package-lock.json created"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Check for lock file changes
         id: check_changes
         run: |
+          echo "Checking for changes in lock files..."
+          git status --porcelain
           if [[ -n "$(git status --porcelain)" ]]; then
             echo "changes=true" >> $GITHUB_OUTPUT
+            echo "Changes detected!"
           else
             echo "changes=false" >> $GITHUB_OUTPUT
+            echo "No changes detected."
           fi
 
       - name: Commit and push lock file changes
         if: steps.check_changes.outputs.changes == 'true'
         run: |
-          git add */*/package-lock.json */package-lock.json package-lock.json || true
-          git commit -m "chore: update package-lock.json files [skip ci]" || true
-          git pull --rebase origin main || true
-          git push || echo "Failed to push changes, but continuing workflow"
+          echo "Committing lock file changes..."
+          git add **/package-lock.json package-lock.json || true
+          git status --porcelain
+          git commit -m "chore: update package-lock.json files [skip ci]" || echo "No changes to commit"
+          git pull --rebase origin main || echo "Failed to pull, but continuing"
+          git push && echo "Successfully pushed changes" || echo "Failed to push changes, but continuing workflow"
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
+      - name: Debug - Verify lock files existence
+        run: |
+          echo "Verifying lock files existence after commit:"
+          find . -name "package-lock.json" || echo "No lock files found"
+          
       - name: Check if lock files exist
         id: check_lockfiles
         run: |
           if [[ -f "packages/blorkpack/package-lock.json" && -f "packages/blorktools/package-lock.json" && -f "package-lock.json" ]]; then
             echo "lockfiles_exist=true" >> $GITHUB_OUTPUT
+            echo "All lock files exist!"
           else
             echo "lockfiles_exist=false" >> $GITHUB_OUTPUT
+            echo "Not all lock files exist."
           fi
 
   release:
@@ -126,6 +152,17 @@ jobs:
           git pull origin main
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          
+      - name: Check for lock files
+        id: check_lockfiles
+        run: |
+          if [[ -f "packages/blorkpack/package-lock.json" && -f "packages/blorktools/package-lock.json" && -f "package-lock.json" ]]; then
+            echo "lockfiles_exist=true" >> $GITHUB_OUTPUT
+            echo "All lock files exist, can use npm ci later when needed"
+          else
+            echo "lockfiles_exist=false" >> $GITHUB_OUTPUT
+            echo "Some lock files are missing, will use npm install"
+          fi
 
       - name: Install project dependencies
         run: npm install
