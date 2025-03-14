@@ -1,3 +1,10 @@
+## [0.11.7](https://github.com/littlecarlito/threejs_site/compare/v0.11.6...v0.11.7) (2025-03-14)
+
+
+### Bug Fixes
+
+* hmr ([#94](https://github.com/littlecarlito/threejs_site/issues/94)) ([e805a06](https://github.com/littlecarlito/threejs_site/commit/e805a064361abdc84dae746a337d5de5ccb06d64))
+
 ## [0.11.6](https://github.com/littlecarlito/threejs_site/compare/v0.11.5...v0.11.6) (2025-03-14)
 
 
