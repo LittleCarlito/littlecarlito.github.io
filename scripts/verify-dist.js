@@ -63,6 +63,137 @@ if (sourceFiles.length > 0) {
   console.log('✅ No source code files found in dist.');
 }
 
+// Check for development and documentation files
+console.log('\n🔍 Checking for development and documentation files...');
+
+// List of patterns that shouldn't be in production build
+const developmentPatterns = [
+  // Development directories
+  'development/',
+  'dev/',
+  'tests/',
+  'test/',
+  'spec/',
+  'examples/',
+  'example/',
+  'demos/',
+  'demo/',
+  
+  // Documentation directories
+  'docs/',
+  'documentation/',
+  'api-docs/',
+  'wiki/',
+  
+  // Development files
+  '.eslintrc',
+  '.prettierrc',
+  '.babelrc',
+  'jest.config',
+  'webpack.config',
+  'tsconfig',
+  'rollup.config',
+  'karma.conf',
+  'mocha.opts',
+  'cypress.json',
+  '.storybook',
+  
+  // Documentation files
+  'README',
+  'CHANGELOG',
+  'LICENSE',
+  'CONTRIBUTING',
+  'AUTHORS',
+  'BACKERS',
+  'SPONSORS',
+  'CODE_OF_CONDUCT',
+  
+  // Other development files
+  '.git',
+  '.github',
+  '.gitlab',
+  '.gitignore',
+  '.npmignore',
+  '.travis.yml',
+  '.circleci',
+  '.vscode',
+  '.idea',
+  'coverage/',
+  'node_modules/',
+  
+  // Blork-specific directories
+  'blorktools/',
+  'tools/'
+];
+
+function findDevelopmentFiles(directory) {
+  const devFiles = [];
+  
+  function scan(dir) {
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        const relativePath = path.relative(distPath, fullPath);
+        
+        // Check if the path matches any of the development patterns
+        const isDevFile = developmentPatterns.some(pattern => {
+          if (pattern.endsWith('/')) {
+            // For directory patterns, check if it's a directory that matches
+            return entry.isDirectory() && entry.name.toLowerCase() === pattern.slice(0, -1).toLowerCase();
+          } else {
+            // For file patterns, check if the filename starts with or contains the pattern
+            return entry.name.toLowerCase().includes(pattern.toLowerCase());
+          }
+        });
+        
+        if (isDevFile) {
+          devFiles.push(fullPath);
+          // Don't scan further into this directory if it's a development directory
+          if (entry.isDirectory()) continue;
+        }
+        
+        // Continue scanning subdirectories
+        if (entry.isDirectory()) {
+          scan(fullPath);
+        }
+      }
+    } catch (err) {
+      console.error(`Error scanning ${dir}: ${err.message}`);
+    }
+  }
+  
+  scan(directory);
+  return devFiles;
+}
+
+const developmentFiles = findDevelopmentFiles(distPath);
+
+if (developmentFiles.length > 0) {
+  console.warn('WARNING: Development or documentation files found in dist folder!');
+  console.log('Files that should not be in production:');
+  developmentFiles.forEach(file => {
+    console.log(`- ${path.relative(distPath, file)}`);
+    
+    // Remove the file/directory to prevent it from being deployed
+    try {
+      const stats = fs.statSync(file);
+      if (stats.isDirectory()) {
+        fs.rmSync(file, { recursive: true, force: true });
+        console.log(`  Removed directory: ${path.relative(distPath, file)}`);
+      } else {
+        fs.unlinkSync(file);
+        console.log(`  Removed file: ${path.relative(distPath, file)}`);
+      }
+    } catch (err) {
+      console.error(`  Failed to remove: ${err.message}`);
+    }
+  });
+} else {
+  console.log('✅ No development or documentation files found in dist.');
+}
+
 // Analyze bundle size
 console.log('\n📊 Analyzing bundle size...');
 
