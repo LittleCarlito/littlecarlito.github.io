@@ -1143,6 +1143,9 @@ export class AssetSpawner {
         console.log(`Spotlight target position: x=${spotlight.target.position.x}, y=${spotlight.target.position.y}, z=${spotlight.target.position.z}`);
         console.log(`Spotlight hasCustomTarget: ${spotlight.userData && spotlight.userData.hasCustomTarget}`);
         
+        // Get the current visibility state from the flag
+        const shouldBeVisible = BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG;
+        
         // Create shared materials for debug visualization with a single static color
         const sharedDebugMaterials = {
             helper: new THREE.LineBasicMaterial({ color: 0x00FF00 }), // Green for visibility
@@ -1160,7 +1163,7 @@ export class AssetSpawner {
         console.log(`Creating SpotLightHelper...`);
         const helper = new THREE.SpotLightHelper(spotlight);
         helper.material = sharedDebugMaterials.helper;
-        helper.visible = true; // Explicitly set visible
+        helper.visible = shouldBeVisible; // Set initial visibility based on flag
         
         // Store original update method
         const originalUpdate = helper.update;
@@ -1226,7 +1229,7 @@ export class AssetSpawner {
         
         console.log(`Creating cone mesh...`);
         const cone = new THREE.Mesh(geometry, sharedDebugMaterials.cone);
-        cone.visible = true; // Explicitly set visible
+        cone.visible = shouldBeVisible; // Set initial visibility based on flag
         cone.raycast = () => null;
         cone.traverse(child => {
             child.raycast = () => null;
@@ -1421,13 +1424,15 @@ export class AssetSpawner {
             this._needsFullUpdate = true; // Force initial full update
         }
         
-        // If no full update needed, just ensure existing helpers are visible
+        // If no full update needed, just ensure existing helpers are visible/hidden based on flag
         if (!this._needsFullUpdate) {
             for (const spotlight of this._knownSpotlights) {
                 if (spotlight && spotlight.userData && spotlight.userData.debugHelpers) {
                     const { helper, cone } = spotlight.userData.debugHelpers;
-                    if (helper) helper.visible = true;
-                    if (cone) cone.visible = true;
+                    const shouldBeVisible = BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG;
+                    
+                    if (helper) helper.visible = shouldBeVisible;
+                    if (cone) cone.visible = shouldBeVisible;
                 }
             }
             return;
@@ -1470,23 +1475,26 @@ export class AssetSpawner {
         // Save the current set of known spotlights
         this._knownSpotlights = allSpotlights;
         
+        // Get the current visibility state from the flag
+        const shouldBeVisible = BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG;
+        
         // Create or update debug helpers for all spotlights
         for (const spotlight of allSpotlights) {
             try {
                 if (!spotlight.userData.debugHelpers) {
-                    // Always create helpers and make them visible
+                    // Always create helpers and set visibility based on flag
                     const helpers = await this.create_spotlight_helper(spotlight);
                     spotlight.userData.debugHelpers = helpers;
                     
-                    // Always make them visible
+                    // Set visibility based on flag
                     if (helpers) {
-                        if (helpers.helper) helpers.helper.visible = true;
-                        if (helpers.cone) helpers.cone.visible = true;
+                        if (helpers.helper) helpers.helper.visible = shouldBeVisible;
+                        if (helpers.cone) helpers.cone.visible = shouldBeVisible;
                     }
                 } else {
-                    // Always make existing helpers visible
+                    // Set visibility based on flag
                     if (spotlight.userData.debugHelpers.helper) {
-                        spotlight.userData.debugHelpers.helper.visible = true;
+                        spotlight.userData.debugHelpers.helper.visible = shouldBeVisible;
                     }
                     if (spotlight.userData.debugHelpers.cone) {
                         spotlight.userData.debugHelpers.cone.visible = true;

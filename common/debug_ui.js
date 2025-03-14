@@ -753,11 +753,15 @@ export function createDebugUI() {
     });
     
     addToggle(debugUI, 'SPOTLIGHT_VISUAL_DEBUG', 'Spotlight Debug', undefined, function(checked) {
-        // Update flag for backwards compatibility, but it no longer affects visibility
+        // Update flag to control visibility
         BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG = checked;
-        console.log(`Spotlight debug helpers are always visible regardless of this toggle.`);
+        console.log(`Spotlight debug helpers visibility set to ${checked ? 'visible' : 'hidden'}`);
         
-        // No need to call update_spotlight_debug_visualizations as it now ignores this flag entirely
+        // Force update of spotlight debug visualizations to apply the change
+        if (window.asset_spawner && window.asset_spawner.forceSpotlightDebugUpdate) {
+            window.asset_spawner.forceSpotlightDebugUpdate();
+            window.asset_spawner.update_spotlight_debug_visualizations();
+        }
     });
     
     // Add divider
