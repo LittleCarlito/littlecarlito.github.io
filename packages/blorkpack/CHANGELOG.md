@@ -1,3 +1,10 @@
+## [0.11.6](https://github.com/littlecarlito/threejs_site/compare/v0.11.5...v0.11.6) (2025-03-14)
+
+
+### Bug Fixes
+
+* manifest load ([#93](https://github.com/littlecarlito/threejs_site/issues/93)) ([0c3e655](https://github.com/littlecarlito/threejs_site/commit/0c3e6558f24867fe58d531959a4f5a024c466adc))
+
 ## [0.11.5](https://github.com/littlecarlito/threejs_site/compare/v0.11.4...v0.11.5) (2025-03-14)
 
 
