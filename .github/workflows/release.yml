@@ -33,7 +33,6 @@ jobs:
           node-version: 'lts/*'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
-          cache: ''
 
       - name: Create blorkpack lock file
         run: |
@@ -121,7 +120,6 @@ jobs:
           node-version: 'lts/*'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
-          cache: ''
 
       - name: Pull latest changes from remote
         run: |
@@ -130,14 +128,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Install project dependencies
-        run: npm ci
+        run: npm install
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Install and build blorkpack
         run: |
           cd packages/blorkpack
-          npm ci
+          npm install
           npm run build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -164,7 +162,7 @@ jobs:
       - name: Install and build blorktools
         run: |
           cd packages/blorktools
-          npm ci
+          npm install
           npm run build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
