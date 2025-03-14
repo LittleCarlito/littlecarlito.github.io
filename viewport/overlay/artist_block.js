@@ -67,6 +67,14 @@ export class ArtistBlock {
         );
     }
 
+    /**
+     * Gets the correct artist block Y position when hidden
+     * @returns {number} The Y position for the artist block when hidden
+     */
+    get_artist_y() {
+        return get_associated_position(SOUTH, this.camera);
+    }
+
     trigger_overlay(is_overlay_hidden, tween_map) {
         const target_y = is_overlay_hidden ? 
             get_associated_position(SOUTH, this.camera) : 

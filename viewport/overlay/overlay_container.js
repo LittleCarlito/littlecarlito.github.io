@@ -313,4 +313,83 @@ export class OverlayContainer {
     is_animating() {
         return this.hide_transition_map.size > 0;
     }
+
+    /**
+     * Updates all active tween targets based on current camera position
+     * Called when camera rotates during active animations
+     */
+    update_tween_targets() {
+        if (this.hide_transition_map.size === 0) {
+            return; // No active tweens to update
+        }
+
+        if(FLAGS.TWEEN_LOGS) {
+            console.log(`Updating tween targets for ${this.hide_transition_map.size} active tweens`);
+        }
+
+        // Update each component's tween target based on current camera position
+        if (this.hide_button.is_overlay_hidden) {
+            // Only update targets when hiding the overlay (moving off-screen)
+            // Since the targets are relative to camera position
+            
+            // Update label container tween if active
+            if (this.hide_transition_map.has(this.label_container.container_column.name)) {
+                const tween = this.hide_transition_map.get(this.label_container.container_column.name);
+                const target_x = this.label_container.get_column_x_position(false); // Off-screen position
+                tween.to({ x: target_x }, tween.duration - tween.elapsed);
+                
+                if(FLAGS.TWEEN_LOGS) {
+                    console.log(`Updated label container tween target to x: ${target_x.toFixed(2)}`);
+                }
+            }
+            
+            // Update text container tween if active
+            if (this.text_box_container.text_box_container && 
+                this.hide_transition_map.has(this.text_box_container.text_box_container.name)) {
+                const tween = this.hide_transition_map.get(this.text_box_container.text_box_container.name);
+                const target_y = this.text_box_container.get_text_box_y();
+                tween.to({ y: target_y }, tween.duration - tween.elapsed);
+                
+                if(FLAGS.TWEEN_LOGS) {
+                    console.log(`Updated text container tween target to y: ${target_y.toFixed(2)}`);
+                }
+            }
+            
+            // Update title block tween if active
+            if (this.title_block.title_box && 
+                this.hide_transition_map.has(this.title_block.title_box.name)) {
+                const tween = this.hide_transition_map.get(this.title_block.title_box.name);
+                const target_y = this.title_block.get_title_y();
+                tween.to({ y: target_y }, tween.duration - tween.elapsed);
+                
+                if(FLAGS.TWEEN_LOGS) {
+                    console.log(`Updated title block tween target to y: ${target_y.toFixed(2)}`);
+                }
+            }
+            
+            // Update link container tween if active
+            if (this.link_container.link_container && 
+                this.hide_transition_map.has(this.link_container.link_container.name)) {
+                const tween = this.hide_transition_map.get(this.link_container.link_container.name);
+                const target_y = this.link_container.get_link_container_y();
+                tween.to({ y: target_y }, tween.duration - tween.elapsed);
+                
+                if(FLAGS.TWEEN_LOGS) {
+                    console.log(`Updated link container tween target to y: ${target_y.toFixed(2)}`);
+                }
+            }
+            
+            // Update artist block tween if active
+            if (this.artist_block.artist_box && 
+                this.hide_transition_map.has(this.artist_block.artist_box.name)) {
+                const tween = this.hide_transition_map.get(this.artist_block.artist_box.name);
+                const target_y = this.artist_block.get_artist_y();
+                tween.to({ y: target_y }, tween.duration - tween.elapsed);
+                
+                if(FLAGS.TWEEN_LOGS) {
+                    console.log(`Updated artist block tween target to y: ${target_y.toFixed(2)}`);
+                }
+            }
+        }
+    }
 }
