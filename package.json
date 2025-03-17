@@ -3,9 +3,11 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "dev": "pnpm turbo run dev --parallel",
+    "dev": "pnpm dev:console",
     "dev:web": "pnpm --filter=@littlecarlito/web dev",
-    "dev:tools": "pnpm --filter=@littlecarlito/blorktools tools",
+    "dev:tools": "pnpm --filter=@littlecarlito/blorktools dev",
+    "dev:console": "node scripts/dev-console.js",
+    "dev:all": "pnpm turbo run dev --parallel",
     "tools": "pnpm turbo run tools --parallel",
     "lint": "turbo run lint",
     "clean": "turbo run clean",
