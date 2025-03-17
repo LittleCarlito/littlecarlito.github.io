@@ -2,12 +2,29 @@
   "name": "@littlecarlito/blorkpack",
   "version": "0.11.7",
   "description": "Asset management utilities for 3D scenes",
-  "main": "dist/index.js",
-  "module": "dist/index.js",
   "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./app-renderer": "./dist/app_renderer.js",
+    "./asset-activator": "./dist/asset_activator.js",
+    "./asset-spawner": "./dist/asset_spawner.js",
+    "./asset-storage": "./dist/asset_storage.js",
+    "./asset-type": "./dist/asset_type.js",
+    "./blorkpack-flags": "./dist/blorkpack_flags.js",
+    "./loaders": "./dist/loaders.js",
+    "./manifest-manager": "./dist/manifest_manager.js",
+    "./manifest-types": "./dist/manifest_types.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
   "scripts": {
-    "build": "vite build",
-    "dev": "vite build --watch",
+    "build": "vite build && node scripts/generate-exports.js",
+    "dev": "npm run build && vite build --watch",
+    "generate-exports": "node scripts/generate-exports.js",
     "test": "node examples/manifest-test.js",
     "example:usage": "node examples/usage-example.js",
     "example:manifest": "node examples/manifest-test.js",
