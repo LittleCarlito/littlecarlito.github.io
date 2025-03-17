@@ -209,3 +209,97 @@ This project is currently under active development. Feel free to open issues or 
 ---
 
 Built with 💻 by Steven & Bennett Meier
+
+# ThreeJS Site
+
+A monorepo containing the ThreeJS site and related packages.
+
+## Project Structure
+
+```
+threejs_site/
+├── apps/
+│   └── web/           # Main web application
+├── packages/
+│   ├── blorkpack/     # Asset management utilities
+│   └── blorktools/    # Development tools
+└── package.json       # Root package.json
+```
+
+## Prerequisites
+
+- Node.js >= 20.0.0
+- pnpm >= 8.15.4
+
+## Getting Started
+
+1. Install pnpm:
+   ```bash
+   npm install -g pnpm
+   ```
+
+2. Install dependencies:
+   ```bash
+   pnpm install
+   ```
+
+3. Start development server:
+   ```bash
+   pnpm dev
+   ```
+
+4. Build for production:
+   ```bash
+   pnpm build
+   ```
+
+## Available Scripts
+
+- `pnpm dev` - Start development server
+- `pnpm build` - Build all packages and apps
+- `pnpm clean` - Clean all build outputs
+- `pnpm lint` - Run linting
+- `pnpm format` - Format code with Prettier
+
+## Package Development
+
+### Building Packages
+
+```bash
+# Build all packages
+pnpm turbo run build
+
+# Build specific package
+pnpm turbo run build --filter=@littlecarlito/blorkpack
+```
+
+### Publishing Packages
+
+Packages are automatically published to GitHub Packages when changes are pushed to the main branch.
+
+## Development Tools
+
+The `blorktools` package provides development tools for debugging and testing:
+
+```bash
+# Start asset debugger
+pnpm turbo run tools --filter=@littlecarlito/blorktools
+
+# Start modular asset debugger
+pnpm turbo run tools:modular --filter=@littlecarlito/blorktools
+```
+
+## Deployment
+
+The site is automatically deployed to GitHub Pages when changes are pushed to the main branch.
+
+## Contributing
+
+1. Create a new branch for your feature
+2. Make your changes
+3. Run tests and linting
+4. Submit a pull request
+
+## License
+
+MIT

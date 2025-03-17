@@ -53,10 +53,10 @@ export default defineConfig(({ command }) => {
   const isProduction = command === 'build';
   
   return {
-    base: command === 'serve' ? '' : '/threejs_site/',
+    base: isProduction ? '/threejs_site/' : '/',
     resolve: {
       alias: {
-        '@littlecarlito/blorkpack': path.resolve(__dirname, 'packages/blorkpack/dist')
+        '@littlecarlito/blorkpack': path.resolve(__dirname, '../../packages/blorkpack/dist/index.js')
       }
     },
     optimizeDeps: {
@@ -76,12 +76,12 @@ export default defineConfig(({ command }) => {
       rollupOptions: {
         output: {
           manualChunks: {
+            'three-core': ['three'],
             'three-addons': [
               'three/examples/jsm/controls/OrbitControls',
               'three/examples/jsm/Addons.js',
               'three/examples/jsm/libs/tween.module.js'
-            ],
-            'physics': ['@dimforge/rapier3d-compat']
+            ]
           },
           globals: {
             'three': 'THREE'

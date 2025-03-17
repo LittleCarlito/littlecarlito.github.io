@@ -12,11 +12,11 @@
     "build": "vite build",
     "dev": "vite serve",
     "test": "echo \"No tests specified\"",
-    "prepublishOnly": "npm run build",
+    "clean": "rimraf dist",
+    "lint": "eslint .",
     "example:asset-debugger": "vite serve -c vite.config.js",
     "tools": "vite serve src/",
-    "tools:modular": "vite serve src/ --open /asset_debugger/asset_debugger.html",
-    "semantic-release": "semantic-release"
+    "tools:modular": "vite serve src/ --open /asset_debugger/asset_debugger.html"
   },
   "dependencies": {
     "three": "^0.172.0",
@@ -27,7 +27,9 @@
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^9.2.6",
-    "semantic-release": "^23.0.2"
+    "semantic-release": "^23.0.2",
+    "rimraf": "^5.0.5",
+    "eslint": "^8.56.0"
   },
   "repository": {
     "type": "git",

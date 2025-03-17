@@ -1,11 +1,11 @@
 // @ts-nocheck
 // Import the global config first to ensure it's available to all modules
-import { FLAGS, THREE, RAPIER, load_three, load_rapier, updateTween } from './common';
-import { ViewableContainer } from './viewport/viewable_container';
-import { BackgroundContainer } from './background/background_container';
-import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/overlay_common';
-import { AppRenderer } from './common';
-import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common';
+import { FLAGS, THREE, RAPIER, load_three, load_rapier, updateTween } from './common/index.js';
+import { ViewableContainer } from './viewport/viewable_container.js';
+import { BackgroundContainer } from './background/background_container.js';
+import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/overlay_common/index.js';
+import { AppRenderer } from './common/index.js';
+import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common/index.js';
 import { AssetStorage, AssetActivator, AssetSpawner, ManifestManager, BLORKPACK_FLAGS } from '@littlecarlito/blorkpack';
 import { toggleDebugUI, createDebugUI as create_debug_UI, setBackgroundContainer as set_background_container, setResolutionScale as set_resolution_scale, updateLabelWireframes, setSceneReference } from './common/debug_ui.js';
 
