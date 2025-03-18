@@ -43,7 +43,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           
       - name: Build packages
-        run: pnpm turbo run build
+        run: pnpm turbo run build --filter=./packages/*
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           
