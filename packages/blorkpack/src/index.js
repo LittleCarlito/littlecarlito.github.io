@@ -1,15 +1,26 @@
 // Export dependencies for external use
 import * as THREE from 'three';
 import { clone as cloneSkinnedMesh } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import * as RAPIER from '@dimforge/rapier3d-compat';
 import { Easing, Tween } from 'three/examples/jsm/libs/tween.module.js';
+import { createRapierProxy } from './rapier_proxy.js';
+
+// Create the proxy that will lazy-load RAPIER when init() is called
+export const RAPIER = createRapierProxy();
 
 // Create utilities that we will export
 export const AssetUtils = {
     cloneSkinnedMesh
 };
 
-export { THREE, RAPIER, Easing, Tween };
+/**
+ * Initialize Rapier physics engine. Must be called before using RAPIER.
+ * @returns {Promise<void>}
+ */
+export async function initRapier() {
+    return RAPIER.init();
+}
+
+export { THREE, Easing, Tween };
 
 // Re-export asset management components
 export * from './asset_storage.js';

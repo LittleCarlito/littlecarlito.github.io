@@ -124,7 +124,7 @@ function createVirtualBlorkpackPlugin() {
           
           export const RAPIER = {};
           export function load_three() { return Promise.resolve({ THREE }); }
-          export function load_rapier() { return Promise.resolve(RAPIER); }
+          export function initRapier() { return Promise.resolve(RAPIER); }
           export const Easing = { Linear: { None: (k) => k } };
           export const Tween = { Tween: class Tween {} };
           export function updateTween() {}

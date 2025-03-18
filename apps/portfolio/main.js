@@ -1,6 +1,6 @@
 // @ts-nocheck
 // Import the global config first to ensure it's available to all modules
-import { FLAGS, THREE, RAPIER, load_three, load_rapier, updateTween } from './common/index.js';
+import { FLAGS, THREE, RAPIER, load_three, updateTween, initRapier } from './common/index.js';
 import { ViewableContainer } from './viewport/viewable_container.js';
 import { BackgroundContainer } from './background/background_container.js';
 import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/overlay_common/index.js';
@@ -170,10 +170,10 @@ async function init() {
         // Load three
         update_loading_progress('Loading Three.js...');
         await load_three(); // Still load async but we already have THREE available
+        
         // Load rapier
         update_loading_progress('Loading Rapier Physics...');
-        await load_rapier(); // Initialize Rapier
-        await RAPIER.init(); // Make sure Rapier is initialized
+        await initRapier(); // This will both load and initialize Rapier
         
         // Load custom types
         update_loading_progress('Loading custom asset types...');
@@ -237,9 +237,17 @@ async function init() {
         if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
             console.log("Using gravity:", gravityData);
         }
-        // Create world and spawner
-        window.world = new RAPIER.World();
-        window.world.gravity = new RAPIER.Vector3(gravityData.x, gravityData.y, gravityData.z);
+        
+        // Create Rapier world with proper initialization
+        try {
+            // Make sure RAPIER.World and Vector3 are available
+            window.world = new RAPIER.World();
+            window.world.gravity = new RAPIER.Vector3(gravityData.x, gravityData.y, gravityData.z);
+        } catch (error) {
+            console.error("Failed to initialize Rapier world:", error);
+            throw new Error("Rapier initialization failed. Make sure to call initRapier() first.");
+        }
+        
         window.asset_spawner = AssetSpawner.get_instance(window.scene, window.world);
         // Physics optimization settings
         const physicsOptimization = window.manifest_manager.get_physics_optimization_settings();
@@ -484,6 +492,9 @@ function handle_resize() {
 }
 
 function handle_mouse_move(e) {
+    // Skip if initialization is not complete
+    if (!window.viewable_container) return;
+    
     update_mouse_position(e);
     if(window.viewable_container.detect_rotation) {
         const sensitivity = 0.02;  // Reduced sensitivity since we're not dividing by 1000 anymore
@@ -554,6 +565,9 @@ function handle_mouse_move(e) {
 }
 
 function handle_mouse_up(e) {
+    // Skip if initialization is not complete
+    if (!window.viewable_container) return;
+
     if(greeting_acknowledged) {
         if(grabbed_object) {
             release_object(grabbed_object, window.background_container);
@@ -572,6 +586,9 @@ function handle_mouse_up(e) {
 }
 
 function handle_mouse_down(e) {
+    // Skip if initialization is not complete
+    if (!window.viewable_container) return;
+
     if(greeting_acknowledged) {
         if(e.button === 0) {
             left_mouse_down = true;
@@ -611,6 +628,9 @@ function handle_context_menu(e) {
 }
 
 function handle_wheel(e) {
+    // Skip if initialization is not complete
+    if (!window.viewable_container || !window.background_container) return;
+
     if(greeting_acknowledged) {
         if(grabbed_object) {
             if(e.deltaY < 0) {

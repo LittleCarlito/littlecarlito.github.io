@@ -6,6 +6,7 @@ export { updateTween, Easing, Tween };
 
 let loadedTHREE = null;
 let loadedRAPER = null;
+let rapierInitialized = false;
 
 /**
  * Asynchronously loads Three.js and related modules
@@ -31,8 +32,20 @@ export async function load_three() {
 export async function load_rapier() {
     if (!loadedRAPER) {
         const RAPIER = await import('@dimforge/rapier3d-compat');
-        await RAPIER.init();
         loadedRAPER = RAPIER;
     }
     return loadedRAPER;
+}
+
+/**
+ * Ensures RAPIER is loaded and initialized
+ * @returns {Promise<void>}
+ */
+export async function ensure_rapier_initialized() {
+    const RAPIER = await load_rapier();
+    if (!rapierInitialized) {
+        await RAPIER.init();
+        rapierInitialized = true;
+    }
+    return RAPIER;
 } 
