@@ -128,11 +128,16 @@ jobs:
           # Log version change
           if [ "$PRE_VERSION" != "$NEW_VERSION" ]; then
             echo "Version updated: $PRE_VERSION → $NEW_VERSION"
+            
+            # Push tags immediately after they're created
+            echo "Pushing blorkpack tags to GitHub..."
+            git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
+            git push --tags origin main
           else
             echo "Version unchanged: $NEW_VERSION"
           fi
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
       - name: Run semantic-release for blorktools
@@ -208,11 +213,16 @@ jobs:
           # Log version change
           if [ "$PRE_VERSION" != "$NEW_VERSION" ]; then
             echo "Version updated: $PRE_VERSION → $NEW_VERSION"
+            
+            # Push tags immediately after they're created
+            echo "Pushing blorktools tags to GitHub..."
+            git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
+            git push --tags origin main
           else
             echo "Version unchanged: $NEW_VERSION"
           fi
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
       - name: Create version metadata
@@ -245,4 +255,13 @@ jobs:
           name: version-metadata
           path: artifacts/version-metadata.json
           retention-days: 5
-          if-no-files-found: error 
+          if-no-files-found: error
+          
+      - name: Push all tags to GitHub
+        run: |
+          echo "Pushing all tags to GitHub repository..."
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
+          git push --follow-tags origin main
+          git push --tags origin main
+        env:
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 
