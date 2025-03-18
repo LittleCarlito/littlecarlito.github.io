@@ -1,6 +1,7 @@
 {
   "name": "threejs-site-monorepo",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "turbo run build",
     "dev": "pnpm dev:console",
