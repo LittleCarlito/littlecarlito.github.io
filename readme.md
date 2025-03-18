@@ -1,6 +1,6 @@
-# Interactive 3D Portfolio Website
+# ThreeJS Tooling Suite Monorepo
 
-A dynamic, physics-based portfolio website built with Three.js, featuring interactive 3D elements, real-time physics simulations, and engaging user interfaces. Built with a modular architecture and powerful development tools.
+A monorepo containing advanced Three.js tooling libraries and interactive 3D applications built with these tools. This project includes physics-based 3D environments, asset management systems, and development tools for creating immersive web experiences with industry-leading performance optimization.
 
 [![Live Site](https://img.shields.io/badge/🌐_Live_Site-Visit-blue)](https://littlecarlito.github.io/threejs_site/)
 ![Deployment Status](https://github.com/LittleCarlito/threejs_site/actions/workflows/deploy.yml/badge.svg)
@@ -9,193 +9,248 @@ A dynamic, physics-based portfolio website built with Three.js, featuring intera
 ![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
 ![Rapier](https://img.shields.io/badge/Rapier-Physics-blue)
 ![Version](https://img.shields.io/github/v/release/LittleCarlito/threejs_site?include_prereleases)
+![Turborepo](https://img.shields.io/badge/Turborepo-EF4444?logo=turborepo&logoColor=white)
+![pnpm](https://img.shields.io/badge/pnpm-F69220?logo=pnpm&logoColor=white)
 
-## 🌟 Features
+## 📋 Overview
 
-- **Interactive 3D Environment**:
-  - Fully navigable 3D space with physics
-  - Dynamic object interactions
-  - Real-time physics simulations
-  - Performance-optimized rendering
+This monorepo houses a collection of high-performance tools and applications for Three.js development. It's designed with a focus on:
 
-- **Asset Management System** (@littlecarlito/blorkpack):
-  - Smart asset loading and caching
-  - Instance pooling and optimization
-  - Physics body management
-  - Scene state persistence
-  - Material system with custom shaders
-
-- **Development Tools** (@littlecarlito/blorktools):
-  - Real-time asset inspection
-  - UV mapping visualization
-  - Performance monitoring
-  - Scene debugging
-  - Asset optimization tools
-
-- **Dynamic Lighting System**:
-  - Real-time spotlight interactions
-  - Dynamic shadow mapping
-  - Performance-optimized calculations
-  - Interactive light controls
-
-- **Physics Integration**:
-  - Real-time Rapier3D physics
-  - Collision group management
-  - Dynamic state handling
-  - Custom collision shapes
-  - Physics-based interactions
-
-- **Interactive UI Elements**: 
-  - Physics-based menus and signs
-  - Particle systems and effects
-  - Dynamic text animations
-  - Responsive overlays
-
-## 🚀 Getting Started
-
-1. Clone the repository
-    ```bash
-    git clone https://github.com/LittleCarlito/threejs_site.git
-    cd threejs_site
-    ```
-
-2. Install dependencies
-    ```bash
-    npm install
-    ```
-
-3. Start development server
-    ```bash
-    npm run dev
-    ```
-
-The development environment will start with:
-- Main website at `http://localhost:5173`
-- Development tools on the next available port
-
-## 🎮 Controls
-
-- **Left Click**: Grab and move objects
-- **Right Click**: Push objects with physics
-- **Both Mouse Buttons**: Orbit camera
-- **Mouse Wheel**: Zoom grabbed objects
-- **Mouse Movement**: Interact with UI elements
-- **L Key**: Toggle spotlight controls
-- **Arrow Keys**: Adjust spotlight in light mode
-- **Space**: Reset physics state
-- **Esc**: Toggle development tools
+- **Performance Optimization** - Advanced techniques for achieving smooth 60+ FPS even with complex scenes
+- **Asset Management** - Intelligent loading, caching, and lifecycle management for 3D assets
+- **Physics Integration** - Seamless integration with Rapier3D for realistic physical interactions
+- **Developer Experience** - Comprehensive tooling for debugging and analyzing 3D applications
 
 ## 🏗️ Project Structure
 
 ```
+threejs_site/
+├── apps/
+│   ├── portfolio/     # Interactive 3D portfolio website
+│   │   ├── src/       # Application source code
+│   │   ├── public/    # Static assets and resources
+│   │   └── ...        # Configuration files
+│   └── web/           # Main web application showcase
+│       ├── src/       # Application source code
+│       ├── public/    # Static assets and resources
+│       └── ...        # Configuration files
 ├── packages/
-│   ├── blorkpack/     # Asset and physics management
-│   └── blorktools/    # Development and debugging tools
-├── public/
-│   ├── assets/        # 3D models and textures
-│   ├── fonts/         # Custom fonts
-│   ├── images/        # Image assets
-│   └── pages/         # HTML templates
-├── src/
-│   ├── background/    # 3D environment components
-│   ├── viewport/      # Camera and view management
-│   ├── physics/       # Physics integration
-│   ├── ui/           # User interface components
-│   ├── effects/      # Visual effects and particles
-│   ├── lights/       # Lighting system
-│   └── main.js       # Application entry point
+│   ├── blorkpack/     # Asset and physics management system
+│   │   ├── src/       # Core library source code
+│   │   ├── examples/  # Example implementations
+│   │   └── ...        # Configuration and build files
+│   └── blorktools/    # Development and debugging toolkit
+│       ├── src/       # Toolkit source code
+│       ├── ui/        # User interface components
+│       └── ...        # Configuration and build files
+├── package.json       # Root package configuration
+├── turbo.json         # Turborepo configuration
+└── pnpm-workspace.yaml # Workspace definition
 ```
 
-## 📦 Internal Packages
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js >= 20.0.0
+- pnpm >= 8.15.4
+
+### Installation
+
+1. Install pnpm if you don't have it already:
+   ```bash
+   npm install -g pnpm
+   ```
+
+2. Clone the repository:
+   ```bash
+   git clone https://github.com/LittleCarlito/threejs_site.git
+   cd threejs_site
+   ```
+
+3. Install dependencies:
+   ```bash
+   pnpm install
+   ```
+
+4. Start development server:
+   ```bash
+   pnpm dev
+   ```
+
+5. Build for production:
+   ```bash
+   pnpm build
+   ```
+
+## 📦 Core Packages
 
 ### @littlecarlito/blorkpack
-Advanced asset and physics management system:
-- Smart asset loading and caching
-- Physics integration with Rapier3D
-- Instance pooling and optimization
-- Scene state management
-- Material system with custom shaders
+Advanced asset and physics management system that provides:
+
+- **High-Performance Asset Pipeline**
+  - Smart loading strategies with prioritization
+  - Memory-efficient instance reuse and pooling
+  - Automatic LOD (Level of Detail) management
+  - Background loading and progressive enhancement
+  - Scene graph optimization and culling
+
+- **Physics Integration**
+  - Rapier3D physics world management
+  - Automatic collision shape generation from geometry
+  - Specialized collision groups and filters
+  - Physics body pooling and reuse
+  - High-performance collision detection
+
+- **Scene Management**
+  - Declarative scene configuration
+  - Component-based scene hierarchy
+  - State persistence and serialization
+  - Dynamic scene updates with minimal performance impact
+  - Automated cleanup and garbage collection
+
+- **Material System**
+  - Smart shader compilation and reuse
+  - Material variants with minimal memory overhead
+  - Texture atlasing and management
+  - Custom shader integration with simplified API
+  - Material state caching for quick switching
 
 ### @littlecarlito/blorktools
-Comprehensive development and debugging toolkit:
-- Asset inspection and optimization
-- Performance monitoring
-- Scene debugging
-- UV mapping tools
-- Material editor
+Comprehensive development and debugging toolkit with:
 
-## 🛠️ Development Tools
+- **Visual Debugging**
+  - Interactive scene inspector
+  - Realtime performance metrics
+  - Memory usage visualization
+  - Draw call optimization tools
+  - Shader complexity analysis
 
-The project includes powerful development tools that start automatically with `npm run dev`:
+- **Asset Optimization**
+  - Texture analysis and compression suggestions
+  - Mesh optimization tools
+  - Animation data inspection
+  - UV mapping visualization
+  - Material property editor
 
-1. **Main Website** (default port):
-   - Live reloading
-   - Error reporting
-   - Performance metrics
+- **Developer UX**
+  - Hot module replacement for 3D scenes
+  - In-context editing tools
+  - Asset comparison utilities
+  - Export optimization suggestions
+  - Integration with browser dev tools
 
-2. **Development Tools** (auto-assigned port):
-   - Asset debugger
-   - Scene inspector
-   - Performance monitor
-   - Material editor
-   - UV mapping tools
+## 🎮 Interactive Features
 
-Additional commands:
+- **3D Environment Architecture**:
+  - Multi-threaded rendering pipeline
+  - Optimized WebGL state management
+  - Custom frustum culling
+  - Occlusion culling for complex scenes
+  - Dynamic batching and instancing
+
+- **Physics Simulation**:
+  - Distributed physics calculation
+  - Custom collision resolution
+  - Continuous collision detection
+  - Constraint systems for complex interactions
+  - Physics-based animations and transitions
+
+- **Advanced Rendering**:
+  - Physically-based rendering (PBR)
+  - Screen-space reflections
+  - Ambient occlusion techniques
+  - Volumetric lighting effects
+  - Custom post-processing pipeline
+
+- **Interactive Interface System**:
+  - Physics-driven UI components
+  - 3D spatial interfaces
+  - Context-aware interaction system
+  - Hybrid 2D/3D UI architecture
+  - Accessibility considerations for 3D UIs
+
+## 🛠️ Development Workflow
+
+The monorepo is powered by Turborepo for efficient build orchestration and PNPM for fast, disk-space efficient package management.
+
+### Common Commands
+
 ```bash
-# Run tools independently
-npm run tools
+# Start development server for all apps and packages
+pnpm dev
 
-# Run modular version with specific tools
-npm run tools:modular
+# Build all packages and apps
+pnpm build
+
+# Clean all build outputs
+pnpm clean
+
+# Run linting
+pnpm lint
+
+# Format code with Prettier
+pnpm format
+
+# Run tests
+pnpm test
 ```
 
-## 🚀 Live Demo
+### Turborepo Advanced Commands
 
-Visit the live site: [https://littlecarlito.github.io/threejs_site/](https://littlecarlito.github.io/threejs_site/)
+```bash
+# Build all packages with maximum concurrency
+pnpm turbo run build --concurrency=10
 
-## 🛠️ Technology Stack
+# Build specific package with verbose output
+pnpm turbo run build --filter=@littlecarlito/blorkpack --verbose
 
-- **Frontend Framework**: Three.js with custom physics integration
-- **Build Tool**: Vite with automated GitHub Pages deployment
-- **Physics Engine**: Rapier3D for realistic object interactions
-- **Version Control**: Semantic versioning with automated changelog generation
-- **Lighting System**: Advanced Three.js spotlight and shadow system
-- **3D Assets**: GLTF/GLB models with dynamic loading
-- **Animation**: Custom tweening system with particle effects
-- **CI/CD**: GitHub Actions for automated deployment
-- **Asset Management**: Dynamic loading with error handling
-- **UI Components**: Physics-based interactive elements
+# Run tools in specific package with custom environment
+pnpm turbo run tools --filter=@littlecarlito/blorktools --env=development
 
-## 🎨 Features in Detail
+# Run with cache disabled during development
+pnpm turbo run dev --no-cache
 
-### Physics-Based Interactions
-- Real-time physics simulation for all 3D objects
-- Customizable physical properties (mass, restitution, friction)
-- Chain physics for menu systems
+# Build only affected packages 
+pnpm turbo run build --filter=...[origin/main]
+```
 
-### Dynamic Asset Management
-- Efficient 3D model loading and caching
-- Automatic physics collider generation
-- Instance management for multiple object copies
-- Error handling and fallback systems
+## 🔍 Architecture Deep Dive
 
-### Interactive UI Elements
-- Animated text reveals
-- Particle effects
-- Physics-based menu systems
-- Responsive overlay system
+### Performance Optimization
 
-## 🔄 Continuous Integration
+The tooling suite implements several advanced techniques for performance:
 
-This project uses GitHub Actions for automated deployment:
-- Automatic builds on push to main branch
-- Asset optimization during build
-- Immediate deployment to GitHub Pages
-- Status checks and deployment verification
+- **Custom WebGL State Management** - Minimizes expensive state changes
+- **Geometry Instancing** - Reduces draw calls for repeated objects
+- **Worker Thread Processing** - Offloads heavy calculations
+- **GPU-Accelerated Physics** - Utilizes compute shaders where available
+- **Texture Streaming** - Progressive loading of high-resolution textures
+- **Shader Permutation Management** - Optimizes shader variants
+
+### Memory Management
+
+Careful attention to memory usage ensures stable performance:
+
+- **Asset Reference Counting** - Automatic cleanup of unused resources
+- **Texture Compression** - Automatic format selection based on support
+- **Geometry Simplification** - Dynamic LOD based on camera distance
+- **Deferred Asset Loading** - Only load what's needed when it's needed
+- **Memory Pool Allocation** - Reduces garbage collection pauses
+
+## 🚀 Deployment
+
+The site is automatically deployed to GitHub Pages through a sophisticated CI/CD pipeline:
+
+- **Build Optimization** - Advanced bundling and tree-shaking
+- **Asset Processing** - Automatic compression and optimization
+- **Parallel Deployment** - Multiple environments for testing
+- **Performance Regression Testing** - Automated benchmarks
+- **Lighthouse Integration** - Score tracking and improvement suggestions
 
 ## 🤝 Contributing
 
-This project is currently under active development. Feel free to open issues or submit pull requests.
+This project welcomes contributions. See our [contributing guide](CONTRIBUTING.md) for more information.
 
 ## 📝 License
 
@@ -208,98 +263,4 @@ This project is currently under active development. Feel free to open issues or 
 
 ---
 
-Built with 💻 by Steven & Bennett Meier
-
-# ThreeJS Site
-
-A monorepo containing the ThreeJS site and related packages.
-
-## Project Structure
-
-```
-threejs_site/
-├── apps/
-│   └── web/           # Main web application
-├── packages/
-│   ├── blorkpack/     # Asset management utilities
-│   └── blorktools/    # Development tools
-└── package.json       # Root package.json
-```
-
-## Prerequisites
-
-- Node.js >= 20.0.0
-- pnpm >= 8.15.4
-
-## Getting Started
-
-1. Install pnpm:
-   ```bash
-   npm install -g pnpm
-   ```
-
-2. Install dependencies:
-   ```bash
-   pnpm install
-   ```
-
-3. Start development server:
-   ```bash
-   pnpm dev
-   ```
-
-4. Build for production:
-   ```bash
-   pnpm build
-   ```
-
-## Available Scripts
-
-- `pnpm dev` - Start development server
-- `pnpm build` - Build all packages and apps
-- `pnpm clean` - Clean all build outputs
-- `pnpm lint` - Run linting
-- `pnpm format` - Format code with Prettier
-
-## Package Development
-
-### Building Packages
-
-```bash
-# Build all packages
-pnpm turbo run build
-
-# Build specific package
-pnpm turbo run build --filter=@littlecarlito/blorkpack
-```
-
-### Publishing Packages
-
-Packages are automatically published to GitHub Packages when changes are pushed to the main branch.
-
-## Development Tools
-
-The `blorktools` package provides development tools for debugging and testing:
-
-```bash
-# Start asset debugger
-pnpm turbo run tools --filter=@littlecarlito/blorktools
-
-# Start modular asset debugger
-pnpm turbo run tools:modular --filter=@littlecarlito/blorktools
-```
-
-## Deployment
-
-The site is automatically deployed to GitHub Pages when changes are pushed to the main branch.
-
-## Contributing
-
-1. Create a new branch for your feature
-2. Make your changes
-3. Run tests and linting
-4. Submit a pull request
-
-## License
-
-MIT
+Built with passion and precision by Steven & Bennett Meier
