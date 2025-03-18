@@ -115,15 +115,20 @@ jobs:
           fi
 
   release:
-    name: Create Semantic Release
-    runs-on: ubuntu-latest
+    name: Analyze Commits and Release
     needs: update-lock-files
+    if: ${{ needs.update-lock-files.outputs.changes == 'false' || needs.update-lock-files.result == 'skipped' }}
+    runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: write
       issues: write
       pull-requests: write
-
+    outputs:
+      blorkpack_pre_version: ${{ steps.blorkpack_release.outputs.old_version }}
+      blorkpack_new_version: ${{ steps.blorkpack_release.outputs.new_version }}
+      blorktools_pre_version: ${{ steps.blorktools_release.outputs.old_version }}
+      blorktools_new_version: ${{ steps.blorktools_release.outputs.new_version }}
+      version_metadata: ${{ steps.create_version_metadata.outputs.metadata_created }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -184,17 +189,29 @@ jobs:
           cd packages/blorkpack
           echo "version=$(jq -r '.version' package.json)" >> $GITHUB_OUTPUT
 
-      - name: Create semantic release for blorkpack
-        id: blorkpack_release
-        env:
-          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+      - name: Install semantic-release and plugins
         run: |
-          cd packages/blorkpack
-          npx semantic-release --extends=./.releaserc.json
-          # Store the new version to be used by the publish workflow
-          echo "version=$(jq -r '.version' package.json)" >> $GITHUB_OUTPUT
-          # No need to copy package.json since we're already in the right directory
+          npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github
+          echo "Installed semantic-release and plugins globally"
+          ls -la /usr/local/lib/node_modules/@semantic-release/
+      
+      - name: Run semantic-release for blorkpack
+        id: blorkpack_release
+        working-directory: packages/blorkpack
+        run: |
+          echo "Running semantic-release for blorkpack package"
+          OLD_VERSION=$(jq -r '.version' package.json)
+          echo "Current version: $OLD_VERSION"
+          echo "old_version=$OLD_VERSION" >> $GITHUB_OUTPUT
+          
+          npx semantic-release || echo "semantic-release process completed"
+          
+          NEW_VERSION=$(jq -r '.version' package.json)
+          echo "New version: $NEW_VERSION"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Install and build blorktools
         run: |
@@ -235,11 +252,11 @@ jobs:
           echo '{
             "blorkpack": {
               "pre_version": "${{ steps.blorkpack_pre_version.outputs.version }}",
-              "new_version": "${{ steps.blorkpack_release.outputs.version }}"
+              "new_version": "${{ steps.blorkpack_release.outputs.old_version }}"
             },
             "blorktools": {
               "pre_version": "${{ steps.blorktools_pre_version.outputs.version }}",
-              "new_version": "${{ steps.blorktools_release.outputs.version }}"
+              "new_version": "${{ steps.blorktools_release.outputs.new_version }}"
             }
           }' > version-metadata.json
           cat version-metadata.json

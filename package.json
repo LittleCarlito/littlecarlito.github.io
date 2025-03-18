@@ -15,8 +15,16 @@
     "clean": "turbo run clean",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
+  "dependencies": {
+    "express": "^4.18.3",
+    "open": "^10.1.0"
+  },
   "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^9.2.6",
     "prettier": "^3.2.5",
+    "semantic-release": "^23.0.2",
     "tree-kill": "^1.2.2",
     "turbo": "latest",
     "yaml": "^2.7.0"
