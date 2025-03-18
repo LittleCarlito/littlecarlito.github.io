@@ -173,6 +173,26 @@ async function discoverProjects() {
                 scriptToUse = packageData.scripts.tools;
               }
               
+              // Determine project type and whether it should be served on a port
+              let projectType = 'unknown';
+              let shouldServe = true;
+              
+              if (packageData.name.includes('web')) {
+                projectType = 'app';
+              } else if (packageData.name.includes('blorktools')) {
+                projectType = 'tool';
+              } else if (packageData.name.includes('blorkpack')) {
+                projectType = 'package';
+                shouldServe = false; // Don't assign a port to blorkpack
+              } else if (packageData.name.includes('ui')) {
+                projectType = 'ui';
+              } else if (packageData.name.includes('api')) {
+                projectType = 'api';
+              } else if (path.basename(projectPath).includes('lib') || packageData.name.includes('lib')) {
+                projectType = 'library';
+                shouldServe = false;
+              }
+              
               // Assign default ports with blorktools having priority for port 3001
               let defaultPort = 3000 + discoveredProjects.length;
               if (packageData.name.includes('blorktools')) {
@@ -194,7 +214,9 @@ async function discoverProjects() {
                 defaultPort: defaultPort,
                 port: null, // Will be assigned later
                 process: null, // Will be assigned when started
-                ready: false
+                ready: false,
+                type: projectType,
+                shouldServe: shouldServe
               });
             }
           }
@@ -222,30 +244,47 @@ async function discoverProjects() {
 
 // Function to generate a nice card view for a project
 function generateProjectCard(project) {
-  if (!project || !project.port) {
+  if (!project) {
     return '';
   }
   
   const displayName = project.name.replace(/^@[^/]+\//, ''); // Remove scope from display
-  const portChangeInfo = project.port !== project.defaultPort ? 
-    `(default port ${project.defaultPort} was in use)` : '';
   
-  return `
-  <div id="${displayName}-card" class="app-card">
-    <h3>${displayName}</h3>
-    <p>${project.description}</p>
-    <a href="http://localhost:${project.port}" target="_blank">Open ${displayName}</a>
-    <div class="port-info">
-      Listening on port ${project.port} ${portChangeInfo}
+  // Different card templates based on whether the project is served
+  if (project.shouldServe && project.port) {
+    const portChangeInfo = project.port !== project.defaultPort ? 
+      `(default port ${project.defaultPort} was in use)` : '';
+    
+    return `
+    <div id="${displayName}-card" class="app-card ${project.type}-card">
+      <div class="card-badge">${project.type}</div>
+      <h3>${displayName}</h3>
+      <p>${project.description}</p>
+      <a href="http://localhost:${project.port}" target="_blank">Open ${displayName}</a>
+      <div class="port-info">
+        Listening on port ${project.port} ${portChangeInfo}
+      </div>
     </div>
-  </div>
-  `;
+    `;
+  } else {
+    // Card for non-served projects (like packages)
+    return `
+    <div id="${displayName}-card" class="app-card ${project.type}-card package-card">
+      <div class="card-badge">${project.type}</div>
+      <h3>${displayName}</h3>
+      <p>${project.description}</p>
+      <div class="package-info">
+        Non-interactive ${project.type} (not served on a port)
+      </div>
+    </div>
+    `;
+  }
 }
 
 // Generate script to check if services are available
 function generateServiceChecks() {
   return projects
-    .filter(p => p.port)
+    .filter(p => p.shouldServe && p.port)
     .map(p => {
       const displayName = p.name.replace(/^@[^/]+\//, '');
       return `checkService('http://localhost:${p.port}', '${displayName}-card');`;
@@ -258,12 +297,19 @@ function generateProjectStatus(project) {
   if (!project) return '';
   
   const displayName = project.name.replace(/^@[^/]+\//, '');
-  const portInfo = project.port ? 
-    `Running on port: ${project.port}${project.port !== project.defaultPort ? ' (default port was in use)' : ''}` : 
-    'Not available';
+  let portInfo = 'Not available';
+  
+  if (project.shouldServe) {
+    portInfo = project.port ? 
+      `Running on port: ${project.port}${project.port !== project.defaultPort ? ' (default port was in use)' : ''}` : 
+      'Not available';
+  } else {
+    portInfo = 'Not served (non-interactive package)';
+  }
   
   return `
-  <div class="project-status">
+  <div class="project-status ${project.type}-status">
+    <div class="status-badge">${project.type}</div>
     <h4>${displayName}</h4>
     <p>${portInfo}</p>
     <p class="version">Version: ${project.version}</p>
@@ -277,12 +323,16 @@ function startDashboard() {
   if (dashboardStarted) return;
   dashboardStarted = true;
   
-  const projectCards = projects
-    .filter(p => p.port) // Only show projects with assigned ports
-    .map(generateProjectCard)
-    .join('');
+  // Generate cards for all projects
+  const projectCards = projects.map(generateProjectCard).join('');
   
-  const serviceChecks = generateServiceChecks();
+  const serviceChecks = projects
+    .filter(p => p.shouldServe && p.port)
+    .map(p => {
+      const displayName = p.name.replace(/^@[^/]+\//, '');
+      return `checkService('http://localhost:${p.port}', '${displayName}-card');`;
+    })
+    .join('\n      ');
   
   const projectStatuses = projects
     .map(generateProjectStatus)
@@ -321,11 +371,16 @@ function startDashboard() {
         height: 40px;
         margin-right: 10px;
       }
+      .section-title {
+        margin-top: 30px;
+        border-bottom: 1px solid #333;
+        padding-bottom: 10px;
+      }
       .apps-container {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
         gap: 20px;
-        margin-top: 30px;
+        margin-top: 20px;
       }
       .app-card {
         background-color: #1e1e1e;
@@ -336,6 +391,9 @@ function startDashboard() {
         height: 100%;
         display: flex;
         flex-direction: column;
+        position: relative;
+        overflow: hidden;
+        border-top: 5px solid #555; /* Default border color */
       }
       .app-card:hover {
         transform: translateY(-5px);
@@ -365,12 +423,68 @@ function startDashboard() {
       .app-card a:hover {
         background-color: #4a75d1;
       }
-      .port-info {
+      .port-info, .package-info {
         font-size: 0.9em;
         margin-top: 15px;
         padding: 8px;
         background-color: #2a2a2a;
         border-radius: 4px;
+      }
+      .card-badge, .status-badge {
+        position: absolute;
+        top: 0;
+        right: 0;
+        background-color: #333;
+        color: white;
+        font-size: 0.8em;
+        padding: 4px 8px;
+        border-radius: 0 0 0 4px;
+        text-transform: uppercase;
+        font-weight: 600;
+      }
+      /* Color coding by type */
+      .app-card {
+        border-top: 5px solid #555;
+      }
+      .app-card.app-card {
+        border-top-color: #4CAF50; /* Green for apps */
+      }
+      .app-card.tool-card {
+        border-top-color: #2196F3; /* Blue for tools */
+      }
+      .app-card.package-card {
+        border-top-color: #9E9E9E; /* Gray for packages */
+      }
+      .app-card.ui-card {
+        border-top-color: #E91E63; /* Pink for UI */
+      }
+      .app-card.api-card {
+        border-top-color: #FF9800; /* Orange for API */
+      }
+      .app-card.library-card {
+        border-top-color: #9C27B0; /* Purple for libraries */
+      }
+      .status-badge {
+        font-size: 0.7em;
+        padding: 3px 6px;
+      }
+      .app-status .status-badge {
+        background-color: #4CAF50;
+      }
+      .tool-status .status-badge {
+        background-color: #2196F3;
+      }
+      .package-status .status-badge {
+        background-color: #9E9E9E;
+      }
+      .ui-status .status-badge {
+        background-color: #E91E63;
+      }
+      .api-status .status-badge {
+        background-color: #FF9800;
+      }
+      .library-status .status-badge {
+        background-color: #9C27B0;
       }
       .unavailable {
         opacity: 0.5;
@@ -397,6 +511,8 @@ function startDashboard() {
         background-color: #2a2a2a;
         border-radius: 4px;
         padding: 12px;
+        position: relative;
+        padding-top: 25px;
       }
       .project-status h4 {
         margin-top: 0;
@@ -440,15 +556,17 @@ function startDashboard() {
       </div>
     </div>
     
-    <h2>Applications</h2>
-    ${projects.length > 0 ? 
-      `<div class="apps-container">
-        ${projectCards}
-      </div>` : 
+    <h2 class="section-title">Available Projects</h2>
+    <div class="apps-container">
+      ${projectCards}
+    </div>
+    
+    ${projects.length === 0 ? 
       `<div class="no-projects">
         <h3>No Runnable Projects Found</h3>
         <p>Couldn't find any projects with dev scripts in the workspace.</p>
-      </div>`
+      </div>` :
+      ''
     }
 
     <script>
@@ -568,17 +686,19 @@ async function run() {
         throw new Error("Could not find an available port for the console");
       }
       
-      // Assign ports to each project
+      // Assign ports to each project that should be served
       for (const project of projects) {
-        project.port = await findAvailablePort(project.defaultPort);
-        if (!project.port) {
-          console.log(`Could not find an available port for ${project.name}`);
+        if (project.shouldServe) {
+          project.port = await findAvailablePort(project.defaultPort);
+          if (!project.port) {
+            console.log(`Could not find an available port for ${project.name}`);
+          }
         }
       }
       
-      // Start each project
+      // Start each project that should be served
       for (const project of projects) {
-        if (project.port) {
+        if (project.shouldServe && project.port) {
           // Special handling for blorktools
           if (project.name.includes('blorktools')) {
             console.log(`Starting ${project.name} with tools script on port ${project.port}...`);
