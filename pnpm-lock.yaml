@@ -24,6 +24,9 @@ importers:
       '@semantic-release/github':
         specifier: ^9.2.6
         version: 9.2.6(semantic-release@23.1.1)
+      license-webpack-plugin:
+        specifier: ^4.0.2
+        version: 4.0.2
       prettier:
         specifier: ^3.2.5
         version: 3.5.3
@@ -89,6 +92,9 @@ importers:
       eslint:
         specifier: ^8.56.0
         version: 8.57.1
+      license-webpack-plugin:
+        specifier: ^4.0.2
+        version: 4.0.2
       rimraf:
         specifier: ^5.0.5
         version: 5.0.10
@@ -2856,6 +2862,17 @@ packages:
       type-check: 0.4.0
     dev: true
 
+  /license-webpack-plugin@4.0.2:
+    resolution: {integrity: sha512-771TFWFD70G1wLTC4oU2Cw4qvtmNrIw+wRvBtn+okgHl7slJVi7zfNcdmqDL72BojM30VNJ2UHylr1o77U37Jw==}
+    peerDependencies:
+      webpack: '*'
+    peerDependenciesMeta:
+      webpack:
+        optional: true
+    dependencies:
+      webpack-sources: 3.2.3
+    dev: true
+
   /lines-and-columns@1.2.4:
     resolution: {integrity: sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==}
     dev: true
@@ -4394,6 +4411,11 @@ packages:
       yaml: 2.7.0
     optionalDependencies:
       fsevents: 2.3.3
+    dev: true
+
+  /webpack-sources@3.2.3:
+    resolution: {integrity: sha512-/DyMEOrDgLKKIG0fmvtz+4dUX/3Ghozwgm6iPp8KRhvn+eQf9+Q7GWxVNMk3+uCPWfdXYC4ExGBckIXdFEfH1w==}
+    engines: {node: '>=10.13.0'}
     dev: true
 
   /which@2.0.2:

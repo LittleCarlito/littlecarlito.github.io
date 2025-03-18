@@ -44,7 +44,8 @@
     "@semantic-release/github": "^9.2.6",
     "semantic-release": "^23.0.2",
     "rimraf": "^5.0.5",
-    "eslint": "^8.56.0"
+    "eslint": "^8.56.0",
+    "license-webpack-plugin": "^4.0.2"
   },
   "repository": {
     "type": "git",
