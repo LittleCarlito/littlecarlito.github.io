@@ -1,3 +1,17 @@
+## [0.12.1](https://github.com/littlecarlito/threejs_site/compare/v0.12.0...v0.12.1) (2025-03-18)
+
+
+### Bug Fixes
+
+* force version bump for blorkpack ([74f1527](https://github.com/littlecarlito/threejs_site/commit/74f1527efe63b24522f405087ca3034ad88b91d8))
+* husky disable ([#102](https://github.com/littlecarlito/threejs_site/issues/102)) ([24956fd](https://github.com/littlecarlito/threejs_site/commit/24956fd779d67e25e9be607763a0c86a6f6a35cb))
+* it belongs in a museum ([515268e](https://github.com/littlecarlito/threejs_site/commit/515268e226afd0b173cdfba8c5477ae8dd5d16b2))
+* it belongs in a museum [#100](https://github.com/littlecarlito/threejs_site/issues/100) ([e1701a7](https://github.com/littlecarlito/threejs_site/commit/e1701a721840543154a18ad03e191b558b1c0f90))
+* not skipping generation step ([#101](https://github.com/littlecarlito/threejs_site/issues/101)) ([2bdf04a](https://github.com/littlecarlito/threejs_site/commit/2bdf04a5f62af57959cd4361f29c505fd13060cf))
+* turbo deployment scripts ([#96](https://github.com/littlecarlito/threejs_site/issues/96)) ([6aa7555](https://github.com/littlecarlito/threejs_site/commit/6aa75559a065cceff11f74e24df264223529d337))
+* variable syntax ([#103](https://github.com/littlecarlito/threejs_site/issues/103)) ([b4b7604](https://github.com/littlecarlito/threejs_site/commit/b4b76043907f8920e18d94e3dccd1d316930f5dc))
+* versioning ([#99](https://github.com/littlecarlito/threejs_site/issues/99)) ([31cdcbb](https://github.com/littlecarlito/threejs_site/commit/31cdcbbd6c5fdb84b583220dda975d43632511b3))
+
 # [0.12.0](https://github.com/littlecarlito/threejs_site/compare/v0.11.7...v0.12.0) (2025-03-18)
 
 
