@@ -13,6 +13,8 @@ jobs:
   download-metadata:
     name: Download Version Metadata
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     outputs:
       blorkpack_pre_version: ${{ steps.extract-metadata.outputs.blorkpack_pre_version }}
@@ -31,14 +33,38 @@ jobs:
       
       - name: Download version metadata
         id: download-metadata
-        uses: dawidd6/action-download-artifact@v3
-        with:
-          workflow: release.yml
-          name: version-metadata
-          workflow_conclusion: success
-          run_id: ${{ github.event.workflow_run.id }}
-          path: ./artifacts
-        continue-on-error: true
+        run: |
+          echo "Attempting to download artifacts from workflow run ID: ${{ github.event.workflow_run.id }}"
+          mkdir -p ./artifacts
+          
+          # Use GitHub API to get artifacts from the workflow run
+          ARTIFACTS_URL=$(curl -s \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: token ${{ secrets.PACKAGE_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/artifacts" | \
+            jq -r '.artifacts[] | select(.name=="version-metadata") | .archive_download_url')
+          
+          if [ -n "$ARTIFACTS_URL" ]; then
+            echo "Found artifact URL: $ARTIFACTS_URL"
+            
+            # Download the artifact
+            curl -s -L \
+              -H "Authorization: token ${{ secrets.PACKAGE_TOKEN }}" \
+              -o ./artifacts/artifact.zip \
+              "$ARTIFACTS_URL"
+            
+            # Extract the artifact
+            unzip -o ./artifacts/artifact.zip -d ./artifacts || {
+              echo "Error extracting artifact"
+              exit 1
+            }
+            
+            echo "Extracted artifact contents:"
+            ls -la ./artifacts
+          else
+            echo "No version-metadata artifact found in workflow run"
+            exit 1
+          fi
 
       - name: List downloaded artifacts
         run: |
