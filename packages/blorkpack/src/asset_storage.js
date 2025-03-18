@@ -1,6 +1,6 @@
 import { THREE } from "./index.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
-import { ASSET_CONFIGS } from "./asset_type.js";
+import CustomTypeManager from "./custom_type_manager.js";
 import { BLORKPACK_FLAGS } from "./blorkpack_flags.js";
 
 /**
@@ -9,12 +9,24 @@ import { BLORKPACK_FLAGS } from "./blorkpack_flags.js";
  */
 export class AssetStorage {
     static instance = null;
-
+    stored_info = new Map();
+    cached_models = new Map();
+    loader;
+    
+    // Cache CustomTypeManager data
+    #assetConfigs = null;
+    
     constructor() {
         if (AssetStorage.instance) {
             return AssetStorage.instance;
         }
+        this.stored_info = new Map();
+        this.cached_models = new Map();
         this.loader = new GLTFLoader();
+        
+        // Cache configuration data
+        this.#assetConfigs = CustomTypeManager.getConfigs();
+        
         this.loaded_assets = new Map();  // Stores the raw GLTF data
         this.dynamic_bodies = new Map(); // Stores [mesh, physicsBody] pairs
         this.static_meshes = new Map();  // Stores static meshes without physics
@@ -43,42 +55,26 @@ export class AssetStorage {
      * @returns {Promise<Object>} A promise that resolves with the loaded asset.
      */
     async load_asset_type(asset_type) {
-        // Check if already loaded
-        if (this.has_loaded_asset(asset_type)) {
-            return this.get_loaded_asset(asset_type);
+        if (this.cached_models.has(asset_type)) {
+            return this.cached_models.get(asset_type);
         }
-
-        // Check if already loading
-        if (this.has_loading_promise(asset_type)) {
-            return this.get_loading_promise(asset_type);
+        
+        try {
+            // Get asset configuration
+            const asset_config = this.#assetConfigs[asset_type];
+            if (!asset_config) {
+                console.error(`No configuration found for asset type: ${asset_type}`);
+                return null;
+            }
+            
+            // Load the model
+            const gltf = await this.loader.loadAsync(asset_config.PATH);
+            this.cached_models.set(asset_type, gltf);
+            return gltf;
+        } catch (error) {
+            console.error(`Error loading asset type: ${asset_type}`, error);
+            return null;
         }
-
-        // Set up loading promise
-        const asset_config = ASSET_CONFIGS[asset_type];
-        if (!asset_config) {
-            throw new Error(`Unknown asset type: ${asset_type}`);
-        }
-
-        const loading_promise = new Promise((resolve, reject) => {
-            this.loader.load(
-                asset_config.PATH,
-                (gltf) => {
-                    this.store_loaded_asset(asset_type, gltf);
-                    if (BLORKPACK_FLAGS.ASSET_LOGS) console.log(`Loaded asset: ${asset_type}`);
-                    resolve(gltf);
-                },
-                undefined,
-                (error) => {
-                    console.error(`Error loading asset ${asset_type}:`, error);
-                    reject(error);
-                }
-            );
-        });
-
-        this.set_loading_promise(asset_type, loading_promise);
-        const result = await loading_promise;
-        this.delete_loading_promise(asset_type);
-        return result;
     }
 
     /**

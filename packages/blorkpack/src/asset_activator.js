@@ -1,5 +1,5 @@
 import { THREE } from "./index.js";
-import { ASSET_TYPE } from "./asset_type.js";
+import CustomTypeManager from "./custom_type_manager.js";
 import { BLORKPACK_FLAGS } from "./blorkpack_flags.js";
 import { AssetStorage } from "./asset_storage.js";
 
@@ -9,6 +9,10 @@ import { AssetStorage } from "./asset_storage.js";
 export class AssetActivator {
     static instance = null;
     name = "[AssetActivator]";
+    activations = new Map();
+    
+    // Cache the CustomTypeManager types
+    #assetTypes = null;
 
     constructor(camera, renderer) {
         if (AssetActivator.instance) {
@@ -20,6 +24,10 @@ export class AssetActivator {
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
         this.active_objects = new Set();
+        
+        // Cache the asset types
+        this.#assetTypes = CustomTypeManager.getTypes();
+        
         AssetActivator.instance = this;
     }
 

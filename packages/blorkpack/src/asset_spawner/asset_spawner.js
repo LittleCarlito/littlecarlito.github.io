@@ -1,8 +1,9 @@
 import { THREE, RAPIER } from "../index.js";
 import { AssetUtils } from "../index.js";
-import { ASSET_CONFIGS, ASSET_TYPE } from "../asset_type.js";
+import CustomTypeManager from "../custom_type_manager.js";
 import { AssetStorage } from "../asset_storage.js";
 import { BLORKPACK_FLAGS } from "../blorkpack_flags.js";
+import { ManifestManager } from "../manifest_manager.js";
 
 // Configuration constants
 /**
@@ -31,16 +32,38 @@ function generate_indices(geometry) {
  */
 export class AssetSpawner {
     static instance = null;
-
-    constructor(scene, world) {
+    storage;
+    container;
+    world;
+    
+    // Cache the types and configs from CustomTypeManager
+    #assetTypes = null;
+    #assetConfigs = null;
+    
+    /**
+     * Constructor
+     * @param {Object} target_container - The container to spawn assets into
+     * @param {Object} target_world - The physics world
+     */
+    constructor(target_container = null, target_world = null) {
+        // Singleton pattern
         if (AssetSpawner.instance) {
+            // Update references if provided
+            if (target_container) this.container = target_container;
+            if (target_world) this.world = target_world;
             return AssetSpawner.instance;
         }
-        this.scene = scene;
-        this.world = world;
+        
+        // Initialize properties
         this.storage = AssetStorage.get_instance();
-        this.debugMeshes = new Map(); // Store debug wireframe meshes
-        this.debugColorIndex = 0; // Counter for cycling through debug colors
+        this.container = target_container;
+        this.world = target_world;
+        
+        // Cache asset types and configs
+        this.#assetTypes = CustomTypeManager.getTypes();
+        this.#assetConfigs = CustomTypeManager.getConfigs();
+        
+        // Store the instance
         AssetSpawner.instance = this;
     }
 
@@ -78,8 +101,8 @@ export class AssetSpawner {
                 return null;
             }
 
-            // Get asset configuration for scaling
-            const asset_config = ASSET_CONFIGS[asset_type];
+            // Get asset configuration from cache
+            const asset_config = this.#assetConfigs[asset_type];
             if (!asset_config) {
                 console.error(`No configuration found for asset type: ${asset_type}`);
                 return null;

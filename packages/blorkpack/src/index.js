@@ -11,13 +11,11 @@ export const AssetUtils = {
 
 export { THREE, RAPIER, Easing, Tween };
 
-// Re-export all asset management components
-export * from './asset_type.js';
+// Re-export asset management components
 export * from './asset_storage.js';
 export * from './asset_activator.js';
 export * from './asset_spawner/asset_spawner.js'
 export * from './manifest_manager.js';
-export * from './manifest_types.js';
 export * from './loaders.js';
 export * from './app_renderer.js';
 
@@ -26,15 +24,18 @@ import { AssetSpawner } from './asset_spawner/asset_spawner.js';
 import { AssetActivator } from './asset_activator.js';
 import { ManifestManager } from './manifest_manager.js';
 import { AppRenderer } from './app_renderer.js';
-import { ASSET_TYPE } from './asset_type.js';
+import CustomTypeManager from './custom_type_manager.js';
 import { BLORKPACK_FLAGS } from './blorkpack_flags.js';
+import { MANIFEST_TYPES } from './manifest_types.js';
 
+// Export the components
 export {
-    AssetStorage,
-    AssetSpawner,
-    AssetActivator,
     ManifestManager,
+    MANIFEST_TYPES,
+    AssetSpawner,
+    AssetStorage,
+    AssetActivator,
     AppRenderer,
-    ASSET_TYPE,
+    CustomTypeManager,
     BLORKPACK_FLAGS
 }; 
