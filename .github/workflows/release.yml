@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - main
+  # Allow manual triggering
+  workflow_dispatch:
 
 jobs:
   release:
@@ -117,7 +119,11 @@ jobs:
           fi
           
           # Run semantic-release to determine version and update package.json
-          npx semantic-release || echo "semantic-release process completed"
+          echo "Running semantic-release in dry-run mode first to see what it would do"
+          npx semantic-release --dry-run || echo "semantic-release dry run completed"
+          
+          echo "Running actual semantic-release"
+          npx semantic-release --debug || echo "semantic-release process completed"
           
           # Get the new version post-semantic-release
           NEW_VERSION=$(jq -r '.version' package.json)
@@ -213,15 +219,17 @@ jobs:
           
           # Force a patch bump if there are no relevant commits
           # Add a dummy fix commit if there have been no release-worthy commits
-          if [ "$PRE_VERSION" = "1.0.1" ]; then
-            echo "Forcing a patch bump since version has been 1.0.1 for a while"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git config user.name "github-actions[bot]"
-            git commit --allow-empty -m "fix: force version bump for blorktools"
-          fi
+          echo "Forcing a patch bump for blorktools"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git commit --allow-empty -m "fix: force version bump for blorktools"
           
           # Run semantic-release to determine version and update package.json
-          npx semantic-release || echo "semantic-release process completed"
+          echo "Running semantic-release in dry-run mode first to see what it would do"
+          npx semantic-release --dry-run || echo "semantic-release dry run completed"
+          
+          echo "Running actual semantic-release"
+          npx semantic-release --debug || echo "semantic-release process completed"
           
           # Get the new version post-semantic-release
           NEW_VERSION=$(jq -r '.version' package.json)
