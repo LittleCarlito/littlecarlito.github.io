@@ -92,6 +92,12 @@ jobs:
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
       
+      - name: Install dependencies and semantic-release plugins
+        run: |
+          npm install -g @semantic-release/changelog @semantic-release/git @semantic-release/github semantic-release
+          echo "Installed semantic-release and required plugins globally"
+          ls -la /usr/local/lib/node_modules/@semantic-release/ || echo "Failed to list semantic-release plugins"
+          
       - name: Configure blorkpack package.json for publishing
         run: |
           cd packages/blorkpack
