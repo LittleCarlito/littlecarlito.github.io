@@ -1,5 +1,5 @@
 import { THREE, FLAGS, RAPIER } from '../common';
-import { AssetStorage, AssetSpawner, ASSET_TYPE }  from '@littlecarlito/blorkpack';
+import { AssetStorage, AssetSpawner, CustomTypeManager }  from '@littlecarlito/blorkpack';
 import { ControlMenu } from "./menus/control_menu";
 import { ScrollMenu } from "./menus/scroll_menu";
 import { CATEGORIES, TYPES } from "../viewport/overlay/overlay_common";
@@ -26,6 +26,7 @@ export class BackgroundContainer {
         this.object_container = new THREE.Object3D();
         this.parent.add(this.object_container);
         const asset_loader = AssetSpawner.get_instance(this.object_container, this.world);
+        const ASSET_TYPE = CustomTypeManager.getTypes();
 
         // Create a promise for the main assets
         const mainAssetsPromise = (async () => {

@@ -6,7 +6,7 @@ import { BackgroundContainer } from './background/background_container.js';
 import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/overlay_common/index.js';
 import { AppRenderer } from './common/index.js';
 import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common/index.js';
-import { AssetStorage, AssetActivator, AssetSpawner, ManifestManager, BLORKPACK_FLAGS } from '@littlecarlito/blorkpack';
+import { AssetStorage, AssetActivator, AssetSpawner, ManifestManager, BLORKPACK_FLAGS, CustomTypeManager } from '@littlecarlito/blorkpack';
 import { toggleDebugUI, createDebugUI as create_debug_UI, setBackgroundContainer as set_background_container, setResolutionScale as set_resolution_scale, updateLabelWireframes, setSceneReference } from './common/debug_ui.js';
 
 // Enable HMR for development
@@ -174,6 +174,11 @@ async function init() {
         update_loading_progress('Loading Rapier Physics...');
         await load_rapier(); // Initialize Rapier
         await RAPIER.init(); // Make sure Rapier is initialized
+        
+        // Load custom types
+        update_loading_progress('Loading custom asset types...');
+        await CustomTypeManager.loadCustomTypes('./custom_types.json');
+        
         // Load scene
         update_loading_progress('Initializing scene...');
         // Initialize asset storage and spawner early since they don't depend on UI

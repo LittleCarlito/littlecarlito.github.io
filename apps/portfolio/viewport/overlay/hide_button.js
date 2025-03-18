@@ -1,9 +1,13 @@
 import { get_screen_size, get_associated_position, EAST, TYPES, HIDE_HEIGHT, HIDE_WIDTH } from './overlay_common';
 import { Easing, THREE, Tween } from '../../common';
-import { ASSET_TYPE }  from '@littlecarlito/blorkpack';
+import { CustomTypeManager } from '@littlecarlito/blorkpack';
+import { FLAGS } from '../../common';
 
 export class HideButton {
     is_overlay_hidden = false;
+
+    // Cache asset types
+    #ASSET_TYPE = CustomTypeManager.getTypes();
 
     constructor(incoming_parent, incoming_camera) {
         this.parent = incoming_parent;
@@ -15,7 +19,7 @@ export class HideButton {
         this.hide_button = new THREE.Mesh(hide_button_geometry, hide_button_material);
         this.hide_button.position.y = this.get_hide_button_y(this.camera);
         this.hide_button.position.x = this.get_hide_button_x(true, this.camera);
-        this.hide_button.name = `${TYPES.HIDE}${ASSET_TYPE.UNIQUE}`;
+        this.hide_button.name = `${TYPES.HIDE}${this.#ASSET_TYPE.UNIQUE}`;
         this.parent.add(this.hide_button);
     }
 

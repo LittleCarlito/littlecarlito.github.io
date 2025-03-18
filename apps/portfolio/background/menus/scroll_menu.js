@@ -1,5 +1,5 @@
 import { THREE, FLAGS } from "../../common";
-import { AssetStorage, ASSET_TYPE, BLORKPACK_FLAGS }  from '@littlecarlito/blorkpack';
+import { AssetStorage, CustomTypeManager, BLORKPACK_FLAGS }  from '@littlecarlito/blorkpack';
 import { TYPES } from "../../viewport/overlay/overlay_common";
 import { RAPIER } from '../../common';
 import { AssetSpawner } from '@littlecarlito/blorkpack';
@@ -88,6 +88,9 @@ export class ScrollMenu {
     last_position_log_time = 0;
     position_log_interval = 500; // 500ms
     spawner = null;
+
+    // Cache asset types
+    #ASSET_TYPE = CustomTypeManager.getTypes();
 
     constructor(incoming_parent, incoming_camera, incoming_world, incoming_container, spawn_position) {
         this.parent = incoming_parent;
@@ -369,7 +372,7 @@ export class ScrollMenu {
                 );
                 this.sign_mesh = new THREE.Mesh(sign_geometry, sign_material);
                 this.sign_mesh.castShadow = true;
-                this.sign_mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.SECONDARY}_SCROLL_MENU`;
+                this.sign_mesh.name = `${TYPES.INTERACTABLE}${this.#ASSET_TYPE.SECONDARY}_SCROLL_MENU`;
                 
                 // Add a reference to this ScrollMenu instance in the userData
                 this.sign_mesh.userData.scrollMenu = this;

@@ -1,6 +1,6 @@
 import { TYPES } from '../../viewport/overlay/overlay_common';
 import { FLAGS, RAPIER, THREE } from '../../common';
-import { ASSET_TYPE, AssetSpawner }  from '@littlecarlito/blorkpack';
+import { CustomTypeManager, AssetSpawner }  from '@littlecarlito/blorkpack';
 import { BLORKPACK_FLAGS } from '@littlecarlito/blorkpack';
 
 export const IMAGE_PATH = 'images/MouseControlMenu.svg';
@@ -128,6 +128,8 @@ export class ControlMenu {
     // Store initial camera state
     initial_camera_position = new THREE.Vector3();
     initial_camera_quaternion = new THREE.Quaternion();
+    // Cache asset types
+    #ASSET_TYPE = CustomTypeManager.getTypes();
 
     constructor(incoming_parent, incoming_camera, incoming_world, primary_container, incoming_speed = DEFAULT_SPEED) {
         this.parent = incoming_parent;
@@ -254,7 +256,7 @@ export class ControlMenu {
                 );
                 this.sign_mesh = new THREE.Mesh(this.sign_geometry, this.sign_material);
                 this.sign_mesh.castShadow = true;
-                this.sign_mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.PRIMARY}`;
+                this.sign_mesh.name = `${TYPES.INTERACTABLE}${this.#ASSET_TYPE.PRIMARY}`;
                 this.parent.add(this.sign_mesh);
                 // Create test physics object with initial rotation
                 const initialRotation = new THREE.Quaternion().setFromAxisAngle(

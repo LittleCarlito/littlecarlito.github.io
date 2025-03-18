@@ -2,7 +2,7 @@ import { clamp } from 'three/src/math/MathUtils.js';
 import { TextFrame, IFRAME } from './text_frame';
 import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, CATEGORIES, extract_type, PAN_SPEED, TYPES, VALID_DIRECTIONS } from './overlay_common';
 import { Easing, FLAGS, THREE, Tween } from '../../common';
-import { ASSET_CONFIGS, AssetStorage, AssetSpawner, ASSET_TYPE, BLORKPACK_FLAGS }  from '@littlecarlito/blorkpack';
+import { AssetStorage, AssetSpawner, CustomTypeManager, BLORKPACK_FLAGS }  from '@littlecarlito/blorkpack';
 
 export class TextContainer {
     container_width;
@@ -11,6 +11,10 @@ export class TextContainer {
     focused_text_name = "";
     particles = [];
     asset_spawner;
+
+    // Get a reference to the CustomTypeManager's types and configs
+    #ASSET_TYPE = CustomTypeManager.getTypes();
+    #ASSET_CONFIGS = CustomTypeManager.getConfigs();
 
     constructor(incoming_parent, incoming_camera) {
         this.parent = incoming_parent;
@@ -67,7 +71,12 @@ export class TextContainer {
             config.position.z += config.positionOffsetZ;
             
             // Load the asset
-            const asset_config = ASSET_CONFIGS[asset_type];
+            const asset_config = this.#ASSET_CONFIGS[asset_type];
+            if (!asset_config) {
+                console.error(`No configuration found for asset type: ${asset_type}`);
+                return null;
+            }
+            
             const gltf = await AssetStorage.get_instance().loader.loadAsync(asset_config.PATH);
             
             // Create instance
@@ -166,7 +175,7 @@ export class TextContainer {
                     // Create diplomas with specific UI handling
                     (async () => {
                         // Load assets first
-                        const top_asset_config = ASSET_CONFIGS[ASSET_TYPE.DIPLOMA_TOP];
+                        const top_asset_config = this.#ASSET_CONFIGS[this.#ASSET_TYPE.DIPLOMA_TOP];
                         const top_gltf = await AssetStorage.get_instance().loader.loadAsync(top_asset_config.PATH);
                         // Create top diploma
                         [position_one_offset].forEach(position => {
@@ -213,7 +222,7 @@ export class TextContainer {
                             text_box.add(top_diploma);
                         });
                         // Load assets first
-                        const bot_asset_config = ASSET_CONFIGS[ASSET_TYPE.DIPLOMA_BOT];
+                        const bot_asset_config = this.#ASSET_CONFIGS[this.#ASSET_TYPE.DIPLOMA_BOT];
                         const bot_gltf = await AssetStorage.get_instance().loader.loadAsync(bot_asset_config.PATH);
                         // Create bottom diploma
                         [position_two_offset].forEach(position => {
@@ -270,7 +279,7 @@ export class TextContainer {
                 case CATEGORIES.CONTACT.value:
                     // For contact, we want the tablet.glb with iframe but NO background
                     (async () => {
-                        await create_asset_background(text_box, ASSET_TYPE.TABLET, {
+                        await create_asset_background(text_box, this.#ASSET_TYPE.TABLET, {
                             horizontalStretch: 1.1,
                             verticalStretch: 0.6,
                             rotation: new THREE.Euler(-Math.PI / 2, 0, Math.PI, 'XYZ')
@@ -311,7 +320,7 @@ export class TextContainer {
                     
                     // Create monitor asset background after setting up the iframe
                     (async () => {
-                        await create_asset_background(text_box, ASSET_TYPE.MONITOR, {
+                        await create_asset_background(text_box, this.#ASSET_TYPE.MONITOR, {
                             horizontalStretch: 2,
                             verticalStretch: 2,
                             positionOffsetX: 2.85,
