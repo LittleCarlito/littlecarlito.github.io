@@ -2,6 +2,7 @@
   "name": "threejs-site-monorepo",
   "private": true,
   "type": "module",
+  "copyright": "Copyright (C) 2024 Steven Meier",
   "scripts": {
     "build": "turbo run build",
     "dev": "pnpm board",
@@ -23,6 +24,7 @@
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^9.2.6",
+    "license-webpack-plugin": "^4.0.2",
     "prettier": "^3.2.5",
     "semantic-release": "^23.0.2",
     "tree-kill": "^1.2.2",
@@ -32,5 +34,6 @@
   "packageManager": "pnpm@8.15.4",
   "engines": {
     "node": ">=20.0.0"
-  }
+  },
+  "license": "SEE LICENSE IN LICENSE"
 }

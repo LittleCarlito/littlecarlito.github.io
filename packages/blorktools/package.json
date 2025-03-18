@@ -39,5 +39,6 @@
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
-  }
+  },
+  "license": "SEE LICENSE IN LICENSE"
 }

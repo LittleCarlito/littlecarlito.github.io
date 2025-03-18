@@ -20,4 +20,22 @@ export * from './blorkpack_flags.js';
 export * from './manifest_manager.js';
 export * from './manifest_types.js';
 export * from './loaders.js';
-export * from './app_renderer.js'; 
+export * from './app_renderer.js';
+
+import { AssetStorage } from './asset_storage.js';
+import { AssetSpawner } from './asset_spawner.js';
+import { AssetActivator } from './asset_activator.js';
+import { ManifestManager } from './manifest_manager.js';
+import { AppRenderer } from './app_renderer.js';
+import { AssetType } from './asset_type.js';
+import { BlorkPackFlags } from './blorkpack_flags.js';
+
+export {
+    AssetStorage,
+    AssetSpawner,
+    AssetActivator,
+    ManifestManager,
+    AppRenderer,
+    AssetType,
+    BlorkPackFlags
+}; 
