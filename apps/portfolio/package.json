@@ -1,9 +1,10 @@
 {
-  "name": "@littlecarlito/web",
+  "name": "@littlecarlito/portfolio",
   "private": true,
   "version": "1.0.0",
   "type": "module",
   "description": "Interactive 3D portfolio website showcasing web development and creative coding projects",
+  "blorkType": "app",
   "scripts": {
     "predev": "cd ../../packages/blorkpack && npm run build",
     "dev": "vite",

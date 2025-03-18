@@ -115,8 +115,9 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         
-      - name: Build Production Bundle
-        run: pnpm turbo run build --filter=@littlecarlito/web
+      - name: Build
+        shell: bash
+        run: pnpm turbo run build --filter=@littlecarlito/portfolio
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         

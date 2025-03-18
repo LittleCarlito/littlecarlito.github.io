@@ -177,20 +177,31 @@ async function discoverProjects() {
               let projectType = 'unknown';
               let shouldServe = true;
               
-              if (packageData.name.includes('web')) {
-                projectType = 'app';
-              } else if (packageData.name.includes('blorktools')) {
-                projectType = 'tool';
-              } else if (packageData.name.includes('blorkpack')) {
-                projectType = 'package';
-                shouldServe = false; // Don't assign a port to blorkpack
-              } else if (packageData.name.includes('ui')) {
-                projectType = 'ui';
-              } else if (packageData.name.includes('api')) {
-                projectType = 'api';
-              } else if (path.basename(projectPath).includes('lib') || packageData.name.includes('lib')) {
-                projectType = 'library';
-                shouldServe = false;
+              // Check for explicit type first in blorkType property
+              if (packageData.blorkType) {
+                projectType = packageData.blorkType;
+                
+                // Non-interactive types
+                if (['package', 'library'].includes(projectType)) {
+                  shouldServe = false;
+                }
+              } else {
+                // Auto-detect based on name if no explicit type
+                if (packageData.name.includes('web') || packageData.name.includes('portfolio') || packageData.name.includes('site')) {
+                  projectType = 'app';
+                } else if (packageData.name.includes('blorktools')) {
+                  projectType = 'tool';
+                } else if (packageData.name.includes('blorkpack')) {
+                  projectType = 'package';
+                  shouldServe = false; // Don't assign a port to blorkpack
+                } else if (packageData.name.includes('ui')) {
+                  projectType = 'ui';
+                } else if (packageData.name.includes('api')) {
+                  projectType = 'api';
+                } else if (path.basename(projectPath).includes('lib') || packageData.name.includes('lib')) {
+                  projectType = 'library';
+                  shouldServe = false;
+                }
               }
               
               // Assign default ports with blorktools having priority for port 3001

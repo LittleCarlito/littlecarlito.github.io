@@ -5,7 +5,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "pnpm board",
-    "dev:web": "pnpm --filter=@littlecarlito/web dev",
+    "dev:portfolio": "pnpm --filter=@littlecarlito/portfolio dev",
     "dev:tools": "pnpm --filter=@littlecarlito/blorktools dev",
     "dev:console": "node scripts/dev-console.js",
     "board": "node scripts/blork-board.js",
