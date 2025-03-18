@@ -15,15 +15,14 @@ export { THREE, RAPIER, Easing, Tween };
 export * from './asset_type.js';
 export * from './asset_storage.js';
 export * from './asset_activator.js';
-export * from './asset_spawner.js';
-export * from './blorkpack_flags.js';
+export * from './asset_spawner/asset_spawner.js'
 export * from './manifest_manager.js';
 export * from './manifest_types.js';
 export * from './loaders.js';
 export * from './app_renderer.js';
 
 import { AssetStorage } from './asset_storage.js';
-import { AssetSpawner } from './asset_spawner.js';
+import { AssetSpawner } from './asset_spawner/asset_spawner.js';
 import { AssetActivator } from './asset_activator.js';
 import { ManifestManager } from './manifest_manager.js';
 import { AppRenderer } from './app_renderer.js';

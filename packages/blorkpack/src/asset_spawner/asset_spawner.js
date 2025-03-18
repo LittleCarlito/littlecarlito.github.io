@@ -1,8 +1,8 @@
-import { THREE, RAPIER } from "./index.js";
-import { AssetUtils } from "./index.js";
-import { ASSET_CONFIGS, ASSET_TYPE } from "./asset_type.js";
-import { AssetStorage } from "./asset_storage.js";
-import { BLORKPACK_FLAGS } from "./blorkpack_flags.js";
+import { THREE, RAPIER } from "../index.js";
+import { AssetUtils } from "../index.js";
+import { ASSET_CONFIGS, ASSET_TYPE } from "../asset_type.js";
+import { AssetStorage } from "../asset_storage.js";
+import { BLORKPACK_FLAGS } from "../blorkpack_flags.js";
 
 // Configuration constants
 /**

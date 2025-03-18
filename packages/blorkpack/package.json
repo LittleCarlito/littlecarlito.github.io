@@ -10,7 +10,7 @@
     ".": "./dist/index.js",
     "./app-renderer": "./dist/app_renderer.js",
     "./asset-activator": "./dist/asset_activator.js",
-    "./asset-spawner": "./dist/asset_spawner.js",
+    "./spawner": "./dist/asset_spawner/asset_spawner.js",
     "./asset-storage": "./dist/asset_storage.js",
     "./asset-type": "./dist/asset_type.js",
     "./blorkpack-flags": "./dist/blorkpack_flags.js",
