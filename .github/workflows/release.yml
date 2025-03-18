@@ -71,7 +71,7 @@ jobs:
           git log -n 5 --pretty=format:"%h %s" -- .
           
           # Create local .releaserc.json for this package
-          cat > .releaserc.json << EOF
+          cat > .releaserc.json << 'EOF'
           {
             "branches": ["main"],
             "plugins": [
@@ -151,7 +151,7 @@ jobs:
           git log -n 5 --pretty=format:"%h %s" -- .
           
           # Create local .releaserc.json for this package
-          cat > .releaserc.json << EOF
+          cat > .releaserc.json << 'EOF'
           {
             "branches": ["main"],
             "plugins": [
