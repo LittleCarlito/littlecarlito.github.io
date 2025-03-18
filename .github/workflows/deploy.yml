@@ -16,7 +16,6 @@ jobs:
   build-and-deploy:
     name: Build and Deploy to GitHub Pages
     runs-on: ubuntu-latest
-    # Only run this job if the Package Publishing workflow completed successfully
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout latest code
@@ -28,9 +27,13 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '20.x'
-          # Disable caching since lock files aren't available
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
+          
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8.15.4
           
       - name: Get Latest package version
         id: get_version
@@ -42,8 +45,8 @@ jobs:
       - name: Configure package for production deployment
         run: |
           # Update dependency to use the GitHub package with latest version
-          jq --arg version "${{ steps.get_version.outputs.LATEST_VERSION }}" '.dependencies."@littlecarlito/blorkpack" = "@littlecarlito/blorkpack@" + $version' package.json > package.json.tmp
-          mv package.json.tmp package.json
+          jq --arg version "${{ steps.get_version.outputs.LATEST_VERSION }}" '.dependencies."@littlecarlito/blorkpack" = "@littlecarlito/blorkpack@" + $version' apps/web/package.json > apps/web/package.json.tmp
+          mv apps/web/package.json.tmp apps/web/package.json
           
           # Add a resolution to ensure the correct version is used
           jq --arg version "${{ steps.get_version.outputs.LATEST_VERSION }}" '.resolutions."@littlecarlito/blorkpack" = $version' package.json > package.json.tmp
@@ -58,10 +61,10 @@ jobs:
           
           # Add debug output
           echo "Updated package.json:"
-          cat package.json
+          cat apps/web/package.json
           
       - name: Install Production Dependencies
-        run: npm install
+        run: pnpm install --frozen-lockfile
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           
@@ -69,13 +72,13 @@ jobs:
         run: |
           echo "Building and linking blorkpack for local use..."
           cd packages/blorkpack
-          npm install
-          npm run build
+          pnpm install
+          pnpm run build
           cd ../..
           ls -la packages/blorkpack/dist
           
           # Update vite.config.js to ensure it can find blorkpack
-          cat > vite.config.js << 'EOL'
+          cat > apps/web/vite.config.js << 'EOL'
           import { defineConfig } from 'vite'
           import path from 'path'
           import fs from 'fs'
@@ -84,7 +87,7 @@ jobs:
             base: '/threejs_site/',
             resolve: {
               alias: {
-                '@littlecarlito/blorkpack': path.resolve(__dirname, 'packages/blorkpack/dist/index.js')
+                '@littlecarlito/blorkpack': path.resolve(__dirname, '../../packages/blorkpack/dist/index.js')
               }
             },
             optimizeDeps: {
@@ -108,28 +111,29 @@ jobs:
           EOL
           
           echo "Updated vite.config.js:"
-          cat vite.config.js
+          cat apps/web/vite.config.js
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         
-      - name: Build Production Bundle
-        run: npm run build
+      - name: Build
+        shell: bash
+        run: pnpm turbo run build --filter=@littlecarlito/portfolio
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         
       - name: Verify no source files in dist
         run: |
           echo "Verifying that no source files are included in the dist directory..."
-          if [ -d "dist/packages" ]; then
+          if [ -d "apps/web/dist/packages" ]; then
             echo "ERROR: packages directory found in dist folder!"
             echo "Removing packages directory from dist to prevent source code deployment"
-            rm -rf dist/packages
+            rm -rf apps/web/dist/packages
           else
             echo "✅ No packages directory found in dist. Good!"
           fi
           
           # Double check for any source code files
-          SOURCE_FILES=$(find dist -name "*.ts" -o -name "*.tsx" -o -name "*.js.map" | grep -v "node_modules" || true)
+          SOURCE_FILES=$(find apps/web/dist -name "*.ts" -o -name "*.tsx" -o -name "*.js.map" | grep -v "node_modules" || true)
           if [ ! -z "$SOURCE_FILES" ]; then
             echo "WARNING: Source files found in dist folder. Consider reviewing your build process."
             echo "$SOURCE_FILES"
@@ -155,7 +159,7 @@ jobs:
           
           # Find development files
           echo "Scanning for development files..."
-          DEV_FILES=$(find dist -type f -o -type d | grep -v "node_modules" | while read file; do
+          DEV_FILES=$(find apps/web/dist -type f -o -type d | grep -v "node_modules" | while read file; do
             if matches_pattern "$file"; then
               echo "$file"
             fi
@@ -181,20 +185,20 @@ jobs:
           
           # Analyze bundle size
           echo "📊 Analyzing bundle size..."
-          TOTAL_SIZE=$(du -sh dist | cut -f1)
-          JS_SIZE=$(du -sh dist/*.js | awk '{s+=$1} END {print s "B"}')
+          TOTAL_SIZE=$(du -sh apps/web/dist | cut -f1)
+          JS_SIZE=$(du -sh apps/web/dist/*.js | awk '{s+=$1} END {print s "B"}')
           echo "Total bundle size: $TOTAL_SIZE"
           echo "JavaScript bundle size: $JS_SIZE"
           
           # List top 5 largest files
           echo "Largest files in bundle:"
-          find dist -type f -name "*.js" -exec du -h {} \; | sort -rh | head -n 5
+          find apps/web/dist -type f -name "*.js" -exec du -h {} \; | sort -rh | head -n 5
         
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          publish_dir: ./apps/web/dist
 
       - name: Output Deployment Information
         run: |

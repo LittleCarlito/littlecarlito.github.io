@@ -1,0 +1,32 @@
+{
+  "name": "@littlecarlito/portfolio",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Interactive 3D portfolio website showcasing web development and creative coding projects",
+  "blorkType": "app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/littlecarlito/threejs_site.git",
+    "directory": "apps/portfolio"
+  },
+  "scripts": {
+    "predev": "cd ../../packages/blorkpack && npm run build",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.14.0",
+    "@littlecarlito/blorkpack": "workspace:*",
+    "three": "^0.172.0"
+  },
+  "devDependencies": {
+    "rimraf": "^5.0.5",
+    "sharp": "^0.33.5",
+    "svgo": "^3.3.2",
+    "vite": "^6.2.2",
+    "vite-plugin-image-optimizer": "^1.1.7"
+  }
+}

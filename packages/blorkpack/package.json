@@ -2,17 +2,36 @@
   "name": "@littlecarlito/blorkpack",
   "version": "0.11.7",
   "description": "Asset management utilities for 3D scenes",
-  "main": "dist/index.js",
-  "module": "dist/index.js",
   "type": "module",
+  "blorkType": "package",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./app-renderer": "./dist/app_renderer.js",
+    "./asset-activator": "./dist/asset_activator.js",
+    "./asset-spawner": "./dist/asset_spawner.js",
+    "./asset-storage": "./dist/asset_storage.js",
+    "./asset-type": "./dist/asset_type.js",
+    "./blorkpack-flags": "./dist/blorkpack_flags.js",
+    "./loaders": "./dist/loaders.js",
+    "./manifest-manager": "./dist/manifest_manager.js",
+    "./manifest-types": "./dist/manifest_types.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
   "scripts": {
-    "build": "vite build",
-    "watch": "vite build --watch",
-    "test": "npm run build && node examples/manifest-test.js",
-    "example:usage": "npm run build && node examples/usage-example.js",
-    "example:manifest": "npm run build && node examples/manifest-test.js",
-    "example:exports": "npm run build && node examples/export-test.js",
-    "semantic-release": "semantic-release"
+    "build": "vite build && node scripts/generate-exports.js",
+    "dev": "npm run build && vite build --watch",
+    "generate-exports": "node scripts/generate-exports.js",
+    "test": "node examples/manifest-test.js",
+    "example:usage": "node examples/usage-example.js",
+    "example:manifest": "node examples/manifest-test.js",
+    "example:exports": "node examples/export-test.js",
+    "clean": "rimraf dist",
+    "lint": "eslint ."
   },
   "dependencies": {
     "three": "^0.172.0",
@@ -23,7 +42,9 @@
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^9.2.6",
-    "semantic-release": "^23.0.2"
+    "semantic-release": "^23.0.2",
+    "rimraf": "^5.0.5",
+    "eslint": "^8.56.0"
   },
   "repository": {
     "type": "git",
