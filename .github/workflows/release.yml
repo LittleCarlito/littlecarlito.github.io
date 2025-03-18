@@ -129,10 +129,11 @@ jobs:
           if [ "$PRE_VERSION" != "$NEW_VERSION" ]; then
             echo "Version updated: $PRE_VERSION → $NEW_VERSION"
             
-            # Push tags immediately after they're created
-            echo "Pushing blorkpack tags to GitHub..."
-            git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
-            git push --tags origin main
+            # Push the newly created tag for this package
+            cd ../../
+            echo "Pushing tags for blorkpack..."
+            git push origin --tags
+            cd packages/blorkpack
           else
             echo "Version unchanged: $NEW_VERSION"
           fi
@@ -214,10 +215,11 @@ jobs:
           if [ "$PRE_VERSION" != "$NEW_VERSION" ]; then
             echo "Version updated: $PRE_VERSION → $NEW_VERSION"
             
-            # Push tags immediately after they're created
-            echo "Pushing blorktools tags to GitHub..."
-            git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
-            git push --tags origin main
+            # Push the newly created tag for this package
+            cd ../../
+            echo "Pushing tags for blorktools..."
+            git push origin --tags
+            cd packages/blorktools
           else
             echo "Version unchanged: $NEW_VERSION"
           fi
@@ -257,11 +259,11 @@ jobs:
           retention-days: 5
           if-no-files-found: error
           
-      - name: Push all tags to GitHub
+      - name: Push tags to GitHub
         run: |
-          echo "Pushing all tags to GitHub repository..."
-          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
-          git push --follow-tags origin main
-          git push --tags origin main
+          echo "Pushing tags to GitHub repository..."
+          git push --follow-tags
+          # Also try explicitly pushing tags
+          git push --tags
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 
