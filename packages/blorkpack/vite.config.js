@@ -7,6 +7,7 @@ import {
   createEvalWarningHandler,
   timestampPlugin
 } from '../../scripts/vite-plugins.js';
+import baseConfig from '../../vite.config.base.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const outputPath = path.resolve(__dirname, 'dist/index.js');
@@ -18,12 +19,12 @@ const EXCLUDED_FILES = [
 ];
 
 export default defineConfig({
+  ...baseConfig,
   build: {
+    ...baseConfig.build,
     lib: {
-      entry: path.resolve(__dirname, 'src/index.js'),
-      name: 'BlorkPack',
-      formats: ['es'],
-      fileName: 'index'
+      entry: './src/index.js',
+      formats: ['es']
     },
     outDir: 'dist',
     sourcemap: true,
