@@ -5,8 +5,7 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"],
-      "cache": true,
-      "timeout": 300000
+      "cache": true
     },
     "lint": {
       "outputs": []
