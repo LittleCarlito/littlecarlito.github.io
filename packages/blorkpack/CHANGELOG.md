@@ -1,3 +1,5 @@
+## [0.12.7](https://github.com/littlecarlito/threejs_site/compare/v0.12.6...v0.12.7) (2025-03-18)
+
 ## [0.12.6](https://github.com/littlecarlito/threejs_site/compare/v0.12.5...v0.12.6) (2025-03-18)
 
 
