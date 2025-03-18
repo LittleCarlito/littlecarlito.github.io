@@ -12,12 +12,18 @@
     "./asset-activator": "./dist/asset_activator.js",
     "./spawner": "./dist/asset_spawner/asset_spawner.js",
     "./system-factory": "./dist/asset_spawner/system_factory/system_factory.js",
+    "./box-spawner": "./dist/asset_spawner/system_factory/system_spawners/box_spawner.js",
+    "./capsule-spawner": "./dist/asset_spawner/system_factory/system_spawners/capsule_spawner.js",
+    "./cylinder-spawner": "./dist/asset_spawner/system_factory/system_spawners/cylinder_spawner.js",
+    "./sphere-spawner": "./dist/asset_spawner/system_factory/system_spawners/sphere_spawner.js",
+    "./spotlight-spawner": "./dist/asset_spawner/system_factory/system_spawners/spotlight_spawner.js",
     "./asset-storage": "./dist/asset_storage.js",
     "./asset-type": "./dist/asset_type.js",
     "./blorkpack-flags": "./dist/blorkpack_flags.js",
     "./loaders": "./dist/loaders.js",
     "./manifest-manager": "./dist/manifest_manager.js",
-    "./manifest-types": "./dist/manifest_types.js"
+    "./manifest-types": "./dist/manifest_types.js",
+    "./asset_spawner/system_factory/system_spawners": "./dist/asset_spawner/system_factory/system_spawners/index.js"
   },
   "files": [
     "dist"

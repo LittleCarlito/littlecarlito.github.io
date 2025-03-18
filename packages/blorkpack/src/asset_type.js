@@ -1,3 +1,6 @@
+// TODO refactor this to be ingested as .json data instead of hardcoded
+//          System types can be hard coded but custom types as these will be renamed have to be from json
+
 const SCALE_FACTOR = 5;
 
 // Define all possible asset types that can be loaded and spawned
