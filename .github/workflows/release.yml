@@ -223,7 +223,8 @@ jobs:
         id: create_version_metadata
         run: |
           echo "Creating version metadata file..."
-          cat > version-metadata.json << EOF
+          mkdir -p artifacts
+          cat > artifacts/version-metadata.json << EOF
           {
             "blorkpack": {
               "pre_version": "${{ steps.pre_versions.outputs.blorkpack_pre }}",
@@ -232,16 +233,20 @@ jobs:
             "blorktools": {
               "pre_version": "${{ steps.pre_versions.outputs.blorktools_pre }}",
               "new_version": "${{ steps.blorktools_release.outputs.new_version }}"
-            }
+            },
+            "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "run_id": "${{ github.run_id }}"
           }
           EOF
           
           echo "Version metadata:"
-          cat version-metadata.json
+          cat artifacts/version-metadata.json
           echo "metadata_created=true" >> $GITHUB_OUTPUT
       
       - name: Upload version metadata
         uses: actions/upload-artifact@v3
         with:
           name: version-metadata
-          path: version-metadata.json 
+          path: artifacts/version-metadata.json
+          retention-days: 5
+          if-no-files-found: error 

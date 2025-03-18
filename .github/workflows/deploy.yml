@@ -44,6 +44,20 @@ jobs:
           
       - name: Configure package for production deployment
         run: |
+          # Check directories and files
+          echo "Checking directory structure..."
+          ls -la
+          
+          # Check if apps directory exists
+          if [ ! -d "apps" ]; then
+            echo "ERROR: apps directory does not exist!"
+            exit 1
+          fi
+          
+          # List contents of apps dir
+          echo "Contents of apps directory:"
+          ls -la apps/
+          
           # Check if portfolio directory exists
           if [ ! -d "apps/portfolio" ]; then
             echo "ERROR: Portfolio directory does not exist at apps/portfolio!"
@@ -52,16 +66,39 @@ jobs:
             exit 1
           fi
           
+          # Check package.json exists
+          if [ ! -f "apps/portfolio/package.json" ]; then
+            echo "ERROR: apps/portfolio/package.json not found!"
+            exit 1
+          fi
+          
+          echo "Package files found, continuing with configuration..."
+          
+          # Get latest blorkpack version
+          if [ -z "${{ steps.get_version.outputs.LATEST_VERSION }}" ]; then
+            echo "WARNING: No version received from previous step, using fallback version"
+            BLORKPACK_VERSION="latest"
+          else
+            BLORKPACK_VERSION="${{ steps.get_version.outputs.LATEST_VERSION }}"
+          fi
+          
+          echo "Using blorkpack version: $BLORKPACK_VERSION"
+          
           # Update dependency to use the GitHub package with latest version
-          jq --arg version "${{ steps.get_version.outputs.LATEST_VERSION }}" '.dependencies."@littlecarlito/blorkpack" = "@littlecarlito/blorkpack@" + $version' apps/portfolio/package.json > apps/portfolio/package.json.tmp
+          jq --arg version "$BLORKPACK_VERSION" '.dependencies."@littlecarlito/blorkpack" = "@littlecarlito/blorkpack@" + $version' apps/portfolio/package.json > apps/portfolio/package.json.tmp
           mv apps/portfolio/package.json.tmp apps/portfolio/package.json
           
           # Add a resolution to ensure the correct version is used
-          jq --arg version "${{ steps.get_version.outputs.LATEST_VERSION }}" '.resolutions."@littlecarlito/blorkpack" = $version' package.json > package.json.tmp
+          jq --arg version "$BLORKPACK_VERSION" '.resolutions."@littlecarlito/blorkpack" = $version' package.json > package.json.tmp
           mv package.json.tmp package.json
           
           # Remove tests directory to avoid build issues
-          rm -rf tests/ || echo "No tests directory to remove"
+          if [ -d "tests" ]; then
+            rm -rf tests/
+            echo "Removed tests directory"
+          else
+            echo "No tests directory found, skipping removal"
+          fi
           
           # Create .npmrc for authentication
           echo "@littlecarlito:registry=https://npm.pkg.github.com/" > .npmrc
@@ -73,8 +110,8 @@ jobs:
           
       - name: Install Production Dependencies
         run: |
-          # Install dependencies
-          pnpm install
+          # Install dependencies with no frozen lockfile to handle overrides
+          pnpm install --no-frozen-lockfile
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           

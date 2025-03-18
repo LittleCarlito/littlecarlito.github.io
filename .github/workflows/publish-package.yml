@@ -21,8 +21,16 @@ jobs:
       blorktools_new_version: ${{ steps.extract-metadata.outputs.blorktools_new_version }}
       blorkpack_version_changed: ${{ steps.extract-metadata.outputs.blorkpack_version_changed }}
       blorktools_version_changed: ${{ steps.extract-metadata.outputs.blorktools_version_changed }}
+      metadata_found: ${{ steps.extract-metadata.outputs.metadata_found }}
     steps:
+      - name: Debug Workflow Info
+        run: |
+          echo "Workflow Run ID: ${{ github.event.workflow_run.id }}"
+          echo "Workflow Run Conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "Workflow Name: ${{ github.event.workflow_run.workflow_id }}"
+      
       - name: Download version metadata
+        id: download-metadata
         uses: dawidd6/action-download-artifact@v3
         with:
           workflow: release.yml
@@ -32,6 +40,11 @@ jobs:
           path: ./artifacts
         continue-on-error: true
 
+      - name: List downloaded artifacts
+        run: |
+          echo "Downloaded artifacts:"
+          find ./artifacts -type f -ls || echo "No artifacts found"
+          
       - name: Extract version metadata
         id: extract-metadata
         run: |
@@ -65,12 +78,19 @@ jobs:
             echo "blorktools_new_version=$BLORKTOOLS_NEW_VERSION" >> $GITHUB_OUTPUT
             echo "blorkpack_version_changed=$BLORKPACK_CHANGED" >> $GITHUB_OUTPUT
             echo "blorktools_version_changed=$BLORKTOOLS_CHANGED" >> $GITHUB_OUTPUT
+            echo "metadata_found=true" >> $GITHUB_OUTPUT
             
             # Log
             echo "Blorkpack: $BLORKPACK_PRE_VERSION -> $BLORKPACK_NEW_VERSION (Changed: $BLORKPACK_CHANGED)"
             echo "Blorktools: $BLORKTOOLS_PRE_VERSION -> $BLORKTOOLS_NEW_VERSION (Changed: $BLORKTOOLS_CHANGED)"
           else
-            echo "No version metadata found, will proceed with fallback version determination"
+            echo "ERROR: Version metadata file not found"
+            echo "Current directory contents:"
+            ls -la
+            echo "Artifacts directory contents:"
+            ls -la ./artifacts || echo "Artifacts directory not found"
+            
+            echo "metadata_found=false" >> $GITHUB_OUTPUT
             echo "blorkpack_version_changed=false" >> $GITHUB_OUTPUT
             echo "blorktools_version_changed=false" >> $GITHUB_OUTPUT
           fi
@@ -82,7 +102,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    if: ${{ needs.download-metadata.outputs.blorkpack_version_changed == 'true' }}
+    if: ${{ needs.download-metadata.outputs.metadata_found == 'true' && needs.download-metadata.outputs.blorkpack_version_changed == 'true' }}
     steps:
       - name: Checkout latest code
         uses: actions/checkout@v3
@@ -139,7 +159,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    if: ${{ needs.download-metadata.outputs.blorktools_version_changed == 'true' }}
+    if: ${{ needs.download-metadata.outputs.metadata_found == 'true' && needs.download-metadata.outputs.blorktools_version_changed == 'true' }}
     steps:
       - name: Checkout latest code
         uses: actions/checkout@v3
