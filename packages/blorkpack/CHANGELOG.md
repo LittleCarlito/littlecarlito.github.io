@@ -1,3 +1,10 @@
+## [0.12.12](https://github.com/littlecarlito/threejs_site/compare/v0.12.11...v0.12.12) (2025-03-18)
+
+
+### Bug Fixes
+
+* manual build button ([#113](https://github.com/littlecarlito/threejs_site/issues/113)) ([9b01892](https://github.com/littlecarlito/threejs_site/commit/9b01892e91153ac5ab7505f1f5a4d5fbdd75d7ce))
+
 ## [0.12.11](https://github.com/littlecarlito/threejs_site/compare/v0.12.10...v0.12.11) (2025-03-18)
 
 
