@@ -1,3 +1,10 @@
+## [0.12.8](https://github.com/littlecarlito/threejs_site/compare/v0.12.7...v0.12.8) (2025-03-18)
+
+
+### Bug Fixes
+
+* package filtering publish workflow ([#109](https://github.com/littlecarlito/threejs_site/issues/109)) ([392ee3b](https://github.com/littlecarlito/threejs_site/commit/392ee3b850ec5f86a3e2b3bb18beea3161edf8e3))
+
 ## [0.12.7](https://github.com/littlecarlito/threejs_site/compare/v0.12.6...v0.12.7) (2025-03-18)
 
 ## [0.12.6](https://github.com/littlecarlito/threejs_site/compare/v0.12.5...v0.12.6) (2025-03-18)
