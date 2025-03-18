@@ -38,10 +38,16 @@ jobs:
           mkdir -p ./artifacts
           
           # Use GitHub API to get artifacts from the workflow run
-          ARTIFACTS_URL=$(curl -s \
+          echo "Getting list of artifacts from GitHub API..."
+          ARTIFACTS_RESPONSE=$(curl -s \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: token ${{ secrets.PACKAGE_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/artifacts" | \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/artifacts")
+          
+          echo "Full artifacts response (names only):"
+          echo "$ARTIFACTS_RESPONSE" | jq '.artifacts[].name'
+          
+          ARTIFACTS_URL=$(echo "$ARTIFACTS_RESPONSE" | \
             jq -r '.artifacts[] | select(.name=="version-metadata") | .archive_download_url')
           
           if [ -n "$ARTIFACTS_URL" ]; then
@@ -85,16 +91,20 @@ jobs:
             BLORKTOOLS_NEW_VERSION=$(jq -r '.blorktools.new_version' ./artifacts/version-metadata.json)
             
             # Determine if versions changed
-            if [ "$BLORKPACK_PRE_VERSION" != "$BLORKPACK_NEW_VERSION" ] && [ "$BLORKPACK_NEW_VERSION" != "null" ] && [ "$BLORKPACK_NEW_VERSION" != "" ]; then
+            if [ "$BLORKPACK_PRE_VERSION" != "$BLORKPACK_NEW_VERSION" ]; then
               BLORKPACK_CHANGED="true"
+              echo "Blorkpack version changed!"
             else
               BLORKPACK_CHANGED="false"
+              echo "Blorkpack version unchanged"
             fi
             
-            if [ "$BLORKTOOLS_PRE_VERSION" != "$BLORKTOOLS_NEW_VERSION" ] && [ "$BLORKTOOLS_NEW_VERSION" != "null" ] && [ "$BLORKTOOLS_NEW_VERSION" != "" ]; then
+            if [ "$BLORKTOOLS_PRE_VERSION" != "$BLORKTOOLS_NEW_VERSION" ]; then
               BLORKTOOLS_CHANGED="true"
+              echo "Blorktools version changed!"
             else
               BLORKTOOLS_CHANGED="false"
+              echo "Blorktools version unchanged"
             fi
             
             # Set outputs
@@ -187,6 +197,16 @@ jobs:
       packages: write
     if: ${{ needs.download-metadata.outputs.metadata_found == 'true' && needs.download-metadata.outputs.blorktools_version_changed == 'true' }}
     steps:
+      - name: Debug all outputs from previous job
+        run: |
+          echo "All metadata outputs from download-metadata job:"
+          echo "metadata_found: ${{ needs.download-metadata.outputs.metadata_found }}"
+          echo "blorktools_version_changed: ${{ needs.download-metadata.outputs.blorktools_version_changed }}"
+          echo "blorktools_pre_version: ${{ needs.download-metadata.outputs.blorktools_pre_version }}"
+          echo "blorktools_new_version: ${{ needs.download-metadata.outputs.blorktools_new_version }}"
+          echo "Raw if condition: needs.download-metadata.outputs.metadata_found == 'true' && needs.download-metadata.outputs.blorktools_version_changed == 'true'"
+          echo "Evaluated as: ${{ needs.download-metadata.outputs.metadata_found == 'true' && needs.download-metadata.outputs.blorktools_version_changed == 'true' }}"
+          
       - name: Checkout latest code
         uses: actions/checkout@v3
         with:
@@ -204,6 +224,12 @@ jobs:
           npm install -g @semantic-release/changelog @semantic-release/git @semantic-release/github @semantic-release/npm semantic-release
           echo "Installed semantic-release and required plugins globally"
       
+      - name: Debug Version Information
+        run: |
+          echo "Blorktools pre version: ${{ needs.download-metadata.outputs.blorktools_pre_version }}"
+          echo "Blorktools new version: ${{ needs.download-metadata.outputs.blorktools_new_version }}"
+          echo "Blorktools version changed: ${{ needs.download-metadata.outputs.blorktools_version_changed }}"
+
       - name: Configure package for publishing
         working-directory: packages/blorktools
         run: |
