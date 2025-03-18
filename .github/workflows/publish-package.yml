@@ -36,6 +36,9 @@ jobs:
         id: extract-metadata
         run: |
           if [ -f ./artifacts/version-metadata.json ]; then
+            echo "Found version metadata file:"
+            cat ./artifacts/version-metadata.json
+            
             # Extract version information from metadata
             BLORKPACK_PRE_VERSION=$(jq -r '.blorkpack.pre_version' ./artifacts/version-metadata.json)
             BLORKPACK_NEW_VERSION=$(jq -r '.blorkpack.new_version' ./artifacts/version-metadata.json)
@@ -79,6 +82,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+    if: ${{ needs.download-metadata.outputs.blorkpack_version_changed == 'true' }}
     steps:
       - name: Checkout latest code
         uses: actions/checkout@v3
@@ -92,59 +96,38 @@ jobs:
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
       
-      - name: Install dependencies and semantic-release plugins
+      - name: Install dependencies
         run: |
-          npm install -g @semantic-release/changelog @semantic-release/git @semantic-release/github semantic-release
+          npm install -g @semantic-release/changelog @semantic-release/git @semantic-release/github @semantic-release/npm semantic-release
           echo "Installed semantic-release and required plugins globally"
-          ls -la /usr/local/lib/node_modules/@semantic-release/ || echo "Failed to list semantic-release plugins"
           
-      - name: Configure blorkpack package.json for publishing
+      - name: Configure package for publishing
+        working-directory: packages/blorkpack
         run: |
-          cd packages/blorkpack
           # Update package name to use GitHub scoped name
           jq '.name = "@littlecarlito/blorkpack"' package.json > package.json.tmp
           mv package.json.tmp package.json
           
-          # If semantic-release determined a new version, use it
-          if [[ "${{ needs.download-metadata.outputs.blorkpack_version_changed }}" == "true" ]]; then
-            echo "Using semantically determined version: ${{ needs.download-metadata.outputs.blorkpack_new_version }}"
-            jq --arg version "${{ needs.download-metadata.outputs.blorkpack_new_version }}" '.version = $version' package.json > package.json.tmp
-            mv package.json.tmp package.json
-          else
-            # Fallback version handling
-            CURRENT_VERSION=$(jq -r '.version' package.json)
-            echo "Current package version: $CURRENT_VERSION"
-            
-            # Check if this version already exists in the registry
-            if npm view "@littlecarlito/blorkpack@$CURRENT_VERSION" version &> /dev/null; then
-              echo "Version $CURRENT_VERSION already exists in registry. Incrementing patch version."
-              # Split the version into parts
-              IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-              # Increment patch version
-              NEW_PATCH=$((PATCH + 1))
-              NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
-              # Update package.json with new version
-              jq --arg version "$NEW_VERSION" '.version = $version' package.json > package.json.tmp
-              mv package.json.tmp package.json
-              echo "Updated version to $NEW_VERSION"
-            else
-              echo "Version $CURRENT_VERSION does not exist in registry, proceeding with publish."
-            fi
-          fi
+          # Set version from semantic-release
+          jq --arg version "${{ needs.download-metadata.outputs.blorkpack_new_version }}" '.version = $version' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          echo "Prepared package.json with version ${{ needs.download-metadata.outputs.blorkpack_new_version }}"
+          cat package.json | grep version
       
       - name: Build package
         working-directory: packages/blorkpack
         run: |
-          echo "Building blorkpack package directly with vite..."
+          echo "Building blorkpack package..."
           npm install
-          npx vite build --logLevel=info
+          npm run build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
       - name: Publish package to GitHub Packages
         working-directory: packages/blorkpack
         run: |
-          echo "Publishing package to GitHub Packages..."
+          echo "Publishing blorkpack version ${{ needs.download-metadata.outputs.blorkpack_new_version }} to GitHub Packages"
           npm publish --access=public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -156,6 +139,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+    if: ${{ needs.download-metadata.outputs.blorktools_version_changed == 'true' }}
     steps:
       - name: Checkout latest code
         uses: actions/checkout@v3
@@ -168,59 +152,39 @@ jobs:
           node-version: '20.x'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
-      
-      - name: Install semantic-release plugins
+          
+      - name: Install dependencies
         run: |
-          npm install -g @semantic-release/changelog @semantic-release/git @semantic-release/github semantic-release
+          npm install -g @semantic-release/changelog @semantic-release/git @semantic-release/github @semantic-release/npm semantic-release
           echo "Installed semantic-release and required plugins globally"
       
-      - name: Configure blorktools package.json for publishing
+      - name: Configure package for publishing
+        working-directory: packages/blorktools
         run: |
-          cd packages/blorktools
           # Update package name to use GitHub scoped name
           jq '.name = "@littlecarlito/blorktools"' package.json > package.json.tmp
           mv package.json.tmp package.json
           
-          # If semantic-release determined a new version, use it
-          if [[ "${{ needs.download-metadata.outputs.blorktools_version_changed }}" == "true" ]]; then
-            echo "Using semantically determined version: ${{ needs.download-metadata.outputs.blorktools_new_version }}"
-            jq --arg version "${{ needs.download-metadata.outputs.blorktools_new_version }}" '.version = $version' package.json > package.json.tmp
-            mv package.json.tmp package.json
-          else
-            # Fallback version handling
-            CURRENT_VERSION=$(jq -r '.version' package.json)
-            echo "Current package version: $CURRENT_VERSION"
-            
-            # Check if this version already exists in the registry
-            if npm view "@littlecarlito/blorktools@$CURRENT_VERSION" version &> /dev/null; then
-              echo "Version $CURRENT_VERSION already exists in registry. Incrementing patch version."
-              # Split the version into parts
-              IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-              # Increment patch version
-              NEW_PATCH=$((PATCH + 1))
-              NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
-              # Update package.json with new version
-              jq --arg version "$NEW_VERSION" '.version = $version' package.json > package.json.tmp
-              mv package.json.tmp package.json
-              echo "Updated version to $NEW_VERSION"
-            else
-              echo "Version $CURRENT_VERSION does not exist in registry, proceeding with publish."
-            fi
-          fi
+          # Set version from semantic-release
+          jq --arg version "${{ needs.download-metadata.outputs.blorktools_new_version }}" '.version = $version' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          echo "Prepared package.json with version ${{ needs.download-metadata.outputs.blorktools_new_version }}"
+          cat package.json | grep version
       
       - name: Build package
         working-directory: packages/blorktools
         run: |
-          echo "Building blorktools package directly with vite..."
+          echo "Building blorktools package..."
           npm install
-          npx vite build --logLevel=info
+          npm run build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
       - name: Publish package to GitHub Packages
         working-directory: packages/blorktools
         run: |
-          echo "Publishing package to GitHub Packages..."
+          echo "Publishing blorktools version ${{ needs.download-metadata.outputs.blorktools_new_version }} to GitHub Packages"
           npm publish --access=public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 
