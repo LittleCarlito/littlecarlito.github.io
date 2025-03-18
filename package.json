@@ -16,10 +16,16 @@
   },
   "devDependencies": {
     "prettier": "^3.2.5",
-    "turbo": "latest"
+    "tree-kill": "^1.2.2",
+    "turbo": "latest",
+    "yaml": "^2.7.0"
   },
   "packageManager": "pnpm@8.15.4",
   "engines": {
     "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "express": "^4.18.3",
+    "open": "^10.1.0"
   }
 }
