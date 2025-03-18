@@ -113,8 +113,20 @@ jobs:
           # Create .npmrc to disable husky globally
           echo "husky=0" >> .npmrc
           
+          # Disable husky in any NPM prepare script
+          mkdir -p ~/.npm
+          echo "ignore-scripts=true" >> ~/.npmrc
+          
           # Install dependencies with no frozen lockfile to handle overrides
           HUSKY=0 HUSKY_SKIP_INSTALL=1 pnpm install --no-frozen-lockfile
+          
+          # Fix husky in the problem package by removing it from package.json
+          find . -name "package.json" -type f -exec grep -l "husky" {} \; | while read file; do
+            echo "Removing husky from $file"
+            # Remove husky dependency if it exists
+            jq 'del(.dependencies.husky) | del(.devDependencies.husky) | del(.scripts.prepare)' "$file" > "$file.tmp"
+            mv "$file.tmp" "$file"
+          done
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           HUSKY: 0
@@ -180,20 +192,25 @@ jobs:
           # Disable husky for CI environments
           export HUSKY=0
           export HUSKY_SKIP_INSTALL=1
-          npm pkg set scripts.prepare=""
+          npm pkg delete scripts.prepare
           
-          # Install dependencies first to ensure everything is ready
-          npm install
+          # Completely remove any npm lifecycle scripts that might be causing issues
+          jq 'del(.scripts.prepare) | del(.scripts.prepublishOnly) | del(.scripts.postinstall)' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Force npm to ignore any lifecycle scripts
+          npm install --ignore-scripts
           
           # Run build directly with a timeout (using timeout command)
-          timeout 5m npm run build || {
+          HUSKY=0 HUSKY_SKIP_INSTALL=1 timeout 5m npm run build || {
             echo "Build timed out or failed. Using vite directly..."
-            timeout 5m npx vite build --logLevel=info
+            HUSKY=0 HUSKY_SKIP_INSTALL=1 timeout 5m npx vite build --logLevel=info
           }
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           HUSKY: 0
           HUSKY_SKIP_INSTALL: 1
+          npm_config_ignore_scripts: true
         
       - name: Verify no source files in dist
         run: |

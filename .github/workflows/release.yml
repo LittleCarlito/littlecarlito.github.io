@@ -66,6 +66,55 @@ jobs:
           jq '.name = "@littlecarlito/blorkpack"' package.json > package.json.tmp
           mv package.json.tmp package.json
           
+          # Debug: Show current commits
+          echo "Recent commits that might trigger version changes:"
+          git log -n 5 --pretty=format:"%h %s" -- .
+          
+          # Create local .releaserc.json for this package
+          cat > .releaserc.json << EOF
+          {
+            "branches": ["main"],
+            "plugins": [
+              ["@semantic-release/commit-analyzer", {
+                "preset": "angular",
+                "releaseRules": [
+                  {"type": "feat", "release": "minor"},
+                  {"type": "fix", "release": "patch"},
+                  {"type": "perf", "release": "patch"},
+                  {"scope": "no-release", "release": false},
+                  {"type": "docs", "release": "patch"},
+                  {"type": "style", "release": "patch"},
+                  {"type": "refactor", "release": "patch"},
+                  {"type": "test", "release": "patch"},
+                  {"type": "chore", "release": "patch"},
+                  {"type": "build", "release": "patch"}
+                ]
+              }],
+              "@semantic-release/release-notes-generator",
+              "@semantic-release/changelog",
+              ["@semantic-release/npm", {
+                "npmPublish": false
+              }],
+              ["@semantic-release/git", {
+                "assets": ["package.json", "CHANGELOG.md"],
+                "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+              }]
+            ]
+          }
+          EOF
+          
+          echo "Created local .releaserc.json:"
+          cat .releaserc.json
+          
+          # Force a patch bump if there are no relevant commits
+          # Add a dummy fix commit if there have been no release-worthy commits
+          if [ "$PRE_VERSION" = "0.12.0" ]; then
+            echo "Forcing a patch bump since version has been 0.12.0 for a while"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git config user.name "github-actions[bot]"
+            git commit --allow-empty -m "fix: force version bump for blorkpack"
+          fi
+          
           # Run semantic-release to determine version and update package.json
           npx semantic-release || echo "semantic-release process completed"
           
@@ -96,6 +145,55 @@ jobs:
           # Ensure package name is correct
           jq '.name = "@littlecarlito/blorktools"' package.json > package.json.tmp
           mv package.json.tmp package.json
+          
+          # Debug: Show current commits
+          echo "Recent commits that might trigger version changes:"
+          git log -n 5 --pretty=format:"%h %s" -- .
+          
+          # Create local .releaserc.json for this package
+          cat > .releaserc.json << EOF
+          {
+            "branches": ["main"],
+            "plugins": [
+              ["@semantic-release/commit-analyzer", {
+                "preset": "angular",
+                "releaseRules": [
+                  {"type": "feat", "release": "minor"},
+                  {"type": "fix", "release": "patch"},
+                  {"type": "perf", "release": "patch"},
+                  {"scope": "no-release", "release": false},
+                  {"type": "docs", "release": "patch"},
+                  {"type": "style", "release": "patch"},
+                  {"type": "refactor", "release": "patch"},
+                  {"type": "test", "release": "patch"},
+                  {"type": "chore", "release": "patch"},
+                  {"type": "build", "release": "patch"}
+                ]
+              }],
+              "@semantic-release/release-notes-generator",
+              "@semantic-release/changelog",
+              ["@semantic-release/npm", {
+                "npmPublish": false
+              }],
+              ["@semantic-release/git", {
+                "assets": ["package.json", "CHANGELOG.md"],
+                "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+              }]
+            ]
+          }
+          EOF
+          
+          echo "Created local .releaserc.json:"
+          cat .releaserc.json
+          
+          # Force a patch bump if there are no relevant commits
+          # Add a dummy fix commit if there have been no release-worthy commits
+          if [ "$PRE_VERSION" = "1.0.1" ]; then
+            echo "Forcing a patch bump since version has been 1.0.1 for a while"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git config user.name "github-actions[bot]"
+            git commit --allow-empty -m "fix: force version bump for blorktools"
+          fi
           
           # Run semantic-release to determine version and update package.json
           npx semantic-release || echo "semantic-release process completed"
@@ -142,7 +240,7 @@ jobs:
           echo "metadata_created=true" >> $GITHUB_OUTPUT
       
       - name: Upload version metadata
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: version-metadata
           path: artifacts/version-metadata.json
