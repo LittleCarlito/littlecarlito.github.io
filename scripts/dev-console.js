@@ -153,7 +153,7 @@ async function discoverProjects() {
             const packageData = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'));
             
             // Check if it has a dev script
-            if (packageData.scripts && (packageData.scripts.dev || packageData.scripts.start)) {
+            if (packageData.scripts && (packageData.scripts.dev || packageData.scripts.start || packageData.scripts.tools)) {
               // Extract metadata
               const readmePath = path.join(projectPath, 'README.md');
               let description = packageData.description || '';
@@ -167,6 +167,22 @@ async function discoverProjects() {
                 }
               }
               
+              // Determine the script to use (prioritize 'tools' for blorktools)
+              let scriptToUse = packageData.scripts.dev || packageData.scripts.start;
+              if (packageData.name.includes('blorktools') && packageData.scripts.tools) {
+                scriptToUse = packageData.scripts.tools;
+              }
+              
+              // Assign default ports with blorktools having priority for port 3001
+              let defaultPort = 3000 + discoveredProjects.length;
+              if (packageData.name.includes('blorktools')) {
+                defaultPort = 3001; // Make sure blorktools gets port 3001
+              } else if (packageData.name.includes('web')) {
+                defaultPort = 3000; // Web app gets port 3000
+              } else if (defaultPort === 3001) {
+                defaultPort = 3002; // Anything else that would get 3001, get 3002 instead
+              }
+              
               // Create project metadata
               discoveredProjects.push({
                 name: packageData.name,
@@ -174,8 +190,8 @@ async function discoverProjects() {
                 relativePath: path.relative(rootDir, projectPath),
                 description: description || `${packageData.name} application`, 
                 version: packageData.version,
-                devScript: packageData.scripts.dev || packageData.scripts.start,
-                defaultPort: 3000 + discoveredProjects.length, // Start from 3000, increment for each project
+                devScript: scriptToUse,
+                defaultPort: defaultPort,
                 port: null, // Will be assigned later
                 process: null, // Will be assigned when started
                 ready: false
@@ -187,6 +203,15 @@ async function discoverProjects() {
         console.error(`Error scanning directory ${fullBasePath}:`, err.message);
       }
     }
+    
+    // Sort projects to ensure web is first, tools second
+    discoveredProjects.sort((a, b) => {
+      if (a.name.includes('web')) return -1;
+      if (b.name.includes('web')) return 1;
+      if (a.name.includes('blorktools')) return -1;
+      if (b.name.includes('blorktools')) return 1;
+      return 0;
+    });
     
     return discoveredProjects;
   } catch (err) {
@@ -554,20 +579,41 @@ async function run() {
       // Start each project
       for (const project of projects) {
         if (project.port) {
-          const portArg = project.devScript.includes('--port') ? 
-            [] : ['--', '--no-open', '--port', project.port.toString()];
-          
-          const args = [
-            '--filter=' + project.name,
-            'dev',
-            ...portArg
-          ];
-          
-          // Add a small delay between starting each project
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          const env = { ...process.env, BROWSER: 'none', NO_OPEN: '1' };
-          project.process = startProcess('pnpm', args, { env, cwd: rootDir });
+          // Special handling for blorktools
+          if (project.name.includes('blorktools')) {
+            console.log(`Starting ${project.name} with tools script on port ${project.port}...`);
+            
+            // For tools script, construct args differently
+            const args = [
+              '--filter=' + project.name,
+              'tools',
+              '--port',
+              project.port.toString(),
+              '--no-open'
+            ];
+            
+            // Add a small delay between starting each project
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            const env = { ...process.env, BROWSER: 'none', NO_OPEN: '1' };
+            project.process = startProcess('pnpm', args, { env, cwd: rootDir });
+          } else {
+            // Regular handling for other projects
+            const portArg = project.devScript.includes('--port') ? 
+              [] : ['--', '--no-open', '--port', project.port.toString()];
+            
+            const args = [
+              '--filter=' + project.name,
+              'dev',
+              ...portArg
+            ];
+            
+            // Add a small delay between starting each project
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            const env = { ...process.env, BROWSER: 'none', NO_OPEN: '1' };
+            project.process = startProcess('pnpm', args, { env, cwd: rootDir });
+          }
           
           // Check if the process failed to start after a short delay
           if (project.process) {
