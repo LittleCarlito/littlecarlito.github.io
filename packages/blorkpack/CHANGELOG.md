@@ -1,3 +1,23 @@
+# [0.12.0](https://github.com/littlecarlito/threejs_site/compare/v0.11.7...v0.12.0) (2025-03-18)
+
+
+### Bug Fixes
+
+* blorktools not blorkpack links ([a1371a5](https://github.com/littlecarlito/threejs_site/commit/a1371a56f7a2344fb3280429309dbc052d1f7590))
+* description web ([0433296](https://github.com/littlecarlito/threejs_site/commit/04332961fe2950f67009ac216462c67d15f229c0))
+* dev startup ([6c511f7](https://github.com/littlecarlito/threejs_site/commit/6c511f79c48de6663d25403a9abef05afce3b214))
+* port aquisition ([5e03061](https://github.com/littlecarlito/threejs_site/commit/5e03061f9d5ac35c46da793ae6cb019337c5aa83))
+
+
+### Features
+
+* color coding tabs ([a601472](https://github.com/littlecarlito/threejs_site/commit/a601472ff1080d72141506a71971fb16479e81d2))
+* dynamic dashboard ([396d7c5](https://github.com/littlecarlito/threejs_site/commit/396d7c5fb197fca1bc16dc943ed5377eca1564e0))
+* gh links ([ba9aeb9](https://github.com/littlecarlito/threejs_site/commit/ba9aeb93b124bf45034bd064d88c5f83a0c3ad89))
+* launch dashboard ([d7355c9](https://github.com/littlecarlito/threejs_site/commit/d7355c9d6e83dcb5d14d6cd8f788ee5e0e894579))
+* pnpm + TurboRepo [#95](https://github.com/littlecarlito/threejs_site/issues/95) ([7b6c565](https://github.com/littlecarlito/threejs_site/commit/7b6c565e3fdc1aa455903cf520cf5a0a26d25a91))
+* TurboRepo/pnpm ([0c19de8](https://github.com/littlecarlito/threejs_site/commit/0c19de868926e8c6d3b1fcd6ff5d78097dce723e))
+
 ## [0.11.7](https://github.com/littlecarlito/threejs_site/compare/v0.11.6...v0.11.7) (2025-03-14)
 
 
