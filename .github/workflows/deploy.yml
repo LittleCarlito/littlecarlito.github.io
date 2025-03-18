@@ -45,8 +45,8 @@ jobs:
       - name: Configure package for production deployment
         run: |
           # Update dependency to use the GitHub package with latest version
-          jq --arg version "${{ steps.get_version.outputs.LATEST_VERSION }}" '.dependencies."@littlecarlito/blorkpack" = "@littlecarlito/blorkpack@" + $version' apps/web/package.json > apps/web/package.json.tmp
-          mv apps/web/package.json.tmp apps/web/package.json
+          jq --arg version "${{ steps.get_version.outputs.LATEST_VERSION }}" '.dependencies."@littlecarlito/blorkpack" = "@littlecarlito/blorkpack@" + $version' apps/portfolio/package.json > apps/portfolio/package.json.tmp
+          mv apps/portfolio/package.json.tmp apps/portfolio/package.json
           
           # Add a resolution to ensure the correct version is used
           jq --arg version "${{ steps.get_version.outputs.LATEST_VERSION }}" '.resolutions."@littlecarlito/blorkpack" = $version' package.json > package.json.tmp
@@ -61,10 +61,12 @@ jobs:
           
           # Add debug output
           echo "Updated package.json:"
-          cat apps/web/package.json
+          cat apps/portfolio/package.json
           
       - name: Install Production Dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          # Install dependencies
+          pnpm install
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           
@@ -78,7 +80,7 @@ jobs:
           ls -la packages/blorkpack/dist
           
           # Update vite.config.js to ensure it can find blorkpack
-          cat > apps/web/vite.config.js << 'EOL'
+          cat > apps/portfolio/vite.config.js << 'EOL'
           import { defineConfig } from 'vite'
           import path from 'path'
           import fs from 'fs'
@@ -111,29 +113,31 @@ jobs:
           EOL
           
           echo "Updated vite.config.js:"
-          cat apps/web/vite.config.js
+          cat apps/portfolio/vite.config.js
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         
-      - name: Build
-        shell: bash
-        run: pnpm turbo run build --filter=@littlecarlito/portfolio
+      - name: Build for Production
+        run: |
+          echo "Building portfolio app with explicit timeout..."
+          cd apps/portfolio
+          npx vite build --logLevel=info --timeout=300000
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         
       - name: Verify no source files in dist
         run: |
           echo "Verifying that no source files are included in the dist directory..."
-          if [ -d "apps/web/dist/packages" ]; then
+          if [ -d "apps/portfolio/dist/packages" ]; then
             echo "ERROR: packages directory found in dist folder!"
             echo "Removing packages directory from dist to prevent source code deployment"
-            rm -rf apps/web/dist/packages
+            rm -rf apps/portfolio/dist/packages
           else
             echo "✅ No packages directory found in dist. Good!"
           fi
           
           # Double check for any source code files
-          SOURCE_FILES=$(find apps/web/dist -name "*.ts" -o -name "*.tsx" -o -name "*.js.map" | grep -v "node_modules" || true)
+          SOURCE_FILES=$(find apps/portfolio/dist -name "*.ts" -o -name "*.tsx" -o -name "*.js.map" | grep -v "node_modules" || true)
           if [ ! -z "$SOURCE_FILES" ]; then
             echo "WARNING: Source files found in dist folder. Consider reviewing your build process."
             echo "$SOURCE_FILES"
@@ -159,7 +163,7 @@ jobs:
           
           # Find development files
           echo "Scanning for development files..."
-          DEV_FILES=$(find apps/web/dist -type f -o -type d | grep -v "node_modules" | while read file; do
+          DEV_FILES=$(find apps/portfolio/dist -type f -o -type d | grep -v "node_modules" | while read file; do
             if matches_pattern "$file"; then
               echo "$file"
             fi
@@ -185,20 +189,20 @@ jobs:
           
           # Analyze bundle size
           echo "📊 Analyzing bundle size..."
-          TOTAL_SIZE=$(du -sh apps/web/dist | cut -f1)
-          JS_SIZE=$(du -sh apps/web/dist/*.js | awk '{s+=$1} END {print s "B"}')
+          TOTAL_SIZE=$(du -sh apps/portfolio/dist | cut -f1)
+          JS_SIZE=$(du -sh apps/portfolio/dist/*.js | awk '{s+=$1} END {print s "B"}')
           echo "Total bundle size: $TOTAL_SIZE"
           echo "JavaScript bundle size: $JS_SIZE"
           
           # List top 5 largest files
           echo "Largest files in bundle:"
-          find apps/web/dist -type f -name "*.js" -exec du -h {} \; | sort -rh | head -n 5
+          find apps/portfolio/dist -type f -name "*.js" -exec du -h {} \; | sort -rh | head -n 5
         
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./apps/web/dist
+          publish_dir: ./apps/portfolio/dist
 
       - name: Output Deployment Information
         run: |

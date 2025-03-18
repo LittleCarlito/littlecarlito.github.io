@@ -132,19 +132,20 @@ jobs:
             fi
           fi
       
-      - name: Build blorkpack package
+      - name: Build package
+        working-directory: packages/blorkpack
         run: |
-          cd packages/blorkpack
-          # Use npm install until lock files are fully committed
+          echo "Building blorkpack package directly with vite..."
           npm install
-          npm run build
+          npx vite build --logLevel=info --timeout=120000
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
-      - name: Publish blorkpack to GitHub Packages
+      - name: Publish package to GitHub Packages
+        working-directory: packages/blorkpack
         run: |
-          cd packages/blorkpack
-          npm publish --access public || echo "Publishing failed, but continuing workflow"
+          echo "Publishing package to GitHub Packages..."
+          npm publish --access=public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
@@ -167,6 +168,11 @@ jobs:
           node-version: '20.x'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
+      
+      - name: Install semantic-release plugins
+        run: |
+          npm install -g @semantic-release/changelog @semantic-release/git @semantic-release/github semantic-release
+          echo "Installed semantic-release and required plugins globally"
       
       - name: Configure blorktools package.json for publishing
         run: |
@@ -202,18 +208,19 @@ jobs:
             fi
           fi
       
-      - name: Build blorktools package
+      - name: Build package
+        working-directory: packages/blorktools
         run: |
-          cd packages/blorktools
-          # Use npm install until lock files are fully committed
+          echo "Building blorktools package directly with vite..."
           npm install
-          npm run build
+          npx vite build --logLevel=info --timeout=120000
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
-      - name: Publish blorktools to GitHub Packages
+      - name: Publish package to GitHub Packages
+        working-directory: packages/blorktools
         run: |
-          cd packages/blorktools
-          npm publish --access public || echo "Publishing failed, but continuing workflow"
+          echo "Publishing package to GitHub Packages..."
+          npm publish --access=public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 
