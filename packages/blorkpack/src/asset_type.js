@@ -1,5 +1,3 @@
-import { THREE } from "./index.js";
-
 const SCALE_FACTOR = 5;
 
 // Define all possible asset types that can be loaded and spawned

@@ -27,8 +27,8 @@ import { AssetSpawner } from './asset_spawner.js';
 import { AssetActivator } from './asset_activator.js';
 import { ManifestManager } from './manifest_manager.js';
 import { AppRenderer } from './app_renderer.js';
-import { AssetType } from './asset_type.js';
-import { BlorkPackFlags } from './blorkpack_flags.js';
+import { ASSET_TYPE } from './asset_type.js';
+import { BLORKPACK_FLAGS } from './blorkpack_flags.js';
 
 export {
     AssetStorage,
@@ -36,6 +36,6 @@ export {
     AssetActivator,
     ManifestManager,
     AppRenderer,
-    AssetType,
-    BlorkPackFlags
+    ASSET_TYPE,
+    BLORKPACK_FLAGS
 }; 
