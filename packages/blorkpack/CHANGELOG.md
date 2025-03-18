@@ -1,3 +1,10 @@
+## [0.12.5](https://github.com/littlecarlito/threejs_site/compare/v0.12.4...v0.12.5) (2025-03-18)
+
+
+### Bug Fixes
+
+* pushing tags to remote ([#106](https://github.com/littlecarlito/threejs_site/issues/106)) ([513c231](https://github.com/littlecarlito/threejs_site/commit/513c231619032d89a3cd629dcd75cb955e9bc971))
+
 ## [0.12.4](https://github.com/littlecarlito/threejs_site/compare/v0.12.3...v0.12.4) (2025-03-18)
 
 
