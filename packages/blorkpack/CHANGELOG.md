@@ -1,3 +1,10 @@
+## [0.12.10](https://github.com/littlecarlito/threejs_site/compare/v0.12.9...v0.12.10) (2025-03-18)
+
+
+### Bug Fixes
+
+* license package fix ([#111](https://github.com/littlecarlito/threejs_site/issues/111)) ([624e191](https://github.com/littlecarlito/threejs_site/commit/624e1911a02670f69b5434790a76acfc22c106dd))
+
 ## [0.12.9](https://github.com/littlecarlito/threejs_site/compare/v0.12.8...v0.12.9) (2025-03-18)
 
 
