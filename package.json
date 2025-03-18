@@ -4,10 +4,11 @@
   "type": "module",
   "scripts": {
     "build": "turbo run build",
-    "dev": "pnpm dev:console",
+    "dev": "pnpm board",
     "dev:web": "pnpm --filter=@littlecarlito/web dev",
     "dev:tools": "pnpm --filter=@littlecarlito/blorktools dev",
     "dev:console": "node scripts/dev-console.js",
+    "board": "node scripts/blork-board.js",
     "dev:all": "pnpm turbo run dev --parallel",
     "tools": "pnpm turbo run tools --parallel",
     "lint": "turbo run lint",
@@ -23,9 +24,5 @@
   "packageManager": "pnpm@8.15.4",
   "engines": {
     "node": ">=20.0.0"
-  },
-  "dependencies": {
-    "express": "^4.18.3",
-    "open": "^10.1.0"
   }
 }
