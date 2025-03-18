@@ -1,3 +1,10 @@
+## [0.12.3](https://github.com/littlecarlito/threejs_site/compare/v0.12.2...v0.12.3) (2025-03-18)
+
+
+### Bug Fixes
+
+* husky tshy stubs ([#104](https://github.com/littlecarlito/threejs_site/issues/104)) ([fbe5525](https://github.com/littlecarlito/threejs_site/commit/fbe55252fe11f3666977c091b9ef0208e5589cd1))
+
 ## [0.12.1](https://github.com/littlecarlito/threejs_site/compare/v0.12.0...v0.12.1) (2025-03-18)
 
 
