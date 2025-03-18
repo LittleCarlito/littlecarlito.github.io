@@ -1124,6 +1124,190 @@ export class AssetSpawner {
     }
 
     /**
+     * Spawns assets from the manifest's system_assets array.
+     * This method handles system-level assets defined in the manifest.
+     * 
+     * @param {Object} manifest_manager - Instance of ManifestManager
+     * @param {Function} progress_callback - Optional callback function for progress updates
+     * @returns {Promise<Array>} Array of spawned system assets
+     */
+    async spawn_system_assets(manifest_manager, progress_callback = null) {
+        const spawned_assets = [];
+        
+        try {
+            // Get all system assets from manifest
+            const system_assets = manifest_manager.get_system_assets();
+            if (!system_assets || system_assets.length === 0) {
+                if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                    console.log("No system assets found in manifest");
+                }
+                return spawned_assets;
+            }
+
+            if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                console.log(`Found ${system_assets.length} system assets to spawn`);
+            }
+            
+            // Process each system asset
+            for (const asset_data of system_assets) {
+                if (progress_callback) {
+                    progress_callback(`Loading system asset: ${asset_data.id}...`);
+                }
+                
+                // Get asset type information
+                const asset_type = asset_data.asset_type;
+                
+                // Extract position and rotation from asset data
+                const position = new THREE.Vector3(
+                    asset_data.position?.x || 0, 
+                    asset_data.position?.y || 0, 
+                    asset_data.position?.z || 0
+                );
+                
+                // Create rotation from Euler angles
+                const rotation = new THREE.Euler(
+                    asset_data.rotation?.x || 0,
+                    asset_data.rotation?.y || 0,
+                    asset_data.rotation?.z || 0
+                );
+                const quaternion = new THREE.Quaternion().setFromEuler(rotation);
+                
+                // Prepare options based on the asset's configuration
+                const options = {
+                    // Asset configuration
+                    collidable: asset_data.config?.collidable !== undefined ? asset_data.config.collidable : true,
+                    hidden: asset_data.config?.hidden !== undefined ? asset_data.config.hidden : false,
+                    disabled: asset_data.config?.disabled !== undefined ? asset_data.config.disabled : false,
+                    sleeping: asset_data.config?.sleeping !== undefined ? asset_data.config.sleeping : true,
+                    gravity: asset_data.config?.gravity !== undefined ? asset_data.config.gravity : true,
+                    interactable: asset_data.config?.interactable !== undefined ? asset_data.config.interactable : true,
+                    selectable: asset_data.config?.selectable !== undefined ? asset_data.config.selectable : true,
+                    highlightable: asset_data.config?.highlightable !== undefined ? asset_data.config.highlightable : true,
+                    
+                    // Properties from additional_properties
+                    color: asset_data.additional_properties?.color || "0xffffff",
+                    cast_shadow: asset_data.additional_properties?.cast_shadows !== undefined ? 
+                        asset_data.additional_properties.cast_shadows : false,
+                    receive_shadow: asset_data.additional_properties?.receive_shadows !== undefined ? 
+                        asset_data.additional_properties.receive_shadows : true,
+                    
+                    // Physics properties
+                    mass: asset_data.additional_properties?.mass !== undefined ? asset_data.additional_properties.mass : 1.0,
+                    restitution: asset_data.additional_properties?.restitution !== undefined ? 
+                        asset_data.additional_properties.restitution : 0.5,
+                    friction: asset_data.additional_properties?.friction !== undefined ? 
+                        asset_data.additional_properties.friction : 0.5,
+                    
+                    // Size properties
+                    dimensions: asset_data.additional_properties?.physical_dimensions || {
+                        width: 1.0,
+                        height: 1.0,
+                        depth: 1.0
+                    },
+                    
+                    // Collider dimensions if specified
+                    collider_dimensions: asset_data.additional_properties?.collider_dimensions,
+                    
+                    // Additional properties
+                    custom_data: asset_data.additional_properties,
+                    raycast_disabled: asset_data.additional_properties?.raycast_disabled
+                };
+
+                // Log the asset being created for debugging
+                if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                    console.log(`Creating system asset: ${asset_data.id} (${asset_type})`, {
+                        position,
+                        dimensions: options.dimensions,
+                        color: options.color
+                    });
+                }
+
+                // Handle different system asset types
+                let result = null;
+                
+                if (asset_type === 'primitive_box') {
+                    // Create a primitive box with the specified dimensions and properties
+                    result = await this.create_primitive_box(
+                        options.dimensions.width, 
+                        options.dimensions.height, 
+                        options.dimensions.depth, 
+                        position, 
+                        quaternion, 
+                        options
+                    );
+                } 
+                // Handle spotlight asset type
+                else if (asset_type === 'spotlight') {
+                    result = await this.create_spotlight(
+                        asset_data.id,
+                        position,
+                        rotation,
+                        options,
+                        asset_data
+                    );
+                }
+                // Handle primitive sphere asset type
+                else if (asset_type === 'primitive_sphere') {
+                    const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
+                    result = await this.create_primitive_sphere(
+                        asset_data.id,
+                        radius,
+                        position, 
+                        quaternion,
+                        options
+                    );
+                }
+                // Handle primitive capsule asset type
+                else if (asset_type === 'primitive_capsule') {
+                    const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
+                    const height = options.dimensions?.height || 1.0;
+                    result = await this.create_primitive_capsule(
+                        asset_data.id,
+                        radius,
+                        height,
+                        position,
+                        quaternion,
+                        options
+                    );
+                }
+                // Handle primitive cylinder asset type
+                else if (asset_type === 'primitive_cylinder') {
+                    const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
+                    const height = options.dimensions?.height || 1.0;
+                    result = await this.create_primitive_cylinder(
+                        asset_data.id,
+                        radius,
+                        height,
+                        position,
+                        quaternion,
+                        options
+                    );
+                }
+                
+                if (result) {
+                    // Store the asset ID and type with the spawned asset data
+                    result.id = asset_data.id;
+                    result.asset_type = asset_type;
+                    spawned_assets.push(result);
+                    
+                    if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                        console.log(`Spawned system asset: ${asset_data.id} (${asset_type})`);
+                    }
+                }
+            }
+            
+            if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                console.log(`Spawned ${spawned_assets.length} system assets from manifest`);
+            }
+            
+            return spawned_assets;
+        } catch (error) {
+            console.error("Error spawning system assets:", error);
+            return spawned_assets;
+        }
+    }
+
+    /**
      * Creates a spotlight helper to visualize the spotlight cone and direction.
      * Used for debugging purposes.
      * 
@@ -1690,192 +1874,6 @@ export class AssetSpawner {
     }
 
     /**
-     * Spawns assets from the manifest's system_assets array.
-     * This method handles system-level assets defined in the manifest.
-     * 
-     * @param {Object} manifest_manager - Instance of ManifestManager
-     * @param {Function} progress_callback - Optional callback function for progress updates
-     * @returns {Promise<Array>} Array of spawned system assets
-     */
-    async spawn_system_assets(manifest_manager, progress_callback = null) {
-        const spawned_assets = [];
-        
-        try {
-            // Get all system assets from manifest
-            const system_assets = manifest_manager.get_system_assets();
-            if (!system_assets || system_assets.length === 0) {
-                if (BLORKPACK_FLAGS.ASSET_LOGS) {
-                    console.log("No system assets found in manifest");
-                }
-                return spawned_assets;
-            }
-
-            if (BLORKPACK_FLAGS.ASSET_LOGS) {
-                console.log(`Found ${system_assets.length} system assets to spawn`);
-            }
-            
-            // Process each system asset
-            for (const asset_data of system_assets) {
-                if (progress_callback) {
-                    progress_callback(`Loading system asset: ${asset_data.id}...`);
-                }
-                
-                // Get asset type information
-                const asset_type = asset_data.asset_type;
-                
-                // Extract position and rotation from asset data
-                const position = new THREE.Vector3(
-                    asset_data.position?.x || 0, 
-                    asset_data.position?.y || 0, 
-                    asset_data.position?.z || 0
-                );
-                
-                // Create rotation from Euler angles
-                const rotation = new THREE.Euler(
-                    asset_data.rotation?.x || 0,
-                    asset_data.rotation?.y || 0,
-                    asset_data.rotation?.z || 0
-                );
-                const quaternion = new THREE.Quaternion().setFromEuler(rotation);
-                
-                // Prepare options based on the asset's configuration
-                const options = {
-                    // Asset configuration
-                    collidable: asset_data.config?.collidable !== undefined ? asset_data.config.collidable : true,
-                    hidden: asset_data.config?.hidden !== undefined ? asset_data.config.hidden : false,
-                    disabled: asset_data.config?.disabled !== undefined ? asset_data.config.disabled : false,
-                    sleeping: asset_data.config?.sleeping !== undefined ? asset_data.config.sleeping : true,
-                    gravity: asset_data.config?.gravity !== undefined ? asset_data.config.gravity : true,
-                    interactable: asset_data.config?.interactable !== undefined ? asset_data.config.interactable : true,
-                    selectable: asset_data.config?.selectable !== undefined ? asset_data.config.selectable : true,
-                    highlightable: asset_data.config?.highlightable !== undefined ? asset_data.config.highlightable : true,
-                    
-                    // Properties from additional_properties
-                    color: asset_data.additional_properties?.color || "0xffffff",
-                    cast_shadow: asset_data.additional_properties?.cast_shadows !== undefined ? 
-                        asset_data.additional_properties.cast_shadows : false,
-                    receive_shadow: asset_data.additional_properties?.receive_shadows !== undefined ? 
-                        asset_data.additional_properties.receive_shadows : true,
-                    
-                    // Physics properties
-                    mass: asset_data.additional_properties?.mass !== undefined ? asset_data.additional_properties.mass : 1.0,
-                    restitution: asset_data.additional_properties?.restitution !== undefined ? 
-                        asset_data.additional_properties.restitution : 0.5,
-                    friction: asset_data.additional_properties?.friction !== undefined ? 
-                        asset_data.additional_properties.friction : 0.5,
-                    
-                    // Size properties
-                    dimensions: asset_data.additional_properties?.physical_dimensions || {
-                        width: 1.0,
-                        height: 1.0,
-                        depth: 1.0
-                    },
-                    
-                    // Collider dimensions if specified
-                    collider_dimensions: asset_data.additional_properties?.collider_dimensions,
-                    
-                    // Additional properties
-                    custom_data: asset_data.additional_properties,
-                    raycast_disabled: asset_data.additional_properties?.raycast_disabled
-                };
-
-                // Log the asset being created for debugging
-                if (BLORKPACK_FLAGS.ASSET_LOGS) {
-                    console.log(`Creating system asset: ${asset_data.id} (${asset_type})`, {
-                        position,
-                        dimensions: options.dimensions,
-                        color: options.color
-                    });
-                }
-
-                // Handle different system asset types
-                let result = null;
-                
-                if (asset_type === 'primitive_box') {
-                    // Create a primitive box with the specified dimensions and properties
-                    result = await this.create_primitive_box(
-                        options.dimensions.width, 
-                        options.dimensions.height, 
-                        options.dimensions.depth, 
-                        position, 
-                        quaternion, 
-                        options
-                    );
-                } 
-                // Handle spotlight asset type
-                else if (asset_type === 'spotlight') {
-                    result = await this.create_spotlight(
-                        asset_data.id,
-                        position,
-                        rotation,
-                        options,
-                        asset_data
-                    );
-                }
-                // Handle primitive sphere asset type
-                else if (asset_type === 'primitive_sphere') {
-                    const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
-                    result = await this.create_primitive_sphere(
-                        asset_data.id,
-                        radius,
-                        position, 
-                        quaternion,
-                        options
-                    );
-                }
-                // Handle primitive capsule asset type
-                else if (asset_type === 'primitive_capsule') {
-                    const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
-                    const height = options.dimensions?.height || 1.0;
-                    result = await this.create_primitive_capsule(
-                        asset_data.id,
-                        radius,
-                        height,
-                        position,
-                        quaternion,
-                        options
-                    );
-                }
-                // Handle primitive cylinder asset type
-                else if (asset_type === 'primitive_cylinder') {
-                    const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
-                    const height = options.dimensions?.height || 1.0;
-                    result = await this.create_primitive_cylinder(
-                        asset_data.id,
-                        radius,
-                        height,
-                        position,
-                        quaternion,
-                        options
-                    );
-                }
-                // Add other system asset types here as needed
-                // Example: else if (asset_type === 'primitive_cone') { ... }
-                
-                if (result) {
-                    // Store the asset ID and type with the spawned asset data
-                    result.id = asset_data.id;
-                    result.asset_type = asset_type;
-                    spawned_assets.push(result);
-                    
-                    if (BLORKPACK_FLAGS.ASSET_LOGS) {
-                        console.log(`Spawned system asset: ${asset_data.id} (${asset_type})`);
-                    }
-                }
-            }
-            
-            if (BLORKPACK_FLAGS.ASSET_LOGS) {
-                console.log(`Spawned ${spawned_assets.length} system assets from manifest`);
-            }
-            
-            return spawned_assets;
-        } catch (error) {
-            console.error("Error spawning system assets:", error);
-            return spawned_assets;
-        }
-    }
-
-    /**
      * Creates a primitive box with the specified dimensions and properties.
      * This is used for simple assets that don't require a full 3D model.
      * 
@@ -1986,21 +1984,6 @@ export class AssetSpawner {
             
             // Create collider and attach to body
             const collider = this.world.createCollider(collider_desc, body);
-            
-            // Create debug wireframe if debug is enabled
-            if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
-                try {
-                    await this.create_debug_wireframe(
-                        'box',
-                        { width: collider_width * 2, height: collider_height * 2, depth: collider_depth * 2 },
-                        position,
-                        quaternion,
-                        { color: 0x00ff00, opacity: 0.3, body }
-                    );
-                } catch (error) {
-                    console.warn('Failed to create debug wireframe:', error);
-                }
-            }
         }
         
         // Generate a unique ID for this asset
@@ -2109,21 +2092,6 @@ export class AssetSpawner {
             
             // Create collider and attach to body
             const collider = this.world.createCollider(collider_desc, body);
-            
-            // Create debug wireframe if debug is enabled
-            if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
-                try {
-                    await this.create_debug_wireframe(
-                        'sphere',
-                        { radius: radius },
-                        position,
-                        rotation,
-                        { color: 0x00ff00, opacity: 0.3, body }
-                    );
-                } catch (error) {
-                    console.warn('Failed to create debug wireframe:', error);
-                }
-            }
         }
         
         // Generate a unique ID for this asset
@@ -2233,21 +2201,6 @@ export class AssetSpawner {
             
             // Create collider and attach to body
             const collider = this.world.createCollider(collider_desc, body);
-            
-            // Create debug wireframe if debug is enabled
-            if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
-                try {
-                    await this.create_debug_wireframe(
-                        'capsule',
-                        { radius: radius, height: height },
-                        position,
-                        rotation,
-                        { color: 0x00ff00, opacity: 0.3, body }
-                    );
-                } catch (error) {
-                    console.warn('Failed to create debug wireframe:', error);
-                }
-            }
         }
         
         // Generate a unique ID for this asset
@@ -2357,21 +2310,6 @@ export class AssetSpawner {
             
             // Create collider and attach to body
             const collider = this.world.createCollider(collider_desc, body);
-            
-            // Create debug wireframe if debug is enabled
-            if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
-                try {
-                    await this.create_debug_wireframe(
-                        'cylinder',
-                        { radius: radius, height: height },
-                        position,
-                        rotation,
-                        { color: 0x00ff00, opacity: 0.3, body }
-                    );
-                } catch (error) {
-                    console.warn('Failed to create debug wireframe:', error);
-                }
-            }
         }
         
         // Generate a unique ID for this asset
@@ -2430,7 +2368,7 @@ export class AssetSpawner {
         );
 
         // Store camera reference in asset storage
-        const camera_id = this.generate_asset_id();
+        const camera_id = this.storage.get_new_instance_id();
         this.storage.store_static_mesh(camera_id, camera);
         
         return camera;

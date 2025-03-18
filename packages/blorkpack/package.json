@@ -11,6 +11,7 @@
     "./app-renderer": "./dist/app_renderer.js",
     "./asset-activator": "./dist/asset_activator.js",
     "./spawner": "./dist/asset_spawner/asset_spawner.js",
+    "./system-factory": "./dist/asset_spawner/system_factory/system_factory.js",
     "./asset-storage": "./dist/asset_storage.js",
     "./asset-type": "./dist/asset_type.js",
     "./blorkpack-flags": "./dist/blorkpack_flags.js",
