@@ -110,27 +110,40 @@ jobs:
           
       - name: Install Production Dependencies
         run: |
-          # Create .npmrc to disable husky globally
+          # Create .npmrc to disable all scripts
+          echo "ignore-scripts=true" > .npmrc
           echo "husky=0" >> .npmrc
           
-          # Disable husky in any NPM prepare script
+          # Create a global .npmrc file to be double sure
           mkdir -p ~/.npm
-          echo "ignore-scripts=true" >> ~/.npmrc
+          echo "ignore-scripts=true" > ~/.npmrc
           
-          # Install dependencies with no frozen lockfile to handle overrides
-          HUSKY=0 HUSKY_SKIP_INSTALL=1 pnpm install --no-frozen-lockfile
+          # Install dependencies with no frozen lockfile
+          HUSKY=0 HUSKY_SKIP_INSTALL=1 pnpm install --no-frozen-lockfile --ignore-scripts
           
-          # Fix husky in the problem package by removing it from package.json
-          find . -name "package.json" -type f -exec grep -l "husky" {} \; | while read file; do
-            echo "Removing husky from $file"
-            # Remove husky dependency if it exists
-            jq 'del(.dependencies.husky) | del(.devDependencies.husky) | del(.scripts.prepare)' "$file" > "$file.tmp"
+          # Fix all problematic packages
+          echo "Fixing problematic packages that try to run scripts..."
+          
+          # Handle rimraf
+          mkdir -p node_modules/.bin
+          echo '#!/bin/sh' > node_modules/.bin/tshy
+          chmod +x node_modules/.bin/tshy
+          
+          # Handle husky
+          echo '#!/bin/sh' > node_modules/.bin/husky
+          chmod +x node_modules/.bin/husky
+          
+          # Find and remove problematic scripts from package.json files
+          find . -name "package.json" -type f -exec grep -l "prepare\\|postinstall\\|preinstall" {} \; | while read file; do
+            echo "Removing lifecycle scripts from $file"
+            jq 'del(.scripts.prepare) | del(.scripts.postinstall) | del(.scripts.preinstall)' "$file" > "$file.tmp"
             mv "$file.tmp" "$file"
           done
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           HUSKY: 0
           HUSKY_SKIP_INSTALL: 1
+          npm_config_ignore_scripts: true
           
       - name: Ensure blorkpack package is built and linked
         run: |
@@ -189,23 +202,29 @@ jobs:
           echo "Building portfolio app..."
           cd apps/portfolio
           
-          # Disable husky for CI environments
+          # Create empty script executables in local bin directory
+          mkdir -p node_modules/.bin
+          for script in husky tshy; do
+            echo "#!/bin/sh" > node_modules/.bin/$script
+            echo "echo \"Dummy $script script\"" >> node_modules/.bin/$script
+            chmod +x node_modules/.bin/$script
+          done
+          
+          # Disable husky and other lifecycle scripts
           export HUSKY=0
           export HUSKY_SKIP_INSTALL=1
-          npm pkg delete scripts.prepare
+          export npm_config_ignore_scripts=true
           
-          # Completely remove any npm lifecycle scripts that might be causing issues
+          # Update package.json to remove problematic scripts
           jq 'del(.scripts.prepare) | del(.scripts.prepublishOnly) | del(.scripts.postinstall)' package.json > package.json.tmp
           mv package.json.tmp package.json
           
-          # Force npm to ignore any lifecycle scripts
+          # Force npm to ignore any lifecycle scripts and install dependencies
           npm install --ignore-scripts
           
-          # Run build directly with a timeout (using timeout command)
-          HUSKY=0 HUSKY_SKIP_INSTALL=1 timeout 5m npm run build || {
-            echo "Build timed out or failed. Using vite directly..."
-            HUSKY=0 HUSKY_SKIP_INSTALL=1 timeout 5m npx vite build --logLevel=info
-          }
+          # Run build directly using Vite CLI to avoid npm scripts
+          echo "Building with Vite directly..."
+          npx vite build --logLevel=info
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           HUSKY: 0
