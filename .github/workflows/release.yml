@@ -98,7 +98,8 @@ jobs:
               ["@semantic-release/git", {
                 "assets": ["package.json", "CHANGELOG.md"],
                 "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
-              }]
+              }],
+              "@semantic-release/github"
             ]
           }
           EOF
@@ -133,28 +134,24 @@ jobs:
             TAG_NAME="v$NEW_VERSION"
             echo "New version tag should be: $TAG_NAME"
             
-            # Check if the tag exists locally
-            if git tag -l | grep -q "$TAG_NAME"; then
-              echo "Found local tag: $TAG_NAME"
-              # Push the newly created tag for this package
-              cd ../../
-              echo "Safely pushing tag $TAG_NAME for blorkpack..."
-              
-              # Set the remote URL with authentication
-              git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
-              
-              # Check if tag exists on remote
-              if ! git ls-remote --tags origin | grep -q "refs/tags/$TAG_NAME"; then
-                echo "Pushing new tag: $TAG_NAME"
-                git push origin refs/tags/$TAG_NAME
-              else
-                echo "Tag already exists on remote: $TAG_NAME"
-              fi
-              
-              cd packages/blorkpack
+            # Create and push the tag regardless of whether it exists locally
+            cd ../../
+            echo "Creating and pushing tag $TAG_NAME for blorkpack..."
+            
+            # Set the remote URL with authentication
+            git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
+            
+            # Check if tag exists on remote
+            if ! git ls-remote --tags origin | grep -q "refs/tags/$TAG_NAME"; then
+              echo "Creating new tag: $TAG_NAME"
+              git tag -a "$TAG_NAME" -m "Release $TAG_NAME for blorkpack"
+              echo "Pushing new tag: $TAG_NAME"
+              git push origin refs/tags/$TAG_NAME
             else
-              echo "Warning: Could not find local tag $TAG_NAME to push"
+              echo "Tag already exists on remote: $TAG_NAME"
             fi
+            
+            cd packages/blorkpack
           else
             echo "Version unchanged: $NEW_VERSION"
           fi
@@ -205,7 +202,8 @@ jobs:
               ["@semantic-release/git", {
                 "assets": ["package.json", "CHANGELOG.md"],
                 "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
-              }]
+              }],
+              "@semantic-release/github"
             ]
           }
           EOF
@@ -240,28 +238,24 @@ jobs:
             TAG_NAME="v$NEW_VERSION"
             echo "New version tag should be: $TAG_NAME"
             
-            # Check if the tag exists locally
-            if git tag -l | grep -q "$TAG_NAME"; then
-              echo "Found local tag: $TAG_NAME"
-              # Push the newly created tag for this package
-              cd ../../
-              echo "Safely pushing tag $TAG_NAME for blorktools..."
-              
-              # Set the remote URL with authentication
-              git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
-              
-              # Check if tag exists on remote
-              if ! git ls-remote --tags origin | grep -q "refs/tags/$TAG_NAME"; then
-                echo "Pushing new tag: $TAG_NAME"
-                git push origin refs/tags/$TAG_NAME
-              else
-                echo "Tag already exists on remote: $TAG_NAME"
-              fi
-              
-              cd packages/blorktools
+            # Create and push the tag regardless of whether it exists locally
+            cd ../../
+            echo "Creating and pushing tag $TAG_NAME for blorktools..."
+            
+            # Set the remote URL with authentication
+            git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
+            
+            # Check if tag exists on remote
+            if ! git ls-remote --tags origin | grep -q "refs/tags/$TAG_NAME"; then
+              echo "Creating new tag: $TAG_NAME"
+              git tag -a "$TAG_NAME" -m "Release $TAG_NAME for blorktools"
+              echo "Pushing new tag: $TAG_NAME"
+              git push origin refs/tags/$TAG_NAME
             else
-              echo "Warning: Could not find local tag $TAG_NAME to push"
+              echo "Tag already exists on remote: $TAG_NAME"
             fi
+            
+            cd packages/blorktools
           else
             echo "Version unchanged: $NEW_VERSION"
           fi
