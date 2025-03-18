@@ -1,3 +1,10 @@
+## [0.12.4](https://github.com/littlecarlito/threejs_site/compare/v0.12.3...v0.12.4) (2025-03-18)
+
+
+### Bug Fixes
+
+* tag pushing ([#105](https://github.com/littlecarlito/threejs_site/issues/105)) ([9524772](https://github.com/littlecarlito/threejs_site/commit/95247721d52f2215f8e4fc7b0237a497e3a5a5a0))
+
 ## [0.12.3](https://github.com/littlecarlito/threejs_site/compare/v0.12.2...v0.12.3) (2025-03-18)
 
 
