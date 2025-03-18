@@ -137,7 +137,7 @@ jobs:
         run: |
           echo "Building blorkpack package directly with vite..."
           npm install
-          npx vite build --logLevel=info --timeout=120000
+          npx vite build --logLevel=info
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
@@ -213,7 +213,7 @@ jobs:
         run: |
           echo "Building blorktools package directly with vite..."
           npm install
-          npx vite build --logLevel=info --timeout=120000
+          npx vite build --logLevel=info
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       

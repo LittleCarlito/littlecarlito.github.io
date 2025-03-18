@@ -121,7 +121,7 @@ jobs:
         run: |
           echo "Building portfolio app with explicit timeout..."
           cd apps/portfolio
-          npx vite build --logLevel=info --timeout=300000
+          npx vite build --logLevel=info
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         
