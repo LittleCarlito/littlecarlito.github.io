@@ -204,6 +204,24 @@ async function discoverProjects() {
                 }
               }
               
+              // Extract repository information
+              let repoUrl = null;
+              let repoDirectory = null;
+              
+              if (packageData.repository) {
+                if (typeof packageData.repository === 'string') {
+                  repoUrl = packageData.repository;
+                } else if (packageData.repository.url) {
+                  repoUrl = packageData.repository.url;
+                  repoDirectory = packageData.repository.directory;
+                }
+                
+                // Clean up the URL (remove git+ prefix if present)
+                if (repoUrl && repoUrl.startsWith('git+')) {
+                  repoUrl = repoUrl.substring(4);
+                }
+              }
+              
               // Assign default ports with blorktools having priority for port 3001
               let defaultPort = 3000 + discoveredProjects.length;
               if (packageData.name.includes('blorktools')) {
@@ -227,7 +245,9 @@ async function discoverProjects() {
                 process: null, // Will be assigned when started
                 ready: false,
                 type: projectType,
-                shouldServe: shouldServe
+                shouldServe: shouldServe,
+                repoUrl: repoUrl,
+                repoDirectory: repoDirectory
               });
             }
           }
@@ -253,6 +273,69 @@ async function discoverProjects() {
   }
 }
 
+// Function to generate GitHub repo URL for a project
+function generateGitHubUrl(project) {
+  if (!project.repoUrl) return null;
+  
+  // Format: https://github.com/username/repo
+  let repoUrl = project.repoUrl;
+  if (repoUrl.endsWith('.git')) {
+    repoUrl = repoUrl.substring(0, repoUrl.length - 4);
+  }
+  
+  // Try to detect branch - most common ones are main, master, or develop
+  // For simplicity, let's try master since main didn't work
+  const branch = 'master';
+  
+  // For packages, link to the package in the repo
+  if (project.type === 'package' || project.type === 'library') {
+    if (project.repoDirectory) {
+      return `${repoUrl}/tree/${branch}/${project.repoDirectory}`;
+    }
+    return repoUrl;
+  }
+  
+  // For apps, link to the directory in the repo
+  if (project.repoDirectory) {
+    return `${repoUrl}/tree/${branch}/${project.repoDirectory}`;
+  } else if (project.relativePath) {
+    return `${repoUrl}/tree/${branch}/${project.relativePath}`;
+  }
+  
+  return repoUrl;
+}
+
+// Function to generate a project status summary
+function generateProjectStatus(project) {
+  if (!project) return '';
+  
+  const displayName = project.name.replace(/^@[^/]+\//, '');
+  let portInfo = 'Not available';
+  
+  if (project.shouldServe) {
+    portInfo = project.port ? 
+      `Running on port: ${project.port}${project.port !== project.defaultPort ? ' (default port was in use)' : ''}` : 
+      'Not available';
+  } else {
+    portInfo = 'Not served (non-interactive package)';
+  }
+  
+  const githubUrl = generateGitHubUrl(project);
+  const githubLink = githubUrl ? 
+    `<a href="${githubUrl}" target="_blank" class="repo-link">View on GitHub</a>` : '';
+  
+  return `
+  <div class="project-status ${project.type}-status">
+    <div class="status-badge">${project.type}</div>
+    <h4>${displayName}</h4>
+    <p>${portInfo}</p>
+    <p class="version">Version: ${project.version}</p>
+    <p class="path">Path: ${project.relativePath}</p>
+    ${githubLink}
+  </div>
+  `;
+}
+
 // Function to generate a nice card view for a project
 function generateProjectCard(project) {
   if (!project) {
@@ -271,7 +354,9 @@ function generateProjectCard(project) {
       <div class="card-badge">${project.type}</div>
       <h3>${displayName}</h3>
       <p>${project.description}</p>
-      <a href="http://localhost:${project.port}" target="_blank">Open ${displayName}</a>
+      <div class="card-actions">
+        <a href="http://localhost:${project.port}" target="_blank" class="open-link">Open ${displayName}</a>
+      </div>
       <div class="port-info">
         Listening on port ${project.port} ${portChangeInfo}
       </div>
@@ -301,32 +386,6 @@ function generateServiceChecks() {
       return `checkService('http://localhost:${p.port}', '${displayName}-card');`;
     })
     .join('\n      ');
-}
-
-// Function to generate a project status summary
-function generateProjectStatus(project) {
-  if (!project) return '';
-  
-  const displayName = project.name.replace(/^@[^/]+\//, '');
-  let portInfo = 'Not available';
-  
-  if (project.shouldServe) {
-    portInfo = project.port ? 
-      `Running on port: ${project.port}${project.port !== project.defaultPort ? ' (default port was in use)' : ''}` : 
-      'Not available';
-  } else {
-    portInfo = 'Not served (non-interactive package)';
-  }
-  
-  return `
-  <div class="project-status ${project.type}-status">
-    <div class="status-badge">${project.type}</div>
-    <h4>${displayName}</h4>
-    <p>${portInfo}</p>
-    <p class="version">Version: ${project.version}</p>
-    <p class="path">Path: ${project.relativePath}</p>
-  </div>
-  `;
 }
 
 // Function to start the dashboard once services are ready
@@ -420,10 +479,14 @@ function startDashboard() {
         color: #b0b0b0;
         flex-grow: 1;
       }
-      .app-card a {
+      .card-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+      }
+      .card-actions a {
         display: inline-block;
-        background-color: #5d8fff;
-        color: white;
         padding: 8px 16px;
         border-radius: 4px;
         text-decoration: none;
@@ -431,8 +494,21 @@ function startDashboard() {
         transition: background-color 0.2s;
         text-align: center;
       }
-      .app-card a:hover {
+      .open-link {
+        background-color: #5d8fff;
+        color: white;
+        flex: 1;
+      }
+      .github-link {
+        background-color: #333;
+        color: white;
+        flex: 1;
+      }
+      .open-link:hover {
         background-color: #4a75d1;
+      }
+      .github-link:hover {
+        background-color: #444;
       }
       .port-info, .package-info {
         font-size: 0.9em;
@@ -543,6 +619,20 @@ function startDashboard() {
         color: #b0b0b0;
         font-size: 0.85em;
         word-break: break-all;
+      }
+      .repo-link {
+        display: inline-block;
+        margin-top: 8px;
+        font-size: 0.85em;
+        padding: 4px 8px;
+        background-color: #333;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+      }
+      .repo-link:hover {
+        background-color: #444;
       }
       .no-projects {
         text-align: center;

@@ -5,6 +5,11 @@
   "type": "module",
   "description": "Interactive 3D portfolio website showcasing web development and creative coding projects",
   "blorkType": "app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/littlecarlito/threejs_site.git",
+    "directory": "apps/portfolio"
+  },
   "scripts": {
     "predev": "cd ../../packages/blorkpack && npm run build",
     "dev": "vite",
