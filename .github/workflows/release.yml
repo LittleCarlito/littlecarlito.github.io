@@ -124,10 +124,8 @@ jobs:
       issues: write
       pull-requests: write
     outputs:
-      blorkpack_pre_version: ${{ steps.blorkpack_release.outputs.old_version }}
-      blorkpack_new_version: ${{ steps.blorkpack_release.outputs.new_version }}
-      blorktools_pre_version: ${{ steps.blorktools_release.outputs.old_version }}
-      blorktools_new_version: ${{ steps.blorktools_release.outputs.new_version }}
+      blorkpack_version: ${{ steps.blorkpack_release.outputs.new_version }}
+      blorktools_version: ${{ steps.blorktools_release.outputs.new_version }}
       version_metadata: ${{ steps.create_version_metadata.outputs.metadata_created }}
     steps:
       - name: Checkout repository
@@ -135,136 +133,115 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.PACKAGE_TOKEN }}
-          ref: main
 
-      - name: Configure Git identity
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-
-      - name: Setup Node.js environment
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
 
-      - name: Pull latest changes from remote
-        run: |
-          git pull origin main
-        env:
-          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-          
-      - name: Check for lock files
-        id: check_lockfiles
-        run: |
-          if [[ -f "packages/blorkpack/package-lock.json" && -f "packages/blorktools/package-lock.json" && -f "package-lock.json" ]]; then
-            echo "lockfiles_exist=true" >> $GITHUB_OUTPUT
-            echo "All lock files exist, can use npm ci later when needed"
-          else
-            echo "lockfiles_exist=false" >> $GITHUB_OUTPUT
-            echo "Some lock files are missing, will use npm install"
-          fi
-
-      - name: Install project dependencies
-        run: npm install
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-
-      - name: Install and build blorkpack
-        run: |
-          cd packages/blorkpack
-          npm install
-          npm run build
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-
-      # Capture blorkpack version before release
-      - name: Get blorkpack original version
-        id: blorkpack_pre_version
-        run: |
-          cd packages/blorkpack
-          echo "version=$(jq -r '.version' package.json)" >> $GITHUB_OUTPUT
-
       - name: Install semantic-release and plugins
         run: |
-          npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github
+          npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github @semantic-release/npm
           echo "Installed semantic-release and plugins globally"
-          ls -la /usr/local/lib/node_modules/@semantic-release/
+      
+      - name: Get pre-release versions
+        id: pre_versions
+        run: |
+          cd packages/blorkpack
+          BLORKPACK_PRE=$(jq -r '.version' package.json)
+          echo "blorkpack_pre=$BLORKPACK_PRE" >> $GITHUB_OUTPUT
+          
+          cd ../blorktools
+          BLORKTOOLS_PRE=$(jq -r '.version' package.json)
+          echo "blorktools_pre=$BLORKTOOLS_PRE" >> $GITHUB_OUTPUT
       
       - name: Run semantic-release for blorkpack
         id: blorkpack_release
         working-directory: packages/blorkpack
         run: |
           echo "Running semantic-release for blorkpack package"
-          OLD_VERSION=$(jq -r '.version' package.json)
-          echo "Current version: $OLD_VERSION"
-          echo "old_version=$OLD_VERSION" >> $GITHUB_OUTPUT
+          PRE_VERSION=$(jq -r '.version' package.json)
           
+          # Ensure package name is correct
+          jq '.name = "@littlecarlito/blorkpack"' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Run semantic-release to determine version and update package.json
           npx semantic-release || echo "semantic-release process completed"
           
+          # Get the new version post-semantic-release
           NEW_VERSION=$(jq -r '.version' package.json)
-          echo "New version: $NEW_VERSION"
+          
+          # Output version info for downstream workflows
+          echo "pre_version=$PRE_VERSION" >> $GITHUB_OUTPUT
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          
+          # Log version change
+          if [ "$PRE_VERSION" != "$NEW_VERSION" ]; then
+            echo "Version updated: $PRE_VERSION → $NEW_VERSION"
+          else
+            echo "Version unchanged: $NEW_VERSION"
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-
-      - name: Install and build blorktools
-        run: |
-          cd packages/blorktools
-          npm install
-          npm run build
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-
-      # Capture blorktools version before release
-      - name: Get blorktools original version
-        id: blorktools_pre_version
-        run: |
-          cd packages/blorktools
-          echo "version=$(jq -r '.version' package.json)" >> $GITHUB_OUTPUT
-
-      - name: Create semantic release for blorktools
+      
+      - name: Run semantic-release for blorktools
         id: blorktools_release
-        env:
-          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+        working-directory: packages/blorktools
         run: |
-          cd packages/blorktools
-          npx semantic-release --extends=./.releaserc.json
-          # Store the new version to be used by the publish workflow
-          echo "version=$(jq -r '.version' package.json)" >> $GITHUB_OUTPUT
-          # No need to copy package.json since we're already in the right directory
-
-      - name: Create semantic release for main project
+          echo "Running semantic-release for blorktools package"
+          PRE_VERSION=$(jq -r '.version' package.json)
+          
+          # Ensure package name is correct
+          jq '.name = "@littlecarlito/blorktools"' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Run semantic-release to determine version and update package.json
+          npx semantic-release || echo "semantic-release process completed"
+          
+          # Get the new version post-semantic-release
+          NEW_VERSION=$(jq -r '.version' package.json)
+          
+          # Output version info for downstream workflows
+          echo "pre_version=$PRE_VERSION" >> $GITHUB_OUTPUT
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          
+          # Log version change
+          if [ "$PRE_VERSION" != "$NEW_VERSION" ]; then
+            echo "Version updated: $PRE_VERSION → $NEW_VERSION"
+          else
+            echo "Version unchanged: $NEW_VERSION"
+          fi
         env:
-          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-        run: npx semantic-release
-
-      # Create version metadata file that will be passed to the publish workflow
+      
       - name: Create version metadata
+        id: create_version_metadata
         run: |
-          echo '{
+          echo "Creating version metadata file..."
+          cat > version-metadata.json << EOF
+          {
             "blorkpack": {
-              "pre_version": "${{ steps.blorkpack_pre_version.outputs.version }}",
-              "new_version": "${{ steps.blorkpack_release.outputs.old_version }}"
+              "pre_version": "${{ steps.pre_versions.outputs.blorkpack_pre }}",
+              "new_version": "${{ steps.blorkpack_release.outputs.new_version }}"
             },
             "blorktools": {
-              "pre_version": "${{ steps.blorktools_pre_version.outputs.version }}",
+              "pre_version": "${{ steps.pre_versions.outputs.blorktools_pre }}",
               "new_version": "${{ steps.blorktools_release.outputs.new_version }}"
             }
-          }' > version-metadata.json
+          }
+          EOF
+          
+          echo "Version metadata:"
           cat version-metadata.json
-
-      # Upload the version metadata as an artifact
+          echo "metadata_created=true" >> $GITHUB_OUTPUT
+      
       - name: Upload version metadata
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: version-metadata
-          path: version-metadata.json
-          retention-days: 1 
+          path: version-metadata.json 

@@ -44,6 +44,14 @@ jobs:
           
       - name: Configure package for production deployment
         run: |
+          # Check if portfolio directory exists
+          if [ ! -d "apps/portfolio" ]; then
+            echo "ERROR: Portfolio directory does not exist at apps/portfolio!"
+            echo "Directories in apps:"
+            ls -la apps/
+            exit 1
+          fi
+          
           # Update dependency to use the GitHub package with latest version
           jq --arg version "${{ steps.get_version.outputs.LATEST_VERSION }}" '.dependencies."@littlecarlito/blorkpack" = "@littlecarlito/blorkpack@" + $version' apps/portfolio/package.json > apps/portfolio/package.json.tmp
           mv apps/portfolio/package.json.tmp apps/portfolio/package.json
@@ -53,7 +61,7 @@ jobs:
           mv package.json.tmp package.json
           
           # Remove tests directory to avoid build issues
-          rm -rf tests/
+          rm -rf tests/ || echo "No tests directory to remove"
           
           # Create .npmrc for authentication
           echo "@littlecarlito:registry=https://npm.pkg.github.com/" > .npmrc
@@ -119,9 +127,17 @@ jobs:
         
       - name: Build for Production
         run: |
-          echo "Building portfolio app with explicit timeout..."
+          echo "Building portfolio app..."
           cd apps/portfolio
-          npx vite build --logLevel=info
+          
+          # Install dependencies first to ensure everything is ready
+          npm install
+          
+          # Run build directly with a timeout (using timeout command)
+          timeout 5m npm run build || {
+            echo "Build timed out or failed. Using vite directly..."
+            timeout 5m npx vite build --logLevel=info
+          }
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         
