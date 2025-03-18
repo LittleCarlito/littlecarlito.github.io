@@ -128,11 +128,17 @@ jobs:
           # Log version change
           if [ "$PRE_VERSION" != "$NEW_VERSION" ]; then
             echo "Version updated: $PRE_VERSION → $NEW_VERSION"
+            
+            # Push the newly created tag for this package
+            cd ../../
+            echo "Pushing tags for blorkpack..."
+            git push origin --tags
+            cd packages/blorkpack
           else
             echo "Version unchanged: $NEW_VERSION"
           fi
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
       - name: Run semantic-release for blorktools
@@ -208,11 +214,17 @@ jobs:
           # Log version change
           if [ "$PRE_VERSION" != "$NEW_VERSION" ]; then
             echo "Version updated: $PRE_VERSION → $NEW_VERSION"
+            
+            # Push the newly created tag for this package
+            cd ../../
+            echo "Pushing tags for blorktools..."
+            git push origin --tags
+            cd packages/blorktools
           else
             echo "Version unchanged: $NEW_VERSION"
           fi
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
       - name: Create version metadata
@@ -245,4 +257,13 @@ jobs:
           name: version-metadata
           path: artifacts/version-metadata.json
           retention-days: 5
-          if-no-files-found: error 
+          if-no-files-found: error
+          
+      - name: Push tags to GitHub
+        run: |
+          echo "Pushing tags to GitHub repository..."
+          git push --follow-tags
+          # Also try explicitly pushing tags
+          git push --tags
+        env:
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 
