@@ -1,6 +1,6 @@
 {
   "name": "@littlecarlito/blorktools",
-  "version": "1.0.1",
+  "version": "0.12.2",
   "description": "Development tools for 3D assets and debugging",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -40,4 +40,4 @@
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   }
-} 
+}
