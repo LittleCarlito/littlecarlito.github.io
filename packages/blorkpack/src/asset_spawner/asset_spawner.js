@@ -1,20 +1,11 @@
 import { THREE, RAPIER } from "../index.js";
-import { AssetUtils } from "../index.js";
 import CustomTypeManager from "../custom_type_manager.js";
 import { AssetStorage } from "../asset_storage.js";
 import { BLORKPACK_FLAGS } from "../blorkpack_flags.js";
-import { ManifestManager } from "../manifest_manager.js";
-import { SystemAssetType } from "./system_factory/system_asset_types.js";
-import { SystemFactory } from "./system_factory/system_factory.js";
-import { CustomFactory } from "./custom_factory.js";
-import { IdGenerator } from "./util/id_generator.js";
-
-// Configuration constants
-/**
- * Default length for debug visualization mesh of spotlights with unlimited range (distance=0)
- * Adjust this value to make unlimited spotlight debug meshes longer or shorter
- */
-const UNLIMITED_SPOTLIGHT_DEBUG_LENGTH = 400;
+import { SystemAssetType } from "./common/system_asset_types.js";
+import { SystemFactory } from "./asset_factories/system_factory.js";
+import { CustomFactory } from "./asset_factories/custom_factory.js";
+import { IdGenerator } from "./common/id_generator.js";
 
 /**
  * Class responsible for spawning and managing 3D assets in the scene.
@@ -951,7 +942,7 @@ export class AssetSpawner {
 
         switch (asset_type) {
             case SystemAssetType.SPOTLIGHT.value:
-                const { create_spotlight_helper } = await import('./system_factory/system_spawners/spotlight_spawner.js');
+                const { create_spotlight_helper } = await import('./asset_factories/system_spawners/spotlight_spawner.js');
                 return create_spotlight_helper(this.scene, asset);
             // Add other asset type cases here as needed
             default:
@@ -982,7 +973,7 @@ export class AssetSpawner {
      * Called from the main animation loop.
      */
     async update_helpers() {
-        const { update_helpers } = await import('./system_factory/system_spawners/spotlight_spawner.js');
+        const { update_helpers } = await import('./asset_factories/system_spawners/spotlight_spawner.js');
         return update_helpers(this.scene);
     }
 
@@ -991,7 +982,7 @@ export class AssetSpawner {
      * Call this when you know assets have been added or removed.
      */
     async forceHelperUpdate() {
-        const { forceSpotlightDebugUpdate } = await import('./system_factory/system_spawners/spotlight_spawner.js');
+        const { forceSpotlightDebugUpdate } = await import('./asset_factories/system_spawners/spotlight_spawner.js');
         return forceSpotlightDebugUpdate(this.scene);
     }
 } 

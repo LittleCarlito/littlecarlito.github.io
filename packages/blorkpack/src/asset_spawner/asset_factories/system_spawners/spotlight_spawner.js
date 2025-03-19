@@ -1,7 +1,7 @@
 import { THREE } from "../../../index.js";
 import { BLORKPACK_FLAGS } from "../../../blorkpack_flags.js";
-import { SystemAssetType } from "../system_asset_types.js";
-import { IdGenerator } from "../../util/id_generator.js";
+import { SystemAssetType } from "../../common/system_asset_types.js";
+import { IdGenerator } from "../../common/id_generator.js";
 import { AssetStorage } from "../../../asset_storage.js";
 
 // Configuration constant for unlimited spotlight debug visualization

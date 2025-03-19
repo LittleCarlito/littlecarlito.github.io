@@ -1,32 +1,32 @@
 import { THREE, RAPIER } from "../../../index.js";
 import { BLORKPACK_FLAGS } from "../../../blorkpack_flags.js";
-import { SystemAssetType } from "../system_asset_types.js";
-import { IdGenerator } from "../../util/id_generator.js";
+import { SystemAssetType } from "../../common/system_asset_types.js";
+import { IdGenerator } from "../../common/id_generator.js";
 
 /**
- * Creates a primitive cylinder with the specified properties.
+ * Creates a primitive capsule with the specified properties.
  * 
  * @param {THREE.Scene} scene - The Three.js scene to add objects to
  * @param {RAPIER.World} world - The Rapier physics world
- * @param {string} id - The ID of the cylinder
- * @param {number} radius - Radius of the cylinder
- * @param {number} height - Height of the cylinder
- * @param {THREE.Vector3} position - Position of the cylinder
- * @param {THREE.Quaternion} rotation - Rotation of the cylinder
- * @param {Object} options - Additional options for the cylinder
- * @returns {Promise<Object>} The created cylinder with mesh and physics body
+ * @param {string} id - The ID of the capsule
+ * @param {number} radius - Radius of the capsule
+ * @param {number} height - Height of the capsule (not including the hemispherical caps)
+ * @param {THREE.Vector3} position - Position of the capsule
+ * @param {THREE.Quaternion} rotation - Rotation of the capsule
+ * @param {Object} options - Additional options for the capsule
+ * @returns {Promise<Object>} The created capsule with mesh and physics body
  */
-export async function create_primitive_cylinder(scene, world, id, radius, height, position, rotation, options = {}) {
+export async function create_primitive_capsule(scene, world, id, radius, height, position, rotation, options = {}) {
     // Make sure position and rotation are valid
     position = position || new THREE.Vector3();
     rotation = rotation || new THREE.Quaternion();
     
     if (BLORKPACK_FLAGS.ASSET_LOGS) {
-        console.log(`Creating primitive cylinder for ${id} with radius: ${radius}, height: ${height}`);
+        console.log(`Creating primitive capsule for ${id} with radius: ${radius}, height: ${height}`);
     }
     
-    // Create geometry
-    const geometry = new THREE.CylinderGeometry(radius, radius, height, 32);
+    // Create geometry (use cylinder for now)
+    const geometry = new THREE.CapsuleGeometry(radius, height, 16, 32);
     
     // Convert color from string to number if needed
     let color_value = options.color || 0x808080;
@@ -90,8 +90,8 @@ export async function create_primitive_cylinder(scene, world, id, radius, height
         // Create body
         body = world.createRigidBody(body_desc);
         
-        // Create cylinder collider
-        const collider_desc = RAPIER.ColliderDesc.cylinder(height / 2, radius);
+        // Create capsule collider
+        const collider_desc = RAPIER.ColliderDesc.capsule(height / 2, radius);
         
         // Set restitution and friction
         collider_desc.setRestitution(options.restitution || 0.5);
@@ -109,7 +109,7 @@ export async function create_primitive_cylinder(scene, world, id, radius, height
         mesh,
         body,
         instance_id,
-        type: SystemAssetType.PRIMITIVE_CYLINDER.value,
+        type: SystemAssetType.PRIMITIVE_CAPSULE.value,
         options
     };
 } 

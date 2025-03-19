@@ -49,7 +49,7 @@ import CustomTypeManager from './custom_type_manager.js';
 import { BLORKPACK_FLAGS } from './blorkpack_flags.js';
 import { MANIFEST_TYPES } from './manifest_types.js';
 import { initPhysicsUtil } from './physics/physics_util.js';
-import { SystemAssetType } from './asset_spawner/system_factory/system_asset_types.js';
+import { SystemAssetType } from './asset_spawner/common/system_asset_types.js';
 
 // Export the components
 export {

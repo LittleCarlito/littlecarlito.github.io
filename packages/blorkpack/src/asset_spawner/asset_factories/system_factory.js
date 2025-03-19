@@ -7,9 +7,9 @@ import {
     create_primitive_cylinder,
     create_spotlight
 } from './system_spawners/index.js';
-import { SystemAssetType } from "./system_asset_types.js";
+import { SystemAssetType } from "../common/system_asset_types.js";
 import { AssetSpawner } from "../asset_spawner.js";
-import { IdGenerator } from "../util/id_generator.js";
+import { IdGenerator } from "../common/id_generator.js";
 
 /**
  * Factory class responsible for creating and managing system-level assets.

@@ -1,31 +1,38 @@
 import { THREE, RAPIER } from "../../../index.js";
 import { BLORKPACK_FLAGS } from "../../../blorkpack_flags.js";
-import { SystemAssetType } from "../system_asset_types.js";
-import { IdGenerator } from "../../util/id_generator.js";
+import { SystemAssetType } from "../../common/system_asset_types.js";
+import { IdGenerator } from "../../common/id_generator.js";
 
 /**
- * Creates a primitive sphere with the specified properties.
+ * Creates a primitive box with the specified dimensions and properties.
+ * This is used for simple assets that don't require a full 3D model.
  * 
  * @param {THREE.Scene} scene - The Three.js scene to add objects to
  * @param {RAPIER.World} world - The Rapier physics world
- * @param {string} id - The ID of the sphere
- * @param {number} radius - Radius of the sphere
- * @param {THREE.Vector3} position - Position of the sphere
- * @param {THREE.Quaternion} rotation - Rotation of the sphere
- * @param {Object} options - Additional options for the sphere
- * @returns {Promise<Object>} The created sphere with mesh and physics body
+ * @param {number} width - Width of the box
+ * @param {number} height - Height of the box
+ * @param {number} depth - Depth of the box
+ * @param {THREE.Vector3} position - Position of the box
+ * @param {THREE.Quaternion} rotation - Rotation of the box
+ * @param {Object} options - Additional options for the box
+ * @returns {Promise<Object>} The created box with mesh and body
  */
-export async function create_primitive_sphere(scene, world, id, radius, position, rotation, options = {}) {
+export async function create_primitive_box(scene, world, width, height, depth, position, rotation, options = {}) {
     // Make sure position and rotation are valid
     position = position || new THREE.Vector3();
-    rotation = rotation || new THREE.Quaternion();
     
-    if (BLORKPACK_FLAGS.ASSET_LOGS) {
-        console.log(`Creating primitive sphere for ${id} with radius: ${radius}`);
+    // Handle different rotation types or create default
+    let quaternion;
+    if (rotation instanceof THREE.Quaternion) {
+        quaternion = rotation;
+    } else if (rotation instanceof THREE.Euler) {
+        quaternion = new THREE.Quaternion().setFromEuler(rotation);
+    } else {
+        quaternion = new THREE.Quaternion();
     }
     
     // Create geometry and material
-    const geometry = new THREE.SphereGeometry(radius, 32, 24);
+    const geometry = new THREE.BoxGeometry(width, height, depth);
     
     // Convert color from string to number if needed
     let color_value = options.color || 0x808080;
@@ -46,7 +53,7 @@ export async function create_primitive_sphere(scene, world, id, radius, position
     // Create mesh
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.copy(position);
-    mesh.quaternion.copy(rotation);
+    mesh.quaternion.copy(quaternion);
     
     // Set shadow properties
     mesh.castShadow = options.cast_shadow || false;
@@ -66,7 +73,7 @@ export async function create_primitive_sphere(scene, world, id, radius, position
     // Create physics body if collidable
     let body = null;
     
-    if (options.collidable !== false && world) {
+    if (options.collidable !== false) {
         // Determine body type based on mass and options
         let body_desc;
         if (options.mass <= 0 || options.gravity === false) {
@@ -80,17 +87,28 @@ export async function create_primitive_sphere(scene, world, id, radius, position
         // Set position and rotation
         body_desc.setTranslation(position.x, position.y, position.z);
         body_desc.setRotation({
-            x: rotation.x,
-            y: rotation.y,
-            z: rotation.z,
-            w: rotation.w
+            x: quaternion.x,
+            y: quaternion.y,
+            z: quaternion.z,
+            w: quaternion.w
         });
         
         // Create body
         body = world.createRigidBody(body_desc);
         
-        // Create sphere collider
-        const collider_desc = RAPIER.ColliderDesc.ball(radius);
+        // Create collider
+        let collider_desc;
+        
+        // Use custom collider dimensions if specified, otherwise use mesh dimensions
+        const collider_width = (options.collider_dimensions?.width !== undefined) ? 
+            options.collider_dimensions.width : width / 2;
+        const collider_height = (options.collider_dimensions?.height !== undefined) ? 
+            options.collider_dimensions.height : height / 2;
+        const collider_depth = (options.collider_dimensions?.depth !== undefined) ? 
+            options.collider_dimensions.depth : depth / 2;
+        
+        // Create cuboid collider
+        collider_desc = RAPIER.ColliderDesc.cuboid(collider_width, collider_height, collider_depth);
         
         // Set restitution and friction
         collider_desc.setRestitution(options.restitution || 0.5);
@@ -108,18 +126,7 @@ export async function create_primitive_sphere(scene, world, id, radius, position
         mesh,
         body,
         instance_id,
-        type: SystemAssetType.PRIMITIVE_SPHERE.value,
+        type: SystemAssetType.PRIMITIVE_BOX.value,
         options
     };
-}
-
-/**
- * Generates a unique asset ID for spawned assets.
- * @returns {string} A unique ID string
- */
-function generate_asset_id() {
-    // Simple implementation using timestamp and random numbers
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 10000);
-    return `asset_${timestamp}_${random}`;
 } 
