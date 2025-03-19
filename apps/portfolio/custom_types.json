@@ -36,14 +36,14 @@
             "restitution": 0.5
         },
         "DESKPHOTO": {
-            "key": "about",
+            "key": "DESKPHOTO",
             "PATH": "assets/deskphoto.glb",
             "scale": 5,
             "mass": 1,
             "restitution": 1
         },
         "DIPLOMA_BOT": {
-            "key": "education",
+            "key": "DIPLOMA_BOT",
             "PATH": "assets/diploma_bot.glb",
             "scale": 5,
             "mass": 1,
@@ -51,7 +51,7 @@
             "ui_scale": 10
         },
         "DIPLOMA_TOP": {
-            "key": "DIPOLOMA_TOP",
+            "key": "DIPLOMA_TOP",
             "PATH": "assets/diploma_top.glb",
             "scale": 5,
             "mass": 1,
@@ -66,7 +66,7 @@
             "restitution": 0.2
         },
         "MONITOR": {
-            "key": "work",
+            "key": "MONITOR",
             "PATH": "assets/monitor.glb",
             "scale": 5,
             "mass": 1,
@@ -96,7 +96,7 @@
             "restitution": 1
         },
         "NOTEBOOK_OPENED": {
-            "key": "projects",
+            "key": "NOTEBOOK_OPENED",
             "PATH": "assets/notebook_open.glb",
             "scale": 5,
             "mass": 1,
@@ -110,7 +110,7 @@
             "restitution": 1
         },
         "TABLET": {
-            "key": "contact",
+            "key": "TABLET",
             "PATH": "assets/tablet.glb",
             "scale": 5,
             "mass": 1,

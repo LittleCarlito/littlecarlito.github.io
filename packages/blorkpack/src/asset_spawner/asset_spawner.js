@@ -86,7 +86,7 @@ export class AssetSpawner {
     }
 
     /**
-     * Spawns an asset in the scene with optional physics.
+     * Spawns an asset of the specified type at the given position with the given rotation.
      * @param {string} asset_type - The type of asset to spawn.
      * @param {THREE.Vector3} position - The position to spawn the asset at.
      * @param {THREE.Quaternion} rotation - The rotation of the asset.
@@ -94,10 +94,10 @@ export class AssetSpawner {
      * @returns {Promise<Object>} A promise that resolves with the spawned asset details.
      */
     async spawn_asset(asset_type, position = new THREE.Vector3(), rotation = new THREE.Quaternion(), options = {}) {
+        // Handle SystemAssetType enum objects by extracting the value property
+        let type_value = typeof asset_type === 'object' && asset_type.value ? asset_type.value : asset_type;
+        
         try {
-            // Handle SystemAssetType enum objects by extracting the value property
-            const type_value = typeof asset_type === 'object' && asset_type.value ? asset_type.value : asset_type;
-            
             // Check if this is a system asset type
             if (SystemAssetType && SystemAssetType.isSystemAssetType(type_value)) {
                 // Handle system asset types
@@ -123,225 +123,234 @@ export class AssetSpawner {
                 }
             }
             
-            // Continue with original implementation for model assets
-            // Load the asset
-            const gltfData = await this.storage.load_asset_type(type_value);
-            if (!gltfData) {
-                console.error(`Failed to load asset type: ${type_value}`);
-                return null;
-            }
-
-            // Get asset configuration from cache
-            const asset_config = this.#assetConfigs[type_value];
-            if (!asset_config) {
-                console.error(`No configuration found for asset type: ${type_value}`);
-                return null;
-            }
-
-            // Clone the model
-            const originalModel = gltfData.scene;
-            const model = AssetUtils.cloneSkinnedMesh(originalModel);
-            
-            // Apply scaling based on asset_config
-            const scale = asset_config.scale || 1.0;
-            model.scale.set(scale, scale, scale);
-            
-            // Apply position and rotation
-            model.position.copy(position);
-            model.quaternion.copy(rotation);
-            
-            // Add interactable_ prefix to the model name to make it grabbable
-            // Format: interactable_assetType_uniqueId
-            const uniqueId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-            model.name = `interactable_${type_value}_${uniqueId}`;
-            
-            // Hide collision meshes (objects with names starting with "col_")
-            // And collect them for potential physics use
-            const collisionMeshes = [];
-            const displayMeshes = [];
-            model.traverse((child) => {
-                if (child.isMesh) {
-                    if (child.name.startsWith('col_')) {
-                        // This is a collision mesh - hide it and collect for physics
-                        child.visible = false;
-                        collisionMeshes.push(child);
-                    } else if (child.name.startsWith('display_')) {
-                        // This is a display mesh - make it visible but transparent by default
-                        child.visible = true;
-                        
-                        console.log(`Setting display mesh ${child.name} to transparent by default`);
-                        
-                        // Create a transparent material as the default for display meshes
-                        const displayMaterial = AssetSpawner.createDisplayMeshMaterial(0); // 0 = transparent
-                        
-                        // Apply the material to the display mesh
-                        child.material = displayMaterial;
-                        
-                        // Explicitly set display state to transparent (0) in userData
-                        // This ensures the debug UI will recognize it as transparent
-                        if (model.userData) {
-                            model.userData.currentDisplayImage = 0;
-                            console.log(`Set userData.currentDisplayImage to 0 (transparent) for ${model.name}`);
-                        }
-                        
-                        if (BLORKPACK_FLAGS.ASSET_LOGS) {
-                            console.log(`Applied transparent material to display mesh: ${child.name} in ${type_value}`);
-                        }
-                        
-                        // Keep track of display meshes
-                        displayMeshes.push(child);
-                        
-                        if (BLORKPACK_FLAGS.ASSET_LOGS) {
-                            console.log(`Found display mesh: ${child.name} in ${type_value}`);
-                        }
-                    } else {
-                        // Add interactable_ prefix to all visible meshes to make them grabbable
-                        // Use the same naming convention for child meshes
-                        const childId = child.id || Math.floor(Math.random() * 10000);
-                        child.name = `interactable_${type_value}_${child.name || 'part'}_${childId}`;
-                    }
-                }
-            });
-            
-            // Store reference to display meshes in model's userData if available
-            if (displayMeshes.length > 0) {
-                model.userData.displayMeshes = displayMeshes;
-                
-                // Add a helper function to switch between atlas images
-                model.userData.switchDisplayImage = (imageIndex) => {
-                    if (imageIndex < 0 || imageIndex > 2) {
-                        console.error(`Invalid image index: ${imageIndex}. Must be between 0 and 2.`);
-                        return;
+            // Check if the asset type exists in custom types
+            if (CustomTypeManager.hasLoadedCustomTypes()) {
+                // Check if the type exists directly
+                if (CustomTypeManager.hasType(type_value)) {
+                    // Get the actual asset type key from the custom type manager
+                    const customTypeKey = CustomTypeManager.getType(type_value);
+                    
+                    if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                        console.log(`Spawning custom asset type: ${type_value} (key: ${customTypeKey})`);
                     }
                     
-                    displayMeshes.forEach(mesh => {
-                        if (mesh.material && mesh.material.map) {
-                            const texture = mesh.material.map;
-                            // Set offset based on the selected image (0, 1, or 2)
-                            texture.offset.x = imageIndex / 3;
-                            // Ensure the texture is updated
-                            texture.needsUpdate = true;
+                    // Load the asset with the resolved custom type key
+                    const gltfData = await this.storage.load_asset_type(customTypeKey);
+                    if (!gltfData) {
+                        console.error(`Failed to load custom asset type: ${customTypeKey}`);
+                        return null;
+                    }
+
+                    // Get asset configuration from cache or CustomTypeManager
+                    let asset_config = this.#assetConfigs[customTypeKey];
+                    if (!asset_config) {
+                        // Try to get it from CustomTypeManager
+                        asset_config = CustomTypeManager.getConfig(customTypeKey);
+                        if (asset_config) {
+                            // Cache it for future use
+                            this.#assetConfigs[customTypeKey] = asset_config;
+                        } else {
+                            console.error(`No configuration found for custom asset type: ${customTypeKey}`);
+                            return null;
+                        }
+                    }
+
+                    // Clone the model and continue with regular asset loading flow
+                    const originalModel = gltfData.scene;
+                    const model = AssetUtils.cloneSkinnedMesh(originalModel);
+                    
+                    // Rest of asset loading with customTypeKey instead of type_value
+                    // Apply scaling based on asset_config
+                    const scale = asset_config.scale || 1.0;
+                    model.scale.set(scale, scale, scale);
+                    
+                    // Apply position and rotation
+                    model.position.copy(position);
+                    model.quaternion.copy(rotation);
+                    
+                    // Add interactable_ prefix to the model name to make it grabbable
+                    const uniqueId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+                    model.name = `interactable_${customTypeKey}_${uniqueId}`;
+                    
+                    // Hide collision meshes (objects with names starting with "col_")
+                    // And collect them for potential physics use
+                    const collisionMeshes = [];
+                    const displayMeshes = [];
+                    model.traverse((child) => {
+                        if (child.isMesh) {
+                            if (child.name.startsWith('col_')) {
+                                // This is a collision mesh - hide it and collect for physics
+                                child.visible = false;
+                                collisionMeshes.push(child);
+                            } else if (child.name.startsWith('display_')) {
+                                // This is a display mesh - make it visible but transparent by default
+                                child.visible = true;
+                                
+                                console.log(`Setting display mesh ${child.name} to transparent by default`);
+                                
+                                // Create a transparent material as the default for display meshes
+                                const displayMaterial = AssetSpawner.createDisplayMeshMaterial(0); // 0 = transparent
+                                
+                                // Apply the material to the display mesh
+                                child.material = displayMaterial;
+                                
+                                // Explicitly set display state to transparent (0) in userData
+                                // This ensures the debug UI will recognize it as transparent
+                                if (model.userData) {
+                                    model.userData.currentDisplayImage = 0;
+                                    console.log(`Set userData.currentDisplayImage to 0 (transparent) for ${model.name}`);
+                                }
+                                
+                                if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                                    console.log(`Applied transparent material to display mesh: ${child.name} in ${customTypeKey}`);
+                                }
+                                
+                                // Keep track of display meshes
+                                displayMeshes.push(child);
+                                
+                                if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                                    console.log(`Found display mesh: ${child.name} in ${customTypeKey}`);
+                                }
+                            } else {
+                                // Add interactable_ prefix to all visible meshes to make them grabbable
+                                // Use the same naming convention for child meshes
+                                const childId = child.id || Math.floor(Math.random() * 10000);
+                                child.name = `interactable_${customTypeKey}_${child.name || 'part'}_${childId}`;
+                            }
                         }
                     });
-                };
-            }
-            
-            // Add objects to scene in next frame to prevent stuttering
-            await new Promise(resolve => setTimeout(resolve, 0));
-            
-            // Add to scene
-            this.scene.add(model);
-            
-            // Make the model and all its children accessible for physics
-            model.userData.assetType = type_value;
-            
-            let physicsBody = null;
-            
-            // Add physics if enabled
-            if (options.enablePhysics !== false && this.world) {
-                // Create a basic physics body
-                const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
-                    .setTranslation(position.x, position.y, position.z)
-                    .setLinearDamping(0.5)
-                    .setAngularDamping(0.6);
-                
-                // Explicitly set gravity scale to ensure gravity affects this object
-                rigidBodyDesc.setGravityScale(1.0);
-                
-                // Set initial rotation if provided
-                if (rotation) {
-                    rigidBodyDesc.setRotation(rotation);
-                }
-                
-                physicsBody = this.world.createRigidBody(rigidBodyDesc);
-                
-                // Check if we have collision meshes to use for more accurate colliders
-                if (collisionMeshes.length > 0) {
-                    // Use the collision meshes for physics
-                    for (const collisionMesh of collisionMeshes) {
-                        await this.create_collider_from_mesh(collisionMesh, physicsBody, asset_config, options);
+                    
+                    // Store reference to display meshes in model's userData if available
+                    if (displayMeshes.length > 0) {
+                        model.userData.displayMeshes = displayMeshes;
+                        
+                        // Add a helper function to switch between atlas images
+                        model.userData.switchDisplayImage = (imageIndex) => {
+                            if (imageIndex < 0 || imageIndex > 2) {
+                                console.error(`Invalid image index: ${imageIndex}. Must be between 0 and 2.`);
+                                return;
+                            }
+                            
+                            displayMeshes.forEach(mesh => {
+                                if (mesh.material && mesh.material.map) {
+                                    const texture = mesh.material.map;
+                                    // Set offset based on the selected image (0, 1, or 2)
+                                    texture.offset.x = imageIndex / 3;
+                                    // Ensure the texture is updated
+                                    texture.needsUpdate = true;
+                                }
+                            });
+                        };
                     }
+                    
+                    // Add objects to scene in next frame to prevent stuttering
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                    
+                    // Add to scene
+                    this.scene.add(model);
+                    
+                    // Make the model and all its children accessible for physics
+                    model.userData.assetType = customTypeKey;
+                    
+                    let physicsBody = null;
+                    
+                    // Add physics if enabled
+                    if (options.enablePhysics !== false && this.world) {
+                        // Create a basic physics body
+                        const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
+                            .setTranslation(position.x, position.y, position.z)
+                            .setLinearDamping(0.5)
+                            .setAngularDamping(0.6);
+                        
+                        // Explicitly set gravity scale to ensure gravity affects this object
+                        rigidBodyDesc.setGravityScale(1.0);
+                        
+                        // Set initial rotation if provided
+                        if (rotation) {
+                            rigidBodyDesc.setRotation(rotation);
+                        }
+                        
+                        physicsBody = this.world.createRigidBody(rigidBodyDesc);
+                        
+                        // Check if we have collision meshes to use for more accurate colliders
+                        if (collisionMeshes.length > 0) {
+                            // Use the collision meshes for physics
+                            for (const collisionMesh of collisionMeshes) {
+                                await this.create_collider_from_mesh(collisionMesh, physicsBody, asset_config, options);
+                            }
+                        } else {
+                            // Fallback to simple cuboid collider
+                            const halfScale = asset_config.scale / 2;
+                            let collider_desc;
+                            
+                            // Use different collider shapes based on asset type or configuration
+                            if (options.colliderType === 'sphere') {
+                                collider_desc = RAPIER.ColliderDesc.ball(halfScale);
+                            } else if (options.colliderType === 'capsule') {
+                                collider_desc = RAPIER.ColliderDesc.capsule(halfScale, halfScale * 0.5);
+                            } else {
+                                // Default to cuboid
+                                collider_desc = RAPIER.ColliderDesc.cuboid(halfScale, halfScale, halfScale);
+                            }
+                            
+                            // Set physics materials
+                            collider_desc.setRestitution(asset_config.restitution || 0.5);
+                            collider_desc.setFriction(asset_config.friction || 0.5);
+                            
+                            // Create the collider and attach it to the rigid body
+                            this.world.createCollider(collider_desc, physicsBody);
+                            
+                            // Create debug wireframe if debug is enabled
+                            if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
+                                try {
+                                    await this.create_debug_wireframe(
+                                        'box',
+                                        { width: halfScale * 2, height: halfScale * 2, depth: halfScale * 2 },
+                                        position,
+                                        rotation,
+                                        { color: 0x00ff00, opacity: 0.3, body: physicsBody }
+                                    );
+                                } catch (error) {
+                                    console.warn('Failed to create debug wireframe:', error);
+                                }
+                            }
+                        }
+                        
+                        if (BLORKPACK_FLAGS.PHYSICS_LOGS) {
+                            console.log(`Created physics body for ${customTypeKey} with mass: ${asset_config.mass || 1.0}, scale: ${scale}`);
+                        }
+                    }
+                    
+                    // Register with asset storage
+                    const instance_id = this.storage.add_object(model, physicsBody);
+                    
+                    return {
+                        mesh: model,
+                        body: physicsBody,
+                        instance_id
+                    };
                 } else {
-                    // Fallback to simple cuboid collider
-                    const halfScale = asset_config.scale / 2;
-                    let collider_desc;
-                    
-                    // Use different collider shapes based on asset type or configuration
-                    if (options.colliderType === 'sphere') {
-                        collider_desc = RAPIER.ColliderDesc.ball(halfScale);
-                    } else if (options.colliderType === 'capsule') {
-                        collider_desc = RAPIER.ColliderDesc.capsule(halfScale, halfScale * 0.5);
+                    // Not a system asset type or custom asset type - log error and return
+                    // Check if custom types have been loaded at all
+                    if (!CustomTypeManager.hasLoadedCustomTypes()) {
+                        console.error(`Custom types not loaded yet. Please ensure CustomTypeManager.loadCustomTypes() is called before spawning assets.`);
+                        console.error(`Failed to spawn asset type: "${type_value}"`);
                     } else {
-                        // Default to cuboid
-                        collider_desc = RAPIER.ColliderDesc.cuboid(halfScale, halfScale, halfScale);
+                        console.error(`Unsupported asset type: "${type_value}". Cannot spawn asset.`);
+                        console.error(`Available types:`, Object.keys(CustomTypeManager.getTypes()));
                     }
                     
-                    // Set mass and material properties
-                    if (asset_config.mass) {
-                        collider_desc.setMass(asset_config.mass);
-                    } else {
-                        // Default mass if not specified
-                        collider_desc.setMass(1.0);
-                    }
-                    
-                    if (asset_config.restitution) {
-                        collider_desc.setRestitution(asset_config.restitution);
-                    } else {
-                        // Default restitution (bounciness) if not specified
-                        collider_desc.setRestitution(0.2);
-                    }
-                    
-                    // Set friction
-                    collider_desc.setFriction(0.7);
-                    
-                    // Create the collider and attach it to the physics body
-                    this.world.createCollider(collider_desc, physicsBody);
-                }
-                
-                // Store physics body as a direct property on the model for very direct access
-                model.physicsBody = physicsBody;
-                
-                // Store a reference to the physics body in the model and all its children
-                model.userData.physicsBody = physicsBody;
-                model.traverse((child) => {
-                    if (child.isMesh) {
-                        child.userData.physicsBody = physicsBody;
-                        child.userData.rootModel = model;
-                        // Also store on the child directly for maximum compatibility
-                        child.physicsBody = physicsBody;
-                    }
-                });
-                
-                // Create debug wireframe if debug is enabled
-                if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
-                    try {
-                        await this.create_debug_wireframe(
-                            'box',
-                            { width: halfScale * 2, height: halfScale * 2, depth: halfScale * 2 },
-                            position,
-                            rotation,
-                            { color: 0x00ff00, opacity: 0.3, body }
-                        );
-                    } catch (error) {
-                        console.warn('Failed to create debug wireframe:', error);
-                    }
-                }
-                
-                if (BLORKPACK_FLAGS.PHYSICS_LOGS) {
-                    console.log(`Created physics body for ${type_value} with mass: ${asset_config.mass || 1.0}, scale: ${scale}`);
+                    return null;
                 }
             }
-            
-            // Register with asset storage
-            const instance_id = this.storage.add_object(model, physicsBody);
-            
-            return {
-                mesh: model,
-                body: physicsBody,
-                instance_id
-            };
         } catch (error) {
-            console.error(`Error spawning asset ${type_value}:`, error);
+            // Handle the case where type_value might not be defined yet
+            if (typeof type_value !== 'undefined') {
+                console.error(`Error spawning asset ${type_value}:`, error);
+            } else {
+                console.error(`Error spawning asset (type unknown):`, error);
+                console.error(`Original asset_type:`, asset_type);
+            }
             return null;
         }
     }
