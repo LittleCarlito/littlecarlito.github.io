@@ -4,6 +4,7 @@ import CustomTypeManager from "../custom_type_manager.js";
 import { AssetStorage } from "../asset_storage.js";
 import { BLORKPACK_FLAGS } from "../blorkpack_flags.js";
 import { ManifestManager } from "../manifest_manager.js";
+import { SystemAssetType } from "./system_factory/system_asset_types.js";
 
 // Configuration constants
 /**
@@ -94,17 +95,46 @@ export class AssetSpawner {
      */
     async spawn_asset(asset_type, position = new THREE.Vector3(), rotation = new THREE.Quaternion(), options = {}) {
         try {
+            // Handle SystemAssetType enum objects by extracting the value property
+            const type_value = typeof asset_type === 'object' && asset_type.value ? asset_type.value : asset_type;
+            
+            // Check if this is a system asset type
+            if (SystemAssetType && SystemAssetType.isSystemAssetType(type_value)) {
+                // Handle system asset types
+                switch (type_value) {
+                    case 'primitive_box':
+                        const { width = 1, height = 1, depth = 1 } = options.dimensions || {};
+                        return this.create_primitive_box(width, height, depth, position, rotation, options);
+                    case 'primitive_sphere':
+                        const sphereRadius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
+                        return this.create_primitive_sphere(options.id || this.generate_asset_id(), sphereRadius, position, rotation, options);
+                    case 'primitive_capsule':
+                        const capsuleRadius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
+                        const capsuleHeight = options.dimensions?.height || 1.0;
+                        return this.create_primitive_capsule(options.id || this.generate_asset_id(), capsuleRadius, capsuleHeight, position, rotation, options);
+                    case 'primitive_cylinder':
+                        const cylinderRadius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
+                        const cylinderHeight = options.dimensions?.height || 1.0;
+                        return this.create_primitive_cylinder(options.id || this.generate_asset_id(), cylinderRadius, cylinderHeight, position, rotation, options);
+                    case 'spotlight':
+                        return this.create_spotlight(options.id || this.generate_asset_id(), position, rotation, options, options.asset_data || {});
+                    case 'camera':
+                        return this.spawn_scene_camera(options);
+                }
+            }
+            
+            // Continue with original implementation for model assets
             // Load the asset
-            const gltfData = await this.storage.load_asset_type(asset_type);
+            const gltfData = await this.storage.load_asset_type(type_value);
             if (!gltfData) {
-                console.error(`Failed to load asset type: ${asset_type}`);
+                console.error(`Failed to load asset type: ${type_value}`);
                 return null;
             }
 
             // Get asset configuration from cache
-            const asset_config = this.#assetConfigs[asset_type];
+            const asset_config = this.#assetConfigs[type_value];
             if (!asset_config) {
-                console.error(`No configuration found for asset type: ${asset_type}`);
+                console.error(`No configuration found for asset type: ${type_value}`);
                 return null;
             }
 
@@ -123,7 +153,7 @@ export class AssetSpawner {
             // Add interactable_ prefix to the model name to make it grabbable
             // Format: interactable_assetType_uniqueId
             const uniqueId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-            model.name = `interactable_${asset_type}_${uniqueId}`;
+            model.name = `interactable_${type_value}_${uniqueId}`;
             
             // Hide collision meshes (objects with names starting with "col_")
             // And collect them for potential physics use
@@ -155,20 +185,20 @@ export class AssetSpawner {
                         }
                         
                         if (BLORKPACK_FLAGS.ASSET_LOGS) {
-                            console.log(`Applied transparent material to display mesh: ${child.name} in ${asset_type}`);
+                            console.log(`Applied transparent material to display mesh: ${child.name} in ${type_value}`);
                         }
                         
                         // Keep track of display meshes
                         displayMeshes.push(child);
                         
                         if (BLORKPACK_FLAGS.ASSET_LOGS) {
-                            console.log(`Found display mesh: ${child.name} in ${asset_type}`);
+                            console.log(`Found display mesh: ${child.name} in ${type_value}`);
                         }
                     } else {
                         // Add interactable_ prefix to all visible meshes to make them grabbable
                         // Use the same naming convention for child meshes
                         const childId = child.id || Math.floor(Math.random() * 10000);
-                        child.name = `interactable_${asset_type}_${child.name || 'part'}_${childId}`;
+                        child.name = `interactable_${type_value}_${child.name || 'part'}_${childId}`;
                     }
                 }
             });
@@ -203,7 +233,7 @@ export class AssetSpawner {
             this.scene.add(model);
             
             // Make the model and all its children accessible for physics
-            model.userData.assetType = asset_type;
+            model.userData.assetType = type_value;
             
             let physicsBody = null;
             
@@ -298,7 +328,7 @@ export class AssetSpawner {
                 }
                 
                 if (BLORKPACK_FLAGS.PHYSICS_LOGS) {
-                    console.log(`Created physics body for ${asset_type} with mass: ${asset_config.mass || 1.0}, scale: ${scale}`);
+                    console.log(`Created physics body for ${type_value} with mass: ${asset_config.mass || 1.0}, scale: ${scale}`);
                 }
             }
             
@@ -311,7 +341,7 @@ export class AssetSpawner {
                 instance_id
             };
         } catch (error) {
-            console.error(`Error spawning asset ${asset_type}:`, error);
+            console.error(`Error spawning asset ${type_value}:`, error);
             return null;
         }
     }
