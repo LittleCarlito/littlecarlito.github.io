@@ -295,17 +295,10 @@ async function init() {
         // Use AssetSpawner which is already initialized earlier
         window.background_container = new BackgroundContainer(window.scene, window.viewable_container.get_camera(), window.world);
         // Load application assets from manifest (including background floor)
-        update_loading_progress('Loading application assets...');
-        const application_assets = await window.asset_spawner.spawn_application_assets(window.manifest_manager, update_loading_progress);
+        update_loading_progress('Loading assets...');
+        const spawned_assets = await window.asset_spawner.spawn_manifest_assets(window.manifest_manager, update_loading_progress);
         if (BLORKPACK_FLAGS.ASSET_LOGS) {
-            console.log('Loaded application assets:', application_assets);
-        }
-        
-        // Load system assets from manifest (including the background floor)
-        update_loading_progress('Loading system assets...');
-        const system_assets = await window.asset_spawner.spawn_system_assets(window.manifest_manager, update_loading_progress);
-        if (BLORKPACK_FLAGS.ASSET_LOGS) {
-            console.log('Loaded system assets:', system_assets);
+            console.log('Loaded assets:', spawned_assets);
         }
         
         // Wait for all assets to be loaded
@@ -351,9 +344,6 @@ async function init() {
                 labelContainer.updateDebugVisualizations();
             }
         }
-        // Load and spawn assets defined in the manifest
-        update_loading_progress("Loading assets from manifest...");
-        const spawned_assets = await window.asset_spawner.spawn_asset_groups(window.manifest_manager, update_loading_progress);
     } catch (error) {
         console.error('Error during initialization:', error);
         update_loading_progress('Error loading application. Please refresh the page.');
