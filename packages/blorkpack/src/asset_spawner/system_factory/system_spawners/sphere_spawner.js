@@ -1,5 +1,7 @@
 import { THREE, RAPIER } from "../../../index.js";
 import { BLORKPACK_FLAGS } from "../../../blorkpack_flags.js";
+import { SystemAssetType } from "../system_asset_types.js";
+import { IdGenerator } from "../../util/id_generator.js";
 
 /**
  * Creates a primitive sphere with the specified properties.
@@ -99,14 +101,14 @@ export async function create_primitive_sphere(scene, world, id, radius, position
     }
     
     // Generate a unique ID for this asset
-    const instance_id = generate_asset_id();
+    const instance_id = IdGenerator.get_instance().generate_asset_id();
     
     // Return the result
     return {
         mesh,
         body,
         instance_id,
-        type: 'primitive_sphere',
+        type: SystemAssetType.PRIMITIVE_SPHERE.value,
         options
     };
 }

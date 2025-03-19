@@ -151,6 +151,7 @@ export class SystemFactory {
                 // Handle different system asset types
                 let result = null;
                 
+                // TODO This is wrong; If it got to this class in sp
                 // Create an asset spawner instance
                 const assetSpawner = AssetSpawner.get_instance();
                 

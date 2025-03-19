@@ -6,6 +6,7 @@ import { BLORKPACK_FLAGS } from "../blorkpack_flags.js";
 import { ManifestManager } from "../manifest_manager.js";
 import { SystemAssetType } from "./system_factory/system_asset_types.js";
 import { SystemFactory } from "./system_factory/system_factory.js";
+import { IdGenerator } from "./util/id_generator.js";
 
 // Configuration constants
 /**
@@ -94,17 +95,17 @@ export class AssetSpawner {
                         return this.create_primitive_box(width, height, depth, position, rotation, options);
                     case SystemAssetType.PRIMITIVE_SPHERE.value:
                         const sphereRadius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
-                        return this.create_primitive_sphere(options.id || this.generate_asset_id(), sphereRadius, position, rotation, options);
+                        return this.create_primitive_sphere(options.id || IdGenerator.get_instance().generate_asset_id(), sphereRadius, position, rotation, options);
                     case SystemAssetType.PRIMITIVE_CAPSULE.value:
                         const capsuleRadius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
                         const capsuleHeight = options.dimensions?.height || 1.0;
-                        return this.create_primitive_capsule(options.id || this.generate_asset_id(), capsuleRadius, capsuleHeight, position, rotation, options);
+                        return this.create_primitive_capsule(options.id || IdGenerator.get_instance().generate_asset_id(), capsuleRadius, capsuleHeight, position, rotation, options);
                     case SystemAssetType.PRIMITIVE_CYLINDER.value:
                         const cylinderRadius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
                         const cylinderHeight = options.dimensions?.height || 1.0;
-                        return this.create_primitive_cylinder(options.id || this.generate_asset_id(), cylinderRadius, cylinderHeight, position, rotation, options);
+                        return this.create_primitive_cylinder(options.id || IdGenerator.get_instance().generate_asset_id(), cylinderRadius, cylinderHeight, position, rotation, options);
                     case SystemAssetType.SPOTLIGHT.value:
-                        return this.create_spotlight(options.id || this.generate_asset_id(), position, rotation, options, options.asset_data || {});
+                        return this.create_spotlight(options.id || IdGenerator.get_instance().generate_asset_id(), position, rotation, options, options.asset_data || {});
                     case SystemAssetType.CAMERA.value:
                         return this.spawn_scene_camera(options);
                 }
@@ -1852,7 +1853,7 @@ export class AssetSpawner {
         }
         
         // Generate a unique ID for this asset
-        const instance_id = this.generate_asset_id();
+        const instance_id = IdGenerator.get_instance().generate_asset_id();
         
         // Return the result
         return {
@@ -1960,7 +1961,7 @@ export class AssetSpawner {
         }
         
         // Generate a unique ID for this asset
-        const instance_id = this.generate_asset_id();
+        const instance_id = IdGenerator.get_instance().generate_asset_id();
         
         // Return the result
         return {
@@ -2069,7 +2070,7 @@ export class AssetSpawner {
         }
         
         // Generate a unique ID for this asset
-        const instance_id = this.generate_asset_id();
+        const instance_id = IdGenerator.get_instance().generate_asset_id();
         
         // Return the result
         return {
@@ -2178,7 +2179,7 @@ export class AssetSpawner {
         }
         
         // Generate a unique ID for this asset
-        const instance_id = this.generate_asset_id();
+        const instance_id = IdGenerator.get_instance().generate_asset_id();
         
         // Return the result
         return {
@@ -2188,17 +2189,6 @@ export class AssetSpawner {
             type: SystemAssetType.PRIMITIVE_CYLINDER.value,
             options
         };
-    }
-
-    /**
-     * Generates a unique asset ID for spawned assets.
-     * @returns {string} A unique ID string
-     */
-    generate_asset_id() {
-        // Simple implementation using timestamp and random numbers
-        const timestamp = Date.now();
-        const random = Math.floor(Math.random() * 10000);
-        return `asset_${timestamp}_${random}`;
     }
 
     /**
@@ -2233,7 +2223,7 @@ export class AssetSpawner {
         );
 
         // Store camera reference in asset storage
-        const camera_id = this.storage.get_new_instance_id();
+        const camera_id = IdGenerator.get_instance().generate_asset_id();
         this.storage.store_static_mesh(camera_id, camera);
         
         return camera;

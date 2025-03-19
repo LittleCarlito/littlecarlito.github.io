@@ -1,5 +1,7 @@
 import { THREE, RAPIER } from "../../../index.js";
 import { BLORKPACK_FLAGS } from "../../../blorkpack_flags.js";
+import { SystemAssetType } from "../system_asset_types.js";
+import { IdGenerator } from "../../util/id_generator.js";
 
 /**
  * Creates a primitive cylinder with the specified properties.
@@ -100,25 +102,14 @@ export async function create_primitive_cylinder(scene, world, id, radius, height
     }
     
     // Generate a unique ID for this asset
-    const instance_id = generate_asset_id();
+    const instance_id = IdGenerator.get_instance().generate_asset_id();
     
     // Return the result
     return {
         mesh,
         body,
         instance_id,
-        type: 'primitive_cylinder',
+        type: SystemAssetType.PRIMITIVE_CYLINDER.value,
         options
     };
-}
-
-/**
- * Generates a unique asset ID for spawned assets.
- * @returns {string} A unique ID string
- */
-function generate_asset_id() {
-    // Simple implementation using timestamp and random numbers
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 10000);
-    return `asset_${timestamp}_${random}`;
 } 

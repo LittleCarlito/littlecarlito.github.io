@@ -1,5 +1,7 @@
 import { THREE } from "../../../index.js";
 import { BLORKPACK_FLAGS } from "../../../blorkpack_flags.js";
+import { SystemAssetType } from "../system_asset_types.js";
+import { IdGenerator } from "../../util/id_generator.js";
 
 /**
  * Creates a spotlight with the specified properties.
@@ -43,17 +45,16 @@ export async function create_spotlight(scene, id, position, rotation, options = 
     // Add to scene
     scene.add(spotlight);
 
-    // Generate a unique ID for this asset
-    const instance_id = generate_asset_id();
-
-    // Return the result
-    return {
-        light: spotlight,
-        instance_id,
-        type: 'spotlight',
-        options,
-        asset_data
+    // Store references for later cleanup
+    const asset_object = {
+        mesh: spotlight,
+        body: null, // No physics for lights
+        objects: [spotlight],
+        type: SystemAssetType.SPOTLIGHT.value,
+        instance_id: IdGenerator.get_instance().generate_asset_id()
     };
+    
+    return asset_object;
 }
 
 /**

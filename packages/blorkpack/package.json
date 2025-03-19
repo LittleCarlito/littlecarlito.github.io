@@ -18,6 +18,7 @@
     "./cylinder-spawner": "./dist/asset_spawner/system_factory/system_spawners/cylinder_spawner.js",
     "./sphere-spawner": "./dist/asset_spawner/system_factory/system_spawners/sphere_spawner.js",
     "./spotlight-spawner": "./dist/asset_spawner/system_factory/system_spawners/spotlight_spawner.js",
+    "./id-generator": "./dist/asset_spawner/util/id_generator.js",
     "./asset-storage": "./dist/asset_storage.js",
     "./blorkpack-flags": "./dist/blorkpack_flags.js",
     "./custom-type-manager": "./dist/custom_type_manager.js",
