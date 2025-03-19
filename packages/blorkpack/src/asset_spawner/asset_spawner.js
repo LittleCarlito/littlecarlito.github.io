@@ -6,7 +6,7 @@ import { BLORKPACK_FLAGS } from "../blorkpack_flags.js";
 import { ManifestManager } from "../manifest_manager.js";
 import { SystemAssetType } from "./system_factory/system_asset_types.js";
 import { SystemFactory } from "./system_factory/system_factory.js";
-import { CustomFactory } from "./custom_factory/custom_factory.js";
+import { CustomFactory } from "./custom_factory.js";
 import { IdGenerator } from "./util/id_generator.js";
 
 // Configuration constants
