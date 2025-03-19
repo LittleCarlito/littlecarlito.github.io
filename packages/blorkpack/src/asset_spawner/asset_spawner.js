@@ -12,10 +12,12 @@ import { IdGenerator } from "./common/id_generator.js";
  * Handles both static and dynamic (physics-enabled) assets.
  */
 export class AssetSpawner {
-    static instance = null;
+    static #instance = null;
+    static #disposed = false;
     storage;
     container;
     world;
+    scene;
     
     // Cache the types and configs from CustomTypeManager
     #assetTypes = null;
@@ -27,15 +29,10 @@ export class AssetSpawner {
      * @param {Object} target_world - The physics world
      */
     constructor(target_container = null, target_world = null) {
-        // Singleton pattern
-        if (AssetSpawner.instance) {
-            // Update references if provided
-            if (target_container) this.container = target_container;
-            if (target_world) this.world = target_world;
-            return AssetSpawner.instance;
+        if (AssetSpawner.#instance) {
+            throw new Error('AssetSpawner is a singleton. Use AssetSpawner.get_instance() instead.');
         }
         
-        // Initialize properties
         this.storage = AssetStorage.get_instance();
         this.container = target_container;
         this.world = target_world;
@@ -44,8 +41,8 @@ export class AssetSpawner {
         this.#assetTypes = CustomTypeManager.getTypes();
         this.#assetConfigs = CustomTypeManager.getConfigs();
         
-        // Store the instance
-        AssetSpawner.instance = this;
+        AssetSpawner.#instance = this;
+        AssetSpawner.#disposed = false;
     }
 
     /**
@@ -55,14 +52,18 @@ export class AssetSpawner {
      * @returns {AssetSpawner} The singleton instance.
      */
     static get_instance(scene, world) {
-        if (!AssetSpawner.instance) {
-            AssetSpawner.instance = new AssetSpawner(scene, world);
-        } else {
-            // Update scene and world if provided
-            if (scene) AssetSpawner.instance.scene = scene;
-            if (world) AssetSpawner.instance.world = world;
+        if (AssetSpawner.#disposed) {
+            AssetSpawner.#instance = null;
+            AssetSpawner.#disposed = false;
         }
-        return AssetSpawner.instance;
+        
+        if (!AssetSpawner.#instance) {
+            AssetSpawner.#instance = new AssetSpawner(scene, world);
+        } else if (scene || world) {
+            if (scene) AssetSpawner.#instance.scene = scene;
+            if (world) AssetSpawner.#instance.world = world;
+        }
+        return AssetSpawner.#instance;
     }
 
     /**
@@ -291,7 +292,7 @@ export class AssetSpawner {
      */
     cleanup() {
         // Reset singleton instance
-        AssetSpawner.instance = null;
+        AssetSpawner.#instance = null;
 
         // Clean up any core asset management resources
         if (this.storage) {
@@ -984,5 +985,30 @@ export class AssetSpawner {
     async forceHelperUpdate() {
         const { forceSpotlightDebugUpdate } = await import('./asset_factories/system_spawners/spotlight_spawner.js');
         return forceSpotlightDebugUpdate(this.scene);
+    }
+
+    /**
+     * Dispose of the spawner instance and clean up resources
+     */
+    dispose() {
+        if (!AssetSpawner.#instance) return;
+        
+        // Dispose of factories
+        CustomFactory.dispose_instance();
+        
+        // Clear references
+        this.scene = null;
+        this.world = null;
+        this.storage = null;
+        this.container = null;
+        
+        AssetSpawner.#disposed = true;
+        AssetSpawner.#instance = null;
+    }
+    
+    static dispose_instance() {
+        if (AssetSpawner.#instance) {
+            AssetSpawner.#instance.dispose();
+        }
     }
 } 

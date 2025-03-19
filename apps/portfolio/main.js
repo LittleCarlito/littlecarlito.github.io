@@ -18,14 +18,13 @@ if (import.meta.hot) {
   // Accept updates for the blorkpack package
   import.meta.hot.accept(['@littlecarlito/blorkpack'], (updatedModules) => {
     console.log('HMR update detected for blorkpack dependencies:', updatedModules);
-    if (window.app_renderer) {
-      console.log('Applying updates without full page reload...');
-      // Only clean up rendering loop, but don't force page reload
-      if (window.app_renderer.get_animation_frame_id) {
-        cancelAnimationFrame(window.app_renderer.get_animation_frame_id());
-      }
-      // Restart animation
-      window.app_renderer.set_animation_loop(animate);
+    
+    // Clean up existing instances before the update
+    AssetSpawner.dispose_instance();
+    
+    // Re-initialize after the update if needed
+    if (window.scene && window.physicsWorld) {
+      AssetSpawner.get_instance(window.scene, window.physicsWorld);
     }
   });
 }

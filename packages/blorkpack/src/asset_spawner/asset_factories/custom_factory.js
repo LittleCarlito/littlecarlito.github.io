@@ -10,7 +10,8 @@ import { IdGenerator } from "../common/id_generator.js";
  * Handles loading and spawning of custom 3D models with physics.
  */
 export class CustomFactory {
-    static instance = null;
+    static #instance = null;
+    static #disposed = false;
     storage;
     scene;
     world;
@@ -25,12 +26,9 @@ export class CustomFactory {
      * @param {RAPIER.World} world - The physics world
      */
     constructor(scene = null, world = null) {
-        // Singleton pattern
-        if (CustomFactory.instance) {
-            // Update references if provided
-            if (scene) this.scene = scene;
-            if (world) this.world = world;
-            return CustomFactory.instance;
+        // Singleton pattern - throw error if trying to create new instance
+        if (CustomFactory.#instance) {
+            throw new Error('CustomFactory is a singleton. Use CustomFactory.get_instance() instead.');
         }
         
         // Initialize properties
@@ -43,7 +41,8 @@ export class CustomFactory {
         this.#assetConfigs = CustomTypeManager.getConfigs();
         
         // Store the instance
-        CustomFactory.instance = this;
+        CustomFactory.#instance = this;
+        CustomFactory.#disposed = false;
     }
 
     /**
@@ -53,14 +52,42 @@ export class CustomFactory {
      * @returns {CustomFactory} The singleton instance
      */
     static get_instance(scene, world) {
-        if (!CustomFactory.instance) {
-            CustomFactory.instance = new CustomFactory(scene, world);
-        } else {
-            // Update scene and world if provided
-            if (scene) CustomFactory.instance.scene = scene;
-            if (world) CustomFactory.instance.world = world;
+        if (CustomFactory.#disposed) {
+            CustomFactory.#instance = null;
+            CustomFactory.#disposed = false;
         }
-        return CustomFactory.instance;
+        
+        if (!CustomFactory.#instance) {
+            CustomFactory.#instance = new CustomFactory(scene, world);
+        } else if (scene || world) {
+            // Update scene and world if provided
+            if (scene) CustomFactory.#instance.scene = scene;
+            if (world) CustomFactory.#instance.world = world;
+        }
+        return CustomFactory.#instance;
+    }
+
+    /**
+     * Dispose of the factory instance and clean up resources
+     */
+    dispose() {
+        if (!CustomFactory.#instance) return;
+        
+        // Clear references
+        this.scene = null;
+        this.world = null;
+        this.storage = null;
+        this.#assetTypes = null;
+        this.#assetConfigs = null;
+        
+        CustomFactory.#disposed = true;
+        CustomFactory.#instance = null;
+    }
+
+    static dispose_instance() {
+        if (CustomFactory.#instance) {
+            CustomFactory.#instance.dispose();
+        }
     }
 
     /**
