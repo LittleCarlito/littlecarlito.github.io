@@ -9,17 +9,14 @@ let loadedRAPER = null;
 let rapierInitialized = false;
 
 /**
- * Asynchronously loads Three.js and related modules
- * @returns {Promise<Object>} An object containing THREE, Easing, and Tween
+ * Asynchronously loads Three.js 
+ * @returns {Promise<Object>} The THREE module
  */
 export async function load_three() {
     if (!loadedTHREE) {
         const threeModule = await import('three');
-        // Use the static imports instead of dynamic imports
         loadedTHREE = { 
-            THREE: threeModule, 
-            Easing, 
-            Tween 
+            THREE: threeModule
         };
     }
     return loadedTHREE;
@@ -39,7 +36,7 @@ export async function load_rapier() {
 
 /**
  * Ensures RAPIER is loaded and initialized
- * @returns {Promise<void>}
+ * @returns {Promise<Object>} The initialized RAPIER module
  */
 export async function ensure_rapier_initialized() {
     const RAPIER = await load_rapier();

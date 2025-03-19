@@ -1,11 +1,12 @@
 // Export dependencies for external use
-import * as THREE from 'three';
 import { clone as cloneSkinnedMesh } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { Easing, Tween } from 'three/examples/jsm/libs/tween.module.js';
 import { createRapierProxy } from './rapier_proxy.js';
+import { createThreeProxy } from './three_proxy.js';
 
-// Create the proxy that will lazy-load RAPIER when init() is called
+// Create the proxies that will lazy-load modules when init() is called
 export const RAPIER = createRapierProxy();
+export const THREE = createThreeProxy();
 
 // Create utilities that we will export
 export const AssetUtils = {
@@ -20,15 +21,24 @@ export async function initRapier() {
     return RAPIER.init();
 }
 
-export { THREE, Easing, Tween };
+/**
+ * Initialize Three.js. Must be called before using THREE.
+ * @returns {Promise<void>}
+ */
+export async function initThree() {
+    return THREE.init();
+}
+
+export { Easing, Tween };
 
 // Re-export asset management components
 export * from './asset_storage.js';
 export * from './asset_activator.js';
-export * from './asset_spawner/asset_spawner.js'
+export * from './asset_spawner/asset_spawner.js';
 export * from './manifest_manager.js';
 export * from './loaders.js';
 export * from './app_renderer.js';
+export * from './physics/index.js'; // Export physics utilities
 
 import { AssetStorage } from './asset_storage.js';
 import { AssetSpawner } from './asset_spawner/asset_spawner.js';
@@ -38,6 +48,7 @@ import { AppRenderer } from './app_renderer.js';
 import CustomTypeManager from './custom_type_manager.js';
 import { BLORKPACK_FLAGS } from './blorkpack_flags.js';
 import { MANIFEST_TYPES } from './manifest_types.js';
+import { initPhysicsUtil } from './physics/physics_util.js';
 
 // Export the components
 export {
@@ -48,5 +59,6 @@ export {
     AssetActivator,
     AppRenderer,
     CustomTypeManager,
-    BLORKPACK_FLAGS
+    BLORKPACK_FLAGS,
+    initPhysicsUtil
 }; 

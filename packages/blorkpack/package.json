@@ -23,8 +23,11 @@
     "./loaders": "./dist/loaders.js",
     "./manifest-manager": "./dist/manifest_manager.js",
     "./manifest-types": "./dist/manifest_types.js",
+    "./physics-util": "./dist/physics/physics_util.js",
     "./rapier-proxy": "./dist/rapier_proxy.js",
-    "./asset_spawner/system_factory/system_spawners": "./dist/asset_spawner/system_factory/system_spawners/index.js"
+    "./three-proxy": "./dist/three_proxy.js",
+    "./asset_spawner/system_factory/system_spawners": "./dist/asset_spawner/system_factory/system_spawners/index.js",
+    "./physics": "./dist/physics/index.js"
   },
   "files": [
     "dist"
