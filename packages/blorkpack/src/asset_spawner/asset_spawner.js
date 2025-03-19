@@ -88,28 +88,24 @@ export class AssetSpawner {
         
         try {
             // Check if this is a system asset type
-            if (SystemAssetType && SystemAssetType.isSystemAssetType(type_value)) {
-                // Handle system asset types
-                switch (type_value) {
-                    case SystemAssetType.PRIMITIVE_BOX.value:
-                        const { width = 1, height = 1, depth = 1 } = options.dimensions || {};
-                        return this.create_primitive_box(width, height, depth, position, rotation, options);
-                    case SystemAssetType.PRIMITIVE_SPHERE.value:
-                        const sphereRadius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
-                        return this.create_primitive_sphere(options.id || IdGenerator.get_instance().generate_asset_id(), sphereRadius, position, rotation, options);
-                    case SystemAssetType.PRIMITIVE_CAPSULE.value:
-                        const capsuleRadius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
-                        const capsuleHeight = options.dimensions?.height || 1.0;
-                        return this.create_primitive_capsule(options.id || IdGenerator.get_instance().generate_asset_id(), capsuleRadius, capsuleHeight, position, rotation, options);
-                    case SystemAssetType.PRIMITIVE_CYLINDER.value:
-                        const cylinderRadius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
-                        const cylinderHeight = options.dimensions?.height || 1.0;
-                        return this.create_primitive_cylinder(options.id || IdGenerator.get_instance().generate_asset_id(), cylinderRadius, cylinderHeight, position, rotation, options);
-                    case SystemAssetType.SPOTLIGHT.value:
-                        return this.create_spotlight(options.id || IdGenerator.get_instance().generate_asset_id(), position, rotation, options, options.asset_data || {});
-                    case SystemAssetType.CAMERA.value:
-                        return this.spawn_scene_camera(options);
+            if (SystemAssetType.isSystemAssetType(type_value)) {
+                // Handle camera and spotlight in AssetSpawner for now
+                if (type_value === SystemAssetType.CAMERA.value) {
+                    return this.spawn_scene_camera(options);
                 }
+                if (type_value === SystemAssetType.SPOTLIGHT.value) {
+                    return this.create_spotlight(
+                        options.id || IdGenerator.get_instance().generate_asset_id(),
+                        position,
+                        rotation,
+                        options,
+                        options.asset_data || {}
+                    );
+                }
+
+                // Delegate other system asset types to SystemFactory
+                const system_factory = SystemFactory.get_instance(this.scene, this.world);
+                return await system_factory.spawn_asset(asset_type, position, rotation, options);
             }
             
             // Check if the asset type exists in custom types

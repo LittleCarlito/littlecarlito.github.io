@@ -9,6 +9,7 @@ import {
 } from './system_spawners/index.js';
 import { SystemAssetType } from "./system_asset_types.js";
 import { AssetSpawner } from "../asset_spawner.js";
+import { IdGenerator } from "../util/id_generator.js";
 
 /**
  * Factory class responsible for creating and managing system-level assets.
@@ -263,6 +264,97 @@ export class SystemFactory {
         } catch (error) {
             console.error("Error spawning system assets:", error);
             return spawned_assets;
+        }
+    }
+
+    /**
+     * Spawns a system asset of the specified type at the given position with the given rotation.
+     * @param {string|SystemAssetType} asset_type - The type of asset to spawn.
+     * @param {THREE.Vector3} position - The position to spawn the asset at.
+     * @param {THREE.Quaternion} rotation - The rotation of the asset.
+     * @param {Object} options - Additional options for spawning.
+     * @returns {Promise<Object>} A promise that resolves with the spawned asset details.
+     * @throws {Error} If the requested system type is not supported
+     */
+    async spawn_asset(asset_type, position = new THREE.Vector3(), rotation = new THREE.Quaternion(), options = {}) {
+        // Handle SystemAssetType enum objects by extracting the value property
+        let type_value = typeof asset_type === 'object' && asset_type.value ? asset_type.value : asset_type;
+        
+        // Verify this is a system asset type
+        if (!SystemAssetType.isSystemAssetType(type_value)) {
+            throw new Error(`Requested type "${type_value}" is not a supported system asset type`);
+        }
+
+        // Convert string type to enum if it's a system asset type
+        const asset_type_enum = SystemAssetType.fromValue(type_value);
+
+        // Handle different system asset types
+        switch (asset_type_enum) {
+            case SystemAssetType.PRIMITIVE_BOX:
+                const { width = 1, height = 1, depth = 1 } = options.dimensions || {};
+                return create_primitive_box(
+                    this.scene,
+                    this.world,
+                    width,
+                    height,
+                    depth,
+                    position,
+                    rotation,
+                    options
+                );
+
+            case SystemAssetType.PRIMITIVE_SPHERE:
+                const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
+                return create_primitive_sphere(
+                    this.scene,
+                    this.world,
+                    options.id || IdGenerator.get_instance().generate_asset_id(),
+                    radius,
+                    position,
+                    rotation,
+                    options
+                );
+
+            case SystemAssetType.PRIMITIVE_CAPSULE:
+                const capsuleRadius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
+                const capsuleHeight = options.dimensions?.height || 1.0;
+                return create_primitive_capsule(
+                    this.scene,
+                    this.world,
+                    options.id || IdGenerator.get_instance().generate_asset_id(),
+                    capsuleRadius,
+                    capsuleHeight,
+                    position,
+                    rotation,
+                    options
+                );
+
+            case SystemAssetType.PRIMITIVE_CYLINDER:
+                const cylinderRadius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
+                const cylinderHeight = options.dimensions?.height || 1.0;
+                return create_primitive_cylinder(
+                    this.scene,
+                    this.world,
+                    options.id || IdGenerator.get_instance().generate_asset_id(),
+                    cylinderRadius,
+                    cylinderHeight,
+                    position,
+                    rotation,
+                    options
+                );
+
+            case SystemAssetType.SPOTLIGHT:
+                return create_spotlight(
+                    this.scene,
+                    options.id || IdGenerator.get_instance().generate_asset_id(),
+                    position,
+                    rotation,
+                    options,
+                    options.asset_data || {}
+                );
+
+            default:
+                throw new Error(`System asset type "${type_value}" is not supported`);
         }
     }
 }
