@@ -1,12 +1,13 @@
 // @ts-nocheck
 // Import the global config first to ensure it's available to all modules
-import { FLAGS, THREE, RAPIER, load_three, updateTween, initRapier } from './common/index.js';
+import { FLAGS, THREE, RAPIER, initThree, updateTween, initRapier } from './common/index.js';
 import { ViewableContainer } from './viewport/viewable_container.js';
 import { BackgroundContainer } from './background/background_container.js';
 import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/overlay_common/index.js';
 import { AppRenderer } from './common/index.js';
-import { shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, grab_object, release_object } from './background/background_common/index.js';
-import { AssetStorage, AssetActivator, AssetSpawner, ManifestManager, BLORKPACK_FLAGS, CustomTypeManager } from '@littlecarlito/blorkpack';
+import { AssetStorage, AssetActivator, AssetSpawner, ManifestManager, BLORKPACK_FLAGS, CustomTypeManager, 
+         shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, 
+         grab_object, release_object, initPhysicsUtil } from '@littlecarlito/blorkpack';
 import { toggleDebugUI, createDebugUI as create_debug_UI, setBackgroundContainer as set_background_container, setResolutionScale as set_resolution_scale, updateLabelWireframes, setSceneReference } from './common/debug_ui.js';
 
 // Enable HMR for development
@@ -167,13 +168,17 @@ async function display_modal(modal_path, modal_id, button_id, onAcknowledge) {
 async function init() {
     try {
         await show_loading_screen();
-        // Load three
+        // Initialize THREE
         update_loading_progress('Loading Three.js...');
-        await load_three(); // Still load async but we already have THREE available
+        await initThree(); // This will load and initialize THREE
         
-        // Load rapier
+        // Initialize Rapier
         update_loading_progress('Loading Rapier Physics...');
-        await initRapier(); // This will both load and initialize Rapier
+        await initRapier(); // This will load and initialize Rapier
+        
+        // Initialize physics utilities
+        update_loading_progress('Initializing physics utilities...');
+        await initPhysicsUtil();
         
         // Load custom types
         update_loading_progress('Loading custom asset types...');

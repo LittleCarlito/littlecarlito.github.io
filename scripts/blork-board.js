@@ -742,8 +742,14 @@ async function shutdownGracefully() {
       }
     });
   
-  // Wait for all termination attempts
+  // Wait for all termination attempts with a timeout
+  const terminationTimeout = setTimeout(() => {
+    console.log('Termination taking too long, forcing exit...');
+    process.exit(0);
+  }, 3000);
+  
   await Promise.all(termPromises);
+  clearTimeout(terminationTimeout);
   
   // Second attempt: force kill with SIGKILL for any remaining processes
   const killPromises = projects
@@ -757,7 +763,14 @@ async function shutdownGracefully() {
       }
     });
   
+  // Set a final timeout in case force kill gets stuck
+  const forceKillTimeout = setTimeout(() => {
+    console.log('Force killing taking too long, forcing exit...');
+    process.exit(0);
+  }, 1000);
+  
   await Promise.all(killPromises);
+  clearTimeout(forceKillTimeout);
   
   // Close the express server
   if (expressServer) {
@@ -767,7 +780,9 @@ async function shutdownGracefully() {
   
   console.log('✅ BlorkBoard shutdown complete');
   // Force exit after cleanup
-  process.exit(0);
+  setTimeout(() => {
+    process.exit(0);
+  }, 100);
 }
 
 // Simplified main function to run everything
@@ -854,7 +869,15 @@ async function run() {
     }
     
     // Set up signal handlers for graceful shutdown
-    process.on('SIGINT', shutdownGracefully);  // Ctrl+C
+    process.on('SIGINT', () => {
+      console.log('Interrupt received, shutting down...');
+      // Force exit after a timeout even if shutdownGracefully gets stuck
+      setTimeout(() => {
+        console.log('Forced exit due to timeout');
+        process.exit(0);
+      }, 5000);
+      shutdownGracefully();
+    });
     process.on('SIGTERM', shutdownGracefully); // kill command
     process.on('SIGHUP', shutdownGracefully);  // Terminal closed
     

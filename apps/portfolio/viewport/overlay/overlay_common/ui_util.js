@@ -1,6 +1,26 @@
-import { THREE } from "../../../common";
+import { THREE, initThree } from "../../../common";
 
-export const TEXTURE_LOADER = new THREE.TextureLoader();
+// Create a lazy-loaded TextureLoader
+let textureLoader = null;
+
+/**
+ * Get the TextureLoader instance, initializing if needed
+ * @returns {THREE.TextureLoader} The texture loader instance
+ */
+export function getTextureLoader() {
+    if (!textureLoader) {
+        textureLoader = new THREE.TextureLoader();
+    }
+    return textureLoader;
+}
+
+// Export a compatible API that works like the old TEXTURE_LOADER
+export const TEXTURE_LOADER = {
+    load: (url, onLoad, onProgress, onError) => {
+        return getTextureLoader().load(url, onLoad, onProgress, onError);
+    }
+};
+
 // Constants
 export const PAN_SPEED = 800;
 export const ROTATE_SPEED = 300;
@@ -24,8 +44,30 @@ export function extract_type(incoming_object) {
 }
 
 // Mouse detection
-const raycaster = new THREE.Raycaster();
-const mouse_location = new THREE.Vector2();
+let raycaster = null;
+let mouse_location = null;
+
+/**
+ * Get the raycaster, initializing if needed
+ * @returns {THREE.Raycaster} The raycaster instance
+ */
+function getRaycaster() {
+    if (!raycaster) {
+        raycaster = new THREE.Raycaster();
+    }
+    return raycaster;
+}
+
+/**
+ * Get the mouse location vector, initializing if needed
+ * @returns {THREE.Vector2} The mouse location vector
+ */
+function getMouseLocation() {
+    if (!mouse_location) {
+        mouse_location = new THREE.Vector2();
+    }
+    return mouse_location;
+}
 
 /** Converts screen coordinates to Normalized Device Coordinates (NDC) */
 export function get_ndc_from_event(e) {
@@ -38,10 +80,13 @@ export function get_ndc_from_event(e) {
 /** Retrieves objects mouse is intersecting with from the given event */
 export function get_intersect_list(e, incoming_camera, incoming_scene) {
     const ndc = get_ndc_from_event(e);
-    mouse_location.x = ndc.x;
-    mouse_location.y = ndc.y;
-    raycaster.setFromCamera(mouse_location, incoming_camera);
-    const intersections = raycaster.intersectObject(incoming_scene, true);
+    const mousePos = getMouseLocation();
+    mousePos.x = ndc.x;
+    mousePos.y = ndc.y;
+    
+    const ray = getRaycaster();
+    ray.setFromCamera(mousePos, incoming_camera);
+    const intersections = ray.intersectObject(incoming_scene, true);
     
     // First sort by renderOrder (higher values first)
     // This ensures UI elements with high renderOrder are prioritized
