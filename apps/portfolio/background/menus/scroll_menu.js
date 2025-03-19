@@ -839,9 +839,9 @@ export class ScrollMenu {
             // Remove spotlight
             if (this.menu_spotlight) {
                 // First remove helpers if any
-                await this.spawner.despawn_spotlight_helpers(this.menu_spotlight.mesh);
+                await this.spawner.despawn_helpers(this.menu_spotlight.mesh);
                 // Then remove the spotlight itself
-                await this.spawner.despawn_spotlight(this.menu_spotlight.mesh);
+                await this.spawner.despawn_helpers(this.menu_spotlight.mesh);
                 this.menu_spotlight = null;
             }
 

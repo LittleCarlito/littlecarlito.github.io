@@ -758,9 +758,9 @@ export function createDebugUI() {
         console.log(`Spotlight debug helpers visibility set to ${checked ? 'visible' : 'hidden'}`);
         
         // Force update of spotlight debug visualizations to apply the change
-        if (window.asset_spawner && window.asset_spawner.forceSpotlightDebugUpdate) {
-            window.asset_spawner.forceSpotlightDebugUpdate();
-            window.asset_spawner.update_spotlight_debug_visualizations();
+        if (window.asset_spawner && window.asset_spawner.forceHelperUpdate) {
+            window.asset_spawner.forceHelperUpdate();
+            window.asset_spawner.update_helpers();
         }
     });
     

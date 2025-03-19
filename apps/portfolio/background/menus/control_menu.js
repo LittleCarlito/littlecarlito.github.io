@@ -424,7 +424,7 @@ export class ControlMenu {
 
         // Remove spotlight if it exists
         if (this.menu_spotlight) {
-            await this.spawner.despawn_spotlight(this.menu_spotlight.mesh);
+            await this.spawner.despawn_helpers(this.menu_spotlight.mesh);
             this.menu_spotlight = null;
         }
 
