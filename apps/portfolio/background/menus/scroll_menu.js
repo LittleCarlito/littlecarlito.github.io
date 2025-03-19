@@ -3,6 +3,7 @@ import { AssetStorage, CustomTypeManager, BLORKPACK_FLAGS }  from '@littlecarlit
 import { TYPES } from "../../viewport/overlay/overlay_common";
 import { RAPIER } from '../../common';
 import { AssetSpawner } from '@littlecarlito/blorkpack';
+import { SystemAssetType } from '@littlecarlito/blorkpack';
 
 export class ScrollMenu {
     parent;
@@ -518,11 +519,12 @@ export class ScrollMenu {
                 // Create a spotlight with smaller radius and sharper edge
                 // Use white light with higher intensity
                 const circle_radius = 3; // Smaller radius for scroll menu
-                this.menu_spotlight = await this.spawner.create_spotlight(
-                    "scroll_menu_spotlight", 
+                this.menu_spotlight = await this.spawner.spawn_asset(
+                    SystemAssetType.SPOTLIGHT, 
                     spotlightPosition,
-                    { x: rotationX, y: rotationY },
+                    new THREE.Quaternion().setFromEuler(new THREE.Euler(rotationX, rotationY, 0)),
                     {
+                        id: "scroll_menu_spotlight",
                         circle_radius: circle_radius,
                         color: "0xFFFFFF", // Standard white light
                         intensity: 1.2,    // Much higher intensity to draw attention

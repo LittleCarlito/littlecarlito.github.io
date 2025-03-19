@@ -2,6 +2,7 @@ import { TYPES } from '../../viewport/overlay/overlay_common';
 import { FLAGS, RAPIER, THREE } from '../../common';
 import { CustomTypeManager, AssetSpawner }  from '@littlecarlito/blorkpack';
 import { BLORKPACK_FLAGS } from '@littlecarlito/blorkpack';
+import { SystemAssetType } from '@littlecarlito/blorkpack';
 
 export const IMAGE_PATH = 'images/MouseControlMenu.svg';
 
@@ -361,11 +362,12 @@ export class ControlMenu {
                     
                     // Adjust properties for a clearer edge but keep a larger radius
                     // Larger radius for control menu (white with higher intensity)
-                    this.spawner.create_spotlight(
-                        "control_menu_spotlight",
+                    this.spawner.spawn_asset(
+                        SystemAssetType.SPOTLIGHT,
                         spotlightPosition,
-                        { x: rotationX, y: rotationY },
+                        new THREE.Quaternion().setFromEuler(new THREE.Euler(rotationX, rotationY, 0)),
                         {
+                            id: "control_menu_spotlight",
                             circle_radius: 6,
                             color: "0xFFFFFF", // Standard white light instead of yellow
                             intensity: 1.2,    // Much higher intensity to draw attention

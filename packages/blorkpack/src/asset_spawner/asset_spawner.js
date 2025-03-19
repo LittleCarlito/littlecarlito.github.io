@@ -14,20 +14,6 @@ import { SystemAssetType } from "./system_factory/system_asset_types.js";
 const UNLIMITED_SPOTLIGHT_DEBUG_LENGTH = 400;
 
 /**
- * Generates triangle indices for a geometry that doesn't have them
- * @param {THREE.BufferGeometry} geometry - The geometry to generate indices for
- * @returns {Uint32Array} The generated indices
- */
-function generate_indices(geometry) {
-    const vertexCount = geometry.attributes.position.count;
-    const indices = new Uint32Array(vertexCount);
-    for (let i = 0; i < vertexCount; i++) {
-        indices[i] = i;
-    }
-    return indices;
-}
-
-/**
  * Class responsible for spawning and managing 3D assets in the scene.
  * Handles both static and dynamic (physics-enabled) assets.
  */
@@ -102,23 +88,23 @@ export class AssetSpawner {
             if (SystemAssetType && SystemAssetType.isSystemAssetType(type_value)) {
                 // Handle system asset types
                 switch (type_value) {
-                    case 'primitive_box':
+                    case SystemAssetType.PRIMITIVE_BOX.value:
                         const { width = 1, height = 1, depth = 1 } = options.dimensions || {};
                         return this.create_primitive_box(width, height, depth, position, rotation, options);
-                    case 'primitive_sphere':
+                    case SystemAssetType.PRIMITIVE_SPHERE.value:
                         const sphereRadius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
                         return this.create_primitive_sphere(options.id || this.generate_asset_id(), sphereRadius, position, rotation, options);
-                    case 'primitive_capsule':
+                    case SystemAssetType.PRIMITIVE_CAPSULE.value:
                         const capsuleRadius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
                         const capsuleHeight = options.dimensions?.height || 1.0;
                         return this.create_primitive_capsule(options.id || this.generate_asset_id(), capsuleRadius, capsuleHeight, position, rotation, options);
-                    case 'primitive_cylinder':
+                    case SystemAssetType.PRIMITIVE_CYLINDER.value:
                         const cylinderRadius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
                         const cylinderHeight = options.dimensions?.height || 1.0;
                         return this.create_primitive_cylinder(options.id || this.generate_asset_id(), cylinderRadius, cylinderHeight, position, rotation, options);
-                    case 'spotlight':
+                    case SystemAssetType.SPOTLIGHT.value:
                         return this.create_spotlight(options.id || this.generate_asset_id(), position, rotation, options, options.asset_data || {});
-                    case 'camera':
+                    case SystemAssetType.CAMERA.value:
                         return this.spawn_scene_camera(options);
                 }
             }
@@ -543,7 +529,7 @@ export class AssetSpawner {
         
         // Find and clean up spotlight assets
         allAssets.forEach(asset => {
-            if (asset && asset.type === 'spotlight') {
+            if (asset && asset.type === SystemAssetType.SPOTLIGHT.value) {
                 // Remove spotlight and its target from the scene
                 if (asset.objects) {
                     asset.objects.forEach(obj => {
@@ -1287,7 +1273,7 @@ export class AssetSpawner {
                 // Handle different system asset types
                 let result = null;
                 
-                if (asset_type === 'primitive_box') {
+                if (asset_type === SystemAssetType.PRIMITIVE_BOX.value) {
                     // Create a primitive box with the specified dimensions and properties
                     result = await this.create_primitive_box(
                         options.dimensions.width, 
@@ -1299,7 +1285,7 @@ export class AssetSpawner {
                     );
                 } 
                 // Handle spotlight asset type
-                else if (asset_type === 'spotlight') {
+                else if (asset_type === SystemAssetType.SPOTLIGHT.value) {
                     result = await this.create_spotlight(
                         asset_data.id,
                         position,
@@ -1309,7 +1295,7 @@ export class AssetSpawner {
                     );
                 }
                 // Handle primitive sphere asset type
-                else if (asset_type === 'primitive_sphere') {
+                else if (asset_type === SystemAssetType.PRIMITIVE_SPHERE.value) {
                     const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
                     result = await this.create_primitive_sphere(
                         asset_data.id,
@@ -1320,7 +1306,7 @@ export class AssetSpawner {
                     );
                 }
                 // Handle primitive capsule asset type
-                else if (asset_type === 'primitive_capsule') {
+                else if (asset_type === SystemAssetType.PRIMITIVE_CAPSULE.value) {
                     const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
                     const height = options.dimensions?.height || 1.0;
                     result = await this.create_primitive_capsule(
@@ -1333,7 +1319,7 @@ export class AssetSpawner {
                     );
                 }
                 // Handle primitive cylinder asset type
-                else if (asset_type === 'primitive_cylinder') {
+                else if (asset_type === SystemAssetType.PRIMITIVE_CYLINDER.value) {
                     const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
                     const height = options.dimensions?.height || 1.0;
                     result = await this.create_primitive_cylinder(
@@ -1629,7 +1615,7 @@ export class AssetSpawner {
         
         all_assets.forEach(asset => {
             // Check if it's a spotlight asset with debug helpers
-            if ((asset.type === 'spotlight' || asset.mesh?.userData?.type === 'spotlight') && 
+            if ((asset.type === SystemAssetType.SPOTLIGHT.value || asset.mesh?.userData?.type === SystemAssetType.SPOTLIGHT.value) && 
                 asset.mesh && asset.mesh.isSpotLight && asset.mesh.userData.debugHelpers) {
                 
                 const spotlight = asset.mesh;
@@ -1694,7 +1680,7 @@ export class AssetSpawner {
         const all_assets = this.storage.get_all_assets();
         all_assets.forEach(asset => {
             // Check if it's a spotlight asset
-            if ((asset.type === 'spotlight' || asset.mesh?.userData?.type === 'spotlight') && 
+            if ((asset.type === SystemAssetType.SPOTLIGHT.value || asset.mesh?.userData?.type === SystemAssetType.SPOTLIGHT.value) && 
                 asset.mesh && asset.mesh.isSpotLight) {
                 allSpotlights.add(asset.mesh);
             }
@@ -1890,7 +1876,7 @@ export class AssetSpawner {
             // Set type in userData for later identification
             spotlight.userData = { 
                 ...spotlight.userData,
-                type: 'spotlight',
+                type: SystemAssetType.SPOTLIGHT.value,
                 hasCustomTarget: hasCustomTarget
             };
             // Create debug visualization always, regardless of flag
@@ -1911,7 +1897,7 @@ export class AssetSpawner {
                 mesh: spotlight,
                 body: null, // No physics for lights
                 objects: [spotlight, target],
-                type: 'spotlight'
+                type: SystemAssetType.SPOTLIGHT.value
             };
             // Store in asset storage for proper cleanup
             try {
@@ -1919,7 +1905,7 @@ export class AssetSpawner {
                 this.storage.store_static_mesh(spotlight_id, spotlight);
                 
                 // Ensure the spotlight is properly marked with its type for future queries
-                spotlight.userData.type = 'spotlight';
+                spotlight.userData.type = SystemAssetType.SPOTLIGHT.value;
                 spotlight.userData.id = id;
                 spotlight.userData.instanceId = spotlight_id;
                 
@@ -2056,7 +2042,7 @@ export class AssetSpawner {
             mesh,
             body,
             instance_id,
-            type: 'primitive_box',
+            type: SystemAssetType.PRIMITIVE_BOX.value,
             options
         };
     }
@@ -2164,7 +2150,7 @@ export class AssetSpawner {
             mesh,
             body,
             instance_id,
-            type: 'primitive_sphere',
+            type: SystemAssetType.PRIMITIVE_SPHERE.value,
             options
         };
     }
@@ -2273,7 +2259,7 @@ export class AssetSpawner {
             mesh,
             body,
             instance_id,
-            type: 'primitive_capsule',
+            type: SystemAssetType.PRIMITIVE_CAPSULE.value,
             options
         };
     }
@@ -2382,7 +2368,7 @@ export class AssetSpawner {
             mesh,
             body,
             instance_id,
-            type: 'primitive_cylinder',
+            type: SystemAssetType.PRIMITIVE_CYLINDER.value,
             options
         };
     }

@@ -7,6 +7,8 @@ import {
     create_primitive_cylinder,
     create_spotlight
 } from './system_spawners/index.js';
+import { SystemAssetType } from "./system_asset_types.js";
+import { AssetSpawner } from "../asset_spawner.js";
 
 /**
  * Factory class responsible for creating and managing system-level assets.
@@ -73,7 +75,13 @@ export class SystemFactory {
                 }
                 
                 // Get asset type information
-                const asset_type = asset_data.asset_type;
+                const asset_type_str = asset_data.asset_type;
+                
+                // Convert string type to enum if it's a system asset type
+                let asset_type = asset_type_str;
+                if (SystemAssetType.isSystemAssetType(asset_type_str)) {
+                    asset_type = SystemAssetType.fromValue(asset_type_str);
+                }
                 
                 // Extract position and rotation from asset data
                 const position = new THREE.Vector3(
@@ -133,7 +141,7 @@ export class SystemFactory {
 
                 // Log the asset being created for debugging
                 if (BLORKPACK_FLAGS.ASSET_LOGS) {
-                    console.log(`Creating system asset: ${asset_data.id} (${asset_type})`, {
+                    console.log(`Creating system asset: ${asset_data.id} (${asset_type_str})`, {
                         position,
                         dimensions: options.dimensions,
                         color: options.color
@@ -143,82 +151,105 @@ export class SystemFactory {
                 // Handle different system asset types
                 let result = null;
                 
-                if (asset_type === 'primitive_box') {
-                    // Create a primitive box with the specified dimensions and properties
-                    result = await create_primitive_box(
-                        this.scene,
-                        this.world,
-                        options.dimensions.width, 
-                        options.dimensions.height, 
-                        options.dimensions.depth, 
-                        position, 
-                        quaternion, 
-                        options
-                    );
-                } 
-                // Handle spotlight asset type
-                else if (asset_type === 'spotlight') {
-                    result = await create_spotlight(
-                        this.scene,
-                        asset_data.id,
-                        position,
-                        rotation,
-                        options,
-                        asset_data
-                    );
-                }
-                // Handle primitive sphere asset type
-                else if (asset_type === 'primitive_sphere') {
-                    const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
-                    result = await create_primitive_sphere(
-                        this.scene,
-                        this.world,
-                        asset_data.id,
-                        radius,
-                        position, 
-                        quaternion,
-                        options
-                    );
-                }
-                // Handle primitive capsule asset type
-                else if (asset_type === 'primitive_capsule') {
-                    const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
-                    const height = options.dimensions?.height || 1.0;
-                    result = await create_primitive_capsule(
-                        this.scene,
-                        this.world,
-                        asset_data.id,
-                        radius,
-                        height,
-                        position,
-                        quaternion,
-                        options
-                    );
-                }
-                // Handle primitive cylinder asset type
-                else if (asset_type === 'primitive_cylinder') {
-                    const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
-                    const height = options.dimensions?.height || 1.0;
-                    result = await create_primitive_cylinder(
-                        this.scene,
-                        this.world,
-                        asset_data.id,
-                        radius,
-                        height,
-                        position,
-                        quaternion,
-                        options
-                    );
+                // Create an asset spawner instance
+                const assetSpawner = AssetSpawner.get_instance();
+                
+                // Use spawn_asset for all asset types
+                result = await assetSpawner.spawn_asset(
+                    asset_type,
+                    position,
+                    quaternion, // For non-Euler rotation types
+                    {
+                        ...options,
+                        id: asset_data.id,
+                        asset_data: asset_data,
+                        rotation_euler: rotation // Store original Euler rotation if needed
+                    }
+                );
+                
+                // If the result is null, fallback to legacy methods
+                if (!result) {
+                    if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                        console.warn(`Fallback to legacy system spawners for: ${asset_data.id} (${asset_type_str})`);
+                    }
+                    
+                    if (asset_type_str === SystemAssetType.PRIMITIVE_BOX.value) {
+                        // Create a primitive box with the specified dimensions and properties
+                        result = await create_primitive_box(
+                            this.scene,
+                            this.world,
+                            options.dimensions.width, 
+                            options.dimensions.height, 
+                            options.dimensions.depth, 
+                            position, 
+                            quaternion, 
+                            options
+                        );
+                    } 
+                    // Handle spotlight asset type
+                    else if (asset_type_str === SystemAssetType.SPOTLIGHT.value) {
+                        result = await create_spotlight(
+                            this.scene,
+                            asset_data.id,
+                            position,
+                            rotation,
+                            options,
+                            asset_data
+                        );
+                    }
+                    // Handle primitive sphere asset type
+                    else if (asset_type_str === SystemAssetType.PRIMITIVE_SPHERE.value) {
+                        const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
+                        result = await create_primitive_sphere(
+                            this.scene,
+                            this.world,
+                            asset_data.id,
+                            radius,
+                            position, 
+                            quaternion,
+                            options
+                        );
+                    }
+                    // Handle primitive capsule asset type
+                    else if (asset_type_str === SystemAssetType.PRIMITIVE_CAPSULE.value) {
+                        const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
+                        const height = options.dimensions?.height || 1.0;
+                        result = await create_primitive_capsule(
+                            this.scene,
+                            this.world,
+                            asset_data.id,
+                            radius,
+                            height,
+                            position,
+                            quaternion,
+                            options
+                        );
+                    }
+                    // Handle primitive cylinder asset type
+                    else if (asset_type_str === SystemAssetType.PRIMITIVE_CYLINDER.value) {
+                        const radius = options.dimensions?.radius || options.dimensions?.width / 2 || 0.5;
+                        const height = options.dimensions?.height || 1.0;
+                        result = await create_primitive_cylinder(
+                            this.scene,
+                            this.world,
+                            asset_data.id,
+                            radius,
+                            height,
+                            position,
+                            quaternion,
+                            options
+                        );
+                    }
                 }
                 
                 if (result) {
                     // Store the asset ID and type with the spawned asset data
                     result.id = asset_data.id;
-                    result.asset_type = asset_type;
+                    result.asset_type = asset_type_str;
                     spawned_assets.push(result);
                     
                     if (BLORKPACK_FLAGS.ASSET_LOGS) {
-                        console.log(`Spawned system asset: ${asset_data.id} (${asset_type})`);
+                        console.log(`Spawned system asset: ${asset_data.id} (${asset_type_str})`);
                     }
                 }
             }

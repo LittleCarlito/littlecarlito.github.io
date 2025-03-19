@@ -1,6 +1,7 @@
 import { FLAGS, THREE } from "../common";
 import { AssetSpawner }  from '@littlecarlito/blorkpack';
 import { BLORKPACK_FLAGS } from "@littlecarlito/blorkpack";
+import { SystemAssetType } from "@littlecarlito/blorkpack";
 
 // Utility functions for angle conversion
 const ANGLES = {
@@ -74,16 +75,17 @@ export class CameraManager {
             const rotation_y = Math.atan2(direction.x, direction.z);
             const rotation_x = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
             
-            this.left_shoulder_light = await this.spawner.create_spotlight(
-                "left_shoulder_light",
+            this.left_shoulder_light = await this.spawner.spawn_asset(
+                SystemAssetType.SPOTLIGHT,
                 leftPos,
-                { x: rotation_x, y: rotation_y },
+                new THREE.Quaternion().setFromEuler(new THREE.Euler(rotation_x, rotation_y, 0)),
                 {
+                    id: "left_shoulder_light",
                     circle_radius: lights_config.left.position.y * Math.tan(ANGLES.toRadians(lights_config.left.angle)),
                     max_distance: lights_config.left.max_distance,
-                    intensity: lights_config.left.intensity
-                },
-                {} // empty asset_data
+                    intensity: lights_config.left.intensity,
+                    asset_data: {} // empty asset_data
+                }
             );
             if(BLORKPACK_FLAGS.ASSET_LOGS) {
                 console.log("Left shoulder light created:", this.left_shoulder_light ? "success" : "failed");
@@ -115,16 +117,17 @@ export class CameraManager {
             const rotation_y = Math.atan2(direction.x, direction.z);
             const rotation_x = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
             
-            this.right_shoulder_light = await this.spawner.create_spotlight(
-                "right_shoulder_light",
+            this.right_shoulder_light = await this.spawner.spawn_asset(
+                SystemAssetType.SPOTLIGHT,
                 rightPos,
-                { x: rotation_x, y: rotation_y },
+                new THREE.Quaternion().setFromEuler(new THREE.Euler(rotation_x, rotation_y, 0)),
                 {
+                    id: "right_shoulder_light",
                     circle_radius: lights_config.right.position.y * Math.tan(ANGLES.toRadians(lights_config.right.angle)),
                     max_distance: lights_config.right.max_distance,
-                    intensity: lights_config.right.intensity
-                },
-                {} // empty asset_data
+                    intensity: lights_config.right.intensity,
+                    asset_data: {} // empty asset_data
+                }
             );
             if(BLORKPACK_FLAGS.ASSET_LOGS) {
                 console.log("Right shoulder light created:", this.right_shoulder_light ? "success" : "failed");
