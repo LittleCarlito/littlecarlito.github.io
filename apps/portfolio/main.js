@@ -66,6 +66,7 @@ function cleanup() {
     // Cleanup asset systems
     if (window.asset_spawner) {
         window.asset_spawner.cleanup();
+        window.asset_spawner.cleanup_debug();
         window.asset_spawner = null;
     }
     // Force garbage collection on Three.js objects
@@ -459,7 +460,7 @@ function animate() {
     
     // Ensure regular cleanup of unused resources
     if (window.asset_spawner) {
-        window.asset_spawner.performCleanup();
+        window.asset_spawner.update_visualizations();
         
         // Always ensure spotlight debug meshes are visible
         if (window.asset_spawner.update_spotlight_debug_visualizations) {

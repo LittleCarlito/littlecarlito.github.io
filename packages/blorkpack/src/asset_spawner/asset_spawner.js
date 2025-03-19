@@ -148,6 +148,7 @@ export class AssetSpawner {
     }
 
     /**
+     * @deprecated
      * Creates a debug wireframe for visualizing physics shapes.
      * @param {string} type - The type of wireframe to create.
      * @param {Object} dimensions - The dimensions of the wireframe.
@@ -258,6 +259,7 @@ export class AssetSpawner {
     }
 
     /**
+     * @deprecated
      * Updates the positions of debug wireframes based on physics bodies.
      */
     update_debug_wireframes() {
@@ -302,38 +304,66 @@ export class AssetSpawner {
     }
 
     /**
-     * Cleans up resources and releases memory.
+     * Core cleanup of essential resources.
      */
     cleanup() {
-        // Remove debug wireframes
-        this.debugMeshes.forEach((mesh) => {
-            if (mesh.parent) {
-                mesh.parent.remove(mesh);
-            }
-            if (mesh.geometry) {
-                mesh.geometry.dispose();
-            }
-            if (mesh.material) {
-                mesh.material.dispose();
-            }
-        });
-        this.debugMeshes.clear();
-        
-        // Clean up any spotlights
-        this.cleanup_spotlights();
-        
-        // Reset instance
+        // Reset singleton instance
         AssetSpawner.instance = null;
+
+        // Clean up any core asset management resources
+        if (this.storage) {
+            // Clean up any remaining assets in storage
+            const allAssets = this.storage.get_all_assets();
+            allAssets.forEach(asset => {
+                if (asset && asset.mesh && asset.mesh.parent) {
+                    asset.mesh.parent.remove(asset.mesh);
+                }
+            });
+        }
+
+        // Clean up any core physics resources
+        if (this.world) {
+            // Clean up any remaining physics bodies
+            const dynamicBodies = this.storage.get_all_dynamic_bodies();
+            dynamicBodies.forEach(([mesh, body]) => {
+                if (body) {
+                    this.world.removeRigidBody(body);
+                }
+            });
+        }
+
+        // Clear references
+        this.storage = null;
+        this.container = null;
+        this.world = null;
+        this.#assetTypes = null;
+        this.#assetConfigs = null;
     }
-    
+
     /**
-     * Cleans up spotlight resources
+     * @deprecated
+     * Cleanup of debug-specific resources.
+     * This will be removed in future refactoring.
      */
-    cleanup_spotlights() {
-        // Get all assets from storage
-        const allAssets = this.storage.get_all_assets();
+    cleanup_debug() {
+        // Remove debug wireframes
+        if (this.debugMeshes) {
+            this.debugMeshes.forEach((mesh) => {
+                if (mesh.parent) {
+                    mesh.parent.remove(mesh);
+                }
+                if (mesh.geometry) {
+                    mesh.geometry.dispose();
+                }
+                if (mesh.material) {
+                    mesh.material.dispose();
+                }
+            });
+            this.debugMeshes.clear();
+        }
         
-        // Find and clean up spotlight assets
+        // Clean up spotlight debug visualizations
+        const allAssets = this.storage.get_all_assets();
         allAssets.forEach(asset => {
             if (asset && asset.type === SystemAssetType.SPOTLIGHT.value) {
                 // Remove spotlight and its target from the scene
@@ -354,21 +384,22 @@ export class AssetSpawner {
     }
     
     /**
-     * Legacy method for backward compatibility - calls cleanup()
+     * @deprecated
+     * Updates all visual elements including debug wireframes and spotlight helpers.
+     * This is the new method to use instead of the deprecated performCleanup().
      */
-    performCleanup() {
-        // Update debug wireframes if needed
+    update_visualizations() {
+        // Update debug wireframes if enabled
         if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
             this.update_debug_wireframes();
         }
         
-        // Always update spotlight helpers
+        // Update spotlight helpers
         this.update_spotlight_helpers();
-        
-        // Any other periodic cleanup tasks can be added here
     }
-    
+
     /**
+     * @deprecated
      * Creates a material for display meshes based on the specified display mode
      * @param {number} displayMode - 0: Transparent, 1: Black Screen, 2: White Screen
      * @returns {THREE.Material} The created material
@@ -418,6 +449,7 @@ export class AssetSpawner {
     }
     
     /**
+     * @deprecated
      * Creates a collider from a mesh
      * @param {THREE.Mesh} mesh - The mesh to create a collider from
      * @param {RAPIER.RigidBody} body - The rigid body to attach the collider to
@@ -552,6 +584,7 @@ export class AssetSpawner {
     }
 
     /**
+     * @deprecated
      * Sets the collision debug state for this spawner.
      * This allows the main application to control debug visualization.
      * @param {boolean} enabled - Whether collision debug should be enabled
@@ -582,6 +615,7 @@ export class AssetSpawner {
     }
     
     /**
+     * @deprecated
      * Creates debug wireframes for all physics bodies.
      * This is used when enabling debug visualization after objects are already created.
      */
@@ -875,6 +909,7 @@ export class AssetSpawner {
     }
     
     /**
+     * @deprecated
      * Creates a spotlight helper to visualize the spotlight cone and direction.
      * Used for debugging purposes.
      * 
@@ -1012,6 +1047,7 @@ export class AssetSpawner {
     }
 
     /**
+     * @deprecated
      * Despawns a spotlight, removing it and its helpers from the scene.
      * 
      * @param {THREE.SpotLight} spotlight - The spotlight to despawn
@@ -1087,6 +1123,8 @@ export class AssetSpawner {
     }
 
     /**
+     * @deprecated
+     * @deprecated
      * Removes only the debug helpers for a spotlight, keeping the spotlight itself.
      * 
      * @param {THREE.SpotLight} spotlight - The spotlight whose helpers should be removed
@@ -1125,6 +1163,7 @@ export class AssetSpawner {
     }
 
     /**
+     * @deprecated
      * Updates all spotlight helpers to match their associated spotlights.
      * Called from the main animation loop.
      */
@@ -1165,6 +1204,7 @@ export class AssetSpawner {
     }
 
     /**
+     * @deprecated
      * Updates the debug visualization for all spotlights.
      * Ensures all spotlights have visible debug helpers.
      */
@@ -1258,6 +1298,7 @@ export class AssetSpawner {
     }
 
     /**
+     * @deprecated
      * Updates the existing create_spotlight method to include helper creation
      * 
      * @param {string} id - The ID of the spotlight
@@ -1441,6 +1482,7 @@ export class AssetSpawner {
     }
 
     /**
+     * @deprecated
      * Creates a primitive box with the specified dimensions and properties.
      * This is used for simple assets that don't require a full 3D model.
      * 
@@ -1567,6 +1609,7 @@ export class AssetSpawner {
     }
 
     /**
+     * @deprecated
      * Creates a primitive sphere with the specified properties.
      * 
      * @param {string} id - The ID of the sphere
@@ -1675,6 +1718,7 @@ export class AssetSpawner {
     }
 
     /**
+     * @deprecated
      * Creates a primitive capsule with the specified properties.
      * 
      * @param {string} id - The ID of the capsule
@@ -1784,6 +1828,7 @@ export class AssetSpawner {
     }
 
     /**
+     * @deprecated
      * Creates a primitive cylinder with the specified properties.
      * 
      * @param {string} id - The ID of the cylinder
@@ -1893,6 +1938,7 @@ export class AssetSpawner {
     }
 
     /**
+     * @deprecated
      * Spawns a scene camera based on the camera configuration from the manifest.
      * This method creates a simple camera without any additional functionality.
      * 
@@ -1931,6 +1977,7 @@ export class AssetSpawner {
     }
 
     /**
+     * @deprecated
      * Forces a full update of all spotlight debug helpers on next call.
      * Call this when you know spotlights have been added or removed.
      */
