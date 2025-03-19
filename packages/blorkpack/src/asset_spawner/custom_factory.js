@@ -590,4 +590,79 @@ export class CustomFactory {
         
         return mesh;
     }
+
+    /**
+     * Spawns all custom assets from the manifest
+     * @param {Object} manifest_manager - Instance of ManifestManager
+     * @param {Function} progress_callback - Optional callback function for progress updates
+     * @returns {Promise<Array>} Array of spawned custom assets
+     */
+    async spawn_custom_assets(manifest_manager, progress_callback = null) {
+        const spawned_assets = [];
+        
+        try {
+            // Get all custom assets from manifest
+            const custom_assets = manifest_manager.get_custom_assets();
+            if (!custom_assets || custom_assets.length === 0) {
+                if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                    console.log("No custom assets found in manifest");
+                }
+                return spawned_assets;
+            }
+
+            if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                console.log(`Found ${custom_assets.length} custom assets to spawn`);
+            }
+
+            // Process each custom asset
+            for (const asset_data of custom_assets) {
+                // Extract position and rotation from asset data
+                const position = new THREE.Vector3(
+                    asset_data.position?.x || 0, 
+                    asset_data.position?.y || 0, 
+                    asset_data.position?.z || 0
+                );
+                
+                // Create rotation from Euler angles
+                const rotation = new THREE.Euler(
+                    asset_data.rotation?.x || 0,
+                    asset_data.rotation?.y || 0,
+                    asset_data.rotation?.z || 0
+                );
+                const quaternion = new THREE.Quaternion().setFromEuler(rotation);
+                
+                // Prepare options from asset data
+                const options = {
+                    scale: asset_data.scale,
+                    material: asset_data.material,
+                    collider: asset_data.collider,
+                    mass: asset_data.mass,
+                    ...asset_data.options
+                };
+                
+                // Spawn the custom asset
+                const result = await this.spawn_custom_asset(
+                    asset_data.asset_type,
+                    position,
+                    quaternion,
+                    options
+                );
+                
+                if (result) {
+                    // Store the asset ID with the spawned asset data
+                    result.id = asset_data.id;
+                    spawned_assets.push(result);
+                }
+            }
+            
+            if (BLORKPACK_FLAGS.ASSET_LOGS) {
+                console.log(`Spawned ${spawned_assets.length} custom assets from manifest`);
+            }
+            
+            return spawned_assets;
+        } catch (error) {
+            console.error("Error spawning custom assets:", error);
+            return spawned_assets;
+        }
+    }
 }
