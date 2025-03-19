@@ -45,9 +45,9 @@
         "$ref": "#/definitions/assetGroup"
       }
     },
-    "application_assets": {
+    "custom_assets": {
       "type": "array",
-      "description": "Array of application-specific asset definitions",
+      "description": "Array of custom assets defined in the manifest",
       "items": {
         "$ref": "#/definitions/assetData"
       }

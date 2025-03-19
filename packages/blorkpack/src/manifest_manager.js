@@ -236,7 +236,7 @@ export class ManifestManager {
             joint_data: {},
             asset_groups: [],
             asset_data: {},
-            application_assets: [],
+            custom_assets: [],
             system_assets: [],
             scene_data: {
                 version: "1.0",
@@ -721,25 +721,25 @@ export class ManifestManager {
     }
     
     /**
-     * Gets the application_assets array from the manifest.
-     * @returns {Array} Array of application-specific assets or an empty array if not defined
+     * Gets the custom_assets array from the manifest.
+     * @returns {Array} Array of custom assets or an empty array if not defined
      */
-    get_application_assets() {
+    get_custom_assets() {
         if (BLORKPACK_FLAGS.ASSET_LOGS) {
-            console.log('Getting application assets from manifest...');
+            console.log('Getting custom assets from manifest...');
         }
-        return this.manifest_data?.application_assets || [];
+        return this.manifest_data?.custom_assets || [];
     }
     
     /**
-     * Sets the application_assets array in the manifest.
-     * @param {Array} application_assets - The application assets array to set
+     * Sets the custom_assets array in the manifest.
+     * @param {Array} custom_assets - The custom assets array to set
      */
-    set_application_assets(application_assets) {
+    set_custom_assets(custom_assets) {
         if (!this.manifest_data) {
             this.manifest_data = this.create_new_manifest();
         }
-        this.manifest_data.application_assets = application_assets;
+        this.manifest_data.custom_assets = custom_assets;
     }
 
     /**

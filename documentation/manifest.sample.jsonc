@@ -189,7 +189,7 @@
     },
     
     // Lists of assets
-    "application_assets": [], // App-specific assets
+    "custom_assets": [], // Custom assets defined in the manifest
     "system_assets": [
         {
             "id": "background_floor",

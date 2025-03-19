@@ -62,10 +62,10 @@ async function testManifestManager() {
             }
         }
         
-        // Display application assets
-        const applicationAssets = manifestManager.get_application_assets();
-        console.log(`\nApplication Assets (${applicationAssets.length}):`);
-        applicationAssets.forEach(asset => {
+        // Display custom assets
+        const customAssets = manifestManager.get_custom_assets();
+        console.log(`\nCustom Assets (${customAssets.length}):`);
+        customAssets.forEach(asset => {
             console.log(`- ${asset.id}: ${asset.type} (${asset.asset_type})`);
             if (asset.asset_type === 'background_floor') {
                 console.log(`  Background Floor Properties:`);
@@ -123,17 +123,17 @@ async function testManifestManager() {
             }
         });
         
-        // Test spawning application assets if in browser context
+        // Test spawning custom assets if in browser context
         if (typeof window !== 'undefined' && window.asset_spawner) {
-            console.log('\nTesting application asset spawning...');
+            console.log('\nTesting custom asset spawning...');
             try {
-                const spawned_assets = await window.asset_spawner.spawn_application_assets(manifestManager);
-                console.log(`✅ Successfully spawned ${spawned_assets.length} application assets`);
+                const spawned_assets = await window.asset_spawner.spawn_custom_assets(manifestManager);
+                console.log(`✅ Successfully spawned ${spawned_assets.length} custom assets`);
                 spawned_assets.forEach(asset => {
                     console.log(`- Spawned ${asset.id} (${asset.asset_type})`);
                 });
             } catch (error) {
-                console.error('❌ Error spawning application assets:', error);
+                console.error('❌ Error spawning custom assets:', error);
             }
         } else {
             console.log('\nSkipping asset spawning test in non-browser environment');
