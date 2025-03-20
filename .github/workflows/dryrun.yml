@@ -208,7 +208,7 @@ jobs:
           
           # Run build directly using Vite CLI to avoid npm scripts
           echo "Building with Vite directly..."
-          npx vite build --logLevel=info
+          pnpm vite build --logLevel=info
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           HUSKY: 0

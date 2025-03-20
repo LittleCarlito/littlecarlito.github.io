@@ -120,10 +120,10 @@ jobs:
           
           # Run semantic-release to determine version and update package.json
           echo "Running semantic-release in dry-run mode first to see what it would do"
-          npx semantic-release --dry-run || echo "semantic-release dry run completed"
+          pnpm semantic-release --dry-run || echo "semantic-release dry run completed"
           
           echo "Running actual semantic-release"
-          npx semantic-release --debug || echo "semantic-release process completed"
+          pnpm semantic-release --debug || echo "semantic-release process completed"
           
           # Get the new version post-semantic-release
           NEW_VERSION=$(jq -r '.version' package.json)
@@ -226,10 +226,10 @@ jobs:
           
           # Run semantic-release to determine version and update package.json
           echo "Running semantic-release in dry-run mode first to see what it would do"
-          npx semantic-release --dry-run || echo "semantic-release dry run completed"
+          pnpm semantic-release --dry-run || echo "semantic-release dry run completed"
           
           echo "Running actual semantic-release"
-          npx semantic-release --debug || echo "semantic-release process completed"
+          pnpm semantic-release --debug || echo "semantic-release process completed"
           
           # Get the new version post-semantic-release
           NEW_VERSION=$(jq -r '.version' package.json)
