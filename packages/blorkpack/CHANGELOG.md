@@ -1,3 +1,10 @@
+## [0.12.18](https://github.com/littlecarlito/threejs_site/compare/v0.12.17...v0.12.18) (2025-03-20)
+
+
+### Bug Fixes
+
+* forcing deploy ([#121](https://github.com/littlecarlito/threejs_site/issues/121)) ([79f1c68](https://github.com/littlecarlito/threejs_site/commit/79f1c68b899aea61e5dce8180e67c1c4a771e936))
+
 ## [0.12.14](https://github.com/littlecarlito/threejs_site/compare/v0.12.13...v0.12.14) (2025-03-20)
 
 
