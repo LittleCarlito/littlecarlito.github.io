@@ -1,3 +1,10 @@
+## [0.12.20](https://github.com/littlecarlito/threejs_site/compare/v0.12.19...v0.12.20) (2025-03-20)
+
+
+### Bug Fixes
+
+* forcing delete gh branch ([#122](https://github.com/littlecarlito/threejs_site/issues/122)) ([22a9d6e](https://github.com/littlecarlito/threejs_site/commit/22a9d6eb563d4a34c3dd92a9ef150ec55836eab8))
+
 ## [0.12.18](https://github.com/littlecarlito/threejs_site/compare/v0.12.17...v0.12.18) (2025-03-20)
 
 
