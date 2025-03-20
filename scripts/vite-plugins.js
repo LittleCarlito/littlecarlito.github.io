@@ -3,11 +3,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-// Problematic files in Three.js that we want to exclude
-export const EXCLUDED_FILES = [
-	'node_modules/three/examples/jsm/libs/lottie_canvas.module.js',
-	'node_modules/three/examples/jsm/libs/chevrotain.module.min.js'
-];
+
 /**
  * Creates a plugin that handles graceful shutdown of the Vite dev server
  */
@@ -39,6 +35,7 @@ export function gracefulShutdownPlugin() {
 		}
 	};
 }
+
 /**
  * Creates a plugin that writes a timestamp to the output file
  * This forces the main app to detect changes to the file
@@ -65,54 +62,50 @@ export function timestampPlugin(outputPath) {
 		}
 	};
 }
+
 /**
- * Creates a plugin that replaces problematic modules with empty stubs
- * Useful for modules that use eval() or other potentially unsafe code
+ * Creates a virtual module for blorkpack during development
  */
-export function createEmptyModuleStubs(excludedFiles = EXCLUDED_FILES) {
+export function createVirtualBlorkpackPlugin() {
+	const virtualModuleId = '@littlecarlito/blorkpack';
+	const resolvedVirtualModuleId = '\0' + virtualModuleId;
+	
+	// Resolve paths relative to workspace root (where pnpm-workspace.yaml is)
+	const workspaceRoot = path.resolve(process.cwd(), '..', '..');
+	const blorkpackPath = path.resolve(workspaceRoot, 'packages/blorkpack/dist/index.js');
+	const blorkpackDir = path.resolve(workspaceRoot, 'packages/blorkpack/dist');
+	
+	// Check if we're in the blorkpack package itself
+	const isBlorkpackPackage = process.cwd().includes('packages/blorkpack');
+	
+	// If we're in the blorkpack package, don't create virtual modules
+	if (isBlorkpackPackage) {
+		return {
+			name: 'virtual-blorkpack',
+			enforce: 'pre',
+			resolveId(id) {
+				return null;
+			}
+		};
+	}
+
 	return {
-		name: 'empty-module-stubs',
+		name: 'virtual-blorkpack',
 		enforce: 'pre',
-		resolveId(id) {
-			// Check if this is a problematic file
-			for (const file of excludedFiles) {
-				if (id.includes(file)) {
-					// Create a virtual module ID for this file
-					return '\0empty-stub:' + id;
+		async resolveId(id) {
+			// Handle the main module
+			if (id === virtualModuleId) {
+				return blorkpackPath;
+			}
+			// Handle subpaths
+			if (id.startsWith(`${virtualModuleId}/`)) {
+				const subpath = id.slice(virtualModuleId.length + 1);
+				const targetPath = path.join(blorkpackDir, `${subpath}.js`);
+				if (fs.existsSync(targetPath)) {
+					return targetPath;
 				}
 			}
 			return null;
-		},
-		load(id) {
-			// If this is one of our virtual module IDs, return an empty module
-			if (id.startsWith('\0empty-stub:')) {
-				return `
-          // Empty module stub for file with eval() - security risk removed
-          export default {};
-          
-          // Generic stub functions to prevent runtime errors
-          export function * () { 
-            console.warn('This module was disabled due to security risks with eval()');
-            return {}; 
-          }
-        `;
-			}
-			return null;
 		}
-	};
-}
-/**
- * Creates a plugin that warns when eval usage is detected except in excluded files
- */
-export function createEvalWarningHandler(excludedFiles = EXCLUDED_FILES) {
-	return (warning, warn) => {
-		// Skip eval warnings in excluded files
-		if (warning.code === 'EVAL' || 
-        (warning.message && excludedFiles.some(file => 
-        	warning.message.includes(file) && warning.message.includes('eval')
-        ))) {
-			return;
-		}
-		warn(warning);
 	};
 } 
