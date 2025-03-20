@@ -642,12 +642,35 @@ jobs:
           
           # Build with Vite directly
           pnpm vite build --logLevel=info
+          
+          # Add a timestamp file to ensure every build is unique
+          echo "Build timestamp: $(date)" > dist/build-timestamp.txt
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           HUSKY: 0
           HUSKY_SKIP_INSTALL: 1
           npm_config_ignore_scripts: true
-        
+          
+      - name: Delete existing gh-pages branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Configure remote with token for authentication
+          git remote set-url origin https://x-access-token:${{ secrets.PACKAGE_TOKEN }}@github.com/${{ github.repository }}.git
+          
+          # Force delete the gh-pages branch if it exists
+          git fetch origin
+          if git ls-remote --heads origin gh-pages | grep -q 'gh-pages'; then
+            echo "Deleting existing gh-pages branch"
+            git push origin --delete gh-pages
+            echo "Branch deleted successfully"
+          else
+            echo "No existing gh-pages branch found"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+      
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
@@ -656,4 +679,5 @@ jobs:
           clean: true
           force: true
           single-commit: true
-          token: ${{ secrets.PACKAGE_TOKEN }} 
+          token: ${{ secrets.PACKAGE_TOKEN }}
+          commit-message: "Deploy website [skip ci]" 
