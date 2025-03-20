@@ -10,13 +10,22 @@ describe('Asset Management Package', () => {
 	describe('3D Scene Concepts', () => {
 		test('should handle basic vector operations', () => {
 			// Create mock 3D vector class
+			/**
+			 *
+			 */
 			class Vector3 {
+				/**
+				 *
+				 */
 				constructor(x = 0, y = 0, z = 0) {
 					this.x = x;
 					this.y = y;
 					this.z = z;
 				}
 				
+				/**
+				 *
+				 */
 				add(v) {
 					this.x += v.x;
 					this.y += v.y;
@@ -24,6 +33,9 @@ describe('Asset Management Package', () => {
 					return this;
 				}
 				
+				/**
+				 *
+				 */
 				length() {
 					return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
 				}
@@ -69,22 +81,37 @@ describe('Asset Management Package', () => {
 	describe('Asset Management Concepts', () => {
 		test('should handle basic asset storage operations', () => {
 			// Simple asset storage implementation
+			/**
+			 *
+			 */
 			class AssetStorage {
+				/**
+				 *
+				 */
 				constructor() {
 					this.assets = new Map();
 					this.nextId = 1;
 				}
 				
+				/**
+				 *
+				 */
 				addAsset(asset) {
 					const id = `asset-${this.nextId++}`;
 					this.assets.set(id, asset);
 					return id;
 				}
 				
+				/**
+				 *
+				 */
 				getAsset(id) {
 					return this.assets.get(id);
 				}
 				
+				/**
+				 *
+				 */
 				removeAsset(id) {
 					return this.assets.delete(id);
 				}
