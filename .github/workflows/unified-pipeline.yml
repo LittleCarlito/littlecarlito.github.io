@@ -654,4 +654,6 @@ jobs:
           folder: apps/portfolio/dist
           branch: gh-pages
           clean: true
+          force: true
+          single-commit: true
           token: ${{ secrets.PACKAGE_TOKEN }} 
