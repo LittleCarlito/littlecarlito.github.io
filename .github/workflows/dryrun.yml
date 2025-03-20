@@ -105,6 +105,11 @@ jobs:
           echo "@littlecarlito:registry=https://npm.pkg.github.com/" > .npmrc
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.PACKAGE_TOKEN }}" >> .npmrc
           
+          # Enable link workspace protocol handling
+          echo "link-workspace-packages=true" >> .npmrc
+          echo "shamefully-hoist=true" >> .npmrc
+          echo "node-linker=hoisted" >> .npmrc
+          
           # Disable scripts to avoid issues
           echo "ignore-scripts=true" >> .npmrc
           echo "husky=0" >> .npmrc
@@ -144,43 +149,6 @@ jobs:
           HUSKY_SKIP_INSTALL: 1
           npm_config_ignore_scripts: true
 
-      - name: Update vite.config.js for local dev
-        run: |
-          # Update vite.config.js to ensure it can find blorkpack
-          cat > apps/portfolio/vite.config.js << 'EOL'
-          import { defineConfig } from 'vite'
-          import path from 'path'
-          import fs from 'fs'
-
-          export default defineConfig({
-            base: '/threejs_site/',
-            resolve: {
-              alias: {
-                '@littlecarlito/blorkpack': path.resolve(__dirname, '../../packages/blorkpack/dist/index.js')
-              }
-            },
-            optimizeDeps: {
-              include: ['@littlecarlito/blorkpack']
-            },
-            build: {
-              rollupOptions: {
-                output: {
-                  manualChunks: {
-                    'three-core': ['three'],
-                    'three-addons': [
-                      'three/examples/jsm/controls/OrbitControls',
-                      'three/examples/jsm/Addons.js',
-                      'three/examples/jsm/libs/tween.module.js'
-                    ]
-                  }
-                }
-              }
-            }
-          })
-          EOL
-          
-          echo "Updated vite.config.js"
-
       - name: Build portfolio app
         run: |
           echo "Building portfolio app..."
@@ -199,14 +167,14 @@ jobs:
           export HUSKY_SKIP_INSTALL=1
           export npm_config_ignore_scripts=true
           
-          # Update package.json to remove problematic scripts
-          jq 'del(.scripts.prepare) | del(.scripts.prepublishOnly) | del(.scripts.postinstall)' package.json > package.json.tmp || true
-          mv package.json.tmp package.json || true
+          # Update package.json to handle workspace protocol
+          jq '.dependencies["@littlecarlito/blorkpack"] = "file:../../packages/blorkpack"' package.json > package.json.tmp
+          mv package.json.tmp package.json
           
-          # Force npm to ignore any lifecycle scripts and install dependencies
-          npm install --ignore-scripts
+          # Use pnpm for installation
+          pnpm install --no-frozen-lockfile --ignore-scripts
           
-          # Run build directly using Vite CLI to avoid npm scripts
+          # Run build directly using Vite CLI
           echo "Building with Vite directly..."
           pnpm vite build --logLevel=info
         env:
