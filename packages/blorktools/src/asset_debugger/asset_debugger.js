@@ -23,6 +23,9 @@ document.addEventListener('modelLoaded', () => {
 	}
 });
 // Export state and main functions for backward compatibility
+/**
+ *
+ */
 export function getExportedMethods() {
 	return {
 		getState: () => state,

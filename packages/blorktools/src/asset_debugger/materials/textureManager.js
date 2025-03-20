@@ -169,6 +169,7 @@ export function applyTextureToModel(state) {
 		}
 	}
 }
+
 /**
  * Apply texture to a specific material
  * @param {THREE.Material} material - Three.js material
@@ -197,6 +198,7 @@ function applyTextureToMaterial(material, texture) {
 	// Make sure to update the material
 	material.needsUpdate = true;
 }
+
 /**
  * Toggle texture editor UI
  * @param {Object} state - Global state object
@@ -208,6 +210,9 @@ export function toggleTextureEditor(state) {
 	alert('Texture editor will be implemented in a future update');
 }
 // Load additional texture (for multi-texture support)
+/**
+ *
+ */
 export function loadAdditionalTexture(file, state, uvIndex = 0) {
 	// Create a URL from the file
 	const textureUrl = URL.createObjectURL(file);
@@ -250,6 +255,9 @@ export function loadAdditionalTexture(file, state, uvIndex = 0) {
 	});
 }
 // Remove a texture from additional textures
+/**
+ *
+ */
 export function removeTexture(index, state) {
 	if (!state.additionalTextures || index >= state.additionalTextures.length) return;
 	// Remove the texture at the specified index
@@ -261,6 +269,9 @@ export function removeTexture(index, state) {
 	console.log('Removed texture at index:', index);
 }
 // Update texture settings (uvIndex, enabled, blendMode, intensity)
+/**
+ *
+ */
 export function updateTextureSettings(index, settings, state) {
 	if (!state.additionalTextures || index >= state.additionalTextures.length) return;
 	// Update the settings for the texture
@@ -273,6 +284,9 @@ export function updateTextureSettings(index, settings, state) {
 	console.log('Updated texture settings at index:', index, settings);
 }
 // Apply multi-texture material to the model
+/**
+ *
+ */
 export function applyMultiTextureMaterial(state) {
 	if (!state.modelObject) return;
 	// Get all active textures

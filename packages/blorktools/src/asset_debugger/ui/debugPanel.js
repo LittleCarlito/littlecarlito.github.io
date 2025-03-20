@@ -7,10 +7,16 @@ import { createAtlasVisualization } from './atlasVisualization.js';
 export let updateModelInfo = null;
 export let updateTextureInfo = null;
 // Setup debug panel
+/**
+ *
+ */
 export function setupDebugPanel(state) {
 	const panel = createDebugPanel(state);
 }
 // Start debugging (called from dragdrop.js)
+/**
+ *
+ */
 export function startDebugging(state) {
 	console.log('Starting debugging with files:', state.modelFile, state.textureFile);
 	// Hide drag-drop zone
@@ -36,6 +42,9 @@ export function startDebugging(state) {
 	}
 }
 // Create debug panel
+/**
+ *
+ */
 export function createDebugPanel(state) {
 	// Create the debug panel - simple fixed panel style
 	const panel = document.createElement('div');
@@ -160,7 +169,11 @@ export function createDebugPanel(state) {
 	panel.appendChild(editorSection);
 	// Add to document
 	document.body.appendChild(panel);
+
 	// Helper functions for updating panel content
+	/**
+	 *
+	 */
 	function updateModelInfoImpl(info) {
 		const modelInfo = document.getElementById('model-info');
 		if (!modelInfo) return;
@@ -185,7 +198,11 @@ export function createDebugPanel(state) {
 			modelInfo.textContent = 'No model loaded';
 		}
 	}
+
 	// Create toggle buttons for meshes
+	/**
+	 *
+	 */
 	function createMeshToggles(meshes) {
 		const meshTogglesContainer = document.getElementById('mesh-toggles');
 		if (!meshTogglesContainer) return;
@@ -302,6 +319,10 @@ export function createDebugPanel(state) {
 			meshTogglesContainer.appendChild(groupDiv);
 		}
 	}
+
+	/**
+	 *
+	 */
 	function updateTextureInfoImpl(info) {
 		const textureInfo = document.getElementById('texture-info');
 		if (!textureInfo) return;
@@ -328,6 +349,10 @@ export function createDebugPanel(state) {
 			textureInfo.textContent = 'No texture loaded';
 		}
 	}
+
+	/**
+	 *
+	 */
 	function formatBytes(bytes, decimals = 2) {
 		if (bytes === 0) return '0 Bytes';
 		const k = 1024;
@@ -336,6 +361,7 @@ export function createDebugPanel(state) {
 		const i = Math.floor(Math.log(bytes) / Math.log(k));
 		return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 	}
+
 	// Set the exported functions
 	updateModelInfo = updateModelInfoImpl;
 	updateTextureInfo = updateTextureInfoImpl;
@@ -345,6 +371,9 @@ export function createDebugPanel(state) {
 	return panel;
 }
 // Automatically show atlas visualization when both model and texture are loaded
+/**
+ *
+ */
 export function autoShowAtlasVisualization(state) {
 	if (!state.modelObject || !state.textureObject) {
 		console.log('Cannot show atlas visualization: Model or texture not loaded');
@@ -470,7 +499,11 @@ export function autoShowAtlasVisualization(state) {
 	// Create the atlas visualization
 	createAtlasVisualization(state);
 }
+
 // Setup UV set switcher in the debug panel
+/**
+ *
+ */
 function setupUvSwitcher(state) {
 	const uvInfoSection = document.getElementById('uv-info-section');
 	if (!uvInfoSection) return;

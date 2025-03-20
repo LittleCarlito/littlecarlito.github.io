@@ -43,6 +43,7 @@ export function setupRenderer(state) {
 	}
 	return state.renderer;
 }
+
 /**
  * Setup the camera
  * @param {Object} state - Global state object
@@ -66,6 +67,7 @@ function setupCamera(state) {
 	}
 	return state.camera;
 }
+
 /**
  * Setup orbit controls for camera
  * @param {Object} state - Global state object
@@ -84,6 +86,7 @@ function setupOrbitControls(state) {
 	}
 	return state.controls;
 }
+
 /**
  * Setup animation loop for continuous rendering
  * @param {Object} state - Global state object
@@ -105,6 +108,7 @@ function setupAnimationLoop(state) {
 	// Start animation loop
 	animate();
 }
+
 /**
  * Setup window resize handler
  * @param {Object} state - Global state object
@@ -119,6 +123,7 @@ function setupResizeHandler(state) {
 		state.renderer.setSize(window.innerWidth, window.innerHeight);
 	});
 }
+
 /**
  * Setup scene lighting
  * @param {Object} state - Global state object

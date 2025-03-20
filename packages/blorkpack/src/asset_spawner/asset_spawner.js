@@ -869,6 +869,9 @@ export class AssetSpawner {
 		AssetSpawner.#disposed = true;
 		AssetSpawner.#instance = null;
 	}
+	/**
+	 *
+	 */
 	static dispose_instance() {
 		if (AssetSpawner.#instance) {
 			AssetSpawner.#instance.dispose();

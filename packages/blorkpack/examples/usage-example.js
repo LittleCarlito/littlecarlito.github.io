@@ -21,15 +21,24 @@ import * as THREE from 'three';
 // For this example, we'll just simulate it
 const RAPIER = {
 	World: class {
+		/**
+		 *
+		 */
 		constructor(gravity) {
 			this.gravity = gravity;
 			console.log(`Created physics world with gravity: ${JSON.stringify(gravity)}`);
 		}
+		/**
+		 *
+		 */
 		step() {
 			// Simulate stepping the physics world
 		}
 	},
 	Vector3: class {
+		/**
+		 *
+		 */
 		constructor(x, y, z) {
 			this.x = x;
 			this.y = y;
@@ -37,6 +46,7 @@ const RAPIER = {
 		}
 	}
 };
+
 /**
  * Example 1: Asset Management Basics
  * 
@@ -87,6 +97,7 @@ async function asset_management_example() {
 		console.error('❌ Error in asset management example:', error);
 	}
 }
+
 /**
  * Example 2: Using ManifestManager
  * 
@@ -293,7 +304,11 @@ async function manifest_manager_example() {
 		console.error('❌ Error in manifest manager example:', error);
 	}
 }
+
 // Run both examples
+/**
+ *
+ */
 async function run_examples() {
 	console.log('=============================================');
 	console.log('ASSET MANAGEMENT PACKAGE - USAGE EXAMPLES');
@@ -305,6 +320,7 @@ async function run_examples() {
 	console.log('ALL EXAMPLES COMPLETED SUCCESSFULLY');
 	console.log('=============================================');
 }
+
 // Execute the examples
 run_examples().catch(error => {
 	console.error('Error running examples:', error);

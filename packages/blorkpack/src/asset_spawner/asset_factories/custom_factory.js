@@ -72,6 +72,9 @@ export class CustomFactory {
 		CustomFactory.#disposed = true;
 		CustomFactory.#instance = null;
 	}
+	/**
+	 *
+	 */
 	static dispose_instance() {
 		if (CustomFactory.#instance) {
 			CustomFactory.#instance.dispose();

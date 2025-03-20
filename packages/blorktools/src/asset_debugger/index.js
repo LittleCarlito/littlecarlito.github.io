@@ -27,6 +27,9 @@ export const state = {
 	uvSetNames: []
 };
 // Initialize the application
+/**
+ *
+ */
 export function init() {
 	console.log('Asset Debugger Tool initialized');
 	// Setup the THREE.js environment (scene, camera, renderer)

@@ -4,6 +4,9 @@ import * as THREE from 'three';
 // Original UV data storage
 export const originalUvData = new WeakMap();
 // Analyze the structure of the loaded model
+/**
+ *
+ */
 export function analyzeModelStructure(state) {
 	if (!state.modelObject) return;
 	// Reset properties
@@ -82,7 +85,11 @@ export function analyzeModelStructure(state) {
 	console.log('Model analysis complete:', state.modelInfo);
 	return state.modelInfo;
 }
+
 // Collect all textures from a material
+/**
+ *
+ */
 function collectTexturesFromMaterial(material, textureSet) {
 	if (!material) return;
 	// Common texture properties in standard materials
@@ -97,7 +104,11 @@ function collectTexturesFromMaterial(material, textureSet) {
 		}
 	});
 }
+
 // Switch to a specific UV channel for texture display
+/**
+ *
+ */
 export function switchUvChannel(state, uvChannel) {
 	console.log(`Switching to UV channel: ${uvChannel}`);
 	if (!state.modelObject || !state.textureObject) {
@@ -212,6 +223,7 @@ export function switchUvChannel(state, uvChannel) {
 	// Analyze the current UV bounds
 	analyzeUvBounds(state, channelName);
 }
+
 /**
  * Analyze UV coordinates to determine the bounds (min/max) of the used texture region
  * @param {Object} state - Global state object
@@ -273,6 +285,7 @@ function analyzeUvBounds(state, channelIndex) {
 		max: [maxU, maxV]
 	};
 }
+
 /**
  * Updates the UV display information in the debug UI
  * @param {Object} state - Global state object
@@ -412,6 +425,7 @@ function updateUvDisplayInformation(state, activeChannel) {
 	html += `</div>`;
 	uvInfoContainer.innerHTML = html;
 }
+
 /**
  * Get list of available UV sets in the model
  * @param {Object} state - Global state object
@@ -461,6 +475,9 @@ export function analyzeModel(state) {
 	return modelInfo;
 }
 // Get UV coordinates for visualization
+/**
+ *
+ */
 export function getUvCoordinates(geometry) {
 	if (!geometry || !geometry.getAttribute('uv')) return null;
 	const uvAttribute = geometry.getAttribute('uv');

@@ -25,6 +25,7 @@ export async function initPhysicsUtil() {
 	current_velocity = new THREE.Vector3();
 	isInitialized = true;
 }
+
 /**
  * Helper function to find a physics body for an object
  * @param {Object} object - The object to find a physics body for
@@ -62,6 +63,7 @@ function findPhysicsBody(object) {
 	// Not found
 	return null;
 }
+
 /**
  * Apply a shove force to an object
  * @param {Object} incoming_object - The object to shove

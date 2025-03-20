@@ -11,6 +11,7 @@ export function setupEventListeners(state) {
 	window.addEventListener('keydown', (event) => handleKeyboardShortcuts(event, state));
 	console.log('Event listeners initialized');
 }
+
 /**
  * Handle window resize event
  * @param {Object} state - Global application state
@@ -23,6 +24,7 @@ function handleWindowResize(state) {
 	// Update renderer size
 	state.renderer.setSize(window.innerWidth, window.innerHeight);
 }
+
 /**
  * Handle keyboard shortcuts
  * @param {KeyboardEvent} event - Keyboard event

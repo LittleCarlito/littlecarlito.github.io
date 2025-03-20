@@ -40,6 +40,7 @@ export function extract_type(incoming_object) {
 // Mouse detection
 let raycaster = null;
 let mouse_location = null;
+
 /**
  * Get the raycaster, initializing if needed
  * @returns {THREE.Raycaster} The raycaster instance
@@ -50,6 +51,7 @@ function getRaycaster() {
 	}
 	return raycaster;
 }
+
 /**
  * Get the mouse location vector, initializing if needed
  * @returns {THREE.Vector2} The mouse location vector
@@ -60,6 +62,7 @@ function getMouseLocation() {
 	}
 	return mouse_location;
 }
+
 /** Converts screen coordinates to Normalized Device Coordinates (NDC) */
 export function get_ndc_from_event(e) {
 	return {

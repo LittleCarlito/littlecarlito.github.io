@@ -93,6 +93,7 @@ export async function create_primitive_sphere(scene, world, id, radius, position
 		options
 	};
 }
+
 /**
  * Generates a unique asset ID for spawned assets.
  * @returns {string} A unique ID string

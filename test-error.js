@@ -1,4 +1,7 @@
 // This file has deliberate indentation errors
+/**
+ *
+ */
 function badlyIndentedFunction() {
 	// These lines use spaces not tabs
 	const test = "bad indentation";

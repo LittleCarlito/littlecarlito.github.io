@@ -4,6 +4,9 @@ import { TEXTURE_LOADER, TYPES, PAN_SPEED, ROTATE_SPEED, FOCUS_ROTATION } from '
 import { Easing, FLAGS, THREE, Tween } from '../../common';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
+/**
+ *
+ */
 export class LabelContainer {
 	in_tween_map = new Map();
 	swapping_column_sides = false;
@@ -20,6 +23,9 @@ export class LabelContainer {
 		education: 0x55ff55,  // bright green
 		about: 0x5555ff       // bright blue
 	};
+	/**
+	 *
+	 */
 	constructor(incoming_parent, incoming_camera) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
@@ -38,6 +44,9 @@ export class LabelContainer {
 		this.container_column.position.y = this.get_column_y_position(true);
 		this.container_column.rotation.y = this.get_column_y_rotation(true);
 	}
+	/**
+	 *
+	 */
 	async loadFont() {
 		try {
 			// Determine the correct font path based on deployment environment
@@ -54,6 +63,9 @@ export class LabelContainer {
 			return null;
 		}
 	}
+	/**
+	 *
+	 */
 	createLabels() {
 		// Create section labels
 		Object.values(CATEGORIES).forEach((category, i) => {
@@ -160,6 +172,9 @@ export class LabelContainer {
 			}
 		});
 	}
+	/**
+	 *
+	 */
 	trigger_overlay(is_overlay_hidden, tween_map) {
 		if(!is_overlay_hidden && FLAGS.LAYER) {
 			this.set_content_layer(0);
@@ -177,6 +192,9 @@ export class LabelContainer {
 			});
 		tween_map.set(this.container_column.name, new_tween);
 	}
+	/**
+	 *
+	 */
 	swap_sides() {
 		// Reset any hover state when swapping sides to prevent hover issues
 		this.reset_previous_intersected();
@@ -205,6 +223,9 @@ export class LabelContainer {
 			.easing(Easing.Exponential.Out)
 			.start();
 	}
+	/**
+	 *
+	 */
 	reposition() {
 		let x_position = this.get_column_x_position(this.is_column_left);
 		// Move button column across the screen
@@ -213,6 +234,9 @@ export class LabelContainer {
 			.easing(Easing.Elastic.Out)
 			.start();
 	}
+	/**
+	 *
+	 */
 	offscreen_reposition() {
 		const x_position = get_associated_position(WEST, this.camera);
 		// Move button column across the screen with animation
@@ -221,6 +245,9 @@ export class LabelContainer {
 			.easing(Easing.Elastic.Out)
 			.start();
 	}
+	/**
+	 *
+	 */
 	handle_hover(intersected_object) {
 		if (!intersected_object || !intersected_object.rotation) {
 			if (FLAGS.ROTATION_TWEEN_LOGS) {
@@ -329,6 +356,9 @@ export class LabelContainer {
 		}
 	}
 	// Column setters
+	/**
+	 *
+	 */
 	set_content_layer(incoming_layer) {
 		this.container_column.layers.set(0);
 		Object.values(CATEGORIES).forEach(category => {

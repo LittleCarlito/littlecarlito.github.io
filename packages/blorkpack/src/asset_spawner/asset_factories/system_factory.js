@@ -16,6 +16,9 @@ import { IdGenerator } from "../common/id_generator.js";
  */
 export class SystemFactory {
 	static instance = null;
+	/**
+	 *
+	 */
 	constructor(scene, world) {
 		if (SystemFactory.instance) {
 			return SystemFactory.instance;

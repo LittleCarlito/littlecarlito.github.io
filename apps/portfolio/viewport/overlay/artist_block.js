@@ -16,7 +16,13 @@ const ARTIST_BLOCK = {
 		MIN_PADDING: 3
 	}
 };
+/**
+ *
+ */
 export class ArtistBlock {
+	/**
+	 *
+	 */
 	constructor(incoming_parent, incoming_camera) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
@@ -46,6 +52,9 @@ export class ArtistBlock {
 		// Trigger reposition animation to move to proper padded position
 		this.reposition();
 	}
+	/**
+	 *
+	 */
 	get_artist_width() {
 		return clamp(
 			get_screen_size(this.camera).x * ARTIST_BLOCK.DIMENSIONS.WIDTH_SCALE,
@@ -53,6 +62,9 @@ export class ArtistBlock {
 			ARTIST_BLOCK.DIMENSIONS.MAX_WIDTH
 		);
 	}
+	/**
+	 *
+	 */
 	resize() {
 		// Dispose of old geometry and create new one
 		this.artist_box.geometry.dispose();
@@ -69,6 +81,9 @@ export class ArtistBlock {
 	get_artist_y() {
 		return get_associated_position(SOUTH, this.camera);
 	}
+	/**
+	 *
+	 */
 	trigger_overlay(is_overlay_hidden, tween_map) {
 		const target_y = is_overlay_hidden ? 
 			get_associated_position(SOUTH, this.camera) : 
@@ -88,6 +103,9 @@ export class ArtistBlock {
 			});
 		tween_map.set(this.artist_box.name, new_tween);
 	}
+	/**
+	 *
+	 */
 	reposition() {
 		const screen_size = get_screen_size(this.camera);
 		const current_width = this.get_artist_width();
@@ -107,6 +125,9 @@ export class ArtistBlock {
 			.easing(Easing.Elastic.Out)
 			.start();
 	}
+	/**
+	 *
+	 */
 	offscreen_reposition() {
 		const screen_size = get_screen_size(this.camera);
 		const current_width = this.get_artist_width();

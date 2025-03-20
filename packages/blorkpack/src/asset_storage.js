@@ -13,6 +13,9 @@ export class AssetStorage {
 	loader;
 	// Cache CustomTypeManager data
 	#assetConfigs = null;
+	/**
+	 *
+	 */
 	constructor() {
 		if (AssetStorage.instance) {
 			return AssetStorage.instance;
@@ -119,6 +122,9 @@ export class AssetStorage {
 			}
 		});
 	}
+	/**
+	 *
+	 */
 	cleanup() {
 		// Clean up dynamic bodies and meshes
 		this.get_all_dynamic_bodies().forEach(([mesh, body]) => {
@@ -174,40 +180,76 @@ export class AssetStorage {
 		this.currently_activated_name = "";
 		if (BLORKPACK_FLAGS.ASSET_LOGS) console.log("Asset storage cleaned up");
 	}
+	/**
+	 *
+	 */
 	get_new_instance_id() {
 		return `instance_${this.instance_counter++}`;
 	}
+	/**
+	 *
+	 */
 	store_loaded_asset(asset_type, gltf) {
 		this.loaded_assets.set(asset_type, gltf);
 	}
+	/**
+	 *
+	 */
 	get_loaded_asset(asset_type) {
 		return this.loaded_assets.get(asset_type);
 	}
+	/**
+	 *
+	 */
 	has_loaded_asset(asset_type) {
 		return this.loaded_assets.has(asset_type);
 	}
+	/**
+	 *
+	 */
 	set_loading_promise(asset_type, promise) {
 		this.loading_promises.set(asset_type, promise);
 	}
+	/**
+	 *
+	 */
 	get_loading_promise(asset_type) {
 		return this.loading_promises.get(asset_type);
 	}
+	/**
+	 *
+	 */
 	has_loading_promise(asset_type) {
 		return this.loading_promises.has(asset_type);
 	}
+	/**
+	 *
+	 */
 	delete_loading_promise(asset_type) {
 		this.loading_promises.delete(asset_type);
 	}
+	/**
+	 *
+	 */
 	store_dynamic_body(instance_id, body_pair) {
 		if (BLORKPACK_FLAGS.PHYSICS_LOGS) console.log(`Storing dynamic body: ${instance_id}`);
 		this.dynamic_bodies.set(instance_id, body_pair);
 	}
+	/**
+	 *
+	 */
 	get_dynamic_body(instance_id) {
 		return this.dynamic_bodies.get(instance_id);
 	}
+	/**
+	 *
+	 */
 	get_all_dynamic_bodies() {
 		return Array.from(this.dynamic_bodies.values());
 	}
+	/**
+	 *
+	 */
 	get_body_pair_by_mesh(mesh) {
 		// First try direct match
 		for (const [id, [object_mesh, body]] of this.dynamic_bodies.entries()) {
@@ -239,18 +281,33 @@ export class AssetStorage {
 		}
 		return null;
 	}
+	/**
+	 *
+	 */
 	store_static_mesh(instance_id, mesh) {
 		this.static_meshes.set(instance_id, mesh);
 	}
+	/**
+	 *
+	 */
 	get_static_mesh(instance_id) {
 		return this.static_meshes.get(instance_id);
 	}
+	/**
+	 *
+	 */
 	get_all_static_meshes() {
 		return Array.from(this.static_meshes.values());
 	}
+	/**
+	 *
+	 */
 	store_material(key, material) {
 		this.material_cache.set(key, material);
 	}
+	/**
+	 *
+	 */
 	get_material(key, originalMaterial) {
 		if (this.has_material(key)) {
 			return this.material_cache.get(key);
@@ -266,24 +323,45 @@ export class AssetStorage {
 		this.store_material(key, material);
 		return material;
 	}
+	/**
+	 *
+	 */
 	has_material(key) {
 		return this.material_cache.has(key);
 	}
+	/**
+	 *
+	 */
 	set_emission_state(object_name, state) {
 		this.emission_states.set(object_name, state);
 	}
+	/**
+	 *
+	 */
 	get_emission_state(object_name) {
 		return this.emission_states.get(object_name);
 	}
+	/**
+	 *
+	 */
 	delete_emission_state(object_name) {
 		this.emission_states.delete(object_name);
 	}
+	/**
+	 *
+	 */
 	set_currently_activated_name(name) {
 		this.currently_activated_name = name;
 	}
+	/**
+	 *
+	 */
 	get_currently_activated_name() {
 		return this.currently_activated_name;
 	}
+	/**
+	 *
+	 */
 	contains_object(object_name) {
 		return this.emission_states.has(object_name);
 	}

@@ -4,10 +4,18 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { gracefulShutdownPlugin } from '../../scripts/vite-plugins.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 // Helper function to find all HTML files in src directory
+/**
+ *
+ */
 function findHtmlEntries() {
 	const srcDir = path.resolve(__dirname, 'src');
 	const entries = {};
+
+	/**
+	 *
+	 */
 	function scanDirectory(dir) {
 		if (!fs.existsSync(dir)) return;
 		const files = fs.readdirSync(dir, { withFileTypes: true });
@@ -22,9 +30,11 @@ function findHtmlEntries() {
 			}
 		}
 	}
+
 	scanDirectory(srcDir);
 	return entries;
 }
+
 export default defineConfig({
 	// Set the root directory to the source files for development
 	root: path.resolve(__dirname, 'src'),

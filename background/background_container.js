@@ -3,6 +3,9 @@ import { AssetStorage, AssetSpawner, ASSET_TYPE }  from '@littlecarlito/blorkpac
 import { ControlMenu } from "./menus/control_menu";
 import { ScrollMenu } from "./menus/scroll_menu";
 import { CATEGORIES, TYPES } from "../viewport/overlay/overlay_common";
+/**
+ *
+ */
 export class BackgroundContainer {
 	name = "[BackgroundContainer]"
 	parent;
@@ -17,6 +20,9 @@ export class BackgroundContainer {
 	loading_promise;
 	is_spawning_secondary = false;  // Add state tracking for spawn in progress
 	is_spawning_primary = false;
+	/**
+	 *
+	 */
 	constructor(incoming_parent, incoming_camera, incoming_world) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
@@ -266,6 +272,9 @@ export class BackgroundContainer {
 		});
 	}
 	// Add method to check if all assets are loaded
+	/**
+	 *
+	 */
 	async is_loading_complete() {
 		try {
 			await this.loading_promise;
@@ -276,9 +285,15 @@ export class BackgroundContainer {
 		}
 	}
 	// Add method to get the asset manifest
+	/**
+	 *
+	 */
 	get_asset_manifest() {
 		return this.asset_manifest;
 	}
+	/**
+	 *
+	 */
 	update(grabbed_object, viewable_container) {
 		// Deal with primary instructions
 		if(viewable_container.is_primary_triggered() && !this.is_primary_spawned()) {
@@ -325,9 +340,15 @@ export class BackgroundContainer {
 			}
 		});
 	}
+	/**
+	 *
+	 */
 	contains_object(incoming_name) {
 		return AssetStorage.get_instance().contains_object(incoming_name);
 	}
+	/**
+	 *
+	 */
 	async spawn_primary_instructions() {
 		// Set state to prevent overlapping calls
 		if (this.is_spawning_primary) {
@@ -373,6 +394,9 @@ export class BackgroundContainer {
 			if(FLAGS.PHYSICS_LOGS) console.log(`${this.name} Primary instructions spawn complete`);
 		}
 	}
+	/**
+	 *
+	 */
 	async spawn_secondary_instructions() {
 		try {
 			if(FLAGS.PHYSICS_LOGS) {
@@ -419,6 +443,9 @@ export class BackgroundContainer {
 			this.secondary_instruction_sign = null;
 		}
 	}
+	/**
+	 *
+	 */
 	async break_primary_chains() {
 		const asset_loader = AssetSpawner.get_instance(this.object_container, this.world);
 		if(this.is_primary_spawned()) {
@@ -431,6 +458,9 @@ export class BackgroundContainer {
 			console.warn("Primary instruction chains cannot be broken as it has not spawned...");
 		}
 	}
+	/**
+	 *
+	 */
 	async break_secondary_chains() {
 		if(this.is_secondary_spawned()) {
 			if(!this.secondary_instruction_sign.chains_broken) {
@@ -441,9 +471,15 @@ export class BackgroundContainer {
 		}
 	}
 	// ----- Getters
+	/**
+	 *
+	 */
 	is_primary_spawned() {
 		return this.primary_instruction_sign != null;
 	}
+	/**
+	 *
+	 */
 	is_primary_chains_broken() {
 		if(!this.is_primary_spawned()) {
 			console.warn("Primary instruction chains don't exist yet to be broken; Returning false");
@@ -452,15 +488,24 @@ export class BackgroundContainer {
 			return this.primary_instruction_sign.chains_broken;
 		}
 	}
+	/**
+	 *
+	 */
 	is_primary_instructions_intact() {
 		if(this.is_primary_spawned()) {
 			return !this.is_primary_chains_broken();
 		}
 		return false;
 	}
+	/**
+	 *
+	 */
 	is_secondary_spawned() {
 		return this.secondary_instruction_sign != null;
 	}
+	/**
+	 *
+	 */
 	is_secondary_chains_broken() {
 		if(!this.is_secondary_spawned) {
 			console.warn("Secondary instruction chains don't exist yet to be broken; Returning false");
@@ -468,6 +513,9 @@ export class BackgroundContainer {
 		}
 		return this.secondary_instruction_sign.chains_broken;
 	}
+	/**
+	 *
+	 */
 	is_secondary_instructions_intact() {
 		if(this.is_secondary_spawned) {
 			return !this.is_secondary_chains_broken();

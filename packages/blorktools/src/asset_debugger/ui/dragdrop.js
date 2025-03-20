@@ -7,6 +7,9 @@ import { loadModel } from '../core/loader.js';
 import { loadTexture } from '../materials/textureManager.js';
 import { startDebugging } from './debugPanel.js';
 // Setup the drag and drop functionality
+/**
+ *
+ */
 export function setupDragDrop(state) {
 	// Get the main drop container
 	const dropContainer = document.getElementById('drop-container');
@@ -72,7 +75,11 @@ export function setupDragDrop(state) {
 	console.log('- textureDropZone:', textureDropZone);
 	console.log('- startButton:', startButton);
 }
+
 // Set up events for a drop zone
+/**
+ *
+ */
 function setupDropZoneEvents(dropZone, onFileDrop) {
 	// Prevent defaults for drag events
 	['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -114,7 +121,11 @@ function setupDropZoneEvents(dropZone, onFileDrop) {
 		input.click();
 	});
 }
+
 // Enable/disable start button based on file selection
+/**
+ *
+ */
 function updateStartButton(state) {
 	const startButton = document.getElementById('start-button');
 	if (!startButton) return;
@@ -126,12 +137,20 @@ function updateStartButton(state) {
 		startButton.style.display = 'none';
 	}
 }
+
 // Prevent default browser behavior for drag events
+/**
+ *
+ */
 function preventDefaults(e) {
 	e.preventDefault();
 	e.stopPropagation();
 }
+
 // Reset state to initial drop zone
+/**
+ *
+ */
 export function resetToDropZone(state) {
 	// Hide loading indicator
 	const loadingScreen = document.getElementById('loading');
@@ -180,6 +199,9 @@ export function resetToDropZone(state) {
 	}
 }
 // Handle file uploads for model and texture
+/**
+ *
+ */
 export async function handleFileUploads(state) {
 	// Show loading indicator
 	showLoadingIndicator('Initializing...');
@@ -265,7 +287,11 @@ export async function handleFileUploads(state) {
 		resetToDropZone(state);
 	}
 }
+
 // Helper function to show loading indicator with custom message
+/**
+ *
+ */
 function showLoadingIndicator(message = 'Loading...') {
 	const loadingScreen = document.getElementById('loading');
 	const loadingMessage = loadingScreen?.querySelector('div:not(.spinner)');
@@ -276,7 +302,11 @@ function showLoadingIndicator(message = 'Loading...') {
 		loadingMessage.textContent = message;
 	}
 }
+
 // Helper function to hide loading indicator
+/**
+ *
+ */
 function hideLoadingIndicator() {
 	const loadingScreen = document.getElementById('loading');
 	if (loadingScreen) {

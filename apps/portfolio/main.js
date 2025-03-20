@@ -35,6 +35,7 @@ let right_mouse_down = false;
 let is_cleaned_up = false; // Track if cleanup has been performed
 let is_physics_paused = false; // Track if physics simulation is paused
 let greeting_acknowledged = false; // Declare the variable here
+
 /** Cleans up resources to prevent memory leaks */
 function cleanup() {
 	if (is_cleaned_up) {
@@ -95,6 +96,7 @@ function cleanup() {
 		console.log("Application resources cleaned up");
 	}
 }
+
 /** Updates the loading progress text */
 function update_loading_progress(text) {
 	const loading_progress = document.getElementById('loading-progress');
@@ -102,6 +104,7 @@ function update_loading_progress(text) {
 		loading_progress.textContent = text;
 	}
 }
+
 /** Shows the loading screen */
 async function show_loading_screen() {
 	// Load the loading screen HTML from the external file
@@ -109,6 +112,7 @@ async function show_loading_screen() {
 	const html = await response.text();
 	document.body.insertAdjacentHTML('beforeend', html);
 }
+
 /** Hides the loading screen */
 function hide_loading_screen() {
 	const loading_screen = document.getElementById('loading-screen');
@@ -116,6 +120,7 @@ function hide_loading_screen() {
 		loading_screen.remove();
 	}
 }
+
 /**
  * Displays a modal loaded from a remote HTML file
  * @param {string} modal_path - Path to the HTML file containing the modal content
@@ -153,6 +158,7 @@ async function display_modal(modal_path, modal_id, button_id, onAcknowledge) {
 		return false;
 	}
 }
+
 /** Initializes the main scene */
 async function init() {
 	try {
@@ -329,6 +335,7 @@ async function init() {
 		update_loading_progress('Error loading application. Please refresh the page.');
 	}
 }
+
 /** Toggle physics simulation pause state */
 function toggle_physics_pause() {
 	is_physics_paused = !is_physics_paused;
@@ -343,8 +350,10 @@ function toggle_physics_pause() {
 		}
 	}
 }
+
 // Make the function available globally for the debug UI
 window.toggle_physics_pause = toggle_physics_pause;
+
 /** Primary animation function run every frame by renderer */
 function animate() {
 	const delta = window.clock.getDelta();
@@ -432,6 +441,7 @@ function animate() {
 	// Render the scene
 	window.app_renderer.render();
 }
+
 // ----- Handlers
 /** Handles resize events */
 function handle_resize() {
@@ -444,6 +454,10 @@ function handle_resize() {
 		}
 	}, 100);
 }
+
+/**
+ *
+ */
 function handle_mouse_move(e) {
 	// Skip if initialization is not complete
 	if (!window.viewable_container) return;
@@ -509,6 +523,10 @@ function handle_mouse_move(e) {
 		}
 	}
 }
+
+/**
+ *
+ */
 function handle_mouse_up(e) {
 	// Skip if initialization is not complete
 	if (!window.viewable_container) return;
@@ -528,6 +546,10 @@ function handle_mouse_up(e) {
 		}
 	}
 }
+
+/**
+ *
+ */
 function handle_mouse_down(e) {
 	// Skip if initialization is not complete
 	if (!window.viewable_container) return;
@@ -564,9 +586,17 @@ function handle_mouse_down(e) {
 		}
 	}
 }
+
+/**
+ *
+ */
 function handle_context_menu(e) {
 	e.preventDefault();
 }
+
+/**
+ *
+ */
 function handle_wheel(e) {
 	// Skip if initialization is not complete
 	if (!window.viewable_container || !window.background_container) return;
@@ -584,6 +614,7 @@ function handle_wheel(e) {
 		}
 	}
 }
+
 /** Toggle debug UI when 's' key is pressed */
 function toggle_debug_ui(event) {
 	// Toggle debug UI when 's' is pressed
@@ -596,5 +627,6 @@ function toggle_debug_ui(event) {
 		}
 	}
 }
+
 // Start initialization
 init();

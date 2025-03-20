@@ -166,6 +166,7 @@ export async function create_spotlight(scene, id, position, rotation, options = 
 		return null;
 	}
 }
+
 /**
  * Creates a spotlight helper to visualize the spotlight cone and direction.
  * Used for debugging purposes.
@@ -250,6 +251,7 @@ async function create_spotlight_helper(scene, spotlight) {
 		cone
 	};
 }
+
 /**
  * Generates a unique asset ID for spawned assets.
  * @returns {string} A unique ID string
@@ -260,6 +262,7 @@ function generate_asset_id() {
 	const random = Math.floor(Math.random() * 10000);
 	return `asset_${timestamp}_${random}`;
 }
+
 /**
  * Updates all helper visualizations for spotlights.
  * Called from the main animation loop.

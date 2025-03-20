@@ -3,7 +3,11 @@ import path from 'path'
 import fs from 'fs'
 import { ViteImageOptimizer } from 'vite-plugin-image-optimizer'
 import { gracefulShutdownPlugin } from '../../scripts/vite-plugins.js'
+
 // Helper function to get HTML files in tools directory
+/**
+ *
+ */
 function getToolsEntryPoints() {
 	const toolsDir = path.resolve(__dirname, 'tools');
 	const entries = {};
@@ -20,7 +24,11 @@ function getToolsEntryPoints() {
 	}
 	return entries;
 }
+
 // Helper function to copy directory contents to the dist folder
+/**
+ *
+ */
 function copyDirectory(src, dest) {
 	if (!fs.existsSync(src)) {
 		console.warn(`Source directory ${src} doesn't exist`);
@@ -40,7 +48,11 @@ function copyDirectory(src, dest) {
 		}
 	}
 }
+
 // Plugin to create a virtual module for blorkpack during development
+/**
+ *
+ */
 function createVirtualBlorkpackPlugin() {
 	const virtualModuleId = '@littlecarlito/blorkpack';
 	const resolvedVirtualModuleId = '\0' + virtualModuleId;
@@ -166,6 +178,7 @@ function createVirtualBlorkpackPlugin() {
 		}
 	};
 }
+
 export default defineConfig(({ command }) => {
 	const isProduction = command === 'build';
 	// Skip optimization for blorkpack entirely

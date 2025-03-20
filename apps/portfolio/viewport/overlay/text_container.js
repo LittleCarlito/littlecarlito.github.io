@@ -3,6 +3,9 @@ import { TextFrame, IFRAME } from './text_frame';
 import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, CATEGORIES, extract_type, PAN_SPEED, TYPES, VALID_DIRECTIONS } from './overlay_common';
 import { Easing, FLAGS, THREE, Tween } from '../../common';
 import { AssetStorage, AssetSpawner, CustomTypeManager, BLORKPACK_FLAGS }  from '@littlecarlito/blorkpack';
+/**
+ *
+ */
 export class TextContainer {
 	container_width;
 	container_height;
@@ -13,6 +16,9 @@ export class TextContainer {
 	// Get a reference to the CustomTypeManager's types and configs
 	#ASSET_TYPE = CustomTypeManager.getTypes();
 	#ASSET_CONFIGS = CustomTypeManager.getConfigs();
+	/**
+	 *
+	 */
 	constructor(incoming_parent, incoming_camera) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
@@ -501,6 +507,9 @@ export class TextContainer {
 		}
 	}
 	// Method to tween focused_text_name to offscreen and set to empty string
+	/**
+	 *
+	 */
 	lose_focus_text_box(move_direction = "") {
 		if (this.focused_text_name != "") {
 			if (move_direction == "" || VALID_DIRECTIONS.includes(move_direction)) {
@@ -580,6 +589,9 @@ export class TextContainer {
 			}
 		}
 	}
+	/**
+	 *
+	 */
 	resize() {
 		// Store previous container dimensions for comparison
 		const prevWidth = this.container_width;
@@ -665,6 +677,9 @@ export class TextContainer {
 			});
 		});
 	}
+	/**
+	 *
+	 */
 	update_iframe_size(incoming_simple_name, incoming_width, incoming_height) {
 		const matched_frame = Array.from(this.text_frames.values()).find(frame => (frame.simple_name == incoming_simple_name));
 		if (matched_frame) {
@@ -712,6 +727,9 @@ export class TextContainer {
 			}
 		}
 	}
+	/**
+	 *
+	 */
 	reposition(is_column_left) {
 		if (this.focused_text_name != "") {
 			this.focus_text_box(this.focused_text_name, is_column_left);
@@ -751,6 +769,9 @@ export class TextContainer {
 			}
 		});
 	}
+	/**
+	 *
+	 */
 	offscreen_reposition() {
 		const offscreen_x = -(this.container_width * 3);
 		const y_position = this.get_text_box_y(this.camera);
@@ -767,6 +788,9 @@ export class TextContainer {
 			}
 		});
 	}
+	/**
+	 *
+	 */
 	set_content_layer(incoming_object_name, incoming_layer) {
 		const existing_object = this.text_box_container.getObjectByName(incoming_object_name);
 		existing_object.children.forEach(c => {
@@ -798,6 +822,9 @@ export class TextContainer {
 	get_active_text_box() {
 		return this.text_box_container.getObjectByName(this.focused_text_name);
 	}
+	/**
+	 *
+	 */
 	trigger_overlay(is_overlay_hidden, tween_map) {
 		const current_pos = this.text_box_container.position.clone();
 		const target_y = is_overlay_hidden ? get_associated_position(SOUTH, this.camera) : this.get_text_box_y();

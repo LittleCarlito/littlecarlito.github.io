@@ -7,6 +7,9 @@ let textureEditor = null;
 let textureList = null;
 let editorWindow = null;
 // Create texture editor
+/**
+ *
+ */
 export function createTextureEditor(state) {
 	// Create a collapsible panel
 	const panel = createCollapsiblePanel({
@@ -163,6 +166,9 @@ export function createTextureEditor(state) {
 	return panel;
 }
 // Toggle texture editor visibility
+/**
+ *
+ */
 export function toggleTextureEditor(state) {
 	if (!state.textureObject) {
 		alert('No texture loaded. Please load a texture first.');
@@ -232,7 +238,11 @@ export function toggleTextureEditor(state) {
 	// Add to document
 	document.body.appendChild(editorWindow);
 }
+
 // Update texture editor UI based on current state
+/**
+ *
+ */
 function updateEditorUI(state) {
 	if (!textureEditor) return;
 	// Update multi-texture mode toggle
@@ -260,7 +270,11 @@ function updateEditorUI(state) {
 		}
 	}
 }
+
 // Update the texture list in the editor
+/**
+ *
+ */
 function updateTextureList(state) {
 	if (!textureList) return;
 	// Clear the current list, except for the primary texture item
@@ -284,7 +298,11 @@ function updateTextureList(state) {
 		});
 	}
 }
+
 // Create a texture list item
+/**
+ *
+ */
 function createTextureListItem(options, index, state) {
 	const { name, isPrimary, isEnabled, uvIndex, blendMode, intensity } = options;
 	const item = document.createElement('div');
@@ -453,7 +471,11 @@ function createTextureListItem(options, index, state) {
 	item.appendChild(controlsRow);
 	return item;
 }
+
 // Update texture preview in single texture mode
+/**
+ *
+ */
 function updateTexturePreview(previewContainer, state) {
 	// Clear current content
 	previewContainer.innerHTML = '';
@@ -504,7 +526,11 @@ function updateTexturePreview(previewContainer, state) {
 		applyTextureOffset(x, y, state);
 	});
 }
+
 // Apply texture offset/repeat based on click
+/**
+ *
+ */
 function applyTextureOffset(x, y, state) {
 	if (!state.textureObject || !state.modelObject) return;
 	// Offset to center the clicked point
@@ -524,6 +550,7 @@ function applyTextureOffset(x, y, state) {
 		}
 	});
 }
+
 /**
  * Apply texture adjustments
  * @param {Object} state - Global state object

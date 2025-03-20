@@ -176,6 +176,7 @@ export function updateAtlasVisualization(state) {
 	}
 	console.log('Atlas visualization updated with new texture');
 }
+
 /**
  * Update the canvas with the texture
  * @param {THREE.Texture} texture - The texture to display
@@ -242,6 +243,7 @@ function updateCanvasWithTexture(texture, currentRegion = { min: [0, 0], max: [1
 		coordsText.textContent = `Currently using: (${currentRegion.min[0].toFixed(2)},${currentRegion.min[1].toFixed(2)}) to (${currentRegion.max[0].toFixed(2)},${currentRegion.max[1].toFixed(2)})`;
 	}
 }
+
 /**
  * Draw a UV coordinate grid on the canvas
  * @param {CanvasRenderingContext2D} ctx - Canvas context
@@ -280,6 +282,7 @@ function drawUvGrid(ctx, width, height) {
 	// 1,1 at top right
 	ctx.fillText('1,1', width - 20, 10);
 }
+
 /**
  * Draw a highlight region on the canvas
  * @param {CanvasRenderingContext2D} ctx - Canvas context
@@ -303,6 +306,7 @@ function drawHighlightRegion(ctx, region, width, height) {
 	ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
 	ctx.fill();
 }
+
 /**
  * Remove atlas visualization
  */
@@ -328,6 +332,7 @@ export function removeAtlasVisualization() {
 		atlasVisualization3D = null;
 	}
 }
+
 /**
  * Make an element draggable
  * @param {HTMLElement} element - The element to make draggable
@@ -365,6 +370,7 @@ function makeDraggable(element) {
 		}
 	});
 }
+
 /**
  * Set the current UV region displayed on the model
  * @param {Array} min - Min coordinates [x, y] (0 to 1)
@@ -387,6 +393,7 @@ export function setCurrentUvRegion(min, max, state) {
 	console.log(`Updated current UV region to: (${min[0].toFixed(2)},${min[1].toFixed(2)}) - (${max[0].toFixed(2)},${max[1].toFixed(2)})`);
 	return state.currentUvRegion;
 }
+
 /**
  * Make an element draggable with magnetism
  * @param {HTMLElement} element - The element to make draggable with magnetism

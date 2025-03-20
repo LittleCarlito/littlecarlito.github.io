@@ -14,7 +14,11 @@ const rootDir = path.resolve(__dirname, '..');
 const app = express();
 let consolePort = 9000;
 let isShuttingDown = false;
+
 // Function to check if a port is in use
+/**
+ *
+ */
 function isPortInUse(port) {
 	return new Promise((resolve) => {
 		const server = net.createServer();
@@ -32,7 +36,11 @@ function isPortInUse(port) {
 		server.listen(port);
 	});
 }
+
 // Find the next available port starting from the preferred port
+/**
+ *
+ */
 async function findAvailablePort(preferredPort, maxAttempts = 10) {
 	let port = preferredPort;
 	for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -45,7 +53,11 @@ async function findAvailablePort(preferredPort, maxAttempts = 10) {
 	}
 	return null; // No available ports found within range
 }
+
 // Kill a process and all its children using tree-kill
+/**
+ *
+ */
 function killProcess(pid, signal = 'SIGTERM') {
 	return new Promise((resolve) => {
 		treeKill(pid, signal, (err) => {
@@ -58,7 +70,11 @@ function killProcess(pid, signal = 'SIGTERM') {
 		});
 	});
 }
+
 // Function to start a process and return its handle
+/**
+ *
+ */
 function startProcess(command, args, options = {}) {
 	console.log(`Starting: ${command} ${args.join(' ')}`);
 	try {
@@ -99,11 +115,16 @@ function startProcess(command, args, options = {}) {
 		return null;
 	}
 }
+
 // Project metadata and tracking
 let projects = [];
 let dashboardStarted = false;
 let expressServer = null;
+
 // Function to discover all workspace packages
+/**
+ *
+ */
 async function discoverProjects() {
 	try {
 		// Read workspace config
@@ -236,7 +257,11 @@ async function discoverProjects() {
 		return [];
 	}
 }
+
 // Function to generate GitHub repo URL for a project
+/**
+ *
+ */
 function generateGitHubUrl(project) {
 	if (!project.repoUrl) return null;
 	// Format: https://github.com/username/repo
@@ -262,7 +287,11 @@ function generateGitHubUrl(project) {
 	}
 	return repoUrl;
 }
+
 // Function to generate a project status summary
+/**
+ *
+ */
 function generateProjectStatus(project) {
 	if (!project) return '';
 	const displayName = project.name.replace(/^@[^/]+\//, '');
@@ -288,7 +317,11 @@ function generateProjectStatus(project) {
   </div>
   `;
 }
+
 // Function to generate a nice card view for a project
+/**
+ *
+ */
 function generateProjectCard(project) {
 	if (!project) {
 		return '';
@@ -325,7 +358,11 @@ function generateProjectCard(project) {
     `;
 	}
 }
+
 // Generate script to check if services are available
+/**
+ *
+ */
 function generateServiceChecks() {
 	return projects
 		.filter(p => p.shouldServe && p.port)
@@ -335,7 +372,11 @@ function generateServiceChecks() {
 		})
 		.join('\n      ');
 }
+
 // Function to start the dashboard once services are ready
+/**
+ *
+ */
 function startDashboard() {
 	if (dashboardStarted) return;
 	dashboardStarted = true;
@@ -659,7 +700,11 @@ function startDashboard() {
 		open(`http://localhost:${consolePort}`);
 	});
 }
+
 // Improved shutdown sequence
+/**
+ *
+ */
 async function shutdownGracefully() {
 	if (isShuttingDown) return; // Prevent multiple shutdown attempts
 	isShuttingDown = true;
@@ -712,7 +757,11 @@ async function shutdownGracefully() {
 		process.exit(0);
 	}, 100);
 }
+
 // Simplified main function to run everything
+/**
+ *
+ */
 async function run() {
 	try {
 		// Discover all projects in the workspace
@@ -808,5 +857,6 @@ async function run() {
 		process.exit(1);
 	}
 }
+
 // Start everything
 run(); 

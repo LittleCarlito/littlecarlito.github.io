@@ -2,6 +2,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 // Setup the Three.js scene, camera, renderer
+/**
+ *
+ */
 export function setupScene(state) {
 	// Create scene
 	state.scene = new THREE.Scene();
@@ -24,6 +27,9 @@ export function setupScene(state) {
 	return state;
 }
 // Initialize renderer with proper settings
+/**
+ *
+ */
 export function initRenderer() {
 	const renderer = new THREE.WebGLRenderer({ antialias: true });
 	renderer.setSize(window.innerWidth, window.innerHeight);
@@ -33,7 +39,11 @@ export function initRenderer() {
 	renderer.domElement.style.display = 'none'; // Hide canvas initially
 	return renderer;
 }
+
 // Add standard lights to the scene
+/**
+ *
+ */
 function addLights(scene) {
 	const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
 	scene.add(ambientLight);
@@ -45,13 +55,21 @@ function addLights(scene) {
 	directionalLight2.position.set(-1, 0.5, -1);
 	scene.add(directionalLight2);
 }
+
 // Handle window resize
+/**
+ *
+ */
 function onWindowResize(state) {
 	state.camera.aspect = window.innerWidth / window.innerHeight;
 	state.camera.updateProjectionMatrix();
 	state.renderer.setSize(window.innerWidth, window.innerHeight);
 }
+
 // Animation loop
+/**
+ *
+ */
 export function animate(state) {
 	requestAnimationFrame(() => animate(state));
 	// Update controls
@@ -65,7 +83,11 @@ export function animate(state) {
 		state.renderer.render(state.scene, state.camera);
 	}
 }
+
 // Update shader time uniforms for animated materials
+/**
+ *
+ */
 function updateShaderMaterials(state) {
 	const time = performance.now() * 0.001; // Time in seconds
 	if (state.modelObject) {

@@ -15,9 +15,17 @@ if (fs.existsSync(packagesPath)) {
 } else {
 	console.log('✅ No packages directory found in dist. Good!');
 }
+
 // Function to check for source files
+/**
+ *
+ */
 function findSourceFiles(directory) {
 	const sourceFiles = [];
+
+	/**
+	 *
+	 */
 	function scan(dir) {
 		const entries = fs.readdirSync(dir, { withFileTypes: true });
 		for (const entry of entries) {
@@ -39,9 +47,11 @@ function findSourceFiles(directory) {
 			}
 		}
 	}
+
 	scan(directory);
 	return sourceFiles;
 }
+
 // Find source files
 const sourceFiles = findSourceFiles(distPath);
 if (sourceFiles.length > 0) {
@@ -107,8 +117,16 @@ const developmentPatterns = [
 	'blorktools/',
 	'tools/'
 ];
+
+/**
+ *
+ */
 function findDevelopmentFiles(directory) {
 	const devFiles = [];
+
+	/**
+	 *
+	 */
 	function scan(dir) {
 		try {
 			const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -139,9 +157,11 @@ function findDevelopmentFiles(directory) {
 			console.error(`Error scanning ${dir}: ${err.message}`);
 		}
 	}
+
 	scan(directory);
 	return devFiles;
 }
+
 const developmentFiles = findDevelopmentFiles(distPath);
 if (developmentFiles.length > 0) {
 	console.warn('WARNING: Development or documentation files found in dist folder!');
@@ -167,9 +187,17 @@ if (developmentFiles.length > 0) {
 }
 // Analyze bundle size
 console.log('\n📊 Analyzing bundle size...');
+
 // Get file sizes
+/**
+ *
+ */
 function getFileSizesInDir(dir, extension) {
 	const results = [];
+
+	/**
+	 *
+	 */
 	function scan(directory) {
 		const entries = fs.readdirSync(directory, { withFileTypes: true });
 		for (const entry of entries) {
@@ -186,11 +214,16 @@ function getFileSizesInDir(dir, extension) {
 			}
 		}
 	}
+
 	scan(dir);
 	// Sort by size (largest first)
 	return results.sort((a, b) => b.size - a.size);
 }
+
 // Format bytes to human-readable format
+/**
+ *
+ */
 function formatBytes(bytes, decimals = 2) {
 	if (bytes === 0) return '0 Bytes';
 	const k = 1024;
@@ -199,6 +232,7 @@ function formatBytes(bytes, decimals = 2) {
 	const i = Math.floor(Math.log(bytes) / Math.log(k));
 	return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
+
 // Get largest JS files
 const jsFiles = getFileSizesInDir(distPath, '.js');
 const totalJsSize = jsFiles.reduce((total, file) => total + file.size, 0);

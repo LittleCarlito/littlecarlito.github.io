@@ -83,6 +83,9 @@ export const SIGN_PHYSICS = {
 	},
 	USE_CCD: false
 };
+/**
+ *
+ */
 export class ControlMenu {
 	parent;
 	camera;
@@ -126,6 +129,9 @@ export class ControlMenu {
 	initial_camera_quaternion = new THREE.Quaternion();
 	// Cache asset types
 	#ASSET_TYPE = CustomTypeManager.getTypes();
+	/**
+	 *
+	 */
 	constructor(incoming_parent, incoming_camera, incoming_world, primary_container, incoming_speed = DEFAULT_SPEED) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
@@ -149,6 +155,9 @@ export class ControlMenu {
 		};
 		return this.initialize(primary_container, incoming_speed);
 	}
+	/**
+	 *
+	 */
 	async initialize(primary_container, incoming_speed) {
 		// Create only the beam debug mesh, not the sign debug mesh
 		// Debug mesh for beam
@@ -378,6 +387,9 @@ export class ControlMenu {
 		this.updateDebugVisualizations();
 		return this;
 	}
+	/**
+	 *
+	 */
 	async break_chains() {
 		if (this.chains_broken) {
 			console.warn("Attempted to break chains again, but they were already broken.");
@@ -437,6 +449,9 @@ export class ControlMenu {
 		this.chains_broken = true;
 	}
 	// Smooth easing function (ease-out cubic)
+	/**
+	 *
+	 */
 	easeOutCubic(t) {
 		return 1 - Math.pow(1 - t, 3);
 	}
@@ -448,6 +463,9 @@ export class ControlMenu {
 		// pointing at the final destination of the control menu
 		// The spotlight is now set up at initialization and points at the target_position
 	}
+	/**
+	 *
+	 */
 	async update() {
 		// Get current time for logging
 		const currentTime = performance.now();
@@ -569,6 +587,9 @@ export class ControlMenu {
 		}
 	}
 	// Add this method to calculate spotlight position
+	/**
+	 *
+	 */
 	calculate_spotlight_position(camera_position, camera_quaternion) {
 		const spotlightPosition = new THREE.Vector3();
 		spotlightPosition.copy(camera_position);

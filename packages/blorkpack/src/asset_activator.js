@@ -11,6 +11,9 @@ export class AssetActivator {
 	activations = new Map();
 	// Cache the CustomTypeManager types
 	#assetTypes = null;
+	/**
+	 *
+	 */
 	constructor(camera, renderer) {
 		if (AssetActivator.instance) {
 			return AssetActivator.instance;

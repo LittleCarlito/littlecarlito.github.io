@@ -6,8 +6,14 @@ import { BLORKPACK_FLAGS } from './blorkpack_flags.js';
 // Default scale factor
 const SCALE_FACTOR = 5;
 // No hardcoded custom types - everything comes from JSON
+/**
+ *
+ */
 class CustomTypeManager {
 	static instance = null;
+	/**
+	 *
+	 */
 	constructor() {
 		if (CustomTypeManager.instance) {
 			return CustomTypeManager.instance;

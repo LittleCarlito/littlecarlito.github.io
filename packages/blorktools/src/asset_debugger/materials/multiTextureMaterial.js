@@ -3,6 +3,9 @@
 import * as THREE from 'three';
 import { originalUvData } from '../core/analyzer.js';
 // Create a multi-texture shader material
+/**
+ *
+ */
 export function createMultiTextureMaterial(textures, mesh, state) {
 	if (!textures || !textures.length) return null;
 	// Maximum number of textures supported by the shader
@@ -62,7 +65,11 @@ export function createMultiTextureMaterial(textures, mesh, state) {
 	});
 	return material;
 }
+
 // Generate shader code based on the provided textures
+/**
+ *
+ */
 function generateShaderCode(textures, mesh) {
 	// Check if the mesh has UV2 and UV3 channels
 	const hasUv2 = mesh && mesh.geometry && mesh.geometry.getAttribute('uv2');
@@ -155,7 +162,11 @@ function generateShaderCode(textures, mesh) {
   `;
 	return { vertexShader, fragmentShader };
 }
+
 // Generate texture uniform declarations
+/**
+ *
+ */
 function generateTextureUniforms(count) {
 	let code = '';
 	const maxTextures = Math.min(count, 5); // Maximum 5 textures
@@ -169,7 +180,11 @@ function generateTextureUniforms(count) {
 	}
 	return code;
 }
+
 // Generate code for blending textures
+/**
+ *
+ */
 function generateTextureBlending(count) {
 	let code = '';
 	const maxTextures = Math.min(count, 5); // Maximum 5 textures
@@ -184,7 +199,11 @@ function generateTextureBlending(count) {
 	}
 	return code;
 }
+
 // Convert blend mode string to numeric value for shader
+/**
+ *
+ */
 function getBlendModeValue(blendMode) {
 	switch (blendMode?.toLowerCase()) {
 	case 'normal': return 0;
@@ -195,7 +214,11 @@ function getBlendModeValue(blendMode) {
 	default: return 0; // Default to normal
 	}
 }
+
 // Update shader material time uniform for animations
+/**
+ *
+ */
 export function updateShaderTime(material, time) {
 	if (material && material.isShaderMaterial && material.uniforms && material.uniforms.time) {
 		material.uniforms.time.value = time;

@@ -7,7 +7,13 @@ const ANGLES = {
 	toRadians: degrees => degrees * (Math.PI / 180),
 	toDegrees: radians => radians * (180 / Math.PI)
 };
+/**
+ *
+ */
 export class CameraManager {
+	/**
+	 *
+	 */
 	constructor(incoming_parent, incoming_camera, distance = 15) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
@@ -44,6 +50,9 @@ export class CameraManager {
 			this.create_shoulder_lights(camera_config.shoulder_lights);
 		}
 	}
+	/**
+	 *
+	 */
 	async create_shoulder_lights(lights_config) {
 		// Create left shoulder spotlight if configuration exists
 		if (lights_config.left) {
@@ -122,12 +131,21 @@ export class CameraManager {
 			this.right_shoulder_light.mesh.target.position.copy(target);
 		}
 	}
+	/**
+	 *
+	 */
 	add_update_callback(callback) {
 		this.on_update_callbacks.add(callback);
 	}
+	/**
+	 *
+	 */
 	remove_update_callback(callback) {
 		this.on_update_callbacks.delete(callback);
 	}
+	/**
+	 *
+	 */
 	rotate(delta_x, delta_y) {
 		// Convert the input to degrees (assuming input is in screen pixels)
 		this.theta -= delta_x;
@@ -135,6 +153,9 @@ export class CameraManager {
 		this.update_camera();
 	}
 	// Add zoom capability
+	/**
+	 *
+	 */
 	zoom(delta) {
 		this.distance = Math.max(
 			this.min_dist,
@@ -142,9 +163,15 @@ export class CameraManager {
 		);
 		this.update_camera();
 	}
+	/**
+	 *
+	 */
 	set_overlay_container(container) {
 		this.overlay_container = container;
 	}
+	/**
+	 *
+	 */
 	async cleanupDebugMeshes() {
 		if (this.left_shoulder_light) {
 			await this.spawner.despawn_helpers(this.left_shoulder_light.mesh);
@@ -153,6 +180,9 @@ export class CameraManager {
 			await this.spawner.despawn_helpers(this.right_shoulder_light.mesh);
 		}
 	}
+	/**
+	 *
+	 */
 	update_camera() {
 		// Convert spherical coordinates to Cartesian
 		const phi_rad = THREE.MathUtils.degToRad(this.phi);

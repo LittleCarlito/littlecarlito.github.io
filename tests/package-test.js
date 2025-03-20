@@ -21,6 +21,10 @@ document.body.appendChild(renderer.domElement);
 camera.position.z = 5;
 // Initialize Rapier physics
 let world;
+
+/**
+ *
+ */
 async function init() {
 	console.log('Initializing...');
 	// Initialize Rapier
@@ -49,7 +53,11 @@ async function init() {
 		// Register with asset storage
 		const instance_id = assetStorage.add_object(cube, null);
 		console.log('Created cube with instance_id:', instance_id);
+
 		// Simple animation loop
+		/**
+		 *
+		 */
 		function animate() {
 			requestAnimationFrame(animate);
 			// Update physics world
@@ -62,10 +70,12 @@ async function init() {
 			// Render
 			renderer.render(scene, camera);
 		}
+
 		animate();
 		console.log('Asset Management package test complete!');
 	} catch (error) {
 		console.error('Error in test:', error);
 	}
 }
+
 init(); 

@@ -9,7 +9,11 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
+
 // Helper function to get all JS files in a directory recursively
+/**
+ *
+ */
 function getJsFiles(dir, baseDir = dir, files = {}) {
 	const entries = fs.readdirSync(dir, { withFileTypes: true });
 	for (const entry of entries) {
@@ -26,7 +30,11 @@ function getJsFiles(dir, baseDir = dir, files = {}) {
 	}
 	return files;
 }
+
 // Create a simplified, user-friendly export name
+/**
+ *
+ */
 function createFriendlyExportName(filePath) {
 	// Remove .js extension
 	let name = filePath.replace(/\.js$/, '');
@@ -64,7 +72,11 @@ function createFriendlyExportName(filePath) {
 	const kebabCase = baseName.replace(/_/g, '-');
 	return `./${kebabCase}`;
 }
+
 // Build the exports object
+/**
+ *
+ */
 function buildExports() {
 	const srcDir = path.join(rootDir, 'src');
 	const jsFiles = getJsFiles(srcDir, srcDir);
@@ -106,7 +118,11 @@ function buildExports() {
 	});
 	return exports;
 }
+
 // Update package.json
+/**
+ *
+ */
 function updatePackageJson() {
 	const packageJsonPath = path.join(rootDir, 'package.json');
 	const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
@@ -119,5 +135,6 @@ function updatePackageJson() {
 	console.log('✅ Updated package.json exports field');
 	console.log(`📦 Added ${Object.keys(packageJson.exports).length} export paths`);
 }
+
 // Run the script
 updatePackageJson(); 

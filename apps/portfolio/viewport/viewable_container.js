@@ -4,6 +4,9 @@ import { CameraManager } from './camera_manager';
 import { THREE } from "../common";
 import { FLAGS } from "../common";
 export const UI_Z_DIST = 25;
+/**
+ *
+ */
 export class ViewableContainer {
 	detect_rotation = false;
 	overlay_container;
@@ -11,6 +14,9 @@ export class ViewableContainer {
 	right_mouse_down = false;
 	camera_manager;
 	asset_spawner;
+	/**
+	 *
+	 */
 	constructor(window) {
 		this.viewable_container_container = new THREE.Object3D();
 		this.parent = window.scene;
@@ -38,21 +44,39 @@ export class ViewableContainer {
 		// Add mouse button event listeners
 	}
 	// ----- Functions
+	/**
+	 *
+	 */
 	swap_sides() {
 		this.get_overlay().swap_column_sides();
 	}
+	/**
+	 *
+	 */
 	reset_hover() {
 		this.get_overlay().reset_hover();
 	}
+	/**
+	 *
+	 */
 	focus_text_box(incoming_name) {
 		this.get_overlay().focus_text_box(incoming_name);
 	}
+	/**
+	 *
+	 */
 	open_link(incoming_url) {
 		this.get_overlay().open_link(incoming_url);
 	}
+	/**
+	 *
+	 */
 	lose_focus_text_box(incoming_direction = null) {
 		this.get_overlay().lose_focus_text_box(incoming_direction);
 	}
+	/**
+	 *
+	 */
 	reset_camera() {
 		// Update camera aspect ratio
 		this.get_camera().aspect = window.innerWidth / window.innerHeight;
@@ -61,6 +85,9 @@ export class ViewableContainer {
 		// Force camera manager to update
 		this.camera_manager.update_camera();
 	}
+	/**
+	 *
+	 */
 	resize_reposition() {
 		if(this.is_overlay_hidden()){
 			this.get_overlay().resize_reposition_offscreen();
@@ -68,9 +95,15 @@ export class ViewableContainer {
 			this.get_overlay().resize_reposition();
 		}
 	}
+	/**
+	 *
+	 */
 	trigger_overlay() {
 		this.get_overlay().trigger_overlay();
 	}
+	/**
+	 *
+	 */
 	handle_mouse_up(found_intersections){
 		// Log the state when debugging is enabled
 		if(FLAGS.SELECT_LOGS) {
@@ -159,6 +192,9 @@ export class ViewableContainer {
 			}
 		}
 	}
+	/**
+	 *
+	 */
 	handle_mouse_down(found_intersections) {
 		if(FLAGS.SELECT_LOGS) {
 			console.log("Mouse down handler:", {
@@ -189,18 +225,33 @@ export class ViewableContainer {
 		}
 	}
 	// ----- Getters
+	/**
+	 *
+	 */
 	is_primary_triggered() {
 		return this.get_overlay().primary_control_trigger;
 	}
+	/**
+	 *
+	 */
 	is_secondary_triggered() {
 		return this.get_overlay().secondary_control_trigger;
 	}
+	/**
+	 *
+	 */
 	is_column_left_side() {
 		return this.get_overlay().is_label_container_left_side();
 	}
+	/**
+	 *
+	 */
 	is_text_active() {
 		return this.overlay_container.is_text_active();
 	}
+	/**
+	 *
+	 */
 	is_overlay_hidden() {
 		return this.get_overlay().is_overlay_hidden();
 	}
@@ -211,24 +262,45 @@ export class ViewableContainer {
 	is_animating() {
 		return this.get_overlay().is_animating();
 	}
+	/**
+	 *
+	 */
 	get_hide_transition_map() {
 		return this.get_overlay().hide_transition_map;
 	}
+	/**
+	 *
+	 */
 	get_camera() {
 		return this.camera;
 	}
+	/**
+	 *
+	 */
 	get_camera_manager() {
 		return this.camera_manager;
 	}
+	/**
+	 *
+	 */
 	get_overlay() {
 		return this.overlay_container;
 	}
+	/**
+	 *
+	 */
 	get_active_name() {
 		return this.overlay_container.get_active_box().name;
 	}
+	/**
+	 *
+	 */
 	get_viewable_container() {
 		return this.viewable_container_container;
 	}
+	/**
+	 *
+	 */
 	get_intersected_name() {
 		return this.get_overlay().intersected_name();
 	}

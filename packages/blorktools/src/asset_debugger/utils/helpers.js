@@ -1,5 +1,8 @@
 // Common utility helper functions
 // Format file size in KB or MB
+/**
+ *
+ */
 export function formatFileSize(bytes) {
 	if (bytes < 1024) {
 		return bytes + ' bytes';
@@ -10,10 +13,16 @@ export function formatFileSize(bytes) {
 	}
 }
 // Get file extension
+/**
+ *
+ */
 export function getFileExtension(filename) {
 	return filename.slice(((filename.lastIndexOf(".") - 1) >>> 0) + 2);
 }
 // Create a DOM element with properties
+/**
+ *
+ */
 export function createElement(tag, properties = {}, children = []) {
 	const element = document.createElement(tag);
 	// Set properties
@@ -44,6 +53,9 @@ export function createElement(tag, properties = {}, children = []) {
 	return element;
 }
 // Create a collapsible component
+/**
+ *
+ */
 export function createCollapsiblePanel({
 	id, 
 	title, 
@@ -127,7 +139,11 @@ export function createCollapsiblePanel({
 		offsetX: 0, 
 		offsetY: 0
 	};
+
 	// Toggle collapse state
+	/**
+	 *
+	 */
 	function toggleCollapseState() {
 		state.isCollapsed = !state.isCollapsed;
 		if (state.isCollapsed) {
@@ -161,6 +177,7 @@ export function createCollapsiblePanel({
 			}, 400);
 		}
 	}
+
 	// Drag threshold (pixels of movement to consider it a drag)
 	const dragThreshold = 5;
 	// Handle header click for collapsing
@@ -185,6 +202,10 @@ export function createCollapsiblePanel({
 	if (magneticSnap) {
 		container.addEventListener('mousedown', startDrag);
 	}
+
+	/**
+	 *
+	 */
 	function startDrag(e) {
 		// Avoid dragging when clicking on content
 		if (e.target !== container && e.target !== header && 
@@ -202,6 +223,10 @@ export function createCollapsiblePanel({
 		e.preventDefault();
 		e.stopPropagation();
 	}
+
+	/**
+	 *
+	 */
 	function dragMove(e) {
 		// Check if we've moved enough to consider it a drag
 		if (state.mouseDownPosition) {
@@ -228,6 +253,10 @@ export function createCollapsiblePanel({
 			container.style.top = `${y}px`;
 		}
 	}
+
+	/**
+	 *
+	 */
 	function dragEnd(e) {
 		// Remove event listeners regardless
 		document.removeEventListener('mousemove', dragMove);
@@ -263,6 +292,7 @@ export function createCollapsiblePanel({
 		state.mouseDownPosition = null;
 		state.hasDragged = false;
 	}
+
 	document.body.appendChild(container);
 	return {
 		container,

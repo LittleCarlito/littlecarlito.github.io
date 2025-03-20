@@ -3,10 +3,16 @@ import { EffectComposer } from 'three/examples/jsm/Addons.js';
 import { RenderPass } from 'three/examples/jsm/Addons.js';
 import { OutputPass } from 'three/examples/jsm/Addons.js';
 import { THREE } from './index.js';
+/**
+ *
+ */
 export class AppRenderer {
 	webgl_renderer;
 	css_renderer;
 	composer;
+	/**
+	 *
+	 */
 	constructor(incoming_parent, incoming_camera) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
@@ -41,10 +47,16 @@ export class AppRenderer {
 		this.composer.addPass(output_pass);
 	}
 	// ----- Functions
+	/**
+	 *
+	 */
 	add_event_listener(incoming_event_name, handler_method) {
 		this.webgl_renderer.domElement.addEventListener(incoming_event_name, handler_method);
 		this.css_renderer.domElement.addEventListener(incoming_event_name, handler_method);
 	}
+	/**
+	 *
+	 */
 	remove_event_listener(incoming_event_name, handler_method) {
 		this.webgl_renderer.domElement.removeEventListener(incoming_event_name, handler_method);
 		this.css_renderer.domElement.removeEventListener(incoming_event_name, handler_method);
@@ -78,6 +90,9 @@ export class AppRenderer {
 		this.webgl_renderer = null;
 		this.css_renderer = null;
 	}
+	/**
+	 *
+	 */
 	render() {
 		this.composer.render();
 		this.css_renderer.render(this.parent, this.camera);
@@ -88,6 +103,9 @@ export class AppRenderer {
 	forceRender() {
 		this.render();
 	}
+	/**
+	 *
+	 */
 	resize() {
 		this.webgl_renderer.setSize(window.innerWidth, window.innerHeight);
 		this.css_renderer.setSize(window.innerWidth, window.innerHeight);
@@ -149,6 +167,9 @@ export class AppRenderer {
 		}, 200); // Longer delay to ensure fade-in is complete
 	}
 	// ----- Setters
+	/**
+	 *
+	 */
 	set_animation_loop(incoming_function) {
 		this.webgl_renderer.setAnimationLoop(incoming_function);
 	}

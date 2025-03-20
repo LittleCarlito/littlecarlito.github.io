@@ -12,7 +12,13 @@ const LINK_CONTAINER = {
 		Z: 0
 	}
 };
+/**
+ *
+ */
 export class LinkContainer {
+	/**
+	 *
+	 */
 	constructor(incoming_parent, incoming_camera) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
@@ -46,6 +52,9 @@ export class LinkContainer {
 			console.log(`Given label \"${new_link}\" does not have a stored path`);
 		}
 	}
+	/**
+	 *
+	 */
 	trigger_overlay(is_overlay_hidden, tween_map) {
 		const current_pos = this.link_container.position.clone();
 		const target_y = is_overlay_hidden ? get_associated_position(SOUTH, this.camera) : this.get_link_container_y();
@@ -78,6 +87,9 @@ export class LinkContainer {
 			});
 		tween_map.set(this.link_container.name, new_tween);
 	}
+	/**
+	 *
+	 */
 	reposition() {
 		new Tween(this.link_container.position)
 			.to({ 
@@ -87,11 +99,17 @@ export class LinkContainer {
 			.easing(Easing.Elastic.Out)
 			.start();
 	}
+	/**
+	 *
+	 */
 	offscreen_reposition() {
 		this.link_container.position.y = get_associated_position(SOUTH, this.camera)
 		this.link_container.position.x = this.get_link_container_x();      
 	}
 	// Link setters
+	/**
+	 *
+	 */
 	set_content_layers(incoming_layer) {
 		this.link_container.layers.set(incoming_layer);
 		Object.values(LINKS).forEach(link => {

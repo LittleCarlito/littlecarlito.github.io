@@ -14,6 +14,9 @@ export class ManifestManager {
      * - BAD:  manifest_manager.get_scene_data()?.greeting_data?.display
      */
 	static instance = null;
+	/**
+	 *
+	 */
 	constructor() {
 		if (ManifestManager.instance) {
 			return ManifestManager.instance;

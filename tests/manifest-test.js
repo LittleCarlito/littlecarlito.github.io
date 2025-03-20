@@ -5,6 +5,10 @@
  * Run this file to test the ManifestManager functionality.
  */
 import { ManifestManager }  from '@littlecarlito/blorkpack';
+
+/**
+ *
+ */
 async function testManifestManager() {
 	console.log('Testing ManifestManager...');
 	// Get the singleton instance
@@ -183,6 +187,7 @@ async function testManifestManager() {
 		console.error('❌ Error testing ManifestManager:', error);
 	}
 }
+
 // Run the test
 testManifestManager().then(() => {
 	console.log('\nManifestManager test completed.');

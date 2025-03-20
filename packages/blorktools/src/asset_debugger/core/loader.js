@@ -9,6 +9,9 @@ import { analyzeModel } from './analyzer.js';
 import { applyTextureToModel } from '../materials/textureManager.js';
 import { resetToDropZone } from '../ui/dragdrop.js';
 // Load a glTF or glb model
+/**
+ *
+ */
 export async function loadModel(state, file) {
 	return new Promise((resolve, reject) => {
 		if (!file) return;
@@ -43,7 +46,11 @@ export async function loadModel(state, file) {
 		reader.readAsArrayBuffer(file);
 	});
 }
+
 // Center model in scene and adjust camera
+/**
+ *
+ */
 function centerModel(state) {
 	if (!state.modelObject) return;
 	// Create bounding box
@@ -64,7 +71,11 @@ function centerModel(state) {
 	state.controls.target.set(0, 0, 0);
 	state.controls.update();
 }
+
 // Create a procedural number atlas texture for testing
+/**
+ *
+ */
 export function createNumberAtlasTexture() {
 	// Create a canvas to draw the texture
 	const canvas = document.createElement('canvas');
@@ -102,6 +113,9 @@ export function createNumberAtlasTexture() {
 	return texture;
 }
 // Load the test number atlas texture
+/**
+ *
+ */
 export function loadNumberAtlasTexture(state) {
 	// Create a texture from a canvas
 	const texture = createNumberAtlasTexture();
@@ -122,6 +136,9 @@ export function loadNumberAtlasTexture(state) {
 	}
 }
 // Check if both model and texture are loaded and remove loading screen
+/**
+ *
+ */
 export function checkLoadingComplete(state) {
 	if (state.modelObject && state.textureObject) {
 		const loadingScreen = document.getElementById('loading');

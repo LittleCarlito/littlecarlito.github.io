@@ -1,7 +1,13 @@
 import { THREE } from '.';
 import { FLAGS } from './flags';
+/**
+ *
+ */
 export class TextureAtlasManager {
 	static instance = null;
+	/**
+	 *
+	 */
 	constructor() {
 		if (TextureAtlasManager.instance) return TextureAtlasManager.instance;
 		this.atlases = new Map(); // Map of atlas textures by type (diffuse, normal, etc)
@@ -10,12 +16,18 @@ export class TextureAtlasManager {
 		this.padding = 2; // Pixels of padding between textures
 		TextureAtlasManager.instance = this;
 	}
+	/**
+	 *
+	 */
 	static getInstance() {
 		if (!TextureAtlasManager.instance) {
 			TextureAtlasManager.instance = new TextureAtlasManager();
 		}
 		return TextureAtlasManager.instance;
 	}
+	/**
+	 *
+	 */
 	async createAtlas(textures, type = 'diffuse') {
 		if (FLAGS.TEXTURE_LOGS) console.log(`Creating ${type} atlas with ${textures.length} textures`);
 		// Sort textures by size for better packing
@@ -91,9 +103,15 @@ export class TextureAtlasManager {
 		this.atlases.set(type, atlasTexture);
 		return atlasTexture;
 	}
+	/**
+	 *
+	 */
 	getTextureUVs(texture) {
 		return this.textureMap.get(texture.uuid);
 	}
+	/**
+	 *
+	 */
 	updateMaterialWithAtlas(material, atlasTexture, originalTexture) {
 		const uvs = this.getTextureUVs(originalTexture);
 		if (!uvs) return;
@@ -123,6 +141,9 @@ export class TextureAtlasManager {
 			material.material.needsUpdate = true;
 		}
 	}
+	/**
+	 *
+	 */
 	dispose() {
 		for (const atlas of this.atlases.values()) {
 			atlas.dispose();

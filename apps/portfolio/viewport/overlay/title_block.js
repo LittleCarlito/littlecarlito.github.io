@@ -6,7 +6,13 @@ const TITLE_HEIGHT = 2.75;
 const TITLE_Y = 9;
 const TITLE_X = -4;
 const TITLE_THICKNESS = .2
+/**
+ *
+ */
 export class TitleBlock {
+	/**
+	 *
+	 */
 	constructor(incoming_parent, incoming_camera) {
 		// Set variables
 		this.parent = incoming_parent;
@@ -75,12 +81,18 @@ export class TitleBlock {
 		this.title_box.geometry.dispose();
 		this.title_box.geometry = new THREE.BoxGeometry(this.get_title_width(this.camera), TITLE_HEIGHT, TITLE_THICKNESS);            
 	}
+	/**
+	 *
+	 */
 	reposition() {
 		new Tween(this.title_box.position)
 			.to({ y: TITLE_Y})
 			.easing(Easing.Elastic.Out)
 			.start();
 	}
+	/**
+	 *
+	 */
 	offscreen_reposition() {
 		this.title_box.position.y = get_associated_position(NORTH, this.camera)
 	}

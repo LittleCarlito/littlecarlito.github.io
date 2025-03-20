@@ -27,6 +27,10 @@ globalThis.fetch = async (url) => {
 };
 // Path to the manifest.json file to test with
 const MANIFEST_PATH = '../../resources/manifest.json';
+
+/**
+ *
+ */
 async function test_manifest_manager() {
 	console.log('🚀 Testing ManifestManager in Node.js environment...');
 	// Get the singleton instance
@@ -204,6 +208,7 @@ async function test_manifest_manager() {
 		console.error('❌ Error testing ManifestManager:', error);
 	}
 }
+
 // Run the test
 test_manifest_manager().then(() => {
 	console.log('\n✨ ManifestManager test completed.');

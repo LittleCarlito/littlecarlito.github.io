@@ -933,6 +933,7 @@ export function setResolutionScale(scale) {
 	}
 	return scale;
 }
+
 /**
  * Updates the dropdown selection based on the current resolution scale
  * @param {number} scale - The current resolution scale
@@ -956,6 +957,7 @@ function updateDropdownValue(scale) {
 		dropdown.value = closestOption.value;
 	}
 }
+
 /**
  * Updates the FPS counter and other debug information
  */
@@ -1075,6 +1077,7 @@ function updateFPS() {
 	// Request next frame
 	requestAnimationFrame(updateFPS);
 }
+
 /**
  * Updates additional debug info like draw calls, triangles, etc.
  */
@@ -1116,6 +1119,7 @@ function updateDebugInfo() {
 		texturesInfo.textContent = `Textures: ${info.memory.textures || 0}`;
 	}
 }
+
 /**
  * Toggles the visibility of the debug UI
  * @param {boolean} show - Whether to show or hide the UI
@@ -1174,6 +1178,7 @@ export function getCurrentResolutionScale() {
 export function isAutoThrottleEnabled() {
 	return autoThrottleEnabled;
 }
+
 /**
  * Finds all objects in the scene with display meshes and populates the dropdown
  */
@@ -1307,6 +1312,7 @@ function populateDisplayMeshObjects() {
 	}
 	console.log(`Found ${displayMeshObjects.length} objects with display meshes`);
 }
+
 /**
  * Find all objects in the scene that have display meshes
  * @returns {Array} - Array of objects that have display meshes
@@ -1368,6 +1374,7 @@ function findDisplayMeshObjects() {
 	console.log(`Total display meshes found: ${displayMeshCount}, Total objects with display meshes: ${objects.length}`);
 	return objects;
 }
+
 /**
  * Find an object in the scene by its UUID
  * @param {string} uuid - The UUID of the object to find
@@ -1383,6 +1390,7 @@ function findObjectByUuid(uuid) {
 	});
 	return foundObject;
 }
+
 /**
  * Updates the display image of the selected object
  */
@@ -1464,6 +1472,7 @@ function updateDisplayImage() {
 		}
 	}
 }
+
 /**
  * Sets the scene reference for debug UI functions
  * @param {THREE.Scene} scene - The Three.js scene
@@ -1479,6 +1488,7 @@ export function setSceneReference(scene) {
 		populateDisplayMeshObjects();
 	}
 }
+
 /**
  * Set up detection of scene graph changes by monkey-patching Object3D methods
  */
@@ -1575,6 +1585,10 @@ function setupSceneChangeDetection() {
 	// Set up an occasional fallback refresh (much less frequent)
 	startDisplayMeshFallbackTimer();
 }
+
+/**
+ *
+ */
 function startDisplayMeshRefreshTimer() {
 	// Clear any existing timer
 	stopDisplayMeshRefreshTimer();
@@ -1586,6 +1600,10 @@ function startDisplayMeshRefreshTimer() {
 	}, 3000);
 	console.log('Started display mesh refresh timer');
 }
+
+/**
+ *
+ */
 function stopDisplayMeshRefreshTimer() {
 	if (displayMeshRefreshTimer) {
 		clearInterval(displayMeshRefreshTimer);
@@ -1593,6 +1611,10 @@ function stopDisplayMeshRefreshTimer() {
 		console.log('Stopped display mesh refresh timer');
 	}
 }
+
+/**
+ *
+ */
 function startDisplayMeshFallbackTimer() {
 	// Clear any existing timer
 	stopDisplayMeshRefreshTimer();
@@ -1606,6 +1628,7 @@ function startDisplayMeshFallbackTimer() {
 	}, 30000); // Check every 30 seconds
 	console.log('Started display mesh fallback timer (checking every 30 seconds)');
 }
+
 /**
  * Adds a toggle switch for a debug flag
  * @param {HTMLElement} parent - The parent element to append to

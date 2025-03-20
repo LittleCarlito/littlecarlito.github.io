@@ -4,6 +4,9 @@ import { TYPES } from "../../viewport/overlay/overlay_common";
 import { RAPIER } from '../../common';
 import { AssetSpawner } from '@littlecarlito/blorkpack';
 import { SystemAssetType } from '@littlecarlito/blorkpack';
+/**
+ *
+ */
 export class ScrollMenu {
 	parent;
 	camera;
@@ -90,6 +93,9 @@ export class ScrollMenu {
 	spawner = null;
 	// Cache asset types
 	#ASSET_TYPE = CustomTypeManager.getTypes();
+	/**
+	 *
+	 */
 	constructor(incoming_parent, incoming_camera, incoming_world, incoming_container, spawn_position) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
@@ -140,6 +146,9 @@ export class ScrollMenu {
 		this.is_animating = true;
 		return this.initialize(spawn_position);
 	}
+	/**
+	 *
+	 */
 	async createChainSegment(index, previous_body, rotation) {
 		// Calculate spawn position
 		const spawnY = this.CHAIN_CONFIG.POSITION.Y - (index + 1) * this.CHAIN_CONFIG.SEGMENTS.LENGTH;
@@ -252,6 +261,9 @@ export class ScrollMenu {
 		}
 		return chain_body;
 	}
+	/**
+	 *
+	 */
 	async initialize(spawn_position) {
 		// Create the assembly container first
 		this.createAssemblyContainer();
@@ -515,6 +527,9 @@ export class ScrollMenu {
 		}
 		return this.assembly_container;
 	}
+	/**
+	 *
+	 */
 	async break_chains() {
 		if (!this.chains_broken) {
 			// Wake up all chain segments and sign
@@ -741,6 +756,9 @@ export class ScrollMenu {
 			this.chains_broken = true;
 		}
 	}
+	/**
+	 *
+	 */
 	async update() {
 		const currentTime = performance.now();
 		// Update assembly container to match the bounds of the assembly
@@ -1121,6 +1139,9 @@ export class ScrollMenu {
 		}
 	}
 	// New method to update kinematic chain segments and sign positions
+	/**
+	 *
+	 */
 	updateKinematicChainPositions() {
 		if (!this.anchor_body) return;
 		// Get anchor position
@@ -1185,6 +1206,9 @@ export class ScrollMenu {
 		}
 	}
 	// New method to make all chain segments dynamic when the sign is released
+	/**
+	 *
+	 */
 	makeEntireChainDynamic() {
 		// Make all chain segments dynamic
 		const chainBodies = this.dynamic_bodies

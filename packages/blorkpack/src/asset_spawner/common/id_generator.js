@@ -4,6 +4,9 @@
  */
 export class IdGenerator {
 	static instance = null;
+	/**
+	 *
+	 */
 	constructor() {
 		if (IdGenerator.instance) {
 			return IdGenerator.instance;

@@ -5,6 +5,9 @@ const HEIGHT_OFFSET = .5;
 const PLACEHOLDER_PATH = '/pages/placeholder.html';
 export const IFRAME = "iframe_";
 export const DIV = "div_"
+/**
+ *
+ */
 export class TextFrame {
 	camera;
 	parent;
@@ -19,6 +22,9 @@ export class TextFrame {
 	wasVerySmall = false;
 	original_width;
 	original_height;
+	/**
+	 *
+	 */
 	constructor(incoming_parent, incoming_camera, incoming_width, incoming_height) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
@@ -49,6 +55,9 @@ export class TextFrame {
 		// Set initial size
 		this.update_size(incoming_width, incoming_height);
 	}
+	/**
+	 *
+	 */
 	update_size(incoming_width, incoming_height) {
 		this.frame_width = incoming_width - WIDTH_OFFSET;
 		this.frame_height = incoming_height - HEIGHT_OFFSET;
