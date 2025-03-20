@@ -37,15 +37,14 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "vite build && node scripts/generate-exports.js",
-    "dev": "npm run build && vite build --watch",
+    "build": "vite build",
+    "dev": "vite",
     "generate-exports": "node scripts/generate-exports.js",
     "test": "node examples/manifest-test.js",
     "example:usage": "node examples/usage-example.js",
     "example:manifest": "node examples/manifest-test.js",
     "example:exports": "node examples/export-test.js",
-    "clean": "rimraf dist",
-    "lint": "eslint ."
+    "clean": "rimraf dist"
   },
   "dependencies": {
     "three": "^0.172.0",

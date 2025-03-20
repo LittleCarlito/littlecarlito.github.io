@@ -11,10 +11,9 @@
   ],
   "scripts": {
     "build": "vite build",
-    "dev": "vite serve",
+    "dev": "vite",
     "test": "echo \"No tests specified\"",
     "clean": "rimraf dist",
-    "lint": "eslint .",
     "example:asset-debugger": "vite serve -c vite.config.js",
     "tools": "vite serve src/",
     "tools:modular": "vite serve src/ --open /asset_debugger/asset_debugger.html"
