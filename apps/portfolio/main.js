@@ -108,7 +108,7 @@ function update_loading_progress(text) {
 /** Shows the loading screen */
 async function show_loading_screen() {
 	// Load the loading screen HTML from the external file
-	const response = await fetch('pages/loading.html');
+	const response = await fetch('public/pages/loading.html');
 	const html = await response.text();
 	document.body.insertAdjacentHTML('beforeend', html);
 }
