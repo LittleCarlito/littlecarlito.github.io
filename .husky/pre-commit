@@ -19,8 +19,8 @@ pnpm lint || (
   )
 )
 
-# Run tests
-echo "Running tests..."
-pnpm test || (echo "❌ Tests failed. Please fix the failing tests and try committing again." && exit 1)
+# Run tests with coverage
+echo "Running tests with coverage..."
+pnpm test:coverage || (echo "❌ Tests failed. Please fix the failing tests and try committing again." && exit 1)
 
 echo "✅ All checks passed!" 

@@ -46,6 +46,29 @@ jobs:
         if: steps.final_lint.outcome == 'failure'
         run: exit 1
 
+      - name: Run tests with coverage
+        run: pnpm test:coverage
+      
+      - name: Prepare artifacts
+        if: always() && (success() || failure())
+        run: pnpm prepare-artifacts
+      
+      - name: Upload test reports
+        if: always() && (success() || failure())
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: pipeline-artifacts/test-reports
+          retention-days: 7
+      
+      - name: Upload coverage reports
+        if: always() && (success() || failure())
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: pipeline-artifacts/coverage
+          retention-days: 7
+
   verify-monorepo:
     name: Verify Monorepo Build
     needs: lint
