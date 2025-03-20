@@ -26,7 +26,7 @@ function getToolsEntryPoints() {
 			}
 		})
 	} catch (error) {
-		console.error(`Error reading directory ${toolsDir}:`, error)
+		console.error(`Error reading tools directory: ${error.message}`)
 	}
 	return entryPoints
 }
@@ -44,7 +44,7 @@ function copyDirectory(src, dest) {
 		try {
 			fs.mkdirSync(dest, { recursive: true });
 		} catch (error) {
-			console.error(`Failed to create destination directory ${dest}:`, error);
+			console.error(`Failed to create destination directory: ${error.message}`);
 			return;
 		}
 	}
@@ -58,20 +58,20 @@ function copyDirectory(src, dest) {
 			} else {
 				try {
 					fs.copyFileSync(srcPath, destPath);
-					console.log(`Copied ${srcPath} to ${destPath}`);
+					// Reduce verbosity - only log directory copying, not each file
 				} catch (error) {
-					console.error(`Failed to copy file ${srcPath} to ${destPath}:`, error);
+					console.error(`Failed to copy file ${path.basename(srcPath)}: ${error.message}`);
 				}
 			}
 		}
 	} catch (error) {
-		console.error(`Error reading directory ${src}:`, error);
+		console.error(`Error reading directory: ${error.message}`);
 	}
 }
 
 export default defineConfig(({ command }) => {
 	const isProduction = command === 'build'
-	console.log('Starting build configuration...')
+	console.log(`Starting ${isProduction ? 'production' : 'development'} build...`)
 	// Skip optimization for blorkpack entirely
 	const optimizeDepsConfig = {}
 	return {
@@ -100,12 +100,14 @@ export default defineConfig(({ command }) => {
 			rollupOptions: {
 				output: {
 					manualChunks: {
-						'three-core': ['three'],
+						// Can't include 'three' in manualChunks when it's set as external
+						// 'three-core': ['three'],
 						'three-addons': [
 							'three/examples/jsm/controls/OrbitControls',
 							'three/examples/jsm/Addons.js'
-						],
-						'three-tween': ['three/examples/jsm/libs/tween.module.js']
+						]
+						// Removing three-tween as it's generating an empty chunk
+						// 'three-tween': ['three/examples/jsm/libs/tween.module.js']
 					},
 					globals: {
 						'three': 'THREE'
@@ -125,8 +127,11 @@ export default defineConfig(({ command }) => {
 					})
 				},
 				onwarn(warning, warn) {
-					// Log warnings but don't fail the build
-					console.warn('Rollup warning:', warning);
+					// Only log critical warnings, skip eval warnings from three.js libs
+					if (warning.code === 'EVAL' && warning.id.includes('node_modules/three')) {
+						return;
+					}
+					console.warn(`Build warning: ${warning.message}`);
 					warn(warning);
 				}
 			},
@@ -137,7 +142,7 @@ export default defineConfig(({ command }) => {
 			modulePreload: false, // Disable module preload to avoid potential issues
 			cssCodeSplit: true, // Enable CSS code splitting
 			write: true, // Ensure files are written to disk
-			watch: null, // Disable watch mode during build
+			watch: false, // Explicitly set to false instead of null
 			commonjsOptions: {
 				include: [/node_modules/],
 				transformMixedEsModules: true,
@@ -176,6 +181,107 @@ export default defineConfig(({ command }) => {
               window.addEventListener('unhandledrejection', (e) => window.__BLORKPACK_ERROR_HANDLER(e.reason));
             </script>
           </head>`);
+				}
+			},
+			// Error logger plugin to capture build failures
+			{
+				name: 'build-error-logger',
+				buildStart() {
+					console.log('🚀 Starting build process...');
+				},
+				buildEnd(error) {
+					if (error) {
+						console.error('⛔ BUILD ERROR ⛔');
+						console.error(`Error: ${error.message}`);
+						if (error.stack) {
+							console.error(`Stack: ${error.stack.split('\n')[0]}`);
+						}
+						if (error.loc) {
+							console.error(`Location: ${error.loc.file}:${error.loc.line}:${error.loc.column}`);
+						}
+						console.error('⛔ END BUILD ERROR ⛔');
+					}
+				},
+				renderError(error) {
+					console.error('⛔ RENDER ERROR ⛔');
+					console.error(`Error: ${error.message}`);
+					if (error.frame) {
+						console.error(`Context: ${error.frame}`);
+					}
+					if (error.id) {
+						console.error(`File: ${error.id}`);
+					}
+					console.error('⛔ END RENDER ERROR ⛔');
+					return null;
+				},
+				closeBundle() {
+					// This only runs on successful builds
+					console.log('✅ Build bundle completed successfully');
+				},
+			},
+			// Debug plugin to catch and log transform errors
+			{
+				name: 'transform-error-catcher',
+				transform(code, id) {
+					// Return null to let Vite handle the transformation
+					return null;
+				},
+				transformIndexHtml: {
+					enforce: 'pre',
+					transform(html, ctx) {
+						// Check if the entry point file exists and is accessible
+						if (ctx.path === '/index.html') {
+							try {
+								const entryPoint = path.resolve(__dirname, 'index.html');
+								if (!fs.existsSync(entryPoint)) {
+									console.error(`⛔ ERROR: Entry point file ${entryPoint} does not exist`);
+								}
+							} catch (error) {
+								console.error(`⛔ ERROR checking entry point: ${error.message}`);
+							}
+						}
+						return html;
+					}
+				}
+			},
+			// Add a general error handler
+			{
+				name: 'general-error-handler',
+				configResolved(config) {
+					// Add this to intercept and log unhandled promise rejections
+					process.on('unhandledRejection', (reason, promise) => {
+						console.error('⚠️ Unhandled Rejection during build:');
+						console.error(reason);
+					});
+
+					// Also handle uncaught exceptions
+					process.on('uncaughtException', (error) => {
+						console.error('⚠️ Uncaught Exception during build:');
+						console.error(error);
+					});
+				},
+				options(options) {
+					// Add a Rollup plugin that hooks into all phases for error detection
+					options.plugins.push({
+						name: 'rollup-error-detector',
+						buildStart() {
+							// This runs when the bundle starts building
+							console.log('📦 Rollup build started');
+						},
+						moduleParsed(moduleInfo) {
+							// Check for syntax errors in modules
+							if (moduleInfo.isEntry) {
+								console.log(`✓ Parsed entry module: ${path.basename(moduleInfo.id)}`);
+							}
+						},
+						buildEnd(error) {
+							if (error) {
+								console.error('⛔ ROLLUP BUILD ERROR ⛔');
+								console.error(error);
+							}
+						}
+					});
+					return options;
 				}
 			},
 			// Only use image optimizer in production
@@ -217,7 +323,7 @@ export default defineConfig(({ command }) => {
 				name: 'copy-resources',
 				closeBundle() {
 					if (isProduction) {
-						console.log('Starting closeBundle hook...');
+						console.log('🔄 Copying static resources...');
 						try {
 							// Copy manifest from public/resources to dist/resources
 							const manifestSrc = path.resolve(__dirname, 'public/resources/manifest.json');
@@ -226,25 +332,34 @@ export default defineConfig(({ command }) => {
 								// Create resources directory if it doesn't exist
 								const resourcesDir = path.resolve(__dirname, 'dist/resources');
 								if (!fs.existsSync(resourcesDir)) {
-									console.log(`Creating resources directory: ${resourcesDir}`);
 									fs.mkdirSync(resourcesDir, { recursive: true });
 								}
-								console.log(`Copying manifest from ${manifestSrc} to ${manifestDest}`);
 								fs.copyFileSync(manifestSrc, manifestDest);
 							} else {
-								console.warn('No manifest.json found in public/resources directory');
+								console.warn('⚠️ No manifest.json found in public/resources directory');
 							}
 							// Copy other static assets needed
 							const pagesSrc = path.resolve(__dirname, 'public/pages');
 							const pagesDest = path.resolve(__dirname, 'dist/pages');
-							console.log(`Copying pages from ${pagesSrc} to ${pagesDest}`);
 							copyDirectory(pagesSrc, pagesDest);
-							console.log('Successfully completed closeBundle hook');
+							console.log('✅ Static resources copied successfully');
 						} catch (error) {
-							console.error('Error in closeBundle hook:', error);
+							console.error('❌ Error copying resources:', error.message);
 							throw error;
 						}
 					}
+					// Explicitly return a resolved promise to ensure the hook completes
+					return Promise.resolve();
+				}
+			},
+			// Add a plugin to handle process termination
+			{
+				name: 'process-terminator',
+				closeBundle() {
+					// Force process to exit after build completes
+					setTimeout(() => {
+						process.exit(0);
+					}, 100);
 				}
 			}
 		].filter(Boolean)

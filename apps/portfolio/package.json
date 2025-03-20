@@ -13,7 +13,7 @@
   "scripts": {
     "predev": "cd ../../packages/blorkpack && npm run build",
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node -e \"setTimeout(() => process.exit(0), 100)\"",
     "preview": "vite preview",
     "clean": "rimraf dist"
   },

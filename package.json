@@ -44,6 +44,7 @@
     "license-webpack-plugin": "^4.0.2",
     "prettier": "^3.2.5",
     "semantic-release": "^23.0.2",
+    "terser": "^5.39.0",
     "tree-kill": "^1.2.2",
     "turbo": "latest",
     "yaml": "^2.7.0"
