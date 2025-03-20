@@ -8,8 +8,47 @@ on:
   workflow_dispatch:
 
 jobs:
+  lint:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+      
+      - name: Install dependencies
+        run: pnpm install
+      
+      - name: Initial lint check
+        id: initial_lint
+        run: pnpm lint
+        continue-on-error: true
+      
+      - name: Run lint:fix if initial lint failed
+        if: steps.initial_lint.outcome == 'failure'
+        run: pnpm lint:fix
+      
+      - name: Final lint check
+        id: final_lint
+        run: pnpm lint
+        if: steps.initial_lint.outcome == 'failure'
+      
+      - name: Fail if linting issues remain
+        if: steps.final_lint.outcome == 'failure'
+        run: exit 1
+
   verify-monorepo:
     name: Verify Monorepo Build
+    needs: lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
