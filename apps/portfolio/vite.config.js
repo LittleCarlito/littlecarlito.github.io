@@ -13,6 +13,10 @@ import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const outputPath = path.resolve(__dirname, 'dist/index.js')
 
+// Determine if building for GitHub Pages
+const isGitHubPages = process.env.GITHUB_PAGES === 'true'
+const base = isGitHubPages ? '/threejs_site/' : '/'
+
 // Helper function to copy directory contents to the dist folder
 /**
  *
@@ -57,7 +61,7 @@ export default defineConfig(({ command }) => {
 	// Skip optimization for blorkpack entirely
 	const optimizeDepsConfig = {}
 	return {
-		base: isProduction ? '/threejs_site/' : '/',
+		base: base,
 		optimizeDeps: optimizeDepsConfig,
 		resolve: {
 			// Let the virtual module plugin handle resolution

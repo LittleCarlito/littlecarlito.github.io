@@ -174,7 +174,36 @@ async function init() {
 		await initPhysicsUtil();
 		// Load custom types
 		update_loading_progress('Loading custom asset types...');
-		await CustomTypeManager.loadCustomTypes('./custom_types.json');
+		try {
+			// Define all possible paths to try
+			const customTypePaths = [
+				'./custom_types.json',                 // Relative to current directory
+				'/custom_types.json',                  // From root
+				'/threejs_site/custom_types.json',     // GitHub Pages repo root
+				'resources/custom_types.json',         // Resources directory
+				'/threejs_site/resources/custom_types.json' // GitHub Pages resources
+			];
+			
+			// Try each path until one works
+			let loaded = false;
+			for (const path of customTypePaths) {
+				try {
+					await CustomTypeManager.loadCustomTypes(path);
+					console.log(`Successfully loaded custom types from: ${path}`);
+					loaded = true;
+					break;
+				} catch (pathError) {
+					console.warn(`Failed to load custom types from ${path}:`, pathError);
+					// Continue to next path
+				}
+			}
+			
+			if (!loaded) {
+				console.error('Failed to load custom types from all paths');
+			}
+		} catch (error) {
+			console.error('Error in custom type loading process:', error);
+		}
 		// Load scene
 		update_loading_progress('Initializing scene...');
 		// Initialize asset storage and spawner early since they don't depend on UI
