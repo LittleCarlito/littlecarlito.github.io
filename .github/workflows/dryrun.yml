@@ -115,7 +115,7 @@ jobs:
             cd "packages/$pkg"
             
             # Create release config
-            cat > .releaserc.json << 'EOF'
+            cat << 'EOFMARK' > .releaserc.json
             {
               "branches": ["main"],
               "plugins": [
@@ -141,12 +141,12 @@ jobs:
                 }],
                 ["@semantic-release/git", {
                   "assets": ["package.json", "CHANGELOG.md"],
-                  "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+                  "message": "chore(release): \${nextRelease.version} [skip ci]\n\n\${nextRelease.notes}"
                 }],
                 "@semantic-release/github"
               ]
             }
-            EOF
+            EOFMARK
             
             npx semantic-release --dry-run || echo "Completed dry-run for $pkg"
             cd ../..
