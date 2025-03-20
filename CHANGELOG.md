@@ -1,3 +1,10 @@
+## [0.12.16](https://github.com/LittleCarlito/threejs_site/compare/v0.12.15...v0.12.16) (2025-03-20)
+
+
+### Bug Fixes
+
+* force version bump for root project ([6641c51](https://github.com/LittleCarlito/threejs_site/commit/6641c51d281c9e05ef516b1b636806e26e9655e7))
+
 ## [0.10.2](https://github.com/LittleCarlito/threejs_site/compare/v0.10.1...v0.10.2) (2025-03-13)
 
 
