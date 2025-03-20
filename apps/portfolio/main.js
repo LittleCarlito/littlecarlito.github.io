@@ -463,8 +463,8 @@ function animate() {
 	if (window.asset_spawner) {
 		window.asset_spawner.update_visualizations();
 		// Always ensure spotlight debug meshes are visible
-		if (window.asset_spawner.update_helpers) {
-			window.asset_spawner.update_helpers();
+		if (window.asset_spawner.update_debug_meshes) {
+			window.asset_spawner.update_debug_meshes();
 		}
 	}
 	// Render the scene

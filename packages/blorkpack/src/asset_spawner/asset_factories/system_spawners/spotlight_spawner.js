@@ -138,8 +138,8 @@ export async function create_spotlight(scene, id, position, rotation, options = 
 		};
 		// Create debug visualization
 		if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
-			const helpers = await create_spotlight_helper(scene, spotlight);
-			spotlight.userData.debugHelpers = helpers;
+			const debugMeshes = await create_spotlight_debug_mesh(scene, spotlight);
+			spotlight.userData.debugMeshes = debugMeshes;
 		}
 		// Store references for later cleanup
 		const asset_object = {
@@ -168,21 +168,21 @@ export async function create_spotlight(scene, id, position, rotation, options = 
 }
 
 /**
- * Creates a spotlight helper to visualize the spotlight cone and direction.
+ * Creates a spotlight debug mesh to visualize the spotlight cone and direction.
  * Used for debugging purposes.
  * 
  * @param {THREE.Scene} scene - The Three.js scene
- * @param {THREE.SpotLight} spotlight - The spotlight to create helpers for
- * @returns {Promise<Object>} The created helper objects
+ * @param {THREE.SpotLight} spotlight - The spotlight to create debug meshes for
+ * @returns {Promise<Object>} The created debug mesh objects
  */
-async function create_spotlight_helper(scene, spotlight) {
+async function create_spotlight_debug_mesh(scene, spotlight) {
 	if (!spotlight) {
-		console.error(`Cannot create helper: spotlight is null or undefined`);
+		console.error(`Cannot create debug mesh: spotlight is null or undefined`);
 		return null;
 	}
 	// Create shared materials for debug visualization
 	const sharedDebugMaterials = {
-		helper: new THREE.LineBasicMaterial({ color: 0x00FF00 }),
+		debugMesh: new THREE.LineBasicMaterial({ color: 0x00FF00 }),
 		cone: new THREE.MeshBasicMaterial({ 
 			color: 0x00FF00,
 			wireframe: true,
@@ -190,28 +190,28 @@ async function create_spotlight_helper(scene, spotlight) {
 			opacity: 0.6
 		})
 	};
-	// Create the standard helper
-	const helper = new THREE.SpotLightHelper(spotlight);
-	helper.material = sharedDebugMaterials.helper;
-	helper.visible = BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG;
+	// Create the standard debug mesh
+	const debugMesh = new THREE.SpotLightHelper(spotlight);
+	debugMesh.material = sharedDebugMaterials.debugMesh;
+	debugMesh.visible = BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG;
 	// Store original update method
-	const originalUpdate = helper.update;
-	helper.update = () => {
-		originalUpdate.call(helper);
-		helper.traverse(child => {
-			if (child.material && child !== helper) {
-				child.material = sharedDebugMaterials.helper;
+	const originalUpdate = debugMesh.update;
+	debugMesh.update = () => {
+		originalUpdate.call(debugMesh);
+		debugMesh.traverse(child => {
+			if (child.material && child !== debugMesh) {
+				child.material = sharedDebugMaterials.debugMesh;
 			}
 		});
 	};
-	// Make helper and all its children non-interactive
-	helper.raycast = () => null;
-	helper.traverse(child => {
+	// Make debug mesh and all its children non-interactive
+	debugMesh.raycast = () => null;
+	debugMesh.traverse(child => {
 		child.raycast = () => null;
 	});
-	// Add helper in next frame
+	// Add debug mesh in next frame
 	await new Promise(resolve => setTimeout(resolve, 0));
-	scene.add(helper);
+	scene.add(debugMesh);
 	// Create the cone visualization
 	const spotlightToTarget = new THREE.Vector3().subVectors(
 		spotlight.target.position,
@@ -247,7 +247,7 @@ async function create_spotlight_helper(scene, spotlight) {
 	await new Promise(resolve => setTimeout(resolve, 0));
 	scene.add(cone);
 	return {
-		helper,
+		debugMesh,
 		cone
 	};
 }
@@ -264,46 +264,57 @@ function generate_asset_id() {
 }
 
 /**
- * Updates all helper visualizations for spotlights.
+ * Updates all debug mesh visualizations for spotlights.
  * Called from the main animation loop.
  * 
  * @param {THREE.Scene} scene - The Three.js scene
- * @returns {Promise<void>}
  */
-export async function update_helpers(scene) {
+export async function update_debug_meshes(scene) {
 	if (!scene) return;
-	// Find all spotlights in the scene
-	const spotlights = [];
-	scene.traverse(obj => {
-		if (obj.type === 'SpotLight') {
-			spotlights.push(obj);
-		}
-	});
-	// Update each spotlight's helpers
-	spotlights.forEach(spotlight => {
-		if (spotlight.userData.debugHelpers) {
-			const { helper, cone } = spotlight.userData.debugHelpers;
-			// Update helper
-			if (helper) {
-				helper.update();
-				helper.visible = BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG;
-			}
-			// Update cone
+	// Get all spotlights from the scene
+	scene.traverse(object => {
+		if (object.isSpotLight && object.userData.debugMeshes) {
+			const { debugMesh, cone } = object.userData.debugMeshes;
+			if (debugMesh) debugMesh.update();
 			if (cone) {
 				// Update cone position and orientation
-				cone.position.copy(spotlight.position);
-				// Calculate direction to target
-				const spotlightToTarget = new THREE.Vector3().subVectors(
-					spotlight.target.position,
-					spotlight.position
-				);
-				// Update cone orientation
-				const direction = spotlightToTarget.normalize();
+				const direction = new THREE.Vector3()
+					.subVectors(object.target.position, object.position)
+					.normalize();
 				const quaternion = new THREE.Quaternion();
 				quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), direction);
 				cone.quaternion.copy(quaternion);
-				// Update cone visibility
-				cone.visible = BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG;
+				cone.position.copy(object.position);
+			}
+		}
+	});
+}
+
+/**
+ * Forces a refresh of all spotlight debug meshes.
+ * This is useful when spotlight debug visualization settings change.
+ * 
+ * @param {THREE.Scene} scene - The Three.js scene
+ */
+export async function forceSpotlightDebugUpdate(scene) {
+	if (!scene) return;
+	
+	// Find all spotlights in the scene
+	scene.traverse(object => {
+		if (object.isSpotLight) {
+			// Remove existing debug meshes
+			if (object.userData.debugMeshes) {
+				const { debugMesh, cone } = object.userData.debugMeshes;
+				if (debugMesh && debugMesh.parent) debugMesh.parent.remove(debugMesh);
+				if (cone && cone.parent) cone.parent.remove(cone);
+				object.userData.debugMeshes = null;
+			}
+
+			// Create new debug meshes if debug visualization is enabled
+			if (BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG) {
+				create_spotlight_debug_mesh(scene, object).then(debugMeshes => {
+					object.userData.debugMeshes = debugMeshes;
+				});
 			}
 		}
 	});

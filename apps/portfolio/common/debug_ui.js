@@ -649,9 +649,9 @@ export function createDebugUI() {
 		BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG = checked;
 		console.log(`Spotlight debug helpers visibility set to ${checked ? 'visible' : 'hidden'}`);
 		// Force update of spotlight debug visualizations to apply the change
-		if (window.asset_spawner && window.asset_spawner.forceHelperUpdate) {
-			window.asset_spawner.forceHelperUpdate();
-			window.asset_spawner.update_helpers();
+		if (window.asset_spawner && window.asset_spawner.forceDebugMeshUpdate) {
+			window.asset_spawner.forceDebugMeshUpdate();
+			window.asset_spawner.update_debug_meshes();
 		}
 	});
 	// Add divider

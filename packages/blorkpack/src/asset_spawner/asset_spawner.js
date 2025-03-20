@@ -20,6 +20,8 @@ export class AssetSpawner {
 	// Cache the types and configs from CustomTypeManager
 	#assetTypes = null;
 	#assetConfigs = null;
+	// Initialize debug meshes Map
+	debugMeshes = new Map();
 	/**
      * Constructor
      * @param {Object} target_container - The container to spawn assets into
@@ -35,6 +37,8 @@ export class AssetSpawner {
 		// Cache asset types and configs
 		this.#assetTypes = CustomTypeManager.getTypes();
 		this.#assetConfigs = CustomTypeManager.getConfigs();
+		// Initialize debug meshes Map
+		this.debugMeshes = new Map();
 		AssetSpawner.#instance = this;
 		AssetSpawner.#disposed = false;
 	}
@@ -296,15 +300,30 @@ export class AssetSpawner {
 					mesh.geometry.dispose();
 				}
 				if (mesh.material) {
-					mesh.material.dispose();
+					if (Array.isArray(mesh.material)) {
+						mesh.material.forEach(mat => mat.dispose());
+					} else {
+						mesh.material.dispose();
+					}
 				}
 			});
 			this.debugMeshes.clear();
+		} else {
+			// Initialize if it doesn't exist
+			this.debugMeshes = new Map();
 		}
+
 		// Clean up spotlight debug visualizations
 		const allAssets = this.storage.get_all_assets();
 		allAssets.forEach(asset => {
 			if (asset && asset.type === SystemAssetType.SPOTLIGHT.value) {
+				// Remove spotlight debug meshes
+				if (asset.mesh && asset.mesh.userData.debugMeshes) {
+					const { debugMesh, cone } = asset.mesh.userData.debugMeshes;
+					if (debugMesh && debugMesh.parent) debugMesh.parent.remove(debugMesh);
+					if (cone && cone.parent) cone.parent.remove(cone);
+					asset.mesh.userData.debugMeshes = null;
+				}
 				// Remove spotlight and its target from the scene
 				if (asset.objects) {
 					asset.objects.forEach(obj => {
@@ -321,7 +340,7 @@ export class AssetSpawner {
 		});
 	}
 	/**
-     * Updates all visual elements including debug wireframes and spotlight helpers.
+     * Updates all visual elements including debug wireframes and spotlight debug meshes.
      * This is the new method to use instead of the deprecated performCleanup().
      */
 	update_visualizations() {
@@ -329,8 +348,8 @@ export class AssetSpawner {
 		if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
 			this.update_debug_wireframes();
 		}
-		// Update spotlight helpers
-		this.update_helpers();
+		// Update spotlight debug meshes
+		this.update_debug_meshes();
 	}
 	/**
      * @deprecated
@@ -805,52 +824,52 @@ export class AssetSpawner {
 		return camera;
 	}
 	/**
-     * Creates a helper visualization for the specified asset type.
+     * Creates a debug mesh visualization for the specified asset type.
      * Used for debugging purposes.
      * 
-     * @param {string} asset_type - The type of asset to create a helper for
-     * @param {THREE.Object3D} asset - The asset to create helpers for
-     * @returns {Promise<Object>} The created helper objects
+     * @param {string} asset_type - The type of asset to create a debug mesh for
+     * @param {THREE.Object3D} asset - The asset to create debug meshes for
+     * @returns {Promise<Object>} The created debug mesh objects
      */
-	async create_helper(asset_type, asset) {
+	async create_debug_mesh(asset_type, asset) {
 		if (!asset) return null;
 		switch (asset_type) {
 		case SystemAssetType.SPOTLIGHT.value:
-			const { create_spotlight_helper } = await import('./asset_factories/system_spawners/spotlight_spawner.js');
-			return create_spotlight_helper(this.scene, asset);
+			const { create_spotlight_debug_mesh } = await import('./asset_factories/system_spawners/spotlight_spawner.js');
+			return create_spotlight_debug_mesh(this.scene, asset);
 			// Add other asset type cases here as needed
 		default:
-			console.warn(`No helper visualization available for asset type: ${asset_type}`);
+			console.warn(`No debug mesh visualization available for asset type: ${asset_type}`);
 			return null;
 		}
 	}
 	/**
-     * Removes helper visualizations for the specified asset.
+     * Removes debug mesh visualizations for the specified asset.
      * 
-     * @param {THREE.Object3D} asset - The asset whose helpers should be removed
+     * @param {THREE.Object3D} asset - The asset whose debug meshes should be removed
      * @returns {Promise<void>}
      */
-	async despawn_helpers(asset) {
-		if (!asset || !asset.userData.debugHelpers) return;
-		const { helper, cone } = asset.userData.debugHelpers;
-		if (helper && helper.parent) helper.parent.remove(helper);
+	async despawn_debug_meshes(asset) {
+		if (!asset || !asset.userData.debugMeshes) return;
+		const { debugMesh, cone } = asset.userData.debugMeshes;
+		if (debugMesh && debugMesh.parent) debugMesh.parent.remove(debugMesh);
 		if (cone && cone.parent) cone.parent.remove(cone);
-		// Clear the debug helpers reference
-		asset.userData.debugHelpers = null;
+		// Clear the debug meshes reference
+		asset.userData.debugMeshes = null;
 	}
 	/**
-     * Updates all helper visualizations to match their associated assets.
+     * Updates all debug mesh visualizations to match their associated assets.
      * Called from the main animation loop.
      */
-	async update_helpers() {
-		const { update_helpers } = await import('./asset_factories/system_spawners/spotlight_spawner.js');
-		return update_helpers(this.scene);
+	async update_debug_meshes() {
+		const { update_debug_meshes } = await import('./asset_factories/system_spawners/spotlight_spawner.js');
+		return update_debug_meshes(this.scene);
 	}
 	/**
-     * Forces a full update of all helper visualizations on next call.
+     * Forces a full update of all debug mesh visualizations on next call.
      * Call this when you know assets have been added or removed.
      */
-	async forceHelperUpdate() {
+	async forceDebugMeshUpdate() {
 		const { forceSpotlightDebugUpdate } = await import('./asset_factories/system_spawners/spotlight_spawner.js');
 		return forceSpotlightDebugUpdate(this.scene);
 	}
