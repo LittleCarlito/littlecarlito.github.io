@@ -13,27 +13,6 @@ import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const outputPath = path.resolve(__dirname, 'dist/index.js')
 
-// Helper function to get entry points for tools HTML files
-/**
- *
- */
-function getToolsEntryPoints() {
-	const toolsDir = path.resolve(__dirname, 'tools')
-	const entryPoints = {}
-	try {
-		const files = fs.readdirSync(toolsDir)
-		files.forEach(file => {
-			if (file.endsWith('.html')) {
-				const name = path.basename(file, '.html')
-				entryPoints[name] = path.resolve(toolsDir, file)
-			}
-		})
-	} catch (error) {
-		console.error(`Error reading tools directory: ${error.message}`)
-	}
-	return entryPoints
-}
-
 // Helper function to copy directory contents to the dist folder
 /**
  *
@@ -103,14 +82,10 @@ export default defineConfig(({ command }) => {
 			rollupOptions: {
 				output: {
 					manualChunks: {
-						// Can't include 'three' in manualChunks when it's set as external
-						// 'three-core': ['three'],
 						'three-addons': [
 							'three/examples/jsm/controls/OrbitControls',
 							'three/examples/jsm/Addons.js'
 						]
-						// Removing three-tween as it's generating an empty chunk
-						// 'three-tween': ['three/examples/jsm/libs/tween.module.js']
 					},
 					globals: {
 						'three': 'THREE'
@@ -124,9 +99,7 @@ export default defineConfig(({ command }) => {
 				input: {
 					main: 'index.html',
 					...(isProduction ? {} : { 
-						packageTest: 'tests/package-test.html',
-						// Include tools HTML files only in development mode
-						...(!isProduction ? getToolsEntryPoints() : {})
+						packageTest: 'tests/package-test.html'
 					})
 				},
 				onwarn(warning, warn) {
@@ -138,14 +111,14 @@ export default defineConfig(({ command }) => {
 					warn(warning);
 				}
 			},
-			sourcemap: !isProduction, // Only generate source maps in development
-			chunkSizeWarningLimit: 1000, // Increase warning limit to 1000kb
-			reportCompressedSize: false, // Disable compressed size reporting for better performance
-			target: 'esnext', // Use modern JavaScript features
-			modulePreload: false, // Disable module preload to avoid potential issues
-			cssCodeSplit: true, // Enable CSS code splitting
-			write: true, // Ensure files are written to disk
-			watch: false, // Explicitly set to false instead of null
+			sourcemap: !isProduction,
+			chunkSizeWarningLimit: 1000,
+			reportCompressedSize: false,
+			target: 'esnext',
+			modulePreload: false,
+			cssCodeSplit: true,
+			write: true,
+			watch: false,
 			commonjsOptions: {
 				include: [/node_modules/],
 				transformMixedEsModules: true,
@@ -158,23 +131,17 @@ export default defineConfig(({ command }) => {
 			},
 			port: 3000,
 			strictPort: true,
-			// Let Turbo handle browser opening
 			open: false
 		},
 		plugins: [
-			// Always use the plugin that properly handles the module state
 			createVirtualBlorkpackPlugin(),
-			// Add graceful shutdown handling
 			gracefulShutdownPlugin(),
-			// Handle HTML transformations
 			{
 				name: 'blorkpack-hmr-helper',
 				transformIndexHtml(html) {
-					// Add a small helper to handle live reload more gracefully
 					return html.replace('</head>', `
             <script>
               window.__BLORKPACK_ERROR_HANDLER = (error) => {
-                // If the error is from blorkpack, let the page naturally reload
                 if (error && error.message && error.message.includes('blorkpack')) {
                   console.log('Blorkpack module error detected, HMR will handle it');
                 }
@@ -186,7 +153,6 @@ export default defineConfig(({ command }) => {
           </head>`);
 				}
 			},
-			// Error logger plugin to capture build failures
 			{
 				name: 'build-error-logger',
 				buildStart() {
@@ -218,61 +184,32 @@ export default defineConfig(({ command }) => {
 					return null;
 				},
 				closeBundle() {
-					// This only runs on successful builds
 					console.log('✅ Build bundle completed successfully');
 				},
 			},
-			// Debug plugin to catch and log transform errors
-			{
-				name: 'transform-error-catcher',
-				transform(code, id) {
-					// Return null to let Vite handle the transformation
-					return null;
-				},
-				transformIndexHtml: {
-					enforce: 'pre',
-					transform(html, ctx) {
-						// Check if the entry point file exists and is accessible
-						if (ctx.path === '/index.html') {
-							try {
-								const entryPoint = path.resolve(__dirname, 'index.html');
-								if (!fs.existsSync(entryPoint)) {
-									console.error(`⛔ ERROR: Entry point file ${entryPoint} does not exist`);
-								}
-							} catch (error) {
-								console.error(`⛔ ERROR checking entry point: ${error.message}`);
-							}
-						}
-						return html;
-					}
-				}
-			},
-			// Add a general error handler
 			{
 				name: 'general-error-handler',
 				configResolved(config) {
-					// Add this to intercept and log unhandled promise rejections
 					process.on('unhandledRejection', (reason, promise) => {
 						console.error('⚠️ Unhandled Rejection during build:');
 						console.error(reason);
 					});
 
-					// Also handle uncaught exceptions
 					process.on('uncaughtException', (error) => {
 						console.error('⚠️ Uncaught Exception during build:');
 						console.error(error);
 					});
 				},
 				options(options) {
-					// Add a Rollup plugin that hooks into all phases for error detection
+					if (!options.plugins) {
+						options.plugins = [];
+					}
 					options.plugins.push({
 						name: 'rollup-error-detector',
 						buildStart() {
-							// This runs when the bundle starts building
 							console.log('📦 Rollup build started');
 						},
 						moduleParsed(moduleInfo) {
-							// Check for syntax errors in modules
 							if (moduleInfo.isEntry) {
 								console.log(`✓ Parsed entry module: ${path.basename(moduleInfo.id)}`);
 							}
@@ -287,27 +224,13 @@ export default defineConfig(({ command }) => {
 					return options;
 				}
 			},
-			// Only use image optimizer in production
 			isProduction && ViteImageOptimizer({
-				// Image optimization options
-				png: {
-					quality: 80,
-				},
-				jpeg: {
-					quality: 80,
-				},
-				jpg: {
-					quality: 80,
-				},
-				webp: {
-					lossless: true,
-				},
-				avif: {
-					lossless: true,
-				},
-				gif: {
-					optimizationLevel: 3,
-				},
+				png: { quality: 80 },
+				jpeg: { quality: 80 },
+				jpg: { quality: 80 },
+				webp: { lossless: true },
+				avif: { lossless: true },
+				gif: { optimizationLevel: 3 },
 				svg: {
 					multipass: true,
 					plugins: [
@@ -328,11 +251,9 @@ export default defineConfig(({ command }) => {
 					if (isProduction) {
 						console.log('🔄 Copying static resources...');
 						try {
-							// Copy manifest from public/resources to dist/resources
 							const manifestSrc = path.resolve(__dirname, 'public/resources/manifest.json');
 							const manifestDest = path.resolve(__dirname, 'dist/resources/manifest.json');
 							if (fs.existsSync(manifestSrc)) {
-								// Create resources directory if it doesn't exist
 								const resourcesDir = path.resolve(__dirname, 'dist/resources');
 								if (!fs.existsSync(resourcesDir)) {
 									fs.mkdirSync(resourcesDir, { recursive: true });
@@ -341,7 +262,6 @@ export default defineConfig(({ command }) => {
 							} else {
 								console.warn('⚠️ No manifest.json found in public/resources directory');
 							}
-							// Copy other static assets needed
 							const pagesSrc = path.resolve(__dirname, 'public/pages');
 							const pagesDest = path.resolve(__dirname, 'dist/pages');
 							copyDirectory(pagesSrc, pagesDest);
@@ -351,15 +271,12 @@ export default defineConfig(({ command }) => {
 							throw error;
 						}
 					}
-					// Explicitly return a resolved promise to ensure the hook completes
 					return Promise.resolve();
 				}
 			},
-			// Add a plugin to handle process termination
 			{
 				name: 'process-terminator',
 				closeBundle() {
-					// Force process to exit after build completes
 					setTimeout(() => {
 						process.exit(0);
 					}, 100);
