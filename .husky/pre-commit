@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit checks..."
+
+# Initial lint check
+echo "Running initial lint check..."
+pnpm lint || (
+  echo "⚠️ Initial lint check failed. Attempting to fix automatically..."
+  pnpm lint:fix && (
+    echo "Running final lint check..."
+    pnpm lint || (
+      echo "❌ Linting issues remain after auto-fix. Please fix them manually and try committing again."
+      exit 1
+    )
+  ) || (
+    echo "❌ Auto-fix failed. Please fix the issues manually and try committing again."
+    exit 1
+  )
+)
+
+# Run tests with coverage
+echo "Running tests with coverage..."
+pnpm test:coverage || (echo "❌ Tests failed. Please fix the failing tests and try committing again." && exit 1)
+
+echo "✅ All checks passed!" 

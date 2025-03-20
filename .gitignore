@@ -39,6 +39,8 @@ pnpm-debug.log*
 
 # Testing
 coverage
+coverage-report
+test-reports
 .nyc_output
 
 # Misc

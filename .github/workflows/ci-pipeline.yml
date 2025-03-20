@@ -1,0 +1,90 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+      
+      - name: Install dependencies
+        run: pnpm install
+      
+      - name: Initial lint check
+        id: initial_lint
+        run: pnpm lint
+        continue-on-error: true
+      
+      - name: Run lint:fix if initial lint failed
+        if: steps.initial_lint.outcome == 'failure'
+        run: pnpm lint:fix
+      
+      - name: Final lint check
+        id: final_lint
+        run: pnpm lint
+        if: steps.initial_lint.outcome == 'failure'
+      
+      - name: Fail if linting issues remain
+        if: steps.final_lint.outcome == 'failure'
+        run: exit 1
+  
+  test:
+    name: Unit Tests
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+      
+      - name: Install dependencies
+        run: pnpm install
+      
+      - name: Run tests with coverage
+        id: test
+        run: pnpm test:coverage
+      
+      - name: Prepare artifacts
+        if: always() && (success() || failure())
+        run: pnpm prepare-artifacts
+      
+      - name: Upload test reports
+        if: always() && (success() || failure())
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: pipeline-artifacts/test-reports
+          retention-days: 7
+      
+      - name: Upload coverage reports
+        if: always() && (success() || failure())
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: pipeline-artifacts/coverage
+          retention-days: 7 

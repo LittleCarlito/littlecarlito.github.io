@@ -11,10 +11,9 @@
   ],
   "scripts": {
     "build": "vite build",
-    "dev": "vite serve",
+    "dev": "vite",
     "test": "echo \"No tests specified\"",
     "clean": "rimraf dist",
-    "lint": "eslint .",
     "example:asset-debugger": "vite serve -c vite.config.js",
     "tools": "vite serve src/",
     "tools:modular": "vite serve src/ --open /asset_debugger/asset_debugger.html"
@@ -29,8 +28,7 @@
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^9.2.6",
     "semantic-release": "^23.0.2",
-    "rimraf": "^5.0.5",
-    "eslint": "^8.56.0"
+    "rimraf": "^5.0.5"
   },
   "repository": {
     "type": "git",
