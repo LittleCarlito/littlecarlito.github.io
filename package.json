@@ -14,7 +14,9 @@
     "tools": "pnpm turbo run tools --parallel",
     "clean": "turbo run clean",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "lint": "eslint ."
+    "lint:count": "find . -type f -name \"*.js\" -not -path \"*/node_modules/*\" -not -path \"*/dist/*\" | wc -l | xargs -I{} echo \"🔢 Found {} JavaScript files to lint\"",
+    "lint": "pnpm lint:count && echo \"🔍 Checking files...\" && eslint . --format=stylish && echo \"✅ All files pass linting!\" || (echo \"❌ Linting errors found! Run 'pnpm lint:fix' to fix them automatically.\" && exit 1)",
+    "lint:fix": "pnpm lint:count && echo \"🔧 Fixing linting issues...\" && eslint . --fix --format=stylish && echo \"✅ Linting issues fixed!\""
   },
   "dependencies": {
     "express": "^4.18.3",

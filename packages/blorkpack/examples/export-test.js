@@ -15,8 +15,8 @@ console.log('Created a THREE.Scene with a cube:', scene.children.length === 1);
 
 // Create a RAPIER world to verify it works
 RAPIER.init().then(() => {
-  const gravity = { x: 0.0, y: -9.81, z: 0.0 };
-  const world = new RAPIER.World(gravity);
+	const gravity = { x: 0.0, y: -9.81, z: 0.0 };
+	const world = new RAPIER.World(gravity);
   
-  console.log('Created a RAPIER.World with gravity:', world.gravity.y === -9.81);
+	console.log('Created a RAPIER.World with gravity:', world.gravity.y === -9.81);
 }); 

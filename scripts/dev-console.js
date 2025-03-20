@@ -19,101 +19,101 @@ let isShuttingDown = false;
 
 // Function to check if a port is in use
 function isPortInUse(port) {
-  return new Promise((resolve) => {
-    const server = net.createServer();
+	return new Promise((resolve) => {
+		const server = net.createServer();
     
-    server.once('error', (err) => {
-      if (err.code === 'EADDRINUSE') {
-        resolve(true); // Port is in use
-      } else {
-        resolve(false);
-      }
-    });
+		server.once('error', (err) => {
+			if (err.code === 'EADDRINUSE') {
+				resolve(true); // Port is in use
+			} else {
+				resolve(false);
+			}
+		});
     
-    server.once('listening', () => {
-      server.close();
-      resolve(false); // Port is free
-    });
+		server.once('listening', () => {
+			server.close();
+			resolve(false); // Port is free
+		});
     
-    server.listen(port);
-  });
+		server.listen(port);
+	});
 }
 
 // Find the next available port starting from the preferred port
 async function findAvailablePort(preferredPort, maxAttempts = 10) {
-  let port = preferredPort;
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const inUse = await isPortInUse(port);
-    if (!inUse) {
-      return port;
-    }
-    console.log(`Port ${port} is in use, trying ${port + 1}...`);
-    port++;
-  }
-  return null; // No available ports found within range
+	let port = preferredPort;
+	for (let attempt = 0; attempt < maxAttempts; attempt++) {
+		const inUse = await isPortInUse(port);
+		if (!inUse) {
+			return port;
+		}
+		console.log(`Port ${port} is in use, trying ${port + 1}...`);
+		port++;
+	}
+	return null; // No available ports found within range
 }
 
 // Kill a process and all its children using tree-kill
 function killProcess(pid, signal = 'SIGTERM') {
-  return new Promise((resolve) => {
-    treeKill(pid, signal, (err) => {
-      if (err) {
-        console.log(`Error killing process ${pid} with ${signal}: ${err.message}`);
-        resolve(false);
-      } else {
-        resolve(true);
-      }
-    });
-  });
+	return new Promise((resolve) => {
+		treeKill(pid, signal, (err) => {
+			if (err) {
+				console.log(`Error killing process ${pid} with ${signal}: ${err.message}`);
+				resolve(false);
+			} else {
+				resolve(true);
+			}
+		});
+	});
 }
 
 // Function to start a process and return its handle
 function startProcess(command, args, options = {}) {
-  console.log(`Starting: ${command} ${args.join(' ')}`);
-  try {
-    // Create new process group to make it easier to kill all child processes
-    const process = spawn(command, args, {
-      stdio: 'pipe',
-      shell: true,
-      detached: true,
-      ...options
-    });
+	console.log(`Starting: ${command} ${args.join(' ')}`);
+	try {
+		// Create new process group to make it easier to kill all child processes
+		const process = spawn(command, args, {
+			stdio: 'pipe',
+			shell: true,
+			detached: true,
+			...options
+		});
     
-    // Store the spawn time to detect immediate failures
-    process.spawnTime = Date.now();
-    process.hasOutput = false;
+		// Store the spawn time to detect immediate failures
+		process.spawnTime = Date.now();
+		process.hasOutput = false;
     
-    process.stdout.on('data', (data) => {
-      process.hasOutput = true;
-      const output = data.toString().trim();
-      console.log(`[${command}] ${output}`);
-    });
+		process.stdout.on('data', (data) => {
+			process.hasOutput = true;
+			const output = data.toString().trim();
+			console.log(`[${command}] ${output}`);
+		});
     
-    process.stderr.on('data', (data) => {
-      process.hasOutput = true;
-      const output = data.toString().trim();
-      console.error(`[${command}] ${output}`);
-    });
+		process.stderr.on('data', (data) => {
+			process.hasOutput = true;
+			const output = data.toString().trim();
+			console.error(`[${command}] ${output}`);
+		});
     
-    process.on('error', (err) => {
-      console.error(`[${command}] Process error: ${err.message}`);
-    });
+		process.on('error', (err) => {
+			console.error(`[${command}] Process error: ${err.message}`);
+		});
     
-    process.on('close', (code) => {
-      // Only log if not shutting down to avoid cluttering the console during exit
-      if (!isShuttingDown) {
-        console.log(`[${command}] Process exited with code ${code}`);
-      }
-    });
+		process.on('close', (code) => {
+			// Only log if not shutting down to avoid cluttering the console during exit
+			if (!isShuttingDown) {
+				console.log(`[${command}] Process exited with code ${code}`);
+			}
+		});
     
-    // Don't prevent the Node.js process from exiting
-    process.unref();
+		// Don't prevent the Node.js process from exiting
+		process.unref();
     
-    return process;
-  } catch (error) {
-    console.error(`Failed to start process: ${error.message}`);
-    return null;
-  }
+		return process;
+	} catch (error) {
+		console.error(`Failed to start process: ${error.message}`);
+		return null;
+	}
 }
 
 // Project metadata and tracking
@@ -123,139 +123,139 @@ let expressServer = null;
 
 // Function to discover all workspace packages
 async function discoverProjects() {
-  try {
-    // Read workspace config
-    const workspaceConfig = await fs.readFile(path.join(rootDir, 'pnpm-workspace.yaml'), 'utf8');
-    const workspaceData = parseYaml(workspaceConfig);
+	try {
+		// Read workspace config
+		const workspaceConfig = await fs.readFile(path.join(rootDir, 'pnpm-workspace.yaml'), 'utf8');
+		const workspaceData = parseYaml(workspaceConfig);
     
-    // Parse workspace package patterns
-    const packagePatterns = workspaceData.packages || [];
-    const discoveredProjects = [];
+		// Parse workspace package patterns
+		const packagePatterns = workspaceData.packages || [];
+		const discoveredProjects = [];
     
-    // Process each package pattern
-    for (const pattern of packagePatterns) {
-      // Remove wildcards for directory scanning
-      const basePath = pattern.replace(/\*/g, '');
-      const fullBasePath = path.join(rootDir, basePath);
+		// Process each package pattern
+		for (const pattern of packagePatterns) {
+			// Remove wildcards for directory scanning
+			const basePath = pattern.replace(/\*/g, '');
+			const fullBasePath = path.join(rootDir, basePath);
       
-      try {
-        // Get subdirectories
-        const entries = await fs.readdir(fullBasePath, { withFileTypes: true });
-        const dirs = entries.filter(entry => entry.isDirectory()).map(dir => dir.name);
+			try {
+				// Get subdirectories
+				const entries = await fs.readdir(fullBasePath, { withFileTypes: true });
+				const dirs = entries.filter(entry => entry.isDirectory()).map(dir => dir.name);
         
-        // Process each directory
-        for (const dir of dirs) {
-          const projectPath = path.join(fullBasePath, dir);
-          const packageJsonPath = path.join(projectPath, 'package.json');
+				// Process each directory
+				for (const dir of dirs) {
+					const projectPath = path.join(fullBasePath, dir);
+					const packageJsonPath = path.join(projectPath, 'package.json');
           
-          // Check if package.json exists
-          if (existsSync(packageJsonPath)) {
-            const packageData = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'));
+					// Check if package.json exists
+					if (existsSync(packageJsonPath)) {
+						const packageData = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'));
             
-            // Check if it has a dev script
-            if (packageData.scripts && (packageData.scripts.dev || packageData.scripts.start || packageData.scripts.tools)) {
-              // Extract metadata
-              const readmePath = path.join(projectPath, 'README.md');
-              let description = packageData.description || '';
+						// Check if it has a dev script
+						if (packageData.scripts && (packageData.scripts.dev || packageData.scripts.start || packageData.scripts.tools)) {
+							// Extract metadata
+							const readmePath = path.join(projectPath, 'README.md');
+							let description = packageData.description || '';
               
-              // Try to extract description from README if available
-              if (existsSync(readmePath)) {
-                const readmeContent = await fs.readFile(readmePath, 'utf8');
-                const firstParagraph = readmeContent.split('\n\n')[1]; // Skip title, get first paragraph
-                if (firstParagraph && !description) {
-                  description = firstParagraph.replace(/\n/g, ' ').trim();
-                }
-              }
+							// Try to extract description from README if available
+							if (existsSync(readmePath)) {
+								const readmeContent = await fs.readFile(readmePath, 'utf8');
+								const firstParagraph = readmeContent.split('\n\n')[1]; // Skip title, get first paragraph
+								if (firstParagraph && !description) {
+									description = firstParagraph.replace(/\n/g, ' ').trim();
+								}
+							}
               
-              // Determine the script to use (prioritize 'tools' for blorktools)
-              let scriptToUse = packageData.scripts.dev || packageData.scripts.start;
-              if (packageData.name.includes('blorktools') && packageData.scripts.tools) {
-                scriptToUse = packageData.scripts.tools;
-              }
+							// Determine the script to use (prioritize 'tools' for blorktools)
+							let scriptToUse = packageData.scripts.dev || packageData.scripts.start;
+							if (packageData.name.includes('blorktools') && packageData.scripts.tools) {
+								scriptToUse = packageData.scripts.tools;
+							}
               
-              // Determine project type and whether it should be served on a port
-              let projectType = 'unknown';
-              let shouldServe = true;
+							// Determine project type and whether it should be served on a port
+							let projectType = 'unknown';
+							let shouldServe = true;
               
-              if (packageData.name.includes('web')) {
-                projectType = 'app';
-              } else if (packageData.name.includes('blorktools')) {
-                projectType = 'tool';
-              } else if (packageData.name.includes('blorkpack')) {
-                projectType = 'package';
-                shouldServe = false; // Don't assign a port to blorkpack
-              } else if (packageData.name.includes('ui')) {
-                projectType = 'ui';
-              } else if (packageData.name.includes('api')) {
-                projectType = 'api';
-              } else if (path.basename(projectPath).includes('lib') || packageData.name.includes('lib')) {
-                projectType = 'library';
-                shouldServe = false;
-              }
+							if (packageData.name.includes('web')) {
+								projectType = 'app';
+							} else if (packageData.name.includes('blorktools')) {
+								projectType = 'tool';
+							} else if (packageData.name.includes('blorkpack')) {
+								projectType = 'package';
+								shouldServe = false; // Don't assign a port to blorkpack
+							} else if (packageData.name.includes('ui')) {
+								projectType = 'ui';
+							} else if (packageData.name.includes('api')) {
+								projectType = 'api';
+							} else if (path.basename(projectPath).includes('lib') || packageData.name.includes('lib')) {
+								projectType = 'library';
+								shouldServe = false;
+							}
               
-              // Assign default ports with blorktools having priority for port 3001
-              let defaultPort = 3000 + discoveredProjects.length;
-              if (packageData.name.includes('blorktools')) {
-                defaultPort = 3001; // Make sure blorktools gets port 3001
-              } else if (packageData.name.includes('web')) {
-                defaultPort = 3000; // Web app gets port 3000
-              } else if (defaultPort === 3001) {
-                defaultPort = 3002; // Anything else that would get 3001, get 3002 instead
-              }
+							// Assign default ports with blorktools having priority for port 3001
+							let defaultPort = 3000 + discoveredProjects.length;
+							if (packageData.name.includes('blorktools')) {
+								defaultPort = 3001; // Make sure blorktools gets port 3001
+							} else if (packageData.name.includes('web')) {
+								defaultPort = 3000; // Web app gets port 3000
+							} else if (defaultPort === 3001) {
+								defaultPort = 3002; // Anything else that would get 3001, get 3002 instead
+							}
               
-              // Create project metadata
-              discoveredProjects.push({
-                name: packageData.name,
-                path: projectPath,
-                relativePath: path.relative(rootDir, projectPath),
-                description: description || `${packageData.name} application`, 
-                version: packageData.version,
-                devScript: scriptToUse,
-                defaultPort: defaultPort,
-                port: null, // Will be assigned later
-                process: null, // Will be assigned when started
-                ready: false,
-                type: projectType,
-                shouldServe: shouldServe
-              });
-            }
-          }
-        }
-      } catch (err) {
-        console.error(`Error scanning directory ${fullBasePath}:`, err.message);
-      }
-    }
+							// Create project metadata
+							discoveredProjects.push({
+								name: packageData.name,
+								path: projectPath,
+								relativePath: path.relative(rootDir, projectPath),
+								description: description || `${packageData.name} application`, 
+								version: packageData.version,
+								devScript: scriptToUse,
+								defaultPort: defaultPort,
+								port: null, // Will be assigned later
+								process: null, // Will be assigned when started
+								ready: false,
+								type: projectType,
+								shouldServe: shouldServe
+							});
+						}
+					}
+				}
+			} catch (err) {
+				console.error(`Error scanning directory ${fullBasePath}:`, err.message);
+			}
+		}
     
-    // Sort projects to ensure web is first, tools second
-    discoveredProjects.sort((a, b) => {
-      if (a.name.includes('web')) return -1;
-      if (b.name.includes('web')) return 1;
-      if (a.name.includes('blorktools')) return -1;
-      if (b.name.includes('blorktools')) return 1;
-      return 0;
-    });
+		// Sort projects to ensure web is first, tools second
+		discoveredProjects.sort((a, b) => {
+			if (a.name.includes('web')) return -1;
+			if (b.name.includes('web')) return 1;
+			if (a.name.includes('blorktools')) return -1;
+			if (b.name.includes('blorktools')) return 1;
+			return 0;
+		});
     
-    return discoveredProjects;
-  } catch (err) {
-    console.error('Error discovering projects:', err.message);
-    return [];
-  }
+		return discoveredProjects;
+	} catch (err) {
+		console.error('Error discovering projects:', err.message);
+		return [];
+	}
 }
 
 // Function to generate a nice card view for a project
 function generateProjectCard(project) {
-  if (!project) {
-    return '';
-  }
+	if (!project) {
+		return '';
+	}
   
-  const displayName = project.name.replace(/^@[^/]+\//, ''); // Remove scope from display
+	const displayName = project.name.replace(/^@[^/]+\//, ''); // Remove scope from display
   
-  // Different card templates based on whether the project is served
-  if (project.shouldServe && project.port) {
-    const portChangeInfo = project.port !== project.defaultPort ? 
-      `(default port ${project.defaultPort} was in use)` : '';
+	// Different card templates based on whether the project is served
+	if (project.shouldServe && project.port) {
+		const portChangeInfo = project.port !== project.defaultPort ? 
+			`(default port ${project.defaultPort} was in use)` : '';
     
-    return `
+		return `
     <div id="${displayName}-card" class="app-card ${project.type}-card">
       <div class="card-badge">${project.type}</div>
       <h3>${displayName}</h3>
@@ -266,9 +266,9 @@ function generateProjectCard(project) {
       </div>
     </div>
     `;
-  } else {
-    // Card for non-served projects (like packages)
-    return `
+	} else {
+		// Card for non-served projects (like packages)
+		return `
     <div id="${displayName}-card" class="app-card ${project.type}-card package-card">
       <div class="card-badge">${project.type}</div>
       <h3>${displayName}</h3>
@@ -278,36 +278,36 @@ function generateProjectCard(project) {
       </div>
     </div>
     `;
-  }
+	}
 }
 
 // Generate script to check if services are available
 function generateServiceChecks() {
-  return projects
-    .filter(p => p.shouldServe && p.port)
-    .map(p => {
-      const displayName = p.name.replace(/^@[^/]+\//, '');
-      return `checkService('http://localhost:${p.port}', '${displayName}-card');`;
-    })
-    .join('\n      ');
+	return projects
+		.filter(p => p.shouldServe && p.port)
+		.map(p => {
+			const displayName = p.name.replace(/^@[^/]+\//, '');
+			return `checkService('http://localhost:${p.port}', '${displayName}-card');`;
+		})
+		.join('\n      ');
 }
 
 // Function to generate a project status summary
 function generateProjectStatus(project) {
-  if (!project) return '';
+	if (!project) return '';
   
-  const displayName = project.name.replace(/^@[^/]+\//, '');
-  let portInfo = 'Not available';
+	const displayName = project.name.replace(/^@[^/]+\//, '');
+	let portInfo = 'Not available';
   
-  if (project.shouldServe) {
-    portInfo = project.port ? 
-      `Running on port: ${project.port}${project.port !== project.defaultPort ? ' (default port was in use)' : ''}` : 
-      'Not available';
-  } else {
-    portInfo = 'Not served (non-interactive package)';
-  }
+	if (project.shouldServe) {
+		portInfo = project.port ? 
+			`Running on port: ${project.port}${project.port !== project.defaultPort ? ' (default port was in use)' : ''}` : 
+			'Not available';
+	} else {
+		portInfo = 'Not served (non-interactive package)';
+	}
   
-  return `
+	return `
   <div class="project-status ${project.type}-status">
     <div class="status-badge">${project.type}</div>
     <h4>${displayName}</h4>
@@ -320,26 +320,26 @@ function generateProjectStatus(project) {
 
 // Function to start the dashboard once services are ready
 function startDashboard() {
-  if (dashboardStarted) return;
-  dashboardStarted = true;
+	if (dashboardStarted) return;
+	dashboardStarted = true;
   
-  // Generate cards for all projects
-  const projectCards = projects.map(generateProjectCard).join('');
+	// Generate cards for all projects
+	const projectCards = projects.map(generateProjectCard).join('');
   
-  const serviceChecks = projects
-    .filter(p => p.shouldServe && p.port)
-    .map(p => {
-      const displayName = p.name.replace(/^@[^/]+\//, '');
-      return `checkService('http://localhost:${p.port}', '${displayName}-card');`;
-    })
-    .join('\n      ');
+	const serviceChecks = projects
+		.filter(p => p.shouldServe && p.port)
+		.map(p => {
+			const displayName = p.name.replace(/^@[^/]+\//, '');
+			return `checkService('http://localhost:${p.port}', '${displayName}-card');`;
+		})
+		.join('\n      ');
   
-  const projectStatuses = projects
-    .map(generateProjectStatus)
-    .join('');
+	const projectStatuses = projects
+		.map(generateProjectStatus)
+		.join('');
   
-  // Create HTML for the BlorkBoard with dynamic project data
-  const consoleHtml = `
+	// Create HTML for the BlorkBoard with dynamic project data
+	const consoleHtml = `
   <!DOCTYPE html>
   <html lang="en">
   <head>
@@ -562,12 +562,12 @@ function startDashboard() {
     </div>
     
     ${projects.length === 0 ? 
-      `<div class="no-projects">
+		`<div class="no-projects">
         <h3>No Runnable Projects Found</h3>
         <p>Couldn't find any projects with dev scripts in the workspace.</p>
       </div>` :
-      ''
-    }
+		''
+}
 
     <script>
       // Check if services are actually available
@@ -594,184 +594,184 @@ function startDashboard() {
   </html>
   `;
 
-  // Serve static assets and route
-  app.use(express.static(path.join(__dirname, 'blork-board')));
-  app.get('/', (req, res) => {
-    res.send(consoleHtml);
-  });
+	// Serve static assets and route
+	app.use(express.static(path.join(__dirname, 'blork-board')));
+	app.get('/', (req, res) => {
+		res.send(consoleHtml);
+	});
   
-  // Start the server
-  expressServer = app.listen(consolePort, () => {
-    console.log(`\n🚀 BlorkBoard available at http://localhost:${consolePort}`);
-    console.log(`\n📱 Discovered Projects:`);
+	// Start the server
+	expressServer = app.listen(consolePort, () => {
+		console.log(`\n🚀 BlorkBoard available at http://localhost:${consolePort}`);
+		console.log(`\n📱 Discovered Projects:`);
     
-    projects.forEach(project => {
-      const displayName = project.name.replace(/^@[^/]+\//, '');
-      if (project.port) {
-        console.log(`  • ${displayName}: http://localhost:${project.port}`);
-      } else {
-        console.log(`  • ${displayName}: Failed to start`);
-      }
-    });
+		projects.forEach(project => {
+			const displayName = project.name.replace(/^@[^/]+\//, '');
+			if (project.port) {
+				console.log(`  • ${displayName}: http://localhost:${project.port}`);
+			} else {
+				console.log(`  • ${displayName}: Failed to start`);
+			}
+		});
     
-    console.log();
+		console.log();
     
-    // Open the browser
-    open(`http://localhost:${consolePort}`);
-  });
+		// Open the browser
+		open(`http://localhost:${consolePort}`);
+	});
 }
 
 // Improved shutdown sequence
 async function shutdownGracefully() {
-  if (isShuttingDown) return; // Prevent multiple shutdown attempts
-  isShuttingDown = true;
+	if (isShuttingDown) return; // Prevent multiple shutdown attempts
+	isShuttingDown = true;
   
-  console.log('\n⏹️  Shutting down all applications...');
+	console.log('\n⏹️  Shutting down all applications...');
   
-  // First attempt: gentle termination with SIGTERM
-  const termPromises = projects
-    .filter(project => project.process && project.process.pid)
-    .map(async (project) => {
-      try {
-        console.log(`Terminating ${project.name}...`);
-        await killProcess(project.process.pid);
-        return true;
-      } catch (err) {
-        return false;
-      }
-    });
+	// First attempt: gentle termination with SIGTERM
+	const termPromises = projects
+		.filter(project => project.process && project.process.pid)
+		.map(async (project) => {
+			try {
+				console.log(`Terminating ${project.name}...`);
+				await killProcess(project.process.pid);
+				return true;
+			} catch (err) {
+				return false;
+			}
+		});
   
-  // Wait for all termination attempts
-  await Promise.all(termPromises);
+	// Wait for all termination attempts
+	await Promise.all(termPromises);
   
-  // Second attempt: force kill with SIGKILL for any remaining processes
-  const killPromises = projects
-    .filter(project => project.process && project.process.pid && project.process.exitCode === null)
-    .map(async (project) => {
-      try {
-        console.log(`Force killing ${project.name}...`);
-        await killProcess(project.process.pid, 'SIGKILL');
-      } catch (err) {
-        console.error(`Failed to kill ${project.name}: ${err.message}`);
-      }
-    });
+	// Second attempt: force kill with SIGKILL for any remaining processes
+	const killPromises = projects
+		.filter(project => project.process && project.process.pid && project.process.exitCode === null)
+		.map(async (project) => {
+			try {
+				console.log(`Force killing ${project.name}...`);
+				await killProcess(project.process.pid, 'SIGKILL');
+			} catch (err) {
+				console.error(`Failed to kill ${project.name}: ${err.message}`);
+			}
+		});
   
-  await Promise.all(killPromises);
+	await Promise.all(killPromises);
   
-  // Close the express server
-  if (expressServer) {
-    console.log('Closing dashboard server...');
-    expressServer.close();
-  }
+	// Close the express server
+	if (expressServer) {
+		console.log('Closing dashboard server...');
+		expressServer.close();
+	}
   
-  console.log('✅ BlorkBoard shutdown complete');
-  // Force exit after cleanup
-  process.exit(0);
+	console.log('✅ BlorkBoard shutdown complete');
+	// Force exit after cleanup
+	process.exit(0);
 }
 
 // Simplified main function to run everything
 async function run() {
-  try {
-    // Discover all projects in the workspace
-    projects = await discoverProjects();
+	try {
+		// Discover all projects in the workspace
+		projects = await discoverProjects();
     
-    if (projects.length === 0) {
-      console.log("No runnable projects discovered in the workspace");
-    } else {
-      console.log(`Discovered ${projects.length} projects in the workspace`);
+		if (projects.length === 0) {
+			console.log("No runnable projects discovered in the workspace");
+		} else {
+			console.log(`Discovered ${projects.length} projects in the workspace`);
       
-      // Find available port for console
-      consolePort = await findAvailablePort(9000);
-      if (!consolePort) {
-        throw new Error("Could not find an available port for the BlorkBoard");
-      }
+			// Find available port for console
+			consolePort = await findAvailablePort(9000);
+			if (!consolePort) {
+				throw new Error("Could not find an available port for the BlorkBoard");
+			}
       
-      // Assign ports to each project that should be served
-      for (const project of projects) {
-        if (project.shouldServe) {
-          project.port = await findAvailablePort(project.defaultPort);
-          if (!project.port) {
-            console.log(`Could not find an available port for ${project.name}`);
-          }
-        }
-      }
+			// Assign ports to each project that should be served
+			for (const project of projects) {
+				if (project.shouldServe) {
+					project.port = await findAvailablePort(project.defaultPort);
+					if (!project.port) {
+						console.log(`Could not find an available port for ${project.name}`);
+					}
+				}
+			}
       
-      // Start each project that should be served
-      for (const project of projects) {
-        if (project.shouldServe && project.port) {
-          // Special handling for blorktools
-          if (project.name.includes('blorktools')) {
-            console.log(`Starting ${project.name} with tools script on port ${project.port}...`);
+			// Start each project that should be served
+			for (const project of projects) {
+				if (project.shouldServe && project.port) {
+					// Special handling for blorktools
+					if (project.name.includes('blorktools')) {
+						console.log(`Starting ${project.name} with tools script on port ${project.port}...`);
             
-            // For tools script, construct args differently
-            const args = [
-              '--filter=' + project.name,
-              'tools',
-              '--port',
-              project.port.toString(),
-              '--no-open'
-            ];
+						// For tools script, construct args differently
+						const args = [
+							'--filter=' + project.name,
+							'tools',
+							'--port',
+							project.port.toString(),
+							'--no-open'
+						];
             
-            // Add a small delay between starting each project
-            await new Promise(resolve => setTimeout(resolve, 1000));
+						// Add a small delay between starting each project
+						await new Promise(resolve => setTimeout(resolve, 1000));
             
-            const env = { ...process.env, BROWSER: 'none', NO_OPEN: '1' };
-            project.process = startProcess('pnpm', args, { env, cwd: rootDir });
-          } else {
-            // Regular handling for other projects
-            const portArg = project.devScript.includes('--port') ? 
-              [] : ['--', '--no-open', '--port', project.port.toString()];
+						const env = { ...process.env, BROWSER: 'none', NO_OPEN: '1' };
+						project.process = startProcess('pnpm', args, { env, cwd: rootDir });
+					} else {
+						// Regular handling for other projects
+						const portArg = project.devScript.includes('--port') ? 
+							[] : ['--', '--no-open', '--port', project.port.toString()];
             
-            const args = [
-              '--filter=' + project.name,
-              'dev',
-              ...portArg
-            ];
+						const args = [
+							'--filter=' + project.name,
+							'dev',
+							...portArg
+						];
             
-            // Add a small delay between starting each project
-            await new Promise(resolve => setTimeout(resolve, 1000));
+						// Add a small delay between starting each project
+						await new Promise(resolve => setTimeout(resolve, 1000));
             
-            const env = { ...process.env, BROWSER: 'none', NO_OPEN: '1' };
-            project.process = startProcess('pnpm', args, { env, cwd: rootDir });
-          }
+						const env = { ...process.env, BROWSER: 'none', NO_OPEN: '1' };
+						project.process = startProcess('pnpm', args, { env, cwd: rootDir });
+					}
           
-          // Check if the process failed to start after a short delay
-          if (project.process) {
-            setTimeout(() => {
-              if (project.process && !project.process.hasOutput && project.process.exitCode === null) {
-                console.log(`No output from ${project.name} after 2 seconds, it may have failed silently.`);
-              }
-            }, 2000);
-          }
-        }
-      }
+					// Check if the process failed to start after a short delay
+					if (project.process) {
+						setTimeout(() => {
+							if (project.process && !project.process.hasOutput && project.process.exitCode === null) {
+								console.log(`No output from ${project.name} after 2 seconds, it may have failed silently.`);
+							}
+						}, 2000);
+					}
+				}
+			}
       
-      // Start the dashboard after all projects have been started
-      setTimeout(() => {
-        startDashboard();
-      }, 2000);
-    }
+			// Start the dashboard after all projects have been started
+			setTimeout(() => {
+				startDashboard();
+			}, 2000);
+		}
     
-    // Set up signal handlers for graceful shutdown
-    process.on('SIGINT', shutdownGracefully);  // Ctrl+C
-    process.on('SIGTERM', shutdownGracefully); // kill command
-    process.on('SIGHUP', shutdownGracefully);  // Terminal closed
+		// Set up signal handlers for graceful shutdown
+		process.on('SIGINT', shutdownGracefully);  // Ctrl+C
+		process.on('SIGTERM', shutdownGracefully); // kill command
+		process.on('SIGHUP', shutdownGracefully);  // Terminal closed
     
-    // Handle unhandled errors
-    process.on('unhandledRejection', (reason, promise) => {
-      console.error('Unhandled Promise Rejection:', reason);
-      shutdownGracefully();
-    });
+		// Handle unhandled errors
+		process.on('unhandledRejection', (reason, promise) => {
+			console.error('Unhandled Promise Rejection:', reason);
+			shutdownGracefully();
+		});
     
-    process.on('uncaughtException', (error) => {
-      console.error('Uncaught Exception:', error);
-      shutdownGracefully();
-    });
+		process.on('uncaughtException', (error) => {
+			console.error('Uncaught Exception:', error);
+			shutdownGracefully();
+		});
     
-  } catch (error) {
-    console.error(`Error during startup: ${error.message}`);
-    process.exit(1);
-  }
+	} catch (error) {
+		console.error(`Error during startup: ${error.message}`);
+		process.exit(1);
+	}
 }
 
 // Start everything

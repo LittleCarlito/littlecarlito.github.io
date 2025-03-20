@@ -10,7 +10,7 @@ export const THREE = createThreeProxy();
 
 // Create utilities that we will export
 export const AssetUtils = {
-    cloneSkinnedMesh
+	cloneSkinnedMesh
 };
 
 /**
@@ -18,7 +18,7 @@ export const AssetUtils = {
  * @returns {Promise<void>}
  */
 export async function initRapier() {
-    return RAPIER.init();
+	return RAPIER.init();
 }
 
 /**
@@ -26,7 +26,7 @@ export async function initRapier() {
  * @returns {Promise<void>}
  */
 export async function initThree() {
-    return THREE.init();
+	return THREE.init();
 }
 
 export { Easing, Tween };
@@ -53,14 +53,14 @@ import { SystemAssetType } from './asset_spawner/common/system_asset_types.js';
 
 // Export the components
 export {
-    ManifestManager,
-    MANIFEST_TYPES,
-    AssetSpawner,
-    AssetStorage,
-    AssetActivator,
-    AppRenderer,
-    CustomTypeManager,
-    BLORKPACK_FLAGS,
-    initPhysicsUtil,
-    SystemAssetType
+	ManifestManager,
+	MANIFEST_TYPES,
+	AssetSpawner,
+	AssetStorage,
+	AssetActivator,
+	AppRenderer,
+	CustomTypeManager,
+	BLORKPACK_FLAGS,
+	initPhysicsUtil,
+	SystemAssetType
 }; 

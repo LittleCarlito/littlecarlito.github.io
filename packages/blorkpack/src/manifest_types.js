@@ -292,15 +292,15 @@
 
 // Export the type definitions
 export const MANIFEST_TYPES = {
-    // This empty object helps with imports
+	// This empty object helps with imports
 };
 
 // Export symbols for documentation purposes
 export const typeDefs = {
-    Manifest: '/** @type {Manifest} */',
-    CustomType: '/** @type {CustomType} */',
-    JointData: '/** @type {JointData} */',
-    AssetGroup: '/** @type {AssetGroup} */',
-    AssetData: '/** @type {AssetData} */',
-    SceneData: '/** @type {SceneData} */'
+	Manifest: '/** @type {Manifest} */',
+	CustomType: '/** @type {CustomType} */',
+	JointData: '/** @type {JointData} */',
+	AssetGroup: '/** @type {AssetGroup} */',
+	AssetData: '/** @type {AssetData} */',
+	SceneData: '/** @type {SceneData} */'
 }; 

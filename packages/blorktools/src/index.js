@@ -38,12 +38,12 @@ export * from './asset_debugger/index.js';
 
 // Export individual tools
 export const tools = {
-  // Asset Debugger Tool
-  assetDebugger: {
-    init: () => import('./asset_debugger/index.js').then(module => module.init()),
-    // Legacy entry point is now the same as the standard entry point
-    legacy: () => import('./asset_debugger/index.js')
-  }
+	// Asset Debugger Tool
+	assetDebugger: {
+		init: () => import('./asset_debugger/index.js').then(module => module.init()),
+		// Legacy entry point is now the same as the standard entry point
+		legacy: () => import('./asset_debugger/index.js')
+	}
 };
 
 // Export utility functions that might be useful for consumers
