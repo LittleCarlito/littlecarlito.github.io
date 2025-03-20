@@ -1,0 +1,43 @@
+#!/bin/sh
+
+echo "🔍 Validating commit message format..."
+COMMIT_MSG=$(cat "$1")
+
+# Debug: Show the actual commit message
+echo "📝 Your commit message is:"
+echo "----------------------------"
+cat "$1"
+echo "----------------------------"
+
+# Run commitlint to validate the message
+pnpm commitlint --edit "$1" || (
+  echo "❌ Commit message validation failed!"
+  echo "ℹ️ Your commit message should follow the conventional commit format:"
+  echo "  type[(scope)]: subject"
+  echo ""
+  echo "Types: build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test"
+  echo "Scopes (optional): blorkpack, blorktools, common, core, docs, release, no-release"
+  echo ""
+  echo "Examples:"
+  echo "  feat: add new feature"
+  echo "  fix(blorktools): resolve issue with tool X"
+  echo ""
+  exit 1
+)
+
+echo "✅ Commit message format is valid!"
+
+# Extract the type and scope from the commit message
+TYPE=$(echo "$COMMIT_MSG" | head -1 | sed -E 's/^([a-z]+)(\(.*\))?:.*/\1/')
+SCOPE=$(echo "$COMMIT_MSG" | head -1 | sed -E 's/^[a-z]+\(([^)]*)\):.*/\1/')
+
+# Determine the potential semantic version impact
+if [ "$TYPE" = "feat" ]; then
+  echo "🚀 This commit would trigger a MINOR version bump"
+elif [ "$TYPE" = "fix" ] || [ "$TYPE" = "perf" ]; then
+  echo "🔧 This commit would trigger a PATCH version bump"
+elif [ "$SCOPE" = "no-release" ]; then
+  echo "⏸️  This commit will NOT trigger a version bump (no-release scope)"
+else
+  echo "📝 This commit may trigger a PATCH version bump depending on configuration"
+fi 

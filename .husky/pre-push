@@ -1,0 +1,31 @@
+#!/bin/sh
+
+echo "🔍 Running semantic-release dry run checks..."
+
+# Get the current branch name
+BRANCH=$(git symbolic-ref --short HEAD)
+
+# Only run on main branch or if it's a feature branch
+if [ "$BRANCH" = "main" ] || [[ "$BRANCH" == feature/* ]]; then
+  echo "Running semantic-release dry run for root project..."
+  pnpm semantic-release --dry-run || true
+
+  # Check if there are packages to check
+  if [ -d "packages/blorkpack" ]; then
+    echo "Running semantic-release dry run for blorkpack..."
+    cd packages/blorkpack
+    pnpm semantic-release --dry-run || true
+    cd ../..
+  fi
+
+  if [ -d "packages/blorktools" ]; then
+    echo "Running semantic-release dry run for blorktools..."
+    cd packages/blorktools
+    pnpm semantic-release --dry-run || true
+    cd ../..
+  fi
+  
+  echo "✅ Semantic versioning dry run completed!"
+else
+  echo "Skipping semantic-release dry run checks on branch $BRANCH"
+fi 

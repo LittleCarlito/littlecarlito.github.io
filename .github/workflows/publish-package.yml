@@ -175,8 +175,8 @@ jobs:
         working-directory: packages/blorkpack
         run: |
           echo "Building blorkpack package..."
-          npm install
-          npm run build
+          pnpm install
+          pnpm run build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
@@ -248,8 +248,8 @@ jobs:
         working-directory: packages/blorktools
         run: |
           echo "Building blorktools package..."
-          npm install
-          npm run build
+          pnpm install
+          pnpm run build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       

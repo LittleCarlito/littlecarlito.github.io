@@ -45,7 +45,9 @@ module.exports = {
 				'blorktools',
 				'common',
 				'core',
-				'docs'
+				'docs',
+				'release',
+				'no-release'
 			]
 		],
 		// Ensure scopes are lowercase
@@ -58,5 +60,40 @@ module.exports = {
 			headerPattern: /^(\w*)(?:\(([\w,]+)\))?: (.*)$/,
 			headerCorrespondence: ['type', 'scope', 'subject']
 		}
-	}
+	},
+	plugins: [
+		{
+			rules: {
+				'semantic-versioning-check': (parsed) => {
+					const { type, scope } = parsed;
+					
+					// Check if the commit would trigger a release
+					let willTriggerRelease = false;
+					let releaseType = null;
+					
+					if (scope === 'no-release') {
+						return [true, 'Commit will not trigger a release (no-release scope)'];
+					}
+					
+					if (type === 'feat') {
+						willTriggerRelease = true;
+						releaseType = 'minor';
+					} else if (['fix', 'perf'].includes(type)) {
+						willTriggerRelease = true;
+						releaseType = 'patch';
+					} else if (['docs', 'style', 'refactor', 'test', 'chore', 'build'].includes(type)) {
+						// These may or may not trigger a release depending on config
+						willTriggerRelease = true;
+						releaseType = 'patch (potentially)';
+					}
+					
+					if (willTriggerRelease) {
+						return [true, `Commit will trigger a ${releaseType} release`];
+					} else {
+						return [true, 'Commit will not trigger a release'];
+					}
+				}
+			}
+		}
+	]
 }; 

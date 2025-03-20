@@ -205,7 +205,7 @@ jobs:
                 "@semantic-release/github"
               ]
             }' > .releaserc.json
-            npx semantic-release --dry-run || echo "Completed dry-run for $pkg"
+            pnpm semantic-release --dry-run || echo "Completed dry-run for $pkg"
             cd ../..
           done
         env:
