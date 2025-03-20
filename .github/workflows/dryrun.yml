@@ -36,9 +36,20 @@ jobs:
           # Disable husky
           HUSKY=0 HUSKY_SKIP_INSTALL=1 npm pkg delete scripts.prepare || true
           
-          # Build package
-          HUSKY=0 HUSKY_SKIP_INSTALL=1 pnpm install
-          HUSKY=0 HUSKY_SKIP_INSTALL=1 pnpm run build
+          # Install dependencies first
+          echo "Installing dependencies..."
+          HUSKY=0 HUSKY_SKIP_INSTALL=1 pnpm install --no-frozen-lockfile
+          
+          # Verify vite is installed
+          echo "Verifying vite installation..."
+          if [ ! -f "node_modules/.bin/vite" ]; then
+            echo "Vite not found, installing explicitly..."
+            pnpm add -D vite@latest
+          fi
+          
+          # Build package using local vite
+          echo "Building package..."
+          HUSKY=0 HUSKY_SKIP_INSTALL=1 node_modules/.bin/vite build
           
           # Verify build artifacts
           echo "Verifying build artifacts..."
@@ -60,9 +71,20 @@ jobs:
           # Disable husky
           HUSKY=0 HUSKY_SKIP_INSTALL=1 npm pkg delete scripts.prepare || true
           
-          # Build package
-          HUSKY=0 HUSKY_SKIP_INSTALL=1 pnpm install
-          HUSKY=0 HUSKY_SKIP_INSTALL=1 pnpm run build
+          # Install dependencies first
+          echo "Installing dependencies..."
+          HUSKY=0 HUSKY_SKIP_INSTALL=1 pnpm install --no-frozen-lockfile
+          
+          # Verify vite is installed
+          echo "Verifying vite installation..."
+          if [ ! -f "node_modules/.bin/vite" ]; then
+            echo "Vite not found, installing explicitly..."
+            pnpm add -D vite@latest
+          fi
+          
+          # Build package using local vite
+          echo "Building package..."
+          HUSKY=0 HUSKY_SKIP_INSTALL=1 node_modules/.bin/vite build
           
           # Verify build artifacts
           echo "Verifying build artifacts..."
