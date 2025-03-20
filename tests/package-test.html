@@ -1,15 +1,51 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Asset Management Package Test</title>
-    <style>
-      body { margin: 0; overflow: hidden; }
-      canvas { display: block; }
-    </style>
-  </head>
-  <body>
-    <script type="module" src="./package-test.js"></script>
-  </body>
-</html> 
+/**
+ * Jest setup for asset management package tests
+ * 
+ * This file mocks the DOM and browser environment for jest tests.
+ * It replaces the original HTML file that was used for manual testing.
+ */
+
+// Mock window dimensions for THREE.js
+Object.defineProperty(window, 'innerWidth', { value: 1024 });
+Object.defineProperty(window, 'innerHeight', { value: 768 });
+
+// Mock canvas
+class MockCanvas {
+  constructor() {
+    this.style = {};
+  }
+  
+  getContext() {
+    return {
+      drawImage: jest.fn(),
+      fillRect: jest.fn(),
+      clearRect: jest.fn(),
+      beginPath: jest.fn(),
+      moveTo: jest.fn(),
+      lineTo: jest.fn(),
+      stroke: jest.fn()
+    };
+  }
+}
+
+// Mock document setup
+document.body.innerHTML = '<div id="container"></div>';
+
+// Mock document.createElement to return our canvas mock for canvas elements
+const originalCreateElement = document.createElement;
+document.createElement = function(tagName) {
+  if (tagName.toLowerCase() === 'canvas') {
+    return new MockCanvas();
+  }
+  return originalCreateElement.apply(this, arguments);
+};
+
+// Mock requestAnimationFrame
+window.requestAnimationFrame = jest.fn(callback => {
+  return setTimeout(callback, 0);
+});
+
+// Export mock utils if needed
+module.exports = {
+  MockCanvas
+}; 

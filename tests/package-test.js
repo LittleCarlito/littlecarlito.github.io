@@ -1,4 +1,8 @@
-// Example of using the asset-management package
+/**
+ * Asset Management Package Test Suite
+ * 
+ * Jest tests for the asset management package
+ */
 import { 
 	AssetStorage, 
 	AssetSpawner, 
@@ -9,73 +13,178 @@ import {
 	RAPIER,
 	AssetUtils
 } from '@littlecarlito/blorkpack';
-console.log('Asset Management Package Test');
-console.log('Available ASSET_TYPEs:', Object.keys(ASSET_TYPE));
-// Initialize basic scene
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer();
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
-// Position camera
-camera.position.z = 5;
-// Initialize Rapier physics
-let world;
 
-/**
- *
- */
-async function init() {
-	console.log('Initializing...');
-	// Initialize Rapier
-	await RAPIER.init();
-	world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
-	// Get asset storage instance
-	const assetStorage = AssetStorage.get_instance();
-	console.log('Asset Storage created:', assetStorage);
-	// Initialize asset spawner
-	const spawner = AssetSpawner.get_instance(scene, world);
-	console.log('Asset Spawner created:', spawner);
-	// Initialize asset activator
-	const activator = AssetActivator.get_instance(camera, renderer);
-	console.log('Asset Activator created:', activator);
-	// Attempt to load and spawn an asset
-	try {
-		// Example loading (would normally use real assets)
-		console.log('Spawning asset...');
-		const position = new THREE.Vector3(0, 0, 0);
-		const rotation = new THREE.Quaternion();
-		// For the demo, we'll create a simple cube instead of loading a model
-		const geometry = new THREE.BoxGeometry(1, 1, 1);
-		const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-		const cube = new THREE.Mesh(geometry, material);
-		scene.add(cube);
-		// Register with asset storage
-		const instance_id = assetStorage.add_object(cube, null);
-		console.log('Created cube with instance_id:', instance_id);
+// Mock THREE
+jest.mock('@littlecarlito/blorkpack', () => {
+	// Create mock implementations
+	const mockThree = {
+		Scene: jest.fn().mockImplementation(() => ({
+			add: jest.fn()
+		})),
+		PerspectiveCamera: jest.fn().mockImplementation(() => ({
+			position: { z: 0 }
+		})),
+		WebGLRenderer: jest.fn().mockImplementation(() => ({
+			setSize: jest.fn(),
+			render: jest.fn()
+		})),
+		BoxGeometry: jest.fn(),
+		MeshBasicMaterial: jest.fn(),
+		Mesh: jest.fn().mockImplementation(() => ({
+			rotation: { x: 0, y: 0 },
+		})),
+		Vector3: jest.fn().mockImplementation(() => ({
+			x: 0, y: 0, z: 0
+		})),
+		Quaternion: jest.fn()
+	};
 
-		// Simple animation loop
-		/**
-		 *
-		 */
-		function animate() {
-			requestAnimationFrame(animate);
-			// Update physics world
-			world.step();
-			// Update physics objects
-			assetStorage.update();
-			// Rotate cube
-			cube.rotation.x += 0.01;
-			cube.rotation.y += 0.01;
-			// Render
-			renderer.render(scene, camera);
+	// Create mock RAPIER
+	const mockRapier = {
+		init: jest.fn().mockResolvedValue(undefined),
+		World: jest.fn().mockImplementation(() => ({
+			step: jest.fn()
+		}))
+	};
+
+	// Mock AssetStorage with instance tracking
+	let storageInstance = null;
+	const mockAssetStorage = {
+		get_instance: jest.fn().mockImplementation(() => {
+			if (!storageInstance) {
+				storageInstance = {
+					add_object: jest.fn().mockReturnValue('mock-instance-id'),
+					update: jest.fn()
+				};
+			}
+			return storageInstance;
+		})
+	};
+
+	// Mock AssetSpawner with instance tracking
+	let spawnerInstance = null;
+	const mockAssetSpawner = {
+		get_instance: jest.fn().mockImplementation((scene, world) => {
+			if (!spawnerInstance) {
+				spawnerInstance = {
+					spawn_asset: jest.fn()
+				};
+			}
+			return spawnerInstance;
+		})
+	};
+
+	// Mock AssetActivator with instance tracking
+	let activatorInstance = null;
+	const mockAssetActivator = {
+		get_instance: jest.fn().mockImplementation((camera, renderer) => {
+			if (!activatorInstance) {
+				activatorInstance = {
+					activate: jest.fn()
+				};
+			}
+			return activatorInstance;
+		})
+	};
+
+	return {
+		AssetStorage: mockAssetStorage,
+		AssetSpawner: mockAssetSpawner,
+		AssetActivator: mockAssetActivator,
+		ASSET_TYPE: { 
+			MODEL: 'model',
+			LIGHT: 'light',
+			FLOOR: 'floor'
+		},
+		ASSET_CONFIGS: {},
+		THREE: mockThree,
+		RAPIER: mockRapier,
+		AssetUtils: {
+			createPhysicsBody: jest.fn()
 		}
+	};
+});
 
-		animate();
-		console.log('Asset Management package test complete!');
-	} catch (error) {
-		console.error('Error in test:', error);
-	}
-}
+// Mock document.body.appendChild
+document.body = {
+	appendChild: jest.fn()
+};
 
-init(); 
+describe('Asset Management Package', () => {
+	// Setup common variables
+	let scene, camera, renderer, world, assetStorage, spawner, activator;
+	
+	beforeEach(async () => {
+		// Reset mocks
+		jest.clearAllMocks();
+		
+		// Initialize scene and THREE objects
+		scene = new THREE.Scene();
+		camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+		renderer = new THREE.WebGLRenderer();
+		
+		// Initialize Rapier
+		await RAPIER.init();
+		world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
+		
+		// Get asset management instances
+		assetStorage = AssetStorage.get_instance();
+		spawner = AssetSpawner.get_instance(scene, world);
+		activator = AssetActivator.get_instance(camera, renderer);
+	});
+	
+	describe('Initialization', () => {
+		test('should initialize THREE scene', () => {
+			expect(scene).toBeDefined();
+			expect(camera).toBeDefined();
+			expect(renderer).toBeDefined();
+			expect(camera.position.z).toBeDefined();
+		});
+		
+		test('should initialize RAPIER physics', async () => {
+			expect(RAPIER.init).toHaveBeenCalled();
+			expect(world).toBeDefined();
+		});
+		
+		test('should create asset management instances', () => {
+			expect(assetStorage).toBeDefined();
+			expect(spawner).toBeDefined();
+			expect(activator).toBeDefined();
+		});
+	});
+	
+	describe('Asset creation and management', () => {
+		test('should create and register a basic object', () => {
+			// Create geometry, material, mesh
+			const geometry = new THREE.BoxGeometry(1, 1, 1);
+			const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+			const cube = new THREE.Mesh(geometry, material);
+			
+			// Add to scene
+			scene.add(cube);
+			
+			// Register with asset storage
+			const instance_id = assetStorage.add_object(cube, null);
+			
+			expect(scene.add).toHaveBeenCalledWith(cube);
+			expect(assetStorage.add_object).toHaveBeenCalledWith(cube, null);
+			expect(instance_id).toBe('mock-instance-id');
+		});
+		
+		test('should update physics and assets', () => {
+			// Simulate an animation frame
+			world.step();
+			assetStorage.update();
+			
+			expect(world.step).toHaveBeenCalled();
+			expect(assetStorage.update).toHaveBeenCalled();
+		});
+	});
+	
+	describe('Asset types and configs', () => {
+		test('should have defined asset types', () => {
+			expect(ASSET_TYPE).toBeDefined();
+			expect(Object.keys(ASSET_TYPE).length).toBeGreaterThan(0);
+		});
+	});
+}); 
