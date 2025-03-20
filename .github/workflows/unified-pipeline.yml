@@ -1,0 +1,657 @@
+name: Unified Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  packages: write
+  actions: read
+
+jobs:
+  quality-check:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+      
+      - name: Install dependencies
+        run: pnpm install
+      
+      - name: Run lint check
+        run: pnpm lint
+      
+      - name: Run tests with coverage
+        run: pnpm test:coverage
+      
+      - name: Prepare artifacts
+        if: always() && (success() || failure())
+        run: pnpm prepare-artifacts
+      
+      - name: Upload test reports
+        if: always() && (success() || failure())
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: pipeline-artifacts/test-reports
+          retention-days: 7
+      
+      - name: Upload coverage reports
+        if: always() && (success() || failure())
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: pipeline-artifacts/coverage
+          retention-days: 7
+
+  verify-builds:
+    name: Verify Package Builds
+    needs: quality-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@littlecarlito'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+
+      - name: Install Dependencies
+        run: |
+          # Create .npmrc for authentication and workspace config
+          cat > .npmrc << EOF
+          @littlecarlito:registry=https://npm.pkg.github.com/
+          //npm.pkg.github.com/:_authToken=${{ secrets.PACKAGE_TOKEN }}
+          link-workspace-packages=true
+          shamefully-hoist=true
+          ignore-scripts=true
+          auto-install-peers=true
+          EOF
+          
+          pnpm install --no-frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          HUSKY: 0
+          HUSKY_SKIP_INSTALL: 1
+
+      - name: Build Packages
+        run: |
+          # Build packages in correct order
+          echo "🏗️ Building workspace packages..."
+          pnpm --filter "@littlecarlito/blorkpack" build
+          pnpm --filter "@littlecarlito/blorktools" build
+          pnpm --filter "@littlecarlito/portfolio" build
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          HUSKY: 0
+          HUSKY_SKIP_INSTALL: 1
+
+      - name: Verify Builds
+        run: |
+          # Check package builds
+          for pkg in blorkpack blorktools; do
+            if [ ! -d "packages/$pkg/dist" ]; then
+              echo "❌ $pkg build failed - dist directory missing"
+              exit 1
+            fi
+            echo "✅ $pkg build verified"
+          done
+
+          # Check portfolio build
+          if [ ! -d "apps/portfolio/dist" ]; then
+            echo "❌ Portfolio build failed - dist directory missing"
+            exit 1
+          fi
+          echo "✅ Portfolio build verified"
+
+          # Check for source files in portfolio dist
+          SOURCE_FILES=$(find apps/portfolio/dist -name "*.ts" -o -name "*.tsx" -o -name "*.js.map" | grep -v "node_modules" || true)
+          if [ ! -z "$SOURCE_FILES" ]; then
+            echo "⚠️ Warning: Source files found in dist folder:"
+            echo "$SOURCE_FILES"
+          else
+            echo "✅ No source files in dist directory"
+          fi
+
+  analyze-and-release:
+    name: Analyze Commits and Release
+    needs: verify-builds
+    runs-on: ubuntu-latest
+    outputs:
+      blorkpack_version: ${{ steps.blorkpack_release.outputs.new_version }}
+      blorktools_version: ${{ steps.blorktools_release.outputs.new_version }}
+      blorkpack_version_changed: ${{ steps.check_versions.outputs.blorkpack_changed }}
+      blorktools_version_changed: ${{ steps.check_versions.outputs.blorktools_changed }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Configure Git identity
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        env:
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@littlecarlito'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+          
+      - name: Install dependencies
+        run: pnpm install
+        
+      - name: Install semantic-release and plugins
+        run: |
+          pnpm add -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github @semantic-release/npm
+          echo "Installed semantic-release and plugins globally"
+      
+      - name: Get pre-release versions
+        id: pre_versions
+        run: |
+          cd packages/blorkpack
+          BLORKPACK_PRE=$(jq -r '.version' package.json)
+          echo "blorkpack_pre=$BLORKPACK_PRE" >> $GITHUB_OUTPUT
+          
+          cd ../blorktools
+          BLORKTOOLS_PRE=$(jq -r '.version' package.json)
+          echo "blorktools_pre=$BLORKTOOLS_PRE" >> $GITHUB_OUTPUT
+      
+      - name: Run semantic-release for blorkpack
+        id: blorkpack_release
+        working-directory: packages/blorkpack
+        run: |
+          echo "Running semantic-release for blorkpack package"
+          PRE_VERSION=$(jq -r '.version' package.json)
+          
+          # Ensure package name is correct
+          jq '.name = "@littlecarlito/blorkpack"' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Create local .releaserc.json for this package
+          cat > .releaserc.json << 'EOF'
+          {
+            "branches": ["main"],
+            "plugins": [
+              ["@semantic-release/commit-analyzer", {
+                "preset": "angular",
+                "releaseRules": [
+                  {"type": "feat", "release": "minor"},
+                  {"type": "fix", "release": "patch"},
+                  {"type": "perf", "release": "patch"},
+                  {"scope": "no-release", "release": false},
+                  {"type": "docs", "release": "patch"},
+                  {"type": "style", "release": "patch"},
+                  {"type": "refactor", "release": "patch"},
+                  {"type": "test", "release": "patch"},
+                  {"type": "chore", "release": "patch"},
+                  {"type": "build", "release": "patch"}
+                ]
+              }],
+              "@semantic-release/release-notes-generator",
+              "@semantic-release/changelog",
+              ["@semantic-release/npm", {
+                "npmPublish": false
+              }],
+              ["@semantic-release/git", {
+                "assets": ["package.json", "CHANGELOG.md"],
+                "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+              }],
+              "@semantic-release/github"
+            ]
+          }
+          EOF
+          
+          # Force a patch bump if there are no relevant commits
+          if [ "$PRE_VERSION" = "0.12.0" ]; then
+            echo "Forcing a patch bump since version has been 0.12.0 for a while"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git config user.name "github-actions[bot]"
+            git commit --allow-empty -m "fix: force version bump for blorkpack"
+          fi
+          
+          # Run semantic-release
+          pnpm semantic-release --debug || echo "semantic-release process completed"
+          
+          # Get the new version post-semantic-release
+          NEW_VERSION=$(jq -r '.version' package.json)
+          
+          # Output version info for downstream jobs
+          echo "pre_version=$PRE_VERSION" >> $GITHUB_OUTPUT
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          
+          # Log version change
+          if [ "$PRE_VERSION" != "$NEW_VERSION" ]; then
+            echo "Version updated: $PRE_VERSION → $NEW_VERSION"
+            
+            # Create and push the tag
+            cd ../../
+            TAG_NAME="v$NEW_VERSION"
+            git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
+            
+            if ! git ls-remote --tags origin | grep -q "refs/tags/$TAG_NAME"; then
+              git tag -a "$TAG_NAME" -m "Release $TAG_NAME for blorkpack"
+              git push origin refs/tags/$TAG_NAME
+            fi
+            
+            cd packages/blorkpack
+          else
+            echo "Version unchanged: $NEW_VERSION"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+      
+      - name: Run semantic-release for blorktools
+        id: blorktools_release
+        working-directory: packages/blorktools
+        run: |
+          echo "Running semantic-release for blorktools package"
+          PRE_VERSION=$(jq -r '.version' package.json)
+          
+          # Ensure package name is correct
+          jq '.name = "@littlecarlito/blorktools"' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Create local .releaserc.json for this package
+          cat > .releaserc.json << 'EOF'
+          {
+            "branches": ["main"],
+            "plugins": [
+              ["@semantic-release/commit-analyzer", {
+                "preset": "angular",
+                "releaseRules": [
+                  {"type": "feat", "release": "minor"},
+                  {"type": "fix", "release": "patch"},
+                  {"type": "perf", "release": "patch"},
+                  {"scope": "no-release", "release": false},
+                  {"type": "docs", "release": "patch"},
+                  {"type": "style", "release": "patch"},
+                  {"type": "refactor", "release": "patch"},
+                  {"type": "test", "release": "patch"},
+                  {"type": "chore", "release": "patch"},
+                  {"type": "build", "release": "patch"}
+                ]
+              }],
+              "@semantic-release/release-notes-generator",
+              "@semantic-release/changelog",
+              ["@semantic-release/npm", {
+                "npmPublish": false
+              }],
+              ["@semantic-release/git", {
+                "assets": ["package.json", "CHANGELOG.md"],
+                "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+              }],
+              "@semantic-release/github"
+            ]
+          }
+          EOF
+          
+          # Force a patch bump
+          echo "Forcing a patch bump for blorktools"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git commit --allow-empty -m "fix: force version bump for blorktools"
+          
+          # Run semantic-release
+          pnpm semantic-release --debug || echo "semantic-release process completed"
+          
+          # Get the new version post-semantic-release
+          NEW_VERSION=$(jq -r '.version' package.json)
+          
+          # Output version info for downstream jobs
+          echo "pre_version=$PRE_VERSION" >> $GITHUB_OUTPUT
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          
+          # Log version change
+          if [ "$PRE_VERSION" != "$NEW_VERSION" ]; then
+            echo "Version updated: $PRE_VERSION → $NEW_VERSION"
+          else
+            echo "Version unchanged: $NEW_VERSION"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Check version changes
+        id: check_versions
+        run: |
+          BLORKPACK_PRE="${{ steps.blorkpack_release.outputs.pre_version }}"
+          BLORKPACK_NEW="${{ steps.blorkpack_release.outputs.new_version }}"
+          BLORKTOOLS_PRE="${{ steps.blorktools_release.outputs.pre_version }}"
+          BLORKTOOLS_NEW="${{ steps.blorktools_release.outputs.new_version }}"
+          
+          if [ "$BLORKPACK_PRE" != "$BLORKPACK_NEW" ]; then
+            echo "blorkpack_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "blorkpack_changed=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if [ "$BLORKTOOLS_PRE" != "$BLORKTOOLS_NEW" ]; then
+            echo "blorktools_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "blorktools_changed=false" >> $GITHUB_OUTPUT
+          fi
+
+  publish-blorkpack:
+    name: Publish blorkpack Package
+    needs: analyze-and-release
+    runs-on: ubuntu-latest
+    if: ${{ needs.analyze-and-release.outputs.blorkpack_version_changed == 'true' }}
+    steps:
+      - name: Checkout latest code
+        uses: actions/checkout@v4
+        
+      - name: Set up Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@littlecarlito'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+          
+      - name: Configure package for publishing
+        working-directory: packages/blorkpack
+        run: |
+          # Update package name to use GitHub scoped name
+          jq '.name = "@littlecarlito/blorkpack"' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Set version from semantic-release
+          jq --arg version "${{ needs.analyze-and-release.outputs.blorkpack_version }}" '.version = $version' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          echo "Prepared package.json with version ${{ needs.analyze-and-release.outputs.blorkpack_version }}"
+      
+      - name: Build package
+        working-directory: packages/blorkpack
+        run: |
+          echo "Building blorkpack package..."
+          pnpm install
+          pnpm run build
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+      
+      - name: Check if version exists
+        id: check_version
+        working-directory: packages/blorkpack
+        run: |
+          VERSION="${{ needs.analyze-and-release.outputs.blorkpack_version }}"
+          echo "Checking if version $VERSION already exists in registry..."
+          
+          # Try to view the package - if it succeeds with this exact version, it exists
+          if npm view "@littlecarlito/blorkpack@$VERSION" version --registry=https://npm.pkg.github.com/ &>/dev/null; then
+            echo "Version $VERSION already exists, will skip publishing"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Version $VERSION does not exist, will publish"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+      
+      - name: Publish package to GitHub Packages
+        if: steps.check_version.outputs.exists != 'true'
+        working-directory: packages/blorkpack
+        run: |
+          echo "Publishing blorkpack version ${{ needs.analyze-and-release.outputs.blorkpack_version }} to GitHub Packages"
+          npm publish --access=public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+  publish-blorktools:
+    name: Publish blorktools Package
+    needs: analyze-and-release
+    runs-on: ubuntu-latest
+    if: ${{ needs.analyze-and-release.outputs.blorktools_version_changed == 'true' }}
+    steps:
+      - name: Checkout latest code
+        uses: actions/checkout@v4
+          
+      - name: Set up Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@littlecarlito'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+          
+      - name: Configure package for publishing
+        working-directory: packages/blorktools
+        run: |
+          # Update package name to use GitHub scoped name
+          jq '.name = "@littlecarlito/blorktools"' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Set version from semantic-release
+          jq --arg version "${{ needs.analyze-and-release.outputs.blorktools_version }}" '.version = $version' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          echo "Prepared package.json with version ${{ needs.analyze-and-release.outputs.blorktools_version }}"
+      
+      - name: Build package
+        working-directory: packages/blorktools
+        run: |
+          echo "Building blorktools package..."
+          pnpm install
+          pnpm run build
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+      
+      - name: Check if version exists
+        id: check_version
+        working-directory: packages/blorktools
+        run: |
+          VERSION="${{ needs.analyze-and-release.outputs.blorktools_version }}"
+          echo "Checking if version $VERSION already exists in registry..."
+          
+          # Try to view the package - if it succeeds with this exact version, it exists
+          if npm view "@littlecarlito/blorktools@$VERSION" version --registry=https://npm.pkg.github.com/ &>/dev/null; then
+            echo "Version $VERSION already exists, will skip publishing"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Version $VERSION does not exist, will publish"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+      
+      - name: Publish package to GitHub Packages
+        if: steps.check_version.outputs.exists != 'true'
+        working-directory: packages/blorktools
+        run: |
+          echo "Publishing blorktools version ${{ needs.analyze-and-release.outputs.blorktools_version }} to GitHub Packages"
+          npm publish --access=public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+  deploy:
+    name: Build and Deploy to GitHub Pages
+    needs: [analyze-and-release, publish-blorkpack, publish-blorktools, quality-check, verify-builds]
+    runs-on: ubuntu-latest
+    # Allow deploy to run even if no package versions changed
+    if: always()
+    steps:
+      - name: Checkout latest code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@littlecarlito'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+          
+      - name: Get Latest package version
+        id: get_version
+        run: |
+          echo "LATEST_VERSION=$(npm view @littlecarlito/blorkpack version --registry=https://npm.pkg.github.com/)" >> $GITHUB_OUTPUT
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          
+      - name: Configure package for production deployment
+        run: |
+          # Check if portfolio directory exists
+          if [ ! -d "apps/portfolio" ]; then
+            echo "ERROR: Portfolio directory does not exist at apps/portfolio!"
+            exit 1
+          fi
+          
+          # Get latest blorkpack version
+          if [ -z "${{ steps.get_version.outputs.LATEST_VERSION }}" ]; then
+            echo "WARNING: No version received from previous step, using fallback version"
+            BLORKPACK_VERSION="latest"
+          else
+            BLORKPACK_VERSION="${{ steps.get_version.outputs.LATEST_VERSION }}"
+          fi
+          
+          echo "Using blorkpack version: $BLORKPACK_VERSION"
+          
+          # Update dependency to use the GitHub package with latest version
+          jq --arg version "$BLORKPACK_VERSION" '.dependencies."@littlecarlito/blorkpack" = "@littlecarlito/blorkpack@" + $version' apps/portfolio/package.json > apps/portfolio/package.json.tmp
+          mv apps/portfolio/package.json.tmp apps/portfolio/package.json
+          
+          # Add a resolution to ensure the correct version is used
+          jq --arg version "$BLORKPACK_VERSION" '.resolutions."@littlecarlito/blorkpack" = $version' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Create .npmrc for authentication
+          echo "@littlecarlito:registry=https://npm.pkg.github.com/" > .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.PACKAGE_TOKEN }}" >> .npmrc
+          
+      - name: Install Production Dependencies
+        run: |
+          # Create .npmrc to disable all scripts
+          echo "ignore-scripts=true" >> .npmrc
+          echo "husky=0" >> .npmrc
+          
+          # Install dependencies
+          HUSKY=0 HUSKY_SKIP_INSTALL=1 pnpm install --no-frozen-lockfile --ignore-scripts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          HUSKY: 0
+          HUSKY_SKIP_INSTALL: 1
+          npm_config_ignore_scripts: true
+          
+      - name: Ensure blorkpack package is built and linked
+        run: |
+          echo "Building and linking blorkpack for local use..."
+          cd packages/blorkpack
+          
+          # Disable husky
+          HUSKY=0 HUSKY_SKIP_INSTALL=1 npm pkg delete scripts.prepare
+          
+          # Build package
+          HUSKY=0 HUSKY_SKIP_INSTALL=1 pnpm install
+          HUSKY=0 HUSKY_SKIP_INSTALL=1 pnpm run build
+          cd ../..
+          
+          # Update vite.config.js to ensure it can find blorkpack
+          cat > apps/portfolio/vite.config.js << 'EOL'
+          import { defineConfig } from 'vite'
+          import path from 'path'
+
+          export default defineConfig({
+            base: '/threejs_site/',
+            resolve: {
+              alias: {
+                '@littlecarlito/blorkpack': path.resolve(__dirname, '../../packages/blorkpack/dist/index.js')
+              }
+            },
+            optimizeDeps: {
+              include: ['@littlecarlito/blorkpack']
+            },
+            build: {
+              rollupOptions: {
+                output: {
+                  manualChunks: {
+                    'three-core': ['three'],
+                    'three-addons': [
+                      'three/examples/jsm/controls/OrbitControls',
+                      'three/examples/jsm/Addons.js',
+                      'three/examples/jsm/libs/tween.module.js'
+                    ]
+                  }
+                }
+              }
+            }
+          })
+          EOL
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          HUSKY: 0
+          HUSKY_SKIP_INSTALL: 1
+          npm_config_ignore_scripts: true
+        
+      - name: Build for Production
+        run: |
+          echo "Building portfolio app..."
+          cd apps/portfolio
+          
+          # Disable husky and other lifecycle scripts
+          export HUSKY=0
+          export HUSKY_SKIP_INSTALL=1
+          export npm_config_ignore_scripts=true
+          
+          # Build with Vite directly
+          pnpm vite build --logLevel=info
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          HUSKY: 0
+          HUSKY_SKIP_INSTALL: 1
+          npm_config_ignore_scripts: true
+        
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: apps/portfolio/dist
+          branch: gh-pages
+          clean: true
+          token: ${{ secrets.PACKAGE_TOKEN }} 
