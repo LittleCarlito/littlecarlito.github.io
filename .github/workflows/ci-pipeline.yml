@@ -29,7 +29,17 @@ jobs:
         run: pnpm install
       
       - name: Lint code
+        id: lint
         run: pnpm lint
+        continue-on-error: true
+      
+      - name: Run lint:fix if linting failed
+        if: steps.lint.outcome == 'failure'
+        run: pnpm lint:fix
+      
+      - name: Fail if linting issues remain
+        if: steps.lint.outcome == 'failure'
+        run: exit 1
   
   test:
     name: Unit Tests
