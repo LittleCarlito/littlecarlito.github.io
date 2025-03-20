@@ -4,6 +4,7 @@ import CustomTypeManager from "../../custom_type_manager.js";
 import { AssetStorage } from "../../asset_storage.js";
 import { BLORKPACK_FLAGS } from "../../blorkpack_flags.js";
 import { IdGenerator } from "../common/id_generator.js";
+import { CollisionFactory } from "./collision_factory.js";
 /**
  * Factory class responsible for spawning custom assets in the scene.
  * Handles loading and spawning of custom 3D models with physics.
@@ -227,7 +228,7 @@ export class CustomFactory {
 				if (collisionMeshes.length > 0) {
 					// Use the collision meshes for physics
 					for (const collisionMesh of collisionMeshes) {
-						await this.create_collider_from_mesh(collisionMesh, physicsBody, asset_config, options);
+						await CollisionFactory.get_instance(this.world).create_collider_from_mesh(collisionMesh, physicsBody, asset_config, options);
 					}
 				} else {
 					// Fallback to simple cuboid collider
@@ -277,115 +278,6 @@ export class CustomFactory {
 			console.error(`Error spawning custom asset ${asset_type}:`, error);
 			return null;
 		}
-	}
-	/**
-     * Creates a collider from a mesh
-     * @param {THREE.Mesh} mesh - The mesh to create a collider from
-     * @param {RAPIER.RigidBody} body - The rigid body to attach the collider to
-     * @param {Object} asset_config - Asset configuration data
-     * @param {Object} [options={}] - Additional options for collider creation
-     * @returns {Promise<RAPIER.Collider>} The created collider
-     */
-	async create_collider_from_mesh(mesh, body, asset_config, options = {}) {
-		if (!mesh || !body) return null;
-		const geometry = mesh.geometry;
-		if (!geometry) return null;
-		// Compute geometry bounds if needed
-		if (!geometry.boundingBox) {
-			geometry.computeBoundingBox();
-		}
-		// Get mesh world position (relative to the model)
-		const position = new THREE.Vector3();
-		const quaternion = new THREE.Quaternion();
-		const meshScale = new THREE.Vector3();
-		// Ensure matrix is updated to get accurate world position
-		mesh.updateWorldMatrix(true, false);
-		mesh.matrixWorld.decompose(position, quaternion, meshScale);
-		// Adjust position for physics (since we're adding a collider to an existing body)
-		const bodyPos = body.translation();
-		const relativePos = {
-			x: position.x - bodyPos.x,
-			y: position.y - bodyPos.y,
-			z: position.z - bodyPos.z
-		};
-		// Get the bounding box in local space
-		const box = geometry.boundingBox;
-		// Calculate dimensions from the bounding box
-		const box_width = (box.max.x - box.min.x) * meshScale.x;
-		const box_height = (box.max.y - box.min.y) * meshScale.y;
-		const box_depth = (box.max.z - box.min.z) * meshScale.z;
-		// Check the local center of the bounding box to adjust for offset meshes
-		const localCenter = new THREE.Vector3();
-		box.getCenter(localCenter);
-		// If the local center is not at the origin, we need to account for that
-		if (Math.abs(localCenter.x) > 0.001 || Math.abs(localCenter.y) > 0.001 || Math.abs(localCenter.z) > 0.001) {
-			// Rotate the local center according to the mesh's world rotation
-			const rotatedCenter = localCenter.clone().applyQuaternion(quaternion);
-			// Add this offset to the relative position
-			relativePos.x += rotatedCenter.x * meshScale.x;
-			relativePos.y += rotatedCenter.y * meshScale.y;
-			relativePos.z += rotatedCenter.z * meshScale.z;
-			if(BLORKPACK_FLAGS.ASSET_LOGS) {
-				console.log(`Adjusted position for ${mesh.name} due to non-centered geometry:`, {
-					localCenter: `${localCenter.x.toFixed(2)}, ${localCenter.y.toFixed(2)}, ${localCenter.z.toFixed(2)}`,
-					rotatedCenter: `${rotatedCenter.x.toFixed(2)}, ${rotatedCenter.y.toFixed(2)}, ${rotatedCenter.z.toFixed(2)}`,
-					newRelativePos: `${relativePos.x.toFixed(2)}, ${relativePos.y.toFixed(2)}, ${relativePos.z.toFixed(2)}`
-				});
-			}
-		}
-		if(BLORKPACK_FLAGS.ASSET_LOGS) {
-			// Log for debugging
-			console.log(`Creating collider for ${mesh.name}:`, {
-				worldPos: `${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)}`,
-				bodyPos: `${bodyPos.x.toFixed(2)}, ${bodyPos.y.toFixed(2)}, ${bodyPos.z.toFixed(2)}`,
-				relativePos: `${relativePos.x.toFixed(2)}, ${relativePos.y.toFixed(2)}, ${relativePos.z.toFixed(2)}`,
-				meshScale: `${meshScale.x.toFixed(2)}, ${meshScale.y.toFixed(2)}, ${meshScale.z.toFixed(2)}`
-			});
-		}
-		let collider_desc;
-		// Detect shape from name (often models use naming conventions)
-		if (mesh.name.includes('sphere') || mesh.name.includes('ball')) {
-			// Create a sphere collider
-			// Estimate radius from geometry bounds
-			geometry.computeBoundingSphere();
-			const radius = geometry.boundingSphere.radius * meshScale.x;
-			collider_desc = RAPIER.ColliderDesc.ball(radius);
-		} else if (mesh.name.includes('capsule')) {
-			// Create a capsule collider
-			const height = (box.max.y - box.min.y) * meshScale.y;
-			const radius = Math.max(
-				(box.max.x - box.min.x), 
-				(box.max.z - box.min.z)
-			) * meshScale.x * 0.5;
-			collider_desc = RAPIER.ColliderDesc.capsule(height * 0.5, radius);
-		} else {
-			// Default to cuboid
-			// Use exact dimensions from mesh's bounding box, scaled by the mesh's world scale
-			const collider_width = (options.collider_dimensions?.width !== undefined) ? 
-				options.collider_dimensions.width : box_width / 2;
-			const collider_height = (options.collider_dimensions?.height !== undefined) ? 
-				options.collider_dimensions.height : box_height / 2;
-			const collider_depth = (options.collider_dimensions?.depth !== undefined) ? 
-				options.collider_dimensions.depth : box_depth / 2;
-			collider_desc = RAPIER.ColliderDesc.cuboid(collider_width, collider_height, collider_depth);
-		}
-		// Apply position offset (for standard colliders)
-		collider_desc.setTranslation(relativePos.x, relativePos.y, relativePos.z);
-		// Apply rotation
-		collider_desc.setRotation(quaternion);
-		// Set physical properties
-		if (asset_config.mass) {
-			collider_desc.setMass(asset_config.mass);
-		}
-		if (asset_config.restitution) {
-			collider_desc.setRestitution(asset_config.restitution);
-		}
-		collider_desc.setFriction(0.7);
-		// Create the collider
-		const collider = this.world.createCollider(collider_desc, body);
-		// Store reference to the collider on the mesh for debugging
-		mesh.userData.physicsCollider = collider;
-		return collider;
 	}
 	/**
      * Creates a material for display meshes based on the specified display mode
