@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.14.0",
-    "@littlecarlito/blorkpack": "workspace:*",
+    "@littlecarlito/blorkpack": "file:../../packages/blorkpack",
     "three": "^0.172.0"
   },
   "devDependencies": {
