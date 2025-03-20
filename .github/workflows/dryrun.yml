@@ -1,4 +1,4 @@
-name: Dry Run Verification
+name: Pull Request Verification
 
 on:
   pull_request:
