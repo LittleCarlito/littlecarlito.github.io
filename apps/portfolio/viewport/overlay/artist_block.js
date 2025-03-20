@@ -1,7 +1,6 @@
 import { get_screen_size, get_associated_position, SOUTH } from './overlay_common';
 import { Easing, FLAGS, THREE, Tween, TYPES } from '../../common';
 import { clamp } from 'three/src/math/MathUtils.js';
-
 const ARTIST_BLOCK = {
 	DIMENSIONS: {
 		MIN_WIDTH: 6,
@@ -17,7 +16,6 @@ const ARTIST_BLOCK = {
 		MIN_PADDING: 3
 	}
 };
-
 export class ArtistBlock {
 	constructor(incoming_parent, incoming_camera) {
 		this.parent = incoming_parent;
@@ -48,7 +46,6 @@ export class ArtistBlock {
 		// Trigger reposition animation to move to proper padded position
 		this.reposition();
 	}
-
 	get_artist_width() {
 		return clamp(
 			get_screen_size(this.camera).x * ARTIST_BLOCK.DIMENSIONS.WIDTH_SCALE,
@@ -56,7 +53,6 @@ export class ArtistBlock {
 			ARTIST_BLOCK.DIMENSIONS.MAX_WIDTH
 		);
 	}
-
 	resize() {
 		// Dispose of old geometry and create new one
 		this.artist_box.geometry.dispose();
@@ -66,7 +62,6 @@ export class ArtistBlock {
 			ARTIST_BLOCK.DIMENSIONS.DEPTH
 		);
 	}
-
 	/**
      * Gets the correct artist block Y position when hidden
      * @returns {number} The Y position for the artist block when hidden
@@ -74,16 +69,13 @@ export class ArtistBlock {
 	get_artist_y() {
 		return get_associated_position(SOUTH, this.camera);
 	}
-
 	trigger_overlay(is_overlay_hidden, tween_map) {
 		const target_y = is_overlay_hidden ? 
 			get_associated_position(SOUTH, this.camera) : 
 			-(ARTIST_BLOCK.POSITION.Y_SCALE * get_screen_size(this.camera).y);
-        
 		if(!is_overlay_hidden && FLAGS.LAYER) {
 			this.artist_box.layers.set(0);
 		}
-        
 		const new_tween = new Tween(this.artist_box.position)
 			.to({ y: target_y }, 680)  // Same duration as link container
 			.easing(Easing.Elastic.InOut)
@@ -94,24 +86,19 @@ export class ArtistBlock {
 				}
 				tween_map.delete(this.artist_box.name);
 			});
-        
 		tween_map.set(this.artist_box.name, new_tween);
 	}
-
 	reposition() {
 		const screen_size = get_screen_size(this.camera);
 		const current_width = this.get_artist_width();
-        
 		// Get link container's x position (it's positioned from right edge)
 		const link_x = (screen_size.x / 2) - 7;  // This matches LinkContainer's calculation
-        
 		// Calculate our x position from left edge, ensuring minimum padding from link container
 		const max_x = link_x - ARTIST_BLOCK.POSITION.MIN_PADDING - (current_width / 2);
 		const desired_x = Math.min(
 			max_x,
 			-(screen_size.x / 2) + ARTIST_BLOCK.POSITION.X_OFFSET + (current_width / 2)
 		);
-        
 		new Tween(this.artist_box.position)
 			.to({ 
 				x: desired_x,
@@ -120,7 +107,6 @@ export class ArtistBlock {
 			.easing(Easing.Elastic.Out)
 			.start();
 	}
-
 	offscreen_reposition() {
 		const screen_size = get_screen_size(this.camera);
 		const current_width = this.get_artist_width();

@@ -1,7 +1,6 @@
 import { clamp } from 'three/src/math/MathUtils.js';
 import { get_screen_size, get_associated_position, SOUTH, TYPES, LINKS, TEXTURE_LOADER } from './overlay_common';
 import { Easing, FLAGS, THREE, Tween } from '../../common';
-
 const LINK_CONTAINER = {
 	DIMENSIONS: {
 		RADIUS: 0.44,
@@ -13,7 +12,6 @@ const LINK_CONTAINER = {
 		Z: 0
 	}
 };
-
 export class LinkContainer {
 	constructor(incoming_parent, incoming_camera) {
 		this.parent = incoming_parent;
@@ -39,7 +37,6 @@ export class LinkContainer {
 			this.link_container.add(link_button);
 		});
 	}
-
 	/** Open a new tab of the associated link */
 	open_link(new_link) {
 		const found_url = LINKS.get_link(new_link);
@@ -49,11 +46,9 @@ export class LinkContainer {
 			console.log(`Given label \"${new_link}\" does not have a stored path`);
 		}
 	}
-
 	trigger_overlay(is_overlay_hidden, tween_map) {
 		const current_pos = this.link_container.position.clone();
 		const target_y = is_overlay_hidden ? get_associated_position(SOUTH, this.camera) : this.get_link_container_y();
-        
 		if(FLAGS.TWEEN_LOGS) {
 			console.log(`Link Container - Starting overlay animation:
                 Hidden: ${is_overlay_hidden}
@@ -61,11 +56,9 @@ export class LinkContainer {
                 Target Y: ${target_y.toFixed(2)}
                 Map Size: ${tween_map.size}`);
 		}
-        
 		if(!is_overlay_hidden && FLAGS.LAYER) {
 			this.set_content_layers(0);
 		}
-        
 		const new_tween = new Tween(this.link_container.position)
 			.to({ y: target_y }, 680)
 			.easing(Easing.Elastic.InOut)
@@ -85,7 +78,6 @@ export class LinkContainer {
 			});
 		tween_map.set(this.link_container.name, new_tween);
 	}
-
 	reposition() {
 		new Tween(this.link_container.position)
 			.to({ 
@@ -95,12 +87,10 @@ export class LinkContainer {
 			.easing(Easing.Elastic.Out)
 			.start();
 	}
-
 	offscreen_reposition() {
 		this.link_container.position.y = get_associated_position(SOUTH, this.camera)
 		this.link_container.position.x = this.get_link_container_x();      
 	}
-
 	// Link setters
 	set_content_layers(incoming_layer) {
 		this.link_container.layers.set(incoming_layer);
@@ -110,18 +100,15 @@ export class LinkContainer {
 			existing_link.layers.set(incoming_layer);
 		});
 	}
-
 	// Link getters
 	/** Calculates the link containers x position based off camera position and window size*/
 	get_link_container_x() {
 		return (get_screen_size(this.camera).x / 2) - LINK_CONTAINER.POSITION.X_OFFSET;
 	}
-    
 	/** Calculates the link containers y position based off camera position and window size*/
 	get_link_container_y() {
 		return -(LINK_CONTAINER.POSITION.Y_SCALE * get_screen_size(this.camera).y);
 	}
-    
 	/** Calculates the links radius based off camera position and window size*/
 	get_link_radius() {
 		return clamp(get_screen_size(this.camera).x * .02, Number.MIN_SAFE_INTEGER, LINK_CONTAINER.DIMENSIONS.RADIUS);

@@ -9,26 +9,21 @@ import { AssetStorage, AssetActivator, AssetSpawner, ManifestManager, BLORKPACK_
 	shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, 
 	grab_object, release_object, initPhysicsUtil } from '@littlecarlito/blorkpack';
 import { toggleDebugUI, createDebugUI as create_debug_UI, setBackgroundContainer as set_background_container, setResolutionScale as set_resolution_scale, updateLabelWireframes, setSceneReference } from './common/debug_ui.js';
-
 // Enable HMR for development
 if (import.meta.hot) {
 	// Accept updates from the current module without forcing reload
 	import.meta.hot.accept();
-  
 	// Accept updates for the blorkpack package
 	import.meta.hot.accept(['@littlecarlito/blorkpack'], (updatedModules) => {
 		console.log('HMR update detected for blorkpack dependencies:', updatedModules);
-    
 		// Clean up existing instances before the update
 		AssetSpawner.dispose_instance();
-    
 		// Re-initialize after the update if needed
 		if (window.scene && window.physicsWorld) {
 			AssetSpawner.get_instance(window.scene, window.physicsWorld);
 		}
 	});
 }
-
 // ----- Variables
 let resize_move = false;
 let zoom_event = false;
@@ -40,7 +35,6 @@ let right_mouse_down = false;
 let is_cleaned_up = false; // Track if cleanup has been performed
 let is_physics_paused = false; // Track if physics simulation is paused
 let greeting_acknowledged = false; // Declare the variable here
-
 /** Cleans up resources to prevent memory leaks */
 function cleanup() {
 	if (is_cleaned_up) {
@@ -101,7 +95,6 @@ function cleanup() {
 		console.log("Application resources cleaned up");
 	}
 }
-
 /** Updates the loading progress text */
 function update_loading_progress(text) {
 	const loading_progress = document.getElementById('loading-progress');
@@ -109,7 +102,6 @@ function update_loading_progress(text) {
 		loading_progress.textContent = text;
 	}
 }
-
 /** Shows the loading screen */
 async function show_loading_screen() {
 	// Load the loading screen HTML from the external file
@@ -117,7 +109,6 @@ async function show_loading_screen() {
 	const html = await response.text();
 	document.body.insertAdjacentHTML('beforeend', html);
 }
-
 /** Hides the loading screen */
 function hide_loading_screen() {
 	const loading_screen = document.getElementById('loading-screen');
@@ -125,7 +116,6 @@ function hide_loading_screen() {
 		loading_screen.remove();
 	}
 }
-
 /**
  * Displays a modal loaded from a remote HTML file
  * @param {string} modal_path - Path to the HTML file containing the modal content
@@ -163,7 +153,6 @@ async function display_modal(modal_path, modal_id, button_id, onAcknowledge) {
 		return false;
 	}
 }
-
 /** Initializes the main scene */
 async function init() {
 	try {
@@ -171,19 +160,15 @@ async function init() {
 		// Initialize THREE
 		update_loading_progress('Loading Three.js...');
 		await initThree(); // This will load and initialize THREE
-        
 		// Initialize Rapier
 		update_loading_progress('Loading Rapier Physics...');
 		await initRapier(); // This will load and initialize Rapier
-        
 		// Initialize physics utilities
 		update_loading_progress('Initializing physics utilities...');
 		await initPhysicsUtil();
-        
 		// Load custom types
 		update_loading_progress('Loading custom asset types...');
 		await CustomTypeManager.loadCustomTypes('./custom_types.json');
-        
 		// Load scene
 		update_loading_progress('Initializing scene...');
 		// Initialize asset storage and spawner early since they don't depend on UI
@@ -209,10 +194,8 @@ async function init() {
 		window.addEventListener('keydown', toggle_debug_ui);
 		window.addEventListener('unload', cleanup);
 		window.scene = new THREE.Scene();
-        
 		// Set the scene reference for our debug UI
 		setSceneReference(window.scene);
-        
 		// Apply scene settings from manifest
 		// Set background based on manifest settings
 		const bg = window.manifest_manager.get_background_config();
@@ -242,7 +225,6 @@ async function init() {
 		if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
 			console.log("Using gravity:", gravityData);
 		}
-        
 		// Create Rapier world with proper initialization
 		try {
 			// Make sure RAPIER.World and Vector3 are available
@@ -252,7 +234,6 @@ async function init() {
 			console.error("Failed to initialize Rapier world:", error);
 			throw new Error("Rapier initialization failed. Make sure to call initRapier() first.");
 		}
-        
 		window.asset_spawner = AssetSpawner.get_instance(window.scene, window.world);
 		// Physics optimization settings
 		const physicsOptimization = window.manifest_manager.get_physics_optimization_settings();
@@ -300,7 +281,6 @@ async function init() {
 		if (BLORKPACK_FLAGS.ASSET_LOGS) {
 			console.log('Loaded assets:', spawned_assets);
 		}
-        
 		// Wait for all assets to be loaded
 		update_loading_progress('Loading scene assets...');
 		await new Promise(async (resolve) => {
@@ -349,15 +329,12 @@ async function init() {
 		update_loading_progress('Error loading application. Please refresh the page.');
 	}
 }
-
 /** Toggle physics simulation pause state */
 function toggle_physics_pause() {
 	is_physics_paused = !is_physics_paused;
-    
 	if (FLAGS.PHYSICS_LOGS) {
 		console.log(`Physics simulation ${is_physics_paused ? 'paused' : 'resumed'}`);
 	}
-    
 	// Update UI if debug UI is active
 	if (FLAGS.DEBUG_UI) {
 		const pause_button = document.getElementById('pause-physics-btn');
@@ -366,17 +343,13 @@ function toggle_physics_pause() {
 		}
 	}
 }
-
 // Make the function available globally for the debug UI
 window.toggle_physics_pause = toggle_physics_pause;
-
 /** Primary animation function run every frame by renderer */
 function animate() {
 	const delta = window.clock.getDelta();
-    
 	// Handle tweens and UI animations (always run regardless of physics pause)
 	updateTween();
-    
 	if(resize_move) {
 		if(!zoom_event) {
 			window.viewable_container.resize_reposition();
@@ -385,10 +358,8 @@ function animate() {
 		}
 		resize_move = false;
 	}
-    
 	// Check if a text container is active, and pause physics if needed
 	const isTextActive = window.viewable_container.is_text_active();
-    
 	// Track text container state to detect changes
 	if (!window.previousTextContainerState && isTextActive && !is_physics_paused) {
 		// Text container just became active, pause physics
@@ -405,10 +376,8 @@ function animate() {
 		window.textContainerPausedPhysics = false;
 		toggle_physics_pause();
 	}
-    
 	// Store current state for next frame comparison
 	window.previousTextContainerState = isTextActive;
-    
 	// Handle the physics objects
 	if(window.viewable_container.get_overlay().is_intersected() != null) {
 		window.asset_activator.activate_object(window.viewable_container.get_intersected_name());
@@ -422,19 +391,16 @@ function animate() {
 	} else {
 		window.asset_activator.deactivate_all_objects();
 	}
-    
 	// Process physics simulation (can be paused)
 	window.world.timestep = Math.min(delta, 0.1);
 	if (!is_physics_paused) {
 		window.world.step();
 	}
-    
 	// Always update menu animations and user interactions
 	// These handle spawning and sign animations, even when physics is paused
 	if (window.background_container) {
 		window.background_container.update(grabbed_object, window.viewable_container);
 	}
-    
 	// Update physics-dependent objects
 	if (AssetStorage.get_instance()) {
 		if (!is_physics_paused) {
@@ -452,31 +418,24 @@ function animate() {
 			}
 		}
 	}
-    
 	// Always update visual elements even when physics is paused
 	// Update confetti particles (immune from physics pause - uses its own physics calculations)
 	window.viewable_container.get_overlay().update_confetti();
-    
 	// Ensure regular cleanup of unused resources
 	if (window.asset_spawner) {
 		window.asset_spawner.update_visualizations();
-        
 		// Always ensure spotlight debug meshes are visible
 		if (window.asset_spawner.update_helpers) {
 			window.asset_spawner.update_helpers();
 		}
 	}
-    
 	// Render the scene
 	window.app_renderer.render();
 }
-
 // ----- Handlers
-
 /** Handles resize events */
 function handle_resize() {
 	if (resize_timeout) clearTimeout(resize_timeout);
-    
 	resize_timeout = setTimeout(() => {
 		if (window.app_renderer) window.app_renderer.resize();
 		if (window.viewable_container) {
@@ -485,11 +444,9 @@ function handle_resize() {
 		}
 	}, 100);
 }
-
 function handle_mouse_move(e) {
 	// Skip if initialization is not complete
 	if (!window.viewable_container) return;
-    
 	update_mouse_position(e);
 	if(window.viewable_container.detect_rotation) {
 		const sensitivity = 0.02;  // Reduced sensitivity since we're not dividing by 1000 anymore
@@ -503,13 +460,10 @@ function handle_mouse_move(e) {
 		if(window.viewable_container.is_animating()) {
 			return;
 		}
-        
 		// Handle intersections
 		const found_intersections = get_intersect_list(e, window.viewable_container.get_camera(), window.scene);
-        
 		// Check if UI overlay is visible
 		const is_overlay_hidden = window.viewable_container.is_overlay_hidden();
-        
 		// If overlay is not hidden, filter out background objects from intersection list
 		let relevant_intersections = found_intersections;
 		if(!is_overlay_hidden) {
@@ -520,12 +474,10 @@ function handle_mouse_move(e) {
 				return name_type === TYPES.LABEL;
 			});
 		}
-        
 		if(relevant_intersections.length > 0 && !window.viewable_container.get_overlay().is_swapping_sides()) {
 			const intersected_object = relevant_intersections[0].object;
 			const object_name = intersected_object.name;
 			const name_type = object_name.split("_")[0] + "_";
-            
 			// Handle label hover - now we know it's either a label or an appropriate object
 			switch(name_type) {
 			case TYPES.LABEL:
@@ -549,7 +501,6 @@ function handle_mouse_move(e) {
 			}
 		} else {
 			window.viewable_container.get_overlay().reset_hover();
-            
 			// Only reset hovered_interactable_name if the overlay is hidden
 			// This prevents background objects from losing hover state when UI is open
 			if (is_overlay_hidden) {
@@ -558,11 +509,9 @@ function handle_mouse_move(e) {
 		}
 	}
 }
-
 function handle_mouse_up(e) {
 	// Skip if initialization is not complete
 	if (!window.viewable_container) return;
-
 	if(greeting_acknowledged) {
 		if(grabbed_object) {
 			release_object(grabbed_object, window.background_container);
@@ -579,11 +528,9 @@ function handle_mouse_up(e) {
 		}
 	}
 }
-
 function handle_mouse_down(e) {
 	// Skip if initialization is not complete
 	if (!window.viewable_container) return;
-
 	if(greeting_acknowledged) {
 		if(e.button === 0) {
 			left_mouse_down = true;
@@ -617,15 +564,12 @@ function handle_mouse_down(e) {
 		}
 	}
 }
-
 function handle_context_menu(e) {
 	e.preventDefault();
 }
-
 function handle_wheel(e) {
 	// Skip if initialization is not complete
 	if (!window.viewable_container || !window.background_container) return;
-
 	if(greeting_acknowledged) {
 		if(grabbed_object) {
 			if(e.deltaY < 0) {
@@ -640,7 +584,6 @@ function handle_wheel(e) {
 		}
 	}
 }
-
 /** Toggle debug UI when 's' key is pressed */
 function toggle_debug_ui(event) {
 	// Toggle debug UI when 's' is pressed
@@ -653,6 +596,5 @@ function toggle_debug_ui(event) {
 		}
 	}
 }
-
 // Start initialization
 init();

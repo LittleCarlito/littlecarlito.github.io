@@ -1,8 +1,6 @@
 // Shaders module
 // Handles creation and management of shaders for the asset debugger
-
 import * as THREE from 'three';
-
 /**
  * Create default shader material for model viewing
  * @param {Object} state - Global state object
@@ -35,7 +33,6 @@ export function createDefaultShader(state) {
       gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
   `;
-  
 	// Default fragment shader
 	const fragmentShader = `
     uniform sampler2D diffuseMap;
@@ -65,7 +62,6 @@ export function createDefaultShader(state) {
       gl_FragColor = vec4(finalColor, 1.0);
     }
   `;
-  
 	// Create shader material
 	const shader = new THREE.ShaderMaterial({
 		uniforms: {
@@ -78,13 +74,10 @@ export function createDefaultShader(state) {
 		fragmentShader: fragmentShader,
 		side: THREE.DoubleSide
 	});
-  
 	// Store in state
 	state.shader = shader;
-  
 	return shader;
 }
-
 /**
  * Create a UV visualization shader
  * @param {Object} options - Shader options
@@ -95,7 +88,6 @@ export function createUvVisualizationShader(options = {}) {
 	const lineWidth = options.lineWidth || 0.05;
 	const gridColor = options.gridColor || new THREE.Color(0x000000);
 	const backgroundColor = options.backgroundColor || new THREE.Color(0xffffff);
-  
 	// Vertex shader
 	const vertexShader = `
     varying vec2 vUv;
@@ -118,7 +110,6 @@ export function createUvVisualizationShader(options = {}) {
       gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
   `;
-  
 	// Fragment shader for UV visualization
 	const fragmentShader = `
     varying vec2 vUv;
@@ -147,7 +138,6 @@ export function createUvVisualizationShader(options = {}) {
       gl_FragColor = vec4(color, 1.0);
     }
   `;
-  
 	// Create shader material
 	return new THREE.ShaderMaterial({
 		uniforms: {
@@ -162,7 +152,6 @@ export function createUvVisualizationShader(options = {}) {
 		side: THREE.DoubleSide
 	});
 }
-
 /**
  * Create texture atlas visualization shader
  * @param {THREE.Texture} texture - Texture to visualize
@@ -178,7 +167,6 @@ export function createAtlasVisualizationShader(texture) {
       gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
   `;
-  
 	// Fragment shader for atlas visualization
 	const fragmentShader = `
     varying vec2 vUv;
@@ -242,7 +230,6 @@ export function createAtlasVisualizationShader(texture) {
       gl_FragColor = vec4(color, texColor.a * opacity);
     }
   `;
-  
 	// Create shader material
 	return new THREE.ShaderMaterial({
 		uniforms: {

@@ -1,38 +1,30 @@
 // Multi-Texture Material Module
 // Handles creation of custom shader materials for blending multiple textures
-
 import * as THREE from 'three';
 import { originalUvData } from '../core/analyzer.js';
-
 // Create a multi-texture shader material
 export function createMultiTextureMaterial(textures, mesh, state) {
 	if (!textures || !textures.length) return null;
-  
 	// Maximum number of textures supported by the shader
 	const MAX_TEXTURES = 5;
-  
 	// Handle original UV data
 	if (mesh && mesh.geometry) {
 		const geometry = mesh.geometry;
-    
 		// For each active texture, handle special UV indices
 		textures.forEach(texInfo => {
 			const uvIndex = texInfo.uvIndex || 0;
-      
 			// Store original UV if needed
 			if (uvIndex > 0 && geometry.getAttribute('uv') && !originalUvData.has(mesh)) {
 				const originalUv = geometry.getAttribute('uv').clone();
 				originalUvData.set(mesh, originalUv);
 				console.log('Stored original UV for multi-texture material', mesh.name || 'unnamed');
 			}
-      
 			// If using default UV, restore the original
 			if (uvIndex === 0 && originalUvData.has(mesh)) {
 				const originalUv = originalUvData.get(mesh);
 				geometry.setAttribute('uv', originalUv);
 				console.log('Restored original UV for multi-texture material', mesh.name || 'unnamed');
 			}
-      
 			// Apply higher UV channels if needed
 			if (uvIndex === 1 && geometry.getAttribute('uv2')) {
 				// Using UV2 for this texture
@@ -43,29 +35,23 @@ export function createMultiTextureMaterial(textures, mesh, state) {
 			}
 		});
 	}
-  
 	// Generate uniforms
 	const uniforms = {
 		time: { value: 0.0 },
 		textureCount: { value: Math.min(textures.length, MAX_TEXTURES) }
 	};
-  
 	// Add uniform for each texture
 	for (let i = 0; i < Math.min(textures.length, MAX_TEXTURES); i++) {
 		const texInfo = textures[i];
-    
 		// Add texture, blend mode and intensity uniforms
 		uniforms[`texture${i}`] = { value: texInfo.texture };
 		uniforms[`blendMode${i}`] = { value: getBlendModeValue(texInfo.blendMode) };
 		uniforms[`intensity${i}`] = { value: texInfo.intensity || 1.0 };
 		uniforms[`uvIndex${i}`] = { value: texInfo.uvIndex || 0 };
-    
 		console.log(`Added texture${i} with blend mode ${texInfo.blendMode} (${getBlendModeValue(texInfo.blendMode)}) and intensity ${texInfo.intensity}`);
 	}
-  
 	// Generate the shader code
 	const { vertexShader, fragmentShader } = generateShaderCode(textures, mesh);
-  
 	// Create the material
 	const material = new THREE.ShaderMaterial({
 		uniforms: uniforms,
@@ -74,16 +60,13 @@ export function createMultiTextureMaterial(textures, mesh, state) {
 		transparent: true,
 		side: THREE.DoubleSide
 	});
-  
 	return material;
 }
-
 // Generate shader code based on the provided textures
 function generateShaderCode(textures, mesh) {
 	// Check if the mesh has UV2 and UV3 channels
 	const hasUv2 = mesh && mesh.geometry && mesh.geometry.getAttribute('uv2');
 	const hasUv3 = mesh && mesh.geometry && mesh.geometry.getAttribute('uv3');
-  
 	// Generate vertex shader code
 	let vertexShader = `
     varying vec2 vUv;
@@ -97,7 +80,6 @@ function generateShaderCode(textures, mesh) {
       gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
   `;
-  
 	// Start fragment shader
 	let fragmentShader = `
     uniform float time;
@@ -171,15 +153,12 @@ function generateShaderCode(textures, mesh) {
       gl_FragColor = finalColor;
     }
   `;
-  
 	return { vertexShader, fragmentShader };
 }
-
 // Generate texture uniform declarations
 function generateTextureUniforms(count) {
 	let code = '';
 	const maxTextures = Math.min(count, 5); // Maximum 5 textures
-  
 	for (let i = 0; i < maxTextures; i++) {
 		code += `
       uniform sampler2D texture${i};
@@ -188,15 +167,12 @@ function generateTextureUniforms(count) {
       uniform int uvIndex${i};
     `;
 	}
-  
 	return code;
 }
-
 // Generate code for blending textures
 function generateTextureBlending(count) {
 	let code = '';
 	const maxTextures = Math.min(count, 5); // Maximum 5 textures
-  
 	// Skip the first texture as it's the base
 	for (let i = 1; i < maxTextures; i++) {
 		code += `
@@ -206,10 +182,8 @@ function generateTextureBlending(count) {
       }
     `;
 	}
-  
 	return code;
 }
-
 // Convert blend mode string to numeric value for shader
 function getBlendModeValue(blendMode) {
 	switch (blendMode?.toLowerCase()) {
@@ -221,7 +195,6 @@ function getBlendModeValue(blendMode) {
 	default: return 0; // Default to normal
 	}
 }
-
 // Update shader material time uniform for animations
 export function updateShaderTime(material, time) {
 	if (material && material.isShaderMaterial && material.uniforms && material.uniforms.time) {

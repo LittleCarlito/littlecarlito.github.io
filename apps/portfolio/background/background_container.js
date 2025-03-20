@@ -3,7 +3,6 @@ import { AssetStorage, AssetSpawner, CustomTypeManager }  from '@littlecarlito/b
 import { ControlMenu } from "./menus/control_menu";
 import { ScrollMenu } from "./menus/scroll_menu";
 import { CATEGORIES, TYPES } from "../viewport/overlay/overlay_common";
-
 export class BackgroundContainer {
 	name = "[BackgroundContainer]"
 	parent;
@@ -18,7 +17,6 @@ export class BackgroundContainer {
 	loading_promise;
 	is_spawning_secondary = false;  // Add state tracking for spawn in progress
 	is_spawning_primary = false;
-
 	constructor(incoming_parent, incoming_camera, incoming_world) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
@@ -26,38 +24,30 @@ export class BackgroundContainer {
 		this.object_container = new THREE.Object3D();
 		this.parent.add(this.object_container);
 		const asset_loader = AssetSpawner.get_instance(this.object_container, this.world);
-        
 		// Ensure custom types are loaded and then initialize assets
 		this.loading_promise = (async () => {
 			try {
 				// Check if custom types are loaded
 				if (!CustomTypeManager.hasLoadedCustomTypes()) {
 					if (FLAGS.ASSET_LOGS) console.warn(`${this.name} Custom types not loaded yet. Waiting for them to load...`);
-                    
 					// Wait for a moment to give time for custom types to load
 					await new Promise(resolve => setTimeout(resolve, 500));
-                    
 					// Check again after waiting
 					if (!CustomTypeManager.hasLoadedCustomTypes()) {
 						console.error(`${this.name} Custom types still not loaded after waiting.`);
 						console.error(`${this.name} Make sure CustomTypeManager.loadCustomTypes() is called before creating BackgroundContainer.`);
 					}
 				}
-                
 				const ASSET_TYPE = CustomTypeManager.getTypes();
-                
 				// Check if ASSET_TYPE is empty
 				if (Object.keys(ASSET_TYPE).length === 0) {
 					console.error(`${this.name} No custom asset types found. Assets will not spawn correctly.`);
 					this.loading_complete = true;
 					return; // Don't proceed with asset loading if no types are available
 				}
-                
 				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Loaded custom types:`, Object.keys(ASSET_TYPE));
-                
 				// Spawn Book
 				const bookPosition = new THREE.Vector3(-15, 5, -5);
-                
 				try {
 					const result = await asset_loader.spawn_asset(
 						ASSET_TYPE.BOOK,
@@ -65,13 +55,11 @@ export class BackgroundContainer {
 						new THREE.Quaternion(),
 						{}
 					);
-                    
 					if (!result) {
 						console.error(`${this.name} Failed to spawn BOOK, result is null`);
 						this.loading_complete = true;
 						return;
 					}
-                    
 					let mesh = result.mesh;
 					let body = result.body;
 					mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.BOOK}`;
@@ -82,7 +70,6 @@ export class BackgroundContainer {
 					this.loading_complete = true;
 					throw error;
 				}
-                
 				// Spawn Cat
 				const catPosition = new THREE.Vector3(15, 5, -5);
 				try {
@@ -92,13 +79,11 @@ export class BackgroundContainer {
 						new THREE.Quaternion(),
 						{}
 					);
-                    
 					if (!catResult) {
 						console.error(`${this.name} Failed to spawn CAT, result is null`);
 						this.loading_complete = true;
 						return;
 					}
-                    
 					let mesh = catResult.mesh;
 					let body = catResult.body;
 					mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.CAT}`;
@@ -109,7 +94,6 @@ export class BackgroundContainer {
 					this.loading_complete = true;
 					throw error;
 				}
-                
 				// Spawn Chair
 				const chairPosition = new THREE.Vector3(0, 0, 0);
 				try {
@@ -119,13 +103,11 @@ export class BackgroundContainer {
 						new THREE.Quaternion(),
 						{}
 					);
-                    
 					if (!chairResult) {
 						console.error(`${this.name} Failed to spawn CHAIR, result is null`);
 						this.loading_complete = true;
 						return;
 					}
-                    
 					let mesh = chairResult.mesh;
 					let body = chairResult.body;
 					mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.CHAIR}`;
@@ -136,7 +118,6 @@ export class BackgroundContainer {
 					this.loading_complete = true;
 					throw error;
 				}
-                
 				// Spawn Computer
 				const computerPosition = new THREE.Vector3(0, 3, -6);
 				try {
@@ -146,13 +127,11 @@ export class BackgroundContainer {
 						new THREE.Quaternion(),
 						{}
 					);
-                    
 					if (!computerResult) {
 						console.error(`${this.name} Failed to spawn COMPUTER, result is null`);
 						this.loading_complete = true;
 						return;
 					}
-                    
 					let mesh = computerResult.mesh;
 					let body = computerResult.body;
 					mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.COMPUTER}`;
@@ -163,7 +142,6 @@ export class BackgroundContainer {
 					this.loading_complete = true;
 					return;
 				}
-                
 				// Spawn Desk
 				const deskPosition = new THREE.Vector3(0, 1, -5.5);
 				try {
@@ -173,13 +151,11 @@ export class BackgroundContainer {
 						new THREE.Quaternion(),
 						{}
 					);
-                    
 					if (!deskResult) {
 						console.error(`${this.name} Failed to spawn DESK, result is null`);
 						this.loading_complete = true;
 						return;
 					}
-                    
 					let mesh = deskResult.mesh;
 					let body = deskResult.body;
 					mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DESK}`;
@@ -190,7 +166,6 @@ export class BackgroundContainer {
 					this.loading_complete = true;
 					return;
 				}
-                
 				// Spawn Desk photo
 				const deskPhotoPosition = new THREE.Vector3(-5, 5, -5);
 				try {
@@ -200,13 +175,11 @@ export class BackgroundContainer {
 						new THREE.Quaternion(),
 						{}
 					);
-                    
 					if (!deskPhotoResult) {
 						console.error(`${this.name} Failed to spawn DESKPHOTO, result is null`);
 						this.loading_complete = true;
 						return;
 					}
-                    
 					let mesh = deskPhotoResult.mesh;
 					let body = deskPhotoResult.body;
 					mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DESKPHOTO}`;
@@ -217,7 +190,6 @@ export class BackgroundContainer {
 					this.loading_complete = true;
 					return;
 				}
-                
 				// Spawn Diploma bot
 				const diplomaBotPosition = new THREE.Vector3(6, 5, -5);
 				try {
@@ -227,13 +199,11 @@ export class BackgroundContainer {
 						new THREE.Quaternion(),
 						{}
 					);
-                    
 					if (!diplomaBotResult) {
 						console.error(`${this.name} Failed to spawn DIPLOMA_BOT, result is null`);
 						this.loading_complete = true;
 						return;
 					}
-                    
 					let mesh = diplomaBotResult.mesh;
 					let body = diplomaBotResult.body;
 					mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DIPLOMA_BOT}`;
@@ -244,7 +214,6 @@ export class BackgroundContainer {
 					this.loading_complete = true;
 					return;
 				}
-                
 				// Spawn Diploma top
 				const diplomaTopPosition = new THREE.Vector3(6, 8, -5);
 				try {
@@ -254,13 +223,11 @@ export class BackgroundContainer {
 						new THREE.Quaternion(),
 						{}
 					);
-                    
 					if (!diplomaTopResult) {
 						console.error(`${this.name} Failed to spawn DIPLOMA_TOP, result is null`);
 						this.loading_complete = true;
 						return;
 					}
-                    
 					let mesh = diplomaTopResult.mesh;
 					let body = diplomaTopResult.body;
 					mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DIPLOMA_TOP}`;
@@ -271,7 +238,6 @@ export class BackgroundContainer {
 					this.loading_complete = true;
 					return;
 				}
-                
 				// Spawn Keyboard
 				const keyboardPosition = new THREE.Vector3(1, 3, -4);
 				try {
@@ -281,13 +247,11 @@ export class BackgroundContainer {
 						new THREE.Quaternion(),
 						{}
 					);
-                    
 					if (!keyboardResult) {
 						console.error(`${this.name} Failed to spawn KEYBOARD, result is null`);
 						this.loading_complete = true;
 						return;
 					}
-                    
 					let mesh = keyboardResult.mesh;
 					let body = keyboardResult.body;
 					mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.KEYBOARD}`;
@@ -298,7 +262,6 @@ export class BackgroundContainer {
 					this.loading_complete = true;
 					return;
 				}
-                
 				// Spawn Monitor
 				const monitorPosition = new THREE.Vector3(0, 8, -8);
 				try {
@@ -308,13 +271,11 @@ export class BackgroundContainer {
 						new THREE.Quaternion(),
 						{}
 					);
-                    
 					if (!monitorResult) {
 						console.error(`${this.name} Failed to spawn MONITOR, result is null`);
 						this.loading_complete = true;
 						return;
 					}
-                    
 					let mesh = monitorResult.mesh;
 					let body = monitorResult.body;
 					mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.MONITOR}`;
@@ -325,7 +286,6 @@ export class BackgroundContainer {
 					this.loading_complete = true;
 					return;
 				}
-                
 				// Spawn Mouse
 				const mousePosition = new THREE.Vector3(3, 3, -4);
 				try {
@@ -335,13 +295,11 @@ export class BackgroundContainer {
 						new THREE.Quaternion(),
 						{}
 					);
-                    
 					if (!mouseResult) {
 						console.error(`${this.name} Failed to spawn MOUSE, result is null`);
 						this.loading_complete = true;
 						return;
 					}
-                    
 					let mesh = mouseResult.mesh;
 					let body = mouseResult.body;
 					mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.MOUSE}`;
@@ -352,7 +310,6 @@ export class BackgroundContainer {
 					this.loading_complete = true;
 					return;
 				}
-                
 				// Spawn Mousepad
 				const mousepadPosition = new THREE.Vector3(3, 3.25, -5);
 				try {
@@ -362,13 +319,11 @@ export class BackgroundContainer {
 						new THREE.Quaternion(),
 						{}
 					);
-                    
 					if (!mousepadResult) {
 						console.error(`${this.name} Failed to spawn MOUSEPAD, result is null`);
 						this.loading_complete = true;
 						return;
 					}
-                    
 					let mesh = mousepadResult.mesh;
 					let body = mousepadResult.body;
 					mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.MOUSEPAD}`;
@@ -379,7 +334,6 @@ export class BackgroundContainer {
 					this.loading_complete = true;
 					return;
 				}
-                
 				// Spawn Notebook closed
 				const notebookClosedPosition = new THREE.Vector3(5, 5, 0);
 				try {
@@ -389,13 +343,11 @@ export class BackgroundContainer {
 						new THREE.Quaternion(),
 						{}
 					);
-                    
 					if (!notebookClosedResult) {
 						console.error(`${this.name} Failed to spawn NOTEBOOK_CLOSED, result is null`);
 						this.loading_complete = true;
 						return;
 					}
-                    
 					let mesh = notebookClosedResult.mesh;
 					let body = notebookClosedResult.body;
 					mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.NOTEBOOK_CLOSED}`;
@@ -406,7 +358,6 @@ export class BackgroundContainer {
 					this.loading_complete = true;
 					return;
 				}
-                
 				// Spawn Notebook opened
 				const notebookOpenedPosition = new THREE.Vector3(-5, 5, 0);
 				try {
@@ -416,13 +367,11 @@ export class BackgroundContainer {
 						new THREE.Quaternion(),
 						{}
 					);
-                    
 					if (!notebookOpenedResult) {
 						console.error(`${this.name} Failed to spawn NOTEBOOK_OPENED, result is null`);
 						this.loading_complete = true;
 						return;
 					}
-                    
 					let mesh = notebookOpenedResult.mesh;
 					let body = notebookOpenedResult.body;
 					mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.NOTEBOOK_OPENED}`;
@@ -433,7 +382,6 @@ export class BackgroundContainer {
 					this.loading_complete = true;
 					return;
 				}
-                
 				// Spawn Plant
 				const plantPosition = new THREE.Vector3(10, 5, 0);
 				try {
@@ -443,13 +391,11 @@ export class BackgroundContainer {
 						new THREE.Quaternion(),
 						{}
 					);
-                    
 					if (!plantResult) {
 						console.error(`${this.name} Failed to spawn PLANT, result is null`);
 						this.loading_complete = true;
 						return;
 					}
-                    
 					let mesh = plantResult.mesh;
 					let body = plantResult.body;
 					mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.PLANT}`;
@@ -460,7 +406,6 @@ export class BackgroundContainer {
 					this.loading_complete = true;
 					return;
 				}
-                
 				// Spawn Room
 				const roomPosition = new THREE.Vector3(0, 0, 0);
 				try {
@@ -470,13 +415,11 @@ export class BackgroundContainer {
 						new THREE.Quaternion(),
 						{ enablePhysics: false }  // Room should be static
 					);
-                    
 					if (!roomResult) {
 						console.error(`${this.name} Failed to spawn ROOM, result is null`);
 						this.loading_complete = true;
 						return;
 					}
-                    
 					let mesh = roomResult.mesh;
 					let body = roomResult.body;
 					mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.ROOM}`;
@@ -487,7 +430,6 @@ export class BackgroundContainer {
 					this.loading_complete = true;
 					return;
 				}
-                
 				// Spawn Tablet
 				const tabletPosition = new THREE.Vector3(-10, 5, 0);
 				try {
@@ -497,13 +439,11 @@ export class BackgroundContainer {
 						new THREE.Quaternion(),
 						{}
 					);
-                    
 					if (!tabletResult) {
 						console.error(`${this.name} Failed to spawn TABLET, result is null`);
 						this.loading_complete = true;
 						return;
 					}
-                    
 					let mesh = tabletResult.mesh;
 					let body = tabletResult.body;
 					mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.TABLET}`;
@@ -514,7 +454,6 @@ export class BackgroundContainer {
 					this.loading_complete = true;
 					return;
 				}
-                
 				if (FLAGS.PHYSICS_LOGS) {
 					console.log('All assets initialized successfully');
 				}
@@ -526,7 +465,6 @@ export class BackgroundContainer {
 			}
 		})();
 	}
-
 	// Add method to check if all assets are loaded
 	async is_loading_complete() {
 		try {
@@ -537,12 +475,10 @@ export class BackgroundContainer {
 			return false;
 		}
 	}
-
 	// Add method to get the asset manifest
 	get_asset_manifest() {
 		return this.asset_manifest;
 	}
-
 	update(grabbed_object, viewable_container) {
 		// Deal with primary instructions
 		if(viewable_container.is_primary_triggered() && !this.is_primary_spawned()) {
@@ -570,7 +506,6 @@ export class BackgroundContainer {
 				console.error("Error breaking secondary chains:", err);
 			});
 		}
-
 		// Handle logic for what already exists
 		if(this.primary_instruction_sign) {
 			this.primary_instruction_sign.update();
@@ -582,7 +517,6 @@ export class BackgroundContainer {
 			// Handle both array format [mesh, body] and object format {mesh, body}
 			const mesh = Array.isArray(entry) ? entry[0] : entry.mesh;
 			const body = Array.isArray(entry) ? entry[1] : entry.body;
-            
 			if(body != null) {
 				const position = body.translation();
 				mesh.position.set(position.x, position.y, position.z);
@@ -591,25 +525,19 @@ export class BackgroundContainer {
 			}
 		});
 	}
-
 	contains_object(incoming_name) {
 		return AssetStorage.get_instance().contains_object(incoming_name);
 	}
-
 	async spawn_primary_instructions() {
 		// Set state to prevent overlapping calls
 		if (this.is_spawning_primary) {
 			console.log("Already spawning primary instructions!");
 			return;
 		}
-        
 		this.is_spawning_primary = true;
-        
 		const asset_loader = AssetSpawner.get_instance(this.object_container, this.world);
-        
 		try {
 			if(FLAGS.PHYSICS_LOGS) console.log(`${this.name} Starting primary instructions spawn`);
-
 			// Create and await the ControlMenu initialization
 			this.primary_instruction_sign = await new ControlMenu(
 				this.object_container, 
@@ -617,7 +545,6 @@ export class BackgroundContainer {
 				this.world, 
 				this
 			);
-
 			// Now we know the sign is fully initialized
 			if (this.primary_instruction_sign.sign_mesh && this.primary_instruction_sign.sign_body) {
 				this.primary_instruction_sign.sign_mesh.name = `${TYPES.INTERACTABLE}primary`;
@@ -646,7 +573,6 @@ export class BackgroundContainer {
 			if(FLAGS.PHYSICS_LOGS) console.log(`${this.name} Primary instructions spawn complete`);
 		}
 	}
-
 	async spawn_secondary_instructions() {
 		try {
 			if(FLAGS.PHYSICS_LOGS) {
@@ -661,7 +587,6 @@ export class BackgroundContainer {
 				y: this.camera.position.y + forward.y + 4, // Additional Y offset
 				z: this.camera.position.z + forward.z
 			};
-            
 			// Create and await the ScrollMenu initialization
 			this.secondary_instruction_sign = await new ScrollMenu(
 				this.object_container, 
@@ -670,9 +595,7 @@ export class BackgroundContainer {
 				this,
 				spawn_position
 			);
-
 			const asset_loader = AssetSpawner.get_instance();
-            
 			// Now we know the sign_mesh and sign_body exist
 			this.secondary_instruction_sign.sign_mesh.name = `${TYPES.INTERACTABLE}secondary`;
 			this.secondary_instruction_sign.sign_mesh.traverse((child) => {
@@ -680,12 +603,10 @@ export class BackgroundContainer {
 					child.name = `${TYPES.INTERACTABLE}secondary`;
 				}
 			});
-            
 			AssetStorage.get_instance().add_object(
 				this.secondary_instruction_sign.sign_mesh, 
 				this.secondary_instruction_sign.sign_body
 			);
-            
 			if (FLAGS.PHYSICS_LOGS) {
 				console.log("Secondary sign added to asset manager:", {
 					meshName: this.secondary_instruction_sign.sign_mesh.name,
@@ -698,7 +619,6 @@ export class BackgroundContainer {
 			this.secondary_instruction_sign = null;
 		}
 	}
-
 	async break_primary_chains() {
 		const asset_loader = AssetSpawner.get_instance(this.object_container, this.world);
 		if(this.is_primary_spawned()) {
@@ -711,7 +631,6 @@ export class BackgroundContainer {
 			console.warn("Primary instruction chains cannot be broken as it has not spawned...");
 		}
 	}
-
 	async break_secondary_chains() {
 		if(this.is_secondary_spawned()) {
 			if(!this.secondary_instruction_sign.chains_broken) {
@@ -721,13 +640,10 @@ export class BackgroundContainer {
 			console.warn("Secondary instruction chains cannot be broken as it has not spawned...");
 		}
 	}
-
 	// ----- Getters
-
 	is_primary_spawned() {
 		return this.primary_instruction_sign != null;
 	}
-
 	is_primary_chains_broken() {
 		if(!this.is_primary_spawned()) {
 			console.warn("Primary instruction chains don't exist yet to be broken; Returning false");
@@ -736,18 +652,15 @@ export class BackgroundContainer {
 			return this.primary_instruction_sign.chains_broken;
 		}
 	}
-
 	is_primary_instructions_intact() {
 		if(this.is_primary_spawned()) {
 			return !this.is_primary_chains_broken();
 		}
 		return false;
 	}
-    
 	is_secondary_spawned() {
 		return this.secondary_instruction_sign != null;
 	}
-
 	is_secondary_chains_broken() {
 		if(!this.is_secondary_spawned) {
 			console.warn("Secondary instruction chains don't exist yet to be broken; Returning false");
@@ -755,14 +668,12 @@ export class BackgroundContainer {
 		}
 		return this.secondary_instruction_sign.chains_broken;
 	}
-
 	is_secondary_instructions_intact() {
 		if(this.is_secondary_spawned) {
 			return !this.is_secondary_chains_broken();
 		}
 		return false;
 	}
-
 	/**
      * Updates the debug visualization for all signs based on the current flag state
      */
@@ -771,7 +682,6 @@ export class BackgroundContainer {
 		if (this.primary_instruction_sign) {
 			this.primary_instruction_sign.updateDebugVisualizations();
 		}
-        
 		// Update secondary instruction sign if it exists
 		if (this.secondary_instruction_sign) {
 			this.secondary_instruction_sign.updateDebugVisualizations();

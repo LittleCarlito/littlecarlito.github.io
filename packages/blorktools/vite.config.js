@@ -3,22 +3,16 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { gracefulShutdownPlugin } from '../../scripts/vite-plugins.js';
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 // Helper function to find all HTML files in src directory
 function findHtmlEntries() {
 	const srcDir = path.resolve(__dirname, 'src');
 	const entries = {};
-  
 	function scanDirectory(dir) {
 		if (!fs.existsSync(dir)) return;
-    
 		const files = fs.readdirSync(dir, { withFileTypes: true });
-    
 		for (const file of files) {
 			const fullPath = path.join(dir, file.name);
-      
 			if (file.isDirectory()) {
 				scanDirectory(fullPath);
 			} else if (file.name.endsWith('.html')) {
@@ -28,15 +22,12 @@ function findHtmlEntries() {
 			}
 		}
 	}
-  
 	scanDirectory(srcDir);
 	return entries;
 }
-
 export default defineConfig({
 	// Set the root directory to the source files for development
 	root: path.resolve(__dirname, 'src'),
-  
 	// For production build, configure as a library
 	build: {
 		lib: {
@@ -56,7 +47,6 @@ export default defineConfig({
 			}
 		}
 	},
-  
 	server: {
 		open: '/index.html',
 		port: 3001,
@@ -66,7 +56,6 @@ export default defineConfig({
 			allow: ['..', '../..'],
 		}
 	},
-  
 	plugins: [
 		gracefulShutdownPlugin()
 	]

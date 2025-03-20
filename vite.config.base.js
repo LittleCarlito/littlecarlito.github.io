@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite';
 import { LicenseWebpackPlugin } from 'license-webpack-plugin';
 import path from 'path';
-
 export default defineConfig({
 	plugins: [
 		{

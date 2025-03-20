@@ -6,27 +6,22 @@ import { HideButton } from './hide_button';
 import { Easing, FLAGS, THREE, Tween } from '../../common';
 import { ArtistBlock } from './artist_block';
 import { CATEGORIES } from './overlay_common';
-
 // Confetti constants
 const PARTICLE_COUNT = 200;
 const COLORS = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff];
 const PARTICLE_SIZE = 0.05;
 const GRAVITY = 0.004;
 const DRAG = 0.995;
-
 // For a fountain effect:
 const LEFT_BURST_ANGLE = -80;
 const RIGHT_BURST_ANGLE = -100; 
 const SPREAD_ANGLE = 45;        // How much the particles can spread from the base angle
-
 // For a v-shaped burst:
 // const LEFT_BURST_ANGLE = -45;
 // const RIGHT_BURST_ANGLE = -135;
-
 // For a horizontal spray:
 // const LEFT_BURST_ANGLE = 0;
 // const RIGHT_BURST_ANGLE = 180; 
-
 export class OverlayContainer {
 	overlay_container;
 	title_block;
@@ -42,7 +37,6 @@ export class OverlayContainer {
 	// Set this to true when the first object is grabbed, camera is frist moved, or first object is pushed
 	secondary_control_trigger = false;
 	artist_block;
-    
 	constructor(incoming_parent, incoming_camera) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
@@ -53,7 +47,6 @@ export class OverlayContainer {
 		this.overlay_container.traverse((child) => {
 			child.renderOrder = 999;
 		});
-
 		this.title_block = new TitleBlock(this.overlay_container, this.camera);
 		this.text_box_container = new TextContainer(this.overlay_container, this.camera);
 		this.label_container = new LabelContainer(this.overlay_container, this.camera);
@@ -63,7 +56,6 @@ export class OverlayContainer {
 		this.overlay_container.position.z = this.camera.position.z - 15;
 		this.parent.add(this.overlay_container);
 	}
-
 	create_confetti_burst() {
 		if(FLAGS.PHYSICS_LOGS) {
 			const cam_pos = this.camera.position;
@@ -144,7 +136,6 @@ export class OverlayContainer {
 			}
 		});
 	}
-
 	update_confetti() {
 		if (this.particles.length > 0 && FLAGS.PHYSICS_LOGS) {
 			// Only log first particle every 10 frames to reduce spam
@@ -167,7 +158,6 @@ export class OverlayContainer {
 			particle.rotation.z += particle.rotationSpeed;
 		}
 	}
-
 	trigger_overlay() {
 		if(FLAGS.TWEEN_LOGS) {
 			console.log(`OverlayContainer - Triggering overlay animation:
@@ -203,12 +193,10 @@ export class OverlayContainer {
 			}
 		}
 	}
-
 	swap_column_sides() {
 		this.label_container.swap_sides();
 		this.hide_button.swap_sides(this.label_container.is_column_left);
 	}
-
 	/**
      * Resize and repositions the overlay
      * FOR USE WHEN ONSCREEN ONLY
@@ -224,7 +212,6 @@ export class OverlayContainer {
 		this.artist_block.resize();
 		this.artist_block.reposition();
 	}
-
 	/**
      * Resize and repositions the overlay
      * FOR USE WHEN OFFSCREEN ONLY
@@ -238,18 +225,15 @@ export class OverlayContainer {
 		this.title_block.offscreen_reposition();
 		this.artist_block.resize();
 	}
-
 	handle_hover(intersected_object) {
 		this.label_container.handle_hover(intersected_object);
 	}
-
 	reset_hover() {
 		if(FLAGS.SELECT_LOGS) {
 			console.log('Resetting hover state');
 		}
 		this.label_container.reset_previous_intersected();
 	}
-
 	focus_text_box(incoming_name) {
 		const simple_name = incoming_name.split('_')[1];
 		if(simple_name == CATEGORIES.EDUCATION.value && !this.party_popped) {
@@ -266,46 +250,36 @@ export class OverlayContainer {
 		}
 		this.text_box_container.focus_text_box(simple_name, this.label_container.is_column_left);
 	}
-
 	lose_focus_text_box(incoming_direction) {
 		this.text_box_container.lose_focus_text_box(incoming_direction);
 	}
-
 	open_link(incoming_name) {
 		this.link_container.open_link(incoming_name);
 	}
-
 	// Overlay getters
 	is_label_container_left_side() {
 		return this.label_container.is_column_left;
 	}
-
 	is_intersected() {
 		return this.label_container.current_intersected;
 	}
-
 	intersected_name() {
 		return this.label_container.current_intersected.name;
 	}
-
 	is_swapping_sides() {
 		return this.label_container.swapping_column_sides;
 	}
-
 	is_text_active() {
 		return this.text_box_container.is_text_box_active();
 	}
-
 	get_active_box() {
 		if(this.is_text_active()) {
 			return this.text_box_container.get_active_text_box();
 		}
 	}
-
 	is_overlay_hidden() {
 		return this.hide_button.is_overlay_hidden;
 	}
-
 	/**
      * Checks if any hide/show animations are currently in progress
      * @returns {boolean} True if animations are in progress
@@ -313,7 +287,6 @@ export class OverlayContainer {
 	is_animating() {
 		return this.hide_transition_map.size > 0;
 	}
-
 	/**
      * Updates all active tween targets based on current camera position
      * Called when camera rotates during active animations
@@ -322,70 +295,58 @@ export class OverlayContainer {
 		if (this.hide_transition_map.size === 0) {
 			return; // No active tweens to update
 		}
-
 		if(FLAGS.TWEEN_LOGS) {
 			console.log(`Updating tween targets for ${this.hide_transition_map.size} active tweens`);
 		}
-
 		// Update each component's tween target based on current camera position
 		if (this.hide_button.is_overlay_hidden) {
 			// Only update targets when hiding the overlay (moving off-screen)
 			// Since the targets are relative to camera position
-            
 			// Update label container tween if active
 			if (this.hide_transition_map.has(this.label_container.container_column.name)) {
 				const tween = this.hide_transition_map.get(this.label_container.container_column.name);
 				const target_x = this.label_container.get_column_x_position(false); // Off-screen position
 				tween.to({ x: target_x }, tween.duration - tween.elapsed);
-                
 				if(FLAGS.TWEEN_LOGS) {
 					console.log(`Updated label container tween target to x: ${target_x.toFixed(2)}`);
 				}
 			}
-            
 			// Update text container tween if active
 			if (this.text_box_container.text_box_container && 
                 this.hide_transition_map.has(this.text_box_container.text_box_container.name)) {
 				const tween = this.hide_transition_map.get(this.text_box_container.text_box_container.name);
 				const target_y = this.text_box_container.get_text_box_y();
 				tween.to({ y: target_y }, tween.duration - tween.elapsed);
-                
 				if(FLAGS.TWEEN_LOGS) {
 					console.log(`Updated text container tween target to y: ${target_y.toFixed(2)}`);
 				}
 			}
-            
 			// Update title block tween if active
 			if (this.title_block.title_box && 
                 this.hide_transition_map.has(this.title_block.title_box.name)) {
 				const tween = this.hide_transition_map.get(this.title_block.title_box.name);
 				const target_y = this.title_block.get_title_y();
 				tween.to({ y: target_y }, tween.duration - tween.elapsed);
-                
 				if(FLAGS.TWEEN_LOGS) {
 					console.log(`Updated title block tween target to y: ${target_y.toFixed(2)}`);
 				}
 			}
-            
 			// Update link container tween if active
 			if (this.link_container.link_container && 
                 this.hide_transition_map.has(this.link_container.link_container.name)) {
 				const tween = this.hide_transition_map.get(this.link_container.link_container.name);
 				const target_y = this.link_container.get_link_container_y();
 				tween.to({ y: target_y }, tween.duration - tween.elapsed);
-                
 				if(FLAGS.TWEEN_LOGS) {
 					console.log(`Updated link container tween target to y: ${target_y.toFixed(2)}`);
 				}
 			}
-            
 			// Update artist block tween if active
 			if (this.artist_block.artist_box && 
                 this.hide_transition_map.has(this.artist_block.artist_box.name)) {
 				const tween = this.hide_transition_map.get(this.artist_block.artist_box.name);
 				const target_y = this.artist_block.get_artist_y();
 				tween.to({ y: target_y }, tween.duration - tween.elapsed);
-                
 				if(FLAGS.TWEEN_LOGS) {
 					console.log(`Updated artist block tween target to y: ${target_y.toFixed(2)}`);
 				}

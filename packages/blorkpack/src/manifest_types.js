@@ -3,7 +3,6 @@
  * This file provides JSDoc type definitions for the manifest structure,
  * which can be used for documentation, reference, and type checking.
  */
-
 /**
  * @typedef {Object} CustomType
  * @property {string} name - Unique name identifier for this custom type
@@ -48,7 +47,6 @@
  * @property {number} visual.debug.opacity - Debug visualization opacity
  * @property {string} visual.debug.color - Hex color code for debug visualization
  */
-
 /**
  * @typedef {Object} JointData
  * @property {string} type - Joint type (FIXED, REVOLUTE, etc.)
@@ -80,7 +78,6 @@
  * @property {number} parameters.stiffness - Joint stiffness
  * @property {number} parameters.damping - Joint damping
  */
-
 /**
  * @typedef {Object} AssetGroup
  * @property {string} id - Unique identifier for the group
@@ -91,14 +88,12 @@
  * @property {boolean} active - Whether the group is active
  * @property {string} toggle_behavior - Behavior when toggling (ALL, ONE_AT_A_TIME, etc.)
  */
-
 /**
  * @typedef {Object} Vector3
  * @property {number} x - X coordinate
  * @property {number} y - Y coordinate
  * @property {number} z - Z coordinate
  */
-
 /**
  * @typedef {Object} AssetConfig
  * @property {boolean} collidable - Whether the asset can collide
@@ -110,7 +105,6 @@
  * @property {boolean} selectable - Whether the asset can be selected
  * @property {boolean} highlightable - Whether the asset can be highlighted
  */
-
 /**
  * @typedef {Object} AssetData
  * @property {string} id - Unique identifier
@@ -169,7 +163,6 @@
  * @property {boolean} [additional_properties.raycast_disabled] - Whether raycast is disabled
  * @property {Array} [additional_properties.animations] - Animation configurations
  */
-
 /**
  * @typedef {Object} SceneData
  * @property {string} version - Scene data version
@@ -272,7 +265,6 @@
  * @property {number} default_camera.shoulder_lights.right.max_distance - Maximum distance (0 = unlimited)
  * @property {number} default_camera.shoulder_lights.right.intensity - Light intensity
  */
-
 /**
  * @typedef {Object} Manifest
  * @property {string} manifest_version - Version of the manifest format
@@ -289,12 +281,10 @@
  * @property {Array<Object>} system_assets - System assets
  * @property {SceneData} scene_data - Scene configuration
  */
-
 // Export the type definitions
 export const MANIFEST_TYPES = {
 	// This empty object helps with imports
 };
-
 // Export symbols for documentation purposes
 export const typeDefs = {
 	Manifest: '/** @type {Manifest} */',

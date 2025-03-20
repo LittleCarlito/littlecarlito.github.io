@@ -10,7 +10,6 @@ export class SystemAssetType {
 	static SPOTLIGHT = { value: 'spotlight' };
 	// TODO Create spawner for camera
 	static CAMERA = { value: 'camera' };
-
 	/**
      * Checks if the provided asset type string matches a system asset type.
      * @param {string} typeValue - The asset type string to check
@@ -19,7 +18,6 @@ export class SystemAssetType {
 	static isSystemAssetType(typeValue) {
 		return Object.values(this).some(type => type.value === typeValue);
 	}
-
 	/**
      * Gets the system asset type enum object from a string value.
      * @param {string} typeValue - The string value to convert to an enum

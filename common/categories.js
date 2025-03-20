@@ -30,7 +30,6 @@ export const CATEGORIES = {
 		html: "pages/about.html"
 	}
 };
-
 // Helper methods
 Object.defineProperty(CATEGORIES, "getValues", {
 	value: function() {
@@ -38,26 +37,22 @@ Object.defineProperty(CATEGORIES, "getValues", {
 	},
 	enumerable: false
 });
-
 Object.defineProperty(CATEGORIES, "getIcons", {
 	value: function() {
 		return Object.values(this).map(cat => cat.icon);
 	},
 	enumerable: false
 });
-
 Object.defineProperty(CATEGORIES, "getColors", {
 	value: function() {
 		return Object.values(this).map(cat => cat.color);
 	},
 	enumerable: false
 });
-
 Object.defineProperty(CATEGORIES, "getHtmlPaths", {
 	value: function() {
 		return Object.values(this).map(cat => cat.html);
 	},
 	enumerable: false
 });
-
 Object.freeze(CATEGORIES);

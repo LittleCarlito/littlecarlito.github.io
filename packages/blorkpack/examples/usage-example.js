@@ -4,7 +4,6 @@
  * This file demonstrates how to use the asset-management package in your application.
  * Run with: node examples/usage-example.js
  */
-
 // In real usage, you'd import from 'blorkpack'
 // Here we're importing from our local build
 import { 
@@ -15,11 +14,9 @@ import {
 	ASSET_CONFIGS,
 	ManifestManager
 } from '../dist/index.js';
-
 // Import Three.js and RAPIER directly since we're in Node
 // In a browser context, these would be imported from the package
 import * as THREE from 'three';
-
 // RAPIER needs initialization in a real environment
 // For this example, we'll just simulate it
 const RAPIER = {
@@ -40,7 +37,6 @@ const RAPIER = {
 		}
 	}
 };
-
 /**
  * Example 1: Asset Management Basics
  * 
@@ -52,30 +48,24 @@ const RAPIER = {
 async function asset_management_example() {
 	console.log('🚀 EXAMPLE 1: Asset Management Basics');
 	console.log('====================================');
-  
 	// Create a simulated scene and camera
 	const scene = { add: obj => console.log(`Added ${obj.type || 'object'} to scene`) };
 	const camera = { position: { x: 0, y: 5, z: 10 } };
 	const renderer = { domElement: {}, render: () => {} };
-  
 	// Create a physics world
 	const world = new RAPIER.World({ x: 0.0, y: -9.81, z: 0.0 });
-  
 	try {
 		// Initialize asset storage
 		console.log('Initializing asset storage...');
 		const asset_storage = AssetStorage.get_instance();
-    
 		// Simulate loading an asset
 		console.log('Loading assets...');
 		// In a real app, this would load actual 3D models
 		// await asset_storage.load_asset_type(ASSET_TYPE.ROOM);
 		console.log('✅ Assets loaded successfully');
-    
 		// Initialize asset spawner
 		console.log('Initializing asset spawner...');
 		const spawner = AssetSpawner.get_instance(scene, world);
-    
 		// Spawn an asset (simulated)
 		console.log('Spawning assets in the scene...');
 		// In a real app, this would create actual 3D objects
@@ -85,22 +75,18 @@ async function asset_management_example() {
 		//   new THREE.Quaternion()
 		// );
 		console.log('✅ Assets spawned successfully');
-    
 		// Initialize asset activator
 		console.log('Initializing asset activator...');
 		const activator = AssetActivator.get_instance(camera, renderer);
-    
 		// Simulate activation
 		console.log('Activating an object...');
 		// activator.activate_object('example_object');
 		console.log('✅ Object activation simulated');
-    
 		console.log('Example 1 completed successfully\n');
 	} catch (error) {
 		console.error('❌ Error in asset management example:', error);
 	}
 }
-
 /**
  * Example 2: Using ManifestManager
  * 
@@ -112,10 +98,8 @@ async function asset_management_example() {
 async function manifest_manager_example() {
 	console.log('🚀 EXAMPLE 2: Manifest Manager');
 	console.log('=============================');
-  
 	// Get the singleton instance
 	const manifest_manager = ManifestManager.get_instance();
-  
 	try {
 		// Simulate loading a manifest
 		console.log('Creating a new manifest...');
@@ -124,10 +108,8 @@ async function manifest_manager_example() {
 			'A demonstration of the ManifestManager'
 		);
 		console.log('✅ New manifest created');
-    
 		// Set the manifest data directly instead of loading from a file
 		manifest_manager.set_manifest(new_manifest);
-    
 		// Add a custom type
 		console.log('Adding a custom type...');
 		manifest_manager.set_custom_type({
@@ -177,11 +159,9 @@ async function manifest_manager_example() {
 			}
 		});
 		console.log('✅ Custom type added');
-    
 		// Get the custom type
 		const custom_type = manifest_manager.get_custom_type("example_furniture");
 		console.log('Retrieved custom type:', custom_type.name);
-    
 		// Add an asset group
 		console.log('Adding an asset group...');
 		manifest_manager.set_asset_group({
@@ -194,7 +174,6 @@ async function manifest_manager_example() {
 			toggle_behavior: "ALL"
 		});
 		console.log('✅ Asset group added');
-    
 		// Add an asset
 		console.log('Adding an asset...');
 		manifest_manager.set_asset("chair1", {
@@ -226,7 +205,6 @@ async function manifest_manager_example() {
 			}
 		});
 		console.log('✅ Asset added');
-    
 		// Modify scene data
 		console.log('Updating scene data...');
 		manifest_manager.set_scene_data({
@@ -263,31 +241,25 @@ async function manifest_manager_example() {
 			}
 		});
 		console.log('✅ Scene data updated');
-    
 		// Access data to configure a scene
 		console.log('\nRetrieving configuration data from manifest:');
 		const scene_data = manifest_manager.get_scene_data();
 		console.log(`- Scene name: ${scene_data.name}`);
 		console.log(`- Scene description: ${scene_data.description}`);
-    
 		// Get all asset groups
 		const asset_groups = manifest_manager.get_all_asset_groups();
 		console.log(`- Asset groups: ${asset_groups.length}`);
-    
 		// Get all assets
 		const assets = manifest_manager.get_all_assets();
 		console.log(`- Assets: ${Object.keys(assets).length}`);
-    
 		// Simulate scene setup with manifest data
 		console.log('\nConfiguring scene based on manifest data:');
-    
 		// Configure lighting
 		if (scene_data.environment?.ambient_light) {
 			const light_data = scene_data.environment.ambient_light;
 			console.log(`- Adding ambient light (${light_data.color}, intensity: ${light_data.intensity})`);
 			// In a real app: const ambientLight = new THREE.AmbientLight(light_data.color, light_data.intensity);
 		}
-    
 		// Configure physics
 		if (scene_data.physics?.enabled) {
 			console.log(`- Setting up physics (update rate: ${scene_data.physics.update_rate})`);
@@ -298,7 +270,6 @@ async function manifest_manager_example() {
 			//   scene_data.environment.gravity.z
 			// );
 		}
-    
 		// Spawn assets from manifest
 		for (const group of asset_groups) {
 			console.log(`- Processing asset group: ${group.name}`);
@@ -317,28 +288,23 @@ async function manifest_manager_example() {
 				}
 			}
 		}
-    
 		console.log('Example 2 completed successfully\n');
 	} catch (error) {
 		console.error('❌ Error in manifest manager example:', error);
 	}
 }
-
 // Run both examples
 async function run_examples() {
 	console.log('=============================================');
 	console.log('ASSET MANAGEMENT PACKAGE - USAGE EXAMPLES');
 	console.log('=============================================\n');
-  
 	await asset_management_example();
 	console.log('\n');
 	await manifest_manager_example();
-  
 	console.log('\n=============================================');
 	console.log('ALL EXAMPLES COMPLETED SUCCESSFULLY');
 	console.log('=============================================');
 }
-
 // Execute the examples
 run_examples().catch(error => {
 	console.error('Error running examples:', error);

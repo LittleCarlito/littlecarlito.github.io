@@ -2,7 +2,6 @@ import { THREE, RAPIER } from "../../../index.js";
 import { BLORKPACK_FLAGS } from "../../../blorkpack_flags.js";
 import { SystemAssetType } from "../../common/system_asset_types.js";
 import { IdGenerator } from "../../common/id_generator.js";
-
 /**
  * Creates a primitive capsule with the specified properties.
  * 
@@ -20,14 +19,11 @@ export async function create_primitive_capsule(scene, world, id, radius, height,
 	// Make sure position and rotation are valid
 	position = position || new THREE.Vector3();
 	rotation = rotation || new THREE.Quaternion();
-    
 	if (BLORKPACK_FLAGS.ASSET_LOGS) {
 		console.log(`Creating primitive capsule for ${id} with radius: ${radius}, height: ${height}`);
 	}
-    
 	// Create geometry (use cylinder for now)
 	const geometry = new THREE.CapsuleGeometry(radius, height, 16, 32);
-    
 	// Convert color from string to number if needed
 	let color_value = options.color || 0x808080;
 	if (typeof color_value === 'string') {
@@ -37,36 +33,28 @@ export async function create_primitive_capsule(scene, world, id, radius, height,
 			color_value = parseInt(color_value.substring(1), 16);
 		}
 	}
-    
 	const material = new THREE.MeshStandardMaterial({ 
 		color: color_value,
 		transparent: options.opacity < 1.0,
 		opacity: options.opacity || 1.0
 	});
-    
 	// Create mesh
 	const mesh = new THREE.Mesh(geometry, material);
 	mesh.position.copy(position);
 	mesh.quaternion.copy(rotation);
-    
 	// Set shadow properties
 	mesh.castShadow = options.cast_shadow || false;
 	mesh.receiveShadow = options.receive_shadow || false;
-    
 	// Add objects to scene in next frame to prevent stuttering
 	await new Promise(resolve => setTimeout(resolve, 0));
-    
 	// Add to scene
 	scene.add(mesh);
-    
 	// Disable raycasting if specified
 	if (options.raycast_disabled) {
 		mesh.raycast = () => null;
 	}
-    
 	// Create physics body if collidable
 	let body = null;
-    
 	if (options.collidable !== false && world) {
 		// Determine body type based on mass and options
 		let body_desc;
@@ -77,7 +65,6 @@ export async function create_primitive_capsule(scene, world, id, radius, height,
 				.setMass(options.mass)
 				.setCanSleep(options.sleeping !== false);
 		}
-        
 		// Set position and rotation
 		body_desc.setTranslation(position.x, position.y, position.z);
 		body_desc.setRotation({
@@ -86,24 +73,18 @@ export async function create_primitive_capsule(scene, world, id, radius, height,
 			z: rotation.z,
 			w: rotation.w
 		});
-        
 		// Create body
 		body = world.createRigidBody(body_desc);
-        
 		// Create capsule collider
 		const collider_desc = RAPIER.ColliderDesc.capsule(height / 2, radius);
-        
 		// Set restitution and friction
 		collider_desc.setRestitution(options.restitution || 0.5);
 		collider_desc.setFriction(options.friction || 0.5);
-        
 		// Create collider and attach to body
 		const collider = world.createCollider(collider_desc, body);
 	}
-    
 	// Generate a unique ID for this asset
 	const instance_id = IdGenerator.get_instance().generate_asset_id();
-    
 	// Return the result
 	return {
 		mesh,

@@ -1,5 +1,4 @@
 import js from '@eslint/js';
-
 export default [
 	// Empty config with no rules enabled
 	{
@@ -24,13 +23,15 @@ export default [
 			),
 			// Tab indentation rule
 			'indent': ['error', 'tab'],
+			// Prevent blank lines at the beginning or end of blocks
+			'padded-blocks': ['error', 'never'],
+			// Prevent consecutive empty lines (max 0 means no empty lines allowed)
+			'no-multiple-empty-lines': ['error', { 'max': 0, 'maxBOF': 0, 'maxEOF': 1 }],
 		},
 	},
 	// Deliberately using spaces for testing
 ];
-
 const deliberateError = "This line has spaces instead of tabs";
-
 // This function has deliberate indentation errors
 function badlyIndentedFunction() {
 	// These lines use spaces not tabs

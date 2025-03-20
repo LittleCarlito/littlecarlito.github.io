@@ -2,9 +2,7 @@ import { TYPES } from '../../viewport/overlay/overlay_common';
 import { FLAGS, RAPIER, THREE } from '../../common';
 import { ASSET_TYPE, AssetSpawner }  from '@littlecarlito/blorkpack';
 import { BLORKPACK_FLAGS } from '@littlecarlito/blorkpack';
-
 export const IMAGE_PATH = 'images/MouseControlMenu.svg';
-
 // Combined configuration object for better organization
 export const MENU_CONFIG = {
 	BEAM: {
@@ -55,7 +53,6 @@ export const MENU_CONFIG = {
 		EASING: 0.05    // Easing factor (lower = smoother, higher = faster)
 	}
 };
-
 // Joint anchor points - derived from configuration
 export const JOINT_ANCHORS = {
 	BEAM: {
@@ -72,7 +69,6 @@ export const JOINT_ANCHORS = {
 };
 export const DEFAULT_SPEED = 250;
 export const GRAVITY_DELAY = 266;
-
 // Physics configuration for the sign
 export const SIGN_PHYSICS = {
 	LINEAR_DAMPING: 0.2,
@@ -86,7 +82,6 @@ export const SIGN_PHYSICS = {
 	},
 	USE_CCD: false
 };
-
 export class ControlMenu {
 	parent;
 	camera;
@@ -128,35 +123,29 @@ export class ControlMenu {
 	// Store initial camera state
 	initial_camera_position = new THREE.Vector3();
 	initial_camera_quaternion = new THREE.Quaternion();
-
 	constructor(incoming_parent, incoming_camera, incoming_world, primary_container, incoming_speed = DEFAULT_SPEED) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
 		this.world = incoming_world;
 		this.primary_container = primary_container;
 		this.spawner = AssetSpawner.get_instance(this.parent);
-        
 		// Store initial camera state
 		this.initial_camera_position.copy(this.camera.position);
 		this.initial_camera_quaternion.copy(this.camera.quaternion);
-        
 		// Calculate assembly position based on camera using MENU_CONFIG
 		this.assembly_position = {
 			x: this.camera.position.x + MENU_CONFIG.POSITION.OFFSET.X,
 			y: this.camera.position.y + MENU_CONFIG.POSITION.OFFSET.Y,
 			z: this.camera.position.z - MENU_CONFIG.POSITION.OFFSET.Z
 		};
-        
 		// Calculate target position
 		this.target_position = {
 			x: this.camera.position.x + MENU_CONFIG.POSITION.OFFSET.X,
 			y: this.camera.position.y + MENU_CONFIG.POSITION.Y_TARGET,
 			z: this.camera.position.z - MENU_CONFIG.POSITION.Z_TARGET
 		};
-        
 		return this.initialize(primary_container, incoming_speed);
 	}
-
 	async initialize(primary_container, incoming_speed) {
 		// Create only the beam debug mesh, not the sign debug mesh
 		// Debug mesh for beam
@@ -175,7 +164,6 @@ export class ControlMenu {
 		this.debug_meshes.beam.renderOrder = 999;
 		this.debug_meshes.beam.visible = false; // Initially set to invisible
 		// We'll add to the scene AFTER positioning
-        
 		// Now create the actual objects
 		// Top beam creation
 		this.top_beam_geometry = new THREE.BoxGeometry(
@@ -190,7 +178,6 @@ export class ControlMenu {
 		});
 		this.top_beam_mesh = new THREE.Mesh(this.top_beam_geometry, this.top_beam_material);
 		this.parent.add(this.top_beam_mesh);
-        
 		// Create kinematic body instead of dynamic for smooth movement
 		this.top_beam_body = this.world.createRigidBody(
 			RAPIER.RigidBodyDesc
@@ -202,7 +189,6 @@ export class ControlMenu {
 				)
 				.setCanSleep(false)
 		);
-        
 		this.top_beam_shape = RAPIER.ColliderDesc.cuboid(
 			MENU_CONFIG.BEAM.DIMENSIONS.WIDTH/2, 
 			MENU_CONFIG.BEAM.DIMENSIONS.HEIGHT/2, 
@@ -212,14 +198,12 @@ export class ControlMenu {
 			.setRestitution(MENU_CONFIG.BEAM.PHYSICS.RESTITUTION);
 		this.world.createCollider(this.top_beam_shape, this.top_beam_body);
 		primary_container.dynamic_bodies.push([this.top_beam_mesh, this.top_beam_body]);
-
 		// Update beam debug mesh position
 		this.debug_meshes.beam.position.copy(this.top_beam_mesh.position);
 		this.debug_meshes.beam.quaternion.copy(this.top_beam_mesh.quaternion);
 		// Make visible based on flag and add to scene only AFTER positioning
 		this.debug_meshes.beam.visible = FLAGS.COLLISION_VISUAL_DEBUG;
 		this.parent.add(this.debug_meshes.beam);
-
 		// Create and load the sign asynchronously
 		await new Promise((resolve) => {
 			this.sign_image = new Image();
@@ -306,13 +290,11 @@ export class ControlMenu {
 					console.log("Joint created with motor configuration");
 				}
 				primary_container.dynamic_bodies.push([this.sign_mesh, this.sign_body]);
-                
 				// If collision debug is enabled, manually create a debug wireframe for the sign
 				if (FLAGS.COLLISION_VISUAL_DEBUG || BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
 					// Get the current sign position from the physics body
 					const position = this.sign_body.translation();
 					const rotation = this.sign_body.rotation();
-                    
 					// Create a debug wireframe for the sign through the asset spawner
 					this.spawner.create_debug_wireframe(
 						'cuboid',
@@ -333,16 +315,13 @@ export class ControlMenu {
 						console.warn('Failed to create debug wireframe for sign:', error);
 					});
 				}
-                
 				resolve();
 			};
 			this.sign_image.src = IMAGE_PATH;
 		});
-
 		// Create spotlight immediately after control menu is initialized
 		if (!this.menu_spotlight && this.sign_mesh) {
 			const spotlightPosition = this.calculate_spotlight_position(this.camera.position, this.camera.quaternion);
-            
 			// Make sure we have valid positions before calculating direction
 			if (spotlightPosition) {
 				// Use the target position instead of the current sign position
@@ -351,12 +330,10 @@ export class ControlMenu {
 					this.target_position.y - 7, // Offset downward to aim lower
 					this.target_position.z
 				);
-                
 				try {
 					const direction = new THREE.Vector3().subVectors(targetPosition, spotlightPosition);
 					const rotationY = Math.atan2(direction.x, direction.z);
 					const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
-                    
 					// Adjust properties for a clearer edge but keep a larger radius
 					// Larger radius for control menu (white with higher intensity)
 					this.spawner.create_spotlight(
@@ -387,27 +364,21 @@ export class ControlMenu {
 				console.warn('ControlMenu: spotlightPosition is undefined');
 			}
 		}
-
 		// Start the animation
 		this.animation_start_time = performance.now();
 		this.is_animating = true;
-
 		this.reached_target = false;
 		this.last_log_time = 0;
 		this.log_interval = 5000;
-
 		// Set initial visibility based on flag after everything is created
 		this.updateDebugVisualizations();
-
 		return this;
 	}
-
 	async break_chains() {
 		if (this.chains_broken) {
 			console.warn("Attempted to break chains again, but they were already broken.");
 			return;
 		}
-        
 		// Remove joint with null check
 		if (this.sign_joint && this.world.getImpulseJoint(this.sign_joint.handle)) {
 			try {
@@ -417,13 +388,11 @@ export class ControlMenu {
 			}
 		}
 		this.sign_joint = null;
-
 		// Remove spotlight if it exists
 		if (this.menu_spotlight) {
 			await this.spawner.despawn_spotlight(this.menu_spotlight.mesh);
 			this.menu_spotlight = null;
 		}
-
 		// Dispose of beam mesh and physics body
 		if (this.top_beam_mesh) {
 			// Remove from scene
@@ -433,7 +402,6 @@ export class ControlMenu {
 			if (this.top_beam_material) this.top_beam_material.dispose();
 			this.top_beam_mesh = null;
 		}
-
 		// Remove beam physics body
 		if (this.top_beam_body) {
 			try {
@@ -449,7 +417,6 @@ export class ControlMenu {
 			}
 			this.top_beam_body = null;
 		}
-
 		// Dispose of beam debug mesh
 		if (this.debug_meshes.beam) {
 			this.parent.remove(this.debug_meshes.beam);
@@ -457,22 +424,18 @@ export class ControlMenu {
 			this.debug_meshes.beam.material.dispose();
 			this.debug_meshes.beam = null;
 		}
-
 		// Set gravity scale and wake up sign body
 		if (this.sign_body) {
 			this.sign_body.setGravityScale(2.0);  // Increased gravity for better falling
 			this.sign_body.wakeUp();
 			// Remove the tiny initial velocity and let gravity do its job
 		}
-
 		this.chains_broken = true;
 	}
-
 	// Smooth easing function (ease-out cubic)
 	easeOutCubic(t) {
 		return 1 - Math.pow(1 - t, 3);
 	}
-
 	/**
      * Updates the spotlight to point at the sign
      */
@@ -481,36 +444,28 @@ export class ControlMenu {
 		// pointing at the final destination of the control menu
 		// The spotlight is now set up at initialization and points at the target_position
 	}
-
 	async update() {
 		// Get current time for logging
 		const currentTime = performance.now();
-        
 		// Only log occasionally to avoid spamming the console
 		if (currentTime - this.last_log_time > this.log_interval) {
 			this.last_log_time = currentTime;
-            
 			if (FLAGS.PHYSICS_LOGS) {
 				console.log(`Control menu update at ${currentTime.toFixed(0)}ms`);
 			}
 		}
-        
 		// Update spotlight if it exists
 		this.updateSpotlight();
-
 		// Remove update of sign debug mesh since we removed it
-
 		// Update beam debug mesh if it still exists and chains are not broken
 		if (!this.chains_broken && this.debug_meshes.beam && this.top_beam_mesh) {
 			this.debug_meshes.beam.position.copy(this.top_beam_mesh.position);
 			this.debug_meshes.beam.quaternion.copy(this.top_beam_mesh.quaternion);
 		}
-        
 		// If we're animating, update the animation
 		if (this.is_animating) {
 			// Skip joint check if chains are broken, but continue updating
 			if (!this.chains_broken && (!this.sign_joint)) return;
-            
 			// Log positions periodically
 			if (currentTime - this.last_log_time > this.log_interval) {
 				if (!this.chains_broken && this.top_beam_mesh && this.top_beam_body) {
@@ -522,7 +477,6 @@ export class ControlMenu {
 						console.log(`Top Beam - Velocity: (${beamVel.x.toFixed(2)}, ${beamVel.y.toFixed(2)}, ${beamVel.z.toFixed(2)})`);
 					}
 				}
-                
 				if (this.sign_mesh && this.sign_body) {
 					const signPos = this.sign_body.translation();
 					const signVel = this.sign_body.linvel();
@@ -530,7 +484,6 @@ export class ControlMenu {
 					const euler = new THREE.Euler().setFromQuaternion(
 						new THREE.Quaternion(signRot.x, signRot.y, signRot.z, signRot.w)
 					);
-                    
 					if(FLAGS.PHYSICS_LOGS) {
 						console.log(`Sign - Position: (${signPos.x.toFixed(2)}, ${signPos.y.toFixed(2)}, ${signPos.z.toFixed(2)})`);
 						console.log(`Sign - Velocity: (${signVel.x.toFixed(2)}, ${signVel.y.toFixed(2)}, ${signVel.z.toFixed(2)})`);
@@ -540,14 +493,11 @@ export class ControlMenu {
 				}
 				this.last_log_time = currentTime;
 			}
-
 			// Skip the rest if chains are broken
 			if (this.chains_broken) return;
-
 			// Handle smooth animation if still animating and objects exist
 			if (this.is_animating && this.top_beam_body) {
 				const elapsed = (currentTime - this.animation_start_time) / 1000; // Convert to seconds
-                
 				if (elapsed >= MENU_CONFIG.ANIMATION.DURATION) {
 					// Animation complete, set final position
 					this.top_beam_body.setNextKinematicTranslation({
@@ -555,7 +505,6 @@ export class ControlMenu {
 						y: this.target_position.y,
 						z: this.target_position.z
 					});
-                    
 					this.is_animating = false;
 					this.reached_target = true;
 					if(FLAGS.PHYSICS_LOGS) {
@@ -564,21 +513,18 @@ export class ControlMenu {
 				} else {
 					// Calculate progress with easing
 					const progress = this.easeOutCubic(Math.min(elapsed / MENU_CONFIG.ANIMATION.DURATION, 1.0));
-                    
 					// Interpolate position
 					const newPosition = {
 						x: this.assembly_position.x,
 						y: this.assembly_position.y + (this.target_position.y - this.assembly_position.y) * progress,
 						z: this.assembly_position.z
 					};
-                    
 					// Update the kinematic body position
 					this.top_beam_body.setNextKinematicTranslation(newPosition);
 				}
 			}
 		}
 	}
-
 	/**
      * Updates the debug visualization for the control menu based on the current flag state
      */
@@ -618,7 +564,6 @@ export class ControlMenu {
 			this.debug_meshes.beam.visible = false;
 		}
 	}
-
 	// Add this method to calculate spotlight position
 	calculate_spotlight_position(camera_position, camera_quaternion) {
 		const spotlightPosition = new THREE.Vector3();

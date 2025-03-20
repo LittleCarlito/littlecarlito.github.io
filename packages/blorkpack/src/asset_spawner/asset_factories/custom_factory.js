@@ -4,7 +4,6 @@ import CustomTypeManager from "../../custom_type_manager.js";
 import { AssetStorage } from "../../asset_storage.js";
 import { BLORKPACK_FLAGS } from "../../blorkpack_flags.js";
 import { IdGenerator } from "../common/id_generator.js";
-
 /**
  * Factory class responsible for spawning custom assets in the scene.
  * Handles loading and spawning of custom 3D models with physics.
@@ -15,11 +14,9 @@ export class CustomFactory {
 	storage;
 	scene;
 	world;
-    
 	// Cache the types and configs from CustomTypeManager
 	#assetTypes = null;
 	#assetConfigs = null;
-    
 	/**
      * Constructor
      * @param {THREE.Scene} scene - The Three.js scene to add objects to
@@ -30,21 +27,17 @@ export class CustomFactory {
 		if (CustomFactory.#instance) {
 			throw new Error('CustomFactory is a singleton. Use CustomFactory.get_instance() instead.');
 		}
-        
 		// Initialize properties
 		this.storage = AssetStorage.get_instance();
 		this.scene = scene;
 		this.world = world;
-        
 		// Cache asset types and configs
 		this.#assetTypes = CustomTypeManager.getTypes();
 		this.#assetConfigs = CustomTypeManager.getConfigs();
-        
 		// Store the instance
 		CustomFactory.#instance = this;
 		CustomFactory.#disposed = false;
 	}
-
 	/**
      * Gets or creates the singleton instance of CustomFactory
      * @param {THREE.Scene} scene - The Three.js scene to add objects to
@@ -56,7 +49,6 @@ export class CustomFactory {
 			CustomFactory.#instance = null;
 			CustomFactory.#disposed = false;
 		}
-        
 		if (!CustomFactory.#instance) {
 			CustomFactory.#instance = new CustomFactory(scene, world);
 		} else if (scene || world) {
@@ -66,30 +58,25 @@ export class CustomFactory {
 		}
 		return CustomFactory.#instance;
 	}
-
 	/**
      * Dispose of the factory instance and clean up resources
      */
 	dispose() {
 		if (!CustomFactory.#instance) return;
-        
 		// Clear references
 		this.scene = null;
 		this.world = null;
 		this.storage = null;
 		this.#assetTypes = null;
 		this.#assetConfigs = null;
-        
 		CustomFactory.#disposed = true;
 		CustomFactory.#instance = null;
 	}
-
 	static dispose_instance() {
 		if (CustomFactory.#instance) {
 			CustomFactory.#instance.dispose();
 		}
 	}
-
 	/**
      * Spawns a custom asset of the specified type at the given position with the given rotation
      * @param {string} asset_type - The type of asset to spawn
@@ -106,28 +93,23 @@ export class CustomFactory {
 				console.error(`Failed to spawn asset type: "${asset_type}"`);
 				return null;
 			}
-
 			// Check if the type exists
 			if (!CustomTypeManager.hasType(asset_type)) {
 				console.error(`Unsupported asset type: "${asset_type}". Cannot spawn asset.`);
 				console.error(`Available types:`, Object.keys(CustomTypeManager.getTypes()));
 				return null;
 			}
-
 			// Get the actual asset type key from the custom type manager
 			const customTypeKey = CustomTypeManager.getType(asset_type);
-            
 			if (BLORKPACK_FLAGS.ASSET_LOGS) {
 				console.log(`Spawning custom asset type: ${asset_type} (key: ${customTypeKey})`);
 			}
-            
 			// Load the asset with the resolved custom type key
 			const gltfData = await this.storage.load_asset_type(customTypeKey);
 			if (!gltfData) {
 				console.error(`Failed to load custom asset type: ${customTypeKey}`);
 				return null;
 			}
-
 			// Get asset configuration from cache or CustomTypeManager
 			let asset_config = this.#assetConfigs[customTypeKey];
 			if (!asset_config) {
@@ -141,23 +123,18 @@ export class CustomFactory {
 					return null;
 				}
 			}
-
 			// Clone the model and continue with regular asset loading flow
 			const originalModel = gltfData.scene;
 			const model = AssetUtils.cloneSkinnedMesh(originalModel);
-            
 			// Apply scaling based on asset_config
 			const scale = asset_config.scale || 1.0;
 			model.scale.set(scale, scale, scale);
-            
 			// Apply position and rotation
 			model.position.copy(position);
 			model.quaternion.copy(rotation);
-            
 			// Add interactable_ prefix to the model name to make it grabbable
 			const uniqueId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
 			model.name = `interactable_${customTypeKey}_${uniqueId}`;
-            
 			// Hide collision meshes (objects with names starting with "col_")
 			// And collect them for potential physics use
 			const collisionMeshes = [];
@@ -171,17 +148,13 @@ export class CustomFactory {
 					} else if (child.name.startsWith('display_')) {
 						// This is a display mesh - make it visible but transparent by default
 						child.visible = true;
-                        
 						if (BLORKPACK_FLAGS.ASSET_LOGS) {
 							console.log(`Setting display mesh ${child.name} to transparent by default`);
 						}
-                        
 						// Create a transparent material as the default for display meshes
 						const displayMaterial = this.createDisplayMeshMaterial(0); // 0 = transparent
-                        
 						// Apply the material to the display mesh
 						child.material = displayMaterial;
-                        
 						// Explicitly set display state to transparent (0) in userData
 						// This ensures the debug UI will recognize it as transparent
 						if (model.userData) {
@@ -190,14 +163,11 @@ export class CustomFactory {
 								console.log(`Set userData.currentDisplayImage to 0 (transparent) for ${model.name}`);
 							}
 						}
-                        
 						if (BLORKPACK_FLAGS.ASSET_LOGS) {
 							console.log(`Applied transparent material to display mesh: ${child.name} in ${customTypeKey}`);
 						}
-                        
 						// Keep track of display meshes
 						displayMeshes.push(child);
-                        
 						if (BLORKPACK_FLAGS.ASSET_LOGS) {
 							console.log(`Found display mesh: ${child.name} in ${customTypeKey}`);
 						}
@@ -209,18 +179,15 @@ export class CustomFactory {
 					}
 				}
 			});
-            
 			// Store reference to display meshes in model's userData if available
 			if (displayMeshes.length > 0) {
 				model.userData.displayMeshes = displayMeshes;
-                
 				// Add a helper function to switch between atlas images
 				model.userData.switchDisplayImage = (imageIndex) => {
 					if (imageIndex < 0 || imageIndex > 2) {
 						console.error(`Invalid image index: ${imageIndex}. Must be between 0 and 2.`);
 						return;
 					}
-                    
 					displayMeshes.forEach(mesh => {
 						if (mesh.material && mesh.material.map) {
 							const texture = mesh.material.map;
@@ -232,18 +199,13 @@ export class CustomFactory {
 					});
 				};
 			}
-            
 			// Add objects to scene in next frame to prevent stuttering
 			await new Promise(resolve => setTimeout(resolve, 0));
-            
 			// Add to scene
 			this.scene.add(model);
-            
 			// Make the model and all its children accessible for physics
 			model.userData.assetType = customTypeKey;
-            
 			let physicsBody = null;
-            
 			// Add physics if enabled
 			if (options.enablePhysics !== false && this.world) {
 				// Create a basic physics body
@@ -251,17 +213,13 @@ export class CustomFactory {
 					.setTranslation(position.x, position.y, position.z)
 					.setLinearDamping(0.5)
 					.setAngularDamping(0.6);
-                
 				// Explicitly set gravity scale to ensure gravity affects this object
 				rigidBodyDesc.setGravityScale(1.0);
-                
 				// Set initial rotation if provided
 				if (rotation) {
 					rigidBodyDesc.setRotation(rotation);
 				}
-                
 				physicsBody = this.world.createRigidBody(rigidBodyDesc);
-                
 				// Check if we have collision meshes to use for more accurate colliders
 				if (collisionMeshes.length > 0) {
 					// Use the collision meshes for physics
@@ -272,7 +230,6 @@ export class CustomFactory {
 					// Fallback to simple cuboid collider
 					const halfScale = asset_config.scale / 2;
 					let collider_desc;
-                    
 					// Use different collider shapes based on asset type or configuration
 					if (options.colliderType === 'sphere') {
 						collider_desc = RAPIER.ColliderDesc.ball(halfScale);
@@ -282,14 +239,11 @@ export class CustomFactory {
 						// Default to cuboid
 						collider_desc = RAPIER.ColliderDesc.cuboid(halfScale, halfScale, halfScale);
 					}
-                    
 					// Set physics materials
 					collider_desc.setRestitution(asset_config.restitution || 0.5);
 					collider_desc.setFriction(asset_config.friction || 0.5);
-                    
 					// Create the collider and attach it to the rigid body
 					this.world.createCollider(collider_desc, physicsBody);
-                    
 					// Create debug wireframe if debug is enabled
 					if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
 						try {
@@ -305,15 +259,12 @@ export class CustomFactory {
 						}
 					}
 				}
-                
 				if (BLORKPACK_FLAGS.PHYSICS_LOGS) {
 					console.log(`Created physics body for ${customTypeKey} with mass: ${asset_config.mass || 1.0}, scale: ${scale}`);
 				}
 			}
-            
 			// Register with asset storage
 			const instance_id = this.storage.add_object(model, physicsBody);
-            
 			return {
 				mesh: model,
 				body: physicsBody,
@@ -324,7 +275,6 @@ export class CustomFactory {
 			return null;
 		}
 	}
-
 	/**
      * Creates a collider from a mesh
      * @param {THREE.Mesh} mesh - The mesh to create a collider from
@@ -335,24 +285,19 @@ export class CustomFactory {
      */
 	async create_collider_from_mesh(mesh, body, asset_config, options = {}) {
 		if (!mesh || !body) return null;
-        
 		const geometry = mesh.geometry;
 		if (!geometry) return null;
-        
 		// Compute geometry bounds if needed
 		if (!geometry.boundingBox) {
 			geometry.computeBoundingBox();
 		}
-        
 		// Get mesh world position (relative to the model)
 		const position = new THREE.Vector3();
 		const quaternion = new THREE.Quaternion();
 		const meshScale = new THREE.Vector3();
-        
 		// Ensure matrix is updated to get accurate world position
 		mesh.updateWorldMatrix(true, false);
 		mesh.matrixWorld.decompose(position, quaternion, meshScale);
-        
 		// Adjust position for physics (since we're adding a collider to an existing body)
 		const bodyPos = body.translation();
 		const relativePos = {
@@ -360,24 +305,19 @@ export class CustomFactory {
 			y: position.y - bodyPos.y,
 			z: position.z - bodyPos.z
 		};
-        
 		// Get the bounding box in local space
 		const box = geometry.boundingBox;
-        
 		// Calculate dimensions from the bounding box
 		const box_width = (box.max.x - box.min.x) * meshScale.x;
 		const box_height = (box.max.y - box.min.y) * meshScale.y;
 		const box_depth = (box.max.z - box.min.z) * meshScale.z;
-        
 		// Check the local center of the bounding box to adjust for offset meshes
 		const localCenter = new THREE.Vector3();
 		box.getCenter(localCenter);
-        
 		// If the local center is not at the origin, we need to account for that
 		if (Math.abs(localCenter.x) > 0.001 || Math.abs(localCenter.y) > 0.001 || Math.abs(localCenter.z) > 0.001) {
 			// Rotate the local center according to the mesh's world rotation
 			const rotatedCenter = localCenter.clone().applyQuaternion(quaternion);
-            
 			// Add this offset to the relative position
 			relativePos.x += rotatedCenter.x * meshScale.x;
 			relativePos.y += rotatedCenter.y * meshScale.y;
@@ -399,9 +339,7 @@ export class CustomFactory {
 				meshScale: `${meshScale.x.toFixed(2)}, ${meshScale.y.toFixed(2)}, ${meshScale.z.toFixed(2)}`
 			});
 		}
-        
 		let collider_desc;
-        
 		// Detect shape from name (often models use naming conventions)
 		if (mesh.name.includes('sphere') || mesh.name.includes('ball')) {
 			// Create a sphere collider
@@ -409,7 +347,6 @@ export class CustomFactory {
 			geometry.computeBoundingSphere();
 			const radius = geometry.boundingSphere.radius * meshScale.x;
 			collider_desc = RAPIER.ColliderDesc.ball(radius);
-            
 		} else if (mesh.name.includes('capsule')) {
 			// Create a capsule collider
 			const height = (box.max.y - box.min.y) * meshScale.y;
@@ -417,9 +354,7 @@ export class CustomFactory {
 				(box.max.x - box.min.x), 
 				(box.max.z - box.min.z)
 			) * meshScale.x * 0.5;
-            
 			collider_desc = RAPIER.ColliderDesc.capsule(height * 0.5, radius);
-            
 		} else {
 			// Default to cuboid
 			// Use exact dimensions from mesh's bounding box, scaled by the mesh's world scale
@@ -429,36 +364,26 @@ export class CustomFactory {
 				options.collider_dimensions.height : box_height / 2;
 			const collider_depth = (options.collider_dimensions?.depth !== undefined) ? 
 				options.collider_dimensions.depth : box_depth / 2;
-            
 			collider_desc = RAPIER.ColliderDesc.cuboid(collider_width, collider_height, collider_depth);
 		}
-        
 		// Apply position offset (for standard colliders)
 		collider_desc.setTranslation(relativePos.x, relativePos.y, relativePos.z);
-        
 		// Apply rotation
 		collider_desc.setRotation(quaternion);
-        
 		// Set physical properties
 		if (asset_config.mass) {
 			collider_desc.setMass(asset_config.mass);
 		}
-        
 		if (asset_config.restitution) {
 			collider_desc.setRestitution(asset_config.restitution);
 		}
-        
 		collider_desc.setFriction(0.7);
-        
 		// Create the collider
 		const collider = this.world.createCollider(collider_desc, body);
-        
 		// Store reference to the collider on the mesh for debugging
 		mesh.userData.physicsCollider = collider;
-        
 		return collider;
 	}
-
 	/**
      * Creates a material for display meshes based on the specified display mode
      * @param {number} displayMode - 0: Transparent, 1: Black Screen, 2: White Screen
@@ -466,7 +391,6 @@ export class CustomFactory {
      */
 	createDisplayMeshMaterial(displayMode = 0) {
 		let material;
-        
 		switch(displayMode) {
 		case 0: // Transparent
 			material = new THREE.MeshStandardMaterial({
@@ -476,7 +400,6 @@ export class CustomFactory {
 				side: THREE.DoubleSide
 			});
 			break;
-                
 		case 1: // Black Screen
 			material = new THREE.MeshStandardMaterial({
 				color: 0x000000,            // Black base color
@@ -485,7 +408,6 @@ export class CustomFactory {
 				side: THREE.DoubleSide
 			});
 			break;
-                
 		case 2: // White Screen
 			material = new THREE.MeshStandardMaterial({
 				color: 0xffffff,            // White base color
@@ -494,7 +416,6 @@ export class CustomFactory {
 				side: THREE.DoubleSide
 			});
 			break;
-                
 		default: // Default to transparent if invalid mode
 			console.warn(`Invalid display mode: ${displayMode}, defaulting to transparent`);
 			material = new THREE.MeshStandardMaterial({
@@ -504,10 +425,8 @@ export class CustomFactory {
 				side: THREE.DoubleSide
 			});
 		}
-        
 		return material;
 	}
-
 	/**
      * Creates a debug wireframe for visualizing physics shapes
      * @param {string} type - The type of wireframe to create
@@ -519,14 +438,12 @@ export class CustomFactory {
      */
 	async create_debug_wireframe(type, dimensions, position, rotation, options = {}) {
 		let geometry;
-        
 		// If we have a mesh geometry provided, use it directly for maximum accuracy
 		if (type === 'mesh' && options.geometry) {
 			geometry = options.geometry;
 		} else {
 			// Otherwise create a primitive shape based on dimensions
 			const size = dimensions || { x: 1, y: 1, z: 1 };
-            
 			switch (type) {
 			case 'cuboid':
 				geometry = new THREE.BoxGeometry(size.x * 2, size.y * 2, size.z * 2);
@@ -542,10 +459,8 @@ export class CustomFactory {
 				geometry = new THREE.BoxGeometry(1, 1, 1);
 			}
 		}
-        
 		// Define the colors we'll use
 		const staticColor = 0x00FF00; // Green for static objects
-        
 		// Set of blue colors for dynamic objects
 		const blueColors = [
 			0x0000FF, // Pure blue
@@ -559,10 +474,8 @@ export class CustomFactory {
 			0x6666FF, // Periwinkle
 			0x0099CC  // Ocean blue
 		];
-        
 		// Choose a color based on position hash to ensure consistent but varied colors
 		let color;
-        
 		if (options.isStatic === true) {
 			// Static objects (like rooms) are green
 			color = staticColor;
@@ -570,54 +483,42 @@ export class CustomFactory {
 			// Generate a simple hash based on the object's position
 			// This ensures the same object gets the same color, but different objects get different colors
 			let hash = 0;
-            
 			// Use position for a simple hash
 			const posX = Math.round(position.x * 10);
 			const posY = Math.round(position.y * 10);
 			const posZ = Math.round(position.z * 10);
-            
 			hash = Math.abs(posX + posY * 31 + posZ * 47) % blueColors.length;
-            
 			// Select a blue color using the hash
 			color = blueColors[hash];
 		}
-        
 		const material = new THREE.MeshBasicMaterial({ 
 			color: color,
 			wireframe: true,
 			transparent: true,
 			opacity: 0.7
 		});
-        
 		const mesh = new THREE.Mesh(geometry, material);
 		mesh.position.copy(position);
 		mesh.quaternion.copy(rotation);
-        
 		// Apply scale for mesh-type wireframes
 		if (options.scale && type === 'mesh') {
 			mesh.scale.copy(options.scale);
 		}
-        
 		mesh.renderOrder = 999; // Ensure wireframes render on top
-        
 		// Store any references needed to update this wireframe
 		mesh.userData.physicsBodyId = options.bodyId;
 		mesh.userData.debugType = type;
 		mesh.userData.originalObject = options.originalObject;
 		mesh.userData.isStatic = options.isStatic;
-        
 		// Add objects to scene in next frame to prevent stuttering
 		await new Promise(resolve => setTimeout(resolve, 0));
-        
 		// Only add to scene and store if debug is enabled
 		if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
 			this.scene.add(mesh);
 			this.debugMeshes.set(mesh.uuid, mesh);
 		}
-        
 		return mesh;
 	}
-
 	/**
      * Spawns all custom assets from the manifest
      * @param {Object} manifest_manager - Instance of ManifestManager
@@ -626,7 +527,6 @@ export class CustomFactory {
      */
 	async spawn_custom_assets(manifest_manager, progress_callback = null) {
 		const spawned_assets = [];
-        
 		try {
 			// Get all custom assets from manifest
 			const custom_assets = manifest_manager.get_custom_assets();
@@ -636,11 +536,9 @@ export class CustomFactory {
 				}
 				return spawned_assets;
 			}
-
 			if (BLORKPACK_FLAGS.ASSET_LOGS) {
 				console.log(`Found ${custom_assets.length} custom assets to spawn`);
 			}
-
 			// Process each custom asset
 			for (const asset_data of custom_assets) {
 				// Extract position and rotation from asset data
@@ -649,7 +547,6 @@ export class CustomFactory {
 					asset_data.position?.y || 0, 
 					asset_data.position?.z || 0
 				);
-                
 				// Create rotation from Euler angles
 				const rotation = new THREE.Euler(
 					asset_data.rotation?.x || 0,
@@ -657,7 +554,6 @@ export class CustomFactory {
 					asset_data.rotation?.z || 0
 				);
 				const quaternion = new THREE.Quaternion().setFromEuler(rotation);
-                
 				// Prepare options from asset data
 				const options = {
 					scale: asset_data.scale,
@@ -666,7 +562,6 @@ export class CustomFactory {
 					mass: asset_data.mass,
 					...asset_data.options
 				};
-                
 				// Spawn the custom asset
 				const result = await this.spawn_custom_asset(
 					asset_data.asset_type,
@@ -674,18 +569,15 @@ export class CustomFactory {
 					quaternion,
 					options
 				);
-                
 				if (result) {
 					// Store the asset ID with the spawned asset data
 					result.id = asset_data.id;
 					spawned_assets.push(result);
 				}
 			}
-            
 			if (BLORKPACK_FLAGS.ASSET_LOGS) {
 				console.log(`Spawned ${spawned_assets.length} custom assets from manifest`);
 			}
-            
 			return spawned_assets;
 		} catch (error) {
 			console.error("Error spawning custom assets:", error);

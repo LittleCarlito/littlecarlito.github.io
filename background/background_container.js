@@ -3,7 +3,6 @@ import { AssetStorage, AssetSpawner, ASSET_TYPE }  from '@littlecarlito/blorkpac
 import { ControlMenu } from "./menus/control_menu";
 import { ScrollMenu } from "./menus/scroll_menu";
 import { CATEGORIES, TYPES } from "../viewport/overlay/overlay_common";
-
 export class BackgroundContainer {
 	name = "[BackgroundContainer]"
 	parent;
@@ -18,7 +17,6 @@ export class BackgroundContainer {
 	loading_promise;
 	is_spawning_secondary = false;  // Add state tracking for spawn in progress
 	is_spawning_primary = false;
-
 	constructor(incoming_parent, incoming_camera, incoming_world) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
@@ -26,7 +24,6 @@ export class BackgroundContainer {
 		this.object_container = new THREE.Object3D();
 		this.parent.add(this.object_container);
 		const asset_loader = AssetSpawner.get_instance(this.object_container, this.world);
-
 		// Create a promise for the main assets
 		const mainAssetsPromise = (async () => {
 			// Spawn Book
@@ -251,7 +248,6 @@ export class BackgroundContainer {
 			this.asset_manifest.add(mesh.name);
 			if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Tablet with name: ${mesh.name}`);
 		})();
-
 		// Store the loading promise for external checking
 		this.loading_promise = Promise.all([
 			mainAssetsPromise.catch(error => {
@@ -269,7 +265,6 @@ export class BackgroundContainer {
 			throw error;
 		});
 	}
-
 	// Add method to check if all assets are loaded
 	async is_loading_complete() {
 		try {
@@ -280,12 +275,10 @@ export class BackgroundContainer {
 			return false;
 		}
 	}
-
 	// Add method to get the asset manifest
 	get_asset_manifest() {
 		return this.asset_manifest;
 	}
-
 	update(grabbed_object, viewable_container) {
 		// Deal with primary instructions
 		if(viewable_container.is_primary_triggered() && !this.is_primary_spawned()) {
@@ -313,7 +306,6 @@ export class BackgroundContainer {
 				console.error("Error breaking secondary chains:", err);
 			});
 		}
-
 		// Handle logic for what already exists
 		if(this.primary_instruction_sign) {
 			this.primary_instruction_sign.update();
@@ -325,7 +317,6 @@ export class BackgroundContainer {
 			// Handle both array format [mesh, body] and object format {mesh, body}
 			const mesh = Array.isArray(entry) ? entry[0] : entry.mesh;
 			const body = Array.isArray(entry) ? entry[1] : entry.body;
-            
 			if(body != null) {
 				const position = body.translation();
 				mesh.position.set(position.x, position.y, position.z);
@@ -334,25 +325,19 @@ export class BackgroundContainer {
 			}
 		});
 	}
-
 	contains_object(incoming_name) {
 		return AssetStorage.get_instance().contains_object(incoming_name);
 	}
-
 	async spawn_primary_instructions() {
 		// Set state to prevent overlapping calls
 		if (this.is_spawning_primary) {
 			console.log("Already spawning primary instructions!");
 			return;
 		}
-        
 		this.is_spawning_primary = true;
-        
 		const asset_loader = AssetSpawner.get_instance(this.object_container, this.world);
-        
 		try {
 			if(FLAGS.PHYSICS_LOGS) console.log(`${this.name} Starting primary instructions spawn`);
-
 			// Create and await the ControlMenu initialization
 			this.primary_instruction_sign = await new ControlMenu(
 				this.object_container, 
@@ -360,7 +345,6 @@ export class BackgroundContainer {
 				this.world, 
 				this
 			);
-
 			// Now we know the sign is fully initialized
 			if (this.primary_instruction_sign.sign_mesh && this.primary_instruction_sign.sign_body) {
 				this.primary_instruction_sign.sign_mesh.name = `${TYPES.INTERACTABLE}primary`;
@@ -389,7 +373,6 @@ export class BackgroundContainer {
 			if(FLAGS.PHYSICS_LOGS) console.log(`${this.name} Primary instructions spawn complete`);
 		}
 	}
-
 	async spawn_secondary_instructions() {
 		try {
 			if(FLAGS.PHYSICS_LOGS) {
@@ -404,7 +387,6 @@ export class BackgroundContainer {
 				y: this.camera.position.y + forward.y + 4, // Additional Y offset
 				z: this.camera.position.z + forward.z
 			};
-            
 			// Create and await the ScrollMenu initialization
 			this.secondary_instruction_sign = await new ScrollMenu(
 				this.object_container, 
@@ -413,9 +395,7 @@ export class BackgroundContainer {
 				this,
 				spawn_position
 			);
-
 			const asset_loader = AssetSpawner.get_instance();
-            
 			// Now we know the sign_mesh and sign_body exist
 			this.secondary_instruction_sign.sign_mesh.name = `${TYPES.INTERACTABLE}secondary`;
 			this.secondary_instruction_sign.sign_mesh.traverse((child) => {
@@ -423,12 +403,10 @@ export class BackgroundContainer {
 					child.name = `${TYPES.INTERACTABLE}secondary`;
 				}
 			});
-            
 			AssetStorage.get_instance().add_object(
 				this.secondary_instruction_sign.sign_mesh, 
 				this.secondary_instruction_sign.sign_body
 			);
-            
 			if (FLAGS.PHYSICS_LOGS) {
 				console.log("Secondary sign added to asset manager:", {
 					meshName: this.secondary_instruction_sign.sign_mesh.name,
@@ -441,7 +419,6 @@ export class BackgroundContainer {
 			this.secondary_instruction_sign = null;
 		}
 	}
-
 	async break_primary_chains() {
 		const asset_loader = AssetSpawner.get_instance(this.object_container, this.world);
 		if(this.is_primary_spawned()) {
@@ -454,7 +431,6 @@ export class BackgroundContainer {
 			console.warn("Primary instruction chains cannot be broken as it has not spawned...");
 		}
 	}
-
 	async break_secondary_chains() {
 		if(this.is_secondary_spawned()) {
 			if(!this.secondary_instruction_sign.chains_broken) {
@@ -464,13 +440,10 @@ export class BackgroundContainer {
 			console.warn("Secondary instruction chains cannot be broken as it has not spawned...");
 		}
 	}
-
 	// ----- Getters
-
 	is_primary_spawned() {
 		return this.primary_instruction_sign != null;
 	}
-
 	is_primary_chains_broken() {
 		if(!this.is_primary_spawned()) {
 			console.warn("Primary instruction chains don't exist yet to be broken; Returning false");
@@ -479,18 +452,15 @@ export class BackgroundContainer {
 			return this.primary_instruction_sign.chains_broken;
 		}
 	}
-
 	is_primary_instructions_intact() {
 		if(this.is_primary_spawned()) {
 			return !this.is_primary_chains_broken();
 		}
 		return false;
 	}
-    
 	is_secondary_spawned() {
 		return this.secondary_instruction_sign != null;
 	}
-
 	is_secondary_chains_broken() {
 		if(!this.is_secondary_spawned) {
 			console.warn("Secondary instruction chains don't exist yet to be broken; Returning false");
@@ -498,14 +468,12 @@ export class BackgroundContainer {
 		}
 		return this.secondary_instruction_sign.chains_broken;
 	}
-
 	is_secondary_instructions_intact() {
 		if(this.is_secondary_spawned) {
 			return !this.is_secondary_chains_broken();
 		}
 		return false;
 	}
-
 	/**
      * Updates the debug visualization for all signs based on the current flag state
      */
@@ -514,7 +482,6 @@ export class BackgroundContainer {
 		if (this.primary_instruction_sign) {
 			this.primary_instruction_sign.updateDebugVisualizations();
 		}
-        
 		// Update secondary instruction sign if it exists
 		if (this.secondary_instruction_sign) {
 			this.secondary_instruction_sign.updateDebugVisualizations();

@@ -3,13 +3,11 @@
  */
 import fs from 'fs';
 import path from 'path';
-
 // Problematic files in Three.js that we want to exclude
 export const EXCLUDED_FILES = [
 	'node_modules/three/examples/jsm/libs/lottie_canvas.module.js',
 	'node_modules/three/examples/jsm/libs/chevrotain.module.min.js'
 ];
-
 /**
  * Creates a plugin that handles graceful shutdown of the Vite dev server
  */
@@ -18,7 +16,6 @@ export function gracefulShutdownPlugin() {
 		name: 'graceful-shutdown',
 		configureServer(server) {
 			const originalClose = server.httpServer.close.bind(server.httpServer);
-      
 			// Replace the close method with our custom implementation
 			server.httpServer.close = (callback) => {
 				console.log('Gracefully shutting down...');
@@ -27,13 +24,11 @@ export function gracefulShutdownPlugin() {
 					console.log('Forcing exit...');
 					process.exit(0);
 				}, 500);
-        
 				return originalClose(() => {
 					clearTimeout(forceExitTimeout);
 					if (callback) callback();
 				});
 			};
-      
 			// Handle Ctrl+C signal more directly
 			process.on('SIGINT', () => {
 				console.log('Interrupt received, shutting down...');
@@ -44,7 +39,6 @@ export function gracefulShutdownPlugin() {
 		}
 	};
 }
-
 /**
  * Creates a plugin that writes a timestamp to the output file
  * This forces the main app to detect changes to the file
@@ -55,17 +49,13 @@ export function timestampPlugin(outputPath) {
 		writeBundle(options, bundle) {
 			// Add timestamp to ensure the file always changes
 			const timestamp = new Date().toISOString();
-      
 			if (fs.existsSync(outputPath)) {
 				// Read the file
 				let content = fs.readFileSync(outputPath, 'utf-8');
-        
 				// Add timestamp comment at the top
 				content = `/* BUILD TIMESTAMP: ${timestamp} */\n${content}`;
-        
 				// Write back the content
 				fs.writeFileSync(outputPath, content);
-        
 				console.log(`
 ========================================================================
 🔥 REBUILT WITH TIMESTAMP: ${timestamp}
@@ -75,7 +65,6 @@ export function timestampPlugin(outputPath) {
 		}
 	};
 }
-
 /**
  * Creates a plugin that replaces problematic modules with empty stubs
  * Useful for modules that use eval() or other potentially unsafe code
@@ -84,7 +73,6 @@ export function createEmptyModuleStubs(excludedFiles = EXCLUDED_FILES) {
 	return {
 		name: 'empty-module-stubs',
 		enforce: 'pre',
-    
 		resolveId(id) {
 			// Check if this is a problematic file
 			for (const file of excludedFiles) {
@@ -95,7 +83,6 @@ export function createEmptyModuleStubs(excludedFiles = EXCLUDED_FILES) {
 			}
 			return null;
 		},
-    
 		load(id) {
 			// If this is one of our virtual module IDs, return an empty module
 			if (id.startsWith('\0empty-stub:')) {
@@ -114,7 +101,6 @@ export function createEmptyModuleStubs(excludedFiles = EXCLUDED_FILES) {
 		}
 	};
 }
-
 /**
  * Creates a plugin that warns when eval usage is detected except in excluded files
  */

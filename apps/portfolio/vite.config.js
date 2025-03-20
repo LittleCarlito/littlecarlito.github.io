@@ -3,16 +3,13 @@ import path from 'path'
 import fs from 'fs'
 import { ViteImageOptimizer } from 'vite-plugin-image-optimizer'
 import { gracefulShutdownPlugin } from '../../scripts/vite-plugins.js'
-
 // Helper function to get HTML files in tools directory
 function getToolsEntryPoints() {
 	const toolsDir = path.resolve(__dirname, 'tools');
 	const entries = {};
-  
 	// Check if tools directory exists
 	if (fs.existsSync(toolsDir)) {
 		const files = fs.readdirSync(toolsDir);
-    
 		files.forEach(file => {
 			if (file.endsWith('.html')) {
 				// Create an entry point for each HTML file in tools directory
@@ -21,27 +18,21 @@ function getToolsEntryPoints() {
 			}
 		});
 	}
-  
 	return entries;
 }
-
 // Helper function to copy directory contents to the dist folder
 function copyDirectory(src, dest) {
 	if (!fs.existsSync(src)) {
 		console.warn(`Source directory ${src} doesn't exist`);
 		return;
 	}
-  
 	if (!fs.existsSync(dest)) {
 		fs.mkdirSync(dest, { recursive: true });
 	}
-  
 	const entries = fs.readdirSync(src, { withFileTypes: true });
-  
 	for (const entry of entries) {
 		const srcPath = path.join(src, entry.name);
 		const destPath = path.join(dest, entry.name);
-    
 		if (entry.isDirectory()) {
 			copyDirectory(srcPath, destPath);
 		} else {
@@ -49,29 +40,24 @@ function copyDirectory(src, dest) {
 		}
 	}
 }
-
 // Plugin to create a virtual module for blorkpack during development
 function createVirtualBlorkpackPlugin() {
 	const virtualModuleId = '@littlecarlito/blorkpack';
 	const resolvedVirtualModuleId = '\0' + virtualModuleId;
 	const blorkpackPath = path.resolve(__dirname, '../../packages/blorkpack/dist/index.js');
 	const blorkpackDir = path.resolve(__dirname, '../../packages/blorkpack/dist');
-  
 	// Simple status tracking - no need for complex verification
 	let isUsingRealModule = false;
 	let moduleWatcher = null;
-  
 	// Check if module exists initially
 	try {
 		isUsingRealModule = fs.existsSync(blorkpackPath) && fs.statSync(blorkpackPath).size > 0;
 	} catch (e) {
 		isUsingRealModule = false;
 	}
-  
 	return {
 		name: 'virtual-blorkpack',
 		enforce: 'pre',
-    
 		resolveId(id) {
 			// Handle the main module
 			if (id === virtualModuleId) {
@@ -80,22 +66,17 @@ function createVirtualBlorkpackPlugin() {
 				}
 				return resolvedVirtualModuleId;
 			}
-      
 			// Handle subpaths
 			if (id.startsWith(`${virtualModuleId}/`)) {
 				const subpath = id.slice(virtualModuleId.length + 1);
 				const targetPath = path.join(blorkpackDir, `${subpath}.js`);
-        
 				if (isUsingRealModule && fs.existsSync(targetPath)) {
 					return targetPath;
 				}
-        
 				return `${resolvedVirtualModuleId}/${subpath}`;
 			}
-      
 			return null;
 		},
-    
 		load(id) {
 			// Load virtual module or submodule
 			if (id === resolvedVirtualModuleId) {
@@ -138,7 +119,6 @@ function createVirtualBlorkpackPlugin() {
           export const ManifestManager = class ManifestManager {};
         `;
 			}
-      
 			if (id.startsWith(resolvedVirtualModuleId + '/')) {
 				const subpath = id.slice(resolvedVirtualModuleId.length + 1);
 				return `
@@ -149,25 +129,20 @@ function createVirtualBlorkpackPlugin() {
           export const BLORKPACK_FLAGS = {};
         `;
 			}
-      
 			return null;
 		},
-    
 		configureServer(server) {
 			// Set up a simple watcher to detect when the real module becomes available
 			moduleWatcher = fs.watch(path.dirname(blorkpackPath), { persistent: true }, (eventType, filename) => {
 				if (filename === 'index.js') {
 					try {
 						const exists = fs.existsSync(blorkpackPath) && fs.statSync(blorkpackPath).size > 0;
-            
 						// If the module has become available and we weren't using it before
 						if (exists && !isUsingRealModule) {
 							isUsingRealModule = true;
 							console.log('✅ Blorkpack module is now available, triggering HMR');
-              
 							// Use Vite's module rewrite to trigger HMR for affected modules
 							server.moduleGraph.onFileChange(blorkpackPath);
-              
 							// Invalidate modules that depend on blorkpack to force reloading
 							for (const [key, module] of server.moduleGraph.idToModuleMap) {
 								if (key.includes('blorkpack') || 
@@ -176,7 +151,6 @@ function createVirtualBlorkpackPlugin() {
 									server.moduleGraph.invalidateModule(module);
 								}
 							}
-              
 							// Trigger full reload only if needed
 							server.ws.send({ type: 'full-reload' });
 						}
@@ -185,7 +159,6 @@ function createVirtualBlorkpackPlugin() {
 					}
 				}
 			});
-      
 			// Clean up watcher on close
 			server.httpServer.on('close', () => {
 				if (moduleWatcher) moduleWatcher.close();
@@ -193,15 +166,12 @@ function createVirtualBlorkpackPlugin() {
 		}
 	};
 }
-
 export default defineConfig(({ command }) => {
 	const isProduction = command === 'build';
-  
 	// Skip optimization for blorkpack entirely
 	const optimizeDepsConfig = {
 		exclude: ['@littlecarlito/blorkpack']
 	};
-  
 	return {
 		base: isProduction ? '/threejs_site/' : '/',
 		optimizeDeps: optimizeDepsConfig,
@@ -261,10 +231,8 @@ export default defineConfig(({ command }) => {
 		plugins: [
 			// Always use the plugin that properly handles the module state
 			createVirtualBlorkpackPlugin(),
-      
 			// Add graceful shutdown handling
 			gracefulShutdownPlugin(),
-      
 			// Handle HTML transformations
 			{
 				name: 'blorkpack-hmr-helper',
@@ -285,7 +253,6 @@ export default defineConfig(({ command }) => {
           </head>`);
 				}
 			},
-      
 			// Only use image optimizer in production
 			isProduction && ViteImageOptimizer({
 				// Image optimization options
@@ -339,7 +306,6 @@ export default defineConfig(({ command }) => {
 						} else {
 							console.warn('No manifest.json found in public/resources directory');
 						}
-
 						// Copy other static assets needed
 						const pagesSrc = path.resolve(__dirname, 'pages');
 						const pagesDest = path.resolve(__dirname, 'dist/pages');

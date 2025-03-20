@@ -27,15 +27,12 @@
  * the copyright holders. Commercial licenses may be obtained by contacting:
  * steven.meier77@gmail.com
  */
-
 /**
  * Blorktools - 3D Asset Development Toolset
  * Main entry point for the package
  */
-
 // Re-export core functionality from each tool
 export * from './asset_debugger/index.js';
-
 // Export individual tools
 export const tools = {
 	// Asset Debugger Tool
@@ -45,9 +42,7 @@ export const tools = {
 		legacy: () => import('./asset_debugger/index.js')
 	}
 };
-
 // Export utility functions that might be useful for consumers
 export { formatFileSize, getFileExtension, createElement } from './asset_debugger/utils/helpers.js';
-
 // Version information
 export const VERSION = '1.0.0'; 

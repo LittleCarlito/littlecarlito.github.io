@@ -4,7 +4,6 @@
  * This file contains the default values for various configurations
  * that will be used when the manifest doesn't specify them.
  */
-
 /**
  * Default environment settings
  */
@@ -19,7 +18,6 @@ export const DEFAULT_ENVIRONMENT = {
 		y: 0.0,
 		z: 0.0
 	},
-    
 	/**
      * Default ambient light settings
      */
@@ -27,7 +25,6 @@ export const DEFAULT_ENVIRONMENT = {
 		color: "0xffffff",
 		intensity: 0.5
 	},
-    
 	/**
      * Default fog settings
      */
@@ -37,7 +34,6 @@ export const DEFAULT_ENVIRONMENT = {
 		near: 10,
 		far: 100
 	},
-    
 	/**
      * Default background settings
      */
@@ -45,7 +41,6 @@ export const DEFAULT_ENVIRONMENT = {
 		type: 'COLOR',
 		color_value: '0x000000'
 	},
-    
 	/**
      * Default greeting data settings
      */
@@ -54,7 +49,6 @@ export const DEFAULT_ENVIRONMENT = {
 		modal_path: ''
 	}
 };
-
 /**
  * Default physics settings
  */
@@ -76,7 +70,6 @@ export const DEFAULT_PHYSICS = {
 		allowed_linear_error: 0.001
 	}
 };
-
 /**
  * Default rendering settings
  */

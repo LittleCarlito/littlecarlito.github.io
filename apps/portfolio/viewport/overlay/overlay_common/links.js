@@ -20,7 +20,6 @@ export const LINKS = {
 		icon_path: "links/tiktok_link.svg"
 	}
 };
-
 // Attach the function as a non-enumerable property.
 Object.defineProperty(LINKS, "get_link", {
 	value: function(incoming_string) {
@@ -34,5 +33,4 @@ Object.defineProperty(LINKS, "get_link", {
 	},
 	enumerable: false  // so that get_link is not included in iterations
 });
-
 Object.freeze(LINKS);

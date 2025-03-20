@@ -4,7 +4,6 @@ import { TYPES } from "../../viewport/overlay/overlay_common";
 import { RAPIER } from '../../common';
 import { AssetSpawner } from '@littlecarlito/blorkpack';
 import { SystemAssetType } from '@littlecarlito/blorkpack';
-
 export class ScrollMenu {
 	parent;
 	camera;
@@ -89,36 +88,29 @@ export class ScrollMenu {
 	last_position_log_time = 0;
 	position_log_interval = 500; // 500ms
 	spawner = null;
-
 	// Cache asset types
 	#ASSET_TYPE = CustomTypeManager.getTypes();
-
 	constructor(incoming_parent, incoming_camera, incoming_world, incoming_container, spawn_position) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
 		this.world = incoming_world;
 		this.dynamic_bodies = incoming_container.dynamic_bodies;
 		this.spawner = AssetSpawner.get_instance(this.parent);
-
 		// Store initial camera state
 		this.initial_camera_position.copy(this.camera.position);
 		this.initial_camera_quaternion.copy(this.camera.quaternion);
-
 		if(BLORKPACK_FLAGS.ANIMATION_LOGS) {
 			// Log initial spawn position before any modifications
 			console.log("📦 INITIAL SPAWN POSITION (before offset):");
 			console.log(`X: ${spawn_position.x.toFixed(2)}, Y: ${spawn_position.y.toFixed(2)}, Z: ${spawn_position.z.toFixed(2)}`);
 		}
-
 		// Calculate the right vector in local space
 		const right = new THREE.Vector3(1, 0, 0);
 		right.applyQuaternion(this.camera.quaternion);
-        
 		// Offset the spawn position to the right
 		spawn_position.x += right.x * this.initial_offset;
 		spawn_position.y += right.y * this.initial_offset;
 		spawn_position.z += right.z * this.initial_offset;
-
 		if(BLORKPACK_FLAGS.ANIMATION_LOGS) {
 			// Log modified spawn position after offset
 			console.log("📌 ACTUAL SPAWN POSITION (after offset):");
@@ -130,34 +122,27 @@ export class ScrollMenu {
 			y: spawn_position.y - right.y * this.initial_offset,
 			z: spawn_position.z - right.z * this.initial_offset
 		};
-
 		if(BLORKPACK_FLAGS.ANIMATION_LOGS) {
 			// Log calculated target position
 			console.log("🎯 TARGET POSITION (spawn minus offset):");
 			console.log(`X: ${this.target_position.x.toFixed(2)}, Y: ${this.target_position.y.toFixed(2)}, Z: ${this.target_position.z.toFixed(2)}`);
 		}
-
 		// Use spawn position
 		this.CHAIN_CONFIG.POSITION.X = spawn_position.x;
 		this.CHAIN_CONFIG.POSITION.Y = spawn_position.y;
 		this.CHAIN_CONFIG.POSITION.Z = spawn_position.z;
-
 		if(BLORKPACK_FLAGS.ANIMATION_LOGS) {
 			// Log animation start position
 			console.log("🏁 ANIMATION START POSITION (CHAIN_CONFIG.POSITION):");
 			console.log(`X: ${this.CHAIN_CONFIG.POSITION.X.toFixed(2)}, Y: ${this.CHAIN_CONFIG.POSITION.Y.toFixed(2)}, Z: ${this.CHAIN_CONFIG.POSITION.Z.toFixed(2)}`);
 		}
-
 		this.animation_start_time = performance.now();
 		this.is_animating = true;
-
 		return this.initialize(spawn_position);
 	}
-
 	async createChainSegment(index, previous_body, rotation) {
 		// Calculate spawn position
 		const spawnY = this.CHAIN_CONFIG.POSITION.Y - (index + 1) * this.CHAIN_CONFIG.SEGMENTS.LENGTH;
-        
 		// Create the rigid body - changed from dynamic to kinematicPositionBased
 		const chain_body = this.world.createRigidBody(
 			RAPIER.RigidBodyDesc.kinematicPositionBased()
@@ -174,32 +159,26 @@ export class ScrollMenu {
 			// .setGravityScale(this.CHAIN_CONFIG.SEGMENTS.GRAVITY_SCALE)
 				.setCanSleep(false) // Kinematic bodies shouldn't sleep
 		);
-
 		// Create collider
 		const collider = RAPIER.ColliderDesc.ball(this.CHAIN_CONFIG.SEGMENTS.RADIUS)
 			.setRestitution(this.CHAIN_CONFIG.SEGMENTS.RESTITUTION)
 			.setFriction(this.CHAIN_CONFIG.SEGMENTS.FRICTION);
 		this.world.createCollider(collider, chain_body);
-
 		// Create visual mesh
 		const segmentGeometry = new THREE.SphereGeometry(this.CHAIN_CONFIG.SEGMENTS.RADIUS);
 		const segmentMaterial = new THREE.MeshBasicMaterial({ visible: false });
 		const segmentMesh = new THREE.Mesh(segmentGeometry, segmentMaterial);
 		segmentMesh.name = `scroll_menu_chain_segment_${index}`;
-        
 		// Rotate the segment visualization to match the rigidbody orientation
 		segmentMesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
-        
 		// Add to the assembly container
 		this.assembly_container.add(segmentMesh);
-        
 		// Store in dynamic bodies
 		this.dynamic_bodies.push({
 			type: 'scroll_menu_chain',
 			mesh: segmentMesh,
 			body: chain_body
 		});
-
 		// Create joint with previous segment
 		const joint_desc = index === 0 
 			? RAPIER.JointData.spherical(
@@ -210,29 +189,23 @@ export class ScrollMenu {
 				{x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/2 - 0.15, z: 0},  // Add spacing between segments
 				{x: 0, y: this.CHAIN_CONFIG.SEGMENTS.LENGTH/2 + 0.15, z: 0}
 			);
-
 		joint_desc.limitsEnabled = true;
 		joint_desc.limits = [-Math.PI/2, Math.PI/2]; // Increased from PI/12 to allow more stretching
 		joint_desc.stiffness = 250.0; // Increased from 150.0 to make it more resistant to initial stretching
 		joint_desc.damping = 15.0;   // Reduced from 30.0 to make it less "underwater" feeling but still absorb energy
-
 		const created_joint = this.world.createImpulseJoint(
 			joint_desc,
 			previous_body,
 			chain_body,
 			true
 		);
-
 		// Set initial velocities and force sleep
 		chain_body.setLinvel({ x: 0, y: 0, z: 0 }, true);
 		chain_body.setAngvel({ x: 0, y: 0, z: 0 }, true);
 		chain_body.sleep();
-
 		this.chain_joints.push(created_joint);
-
 		// Get actual body position for debug meshes
 		const bodyPos = chain_body.translation();
-        
 		// Create debug mesh for the segment - DIRECTLY using the physics body position
 		const debugSegment = new THREE.Mesh(
 			segmentGeometry.clone(),
@@ -251,13 +224,11 @@ export class ScrollMenu {
 		debugSegment.visible = FLAGS.SIGN_VISUAL_DEBUG; // Set initial visibility based on flag
 		this.debug_meshes.segments.push(debugSegment);
 		this.assembly_container.add(debugSegment);
-
 		// Add debug mesh for joint if not last segment and NOT before joint creation
 		if (index > 0) {
 			// Get previous body position for proper joint positioning
 			const prevPos = previous_body.translation();
 			const currentPos = chain_body.translation();
-            
 			// Create joint visualization mesh
 			const jointDebug = new THREE.Mesh(
 				new THREE.SphereGeometry(0.1),
@@ -269,26 +240,21 @@ export class ScrollMenu {
 					opacity: 0.8
 				})
 			);
-            
 			// Use calculated joint position based on physics bodies
 			jointDebug.position.set(
 				(prevPos.x + currentPos.x) / 2,
 				prevPos.y - this.CHAIN_CONFIG.SEGMENTS.LENGTH/2,
 				(prevPos.z + currentPos.z) / 2
 			);
-            
 			jointDebug.visible = FLAGS.SIGN_VISUAL_DEBUG; // Set initial visibility based on flag
 			this.debug_meshes.joints.push(jointDebug);
 			this.assembly_container.add(jointDebug);
 		}
-
 		return chain_body;
 	}
-
 	async initialize(spawn_position) {
 		// Create the assembly container first
 		this.createAssemblyContainer();
-        
 		// Calculate rotation based on camera position
 		const theta_rad = Math.atan2(
 			this.camera.position.x,
@@ -301,7 +267,6 @@ export class ScrollMenu {
 			z: 0,
 			w: Math.cos(halfAngle)
 		};
-
 		// Create anchor
 		this.anchor_body = this.world.createRigidBody(
 			RAPIER.RigidBodyDesc.fixed()
@@ -312,7 +277,6 @@ export class ScrollMenu {
 				)
 				.setRotation(rotation)
 		);
-
 		// Add debug mesh for anchor (always create, control visibility with flag)
 		const anchorGeometry = new THREE.SphereGeometry(0.2);
 		const anchorMaterial = new THREE.MeshBasicMaterial({
@@ -327,7 +291,6 @@ export class ScrollMenu {
 		this.debug_meshes.anchor.renderOrder = 999;
 		this.debug_meshes.anchor.visible = FLAGS.SIGN_VISUAL_DEBUG; // Set initial visibility based on flag
 		this.assembly_container.add(this.debug_meshes.anchor);
-
 		// Sequentially create chain segments
 		let previous_body = this.anchor_body;
 		for(let i = 0; i < this.CHAIN_CONFIG.SEGMENTS.COUNT; i++) {
@@ -338,10 +301,8 @@ export class ScrollMenu {
 			// Wait for physics to settle
 			await new Promise(resolve => setTimeout(resolve, this.CHAIN_CONFIG.SEGMENTS.SPAWN_DELAY));
 		}
-
 		// Wait additional time before spawning sign
 		await new Promise(resolve => setTimeout(resolve, this.CHAIN_CONFIG.SIGN.SPAWN_DELAY));
-
 		// Create and load the sign
 		await new Promise((resolve, reject) => {
 			this.sign_image = new Image();
@@ -351,7 +312,6 @@ export class ScrollMenu {
 				sign_canvas.height = this.sign_image.height;
 				const signContext = sign_canvas.getContext('2d');
 				signContext.drawImage(this.sign_image, 0, 0);
-                
 				const sign_texture = new THREE.CanvasTexture(sign_canvas);
 				const sign_material = new THREE.MeshStandardMaterial({
 					map: sign_texture,
@@ -365,7 +325,6 @@ export class ScrollMenu {
 					displacementScale: 0.0, // Disable displacement mapping
 					flatShading: true // Use flat shading to reduce complexity
 				});
-                
 				const sign_geometry = new THREE.BoxGeometry(
 					this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH,
 					this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT,
@@ -374,20 +333,15 @@ export class ScrollMenu {
 				this.sign_mesh = new THREE.Mesh(sign_geometry, sign_material);
 				this.sign_mesh.castShadow = true;
 				this.sign_mesh.name = `${TYPES.INTERACTABLE}${this.#ASSET_TYPE.SECONDARY}_SCROLL_MENU`;
-                
 				// Add a reference to this ScrollMenu instance in the userData
 				this.sign_mesh.userData.scrollMenu = this;
-                
 				// Adjust rotation to match our coordinate system
 				this.sign_mesh.rotation.x = Math.PI / 2;
-                
 				this.assembly_container.add(this.sign_mesh);
-                
 				// Calculate sign spawn position
 				const sign_spawn_y = this.CHAIN_CONFIG.POSITION.Y - 
                     (this.CHAIN_CONFIG.SEGMENTS.COUNT * this.CHAIN_CONFIG.SEGMENTS.LENGTH) - 
                     (this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT / 2);
-
 				this.sign_body = this.world.createRigidBody(
 					RAPIER.RigidBodyDesc.kinematicPositionBased() // Changed from dynamic to kinematicPositionBased
 						.setTranslation(
@@ -411,26 +365,21 @@ export class ScrollMenu {
 					.setRestitution(this.CHAIN_CONFIG.SIGN.RESTITUTION)
 					.setFriction(this.CHAIN_CONFIG.SIGN.FRICTION);
 				this.world.createCollider(sign_collider, this.sign_body);
-                
 				// Set initial velocities not needed for kinematic bodies
 				// this.sign_body.setLinvel({ x: 0, y: 0, z: 0 }, true);
 				// this.sign_body.setAngvel({ x: 0, y: 0, z: 0 }, true);
-                
 				// Force the sign to sleep initially - not needed for kinematic bodies
 				// this.sign_body?.sleep();
-                
 				// Connect sign to last chain segment with adjusted joint positions and spacing
 				const finalJointDesc = RAPIER.JointData.spherical(
 					{x: 0, y: -this.CHAIN_CONFIG.SEGMENTS.LENGTH/2 - 0.15, z: 0},  // Match chain segment spacing
 					{x: 0, y: this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT/2 + 0.15, z: 0}   // Match chain segment spacing
 				);
-                
 				// Apply the same joint properties to the sign joint
 				finalJointDesc.limitsEnabled = true;
 				finalJointDesc.limits = [-Math.PI/8, Math.PI/8];
 				finalJointDesc.stiffness = 250.0;
 				finalJointDesc.damping = 15.0;
-                
 				const signJoint = this.world.createImpulseJoint(
 					finalJointDesc,
 					previous_body,
@@ -439,19 +388,16 @@ export class ScrollMenu {
 				);
 				this.chain_joints.push(signJoint);
 				AssetStorage.get_instance().add_object(this.sign_mesh, this.sign_body);
-                
 				// Store sign with specific identifier
 				this.dynamic_bodies.push({
 					type: 'scroll_menu_sign',
 					mesh: this.sign_mesh,
 					body: this.sign_body
 				});
-                
 				// Get EXACT physics body positions
 				const lastChainPos = previous_body.translation();
 				const signPos = this.sign_body.translation();
 				const signRot = this.sign_body.rotation();
-                
 				// Create debug visual for the sign RIGHT AFTER physics body creation
 				const signDebugGeometry = new THREE.BoxGeometry(
 					this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH,
@@ -463,14 +409,11 @@ export class ScrollMenu {
 					wireframe: true
 				});
 				this.debug_meshes.sign = new THREE.Mesh(signDebugGeometry, signDebugMaterial);
-                
 				// Set to EXACT physics body position and rotation
 				this.debug_meshes.sign.position.set(signPos.x, signPos.y, signPos.z);
 				this.debug_meshes.sign.quaternion.set(signRot.x, signRot.y, signRot.z, signRot.w);
-                
 				this.debug_meshes.sign.visible = FLAGS.SIGN_VISUAL_DEBUG;
 				this.assembly_container.add(this.debug_meshes.sign);
-                
 				// Debug mesh for final joint - create directly with exact positions
 				const signJointGeometry = new THREE.SphereGeometry(0.1);
 				const signJointMaterial = new THREE.MeshBasicMaterial({
@@ -481,27 +424,22 @@ export class ScrollMenu {
 					opacity: 0.8
 				});
 				const finalJointMesh = new THREE.Mesh(signJointGeometry, signJointMaterial);
-                
 				// EXACT final joint position - use the EXACT same point as the joint itself
 				finalJointMesh.position.set(
 					lastChainPos.x,
 					lastChainPos.y - this.CHAIN_CONFIG.SEGMENTS.LENGTH/2,
 					lastChainPos.z
 				);
-                
 				finalJointMesh.visible = FLAGS.SIGN_VISUAL_DEBUG;
 				this.debug_meshes.joints.push(finalJointMesh);
 				this.assembly_container.add(finalJointMesh);
-
 				// Now create a chain container for common use
 				this.createAssemblyContainer();
-
 				resolve();
 			};
 			this.sign_image.onerror = reject;
 			this.sign_image.src = this.CHAIN_CONFIG.SIGN.IMAGE_PATH;
 		});
-
 		// Create spotlight after sign is initialized
 		if (!this.menu_spotlight && this.sign_mesh) {
 			// Calculate spotlight position 15 units behind initial camera position
@@ -541,13 +479,10 @@ export class ScrollMenu {
 				console.error("Error creating scroll menu spotlight:", error);
 			}
 		}
-
 		this.last_log_time = 0;
 		this.log_interval = 500;
-
 		return this;
 	}
-
 	/**
      * Creates an assembly container with a red wireframe mesh to represent the bounds of the assembly
      */
@@ -555,13 +490,10 @@ export class ScrollMenu {
 		// Create the assembly container as a Group
 		this.assembly_container = new THREE.Group();
 		this.assembly_container.name = "assembly_container";
-        
 		// Add a reference to this ScrollMenu instance in the userData
 		this.assembly_container.userData.scrollMenu = this;
-        
 		// Create a placeholder geometry that will be properly sized in updateAssemblyContainerBounds
 		const geometry = new THREE.BoxGeometry(1, 1, 1);
-        
 		// Create a red wireframe material
 		const material = new THREE.MeshBasicMaterial({
 			color: 0xff0000,
@@ -569,27 +501,20 @@ export class ScrollMenu {
 			transparent: true,
 			opacity: 0.8
 		});
-        
 		// Create the wireframe mesh
 		this.assembly_wireframe = new THREE.Mesh(geometry, material);
 		this.assembly_wireframe.name = "assembly_wireframe";
-        
 		// Set initial visibility based on debug flags
 		this.assembly_wireframe.visible = FLAGS.DEBUG_UI && FLAGS.COLLISION_VISUAL_DEBUG;
-        
 		// Add wireframe to the container
 		this.assembly_container.add(this.assembly_wireframe);
-        
 		// Add to the scene
 		this.parent.add(this.assembly_container);
-        
 		if (FLAGS.PHYSICS_LOGS) {
 			console.log("Created assembly container for entire chain and sign assembly");
 		}
-        
 		return this.assembly_container;
 	}
-
 	async break_chains() {
 		if (!this.chains_broken) {
 			// Wake up all chain segments and sign
@@ -598,26 +523,21 @@ export class ScrollMenu {
 					data.body.wakeUp();
 				}
 			});
-
 			// Convert sign body from kinematic to dynamic if it exists
 			if (this.sign_body && this.world && !this.is_grabbed) {
 				try {
 					// Change body type to dynamic
 					this.sign_body.setBodyType(RAPIER.RigidBodyType.Dynamic);
-                    
 					// Use the configured values from CHAIN_CONFIG instead of defaults but with increased gravity
 					this.sign_body.setLinearDamping(this.CHAIN_CONFIG.SIGN.DAMPING);           // Use configured damping
 					this.sign_body.setAngularDamping(this.CHAIN_CONFIG.SIGN.ANGULAR_DAMPING);  // Use configured angular damping
 					this.sign_body.setGravityScale(5.0);                                       // Increased gravity scale to 5.0
-                    
 					// Set mass if supported by the physics engine
 					if (typeof this.sign_body.setAdditionalMass === 'function') {
 						this.sign_body.setAdditionalMass(this.CHAIN_CONFIG.SIGN.MASS);
 					}
-                    
 					// Wake up the body to ensure it starts simulating
 					this.sign_body.wakeUp();
-                    
 					if (FLAGS.PHYSICS_LOGS) {
 						console.log("Converted sign from kinematic to dynamic with increased gravity");
 					}
@@ -625,54 +545,42 @@ export class ScrollMenu {
 					console.warn('Failed to convert sign to dynamic:', e);
 				}
 			}
-
 			// If sign mesh exists, move it to the parent before removing assembly container
 			if (this.sign_mesh && this.assembly_container && this.assembly_container.children.includes(this.sign_mesh)) {
 				// Save the world position and rotation
 				const worldPosition = new THREE.Vector3();
 				const worldQuaternion = new THREE.Quaternion();
-                
 				this.sign_mesh.getWorldPosition(worldPosition);
 				this.sign_mesh.getWorldQuaternion(worldQuaternion);
-                
 				// Remove from assembly container
 				this.assembly_container.remove(this.sign_mesh);
-                
 				// Add to parent with preserved world position
 				this.parent.add(this.sign_mesh);
 				this.sign_mesh.position.copy(worldPosition);
 				this.sign_mesh.quaternion.copy(worldQuaternion);
-                
 				// Ensure the sign mesh is visible
 				this.sign_mesh.visible = true;
-                
 				if (FLAGS.PHYSICS_LOGS) {
 					console.log("Moved sign mesh to parent scene");
 				}
 			}
-
 			// If sign debug mesh exists, move it to the parent before removing assembly container
 			if (this.debug_meshes.sign && this.assembly_container && this.assembly_container.children.includes(this.debug_meshes.sign)) {
 				// Save the world position and rotation
 				const worldPosition = new THREE.Vector3();
 				const worldQuaternion = new THREE.Quaternion();
-                
 				this.debug_meshes.sign.getWorldPosition(worldPosition);
 				this.debug_meshes.sign.getWorldQuaternion(worldQuaternion);
-                
 				// Remove from assembly container
 				this.assembly_container.remove(this.debug_meshes.sign);
-                
 				// Add to parent with preserved world position
 				this.parent.add(this.debug_meshes.sign);
 				this.debug_meshes.sign.position.copy(worldPosition);
 				this.debug_meshes.sign.quaternion.copy(worldQuaternion);
-                
 				if (FLAGS.PHYSICS_LOGS) {
 					console.log("Moved sign debug mesh to parent scene");
 				}
 			}
-
 			// Remove all chain segment meshes from scene
 			this.dynamic_bodies.forEach(data => {
 				if (data.type === 'scroll_menu_chain' && data.mesh) {
@@ -680,7 +588,6 @@ export class ScrollMenu {
 					if (data.mesh.parent) {
 						data.mesh.parent.remove(data.mesh);
 					}
-                    
 					// Dispose of geometry and material
 					if (data.mesh.geometry) {
 						data.mesh.geometry.dispose();
@@ -688,23 +595,19 @@ export class ScrollMenu {
 					if (data.mesh.material) {
 						data.mesh.material.dispose();
 					}
-                    
 					if (FLAGS.PHYSICS_LOGS) {
 						console.log("Removed chain segment mesh from scene");
 					}
 				}
 			});
-
 			// Clean up assembly container if it exists
 			if (this.assembly_container) {
 				if (FLAGS.PHYSICS_LOGS) {
 					console.log("Cleaning up assembly container when chains break");
 				}
-                
 				// Remove all children from assembly container before removing it
 				while (this.assembly_container.children && this.assembly_container.children.length > 0) {
 					const child = this.assembly_container.children[0];
-                    
 					// Dispose of geometry and material if they exist
 					if (child.geometry) {
 						child.geometry.dispose();
@@ -718,16 +621,13 @@ export class ScrollMenu {
 							child.material.dispose();
 						}
 					}
-                    
 					this.assembly_container.remove(child);
 				}
-                
 				if (this.assembly_container.parent) {
 					this.assembly_container.parent.remove(this.assembly_container);
 				} else if (this.parent) {
 					this.parent.remove(this.assembly_container);
 				}
-                
 				// Dispose of wireframe geometry and material if they exist
 				if (this.assembly_wireframe) {
 					if (this.assembly_wireframe.geometry) {
@@ -737,11 +637,9 @@ export class ScrollMenu {
 						this.assembly_wireframe.material.dispose();
 					}
 				}
-                
 				this.assembly_container = null;
 				this.assembly_wireframe = null;
 			}
-
 			// Remove debug meshes if they exist
 			if (this.debug_meshes.anchor) {
 				if (this.debug_meshes.anchor.parent) {
@@ -755,7 +653,6 @@ export class ScrollMenu {
 				}
 				this.debug_meshes.anchor = null;
 			}
-            
 			// Dispose of segment debug meshes
 			if (this.debug_meshes.segments) {
 				this.debug_meshes.segments.forEach(segment => {
@@ -771,7 +668,6 @@ export class ScrollMenu {
 				});
 				this.debug_meshes.segments = [];
 			}
-            
 			// Dispose of joint debug meshes
 			if (this.debug_meshes.joints) {
 				this.debug_meshes.joints.forEach(joint => {
@@ -787,7 +683,6 @@ export class ScrollMenu {
 				});
 				this.debug_meshes.joints = [];
 			}
-
 			// Remove all joints with null check
 			if (this.chain_joints) {
 				for (let i = 0; i < this.chain_joints.length; i++) {
@@ -802,7 +697,6 @@ export class ScrollMenu {
 				}
 				this.chain_joints = [];
 			}
-
 			// Dispose of the anchor body
 			if (this.anchor_body && this.world) {
 				try {
@@ -812,7 +706,6 @@ export class ScrollMenu {
 					console.warn('Failed to remove anchor body:', e);
 				}
 			}
-            
 			// Dispose of chain segment bodies
 			if (this.dynamic_bodies) {
 				const segmentsToRemove = [];
@@ -821,7 +714,6 @@ export class ScrollMenu {
 						try {
 							// Remove the body from the physics world
 							this.world.removeRigidBody(data.body);
-                            
 							// Mark for removal from dynamic_bodies
 							segmentsToRemove.push(index);
 						} catch (e) {
@@ -829,13 +721,11 @@ export class ScrollMenu {
 						}
 					}
 				});
-                
 				// Remove the segments from dynamic_bodies (in reverse order to avoid index issues)
 				for (let i = segmentsToRemove.length - 1; i >= 0; i--) {
 					this.dynamic_bodies.splice(segmentsToRemove[i], 1);
 				}
 			}
-
 			// Remove spotlight
 			if (this.menu_spotlight) {
 				// First remove helpers if any
@@ -844,58 +734,44 @@ export class ScrollMenu {
 				await this.spawner.despawn_helpers(this.menu_spotlight.mesh);
 				this.menu_spotlight = null;
 			}
-
 			// Force a garbage collection when done (recommendation only, JS decides when to actually collect)
 			if (FLAGS.PHYSICS_LOGS) {
 				console.log("Chains break completed, all components disposed except sign and its debug mesh");
 			}
-
 			this.chains_broken = true;
 		}
 	}
-
 	async update() {
 		const currentTime = performance.now();
-        
 		// Update assembly container to match the bounds of the assembly
 		if (this.assembly_container) {
 			this.updateAssemblyContainerBounds();
-            
 			// Only rotate the container once, when animation completes or on first frame if not animating
 			if (!this.container_rotation_set && 
                 (!this.is_animating || (this.is_animating && currentTime - this.animation_start_time >= this.animation_duration * 1000))) {
-                
 				// Calculate rotation based on camera position to make it face the camera
 				const direction = new THREE.Vector3();
 				direction.subVectors(this.camera.position, this.assembly_container.position);
-                
 				// Only apply Y rotation (yaw) to avoid messing with position
 				const yaw = Math.atan2(direction.x, direction.z);
-                
 				// Apply the yaw rotation to the entire container
 				this.assembly_container.rotation.y = yaw + Math.PI; // Add PI to face outward
-                
 				// Mark that we've set the rotation
 				this.container_rotation_set = true;
-                
 				if(FLAGS.PHYSICS_LOGS) {
 					console.log("Container rotation set once - no more camera tracking");
 				}
 			}
 		}
-        
 		// Always ensure sign mesh is visible regardless of where it is in the scene hierarchy
 		if (this.sign_mesh) {
 			this.sign_mesh.visible = true;
 		}
-        
 		// Update debug mesh positions every frame to match physics
 		this.updateDebugMeshPositions();
-        
 		// Log animation start position on first update after animation begins
 		if (this.is_animating && this.anchor_body && 
             currentTime - this.animation_start_time < 100) { // Only log in the first 100ms of animation
-            
 			const anchorPos = this.anchor_body.translation();
 			if (FLAGS.PHYSICS_LOGS) {
 				console.log("🚀 ANIMATION ACTUALLY STARTING FROM:");
@@ -904,24 +780,20 @@ export class ScrollMenu {
 				console.log(`Target X: ${this.target_position.x.toFixed(2)}, Y: ${this.target_position.y.toFixed(2)}, Z: ${this.target_position.z.toFixed(2)}`);
 			}
 		}
-        
 		// Position logging during animation
 		if (this.is_animating && this.sign_body && currentTime - this.last_position_log_time > this.position_log_interval) {
 			this.last_position_log_time = currentTime;
-            
 			// Add log to show current target position
 			if (FLAGS.PHYSICS_LOGS) {
 				console.log("🎯 CURRENT TARGET POSITION:");
 				console.log(`X: ${this.target_position.x.toFixed(2)}, Y: ${this.target_position.y.toFixed(2)}, Z: ${this.target_position.z.toFixed(2)}`);
 			}
-            
 			const signPos = this.sign_body.translation();
 			const signVel = this.sign_body.linvel ? this.sign_body.linvel() : { x: 0, y: 0, z: 0 };
 			const rotation = this.sign_body.rotation();
 			const euler = new THREE.Euler().setFromQuaternion(
 				new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w)
 			);
-            
 			if (FLAGS.PHYSICS_LOGS) {
 				console.log("🔄 SCROLL SIGN - ANIMATING");
 				console.log(`⏱️ Animation progress: ${((currentTime - this.animation_start_time) / 1000 / this.animation_duration * 100).toFixed(1)}%`);
@@ -930,24 +802,20 @@ export class ScrollMenu {
 					console.log(`🏃 Velocity X: ${signVel.x.toFixed(2)}, Y: ${signVel.y.toFixed(2)}, Z: ${signVel.z.toFixed(2)}`);
 				}
 				console.log(`🔄 Rotation (deg) X: ${(euler.x * 180/Math.PI).toFixed(1)}°, Y: ${(euler.y * 180/Math.PI).toFixed(1)}°, Z: ${(euler.z * 180/Math.PI).toFixed(1)}°`);
-                
 				// Also log anchor position
 				const anchorPos = this.anchor_body.translation();
 				console.log(`⚓ Anchor Position X: ${anchorPos.x.toFixed(2)}, Y: ${anchorPos.y.toFixed(2)}, Z: ${anchorPos.z.toFixed(2)}`);
 				console.log("-------------------");
 			}
 		}
-        
 		// Handle animation
 		if (this.is_animating) {
 			const elapsed = (currentTime - this.animation_start_time) / 1000; // Convert to seconds
 			if (elapsed >= this.animation_duration) {
 				// Animation complete
 				this.is_animating = false;
-                
 				// Reset container rotation flag so it updates one more time
 				this.container_rotation_set = false;
-                
 				// Set final position
 				if (this.anchor_body) {
 					// Log the expected delta movement before setting final position
@@ -958,12 +826,9 @@ export class ScrollMenu {
 						const deltaZ = this.target_position.z - this.CHAIN_CONFIG.POSITION.Z;
 						console.log(`Delta X: ${deltaX.toFixed(2)}, Y: ${deltaY.toFixed(2)}, Z: ${deltaZ.toFixed(2)}`);
 					}
-                    
 					this.anchor_body.setTranslation(this.target_position);
-                    
 					// Now update the positions of kinematic chain segments and sign
 					this.updateKinematicChainPositions();
-                    
 					// Log final position
 					if (this.sign_body) {
 						const finalPos = this.sign_body.translation();
@@ -971,12 +836,10 @@ export class ScrollMenu {
 						const finalEuler = new THREE.Euler().setFromQuaternion(
 							new THREE.Quaternion(finalRot.x, finalRot.y, finalRot.z, finalRot.w)
 						);
-                        
 						if (FLAGS.PHYSICS_LOGS) {
 							console.log("✅ SCROLL SIGN - ANIMATION COMPLETE");
 							console.log(`📍 Final Position X: ${finalPos.x.toFixed(2)}, Y: ${finalPos.y.toFixed(2)}, Z: ${finalPos.z.toFixed(2)}`);
 							console.log(`🔄 Final Rotation (deg) X: ${(finalEuler.x * 180/Math.PI).toFixed(1)}°, Y: ${(finalEuler.y * 180/Math.PI).toFixed(1)}°, Z: ${(finalEuler.z * 180/Math.PI).toFixed(1)}°`);
-                            
 							// Log final positions again
 							console.log("🎯 FINAL TARGET POSITION:");
 							console.log(`X: ${this.target_position.x.toFixed(2)}, Y: ${this.target_position.y.toFixed(2)}, Z: ${this.target_position.z.toFixed(2)}`);
@@ -990,7 +853,6 @@ export class ScrollMenu {
 				// Calculate progress with simple easing
 				const progress = elapsed / this.animation_duration;
 				const eased_progress = progress * (2 - progress); // Simple easing function
-                
 				if (this.anchor_body) {
 					// Log calculation details periodically
 					if (currentTime - this.last_log_time > this.log_interval) {
@@ -1001,19 +863,16 @@ export class ScrollMenu {
 						}
 						this.last_log_time = currentTime;
 					}
-                    
 					const current = this.anchor_body.translation();
 					const new_x = current.x + (this.target_position.x - current.x) * 0.05; // Smooth interpolation
 					const new_y = current.y;
 					const new_z = current.z + (this.target_position.z - current.z) * 0.05;
 					this.anchor_body.setTranslation({ x: new_x, y: new_y, z: new_z });
-                    
 					// Now update the positions of kinematic chain segments and sign
 					this.updateKinematicChainPositions();
 				}
 			}
 		}
-
 		// Update only spotlight direction if it exists, position stays fixed
 		if (this.menu_spotlight && !this.chains_broken && this.sign_mesh) {
 			// Ensure menu_spotlight has needed properties
@@ -1023,13 +882,11 @@ export class ScrollMenu {
 				console.log("menu_spotlight object:", this.menu_spotlight);
 				return;
 			}
-            
 			// Check specifically for position
 			if (!this.menu_spotlight.position && this.menu_spotlight.mesh) {
 				console.log("Using menu_spotlight.mesh.position instead of direct position");
 				this.menu_spotlight.position = this.menu_spotlight.mesh.position;
 			}
-            
 			// Ensure menu_spotlight.position exists before proceeding
 			if (!this.menu_spotlight.position) {
 				console.warn('ScrollMenu: menu_spotlight.position is undefined');
@@ -1042,14 +899,12 @@ export class ScrollMenu {
 				const direction = new THREE.Vector3().subVectors(targetPosition, this.menu_spotlight.position);
 				const rotationY = Math.atan2(direction.x, direction.z);
 				const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
-    
 				// Update spotlight rotation
 				if (this.menu_spotlight.rotation) {
 					this.menu_spotlight.rotation.set(rotationX, rotationY, 0);
 				} else if (this.menu_spotlight.mesh) {
 					this.menu_spotlight.mesh.rotation.set(rotationX, rotationY, 0);
 				}
-                
 				// Update target
 				if (this.menu_spotlight.target) {
 					this.menu_spotlight.target.position.copy(targetPosition);
@@ -1062,21 +917,17 @@ export class ScrollMenu {
 				console.error("Error updating scroll menu spotlight:", error);
 			}
 		}
-        
 		// Track oscillation patterns
 		if (FLAGS.PHYSICS_LOGS && currentTime - this.last_log_time > 1000) {  // Check every second
 			const chainBodies = this.dynamic_bodies
 				.filter(data => data.type === 'scroll_menu_chain' && data.body)
 				.map(data => data.body);
-
 			// Track middle segment (most likely to show oscillation)
 			const midIndex = Math.floor(this.CHAIN_CONFIG.SEGMENTS.COUNT / 2);
 			const midBody = chainBodies[midIndex];
-            
 			if (midBody) {
 				const pos = midBody.translation();
 				const vel = midBody.linvel();
-                
 				// Only log if there's significant Y movement
 				if (Math.abs(vel.y) > 0.1) {  // Threshold for movement logging
 					console.log(`=== Chain Movement ===`);
@@ -1085,13 +936,11 @@ export class ScrollMenu {
 					console.log(`Total velocity magnitude: ${Math.sqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z).toFixed(3)}`);
 				}
 			}
-
 			// Also check sign movement as it might show different oscillation patterns
 			const signData = this.dynamic_bodies.find(data => data.type === 'scroll_menu_sign');
 			if (signData && signData.body) {
 				const signVel = signData.body.linvel();
 				const signPos = signData.body.translation();
-                
 				// Only log if sign is moving significantly
 				if (Math.abs(signVel.y) > 0.1) {
 					console.log(`=== Sign Movement ===`);
@@ -1099,18 +948,15 @@ export class ScrollMenu {
 					console.log(`Sign Y velocity: ${signVel.y.toFixed(3)}`);
 				}
 			}
-
 			this.last_log_time = currentTime;
 		}
 	}
-
 	/**
      * Updates all debug mesh positions to match their physics counterparts
      */
 	updateDebugMeshPositions() {
 		// Skip if not using debug visuals
 		if (!FLAGS.SIGN_VISUAL_DEBUG) return;
-        
 		// Update anchor debug mesh
 		if (this.debug_meshes.anchor && this.anchor_body) {
 			const anchorPos = this.anchor_body.translation();
@@ -1118,12 +964,10 @@ export class ScrollMenu {
 			this.debug_meshes.anchor.position.set(anchorPos.x, anchorPos.y, anchorPos.z);
 			this.debug_meshes.anchor.quaternion.set(anchorRot.x, anchorRot.y, anchorRot.z, anchorRot.w);
 		}
-        
 		// Get all chain segment bodies
 		const chainBodies = this.dynamic_bodies
 			.filter(data => data.type === 'scroll_menu_chain' && data.body && typeof data.body.translation === 'function')
 			.map(data => data.body);
-            
 		// Update chain segment debug meshes
 		this.debug_meshes.segments.forEach((debugMesh, index) => {
 			if (debugMesh && index < chainBodies.length) {
@@ -1136,7 +980,6 @@ export class ScrollMenu {
 				}
 			}
 		});
-        
 		// Update sign debug mesh
 		if (this.debug_meshes.sign && this.sign_body && typeof this.sign_body.translation === 'function') {
 			const signPos = this.sign_body.translation();
@@ -1144,18 +987,15 @@ export class ScrollMenu {
 			this.debug_meshes.sign.position.set(signPos.x, signPos.y, signPos.z);
 			this.debug_meshes.sign.quaternion.set(signRot.x, signRot.y, signRot.z, signRot.w);
 		}
-        
 		// Update joint debug meshes - each segment connection
 		for (let i = 0; i < this.debug_meshes.joints.length - 1; i++) {
 			if (i < chainBodies.length - 1) {
 				const debugMesh = this.debug_meshes.joints[i];
 				const body1 = chainBodies[i];
 				const body2 = chainBodies[i+1];
-                
 				if (debugMesh && body1 && body2) {
 					const pos1 = body1.translation();
 					const pos2 = body2.translation();
-                    
 					// Position joint at the EXACT connection point
 					debugMesh.position.set(
 						(pos1.x + pos2.x) / 2,
@@ -1165,15 +1005,12 @@ export class ScrollMenu {
 				}
 			}
 		}
-        
 		// Update final joint (between last chain segment and sign)
 		if (this.debug_meshes.joints.length > 0 && chainBodies.length > 0 && this.sign_body) {
 			const lastJointMesh = this.debug_meshes.joints[this.debug_meshes.joints.length - 1];
 			const lastChainBody = chainBodies[chainBodies.length - 1];
-            
 			if (lastJointMesh && lastChainBody) {
 				const chainPos = lastChainBody.translation();
-                
 				// EXACT final joint position - static vertical offset from last chain segment
 				lastJointMesh.position.set(
 					chainPos.x,
@@ -1183,7 +1020,6 @@ export class ScrollMenu {
 			}
 		}
 	}
-
 	/**
      * Updates the debug visualization for all signs based on the current flag state
      */
@@ -1202,7 +1038,6 @@ export class ScrollMenu {
 			this.debug_meshes.sign.visible = FLAGS.SIGN_VISUAL_DEBUG;
 		}
 	}
-
 	/**
      * Updates the assembly container dimensions to match the current bounds of the entire assembly
      */
@@ -1210,24 +1045,19 @@ export class ScrollMenu {
 		if (!this.assembly_container) {
 			return;
 		}
-        
 		// Update wireframe visibility based on debug flags
 		this.assembly_wireframe.visible = FLAGS.DEBUG_UI && FLAGS.COLLISION_VISUAL_DEBUG;
-        
 		// Ensure the sign mesh is always visible regardless of debug settings
 		if (this.sign_mesh) {
 			this.sign_mesh.visible = true;
 		}
-        
 		// Skip further updates if wireframe isn't visible
 		if (!this.assembly_wireframe.visible) {
 			return;
 		}
-        
 		// Initialize bounds with infinite min and -infinite max
 		const min = new THREE.Vector3(Infinity, Infinity, Infinity);
 		const max = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
-        
 		// Include anchor position in bounds
 		if (this.anchor_body) {
 			const pos = this.anchor_body.translation();
@@ -1238,17 +1068,14 @@ export class ScrollMenu {
 			max.y = Math.max(max.y, pos.y);
 			max.z = Math.max(max.z, pos.z);
 		}
-        
 		// Include all chain segments in bounds
 		const chainBodies = this.dynamic_bodies
 			.filter(data => data.type === 'scroll_menu_chain' && data.body)
 			.map(data => data.body);
-            
 		chainBodies.forEach(body => {
 			if (body) {
 				const pos = body.translation();
 				const radius = this.CHAIN_CONFIG.SEGMENTS.RADIUS;
-                
 				min.x = Math.min(min.x, pos.x - radius);
 				min.y = Math.min(min.y, pos.y - radius);
 				min.z = Math.min(min.z, pos.z - radius);
@@ -1257,14 +1084,12 @@ export class ScrollMenu {
 				max.z = Math.max(max.z, pos.z + radius);
 			}
 		});
-        
 		// Include sign dimensions in bounds
 		if (this.sign_body) {
 			const pos = this.sign_body.translation();
 			const halfWidth = this.CHAIN_CONFIG.SIGN.DIMENSIONS.WIDTH / 2;
 			const halfHeight = this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT / 2;
 			const halfDepth = this.CHAIN_CONFIG.SIGN.DIMENSIONS.DEPTH / 2;
-            
 			min.x = Math.min(min.x, pos.x - halfWidth);
 			min.y = Math.min(min.y, pos.y - halfHeight);
 			min.z = Math.min(min.z, pos.z - halfDepth);
@@ -1272,55 +1097,43 @@ export class ScrollMenu {
 			max.y = Math.max(max.y, pos.y + halfHeight);
 			max.z = Math.max(max.z, pos.z + halfDepth);
 		}
-        
 		// Calculate size and center of bounds
 		const size = new THREE.Vector3().subVectors(max, min);
 		const center = new THREE.Vector3().addVectors(min, max).multiplyScalar(0.5);
-        
 		// Ensure minimum size to avoid zero dimensions
 		size.x = Math.max(0.1, size.x);
 		size.y = Math.max(0.1, size.y);
 		size.z = Math.max(0.1, size.z);
-        
 		// Update container position to center of bounds
 		this.assembly_container.position.copy(center);
-        
 		// Dispose of old geometry
 		if (this.assembly_wireframe.geometry) {
 			this.assembly_wireframe.geometry.dispose();
 		}
-        
 		// Create new geometry with calculated size
 		this.assembly_wireframe.geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
-        
 		// Reset wireframe position relative to container
 		this.assembly_wireframe.position.set(0, 0, 0);
-        
 		// Preserve rotation to match sign
 		if (this.sign_body) {
 			const signRot = this.sign_body.rotation();
 			this.assembly_wireframe.quaternion.set(signRot.x, signRot.y, signRot.z, signRot.w);
 		}
 	}
-
 	// New method to update kinematic chain segments and sign positions
 	updateKinematicChainPositions() {
 		if (!this.anchor_body) return;
-        
 		// Get anchor position
 		const anchorPos = this.anchor_body.translation();
 		const anchorRot = this.anchor_body.rotation();
-        
 		// Get chain segment bodies
 		const chainBodies = this.dynamic_bodies
 			.filter(data => data.type === 'scroll_menu_chain' && data.body && typeof data.body.translation === 'function')
 			.map(data => data.body);
-            
 		// Update chain segment positions
 		chainBodies.forEach((body, index) => {
 			// Calculate new position based on index and segment length
 			const segmentY = anchorPos.y - (index + 1) * this.CHAIN_CONFIG.SEGMENTS.LENGTH;
-            
 			// Move the kinematic body
 			if (body.setNextKinematicTranslation) {
 				// For newer versions of Rapier
@@ -1329,7 +1142,6 @@ export class ScrollMenu {
 					y: segmentY,
 					z: anchorPos.z
 				});
-                
 				// Keep the same rotation as the anchor
 				body.setNextKinematicRotation(anchorRot);
 			} else {
@@ -1339,12 +1151,10 @@ export class ScrollMenu {
 					y: segmentY,
 					z: anchorPos.z
 				});
-                
 				// Keep the same rotation as the anchor
 				body.setRotation(anchorRot);
 			}
 		});
-        
 		// Update sign position at the end of the chain
 		const signData = this.dynamic_bodies.find(data => data.type === 'scroll_menu_sign' && data.body);
 		if (signData && signData.body) {
@@ -1352,7 +1162,6 @@ export class ScrollMenu {
 			const signY = anchorPos.y - 
                 (this.CHAIN_CONFIG.SEGMENTS.COUNT * this.CHAIN_CONFIG.SEGMENTS.LENGTH) - 
                 (this.CHAIN_CONFIG.SIGN.DIMENSIONS.HEIGHT / 2);
-                
 			// Move the kinematic sign body
 			if (signData.body.setNextKinematicTranslation) {
 				// For newer versions of Rapier
@@ -1361,7 +1170,6 @@ export class ScrollMenu {
 					y: signY,
 					z: anchorPos.z
 				});
-                
 				// Keep the same rotation as the anchor
 				signData.body.setNextKinematicRotation(anchorRot);
 			} else {
@@ -1371,43 +1179,36 @@ export class ScrollMenu {
 					y: signY,
 					z: anchorPos.z
 				});
-                
 				// Keep the same rotation as the anchor
 				signData.body.setRotation(anchorRot);
 			}
 		}
 	}
-
 	// New method to make all chain segments dynamic when the sign is released
 	makeEntireChainDynamic() {
 		// Make all chain segments dynamic
 		const chainBodies = this.dynamic_bodies
 			.filter(data => data.type === 'scroll_menu_chain' && data.body)
 			.map(data => data.body);
-            
 		// Convert all chain segments to dynamic bodies
 		chainBodies.forEach(body => {
 			// Only convert if it's not already dynamic
 			if (body.bodyType() !== RAPIER.RigidBodyType.Dynamic) {
 				body.setBodyType(RAPIER.RigidBodyType.Dynamic);
-                
 				// Optional: Apply appropriate physics properties that were previously commented out
 				body.setLinearDamping(this.CHAIN_CONFIG.SEGMENTS.LINEAR_DAMPING);
 				body.setAngularDamping(this.CHAIN_CONFIG.SEGMENTS.ANGULAR_DAMPING);
 				body.setGravityScale(this.CHAIN_CONFIG.SEGMENTS.GRAVITY_SCALE);
 			}
 		});
-        
 		// Also convert the anchor body to dynamic if it exists and isn't already dynamic
 		if (this.anchor_body && this.anchor_body.bodyType() !== RAPIER.RigidBodyType.Dynamic) {
 			this.anchor_body.setBodyType(RAPIER.RigidBodyType.Dynamic);
-            
 			// Apply default physics properties for the anchor since CHAIN_CONFIG.ANCHOR doesn't exist
 			this.anchor_body.setLinearDamping(0.5);  // Default value
 			this.anchor_body.setAngularDamping(0.5); // Default value
 			this.anchor_body.setGravityScale(1.0);   // Default value
 		}
-        
 		// Log the conversion if physics logs are enabled
 		if (FLAGS.PHYSICS_LOGS) {
 			console.log(`Converted ${chainBodies.length} chain segments and anchor to dynamic bodies`);

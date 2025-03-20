@@ -2,13 +2,10 @@ import { get_screen_size, get_associated_position, EAST, TYPES, HIDE_HEIGHT, HID
 import { Easing, THREE, Tween } from '../../common';
 import { CustomTypeManager } from '@littlecarlito/blorkpack';
 import { FLAGS } from '../../common';
-
 export class HideButton {
 	is_overlay_hidden = false;
-
 	// Cache asset types
 	#ASSET_TYPE = CustomTypeManager.getTypes();
-
 	constructor(incoming_parent, incoming_camera) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
@@ -22,7 +19,6 @@ export class HideButton {
 		this.hide_button.name = `${TYPES.HIDE}${this.#ASSET_TYPE.UNIQUE}`;
 		this.parent.add(this.hide_button);
 	}
-
 	// Hide button getters
 	/** Determines the material for the hide button based off scene state */
 	get_hide_button_material() {
@@ -31,17 +27,14 @@ export class HideButton {
 			toneMapped: false
 		});
 	}
-    
 	/** Calculates hide button x position based off camera position and window size*/
 	get_hide_button_x(is_column_left) {
 		return is_column_left ? (get_screen_size(this.camera).x / 2) - 2.5 : get_associated_position(EAST, this.camera);
 	}
-    
 	/** Calculates hide button y position based off camera position and window size */
 	get_hide_button_y() {
 		return (get_screen_size(this.camera).y / 2) - 2.5;
 	}
-
 	/** Resets the internal material based off the buttons state */
 	update_material() {
 		if (this.hide_button.material) {
@@ -49,7 +42,6 @@ export class HideButton {
 		}
 		this.hide_button.material = this.get_hide_button_material();
 	}
-
 	swap_sides(is_column_left) {
 		if(is_column_left) {
 			this.hide_button.layers.set(0);
@@ -65,7 +57,6 @@ export class HideButton {
 				}
 			});
 	}
-
 	reposition(is_column_left) {
 		new Tween(this.hide_button.position)
 			.to({ 
@@ -75,12 +66,10 @@ export class HideButton {
 			.easing(Easing.Elastic.Out)
 			.start();
 	}
-
 	offscreen_reposition() {
 		this.hide_button.position.y = this.get_hide_button_y();
 		this.hide_button.position.x = this.get_hide_button_x(false);
 	}
-
 	swap_hide_status() {
 		this.is_overlay_hidden = !this.is_overlay_hidden;
 		this.update_material();
