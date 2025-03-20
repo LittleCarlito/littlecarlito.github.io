@@ -1,0 +1,110 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ESLint Rules Blank Lines should add blank lines between functions 1`] = `
+"/**
+ *
+ */
+function first() {
+	return 1;
+}
+
+/**
+ *
+ */
+function second() {
+	return 2;
+}"
+`;
+
+exports[`ESLint Rules Blank Lines should remove extra blank lines within functions 1`] = `
+"/**
+ *
+ */
+function test() {
+	const x = 1;
+
+	const y = 2;
+    
+	return x + y;
+}"
+`;
+
+exports[`ESLint Rules Complex Cases should handle async/await functions 1`] = `
+"/**
+ *
+ */
+async function test() {
+	const result = await fetch("https://api.example.com")
+	return result.json()
+}"
+`;
+
+exports[`ESLint Rules Complex Cases should handle multiple linting issues in one file 1`] = `
+"/**
+ *
+ */
+function test(x,y) {
+	if(x==y) {
+		console.log("equal")
+	}
+	return x+y
+}
+
+/**
+ *
+ */
+function another() {
+	const obj = {"key": "value"}
+	return obj
+}"
+`;
+
+exports[`ESLint Rules Indentation should convert spaces to tabs 1`] = `
+"/**
+ *
+ */
+function test() {
+	const x = 1;
+	if (x) {
+		console.log(x);
+	}
+}"
+`;
+
+exports[`ESLint Rules Indentation should maintain proper indentation in nested structures 1`] = `
+"/**
+ *
+ */
+function test() {
+	if (true) {
+		if (true) {
+			if (true) {
+				console.log('deeply nested');
+			}
+		}
+	}
+}"
+`;
+
+exports[`ESLint Rules JSDoc should add proper JSDoc to functions 1`] = `
+"/**
+ *
+ */
+function test(x, y) {
+	return x + y;
+}"
+`;
+
+exports[`ESLint Rules JSDoc should fix incomplete JSDoc 1`] = `
+"/**
+ * This function adds numbers
+ */
+function add(x, y) {
+	return x + y;
+}"
+`;
+
+exports[`ESLint Rules Quotes should convert double quotes to single quotes 1`] = `
+"const str = "test";
+const obj = {"key": "value"};"
+`;
