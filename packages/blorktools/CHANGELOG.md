@@ -1,3 +1,10 @@
+## [0.12.17](https://github.com/littlecarlito/threejs_site/compare/v0.12.16...v0.12.17) (2025-03-20)
+
+
+### Bug Fixes
+
+* force version bump for blorktools ([77c8ed9](https://github.com/littlecarlito/threejs_site/commit/77c8ed9ca3e3508f4d5800996db13212644d3c5f))
+
 ## [0.12.15](https://github.com/littlecarlito/threejs_site/compare/v0.12.14...v0.12.15) (2025-03-20)
 
 
