@@ -1,35 +1,26 @@
-import { THREE, RAPIER } from "../../../index.js";
-import { BLORKPACK_FLAGS } from "../../../blorkpack_flags.js";
-import { SystemAssetType } from "../../common/system_asset_types.js";
-import { IdGenerator } from "../../common/id_generator.js";
+import { THREE, RAPIER, BLORKPACK_FLAGS, SystemAssetType, IdGenerator } from './index.js';
 /**
- * Creates a primitive box with the specified dimensions and properties.
- * This is used for simple assets that don't require a full 3D model.
+ * Creates a primitive cylinder with the specified properties.
  * 
  * @param {THREE.Scene} scene - The Three.js scene to add objects to
  * @param {RAPIER.World} world - The Rapier physics world
- * @param {number} width - Width of the box
- * @param {number} height - Height of the box
- * @param {number} depth - Depth of the box
- * @param {THREE.Vector3} position - Position of the box
- * @param {THREE.Quaternion} rotation - Rotation of the box
- * @param {Object} options - Additional options for the box
- * @returns {Promise<Object>} The created box with mesh and body
+ * @param {string} id - The ID of the cylinder
+ * @param {number} radius - Radius of the cylinder
+ * @param {number} height - Height of the cylinder
+ * @param {THREE.Vector3} position - Position of the cylinder
+ * @param {THREE.Quaternion} rotation - Rotation of the cylinder
+ * @param {Object} options - Additional options for the cylinder
+ * @returns {Promise<Object>} The created cylinder with mesh and physics body
  */
-export async function create_primitive_box(scene, world, width, height, depth, position, rotation, options = {}) {
+export async function create_primitive_cylinder(scene, world, id, radius, height, position, rotation, options = {}) {
 	// Make sure position and rotation are valid
 	position = position || new THREE.Vector3();
-	// Handle different rotation types or create default
-	let quaternion;
-	if (rotation instanceof THREE.Quaternion) {
-		quaternion = rotation;
-	} else if (rotation instanceof THREE.Euler) {
-		quaternion = new THREE.Quaternion().setFromEuler(rotation);
-	} else {
-		quaternion = new THREE.Quaternion();
+	rotation = rotation || new THREE.Quaternion();
+	if (BLORKPACK_FLAGS.ASSET_LOGS) {
+		console.log(`Creating primitive cylinder for ${id} with radius: ${radius}, height: ${height}`);
 	}
-	// Create geometry and material
-	const geometry = new THREE.BoxGeometry(width, height, depth);
+	// Create geometry
+	const geometry = new THREE.CylinderGeometry(radius, radius, height, 32);
 	// Convert color from string to number if needed
 	let color_value = options.color || 0x808080;
 	if (typeof color_value === 'string') {
@@ -47,7 +38,7 @@ export async function create_primitive_box(scene, world, width, height, depth, p
 	// Create mesh
 	const mesh = new THREE.Mesh(geometry, material);
 	mesh.position.copy(position);
-	mesh.quaternion.copy(quaternion);
+	mesh.quaternion.copy(rotation);
 	// Set shadow properties
 	mesh.castShadow = options.cast_shadow || false;
 	mesh.receiveShadow = options.receive_shadow || false;
@@ -61,7 +52,7 @@ export async function create_primitive_box(scene, world, width, height, depth, p
 	}
 	// Create physics body if collidable
 	let body = null;
-	if (options.collidable !== false) {
+	if (options.collidable !== false && world) {
 		// Determine body type based on mass and options
 		let body_desc;
 		if (options.mass <= 0 || options.gravity === false) {
@@ -74,24 +65,15 @@ export async function create_primitive_box(scene, world, width, height, depth, p
 		// Set position and rotation
 		body_desc.setTranslation(position.x, position.y, position.z);
 		body_desc.setRotation({
-			x: quaternion.x,
-			y: quaternion.y,
-			z: quaternion.z,
-			w: quaternion.w
+			x: rotation.x,
+			y: rotation.y,
+			z: rotation.z,
+			w: rotation.w
 		});
 		// Create body
 		body = world.createRigidBody(body_desc);
-		// Create collider
-		let collider_desc;
-		// Use custom collider dimensions if specified, otherwise use mesh dimensions
-		const collider_width = (options.collider_dimensions?.width !== undefined) ? 
-			options.collider_dimensions.width : width / 2;
-		const collider_height = (options.collider_dimensions?.height !== undefined) ? 
-			options.collider_dimensions.height : height / 2;
-		const collider_depth = (options.collider_dimensions?.depth !== undefined) ? 
-			options.collider_dimensions.depth : depth / 2;
-		// Create cuboid collider
-		collider_desc = RAPIER.ColliderDesc.cuboid(collider_width, collider_height, collider_depth);
+		// Create cylinder collider
+		const collider_desc = RAPIER.ColliderDesc.cylinder(height / 2, radius);
 		// Set restitution and friction
 		collider_desc.setRestitution(options.restitution || 0.5);
 		collider_desc.setFriction(options.friction || 0.5);
@@ -105,7 +87,7 @@ export async function create_primitive_box(scene, world, width, height, depth, p
 		mesh,
 		body,
 		instance_id,
-		type: SystemAssetType.PRIMITIVE_BOX.value,
+		type: SystemAssetType.PRIMITIVE_CYLINDER.value,
 		options
 	};
 } 

@@ -2,10 +2,7 @@ import { THREE, RAPIER } from "../index.js";
 import CustomTypeManager from "../custom_type_manager.js";
 import { AssetStorage } from "../asset_storage.js";
 import { BLORKPACK_FLAGS } from "../blorkpack_flags.js";
-import { SystemAssetType } from "./common/system_asset_types.js";
-import { SystemFactory } from "./asset_factories/system_factory.js";
-import { CustomFactory } from "./asset_factories/custom_factory.js";
-import { IdGenerator } from "./common/id_generator.js";
+import { SystemAssetType, SystemFactory, CustomFactory, IdGenerator } from "./index.js";
 /**
  * Class responsible for spawning and managing 3D assets in the scene.
  * Handles both static and dynamic (physics-enabled) assets.
@@ -835,7 +832,7 @@ export class AssetSpawner {
 		if (!asset) return null;
 		switch (asset_type) {
 		case SystemAssetType.SPOTLIGHT.value:
-			const { create_spotlight_debug_mesh } = await import('./asset_factories/system_spawners/spotlight_spawner.js');
+			const { create_spotlight_debug_mesh } = await import('./system_spawners/spotlight_spawner.js');
 			return create_spotlight_debug_mesh(this.scene, asset);
 			// Add other asset type cases here as needed
 		default:
@@ -862,7 +859,7 @@ export class AssetSpawner {
      * Called from the main animation loop.
      */
 	async update_debug_meshes() {
-		const { update_debug_meshes } = await import('./asset_factories/system_spawners/spotlight_spawner.js');
+		const { update_debug_meshes } = await import('./system_spawners/spotlight_spawner.js');
 		return update_debug_meshes(this.scene);
 	}
 	/**
@@ -870,7 +867,7 @@ export class AssetSpawner {
      * Call this when you know assets have been added or removed.
      */
 	async forceDebugMeshUpdate() {
-		const { forceSpotlightDebugUpdate } = await import('./asset_factories/system_spawners/spotlight_spawner.js');
+		const { forceSpotlightDebugUpdate } = await import('./system_spawners/spotlight_spawner.js');
 		return forceSpotlightDebugUpdate(this.scene);
 	}
 	/**

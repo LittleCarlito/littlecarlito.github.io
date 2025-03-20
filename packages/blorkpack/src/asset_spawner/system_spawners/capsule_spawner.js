@@ -1,7 +1,4 @@
-import { THREE, RAPIER } from "../../../index.js";
-import { BLORKPACK_FLAGS } from "../../../blorkpack_flags.js";
-import { SystemAssetType } from "../../common/system_asset_types.js";
-import { IdGenerator } from "../../common/id_generator.js";
+import { THREE, RAPIER, BLORKPACK_FLAGS, SystemAssetType, IdGenerator } from './index.js';
 /**
  * Creates a primitive capsule with the specified properties.
  * 
