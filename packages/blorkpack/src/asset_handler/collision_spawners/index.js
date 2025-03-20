@@ -9,15 +9,15 @@ import { CapsuleCollisionSpawner } from "./capsule_collision_spawner.js";
  * @returns {BaseCollisionSpawner} The appropriate collision spawner
  */
 export function get_collision_spawner(shape_type, world) {
-    switch (shape_type.toLowerCase()) {
-        case 'sphere':
-            return new SphereCollisionSpawner(world);
-        case 'capsule':
-            return new CapsuleCollisionSpawner(world);
-        case 'box':
-        default:
-            return new BoxCollisionSpawner(world);
-    }
+	switch (shape_type.toLowerCase()) {
+	case 'sphere':
+		return new SphereCollisionSpawner(world);
+	case 'capsule':
+		return new CapsuleCollisionSpawner(world);
+	case 'box':
+	default:
+		return new BoxCollisionSpawner(world);
+	}
 }
 
 export { BoxCollisionSpawner } from "./box_collision_spawner.js";

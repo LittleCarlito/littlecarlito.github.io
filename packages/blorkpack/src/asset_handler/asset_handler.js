@@ -8,7 +8,7 @@ import { CollisionFactory } from "./factories/collision_factory.js";
  * Class responsible for spawning and managing 3D assets in the scene.
  * Handles both static and dynamic (physics-enabled) assets.
  */
-export class AssetSpawner {
+export class AssetHandler {
 	static #instance = null;
 	static #disposed = false;
 	storage;
@@ -26,8 +26,8 @@ export class AssetSpawner {
      * @param {Object} target_world - The physics world
      */
 	constructor(target_container = null, target_world = null) {
-		if (AssetSpawner.#instance) {
-			throw new Error('AssetSpawner is a singleton. Use AssetSpawner.get_instance() instead.');
+		if (AssetHandler.#instance) {
+			throw new Error('AssetHandler is a singleton. Use AssetHandler.get_instance() instead.');
 		}
 		this.storage = AssetStorage.get_instance();
 		this.container = target_container;
@@ -37,27 +37,27 @@ export class AssetSpawner {
 		this.#assetConfigs = CustomTypeManager.getConfigs();
 		// Initialize debug meshes Map
 		this.debugMeshes = new Map();
-		AssetSpawner.#instance = this;
-		AssetSpawner.#disposed = false;
+		AssetHandler.#instance = this;
+		AssetHandler.#disposed = false;
 	}
 	/**
-     * Gets or creates the singleton instance of AssetSpawner.
+     * Gets or creates the singleton instance of AssetHandler.
      * @param {THREE.Scene} scene - The Three.js scene to add objects to.
      * @param {RAPIER.World} world - The Rapier physics world.
-     * @returns {AssetSpawner} The singleton instance.
+     * @returns {AssetHandler} The singleton instance.
      */
 	static get_instance(scene, world) {
-		if (AssetSpawner.#disposed) {
-			AssetSpawner.#instance = null;
-			AssetSpawner.#disposed = false;
+		if (AssetHandler.#disposed) {
+			AssetHandler.#instance = null;
+			AssetHandler.#disposed = false;
 		}
-		if (!AssetSpawner.#instance) {
-			AssetSpawner.#instance = new AssetSpawner(scene, world);
+		if (!AssetHandler.#instance) {
+			AssetHandler.#instance = new AssetHandler(scene, world);
 		} else if (scene || world) {
-			if (scene) AssetSpawner.#instance.scene = scene;
-			if (world) AssetSpawner.#instance.world = world;
+			if (scene) AssetHandler.#instance.scene = scene;
+			if (world) AssetHandler.#instance.world = world;
 		}
-		return AssetSpawner.#instance;
+		return AssetHandler.#instance;
 	}
 	/**
      * Spawns an asset of the specified type at the given position with the given rotation.
@@ -73,7 +73,7 @@ export class AssetSpawner {
 		try {
 			// Check if this is a system asset type
 			if (SystemAssetType.isSystemAssetType(type_value)) {
-				// Handle camera and spotlight in AssetSpawner for now
+				// Handle camera and spotlight in AssetHandler for now
 				if (type_value === SystemAssetType.CAMERA.value) {
 					return this.spawn_scene_camera(options);
 				}
@@ -186,7 +186,7 @@ export class AssetSpawner {
      */
 	cleanup() {
 		// Reset singleton instance
-		AssetSpawner.#instance = null;
+		AssetHandler.#instance = null;
 		// Clean up any core asset management resources
 		if (this.storage) {
 			// Clean up any remaining assets in storage
@@ -697,7 +697,7 @@ export class AssetSpawner {
      * Dispose of the spawner instance and clean up resources
      */
 	dispose() {
-		if (!AssetSpawner.#instance) return;
+		if (!AssetHandler.#instance) return;
 		// Dispose of factories
 		CustomFactory.dispose_instance();
 		CollisionFactory.dispose_instance();
@@ -706,15 +706,15 @@ export class AssetSpawner {
 		this.world = null;
 		this.storage = null;
 		this.container = null;
-		AssetSpawner.#disposed = true;
-		AssetSpawner.#instance = null;
+		AssetHandler.#disposed = true;
+		AssetHandler.#instance = null;
 	}
 	/**
 	 *
 	 */
 	static dispose_instance() {
-		if (AssetSpawner.#instance) {
-			AssetSpawner.#instance.dispose();
+		if (AssetHandler.#instance) {
+			AssetHandler.#instance.dispose();
 		}
 	}
 } 

@@ -1,6 +1,6 @@
 // Debug UI for displaying framerate and performance metrics
 import { FLAGS, RAPIER, THREE } from '../common';
-import { BLORKPACK_FLAGS, AssetSpawner } from '@littlecarlito/blorkpack';
+import { BLORKPACK_FLAGS, AssetHandler } from '@littlecarlito/blorkpack';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 // FPS tracking variables
@@ -634,9 +634,9 @@ export function createDebugUI() {
 			background_container.updateSignDebugVisualizations();
 		}
 		// Update collision debug in the asset spawner if available
-		if (window.asset_spawner) {
+		if (window.asset_handler) {
 			console.log(`Setting collision debug to ${checked}`);
-			asset_spawner.set_collision_debug(checked);
+			asset_handler.set_collision_debug(checked);
 		}
 		// Update label wireframes
 		updateLabelWireframes();
@@ -649,9 +649,9 @@ export function createDebugUI() {
 		BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG = checked;
 		console.log(`Spotlight debug helpers visibility set to ${checked ? 'visible' : 'hidden'}`);
 		// Force update of spotlight debug visualizations to apply the change
-		if (window.asset_spawner && window.asset_spawner.forceDebugMeshUpdate) {
-			window.asset_spawner.forceDebugMeshUpdate();
-			window.asset_spawner.update_debug_meshes();
+		if (window.asset_handler && window.asset_handler.forceDebugMeshUpdate) {
+			window.asset_handler.forceDebugMeshUpdate();
+			window.asset_handler.update_debug_meshes();
 		}
 	});
 	// Add divider
@@ -1444,7 +1444,7 @@ function updateDisplayImage() {
 		// Update all display meshes based on the selected option
 		displayMeshes.forEach(mesh => {
 			// Create a new material based on the selected option using the shared function
-			const material = AssetSpawner.createDisplayMeshMaterial(selectedImageIndex);
+			const material = AssetHandler.createDisplayMeshMaterial(selectedImageIndex);
 			// Log which mode was applied
 			const modes = ['transparent', 'black screen', 'white screen'];
 			console.log(`Set mesh ${mesh.name} to ${modes[selectedImageIndex]}`);

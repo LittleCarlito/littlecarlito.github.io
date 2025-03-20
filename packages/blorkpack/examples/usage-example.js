@@ -8,7 +8,7 @@
 // Here we're importing from our local build
 import { 
 	AssetStorage, 
-	AssetSpawner, 
+	AssetHandler, 
 	AssetActivator, 
 	ASSET_TYPE, 
 	ASSET_CONFIGS,
@@ -75,7 +75,7 @@ async function asset_management_example() {
 		console.log('✅ Assets loaded successfully');
 		// Initialize asset spawner
 		console.log('Initializing asset spawner...');
-		const spawner = AssetSpawner.get_instance(scene, world);
+		const spawner = AssetHandler.get_instance(scene, world);
 		// Spawn an asset (simulated)
 		console.log('Spawning assets in the scene...');
 		// In a real app, this would create actual 3D objects
@@ -292,7 +292,7 @@ async function manifest_manager_example() {
 						// In a real app:
 						// 1. Get position and rotation from asset_data
 						// 2. Get custom type data
-						// 3. Spawn the asset using AssetSpawner
+						// 3. Spawn the asset using AssetHandler
 					} else {
 						console.log(`  - Asset ${asset_id} not found in manifest`);
 					}

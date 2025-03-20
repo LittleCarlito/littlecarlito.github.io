@@ -8,7 +8,7 @@ import {
 	create_spotlight
 } from '../system_spawners/index.js';
 import { SystemAssetType } from "../common/system_asset_types.js";
-import { AssetSpawner } from "../asset_spawner.js";
+import { AssetHandler } from "../asset_handler.js";
 import { IdGenerator } from "../common/id_generator.js";
 /**
  * Factory class responsible for creating and managing system-level assets.
@@ -135,11 +135,10 @@ export class SystemFactory {
 				}
 				// Handle different system asset types
 				let result = null;
-				// TODO This is wrong; If it got to this class in sp
-				// Create an asset spawner instance
-				const assetSpawner = AssetSpawner.get_instance();
+				// Create an asset handler instance
+				const asset_handler = AssetHandler.get_instance();
 				// Use spawn_asset for all asset types
-				result = await assetSpawner.spawn_asset(
+				result = await asset_handler.spawn_asset(
 					asset_type,
 					position,
 					quaternion, // For non-Euler rotation types

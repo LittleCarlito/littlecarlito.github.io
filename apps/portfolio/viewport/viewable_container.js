@@ -13,7 +13,7 @@ export class ViewableContainer {
 	left_mouse_down = false;
 	right_mouse_down = false;
 	camera_manager;
-	asset_spawner;
+	asset_handler;
 	/**
 	 *
 	 */
@@ -22,11 +22,11 @@ export class ViewableContainer {
 		this.parent = window.scene;
 		this.world = window.world;
 		// Get the asset spawner instance
-		this.asset_spawner = window.asset_spawner || window.world.asset_spawner;
+		this.asset_handler = window.asset_handler || window.world.asset_handler;
 		// Get camera configuration from manifest
 		const camera_config = window.manifest_manager.get_camera_config();
 		// Create camera using manifest config via asset spawner
-		this.camera = this.asset_spawner.spawn_scene_camera(camera_config);
+		this.camera = this.asset_handler.spawn_scene_camera(camera_config);
 		// Initialize camera manager with UI distance from manifest
 		this.camera_manager = new CameraManager(this.parent, this.camera, camera_config.ui_distance);
 		// Create overlay and connect it to camera manager

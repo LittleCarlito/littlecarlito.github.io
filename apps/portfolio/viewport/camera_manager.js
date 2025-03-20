@@ -1,5 +1,5 @@
 import { FLAGS, THREE } from "../common";
-import { AssetSpawner }  from '@littlecarlito/blorkpack';
+import { AssetHandler }  from '@littlecarlito/blorkpack';
 import { BLORKPACK_FLAGS } from "@littlecarlito/blorkpack";
 import { SystemAssetType } from "@littlecarlito/blorkpack";
 // Utility functions for angle conversion
@@ -17,7 +17,7 @@ export class CameraManager {
 	constructor(incoming_parent, incoming_camera, distance = 15) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
-		this.spawner = AssetSpawner.get_instance(this.parent);
+		this.spawner = AssetHandler.get_instance(this.parent);
 		this.distance = distance;
 		this.target = new THREE.Vector3(0, 0, 0);
 		// Get camera configuration from manifest
@@ -249,7 +249,7 @@ export class CameraManager {
 				this.right_shoulder_light.mesh.target.updateMatrixWorld(true);
 			}
 		}
-		// Let AssetSpawner handle debug mesh updates
+		// Let AssetHandler handle debug mesh updates
 		this.spawner.update_debug_meshes();
 		// Update overlay position
 		if (this.overlay_container) {

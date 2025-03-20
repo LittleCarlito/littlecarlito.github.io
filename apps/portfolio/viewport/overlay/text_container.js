@@ -2,7 +2,7 @@ import { clamp } from 'three/src/math/MathUtils.js';
 import { TextFrame, IFRAME } from './text_frame';
 import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, CATEGORIES, extract_type, PAN_SPEED, TYPES, VALID_DIRECTIONS } from './overlay_common';
 import { Easing, FLAGS, THREE, Tween } from '../../common';
-import { AssetStorage, AssetSpawner, CustomTypeManager, BLORKPACK_FLAGS }  from '@littlecarlito/blorkpack';
+import { AssetStorage, AssetHandler, CustomTypeManager, BLORKPACK_FLAGS }  from '@littlecarlito/blorkpack';
 /**
  *
  */
@@ -12,7 +12,7 @@ export class TextContainer {
 	text_frames = new Map();
 	focused_text_name = "";
 	particles = [];
-	asset_spawner;
+	asset_handler;
 	// Get a reference to the CustomTypeManager's types and configs
 	#ASSET_TYPE = CustomTypeManager.getTypes();
 	#ASSET_CONFIGS = CustomTypeManager.getConfigs();
@@ -24,7 +24,7 @@ export class TextContainer {
 		this.camera = incoming_camera;
 		this.text_box_container = new THREE.Object3D();
 		// Need to pass parent and null for world since this is UI without physics
-		this.asset_spawner = AssetSpawner.get_instance(this.parent, null);
+		this.asset_handler = AssetHandler.get_instance(this.parent, null);
 		// Create text displays
 		this.parent.add(this.text_box_container);
 		// Creat background private method

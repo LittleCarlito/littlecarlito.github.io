@@ -28,13 +28,13 @@ export { Easing, Tween };
 // Re-export asset management components
 export * from './asset_storage.js';
 export * from './asset_activator.js';
-export * from './asset_spawner/asset_spawner.js';
+export * from './asset_handler/asset_handler.js';
 export * from './manifest_manager.js';
 export * from './loaders.js';
 export * from './app_renderer.js';
 export * from './physics/index.js'; // Export physics utilities
 import { AssetStorage } from './asset_storage.js';
-import { AssetSpawner } from './asset_spawner/asset_spawner.js';
+import { AssetHandler } from './asset_handler/asset_handler.js';
 import { AssetActivator } from './asset_activator.js';
 import { ManifestManager } from './manifest_manager.js';
 import { AppRenderer } from './app_renderer.js';
@@ -42,12 +42,12 @@ import CustomTypeManager from './custom_type_manager.js';
 import { BLORKPACK_FLAGS } from './blorkpack_flags.js';
 import { MANIFEST_TYPES } from './manifest_types.js';
 import { initPhysicsUtil } from './physics/physics_util.js';
-import { SystemAssetType } from './asset_spawner/common/system_asset_types.js';
+import { SystemAssetType } from './asset_handler/common/system_asset_types.js';
 // Export the components
 export {
 	ManifestManager,
 	MANIFEST_TYPES,
-	AssetSpawner,
+	AssetHandler as AssetHandler,
 	AssetStorage,
 	AssetActivator,
 	AppRenderer,

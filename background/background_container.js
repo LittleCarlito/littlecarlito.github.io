@@ -1,5 +1,5 @@
 import { THREE, FLAGS, RAPIER } from '../common';
-import { AssetStorage, AssetSpawner, ASSET_TYPE }  from '@littlecarlito/blorkpack';
+import { AssetStorage, AssetHandler, ASSET_TYPE }  from '@littlecarlito/blorkpack';
 import { ControlMenu } from "./menus/control_menu";
 import { ScrollMenu } from "./menus/scroll_menu";
 import { CATEGORIES, TYPES } from "../viewport/overlay/overlay_common";
@@ -29,7 +29,7 @@ export class BackgroundContainer {
 		this.world = incoming_world;
 		this.object_container = new THREE.Object3D();
 		this.parent.add(this.object_container);
-		const asset_loader = AssetSpawner.get_instance(this.object_container, this.world);
+		const asset_loader = AssetHandler.get_instance(this.object_container, this.world);
 		// Create a promise for the main assets
 		const mainAssetsPromise = (async () => {
 			// Spawn Book
@@ -356,7 +356,7 @@ export class BackgroundContainer {
 			return;
 		}
 		this.is_spawning_primary = true;
-		const asset_loader = AssetSpawner.get_instance(this.object_container, this.world);
+		const asset_loader = AssetHandler.get_instance(this.object_container, this.world);
 		try {
 			if(FLAGS.PHYSICS_LOGS) console.log(`${this.name} Starting primary instructions spawn`);
 			// Create and await the ControlMenu initialization
@@ -419,7 +419,7 @@ export class BackgroundContainer {
 				this,
 				spawn_position
 			);
-			const asset_loader = AssetSpawner.get_instance();
+			const asset_loader = AssetHandler.get_instance();
 			// Now we know the sign_mesh and sign_body exist
 			this.secondary_instruction_sign.sign_mesh.name = `${TYPES.INTERACTABLE}secondary`;
 			this.secondary_instruction_sign.sign_mesh.traverse((child) => {
@@ -447,7 +447,7 @@ export class BackgroundContainer {
 	 *
 	 */
 	async break_primary_chains() {
-		const asset_loader = AssetSpawner.get_instance(this.object_container, this.world);
+		const asset_loader = AssetHandler.get_instance(this.object_container, this.world);
 		if(this.is_primary_spawned()) {
 			if(!this.primary_instruction_sign.chains_broken) {
 				await this.primary_instruction_sign.break_chains();

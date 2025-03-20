@@ -1,4 +1,4 @@
-export { AssetSpawner } from './asset_spawner.js';
+export { AssetHandler } from './asset_handler.js';
 export { SystemFactory } from './factories/system_factory.js';
 export { CustomFactory } from './factories/custom_factory.js';
 export { SystemAssetType } from './common/system_asset_types.js';
