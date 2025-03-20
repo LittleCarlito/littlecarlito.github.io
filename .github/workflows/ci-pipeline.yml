@@ -28,17 +28,22 @@ jobs:
       - name: Install dependencies
         run: pnpm install
       
-      - name: Lint code
-        id: lint
+      - name: Initial lint check
+        id: initial_lint
         run: pnpm lint
         continue-on-error: true
       
-      - name: Run lint:fix if linting failed
-        if: steps.lint.outcome == 'failure'
+      - name: Run lint:fix if initial lint failed
+        if: steps.initial_lint.outcome == 'failure'
         run: pnpm lint:fix
       
+      - name: Final lint check
+        id: final_lint
+        run: pnpm lint
+        if: steps.initial_lint.outcome == 'failure'
+      
       - name: Fail if linting issues remain
-        if: steps.lint.outcome == 'failure'
+        if: steps.final_lint.outcome == 'failure'
         run: exit 1
   
   test:

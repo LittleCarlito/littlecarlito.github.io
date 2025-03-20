@@ -14,6 +14,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const outputPath = path.resolve(__dirname, 'dist/index.js')
 
 // Helper function to get entry points for tools HTML files
+/**
+ *
+ */
 function getToolsEntryPoints() {
 	const toolsDir = path.resolve(__dirname, 'tools')
 	const entryPoints = {}
