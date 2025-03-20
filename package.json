@@ -21,7 +21,10 @@
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testMatch=\"**/tests/**/*.test.js\" --testMatch=\"**/tests/**/*-test.js\" --reporters=\"./scripts/detailed-reporter.js\" --coverage --coverageReporters=\"text\" --coverageReporters=\"json-summary\" --coverageReporters=\"html\" --coverageDirectory=coverage-report || true",
-    "prepare-artifacts": "node scripts/prepare-artifacts.js"
+    "prepare-artifacts": "node scripts/prepare-artifacts.js",
+    "semantic-release": "semantic-release",
+    "version-check": "node scripts/version-check.js",
+    "commitlint": "commitlint"
   },
   "dependencies": {
     "express": "^4.18.3",
@@ -30,8 +33,11 @@
   "devDependencies": {
     "@babel/core": "^7.23.0",
     "@babel/preset-env": "^7.23.0",
+    "@commitlint/cli": "^19.8.0",
+    "@commitlint/config-conventional": "^19.8.0",
     "@eslint/js": "^9.22.0",
     "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/commit-analyzer": "^13.0.1",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^9.2.6",
     "@types/jest": "^29.5.14",

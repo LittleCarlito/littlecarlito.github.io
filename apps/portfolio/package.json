@@ -11,7 +11,7 @@
     "directory": "apps/portfolio"
   },
   "scripts": {
-    "predev": "cd ../../packages/blorkpack && npm run build",
+    "predev": "cd ../../packages/blorkpack && pnpm run build",
     "dev": "vite",
     "build": "vite build && cp custom_types.json dist/",
     "preview": "vite preview",
