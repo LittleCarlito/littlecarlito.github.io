@@ -1,3 +1,14 @@
+## [0.12.14](https://github.com/littlecarlito/threejs_site/compare/v0.12.13...v0.12.14) (2025-03-20)
+
+
+### Bug Fixes
+
+* loading path ([#118](https://github.com/littlecarlito/threejs_site/issues/118)) ([f199de9](https://github.com/littlecarlito/threejs_site/commit/f199de9e512103dd3d201ab91769218413fde212))
+* multiple custom_types ([#117](https://github.com/littlecarlito/threejs_site/issues/117)) ([c906c05](https://github.com/littlecarlito/threejs_site/commit/c906c05a680b616fa8bab32d9ea2d86e09c1a717))
+* removing pipeline ci ([#116](https://github.com/littlecarlito/threejs_site/issues/116)) ([9080824](https://github.com/littlecarlito/threejs_site/commit/90808247aa18d71d0174e39cb031fbb09708b5be))
+* semantic versioning ([#119](https://github.com/littlecarlito/threejs_site/issues/119)) ([4f1ff3b](https://github.com/littlecarlito/threejs_site/commit/4f1ff3b62f27f5b2266ba055ebbd847c082704c0))
+* spawner system ([#115](https://github.com/littlecarlito/threejs_site/issues/115)) ([e0e641c](https://github.com/littlecarlito/threejs_site/commit/e0e641cb49ca572364ac7404ad513af619ab03c5))
+
 ## [0.12.12](https://github.com/littlecarlito/threejs_site/compare/v0.12.11...v0.12.12) (2025-03-18)
 
 
