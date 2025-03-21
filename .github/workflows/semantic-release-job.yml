@@ -43,8 +43,8 @@ jobs:
 
       - name: Configure Git identity
         run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git config --global user.name 'semantic-release-bot'
+          git config --global user.email 'semantic-release-bot@martynus.net'
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
@@ -191,8 +191,8 @@ jobs:
           # Force a patch bump if there are no relevant commits - but only in real release mode
           if [ "$PRE_VERSION" = "0.12.0" ] && [ "${{ inputs.dry_run }}" != "true" ]; then
             echo "Forcing a patch bump since version has been 0.12.0 for a while"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git config user.name "github-actions[bot]"
+            git config user.email "semantic-release-bot@martynus.net"
+            git config user.name "semantic-release-bot"
             git commit --allow-empty -m "fix: force version bump for blorkpack"
           elif [ "${{ inputs.dry_run }}" = "true" ]; then
             echo "In dry-run mode, skipping empty commit for version bump"
@@ -308,13 +308,13 @@ jobs:
           }
           EOF
           
-          # Force a patch bump - but only in real release mode
-          if [ "${{ inputs.dry_run }}" != "true" ]; then
-            echo "Forcing a patch bump for blorktools"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git config user.name "github-actions[bot]"
+          # Force a patch bump if there are no relevant commits - but only in real release mode
+          if [ "$PRE_VERSION" = "0.12.0" ] && [ "${{ inputs.dry_run }}" != "true" ]; then
+            echo "Forcing a patch bump since version has been 0.12.0 for a while"
+            git config user.email "semantic-release-bot@martynus.net"
+            git config user.name "semantic-release-bot"
             git commit --allow-empty -m "fix: force version bump for blorktools"
-          else
+          elif [ "${{ inputs.dry_run }}" = "true" ]; then
             echo "In dry-run mode, skipping empty commit for version bump"
           fi
           
