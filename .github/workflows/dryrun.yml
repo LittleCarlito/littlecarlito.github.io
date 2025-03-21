@@ -46,6 +46,35 @@ jobs:
         if: steps.final_lint.outcome == 'failure'
         run: exit 1
 
+      - name: Build packages
+        run: |
+          # Build packages in correct order with error checking
+          echo "🏗️ Building workspace packages..."
+          
+          echo "Building blorkpack..."
+          pnpm --filter "@littlecarlito/blorkpack" build
+          if [ ! -d "packages/blorkpack/dist" ] || [ ! -f "packages/blorkpack/dist/index.js" ]; then
+            echo "❌ blorkpack build failed - dist directory or index.js missing"
+            exit 1
+          fi
+          echo "✅ blorkpack build completed successfully"
+          
+          echo "Building blorktools..."
+          pnpm --filter "@littlecarlito/blorktools" build
+          if [ ! -d "packages/blorktools/dist" ]; then
+            echo "❌ blorktools build failed - dist directory missing"
+            exit 1
+          fi
+          echo "✅ blorktools build completed successfully"
+          
+          echo "Building portfolio..."
+          pnpm --filter "@littlecarlito/portfolio" build
+          if [ ! -d "apps/portfolio/dist" ]; then
+            echo "❌ portfolio build failed - dist directory missing"
+            exit 1
+          fi
+          echo "✅ portfolio build completed successfully"
+
       - name: Run tests with coverage
         run: pnpm test:coverage
       
