@@ -1,5 +1,5 @@
 // Test importing THREE and RAPIER from the blorkpack package
-import { THREE, RAPIER } from '../../packages/blorkpack/dist/index.js';
+const { THREE, RAPIER } = require('../../packages/blorkpack/dist/index');
 
 // Basic validation tests that don't directly access THREE objects
 test('THREE object is available', () => {
