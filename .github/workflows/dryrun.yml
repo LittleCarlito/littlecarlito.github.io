@@ -17,17 +17,17 @@ permissions:
 jobs:
   build:
     name: Build Packages
-    uses: ./.github/workflows/jobs/build-job.yml
+    uses: ./.github/workflows/build-job.yml
 
   test:
     name: Test Packages
     needs: build
-    uses: ./.github/workflows/jobs/test-job.yml
+    uses: ./.github/workflows/test-job.yml
 
   semantic-release-test:
     name: Test Semantic Release
     needs: test
-    uses: ./.github/workflows/jobs/semantic-release-job.yml
+    uses: ./.github/workflows/semantic-release-job.yml
     with:
       dry_run: true
     secrets:
