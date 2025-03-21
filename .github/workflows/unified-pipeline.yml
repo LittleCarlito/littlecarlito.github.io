@@ -86,8 +86,10 @@ jobs:
     outputs:
       blorkpack_version: ${{ steps.semantic_release.outputs.blorkpack_version }}
       blorktools_version: ${{ steps.semantic_release.outputs.blorktools_version }}
+      blorkboard_version: ${{ steps.semantic_release.outputs.blorkboard_version }}
       blorkpack_version_changed: ${{ steps.semantic_release.outputs.blorkpack_changed }}
       blorktools_version_changed: ${{ steps.semantic_release.outputs.blorktools_changed }}
+      blorkboard_version_changed: ${{ steps.semantic_release.outputs.blorkboard_changed }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -276,6 +278,83 @@ jobs:
             echo "blorktools_version=$CURRENT_BLORKTOOLS_VERSION" >> $GITHUB_OUTPUT
             echo "blorktools_changed=false" >> $GITHUB_OUTPUT
           fi
+          
+          # Process blorkboard package - similar approach
+          cd ../blorkboard
+          
+          # Get current version from package.json
+          CURRENT_BLORKBOARD_VERSION=$(node -p "require('./package.json').version || '0.0.0'")
+          echo "Current blorkboard version: $CURRENT_BLORKBOARD_VERSION"
+          
+          # Run semantic-release to determine and update version
+          RELEASE_OUTPUT=$(npx semantic-release --dry-run || echo "No release")
+          
+          # Check if a new version would be released
+          if echo "$RELEASE_OUTPUT" | grep -q "The next release version is"; then
+            # Extract the new version number from the output
+            NEW_VERSION=$(echo "$RELEASE_OUTPUT" | grep "The next release version is" | sed -E 's/.*The next release version is ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+            echo "New version will be: $NEW_VERSION"
+            
+            # Manually update version in package.json instead of using npm version
+            jq --arg version "$NEW_VERSION" '.version = $version' package.json > package.json.tmp
+            mv package.json.tmp package.json
+            
+            # Create changelog - cannot use semantic-release directly due to workspace protocol issue
+            echo "## [$NEW_VERSION] - $(date +'%Y-%m-%d')" > CHANGELOG.md.new
+            echo "" >> CHANGELOG.md.new
+            
+            # Extract features (feat:)
+            FEATURES=$(git log --pretty=format:"* %s" $(git describe --tags --abbrev=0)..HEAD | grep -i "feat:" || echo "")
+            if [ ! -z "$FEATURES" ]; then
+              echo "### Features" >> CHANGELOG.md.new
+              echo "$FEATURES" >> CHANGELOG.md.new
+              echo "" >> CHANGELOG.md.new
+            fi
+            
+            # Extract bug fixes (fix:)
+            FIXES=$(git log --pretty=format:"* %s" $(git describe --tags --abbrev=0)..HEAD | grep -i "fix:" || echo "")
+            if [ ! -z "$FIXES" ]; then
+              echo "### Bug Fixes" >> CHANGELOG.md.new
+              echo "$FIXES" >> CHANGELOG.md.new
+              echo "" >> CHANGELOG.md.new
+            fi
+            
+            # Extract breaking changes (BREAKING CHANGE:)
+            BREAKING=$(git log --pretty=format:"* %b" $(git describe --tags --abbrev=0)..HEAD | grep -i "BREAKING CHANGE:" || echo "")
+            if [ ! -z "$BREAKING" ]; then
+              echo "### ⚠ BREAKING CHANGES" >> CHANGELOG.md.new
+              echo "$BREAKING" >> CHANGELOG.md.new
+              echo "" >> CHANGELOG.md.new
+            fi
+            
+            # Extract performance improvements (perf:)
+            PERF=$(git log --pretty=format:"* %s" $(git describe --tags --abbrev=0)..HEAD | grep -i "perf:" || echo "")
+            if [ ! -z "$PERF" ]; then
+              echo "### Performance Improvements" >> CHANGELOG.md.new
+              echo "$PERF" >> CHANGELOG.md.new
+              echo "" >> CHANGELOG.md.new
+            fi
+            
+            if [ -f CHANGELOG.md ]; then
+              cat CHANGELOG.md >> CHANGELOG.md.new
+              mv CHANGELOG.md.new CHANGELOG.md
+            else
+              mv CHANGELOG.md.new CHANGELOG.md
+            fi
+            
+            # Git commit the changes
+            git add package.json CHANGELOG.md
+            git commit -m "chore(release): ${NEW_VERSION} [skip ci]"
+            git tag -a "v${NEW_VERSION}" -m "Release ${NEW_VERSION}"
+            git push --follow-tags
+            
+            echo "blorkboard_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "blorkboard_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "No new version for blorkboard"
+            echo "blorkboard_version=$CURRENT_BLORKBOARD_VERSION" >> $GITHUB_OUTPUT
+            echo "blorkboard_changed=false" >> $GITHUB_OUTPUT
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -414,9 +493,76 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
+  publish-blorkboard:
+    name: Publish blorkboard Package
+    needs: analyze-and-release
+    if: ${{ needs.analyze-and-release.outputs.blorkboard_version_changed == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@littlecarlito'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+          
+      - name: Configure package for publishing
+        working-directory: packages/blorkboard
+        run: |
+          # Update package name to use GitHub scoped name
+          jq '.name = "@littlecarlito/blorkboard"' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Set version from semantic-release
+          jq --arg version "${{ needs.analyze-and-release.outputs.blorkboard_version }}" '.version = $version' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          echo "Prepared package.json with version ${{ needs.analyze-and-release.outputs.blorkboard_version }}"
+        
+      - name: Build package
+        working-directory: packages/blorkboard
+        run: |
+          echo "Building blorkboard package..."
+          pnpm install
+          pnpm run build
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+        
+      - name: Check if version exists
+        id: version_check
+        working-directory: packages/blorkboard
+        run: |
+          VERSION="${{ needs.analyze-and-release.outputs.blorkboard_version }}"
+          EXISTS=$(npm view @littlecarlito/blorkboard@$VERSION version 2>/dev/null || echo "")
+          if [ -z "$EXISTS" ]; then
+            echo "version_exists=false" >> $GITHUB_OUTPUT
+          else
+            echo "version_exists=true" >> $GITHUB_OUTPUT
+            echo "Version $VERSION already exists in registry, skipping publish"
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+        
+      - name: Publish package to GitHub Packages
+        if: steps.version_check.outputs.version_exists == 'false'
+        working-directory: packages/blorkboard
+        run: |
+          echo "Publishing blorkboard version ${{ needs.analyze-and-release.outputs.blorkboard_version }} to GitHub Packages"
+          npm publish --access=public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
   deploy:
     name: Deploy to GitHub Pages
-    needs: [analyze-and-release, publish-blorkpack, publish-blorktools]
+    needs: [analyze-and-release, publish-blorkpack, publish-blorktools, publish-blorkboard]
     if: always() && needs.analyze-and-release.result == 'success'
     runs-on: ubuntu-latest
     steps:

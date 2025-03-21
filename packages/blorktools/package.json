@@ -15,7 +15,7 @@
     "test": "echo \"No tests specified\"",
     "clean": "rimraf dist",
     "example:asset-debugger": "vite serve -c vite.config.js",
-    "tools": "vite serve src/",
+    "tools": "./tools.js",
     "tools:modular": "vite serve src/ --open /asset_debugger/asset_debugger.html"
   },
   "dependencies": {

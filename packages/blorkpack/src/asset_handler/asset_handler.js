@@ -13,6 +13,7 @@ import {
 } from "./index.js";
 import { CollisionFactory } from "./factories/collision_factory.js";
 import { DebugFactory } from "./factories/debug_factory.js";
+import { MaterialFactory } from "./factories/material_factory.js";
 /**
  * Class responsible for spawning and managing 3D assets in the scene.
  * Handles both static and dynamic (physics-enabled) assets.
@@ -230,50 +231,6 @@ export class AssetHandler {
 			this.debugFactory = DebugFactory.get_instance(this.scene, this.world);
 		}
 		return this.debugFactory.create_debug_wireframes_for_all_bodies();
-	}
-	/**
-     * @deprecated
-     * Sets the collision debug state for this spawner.
-     * This allows the main application to control debug visualization.
-     * @param {boolean} enabled - Whether collision debug should be enabled
-     */
-	static createDisplayMeshMaterial(displayMode = 0) {
-		let material;
-		switch(displayMode) {
-		case 0: // Transparent
-			material = new THREE.MeshStandardMaterial({
-				color: 0xffffff,            // White base color
-				transparent: true,           // Enable transparency
-				opacity: 0.0,                // Fully transparent
-				side: THREE.DoubleSide
-			});
-			break;
-		case 1: // Black Screen
-			material = new THREE.MeshStandardMaterial({
-				color: 0x000000,            // Black base color
-				emissive: 0x000000,         // No emission (black)
-				emissiveIntensity: 0,       // No emission intensity
-				side: THREE.DoubleSide
-			});
-			break;
-		case 2: // White Screen
-			material = new THREE.MeshStandardMaterial({
-				color: 0xffffff,            // White base color
-				emissive: 0xffffff,         // White emission
-				emissiveIntensity: 0.3,     // Moderate emission intensity to avoid too bright
-				side: THREE.DoubleSide
-			});
-			break;
-		default: // Default to transparent if invalid mode
-			console.warn(`Invalid display mode: ${displayMode}, defaulting to transparent`);
-			material = new THREE.MeshStandardMaterial({
-				color: 0xffffff,
-				transparent: true,
-				opacity: 0.0,
-				side: THREE.DoubleSide
-			});
-		}
-		return material;
 	}
 	/**
      * Spawns assets from asset groups defined in the manifest
