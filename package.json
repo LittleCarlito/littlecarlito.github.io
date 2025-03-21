@@ -18,9 +18,10 @@
     "lint": "pnpm lint:count && echo \"🔍 Checking files...\" && eslint . --ignore-pattern \"**/dist/**\" --format=stylish && echo \"✅ All files pass linting!\" || (echo \"❌ Linting errors found! Run 'pnpm lint:fix' to fix them automatically.\" && exit 1)",
     "lint:fix": "pnpm lint:count && echo \"🔧 Fixing linting issues...\" && eslint . --ignore-pattern \"**/dist/**\" --fix --format=stylish && echo \"✅ Linting issues fixed!\"",
     "lint:test:fix": "node scripts/test-fix.js",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
-    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testMatch=\"**/tests/**/*.test.js\" --testMatch=\"**/tests/**/*-test.js\" --reporters=\"./scripts/detailed-reporter.js\" --coverage --coverageReporters=\"text\" --coverageReporters=\"json-summary\" --coverageReporters=\"html\" --coverageDirectory=coverage-report || true",
+    "test": "jest --config=tests/config/jest.config.cjs",
+    "test:watch": "jest --config=tests/config/jest.config.cjs --watch",
+    "test:coverage": "jest --config=tests/config/jest.config.cjs --coverage",
+    "test:discover": "jest --config=tests/config/jest.config.cjs --listTests",
     "prepare-artifacts": "node scripts/prepare-artifacts.js",
     "semantic-release": "semantic-release",
     "version-check": "node scripts/version-check.js",
@@ -45,6 +46,7 @@
     "eslint": "^9.22.0",
     "eslint-plugin-jsdoc": "^50.6.8",
     "jest": "^29.7.0",
+    "jest-canvas-mock": "^2.5.2",
     "jest-environment-jsdom": "^29.7.0",
     "jest-junit": "^16.0.0",
     "license-webpack-plugin": "^4.0.2",
@@ -60,18 +62,6 @@
     "node": ">=20.0.0"
   },
   "license": "SEE LICENSE IN LICENSE",
-  "jest": {
-    "transform": {},
-    "testEnvironment": "jsdom",
-    "moduleNameMapper": {
-      "^(\\.{1,2}/.*)\\.js$": "$1",
-      "^@littlecarlito/blorkpack$": "<rootDir>/packages/blorkpack/dist/index.js",
-      "^@littlecarlito/blorkpack/(.*)$": "<rootDir>/packages/blorkpack/dist/$1.js"
-    },
-    "setupFilesAfterEnv": [
-      "<rootDir>/tests/setup.js"
-    ]
-  },
   "jest-junit": {
     "outputDirectory": "./test-reports",
     "outputName": "junit.xml",
