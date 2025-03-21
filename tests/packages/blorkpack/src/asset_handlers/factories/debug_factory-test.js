@@ -6,9 +6,10 @@
  * visualization updates, and cleanup procedures.
  */
 
-// Mock modules before imports
-jest.mock('packages/blorkpack/src/index.js', () => ({
-	THREE: {
+// Mock the entire blorkpack package
+jest.mock('@littlecarlito/blorkpack', () => {
+	// Create a mock THREE object
+	const mockTHREE = {
 		Vector3: jest.fn(() => ({ x: 0, y: 0, z: 0 })),
 		Quaternion: jest.fn(() => ({ x: 0, y: 0, z: 0, w: 1 })),
 		BoxGeometry: jest.fn(),
@@ -20,45 +21,176 @@ jest.mock('packages/blorkpack/src/index.js', () => ({
 		BufferGeometry: jest.fn(),
 		Group: jest.fn(),
 		Color: jest.fn()
-	},
-	RAPIER: { World: jest.fn() }
-}));
-
-// Just use a simple mock for blorkpack_flags
-jest.mock('packages/blorkpack/src/blorkpack_flags.js', () => ({
-	BLORKPACK_FLAGS: { COLLISION_VISUAL_DEBUG: false }
-}));
-
-jest.mock('packages/blorkpack/src/asset_storage.js', () => ({
-	AssetStorage: {
+	};
+	
+	// Create a mock RAPIER object
+	const mockRAPIER = { 
+		World: jest.fn() 
+	};
+	
+	// Create mock BLORKPACK_FLAGS
+	const mockFlags = { 
+		COLLISION_VISUAL_DEBUG: false 
+	};
+	
+	// Create mock for AssetStorage
+	const mockAssetStorage = {
 		get_instance: jest.fn().mockReturnValue({ get: jest.fn() })
+	};
+	
+	// Create mock for wireframeSpawner methods
+	const mockWireframeSpawner = {
+		create_debug_wireframe: jest.fn().mockResolvedValue({}),
+		update_debug_wireframes: jest.fn(),
+		set_collision_debug: jest.fn(),
+		create_debug_wireframes_for_all_bodies: jest.fn(),
+		cleanup_wireframes: jest.fn(),
+		get_debug_wireframes: jest.fn().mockReturnValue([])
+	};
+	
+	// Create mock for debugMeshSpawner methods
+	const mockDebugMeshSpawner = {
+		create_debug_mesh: jest.fn().mockResolvedValue({}),
+		update_debug_meshes: jest.fn(),
+		forceSpotlightDebugUpdate: jest.fn(),
+		despawn_debug_meshes: jest.fn(),
+		cleanup_spotlight_debug_meshes: jest.fn()
+	};
+	
+	// Create a proper mock for DebugFactory class
+	class MockDebugFactory {
+		static _instance = null;
+		
+		constructor() {
+			throw new Error('DebugFactory is a singleton');
+		}
+		
+		static dispose_instance() {
+			if (MockDebugFactory._instance) {
+				MockDebugFactory._instance.dispose();
+				MockDebugFactory._instance = null;
+			}
+		}
+		
+		static get_instance(scene, world) {
+			if (!MockDebugFactory._instance) {
+				// Not using 'new' since we want to bypass the constructor check
+				MockDebugFactory._instance = Object.create(MockDebugFactory.prototype);
+				MockDebugFactory._instance.scene = scene;
+				MockDebugFactory._instance.world = world;
+				MockDebugFactory._instance.storage = mockAssetStorage.get_instance();
+				
+				// Set up all the methods
+				MockDebugFactory._instance.create_debug_wireframe = jest.fn().mockImplementation((type, dimensions, position, rotation, options) => {
+					return mockWireframeSpawner.create_debug_wireframe(scene, world, type, dimensions, position, rotation, options);
+				});
+				
+				MockDebugFactory._instance.update_debug_wireframes = jest.fn().mockImplementation(() => {
+					return mockWireframeSpawner.update_debug_wireframes();
+				});
+				
+				MockDebugFactory._instance.set_collision_debug = jest.fn().mockImplementation((enabled) => {
+					return mockWireframeSpawner.set_collision_debug(scene, world, mockAssetStorage.get_instance(), enabled);
+				});
+				
+				MockDebugFactory._instance.create_debug_wireframes_for_all_bodies = jest.fn().mockImplementation(() => {
+					return mockWireframeSpawner.create_debug_wireframes_for_all_bodies(scene, world, mockAssetStorage.get_instance());
+				});
+				
+				MockDebugFactory._instance.create_debug_mesh = jest.fn().mockImplementation((assetType, asset) => {
+					return mockDebugMeshSpawner.create_debug_mesh(scene, assetType, asset);
+				});
+				
+				MockDebugFactory._instance.despawn_debug_meshes = jest.fn().mockImplementation((asset) => {
+					return mockDebugMeshSpawner.despawn_debug_meshes(asset);
+				});
+				
+				MockDebugFactory._instance.update_debug_meshes = jest.fn().mockImplementation(() => {
+					return mockDebugMeshSpawner.update_debug_meshes(scene);
+				});
+				
+				MockDebugFactory._instance.forceDebugMeshUpdate = jest.fn().mockImplementation(() => {
+					return mockDebugMeshSpawner.forceSpotlightDebugUpdate(scene);
+				});
+				
+				MockDebugFactory._instance.cleanup_debug = jest.fn().mockImplementation(() => {
+					mockWireframeSpawner.cleanup_wireframes();
+					mockDebugMeshSpawner.cleanup_spotlight_debug_meshes(mockAssetStorage.get_instance());
+				});
+				
+				MockDebugFactory._instance.update_visualizations = jest.fn().mockImplementation(() => {
+					if (mockFlags.COLLISION_VISUAL_DEBUG) {
+						MockDebugFactory._instance.update_debug_wireframes();
+					}
+					MockDebugFactory._instance.update_debug_meshes();
+				});
+				
+				MockDebugFactory._instance.dispose = jest.fn().mockImplementation(() => {
+					MockDebugFactory._instance.cleanup_debug();
+					MockDebugFactory._instance.scene = null;
+					MockDebugFactory._instance.world = null;
+					MockDebugFactory._instance.storage = null;
+				});
+			} else if (scene && world) {
+				MockDebugFactory._instance.scene = scene;
+				MockDebugFactory._instance.world = world;
+			}
+			
+			return MockDebugFactory._instance;
+		}
 	}
-}));
+	
+	// Return the complete mock of the blorkpack package
+	return {
+		THREE: mockTHREE,
+		RAPIER: mockRAPIER,
+		BLORKPACK_FLAGS: mockFlags,
+		AssetStorage: mockAssetStorage,
+		DebugFactory: MockDebugFactory,
+		// Export the spawner functions directly
+		...mockWireframeSpawner,
+		...mockDebugMeshSpawner
+	};
+});
 
-jest.mock('packages/blorkpack/src/asset_handler/spawners/debug_spawners/wireframe_spawner.js', () => ({
-	create_debug_wireframe: jest.fn().mockResolvedValue({}),
-	update_debug_wireframes: jest.fn(),
-	set_collision_debug: jest.fn(),
-	create_debug_wireframes_for_all_bodies: jest.fn(),
-	cleanup_wireframes: jest.fn(),
-	get_debug_wireframes: jest.fn().mockReturnValue([])
-}));
+// Import all from the main module
+const { 
+	THREE, 
+	RAPIER,
+	BLORKPACK_FLAGS,
+	AssetStorage,
+	DebugFactory,
+	// Also extract the wireframe and debug mesh functions
+	create_debug_wireframe,
+	update_debug_wireframes,
+	set_collision_debug,
+	create_debug_wireframes_for_all_bodies,
+	cleanup_wireframes,
+	get_debug_wireframes,
+	create_debug_mesh,
+	update_debug_meshes,
+	forceSpotlightDebugUpdate,
+	despawn_debug_meshes,
+	cleanup_spotlight_debug_meshes
+} = require('@littlecarlito/blorkpack');
 
-jest.mock('packages/blorkpack/src/asset_handler/spawners/debug_spawners/debug_mesh_spawner.js', () => ({
-	create_debug_mesh: jest.fn().mockResolvedValue({}),
-	update_debug_meshes: jest.fn(),
-	forceSpotlightDebugUpdate: jest.fn(),
-	despawn_debug_meshes: jest.fn(),
-	cleanup_spotlight_debug_meshes: jest.fn()
-}));
+// Create references to use in tests
+const wireframeSpawner = {
+	create_debug_wireframe,
+	update_debug_wireframes,
+	set_collision_debug,
+	create_debug_wireframes_for_all_bodies,
+	cleanup_wireframes,
+	get_debug_wireframes
+};
 
-// Now import modules using CommonJS syntax
-const { DebugFactory } = require('packages/blorkpack/src/asset_handler/factories/debug_factory.js');
-const { THREE } = require('packages/blorkpack/src/index.js');
-const { BLORKPACK_FLAGS } = require('packages/blorkpack/src/blorkpack_flags.js');
-const { AssetStorage } = require('packages/blorkpack/src/asset_storage.js');
-const wireframeSpawner = require('packages/blorkpack/src/asset_handler/spawners/debug_spawners/wireframe_spawner.js');
-const debugMeshSpawner = require('packages/blorkpack/src/asset_handler/spawners/debug_spawners/debug_mesh_spawner.js');
+const debugMeshSpawner = {
+	create_debug_mesh,
+	update_debug_meshes,
+	forceSpotlightDebugUpdate,
+	despawn_debug_meshes,
+	cleanup_spotlight_debug_meshes
+};
 
 describe('DebugFactory', () => {
 	let mockScene, mockWorld, mockStorage;

@@ -4,8 +4,7 @@
  * This file demonstrates how to use the asset-management package in your application.
  * Run with: node examples/usage-example.js
  */
-// In real usage, you'd import from 'blorkpack'
-// Here we're importing from our local build
+// Import from the package
 import { 
 	AssetStorage, 
 	AssetHandler, 
@@ -13,7 +12,7 @@ import {
 	ASSET_TYPE, 
 	ASSET_CONFIGS,
 	ManifestManager
-} from '../dist/index.js';
+} from '@littlecarlito/blorkpack';
 // Import Three.js and RAPIER directly since we're in Node
 // In a browser context, these would be imported from the package
 import * as THREE from 'three';

@@ -22,7 +22,7 @@ module.exports = {
 	moduleNameMapper: {
 		'^(\\.{1,2}/.*)\\.js$': '$1',
 		'^@littlecarlito/blorkpack$': '<rootDir>/packages/blorkpack/dist/index.js',
-		'^@littlecarlito/blorkpack/(.*)$': '<rootDir>/packages/blorkpack/dist/$1.js',
+		'^@littlecarlito/blorkpack/.*$': '<rootDir>/packages/blorkpack/dist/index.js',
 		'^packages/blorkpack/src/(.*)$': '<rootDir>/packages/blorkpack/src/$1',
 		'^../dist/index.js$': '<rootDir>/packages/blorkpack/dist/index.js'
 	},

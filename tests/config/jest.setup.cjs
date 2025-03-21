@@ -57,67 +57,108 @@ global.requestAnimationFrame = jest.fn(callback => setTimeout(callback, 0));
 global.cancelAnimationFrame = jest.fn(id => clearTimeout(id));
 
 // Set up common mocks for the blorkpack package
-const mockThreeRapier = {
-	THREE: {
-		Vector3: jest.fn(() => ({ x: 0, y: 0, z: 0 })),
-		Quaternion: jest.fn(() => ({ x: 0, y: 0, z: 0, w: 1 })),
-		Object3D: jest.fn(() => ({})),
-		Scene: jest.fn(() => ({ 
-			add: jest.fn(),
-			traverse: jest.fn(callback => callback({})) 
-		})),
-		Mesh: jest.fn(() => ({})),
-		BoxGeometry: jest.fn(),
-		LineBasicMaterial: jest.fn(),
-		MeshBasicMaterial: jest.fn(),
-		EdgesGeometry: jest.fn(),
-		LineSegments: jest.fn(),
-		Line: jest.fn(),
-		BufferGeometry: jest.fn(),
-		Group: jest.fn(),
-		Color: jest.fn(),
-		REVISION: '149'
-	},
-	RAPIER: {
-		World: jest.fn(() => ({ createRigidBody: jest.fn(), gravity: { y: -9.81 } })),
-		init: jest.fn(() => Promise.resolve())
-	}
+const mockTHREE = {
+	Vector3: jest.fn(() => ({ x: 0, y: 0, z: 0 })),
+	Quaternion: jest.fn(() => ({ x: 0, y: 0, z: 0, w: 1 })),
+	Object3D: jest.fn(() => ({})),
+	Scene: jest.fn(() => ({ 
+		add: jest.fn(),
+		traverse: jest.fn(callback => callback({})) 
+	})),
+	Mesh: jest.fn(() => ({})),
+	BoxGeometry: jest.fn(),
+	LineBasicMaterial: jest.fn(),
+	MeshBasicMaterial: jest.fn(),
+	EdgesGeometry: jest.fn(),
+	LineSegments: jest.fn(),
+	Line: jest.fn(),
+	BufferGeometry: jest.fn(),
+	Group: jest.fn(),
+	Color: jest.fn(),
+	REVISION: '149'
 };
 
-// Register global mocks
-jest.mock('packages/blorkpack/src/index.js', () => mockThreeRapier, { virtual: true });
-jest.mock('packages/blorkpack/dist/index.js', () => mockThreeRapier, { virtual: true });
+const mockRAPIER = {
+	World: jest.fn(() => ({ createRigidBody: jest.fn(), gravity: { y: -9.81 } })),
+	init: jest.fn(() => Promise.resolve())
+};
 
 // Mock BLORKPACK_FLAGS
 const mockFlags = {
-	BLORKPACK_FLAGS: {
-		COLLISION_VISUAL_DEBUG: false,
-	}
+	COLLISION_VISUAL_DEBUG: false,
 };
-jest.mock('packages/blorkpack/src/blorkpack_flags.js', () => mockFlags, { virtual: true });
 
 // Mock AssetStorage
-jest.mock('packages/blorkpack/src/asset_storage.js', () => ({
-	AssetStorage: {
-		get_instance: jest.fn(() => ({ get: jest.fn() })),
-	}
-}), { virtual: true });
+const mockAssetStorage = {
+	get_instance: jest.fn(() => ({ get: jest.fn() })),
+};
 
-// Mock wireframe_spawner
-jest.mock('packages/blorkpack/src/asset_handler/spawners/debug_spawners/wireframe_spawner.js', () => ({
+// Mock wireframe spawner functions
+const mockWireframeSpawner = {
 	create_debug_wireframe: jest.fn(() => Promise.resolve({})),
 	update_debug_wireframes: jest.fn(),
 	set_collision_debug: jest.fn(),
 	create_debug_wireframes_for_all_bodies: jest.fn(),
 	cleanup_wireframes: jest.fn(),
 	get_debug_wireframes: jest.fn(() => []),
-}), { virtual: true });
+};
 
-// Mock debug_mesh_spawner
-jest.mock('packages/blorkpack/src/asset_handler/spawners/debug_spawners/debug_mesh_spawner.js', () => ({
+// Mock debug mesh spawner functions
+const mockDebugMeshSpawner = {
 	create_debug_mesh: jest.fn(() => Promise.resolve({})),
 	update_debug_meshes: jest.fn(),
 	forceSpotlightDebugUpdate: jest.fn(),
 	despawn_debug_meshes: jest.fn(),
 	cleanup_spotlight_debug_meshes: jest.fn(),
+};
+
+// Mock the DebugFactory class
+const mockDebugFactory = {
+	_instance: null,
+	dispose_instance: jest.fn().mockImplementation(() => {
+		if (mockDebugFactory._instance) {
+			mockDebugFactory._instance.dispose();
+			mockDebugFactory._instance = null;
+		}
+	}),
+	get_instance: jest.fn().mockImplementation((scene, world) => {
+		if (!mockDebugFactory._instance) {
+			mockDebugFactory._instance = {
+				scene,
+				world,
+				storage: null,
+				update_debug_wireframes: jest.fn(),
+				update_debug_meshes: jest.fn(),
+				update_visualizations: jest.fn(),
+				create_debug_wireframe: jest.fn(),
+				set_collision_debug: jest.fn(),
+				create_debug_wireframes_for_all_bodies: jest.fn(),
+				create_debug_mesh: jest.fn(),
+				despawn_debug_meshes: jest.fn(),
+				forceDebugMeshUpdate: jest.fn(),
+				cleanup_debug: jest.fn(),
+				dispose: jest.fn().mockImplementation(() => {
+					mockDebugFactory._instance.scene = null;
+					mockDebugFactory._instance.world = null;
+					mockDebugFactory._instance.storage = null;
+				})
+			};
+		} else if (scene && world) {
+			mockDebugFactory._instance.scene = scene;
+			mockDebugFactory._instance.world = world;
+		}
+		return mockDebugFactory._instance;
+	})
+};
+
+// Register the combined mock for the entire blorkpack package
+jest.mock('@littlecarlito/blorkpack', () => ({
+	THREE: mockTHREE,
+	RAPIER: mockRAPIER,
+	BLORKPACK_FLAGS: mockFlags,
+	AssetStorage: mockAssetStorage,
+	DebugFactory: mockDebugFactory,
+	// Include all spawner functions
+	...mockWireframeSpawner,
+	...mockDebugMeshSpawner
 }), { virtual: true }); 

@@ -5,8 +5,8 @@
  * A simple Node.js script to test the ManifestManager functionality.
  * Run with: node examples/manifest-test.js
  */
-// We need to import from the built package to test it properly
-import { ManifestManager } from '../dist/index.js';
+// We need to import from the package
+import { ManifestManager } from '@littlecarlito/blorkpack';
 import fs from 'fs';
 import path from 'path';
 // Override fetch for Node.js environment
