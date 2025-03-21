@@ -285,7 +285,7 @@ jobs:
           fi
           
           # Run semantic-release
-          pnpm semantic-release --debug || echo "semantic-release process completed"
+          pnpm semantic-release --debug
           
           # Get the new version post-semantic-release
           NEW_VERSION=$(jq -r '.version' package.json)
@@ -360,7 +360,7 @@ jobs:
           git commit --allow-empty -m "fix: force version bump for blorktools"
           
           # Run semantic-release
-          pnpm semantic-release --debug || echo "semantic-release process completed"
+          pnpm semantic-release --debug
           
           # Get the new version post-semantic-release
           NEW_VERSION=$(jq -r '.version' package.json)
