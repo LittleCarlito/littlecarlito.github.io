@@ -19,9 +19,9 @@
     "lint:fix": "pnpm lint:count && echo \"🔧 Fixing linting issues...\" && eslint . --ignore-pattern \"**/dist/**\" --fix --format=stylish && echo \"✅ Linting issues fixed!\"",
     "lint:fix:commit": "pnpm lint:count && echo \"🔧 Fixing linting issues...\" && eslint . --ignore-pattern \"**/dist/**\" --fix --format=stylish && git add . && git commit -m \"chore: auto-linting\" && echo \"✅ Linting issues fixed and committed!\"",
     "lint:test:fix": "node scripts/test-fix.js",
-    "test": "jest --config=tests/config/jest.config.cjs",
-    "test:watch": "jest --config=tests/config/jest.config.cjs --watch",
-    "test:coverage": "jest --config=tests/config/jest.config.cjs --coverage",
+    "test": "node tests/config/prepare-tests.cjs && jest --config=tests/config/jest.config.cjs",
+    "test:watch": "node tests/config/prepare-tests.cjs && jest --config=tests/config/jest.config.cjs --watch",
+    "test:coverage": "node tests/config/prepare-tests.cjs && jest --config=tests/config/jest.config.cjs --coverage",
     "test:discover": "jest --config=tests/config/jest.config.cjs --listTests",
     "prepare-artifacts": "node scripts/prepare-artifacts.js",
     "semantic-release": "semantic-release",
@@ -71,5 +71,16 @@
     "ancestorSeparator": " › ",
     "usePathForSuiteName": "true"
   },
-  "version": "0.12.16"
+  "version": "0.12.16",
+  "pnpm": {
+    "overrides": {},
+    "peerDependencyRules": {
+      "ignoreMissing": []
+    },
+    "packageExtensions": {}
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ]
 }

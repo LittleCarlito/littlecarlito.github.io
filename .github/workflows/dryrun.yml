@@ -8,8 +8,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  lint:
-    name: Code Quality Check
+  build-lint-test:
+    name: Build, Lint, and Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -28,53 +28,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install
       
-      - name: Initial lint check
-        id: initial_lint
-        run: pnpm lint
-        continue-on-error: true
-      
-      - name: Run lint:fix if initial lint failed
-        if: steps.initial_lint.outcome == 'failure'
-        run: pnpm lint:fix
-      
-      - name: Final lint check
-        id: final_lint
-        run: pnpm lint
-        if: steps.initial_lint.outcome == 'failure'
-      
-      - name: Fail if linting issues remain
-        if: steps.final_lint.outcome == 'failure'
-        run: exit 1
-
+      # Build packages first
       - name: Build packages
         run: |
-          # Build packages in correct order with error checking
           echo "🏗️ Building workspace packages..."
-          
-          echo "Building blorkpack..."
           pnpm --filter "@littlecarlito/blorkpack" build
-          if [ ! -d "packages/blorkpack/dist" ] || [ ! -f "packages/blorkpack/dist/index.js" ]; then
-            echo "❌ blorkpack build failed - dist directory or index.js missing"
-            exit 1
-          fi
-          echo "✅ blorkpack build completed successfully"
-          
-          echo "Building blorktools..."
           pnpm --filter "@littlecarlito/blorktools" build
-          if [ ! -d "packages/blorktools/dist" ]; then
-            echo "❌ blorktools build failed - dist directory missing"
-            exit 1
-          fi
-          echo "✅ blorktools build completed successfully"
-          
-          echo "Building portfolio..."
           pnpm --filter "@littlecarlito/portfolio" build
-          if [ ! -d "apps/portfolio/dist" ]; then
-            echo "❌ portfolio build failed - dist directory missing"
-            exit 1
-          fi
-          echo "✅ portfolio build completed successfully"
-
+      
+      # Then run linting
+      - name: Lint check
+        run: pnpm lint
+      
+      # Finally run tests
       - name: Run tests with coverage
         run: pnpm test:coverage
       
@@ -98,89 +64,9 @@ jobs:
           path: pipeline-artifacts/coverage
           retention-days: 7
 
-  verify-monorepo:
-    name: Verify Monorepo Build
-    needs: lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.x'
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@littlecarlito'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8.15.4
-
-      - name: Configure pnpm
-        run: |
-          # Create .npmrc for authentication and workspace config
-          cat > .npmrc << EOF
-          @littlecarlito:registry=https://npm.pkg.github.com/
-          //npm.pkg.github.com/:_authToken=${{ secrets.PACKAGE_TOKEN }}
-          link-workspace-packages=true
-          shamefully-hoist=true
-          ignore-scripts=true
-          auto-install-peers=true
-          EOF
-
-      - name: Install Dependencies
-        run: pnpm install --no-frozen-lockfile
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-          HUSKY: 0
-          HUSKY_SKIP_INSTALL: 1
-
-      - name: Build Packages
-        run: |
-          # Build packages in correct order
-          echo "🏗️ Building workspace packages..."
-          pnpm --filter "@littlecarlito/blorkpack" build
-          pnpm --filter "@littlecarlito/blorktools" build
-          pnpm --filter "@littlecarlito/portfolio" build
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-          HUSKY: 0
-          HUSKY_SKIP_INSTALL: 1
-
-      - name: Verify Builds
-        run: |
-          # Check package builds
-          for pkg in blorkpack blorktools; do
-            if [ ! -d "packages/$pkg/dist" ]; then
-              echo "❌ $pkg build failed - dist directory missing"
-              exit 1
-            fi
-            echo "✅ $pkg build verified"
-          done
-
-          # Check portfolio build
-          if [ ! -d "apps/portfolio/dist" ]; then
-            echo "❌ Portfolio build failed - dist directory missing"
-            exit 1
-          fi
-          echo "✅ Portfolio build verified"
-
-          # Check for source files in portfolio dist
-          SOURCE_FILES=$(find apps/portfolio/dist -name "*.ts" -o -name "*.tsx" -o -name "*.js.map" | grep -v "node_modules" || true)
-          if [ ! -z "$SOURCE_FILES" ]; then
-            echo "⚠️ Warning: Source files found in dist folder:"
-            echo "$SOURCE_FILES"
-          else
-            echo "✅ No source files in dist directory"
-          fi
-
   test-semantic-release:
     name: Test Semantic Release
-    needs: verify-monorepo
+    needs: build-lint-test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
