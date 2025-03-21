@@ -20,7 +20,8 @@
     "@semantic-release/changelog",
     ["@semantic-release/npm", {
       "pkgRoot": ".",
-      "npmPublish": false
+      "npmPublish": false,
+      "npmPath": "pnpm"
     }],
     "@semantic-release/github",
     ["@semantic-release/git", {

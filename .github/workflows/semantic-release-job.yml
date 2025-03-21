@@ -63,6 +63,38 @@ jobs:
       - name: Install dependencies
         run: pnpm install
         
+      - name: Validate package.json for semantic-release compatibility
+        run: |
+          echo "Validating package.json files for semantic-release compatibility"
+          
+          # Check for workspace protocol references
+          echo "Checking for workspace protocol references that could cause issues:"
+          if grep -q "workspace:" packages/*/package.json; then
+            echo "WARNING: Found workspace: references that might cause issues with semantic-release"
+            grep -n "workspace:" packages/*/package.json
+          fi
+          
+          # Test pnpm version command for both packages to verify it would succeed
+          echo "Testing version command for blorkpack:"
+          cd packages/blorkpack
+          # Create test npmrc file
+          echo "shell-emulator=true" > .npmrc
+          echo "save-workspace-protocol=false" >> .npmrc
+          # Try the command that semantic-release will use
+          pnpm version 0.0.0-test --no-git-tag-version || echo "FAILURE: Version command would fail in actual release"
+          git checkout -- package.json
+          cd ../..
+          
+          echo "Testing version command for blorktools:"
+          cd packages/blorktools
+          # Create test npmrc file
+          echo "shell-emulator=true" > .npmrc
+          echo "save-workspace-protocol=false" >> .npmrc
+          # Try the command that semantic-release will use
+          pnpm version 0.0.0-test --no-git-tag-version || echo "FAILURE: Version command would fail in actual release"
+          git checkout -- package.json
+          cd ../..
+        
       - name: Install semantic-release and plugins
         run: |
           pnpm add -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github @semantic-release/npm
@@ -175,6 +207,12 @@ jobs:
           echo "DEBUG: Package.json content before semantic-release:"
           cat package.json | jq '.'
           echo "Installed semantic-release: $(which semantic-release || echo 'Not found')"
+          
+          # Create npmrc file to configure npm behavior
+          echo "shell-emulator=true" > .npmrc
+          echo "workspace-concurrency=1" >> .npmrc
+          echo "prefer-workspace-packages=true" >> .npmrc
+          echo "save-workspace-protocol=false" >> .npmrc
           
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             pnpm semantic-release --debug --dry-run
@@ -289,6 +327,12 @@ jobs:
           echo "DEBUG: Package.json content before semantic-release:"
           cat package.json | jq '.'
           echo "Installed semantic-release: $(which semantic-release || echo 'Not found')"
+          
+          # Create npmrc file to configure npm behavior
+          echo "shell-emulator=true" > .npmrc
+          echo "workspace-concurrency=1" >> .npmrc
+          echo "prefer-workspace-packages=true" >> .npmrc
+          echo "save-workspace-protocol=false" >> .npmrc
           
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             pnpm semantic-release --debug --dry-run
