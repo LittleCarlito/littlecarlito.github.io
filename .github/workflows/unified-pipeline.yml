@@ -50,8 +50,20 @@ jobs:
               echo "❌ $pkg build failed - dist directory missing"
               exit 1
             fi
+            
+            # Specifically check for index.js file in blorkpack
+            if [ "$pkg" = "blorkpack" ] && [ ! -f "packages/$pkg/dist/index.js" ]; then
+              echo "❌ $pkg build failed - dist/index.js file missing"
+              ls -la packages/$pkg/dist/
+              exit 1
+            fi
+            
             echo "✅ $pkg build verified"
           done
+
+          # List contents of blorkpack dist for debugging
+          echo "📂 Contents of packages/blorkpack/dist:"
+          ls -la packages/blorkpack/dist/
 
           # Check portfolio build
           if [ ! -d "apps/portfolio/dist" ]; then
@@ -71,6 +83,21 @@ jobs:
       
       - name: Run lint check
         run: pnpm lint
+      
+      - name: Prepare for tests
+        run: |
+          # Check that prepare-tests.cjs exists
+          if [ ! -f "tests/config/prepare-tests.cjs" ]; then
+            echo "❌ Error: prepare-tests.cjs script not found!"
+            exit 1
+          fi
+          
+          # Make the script executable 
+          chmod +x tests/config/prepare-tests.cjs
+          
+          # Run the script to prepare the test environment
+          echo "Running test preparation script..."
+          node tests/config/prepare-tests.cjs
       
       - name: Run tests with coverage
         run: pnpm test:coverage

@@ -21,13 +21,16 @@ module.exports = {
 	],
 	moduleNameMapper: {
 		'^(\\.{1,2}/.*)\\.js$': '$1',
-		'^@littlecarlito/blorkpack$': '<rootDir>/packages/blorkpack/dist/index.js',
-		'^@littlecarlito/blorkpack/.*$': '<rootDir>/packages/blorkpack/dist/index.js',
-		'^packages/blorkpack/src/(.*)$': '<rootDir>/packages/blorkpack/src/$1',
-		'^../dist/index.js$': '<rootDir>/packages/blorkpack/dist/index.js'
+		// Simplify the mapping to ensure it works on all platforms
+		'@littlecarlito/blorkpack': '<rootDir>/packages/blorkpack/dist/index.js',
+		'@littlecarlito/blorkpack/(.*)': '<rootDir>/packages/blorkpack/dist/index.js',
+		'packages/blorkpack/src/(.*)': '<rootDir>/packages/blorkpack/src/$1',
+		'../dist/index.js': '<rootDir>/packages/blorkpack/dist/index.js'
 	},
 	modulePaths: ['<rootDir>'],
 	moduleDirectories: ['node_modules', '<rootDir>'],
-	// Create test directories if they don't exist
-	globalSetup: './tests/config/globalSetup.js'
+	// Use our custom preparation script before running tests
+	globalSetup: '<rootDir>/tests/config/prepare-tests.cjs',
+	// Add verbose module reporting to help debug issues
+	verbose: true
 }; 

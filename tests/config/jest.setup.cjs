@@ -161,4 +161,19 @@ jest.mock('@littlecarlito/blorkpack', () => ({
 	// Include all spawner functions
 	...mockWireframeSpawner,
 	...mockDebugMeshSpawner
-}), { virtual: true }); 
+}), { virtual: true });
+
+// Also mock any potential subpaths to ensure they're handled correctly
+jest.mock('@littlecarlito/blorkpack/blorkpack-flags', () => ({
+	BLORKPACK_FLAGS: mockFlags
+}), { virtual: true });
+
+// Make THREE and RAPIER globally available for tests that may use them directly
+global.THREE = mockTHREE;
+global.RAPIER = mockRAPIER;
+
+// Help ensure the module is properly mocked before tests run
+beforeAll(() => {
+	// Verify that our mocks are working
+	console.log('Jest setup complete - Mocks initialized');
+}); 

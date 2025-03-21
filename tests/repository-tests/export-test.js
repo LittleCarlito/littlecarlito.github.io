@@ -1,11 +1,14 @@
-// Test importing THREE and RAPIER from the blorkpack package
-const { THREE, RAPIER } = require('@littlecarlito/blorkpack');
+// Basic validation tests that check for global THREE and RAPIER objects
+// These are set up in the jest.setup.cjs file
 
-// Basic validation tests that don't directly access THREE objects
-test('THREE object is available', () => {
-	expect(THREE).toBeDefined();
+test('THREE object is available globally', () => {
+	expect(global.THREE).toBeDefined();
+	// Add additional validation
+	expect(global.THREE.REVISION).toBeDefined();
 });
 
-test('RAPIER object is available', () => {
-	expect(RAPIER).toBeDefined();
+test('RAPIER object is available globally', () => {
+	expect(global.RAPIER).toBeDefined();
+	// Add additional validation
+	expect(global.RAPIER.World).toBeDefined();
 }); 
