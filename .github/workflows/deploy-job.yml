@@ -1,0 +1,208 @@
+name: Deploy Job
+
+on:
+  workflow_call:
+    inputs:
+      package_version:
+        description: "Version of the blorkpack package to use"
+        required: false
+        type: string
+        default: "latest"
+    secrets:
+      PACKAGE_TOKEN:
+        required: true
+    outputs:
+      deploy_success:
+        description: "Whether the deployment succeeded"
+        value: ${{ jobs.deploy.outputs.success }}
+
+jobs:
+  deploy:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    outputs:
+      success: ${{ steps.deploy.outputs.success }}
+    steps:
+      - name: Checkout latest code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@littlecarlito'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+          
+      - name: Get Latest package version
+        id: get_version
+        run: |
+          if [ "${{ inputs.package_version }}" == "latest" ]; then
+            echo "LATEST_VERSION=$(npm view @littlecarlito/blorkpack version --registry=https://npm.pkg.github.com/)" >> $GITHUB_OUTPUT
+          else
+            echo "LATEST_VERSION=${{ inputs.package_version }}" >> $GITHUB_OUTPUT
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          
+      - name: Configure package for production deployment
+        run: |
+          # Check if portfolio directory exists
+          if [ ! -d "apps/portfolio" ]; then
+            echo "ERROR: Portfolio directory does not exist at apps/portfolio!"
+            exit 1
+          fi
+          
+          # Get blorkpack version
+          if [ -z "${{ steps.get_version.outputs.LATEST_VERSION }}" ]; then
+            echo "WARNING: No version received from previous step, using fallback version"
+            BLORKPACK_VERSION="latest"
+          else
+            BLORKPACK_VERSION="${{ steps.get_version.outputs.LATEST_VERSION }}"
+          fi
+          
+          echo "Using blorkpack version: $BLORKPACK_VERSION"
+          
+          # Update dependency to use the GitHub package with latest version
+          jq --arg version "$BLORKPACK_VERSION" '.dependencies."@littlecarlito/blorkpack" = "@littlecarlito/blorkpack@" + $version' apps/portfolio/package.json > apps/portfolio/package.json.tmp
+          mv apps/portfolio/package.json.tmp apps/portfolio/package.json
+          
+          # Add a resolution to ensure the correct version is used
+          jq --arg version "$BLORKPACK_VERSION" '.resolutions."@littlecarlito/blorkpack" = $version' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Create .npmrc for authentication
+          echo "@littlecarlito:registry=https://npm.pkg.github.com/" > .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.PACKAGE_TOKEN }}" >> .npmrc
+          
+      - name: Install Production Dependencies
+        run: |
+          # Create .npmrc to disable all scripts
+          echo "ignore-scripts=true" >> .npmrc
+          echo "husky=0" >> .npmrc
+          
+          # Install dependencies
+          HUSKY=0 HUSKY_SKIP_INSTALL=1 pnpm install --no-frozen-lockfile --ignore-scripts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          HUSKY: 0
+          HUSKY_SKIP_INSTALL: 1
+          npm_config_ignore_scripts: true
+          
+      - name: Ensure blorkpack package is built and linked
+        run: |
+          echo "Building and linking blorkpack for local use..."
+          cd packages/blorkpack
+          
+          # Disable husky
+          HUSKY=0 HUSKY_SKIP_INSTALL=1 npm pkg delete scripts.prepare
+          
+          # Build package
+          HUSKY=0 HUSKY_SKIP_INSTALL=1 pnpm install
+          HUSKY=0 HUSKY_SKIP_INSTALL=1 pnpm run build
+          cd ../..
+          
+          # Update vite.config.js to ensure it can find blorkpack
+          cat > apps/portfolio/vite.config.js << 'EOL'
+          import { defineConfig } from 'vite'
+          import path from 'path'
+
+          export default defineConfig({
+            base: '/threejs_site/',
+            resolve: {
+              alias: {
+                '@littlecarlito/blorkpack': path.resolve(__dirname, '../../packages/blorkpack/dist/index.js')
+              }
+            },
+            optimizeDeps: {
+              include: ['@littlecarlito/blorkpack']
+            },
+            build: {
+              rollupOptions: {
+                output: {
+                  manualChunks: {
+                    'three-core': ['three'],
+                    'three-addons': [
+                      'three/examples/jsm/controls/OrbitControls',
+                      'three/examples/jsm/Addons.js',
+                      'three/examples/jsm/libs/tween.module.js'
+                    ]
+                  }
+                }
+              }
+            }
+          })
+          EOL
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          HUSKY: 0
+          HUSKY_SKIP_INSTALL: 1
+          npm_config_ignore_scripts: true
+        
+      - name: Build for Production
+        run: |
+          echo "Building portfolio app..."
+          cd apps/portfolio
+          
+          # Disable husky and other lifecycle scripts
+          export HUSKY=0
+          export HUSKY_SKIP_INSTALL=1
+          export npm_config_ignore_scripts=true
+          
+          # Build with Vite directly
+          pnpm vite build --logLevel=info
+          
+          # Add a timestamp file to ensure every build is unique
+          echo "Build timestamp: $(date)" > dist/build-timestamp.txt
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          HUSKY: 0
+          HUSKY_SKIP_INSTALL: 1
+          npm_config_ignore_scripts: true
+          
+      - name: Delete existing gh-pages branch
+        if: success()
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Configure remote with token for authentication
+          git remote set-url origin https://x-access-token:${{ secrets.PACKAGE_TOKEN }}@github.com/${{ github.repository }}.git
+          
+          # Force delete the gh-pages branch if it exists
+          git fetch origin
+          if git ls-remote --heads origin gh-pages | grep -q 'gh-pages'; then
+            echo "Deleting existing gh-pages branch"
+            git push origin --delete gh-pages
+            echo "Branch deleted successfully"
+          else
+            echo "No existing gh-pages branch found"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+      
+      - name: Deploy to GitHub Pages
+        id: deploy
+        if: success()
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: apps/portfolio/dist
+          branch: gh-pages
+          clean: true
+          force: true
+          single-commit: true
+          token: ${{ secrets.PACKAGE_TOKEN }}
+          commit-message: "Deploy website "
+        
+      - name: Set deployment status
+        if: always()
+        run: |
+          if [ "${{ steps.deploy.outcome }}" == "success" ]; then
+            echo "success=true" >> $GITHUB_OUTPUT
+          else
+            echo "success=false" >> $GITHUB_OUTPUT
+          fi 
