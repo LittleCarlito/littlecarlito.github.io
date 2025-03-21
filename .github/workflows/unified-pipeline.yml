@@ -37,6 +37,9 @@ jobs:
       - name: Run lint check
         run: pnpm lint
       
+      - name: Build blorkpack for tests
+        run: pnpm --filter="@littlecarlito/blorkpack" build
+        
       - name: Run tests with coverage
         run: pnpm test:coverage
       
