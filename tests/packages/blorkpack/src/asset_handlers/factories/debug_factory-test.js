@@ -58,13 +58,22 @@ jest.mock('@littlecarlito/blorkpack', () => {
 	};
 	
 	// Create a proper mock for DebugFactory class
+	/**
+	 *
+	 */
 	class MockDebugFactory {
 		static _instance = null;
 		
+		/**
+		 *
+		 */
 		constructor() {
 			throw new Error('DebugFactory is a singleton');
 		}
 		
+		/**
+		 *
+		 */
 		static dispose_instance() {
 			if (MockDebugFactory._instance) {
 				MockDebugFactory._instance.dispose();
@@ -72,6 +81,9 @@ jest.mock('@littlecarlito/blorkpack', () => {
 			}
 		}
 		
+		/**
+		 *
+		 */
 		static get_instance(scene, world) {
 			if (!MockDebugFactory._instance) {
 				// Not using 'new' since we want to bypass the constructor check
