@@ -36,11 +36,32 @@ jobs:
       
       - name: Build all packages
         run: |
-          # Build packages in correct order
+          # Build packages in correct order with error checking
           echo "🏗️ Building workspace packages..."
+          
+          echo "Building blorkpack..."
           pnpm --filter "@littlecarlito/blorkpack" build
+          if [ ! -d "packages/blorkpack/dist" ] || [ ! -f "packages/blorkpack/dist/index.js" ]; then
+            echo "❌ blorkpack build failed - dist directory or index.js missing"
+            exit 1
+          fi
+          echo "✅ blorkpack build completed successfully"
+          
+          echo "Building blorktools..."
           pnpm --filter "@littlecarlito/blorktools" build
+          if [ ! -d "packages/blorktools/dist" ]; then
+            echo "❌ blorktools build failed - dist directory missing"
+            exit 1
+          fi
+          echo "✅ blorktools build completed successfully"
+          
+          echo "Building portfolio..."
           pnpm --filter "@littlecarlito/portfolio" build
+          if [ ! -d "apps/portfolio/dist" ]; then
+            echo "❌ portfolio build failed - dist directory missing"
+            exit 1
+          fi
+          echo "✅ portfolio build completed successfully"
       
       - name: Verify Builds
         run: |
@@ -94,6 +115,18 @@ jobs:
           
           # Make the script executable 
           chmod +x tests/config/prepare-tests.cjs
+          
+          # Verify blorkpack build again before tests
+          if [ ! -d "packages/blorkpack/dist" ] || [ ! -f "packages/blorkpack/dist/index.js" ]; then
+            echo "❌ Error: blorkpack package is not built correctly. Rebuilding..."
+            pnpm --filter "@littlecarlito/blorkpack" build
+            
+            # Check again after rebuild
+            if [ ! -d "packages/blorkpack/dist" ] || [ ! -f "packages/blorkpack/dist/index.js" ]; then
+              echo "❌ Fatal: blorkpack build failed after retry."
+              exit 1
+            fi
+          fi
           
           # Run the script to prepare the test environment
           echo "Running test preparation script..."
