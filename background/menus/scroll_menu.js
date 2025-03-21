@@ -2,7 +2,7 @@ import { THREE, FLAGS } from "../../common";
 import { AssetStorage, ASSET_TYPE, BLORKPACK_FLAGS }  from '@littlecarlito/blorkpack';
 import { TYPES } from "../../viewport/overlay/overlay_common";
 import { RAPIER } from '../../common';
-import { AssetSpawner } from '@littlecarlito/blorkpack';
+import { AssetHandler } from '@littlecarlito/blorkpack';
 /**
  *
  */
@@ -98,7 +98,7 @@ export class ScrollMenu {
 		this.camera = incoming_camera;
 		this.world = incoming_world;
 		this.dynamic_bodies = incoming_container.dynamic_bodies;
-		this.spawner = AssetSpawner.get_instance(this.parent);
+		this.spawner = AssetHandler.get_instance(this.parent);
 		// Store initial camera state
 		this.initial_camera_position.copy(this.camera.position);
 		this.initial_camera_quaternion.copy(this.camera.quaternion);

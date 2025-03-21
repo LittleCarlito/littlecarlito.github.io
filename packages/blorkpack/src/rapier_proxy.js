@@ -1,5 +1,5 @@
 // Proxy implementation for lazy-loading RAPIER
-import { load_rapier, ensure_rapier_initialized } from './loaders.js';
+import { load_rapier, ensure_rapier_initialized } from './loader.js';
 // Track module state
 let rapierModule = null;
 let isInitialized = false;

@@ -1,5 +1,5 @@
 import { FLAGS, THREE } from "../common";
-import { AssetSpawner }  from '@littlecarlito/blorkpack';
+import { AssetHandler }  from '@littlecarlito/blorkpack';
 import { BLORKPACK_FLAGS } from "@littlecarlito/blorkpack";
 import { SystemAssetType } from "@littlecarlito/blorkpack";
 // Utility functions for angle conversion
@@ -17,7 +17,7 @@ export class CameraManager {
 	constructor(incoming_parent, incoming_camera, distance = 15) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
-		this.spawner = AssetSpawner.get_instance(this.parent);
+		this.spawner = AssetHandler.get_instance(this.parent);
 		this.distance = distance;
 		this.target = new THREE.Vector3(0, 0, 0);
 		// Get camera configuration from manifest
@@ -58,7 +58,7 @@ export class CameraManager {
 		if (lights_config.left) {
 			// Clean up any existing helpers first
 			if (this.left_shoulder_light) {
-				await this.spawner.despawn_helpers(this.left_shoulder_light.mesh);
+				await this.spawner.despawn_debug_meshes(this.left_shoulder_light.mesh);
 			}
 			const leftPos = new THREE.Vector3(
 				lights_config.left.position.x,
@@ -96,7 +96,7 @@ export class CameraManager {
 		if (lights_config.right) {
 			// Clean up any existing helpers first
 			if (this.right_shoulder_light) {
-				await this.spawner.despawn_helpers(this.right_shoulder_light.mesh);
+				await this.spawner.despawn_debug_meshes(this.right_shoulder_light.mesh);
 			}
 			const rightPos = new THREE.Vector3(
 				lights_config.right.position.x,
@@ -174,10 +174,10 @@ export class CameraManager {
 	 */
 	async cleanupDebugMeshes() {
 		if (this.left_shoulder_light) {
-			await this.spawner.despawn_helpers(this.left_shoulder_light.mesh);
+			await this.spawner.despawn_debug_meshes(this.left_shoulder_light.mesh);
 		}
 		if (this.right_shoulder_light) {
-			await this.spawner.despawn_helpers(this.right_shoulder_light.mesh);
+			await this.spawner.despawn_debug_meshes(this.right_shoulder_light.mesh);
 		}
 	}
 	/**
@@ -249,8 +249,8 @@ export class CameraManager {
 				this.right_shoulder_light.mesh.target.updateMatrixWorld(true);
 			}
 		}
-		// Let AssetSpawner handle debug mesh updates
-		this.spawner.update_helpers();
+		// Let AssetHandler handle debug mesh updates
+		this.spawner.update_debug_meshes();
 		// Update overlay position
 		if (this.overlay_container) {
 			// Calculate the position in front of the camera

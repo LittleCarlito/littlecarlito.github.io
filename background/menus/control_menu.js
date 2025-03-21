@@ -1,6 +1,6 @@
 import { TYPES } from '../../viewport/overlay/overlay_common';
 import { FLAGS, RAPIER, THREE } from '../../common';
-import { ASSET_TYPE, AssetSpawner }  from '@littlecarlito/blorkpack';
+import { ASSET_TYPE, AssetHandler }  from '@littlecarlito/blorkpack';
 import { BLORKPACK_FLAGS } from '@littlecarlito/blorkpack';
 export const IMAGE_PATH = 'images/MouseControlMenu.svg';
 // Combined configuration object for better organization
@@ -134,7 +134,7 @@ export class ControlMenu {
 		this.camera = incoming_camera;
 		this.world = incoming_world;
 		this.primary_container = primary_container;
-		this.spawner = AssetSpawner.get_instance(this.parent);
+		this.spawner = AssetHandler.get_instance(this.parent);
 		// Store initial camera state
 		this.initial_camera_position.copy(this.camera.position);
 		this.initial_camera_quaternion.copy(this.camera.quaternion);

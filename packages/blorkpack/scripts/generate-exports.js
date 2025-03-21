@@ -39,7 +39,7 @@ function createFriendlyExportName(filePath) {
 	// Remove .js extension
 	let name = filePath.replace(/\.js$/, '');
 	// Handle special cases for deeply nested files
-	if (name.includes('asset_spawner/system_asset_factory/spawners/')) {
+	if (name.includes('asset_handler/system_asset_factory/spawners/')) {
 		// For spawners, just use the spawner name 
 		const spawnerName = path.basename(name);
 		// Simplify the name by removing "primitive_" and "_spawner"
@@ -48,8 +48,8 @@ function createFriendlyExportName(filePath) {
 			.replace('_spawner', '');
 		return `./spawner/${simpleName}`;
 	}
-	// For files in asset_spawner/system_asset_factory
-	if (name.includes('asset_spawner/system_asset_factory')) {
+	// For files in asset_handler/system_asset_factory
+	if (name.includes('asset_handler/system_asset_factory')) {
 		if (name.endsWith('system_asset_factory')) {
 			return './factory';
 		}
@@ -57,9 +57,9 @@ function createFriendlyExportName(filePath) {
 		const baseName = path.basename(name);
 		return `./factory/${baseName}`;
 	}
-	// For files in asset_spawner
-	if (name.includes('asset_spawner/')) {
-		if (name.endsWith('asset_spawner')) {
+	// For files in asset_handler
+	if (name.includes('asset_handler/')) {
+		if (name.endsWith('asset_handler')) {
 			return './spawner';
 		}
 	}

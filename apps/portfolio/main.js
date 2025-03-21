@@ -5,7 +5,7 @@ import { ViewableContainer } from './viewport/viewable_container.js';
 import { BackgroundContainer } from './background/background_container.js';
 import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/overlay_common/index.js';
 import { AppRenderer } from './common/index.js';
-import { AssetStorage, AssetActivator, AssetSpawner, ManifestManager, BLORKPACK_FLAGS, CustomTypeManager, 
+import { AssetStorage, AssetActivator, AssetHandler, ManifestManager, BLORKPACK_FLAGS, CustomTypeManager, 
 	shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, 
 	grab_object, release_object, initPhysicsUtil } from '@littlecarlito/blorkpack';
 import { toggleDebugUI, createDebugUI as create_debug_UI, setBackgroundContainer as set_background_container, setResolutionScale as set_resolution_scale, updateLabelWireframes, setSceneReference } from './common/debug_ui.js';
@@ -17,10 +17,10 @@ if (import.meta.hot) {
 	import.meta.hot.accept(['@littlecarlito/blorkpack'], (updatedModules) => {
 		console.log('HMR update detected for blorkpack dependencies:', updatedModules);
 		// Clean up existing instances before the update
-		AssetSpawner.dispose_instance();
+		AssetHandler.dispose_instance();
 		// Re-initialize after the update if needed
 		if (window.scene && window.physicsWorld) {
-			AssetSpawner.get_instance(window.scene, window.physicsWorld);
+			AssetHandler.get_instance(window.scene, window.physicsWorld);
 		}
 	});
 }
@@ -58,10 +58,10 @@ function cleanup() {
 		window.app_renderer = null;
 	}
 	// Cleanup asset systems
-	if (window.asset_spawner) {
-		window.asset_spawner.cleanup();
-		window.asset_spawner.cleanup_debug();
-		window.asset_spawner = null;
+	if (window.asset_handler) {
+		window.asset_handler.cleanup();
+		window.asset_handler.cleanup_debug();
+		window.asset_handler = null;
 	}
 	// Force garbage collection on Three.js objects
 	if (window.scene) {
@@ -269,7 +269,7 @@ async function init() {
 			console.error("Failed to initialize Rapier world:", error);
 			throw new Error("Rapier initialization failed. Make sure to call initRapier() first.");
 		}
-		window.asset_spawner = AssetSpawner.get_instance(window.scene, window.world);
+		window.asset_handler = AssetHandler.get_instance(window.scene, window.world);
 		// Physics optimization settings
 		const physicsOptimization = window.manifest_manager.get_physics_optimization_settings();
 		if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
@@ -308,11 +308,11 @@ async function init() {
 		}
 		// Background creation
 		update_loading_progress('Loading background assets...');
-		// Use AssetSpawner which is already initialized earlier
+		// Use AssetHandler which is already initialized earlier
 		window.background_container = new BackgroundContainer(window.scene, window.viewable_container.get_camera(), window.world);
 		// Load application assets from manifest (including background floor)
 		update_loading_progress('Loading assets...');
-		const spawned_assets = await window.asset_spawner.spawn_manifest_assets(window.manifest_manager, update_loading_progress);
+		const spawned_assets = await window.asset_handler.spawn_manifest_assets(window.manifest_manager, update_loading_progress);
 		if (BLORKPACK_FLAGS.ASSET_LOGS) {
 			console.log('Loaded assets:', spawned_assets);
 		}
@@ -460,11 +460,11 @@ function animate() {
 	// Update confetti particles (immune from physics pause - uses its own physics calculations)
 	window.viewable_container.get_overlay().update_confetti();
 	// Ensure regular cleanup of unused resources
-	if (window.asset_spawner) {
-		window.asset_spawner.update_visualizations();
+	if (window.asset_handler) {
+		window.asset_handler.update_visualizations();
 		// Always ensure spotlight debug meshes are visible
-		if (window.asset_spawner.update_helpers) {
-			window.asset_spawner.update_helpers();
+		if (window.asset_handler.update_debug_meshes) {
+			window.asset_handler.update_debug_meshes();
 		}
 	}
 	// Render the scene

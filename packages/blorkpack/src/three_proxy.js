@@ -1,5 +1,5 @@
 // Proxy implementation for lazy-loading THREE
-import { load_three } from './loaders.js';
+import { load_three } from './loader.js';
 // Track module state
 let threeModule = null;
 let isInitialized = false;

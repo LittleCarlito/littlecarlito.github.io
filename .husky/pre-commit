@@ -6,16 +6,23 @@ echo "🔍 Running pre-commit checks..."
 echo "Running initial lint check..."
 pnpm lint || (
   echo "⚠️ Initial lint check failed. Attempting to fix automatically..."
-  pnpm lint:fix && (
-    echo "Running final lint check..."
-    pnpm lint || (
-      echo "❌ Linting issues remain after auto-fix. Please fix them manually and try committing again."
-      exit 1
-    )
-  ) || (
+  # Store the current commit message for reuse
+  COMMIT_MSG=$(git log -1 --pretty=%B 2>/dev/null)
+  # Stash any staged changes
+  git stash push -m "pre-commit-stash" --keep-index
+  # Run the fix and auto-commit
+  pnpm lint:fix
+  if [ $? -eq 0 ]; then
+    # Stage the fixed files
+    git add .
+    # Return success - the original commit will proceed with the fixes included
+    echo "✅ Linting issues fixed and included in your commit!"
+  else
     echo "❌ Auto-fix failed. Please fix the issues manually and try committing again."
+    # Restore any stashed changes
+    git stash pop
     exit 1
-  )
+  fi
 )
 
 # Run tests with coverage

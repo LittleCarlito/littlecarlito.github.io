@@ -4,16 +4,15 @@
  * This file demonstrates how to use the asset-management package in your application.
  * Run with: node examples/usage-example.js
  */
-// In real usage, you'd import from 'blorkpack'
-// Here we're importing from our local build
+// Import from the package
 import { 
 	AssetStorage, 
-	AssetSpawner, 
+	AssetHandler, 
 	AssetActivator, 
 	ASSET_TYPE, 
 	ASSET_CONFIGS,
 	ManifestManager
-} from '../dist/index.js';
+} from '@littlecarlito/blorkpack';
 // Import Three.js and RAPIER directly since we're in Node
 // In a browser context, these would be imported from the package
 import * as THREE from 'three';
@@ -75,7 +74,7 @@ async function asset_management_example() {
 		console.log('✅ Assets loaded successfully');
 		// Initialize asset spawner
 		console.log('Initializing asset spawner...');
-		const spawner = AssetSpawner.get_instance(scene, world);
+		const spawner = AssetHandler.get_instance(scene, world);
 		// Spawn an asset (simulated)
 		console.log('Spawning assets in the scene...');
 		// In a real app, this would create actual 3D objects
@@ -292,7 +291,7 @@ async function manifest_manager_example() {
 						// In a real app:
 						// 1. Get position and rotation from asset_data
 						// 2. Get custom type data
-						// 3. Spawn the asset using AssetSpawner
+						// 3. Spawn the asset using AssetHandler
 					} else {
 						console.log(`  - Asset ${asset_id} not found in manifest`);
 					}

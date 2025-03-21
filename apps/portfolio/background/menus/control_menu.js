@@ -1,6 +1,6 @@
 import { TYPES } from '../../viewport/overlay/overlay_common';
 import { FLAGS, RAPIER, THREE } from '../../common';
-import { CustomTypeManager, AssetSpawner }  from '@littlecarlito/blorkpack';
+import { CustomTypeManager, AssetHandler }  from '@littlecarlito/blorkpack';
 import { BLORKPACK_FLAGS } from '@littlecarlito/blorkpack';
 import { SystemAssetType } from '@littlecarlito/blorkpack';
 export const IMAGE_PATH = 'images/MouseControlMenu.svg';
@@ -137,7 +137,7 @@ export class ControlMenu {
 		this.camera = incoming_camera;
 		this.world = incoming_world;
 		this.primary_container = primary_container;
-		this.spawner = AssetSpawner.get_instance(this.parent);
+		this.spawner = AssetHandler.get_instance(this.parent);
 		// Store initial camera state
 		this.initial_camera_position.copy(this.camera.position);
 		this.initial_camera_quaternion.copy(this.camera.quaternion);
@@ -406,7 +406,7 @@ export class ControlMenu {
 		this.sign_joint = null;
 		// Remove spotlight if it exists
 		if (this.menu_spotlight) {
-			await this.spawner.despawn_helpers(this.menu_spotlight.mesh);
+			await this.spawner.despawn_debug_meshes(this.menu_spotlight.mesh);
 			this.menu_spotlight = null;
 		}
 		// Dispose of beam mesh and physics body
