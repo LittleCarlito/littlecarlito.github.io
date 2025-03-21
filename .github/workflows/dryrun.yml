@@ -90,6 +90,31 @@ jobs:
           for pkg in blorkpack blorktools; do
             echo "Testing semantic-release for $pkg..."
             cd "packages/$pkg"
+            
+            # Ensure package name is correct with proper scoping
+            jq '.name = "@littlecarlito/'$pkg'"' package.json > package.json.tmp
+            mv package.json.tmp package.json
+            
+            # Safer approach to handle workspace dependencies - process each dependency type separately
+            # Initialize empty objects for any missing dependency sections
+            jq '.dependencies = (.dependencies // {}) | .devDependencies = (.devDependencies // {}) | .peerDependencies = (.peerDependencies // {})' package.json > package.json.tmp
+            mv package.json.tmp package.json
+            
+            # Handle dependencies
+            jq '.dependencies = (.dependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
+            mv package.json.tmp package.json
+            
+            # Handle devDependencies
+            jq '.devDependencies = (.devDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
+            mv package.json.tmp package.json
+            
+            # Handle peerDependencies
+            jq '.peerDependencies = (.peerDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
+            mv package.json.tmp package.json
+            
+            # Validate JSON
+            cat package.json | jq empty || { echo "ERROR: Invalid JSON after manipulation"; exit 1; }
+            
             echo '{
               "branches": ["main"],
               "plugins": [
@@ -111,7 +136,9 @@ jobs:
                 "@semantic-release/release-notes-generator",
                 "@semantic-release/changelog",
                 ["@semantic-release/npm", {
-                  "npmPublish": false
+                  "npmPublish": false,
+                  "pkgRoot": ".",
+                  "npmPath": "pnpm"
                 }],
                 ["@semantic-release/git", {
                   "assets": ["package.json", "CHANGELOG.md"],
@@ -120,7 +147,18 @@ jobs:
                 "@semantic-release/github"
               ]
             }' > .releaserc.json
+            
+            # Set environment variable to use pnpm for version updates
+            export NPM_PATH="pnpm"
+            
+            # Run semantic-release with detailed debug output
+            echo "DEBUG: Starting semantic-release dry run for $pkg"
+            echo "Current directory: $(pwd)"
+            echo "DEBUG: Package.json content before semantic-release:"
+            cat package.json | jq '.'
+            echo "Installed semantic-release: $(which semantic-release || echo 'Not found')"
             pnpm semantic-release --dry-run
+            
             cd ../..
           done
         env:

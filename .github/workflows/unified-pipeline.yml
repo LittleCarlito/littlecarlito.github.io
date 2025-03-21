@@ -238,15 +238,25 @@ jobs:
           jq '.name = "@littlecarlito/blorkpack"' package.json > package.json.tmp
           mv package.json.tmp package.json
           
-          # Replace workspace: dependencies with actual versions to avoid npm errors
-          # Find all dependencies with workspace: prefix and replace with actual version or *
-          jq 'walk(if type == "object" and (has("dependencies") or has("devDependencies") or has("peerDependencies"))
-            then
-              .dependencies |= if . then with_entries(if .value | startswith("workspace:") then .value = "*" else . end) else . end |
-              .devDependencies |= if . then with_entries(if .value | startswith("workspace:") then .value = "*" else . end) else . end |
-              .peerDependencies |= if . then with_entries(if .value | startswith("workspace:") then .value = "*" else . end) else . end
-            else . end)' package.json > package.json.tmp
+          # Safer approach to handle workspace dependencies - process each dependency type separately
+          # Initialize empty objects for any missing dependency sections
+          jq '.dependencies = (.dependencies // {}) | .devDependencies = (.devDependencies // {}) | .peerDependencies = (.peerDependencies // {})' package.json > package.json.tmp
           mv package.json.tmp package.json
+          
+          # Handle dependencies
+          jq '.dependencies = (.dependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Handle devDependencies
+          jq '.devDependencies = (.devDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Handle peerDependencies
+          jq '.peerDependencies = (.peerDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Validate JSON
+          cat package.json | jq empty || { echo "ERROR: Invalid JSON after manipulation"; exit 1; }
           
           # Create local .releaserc.json for this package
           cat > .releaserc.json << 'EOF'
@@ -302,6 +312,8 @@ jobs:
           # Run semantic-release with detailed debug output
           echo "DEBUG: Starting semantic-release for blorkpack"
           echo "Current directory: $(pwd)"
+          echo "DEBUG: Package.json content before semantic-release:"
+          cat package.json | jq '.'
           echo "Installed semantic-release: $(which semantic-release || echo 'Not found')"
           pnpm semantic-release --debug
           
@@ -333,15 +345,25 @@ jobs:
           jq '.name = "@littlecarlito/blorktools"' package.json > package.json.tmp
           mv package.json.tmp package.json
           
-          # Replace workspace: dependencies with actual versions to avoid npm errors
-          # Find all dependencies with workspace: prefix and replace with actual version or *
-          jq 'walk(if type == "object" and (has("dependencies") or has("devDependencies") or has("peerDependencies"))
-            then
-              .dependencies |= if . then with_entries(if .value | startswith("workspace:") then .value = "*" else . end) else . end |
-              .devDependencies |= if . then with_entries(if .value | startswith("workspace:") then .value = "*" else . end) else . end |
-              .peerDependencies |= if . then with_entries(if .value | startswith("workspace:") then .value = "*" else . end) else . end
-            else . end)' package.json > package.json.tmp
+          # Safer approach to handle workspace dependencies - process each dependency type separately
+          # Initialize empty objects for any missing dependency sections
+          jq '.dependencies = (.dependencies // {}) | .devDependencies = (.devDependencies // {}) | .peerDependencies = (.peerDependencies // {})' package.json > package.json.tmp
           mv package.json.tmp package.json
+          
+          # Handle dependencies
+          jq '.dependencies = (.dependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Handle devDependencies
+          jq '.devDependencies = (.devDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Handle peerDependencies
+          jq '.peerDependencies = (.peerDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Validate JSON
+          cat package.json | jq empty || { echo "ERROR: Invalid JSON after manipulation"; exit 1; }
           
           # Create local .releaserc.json for this package
           cat > .releaserc.json << 'EOF'
@@ -395,6 +417,8 @@ jobs:
           # Run semantic-release with detailed debug output
           echo "DEBUG: Starting semantic-release for blorktools"
           echo "Current directory: $(pwd)"
+          echo "DEBUG: Package.json content before semantic-release:"
+          cat package.json | jq '.'
           echo "Installed semantic-release: $(which semantic-release || echo 'Not found')"
           pnpm semantic-release --debug
           
