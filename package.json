@@ -5,11 +5,11 @@
   "copyright": "Copyright (C) 2024 Steven Meier",
   "scripts": {
     "build": "turbo run build",
-    "dev": "pnpm board",
+    "dev": "pnpm --filter=@littlecarlito/blorkboard dev",
     "dev:portfolio": "pnpm --filter=@littlecarlito/portfolio dev",
     "dev:tools": "pnpm --filter=@littlecarlito/blorktools dev",
     "dev:console": "node scripts/dev-console.js",
-    "board": "node scripts/blork-board.js",
+    "board": "pnpm --filter=@littlecarlito/blorkboard dev",
     "dev:all": "pnpm turbo run dev --parallel",
     "tools": "pnpm turbo run tools --parallel",
     "clean": "turbo run clean",

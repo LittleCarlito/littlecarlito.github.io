@@ -21,7 +21,7 @@ jobs:
     name: Deploy to GitHub Pages
     runs-on: ubuntu-latest
     outputs:
-      success: ${{ steps.deploy.outputs.success }}
+      success: ${{ steps.deployment_status.outputs.success }}
     steps:
       - name: Checkout latest code
         uses: actions/checkout@v4
@@ -199,6 +199,7 @@ jobs:
           commit-message: "Deploy website "
         
       - name: Set deployment status
+        id: deployment_status
         if: always()
         run: |
           if [ "${{ steps.deploy.outcome }}" == "success" ]; then
