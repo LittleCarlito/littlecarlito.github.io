@@ -6,7 +6,7 @@ import {
 	create_primitive_capsule,
 	create_primitive_cylinder,
 	create_spotlight
-} from '../system_spawners/index.js';
+} from '../index.js';
 import { SystemAssetType } from "../common/system_asset_types.js";
 import { AssetHandler } from "../asset_handler.js";
 import { IdGenerator } from "../common/id_generator.js";

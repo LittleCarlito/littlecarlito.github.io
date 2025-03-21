@@ -1,6 +1,6 @@
 import { THREE, RAPIER } from "../../index.js";
 import { BLORKPACK_FLAGS } from "../../blorkpack_flags.js";
-import { get_collision_spawner } from "../collision_spawners/index.js";
+import { get_collision_spawner } from "../spawners/collision_spawners/index.js";
 
 /**
  * Factory class responsible for creating and managing physics colliders.

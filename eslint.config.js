@@ -1,6 +1,57 @@
 import js from '@eslint/js';
 import jsdoc from 'eslint-plugin-jsdoc';
 
+// Custom rule to prevent unnecessary dynamic imports with await
+const noUnnecessaryDynamicImports = {
+	meta: {
+		type: 'suggestion',
+		docs: {
+			description: 'Disallow unnecessary dynamic imports with await',
+			category: 'Best Practices',
+			recommended: true,
+		}
+	},
+	create(context) {
+		return {
+			// Look for dynamic import expressions inside await
+			'AwaitExpression > ImportExpression'(node) {
+				const importSource = node.source.value;
+				
+				// Skip if the import path contains a variable or expression
+				if (!importSource || typeof importSource !== 'string') {
+					return;
+				}
+				
+				// Check if the import is within a function or method
+				let parent = node.parent;
+				let insideFunction = false;
+				
+				while (parent) {
+					if (
+						parent.type === 'FunctionDeclaration' ||
+						parent.type === 'FunctionExpression' ||
+						parent.type === 'ArrowFunctionExpression' ||
+						parent.type === 'MethodDefinition'
+					) {
+						insideFunction = true;
+						break;
+					}
+					parent = parent.parent;
+				}
+				
+				// If it's a static import path and not in a condition/loop, it could be moved to top-level
+				if (insideFunction) {
+					// Report the issue
+					context.report({
+						node,
+						message: `Unnecessary dynamic import with await for '${importSource}'. Consider using static import at the top of the file instead if this module is always required.`
+					});
+				}
+			}
+		};
+	}
+};
+
 export default [
 	// Empty config with no rules enabled
 	{
@@ -21,6 +72,11 @@ export default [
 		...js.configs.recommended,
 		plugins: {
 			jsdoc: jsdoc,
+			custom: {
+				rules: {
+					'no-unnecessary-dynamic-imports': noUnnecessaryDynamicImports
+				}
+			}
 		},
 		rules: {
 			...Object.fromEntries(
@@ -49,6 +105,8 @@ export default [
 					FunctionExpression: false,
 				},
 			}],
+			// Apply our custom rule
+			'custom/no-unnecessary-dynamic-imports': 'error',
 		},
 	},
 ]; 

@@ -1,4 +1,4 @@
-import { THREE, RAPIER } from "../../index.js";
+import { THREE, RAPIER } from "../../../index.js";
 import { BaseCollisionSpawner } from "./base_collision_spawner.js";
 
 /**

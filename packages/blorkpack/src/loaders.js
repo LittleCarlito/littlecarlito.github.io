@@ -11,6 +11,7 @@ let rapierInitialized = false;
  */
 export async function load_three() {
 	if (!loadedTHREE) {
+		// eslint-disable-next-line custom/no-unnecessary-dynamic-imports
 		const threeModule = await import('three');
 		loadedTHREE = { 
 			THREE: threeModule
@@ -24,6 +25,7 @@ export async function load_three() {
  */
 export async function load_rapier() {
 	if (!loadedRAPER) {
+		// eslint-disable-next-line custom/no-unnecessary-dynamic-imports
 		const RAPIER = await import('@dimforge/rapier3d-compat');
 		loadedRAPER = RAPIER;
 	}

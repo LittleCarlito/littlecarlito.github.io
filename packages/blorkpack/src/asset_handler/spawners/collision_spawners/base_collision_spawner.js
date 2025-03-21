@@ -1,5 +1,5 @@
-import { THREE, RAPIER } from "../../index.js";
-import { BLORKPACK_FLAGS } from "../../blorkpack_flags.js";
+import { THREE, RAPIER } from "../../../index.js";
+import { BLORKPACK_FLAGS } from "../../../blorkpack_flags.js";
 
 /**
  * Base class for all collision spawners.

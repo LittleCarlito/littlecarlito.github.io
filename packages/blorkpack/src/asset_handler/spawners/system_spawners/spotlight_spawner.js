@@ -164,14 +164,12 @@ export async function create_spotlight(scene, id, position, rotation, options = 
 }
 
 /**
- * Creates a spotlight debug mesh to visualize the spotlight cone and direction.
- * Used for debugging purposes.
- * 
- * @param {THREE.Scene} scene - The Three.js scene
- * @param {THREE.SpotLight} spotlight - The spotlight to create debug meshes for
- * @returns {Promise<Object>} The created debug mesh objects
+ * Creates a debug mesh for visualizing the spotlight
+ * @param {THREE.Scene} scene - The scene to add the debug mesh to
+ * @param {Object} spotlight - The spotlight object
+ * @returns {THREE.Group} The debug mesh group
  */
-async function create_spotlight_debug_mesh(scene, spotlight) {
+export async function create_spotlight_debug_mesh(scene, spotlight) {
 	if (!spotlight) {
 		console.error(`Cannot create debug mesh: spotlight is null or undefined`);
 		return null;

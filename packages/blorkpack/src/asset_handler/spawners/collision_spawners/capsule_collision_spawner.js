@@ -1,14 +1,15 @@
-import { THREE, RAPIER } from "../../index.js";
+import { THREE, RAPIER } from "../../../index.js";
 import { BaseCollisionSpawner } from "./base_collision_spawner.js";
 
 /**
- * Spawner class for sphere-shaped colliders
+ * Spawner class for capsule-shaped colliders
  */
-export class SphereCollisionSpawner extends BaseCollisionSpawner {
+export class CapsuleCollisionSpawner extends BaseCollisionSpawner {
 	/**
-     * Creates a sphere collider
-     * @param {Object} properties - The properties for the sphere collider
-     * @param {number} properties.radius - The radius of the sphere
+     * Creates a capsule collider
+     * @param {Object} properties - The properties for the capsule collider
+     * @param {number} properties.height - The height of the capsule
+     * @param {number} properties.radius - The radius of the capsule
      * @param {Object} [properties.position] - The position of the collider
      * @param {Object} [properties.rotation] - The rotation of the collider
      * @param {number} [properties.mass] - The mass of the collider
@@ -18,8 +19,8 @@ export class SphereCollisionSpawner extends BaseCollisionSpawner {
      * @returns {RAPIER.Collider} The created collider
      */
 	create_collider(properties) {
-		const { radius, position, rotation, mass, restitution, friction, body } = properties;
-		const collider_desc = RAPIER.ColliderDesc.ball(radius);
+		const { height, radius, position, rotation, mass, restitution, friction, body } = properties;
+		const collider_desc = RAPIER.ColliderDesc.capsule(height * 0.5, radius);
         
 		if (position) {
 			collider_desc.setTranslation(position.x, position.y, position.z);
@@ -39,12 +40,13 @@ export class SphereCollisionSpawner extends BaseCollisionSpawner {
 	}
 
 	/**
-     * Gets the dimensions of the sphere collider
-     * @param {Object} properties - The properties for the sphere collider
+     * Gets the dimensions of the capsule collider
+     * @param {Object} properties - The properties for the capsule collider
      * @returns {Object} The dimensions of the collider
      */
 	get_dimensions(properties) {
 		return {
+			height: properties.height,
 			radius: properties.radius
 		};
 	}
