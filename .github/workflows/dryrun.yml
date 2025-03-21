@@ -83,7 +83,7 @@ jobs:
 
       - name: Install semantic-release
         run: |
-          npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github @semantic-release/npm
+          pnpm add -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github @semantic-release/npm
 
       - name: Test Releases
         run: |
@@ -120,7 +120,7 @@ jobs:
                 "@semantic-release/github"
               ]
             }' > .releaserc.json
-            pnpm semantic-release --dry-run || echo "Completed dry-run for $pkg"
+            pnpm semantic-release --dry-run
             cd ../..
           done
         env:
