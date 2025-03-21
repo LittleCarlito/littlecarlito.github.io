@@ -120,13 +120,54 @@ jobs:
       - name: Run semantic release
         id: semantic_release
         run: |
-          # Run your semantic release process here
-          # This is a placeholder - replace with your actual semantic release steps
-          echo "Running semantic release..."
-          echo "blorkpack_version=1.0.0" >> $GITHUB_OUTPUT
-          echo "blorktools_version=1.0.0" >> $GITHUB_OUTPUT
-          echo "blorkpack_changed=true" >> $GITHUB_OUTPUT
-          echo "blorktools_changed=true" >> $GITHUB_OUTPUT
+          # Install semantic-release and its dependencies
+          npm install -g semantic-release @semantic-release/git @semantic-release/changelog conventional-changelog-conventionalcommits
+          
+          # Process blorkpack package
+          cd packages/blorkpack
+          
+          # Get current version from package.json
+          CURRENT_BLORKPACK_VERSION=$(node -p "require('./package.json').version || '0.0.0'")
+          echo "Current blorkpack version: $CURRENT_BLORKPACK_VERSION"
+          
+          # Run semantic-release to determine and update version
+          RELEASE_OUTPUT=$(npx semantic-release || echo "No release")
+          
+          # Check if a new version was released
+          if echo "$RELEASE_OUTPUT" | grep -q "The next release version is"; then
+            # Extract the new version from semantic-release output
+            NEXT_BLORKPACK_VERSION=$(node -p "require('./package.json').version")
+            echo "New blorkpack version: $NEXT_BLORKPACK_VERSION"
+            echo "blorkpack_version=$NEXT_BLORKPACK_VERSION" >> $GITHUB_OUTPUT
+            echo "blorkpack_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "No new version for blorkpack"
+            echo "blorkpack_version=$CURRENT_BLORKPACK_VERSION" >> $GITHUB_OUTPUT
+            echo "blorkpack_changed=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Process blorktools package
+          cd ../blorktools
+          
+          # Get current version from package.json
+          CURRENT_BLORKTOOLS_VERSION=$(node -p "require('./package.json').version || '0.0.0'")
+          echo "Current blorktools version: $CURRENT_BLORKTOOLS_VERSION"
+          
+          # Run semantic-release to determine and update version
+          RELEASE_OUTPUT=$(npx semantic-release || echo "No release")
+          
+          # Check if a new version was released
+          if echo "$RELEASE_OUTPUT" | grep -q "The next release version is"; then
+            # Extract the new version from semantic-release output
+            NEXT_BLORKTOOLS_VERSION=$(node -p "require('./package.json').version")
+            echo "New blorktools version: $NEXT_BLORKTOOLS_VERSION"
+            echo "blorktools_version=$NEXT_BLORKTOOLS_VERSION" >> $GITHUB_OUTPUT
+            echo "blorktools_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "No new version for blorktools"
+            echo "blorktools_version=$CURRENT_BLORKTOOLS_VERSION" >> $GITHUB_OUTPUT
+            echo "blorktools_changed=false" >> $GITHUB_OUTPUT
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
