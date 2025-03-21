@@ -131,11 +131,14 @@ jobs:
           echo "Current blorkpack version: $CURRENT_BLORKPACK_VERSION"
           
           # Run semantic-release to determine and update version
-          RELEASE_OUTPUT=$(npx semantic-release || echo "No release")
+          RELEASE_OUTPUT=$(npx semantic-release --dry-run || echo "No release")
           
-          # Check if a new version was released
+          # Check if a new version would be released
           if echo "$RELEASE_OUTPUT" | grep -q "The next release version is"; then
-            # Extract the new version from semantic-release output
+            # Actually run semantic-release to update version
+            npx semantic-release
+            
+            # Get the new version after semantic-release has updated it
             NEXT_BLORKPACK_VERSION=$(node -p "require('./package.json').version")
             echo "New blorkpack version: $NEXT_BLORKPACK_VERSION"
             echo "blorkpack_version=$NEXT_BLORKPACK_VERSION" >> $GITHUB_OUTPUT
@@ -154,11 +157,14 @@ jobs:
           echo "Current blorktools version: $CURRENT_BLORKTOOLS_VERSION"
           
           # Run semantic-release to determine and update version
-          RELEASE_OUTPUT=$(npx semantic-release || echo "No release")
+          RELEASE_OUTPUT=$(npx semantic-release --dry-run || echo "No release")
           
-          # Check if a new version was released
+          # Check if a new version would be released
           if echo "$RELEASE_OUTPUT" | grep -q "The next release version is"; then
-            # Extract the new version from semantic-release output
+            # Actually run semantic-release to update version
+            npx semantic-release
+            
+            # Get the new version after semantic-release has updated it
             NEXT_BLORKTOOLS_VERSION=$(node -p "require('./package.json').version")
             echo "New blorktools version: $NEXT_BLORKTOOLS_VERSION"
             echo "blorktools_version=$NEXT_BLORKTOOLS_VERSION" >> $GITHUB_OUTPUT
@@ -215,7 +221,23 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         
+      - name: Check if version exists
+        id: version_check
+        working-directory: packages/blorkpack
+        run: |
+          VERSION="${{ needs.analyze-and-release.outputs.blorkpack_version }}"
+          EXISTS=$(npm view @littlecarlito/blorkpack@$VERSION version 2>/dev/null || echo "")
+          if [ -z "$EXISTS" ]; then
+            echo "version_exists=false" >> $GITHUB_OUTPUT
+          else
+            echo "version_exists=true" >> $GITHUB_OUTPUT
+            echo "Version $VERSION already exists in registry, skipping publish"
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+        
       - name: Publish package to GitHub Packages
+        if: steps.version_check.outputs.version_exists == 'false'
         working-directory: packages/blorkpack
         run: |
           echo "Publishing blorkpack version ${{ needs.analyze-and-release.outputs.blorkpack_version }} to GitHub Packages"
@@ -266,7 +288,23 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         
+      - name: Check if version exists
+        id: version_check
+        working-directory: packages/blorktools
+        run: |
+          VERSION="${{ needs.analyze-and-release.outputs.blorktools_version }}"
+          EXISTS=$(npm view @littlecarlito/blorktools@$VERSION version 2>/dev/null || echo "")
+          if [ -z "$EXISTS" ]; then
+            echo "version_exists=false" >> $GITHUB_OUTPUT
+          else
+            echo "version_exists=true" >> $GITHUB_OUTPUT
+            echo "Version $VERSION already exists in registry, skipping publish"
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+        
       - name: Publish package to GitHub Packages
+        if: steps.version_check.outputs.version_exists == 'false'
         working-directory: packages/blorktools
         run: |
           echo "Publishing blorktools version ${{ needs.analyze-and-release.outputs.blorktools_version }} to GitHub Packages"
