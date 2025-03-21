@@ -1,14 +1,18 @@
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: monospace;
   background-color: #121212;
   color: #e1e1e1;
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
+  letter-spacing: 0.5px;
 }
 
 h1, h2, h3, h4 {
-  color: #5d8fff;
+  color: #3DF13D;
+  font-family: monospace;
+  text-shadow: 0 0 5px rgba(61, 241, 61, 0.5);
+  letter-spacing: 1px;
 }
 
 .header {
@@ -32,7 +36,10 @@ h1, h2, h3, h4 {
   margin-bottom: 20px;
   border-bottom: 1px solid #333;
   padding-bottom: 10px;
-  color: #5d8fff;
+  color: #3DF13D;
+  font-family: monospace;
+  text-shadow: 0 0 5px rgba(61, 241, 61, 0.5);
+  letter-spacing: 1px;
 }
 
 .apps-container {
@@ -78,14 +85,18 @@ h1, h2, h3, h4 {
 
 .app-card h3 {
   margin-top: 0;
-  color: #5d8fff;
-  text-transform: capitalize;
+  color: #3DF13D;
+  text-transform: uppercase;
+  font-family: monospace;
+  text-shadow: 0 0 5px rgba(61, 241, 61, 0.5);
+  letter-spacing: 1px;
 }
 
 .app-card p {
   margin-bottom: 15px;
   color: #b0b0b0;
   flex-grow: 1;
+  font-family: monospace;
 }
 
 .card-actions {
@@ -133,6 +144,8 @@ h1, h2, h3, h4 {
   padding: 8px;
   background-color: #2a2a2a;
   border-radius: 4px;
+  font-family: monospace;
+  border-left: 2px solid #3DF13D;
 }
 
 .card-badge, .status-badge {
@@ -154,15 +167,15 @@ h1, h2, h3, h4 {
 }
 
 .app-card.app-card {
-  border-top-color: #4CAF50; /* Green for apps */
+  border-top-color: #0066CC; /* Vault-Tec blue */
 }
 
 .app-card.tool-card {
-  border-top-color: #2196F3; /* Blue for tools */
+  border-top-color: #DAA520; /* Golden accent */
 }
 
 .app-card.package-card {
-  border-top-color: #9E9E9E; /* Gray for packages */
+  border-top-color: #708090; /* Slate Gray - matches type-badge */
 }
 
 .app-card.ui-card {
@@ -222,8 +235,11 @@ h1, h2, h3, h4 {
 
 .dashboard-overview h3 {
   margin-top: 0;
-  color: #5d8fff;
+  color: #3DF13D;
   margin-bottom: 15px;
+  font-family: monospace;
+  text-shadow: 0 0 5px rgba(61, 241, 61, 0.5);
+  letter-spacing: 1px;
 }
 
 .project-statuses {
@@ -247,6 +263,9 @@ h1, h2, h3, h4 {
   margin-top: 10px;
   margin-bottom: 12px;
   font-size: 1em;
+  color: #3DF13D;
+  font-family: monospace;
+  text-shadow: 0 0 5px rgba(61, 241, 61, 0.5);
 }
 
 .overview-card p {
@@ -256,11 +275,13 @@ h1, h2, h3, h4 {
 
 .status-text {
   font-weight: 500;
+  font-family: monospace;
 }
 
 .version-text, .path-text {
   color: #b0b0b0;
   font-size: 0.8em;
+  font-family: monospace;
 }
 
 .view-link {
@@ -281,19 +302,19 @@ h1, h2, h3, h4 {
 
 /* Type coloring for overview cards */
 .type-app.overview-card {
-  border-left-color: #4CAF50;
+  border-left-color: #0066CC; /* Vault-Tec blue */
 }
 
 .type-tool.overview-card {
-  border-left-color: #2196F3;
+  border-left-color: #DAA520; /* Golden accent */
 }
 
 .type-package.overview-card {
-  border-left-color: #9E9E9E;
+  border-left-color: #708090; /* Slate Gray - matches type-badge */
 }
 
 .type-unknown.overview-card {
-  border-left-color: #607D8B;
+  border-left-color: #5F9EA0; /* Cadet Blue - matches type-badge */
 }
 
 /* Project Cards - New Design */
@@ -339,13 +360,17 @@ h1, h2, h3, h4 {
 .project-card h3 {
   margin-top: 10px;
   margin-bottom: 12px;
-  color: #5d8fff;
+  color: #3DF13D;
+  font-family: monospace;
+  text-shadow: 0 0 5px rgba(61, 241, 61, 0.5);
+  letter-spacing: 1px;
 }
 
 .description {
   color: #b0b0b0;
   flex-grow: 1;
   margin-bottom: 20px;
+  font-family: monospace;
 }
 
 .project-footer {
@@ -426,15 +451,15 @@ h1, h2, h3, h4 {
 
 /* Type Classes */
 .type-app {
-  border-top: 4px solid #4CAF50; /* Green for apps */
+  border-top: 4px solid #0066CC; /* Vault-Tec blue */
 }
 
 .type-tool {
-  border-top: 4px solid #2196F3; /* Blue for tools */
+  border-top: 4px solid #DAA520; /* Golden accent */
 }
 
 .type-package {
-  border-top: 4px solid #9E9E9E; /* Gray for packages */
+  border-top: 4px solid #708090; /* Slate Gray - matches type-badge */
 }
 
 .type-ui {
@@ -450,7 +475,7 @@ h1, h2, h3, h4 {
 }
 
 .type-unknown {
-  border-top: 4px solid #607D8B; /* Blue Gray for unknown */
+  border-top: 4px solid #5F9EA0; /* Cadet Blue - matches type-badge */
 }
 
 /* Messages */
@@ -473,32 +498,33 @@ h1, h2, h3, h4 {
   right: 10px;
   background-color: #333;
   color: white;
-  font-size: 0.7em;
-  padding: 3px 8px;
+  font-size: 0.9em;
+  padding: 4px 10px;
   border-radius: 4px;
-  font-weight: 600;
+  font-weight: 800;
+  letter-spacing: 0.5px;
 }
 
 .type-app .type-badge {
-  background-color: #4CAF50;
+  background-color: #0066CC; /* Vault-Tec blue */
 }
 
 .type-tool .type-badge {
-  background-color: #2196F3;
+  background-color: #DAA520; /* Golden accent */
 }
 
 .type-package .type-badge {
-  background-color: #9E9E9E;
+  background-color: #708090; /* Slate Gray */
 }
 
 .type-unknown .type-badge {
-  background-color: #607D8B;
+  background-color: #5F9EA0; /* Cadet Blue */
 }
 
 /* Button Styles */
 .open-button {
   display: block;
-  background-color: #5d8fff;
+  background-color: #0066CC; /* Vault-Tec blue */
   color: white;
   text-align: center;
   padding: 10px 15px;
@@ -507,10 +533,13 @@ h1, h2, h3, h4 {
   font-weight: 500;
   margin-bottom: 12px;
   transition: background-color 0.2s;
+  font-family: monospace;
+  text-transform: uppercase;
+  border: 1px solid #0077DD;
 }
 
 .open-button:hover {
-  background-color: #4a75d1;
+  background-color: #0077DD;
 }
 
 /* Status Info */
@@ -536,4 +565,14 @@ h1, h2, h3, h4 {
 
 .status-package {
   border-left: 4px solid #9E9E9E;
+}
+
+/* All buttons and interactive elements */
+a, button, .view-link, .github-link, .open-button {
+  font-family: monospace;
+}
+
+/* All status text */
+.status, .status-text, .status-details, .status-info {
+  font-family: monospace;
 } 

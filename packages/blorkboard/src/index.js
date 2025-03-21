@@ -69,8 +69,31 @@ class BlorkBoard {
 	 * Starts all projects that should be served
 	 */
 	async startProjects() {
+		// Get the path to this application (BlorkBoard)
+		const blorkboardPath = join(__dirname, '..');
+		const thisAppPath = blorkboardPath.replace(/\\/g, '/');
+		
+		// Flag any projects that are the BlorkBoard itself
+		this.projects = this.projects.map(project => {
+			const projectPath = project.path.replace(/\\/g, '/');
+			
+			// Check if this project is BlorkBoard itself
+			if (projectPath === thisAppPath) {
+				console.log(`Detected self-reference: ${project.name} is the BlorkBoard itself`);
+				return {
+					...project,
+					isSelf: true,
+					port: this.dashboardServer.port,  // Use the dashboard port
+					ready: true,
+					shouldServe: false  // Don't try to serve it again
+				};
+			}
+			
+			return project;
+		});
+		
 		const startPromises = this.projects
-			.filter(project => project.shouldServe)
+			.filter(project => project.shouldServe && !project.isSelf)
 			.map(async project => {
 				try {
 					const updatedProject = await this.processManager.startProcess(project);

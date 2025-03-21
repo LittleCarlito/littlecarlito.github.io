@@ -39,6 +39,10 @@ export class ProjectDetailFactory {
      * @returns {string} Status summary
      */
 	static generateProjectStatus(project) {
+		if (project.isSelf) {
+			return `Listening on port ${project.port}`;
+		}
+		
 		if (!project.shouldServe) {
 			return 'Not served (non-interactive package)';
 		}
@@ -75,14 +79,19 @@ export class ProjectDetailFactory {
 		const typeLabel = this.getTypeLabel(project.type);
 		const simpleName = this.getSimpleName(project.name);
         
-		const canOpen = project.shouldServe && project.process && project.ready;
-		const openUrl = canOpen ? `http://localhost:${project.port}` : '#';
-		const openButton = canOpen 
-			? `<a href="${openUrl}" target="_blank" class="open-button">Open ${simpleName.toLowerCase()}</a>` 
-			: '';
+		// For BlorkBoard itself, just link to the current dashboard
+		let openButton = '';
+		if (project.isSelf) {
+			openButton = `<a href="/" class="open-button">Open ${simpleName.toLowerCase()}</a>`;
+		} else if (project.shouldServe && project.process && project.ready) {
+			const openUrl = `http://localhost:${project.port}`;
+			openButton = `<a href="${openUrl}" target="_blank" class="open-button">Open ${simpleName.toLowerCase()}</a>`;
+		}
 
 		let statusElement;
-		if (project.ready && project.shouldServe) {
+		if (project.isSelf) {
+			statusElement = `<div class="status-info status-running">${status}</div>`;
+		} else if (project.ready && project.shouldServe) {
 			statusElement = `<div class="status-info status-running">Listening on port ${project.port}</div>`;
 		} else if (!project.shouldServe) {
 			statusElement = `<div class="status-info status-package">Non-interactive package (not served on a port)</div>`;
@@ -111,6 +120,10 @@ export class ProjectDetailFactory {
      * @returns {string} Status text
      */
 	static generateStatusForCard(project) {
+		if (project.isSelf) {
+			return `Listening on port ${project.port}`;
+		}
+		
 		if (!project.shouldServe) {
 			return 'Non-interactive package (not served on a port)';
 		}
@@ -158,6 +171,7 @@ export class ProjectDetailFactory {
      * @returns {string} CSS class name
      */
 	static getStatusClass(project) {
+		if (project.isSelf) return 'status-running';
 		if (!project.shouldServe) return 'status-package';
 		if (!project.process) return 'status-stopped';
 		if (!project.ready) return 'status-starting';
