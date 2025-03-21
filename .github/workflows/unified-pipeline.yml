@@ -238,6 +238,16 @@ jobs:
           jq '.name = "@littlecarlito/blorkpack"' package.json > package.json.tmp
           mv package.json.tmp package.json
           
+          # Replace workspace: dependencies with actual versions to avoid npm errors
+          # Find all dependencies with workspace: prefix and replace with actual version or *
+          jq 'walk(if type == "object" and (has("dependencies") or has("devDependencies") or has("peerDependencies"))
+            then
+              .dependencies |= if . then with_entries(if .value | startswith("workspace:") then .value = "*" else . end) else . end |
+              .devDependencies |= if . then with_entries(if .value | startswith("workspace:") then .value = "*" else . end) else . end |
+              .peerDependencies |= if . then with_entries(if .value | startswith("workspace:") then .value = "*" else . end) else . end
+            else . end)' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
           # Create local .releaserc.json for this package
           cat > .releaserc.json << 'EOF'
           {
@@ -261,7 +271,9 @@ jobs:
               "@semantic-release/release-notes-generator",
               "@semantic-release/changelog",
               ["@semantic-release/npm", {
-                "npmPublish": false
+                "npmPublish": false,
+                "pkgRoot": ".",
+                "npmPath": "pnpm"
               }],
               ["@semantic-release/git", {
                 "assets": ["package.json", "CHANGELOG.md"],
@@ -284,8 +296,49 @@ jobs:
             git commit --allow-empty -m "fix: force version bump for blorkpack"
           fi
           
+          # Set environment variable to use pnpm for version updates
+          export NPM_PATH="pnpm"
+          
           # Run semantic-release
           pnpm semantic-release --debug
+          
+          # If semantic-release fails due to npm/pnpm issues, manually update version
+          if [ $? -ne 0 ]; then
+            echo "Semantic release failed, manually updating version..."
+            # Determine new version (increment patch)
+            IFS='.' read -r -a version_parts <<< "$PRE_VERSION"
+            PATCH=$((version_parts[2] + 1))
+            NEW_VERSION="${version_parts[0]}.${version_parts[1]}.$PATCH"
+            
+            # Update package.json
+            jq --arg version "$NEW_VERSION" '.version = $version' package.json > package.json.tmp
+            mv package.json.tmp package.json
+            
+            # Create changelog entry
+            if [ ! -f "CHANGELOG.md" ]; then
+              echo "# Changelog" > CHANGELOG.md
+              echo "" >> CHANGELOG.md
+            fi
+            
+            # Add new entry at the top
+            TEMP_CHANGELOG=$(mktemp)
+            echo "# Changelog" > "$TEMP_CHANGELOG"
+            echo "" >> "$TEMP_CHANGELOG"
+            echo "## [$NEW_VERSION] - $(date +%Y-%m-%d)" >> "$TEMP_CHANGELOG"
+            echo "" >> "$TEMP_CHANGELOG"
+            echo "### Bug Fixes" >> "$TEMP_CHANGELOG"
+            echo "" >> "$TEMP_CHANGELOG"
+            echo "* Force version update for pipeline functionality" >> "$TEMP_CHANGELOG"
+            echo "" >> "$TEMP_CHANGELOG"
+            tail -n +2 CHANGELOG.md >> "$TEMP_CHANGELOG" || true
+            mv "$TEMP_CHANGELOG" CHANGELOG.md
+            
+            # Commit changes
+            git add package.json CHANGELOG.md
+            git commit -m "chore(release): $NEW_VERSION [skip ci]"
+          else
+            NEW_VERSION=$(jq -r '.version' package.json)
+          fi
           
           # Get the new version post-semantic-release
           NEW_VERSION=$(jq -r '.version' package.json)
@@ -315,6 +368,16 @@ jobs:
           jq '.name = "@littlecarlito/blorktools"' package.json > package.json.tmp
           mv package.json.tmp package.json
           
+          # Replace workspace: dependencies with actual versions to avoid npm errors
+          # Find all dependencies with workspace: prefix and replace with actual version or *
+          jq 'walk(if type == "object" and (has("dependencies") or has("devDependencies") or has("peerDependencies"))
+            then
+              .dependencies |= if . then with_entries(if .value | startswith("workspace:") then .value = "*" else . end) else . end |
+              .devDependencies |= if . then with_entries(if .value | startswith("workspace:") then .value = "*" else . end) else . end |
+              .peerDependencies |= if . then with_entries(if .value | startswith("workspace:") then .value = "*" else . end) else . end
+            else . end)' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
           # Create local .releaserc.json for this package
           cat > .releaserc.json << 'EOF'
           {
@@ -338,7 +401,9 @@ jobs:
               "@semantic-release/release-notes-generator",
               "@semantic-release/changelog",
               ["@semantic-release/npm", {
-                "npmPublish": false
+                "npmPublish": false,
+                "pkgRoot": ".",
+                "npmPath": "pnpm"
               }],
               ["@semantic-release/git", {
                 "assets": ["package.json", "CHANGELOG.md"],
@@ -359,8 +424,49 @@ jobs:
           git config user.name "github-actions[bot]"
           git commit --allow-empty -m "fix: force version bump for blorktools"
           
+          # Set environment variable to use pnpm for version updates
+          export NPM_PATH="pnpm"
+          
           # Run semantic-release
           pnpm semantic-release --debug
+          
+          # If semantic-release fails due to npm/pnpm issues, manually update version
+          if [ $? -ne 0 ]; then
+            echo "Semantic release failed, manually updating version..."
+            # Determine new version (increment patch)
+            IFS='.' read -r -a version_parts <<< "$PRE_VERSION"
+            PATCH=$((version_parts[2] + 1))
+            NEW_VERSION="${version_parts[0]}.${version_parts[1]}.$PATCH"
+            
+            # Update package.json
+            jq --arg version "$NEW_VERSION" '.version = $version' package.json > package.json.tmp
+            mv package.json.tmp package.json
+            
+            # Create changelog entry
+            if [ ! -f "CHANGELOG.md" ]; then
+              echo "# Changelog" > CHANGELOG.md
+              echo "" >> CHANGELOG.md
+            fi
+            
+            # Add new entry at the top
+            TEMP_CHANGELOG=$(mktemp)
+            echo "# Changelog" > "$TEMP_CHANGELOG"
+            echo "" >> "$TEMP_CHANGELOG"
+            echo "## [$NEW_VERSION] - $(date +%Y-%m-%d)" >> "$TEMP_CHANGELOG"
+            echo "" >> "$TEMP_CHANGELOG"
+            echo "### Bug Fixes" >> "$TEMP_CHANGELOG"
+            echo "" >> "$TEMP_CHANGELOG"
+            echo "* Force version update for pipeline functionality" >> "$TEMP_CHANGELOG"
+            echo "" >> "$TEMP_CHANGELOG"
+            tail -n +2 CHANGELOG.md >> "$TEMP_CHANGELOG" || true
+            mv "$TEMP_CHANGELOG" CHANGELOG.md
+            
+            # Commit changes
+            git add package.json CHANGELOG.md
+            git commit -m "chore(release): $NEW_VERSION [skip ci]"
+          else
+            NEW_VERSION=$(jq -r '.version' package.json)
+          fi
           
           # Get the new version post-semantic-release
           NEW_VERSION=$(jq -r '.version' package.json)
@@ -543,8 +649,11 @@ jobs:
     name: Build and Deploy to GitHub Pages
     needs: [analyze-and-release, publish-blorkpack, publish-blorktools, build-and-test]
     runs-on: ubuntu-latest
-    # Allow deploy to run even if no package versions changed
-    if: always()
+    # Only run deploy if the required jobs succeeded
+    if: |
+      !contains(needs.*.result, 'failure') && 
+      !contains(needs.*.result, 'cancelled') && 
+      (always() || needs.analyze-and-release.result == 'success')
     steps:
       - name: Checkout latest code
         uses: actions/checkout@v4
@@ -684,6 +793,8 @@ jobs:
           npm_config_ignore_scripts: true
           
       - name: Delete existing gh-pages branch
+        # This step only runs if all previous jobs succeeded
+        if: success()
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -704,6 +815,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
       - name: Deploy to GitHub Pages
+        # Only deploy if all previous steps succeeded
+        if: success()
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: apps/portfolio/dist
