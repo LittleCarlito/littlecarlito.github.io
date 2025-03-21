@@ -17,11 +17,14 @@ let isShuttingDown = false;
 
 // Function to check if a port is in use
 /**
- *
+ * Checks if a port is in use by attempting to create a server on it
+ * @param {number} port - The port to check
+ * @returns {Promise<boolean>} True if port is in use, false otherwise
  */
 function isPortInUse(port) {
 	return new Promise((resolve) => {
 		const server = net.createServer();
+		
 		server.once('error', (err) => {
 			if (err.code === 'EADDRINUSE') {
 				resolve(true); // Port is in use
@@ -29,27 +32,71 @@ function isPortInUse(port) {
 				resolve(false);
 			}
 		});
+
 		server.once('listening', () => {
-			server.close();
-			resolve(false); // Port is free
+			// Close the server immediately
+			server.close(() => {
+				resolve(false); // Port is free
+			});
 		});
-		server.listen(port);
+
+		try {
+			server.listen(port);
+		} catch (err) {
+			resolve(true); // Assume port is in use if we can't even try to listen
+		}
 	});
+}
+
+// Function to wait for a port to become available or in use
+/**
+ * Waits for a port to either become available or in use
+ * @param {number} port - The port to check
+ * @param {boolean} waitForInUse - If true, wait for port to be in use, otherwise wait for it to be free
+ * @param {number} timeout - Maximum time to wait in milliseconds
+ * @returns {Promise<boolean>} True if the desired state was reached, false if timed out
+ */
+async function waitForPort(port, waitForInUse = true, timeout = 5000) {
+	const startTime = Date.now();
+	while (Date.now() - startTime < timeout) {
+		const inUse = await isPortInUse(port);
+		if (waitForInUse === inUse) {
+			return true;
+		}
+		await new Promise(resolve => setTimeout(resolve, 100));
+	}
+	return false;
 }
 
 // Find the next available port starting from the preferred port
 /**
- *
+ * Finds an available port starting from the preferred port
+ * @param {number} preferredPort - The port to start checking from
+ * @param {number} maxPort - Maximum port number to try (defaults to 65535)
+ * @returns {Promise<number|null>} Available port or null if none found
  */
-async function findAvailablePort(preferredPort, maxAttempts = 10) {
+async function findAvailablePort(preferredPort, maxPort = 65535) {
 	let port = preferredPort;
-	for (let attempt = 0; attempt < maxAttempts; attempt++) {
-		const inUse = await isPortInUse(port);
-		if (!inUse) {
-			return port;
+	const startPort = 3000; // Minimum port to consider
+	const maxAttempts = maxPort - startPort; // Try all ports in range
+
+	for (let attempt = 0; attempt < maxAttempts && port <= maxPort; attempt++) {
+		try {
+			const inUse = await isPortInUse(port);
+			if (!inUse) {
+				return port;
+			}
+			console.log(`Port ${port} is in use, trying ${port + 1}...`);
+			port++;
+			
+			// If we've gone past our range, wrap around to the start
+			if (port > maxPort) {
+				port = startPort;
+			}
+		} catch (err) {
+			console.error(`Error checking port ${port}:`, err);
+			port++; // Try next port on error
 		}
-		console.log(`Port ${port} is in use, trying ${port + 1}...`);
-		port++;
 	}
 	return null; // No available ports found within range
 }
@@ -85,30 +132,90 @@ function startProcess(command, args, options = {}) {
 			detached: true,
 			...options
 		});
+
 		// Store the spawn time to detect immediate failures
 		process.spawnTime = Date.now();
 		process.hasOutput = false;
+
+		// Track if we've seen the "ready" message from Vite
+		let isViteReady = false;
+		
 		process.stdout.on('data', (data) => {
 			process.hasOutput = true;
 			const output = data.toString().trim();
 			console.log(`[${command}] ${output}`);
+			
+			// Check for Vite ready message with port
+			if (output.includes('VITE_READY:')) {
+				const actualPort = parseInt(output.split(':')[1], 10);
+				process.actualPort = actualPort;
+				isViteReady = true;
+				process.emit('vite-ready');
+			} else if (output.includes('VITE') && output.includes('ready')) {
+				// Look for the port in the output
+				const match = output.match(/http:\/\/localhost:(\d+)/);
+				if (match) {
+					const actualPort = parseInt(match[1], 10);
+					process.actualPort = actualPort;
+					isViteReady = true;
+					process.emit('vite-ready');
+				}
+			} else if (output.includes('Local:') && output.includes('http://localhost:')) {
+				// Look for the port in the URL output
+				const match = output.match(/http:\/\/localhost:(\d+)/);
+				if (match) {
+					const actualPort = parseInt(match[1], 10);
+					process.actualPort = actualPort;
+					isViteReady = true;
+					process.emit('vite-ready');
+				}
+			}
 		});
+
 		process.stderr.on('data', (data) => {
 			process.hasOutput = true;
 			const output = data.toString().trim();
 			console.error(`[${command}] ${output}`);
 		});
+
 		process.on('error', (err) => {
 			console.error(`[${command}] Process error: ${err.message}`);
 		});
+
 		process.on('close', (code) => {
 			// Only log if not shutting down to avoid cluttering the console during exit
 			if (!isShuttingDown) {
 				console.log(`[${command}] Process exited with code ${code}`);
 			}
 		});
+
 		// Don't prevent the Node.js process from exiting
 		process.unref();
+
+		// Add a promise-based way to wait for Vite to be ready
+		process.waitForReady = () => {
+			return new Promise((resolve, reject) => {
+				if (isViteReady) {
+					resolve(true);
+					return;
+				}
+
+				const timeout = setTimeout(() => {
+					reject(new Error('Timeout waiting for Vite to start'));
+				}, 5000);
+
+				process.once('vite-ready', () => {
+					clearTimeout(timeout);
+					resolve(true);
+				});
+
+				process.once('close', (code) => {
+					clearTimeout(timeout);
+					reject(new Error(`Process exited with code ${code}`));
+				});
+			});
+		};
+
 		return process;
 	} catch (error) {
 		console.error(`Failed to start process: ${error.message}`);
@@ -211,13 +318,20 @@ async function discoverProjects() {
 								}
 							}
 							// Assign default ports with blorktools having priority for port 3001
-							let defaultPort = 3000 + discoveredProjects.length;
+							let defaultPort;
 							if (packageData.name.includes('blorktools')) {
 								defaultPort = 3001; // Make sure blorktools gets port 3001
+							} else if (packageData.name.includes('portfolio')) {
+								defaultPort = 3000; // Portfolio gets port 3000
 							} else if (packageData.name.includes('web')) {
-								defaultPort = 3000; // Web app gets port 3000
-							} else if (defaultPort === 3001) {
-								defaultPort = 3002; // Anything else that would get 3001, get 3002 instead
+								defaultPort = 3002; // Web app gets port 3002
+							} else {
+								// For other projects, start at 3003 and increment
+								defaultPort = 3003 + discoveredProjects.filter(p => 
+									!p.name.includes('blorktools') && 
+									!p.name.includes('portfolio') &&
+									!p.name.includes('web')
+								).length;
 							}
 							// Create project metadata
 							discoveredProjects.push({
@@ -296,21 +410,28 @@ function generateProjectStatus(project) {
 	if (!project) return '';
 	const displayName = project.name.replace(/^@[^/]+\//, '');
 	let portInfo = 'Not available';
+	let portDataAttr = '';
+	
 	if (project.shouldServe) {
-		portInfo = project.port ? 
-			`Running on port: ${project.port}${project.port !== project.defaultPort ? ' (default port was in use)' : ''}` : 
-			'Not available';
+		if (project.port) {
+			portInfo = `Running on port: ${project.port}${project.port !== project.defaultPort ? ' (default port was in use)' : ''}`;
+			portDataAttr = `data-port="${project.port}"`;
+		} else {
+			portInfo = 'Service unavailable';
+		}
 	} else {
 		portInfo = 'Not served (non-interactive package)';
 	}
+	
 	const githubUrl = generateGitHubUrl(project);
 	const githubLink = githubUrl ? 
 		`<a href="${githubUrl}" target="_blank" class="repo-link">View on GitHub</a>` : '';
+	
 	return `
   <div class="project-status ${project.type}-status">
     <div class="status-badge">${project.type}</div>
     <h4>${displayName}</h4>
-    <p>${portInfo}</p>
+    <p ${portDataAttr}>${portInfo}</p>
     <p class="version">Version: ${project.version}</p>
     <p class="path">Path: ${project.relativePath}</p>
     ${githubLink}
@@ -328,7 +449,7 @@ function generateProjectCard(project) {
 	}
 	const displayName = project.name.replace(/^@[^/]+\//, ''); // Remove scope from display
 	// Different card templates based on whether the project is served
-	if (project.shouldServe && project.port) {
+	if (project.shouldServe) {
 		const portChangeInfo = project.port !== project.defaultPort ? 
 			`(default port ${project.defaultPort} was in use)` : '';
 		return `
@@ -340,7 +461,7 @@ function generateProjectCard(project) {
         <a href="http://localhost:${project.port}" target="_blank" class="open-link">Open ${displayName}</a>
       </div>
       <div class="port-info">
-        Listening on port ${project.port} ${portChangeInfo}
+        ${project.port ? `Listening on port ${project.port} ${portChangeInfo}` : 'Service unavailable'}
       </div>
     </div>
     `;
@@ -368,7 +489,7 @@ function generateServiceChecks() {
 		.filter(p => p.shouldServe && p.port)
 		.map(p => {
 			const displayName = p.name.replace(/^@[^/]+\//, '');
-			return `checkService('http://localhost:${p.port}', '${displayName}-card');`;
+			return `checkService('http://localhost:${p.port}', '${displayName}-card', ${p.port});`;
 		})
 		.join('\n      ');
 }
@@ -386,7 +507,7 @@ function startDashboard() {
 		.filter(p => p.shouldServe && p.port)
 		.map(p => {
 			const displayName = p.name.replace(/^@[^/]+\//, '');
-			return `checkService('http://localhost:${p.port}', '${displayName}-card');`;
+			return `checkService('http://localhost:${p.port}', '${displayName}-card', ${p.port});`;
 		})
 		.join('\n      ');
 	const projectStatuses = projects
@@ -656,24 +777,62 @@ function startDashboard() {
 
     <script>
       // Check if services are actually available
-      function checkService(url, cardId) {
-        fetch(url, { mode: 'no-cors' })
-          .catch(() => {
-            const card = document.getElementById(cardId);
-            if (card) {
-              card.classList.add('unavailable');
-              const portInfo = card.querySelector('.port-info');
-              if (portInfo) {
-                portInfo.textContent = 'Service unavailable';
-              }
-            }
+      async function checkService(url, cardId, port) {
+        try {
+          const response = await fetch(url, { 
+            mode: 'no-cors',
+            timeout: 2000 // 2 second timeout
           });
+          
+          // Update UI to show service is available
+          const card = document.getElementById(cardId);
+          if (card) {
+            card.classList.remove('unavailable');
+            const portInfo = card.querySelector('.port-info');
+            if (portInfo) {
+              portInfo.textContent = 'Listening on port ' + port;
+            }
+          }
+          
+          // Also update the status in the overview section
+          const statusDiv = document.querySelector(\`[data-port="\${port}"]\`);
+          if (statusDiv) {
+            statusDiv.textContent = 'Running on port: ' + port;
+          }
+        } catch (error) {
+          // Update UI to show service is unavailable
+          const card = document.getElementById(cardId);
+          if (card) {
+            card.classList.add('unavailable');
+            const portInfo = card.querySelector('.port-info');
+            if (portInfo) {
+              portInfo.textContent = 'Service unavailable';
+            }
+          }
+          
+          // Also update the status in the overview section
+          const statusDiv = document.querySelector(\`[data-port="\${port}"]\`);
+          if (statusDiv) {
+            statusDiv.textContent = 'Service unavailable';
+          }
+        }
       }
       
-      // Wait a moment then check services
-      setTimeout(() => {
-        ${serviceChecks}
-      }, 1000);
+      // Check services immediately and then periodically
+      function startServiceChecks() {
+        const checkAllServices = () => {
+          ${serviceChecks}
+        };
+        
+        // Check immediately
+        checkAllServices();
+        
+        // Then check every 5 seconds
+        setInterval(checkAllServices, 5000);
+      }
+      
+      // Start checking services
+      startServiceChecks();
     </script>
   </body>
   </html>
@@ -771,78 +930,115 @@ async function run() {
 		} else {
 			console.log(`Discovered ${projects.length} projects in the workspace`);
 			// Find available port for console
-			consolePort = await findAvailablePort(9000);
+			consolePort = await findAvailablePort(9000, 9999);
 			if (!consolePort) {
 				throw new Error("Could not find an available port for the BlorkBoard");
 			}
-			// Assign ports to each project that should be served
-			for (const project of projects) {
-				if (project.shouldServe) {
-					project.port = await findAvailablePort(project.defaultPort);
-					if (!project.port) {
-						console.log(`Could not find an available port for ${project.name}`);
-					}
-				}
-			}
+
 			// Start each project that should be served
 			for (const project of projects) {
-				if (project.shouldServe && project.port) {
-					// Special handling for blorktools
-					if (project.name.includes('blorktools')) {
-						console.log(`Starting ${project.name} with tools script on port ${project.port}...`);
-						// For tools script, construct args differently
-						const args = [
-							'--filter=' + project.name,
-							'tools',
-							'--port',
-							project.port.toString(),
-							'--no-open'
-						];
-						// Add a small delay between starting each project
-						await new Promise(resolve => setTimeout(resolve, 1000));
-						const env = { ...process.env, BROWSER: 'none', NO_OPEN: '1' };
-						project.process = startProcess('pnpm', args, { env, cwd: rootDir });
-					} else {
-						// Regular handling for other projects
-						const portArg = project.devScript.includes('--port') ? 
-							[] : ['--', '--no-open', '--port', project.port.toString()];
-						const args = [
-							'--filter=' + project.name,
-							'dev',
-							...portArg
-						];
-						// Add a small delay between starting each project
-						await new Promise(resolve => setTimeout(resolve, 1000));
-						const env = { ...process.env, BROWSER: 'none', NO_OPEN: '1' };
-						project.process = startProcess('pnpm', args, { env, cwd: rootDir });
-					}
-					// Check if the process failed to start after a short delay
-					if (project.process) {
-						setTimeout(() => {
-							if (project.process && !project.process.hasOutput && project.process.exitCode === null) {
-								console.log(`No output from ${project.name} after 2 seconds, it may have failed silently.`);
+				if (project.shouldServe) {
+					// Keep trying ports until we find one that works
+					let maxTries = 20; // Try up to 20 different ports
+					let currentPort = project.defaultPort;
+					
+					while (maxTries > 0) {
+						// First check if the port is already in use
+						const inUse = await isPortInUse(currentPort);
+						if (!inUse) {
+							// Port is free, try to start the project
+							console.log(`Starting ${project.name} on port ${currentPort}...`);
+							
+							try {
+								// Special handling for blorktools
+								if (project.name.includes('blorktools')) {
+									const args = [
+										'--filter=' + project.name,
+										'tools'
+									];
+									const env = { 
+										...process.env, 
+										BROWSER: 'none', 
+										NO_OPEN: '1', 
+										PORT: currentPort.toString() 
+									};
+									project.process = startProcess('pnpm', args, { env, cwd: rootDir });
+								} else {
+									// Regular handling for other projects
+									const args = [
+										'--filter=' + project.name,
+										'dev'
+									];
+									const env = { 
+										...process.env, 
+										BROWSER: 'none', 
+										NO_OPEN: '1',
+										VITE_PORT: currentPort.toString(),
+										PORT: currentPort.toString()
+									};
+									project.process = startProcess('pnpm', args, { env, cwd: rootDir });
+								}
+
+								if (project.process) {
+									try {
+										// Wait for Vite to indicate it's ready
+										await project.process.waitForReady();
+										
+										// Use the actual port that Vite reported
+										if (project.process.actualPort) {
+											project.port = project.process.actualPort;
+											console.log(`Successfully started ${project.name} on port ${project.port}`);
+											break; // Successfully started, exit the while loop
+										} else {
+											throw new Error('Vite did not report its port');
+										}
+									} catch (err) {
+										console.log(`Failed to start ${project.name} on port ${currentPort}: ${err.message}`);
+										if (project.process) {
+											await killProcess(project.process.pid);
+											project.process = null;
+										}
+									}
+								}
+							} catch (err) {
+								console.error(`Error starting ${project.name}:`, err);
 							}
-						}, 2000);
+						}
+						
+						// If we get here, either port was in use or start failed
+						console.log(`Port ${currentPort} is not available for ${project.name}, trying next port...`);
+						currentPort++;
+						maxTries--;
+						
+						if (maxTries === 0) {
+							console.error(`Failed to start ${project.name} after trying multiple ports`);
+							project.port = null;
+						}
+						
+						// Add a small delay between attempts
+						await new Promise(resolve => setTimeout(resolve, 500));
 					}
 				}
 			}
+
 			// Start the dashboard after all projects have been started
 			setTimeout(() => {
 				startDashboard();
 			}, 2000);
 		}
+
 		// Set up signal handlers for graceful shutdown
 		process.on('SIGINT', () => {
 			console.log('Interrupt received, shutting down...');
-			// Force exit after a timeout even if shutdownGracefully gets stuck
 			setTimeout(() => {
 				console.log('Forced exit due to timeout');
 				process.exit(0);
 			}, 5000);
 			shutdownGracefully();
 		});
-		process.on('SIGTERM', shutdownGracefully); // kill command
-		process.on('SIGHUP', shutdownGracefully);  // Terminal closed
+		process.on('SIGTERM', shutdownGracefully);
+		process.on('SIGHUP', shutdownGracefully);
+		
 		// Handle unhandled errors
 		process.on('unhandledRejection', (reason, promise) => {
 			console.error('Unhandled Promise Rejection:', reason);
