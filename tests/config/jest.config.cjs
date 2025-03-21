@@ -32,5 +32,22 @@ module.exports = {
 	// Use our custom preparation script before running tests
 	globalSetup: '<rootDir>/tests/config/prepare-tests.cjs',
 	// Add verbose module reporting to help debug issues
-	verbose: true
+	verbose: true,
+	// Configure coverage settings
+	coverageDirectory: '<rootDir>/coverage',
+	collectCoverageFrom: [
+		'packages/*/src/**/*.js',
+		'!packages/*/src/test/**',
+		'!packages/*/dist/**',
+		'!**/node_modules/**'
+	],
+	coverageReporters: ['json', 'lcov', 'text', 'clover', 'html'],
+	// Add JUnit reporter for CI integration
+	reporters: [
+		'default',
+		['jest-junit', {
+			outputDirectory: '<rootDir>/pipeline-artifacts/test-reports',
+			outputName: 'junit.xml'
+		}]
+	]
 }; 
