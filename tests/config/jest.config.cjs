@@ -24,8 +24,7 @@ module.exports = {
 		'^@littlecarlito/blorkpack$': '<rootDir>/packages/blorkpack/dist/index.js',
 		'^@littlecarlito/blorkpack/(.*)$': '<rootDir>/packages/blorkpack/dist/$1.js',
 		'^packages/blorkpack/src/(.*)$': '<rootDir>/packages/blorkpack/src/$1',
-		'^../dist/index.js$': '<rootDir>/packages/blorkpack/dist/index.js',
-		'^../../packages/blorkpack/dist/(.*)$': '<rootDir>/packages/blorkpack/dist/$1'
+		'^../dist/index.js$': '<rootDir>/packages/blorkpack/dist/index.js'
 	},
 	modulePaths: ['<rootDir>'],
 	moduleDirectories: ['node_modules', '<rootDir>'],
