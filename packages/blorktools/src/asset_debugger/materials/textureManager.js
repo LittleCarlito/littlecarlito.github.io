@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { createMultiTextureMaterial } from './multiTextureMaterial.js';
 import { originalUvData } from '../core/analyzer.js';
 import { updateTextureInfo } from '../ui/debugPanel.js';
+
 /**
  * Load texture from file
  * @param {Object} state - Global state object

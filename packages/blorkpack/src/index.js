@@ -30,7 +30,7 @@ export * from './asset_storage.js';
 export * from './asset_activator.js';
 export * from './asset_handler/asset_handler.js';
 export * from './manifest_manager.js';
-export * from './loaders.js';
+export * from './loader.js';
 export * from './app_renderer.js';
 export * from './physics/index.js'; // Export physics utilities
 import { AssetStorage } from './asset_storage.js';
