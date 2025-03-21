@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
@@ -265,7 +267,11 @@ jobs:
                 "assets": ["package.json", "CHANGELOG.md"],
                 "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
               }],
-              "@semantic-release/github"
+              ["@semantic-release/github", {
+                "successComment": "This ${issue.pull_request ? 'PR is included' : 'issue has been resolved'} in version ${nextRelease.version}",
+                "failTitle": "The automated release failed",
+                "failComment": "The automated release from this branch failed. Please analyze the logs."
+              }]
             ]
           }
           EOF
@@ -291,18 +297,6 @@ jobs:
           # Log version change
           if [ "$PRE_VERSION" != "$NEW_VERSION" ]; then
             echo "Version updated: $PRE_VERSION → $NEW_VERSION"
-            
-            # Create and push the tag
-            cd ../../
-            TAG_NAME="v$NEW_VERSION"
-            git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
-            
-            if ! git ls-remote --tags origin | grep -q "refs/tags/$TAG_NAME"; then
-              git tag -a "$TAG_NAME" -m "Release $TAG_NAME for blorkpack"
-              git push origin refs/tags/$TAG_NAME
-            fi
-            
-            cd packages/blorkpack
           else
             echo "Version unchanged: $NEW_VERSION"
           fi
@@ -350,7 +344,11 @@ jobs:
                 "assets": ["package.json", "CHANGELOG.md"],
                 "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
               }],
-              "@semantic-release/github"
+              ["@semantic-release/github", {
+                "successComment": "This ${issue.pull_request ? 'PR is included' : 'issue has been resolved'} in version ${nextRelease.version}",
+                "failTitle": "The automated release failed",
+                "failComment": "The automated release from this branch failed. Please analyze the logs."
+              }]
             ]
           }
           EOF
@@ -714,4 +712,4 @@ jobs:
           force: true
           single-commit: true
           token: ${{ secrets.PACKAGE_TOKEN }}
-          commit-message: "Deploy website [skip ci]" 
+          commit-message: "Deploy website " 
