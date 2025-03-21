@@ -64,103 +64,11 @@ jobs:
           path: pipeline-artifacts/coverage
           retention-days: 7
 
-  test-semantic-release:
+  semantic-release-test:
     name: Test Semantic Release
     needs: build-lint-test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@littlecarlito'
-
-      - name: Install semantic-release
-        run: |
-          pnpm add -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github @semantic-release/npm
-
-      - name: Test Releases
-        run: |
-          for pkg in blorkpack blorktools; do
-            echo "Testing semantic-release for $pkg..."
-            cd "packages/$pkg"
-            
-            # Ensure package name is correct with proper scoping
-            jq '.name = "@littlecarlito/'$pkg'"' package.json > package.json.tmp
-            mv package.json.tmp package.json
-            
-            # Safer approach to handle workspace dependencies - process each dependency type separately
-            # Initialize empty objects for any missing dependency sections
-            jq '.dependencies = (.dependencies // {}) | .devDependencies = (.devDependencies // {}) | .peerDependencies = (.peerDependencies // {})' package.json > package.json.tmp
-            mv package.json.tmp package.json
-            
-            # Handle dependencies
-            jq '.dependencies = (.dependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
-            mv package.json.tmp package.json
-            
-            # Handle devDependencies
-            jq '.devDependencies = (.devDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
-            mv package.json.tmp package.json
-            
-            # Handle peerDependencies
-            jq '.peerDependencies = (.peerDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
-            mv package.json.tmp package.json
-            
-            # Validate JSON
-            cat package.json | jq empty || { echo "ERROR: Invalid JSON after manipulation"; exit 1; }
-            
-            echo '{
-              "branches": ["main"],
-              "plugins": [
-                ["@semantic-release/commit-analyzer", {
-                  "preset": "angular",
-                  "releaseRules": [
-                    {"type": "feat", "release": "minor"},
-                    {"type": "fix", "release": "patch"},
-                    {"type": "perf", "release": "patch"},
-                    {"scope": "no-release", "release": false},
-                    {"type": "docs", "release": "patch"},
-                    {"type": "style", "release": "patch"},
-                    {"type": "refactor", "release": "patch"},
-                    {"type": "test", "release": "patch"},
-                    {"type": "chore", "release": "patch"},
-                    {"type": "build", "release": "patch"}
-                  ]
-                }],
-                "@semantic-release/release-notes-generator",
-                "@semantic-release/changelog",
-                ["@semantic-release/npm", {
-                  "npmPublish": false,
-                  "pkgRoot": ".",
-                  "npmPath": "pnpm"
-                }],
-                ["@semantic-release/git", {
-                  "assets": ["package.json", "CHANGELOG.md"],
-                  "message": "chore(release): ${nextRelease.version} [skip ci]\\n\\n${nextRelease.notes}"
-                }],
-                "@semantic-release/github"
-              ]
-            }' > .releaserc.json
-            
-            # Set environment variable to use pnpm for version updates
-            export NPM_PATH="pnpm"
-            
-            # Run semantic-release with detailed debug output
-            echo "DEBUG: Starting semantic-release dry run for $pkg"
-            echo "Current directory: $(pwd)"
-            echo "DEBUG: Package.json content before semantic-release:"
-            cat package.json | jq '.'
-            echo "Installed semantic-release: $(which semantic-release || echo 'Not found')"
-            pnpm semantic-release --dry-run
-            
-            cd ../..
-          done
-        env:
-          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 
+    uses: ./.github/workflows/jobs/semantic-release-job.yml
+    with:
+      dry_run: true
+    secrets:
+      PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 
