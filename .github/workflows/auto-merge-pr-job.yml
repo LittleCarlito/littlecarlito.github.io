@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.PACKAGE_TOKEN }}
+          token: ${{ secrets.PR_CREATION_TOKEN }}
 
       - name: Extract branch name
         shell: bash
@@ -44,7 +44,7 @@ jobs:
         id: check_pr
         run: |
           # Check if PR already exists for this branch
-          EXISTING_PR=$(curl -s -H "Authorization: token ${{ secrets.PACKAGE_TOKEN }}" \
+          EXISTING_PR=$(curl -s -H "Authorization: token ${{ secrets.PR_CREATION_TOKEN }}" \
             "https://api.github.com/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:${{ env.BRANCH_NAME }}&base=main&state=open" | \
             jq -r '.[0].number')
           
@@ -82,7 +82,7 @@ jobs:
           
           # Create PR using GitHub API
           PR_RESPONSE=$(curl -s -X POST \
-            -H "Authorization: token ${{ secrets.PACKAGE_TOKEN }}" \
+            -H "Authorization: token ${{ secrets.PR_CREATION_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/${{ github.repository }}/pulls" \
             -d "$(jq -n \
@@ -136,7 +136,7 @@ jobs:
           # Wait for the PR to become mergeable (up to 10 minutes)
           for i in {1..60}; do
             # Get PR status from GitHub API
-            PR_STATUS=$(curl -s -H "Authorization: token ${{ secrets.PACKAGE_TOKEN }}" \
+            PR_STATUS=$(curl -s -H "Authorization: token ${{ secrets.PR_CREATION_TOKEN }}" \
               -H "Accept: application/vnd.github.v3+json" \
               "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER")
             
@@ -205,7 +205,7 @@ jobs:
           
           # Merge the PR with the semantic commit message
           curl -X PUT \
-            -H "Authorization: token ${{ secrets.PACKAGE_TOKEN }}" \
+            -H "Authorization: token ${{ secrets.PR_CREATION_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/merge" \
             -d "$JSON_PAYLOAD"
