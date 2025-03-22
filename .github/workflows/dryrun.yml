@@ -176,7 +176,7 @@ jobs:
               echo "- $f"
               
               # Extract bump type and affected packages
-              BUMP_TYPE=$(grep -o -E "(\"|')---(\"|').*(\"|')---(\"|')" "$f" | sed 's/["\']---["\']/---/g' | tr -d '\n' || echo "")
+              BUMP_TYPE=$(grep -o -E "[\"']---[\"'].*[\"']---[\"']" "$f" | sed 's/["\']---["\']/---/g' | tr -d '\n' || echo "")
               
               if [[ -n "$BUMP_TYPE" ]]; then
                 if [[ "$BUMP_TYPE" == *"major"* ]]; then
