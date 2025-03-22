@@ -131,62 +131,40 @@ jobs:
         if: env.PR_NUMBER != ''
         run: |
           PR_NUMBER=${{ env.PR_NUMBER }}
-          echo "Waiting for required checks on PR #$PR_NUMBER"
+          echo "Waiting for PR #$PR_NUMBER to become mergeable..."
           
-          # Function to check if all required checks have passed
-          check_required_checks() {
-            # Get the checks status
-            CHECKS_STATUS=$(curl -s -H "Authorization: token ${{ secrets.PACKAGE_TOKEN }}" \
-              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/check-runs" | \
-              jq -r '.check_runs[] | select(.conclusion != null) | .conclusion')
-            
-            # Check if any checks failed
-            if echo "$CHECKS_STATUS" | grep -q "failure"; then
-              echo "Some checks failed"
-              return 1
-            fi
-            
-            # If no checks are running yet, wait for them to start
-            if [ -z "$CHECKS_STATUS" ]; then
-              echo "No completed checks found yet"
-              return 1
-            fi
-            
-            # Check if all required checks have completed
-            REQUIRED_CHECKS=$(curl -s -H "Authorization: token ${{ secrets.PACKAGE_TOKEN }}" \
-              "https://api.github.com/repos/${{ github.repository }}/branches/main/protection/required_status_checks" | \
-              jq -r '.contexts[]' 2>/dev/null || echo "")
-              
-            if [ -n "$REQUIRED_CHECKS" ]; then
-              for check in $REQUIRED_CHECKS; do
-                STATUS=$(curl -s -H "Authorization: token ${{ secrets.PACKAGE_TOKEN }}" \
-                  "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.sha }}/statuses" | \
-                  jq -r ".[] | select(.context == \"$check\") | .state")
-                
-                if [ "$STATUS" != "success" ]; then
-                  echo "Required check $check is not yet successful"
-                  return 1
-                fi
-              done
-            fi
-            
-            echo "All checks passed"
-            return 0
-          }
-          
-          # Wait for checks to pass (up to 10 minutes)
+          # Wait for the PR to become mergeable (up to 10 minutes)
           for i in {1..60}; do
-            if check_required_checks; then
-              echo "All required checks passed"
+            # Get PR status from GitHub API
+            PR_STATUS=$(curl -s -H "Authorization: token ${{ secrets.PACKAGE_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER")
+            
+            # Extract mergeable state
+            MERGEABLE_STATE=$(echo "$PR_STATUS" | jq -r '.mergeable_state // "unknown"')
+            MERGEABLE=$(echo "$PR_STATUS" | jq -r '.mergeable // false')
+            
+            echo "Current PR state: mergeable=$MERGEABLE, mergeable_state=$MERGEABLE_STATE"
+            
+            # If PR is mergeable or clean, we can proceed
+            if [ "$MERGEABLE_STATE" = "clean" ] || [ "$MERGEABLE" = "true" ]; then
+              echo "PR #$PR_NUMBER is ready to be merged!"
               break
             fi
             
-            if [ $i -eq 60 ]; then
-              echo "Timeout waiting for checks to pass"
+            # If PR is blocked but not by pending checks, break
+            if [ "$MERGEABLE_STATE" = "blocked" ]; then
+              echo "PR is blocked from merging. This could be due to required reviews or branch protection rules."
               exit 1
             fi
             
-            echo "Waiting for checks to complete (attempt $i/60)..."
+            # Check if we're out of time
+            if [ $i -eq 60 ]; then
+              echo "Timeout waiting for PR #$PR_NUMBER to become mergeable."
+              exit 1
+            fi
+            
+            echo "Waiting for PR #$PR_NUMBER to become mergeable (attempt $i/60)..."
             sleep 10
           done
       
