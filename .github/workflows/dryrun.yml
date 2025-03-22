@@ -88,8 +88,8 @@ jobs:
       dry_run: true
     permissions:
       contents: write
-      pull-requests: read
-      packages: read
+      pull-requests: write
+      packages: write
     secrets:
       PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
