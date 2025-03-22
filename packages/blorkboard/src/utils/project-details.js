@@ -125,7 +125,7 @@ export class ProjectDetailFactory {
 		}
 		
 		if (!project.shouldServe) {
-			return 'Non-interactive package (not served on a port)';
+			return 'Not served on a port';
 		}
 
 		if (!project.process) {

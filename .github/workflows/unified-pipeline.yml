@@ -188,11 +188,15 @@ jobs:
               mv CHANGELOG.md.new CHANGELOG.md
             fi
             
+            # Configure git with token for push
+            git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
+            
             # Git commit the changes
             git add package.json CHANGELOG.md
             git commit -m "chore(release): ${NEW_VERSION} [skip ci]"
             git tag -a "v${NEW_VERSION}" -m "Release ${NEW_VERSION}"
-            git push --follow-tags
+            git push origin HEAD:${GITHUB_REF#refs/heads/}
+            git push origin "v${NEW_VERSION}"
             
             echo "blorkpack_version=$NEW_VERSION" >> $GITHUB_OUTPUT
             echo "blorkpack_changed=true" >> $GITHUB_OUTPUT
@@ -357,6 +361,7 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
   publish-blorkpack:
