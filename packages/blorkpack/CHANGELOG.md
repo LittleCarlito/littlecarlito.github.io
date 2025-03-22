@@ -1,3 +1,8 @@
+## [0.14.3] - 2025-03-22
+
+### Bug Fixes
+* fix: overwrite development public/assets
+
 ## [0.14.2] - 2025-03-22
 
 ### Bug Fixes
