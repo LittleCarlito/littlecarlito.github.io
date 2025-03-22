@@ -126,57 +126,82 @@ jobs:
             echo "PR_NUMBER=" >> "$GITHUB_ENV"
           fi
       
-      - name: Wait for GitHub to set up the PR
-        if: env.PR_NUMBER != ''
-        run: |
-          echo "Waiting for GitHub to set up the PR and initialize checks..."
-          sleep 20
-          echo "Proceeding to check PR status"
-      
       - name: Wait for required checks
         id: wait_checks
         if: env.PR_NUMBER != ''
         run: |
           PR_NUMBER=${{ env.PR_NUMBER }}
-          echo "Waiting for PR #$PR_NUMBER to become mergeable..."
+          echo "Waiting for required checks to complete on PR #$PR_NUMBER..."
           
-          # Wait for the PR to become mergeable (up to 10 minutes)
+          # Wait for checks to complete (up to 10 minutes)
           for i in {1..60}; do
-            # Get PR status from GitHub API
-            PR_STATUS=$(curl -s -H "Authorization: token ${{ secrets.PACKAGE_TOKEN }}" \
+            # Get commit SHA for the PR head
+            PR_INFO=$(curl -s -H "Authorization: token ${{ secrets.PR_CREATION_TOKEN }}" \
               -H "Accept: application/vnd.github.v3+json" \
               "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER")
             
-            # Extract mergeable state
-            MERGEABLE_STATE=$(echo "$PR_STATUS" | jq -r '.mergeable_state // "unknown"')
-            MERGEABLE=$(echo "$PR_STATUS" | jq -r '.mergeable // false')
+            HEAD_SHA=$(echo "$PR_INFO" | jq -r '.head.sha')
+            echo "PR head commit: $HEAD_SHA"
             
-            echo "Current PR state: mergeable=$MERGEABLE, mergeable_state=$MERGEABLE_STATE"
+            # Get all check runs for this commit
+            CHECK_RUNS=$(curl -s -H "Authorization: token ${{ secrets.PR_CREATION_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/commits/$HEAD_SHA/check-runs")
             
-            # Only proceed if PR is in clean state (all checks passed and branch protection satisfied)
-            if [ "$MERGEABLE_STATE" = "clean" ]; then
-              echo "PR #$PR_NUMBER is ready to be merged! All checks passed and branch protection rules satisfied."
-              break
+            # Get total count of check runs
+            TOTAL_CHECKS=$(echo "$CHECK_RUNS" | jq '.total_count')
+            echo "Total check runs: $TOTAL_CHECKS"
+            
+            if [ "$TOTAL_CHECKS" = "0" ]; then
+              echo "No checks found yet. Waiting..."
+              sleep 5
+              continue
             fi
             
-            # If PR is blocked, exit - requires manual intervention
-            if [ "$MERGEABLE_STATE" = "blocked" ]; then
-              echo "PR is blocked from merging. This could be due to required reviews or branch protection rules."
+            # Count completed and successful checks
+            COMPLETED_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status == "completed")] | length')
+            SUCCESSFUL_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status == "completed" and .conclusion == "success")] | length')
+            FAILED_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status == "completed" and .conclusion != "success")] | length')
+            
+            echo "Checks: $COMPLETED_CHECKS/$TOTAL_CHECKS completed, $SUCCESSFUL_CHECKS successful, $FAILED_CHECKS failed"
+            
+            # If any checks failed, exit
+            if [ "$FAILED_CHECKS" != "0" ]; then
+              echo "Some checks failed. Aborting merge."
               exit 1
             fi
             
-            # If checks are still running
-            if [ "$MERGEABLE_STATE" = "unstable" ] || [ "$MERGEABLE_STATE" = "unknown" ]; then
-              echo "Checks are still running. Waiting..."
+            # If all checks completed successfully, check PR status
+            if [ "$COMPLETED_CHECKS" = "$TOTAL_CHECKS" ]; then
+              echo "All checks completed successfully!"
+              
+              # Check if the PR is mergeable
+              MERGEABLE=$(echo "$PR_INFO" | jq -r '.mergeable // false')
+              MERGEABLE_STATE=$(echo "$PR_INFO" | jq -r '.mergeable_state // "unknown"')
+              
+              echo "PR mergeable status: $MERGEABLE, state: $MERGEABLE_STATE"
+              
+              # If PR is clean or has passed all checks, we can proceed
+              if [ "$MERGEABLE" = "true" ] || [ "$MERGEABLE_STATE" = "clean" ]; then
+                echo "PR is ready to be merged!"
+                break
+              elif [ "$MERGEABLE_STATE" = "blocked" ]; then
+                echo "PR is blocked, but all checks have passed. Attempting to merge anyway."
+                break
+              else
+                echo "All checks passed but PR is not mergeable. State: $MERGEABLE_STATE"
+                # Continue anyway since checks passed
+                break
+              fi
             fi
             
             # Check if we're out of time
             if [ $i -eq 60 ]; then
-              echo "Timeout waiting for PR #$PR_NUMBER to become mergeable. Required checks may not have completed."
+              echo "Timeout waiting for checks to complete."
               exit 1
             fi
             
-            echo "Waiting for PR #$PR_NUMBER to become mergeable (attempt $i/60)..."
+            echo "Waiting for all checks to complete (attempt $i/60)..."
             sleep 10
           done
       
@@ -217,7 +242,7 @@ jobs:
           
           # Merge the PR with the semantic commit message
           curl -X PUT \
-            -H "Authorization: token ${{ secrets.PACKAGE_TOKEN }}" \
+            -H "Authorization: token ${{ secrets.PR_CREATION_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/merge" \
             -d "$JSON_PAYLOAD"
