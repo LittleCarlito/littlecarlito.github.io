@@ -251,3 +251,18 @@ jobs:
             -d "$JSON_PAYLOAD"
           
           echo "Successfully merged PR #$PR_NUMBER with semantic message"
+      
+      - name: Delete branch
+        if: success() && steps.merge_message.outcome == 'success'
+        run: |
+          # Extract branch name from GITHUB_REF to ensure we have it
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          echo "Deleting branch $BRANCH_NAME after successful merge..."
+          
+          # Delete the branch using GitHub API
+          curl -X DELETE \
+            -H "Authorization: token ${{ secrets.PR_CREATION_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/git/refs/heads/$BRANCH_NAME"
+          
+          echo "Branch $BRANCH_NAME has been deleted"
