@@ -155,14 +155,14 @@ jobs:
         id: merge_message
         if: steps.wait_checks.outcome == 'success'
         run: |
-          # If commit already has a semantic prefix, use it
-          if [ -n "${{ env.SEMANTIC_TYPE }}" ]; then
-            echo "Using existing semantic type: ${{ env.SEMANTIC_TYPE }}"
-            MERGE_MSG="${{ env.COMMIT_MESSAGE }}"
+          # Check if SEMANTIC_TYPE is set and not empty
+          if [ -n "${SEMANTIC_TYPE:-}" ]; then
+            echo "Using existing semantic type: ${SEMANTIC_TYPE}"
+            MERGE_MSG="${COMMIT_MESSAGE:-}"
           else
             # Default to fix: if no semantic type is detected
             echo "No semantic type detected, defaulting to fix:"
-            MERGE_MSG="fix: ${{ env.PR_TITLE }}"
+            MERGE_MSG="fix: ${PR_TITLE:-}"
           fi
           
           echo "MERGE_MESSAGE<<EOF" >> "$GITHUB_ENV"
@@ -172,10 +172,10 @@ jobs:
       - name: Merge Pull Request
         if: steps.merge_message.outcome == 'success'
         run: |
-          PR_NUMBER=${{ env.PR_NUMBER }}
+          PR_NUMBER=${PR_NUMBER:-}
           
           # Create properly escaped JSON payload
-          MERGE_TITLE=$(echo "${{ env.MERGE_MESSAGE }}" | head -n 1)
+          MERGE_TITLE=$(echo "${MERGE_MESSAGE:-}" | head -n 1)
           
           # Create JSON payload with jq to handle escaping properly
           JSON_PAYLOAD=$(jq -n \
