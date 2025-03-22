@@ -133,6 +133,13 @@ jobs:
           PR_NUMBER=${{ env.PR_NUMBER }}
           echo "Waiting for required checks to complete on PR #$PR_NUMBER..."
           
+          # Wait initial time for checks to be created
+          echo "Waiting 10 seconds for checks to start appearing..."
+          sleep 10
+          
+          # The expected minimum number of non-auto-merge required checks (Build + Test + Test Semantic)
+          MIN_REQUIRED_CHECKS=3
+          
           # Wait for checks to complete (up to 10 minutes)
           for i in {1..60}; do
             # Get commit SHA for the PR head
@@ -190,6 +197,13 @@ jobs:
             if [ "$FAILED_CHECKS" != "0" ]; then
               echo "Some checks failed. Aborting merge."
               exit 1
+            fi
+            
+            # Make sure we have at least the minimum required number of non-auto-merge checks
+            if [ "$NON_AUTO_MERGE_TOTAL" -lt "$MIN_REQUIRED_CHECKS" ]; then
+              echo "Waiting for more checks to appear. Expected at least $MIN_REQUIRED_CHECKS, but found $NON_AUTO_MERGE_TOTAL"
+              sleep 5
+              continue
             fi
             
             # Proceed ONLY if either:
