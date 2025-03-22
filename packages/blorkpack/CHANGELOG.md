@@ -1,3 +1,8 @@
+## [0.14.2] - 2025-03-22
+
+### Bug Fixes
+* fix: rule check instead
+
 ## [0.14.1] - 2025-03-21
 
 ### Bug Fixes
