@@ -24,9 +24,12 @@
     "test:coverage": "node tests/config/prepare-tests.cjs && jest --config=tests/config/jest.config.cjs --coverage",
     "test:discover": "jest --config=tests/config/jest.config.cjs --listTests",
     "prepare-artifacts": "node scripts/prepare-artifacts.js",
-    "semantic-release": "semantic-release",
     "version-check": "node scripts/version-check.js",
-    "commitlint": "commitlint"
+    "commitlint": "commitlint",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "changeset publish",
+    "change": "node scripts/create-changeset.js"
   },
   "dependencies": {
     "express": "^4.18.3",
@@ -35,13 +38,10 @@
   "devDependencies": {
     "@babel/core": "^7.23.0",
     "@babel/preset-env": "^7.23.0",
+    "@changesets/cli": "^2.28.1",
     "@commitlint/cli": "^19.8.0",
     "@commitlint/config-conventional": "^19.8.0",
     "@eslint/js": "^9.22.0",
-    "@semantic-release/changelog": "^6.0.3",
-    "@semantic-release/commit-analyzer": "^13.0.1",
-    "@semantic-release/git": "^10.0.1",
-    "@semantic-release/github": "^9.2.6",
     "@types/jest": "^29.5.14",
     "babel-jest": "^29.7.0",
     "eslint": "^9.22.0",
@@ -52,7 +52,6 @@
     "jest-junit": "^16.0.0",
     "license-webpack-plugin": "^4.0.2",
     "prettier": "^3.2.5",
-    "semantic-release": "^23.0.2",
     "terser": "^5.39.0",
     "tree-kill": "^1.2.2",
     "turbo": "latest",

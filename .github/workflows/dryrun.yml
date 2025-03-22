@@ -79,14 +79,14 @@ jobs:
         run: pnpm test
 
   analyze-and-release:
-    name: Test Semantic Release
+    name: Test Changesets
     needs: test
     runs-on: ubuntu-latest
     outputs:
-      blorkpack_version: ${{ steps.semantic_release.outputs.blorkpack_version }}
-      blorktools_version: ${{ steps.semantic_release.outputs.blorktools_version }}
-      blorkpack_version_changed: ${{ steps.semantic_release.outputs.blorkpack_changed }}
-      blorktools_version_changed: ${{ steps.semantic_release.outputs.blorktools_changed }}
+      blorkpack_version: ${{ steps.changeset_status.outputs.blorkpack_version }}
+      blorktools_version: ${{ steps.changeset_status.outputs.blorktools_version }}
+      blorkboard_version: ${{ steps.changeset_status.outputs.blorkboard_version }}
+      has_changeset: ${{ steps.changeset_status.outputs.has_changeset }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -96,8 +96,8 @@ jobs:
           
       - name: Configure Git identity
         run: |
-          git config --global user.name 'semantic-release-bot'
-          git config --global user.email 'semantic-release-bot@martynus.net'
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           
@@ -116,15 +116,40 @@ jobs:
       - name: Install dependencies
         run: pnpm install
         
-      - name: Run semantic release in dry-run mode
-        id: semantic_release
+      - name: Changeset status check
+        id: changeset_status
         run: |
-          # Run your semantic release process here in dry-run mode
-          echo "Running semantic release in dry-run mode..."
-          echo "blorkpack_version=0.0.0-dryrun" >> $GITHUB_OUTPUT
-          echo "blorktools_version=0.0.0-dryrun" >> $GITHUB_OUTPUT
-          echo "blorkpack_changed=false" >> $GITHUB_OUTPUT
-          echo "blorktools_changed=false" >> $GITHUB_OUTPUT
+          # Check if any changesets exist
+          if [ -d ".changeset" ] && [ "$(ls -A .changeset | grep -v README.md | grep -v config.json)" ]; then
+            echo "Changesets found, would trigger version bump in production"
+            echo "has_changeset=true" >> $GITHUB_OUTPUT
+            
+            # Get current versions for reference
+            BLORKPACK_VERSION=$(node -p "require('./packages/blorkpack/package.json').version")
+            BLORKTOOLS_VERSION=$(node -p "require('./packages/blorktools/package.json').version")
+            BLORKBOARD_VERSION=$(node -p "require('./packages/blorkboard/package.json').version")
+            
+            echo "Current versions:"
+            echo "blorkpack: $BLORKPACK_VERSION"
+            echo "blorktools: $BLORKTOOLS_VERSION"  
+            echo "blorkboard: $BLORKBOARD_VERSION"
+            
+            echo "blorkpack_version=$BLORKPACK_VERSION" >> $GITHUB_OUTPUT
+            echo "blorktools_version=$BLORKTOOLS_VERSION" >> $GITHUB_OUTPUT
+            echo "blorkboard_version=$BLORKBOARD_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "No changesets found, no version changes would be triggered"
+            echo "has_changeset=false" >> $GITHUB_OUTPUT
+            
+            # Get current versions for reference
+            BLORKPACK_VERSION=$(node -p "require('./packages/blorkpack/package.json').version")
+            BLORKTOOLS_VERSION=$(node -p "require('./packages/blorktools/package.json').version")
+            BLORKBOARD_VERSION=$(node -p "require('./packages/blorkboard/package.json').version")
+            
+            echo "blorkpack_version=$BLORKPACK_VERSION" >> $GITHUB_OUTPUT
+            echo "blorktools_version=$BLORKTOOLS_VERSION" >> $GITHUB_OUTPUT
+            echo "blorkboard_version=$BLORKBOARD_VERSION" >> $GITHUB_OUTPUT
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 

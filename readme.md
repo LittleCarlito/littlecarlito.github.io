@@ -277,6 +277,19 @@ See the [LICENSE](LICENSE) file for full terms and conditions.
 - Email: steven.meier77@gmail.com
 - Discord: "Blooooork"
 
+## Versioning
+
+This project uses [Changesets](https://github.com/changesets/changesets) for version management. When making changes that should result in a version bump:
+
+1. Make your changes
+2. Run `pnpm change` to create a changeset
+3. Commit the generated changeset file along with your changes
+4. Create a PR with your changes
+
+When your PR is merged to main, a "Version Packages" PR will be automatically created. When that PR is merged, packages will be automatically published to GitHub Packages.
+
+See [Changesets Documentation](./documentation/changesets.md) for more details.
+
 ---
 
 Built with passion and precision by Steven & Bennett Meier
