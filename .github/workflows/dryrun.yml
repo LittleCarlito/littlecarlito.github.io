@@ -188,7 +188,7 @@ jobs:
                 fi
                 
                 # Extract affected packages
-                PACKAGES=$(grep -A 10 -E "(\"|')---(\"|').*(\"|')---(\"|')" "$f" | grep -v "---" | grep -v "^$" | head -n 3 || echo "")
+                PACKAGES=$(grep -A 10 -E "[\"']---[\"'].*[\"']---[\"']" "$f" | grep -v "---" | grep -v "^$" | head -n 3 || echo "")
                 echo "  - Affects packages: $PACKAGES"
                 
                 # Add to summary
