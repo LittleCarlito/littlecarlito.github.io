@@ -278,13 +278,27 @@ jobs:
             }')
           
           # Merge the PR with the semantic commit message
-          curl -X PUT \
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT \
             -H "Authorization: token ${{ secrets.PR_CREATION_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/merge" \
-            -d "$JSON_PAYLOAD"
+            -d "$JSON_PAYLOAD")
           
-          echo "Successfully merged PR #$PR_NUMBER with semantic message"
+          # Extract status code and response body
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
+          RESPONSE_BODY=$(echo "$RESPONSE" | sed '$ d')
+          
+          echo "Response body: $RESPONSE_BODY"
+          echo "Status code: $HTTP_STATUS"
+          
+          # Check if merge was successful (2xx status code)
+          if [[ $HTTP_STATUS -ge 200 && $HTTP_STATUS -lt 300 ]]; then
+            echo "Successfully merged PR #$PR_NUMBER with semantic message"
+          else
+            echo "Failed to merge PR #$PR_NUMBER. Status: $HTTP_STATUS"
+            echo "Error: $RESPONSE_BODY"
+            exit 1
+          fi
       
       - name: Delete branch
         if: success() && steps.merge_message.outcome == 'success'
