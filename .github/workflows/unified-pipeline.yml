@@ -148,7 +148,7 @@ jobs:
         run: |
           echo "Current version: ${{ steps.blorkpack_current.outputs.current_version }}"
           
-          # Create a completely new package.json with Node.js to ensure all workspace references are removed
+          # Create completely new package.json with Node.js
           node -e '
             const fs = require("fs");
             const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
@@ -167,8 +167,16 @@ jobs:
               }
             });
             
-            // Write the cleaned package.json
-            fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2));
+            // Extra check to handle nested workspace references
+            const pkgStr = JSON.stringify(pkg, null, 2);
+            if (pkgStr.includes("workspace:")) {
+              console.log("Found additional workspace references, fixing with regex");
+              const fixedPkgStr = pkgStr.replace(/"workspace:[^"]*"/g, "\\"*\\"");
+              fs.writeFileSync("package.json", fixedPkgStr);
+            } else {
+              fs.writeFileSync("package.json", pkgStr);
+            }
+            
             console.log("Successfully removed all workspace: references");
           '
           
@@ -181,18 +189,22 @@ jobs:
             echo "Successfully removed all workspace protocol references"
           fi
           
-          # Create a local .npmrc file to help with workspace protocol issues
-          echo "save-workspace-protocol=false" > .npmrc
-          echo "link-workspace-packages=false" >> .npmrc
-          echo "shamefully-hoist=true" >> .npmrc
+          # Configure npm directly for this package
+          cat > .npmrc << EOL
+          save-workspace-protocol=false
+          link-workspace-packages=false
+          shamefully-hoist=true
+          ignore-workspace-root-check=true
+          EOL
           
           # Force a commit if needed
           if [ "${{ steps.blorkpack_current.outputs.current_version }}" = "0.12.0" ]; then
             git commit --allow-empty -m "fix: force version bump for blorkpack"
           fi
           
-          # Run semantic-release with specific config to avoid workspace issues
-          NODE_ENV=production npx semantic-release
+          # Run semantic-release with a temporary package.json
+          export NODE_ENV=production
+          npx --no-install semantic-release
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -212,7 +224,7 @@ jobs:
         run: |
           echo "Current version: ${{ steps.blorktools_current.outputs.current_version }}"
           
-          # Create a completely new package.json with Node.js to ensure all workspace references are removed
+          # Create completely new package.json with Node.js
           node -e '
             const fs = require("fs");
             const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
@@ -231,8 +243,16 @@ jobs:
               }
             });
             
-            // Write the cleaned package.json
-            fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2));
+            // Extra check to handle nested workspace references
+            const pkgStr = JSON.stringify(pkg, null, 2);
+            if (pkgStr.includes("workspace:")) {
+              console.log("Found additional workspace references, fixing with regex");
+              const fixedPkgStr = pkgStr.replace(/"workspace:[^"]*"/g, "\\"*\\"");
+              fs.writeFileSync("package.json", fixedPkgStr);
+            } else {
+              fs.writeFileSync("package.json", pkgStr);
+            }
+            
             console.log("Successfully removed all workspace: references");
           '
           
@@ -245,18 +265,22 @@ jobs:
             echo "Successfully removed all workspace protocol references"
           fi
           
-          # Create a local .npmrc file to help with workspace protocol issues
-          echo "save-workspace-protocol=false" > .npmrc
-          echo "link-workspace-packages=false" >> .npmrc
-          echo "shamefully-hoist=true" >> .npmrc
+          # Configure npm directly for this package
+          cat > .npmrc << EOL
+          save-workspace-protocol=false
+          link-workspace-packages=false
+          shamefully-hoist=true
+          ignore-workspace-root-check=true
+          EOL
           
           # Force a commit if needed
           if [ "${{ steps.blorktools_current.outputs.current_version }}" = "0.12.0" ]; then
             git commit --allow-empty -m "fix: force version bump for blorktools"
           fi
           
-          # Run semantic-release with specific config to avoid workspace issues
-          NODE_ENV=production npx semantic-release
+          # Run semantic-release with a temporary package.json
+          export NODE_ENV=production
+          npx --no-install semantic-release
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -276,7 +300,7 @@ jobs:
         run: |
           echo "Current version: ${{ steps.blorkboard_current.outputs.current_version }}"
           
-          # Create a completely new package.json with Node.js to ensure all workspace references are removed
+          # Create completely new package.json with Node.js
           node -e '
             const fs = require("fs");
             const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
@@ -295,8 +319,16 @@ jobs:
               }
             });
             
-            // Write the cleaned package.json
-            fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2));
+            // Extra check to handle nested workspace references
+            const pkgStr = JSON.stringify(pkg, null, 2);
+            if (pkgStr.includes("workspace:")) {
+              console.log("Found additional workspace references, fixing with regex");
+              const fixedPkgStr = pkgStr.replace(/"workspace:[^"]*"/g, "\\"*\\"");
+              fs.writeFileSync("package.json", fixedPkgStr);
+            } else {
+              fs.writeFileSync("package.json", pkgStr);
+            }
+            
             console.log("Successfully removed all workspace: references");
           '
           
@@ -309,18 +341,22 @@ jobs:
             echo "Successfully removed all workspace protocol references"
           fi
           
-          # Create a local .npmrc file to help with workspace protocol issues
-          echo "save-workspace-protocol=false" > .npmrc
-          echo "link-workspace-packages=false" >> .npmrc
-          echo "shamefully-hoist=true" >> .npmrc
+          # Configure npm directly for this package
+          cat > .npmrc << EOL
+          save-workspace-protocol=false
+          link-workspace-packages=false
+          shamefully-hoist=true
+          ignore-workspace-root-check=true
+          EOL
           
           # Force a commit if needed
           if [ "${{ steps.blorkboard_current.outputs.current_version }}" = "0.12.0" ]; then
             git commit --allow-empty -m "fix: force version bump for blorkboard"
           fi
           
-          # Run semantic-release with specific config to avoid workspace issues
-          NODE_ENV=production npx semantic-release
+          # Run semantic-release with a temporary package.json
+          export NODE_ENV=production
+          npx --no-install semantic-release
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
