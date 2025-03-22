@@ -4,6 +4,14 @@ on:
   push:
     branches:
       - main
+  workflow_call:
+    secrets:
+      PACKAGE_TOKEN:
+        required: true
+    outputs:
+      published:
+        description: "Whether packages were published"
+        value: ${{ jobs.release.outputs.published }}
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
@@ -11,11 +19,13 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_call'
     permissions:
       contents: write
       pull-requests: write
       packages: write
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
     
     steps:
       - name: Checkout repo
@@ -59,8 +69,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
+      # Skip deployment when called from unified pipeline since it will handle deployment
       - name: Deploy
-        if: steps.changesets.outputs.published == 'true'
+        if: steps.changesets.outputs.published == 'true' && github.event_name != 'workflow_call'
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: apps/portfolio/dist

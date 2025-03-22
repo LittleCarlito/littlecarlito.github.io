@@ -5,6 +5,8 @@ on:
     branches:
       - main
       - 'feature/**'
+    paths-ignore:
+      - '.changeset/**'
   workflow_dispatch:
 
 permissions:
