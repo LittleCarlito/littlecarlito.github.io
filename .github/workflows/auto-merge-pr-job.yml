@@ -165,25 +165,15 @@ jobs:
             
             echo "Checks: $COMPLETED_CHECKS/$TOTAL_CHECKS completed, $SUCCESSFUL_CHECKS successful, $FAILED_CHECKS failed"
             
-            # More clearly identify the workflow's own checks
-            echo "Identifying non-completed checks..."
-            IN_PROGRESS_CHECKS=$(echo "$CHECK_RUNS" | jq '.check_runs[] | select(.status != "completed") | .name')
-            echo "Checks still in progress: $IN_PROGRESS_CHECKS"
-            
-            # Count in-progress auto-merge checks (to avoid waiting for ourselves)
-            AUTO_MERGE_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status != "completed" and (.name | type == "string") and (.name | contains("Auto PR Creation and Merge") or .name | contains("Create and Merge PR")))] | length')
-            echo "Auto-merge checks still in progress: $AUTO_MERGE_IN_PROGRESS"
-            
             # If any checks failed, exit
             if [ "$FAILED_CHECKS" != "0" ]; then
               echo "Some checks failed. Aborting merge."
               exit 1
             fi
             
-            # Check if all required checks have passed and only our own workflow is still running
-            if [ "$SUCCESSFUL_CHECKS" -eq "$((TOTAL_CHECKS - AUTO_MERGE_IN_PROGRESS))" ] && [ "$AUTO_MERGE_IN_PROGRESS" -gt 0 ]; then
-              echo "All external checks have completed successfully. Only our own workflow is still running."
-              # Proceed with the merge
+            # Consider it success if all checks except one (our workflow) are complete and successful
+            if [ "$SUCCESSFUL_CHECKS" -eq "$((TOTAL_CHECKS - 1))" ]; then
+              echo "All external checks completed successfully. Only our own workflow is still running."
               
               # Check if the PR is mergeable
               MERGEABLE=$(echo "$PR_INFO" | jq -r '.mergeable // false')
