@@ -237,7 +237,7 @@ jobs:
               echo "Timeout waiting for checks to complete."
               exit 1
             fi
-            f
+            
             echo "Waiting for all checks to complete (attempt $i/60)..."
             sleep 10
           done
