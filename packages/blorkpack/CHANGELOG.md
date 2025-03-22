@@ -1,3 +1,8 @@
+## [0.14.7] - 2025-03-22
+
+### Bug Fixes
+* fix: so the big man says
+
 ## [0.14.6] - 2025-03-22
 
 ### Bug Fixes
