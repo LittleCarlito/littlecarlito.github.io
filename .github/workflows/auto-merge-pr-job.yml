@@ -83,6 +83,8 @@ jobs:
           branch: ${{ env.BRANCH_NAME }}
           base: main
           draft: false
+          push-to-fork: ''
+          delete-branch: false
       
       - name: Set PR number
         id: set_pr
@@ -90,7 +92,7 @@ jobs:
           if [[ "${{ steps.check_pr.outputs.pr_exists }}" == "true" ]]; then
             echo "PR_NUMBER=${{ steps.check_pr.outputs.pr_number }}" >> "$GITHUB_ENV"
           else
-            echo "PR_NUMBER=${{ steps.create_pr.outputs.pull-request-number }}" >> "$GITHUB_ENV"
+            echo "PR_NUMBER=${{ steps.create_pr.outputs.pull-request-number || '' }}" >> "$GITHUB_ENV"
           fi
       
       - name: Wait for required checks
