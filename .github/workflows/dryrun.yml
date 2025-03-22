@@ -87,6 +87,7 @@ jobs:
       blorktools_version: ${{ steps.changeset_status.outputs.blorktools_version }}
       blorkboard_version: ${{ steps.changeset_status.outputs.blorkboard_version }}
       has_changeset: ${{ steps.changeset_status.outputs.has_changeset }}
+      potential_version_changes: ${{ steps.simulate_version.outputs.potential_version_changes }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -150,6 +151,87 @@ jobs:
             echo "blorktools_version=$BLORKTOOLS_VERSION" >> $GITHUB_OUTPUT
             echo "blorkboard_version=$BLORKBOARD_VERSION" >> $GITHUB_OUTPUT
           fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+      
+      - name: Simulate version changes
+        id: simulate_version
+        if: steps.changeset_status.outputs.has_changeset == 'true'
+        run: |
+          # Create a temporary branch to simulate version changes
+          git checkout -b temp-simulate-version
+          
+          # Create a summary of what changes would be made
+          echo "## Potential version changes based on changesets:" > version_changes.md
+          echo "" >> version_changes.md
+          
+          # Extract info from changesets to determine bump types
+          echo "Analyzing changesets to determine potential version bumps:" 
+          
+          # Parse all changesets files
+          echo "Found changesets:"
+          for f in .changeset/*.md; do
+            if [[ "$f" != ".changeset/README.md" && "$f" != ".changeset/config.json" ]]; then
+              echo "- $f"
+              
+              # Extract bump type and affected packages
+              BUMP_TYPE=$(grep -o -E "(\"|')---(\"|').*(\"|')---(\"|')" "$f" | sed 's/["\']---["\']/---/g' | tr -d '\n' || echo "")
+              
+              if [[ -n "$BUMP_TYPE" ]]; then
+                if [[ "$BUMP_TYPE" == *"major"* ]]; then
+                  echo "  - Contains major bump"
+                elif [[ "$BUMP_TYPE" == *"minor"* ]]; then
+                  echo "  - Contains minor bump"
+                elif [[ "$BUMP_TYPE" == *"patch"* ]]; then
+                  echo "  - Contains patch bump"
+                fi
+                
+                # Extract affected packages
+                PACKAGES=$(grep -A 10 -E "(\"|')---(\"|').*(\"|')---(\"|')" "$f" | grep -v "---" | grep -v "^$" | head -n 3 || echo "")
+                echo "  - Affects packages: $PACKAGES"
+                
+                # Add to summary
+                echo "### Changeset: $(basename "$f" .md)" >> version_changes.md
+                echo "- Bump type: $BUMP_TYPE" >> version_changes.md
+                echo "- Affected packages: $PACKAGES" >> version_changes.md
+                echo "" >> version_changes.md
+              fi
+            fi
+          done
+          
+          # Try running a simulated version command (but don't commit/push changes)
+          echo "Running changeset version simulation (changes won't be committed)..."
+          
+          # This will modify files but we won't commit the changes
+          pnpm changeset version || echo "Note: Simulation completed, any errors above are informational only"
+          
+          # Get the potential new versions
+          echo "Potential new versions:"
+          NEW_BLORKPACK_VERSION=$(node -p "require('./packages/blorkpack/package.json').version")
+          NEW_BLORKTOOLS_VERSION=$(node -p "require('./packages/blorktools/package.json').version")
+          NEW_BLORKBOARD_VERSION=$(node -p "require('./packages/blorkboard/package.json').version")
+          
+          echo "blorkpack: ${{ steps.changeset_status.outputs.blorkpack_version }} -> $NEW_BLORKPACK_VERSION"
+          echo "blorktools: ${{ steps.changeset_status.outputs.blorktools_version }} -> $NEW_BLORKTOOLS_VERSION"
+          echo "blorkboard: ${{ steps.changeset_status.outputs.blorkboard_version }} -> $NEW_BLORKBOARD_VERSION"
+          
+          # Add version summaries to our report
+          echo "### Version changes" >> version_changes.md
+          echo "- blorkpack: ${{ steps.changeset_status.outputs.blorkpack_version }} -> $NEW_BLORKPACK_VERSION" >> version_changes.md
+          echo "- blorktools: ${{ steps.changeset_status.outputs.blorktools_version }} -> $NEW_BLORKTOOLS_VERSION" >> version_changes.md
+          echo "- blorkboard: ${{ steps.changeset_status.outputs.blorkboard_version }} -> $NEW_BLORKBOARD_VERSION" >> version_changes.md
+          
+          # Set output with the formatted changes (escape newlines for GitHub Actions)
+          CHANGES=$(cat version_changes.md)
+          echo "potential_version_changes<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # Discard all changes from the simulation
+          git checkout -- .
+          git checkout -
+          git branch -D temp-simulate-version
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 
