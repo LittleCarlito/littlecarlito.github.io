@@ -165,16 +165,27 @@ jobs:
             
             echo "Checks: $COMPLETED_CHECKS/$TOTAL_CHECKS completed, $SUCCESSFUL_CHECKS successful, $FAILED_CHECKS failed"
             
-            # Count in-progress auto-merge checks (to avoid waiting for ourselves)
-            AUTO_MERGE_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status != "completed" and (.name | contains("Auto PR Creation and Merge")))] | length')
+            # Debug: Output all check names for better debugging
+            echo "All check names:"
+            echo "$CHECK_RUNS" | jq -r '.check_runs[] | "\(.id): \(.name)"'
+            
+            # The exact name we should be looking for is "Auto PR Creation and Merge / Create and Merge PR"
+            # Get current workflow run ID to identify our own check
+            CURRENT_RUN_ID=${{ github.run_id }}
+            echo "Current workflow run ID: $CURRENT_RUN_ID"
+            
+            # Count in-progress auto-merge checks that belong to our workflow
+            AUTO_MERGE_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq --arg run_id "$CURRENT_RUN_ID" '[.check_runs[] | select(.status != "completed" and (.name | contains("Create and Merge PR")))] | length')
             
             # Count total auto-merge checks (both completed and in-progress)
-            TOTAL_AUTO_MERGE_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.name | contains("Auto PR Creation and Merge"))] | length')
+            TOTAL_AUTO_MERGE_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.name | contains("Create and Merge PR"))] | length')
             
             # Calculate non-auto-merge checks
             NON_AUTO_MERGE_TOTAL=$((TOTAL_CHECKS - TOTAL_AUTO_MERGE_CHECKS))
-            NON_AUTO_MERGE_COMPLETED=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status == "completed" and (.name | contains("Auto PR Creation and Merge") | not))] | length')
+            NON_AUTO_MERGE_COMPLETED=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status == "completed" and (.name | contains("Create and Merge PR") | not))] | length')
             
+            echo "Auto-merge in progress: $AUTO_MERGE_IN_PROGRESS"
+            echo "Total auto-merge checks: $TOTAL_AUTO_MERGE_CHECKS"
             echo "Non-auto-merge checks: $NON_AUTO_MERGE_COMPLETED/$NON_AUTO_MERGE_TOTAL completed"
             
             # If any checks failed, exit
