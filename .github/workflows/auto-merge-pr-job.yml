@@ -166,7 +166,7 @@ jobs:
             echo "Checks: $COMPLETED_CHECKS/$TOTAL_CHECKS completed, $SUCCESSFUL_CHECKS successful, $FAILED_CHECKS failed"
             
             # Count in-progress auto-merge checks (to avoid waiting for ourselves)
-            AUTO_MERGE_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status != "completed" and .name | contains("Auto PR Creation and Merge"))] | length')
+            AUTO_MERGE_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status != "completed" and (.name | type == "string") and (.name | contains("Auto PR Creation and Merge")))] | length')
             
             # If any checks failed, exit
             if [ "$FAILED_CHECKS" != "0" ]; then
