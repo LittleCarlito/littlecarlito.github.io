@@ -1,0 +1,3 @@
+[merge "ours"]
+    name = keep incoming changes
+    driver = true 
