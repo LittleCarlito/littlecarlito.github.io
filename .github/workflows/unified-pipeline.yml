@@ -148,7 +148,11 @@ jobs:
         run: |
           echo "Current version: ${{ steps.blorkpack_current.outputs.current_version }}"
           
-          # Fix workspace protocol references
+          # Fix workspace protocol references - more thorough approach
+          # Create backup first
+          cp package.json package.json.backup
+          
+          # Fix all workspace protocol references in dependencies
           jq '.dependencies = (.dependencies // {}) | .devDependencies = (.devDependencies // {}) | .peerDependencies = (.peerDependencies // {})' package.json > package.json.tmp
           mv package.json.tmp package.json
           
@@ -163,6 +167,20 @@ jobs:
           # Handle peerDependencies
           jq '.peerDependencies = (.peerDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
           mv package.json.tmp package.json
+          
+          # Additional check for any remaining workspace references
+          if grep -q "workspace:" package.json; then
+            echo "WARNING: Found remaining workspace references after jq processing"
+            # Direct sed replacement as a fallback
+            sed -i 's/"workspace:[^"]*"/"*"/g' package.json
+          fi
+          
+          # Verify no workspace protocols remain
+          if grep -q "workspace:" package.json; then
+            echo "ERROR: Still found workspace references after all processing"
+            cat package.json
+            exit 1
+          fi
           
           # Force a commit if needed
           if [ "${{ steps.blorkpack_current.outputs.current_version }}" = "0.12.0" ]; then
@@ -190,7 +208,11 @@ jobs:
         run: |
           echo "Current version: ${{ steps.blorktools_current.outputs.current_version }}"
           
-          # Fix workspace protocol references
+          # Fix workspace protocol references - more thorough approach
+          # Create backup first
+          cp package.json package.json.backup
+          
+          # Fix all workspace protocol references in dependencies
           jq '.dependencies = (.dependencies // {}) | .devDependencies = (.devDependencies // {}) | .peerDependencies = (.peerDependencies // {})' package.json > package.json.tmp
           mv package.json.tmp package.json
           
@@ -205,6 +227,20 @@ jobs:
           # Handle peerDependencies
           jq '.peerDependencies = (.peerDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
           mv package.json.tmp package.json
+          
+          # Additional check for any remaining workspace references
+          if grep -q "workspace:" package.json; then
+            echo "WARNING: Found remaining workspace references after jq processing"
+            # Direct sed replacement as a fallback
+            sed -i 's/"workspace:[^"]*"/"*"/g' package.json
+          fi
+          
+          # Verify no workspace protocols remain
+          if grep -q "workspace:" package.json; then
+            echo "ERROR: Still found workspace references after all processing"
+            cat package.json
+            exit 1
+          fi
           
           # Force a commit if needed
           if [ "${{ steps.blorktools_current.outputs.current_version }}" = "0.12.0" ]; then
@@ -232,7 +268,11 @@ jobs:
         run: |
           echo "Current version: ${{ steps.blorkboard_current.outputs.current_version }}"
           
-          # Fix workspace protocol references
+          # Fix workspace protocol references - more thorough approach
+          # Create backup first
+          cp package.json package.json.backup
+          
+          # Fix all workspace protocol references in dependencies
           jq '.dependencies = (.dependencies // {}) | .devDependencies = (.devDependencies // {}) | .peerDependencies = (.peerDependencies // {})' package.json > package.json.tmp
           mv package.json.tmp package.json
           
@@ -247,6 +287,20 @@ jobs:
           # Handle peerDependencies
           jq '.peerDependencies = (.peerDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
           mv package.json.tmp package.json
+          
+          # Additional check for any remaining workspace references
+          if grep -q "workspace:" package.json; then
+            echo "WARNING: Found remaining workspace references after jq processing"
+            # Direct sed replacement as a fallback
+            sed -i 's/"workspace:[^"]*"/"*"/g' package.json
+          fi
+          
+          # Verify no workspace protocols remain
+          if grep -q "workspace:" package.json; then
+            echo "ERROR: Still found workspace references after all processing"
+            cat package.json
+            exit 1
+          fi
           
           # Force a commit if needed
           if [ "${{ steps.blorkboard_current.outputs.current_version }}" = "0.12.0" ]; then
