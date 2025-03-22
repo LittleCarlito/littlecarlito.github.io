@@ -126,6 +126,13 @@ jobs:
             echo "PR_NUMBER=" >> "$GITHUB_ENV"
           fi
       
+      - name: Wait for GitHub to set up the PR
+        if: env.PR_NUMBER != ''
+        run: |
+          echo "Waiting for GitHub to set up the PR and initialize checks..."
+          sleep 20
+          echo "Proceeding to check PR status"
+      
       - name: Wait for required checks
         id: wait_checks
         if: env.PR_NUMBER != ''
@@ -146,21 +153,26 @@ jobs:
             
             echo "Current PR state: mergeable=$MERGEABLE, mergeable_state=$MERGEABLE_STATE"
             
-            # If PR is mergeable or clean, we can proceed
-            if [ "$MERGEABLE_STATE" = "clean" ] || [ "$MERGEABLE" = "true" ]; then
-              echo "PR #$PR_NUMBER is ready to be merged!"
+            # Only proceed if PR is in clean state (all checks passed and branch protection satisfied)
+            if [ "$MERGEABLE_STATE" = "clean" ]; then
+              echo "PR #$PR_NUMBER is ready to be merged! All checks passed and branch protection rules satisfied."
               break
             fi
             
-            # If PR is blocked but not by pending checks, break
+            # If PR is blocked, exit - requires manual intervention
             if [ "$MERGEABLE_STATE" = "blocked" ]; then
               echo "PR is blocked from merging. This could be due to required reviews or branch protection rules."
               exit 1
             fi
             
+            # If checks are still running
+            if [ "$MERGEABLE_STATE" = "unstable" ] || [ "$MERGEABLE_STATE" = "unknown" ]; then
+              echo "Checks are still running. Waiting..."
+            fi
+            
             # Check if we're out of time
             if [ $i -eq 60 ]; then
-              echo "Timeout waiting for PR #$PR_NUMBER to become mergeable."
+              echo "Timeout waiting for PR #$PR_NUMBER to become mergeable. Required checks may not have completed."
               exit 1
             fi
             
