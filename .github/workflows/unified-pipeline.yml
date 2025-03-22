@@ -148,47 +148,51 @@ jobs:
         run: |
           echo "Current version: ${{ steps.blorkpack_current.outputs.current_version }}"
           
-          # Fix workspace protocol references - more thorough approach
-          # Create backup first
-          cp package.json package.json.backup
-          
-          # Fix all workspace protocol references in dependencies
-          jq '.dependencies = (.dependencies // {}) | .devDependencies = (.devDependencies // {}) | .peerDependencies = (.peerDependencies // {})' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          
-          # Handle dependencies
-          jq '.dependencies = (.dependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          
-          # Handle devDependencies
-          jq '.devDependencies = (.devDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          
-          # Handle peerDependencies
-          jq '.peerDependencies = (.peerDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          
-          # Additional check for any remaining workspace references
-          if grep -q "workspace:" package.json; then
-            echo "WARNING: Found remaining workspace references after jq processing"
-            # Direct sed replacement as a fallback
-            sed -i 's/"workspace:[^"]*"/"*"/g' package.json
-          fi
+          # Create a completely new package.json with Node.js to ensure all workspace references are removed
+          node -e '
+            const fs = require("fs");
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            
+            // Process all dependency types
+            const depTypes = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"];
+            
+            depTypes.forEach(type => {
+              if (pkg[type]) {
+                Object.keys(pkg[type]).forEach(dep => {
+                  // Replace workspace: with * for all versions
+                  if (pkg[type][dep].startsWith("workspace:")) {
+                    pkg[type][dep] = "*";
+                  }
+                });
+              }
+            });
+            
+            // Write the cleaned package.json
+            fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2));
+            console.log("Successfully removed all workspace: references");
+          '
           
           # Verify no workspace protocols remain
           if grep -q "workspace:" package.json; then
-            echo "ERROR: Still found workspace references after all processing"
+            echo "ERROR: Still found workspace references after processing"
             cat package.json
             exit 1
+          else
+            echo "Successfully removed all workspace protocol references"
           fi
+          
+          # Create a local .npmrc file to help with workspace protocol issues
+          echo "save-workspace-protocol=false" > .npmrc
+          echo "link-workspace-packages=false" >> .npmrc
+          echo "shamefully-hoist=true" >> .npmrc
           
           # Force a commit if needed
           if [ "${{ steps.blorkpack_current.outputs.current_version }}" = "0.12.0" ]; then
             git commit --allow-empty -m "fix: force version bump for blorkpack"
           fi
           
-          # Run semantic-release
-          npx semantic-release
+          # Run semantic-release with specific config to avoid workspace issues
+          NODE_ENV=production npx semantic-release
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -208,47 +212,51 @@ jobs:
         run: |
           echo "Current version: ${{ steps.blorktools_current.outputs.current_version }}"
           
-          # Fix workspace protocol references - more thorough approach
-          # Create backup first
-          cp package.json package.json.backup
-          
-          # Fix all workspace protocol references in dependencies
-          jq '.dependencies = (.dependencies // {}) | .devDependencies = (.devDependencies // {}) | .peerDependencies = (.peerDependencies // {})' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          
-          # Handle dependencies
-          jq '.dependencies = (.dependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          
-          # Handle devDependencies
-          jq '.devDependencies = (.devDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          
-          # Handle peerDependencies
-          jq '.peerDependencies = (.peerDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          
-          # Additional check for any remaining workspace references
-          if grep -q "workspace:" package.json; then
-            echo "WARNING: Found remaining workspace references after jq processing"
-            # Direct sed replacement as a fallback
-            sed -i 's/"workspace:[^"]*"/"*"/g' package.json
-          fi
+          # Create a completely new package.json with Node.js to ensure all workspace references are removed
+          node -e '
+            const fs = require("fs");
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            
+            // Process all dependency types
+            const depTypes = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"];
+            
+            depTypes.forEach(type => {
+              if (pkg[type]) {
+                Object.keys(pkg[type]).forEach(dep => {
+                  // Replace workspace: with * for all versions
+                  if (pkg[type][dep].startsWith("workspace:")) {
+                    pkg[type][dep] = "*";
+                  }
+                });
+              }
+            });
+            
+            // Write the cleaned package.json
+            fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2));
+            console.log("Successfully removed all workspace: references");
+          '
           
           # Verify no workspace protocols remain
           if grep -q "workspace:" package.json; then
-            echo "ERROR: Still found workspace references after all processing"
+            echo "ERROR: Still found workspace references after processing"
             cat package.json
             exit 1
+          else
+            echo "Successfully removed all workspace protocol references"
           fi
+          
+          # Create a local .npmrc file to help with workspace protocol issues
+          echo "save-workspace-protocol=false" > .npmrc
+          echo "link-workspace-packages=false" >> .npmrc
+          echo "shamefully-hoist=true" >> .npmrc
           
           # Force a commit if needed
           if [ "${{ steps.blorktools_current.outputs.current_version }}" = "0.12.0" ]; then
             git commit --allow-empty -m "fix: force version bump for blorktools"
           fi
           
-          # Run semantic-release
-          npx semantic-release
+          # Run semantic-release with specific config to avoid workspace issues
+          NODE_ENV=production npx semantic-release
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -268,47 +276,51 @@ jobs:
         run: |
           echo "Current version: ${{ steps.blorkboard_current.outputs.current_version }}"
           
-          # Fix workspace protocol references - more thorough approach
-          # Create backup first
-          cp package.json package.json.backup
-          
-          # Fix all workspace protocol references in dependencies
-          jq '.dependencies = (.dependencies // {}) | .devDependencies = (.devDependencies // {}) | .peerDependencies = (.peerDependencies // {})' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          
-          # Handle dependencies
-          jq '.dependencies = (.dependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          
-          # Handle devDependencies
-          jq '.devDependencies = (.devDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          
-          # Handle peerDependencies
-          jq '.peerDependencies = (.peerDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          
-          # Additional check for any remaining workspace references
-          if grep -q "workspace:" package.json; then
-            echo "WARNING: Found remaining workspace references after jq processing"
-            # Direct sed replacement as a fallback
-            sed -i 's/"workspace:[^"]*"/"*"/g' package.json
-          fi
+          # Create a completely new package.json with Node.js to ensure all workspace references are removed
+          node -e '
+            const fs = require("fs");
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            
+            // Process all dependency types
+            const depTypes = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"];
+            
+            depTypes.forEach(type => {
+              if (pkg[type]) {
+                Object.keys(pkg[type]).forEach(dep => {
+                  // Replace workspace: with * for all versions
+                  if (pkg[type][dep].startsWith("workspace:")) {
+                    pkg[type][dep] = "*";
+                  }
+                });
+              }
+            });
+            
+            // Write the cleaned package.json
+            fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2));
+            console.log("Successfully removed all workspace: references");
+          '
           
           # Verify no workspace protocols remain
           if grep -q "workspace:" package.json; then
-            echo "ERROR: Still found workspace references after all processing"
+            echo "ERROR: Still found workspace references after processing"
             cat package.json
             exit 1
+          else
+            echo "Successfully removed all workspace protocol references"
           fi
+          
+          # Create a local .npmrc file to help with workspace protocol issues
+          echo "save-workspace-protocol=false" > .npmrc
+          echo "link-workspace-packages=false" >> .npmrc
+          echo "shamefully-hoist=true" >> .npmrc
           
           # Force a commit if needed
           if [ "${{ steps.blorkboard_current.outputs.current_version }}" = "0.12.0" ]; then
             git commit --allow-empty -m "fix: force version bump for blorkboard"
           fi
           
-          # Run semantic-release
-          npx semantic-release
+          # Run semantic-release with specific config to avoid workspace issues
+          NODE_ENV=production npx semantic-release
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}

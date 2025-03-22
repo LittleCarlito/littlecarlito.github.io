@@ -8,7 +8,8 @@
       "pkgRoot": ".",
       "tarballDir": "dist",
       "npmPublish": false,
-      "npmPath": "pnpm"
+      "npmPath": "pnpm",
+      "usePnpm": true
     }],
     ["@semantic-release/github", {
       "assets": ["dist/**/*.{js,css,map}", "CHANGELOG.md"],
