@@ -62,6 +62,9 @@ jobs:
           
       - name: Install dependencies
         run: pnpm install
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         
       - name: Validate package.json for semantic-release compatibility
         run: |
@@ -94,17 +97,26 @@ jobs:
           pnpm version 0.0.0-test --no-git-tag-version || echo "FAILURE: Version command would fail in actual release"
           git checkout -- package.json
           cd ../..
-        
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+      
       - name: Install semantic-release and plugins
         run: |
           pnpm add -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github @semantic-release/npm
           echo "Installed semantic-release and plugins globally"
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
           name: package-builds
           path: ./
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
       - name: Get pre-release versions
         id: pre_versions
@@ -198,47 +210,31 @@ jobs:
             echo "In dry-run mode, skipping empty commit for version bump"
           fi
           
-          # Set environment variable to use pnpm for version updates
-          export NPM_PATH="pnpm"
-          
-          # Run semantic-release with detailed debug output
-          echo "DEBUG: Starting semantic-release for blorkpack"
-          echo "Current directory: $(pwd)"
-          echo "DEBUG: Package.json content before semantic-release:"
-          cat package.json | jq '.'
-          echo "Installed semantic-release: $(which semantic-release || echo 'Not found')"
-          
-          # Create npmrc file to configure npm behavior
-          echo "shell-emulator=true" > .npmrc
-          echo "workspace-concurrency=1" >> .npmrc
-          echo "prefer-workspace-packages=true" >> .npmrc
-          echo "save-workspace-protocol=false" >> .npmrc
-          
+          # Run semantic-release
           if [ "${{ inputs.dry_run }}" = "true" ]; then
-            pnpm semantic-release --debug --dry-run
+            semantic-release --dry-run
           else
-            pnpm semantic-release --debug
+            semantic-release
           fi
           
-          # Get the new version post-semantic-release
+          # Store the new version for later use
           NEW_VERSION=$(jq -r '.version' package.json)
-          
-          # Output version info for downstream jobs
-          echo "pre_version=$PRE_VERSION" >> $GITHUB_OUTPUT
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           
-          # Log version change
+          # Check if version changed
           if [ "$PRE_VERSION" != "$NEW_VERSION" ]; then
-            echo "Version updated: $PRE_VERSION → $NEW_VERSION"
+            echo "Version changed from $PRE_VERSION to $NEW_VERSION"
           else
-            echo "Version unchanged: $NEW_VERSION"
+            echo "Version remained at $NEW_VERSION"
           fi
         env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
       - name: Run semantic-release for blorktools
         id: blorktools_release
+        if: success() || failure()
         working-directory: packages/blorktools
         run: |
           echo "Running semantic-release for blorktools package"
@@ -247,26 +243,6 @@ jobs:
           # Ensure package name is correct
           jq '.name = "@littlecarlito/blorktools"' package.json > package.json.tmp
           mv package.json.tmp package.json
-          
-          # Safer approach to handle workspace dependencies - process each dependency type separately
-          # Initialize empty objects for any missing dependency sections
-          jq '.dependencies = (.dependencies // {}) | .devDependencies = (.devDependencies // {}) | .peerDependencies = (.peerDependencies // {})' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          
-          # Handle dependencies
-          jq '.dependencies = (.dependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          
-          # Handle devDependencies
-          jq '.devDependencies = (.devDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          
-          # Handle peerDependencies
-          jq '.peerDependencies = (.peerDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          
-          # Validate JSON
-          cat package.json | jq empty || { echo "ERROR: Invalid JSON after manipulation"; exit 1; }
           
           # Create local .releaserc.json for this package
           cat > .releaserc.json << 'EOF'
@@ -318,61 +294,34 @@ jobs:
             echo "In dry-run mode, skipping empty commit for version bump"
           fi
           
-          # Set environment variable to use pnpm for version updates
-          export NPM_PATH="pnpm"
-          
-          # Run semantic-release with detailed debug output
-          echo "DEBUG: Starting semantic-release for blorktools"
-          echo "Current directory: $(pwd)"
-          echo "DEBUG: Package.json content before semantic-release:"
-          cat package.json | jq '.'
-          echo "Installed semantic-release: $(which semantic-release || echo 'Not found')"
-          
-          # Create npmrc file to configure npm behavior
-          echo "shell-emulator=true" > .npmrc
-          echo "workspace-concurrency=1" >> .npmrc
-          echo "prefer-workspace-packages=true" >> .npmrc
-          echo "save-workspace-protocol=false" >> .npmrc
-          
+          # Run semantic-release
           if [ "${{ inputs.dry_run }}" = "true" ]; then
-            pnpm semantic-release --debug --dry-run
+            semantic-release --dry-run
           else
-            pnpm semantic-release --debug
+            semantic-release
           fi
           
-          # Get the new version post-semantic-release
+          # Store the new version for later use
           NEW_VERSION=$(jq -r '.version' package.json)
-          
-          # Output version info for downstream jobs
-          echo "pre_version=$PRE_VERSION" >> $GITHUB_OUTPUT
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           
-          # Log version change
+          # Check if version changed
           if [ "$PRE_VERSION" != "$NEW_VERSION" ]; then
-            echo "Version updated: $PRE_VERSION → $NEW_VERSION"
+            echo "Version changed from $PRE_VERSION to $NEW_VERSION"
           else
-            echo "Version unchanged: $NEW_VERSION"
+            echo "Version remained at $NEW_VERSION"
           fi
         env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Check version changes
         id: check_versions
         run: |
-          BLORKPACK_PRE="${{ steps.blorkpack_release.outputs.pre_version }}"
-          BLORKPACK_NEW="${{ steps.blorkpack_release.outputs.new_version }}"
-          BLORKTOOLS_PRE="${{ steps.blorktools_release.outputs.pre_version }}"
-          BLORKTOOLS_NEW="${{ steps.blorktools_release.outputs.new_version }}"
-          
-          if [ "$BLORKPACK_PRE" != "$BLORKPACK_NEW" ]; then
-            echo "blorkpack_changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "blorkpack_changed=false" >> $GITHUB_OUTPUT
-          fi
-          
-          if [ "$BLORKTOOLS_PRE" != "$BLORKTOOLS_NEW" ]; then
-            echo "blorktools_changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "blorktools_changed=false" >> $GITHUB_OUTPUT
-          fi 
+          echo "blorkpack_changed=${{ steps.blorkpack_release.outputs.pre_version != steps.blorkpack_release.outputs.new_version }}" >> $GITHUB_OUTPUT
+          echo "blorktools_changed=${{ steps.blorktools_release.outputs.pre_version != steps.blorktools_release.outputs.new_version }}" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 
