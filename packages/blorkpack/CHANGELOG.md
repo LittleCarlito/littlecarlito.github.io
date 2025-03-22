@@ -1,3 +1,8 @@
+## [0.14.6] - 2025-03-22
+
+### Bug Fixes
+* fix: improved self detection
+
 ## [0.14.5] - 2025-03-22
 
 ### Bug Fixes
