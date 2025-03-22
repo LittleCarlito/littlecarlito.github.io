@@ -165,15 +165,18 @@ jobs:
             
             echo "Checks: $COMPLETED_CHECKS/$TOTAL_CHECKS completed, $SUCCESSFUL_CHECKS successful, $FAILED_CHECKS failed"
             
+            # Count in-progress auto-merge checks (to avoid waiting for ourselves)
+            AUTO_MERGE_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status != "completed" and .name | contains("Auto PR Creation and Merge"))] | length')
+            
             # If any checks failed, exit
             if [ "$FAILED_CHECKS" != "0" ]; then
               echo "Some checks failed. Aborting merge."
               exit 1
             fi
             
-            # If all checks completed successfully, check PR status
-            if [ "$COMPLETED_CHECKS" = "$TOTAL_CHECKS" ]; then
-              echo "All checks completed successfully!"
+            # If all checks completed successfully OR only our own check is still running, proceed
+            if [ "$COMPLETED_CHECKS" = "$TOTAL_CHECKS" ] || [ "$((COMPLETED_CHECKS + AUTO_MERGE_IN_PROGRESS))" = "$TOTAL_CHECKS" -a "$AUTO_MERGE_IN_PROGRESS" = "1" ]; then
+              echo "All checks completed successfully (or only this workflow is still running)!"
               
               # Check if the PR is mergeable
               MERGEABLE=$(echo "$PR_INFO" | jq -r '.mergeable // false')
