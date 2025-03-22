@@ -60,39 +60,70 @@ jobs:
       - name: Create Pull Request
         id: create_pr
         if: steps.check_pr.outputs.pr_exists != 'true'
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.PACKAGE_TOKEN }}
-          commit-message: ${{ env.COMMIT_MESSAGE }}
-          title: ${{ env.PR_TITLE }}
-          body: |
-            This PR was automatically created from branch `${{ env.BRANCH_NAME }}`.
-            
-            Original commit message:
-            ```
-            ${{ env.COMMIT_MESSAGE }}
-            ```
-            
-            ## Changes
-            
-            <!-- List of changes in this PR -->
-            
-            ## Checks
-            
-            - [ ] Passes all required checks
-          branch: ${{ env.BRANCH_NAME }}
-          base: main
-          draft: false
-          push-to-fork: ''
-          delete-branch: false
+        run: |
+          # Don't modify the existing branch - just create a PR from it
+          PR_BODY=$(cat << EOF
+          This PR was automatically created from branch \`${{ env.BRANCH_NAME }}\`.
+          
+          Original commit message:
+          \`\`\`
+          ${{ env.COMMIT_MESSAGE }}
+          \`\`\`
+          
+          ## Changes
+          
+          <!-- List of changes in this PR -->
+          
+          ## Checks
+          
+          - [ ] Passes all required checks
+          EOF
+          )
+          
+          # Create PR using GitHub API
+          PR_RESPONSE=$(curl -s -X POST \
+            -H "Authorization: token ${{ secrets.PACKAGE_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls" \
+            -d "$(jq -n \
+              --arg title "${{ env.PR_TITLE }}" \
+              --arg body "$PR_BODY" \
+              --arg head "${{ env.BRANCH_NAME }}" \
+              --arg base "main" \
+              '{
+                "title": $title,
+                "body": $body,
+                "head": $head,
+                "base": $base,
+                "draft": false
+              }'
+            )"
+          )
+          
+          # Extract PR number from response
+          PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r '.number')
+          
+          # Check if PR was created successfully
+          if [ "$PR_NUMBER" != "null" ] && [ -n "$PR_NUMBER" ]; then
+            echo "Created new PR #$PR_NUMBER for branch ${{ env.BRANCH_NAME }}"
+            echo "pull-request-number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          else
+            echo "Failed to create PR. API response: $PR_RESPONSE"
+            exit 1
+          fi
       
       - name: Set PR number
         id: set_pr
         run: |
           if [[ "${{ steps.check_pr.outputs.pr_exists }}" == "true" ]]; then
+            echo "Found existing PR #${{ steps.check_pr.outputs.pr_number }}"
             echo "PR_NUMBER=${{ steps.check_pr.outputs.pr_number }}" >> "$GITHUB_ENV"
+          elif [[ -n "${{ steps.create_pr.outputs.pull-request-number }}" ]]; then
+            echo "Using newly created PR #${{ steps.create_pr.outputs.pull-request-number }}"
+            echo "PR_NUMBER=${{ steps.create_pr.outputs.pull-request-number }}" >> "$GITHUB_ENV"
           else
-            echo "PR_NUMBER=${{ steps.create_pr.outputs.pull-request-number || '' }}" >> "$GITHUB_ENV"
+            echo "No PR number available. Skipping PR operations."
+            echo "PR_NUMBER=" >> "$GITHUB_ENV"
           fi
       
       - name: Wait for required checks
@@ -112,6 +143,12 @@ jobs:
             # Check if any checks failed
             if echo "$CHECKS_STATUS" | grep -q "failure"; then
               echo "Some checks failed"
+              return 1
+            fi
+            
+            # If no checks are running yet, wait for them to start
+            if [ -z "$CHECKS_STATUS" ]; then
+              echo "No completed checks found yet"
               return 1
             fi
             
