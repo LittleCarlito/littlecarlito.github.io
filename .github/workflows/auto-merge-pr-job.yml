@@ -166,7 +166,16 @@ jobs:
             echo "Checks: $COMPLETED_CHECKS/$TOTAL_CHECKS completed, $SUCCESSFUL_CHECKS successful, $FAILED_CHECKS failed"
             
             # Count in-progress auto-merge checks (to avoid waiting for ourselves)
-            AUTO_MERGE_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status != "completed" and (.name | type == "string") and (.name | contains("Auto PR Creation and Merge")))] | length')
+            AUTO_MERGE_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status != "completed" and (.name | contains("Auto PR Creation and Merge")))] | length')
+            
+            # Count total auto-merge checks (both completed and in-progress)
+            TOTAL_AUTO_MERGE_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.name | contains("Auto PR Creation and Merge"))] | length')
+            
+            # Calculate non-auto-merge checks
+            NON_AUTO_MERGE_TOTAL=$((TOTAL_CHECKS - TOTAL_AUTO_MERGE_CHECKS))
+            NON_AUTO_MERGE_COMPLETED=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status == "completed" and (.name | contains("Auto PR Creation and Merge") | not))] | length')
+            
+            echo "Non-auto-merge checks: $NON_AUTO_MERGE_COMPLETED/$NON_AUTO_MERGE_TOTAL completed"
             
             # If any checks failed, exit
             if [ "$FAILED_CHECKS" != "0" ]; then
@@ -174,9 +183,9 @@ jobs:
               exit 1
             fi
             
-            # If all checks completed successfully OR only our own check is still running, proceed
-            if [ "$COMPLETED_CHECKS" = "$TOTAL_CHECKS" ] || [ "$((COMPLETED_CHECKS + AUTO_MERGE_IN_PROGRESS))" = "$TOTAL_CHECKS" -a "$AUTO_MERGE_IN_PROGRESS" = "1" ]; then
-              echo "All checks completed successfully (or only this workflow is still running)!"
+            # Proceed if either ALL checks are complete OR all non-auto-merge checks are complete and only our workflow is still running
+            if [ "$COMPLETED_CHECKS" = "$TOTAL_CHECKS" ] || [ "$NON_AUTO_MERGE_COMPLETED" = "$NON_AUTO_MERGE_TOTAL" -a "$AUTO_MERGE_IN_PROGRESS" = "1" ]; then
+              echo "All required checks completed successfully (except possibly our own workflow)!"
               
               # Check if the PR is mergeable
               MERGEABLE=$(echo "$PR_INFO" | jq -r '.mergeable // false')
