@@ -1,0 +1,213 @@
+name: Auto PR Creation and Merge
+
+on:
+  push:
+    branches-ignore:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-pr:
+    name: Create and Merge PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Extract branch name
+        shell: bash
+        run: echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> "$GITHUB_ENV"
+      
+      - name: Extract commit details
+        id: commit_details
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          echo "COMMIT_MESSAGE<<EOF" >> "$GITHUB_ENV"
+          echo "$COMMIT_MSG" >> "$GITHUB_ENV"
+          echo "EOF" >> "$GITHUB_ENV"
+          
+          # Extract PR title from commit message (first line)
+          PR_TITLE=$(echo "$COMMIT_MSG" | head -n 1)
+          echo "PR_TITLE=$PR_TITLE" >> "$GITHUB_ENV"
+          
+          # Extract semantic type (feat, fix, etc.)
+          SEMANTIC_TYPE=$(echo "$PR_TITLE" | grep -oP '^(\w+)(?:\(.*\))?:' | sed 's/://g' || echo "")
+          echo "SEMANTIC_TYPE=$SEMANTIC_TYPE" >> "$GITHUB_ENV"
+
+      - name: Check for existing PR
+        id: check_pr
+        run: |
+          # Check if PR already exists for this branch
+          EXISTING_PR=$(curl -s -H "Authorization: token ${{ secrets.PACKAGE_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:${{ env.BRANCH_NAME }}&base=main&state=open" | \
+            jq -r '.[0].number')
+          
+          if [ "$EXISTING_PR" != "null" ] && [ -n "$EXISTING_PR" ]; then
+            echo "Found existing PR #$EXISTING_PR for branch ${{ env.BRANCH_NAME }}"
+            echo "pr_exists=true" >> "$GITHUB_OUTPUT"
+            echo "pr_number=$EXISTING_PR" >> "$GITHUB_OUTPUT"
+          else
+            echo "No existing PR found for branch ${{ env.BRANCH_NAME }}"
+            echo "pr_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      
+      - name: Create Pull Request
+        id: create_pr
+        if: steps.check_pr.outputs.pr_exists != 'true'
+        run: |
+          # Don't modify the existing branch - just create a PR from it
+          PR_BODY=$(cat << EOF
+          This PR was automatically created from branch \`${{ env.BRANCH_NAME }}\`.
+          
+          Original commit message:
+          \`\`\`
+          ${{ env.COMMIT_MESSAGE }}
+          \`\`\`
+          
+          ## Changes
+          
+          <!-- List of changes in this PR -->
+          
+          ## Checks
+          
+          - [ ] Passes all required checks
+          EOF
+          )
+          
+          # Create PR using GitHub API
+          PR_RESPONSE=$(curl -s -X POST \
+            -H "Authorization: token ${{ secrets.PACKAGE_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls" \
+            -d "$(jq -n \
+              --arg title "${{ env.PR_TITLE }}" \
+              --arg body "$PR_BODY" \
+              --arg head "${{ env.BRANCH_NAME }}" \
+              --arg base "main" \
+              '{
+                "title": $title,
+                "body": $body,
+                "head": $head,
+                "base": $base,
+                "draft": false
+              }'
+            )"
+          )
+          
+          # Extract PR number from response
+          PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r '.number')
+          
+          # Check if PR was created successfully
+          if [ "$PR_NUMBER" != "null" ] && [ -n "$PR_NUMBER" ]; then
+            echo "Created new PR #$PR_NUMBER for branch ${{ env.BRANCH_NAME }}"
+            echo "pull-request-number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          else
+            echo "Failed to create PR. API response: $PR_RESPONSE"
+            exit 1
+          fi
+      
+      - name: Set PR number
+        id: set_pr
+        run: |
+          if [[ "${{ steps.check_pr.outputs.pr_exists }}" == "true" ]]; then
+            echo "Found existing PR #${{ steps.check_pr.outputs.pr_number }}"
+            echo "PR_NUMBER=${{ steps.check_pr.outputs.pr_number }}" >> "$GITHUB_ENV"
+          elif [[ -n "${{ steps.create_pr.outputs.pull-request-number }}" ]]; then
+            echo "Using newly created PR #${{ steps.create_pr.outputs.pull-request-number }}"
+            echo "PR_NUMBER=${{ steps.create_pr.outputs.pull-request-number }}" >> "$GITHUB_ENV"
+          else
+            echo "No PR number available. Skipping PR operations."
+            echo "PR_NUMBER=" >> "$GITHUB_ENV"
+          fi
+      
+      - name: Wait for required checks
+        id: wait_checks
+        if: env.PR_NUMBER != ''
+        run: |
+          PR_NUMBER=${{ env.PR_NUMBER }}
+          echo "Waiting for PR #$PR_NUMBER to become mergeable..."
+          
+          # Wait for the PR to become mergeable (up to 10 minutes)
+          for i in {1..60}; do
+            # Get PR status from GitHub API
+            PR_STATUS=$(curl -s -H "Authorization: token ${{ secrets.PACKAGE_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER")
+            
+            # Extract mergeable state
+            MERGEABLE_STATE=$(echo "$PR_STATUS" | jq -r '.mergeable_state // "unknown"')
+            MERGEABLE=$(echo "$PR_STATUS" | jq -r '.mergeable // false')
+            
+            echo "Current PR state: mergeable=$MERGEABLE, mergeable_state=$MERGEABLE_STATE"
+            
+            # If PR is mergeable or clean, we can proceed
+            if [ "$MERGEABLE_STATE" = "clean" ] || [ "$MERGEABLE" = "true" ]; then
+              echo "PR #$PR_NUMBER is ready to be merged!"
+              break
+            fi
+            
+            # If PR is blocked but not by pending checks, break
+            if [ "$MERGEABLE_STATE" = "blocked" ]; then
+              echo "PR is blocked from merging. This could be due to required reviews or branch protection rules."
+              exit 1
+            fi
+            
+            # Check if we're out of time
+            if [ $i -eq 60 ]; then
+              echo "Timeout waiting for PR #$PR_NUMBER to become mergeable."
+              exit 1
+            fi
+            
+            echo "Waiting for PR #$PR_NUMBER to become mergeable (attempt $i/60)..."
+            sleep 10
+          done
+      
+      - name: Determine semantic merge message
+        id: merge_message
+        if: steps.wait_checks.outcome == 'success'
+        run: |
+          # Check if SEMANTIC_TYPE is set and not empty
+          if [ -n "${SEMANTIC_TYPE:-}" ]; then
+            echo "Using existing semantic type: ${SEMANTIC_TYPE}"
+            MERGE_MSG="${COMMIT_MESSAGE:-}"
+          else
+            # Default to fix: if no semantic type is detected
+            echo "No semantic type detected, defaulting to fix:"
+            MERGE_MSG="fix: ${PR_TITLE:-}"
+          fi
+          
+          echo "MERGE_MESSAGE<<EOF" >> "$GITHUB_ENV"
+          echo "$MERGE_MSG" >> "$GITHUB_ENV"
+          echo "EOF" >> "$GITHUB_ENV"
+      
+      - name: Merge Pull Request
+        if: steps.merge_message.outcome == 'success'
+        run: |
+          PR_NUMBER=${PR_NUMBER:-}
+          
+          # Create properly escaped JSON payload
+          MERGE_TITLE=$(echo "${MERGE_MESSAGE:-}" | head -n 1)
+          
+          # Create JSON payload with jq to handle escaping properly
+          JSON_PAYLOAD=$(jq -n \
+            --arg title "$MERGE_TITLE" \
+            '{
+              "commit_title": $title,
+              "commit_message": "",
+              "merge_method": "squash"
+            }')
+          
+          # Merge the PR with the semantic commit message
+          curl -X PUT \
+            -H "Authorization: token ${{ secrets.PACKAGE_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/merge" \
+            -d "$JSON_PAYLOAD"
+          
+          echo "Successfully merged PR #$PR_NUMBER with semantic message"

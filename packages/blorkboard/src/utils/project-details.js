@@ -44,7 +44,7 @@ export class ProjectDetailFactory {
 		}
 		
 		if (!project.shouldServe) {
-			return 'Not served (non-interactive package)';
+			return 'Not served';
 		}
 
 		if (!project.process) {
@@ -94,7 +94,7 @@ export class ProjectDetailFactory {
 		} else if (project.ready && project.shouldServe) {
 			statusElement = `<div class="status-info status-running">Listening on port ${project.port}</div>`;
 		} else if (!project.shouldServe) {
-			statusElement = `<div class="status-info status-package">Non-interactive package (not served on a port)</div>`;
+			statusElement = `<div class="status-info status-package">Not served</div>`;
 		} else {
 			statusElement = `<div class="status-info ${statusClass}">${status}</div>`;
 		}
@@ -125,7 +125,7 @@ export class ProjectDetailFactory {
 		}
 		
 		if (!project.shouldServe) {
-			return 'Not served on a port';
+			return 'Not served';
 		}
 
 		if (!project.process) {
