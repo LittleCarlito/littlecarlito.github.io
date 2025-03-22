@@ -1,3 +1,8 @@
+## [0.14.4] - 2025-03-22
+
+### Bug Fixes
+* fix: using new pat
+
 ## [0.14.3] - 2025-03-22
 
 ### Bug Fixes
