@@ -1,3 +1,8 @@
+## [0.14.5] - 2025-03-22
+
+### Bug Fixes
+* fix: simple approach
+
 ## [0.14.4] - 2025-03-22
 
 ### Bug Fixes
