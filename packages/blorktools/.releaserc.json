@@ -24,15 +24,15 @@
       "npmPath": "pnpm",
       "usePnpm": true
     }],
+    ["@semantic-release/git", {
+      "assets": ["package.json", "CHANGELOG.md"],
+      "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+    }],
     ["@semantic-release/github", {
       "assets": ["dist/**/*.{js,css,map}", "CHANGELOG.md"],
       "successComment": "This ${issue.pull_request ? 'PR is included' : 'issue has been resolved'} in version ${nextRelease.version}",
       "failTitle": "The automated release failed",
       "failComment": "The automated release from this branch failed. Please analyze the logs."
-    }],
-    ["@semantic-release/git", {
-      "assets": ["package.json", "CHANGELOG.md"],
-      "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
     }]
   ]
 } 
