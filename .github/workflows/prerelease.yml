@@ -1,0 +1,219 @@
+name: Pre-release Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to pre-release (blorkpack, blorktools, blorkboard, or all)'
+        required: true
+        default: 'all'
+      prerelease_tag:
+        description: 'Pre-release tag (e.g., alpha, beta, rc)'
+        required: true
+        default: 'beta'
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  packages: write
+
+jobs:
+  build:
+    name: Build Packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://npm.pkg.github.com'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+          
+      - name: Install dependencies
+        run: pnpm install
+        
+      - name: Build packages
+        run: pnpm run build
+        
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-builds
+          path: packages/*/dist
+
+  test:
+    name: Test Packages
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://npm.pkg.github.com'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+          
+      - name: Install dependencies
+        run: pnpm install
+        
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: package-builds
+          path: packages
+        
+      - name: Run tests
+        run: pnpm test
+
+  create-prerelease:
+    name: Create Pre-release
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PACKAGE_TOKEN }}
+          
+      - name: Configure Git identity
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        env:
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@littlecarlito'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+          
+      - name: Install dependencies
+        run: pnpm install
+        
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: package-builds
+          path: packages
+          
+      - name: Create pre-release changeset
+        run: |
+          # Create a temporary changeset
+          PRERELEASE_TAG="${{ github.event.inputs.prerelease_tag }}"
+          PACKAGE="${{ github.event.inputs.package }}"
+          
+          mkdir -p .changeset
+          
+          # Generate a random ID for the changeset
+          CHANGESET_ID=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 8 | head -n 1)
+          
+          # Create the changeset file using echo lines instead of heredoc
+          if [ "$PACKAGE" = "all" ]; then
+            echo "---" > .changeset/$CHANGESET_ID.md
+            echo '"@littlecarlito/blorkpack": patch' >> .changeset/$CHANGESET_ID.md
+            echo '"@littlecarlito/blorktools": patch' >> .changeset/$CHANGESET_ID.md
+            echo '"@littlecarlito/blorkboard": patch' >> .changeset/$CHANGESET_ID.md
+            echo "---" >> .changeset/$CHANGESET_ID.md
+            echo "" >> .changeset/$CHANGESET_ID.md
+            echo "Pre-release version ($PRERELEASE_TAG)" >> .changeset/$CHANGESET_ID.md
+          elif [ "$PACKAGE" = "blorkpack" ]; then
+            echo "---" > .changeset/$CHANGESET_ID.md
+            echo '"@littlecarlito/blorkpack": patch' >> .changeset/$CHANGESET_ID.md
+            echo "---" >> .changeset/$CHANGESET_ID.md
+            echo "" >> .changeset/$CHANGESET_ID.md
+            echo "Pre-release version ($PRERELEASE_TAG) for blorkpack" >> .changeset/$CHANGESET_ID.md
+          elif [ "$PACKAGE" = "blorktools" ]; then
+            echo "---" > .changeset/$CHANGESET_ID.md
+            echo '"@littlecarlito/blorktools": patch' >> .changeset/$CHANGESET_ID.md
+            echo "---" >> .changeset/$CHANGESET_ID.md
+            echo "" >> .changeset/$CHANGESET_ID.md
+            echo "Pre-release version ($PRERELEASE_TAG) for blorktools" >> .changeset/$CHANGESET_ID.md
+          elif [ "$PACKAGE" = "blorkboard" ]; then
+            echo "---" > .changeset/$CHANGESET_ID.md
+            echo '"@littlecarlito/blorkboard": patch' >> .changeset/$CHANGESET_ID.md
+            echo "---" >> .changeset/$CHANGESET_ID.md
+            echo "" >> .changeset/$CHANGESET_ID.md
+            echo "Pre-release version ($PRERELEASE_TAG) for blorkboard" >> .changeset/$CHANGESET_ID.md
+          fi
+          
+          echo "Created pre-release changeset for $PACKAGE with tag $PRERELEASE_TAG"
+          cat .changeset/$CHANGESET_ID.md
+          
+      - name: Update .changeset/config.json for pre-release
+        run: |
+          PRERELEASE_TAG="${{ github.event.inputs.prerelease_tag }}"
+          
+          # Update config to enable pre-release mode
+          jq --arg tag "$PRERELEASE_TAG" '.prerelease = $tag' .changeset/config.json > temp.json && mv temp.json .changeset/config.json
+          
+          echo "Updated .changeset/config.json for pre-release mode with tag $PRERELEASE_TAG"
+          cat .changeset/config.json
+          
+      - name: Version packages (pre-release)
+        run: pnpm run version
+        env:
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          
+      - name: Publish pre-release packages
+        run: pnpm run release --tag ${{ github.event.inputs.prerelease_tag }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NPM_CONFIG_REGISTRY: https://npm.pkg.github.com
+          
+      - name: Get package versions
+        id: get_versions
+        run: |
+          BLORKPACK_VERSION=$(node -p "require('./packages/blorkpack/package.json').version")
+          BLORKTOOLS_VERSION=$(node -p "require('./packages/blorktools/package.json').version")
+          BLORKBOARD_VERSION=$(node -p "require('./packages/blorkboard/package.json').version")
+          
+          echo "blorkpack_version=$BLORKPACK_VERSION" >> $GITHUB_OUTPUT
+          echo "blorktools_version=$BLORKTOOLS_VERSION" >> $GITHUB_OUTPUT
+          echo "blorkboard_version=$BLORKBOARD_VERSION" >> $GITHUB_OUTPUT
+          
+          echo "Published pre-release versions:"
+          echo "blorkpack: $BLORKPACK_VERSION"
+          echo "blorktools: $BLORKTOOLS_VERSION"
+          echo "blorkboard: $BLORKBOARD_VERSION"
+          
+      - name: Reset .changeset/config.json
+        run: |
+          # Restore config to disable pre-release mode
+          jq '.prerelease = false' .changeset/config.json > temp.json && mv temp.json .changeset/config.json
+          
+          echo "Reset .changeset/config.json to disable pre-release mode"
+          cat .changeset/config.json
+          
+      - name: Commit changes
+        run: |
+          git add .
+          git commit -m "chore: pre-release ${{ github.event.inputs.prerelease_tag }} for ${{ github.event.inputs.package }}"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 

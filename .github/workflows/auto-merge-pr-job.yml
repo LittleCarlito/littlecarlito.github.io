@@ -137,8 +137,12 @@ jobs:
           echo "Waiting 10 seconds for checks to start appearing..."
           sleep 10
           
-          # The expected minimum number of non-auto-merge required checks (Build + Test + Test Semantic)
+          # The expected minimum number of non-auto-merge required checks
+          # Updated to 3 to match new workflow jobs: Build Packages, Test Packages, Test Changesets
           MIN_REQUIRED_CHECKS=3
+          
+          # List of expected check names from the new changesets workflow
+          EXPECTED_CHECK_NAMES=("Build Packages" "Test Packages" "Test Changesets")
           
           # Wait for checks to complete (up to 10 minutes)
           for i in {1..60}; do
