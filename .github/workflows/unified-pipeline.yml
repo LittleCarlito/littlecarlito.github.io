@@ -84,12 +84,12 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     outputs:
-      blorkpack_version: ${{ steps.semantic_release.outputs.blorkpack_version }}
-      blorktools_version: ${{ steps.semantic_release.outputs.blorktools_version }}
-      blorkboard_version: ${{ steps.semantic_release.outputs.blorkboard_version }}
-      blorkpack_version_changed: ${{ steps.semantic_release.outputs.blorkpack_changed }}
-      blorktools_version_changed: ${{ steps.semantic_release.outputs.blorktools_changed }}
-      blorkboard_version_changed: ${{ steps.semantic_release.outputs.blorkboard_changed }}
+      blorkpack_version: ${{ steps.blorkpack_release.outputs.new_release_version || steps.blorkpack_release.outputs.current_version }}
+      blorktools_version: ${{ steps.blorktools_release.outputs.new_release_version || steps.blorktools_release.outputs.current_version }}
+      blorkboard_version: ${{ steps.blorkboard_release.outputs.new_release_version || steps.blorkboard_release.outputs.current_version }}
+      blorkpack_version_changed: ${{ steps.blorkpack_release.outputs.new_release_version != '' }}
+      blorktools_version_changed: ${{ steps.blorktools_release.outputs.new_release_version != '' }}
+      blorkboard_version_changed: ${{ steps.blorkboard_release.outputs.new_release_version != '' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -119,249 +119,145 @@ jobs:
       - name: Install dependencies
         run: pnpm install
         
-      - name: Run semantic release
-        id: semantic_release
-        run: |
-          # Install semantic-release and its dependencies
-          npm install -g semantic-release @semantic-release/git @semantic-release/changelog conventional-changelog-conventionalcommits
-          
-          # Process blorkpack package
-          cd packages/blorkpack
-          
-          # Get current version from package.json
-          CURRENT_BLORKPACK_VERSION=$(node -p "require('./package.json').version || '0.0.0'")
-          echo "Current blorkpack version: $CURRENT_BLORKPACK_VERSION"
-          
-          # Run semantic-release in dry-run mode to determine if a new version would be created
-          RELEASE_OUTPUT=$(npx semantic-release --dry-run || echo "No release")
-          
-          # Check if a new version would be released
-          if echo "$RELEASE_OUTPUT" | grep -q "The next release version is"; then
-            # Extract the new version number from the output
-            NEW_VERSION=$(echo "$RELEASE_OUTPUT" | grep "The next release version is" | sed -E 's/.*The next release version is ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
-            echo "New version will be: $NEW_VERSION"
-            
-            # Manually update version in package.json instead of using npm version
-            jq --arg version "$NEW_VERSION" '.version = $version' package.json > package.json.tmp
-            mv package.json.tmp package.json
-            
-            # Create changelog - cannot use semantic-release directly due to workspace protocol issue
-            echo "## [$NEW_VERSION] - $(date +'%Y-%m-%d')" > CHANGELOG.md.new
-            echo "" >> CHANGELOG.md.new
-            
-            # Extract features (feat:)
-            FEATURES=$(git log --pretty=format:"* %s" $(git describe --tags --abbrev=0)..HEAD | grep -i "feat:" || echo "")
-            if [ ! -z "$FEATURES" ]; then
-              echo "### Features" >> CHANGELOG.md.new
-              echo "$FEATURES" >> CHANGELOG.md.new
-              echo "" >> CHANGELOG.md.new
-            fi
-            
-            # Extract bug fixes (fix:)
-            FIXES=$(git log --pretty=format:"* %s" $(git describe --tags --abbrev=0)..HEAD | grep -i "fix:" || echo "")
-            if [ ! -z "$FIXES" ]; then
-              echo "### Bug Fixes" >> CHANGELOG.md.new
-              echo "$FIXES" >> CHANGELOG.md.new
-              echo "" >> CHANGELOG.md.new
-            fi
-            
-            # Extract breaking changes (BREAKING CHANGE:)
-            BREAKING=$(git log --pretty=format:"* %b" $(git describe --tags --abbrev=0)..HEAD | grep -i "BREAKING CHANGE:" || echo "")
-            if [ ! -z "$BREAKING" ]; then
-              echo "### ⚠ BREAKING CHANGES" >> CHANGELOG.md.new
-              echo "$BREAKING" >> CHANGELOG.md.new
-              echo "" >> CHANGELOG.md.new
-            fi
-            
-            # Extract performance improvements (perf:)
-            PERF=$(git log --pretty=format:"* %s" $(git describe --tags --abbrev=0)..HEAD | grep -i "perf:" || echo "")
-            if [ ! -z "$PERF" ]; then
-              echo "### Performance Improvements" >> CHANGELOG.md.new
-              echo "$PERF" >> CHANGELOG.md.new
-              echo "" >> CHANGELOG.md.new
-            fi
-            
-            if [ -f CHANGELOG.md ]; then
-              cat CHANGELOG.md >> CHANGELOG.md.new
-              mv CHANGELOG.md.new CHANGELOG.md
-            else
-              mv CHANGELOG.md.new CHANGELOG.md
-            fi
-            
-            # Configure git with token for push
-            git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
-            
-            # Git commit the changes
-            git add package.json CHANGELOG.md
-            git commit -m "chore(release): ${NEW_VERSION} [skip ci]"
-            git tag -a "v${NEW_VERSION}" -m "Release ${NEW_VERSION}"
-            git push origin HEAD:${GITHUB_REF#refs/heads/}
-            git push origin "v${NEW_VERSION}"
-            
-            echo "blorkpack_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-            echo "blorkpack_changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "No new version for blorkpack"
-            echo "blorkpack_version=$CURRENT_BLORKPACK_VERSION" >> $GITHUB_OUTPUT
-            echo "blorkpack_changed=false" >> $GITHUB_OUTPUT
-          fi
-          
-          # Process blorktools package - similar approach
-          cd ../blorktools
-          
-          # Get current version from package.json
-          CURRENT_BLORKTOOLS_VERSION=$(node -p "require('./package.json').version || '0.0.0'")
-          echo "Current blorktools version: $CURRENT_BLORKTOOLS_VERSION"
-          
-          # Run semantic-release to determine and update version
-          RELEASE_OUTPUT=$(npx semantic-release --dry-run || echo "No release")
-          
-          # Check if a new version would be released
-          if echo "$RELEASE_OUTPUT" | grep -q "The next release version is"; then
-            # Extract the new version number from the output
-            NEW_VERSION=$(echo "$RELEASE_OUTPUT" | grep "The next release version is" | sed -E 's/.*The next release version is ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
-            echo "New version will be: $NEW_VERSION"
-            
-            # Manually update version in package.json instead of using npm version
-            jq --arg version "$NEW_VERSION" '.version = $version' package.json > package.json.tmp
-            mv package.json.tmp package.json
-            
-            # Create changelog - cannot use semantic-release directly due to workspace protocol issue
-            echo "## [$NEW_VERSION] - $(date +'%Y-%m-%d')" > CHANGELOG.md.new
-            echo "" >> CHANGELOG.md.new
-            
-            # Extract features (feat:)
-            FEATURES=$(git log --pretty=format:"* %s" $(git describe --tags --abbrev=0)..HEAD | grep -i "feat:" || echo "")
-            if [ ! -z "$FEATURES" ]; then
-              echo "### Features" >> CHANGELOG.md.new
-              echo "$FEATURES" >> CHANGELOG.md.new
-              echo "" >> CHANGELOG.md.new
-            fi
-            
-            # Extract bug fixes (fix:)
-            FIXES=$(git log --pretty=format:"* %s" $(git describe --tags --abbrev=0)..HEAD | grep -i "fix:" || echo "")
-            if [ ! -z "$FIXES" ]; then
-              echo "### Bug Fixes" >> CHANGELOG.md.new
-              echo "$FIXES" >> CHANGELOG.md.new
-              echo "" >> CHANGELOG.md.new
-            fi
-            
-            # Extract breaking changes (BREAKING CHANGE:)
-            BREAKING=$(git log --pretty=format:"* %b" $(git describe --tags --abbrev=0)..HEAD | grep -i "BREAKING CHANGE:" || echo "")
-            if [ ! -z "$BREAKING" ]; then
-              echo "### ⚠ BREAKING CHANGES" >> CHANGELOG.md.new
-              echo "$BREAKING" >> CHANGELOG.md.new
-              echo "" >> CHANGELOG.md.new
-            fi
-            
-            # Extract performance improvements (perf:)
-            PERF=$(git log --pretty=format:"* %s" $(git describe --tags --abbrev=0)..HEAD | grep -i "perf:" || echo "")
-            if [ ! -z "$PERF" ]; then
-              echo "### Performance Improvements" >> CHANGELOG.md.new
-              echo "$PERF" >> CHANGELOG.md.new
-              echo "" >> CHANGELOG.md.new
-            fi
-            
-            if [ -f CHANGELOG.md ]; then
-              cat CHANGELOG.md >> CHANGELOG.md.new
-              mv CHANGELOG.md.new CHANGELOG.md
-            else
-              mv CHANGELOG.md.new CHANGELOG.md
-            fi
-            
-            # Git commit the changes
-            git add package.json CHANGELOG.md
-            git commit -m "chore(release): ${NEW_VERSION} [skip ci]"
-            git tag -a "v${NEW_VERSION}" -m "Release ${NEW_VERSION}"
-            git push --follow-tags
-            
-            echo "blorktools_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-            echo "blorktools_changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "No new version for blorktools"
-            echo "blorktools_version=$CURRENT_BLORKTOOLS_VERSION" >> $GITHUB_OUTPUT
-            echo "blorktools_changed=false" >> $GITHUB_OUTPUT
-          fi
-          
-          # Process blorkboard package - similar approach
-          cd ../blorkboard
-          
-          # Get current version from package.json
-          CURRENT_BLORKBOARD_VERSION=$(node -p "require('./package.json').version || '0.0.0'")
-          echo "Current blorkboard version: $CURRENT_BLORKBOARD_VERSION"
-          
-          # Run semantic-release to determine and update version
-          RELEASE_OUTPUT=$(npx semantic-release --dry-run || echo "No release")
-          
-          # Check if a new version would be released
-          if echo "$RELEASE_OUTPUT" | grep -q "The next release version is"; then
-            # Extract the new version number from the output
-            NEW_VERSION=$(echo "$RELEASE_OUTPUT" | grep "The next release version is" | sed -E 's/.*The next release version is ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
-            echo "New version will be: $NEW_VERSION"
-            
-            # Manually update version in package.json instead of using npm version
-            jq --arg version "$NEW_VERSION" '.version = $version' package.json > package.json.tmp
-            mv package.json.tmp package.json
-            
-            # Create changelog - cannot use semantic-release directly due to workspace protocol issue
-            echo "## [$NEW_VERSION] - $(date +'%Y-%m-%d')" > CHANGELOG.md.new
-            echo "" >> CHANGELOG.md.new
-            
-            # Extract features (feat:)
-            FEATURES=$(git log --pretty=format:"* %s" $(git describe --tags --abbrev=0)..HEAD | grep -i "feat:" || echo "")
-            if [ ! -z "$FEATURES" ]; then
-              echo "### Features" >> CHANGELOG.md.new
-              echo "$FEATURES" >> CHANGELOG.md.new
-              echo "" >> CHANGELOG.md.new
-            fi
-            
-            # Extract bug fixes (fix:)
-            FIXES=$(git log --pretty=format:"* %s" $(git describe --tags --abbrev=0)..HEAD | grep -i "fix:" || echo "")
-            if [ ! -z "$FIXES" ]; then
-              echo "### Bug Fixes" >> CHANGELOG.md.new
-              echo "$FIXES" >> CHANGELOG.md.new
-              echo "" >> CHANGELOG.md.new
-            fi
-            
-            # Extract breaking changes (BREAKING CHANGE:)
-            BREAKING=$(git log --pretty=format:"* %b" $(git describe --tags --abbrev=0)..HEAD | grep -i "BREAKING CHANGE:" || echo "")
-            if [ ! -z "$BREAKING" ]; then
-              echo "### ⚠ BREAKING CHANGES" >> CHANGELOG.md.new
-              echo "$BREAKING" >> CHANGELOG.md.new
-              echo "" >> CHANGELOG.md.new
-            fi
-            
-            # Extract performance improvements (perf:)
-            PERF=$(git log --pretty=format:"* %s" $(git describe --tags --abbrev=0)..HEAD | grep -i "perf:" || echo "")
-            if [ ! -z "$PERF" ]; then
-              echo "### Performance Improvements" >> CHANGELOG.md.new
-              echo "$PERF" >> CHANGELOG.md.new
-              echo "" >> CHANGELOG.md.new
-            fi
-            
-            if [ -f CHANGELOG.md ]; then
-              cat CHANGELOG.md >> CHANGELOG.md.new
-              mv CHANGELOG.md.new CHANGELOG.md
-            else
-              mv CHANGELOG.md.new CHANGELOG.md
-            fi
-            
-            # Git commit the changes
-            git add package.json CHANGELOG.md
-            git commit -m "chore(release): ${NEW_VERSION} [skip ci]"
-            git tag -a "v${NEW_VERSION}" -m "Release ${NEW_VERSION}"
-            git push --follow-tags
-            
-            echo "blorkboard_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-            echo "blorkboard_changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "No new version for blorkboard"
-            echo "blorkboard_version=$CURRENT_BLORKBOARD_VERSION" >> $GITHUB_OUTPUT
-            echo "blorkboard_changed=false" >> $GITHUB_OUTPUT
-          fi
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: package-builds
+          path: ./
         env:
-          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          
+      - name: Install semantic-release globally
+        run: |
+          npm install -g semantic-release @semantic-release/git @semantic-release/changelog @semantic-release/github @semantic-release/npm conventional-changelog-conventionalcommits
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+      
+      - name: Get current blorkpack version
+        id: blorkpack_current
+        run: |
+          cd packages/blorkpack
+          CURRENT_VERSION=$(node -p "require('./package.json').version || '0.0.0'")
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Run semantic-release for blorkpack
+        id: blorkpack_release
+        working-directory: packages/blorkpack
+        run: |
+          echo "Current version: ${{ steps.blorkpack_current.outputs.current_version }}"
+          
+          # Fix workspace protocol references
+          jq '.dependencies = (.dependencies // {}) | .devDependencies = (.devDependencies // {}) | .peerDependencies = (.peerDependencies // {})' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Handle dependencies
+          jq '.dependencies = (.dependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Handle devDependencies
+          jq '.devDependencies = (.devDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Handle peerDependencies
+          jq '.peerDependencies = (.peerDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Force a commit if needed
+          if [ "${{ steps.blorkpack_current.outputs.current_version }}" = "0.12.0" ]; then
+            git commit --allow-empty -m "fix: force version bump for blorkpack"
+          fi
+          
+          # Run semantic-release
+          npx semantic-release
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+      
+      - name: Get current blorktools version
+        id: blorktools_current
+        run: |
+          cd packages/blorktools
+          CURRENT_VERSION=$(node -p "require('./package.json').version || '0.0.0'")
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Run semantic-release for blorktools
+        id: blorktools_release
+        if: success() || failure()
+        working-directory: packages/blorktools
+        run: |
+          echo "Current version: ${{ steps.blorktools_current.outputs.current_version }}"
+          
+          # Fix workspace protocol references
+          jq '.dependencies = (.dependencies // {}) | .devDependencies = (.devDependencies // {}) | .peerDependencies = (.peerDependencies // {})' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Handle dependencies
+          jq '.dependencies = (.dependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Handle devDependencies
+          jq '.devDependencies = (.devDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Handle peerDependencies
+          jq '.peerDependencies = (.peerDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Force a commit if needed
+          if [ "${{ steps.blorktools_current.outputs.current_version }}" = "0.12.0" ]; then
+            git commit --allow-empty -m "fix: force version bump for blorktools"
+          fi
+          
+          # Run semantic-release
+          npx semantic-release
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+      
+      - name: Get current blorkboard version
+        id: blorkboard_current
+        run: |
+          cd packages/blorkboard
+          CURRENT_VERSION=$(node -p "require('./package.json').version || '0.0.0'")
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Run semantic-release for blorkboard
+        id: blorkboard_release
+        if: success() || failure()
+        working-directory: packages/blorkboard
+        run: |
+          echo "Current version: ${{ steps.blorkboard_current.outputs.current_version }}"
+          
+          # Fix workspace protocol references
+          jq '.dependencies = (.dependencies // {}) | .devDependencies = (.devDependencies // {}) | .peerDependencies = (.peerDependencies // {})' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Handle dependencies
+          jq '.dependencies = (.dependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Handle devDependencies
+          jq '.devDependencies = (.devDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Handle peerDependencies
+          jq '.peerDependencies = (.peerDependencies | with_entries(if .value | startswith("workspace:") then .value = "*" else . end))' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # Force a commit if needed
+          if [ "${{ steps.blorkboard_current.outputs.current_version }}" = "0.12.0" ]; then
+            git commit --allow-empty -m "fix: force version bump for blorkboard"
+          fi
+          
+          # Run semantic-release
+          npx semantic-release
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
   publish-blorkpack:
