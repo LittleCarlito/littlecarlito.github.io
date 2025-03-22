@@ -165,14 +165,21 @@ jobs:
 
   deploy:
     name: Deploy to GitHub Pages
+<<<<<<< Updated upstream
     needs: version-and-publish
     if: needs.version-and-publish.outputs.published == 'true'
+=======
+    needs: run-changesets
+    # Run deploy always, regardless of changesets output
+    # This ensures we always have the latest code deployed
+>>>>>>> Stashed changes
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 0 # Needed to get all history for proper version detection
           
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -200,4 +207,4 @@ jobs:
           force: true
           single-commit: true
           token: ${{ secrets.PACKAGE_TOKEN }}
-          commit-message: "Deploy website" 
+          commit-message: "Deploy website from unified pipeline" 

@@ -13,9 +13,24 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     permissions:
+<<<<<<< Updated upstream
       contents: write
       pull-requests: write
       packages: write
+=======
+      contents: write      # Required for creating releases and updating files
+      pull-requests: write # Required for creating/updating PRs
+      packages: write      # Required for publishing packages
+      actions: read        # Required for workflow lookup
+      issues: write        # Optional, for commenting on issues
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      blorkpack_version: ${{ steps.get_versions.outputs.blorkpack_version || steps.changeset_status.outputs.blorkpack_version }}
+      blorktools_version: ${{ steps.get_versions.outputs.blorktools_version || steps.changeset_status.outputs.blorktools_version }}
+      blorkboard_version: ${{ steps.get_versions.outputs.blorkboard_version || steps.changeset_status.outputs.blorkboard_version }}
+      has_changeset: ${{ steps.changeset_status.outputs.has_changeset }}
+      potential_version_changes: ${{ steps.simulate_version.outputs.potential_version_changes }}
+>>>>>>> Stashed changes
     
     steps:
       - name: Checkout repo
@@ -46,6 +61,136 @@ jobs:
       - name: Test packages
         run: pnpm test
       
+<<<<<<< Updated upstream
+=======
+      - name: Changeset status check
+        id: changeset_status
+        run: |
+          # Check if any changesets exist
+          if [ -d ".changeset" ] && [ "$(ls -A .changeset | grep -v README.md | grep -v config.json)" ]; then
+            echo "Changesets found, would trigger version bump in production"
+            echo "has_changeset=true" >> $GITHUB_OUTPUT
+            
+            # Get current versions for reference
+            BLORKPACK_VERSION=$(node -p "require('./packages/blorkpack/package.json').version")
+            BLORKTOOLS_VERSION=$(node -p "require('./packages/blorktools/package.json').version")
+            BLORKBOARD_VERSION=$(node -p "require('./packages/blorkboard/package.json').version")
+            
+            echo "Current versions:"
+            echo "blorkpack: $BLORKPACK_VERSION"
+            echo "blorktools: $BLORKTOOLS_VERSION"  
+            echo "blorkboard: $BLORKBOARD_VERSION"
+            
+            echo "blorkpack_version=$BLORKPACK_VERSION" >> $GITHUB_OUTPUT
+            echo "blorktools_version=$BLORKTOOLS_VERSION" >> $GITHUB_OUTPUT
+            echo "blorkboard_version=$BLORKBOARD_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "No changesets found, no version changes would be triggered"
+            echo "has_changeset=false" >> $GITHUB_OUTPUT
+            
+            # Get current versions for reference
+            BLORKPACK_VERSION=$(node -p "require('./packages/blorkpack/package.json').version")
+            BLORKTOOLS_VERSION=$(node -p "require('./packages/blorktools/package.json').version")
+            BLORKBOARD_VERSION=$(node -p "require('./packages/blorkboard/package.json').version")
+            
+            echo "blorkpack_version=$BLORKPACK_VERSION" >> $GITHUB_OUTPUT
+            echo "blorktools_version=$BLORKTOOLS_VERSION" >> $GITHUB_OUTPUT
+            echo "blorkboard_version=$BLORKBOARD_VERSION" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+      
+      - name: Simulate version changes
+        id: simulate_version
+        if: inputs.dry_run == true
+        run: |
+          # Always set a default for potential version changes
+          echo "potential_version_changes=No changes would be made in this release" >> $GITHUB_OUTPUT
+          
+          # Only perform simulation if changesets exist
+          if [[ "${{ steps.changeset_status.outputs.has_changeset }}" == "true" ]]; then
+            # Create a temporary branch to simulate version changes
+            git checkout -b temp-simulate-version
+            
+            # Create a summary of what changes would be made
+            echo "## Potential version changes based on changesets:" > version_changes.md
+            echo "" >> version_changes.md
+            
+            # Extract info from changesets to determine bump types
+            echo "Analyzing changesets to determine potential version bumps:" 
+            
+            # Parse all changesets files
+            echo "Found changesets:"
+            for f in .changeset/*.md; do
+              if [[ "$f" != ".changeset/README.md" && "$f" != ".changeset/config.json" ]]; then
+                echo "- $f"
+                
+                # Extract bump type and affected packages
+                BUMP_TYPE=$(grep -o -E "['|\"]---['|\"].*['|\"]---['|\"]" "$f" | sed 's/['\''\""]---['\''\""]//g' | tr -d '\n' || echo "")
+                
+                if [[ -n "$BUMP_TYPE" ]]; then
+                  if [[ "$BUMP_TYPE" == *"major"* ]]; then
+                    echo "  - Contains major bump"
+                  elif [[ "$BUMP_TYPE" == *"minor"* ]]; then
+                    echo "  - Contains minor bump"
+                  elif [[ "$BUMP_TYPE" == *"patch"* ]]; then
+                    echo "  - Contains patch bump"
+                  fi
+                  
+                  # Extract affected packages
+                  PACKAGES=$(grep -A 10 -E "['|\"]---['|\"].*['|\"]---['|\"]" "$f" | grep -v "---" | grep -v "^$" | head -n 3 || echo "")
+                  echo "  - Affects packages: $PACKAGES"
+                  
+                  # Add to summary
+                  echo "### Changeset: $(basename "$f" .md)" >> version_changes.md
+                  echo "- Bump type: $BUMP_TYPE" >> version_changes.md
+                  echo "- Affected packages: $PACKAGES" >> version_changes.md
+                  echo "" >> version_changes.md
+                fi
+              fi
+            done
+            
+            # Try running a simulated version command (but don't commit/push changes)
+            echo "Running changeset version simulation (changes won't be committed)..."
+            
+            # This will modify files but we won't commit the changes
+            pnpm changeset version || echo "Note: Simulation completed, any errors above are informational only"
+            
+            # Get the potential new versions
+            echo "Potential new versions:"
+            NEW_BLORKPACK_VERSION=$(node -p "require('./packages/blorkpack/package.json').version")
+            NEW_BLORKTOOLS_VERSION=$(node -p "require('./packages/blorktools/package.json').version")
+            NEW_BLORKBOARD_VERSION=$(node -p "require('./packages/blorkboard/package.json').version")
+            
+            echo "blorkpack: ${{ steps.changeset_status.outputs.blorkpack_version }} -> $NEW_BLORKPACK_VERSION"
+            echo "blorktools: ${{ steps.changeset_status.outputs.blorktools_version }} -> $NEW_BLORKTOOLS_VERSION"
+            echo "blorkboard: ${{ steps.changeset_status.outputs.blorkboard_version }} -> $NEW_BLORKBOARD_VERSION"
+            
+            # Add version summaries to our report
+            echo "### Version changes" >> version_changes.md
+            echo "- blorkpack: ${{ steps.changeset_status.outputs.blorkpack_version }} -> $NEW_BLORKPACK_VERSION" >> version_changes.md
+            echo "- blorktools: ${{ steps.changeset_status.outputs.blorktools_version }} -> $NEW_BLORKTOOLS_VERSION" >> version_changes.md
+            echo "- blorkboard: ${{ steps.changeset_status.outputs.blorkboard_version }} -> $NEW_BLORKBOARD_VERSION" >> version_changes.md
+            
+            # Set output with the formatted changes (escape newlines for GitHub Actions)
+            CHANGES=$(cat version_changes.md)
+            echo "potential_version_changes<<EOF" >> $GITHUB_OUTPUT
+            echo "$CHANGES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            
+            # Discard all changes from the simulation
+            git checkout -- .
+            git checkout -
+            git branch -D temp-simulate-version
+          else
+            echo "No changesets found, no version changes would be triggered"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+      
+>>>>>>> Stashed changes
       - name: Create release PR or publish to npm
         id: changesets
         uses: changesets/action@v1
@@ -58,15 +203,102 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+<<<<<<< Updated upstream
       
       - name: Deploy
         if: steps.changesets.outputs.published == 'true'
         uses: JamesIves/github-pages-deploy-action@v4
+=======
+          
+      # Auto-approve and auto-merge Version Packages PR to prevent deployment blockers
+      - name: Find Version Packages PR
+        id: find_pr
+        if: inputs.dry_run != true && steps.changesets.outputs.published != 'true' && github.event_name != 'workflow_call'
+        run: |
+          PR_NUMBER=$(gh pr list --repo ${{ github.repository }} --head changeset-release/main --json number --jq '.[0].number')
+          if [ -n "$PR_NUMBER" ]; then
+            echo "Found Version Packages PR #$PR_NUMBER"
+            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+            echo "pr_found=true" >> $GITHUB_OUTPUT
+          else
+            echo "No Version Packages PR found"
+            echo "pr_found=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          
+      - name: Auto-approve Version Packages PR
+        if: inputs.dry_run != true && steps.find_pr.outputs.pr_found == 'true'
+        run: |
+          # Add comment explaining the auto-approval
+          gh pr comment ${{ steps.find_pr.outputs.pr_number }} --body "📦 This PR will be automatically merged immediately to prevent deployment blockers."
+          
+          # Approve the PR
+          gh pr review ${{ steps.find_pr.outputs.pr_number }} --approve
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          
+      - name: Set up auto-merge for Version Packages PR
+        if: inputs.dry_run != true && steps.find_pr.outputs.pr_found == 'true'
+        run: |
+          # Enable auto-merge immediately
+          gh pr merge ${{ steps.find_pr.outputs.pr_number }} --auto --squash --delete-branch --immediate
+          
+          echo "✅ Auto-merge enabled for PR #${{ steps.find_pr.outputs.pr_number }} - will merge immediately"
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          
+      - name: Get package versions
+        id: get_versions
+        if: inputs.dry_run != true && steps.changesets.outputs.published == 'true'
+        run: |
+          BLORKPACK_VERSION=$(node -p "require('./packages/blorkpack/package.json').version")
+          BLORKTOOLS_VERSION=$(node -p "require('./packages/blorktools/package.json').version")
+          BLORKBOARD_VERSION=$(node -p "require('./packages/blorkboard/package.json').version")
+          
+          echo "blorkpack_version=$BLORKPACK_VERSION" >> $GITHUB_OUTPUT
+          echo "blorktools_version=$BLORKTOOLS_VERSION" >> $GITHUB_OUTPUT
+          echo "blorkboard_version=$BLORKBOARD_VERSION" >> $GITHUB_OUTPUT
+          
+          echo "Published versions:"
+          echo "blorkpack: $BLORKPACK_VERSION"
+          echo "blorktools: $BLORKTOOLS_VERSION"
+          echo "blorkboard: $BLORKBOARD_VERSION"
+      
+      # Create GitHub Release when packages are published
+      - name: Create GitHub Release
+        if: inputs.dry_run != true && steps.changesets.outputs.published == 'true'
+        uses: actions/github-script@v7
+>>>>>>> Stashed changes
         with:
-          folder: apps/portfolio/dist
-          branch: gh-pages
-          clean: true
-          force: true
-          single-commit: true
-          token: ${{ secrets.PACKAGE_TOKEN }}
-          commit-message: "Deploy website " 
+          github-token: ${{ secrets.PACKAGE_TOKEN }}
+          script: |
+            // Extract package versions
+            const blorkpackVersion = '${{ steps.get_versions.outputs.blorkpack_version }}';
+            const blorktoolsVersion = '${{ steps.get_versions.outputs.blorktools_version }}';
+            const blorkboardVersion = '${{ steps.get_versions.outputs.blorkboard_version }}';
+            
+            // Create release title and body
+            const releaseTitle = `Release ${new Date().toISOString().split('T')[0]}`;
+            let releaseBody = '## Package Versions\n\n';
+            releaseBody += `- blorkpack: ${blorkpackVersion}\n`;
+            releaseBody += `- blorktools: ${blorktoolsVersion}\n`;
+            releaseBody += `- blorkboard: ${blorkboardVersion}\n\n`;
+            
+            // Add changelog from changesets (optional - this is simple, you can expand)
+            releaseBody += '## Changes\n\n';
+            releaseBody += 'Please see commit history and changesets for details on changes in this release.';
+            
+            // Create the release
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: `v${new Date().toISOString().split('T')[0]}`,
+              name: releaseTitle,
+              body: releaseBody,
+              draft: false,
+              prerelease: false
+            });
+      
+      # Note: Deployment is now handled by the dedicated deploy.yml workflow
+      # This ensures deployments happen after version updates 
