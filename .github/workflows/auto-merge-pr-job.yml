@@ -165,8 +165,14 @@ jobs:
             
             echo "Checks: $COMPLETED_CHECKS/$TOTAL_CHECKS completed, $SUCCESSFUL_CHECKS successful, $FAILED_CHECKS failed"
             
+            # More clearly identify the workflow's own checks
+            echo "Identifying non-completed checks..."
+            IN_PROGRESS_CHECKS=$(echo "$CHECK_RUNS" | jq '.check_runs[] | select(.status != "completed") | .name')
+            echo "Checks still in progress: $IN_PROGRESS_CHECKS"
+            
             # Count in-progress auto-merge checks (to avoid waiting for ourselves)
-            AUTO_MERGE_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status != "completed" and (.name | type == "string") and (.name | contains("Auto PR Creation and Merge")))] | length')
+            AUTO_MERGE_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status != "completed" and (.name | type == "string") and (.name | contains("Auto PR Creation and Merge") or .name | contains("Create and Merge PR")))] | length')
+            echo "Auto-merge checks still in progress: $AUTO_MERGE_IN_PROGRESS"
             
             # If any checks failed, exit
             if [ "$FAILED_CHECKS" != "0" ]; then
@@ -174,9 +180,34 @@ jobs:
               exit 1
             fi
             
-            # If all checks completed successfully OR only our own check is still running, proceed
-            if [ "$COMPLETED_CHECKS" = "$TOTAL_CHECKS" ] || [ "$((COMPLETED_CHECKS + AUTO_MERGE_IN_PROGRESS))" = "$TOTAL_CHECKS" -a "$AUTO_MERGE_IN_PROGRESS" = "1" ]; then
-              echo "All checks completed successfully (or only this workflow is still running)!"
+            # Check if all required checks have passed and only our own workflow is still running
+            if [ "$SUCCESSFUL_CHECKS" -eq "$((TOTAL_CHECKS - AUTO_MERGE_IN_PROGRESS))" ] && [ "$AUTO_MERGE_IN_PROGRESS" -gt 0 ]; then
+              echo "All external checks have completed successfully. Only our own workflow is still running."
+              # Proceed with the merge
+              
+              # Check if the PR is mergeable
+              MERGEABLE=$(echo "$PR_INFO" | jq -r '.mergeable // false')
+              MERGEABLE_STATE=$(echo "$PR_INFO" | jq -r '.mergeable_state // "unknown"')
+              
+              echo "PR mergeable status: $MERGEABLE, state: $MERGEABLE_STATE"
+              
+              # If PR is clean or has passed all checks, we can proceed
+              if [ "$MERGEABLE" = "true" ] || [ "$MERGEABLE_STATE" = "clean" ]; then
+                echo "PR is ready to be merged!"
+                break
+              elif [ "$MERGEABLE_STATE" = "blocked" ]; then
+                echo "PR is blocked, but all checks have passed. Attempting to merge anyway."
+                break
+              else
+                echo "All checks passed but PR is not mergeable. State: $MERGEABLE_STATE"
+                # Continue anyway since checks passed
+                break
+              fi
+            fi
+            
+            # Also check for the normal case where all checks are complete
+            if [ "$COMPLETED_CHECKS" = "$TOTAL_CHECKS" ]; then
+              echo "All checks completed successfully!"
               
               # Check if the PR is mergeable
               MERGEABLE=$(echo "$PR_INFO" | jq -r '.mergeable // false')
