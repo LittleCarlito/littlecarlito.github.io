@@ -169,10 +169,8 @@ jobs:
             echo "All check names:"
             echo "$CHECK_RUNS" | jq -r '.check_runs[] | "\(.id): \(.name), status: \(.status), conclusion: \(.conclusion)"'
             
-            # We need to identify our exact check name pattern
-            # Our workflow job name is "Create and Merge PR"
-            # The format is usually "Auto PR Creation and Merge / Create and Merge PR"
-            OUR_WORKFLOW_NAME="Auto PR Creation and Merge / Create and Merge PR"
+            # The exact check name for our workflow is "Create and Merge PR" (not the full workflow/job name format)
+            OUR_WORKFLOW_NAME="Create and Merge PR"
             
             # Count in-progress checks that match our workflow exactly
             AUTO_MERGE_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq --arg name "$OUR_WORKFLOW_NAME" '[.check_runs[] | select(.status != "completed" and .name == $name)] | length')
