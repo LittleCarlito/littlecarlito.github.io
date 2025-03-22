@@ -1,7 +1,7 @@
 # Development and assets directories should automatically take incoming changes
-development/** merge=ours
-public/assets/** merge=ours
+development/** merge=theirs
+public/assets/** merge=theirs
 
 # Specific file types should be treated as binary and auto-merge
-*.blend binary merge=ours
-*.glb binary merge=ours 
+*.blend binary merge=theirs
+*.glb binary merge=theirs 
