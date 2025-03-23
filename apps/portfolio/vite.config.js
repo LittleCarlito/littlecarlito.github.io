@@ -279,6 +279,29 @@ export default defineConfig(({ command }) => {
 				}
 			},
 			{
+				name: 'copy-extra-files',
+				closeBundle() {
+					console.log('✅ Copying additional files to dist');
+					// Copy custom_types.json to the dist root
+					try {
+						fs.copyFileSync(
+							path.resolve(__dirname, 'custom_types.json'),
+							path.resolve(__dirname, 'dist/custom_types.json')
+						);
+						console.log('✓ Copied custom_types.json to dist root');
+							
+						// Copy .nojekyll file to disable Jekyll processing on GitHub Pages
+						fs.writeFileSync(
+							path.resolve(__dirname, 'dist/.nojekyll'),
+							''
+						);
+						console.log('✓ Created .nojekyll file in dist root');
+					} catch (error) {
+						console.error('Failed to copy extra files:', error);
+					}
+				}
+			},
+			{
 				name: 'process-terminator',
 				closeBundle() {
 					setTimeout(() => {
