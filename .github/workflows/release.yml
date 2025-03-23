@@ -198,5 +198,32 @@ jobs:
           echo "blorkpack: $BLORKPACK_VERSION"
           echo "blorktools: $BLORKTOOLS_VERSION"
           echo "blorkboard: $BLORKBOARD_VERSION"
+          
+      # New step to auto-publish the GitHub releases
+      - name: Auto-publish GitHub Releases
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          # Get the latest created tag
+          LATEST_TAG=$(git describe --tags --abbrev=0)
+          echo "Latest tag: $LATEST_TAG"
+          
+          # Use GitHub API to list draft releases and publish them
+          RELEASES=$(curl -s -H "Authorization: token ${{ secrets.PACKAGE_TOKEN }}" \
+                     "https://api.github.com/repos/${{ github.repository }}/releases")
+          
+          # Find draft releases and publish them
+          echo "$RELEASES" | jq -c '.[] | select(.draft==true)' | while read -r release; do
+            RELEASE_ID=$(echo "$release" | jq -r '.id')
+            echo "Publishing draft release ID: $RELEASE_ID"
+            
+            # Update the release to remove draft status
+            curl -s -X PATCH \
+              -H "Authorization: token ${{ secrets.PACKAGE_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID" \
+              -d '{"draft": false}'
+            
+            echo "Release has been published!"
+          done
 
-  # Remove the GitHub Pages deployment job since it's handled by the unified pipeline 
+# Remove the GitHub Pages deployment job since it's handled by the unified pipeline 
