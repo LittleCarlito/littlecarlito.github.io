@@ -1,4 +1,4 @@
-name: Test Monorepo
+name: Test Packages
 
 on:
   workflow_call:
@@ -11,7 +11,7 @@ on:
 
 jobs:
   test:
-    name: Test Packages
+    name: Run Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

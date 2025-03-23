@@ -1,31 +1,74 @@
 #!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
 
-echo "🔍 Running semantic-release dry run checks..."
+# Exit on error
+set -e
+
+echo "🔍 Running comprehensive pre-push checks..."
 
 # Get the current branch name
 BRANCH=$(git symbolic-ref --short HEAD)
 
-# Only run on main branch or if it's a feature branch
+# Run tests first to catch any immediate issues
+echo "Running tests..."
+pnpm test || {
+    echo "❌ Tests failed. Please fix failing tests before pushing."
+    exit 1
+}
+
+# Run build to ensure it succeeds
+echo "Running build..."
+pnpm build || {
+    echo "❌ Build failed. Please fix build issues before pushing."
+    exit 1
+}
+
+# If pushing to main or merging into main, run additional checks
+if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ] || git rev-parse "origin/main...HEAD" >/dev/null 2>&1; then
+    echo "🔍 Running additional checks for main branch..."
+    
+    # Check for GitHub Pages build issues
+    echo "Checking GitHub Pages build..."
+    GITHUB_PAGES=true pnpm build || {
+        echo "❌ GitHub Pages build failed. Please fix build issues before pushing."
+        exit 1
+    }
+fi
+
+# Run semantic-release dry run checks
 if [ "$BRANCH" = "main" ] || [[ "$BRANCH" == feature/* ]]; then
-  echo "Running semantic-release dry run for root project..."
-  pnpm semantic-release --dry-run || true
+    echo "Running semantic-release dry run for root project..."
+    pnpm semantic-release --dry-run || {
+        echo "❌ Semantic release dry run failed for root project."
+        exit 1
+    }
 
-  # Check if there are packages to check
-  if [ -d "packages/blorkpack" ]; then
-    echo "Running semantic-release dry run for blorkpack..."
-    cd packages/blorkpack
-    pnpm semantic-release --dry-run || true
-    cd ../..
-  fi
+    # Check packages
+    if [ -d "packages/blorkpack" ]; then
+        echo "Running semantic-release dry run for blorkpack..."
+        cd packages/blorkpack
+        pnpm semantic-release --dry-run || {
+            echo "❌ Semantic release dry run failed for blorkpack."
+            cd ../..
+            exit 1
+        }
+        cd ../..
+    fi
 
-  if [ -d "packages/blorktools" ]; then
-    echo "Running semantic-release dry run for blorktools..."
-    cd packages/blorktools
-    pnpm semantic-release --dry-run || true
-    cd ../..
-  fi
-  
-  echo "✅ Semantic versioning dry run completed!"
+    if [ -d "packages/blorktools" ]; then
+        echo "Running semantic-release dry run for blorktools..."
+        cd packages/blorktools
+        pnpm semantic-release --dry-run || {
+            echo "❌ Semantic release dry run failed for blorktools."
+            cd ../..
+            exit 1
+        }
+        cd ../..
+    fi
+    
+    echo "✅ Semantic versioning dry run completed!"
 else
-  echo "Skipping semantic-release dry run checks on branch $BRANCH"
-fi 
+    echo "Skipping semantic-release dry run checks on branch $BRANCH"
+fi
+
+echo "✅ All pre-push checks passed!" 

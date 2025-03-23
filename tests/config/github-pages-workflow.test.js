@@ -75,15 +75,22 @@ describe('GitHub Pages Workflow Configuration', () => {
 
 	test('workflow includes proper deployment step', () => {
 		const buildSiteJob = workflowConfig.jobs['build-site'];
-    
+		
 		// Find the deployment step
 		const deployStep = buildSiteJob.steps.find(step => 
-			step.name && step.name.includes('Deploy to GitHub Pages')
+			step.name === 'Deploy to GitHub Pages'
 		);
-    
+		
 		expect(deployStep).toBeDefined();
-		expect(deployStep.uses).toContain('github-pages-deploy-action');
-		expect(deployStep.with.folder).toBe('apps/portfolio/dist');
-		expect(deployStep.with.branch).toBe('gh-pages');
+		expect(deployStep.uses).toBe('actions/deploy-pages@v4');
+		expect(deployStep.id).toBe('deployment');
+		
+		// Check for upload artifact step
+		const uploadStep = buildSiteJob.steps.find(step =>
+			step.name === 'Upload artifact'
+		);
+		expect(uploadStep).toBeDefined();
+		expect(uploadStep.uses).toBe('actions/upload-pages-artifact@v3');
+		expect(uploadStep.with.path).toBe('apps/portfolio/dist');
 	});
 }); 
