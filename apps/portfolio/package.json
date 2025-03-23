@@ -12,6 +12,7 @@
   },
   "scripts": {
     "predev": "cd ../../packages/blorkpack && pnpm run build",
+    "prebuild": "cd ../../packages/blorkpack && pnpm run build",
     "dev": "vite",
     "build": "vite build && pnpm dlx cpy-cli custom_types.json dist/",
     "preview": "vite preview",
