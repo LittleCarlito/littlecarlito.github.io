@@ -1,9 +1,15 @@
 name: Changesets
 
 on:
-  push:
-    branches:
-      - main
+  # Removed push trigger to prevent running on every merge to main
+  # This will now only run when manually dispatched
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish packages'
+        required: true
+        default: true
+        type: boolean
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
@@ -11,7 +17,6 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     permissions:
       contents: write
       pull-requests: write
@@ -57,16 +62,4 @@ jobs:
           title: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-      
-      - name: Deploy
-        if: steps.changesets.outputs.published == 'true'
-        uses: JamesIves/github-pages-deploy-action@v4
-        with:
-          folder: apps/portfolio/dist
-          branch: gh-pages
-          clean: true
-          force: true
-          single-commit: true
-          token: ${{ secrets.PACKAGE_TOKEN }}
-          commit-message: "Deploy website " 
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 

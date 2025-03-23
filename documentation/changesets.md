@@ -83,14 +83,52 @@ Our packages are configured to have "fixed versioning" which means they always h
 Some packages don't participate in versioning:
 - `@littlecarlito/portfolio` (the main app)
 
-## GitHub Workflow
+## Automated Publishing
 
-The GitHub workflow defined in `.github/workflows/changesets.yml` handles:
+This repository is configured for fully automated versioning and publishing:
 
-1. Running tests and building packages on PR and push to main
-2. Creating a version PR when changesets are merged to main
-3. Publishing packages when the version PR is merged
-4. Deploying the website when new versions are published
+1. When a PR with changesets is merged to main, the unified pipeline will:
+   - Detect the changesets
+   - Automatically version the packages
+   - Create a version PR
+   - Auto-approve and merge that PR
+   - Publish the packages to the GitHub registry
+
+This process happens completely automatically with no manual intervention required. The `PACKAGE_TOKEN` GitHub secret has the necessary permissions to handle this entire flow.
+
+## Workflow Organization
+
+The repository uses several GitHub Actions workflows for different purposes:
+
+1. **Unified Pipeline** - The primary workflow that runs on every push to main
+   - Builds and tests packages
+   - Automatically versions and publishes packages when changesets are present
+   - Handles deployments to GitHub Pages
+   - Runs automatically on merges to main
+   - **Fully automated** - No manual intervention required
+
+2. **Changesets** - Manual workflow for creating releases
+   - Only runs when manually triggered
+   - Should NOT run automatically on pushes to main
+   - Not needed for normal workflow as unified pipeline handles publishing
+
+3. **Prerelease** - For creating beta/alpha releases
+   - Only runs when manually triggered
+
+4. **Release** - For specific package releases
+   - Only runs when manually triggered
+
+When making changes to the main branch, only the Unified Pipeline should run automatically, which handles both versioning, publishing and deploying to GitHub Pages.
+
+## GitHub Pages Deployment
+
+This repository uses GitHub's default Pages deployment process. The workflow:
+
+1. Builds the site as part of the unified pipeline or release workflow
+2. Pushes the built files to the `gh-pages` branch
+3. GitHub's built-in Pages deployment automatically handles the deployment
+
+This approach ensures there's only one deployment process running, avoiding failed deployments.
 
 ## Manual Commands (if needed)
 
@@ -109,4 +147,6 @@ Changesets offers significant advantages over our previous semantic-release setu
 - **Simpler configuration** with less boilerplate
 - **Improved PR workflow** with automatic version PR creation
 - **More visibility** into upcoming version changes
-- **Reduced CI complexity** with standardized workflows 
+- **Reduced CI complexity** with standardized workflows
+
+When making changes to the main branch, only the Unified Pipeline should run automatically, which handles both versioning, publishing and deploying to GitHub Pages. 
