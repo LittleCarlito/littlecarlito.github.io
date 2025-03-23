@@ -10,8 +10,8 @@ on:
 
 # Add concurrency to ensure only one instance runs at a time
 concurrency:
-  group: unified-pipeline-${{ github.ref }}
-  cancel-in-progress: false
+  group: github-pages-deploy-${{ github.sha }}
+  cancel-in-progress: true
   
 # Note: This workflow handles GitHub Pages deployment directly.
 # The separate deploy-pages.yml workflow should be disabled or deleted.
@@ -241,15 +241,16 @@ jobs:
       - name: Add .nojekyll file
         run: touch apps/portfolio/dist/.nojekyll
       
-      # Deploy to GitHub Pages using JamesIves action for consistency
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/portfolio/dist
+
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: JamesIves/github-pages-deploy-action@v4
+        uses: actions/deploy-pages@v4
         with:
-          folder: apps/portfolio/dist
-          branch: gh-pages
-          clean: true
-          force: true
-          single-commit: true
-          token: ${{ secrets.PACKAGE_TOKEN }}
-          commit-message: "Deploy website from unified pipeline" 
+          token: ${{ secrets.PACKAGE_TOKEN }} 
