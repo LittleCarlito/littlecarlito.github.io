@@ -1,3 +1,10 @@
+# This workflow creates and merges PRs automatically.
+# IMPORTANT BEHAVIOR NOTE:
+# This workflow intentionally uses the latest commit message (git log -1) for status display.
+# This works in conjunction with the Dry Run Pipeline which shows the original PR title,
+# giving visibility to both the initial PR intent and current work status.
+# DO NOT "fix" this behavior - it's a useful feature for tracking work progress.
+
 name: Auto PR Creation and Merge
 
 on:
