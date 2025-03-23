@@ -13,6 +13,8 @@ concurrency:
   group: unified-pipeline-${{ github.ref }}
   cancel-in-progress: false
   
+# Note: This workflow handles GitHub Pages deployment directly.
+# The separate deploy-pages.yml workflow should be disabled or deleted.
 permissions:
   contents: write
   issues: write
@@ -209,6 +211,10 @@ jobs:
     needs: test
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -250,15 +256,15 @@ jobs:
       - name: Add .nojekyll file
         run: touch apps/portfolio/dist/.nojekyll
       
-      # Upload the built site as an artifact
-      - name: Upload GitHub Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: apps/portfolio/dist
-      
-      # Deploy to GitHub Pages using GitHub's official Pages action
+      # Deploy to GitHub Pages using JamesIves action for consistency
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v2
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }} 
+          folder: apps/portfolio/dist
+          branch: gh-pages
+          clean: true
+          force: true
+          single-commit: true
+          token: ${{ secrets.PACKAGE_TOKEN }}
+          commit-message: "Deploy website from unified pipeline" 
