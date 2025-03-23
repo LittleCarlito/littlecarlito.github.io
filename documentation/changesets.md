@@ -109,4 +109,25 @@ Changesets offers significant advantages over our previous semantic-release setu
 - **Simpler configuration** with less boilerplate
 - **Improved PR workflow** with automatic version PR creation
 - **More visibility** into upcoming version changes
-- **Reduced CI complexity** with standardized workflows 
+- **Reduced CI complexity** with standardized workflows
+
+## Workflow Organization
+
+The repository uses several GitHub Actions workflows for different purposes:
+
+1. **Unified Pipeline** - The primary workflow that runs on every push to main
+   - Builds and tests packages
+   - Handles deployments to GitHub Pages
+   - Runs automatically on merges to main
+
+2. **Changesets** - Manual workflow for creating releases
+   - Only runs when manually triggered
+   - Should NOT run automatically on pushes to main
+
+3. **Prerelease** - For creating beta/alpha releases
+   - Only runs when manually triggered
+
+4. **Release** - For specific package releases
+   - Only runs when manually triggered
+
+When making changes to the main branch, only the Unified Pipeline should run automatically, which handles both checking for changesets and deploying to GitHub Pages. 

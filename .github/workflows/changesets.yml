@@ -1,9 +1,15 @@
 name: Changesets
 
 on:
-  push:
-    branches:
-      - main
+  # Removed push trigger to prevent running on every merge to main
+  # This will now only run when manually dispatched
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish packages'
+        required: true
+        default: true
+        type: boolean
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 

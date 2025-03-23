@@ -8,6 +8,11 @@ on:
       - 'v*'
   workflow_dispatch:
 
+# Add concurrency to ensure only one instance runs at a time
+concurrency:
+  group: unified-pipeline-${{ github.ref }}
+  cancel-in-progress: false
+  
 permissions:
   contents: write
   issues: write
