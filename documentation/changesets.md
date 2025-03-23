@@ -122,13 +122,17 @@ When making changes to the main branch, only the Unified Pipeline should run aut
 
 ## GitHub Pages Deployment
 
-This repository uses GitHub's default Pages deployment process. The workflow:
+This repository uses GitHub's official Pages deployment process:
 
-1. Builds the site as part of the unified pipeline or release workflow
-2. Pushes the built files to the `gh-pages` branch
-3. GitHub's built-in Pages deployment automatically handles the deployment
+1. The unified pipeline builds the site with the correct base URL (`GITHUB_PAGES=true` environment variable)
+2. The site is uploaded as a GitHub Pages artifact
+3. GitHub's official deployment action handles the deployment
 
-This approach ensures there's only one deployment process running, avoiding failed deployments.
+Benefits of this approach:
+- Uses GitHub's official Pages deployment action
+- Avoids duplicate/competing deployments
+- Shows proper deployment status in GitHub UI
+- Creates a proper deployment environment with URL
 
 ## Manual Commands (if needed)
 
