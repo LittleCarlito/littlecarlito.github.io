@@ -48,7 +48,7 @@ jobs:
           path: packages/*/dist
 
   test:
-    name: Test Packages
+    name: Test
     needs: build
     uses: ./.github/workflows/test-monorepo.yml
     with:
