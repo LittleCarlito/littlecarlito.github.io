@@ -165,46 +165,42 @@ jobs:
 
   deploy:
     name: Deploy to GitHub Pages
-<<<<<<< Updated upstream
     needs: version-and-publish
-    if: needs.version-and-publish.outputs.published == 'true'
-=======
-    needs: run-changesets
-    # Run deploy always, regardless of changesets output
-    # This ensures we always have the latest code deployed
->>>>>>> Stashed changes
     runs-on: ubuntu-latest
+    # Always deploy, even if no changes were published
+    if: always()
+    
+    # Add appropriate permissions for deployment
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    
     steps:
-      - name: Checkout repository
+      - name: Checkout latest code
         uses: actions/checkout@v4
         with:
+          # Make sure to get the latest code after potential version changes
           ref: main
-          fetch-depth: 0 # Needed to get all history for proper version detection
-          
+          token: ${{ secrets.PACKAGE_TOKEN }}
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 'lts/*'
+          node-version: '20.x'
           registry-url: 'https://npm.pkg.github.com'
-          
+          scope: '@littlecarlito'
+      
       - name: Setup pnpm
         uses: pnpm/action-setup@v3
         with:
           version: '8.15.4'
-          
+      
       - name: Install dependencies
         run: pnpm install
-        
+      
       - name: Build for deployment
         run: pnpm run build
-        
+      
       - name: Deploy to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4
-        with:
-          folder: apps/portfolio/dist
-          branch: gh-pages
-          clean: true
-          force: true
-          single-commit: true
-          token: ${{ secrets.PACKAGE_TOKEN }}
-          commit-message: "Deploy website from unified pipeline" 
+        uses: actions/deploy-pages@v4 

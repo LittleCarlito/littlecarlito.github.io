@@ -4,6 +4,34 @@ on:
   push:
     branches:
       - main
+  workflow_call:
+    inputs:
+      dry_run:
+        description: "Run in dry run mode without making actual changes"
+        type: boolean
+        default: false
+    secrets:
+      PACKAGE_TOKEN:
+        required: true
+    outputs:
+      published:
+        description: "Whether packages were published"
+        value: ${{ jobs.release.outputs.published }}
+      blorkpack_version:
+        description: "Current or new version of blorkpack"
+        value: ${{ jobs.release.outputs.blorkpack_version }}
+      blorktools_version:
+        description: "Current or new version of blorktools"
+        value: ${{ jobs.release.outputs.blorktools_version }}
+      blorkboard_version:
+        description: "Current or new version of blorkboard"
+        value: ${{ jobs.release.outputs.blorkboard_version }}
+      has_changeset:
+        description: "Whether changesets were found"
+        value: ${{ jobs.release.outputs.has_changeset }}
+      potential_version_changes:
+        description: "Summary of potential version changes in dry run mode"
+        value: ${{ jobs.release.outputs.potential_version_changes }}
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
@@ -11,13 +39,8 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_call'
     permissions:
-<<<<<<< Updated upstream
-      contents: write
-      pull-requests: write
-      packages: write
-=======
       contents: write      # Required for creating releases and updating files
       pull-requests: write # Required for creating/updating PRs
       packages: write      # Required for publishing packages
@@ -30,7 +53,6 @@ jobs:
       blorkboard_version: ${{ steps.get_versions.outputs.blorkboard_version || steps.changeset_status.outputs.blorkboard_version }}
       has_changeset: ${{ steps.changeset_status.outputs.has_changeset }}
       potential_version_changes: ${{ steps.simulate_version.outputs.potential_version_changes }}
->>>>>>> Stashed changes
     
     steps:
       - name: Checkout repo
@@ -39,6 +61,13 @@ jobs:
           # This makes Actions fetch all Git history so that Changesets can generate changelogs
           fetch-depth: 0
           token: ${{ secrets.PACKAGE_TOKEN }}
+      
+      - name: Configure Git identity
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        env:
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -61,8 +90,6 @@ jobs:
       - name: Test packages
         run: pnpm test
       
-<<<<<<< Updated upstream
-=======
       - name: Changeset status check
         id: changeset_status
         run: |
@@ -190,86 +217,63 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
->>>>>>> Stashed changes
       - name: Create release PR or publish to npm
         id: changesets
+        if: inputs.dry_run != true
         uses: changesets/action@v1
         with:
-          # This expects you to have a script called release which does a build for your packages and calls changeset publish
-          publish: pnpm run release
           version: pnpm run version
-          commit: 'chore: version packages'
-          title: 'chore: version packages'
+          publish: pnpm run publish
+          commit: "chore: version packages"
+          title: "Version Packages"
+          createGithubReleases: true
+          setupGitUser: false
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-<<<<<<< Updated upstream
       
-      - name: Deploy
-        if: steps.changesets.outputs.published == 'true'
-        uses: JamesIves/github-pages-deploy-action@v4
-=======
-          
-      # Auto-approve and auto-merge Version Packages PR to prevent deployment blockers
-      - name: Find Version Packages PR
-        id: find_pr
-        if: inputs.dry_run != true && steps.changesets.outputs.published != 'true' && github.event_name != 'workflow_call'
-        run: |
-          PR_NUMBER=$(gh pr list --repo ${{ github.repository }} --head changeset-release/main --json number --jq '.[0].number')
-          if [ -n "$PR_NUMBER" ]; then
-            echo "Found Version Packages PR #$PR_NUMBER"
-            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-            echo "pr_found=true" >> $GITHUB_OUTPUT
-          else
-            echo "No Version Packages PR found"
-            echo "pr_found=false" >> $GITHUB_OUTPUT
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-          
       - name: Auto-approve Version Packages PR
-        if: inputs.dry_run != true && steps.find_pr.outputs.pr_found == 'true'
+        if: steps.changesets.outputs.pullRequestNumber != ''
         run: |
-          # Add comment explaining the auto-approval
-          gh pr comment ${{ steps.find_pr.outputs.pr_number }} --body "📦 This PR will be automatically merged immediately to prevent deployment blockers."
-          
-          # Approve the PR
-          gh pr review ${{ steps.find_pr.outputs.pr_number }} --approve
+          PR_NUMBER="${{ steps.changesets.outputs.pullRequestNumber }}"
+          echo "Auto-approving Version Packages PR #$PR_NUMBER"
+          gh pr review $PR_NUMBER --approve
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+      
+      - name: Auto-merge Version Packages PR
+        if: steps.changesets.outputs.pullRequestNumber != ''
+        run: |
+          PR_NUMBER="${{ steps.changesets.outputs.pullRequestNumber }}"
+          echo "Auto-merging Version Packages PR #$PR_NUMBER immediately"
+          gh pr merge $PR_NUMBER --merge --auto
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           
-      - name: Set up auto-merge for Version Packages PR
-        if: inputs.dry_run != true && steps.find_pr.outputs.pr_found == 'true'
-        run: |
-          # Enable auto-merge immediately
-          gh pr merge ${{ steps.find_pr.outputs.pr_number }} --auto --squash --delete-branch --immediate
-          
-          echo "✅ Auto-merge enabled for PR #${{ steps.find_pr.outputs.pr_number }} - will merge immediately"
-        env:
-          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-          
-      - name: Get package versions
+      - name: Get updated versions
         id: get_versions
-        if: inputs.dry_run != true && steps.changesets.outputs.published == 'true'
+        if: steps.changesets.outputs.published == 'true'
         run: |
           BLORKPACK_VERSION=$(node -p "require('./packages/blorkpack/package.json').version")
           BLORKTOOLS_VERSION=$(node -p "require('./packages/blorktools/package.json').version")
           BLORKBOARD_VERSION=$(node -p "require('./packages/blorkboard/package.json').version")
           
+          echo "New versions:"
+          echo "blorkpack: $BLORKPACK_VERSION"
+          echo "blorktools: $BLORKTOOLS_VERSION"  
+          echo "blorkboard: $BLORKBOARD_VERSION"
+          
           echo "blorkpack_version=$BLORKPACK_VERSION" >> $GITHUB_OUTPUT
           echo "blorktools_version=$BLORKTOOLS_VERSION" >> $GITHUB_OUTPUT
           echo "blorkboard_version=$BLORKBOARD_VERSION" >> $GITHUB_OUTPUT
-          
-          echo "Published versions:"
-          echo "blorkpack: $BLORKPACK_VERSION"
-          echo "blorktools: $BLORKTOOLS_VERSION"
-          echo "blorkboard: $BLORKBOARD_VERSION"
+        env:
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
       # Create GitHub Release when packages are published
       - name: Create GitHub Release
         if: inputs.dry_run != true && steps.changesets.outputs.published == 'true'
         uses: actions/github-script@v7
->>>>>>> Stashed changes
         with:
           github-token: ${{ secrets.PACKAGE_TOKEN }}
           script: |
