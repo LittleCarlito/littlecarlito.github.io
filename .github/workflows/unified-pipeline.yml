@@ -19,6 +19,8 @@ permissions:
   pull-requests: write
   packages: write
   actions: read
+  pages: write
+  id-token: write
 
 jobs:
   build:
@@ -201,12 +203,15 @@ jobs:
           echo "blorktools: $BLORKTOOLS_VERSION"
           echo "blorkboard: $BLORKBOARD_VERSION"
 
-  # Build and push the dist folder to gh-pages branch
-  update-gh-pages:
-    name: Update GitHub Pages
+  # Build the site for GitHub Pages
+  build-site:
+    name: Build Site for GitHub Pages
     needs: test
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -227,8 +232,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install
         
-      - name: Build for deployment
-        run: pnpm run build
+      # Set GITHUB_PAGES environment variable to ensure correct base URL
+      - name: Build for GitHub Pages
+        run: GITHUB_PAGES=true pnpm run build
         
       # Ensure _headers file is copied to the dist folder
       - name: Ensure _headers file for GitHub Pages
@@ -240,17 +246,19 @@ jobs:
             echo "Warning: _headers file not found"
           fi
 
-      # Instead of using a GitHub action to deploy, just push to the gh-pages branch
-      - name: Push to gh-pages branch
-        run: |
-          cd apps/portfolio/dist
-          git init
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Deploy website from main branch"
-          git branch -M gh-pages
-          git remote add origin https://x-access-token:${{ secrets.PACKAGE_TOKEN }}@github.com/${{ github.repository }}.git
-          git push -f origin gh-pages
-        env:
-          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 
+      # Create a .nojekyll file to disable Jekyll processing
+      - name: Add .nojekyll file
+        run: touch apps/portfolio/dist/.nojekyll
+      
+      # Upload the built site as an artifact
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/portfolio/dist
+      
+      # Deploy to GitHub Pages using GitHub's official Pages action
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }} 
