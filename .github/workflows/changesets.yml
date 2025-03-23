@@ -62,16 +62,4 @@ jobs:
           title: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-      
-      - name: Deploy
-        if: steps.changesets.outputs.published == 'true'
-        uses: JamesIves/github-pages-deploy-action@v4
-        with:
-          folder: apps/portfolio/dist
-          branch: gh-pages
-          clean: true
-          force: true
-          single-commit: true
-          token: ${{ secrets.PACKAGE_TOKEN }}
-          commit-message: "Deploy website " 
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 

@@ -199,10 +199,11 @@ jobs:
           echo "blorktools: $BLORKTOOLS_VERSION"
           echo "blorkboard: $BLORKBOARD_VERSION"
 
-  deploy:
-    name: Deploy to GitHub Pages
+  # Replacing deploy job to use the same method as unified-pipeline
+  update-gh-pages:
+    name: Update GitHub Pages
     needs: test
-    if: github.ref == 'refs/heads/main' || needs.create-release.outputs.published == 'true'
+    if: needs.create-release.outputs.published == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -237,13 +238,17 @@ jobs:
             echo "Warning: _headers file not found"
           fi
         
-      - name: Deploy to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4
-        with:
-          folder: apps/portfolio/dist
-          branch: gh-pages
-          clean: true
-          force: true
-          single-commit: true
-          token: ${{ secrets.PACKAGE_TOKEN }}
-          commit-message: "Deploy website" 
+      # Instead of using a GitHub action to deploy, just push to the gh-pages branch
+      - name: Push to gh-pages branch
+        run: |
+          cd apps/portfolio/dist
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Deploy website from main branch"
+          git branch -M gh-pages
+          git remote add origin https://x-access-token:${{ secrets.PACKAGE_TOKEN }}@github.com/${{ github.repository }}.git
+          git push -f origin gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 

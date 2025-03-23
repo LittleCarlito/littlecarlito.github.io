@@ -120,6 +120,16 @@ The repository uses several GitHub Actions workflows for different purposes:
 
 When making changes to the main branch, only the Unified Pipeline should run automatically, which handles both versioning, publishing and deploying to GitHub Pages.
 
+## GitHub Pages Deployment
+
+This repository uses GitHub's default Pages deployment process. The workflow:
+
+1. Builds the site as part of the unified pipeline or release workflow
+2. Pushes the built files to the `gh-pages` branch
+3. GitHub's built-in Pages deployment automatically handles the deployment
+
+This approach ensures there's only one deployment process running, avoiding failed deployments.
+
 ## Manual Commands (if needed)
 
 For advanced use cases, you can use these commands:
