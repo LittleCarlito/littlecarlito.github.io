@@ -123,6 +123,66 @@ describe('Content Security Policy Tests', () => {
         
 		const cspMeta = indexHtml.match(/<meta[^>]*Content-Security-Policy[^>]*>/)[0];
 		expect(cspMeta).toContain("script-src 'self' 'unsafe-inline' 'unsafe-eval'");
+		expect(cspMeta).toContain("https://unpkg.com");
 		expect(cspMeta).toContain("connect-src 'self'");
+		expect(cspMeta).toContain("connect-src 'self' https://unpkg.com");
+	});
+	
+	it('should verify all required domains for external resources are in CSP', () => {
+		const indexHtml = fs.readFileSync(
+			path.resolve(__dirname, '../../apps/portfolio/index.html'),
+			'utf-8'
+		);
+		
+		// Extract script sources from HTML
+		const scriptSrcs = [...indexHtml.matchAll(/<script[^>]*src=["']([^"']+)["'][^>]*>/g)]
+			.map(match => match[1])
+			.filter(src => src.startsWith('https://'));
+			
+		// Extract domains from script sources
+		const externalDomains = new Set(
+			scriptSrcs.map(src => {
+				const url = new URL(src);
+				return url.hostname;
+			})
+		);
+		
+		// Get CSP content
+		const cspMeta = indexHtml.match(/<meta[^>]*Content-Security-Policy[^>]*>/)[0];
+		
+		// Verify each external domain is in the CSP
+		for (const domain of externalDomains) {
+			expect(cspMeta).toContain(domain);
+		}
+	});
+});
+
+describe('ES Module Shims Compatibility Tests', () => {
+	it('should have es-module-shims correctly referenced', () => {
+		const indexHtml = fs.readFileSync(
+			path.resolve(__dirname, '../../apps/portfolio/index.html'),
+			'utf-8'
+		);
+		
+		// Check that es-module-shims is included
+		expect(indexHtml).toContain('https://unpkg.com/es-module-shims');
+		
+		// Ensure CSP allows unpkg.com for scripts
+		const cspMeta = indexHtml.match(/<meta[^>]*Content-Security-Policy[^>]*>/)[0];
+		expect(cspMeta).toContain('https://unpkg.com');
+		
+		// Get the specific es-module-shims URL
+		const shimsScriptMatch = indexHtml.match(/<script[^>]*src=["'](https:\/\/unpkg\.com\/es-module-shims[^"']*)["'][^>]*>/);
+		expect(shimsScriptMatch).toBeTruthy();
+		
+		if (shimsScriptMatch) {
+			const shimsUrl = shimsScriptMatch[1];
+			// Extract the domain from the URL
+			const shimsUrlObj = new URL(shimsUrl);
+			const shimsDomain = shimsUrlObj.hostname;
+			
+			// Verify the specific domain is in the CSP
+			expect(cspMeta).toContain(shimsDomain);
+		}
 	});
 }); 

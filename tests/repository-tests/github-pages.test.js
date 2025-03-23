@@ -24,6 +24,14 @@ describe('GitHub Pages Deployment', () => {
       
 			// Verify CSP doesn't contain frame-ancestors directive in meta tag (this caused issues)
 			expect(indexHtmlContent).not.toContain('frame-ancestors');
+			
+			// Verify CSP includes unpkg.com for external scripts
+			expect(indexHtmlContent).toContain('script-src');
+			expect(indexHtmlContent).toContain('https://unpkg.com');
+			
+			// Ensure connect-src also includes unpkg.com for dynamic imports
+			expect(indexHtmlContent).toContain('connect-src');
+			expect(indexHtmlContent).toContain('connect-src \'self\' https://unpkg.com');
 		});
 
 		test('_headers file exists with proper MIME type definitions', () => {
