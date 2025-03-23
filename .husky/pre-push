@@ -6,6 +6,14 @@ set -e
 
 echo "🔍 Running comprehensive pre-push checks..."
 
+# First, verify the lockfile is in sync with package.json
+echo "Verifying lockfile integrity..."
+pnpm verify-lockfile || {
+    echo "❌ Lockfile is out of sync with package.json."
+    echo "Please run 'pnpm update-lockfile' and commit the changes before pushing."
+    exit 1
+}
+
 # Get the current branch name
 BRANCH=$(git symbolic-ref --short HEAD)
 

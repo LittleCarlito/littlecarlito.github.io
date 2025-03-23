@@ -25,6 +25,8 @@
     "test:discover": "jest --config=tests/config/jest.config.cjs --listTests",
     "test:build-deps": "jest tests/repository-tests/build-dependencies.test.js --config=tests/config/jest.config.cjs",
     "test:all": "pnpm test",
+    "verify-lockfile": "node tests/config/verify-lockfile.js",
+    "update-lockfile": "pnpm install --no-frozen-lockfile",
     "simulate-deploy": "pnpm --filter=@littlecarlito/blorkpack build && GITHUB_PAGES=true pnpm --filter=@littlecarlito/portfolio build",
     "prepare-artifacts": "node scripts/prepare-artifacts.js",
     "version-check": "node scripts/version-check.js",
