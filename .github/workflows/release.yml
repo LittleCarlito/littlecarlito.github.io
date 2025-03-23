@@ -196,8 +196,8 @@ jobs:
 
   deploy:
     name: Deploy to GitHub Pages
-    needs: create-release
-    if: needs.create-release.outputs.published == 'true'
+    needs: test
+    if: github.ref == 'refs/heads/main' || needs.create-release.outputs.published == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -221,6 +221,16 @@ jobs:
         
       - name: Build for deployment
         run: pnpm run build
+        
+      # Ensure _headers file is copied to the dist folder
+      - name: Ensure _headers file for GitHub Pages
+        run: |
+          if [ -f "apps/portfolio/public/_headers" ]; then
+            cp apps/portfolio/public/_headers apps/portfolio/dist/
+            echo "Copied _headers file to dist folder"
+          else
+            echo "Warning: _headers file not found"
+          fi
         
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
