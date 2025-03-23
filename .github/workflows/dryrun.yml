@@ -1,3 +1,10 @@
+# This workflow runs tests and checks for PRs.
+# IMPORTANT BEHAVIOR NOTE:
+# This workflow intentionally displays using the original PR title (first commit message).
+# This works in conjunction with the Auto PR workflow which shows the latest commit message,
+# giving visibility to both the initial PR intent and current work status.
+# DO NOT "fix" this behavior - it's a useful feature for tracking work progress.
+
 name: Dry Run Pipeline
 
 on:
