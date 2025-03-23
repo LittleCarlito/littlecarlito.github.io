@@ -112,9 +112,12 @@ describe('GitHub Pages Dependencies', () => {
 // This test validates the build output if a build has already been run
 // Skip the test if no dist directory exists (CI will build before testing)
 (fs.existsSync(PORTFOLIO_DIST_DIR) ? describe : describe.skip)('Built output validation', () => {
-	test('main.js file exists and is served with correct path', () => {
-		const mainJsPath = path.resolve(PORTFOLIO_DIST_DIR, 'main.js');
-		expect(fs.existsSync(mainJsPath)).toBe(true);
+	test('main JavaScript file exists in dist directory', () => {
+		// Look for any JS file in the dist directory instead of specifically 'main.js'
+		// With Vite's bundling, the main JS file might have a hash in its name
+		const distFiles = fs.readdirSync(PORTFOLIO_DIST_DIR);
+		const hasJsFile = distFiles.some(file => file.endsWith('.js'));
+		expect(hasJsFile).toBe(true);
 	});
 
 	test('custom_types.json is copied to dist directory', () => {

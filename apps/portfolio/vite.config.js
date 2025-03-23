@@ -100,7 +100,7 @@ export default defineConfig(({ command }) => {
 					chunkFileNames: '[name].[hash].js',
 					assetFileNames: '[name].[hash].[ext]'
 				},
-				external: ['three'],
+				external: [],
 				input: {
 					main: 'index.html',
 					...(isProduction ? {} : { 

@@ -84,7 +84,7 @@ describe('Vite Configuration Tests', () => {
 		expect(viteConfigContent).toContain('\'three\': [\'three\']');
 		expect(viteConfigContent).toContain('globals: {');
 		expect(viteConfigContent).toContain('\'three\': \'THREE\'');
-		expect(viteConfigContent).toContain('external: [\'three\']');
+		expect(viteConfigContent).toContain('external: []');
 	});
 
 	it('should have correct chunk naming configuration', () => {
@@ -94,6 +94,23 @@ describe('Vite Configuration Tests', () => {
 		);
 		expect(viteConfigContent).toContain('chunkFileNames: \'[name].[hash].js\'');
 		expect(viteConfigContent).toContain('assetFileNames: \'[name].[hash].[ext]\'');
+	});
+
+	it('should include Three.js in the runtime bundle', () => {
+		const viteConfigContent = fs.readFileSync(
+			path.resolve(__dirname, '../../apps/portfolio/vite.config.js'),
+			'utf-8'
+		);
+		
+		// Check that Three.js is in manual chunks
+		expect(viteConfigContent).toContain('\'three\': [\'three\']');
+		
+		// Check that Three.js is NOT in external dependencies
+		expect(viteConfigContent).not.toContain('external: [\'three\']');
+		expect(viteConfigContent).toContain('external: []');
+		
+		// This ensures Three.js is bundled with the application and available at runtime,
+		// rather than being expected as an external dependency
 	});
 });
 
