@@ -143,7 +143,8 @@ export default defineConfig(({ command }) => {
 			{
 				name: 'blorkpack-hmr-helper',
 				transformIndexHtml(html) {
-					return html.replace('</head>', `
+					// First add the error handler script
+					let updatedHtml = html.replace('</head>', `
             <script>
               window.__BLORKPACK_ERROR_HANDLER = (error) => {
                 if (error && error.message && error.message.includes('blorkpack')) {
@@ -155,6 +156,16 @@ export default defineConfig(({ command }) => {
               window.addEventListener('unhandledrejection', (e) => window.__BLORKPACK_ERROR_HANDLER(e.reason));
             </script>
           </head>`);
+					
+					// Then make sure script paths use the correct base
+					if (isGitHubPages) {
+						updatedHtml = updatedHtml.replace(
+							/<script\s+type="module"\s+src="\.\/([^"]+)"/g, 
+							`<script type="module" src="${base}$1"`
+						);
+					}
+					
+					return updatedHtml;
 				}
 			},
 			{

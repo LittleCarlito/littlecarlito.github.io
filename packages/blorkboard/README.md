@@ -24,7 +24,7 @@ startBlorkboard({
 ## CLI Usage
 
 ```bash
-npx blorkboard --port 3000
+pnpm dlx blorkboard --port 3000
 ```
 
 ## License

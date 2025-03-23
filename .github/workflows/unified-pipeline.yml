@@ -213,11 +213,12 @@ jobs:
           
       - name: Install dependencies
         run: pnpm install
-        
+          
       # Set GITHUB_PAGES environment variable to ensure correct base URL
       - name: Build for GitHub Pages
-        run: GITHUB_PAGES=true pnpm run build
-        
+        run: |
+          GITHUB_PAGES=true pnpm --filter=@littlecarlito/portfolio build
+          
       # Ensure _headers file is copied to the dist folder
       - name: Ensure _headers file for GitHub Pages
         run: |
@@ -227,7 +228,7 @@ jobs:
           else
             echo "Warning: _headers file not found"
           fi
-
+          
       # Create a .nojekyll file to disable Jekyll processing
       - name: Add .nojekyll file
         run: touch apps/portfolio/dist/.nojekyll
