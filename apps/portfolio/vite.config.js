@@ -86,6 +86,7 @@ export default defineConfig(({ command }) => {
 			rollupOptions: {
 				output: {
 					manualChunks: {
+						'three': ['three'],
 						'three-addons': [
 							'three/examples/jsm/controls/OrbitControls',
 							'three/examples/jsm/Addons.js'
@@ -96,8 +97,8 @@ export default defineConfig(({ command }) => {
 					},
 					format: 'es',
 					entryFileNames: '[name].js',
-					chunkFileNames: '[name].js',
-					assetFileNames: '[name].[ext]'
+					chunkFileNames: '[name].[hash].js',
+					assetFileNames: '[name].[hash].[ext]'
 				},
 				external: ['three'],
 				input: {

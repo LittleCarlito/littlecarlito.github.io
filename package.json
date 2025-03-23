@@ -24,6 +24,7 @@
     "test:coverage": "node tests/config/prepare-tests.cjs && jest --config=tests/config/jest.config.cjs --coverage",
     "test:discover": "jest --config=tests/config/jest.config.cjs --listTests",
     "test:build-deps": "jest tests/repository-tests/build-dependencies.test.js --config=tests/config/jest.config.cjs",
+    "test:all": "pnpm test",
     "simulate-deploy": "pnpm --filter=@littlecarlito/blorkpack build && GITHUB_PAGES=true pnpm --filter=@littlecarlito/portfolio build",
     "prepare-artifacts": "node scripts/prepare-artifacts.js",
     "version-check": "node scripts/version-check.js",
@@ -59,7 +60,8 @@
     "terser": "^5.39.0",
     "tree-kill": "^1.2.2",
     "turbo": "latest",
-    "yaml": "^2.7.0"
+    "yaml": "^2.7.0",
+    "jsdom": "^24.0.0"
   },
   "packageManager": "pnpm@8.15.4",
   "engines": {
