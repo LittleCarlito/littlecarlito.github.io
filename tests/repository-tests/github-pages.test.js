@@ -79,6 +79,36 @@ describe('GitHub Pages Deployment', () => {
 	});
 });
 
+describe('GitHub Pages Dependencies', () => {
+	test('portfolio depends on blorkpack properly', () => {
+		// Check the dependencies in package.json
+		const portfolioPackagePath = path.resolve(PORTFOLIO_DIR, 'package.json');
+		expect(fs.existsSync(portfolioPackagePath)).toBe(true);
+		
+		const portfolioPackage = JSON.parse(fs.readFileSync(portfolioPackagePath, 'utf8'));
+		
+		// Check for blorkpack in dependencies
+		expect(portfolioPackage.dependencies).toBeDefined();
+		expect(portfolioPackage.dependencies['@littlecarlito/blorkpack']).toBeDefined();
+		
+		// Make sure there's a prebuild script that builds blorkpack
+		expect(portfolioPackage.scripts).toBeDefined();
+		expect(portfolioPackage.scripts.prebuild).toBeDefined();
+		expect(portfolioPackage.scripts.prebuild).toContain('blorkpack');
+		expect(portfolioPackage.scripts.prebuild).toContain('build');
+	});
+	
+	test('main.js imports from blorkpack correctly', () => {
+		const mainJsPath = path.resolve(PORTFOLIO_DIR, 'main.js');
+		expect(fs.existsSync(mainJsPath)).toBe(true);
+		
+		const mainJsContent = fs.readFileSync(mainJsPath, 'utf8');
+		
+		// Check for correct import syntax from blorkpack
+		expect(mainJsContent).toMatch(/@littlecarlito\/blorkpack/);
+	});
+});
+
 // This test validates the build output if a build has already been run
 // Skip the test if no dist directory exists (CI will build before testing)
 (fs.existsSync(PORTFOLIO_DIST_DIR) ? describe : describe.skip)('Built output validation', () => {

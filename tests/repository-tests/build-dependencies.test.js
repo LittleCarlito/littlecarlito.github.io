@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const glob = require('glob');
+const jsYaml = require('js-yaml');
 
 // Force Jest to recognize this as a test file
 const test = global.test || jest.test;
@@ -114,5 +115,85 @@ describe('Build Dependencies', () => {
 		});
     
 		expect(buildIssues).toHaveLength(0, `Build issues detected:\n${buildIssues.join('\n')}`);
+	});
+
+	test('portfolio app dependencies are properly configured', () => {
+		// Check specifically for the portfolio app's configuration
+		const portfolioPath = path.resolve(__dirname, '../../apps/portfolio/package.json');
+		expect(fs.existsSync(portfolioPath)).toBe(true);
+		
+		const portfolioJson = JSON.parse(fs.readFileSync(portfolioPath, 'utf8'));
+		
+		// Check that it depends on blorkpack
+		expect(portfolioJson.dependencies).toBeDefined();
+		expect(portfolioJson.dependencies['@littlecarlito/blorkpack']).toBeDefined();
+		
+		// Check that it has the prebuild script that builds blorkpack
+		expect(portfolioJson.scripts).toBeDefined();
+		expect(portfolioJson.scripts.prebuild).toBeDefined();
+		expect(portfolioJson.scripts.prebuild).toContain('blorkpack');
+		expect(portfolioJson.scripts.prebuild).toContain('build');
+	});
+
+	test('GitHub Pages workflow builds packages in the correct order', () => {
+		// Check that the GitHub workflow builds blorkpack before portfolio
+		const workflowPath = path.resolve(__dirname, '../../.github/workflows/unified-pipeline.yml');
+		expect(fs.existsSync(workflowPath)).toBe(true);
+		
+		const workflowContent = fs.readFileSync(workflowPath, 'utf8');
+		const workflowConfig = jsYaml.load(workflowContent);
+		
+		// Check packages build step
+		expect(workflowConfig.jobs.build.steps).toBeDefined();
+		
+		// Find the build packages step
+		const buildPackagesStep = workflowConfig.jobs.build.steps.find(step => 
+			step.name && step.name.includes('Build packages'));
+		
+		expect(buildPackagesStep).toBeDefined();
+		expect(buildPackagesStep.run).toContain('pnpm --filter=@littlecarlito/blorkpack build');
+		
+		// Check GitHub Pages build step
+		expect(workflowConfig.jobs['build-site'].steps).toBeDefined();
+		
+		// Find the GitHub Pages build step
+		const buildSiteStep = workflowConfig.jobs['build-site'].steps.find(step => 
+			step.name && step.name.includes('Build for GitHub Pages'));
+		
+		expect(buildSiteStep).toBeDefined();
+		expect(buildSiteStep.run).toContain('pnpm --filter=@littlecarlito/blorkpack build');
+		expect(buildSiteStep.run.indexOf('pnpm --filter=@littlecarlito/blorkpack build')).toBeLessThan(
+			buildSiteStep.run.indexOf('pnpm --filter=@littlecarlito/portfolio build')
+		);
+	});
+
+	test('verify build process works with simulated dependency build', async () => {
+		// Don't actually run builds in tests, but verify the build commands are valid
+		const blorkpackPath = path.resolve(__dirname, '../../packages/blorkpack/package.json');
+		const portfolioPath = path.resolve(__dirname, '../../apps/portfolio/package.json');
+		
+		expect(fs.existsSync(blorkpackPath)).toBe(true);
+		expect(fs.existsSync(portfolioPath)).toBe(true);
+		
+		const blorkpackJson = JSON.parse(fs.readFileSync(blorkpackPath, 'utf8'));
+		const portfolioJson = JSON.parse(fs.readFileSync(portfolioPath, 'utf8'));
+		
+		// Check that blorkpack has a build script
+		expect(blorkpackJson.scripts).toBeDefined();
+		expect(blorkpackJson.scripts.build).toBeDefined();
+		
+		// Check that portfolio has a prebuild script that builds blorkpack
+		expect(portfolioJson.scripts).toBeDefined();
+		expect(portfolioJson.scripts.prebuild).toBeDefined();
+		
+		// Check that portfolio's build script exists
+		expect(portfolioJson.scripts.build).toBeDefined();
+		
+		// Validate package main entry points
+		expect(blorkpackJson.main).toBeDefined();
+		expect(blorkpackJson.main).toContain('dist');
+		
+		// Check that dist directory is in package.json files array
+		expect(blorkpackJson.files).toContain('dist');
 	});
 }); 

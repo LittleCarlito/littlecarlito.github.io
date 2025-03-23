@@ -60,6 +60,9 @@ importers:
       jest-junit:
         specifier: ^16.0.0
         version: 16.0.0
+      js-yaml:
+        specifier: ^4.1.0
+        version: 4.1.0
       license-webpack-plugin:
         specifier: ^4.0.2
         version: 4.0.2
