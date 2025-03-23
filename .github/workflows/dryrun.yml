@@ -50,33 +50,9 @@ jobs:
   test:
     name: Test Packages
     needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-          
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-          registry-url: 'https://npm.pkg.github.com'
-          
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: '8.15.4'
-          
-      - name: Install dependencies
-        run: pnpm install
-        
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: package-builds
-          path: packages
-        
-      - name: Run tests
-        run: pnpm test
+    uses: ./.github/workflows/test-monorepo.yml
+    with:
+      artifact_name: package-builds
 
   analyze-and-release:
     name: Test Changesets

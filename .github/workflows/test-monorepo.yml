@@ -1,0 +1,41 @@
+name: Test Monorepo
+
+on:
+  workflow_call:
+    inputs:
+      artifact_name:
+        description: 'Name of the build artifact to download'
+        required: false
+        type: string
+        default: 'package-builds'
+
+jobs:
+  test:
+    name: Test Packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://npm.pkg.github.com'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+          
+      - name: Install dependencies
+        run: pnpm install
+        
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: packages
+        
+      - name: Run tests
+        run: pnpm test 
