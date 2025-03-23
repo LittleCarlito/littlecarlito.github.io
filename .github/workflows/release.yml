@@ -8,6 +8,11 @@ on:
         required: true
         default: 'all'
 
+# Add concurrency group to prevent conflicts with other workflows
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
   issues: write

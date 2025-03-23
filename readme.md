@@ -290,6 +290,28 @@ When your PR is merged to main, a "Version Packages" PR will be automatically cr
 
 See [Changesets Documentation](./documentation/changesets.md) for more details.
 
+## GitHub Actions Workflows
+
+This repository uses several GitHub Actions workflows:
+
+1. **Unified Pipeline** (primary) - Runs on every push to main
+   - Builds and tests packages
+   - Automatically versions and publishes packages when changesets are present
+   - Handles GitHub Pages deployments
+   - Fully automated - no manual intervention required
+
+2. **Changesets** - Manual workflow for creating releases
+   - Only runs when manually triggered 
+   - Not needed for normal workflow as unified pipeline handles publishing
+
+3. **Release/Prerelease** - For specific/beta releases
+   - Only run when manually triggered
+   - For special release scenarios
+
+**Note:** If you see multiple workflows running in parallel after a merge to main, it may include GitHub's default Pages deployment alongside our custom workflow. This is expected behavior.
+
+For more details, see [documentation/changesets.md](documentation/changesets.md).
+
 ---
 
 Built with passion and precision by Steven & Bennett Meier

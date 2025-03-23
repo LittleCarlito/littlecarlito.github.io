@@ -132,10 +132,8 @@ jobs:
         id: check-changesets
         run: |
           if [ -d ".changeset" ] && [ "$(ls -A .changeset | grep -v README.md | grep -v config.json)" ]; then
-            echo "Changesets found, will proceed with versioning"
             echo "has_changesets=true" >> $GITHUB_OUTPUT
           else
-            echo "No changesets found, skipping version updates"
             echo "has_changesets=false" >> $GITHUB_OUTPUT
           fi
         
@@ -147,9 +145,44 @@ jobs:
           version: pnpm run version
           commit: 'chore: version packages'
           title: 'chore: version packages'
+          # Automatically execute the publish step without creating a PR
+          createGithubReleases: true
+          # Explicitly set this to false if we want to enforce direct publishing
+          setupGitUser: true
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      # Auto-approve and merge any version PRs that get created
+      - name: Find open version PRs
+        if: steps.check-changesets.outputs.has_changesets == 'true' && steps.changesets.outputs.published != 'true'
+        id: find-pr
+        run: |
+          PR_NUMBER=$(gh pr list --repo ${{ github.repository }} --json number,title --jq '.[] | select(.title=="chore: version packages") | .number')
+          if [ -n "$PR_NUMBER" ]; then
+            echo "Found version PR #$PR_NUMBER"
+            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+            echo "has_pr=true" >> $GITHUB_OUTPUT
+          else
+            echo "No version PR found"
+            echo "has_pr=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Auto-approve version PR
+        if: steps.find-pr.outputs.has_pr == 'true'
+        run: |
+          gh pr review ${{ steps.find-pr.outputs.pr_number }} --approve --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Auto-merge version PR
+        if: steps.find-pr.outputs.has_pr == 'true'
+        run: |
+          gh pr merge ${{ steps.find-pr.outputs.pr_number }} --auto --merge --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           
       - name: Get package versions
         id: get_versions
