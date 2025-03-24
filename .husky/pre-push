@@ -44,6 +44,14 @@ pnpm build || {
     exit 1
 }
 
+# Enhanced GitHub Pages path checks
+echo "🔍 Running enhanced GitHub Pages path checks..."
+pnpm check-gh-paths || {
+    echo "❌ GitHub Pages path check failed. Please fix the issues before pushing."
+    echo "Run 'pnpm check-gh-paths' locally to see detailed errors."
+    exit 1
+}
+
 # ALWAYS run GitHub Pages build and integrity tests to avoid deployment issues
 echo "🔍 Running GitHub Pages build and integrity tests..."
 GITHUB_PAGES=true FORCE_BUILD=true pnpm test:build-integrity || {

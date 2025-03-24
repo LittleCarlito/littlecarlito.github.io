@@ -19,7 +19,7 @@ export function getBasePath() {
     window.location.hostname === 'littlecarlito.github.io' || 
     window.location.pathname.includes(`${GITHUB_PAGES_BASE}/`);
   
-	return isGitHubPages ? `${GITHUB_PAGES_BASE}/` : '';
+	return isGitHubPages ? `/${GITHUB_PAGES_BASE}/` : '';
 }
 
 /**
@@ -57,7 +57,8 @@ export function isGitHubPagesEnvironment() {
  */
 export function getAbsoluteUrl(path) {
 	const resolvedPath = resolvePath(path);
+	// Don't add an extra slash since resolvedPath might already start with one
 	return window.location.origin ? 
-		`${window.location.origin}/${resolvedPath}` : 
-		`http://localhost:3000/${resolvedPath}`;
+		`${window.location.origin}${resolvedPath}` : 
+		`http://localhost:3000${resolvedPath}`;
 } 

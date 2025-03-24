@@ -28,6 +28,7 @@
     "test:build-integrity": "FORCE_BUILD=true jest tests/repository-tests/build-integrity.test.js --config=tests/config/jest.config.cjs",
     "test:gh-pages": "GITHUB_PAGES=true FORCE_BUILD=true pnpm test:build-integrity",
     "verify-gh-pages": "GITHUB_PAGES=true pnpm build && pnpm test:build-integrity",
+    "check-gh-paths": "node scripts/check-gh-paths.js",
     "verify-lockfile": "node tests/config/verify-lockfile.js",
     "update-lockfile": "pnpm install --no-frozen-lockfile",
     "simulate-deploy": "pnpm --filter=@littlecarlito/blorkpack build && GITHUB_PAGES=true pnpm --filter=@littlecarlito/portfolio build",
