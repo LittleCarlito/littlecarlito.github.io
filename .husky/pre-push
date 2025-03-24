@@ -1,7 +1,6 @@
 #!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
 
-# Exit on error
+# Exit on error but NOT for grep commands
 set -e
 
 echo "🔍 Running comprehensive pre-push checks..."
@@ -19,8 +18,10 @@ BRANCH=$(git symbolic-ref --short HEAD)
 
 # Check if files related to Rapier or module loading have been modified
 echo "Checking for changes to module loading or Rapier-related files..."
-git diff --cached --name-only | grep -E "(loader\.js|importmap|rapier|index\.html)" > /dev/null
-HAS_MODULE_CHANGES=$?
+HAS_MODULE_CHANGES=0
+if ! git diff --cached --name-only | grep -q -E "(loader\.js|importmap|rapier|index\.html)"; then
+    HAS_MODULE_CHANGES=1
+fi
 
 # Run tests first to catch any immediate issues
 echo "Running tests..."
