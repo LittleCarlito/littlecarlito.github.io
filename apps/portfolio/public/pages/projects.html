@@ -141,8 +141,8 @@
     </div>
 
     <script type="module">
-        // Import the GitHub Pages base path variable
-        import { GITHUB_PAGES_BASE } from '../../common/path_config.js';
+        // Instead of importing from common/path_config, define the constant directly
+        const GITHUB_PAGES_BASE = 'threejs_site';
         
         // Set the font path based on hostname
         document.documentElement.style.setProperty(

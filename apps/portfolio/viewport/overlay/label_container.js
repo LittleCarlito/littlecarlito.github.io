@@ -49,12 +49,10 @@ export class LabelContainer {
 	 */
 	async loadFont() {
 		try {
-			// Check if we're on GitHub Pages to handle path correctly
-			const isGitHubPages = window.location.hostname === 'littlecarlito.github.io';
-			// Use direct path for GitHub Pages to avoid double path issue
-			const fontPath = isGitHubPages 
-				? `${GITHUB_PAGES_BASE}/fonts/quicksand_regular.json`
-				: resolvePath('fonts/quicksand_regular.json');
+			// Use direct path approach that matches the background image loading
+			const fontPath = window.location.pathname.includes('/threejs_site/') 
+				? '/threejs_site/fonts/quicksand_regular.json'
+				: '/fonts/quicksand_regular.json';
 				
 			console.log(`Loading font from: ${fontPath}`);
 			console.log(`Current location: ${window.location.href}`);
