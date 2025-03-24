@@ -343,6 +343,103 @@ describe('GitHub Pages Build Integrity Tests', () => {
 				// like window.location.pathname.includes('threejs_site/') or pathname.includes("threejs_site")
 				// after minification
 				expect(mainJsContent).not.toContain(`/${GITHUB_PAGES_BASE}/`);
+				
+				// NEW: Check for doubled GitHub Pages base paths which would cause 404s
+				expect(mainJsContent).not.toContain(`${GITHUB_PAGES_BASE}/${GITHUB_PAGES_BASE}`);
+				expect(mainJsContent).not.toContain(`${GITHUB_PAGES_BASE}\\/${GITHUB_PAGES_BASE}`); // Escaped version
+				expect(mainJsContent).not.toContain(`"${GITHUB_PAGES_BASE}/${GITHUB_PAGES_BASE}"`);
+				expect(mainJsContent).not.toContain(`'${GITHUB_PAGES_BASE}/${GITHUB_PAGES_BASE}'`);
+			}
+		});
+		
+		// NEW: Test specifically for font loading paths
+		(fs.existsSync(PORTFOLIO_DIST_DIR) ? it : it.skip)('should ensure font files are accessible and have correct paths', async () => {
+			// Check if the fonts directory exists in the build
+			const fontsDir = path.join(PORTFOLIO_DIST_DIR, 'fonts');
+			expect(fs.existsSync(fontsDir)).toBe(true);
+			
+			// Test quicksand_regular.json accessibility
+			const fontPath = path.join(fontsDir, 'quicksand_regular.json');
+			if (fs.existsSync(fontPath)) {
+				const response = await fetch(`http://localhost:${TEST_SERVER_PORT}/${GITHUB_PAGES_BASE}/fonts/quicksand_regular.json`);
+				expect(response.status).toBe(200);
+				const fontData = await response.json();
+				expect(fontData).toBeDefined();
+			}
+			
+			// Also check TokyoRockstar.ttf
+			const ttfFontPath = path.join(fontsDir, 'TokyoRockstar.ttf');
+			if (fs.existsSync(ttfFontPath)) {
+				const response = await fetch(`http://localhost:${TEST_SERVER_PORT}/${GITHUB_PAGES_BASE}/fonts/TokyoRockstar.ttf`);
+				expect(response.status).toBe(200);
+				expect(response.headers.get('content-type')).toContain('font');
+			}
+			
+			// Check for correct font path handling in viewport code
+			const viewportJsFiles = findJsFiles(PORTFOLIO_DIST_DIR);
+			for (const file of viewportJsFiles) {
+				const content = fs.readFileSync(file, 'utf8');
+				
+				// Make sure there are no doubled paths that would cause 404s
+				expect(content).not.toContain(`${GITHUB_PAGES_BASE}/${GITHUB_PAGES_BASE}`);
+				
+				// Also check for specific font loading code patterns and make sure they're correct
+				if (content.includes('loadFont') || content.includes('FontLoader')) {
+					// This file likely deals with font loading, make extra checks
+					expect(content).not.toContain(`${GITHUB_PAGES_BASE}/${GITHUB_PAGES_BASE}/fonts`);
+					expect(content).not.toContain(`/${GITHUB_PAGES_BASE}/${GITHUB_PAGES_BASE}`);
+				}
+			}
+		});
+		
+		// NEW: Add specific test for path_config.js resolution logic
+		(fs.existsSync(PORTFOLIO_DIST_DIR) ? it : it.skip)('should correctly handle path resolution in path_config.js', () => {
+			// Find the file that contains path_config logic
+			const distFiles = fs.readdirSync(PORTFOLIO_DIST_DIR);
+			let pathConfigFile = null;
+			
+			// Look for compiled JS files that might contain the path resolution code
+			for (const file of distFiles) {
+				if (file.endsWith('.js')) {
+					const filePath = path.join(PORTFOLIO_DIST_DIR, file);
+					const content = fs.readFileSync(filePath, 'utf8');
+					
+					if (content.includes('getBasePath') || content.includes('resolvePath')) {
+						pathConfigFile = filePath;
+						break;
+					}
+				}
+			}
+			
+			if (pathConfigFile) {
+				const content = fs.readFileSync(pathConfigFile, 'utf8');
+				
+				// Ensure the path logic correctly handles slashes
+				expect(content).not.toContain(`"${GITHUB_PAGES_BASE}//" `); // Double slash issues
+				expect(content).not.toContain(`'${GITHUB_PAGES_BASE}//' `);
+				
+				// Ensure the path logic doesn't create doubled base paths
+				expect(content).not.toContain(`${GITHUB_PAGES_BASE}/${GITHUB_PAGES_BASE}`);
+			}
+		});
+		
+		// NEW: Test for doubled GitHub Pages paths in all JS files
+		(fs.existsSync(PORTFOLIO_DIST_DIR) ? it : it.skip)('should not contain any doubled GitHub Pages paths in any JS files', () => {
+			const jsFiles = findJsFiles(PORTFOLIO_DIST_DIR);
+			
+			for (const file of jsFiles) {
+				const content = fs.readFileSync(file, 'utf8');
+				
+				// Check for doubled base paths which would cause 404s
+				expect(content).not.toContain(`${GITHUB_PAGES_BASE}/${GITHUB_PAGES_BASE}`);
+				expect(content).not.toContain(`${GITHUB_PAGES_BASE}\\/${GITHUB_PAGES_BASE}`); // Escaped version
+				
+				// Also check no HTML files have doubled paths
+				if (file.endsWith('.html')) {
+					expect(content).not.toContain(`/${GITHUB_PAGES_BASE}/${GITHUB_PAGES_BASE}/`);
+					expect(content).not.toContain(`"${GITHUB_PAGES_BASE}/${GITHUB_PAGES_BASE}/`);
+					expect(content).not.toContain(`'${GITHUB_PAGES_BASE}/${GITHUB_PAGES_BASE}/`);
+				}
 			}
 		});
 		
@@ -385,4 +482,28 @@ describe('GitHub Pages Build Integrity Tests', () => {
 			expect(absoluteResponse.status).toBe(200);
 		});
 	});
-}); 
+});
+
+/**
+ * Helper function to find all JS files in a directory recursively
+ * @param {string} dir - Directory to search
+ * @returns {string[]} Array of file paths
+ */
+function findJsFiles(dir) {
+	const results = [];
+	const files = fs.readdirSync(dir);
+	
+	for (const file of files) {
+		const filePath = path.join(dir, file);
+		const stat = fs.statSync(filePath);
+		
+		if (stat.isDirectory()) {
+			// Recursively search subdirectories
+			results.push(...findJsFiles(filePath));
+		} else if (file.endsWith('.js') || file.endsWith('.html')) {
+			results.push(filePath);
+		}
+	}
+	
+	return results;
+} 
