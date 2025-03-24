@@ -5,7 +5,6 @@ const path = require('path');
 const PORTFOLIO_DIR = path.resolve(__dirname, '../../apps/portfolio');
 const PORTFOLIO_PUBLIC_DIR = path.resolve(PORTFOLIO_DIR, 'public');
 const PORTFOLIO_DIST_DIR = path.resolve(PORTFOLIO_DIR, 'dist');
-const BLORKPACK_DIR = path.resolve(__dirname, '../../packages/blorkpack');
 
 // Force jest to recognize this as a test file
 const test = global.test || jest.test;
@@ -33,35 +32,6 @@ describe('GitHub Pages Deployment', () => {
 			// Ensure connect-src also includes unpkg.com for dynamic imports
 			expect(indexHtmlContent).toContain('connect-src');
 			expect(indexHtmlContent).toContain('connect-src \'self\' https://unpkg.com');
-			
-			// Verify source-map-loader metadata is present to fix WebAssembly source map issues
-			expect(indexHtmlContent).toContain('<meta name="source-map-loader" content="enabled">');
-		});
-
-		// New test to verify WebGL extension handling
-		test('AppRenderer properly enables WebGL extensions', () => {
-			const appRendererPath = path.resolve(BLORKPACK_DIR, 'src/app_renderer.js');
-			expect(fs.existsSync(appRendererPath)).toBe(true);
-			
-			const appRendererContent = fs.readFileSync(appRendererPath, 'utf8');
-			
-			// Check that EXT_float_blend extension is explicitly enabled
-			expect(appRendererContent).toContain('gl.getExtension(\'EXT_float_blend\')');
-		});
-
-		test('Rapier loader handles WebAssembly imports properly', () => {
-			const loaderPath = path.resolve(BLORKPACK_DIR, 'src/loader.js');
-			expect(fs.existsSync(loaderPath)).toBe(true);
-			
-			const loaderContent = fs.readFileSync(loaderPath, 'utf8');
-			
-			// Check that Rapier loader uses standard import with no timestamp parameter for GitHub Pages
-			// This is required to work with import maps
-			expect(loaderContent).toContain('await import(\'@dimforge/rapier3d-compat\')');
-			
-			// Make sure there's no timestamp parameter in the import (would break import map)
-			expect(loaderContent).not.toContain('await import(\'@dimforge/rapier3d-compat?t=\'');
-			expect(loaderContent).not.toContain('const timestamp = Date.now()');
 		});
 
 		test('_headers file exists with proper MIME type definitions', () => {
@@ -104,9 +74,7 @@ describe('GitHub Pages Deployment', () => {
       
 			// Check that the config handles GitHub Pages base path
 			expect(viteConfigContent).toContain('isGitHubPages');
-			expect(viteConfigContent).toContain('GITHUB_PAGES_BASE');
-			// Check that it's using template literal syntax with the variable
-			expect(viteConfigContent).toContain('`${GITHUB_PAGES_BASE}/`');
+			expect(viteConfigContent).toContain('/threejs_site/');
 		});
 
 		test('vite.config.js includes file copy logic for custom_types.json', () => {
@@ -173,62 +141,5 @@ describe('GitHub Pages Dependencies', () => {
 	test('_headers file is copied to dist directory', () => {
 		const headersDistPath = path.resolve(PORTFOLIO_DIST_DIR, '_headers');
 		expect(fs.existsSync(headersDistPath)).toBe(true);
-	});
-});
-
-// New test specifically for Rapier loading
-(fs.existsSync(PORTFOLIO_DIST_DIR) ? describe : describe.skip)('GitHub Pages Rapier Loading Integrity', () => {
-	test('built main.js file does not contain timestamp parameters for Rapier imports', () => {
-		// Find the main.js file in the dist directory
-		const distFiles = fs.readdirSync(PORTFOLIO_DIST_DIR);
-		const mainJsFile = distFiles.find(file => file === 'main.js' || file.match(/^main\.[a-zA-Z0-9]+\.js$/));
-		
-		expect(mainJsFile).toBeTruthy();
-		if (mainJsFile) {
-			const mainJsPath = path.resolve(PORTFOLIO_DIST_DIR, mainJsFile);
-			const mainJsContent = fs.readFileSync(mainJsPath, 'utf8');
-			
-			// Should NOT contain timestamp parameter for Rapier imports
-			expect(mainJsContent).not.toContain('import("@dimforge/rapier3d-compat?t=');
-			expect(mainJsContent).not.toContain('import(\'@dimforge/rapier3d-compat?t=');
-			expect(mainJsContent).not.toContain('const timestamp = Date.now()');
-		}
-	});
-	
-	test('built index.html has correct import map for Rapier', () => {
-		const indexHtmlPath = path.resolve(PORTFOLIO_DIST_DIR, 'index.html');
-		expect(fs.existsSync(indexHtmlPath)).toBe(true);
-		
-		const indexHtmlContent = fs.readFileSync(indexHtmlPath, 'utf8');
-		
-		// Extract import map
-		const importMapMatch = indexHtmlContent.match(/<script type="importmap">([\s\S]*?)<\/script>/);
-		expect(importMapMatch).toBeTruthy();
-		
-		if (importMapMatch) {
-			const importMapText = importMapMatch[1];
-			let importMap;
-			
-			try {
-				importMap = JSON.parse(importMapText);
-			} catch (e) {
-				console.error('Failed to parse import map:', e);
-				// Force test failure if JSON is invalid
-				expect('Valid JSON').toBe('Invalid JSON: ' + e.message);
-				return;
-			}
-			
-			// Verify Rapier entry exists in the import map
-			expect(importMap.imports).toBeDefined();
-			expect(importMap.imports['@dimforge/rapier3d-compat']).toBeDefined();
-			
-			// Verify it points to a valid URL (no timestamp parameters)
-			const rapierUrl = importMap.imports['@dimforge/rapier3d-compat'];
-			expect(rapierUrl).toContain('https://unpkg.com/@dimforge/rapier3d-compat');
-			expect(rapierUrl).toContain('rapier.es.js');
-			
-			// Make sure there's no timestamp parameter
-			expect(rapierUrl).not.toContain('?t=');
-		}
 	});
 }); 

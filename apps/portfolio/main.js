@@ -1,6 +1,6 @@
 // @ts-nocheck
 // Import the global config first to ensure it's available to all modules
-import { FLAGS, THREE, RAPIER, initThree, updateTween, initRapier, resolvePath, getBasePath, GITHUB_PAGES_BASE } from './common/index.js';
+import { FLAGS, THREE, RAPIER, initThree, updateTween, initRapier } from './common/index.js';
 import { ViewableContainer } from './viewport/viewable_container.js';
 import { BackgroundContainer } from './background/background_container.js';
 import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/overlay_common/index.js';
@@ -178,10 +178,10 @@ async function init() {
 			// Define all possible paths to try
 			const customTypePaths = [
 				'./custom_types.json',                 // Relative to current directory
-				'custom_types.json',                   // From root (no leading slash)
-				`${GITHUB_PAGES_BASE}/custom_types.json`,      // GitHub Pages repo root
+				'/custom_types.json',                  // From root
+				'/threejs_site/custom_types.json',     // GitHub Pages repo root
 				'resources/custom_types.json',         // Resources directory
-				`${GITHUB_PAGES_BASE}/resources/custom_types.json`  // GitHub Pages resources
+				'/threejs_site/resources/custom_types.json' // GitHub Pages resources
 			];
 			
 			// Try each path until one works
@@ -239,29 +239,18 @@ async function init() {
 		}
 		switch (bg.type) {
 		case 'IMAGE':
-			// Check if we're on GitHub Pages
-			const isGitHubPages = window.location.hostname === 'littlecarlito.github.io';
-			
-			// Use direct absolute path for GitHub Pages to avoid path issues
-			const fullImagePath = isGitHubPages 
-				? `${GITHUB_PAGES_BASE}/${bg.image_path.startsWith('/') ? bg.image_path.substring(1) : bg.image_path}`
-				: resolvePath(bg.image_path);
-				
-			const basePath = getBasePath();
+			// Fix for GitHub Pages path resolution for background image
+			const basePath = window.location.pathname.includes('/threejs_site/') ? '/threejs_site/' : '/';
 			const imagePath = bg.image_path.startsWith('/') ? bg.image_path.substring(1) : bg.image_path;
+			const fullImagePath = `${basePath}${imagePath}`;
 			
 			// Log details about the path resolution
 			console.log('====== BACKGROUND TEXTURE PATH RESOLUTION ======');
-			console.log(`GitHub Pages: ${isGitHubPages}`);
 			console.log(`Original image path: ${bg.image_path}`);
 			console.log(`Base path detected: ${basePath}`);
 			console.log(`Normalized image path: ${imagePath}`);
 			console.log(`Full resolved path: ${fullImagePath}`);
-			console.log(`Window location: ${JSON.stringify({
-				href: window.location.href,
-				pathname: window.location.pathname,
-				origin: window.location.origin
-			})}`);
+			console.log(`Absolute URL: ${window.location.origin}${fullImagePath}`);
 			console.log('==================================================');
 			
 			// Load the texture with specific settings for proper display

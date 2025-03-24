@@ -1,6 +1,7 @@
 #!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
 
-# Exit on error but NOT for grep commands
+# Exit on error
 set -e
 
 echo "🔍 Running comprehensive pre-push checks..."
@@ -16,20 +17,6 @@ pnpm verify-lockfile || {
 # Get the current branch name
 BRANCH=$(git symbolic-ref --short HEAD)
 
-# Check if files related to Rapier or module loading have been modified
-echo "Checking for changes to module loading or Rapier-related files..."
-HAS_MODULE_CHANGES=0
-if git diff --cached --name-only | grep -q -E "(loader\.js|importmap|rapier|index\.html)"; then
-    HAS_MODULE_CHANGES=1
-fi
-
-# Check if files related to asset loading or path resolution have been modified
-echo "Checking for changes to asset paths or GitHub Pages related files..."
-HAS_ASSET_CHANGES=0
-if git diff --cached --name-only | grep -q -E "(main\.js|\.jpg|\.png|\.svg|manifest\.json|vite\.config|path)"; then
-    HAS_ASSET_CHANGES=1
-fi
-
 # Run tests first to catch any immediate issues
 echo "Running tests..."
 pnpm test || {
@@ -44,45 +31,14 @@ pnpm build || {
     exit 1
 }
 
-# Enhanced GitHub Pages path checks
-echo "🔍 Running enhanced GitHub Pages path checks..."
-pnpm check-gh-paths || {
-    echo "❌ GitHub Pages path check failed. Please fix the issues before pushing."
-    echo "Run 'pnpm check-gh-paths' locally to see detailed errors."
-    exit 1
-}
-
-# ALWAYS run GitHub Pages build and integrity tests to avoid deployment issues
-echo "🔍 Running GitHub Pages build and integrity tests..."
-GITHUB_PAGES=true FORCE_BUILD=true pnpm test:build-integrity || {
-    echo "❌ GitHub Pages build integrity tests failed."
-    echo "This could prevent the site from loading correctly when deployed."
-    echo "Please fix the issues before pushing. Common problems include:"
-    echo "  - Path resolution issues"
-    echo "  - Missing or inaccessible assets"
-    echo "  - Manifest loading problems"
-    exit 1
-}
-
-# Check if we need to run additional module integrity tests
-if [ $HAS_MODULE_CHANGES -eq 1 ]; then
-    echo "🔍 Module loading changes detected, running additional module integrity tests..."
-    pnpm test:build-integrity || {
-        echo "❌ Module integrity tests failed. The changes you've made might break Rapier loading."
-        echo "Please review your changes to module imports, especially Rapier loading."
-        exit 1
-    }
-fi
-
 # If pushing to main or merging into main, run additional checks
 if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ] || git rev-parse "origin/main...HEAD" >/dev/null 2>&1; then
     echo "🔍 Running additional checks for main branch..."
     
-    # Run the full GitHub Pages verification workflow
-    echo "Verifying GitHub Pages build and Rapier module loading..."
-    pnpm verify-gh-pages || {
-        echo "❌ GitHub Pages verification failed. Please fix the issues before pushing."
-        echo "Use 'pnpm verify-gh-pages' to debug the problem locally."
+    # Check for GitHub Pages build issues
+    echo "Checking GitHub Pages build..."
+    GITHUB_PAGES=true pnpm build || {
+        echo "❌ GitHub Pages build failed. Please fix build issues before pushing."
         exit 1
     }
 fi

@@ -1,5 +1,4 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals';
-import { GITHUB_PAGES_BASE } from '../../../../apps/portfolio/common/path_config.js';
 
 // Mock THREE.js
 const mockThree = {
@@ -62,7 +61,7 @@ function setupBackground(isGitHubPages) {
 	switch (bg.type) {
 	case 'IMAGE': {
 		// Path resolution
-		const basePath = isGitHubPages ? `/${GITHUB_PAGES_BASE}/` : '/';
+		const basePath = isGitHubPages ? '/threejs_site/' : '/';
 		const imagePath = bg.image_path.startsWith('/') ? bg.image_path.substring(1) : bg.image_path;
 		const fullImagePath = `${basePath}${imagePath}`;
 		

@@ -141,14 +141,11 @@
     </div>
 
     <script type="module">
-        // Import the GitHub Pages base path variable
-        import { GITHUB_PAGES_BASE } from '../../common/path_config.js';
-        
         // Set the font path based on hostname
         document.documentElement.style.setProperty(
             '--font-path',
             window.location.hostname === 'littlecarlito.github.io' 
-                ? `https://littlecarlito.github.io/${GITHUB_PAGES_BASE}/fonts/TokyoRockstar.ttf`
+                ? '/threejs_site/fonts/TokyoRockstar.ttf'
                 : '../fonts/TokyoRockstar.ttf'
         );
 
@@ -243,40 +240,17 @@
 
         // Determine the correct font path based on the hostname
         const fontPath = window.location.hostname === 'littlecarlito.github.io' 
-            ? `${GITHUB_PAGES_BASE}/fonts/TokyoRockstar.ttf`
+            ? '/threejs_site/fonts/TokyoRockstar.ttf'
             : '../fonts/TokyoRockstar.ttf';
-
-        // Add better error handling for font loading
-        console.log(`Attempting to load font from: ${fontPath}`);
-        console.log(`Current location: ${window.location.href}`);
 
         opentype.load(fontPath, function(err, loadedFont) {
             if (err) {
                 console.error('Font loading error:', err);
                 console.log('Attempted font path:', fontPath);
-                
-                // Try with alternative path if the first attempt fails
-                const altPath = window.location.hostname === 'littlecarlito.github.io'
-                    ? `https://littlecarlito.github.io/${GITHUB_PAGES_BASE}/fonts/TokyoRockstar.ttf`
-                    : '../fonts/TokyoRockstar.ttf';
-                
-                console.log('Trying alternative font path:', altPath);
-                opentype.load(altPath, function(altErr, altLoadedFont) {
-                    if (altErr) {
-                        console.error('Alternative font loading also failed:', altErr);
-                        return;
-                    }
-                    font = altLoadedFont;
-                    setupAfterFontLoad();
-                });
                 return;
             }
             font = loadedFont;
-            setupAfterFontLoad();
-        });
 
-        // Extract the font loading callback into a function
-        function setupAfterFontLoad() {
             // Create tape after font is loaded
             tape = document.createElement('div');
             tape.className = 'construction-tape';
@@ -327,7 +301,7 @@
             const svg = document.querySelector('#title_svg');
             svg.setAttribute('viewBox', `0 0 800 ${TOTAL_HEIGHT}`);
             svg.setAttribute('height', TOTAL_HEIGHT);
-        }
+        });
 
         // Constants for positioning
         const TITLE_X = 30;  // Keep this value for left margin

@@ -1,6 +1,5 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals';
 import * as THREE from 'three';
-import { GITHUB_PAGES_BASE } from '../../../../apps/portfolio/common/path_config.js';
 
 /**
  * Tests for the enhanced texture loading, particularly focused on
@@ -286,7 +285,7 @@ describe('Texture Loading and Configuration', () => {
 		function createTextureLoader(isGitHubPages) {
 			// Apply crossOrigin for GitHub Pages environment
 			const options = {};
-			if (isGitHubPages || window.location.href.includes(`/${GITHUB_PAGES_BASE}/`)) {
+			if (isGitHubPages || window.location.href.includes('/threejs_site/')) {
 				options.crossOrigin = 'anonymous';
 			}
 			return new THREE.TextureLoader(options);

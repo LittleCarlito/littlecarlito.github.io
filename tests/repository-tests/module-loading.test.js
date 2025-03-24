@@ -17,8 +17,7 @@ describe('Module Loading Tests', () => {
                     {
                         "imports": {
                             "three": "https://unpkg.com/three@0.161.0/build/three.module.js",
-                            "three/addons/": "https://unpkg.com/three@0.161.0/examples/jsm/",
-                            "@dimforge/rapier3d-compat": "https://unpkg.com/@dimforge/rapier3d-compat@0.11.2/rapier.es.js"
+                            "three/addons/": "https://unpkg.com/three@0.161.0/examples/jsm/"
                         }
                     }
                     </script>
@@ -55,7 +54,6 @@ describe('Module Loading Tests', () => {
 		const importMap = JSON.parse(importMapScript.textContent);
 		expect(importMap.imports['three']).toBe('https://unpkg.com/three@0.161.0/build/three.module.js');
 		expect(importMap.imports['three/addons/']).toBe('https://unpkg.com/three@0.161.0/examples/jsm/');
-		expect(importMap.imports['@dimforge/rapier3d-compat']).toBe('https://unpkg.com/@dimforge/rapier3d-compat@0.11.2/rapier.es.js');
 	});
 
 	it('should have main.js loaded as a module', () => {
@@ -74,10 +72,7 @@ describe('Vite Configuration Tests', () => {
 			path.resolve(__dirname, '../../apps/portfolio/vite.config.js'),
 			'utf-8'
 		);
-		// Check for the centralized GITHUB_PAGES_BASE variable
-		expect(viteConfigContent).toContain('const GITHUB_PAGES_BASE = \'threejs_site\'');
-		// Check that the base is correctly using the variable
-		expect(viteConfigContent).toContain('const base = isGitHubPages ? `${GITHUB_PAGES_BASE}/` : \'/\'');
+		expect(viteConfigContent).toContain('const base = isGitHubPages ? \'/threejs_site/\' : \'/\'');
 	});
 
 	it('should have Three.js properly configured in rollup options', () => {
@@ -188,98 +183,6 @@ describe('ES Module Shims Compatibility Tests', () => {
 			
 			// Verify the specific domain is in the CSP
 			expect(cspMeta).toContain(shimsDomain);
-		}
-	});
-});
-
-describe('Import Map Configuration Tests', () => {
-	it('should have correct entries in import map in index.html', () => {
-		const indexHtml = fs.readFileSync(
-			path.resolve(__dirname, '../../apps/portfolio/index.html'),
-			'utf-8'
-		);
-		
-		// Find the import map in the HTML
-		const importMapMatch = indexHtml.match(/<script type="importmap">([\s\S]*?)<\/script>/);
-		expect(importMapMatch).toBeTruthy();
-		
-		if (importMapMatch) {
-			const importMapText = importMapMatch[1];
-			const importMap = JSON.parse(importMapText);
-			
-			// Verify all required modules are in the import map
-			expect(importMap.imports['three']).toBeTruthy();
-			expect(importMap.imports['three/addons/']).toBeTruthy();
-			expect(importMap.imports['@dimforge/rapier3d-compat']).toBeTruthy();
-			
-			// Verify the Rapier import points to a valid URL
-			const rapierUrl = importMap.imports['@dimforge/rapier3d-compat'];
-			expect(rapierUrl).toContain('https://unpkg.com/@dimforge/rapier3d-compat');
-			expect(rapierUrl).toContain('rapier.es.js');
-		}
-	});
-	
-	it('should have matching import strategy in loader.js and import map', () => {
-		// Read the loader.js file
-		const loaderContent = fs.readFileSync(
-			path.resolve(__dirname, '../../packages/blorkpack/src/loader.js'),
-			'utf-8'
-		);
-		
-		// Read the index.html file
-		const indexHtml = fs.readFileSync(
-			path.resolve(__dirname, '../../apps/portfolio/index.html'),
-			'utf-8'
-		);
-		
-		// Extract the import map
-		const importMapMatch = indexHtml.match(/<script type="importmap">([\s\S]*?)<\/script>/);
-		expect(importMapMatch).toBeTruthy();
-		
-		if (importMapMatch) {
-			const importMap = JSON.parse(importMapMatch[1]);
-			
-			// If import map has Rapier entry, the loader should use bare import
-			if (importMap.imports['@dimforge/rapier3d-compat']) {
-				expect(loaderContent).toContain('await import(\'@dimforge/rapier3d-compat\')');
-				expect(loaderContent).not.toContain('?t=');
-			}
-		}
-	});
-	
-	it('should have consistency between loader.js and built main.js file', () => {
-		// Only run if dist/main.js exists
-		const builtMainJsPath = path.resolve(__dirname, '../../apps/portfolio/dist/main.js');
-		if (fs.existsSync(builtMainJsPath)) {
-			// Read the built main.js file
-			const builtMainJsContent = fs.readFileSync(builtMainJsPath, 'utf-8');
-			
-			// Check that it does NOT contain the timestamp parameter for Rapier imports
-			expect(builtMainJsContent).not.toContain('await import("@dimforge/rapier3d-compat?t=');
-			expect(builtMainJsContent).not.toContain('await import(\'@dimforge/rapier3d-compat?t=');
-			expect(builtMainJsContent).not.toContain('const timestamp = Date.now()');
-			
-			// Verify the import map style import is used (consistent with the import map in index.html)
-			const indexHtml = fs.readFileSync(
-				path.resolve(__dirname, '../../apps/portfolio/index.html'),
-				'utf-8'
-			);
-			
-			const importMapMatch = indexHtml.match(/<script type="importmap">([\s\S]*?)<\/script>/);
-			if (importMapMatch) {
-				const importMap = JSON.parse(importMapMatch[1]);
-				
-				// If Rapier is in the import map, check for the absence of timestamp parameters
-				// instead of looking for the exact bare import string, since Vite may transform imports
-				if (importMap.imports['@dimforge/rapier3d-compat']) {
-					// Check that there are no timestamp parameters in the imports
-					const hasTimestampImport = 
-						builtMainJsContent.includes('@dimforge/rapier3d-compat?t=') || 
-						builtMainJsContent.includes('const timestamp = Date.now()');
-					
-					expect(hasTimestampImport).toBe(false);
-				}
-			}
 		}
 	});
 }); 

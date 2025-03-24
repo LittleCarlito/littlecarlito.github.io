@@ -240,8 +240,7 @@
         },
         "background": {
             "type": "IMAGE",
-            "color": "#000000",
-            "image_path": "/images/gradient.jpg"
+            "image_path": "images/gradient.jpg"
         },
         "environment": {
             "gravity": {
