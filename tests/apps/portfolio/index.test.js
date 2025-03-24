@@ -13,6 +13,9 @@ import './main.test.js';
 // import './environment/background-path-resolution.test.js';
 // import './environment/background-manifest-integration.test.js';
 
+// Import the new test for 1-pixel gradient handling
+import './environment/gradient-texture-handling.test.js';
+
 describe('Portfolio Application Test Suite', () => {
 	test('Test suite loaded successfully', () => {
 		// This is a simple test to ensure the test suite is loaded
