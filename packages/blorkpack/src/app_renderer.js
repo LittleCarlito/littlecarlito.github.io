@@ -28,8 +28,15 @@ export class AppRenderer {
 		this.webgl_renderer.setSize(window.innerWidth, window.innerHeight);
 		this.webgl_renderer.shadowMap.enabled = true;
 		this.webgl_renderer.shadowMap.type = THREE.VSMShadowMap;
-		this. webgl_renderer.domElement.style.position = 'absolute';
-		this. webgl_renderer.domElement.style.top = '0';
+		
+		// Explicitly enable EXT_float_blend extension to avoid warnings
+		const gl = this.webgl_renderer.getContext();
+		if (gl) {
+			gl.getExtension('EXT_float_blend');
+		}
+		
+		this.webgl_renderer.domElement.style.position = 'absolute';
+		this.webgl_renderer.domElement.style.top = '0';
 		this.webgl_renderer.domElement.style.zIndex = '0';
 		document.body.appendChild(this.webgl_renderer.domElement);
 		// After effects

@@ -25,8 +25,16 @@ export async function load_three() {
  */
 export async function load_rapier() {
 	if (!loadedRAPER) {
-		const RAPIER = await import('@dimforge/rapier3d-compat');
-		loadedRAPER = RAPIER;
+		try {
+			// Allow source maps to work with WebAssembly by adding cache-busting parameter
+			// This ensures unique URLs that won't conflict when generating source maps
+			const timestamp = Date.now();
+			const RAPIER = await import('@dimforge/rapier3d-compat?t=' + timestamp);
+			loadedRAPER = RAPIER;
+		} catch (error) {
+			console.error("Failed to load Rapier:", error);
+			throw error;
+		}
 	}
 	return loadedRAPER;
 }
