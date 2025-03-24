@@ -1,5 +1,4 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals';
-import { GITHUB_PAGES_BASE } from '../../../../apps/portfolio/common/path_config.js';
 
 // Mock the texture loader
 const mockTextureLoader = {
@@ -36,7 +35,7 @@ const mockTextureLoader = {
  * This is a pure function that handles the path resolution logic
  */
 function resolveBackgroundImagePath(imagePath, isGitHubPages) {
-	const basePath = isGitHubPages ? `/${GITHUB_PAGES_BASE}/` : '/';
+	const basePath = isGitHubPages ? '/threejs_site/' : '/';
 	const normalizedPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
 	return `${basePath}${normalizedPath}`;
 }
@@ -56,7 +55,7 @@ describe('Background Image Path Resolution Function', () => {
 	test('should resolve relative paths correctly for GitHub Pages', () => {
 		// Test with a relative path in GitHub Pages
 		const result = resolveBackgroundImagePath('images/gradient.jpg', true);
-		expect(result).toBe(`/${GITHUB_PAGES_BASE}/images/gradient.jpg`);
+		expect(result).toBe('/threejs_site/images/gradient.jpg');
 	});
 
 	test('should handle absolute paths correctly for local development', () => {
@@ -68,25 +67,25 @@ describe('Background Image Path Resolution Function', () => {
 	test('should handle absolute paths correctly for GitHub Pages', () => {
 		// Test with an absolute path in GitHub Pages
 		const result = resolveBackgroundImagePath('/images/gradient.jpg', true);
-		expect(result).toBe(`/${GITHUB_PAGES_BASE}/images/gradient.jpg`);
+		expect(result).toBe('/threejs_site/images/gradient.jpg');
 	});
 
 	test('should handle nested paths correctly', () => {
 		// Test with a nested path
 		const result = resolveBackgroundImagePath('assets/images/backgrounds/gradient.jpg', true);
-		expect(result).toBe(`/${GITHUB_PAGES_BASE}/assets/images/backgrounds/gradient.jpg`);
+		expect(result).toBe('/threejs_site/assets/images/backgrounds/gradient.jpg');
 	});
 
 	test('should handle empty paths gracefully', () => {
 		// Test with an empty path
 		const result = resolveBackgroundImagePath('', true);
-		expect(result).toBe(`/${GITHUB_PAGES_BASE}/`);
+		expect(result).toBe('/threejs_site/');
 	});
 
 	test('should handle paths with query parameters', () => {
 		// Test with a path that includes query parameters
 		const result = resolveBackgroundImagePath('images/gradient.jpg?v=123', true);
-		expect(result).toBe(`/${GITHUB_PAGES_BASE}/images/gradient.jpg?v=123`);
+		expect(result).toBe('/threejs_site/images/gradient.jpg?v=123');
 	});
 });
 
@@ -127,7 +126,7 @@ describe('Background Image Path Resolution Integration', () => {
 		mockTextureLoader.load(resolvedPath, onLoadSuccess);
 		
 		// Verify the correct path was used and the callback was executed
-		expect(mockTextureLoader.load).toHaveBeenCalledWith(`/${GITHUB_PAGES_BASE}/images/gradient.jpg`, onLoadSuccess);
+		expect(mockTextureLoader.load).toHaveBeenCalledWith('/threejs_site/images/gradient.jpg', onLoadSuccess);
 		expect(onLoadSuccess).toHaveBeenCalled();
 	});
 	

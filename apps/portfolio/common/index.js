@@ -8,7 +8,5 @@ export { THREE, Easing, Tween, updateTween, RAPIER, initThree, initRapier, AppRe
 // Re-export other common utilities
 export * from './flags'
 export * from './types'
-// Export path utilities
-export * from './path_config'
 // Asset management is now a separate package - Import these directly from '@littlecarlito/blorkpack'
 // Examples: AssetStorage, AssetHandler, AssetActivator, ASSET_TYPE, ASSET_CONFIGS

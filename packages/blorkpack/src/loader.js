@@ -25,15 +25,8 @@ export async function load_three() {
  */
 export async function load_rapier() {
 	if (!loadedRAPER) {
-		try {
-			// Import Rapier directly without timestamp parameter
-			// This allows it to work with the import map on GitHub Pages
-			const RAPIER = await import('@dimforge/rapier3d-compat');
-			loadedRAPER = RAPIER;
-		} catch (error) {
-			console.error("Failed to load Rapier:", error);
-			throw error;
-		}
+		const RAPIER = await import('@dimforge/rapier3d-compat');
+		loadedRAPER = RAPIER;
 	}
 	return loadedRAPER;
 }

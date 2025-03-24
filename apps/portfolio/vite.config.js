@@ -13,12 +13,9 @@ import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const outputPath = path.resolve(__dirname, 'dist/index.js')
 
-// Define the GitHub Pages project name - should match the one in path_config.js
-const GITHUB_PAGES_BASE = 'threejs_site';
-
 // Determine if building for GitHub Pages
 const isGitHubPages = process.env.GITHUB_PAGES === 'true'
-const base = isGitHubPages ? `${GITHUB_PAGES_BASE}/` : '/'
+const base = isGitHubPages ? '/threejs_site/' : '/'
 
 // Helper function to copy directory contents to the dist folder
 /**
@@ -278,10 +275,6 @@ export default defineConfig(({ command }) => {
 									fs.mkdirSync(resourcesDir, { recursive: true });
 								}
 								fs.copyFileSync(manifestSrc, manifestDest);
-								
-								// Also copy to the root directory for easier access
-								fs.copyFileSync(manifestSrc, path.resolve(__dirname, 'dist/manifest.json'));
-								console.log('✓ Copied manifest.json to both resources directory and root');
 							} else {
 								console.warn('⚠️ No manifest.json found in public/resources directory');
 							}

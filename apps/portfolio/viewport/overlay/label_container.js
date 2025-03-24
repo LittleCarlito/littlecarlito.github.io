@@ -1,7 +1,7 @@
 import { get_screen_size, get_associated_position, WEST } from "./overlay_common/screen";
 import { CATEGORIES } from '../../common/categories';
 import { TEXTURE_LOADER, TYPES, PAN_SPEED, ROTATE_SPEED, FOCUS_ROTATION } from './overlay_common/index'
-import { Easing, FLAGS, THREE, Tween, resolvePath, GITHUB_PAGES_BASE } from '../../common';
+import { Easing, FLAGS, THREE, Tween } from '../../common';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 /**
@@ -49,20 +49,16 @@ export class LabelContainer {
 	 */
 	async loadFont() {
 		try {
-			// Use direct path approach that matches the background image loading
-			const fontPath = window.location.pathname.includes('/threejs_site/') 
+			// Determine the correct font path based on deployment environment
+			const fontPath = window.location.hostname === 'littlecarlito.github.io' 
 				? '/threejs_site/fonts/quicksand_regular.json'
 				: '/fonts/quicksand_regular.json';
-				
-			console.log(`Loading font from: ${fontPath}`);
-			console.log(`Current location: ${window.location.href}`);
-			
+			if (FLAGS.ASSET_LOGS) console.log(`Attempting to load font from: ${fontPath}`);
 			this.font = await this.font_loader.loadAsync(fontPath);
 			if (FLAGS.ASSET_LOGS) console.log('Font loaded successfully');
 			return this.font;
 		} catch (error) {
 			console.error("Error loading font:", error);
-			console.log("Will fall back to canvas-based text rendering");
 			// If font fails to load, we'll fall back to canvas-based text rendering
 			return null;
 		}
