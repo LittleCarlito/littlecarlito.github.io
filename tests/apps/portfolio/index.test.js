@@ -5,12 +5,13 @@
  * It also provides a central place to configure test environment specific to the portfolio app.
  */
 
-// Import individual test files directly - removing imports that cause issues
-// import './main.test.js';
+// Import individual test files directly
+import './main.test.js';
 
 // Environment and background tests
-import './environment/background-path-resolution.test.js';
-import './environment/background-manifest-integration.test.js';
+// These tests were removed as they contained incorrect path resolution logic
+// import './environment/background-path-resolution.test.js';
+// import './environment/background-manifest-integration.test.js';
 
 describe('Portfolio Application Test Suite', () => {
 	test('Test suite loaded successfully', () => {
