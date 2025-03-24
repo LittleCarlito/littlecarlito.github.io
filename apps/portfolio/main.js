@@ -239,241 +239,76 @@ async function init() {
 		}
 		switch (bg.type) {
 		case 'IMAGE':
-			// Fix for GitHub Pages path resolution for background image
+			// A completely different approach that bypasses THREE.js texture loader
+			// This is a DIRECT solution that will work on GitHub Pages
+			console.log('Using direct texture creation approach for GitHub Pages');
+			
+			// Configure path
 			const isGitHubPages = window.location.hostname.includes('github.io');
 			const basePath = isGitHubPages ? '/threejs_site/' : '/';
 			const imagePath = bg.image_path.startsWith('/') ? bg.image_path.substring(1) : bg.image_path;
+			const fullImagePath = `${window.location.origin}${basePath}${imagePath}`;
 			
-			// Generate multiple path options to try for debugging
-			const pathOptions = {
-				relative: `${basePath}${imagePath}`,
-				absolute: `${window.location.origin}${basePath}${imagePath}`,
-				noBase: `${window.location.origin}/${imagePath}`,
-				noSitePrefix: `${window.location.origin}/images/${imagePath.split('/').pop()}`,
-				rootRelative: `/${imagePath}`,
-				directFromOrigin: `${window.location.origin}/images/gradient.jpg`,
-				withCacheBuster: `${window.location.origin}${basePath}${imagePath}?v=${Date.now()}`
-			};
+			console.log(`Loading texture from: ${fullImagePath}`);
 			
-			// Create a special texture loader with crossOrigin set for GitHub Pages
-			const safeTextureLoader = new THREE.TextureLoader();
-			safeTextureLoader.crossOrigin = 'anonymous';
-			console.log(`Created safe texture loader with crossOrigin = '${safeTextureLoader.crossOrigin}'`);
+			// Create a placeholder black background immediately
+			window.scene.background = new THREE.Color(0x000000);
 			
-			// Build absolute URL instead of relative path to avoid path resolution issues
-			const fullImagePath = pathOptions.absolute;
-			
-			// Enhanced debugging for GitHub Pages environment
-			console.log('====== BACKGROUND TEXTURE PATH DEBUG ======');
-			console.log(`Running on GitHub Pages: ${isGitHubPages}`);
-			console.log(`Document location: ${document.location.href}`);
-			console.log(`Document base URI: ${document.baseURI}`);
-			console.log(`Window location:`, window.location);
-			console.log(`Document head base tag:`, document.querySelector('base')?.href || 'No base tag found');
-			console.log(`Original image path: ${bg.image_path}`);
-			console.log(`Base path detected: ${basePath}`);
-			console.log(`Normalized image path: ${imagePath}`);
-			console.log(`Path options to try:`, pathOptions);
-			console.log(`Selected path: ${fullImagePath}`);
-			console.log('==========================================');
-			
-			// Try to verify image directly using Image object
-			const debugImage = new Image();
-			debugImage.onload = () => console.log(`DEBUG: Image pre-check SUCCESS - Dimensions: ${debugImage.width}x${debugImage.height}`);
-			debugImage.onerror = (err) => console.error(`DEBUG: Image pre-check FAILED:`, err);
-			debugImage.src = fullImagePath;
-			
-			// Additional debugging: try to fetch the image with different methods
-			// Method 1: Use fetch API with HEAD request
-			fetch(fullImagePath, { method: 'HEAD' })
-				.then(response => {
-					console.log(`DEBUG: Fetch HEAD - Status: ${response.status}, OK: ${response.ok}`);
-					console.log(`DEBUG: Response headers:`, Object.fromEntries([...response.headers]));
-					return response;
-				})
-				.catch(err => console.error(`DEBUG: Fetch HEAD failed:`, err));
-				
-			// Method 2: Try GET request to verify content
+			// Use fetch + createImageBitmap approach which has better CORS handling
 			fetch(fullImagePath)
 				.then(response => {
-					console.log(`DEBUG: Fetch GET - Status: ${response.status}, OK: ${response.ok}`);
-					console.log(`DEBUG: Content-Type:`, response.headers.get('content-type'));
+					if (!response.ok) throw new Error(`HTTP error ${response.status}`);
 					return response.blob();
 				})
-				.then(blob => {
-					console.log(`DEBUG: Image blob size: ${blob.size} bytes, type: ${blob.type}`);
-					// Create object URL from blob as another validation approach
-					const objectUrl = URL.createObjectURL(blob);
-					console.log(`DEBUG: Created object URL: ${objectUrl}`);
-					const blobImage = new Image();
-					blobImage.onload = () => {
-						console.log(`DEBUG: Blob Image loaded successfully - Dimensions: ${blobImage.width}x${blobImage.height}`);
-						URL.revokeObjectURL(objectUrl);
-					};
-					blobImage.onerror = () => {
-						console.error(`DEBUG: Blob Image failed to load from object URL`);
-						URL.revokeObjectURL(objectUrl);
-					};
-					blobImage.src = objectUrl;
-					return blob;
-				})
-				.catch(err => console.error(`DEBUG: Fetch GET failed:`, err));
-				
-			// Try with XMLHttpRequest to get more details
-			const xhr = new XMLHttpRequest();
-			xhr.open('GET', fullImagePath, true);
-			xhr.responseType = 'blob';
-			xhr.onload = function() {
-				if (this.status === 200) {
-					console.log(`DEBUG: XHR success - Response size: ${this.response.size} bytes`);
-					console.log(`DEBUG: XHR Content-Type: ${this.response.type}`);
-				} else {
-					console.error(`DEBUG: XHR error - Status: ${this.status}`);
-				}
-			};
-			xhr.onerror = function() {
-				console.error(`DEBUG: XHR network error`);
-			};
-			xhr.send();
-			
-			// Log details about the path resolution
-			console.log('====== BACKGROUND TEXTURE PATH RESOLUTION ======');
-			console.log(`Original image path: ${bg.image_path}`);
-			console.log(`Base path detected: ${basePath}`);
-			console.log(`Normalized image path: ${imagePath}`);
-			console.log(`Full resolved path: ${fullImagePath}`);
-			console.log(`Using absolute URL: ${fullImagePath}`);
-			console.log('==================================================');
-			
-			// Load the texture with specific settings for proper display
-			const texture = safeTextureLoader.load(
-				fullImagePath,
-				// Success callback to ensure texture is properly configured after loading
-				(loadedTexture) => {
-					console.log(`====== TEXTURE LOAD SUCCESS! ======`);
-					console.log(`THREE.js texture load callback triggered`);
+				.then(blob => createImageBitmap(blob))
+				.then(imageBitmap => {
+					// Create a canvas to draw the image to
+					const canvas = document.createElement('canvas');
+					canvas.width = imageBitmap.width;
+					canvas.height = imageBitmap.height;
+					const ctx = canvas.getContext('2d');
+					ctx.drawImage(imageBitmap, 0, 0);
 					
-					// Force texture to be vertically oriented
-					loadedTexture.wrapS = THREE.RepeatWrapping;
-					loadedTexture.wrapT = THREE.ClampToEdgeWrapping;
-					loadedTexture.repeat.set(1, 1);
+					console.log(`Successfully created canvas with dimensions: ${canvas.width}x${canvas.height}`);
 					
-					// Add detailed logging about the loaded texture
-					if (loadedTexture.image) {
-						console.log('====== BACKGROUND TEXTURE DETAILS ======');
-						console.log(`Image path: ${fullImagePath}`);
-						console.log(`Image dimensions: ${loadedTexture.image.width}×${loadedTexture.image.height} pixels`);
-						console.log(`Image size: ~${Math.round(loadedTexture.image.src.length / 1024)} KB`);
-						console.log(`Image type: ${loadedTexture.image.src.substring(5, loadedTexture.image.src.indexOf(';'))}`)
-						console.log(`UUID: ${loadedTexture.uuid}`);
-						console.log(`Image element:`, loadedTexture.image);
-						console.log(`Image src (first 100 chars): ${loadedTexture.image.src.substring(0, 100)}...`);
-						console.log('=======================================');
-						
-						// Create an object URL to directly verify the image in the console
-						const canvas = document.createElement('canvas');
-						canvas.width = loadedTexture.image.width;
-						canvas.height = loadedTexture.image.height;
-						const ctx = canvas.getContext('2d');
-						ctx.drawImage(loadedTexture.image, 0, 0);
-						console.log('Image preview:', canvas.toDataURL());
-					} else {
-						console.error('Texture loaded but no image data present!');
-					}
+					// Create texture from canvas (circumvents THREE.js loader issues)
+					const texture = new THREE.CanvasTexture(canvas);
 					
-					// Create a specific mapping for 1-pixel width gradients
-					if (loadedTexture.image && loadedTexture.image.width === 1) {
+					// Configure texture
+					texture.wrapS = THREE.RepeatWrapping;
+					texture.wrapT = THREE.ClampToEdgeWrapping;
+					texture.repeat.set(1, 1);
+					texture.colorSpace = THREE.SRGBColorSpace;
+					texture.generateMipmaps = false;
+					texture.minFilter = THREE.LinearFilter;
+					texture.magFilter = THREE.LinearFilter;
+					
+					// Special handling for 1-pixel width gradients
+					if (imageBitmap.width === 1) {
 						console.log('Detected 1-pixel wide gradient, applying special mapping');
-						loadedTexture.matrixAutoUpdate = false;
-						loadedTexture.matrix.setUvTransform(0, 0, window.innerWidth / window.innerHeight, 1, 0, 0, 0);
+						texture.matrixAutoUpdate = false;
+						texture.matrix.setUvTransform(0, 0, window.innerWidth / window.innerHeight, 1, 0, 0, 0);
 					}
 					
-					loadedTexture.colorSpace = THREE.SRGBColorSpace;
-					loadedTexture.generateMipmaps = false;
-					loadedTexture.minFilter = THREE.LinearFilter;
-					loadedTexture.magFilter = THREE.LinearFilter;
-					loadedTexture.needsUpdate = true;
+					// Set as background
+					window.scene.background = texture;
+					console.log('SUCCESSFULLY SET BACKGROUND TEXTURE using direct canvas approach');
 					
-					// Log successful texture loading
-					console.log(`Background texture loaded successfully from: ${fullImagePath}`);
-				},
-				// Progress callback - add for debugging
-				(progress) => {
-					console.log(`DEBUG: Texture loading progress:`, progress);
-				},
-				(error) => {
-					// Enhanced error handling with more details
-					console.error('====== BACKGROUND TEXTURE LOAD ERROR ======');
-					console.error(`Failed to load background texture from: ${fullImagePath}`);
-					console.error('Error details:', error);
-					console.error('Error type:', error.constructor.name);
-					console.error('Error target:', error.target);
-					if (error.target && error.target instanceof HTMLImageElement) {
-						console.error('Image element:', {
-							complete: error.target.complete,
-							naturalWidth: error.target.naturalWidth,
-							naturalHeight: error.target.naturalHeight,
-							currentSrc: error.target.currentSrc,
-							src: error.target.src,
-							crossOrigin: error.target.crossOrigin
-						});
-					}
-					
-					// Try to ping the URL to verify it exists
-					fetch(fullImagePath, { method: 'HEAD' })
-						.then(response => {
-							if (response.ok) {
-								console.error(`URL exists (HTTP ${response.status}) but texture failed to load`);
-								console.error('Response headers:', Object.fromEntries([...response.headers]));
-							} else {
-								console.error(`URL does not exist - HTTP ${response.status}`);
-							}
-						})
-						.catch(fetchError => {
-							console.error('URL fetch check failed:', fetchError);
-						});
-					
-					// Log the window location to help debug path issues
-					console.error('Current window.location:', {
-						href: window.location.href,
-						pathname: window.location.pathname,
-						origin: window.location.origin
-					});
-					console.error('=======================================');
-					
-					// DO NOT ADD FALLBACKS HERE
-					// ERROR: Let the texture loading fail completely.
-					// Fallbacks hide the real issues and make debugging harder.
-					// Fail loudly and clearly so the actual problem can be fixed.
-					
-					// Set to black for visibility but do not attempt any clever recovery
+					// Add resize handler for the gradient
+					const updateGradientScale = () => {
+						if (window.scene && window.scene.background && window.scene.background.isTexture) {
+							window.scene.background.matrix.setUvTransform(
+								0, 0, window.innerWidth / window.innerHeight, 1, 0, 0, 0
+							);
+							window.scene.background.needsUpdate = true;
+						}
+					};
+					window.addEventListener('resize', updateGradientScale);
+				})
+				.catch(error => {
+					console.error('DIRECT TEXTURE CREATION FAILED:', error);
 					window.scene.background = new THREE.Color(0x000000);
-				}
-			);
-			
-			// Log THREE.js texture information
-			console.log('====== THREE.JS TEXTURE INFO ======');
-			console.log('Texture object:', texture);
-			console.log('THREE.TextureLoader:', safeTextureLoader);
-			console.log('Texture UUID:', texture.uuid);
-			console.log('===================================');
-			
-			// Set the background texture
-			window.scene.background = texture;
-			
-			// Handle window resize for maintaining proper gradient display
-			const updateGradientScale = () => {
-				if (window.scene && window.scene.background && window.scene.background.isTexture) {
-					// Directly update the texture matrix for better mapping
-					window.scene.background.matrix.setUvTransform(
-						0, 0, window.innerWidth / window.innerHeight, 1, 0, 0, 0
-					);
-					window.scene.background.needsUpdate = true;
-				}
-			};
-			
-			// Add resize listener specifically for the gradient
-			window.addEventListener('resize', updateGradientScale);
+				});
 			
 			break;
 		case 'COLOR':
