@@ -17,7 +17,10 @@ module.exports = {
 		'/node_modules/',
 		'/dist/',
 		'packages/blorkpack/src/test/__mocks__/',
-		'tests/lint-tests/'
+		'tests/lint-tests/',
+		// Ignore ESM files that use import.meta.url syntax
+		'tests/apps/portfolio/environment/gh-pages-texture-test.js',
+		'tests/apps/portfolio/gh-pages-simulator.js'
 	],
 	moduleNameMapper: {
 		'^(\\.{1,2}/.*)\\.js$': '$1',
