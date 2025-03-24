@@ -288,16 +288,8 @@ async function init() {
 			// Handle loading errors
 			image.onerror = function(error) {
 				console.error('Error loading background texture:', error);
-				
-				// Create a solid blue fallback if data URL fails
-				const canvas = document.createElement('canvas');
-				canvas.width = 2;
-				canvas.height = 2;
-				const ctx = canvas.getContext('2d');
-				ctx.fillStyle = '#000033';
-				ctx.fillRect(0, 0, 2, 2);
-				const fallbackTexture = new THREE.CanvasTexture(canvas);
-				window.scene.background = fallbackTexture;
+				console.error('Failed to load gradient data URL - this is a critical error');
+				// No fallback - we want to see the error when it happens
 			};
 			
 			// Set the source to the data URL
