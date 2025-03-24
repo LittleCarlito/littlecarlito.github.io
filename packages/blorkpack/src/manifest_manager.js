@@ -60,34 +60,54 @@ export class ManifestManager {
 		if (this.load_promise) {
 			return this.load_promise;
 		}
-		// Get the base path from the current URL
-		const basePath = window.location.pathname.includes(`${GITHUB_PAGES_BASE}/`) ? `${GITHUB_PAGES_BASE}/` : '';
-		const fullPath = `${basePath}${relativePath}`.replace(/\/+/g, '/');
-		console.log(`Loading manifest from: ${fullPath}`);
-		try {
-			const response = await fetch(fullPath);
-			if (!response.ok) {
-				throw new Error(`Failed to load manifest: ${response.status}`);
-			}
-			const data = await response.json();
-			this.manifest_data = data;
-			this.is_loaded = true;
-			this.successful_manifest_path = fullPath;
-			// Log success with clear formatting
-			console.log(`
+
+		// Define all possible paths to try for the manifest
+		const basePath = window.location.pathname.includes(`${GITHUB_PAGES_BASE}/`) ? `/${GITHUB_PAGES_BASE}/` : '/';
+		const pathsToTry = [
+			relativePath,                     // Try the provided path directly
+			`/${relativePath}`.replace(/\/+/g, '/'),  // Try with a leading slash
+			`${basePath}${relativePath}`.replace(/\/+/g, '/'),  // Try with the base path
+			'manifest.json',                  // Try in the root directory
+			`${basePath}manifest.json`.replace(/\/+/g, '/')  // Try in the root with base path
+		];
+		
+		// Log all paths we're going to try
+		console.log('Attempting to load manifest from the following paths:');
+		pathsToTry.forEach(path => console.log(` - ${path}`));
+		
+		// Try each path until one works
+		for (const fullPath of pathsToTry) {
+			try {
+				console.log(`Trying to load manifest from: ${fullPath}`);
+				const response = await fetch(fullPath);
+				if (!response.ok) {
+					console.warn(`Path ${fullPath} failed with status: ${response.status}`);
+					continue; // Try the next path
+				}
+				
+				const data = await response.json();
+				this.manifest_data = data;
+				this.is_loaded = true;
+				this.successful_manifest_path = fullPath;
+				
+				// Log success with clear formatting
+				console.log(`
 %cManifest Successfully Loaded
 %cPath: ${fullPath}
-%cThis is the path that worked - you can remove other manifest copies
-`, 
-			'color: green; font-weight: bold; font-size: 1.1em;',
-			'color: blue; font-weight: bold;',
-			'color: gray; font-style: italic;'
-			);
-			return data;
-		} catch (error) {
-			console.error("Failed to load manifest:", error);
-			throw error;
+%cThis is the path that worked - you can use this path directly in the future
+`, 'color: green; font-weight: bold;', 'color: blue;', 'color: black;');
+				
+				return this.manifest_data;
+			} catch (error) {
+				console.warn(`Failed to load manifest from ${fullPath}:`, error);
+				// Continue to the next path
+			}
 		}
+		
+		// If we got here, all paths failed
+		const error = new Error('Failed to load manifest from all paths');
+		console.error(error);
+		throw error;
 	}
 	/**
      * Saves the manifest data to a JSON file (for the application creating manifests).
