@@ -33,6 +33,11 @@ export class AppRenderer {
 		this.webgl_renderer.domElement.style.zIndex = '0';
 		document.body.appendChild(this.webgl_renderer.domElement);
 		
+		// Enable WebGL extensions to avoid warnings
+		if (THREE.enableWebGLExtensions) {
+			THREE.enableWebGLExtensions(this.webgl_renderer);
+		}
+		
 		// After effects
 		this.composer = new EffectComposer(this.webgl_renderer);
 		const output_pass = new OutputPass();

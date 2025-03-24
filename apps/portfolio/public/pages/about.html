@@ -1028,6 +1028,21 @@
             renderer.setPixelRatio(window.devicePixelRatio);
             container.appendChild(renderer.domElement);
             
+            // Enable WebGL extensions to avoid warnings
+            if (THREE.enableWebGLExtensions) {
+                THREE.enableWebGLExtensions(renderer);
+            } else {
+                // Fallback if the helper is not available
+                try {
+                    const gl = renderer.getContext();
+                    if (gl) {
+                        gl.getExtension('EXT_float_blend');
+                    }
+                } catch (e) {
+                    console.warn('Could not enable WebGL extensions:', e);
+                }
+            }
+            
             // Setup scene and camera
             const scene = new THREE.Scene();
             const camera = new THREE.OrthographicCamera(

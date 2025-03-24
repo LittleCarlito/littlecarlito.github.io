@@ -5,36 +5,42 @@ let threeModule = null;
 let isInitialized = false;
 let initPromise = null;
 
+// Add this variable to track if we've added our extension enabler
+let extensionEnablerAdded = false;
+
 /**
- * Patches the THREE.WebGLRenderer constructor to automatically enable required WebGL extensions
- * @param {Object} three - The THREE module to patch
+ * A simple function that enables the necessary WebGL extensions for a renderer
+ * @param {THREE.WebGLRenderer} renderer - The renderer to enable extensions for
  */
-function patchWebGLRenderer(three) {
-	// Store the original WebGLRenderer constructor
-	const OriginalWebGLRenderer = three.WebGLRenderer;
+function enableExtensionsForRenderer(renderer) {
+	if (!renderer) return;
 	
-	// Create a new constructor that wraps the original
-	three.WebGLRenderer = function(parameters) {
-		// Call the original constructor
-		const renderer = new OriginalWebGLRenderer(parameters);
-		
-		// Enable required WebGL extensions
+	try {
 		const gl = renderer.getContext();
 		if (gl) {
-			// Enable EXT_float_blend to avoid the warning
 			gl.getExtension('EXT_float_blend');
-			// Other useful extensions
 			gl.getExtension('OES_texture_float');
 			gl.getExtension('OES_texture_float_linear');
 			gl.getExtension('WEBGL_depth_texture');
 		}
-		
-		return renderer;
-	};
+	} catch (e) {
+		console.warn('Could not enable WebGL extensions:', e);
+	}
+}
+
+/**
+ * We'll add this function to the THREE global so it can be called manually
+ */
+function setupExtensionEnabler(three) {
+	if (extensionEnablerAdded) return;
 	
-	// Copy prototype and static properties
-	three.WebGLRenderer.prototype = OriginalWebGLRenderer.prototype;
-	Object.setPrototypeOf(three.WebGLRenderer, OriginalWebGLRenderer);
+	// Add our enableExtensions helper to the THREE global
+	three.enableWebGLExtensions = enableExtensionsForRenderer;
+	
+	// Print a helpful message in the console
+	console.log('THREE.enableWebGLExtensions() is now available to manually enable WebGL extensions on any renderer');
+	
+	extensionEnablerAdded = true;
 }
 
 /**
@@ -50,8 +56,8 @@ export function createThreeProxy() {
 				const module = await load_three();
 				threeModule = module.THREE;
 				
-				// Patch WebGLRenderer to automatically enable extensions
-				patchWebGLRenderer(threeModule);
+				// Add our extension enabler to THREE
+				setupExtensionEnabler(threeModule);
 				
 				isInitialized = true;
 				return threeModule;
