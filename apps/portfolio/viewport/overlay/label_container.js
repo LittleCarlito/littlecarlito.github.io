@@ -1,7 +1,7 @@
 import { get_screen_size, get_associated_position, WEST } from "./overlay_common/screen";
 import { CATEGORIES } from '../../common/categories';
 import { TEXTURE_LOADER, TYPES, PAN_SPEED, ROTATE_SPEED, FOCUS_ROTATION } from './overlay_common/index'
-import { Easing, FLAGS, THREE, Tween, resolvePath } from '../../common';
+import { Easing, FLAGS, THREE, Tween, resolvePath, GITHUB_PAGES_BASE } from '../../common';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 /**
@@ -53,7 +53,7 @@ export class LabelContainer {
 			const isGitHubPages = window.location.hostname === 'littlecarlito.github.io';
 			// Use direct path for GitHub Pages to avoid double path issue
 			const fontPath = isGitHubPages 
-				? '/threejs_site/fonts/quicksand_regular.json' 
+				? `${GITHUB_PAGES_BASE}/fonts/quicksand_regular.json`
 				: resolvePath('fonts/quicksand_regular.json');
 				
 			console.log(`Loading font from: ${fontPath}`);

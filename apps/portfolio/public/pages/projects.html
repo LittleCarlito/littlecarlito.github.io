@@ -141,11 +141,14 @@
     </div>
 
     <script type="module">
+        // Import the GitHub Pages base path variable
+        import { GITHUB_PAGES_BASE } from '../../common/path_config.js';
+        
         // Set the font path based on hostname
         document.documentElement.style.setProperty(
             '--font-path',
             window.location.hostname === 'littlecarlito.github.io' 
-                ? 'https://littlecarlito.github.io/threejs_site/fonts/TokyoRockstar.ttf'
+                ? `https://littlecarlito.github.io/${GITHUB_PAGES_BASE}/fonts/TokyoRockstar.ttf`
                 : '../fonts/TokyoRockstar.ttf'
         );
 
@@ -240,7 +243,7 @@
 
         // Determine the correct font path based on the hostname
         const fontPath = window.location.hostname === 'littlecarlito.github.io' 
-            ? '/threejs_site/fonts/TokyoRockstar.ttf'
+            ? `${GITHUB_PAGES_BASE}/fonts/TokyoRockstar.ttf`
             : '../fonts/TokyoRockstar.ttf';
 
         // Add better error handling for font loading
@@ -254,7 +257,7 @@
                 
                 // Try with alternative path if the first attempt fails
                 const altPath = window.location.hostname === 'littlecarlito.github.io'
-                    ? 'https://littlecarlito.github.io/threejs_site/fonts/TokyoRockstar.ttf'
+                    ? `https://littlecarlito.github.io/${GITHUB_PAGES_BASE}/fonts/TokyoRockstar.ttf`
                     : '../fonts/TokyoRockstar.ttf';
                 
                 console.log('Trying alternative font path:', altPath);

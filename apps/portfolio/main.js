@@ -244,7 +244,7 @@ async function init() {
 			
 			// Use direct absolute path for GitHub Pages to avoid path issues
 			const fullImagePath = isGitHubPages 
-				? `/threejs_site/${bg.image_path.startsWith('/') ? bg.image_path.substring(1) : bg.image_path}`
+				? `${GITHUB_PAGES_BASE}/${bg.image_path.startsWith('/') ? bg.image_path.substring(1) : bg.image_path}`
 				: resolvePath(bg.image_path);
 				
 			const basePath = getBasePath();
