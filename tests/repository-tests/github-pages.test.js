@@ -5,6 +5,7 @@ const path = require('path');
 const PORTFOLIO_DIR = path.resolve(__dirname, '../../apps/portfolio');
 const PORTFOLIO_PUBLIC_DIR = path.resolve(PORTFOLIO_DIR, 'public');
 const PORTFOLIO_DIST_DIR = path.resolve(PORTFOLIO_DIR, 'dist');
+const BLORKPACK_DIR = path.resolve(__dirname, '../../packages/blorkpack');
 
 // Force jest to recognize this as a test file
 const test = global.test || jest.test;
@@ -32,6 +33,31 @@ describe('GitHub Pages Deployment', () => {
 			// Ensure connect-src also includes unpkg.com for dynamic imports
 			expect(indexHtmlContent).toContain('connect-src');
 			expect(indexHtmlContent).toContain('connect-src \'self\' https://unpkg.com');
+			
+			// Verify source-map-loader metadata is present to fix WebAssembly source map issues
+			expect(indexHtmlContent).toContain('<meta name="source-map-loader" content="enabled">');
+		});
+
+		// New test to verify WebGL extension handling
+		test('AppRenderer properly enables WebGL extensions', () => {
+			const appRendererPath = path.resolve(BLORKPACK_DIR, 'src/app_renderer.js');
+			expect(fs.existsSync(appRendererPath)).toBe(true);
+			
+			const appRendererContent = fs.readFileSync(appRendererPath, 'utf8');
+			
+			// Check that EXT_float_blend extension is explicitly enabled
+			expect(appRendererContent).toContain('gl.getExtension(\'EXT_float_blend\')');
+		});
+
+		test('Rapier loader handles WebAssembly source maps properly', () => {
+			const loaderPath = path.resolve(BLORKPACK_DIR, 'src/loader.js');
+			expect(fs.existsSync(loaderPath)).toBe(true);
+			
+			const loaderContent = fs.readFileSync(loaderPath, 'utf8');
+			
+			// Check that Rapier loader uses dynamic imports with cache busting
+			expect(loaderContent).toContain('const timestamp = Date.now()');
+			expect(loaderContent).toContain('await import(\'@dimforge/rapier3d-compat?t=\'');
 		});
 
 		test('_headers file exists with proper MIME type definitions', () => {
