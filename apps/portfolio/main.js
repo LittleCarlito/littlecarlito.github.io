@@ -239,102 +239,38 @@ async function init() {
 		}
 		switch (bg.type) {
 		case 'IMAGE':
-			// Simple and direct approach that works in both local and GitHub Pages environments
-			console.log('Loading background texture using environment-aware path resolution');
+			// Instead of loading from a file, use a base64 encoded data URL
+			console.log('Creating background from data URL...');
 			
-			// Create default black background immediately
-			window.scene.background = new THREE.Color(0x000000);
+			// Base64 encoded gradient.jpg
+			const gradientBase64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAQ3AAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD9eKKKK/vA/wANwooooAKKKKACimbx6H9P8aKB8suz/r/h/wA+zIqKgyfU/maK4fa+cfv/AOCel7Dy/B+X9f8ADsi8z2/X/wCtRUdFeX7bzfTqvL+vP/t5nu/VfL8P/tSPcv8Atfmf/iqKjoryvbvu+nT0/wAvwduh731ddl+H+X9WflevRTct/d/8eFFeT7bzX/gXp/l+XbX3vqy7P7/+D6/0tYsn1P5mio949D+n+NFeV7Xzl9//AAT2/q77dun+H+vu8rxUVD8n+1+lFeT7b1+5f5/1d+Vvf+reXb/23+v87+82ioMn1P5mivK9qv7v3/15/wBLX3fYeX4Py/r/AIdke4/3D+v+FFM3t6/oP8KK8r2397t1/wAPl5/P/t49v6t5dv8A23+v87+9FvHof0/xoqKivK9t/e/B+X+X9WVve+r+S/D/AD8vz7shwv8Ae/8AHTRTaK8r2v8AXN6eXp+Hke99Wfd/ev67/wBPSDJ9T+ZoqPePQ/p/jRXle38390f66r7z3PYPt+Xl/l+XbVm9vX9B/hRUe9fX9D/hRXke2819z/r/AId+Vve+reX9f+BENFQZPqfzNFeX7b1+9+Xl5o972C7fn5f5/l30bz6D8z/hRUOT7fkP8KK8r23kunWXl5+vrZ9z2vq3p+P+f9WflePePQ/p/jRTN3+yv5UV5XtvNfj5efp93lp731d+fT9P+D+O32Ydy+i/r/8AE0VHRXl+3ff8vL/P8u+n0H1X16dvLy/q3raLB/vj/vo0VFuH+Sv/AMVRXj+38390f66r7z3PY+T6dF5f15f9ushopu9fX9D/AIUV5XtfOP4/5+f59me19V8vw/8AtSGimZHv/wB9j/4qivK9t5y6dX1t/n/WtvoPqy7L7v8A7XzX3kOT6H9P8aKi3t6/oP8ACivK9r5vp38vPy1+fdHu/VvT8f8AP+rPyuzJ9D+n+NFQ5PqfzNFeV7Xzj9//AAT3PYPs+nX0/wA/xduhFlf77fmf8KKjoryvb+a++P8AXf8Ap6e79W/uvp28vP8Aq/reLeff8x/8TRTKK8n23m/uX9f8M/K/v+wXZ9Onp/X332d4d7ev6D/Cio96+v6H/CivL9s+76dX5f5/j5M9r6t5Lp0Xl5ef/D6XhopnP98fkP8AGivK9s+z6dfTz8n+PfT3vq/l+Xl5+X4+t4qKh3t6/oP8KK8n23mvuf8AX/Dvyt731d/yr73/AF1/PsyPevr+h/wopm8+g/X/ABory/b+a/8AAl/l5fn3Z7vsf6v6f8H8fIi3r6/of8KKhoryfbPz/q39f8Oz3Pq3l/X/AIEM5/vj8h/jRUVFeT7X+9+H/APoPq/k/wAf8/P8+zIt59B+v+NFRb19f0P+FFeV7ZefTo/7v9L/ALdPZ+rPt+Hp5+n3+erNw/uD9P8ACio8j1H5iivK9r/i+9//ACX9Xflb3vq/l+fl5+f4etoKKZh/Uf5/CivK9r5r+rf183209/6s+y6fp5en49tIqKKK8/ml3f8AX/Dfn3Z61l2X9f8ADL7gooopAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAf/Z';
 			
-			// Determine if running on GitHub Pages
-			const isGitHubPages = window.location.hostname.includes('github.io');
-			console.log(`Running on GitHub Pages: ${isGitHubPages}`);
-			
-			// Input image path from config
-			let imagePath = bg.image_path;
-			
-			// Normalize path for consistency
-			// Remove leading slash if present for more consistent handling
-			if (imagePath.startsWith('/')) {
-				imagePath = imagePath.substring(1);
-			}
-			
-			// Create correct absolute URL based on environment
-			// For GitHub Pages, use absolute URL with origin to ensure proper resolution
-			const origin = window.location.origin;
-			const basePath = isGitHubPages ? '/threejs_site' : '';
-			const imageUrl = `${origin}${basePath}/images/gradient.jpg`;
-			
-			console.log(`Loading texture from: ${imageUrl}`);
-			
-			// Create texture loader with explicit crossOrigin setting
+			// Create a texture directly from the data URL
 			const textureLoader = new THREE.TextureLoader();
 			textureLoader.crossOrigin = 'anonymous';
 			
-			// Load the texture with the correct path 
-			const loadTexture = (url, onSuccess, onError) => {
-				console.log(`Trying to load texture from: ${url}`);
-				return textureLoader.load(
-					url,
-					onSuccess,
-					undefined, // onProgress is not needed
-					(error) => {
-						console.error(`Error loading texture from ${url}:`, error);
-						if (onError) onError(error);
-					}
-				);
-			};
-			
-			// Try different URL formats if the first one fails
-			const fallbackUrls = [
-				imageUrl,
-				`${origin}${basePath}/images/gradient.jpg`,
-				`${basePath}/images/gradient.jpg`,
-				'/images/gradient.jpg',
-				'images/gradient.jpg',
-				'/threejs_site/images/gradient.jpg'
-			];
-			
-			let fallbackIndex = 0;
-			const tryNextFallback = (error) => {
-				fallbackIndex++;
-				if (fallbackIndex < fallbackUrls.length) {
-					console.log(`Trying fallback ${fallbackIndex} of ${fallbackUrls.length - 1}`);
-					return loadTexture(
-						fallbackUrls[fallbackIndex],
-						handleTextureLoaded,
-						tryNextFallback
-					);
-				} else {
-					console.error('All texture loading attempts failed:', error);
-					// Use a solid color instead
-					const canvas = document.createElement('canvas');
-					canvas.width = 2;
-					canvas.height = 2;
-					const ctx = canvas.getContext('2d');
-					ctx.fillStyle = '#000033';
-					ctx.fillRect(0, 0, 2, 2);
-					const fallbackTexture = new THREE.CanvasTexture(canvas);
-					handleTextureLoaded(fallbackTexture);
-				}
-			};
-			
-			const handleTextureLoaded = (loadedTexture) => {
-				console.log('Background texture loaded successfully!');
+			// Create the texture from base64 data
+			const texture = new THREE.Texture();
+			const image = new Image();
+			image.onload = function() {
+				texture.image = image;
+				texture.needsUpdate = true;
+				
 				// Configure texture settings
-				loadedTexture.wrapS = THREE.RepeatWrapping;
-				loadedTexture.wrapT = THREE.ClampToEdgeWrapping;
-				loadedTexture.repeat.set(1, 1);
+				texture.wrapS = THREE.RepeatWrapping;
+				texture.wrapT = THREE.ClampToEdgeWrapping;
+				texture.repeat.set(1, 1);
 				
 				// Special handling for 1-pixel width gradients
-				if (loadedTexture.image && loadedTexture.image.width === 1) {
+				if (image.width === 1) {
 					console.log('1-pixel gradient detected, configuring special handling...');
-					loadedTexture.minFilter = THREE.LinearFilter;
+					texture.minFilter = THREE.LinearFilter;
 					
 					// Set up vertical stretching
 					const updateTextureScaleToFillScreen = () => {
 						const aspect = window.innerWidth / window.innerHeight;
-						loadedTexture.repeat.set(1, 1 * aspect);
-						loadedTexture.needsUpdate = true;
+						texture.repeat.set(1, 1 * aspect);
+						texture.needsUpdate = true;
 					};
 					
 					// Initial update
@@ -344,23 +280,28 @@ async function init() {
 					window.addEventListener('resize', updateTextureScaleToFillScreen);
 				}
 				
-				// Standard texture settings
-				loadedTexture.colorSpace = THREE.SRGBColorSpace;
-				loadedTexture.generateMipmaps = false;
-				loadedTexture.minFilter = THREE.LinearFilter;
-				loadedTexture.magFilter = THREE.LinearFilter;
-				loadedTexture.needsUpdate = true;
-				
 				// Apply to scene
-				window.scene.background = loadedTexture;
+				window.scene.background = texture;
+				console.log('Background texture loaded successfully!');
 			};
 			
-			// Start loading the texture with the first URL in our list
-			loadTexture(
-				fallbackUrls[0],
-				handleTextureLoaded,
-				tryNextFallback
-			);
+			// Handle loading errors
+			image.onerror = function(error) {
+				console.error('Error loading background texture:', error);
+				
+				// Create a solid blue fallback if data URL fails
+				const canvas = document.createElement('canvas');
+				canvas.width = 2;
+				canvas.height = 2;
+				const ctx = canvas.getContext('2d');
+				ctx.fillStyle = '#000033';
+				ctx.fillRect(0, 0, 2, 2);
+				const fallbackTexture = new THREE.CanvasTexture(canvas);
+				window.scene.background = fallbackTexture;
+			};
+			
+			// Set the source to the data URL
+			image.src = 'data:image/jpeg;base64,' + gradientBase64;
 			
 			// Add resize handler for the gradient
 			const updateGradientScale = () => {
