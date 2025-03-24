@@ -8,3 +8,5 @@ export * from '../../../common/categories';
 export * from '../../../common/types';
 // Re-export everything from links.js
 export * from './links';
+
+export const TEXTURE_LOADER = new THREE.TextureLoader().setCrossOrigin('anonymous');
