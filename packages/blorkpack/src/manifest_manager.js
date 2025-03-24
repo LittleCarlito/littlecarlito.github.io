@@ -1,5 +1,7 @@
 import { DEFAULT_ENVIRONMENT, DEFAULT_PHYSICS, DEFAULT_RENDERING } from '../resources/default_configs.js';
 import { BLORKPACK_FLAGS } from './blorkpack_flags.js';
+// Create a local constant for GITHUB_PAGES_BASE instead of importing it
+const GITHUB_PAGES_BASE = 'threejs_site';
 /**
  * Singleton class for managing manifest.json data
  */
@@ -59,8 +61,8 @@ export class ManifestManager {
 			return this.load_promise;
 		}
 		// Get the base path from the current URL
-		const basePath = window.location.pathname.includes('/threejs_site/') ? '/threejs_site' : '';
-		const fullPath = `${basePath}/${relativePath}`.replace(/\/+/g, '/');
+		const basePath = window.location.pathname.includes(`${GITHUB_PAGES_BASE}/`) ? `${GITHUB_PAGES_BASE}/` : '';
+		const fullPath = `${basePath}${relativePath}`.replace(/\/+/g, '/');
 		console.log(`Loading manifest from: ${fullPath}`);
 		try {
 			const response = await fetch(fullPath);

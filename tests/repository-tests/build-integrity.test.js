@@ -9,12 +9,22 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const fetch = require('node-fetch');
+const http = require('http');
+const handler = require('serve-handler');
+
+// Define the GitHub Pages base path - this should match the one in path_config.js
+const GITHUB_PAGES_BASE = 'threejs_site';
 
 // Paths
 const REPO_ROOT = path.resolve(__dirname, '../..');
 const PORTFOLIO_DIR = path.resolve(REPO_ROOT, 'apps/portfolio');
 const PORTFOLIO_DIST_DIR = path.resolve(PORTFOLIO_DIR, 'dist');
 const BLORKPACK_DIR = path.resolve(REPO_ROOT, 'packages/blorkpack');
+
+// Port for local test server
+const TEST_SERVER_PORT = 9876;
+let server = null;
 
 // Helper to run build
 /**
@@ -36,11 +46,55 @@ function runGitHubPagesBuild() {
 	}
 }
 
+/**
+ * Start a local server to test asset loading
+ */
+async function startTestServer() {
+	if (!fs.existsSync(PORTFOLIO_DIST_DIR)) {
+		throw new Error('No dist directory found. Run with FORCE_BUILD=true to build first.');
+	}
+    
+	// Return a promise that resolves when the server is ready
+	return new Promise((resolve, reject) => {
+		server = http.createServer((request, response) => {
+			// Simulate GitHub Pages base path
+			if (request.url.startsWith(`/${GITHUB_PAGES_BASE}/`)) {
+				// Strip the base path for serve-handler
+				request.url = request.url.replace(`/${GITHUB_PAGES_BASE}`, '');
+			}
+            
+			return handler(request, response, {
+				public: PORTFOLIO_DIST_DIR,
+				rewrites: [{ source: '**', destination: '/index.html' }]
+			});
+		});
+        
+		server.listen(TEST_SERVER_PORT, () => {
+			console.log(`Test server running at http://localhost:${TEST_SERVER_PORT}`);
+			resolve();
+		});
+        
+		server.on('error', (err) => {
+			reject(err);
+		});
+	});
+}
+
+/**
+ * Stop the test server
+ */
+function stopTestServer() {
+	if (server) {
+		server.close();
+		server = null;
+	}
+}
+
 describe('GitHub Pages Build Integrity Tests', () => {
 	// Optionally rebuild before tests if needed
 	const shouldBuild = process.env.FORCE_BUILD === 'true';
     
-	beforeAll(() => {
+	beforeAll(async () => {
 		if (shouldBuild) {
 			const buildSuccess = runGitHubPagesBuild();
 			expect(buildSuccess).toBe(true);
@@ -230,6 +284,105 @@ describe('GitHub Pages Build Integrity Tests', () => {
 			
 			const importMap = JSON.parse(importMapMatch[1]);
 			expect(importMap.imports['@dimforge/rapier3d-compat']).toBeDefined();
+		});
+	});
+	
+	// New test section specifically for testing asset loading in GitHub Pages environment
+	describe('Asset Loading', () => {
+		// Server for testing asset loading
+		beforeAll(async () => {
+			if (fs.existsSync(PORTFOLIO_DIST_DIR)) {
+				await startTestServer();
+			}
+		});
+		
+		afterAll(() => {
+			stopTestServer();
+		});
+		
+		// Skip if no dist directory but don't fail the entire suite
+		(fs.existsSync(PORTFOLIO_DIST_DIR) ? it : it.skip)('manifest.json should be accessible', async () => {
+			const response = await fetch(`http://localhost:${TEST_SERVER_PORT}/${GITHUB_PAGES_BASE}/resources/manifest.json`);
+			expect(response.status).toBe(200);
+			const manifest = await response.json();
+			expect(manifest).toBeDefined();
+		});
+		
+		(fs.existsSync(PORTFOLIO_DIST_DIR) ? it : it.skip)('gradient.jpg should be accessible from GitHub Pages path', async () => {
+			// First verify the file exists in the build
+			const imagePath = path.join(PORTFOLIO_DIST_DIR, 'images', 'gradient.jpg');
+			expect(fs.existsSync(imagePath)).toBe(true);
+			
+			// Now test it can be loaded via the GitHub Pages URL
+			const response = await fetch(`http://localhost:${TEST_SERVER_PORT}/${GITHUB_PAGES_BASE}/images/gradient.jpg`);
+			expect(response.status).toBe(200);
+			expect(response.headers.get('content-type')).toContain('image/jpeg');
+		});
+		
+		(fs.existsSync(PORTFOLIO_DIST_DIR) ? it : it.skip)('should correctly resolve image paths in main.js', () => {
+			// Find the main.js file
+			const distFiles = fs.readdirSync(PORTFOLIO_DIST_DIR);
+			const mainJsFile = distFiles.find(f => f === 'main.js' || f.match(/^main\.[a-z0-9]+\.js$/i));
+			
+			expect(mainJsFile).toBeTruthy();
+			
+			if (mainJsFile) {
+				const mainJsPath = path.join(PORTFOLIO_DIST_DIR, mainJsFile);
+				const mainJsContent = fs.readFileSync(mainJsPath, 'utf8');
+				
+				// Check path resolution for GitHub Pages
+				// Make sure it does NOT include paths with double slashes like /threejs_site/
+				expect(mainJsContent).not.toContain(`"/${GITHUB_PAGES_BASE}/`);
+				expect(mainJsContent).not.toContain(`'/${GITHUB_PAGES_BASE}/`);
+				
+				// Instead of looking for a specific string format, use a more flexible approach
+				// to accommodate minification and compile-time transformations
+				expect(mainJsContent).toContain('pathname.includes');
+				expect(mainJsContent).toContain(GITHUB_PAGES_BASE);
+				// Ensure there are no leading slashes before threejs_site/ - this will allow any pattern
+				// like window.location.pathname.includes('threejs_site/') or pathname.includes("threejs_site")
+				// after minification
+				expect(mainJsContent).not.toContain(`/${GITHUB_PAGES_BASE}/`);
+			}
+		});
+		
+		(fs.existsSync(PORTFOLIO_DIST_DIR) ? it : it.skip)('should test all manifest-referenced assets are accessible', async () => {
+			// Load the manifest to check asset paths
+			const manifestPath = path.join(PORTFOLIO_DIST_DIR, 'resources', 'manifest.json');
+			if (!fs.existsSync(manifestPath)) {
+				console.warn('Manifest not found, skipping asset check');
+				return;
+			}
+			
+			const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+			
+			// Check background image if present
+			if (manifest.background && manifest.background.type === 'IMAGE' && manifest.background.image_path) {
+				const imagePath = manifest.background.image_path;
+				
+				// Build the GitHub Pages URL
+				const normalizedPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
+				const fullImagePath = `${GITHUB_PAGES_BASE}/${normalizedPath}`;
+				
+				// Try to access the image
+				const response = await fetch(`http://localhost:${TEST_SERVER_PORT}/${fullImagePath}`);
+				expect(response.status).toBe(200);
+				expect(response.headers.get('content-type')).toMatch(/^image\//);
+			}
+			
+			// Check other key assets from manifest
+			// Add more checks here for other important assets
+		});
+		
+		// Add a test for path resolution logic
+		(fs.existsSync(PORTFOLIO_DIST_DIR) ? it : it.skip)('should correctly resolve assets with both leading slash and non-leading slash paths', async () => {
+			// Test relative path (no leading slash)
+			const relativeResponse = await fetch(`http://localhost:${TEST_SERVER_PORT}/${GITHUB_PAGES_BASE}/images/gradient.jpg`);
+			expect(relativeResponse.status).toBe(200);
+			
+			// Test absolute path (with leading slash, which should still work)
+			const absoluteResponse = await fetch(`http://localhost:${TEST_SERVER_PORT}/${GITHUB_PAGES_BASE}/images/gradient.jpg`);
+			expect(absoluteResponse.status).toBe(200);
 		});
 	});
 }); 

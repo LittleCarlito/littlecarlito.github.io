@@ -65,7 +65,9 @@
     "tree-kill": "^1.2.2",
     "turbo": "latest",
     "yaml": "^2.7.0",
-    "jsdom": "^24.0.0"
+    "jsdom": "^24.0.0",
+    "node-fetch": "^2.6.9",
+    "serve-handler": "^6.1.5"
   },
   "packageManager": "pnpm@8.15.4",
   "engines": {

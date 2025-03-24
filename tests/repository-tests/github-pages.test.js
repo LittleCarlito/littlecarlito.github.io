@@ -104,7 +104,9 @@ describe('GitHub Pages Deployment', () => {
       
 			// Check that the config handles GitHub Pages base path
 			expect(viteConfigContent).toContain('isGitHubPages');
-			expect(viteConfigContent).toContain('/threejs_site/');
+			expect(viteConfigContent).toContain('GITHUB_PAGES_BASE');
+			// Check that it's using template literal syntax with the variable
+			expect(viteConfigContent).toContain('`${GITHUB_PAGES_BASE}/`');
 		});
 
 		test('vite.config.js includes file copy logic for custom_types.json', () => {

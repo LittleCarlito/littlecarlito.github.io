@@ -13,9 +13,12 @@ import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const outputPath = path.resolve(__dirname, 'dist/index.js')
 
+// Define the GitHub Pages project name - should match the one in path_config.js
+const GITHUB_PAGES_BASE = 'threejs_site';
+
 // Determine if building for GitHub Pages
 const isGitHubPages = process.env.GITHUB_PAGES === 'true'
-const base = isGitHubPages ? '/threejs_site/' : '/'
+const base = isGitHubPages ? `${GITHUB_PAGES_BASE}/` : '/'
 
 // Helper function to copy directory contents to the dist folder
 /**
