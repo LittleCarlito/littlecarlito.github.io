@@ -243,4 +243,40 @@ describe('Import Map Configuration Tests', () => {
 			}
 		}
 	});
+	
+	it('should have consistency between loader.js and built main.js file', () => {
+		// Only run if dist/main.js exists
+		const builtMainJsPath = path.resolve(__dirname, '../../apps/portfolio/dist/main.js');
+		if (fs.existsSync(builtMainJsPath)) {
+			// Read the built main.js file
+			const builtMainJsContent = fs.readFileSync(builtMainJsPath, 'utf-8');
+			
+			// Check that it does NOT contain the timestamp parameter for Rapier imports
+			expect(builtMainJsContent).not.toContain('await import("@dimforge/rapier3d-compat?t=');
+			expect(builtMainJsContent).not.toContain('await import(\'@dimforge/rapier3d-compat?t=');
+			expect(builtMainJsContent).not.toContain('const timestamp = Date.now()');
+			
+			// Verify the import map style import is used (consistent with the import map in index.html)
+			const indexHtml = fs.readFileSync(
+				path.resolve(__dirname, '../../apps/portfolio/index.html'),
+				'utf-8'
+			);
+			
+			const importMapMatch = indexHtml.match(/<script type="importmap">([\s\S]*?)<\/script>/);
+			if (importMapMatch) {
+				const importMap = JSON.parse(importMapMatch[1]);
+				
+				// If Rapier is in the import map, check for the absence of timestamp parameters
+				// instead of looking for the exact bare import string, since Vite may transform imports
+				if (importMap.imports['@dimforge/rapier3d-compat']) {
+					// Check that there are no timestamp parameters in the imports
+					const hasTimestampImport = 
+						builtMainJsContent.includes('@dimforge/rapier3d-compat?t=') || 
+						builtMainJsContent.includes('const timestamp = Date.now()');
+					
+					expect(hasTimestampImport).toBe(false);
+				}
+			}
+		}
+	});
 }); 
