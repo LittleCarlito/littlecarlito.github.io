@@ -239,76 +239,76 @@ async function init() {
 		}
 		switch (bg.type) {
 		case 'IMAGE':
-			// A completely different approach that bypasses THREE.js texture loader
-			// This is a DIRECT solution that will work on GitHub Pages
-			console.log('Using direct texture creation approach for GitHub Pages');
+			// Final attempt - direct GitHub raw content URL approach
+			console.log('Loading background texture directly from GitHub raw content URL');
 			
-			// Configure path
-			const isGitHubPages = window.location.hostname.includes('github.io');
-			const basePath = isGitHubPages ? '/threejs_site/' : '/';
-			const imagePath = bg.image_path.startsWith('/') ? bg.image_path.substring(1) : bg.image_path;
-			const fullImagePath = `${window.location.origin}${basePath}${imagePath}`;
+			// Create a texture loader with crossOrigin explicitly set
+			const textureLoader = new THREE.TextureLoader();
+			textureLoader.crossOrigin = 'anonymous';
 			
-			console.log(`Loading texture from: ${fullImagePath}`);
+			// GitHub raw content URL for the image
+			// This bypasses all relative path resolution issues
+			// For GitHub Pages repos, raw content is available at raw.githubusercontent.com
+			const repoOwner = 'littlecarlito';
+			const repoName = 'threejs_site';
+			const branch = 'gh-pages';  // or 'main' if that's your publishing branch
 			
-			// Create a placeholder black background immediately
+			// Get the image path from the config
+			const imagePathRaw = bg.image_path.startsWith('/') ? bg.image_path.substring(1) : bg.image_path;
+			
+			// Direct raw content URL that doesn't depend on any path resolution
+			const rawImageUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/${imagePathRaw}`;
+			
+			// Create placeholder black background immediately
 			window.scene.background = new THREE.Color(0x000000);
 			
-			// Use fetch + createImageBitmap approach which has better CORS handling
-			fetch(fullImagePath)
-				.then(response => {
-					if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-					return response.blob();
-				})
-				.then(blob => createImageBitmap(blob))
-				.then(imageBitmap => {
-					// Create a canvas to draw the image to
-					const canvas = document.createElement('canvas');
-					canvas.width = imageBitmap.width;
-					canvas.height = imageBitmap.height;
-					const ctx = canvas.getContext('2d');
-					ctx.drawImage(imageBitmap, 0, 0);
-					
-					console.log(`Successfully created canvas with dimensions: ${canvas.width}x${canvas.height}`);
-					
-					// Create texture from canvas (circumvents THREE.js loader issues)
-					const texture = new THREE.CanvasTexture(canvas);
-					
+			console.log(`Loading texture directly from: ${rawImageUrl}`);
+			
+			// Try to load from the raw URL
+			const texture = textureLoader.load(
+				rawImageUrl,
+				// Success handler
+				(loadedTexture) => {
+					console.log('Background texture loaded successfully!');
 					// Configure texture
-					texture.wrapS = THREE.RepeatWrapping;
-					texture.wrapT = THREE.ClampToEdgeWrapping;
-					texture.repeat.set(1, 1);
-					texture.colorSpace = THREE.SRGBColorSpace;
-					texture.generateMipmaps = false;
-					texture.minFilter = THREE.LinearFilter;
-					texture.magFilter = THREE.LinearFilter;
+					loadedTexture.wrapS = THREE.RepeatWrapping;
+					loadedTexture.wrapT = THREE.ClampToEdgeWrapping;
+					loadedTexture.repeat.set(1, 1);
 					
 					// Special handling for 1-pixel width gradients
-					if (imageBitmap.width === 1) {
+					if (loadedTexture.image && loadedTexture.image.width === 1) {
 						console.log('Detected 1-pixel wide gradient, applying special mapping');
-						texture.matrixAutoUpdate = false;
-						texture.matrix.setUvTransform(0, 0, window.innerWidth / window.innerHeight, 1, 0, 0, 0);
+						loadedTexture.matrixAutoUpdate = false;
+						loadedTexture.matrix.setUvTransform(0, 0, window.innerWidth / window.innerHeight, 1, 0, 0, 0);
 					}
 					
-					// Set as background
-					window.scene.background = texture;
-					console.log('SUCCESSFULLY SET BACKGROUND TEXTURE using direct canvas approach');
+					loadedTexture.colorSpace = THREE.SRGBColorSpace;
+					loadedTexture.generateMipmaps = false;
+					loadedTexture.minFilter = THREE.LinearFilter;
+					loadedTexture.magFilter = THREE.LinearFilter;
+					loadedTexture.needsUpdate = true;
 					
-					// Add resize handler for the gradient
-					const updateGradientScale = () => {
-						if (window.scene && window.scene.background && window.scene.background.isTexture) {
-							window.scene.background.matrix.setUvTransform(
-								0, 0, window.innerWidth / window.innerHeight, 1, 0, 0, 0
-							);
-							window.scene.background.needsUpdate = true;
-						}
-					};
-					window.addEventListener('resize', updateGradientScale);
-				})
-				.catch(error => {
-					console.error('DIRECT TEXTURE CREATION FAILED:', error);
-					window.scene.background = new THREE.Color(0x000000);
-				});
+					window.scene.background = loadedTexture;
+				},
+				// Progress handler
+				undefined,
+				// Error handler
+				(error) => {
+					console.error('Failed to load background texture from raw GitHub URL:', error);
+					// No fallback, leave the black background
+				}
+			);
+			
+			// Add resize handler for the gradient
+			const updateGradientScale = () => {
+				if (window.scene && window.scene.background && window.scene.background.isTexture) {
+					window.scene.background.matrix.setUvTransform(
+						0, 0, window.innerWidth / window.innerHeight, 1, 0, 0, 0
+					);
+					window.scene.background.needsUpdate = true;
+				}
+			};
+			window.addEventListener('resize', updateGradientScale);
 			
 			break;
 		case 'COLOR':
