@@ -240,8 +240,7 @@ async function init() {
 		switch (bg.type) {
 		case 'IMAGE':
 			// Fix for GitHub Pages path resolution for background image
-			const isGitHubPages = window.location.hostname.includes('github.io');
-			const basePath = isGitHubPages ? '/threejs_site/' : '/';
+			const basePath = window.location.pathname.includes('/threejs_site/') ? '/threejs_site/' : '/';
 			const imagePath = bg.image_path.startsWith('/') ? bg.image_path.substring(1) : bg.image_path;
 			const fullImagePath = `${basePath}${imagePath}`;
 			
@@ -254,7 +253,7 @@ async function init() {
 			console.log(`Absolute URL: ${window.location.origin}${fullImagePath}`);
 			console.log('==================================================');
 			
-			// Load the texture using the TEXTURE_LOADER which already has crossOrigin set
+			// Load the texture with specific settings for proper display
 			const texture = TEXTURE_LOADER.load(
 				fullImagePath,
 				// Success callback to ensure texture is properly configured after loading
@@ -273,6 +272,16 @@ async function init() {
 						console.log(`Image type: ${loadedTexture.image.src.substring(5, loadedTexture.image.src.indexOf(';'))}`)
 						console.log(`UUID: ${loadedTexture.uuid}`);
 						console.log('=======================================');
+						
+						// Create an object URL to directly verify the image in the console
+						const canvas = document.createElement('canvas');
+						canvas.width = loadedTexture.image.width;
+						canvas.height = loadedTexture.image.height;
+						const ctx = canvas.getContext('2d');
+						ctx.drawImage(loadedTexture.image, 0, 0);
+						console.log('Image preview:', canvas.toDataURL());
+					} else {
+						console.error('Texture loaded but no image data present!');
 					}
 					
 					// Create a specific mapping for 1-pixel width gradients
@@ -299,7 +308,7 @@ async function init() {
 					console.error('Error details:', error);
 					
 					// Try to ping the URL to verify it exists
-					fetch(fullImagePath, { method: 'HEAD', cache: 'no-cache' })
+					fetch(fullImagePath, { method: 'HEAD' })
 						.then(response => {
 							if (response.ok) {
 								console.error(`URL exists (HTTP ${response.status}) but texture failed to load`);
