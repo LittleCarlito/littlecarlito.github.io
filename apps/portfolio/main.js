@@ -241,105 +241,162 @@ async function init() {
 		case 'IMAGE':
 			// Fix for GitHub Pages path resolution for background image
 			const isGitHubPages = window.location.hostname.includes('github.io');
-			const basePath = isGitHubPages ? '/threejs_site/' : '/';
-			const imagePath = bg.image_path.startsWith('/') ? bg.image_path.substring(1) : bg.image_path;
-			const fullImagePath = `${basePath}${imagePath}`;
 			
-			// Log details about the path resolution
-			console.log('====== BACKGROUND TEXTURE PATH RESOLUTION ======');
-			console.log(`Original image path: ${bg.image_path}`);
-			console.log(`Base path detected: ${basePath}`);
-			console.log(`Normalized image path: ${imagePath}`);
-			console.log(`Full resolved path: ${fullImagePath}`);
-			console.log(`Absolute URL: ${window.location.origin}${fullImagePath}`);
-			console.log('==================================================');
-			
-			// Load the texture using the TEXTURE_LOADER which already has crossOrigin set
-			const texture = TEXTURE_LOADER.load(
-				fullImagePath,
-				// Success callback to ensure texture is properly configured after loading
-				(loadedTexture) => {
+			if (isGitHubPages && bg.image_path.includes('gradient.jpg')) {
+				// Use a direct Data URL for gradient.jpg on GitHub Pages to avoid CORS issues
+				console.log('Using embedded Data URL for gradient on GitHub Pages');
+				
+				// Create a new texture directly from a Data URL
+				const gradientDataUrl = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAQ3AAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD9eKKKK/vA/wANwooooAKKKKACimbx6H9P8aKB8suz/r/h/wA+zIqKgyfU/maK4fa+cfv/AOCel7Dy/B+X9f8ADsi8z2/X/wCtRUdFeX7bzfTqvL+vP/t5nu/VfL8P/tSPcv8Atfmf/iqKjoryvbvu+nT0/wAvwduh731ddl+H';
+				
+				// Create a temporary image element to load the Data URL
+				const img = new Image();
+				img.src = gradientDataUrl;
+				
+				// Create a texture from the image
+				const texture = new THREE.Texture(img);
+				
+				// Handle the image loading
+				img.onload = function() {
 					// Force texture to be vertically oriented
-					loadedTexture.wrapS = THREE.RepeatWrapping;
-					loadedTexture.wrapT = THREE.ClampToEdgeWrapping;
-					loadedTexture.repeat.set(1, 1);
+					texture.wrapS = THREE.RepeatWrapping;
+					texture.wrapT = THREE.ClampToEdgeWrapping;
+					texture.repeat.set(1, 1);
 					
-					// Add detailed logging about the loaded texture
-					if (loadedTexture.image) {
-						console.log('====== BACKGROUND TEXTURE DETAILS ======');
-						console.log(`Image path: ${fullImagePath}`);
-						console.log(`Image dimensions: ${loadedTexture.image.width}×${loadedTexture.image.height} pixels`);
-						console.log(`Image size: ~${Math.round(loadedTexture.image.src.length / 1024)} KB`);
-						console.log(`Image type: ${loadedTexture.image.src.substring(5, loadedTexture.image.src.indexOf(';'))}`)
-						console.log(`UUID: ${loadedTexture.uuid}`);
-						console.log('=======================================');
+					// Special handling for 1-pixel wide gradients
+					texture.matrixAutoUpdate = false;
+					texture.matrix.setUvTransform(0, 0, window.innerWidth / window.innerHeight, 1, 0, 0, 0);
+					
+					texture.colorSpace = THREE.SRGBColorSpace;
+					texture.generateMipmaps = false;
+					texture.minFilter = THREE.LinearFilter;
+					texture.magFilter = THREE.LinearFilter;
+					texture.needsUpdate = true;
+					
+					console.log('Gradient texture loaded successfully from Data URL');
+					console.log('====== BACKGROUND TEXTURE DETAILS ======');
+					console.log(`Image dimensions: ${img.width}×${img.height} pixels`);
+					console.log('=======================================');
+				};
+				
+				// Set the background texture
+				window.scene.background = texture;
+				
+				// Handle window resize for maintaining proper gradient display
+				const updateGradientScale = () => {
+					if (window.scene && window.scene.background && window.scene.background.isTexture) {
+						// Directly update the texture matrix for better mapping
+						window.scene.background.matrix.setUvTransform(
+							0, 0, window.innerWidth / window.innerHeight, 1, 0, 0, 0
+						);
+						window.scene.background.needsUpdate = true;
 					}
-					
-					// Create a specific mapping for 1-pixel width gradients
-					if (loadedTexture.image && loadedTexture.image.width === 1) {
-						console.log('Detected 1-pixel wide gradient, applying special mapping');
-						loadedTexture.matrixAutoUpdate = false;
-						loadedTexture.matrix.setUvTransform(0, 0, window.innerWidth / window.innerHeight, 1, 0, 0, 0);
-					}
-					
-					loadedTexture.colorSpace = THREE.SRGBColorSpace;
-					loadedTexture.generateMipmaps = false;
-					loadedTexture.minFilter = THREE.LinearFilter;
-					loadedTexture.magFilter = THREE.LinearFilter;
-					loadedTexture.needsUpdate = true;
-					
-					// Log successful texture loading
-					console.log(`Background texture loaded successfully from: ${fullImagePath}`);
-				},
-				undefined, // Progress callback
-				(error) => {
-					// Enhanced error handling with more details
-					console.error('====== BACKGROUND TEXTURE LOAD ERROR ======');
-					console.error(`Failed to load background texture from: ${fullImagePath}`);
-					console.error('Error details:', error);
-					
-					// Try to ping the URL to verify it exists
-					fetch(fullImagePath, { method: 'HEAD', cache: 'no-cache' })
-						.then(response => {
-							if (response.ok) {
-								console.error(`URL exists (HTTP ${response.status}) but texture failed to load`);
-							} else {
-								console.error(`URL does not exist - HTTP ${response.status}`);
-							}
-						})
-						.catch(fetchError => {
-							console.error('URL fetch check failed:', fetchError);
+				};
+				
+				// Add resize listener specifically for the gradient
+				window.addEventListener('resize', updateGradientScale);
+			} else {
+				// Regular loading path for non-GitHub Pages or non-gradient images
+				const basePath = isGitHubPages ? '/threejs_site/' : '/';
+				const imagePath = bg.image_path.startsWith('/') ? bg.image_path.substring(1) : bg.image_path;
+				const fullImagePath = `${basePath}${imagePath}`;
+				
+				// Log details about the path resolution
+				console.log('====== BACKGROUND TEXTURE PATH RESOLUTION ======');
+				console.log(`Original image path: ${bg.image_path}`);
+				console.log(`Base path detected: ${basePath}`);
+				console.log(`Normalized image path: ${imagePath}`);
+				console.log(`Full resolved path: ${fullImagePath}`);
+				console.log(`Absolute URL: ${window.location.origin}${fullImagePath}`);
+				console.log('==================================================');
+				
+				// Load the texture using the TEXTURE_LOADER which already has crossOrigin set
+				const texture = TEXTURE_LOADER.load(
+					fullImagePath,
+					// Success callback to ensure texture is properly configured after loading
+					(loadedTexture) => {
+						// Force texture to be vertically oriented
+						loadedTexture.wrapS = THREE.RepeatWrapping;
+						loadedTexture.wrapT = THREE.ClampToEdgeWrapping;
+						loadedTexture.repeat.set(1, 1);
+						
+						// Add detailed logging about the loaded texture
+						if (loadedTexture.image) {
+							console.log('====== BACKGROUND TEXTURE DETAILS ======');
+							console.log(`Image path: ${fullImagePath}`);
+							console.log(`Image dimensions: ${loadedTexture.image.width}×${loadedTexture.image.height} pixels`);
+							console.log(`Image size: ~${Math.round(loadedTexture.image.src.length / 1024)} KB`);
+							console.log(`Image type: ${loadedTexture.image.src.substring(5, loadedTexture.image.src.indexOf(';'))}`)
+							console.log(`UUID: ${loadedTexture.uuid}`);
+							console.log('=======================================');
+						}
+						
+						// Create a specific mapping for 1-pixel width gradients
+						if (loadedTexture.image && loadedTexture.image.width === 1) {
+							console.log('Detected 1-pixel wide gradient, applying special mapping');
+							loadedTexture.matrixAutoUpdate = false;
+							loadedTexture.matrix.setUvTransform(0, 0, window.innerWidth / window.innerHeight, 1, 0, 0, 0);
+						}
+						
+						loadedTexture.colorSpace = THREE.SRGBColorSpace;
+						loadedTexture.generateMipmaps = false;
+						loadedTexture.minFilter = THREE.LinearFilter;
+						loadedTexture.magFilter = THREE.LinearFilter;
+						loadedTexture.needsUpdate = true;
+						
+						// Log successful texture loading
+						console.log(`Background texture loaded successfully from: ${fullImagePath}`);
+					},
+					undefined, // Progress callback
+					(error) => {
+						// Enhanced error handling with more details
+						console.error('====== BACKGROUND TEXTURE LOAD ERROR ======');
+						console.error(`Failed to load background texture from: ${fullImagePath}`);
+						console.error('Error details:', error);
+						
+						// Try to ping the URL to verify it exists
+						fetch(fullImagePath, { method: 'HEAD', cache: 'no-cache' })
+							.then(response => {
+								if (response.ok) {
+									console.error(`URL exists (HTTP ${response.status}) but texture failed to load`);
+								} else {
+									console.error(`URL does not exist - HTTP ${response.status}`);
+								}
+							})
+							.catch(fetchError => {
+								console.error('URL fetch check failed:', fetchError);
+							});
+						
+						// Log the window location to help debug path issues
+						console.error('Current window.location:', {
+							href: window.location.href,
+							pathname: window.location.pathname,
+							origin: window.location.origin
 						});
-					
-					// Log the window location to help debug path issues
-					console.error('Current window.location:', {
-						href: window.location.href,
-						pathname: window.location.pathname,
-						origin: window.location.origin
-					});
-					console.error('=======================================');
-					
-					// Fallback to a color
-					window.scene.background = new THREE.Color(0x000000);
-				}
-			);
-			
-			// Set the background texture
-			window.scene.background = texture;
-			
-			// Handle window resize for maintaining proper gradient display
-			const updateGradientScale = () => {
-				if (window.scene && window.scene.background && window.scene.background.isTexture) {
-					// Directly update the texture matrix for better mapping
-					window.scene.background.matrix.setUvTransform(
-						0, 0, window.innerWidth / window.innerHeight, 1, 0, 0, 0
-					);
-					window.scene.background.needsUpdate = true;
-				}
-			};
-			
-			// Add resize listener specifically for the gradient
-			window.addEventListener('resize', updateGradientScale);
+						console.error('=======================================');
+						
+						// Fallback to a color
+						window.scene.background = new THREE.Color(0x000000);
+					}
+				);
+				
+				// Set the background texture
+				window.scene.background = texture;
+				
+				// Handle window resize for maintaining proper gradient display
+				const updateGradientScale = () => {
+					if (window.scene && window.scene.background && window.scene.background.isTexture) {
+						// Directly update the texture matrix for better mapping
+						window.scene.background.matrix.setUvTransform(
+							0, 0, window.innerWidth / window.innerHeight, 1, 0, 0, 0
+						);
+						window.scene.background.needsUpdate = true;
+					}
+				};
+				
+				// Add resize listener specifically for the gradient
+				window.addEventListener('resize', updateGradientScale);
+			}
 			
 			break;
 		case 'COLOR':
