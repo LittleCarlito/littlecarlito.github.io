@@ -4,6 +4,39 @@ import { load_three } from './loader.js';
 let threeModule = null;
 let isInitialized = false;
 let initPromise = null;
+
+/**
+ * Patches the THREE.WebGLRenderer constructor to automatically enable required WebGL extensions
+ * @param {Object} three - The THREE module to patch
+ */
+function patchWebGLRenderer(three) {
+	// Store the original WebGLRenderer constructor
+	const OriginalWebGLRenderer = three.WebGLRenderer;
+	
+	// Create a new constructor that wraps the original
+	three.WebGLRenderer = function(parameters) {
+		// Call the original constructor
+		const renderer = new OriginalWebGLRenderer(parameters);
+		
+		// Enable required WebGL extensions
+		const gl = renderer.getContext();
+		if (gl) {
+			// Enable EXT_float_blend to avoid the warning
+			gl.getExtension('EXT_float_blend');
+			// Other useful extensions
+			gl.getExtension('OES_texture_float');
+			gl.getExtension('OES_texture_float_linear');
+			gl.getExtension('WEBGL_depth_texture');
+		}
+		
+		return renderer;
+	};
+	
+	// Copy prototype and static properties
+	three.WebGLRenderer.prototype = OriginalWebGLRenderer.prototype;
+	Object.setPrototypeOf(three.WebGLRenderer, OriginalWebGLRenderer);
+}
+
 /**
  * Creates a proxy for the THREE module that lazily loads the actual module
  */
@@ -16,6 +49,10 @@ export function createThreeProxy() {
 			initPromise = (async () => {
 				const module = await load_three();
 				threeModule = module.THREE;
+				
+				// Patch WebGLRenderer to automatically enable extensions
+				patchWebGLRenderer(threeModule);
+				
 				isInitialized = true;
 				return threeModule;
 			})();

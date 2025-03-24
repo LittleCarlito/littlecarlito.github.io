@@ -35,6 +35,7 @@ let right_mouse_down = false;
 let is_cleaned_up = false; // Track if cleanup has been performed
 let is_physics_paused = false; // Track if physics simulation is paused
 let greeting_acknowledged = false; // Declare the variable here
+let lastTime = performance.now();
 
 /** Cleans up resources to prevent memory leaks */
 function cleanup() {
@@ -166,6 +167,7 @@ async function init() {
 		// Initialize THREE
 		update_loading_progress('Loading Three.js...');
 		await initThree(); // This will load and initialize THREE
+		
 		// Initialize Rapier
 		update_loading_progress('Loading Rapier Physics...');
 		await initRapier(); // This will load and initialize Rapier
@@ -451,9 +453,12 @@ window.toggle_physics_pause = toggle_physics_pause;
 
 /** Primary animation function run every frame by renderer */
 function animate() {
+	// Get the time delta
 	const delta = window.clock.getDelta();
+	
 	// Handle tweens and UI animations (always run regardless of physics pause)
 	updateTween();
+	
 	if(resize_move) {
 		if(!zoom_event) {
 			window.viewable_container.resize_reposition();
@@ -462,8 +467,10 @@ function animate() {
 		}
 		resize_move = false;
 	}
+	
 	// Check if a text container is active, and pause physics if needed
 	const isTextActive = window.viewable_container.is_text_active();
+	
 	// Track text container state to detect changes
 	if (!window.previousTextContainerState && isTextActive && !is_physics_paused) {
 		// Text container just became active, pause physics
@@ -480,8 +487,10 @@ function animate() {
 		window.textContainerPausedPhysics = false;
 		toggle_physics_pause();
 	}
+	
 	// Store current state for next frame comparison
 	window.previousTextContainerState = isTextActive;
+	
 	// Handle the physics objects
 	if(window.viewable_container.get_overlay().is_intersected() != null) {
 		window.asset_activator.activate_object(window.viewable_container.get_intersected_name());
@@ -495,11 +504,23 @@ function animate() {
 	} else {
 		window.asset_activator.deactivate_all_objects();
 	}
+	
+	// Update the object mouse is hovering over
+	if (window.overlay_container && !is_overlay_paused) {
+		window.overlay_container.update_hover();
+	}
+	
+	// Update performance stats
+	if (window.stats) {
+		window.stats.begin();
+	}
+	
 	// Process physics simulation (can be paused)
 	window.world.timestep = Math.min(delta, 0.1);
 	if (!is_physics_paused) {
 		window.world.step();
 	}
+	
 	// Always update menu animations and user interactions
 	// These handle spawning and sign animations, even when physics is paused
 	if (window.background_container) {
