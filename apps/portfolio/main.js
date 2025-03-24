@@ -259,10 +259,10 @@ async function init() {
 			}
 			
 			// Create correct absolute URL based on environment
-			// For GitHub Pages, use relative path (no leading slash) to ensure proper resolution
-			const imageUrl = isGitHubPages 
-				? `/threejs_site/images/gradient.jpg` // Add the correct base path for GitHub Pages
-				: `/${imagePath}`; // Local development path with leading slash
+			// For GitHub Pages, use absolute URL with origin to ensure proper resolution
+			const origin = window.location.origin;
+			const basePath = isGitHubPages ? '/threejs_site' : '';
+			const imageUrl = `${origin}${basePath}/images/gradient.jpg`;
 			
 			console.log(`Loading texture from: ${imageUrl}`);
 			
@@ -271,42 +271,95 @@ async function init() {
 			textureLoader.crossOrigin = 'anonymous';
 			
 			// Load the texture with the correct path 
-			const texture = textureLoader.load(
-				imageUrl,
-				// Success handler
-				(loadedTexture) => {
-					console.log('Background texture loaded successfully!');
-					// Configure texture settings
-					loadedTexture.wrapS = THREE.RepeatWrapping;
-					loadedTexture.wrapT = THREE.ClampToEdgeWrapping;
-					loadedTexture.repeat.set(1, 1);
-					
-					// Special handling for 1-pixel width gradients
-					if (loadedTexture.image && loadedTexture.image.width === 1) {
-						console.log('Detected 1-pixel wide gradient, applying special mapping');
-						loadedTexture.matrixAutoUpdate = false;
-						loadedTexture.matrix.setUvTransform(0, 0, window.innerWidth / window.innerHeight, 1, 0, 0, 0);
+			const loadTexture = (url, onSuccess, onError) => {
+				console.log(`Trying to load texture from: ${url}`);
+				return textureLoader.load(
+					url,
+					onSuccess,
+					undefined, // onProgress is not needed
+					(error) => {
+						console.error(`Error loading texture from ${url}:`, error);
+						if (onError) onError(error);
 					}
-					
-					// Standard texture settings
-					loadedTexture.colorSpace = THREE.SRGBColorSpace;
-					loadedTexture.generateMipmaps = false;
-					loadedTexture.minFilter = THREE.LinearFilter;
-					loadedTexture.magFilter = THREE.LinearFilter;
-					loadedTexture.needsUpdate = true;
-					
-					// Apply to scene
-					window.scene.background = loadedTexture;
-				},
-				// Progress handler - unused but required by API
-				undefined,
-				// Error handler
-				(error) => {
-					console.error('Error loading background texture:', error);
-					console.error('Failed URL:', imageUrl);
-					console.error('Current location:', window.location.href);
-					// Keep the black background
+				);
+			};
+			
+			// Try different URL formats if the first one fails
+			const fallbackUrls = [
+				imageUrl,
+				`${origin}${basePath}/images/gradient.jpg`,
+				`${basePath}/images/gradient.jpg`,
+				'/images/gradient.jpg',
+				'images/gradient.jpg',
+				'/threejs_site/images/gradient.jpg'
+			];
+			
+			let fallbackIndex = 0;
+			const tryNextFallback = (error) => {
+				fallbackIndex++;
+				if (fallbackIndex < fallbackUrls.length) {
+					console.log(`Trying fallback ${fallbackIndex} of ${fallbackUrls.length - 1}`);
+					return loadTexture(
+						fallbackUrls[fallbackIndex],
+						handleTextureLoaded,
+						tryNextFallback
+					);
+				} else {
+					console.error('All texture loading attempts failed:', error);
+					// Use a solid color instead
+					const canvas = document.createElement('canvas');
+					canvas.width = 2;
+					canvas.height = 2;
+					const ctx = canvas.getContext('2d');
+					ctx.fillStyle = '#000033';
+					ctx.fillRect(0, 0, 2, 2);
+					const fallbackTexture = new THREE.CanvasTexture(canvas);
+					handleTextureLoaded(fallbackTexture);
 				}
+			};
+			
+			const handleTextureLoaded = (loadedTexture) => {
+				console.log('Background texture loaded successfully!');
+				// Configure texture settings
+				loadedTexture.wrapS = THREE.RepeatWrapping;
+				loadedTexture.wrapT = THREE.ClampToEdgeWrapping;
+				loadedTexture.repeat.set(1, 1);
+				
+				// Special handling for 1-pixel width gradients
+				if (loadedTexture.image && loadedTexture.image.width === 1) {
+					console.log('1-pixel gradient detected, configuring special handling...');
+					loadedTexture.minFilter = THREE.LinearFilter;
+					
+					// Set up vertical stretching
+					const updateTextureScaleToFillScreen = () => {
+						const aspect = window.innerWidth / window.innerHeight;
+						loadedTexture.repeat.set(1, 1 * aspect);
+						loadedTexture.needsUpdate = true;
+					};
+					
+					// Initial update
+					updateTextureScaleToFillScreen();
+					
+					// Update on resize
+					window.addEventListener('resize', updateTextureScaleToFillScreen);
+				}
+				
+				// Standard texture settings
+				loadedTexture.colorSpace = THREE.SRGBColorSpace;
+				loadedTexture.generateMipmaps = false;
+				loadedTexture.minFilter = THREE.LinearFilter;
+				loadedTexture.magFilter = THREE.LinearFilter;
+				loadedTexture.needsUpdate = true;
+				
+				// Apply to scene
+				window.scene.background = loadedTexture;
+			};
+			
+			// Start loading the texture with the first URL in our list
+			loadTexture(
+				fallbackUrls[0],
+				handleTextureLoaded,
+				tryNextFallback
 			);
 			
 			// Add resize handler for the gradient
