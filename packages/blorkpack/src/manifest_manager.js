@@ -61,8 +61,14 @@ export class ManifestManager {
 			return this.load_promise;
 		}
 
+		// Check if we're on GitHub Pages
+		const isGitHubPages = 
+			window.location.hostname === 'littlecarlito.github.io' || 
+			window.location.pathname.includes(`${GITHUB_PAGES_BASE}/`);
+		
 		// Define all possible paths to try for the manifest
-		const basePath = window.location.pathname.includes(`${GITHUB_PAGES_BASE}/`) ? `/${GITHUB_PAGES_BASE}/` : '/';
+		const basePath = isGitHubPages ? `/${GITHUB_PAGES_BASE}/` : '/';
+		
 		const pathsToTry = [
 			relativePath,                     // Try the provided path directly
 			`/${relativePath}`.replace(/\/+/g, '/'),  // Try with a leading slash

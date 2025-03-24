@@ -239,13 +239,20 @@ async function init() {
 		}
 		switch (bg.type) {
 		case 'IMAGE':
-			// Use our centralized path resolution utility
-			const fullImagePath = resolvePath(bg.image_path);
+			// Check if we're on GitHub Pages
+			const isGitHubPages = window.location.hostname === 'littlecarlito.github.io';
+			
+			// Use direct absolute path for GitHub Pages to avoid path issues
+			const fullImagePath = isGitHubPages 
+				? `/threejs_site/${bg.image_path.startsWith('/') ? bg.image_path.substring(1) : bg.image_path}`
+				: resolvePath(bg.image_path);
+				
 			const basePath = getBasePath();
 			const imagePath = bg.image_path.startsWith('/') ? bg.image_path.substring(1) : bg.image_path;
 			
 			// Log details about the path resolution
 			console.log('====== BACKGROUND TEXTURE PATH RESOLUTION ======');
+			console.log(`GitHub Pages: ${isGitHubPages}`);
 			console.log(`Original image path: ${bg.image_path}`);
 			console.log(`Base path detected: ${basePath}`);
 			console.log(`Normalized image path: ${imagePath}`);
