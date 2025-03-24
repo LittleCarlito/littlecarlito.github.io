@@ -8,13 +8,20 @@ let textureLoader = null;
 export function getTextureLoader() {
 	if (!textureLoader) {
 		textureLoader = new THREE.TextureLoader();
+		// Set crossOrigin to handle GitHub Pages CORS requirements
+		textureLoader.crossOrigin = 'anonymous';
 	}
 	return textureLoader;
 }
 // Export a compatible API that works like the old TEXTURE_LOADER
 export const TEXTURE_LOADER = {
 	load: (url, onLoad, onProgress, onError) => {
-		return getTextureLoader().load(url, onLoad, onProgress, onError);
+		const loader = getTextureLoader();
+		// Enable CORS specifically for GitHub Pages URLs
+		if (url.includes('/threejs_site/')) {
+			loader.crossOrigin = 'anonymous';
+		}
+		return loader.load(url, onLoad, onProgress, onError);
 	}
 };
 // Constants
