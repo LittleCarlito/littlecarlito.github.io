@@ -239,38 +239,42 @@ async function init() {
 		}
 		switch (bg.type) {
 		case 'IMAGE':
-			// Final attempt - direct GitHub raw content URL approach
-			console.log('Loading background texture directly from GitHub raw content URL');
+			// Simple and direct approach that works in both local and GitHub Pages environments
+			console.log('Loading background texture using environment-aware path resolution');
 			
-			// Create a texture loader with crossOrigin explicitly set
+			// Create default black background immediately
+			window.scene.background = new THREE.Color(0x000000);
+			
+			// Determine if running on GitHub Pages
+			const isGitHubPages = window.location.hostname.includes('github.io');
+			console.log(`Running on GitHub Pages: ${isGitHubPages}`);
+			
+			// Input image path from config
+			let imagePath = bg.image_path;
+			
+			// Normalize path 
+			if (!imagePath.startsWith('/')) {
+				imagePath = '/' + imagePath;
+			}
+			
+			// Create correct absolute URL based on environment
+			const imageUrl = isGitHubPages 
+				? `/threejs_site${imagePath}` // GitHub Pages path
+				: imagePath; // Local development path
+			
+			console.log(`Loading texture from: ${imageUrl}`);
+			
+			// Create texture loader with explicit crossOrigin setting
 			const textureLoader = new THREE.TextureLoader();
 			textureLoader.crossOrigin = 'anonymous';
 			
-			// GitHub raw content URL for the image
-			// This bypasses all relative path resolution issues
-			// For GitHub Pages repos, raw content is available at raw.githubusercontent.com
-			const repoOwner = 'littlecarlito';
-			const repoName = 'threejs_site';
-			const branch = 'gh-pages';  // or 'main' if that's your publishing branch
-			
-			// Get the image path from the config
-			const imagePathRaw = bg.image_path.startsWith('/') ? bg.image_path.substring(1) : bg.image_path;
-			
-			// Direct raw content URL that doesn't depend on any path resolution
-			const rawImageUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/${imagePathRaw}`;
-			
-			// Create placeholder black background immediately
-			window.scene.background = new THREE.Color(0x000000);
-			
-			console.log(`Loading texture directly from: ${rawImageUrl}`);
-			
-			// Try to load from the raw URL
+			// Load the texture with the correct path 
 			const texture = textureLoader.load(
-				rawImageUrl,
+				imageUrl,
 				// Success handler
 				(loadedTexture) => {
 					console.log('Background texture loaded successfully!');
-					// Configure texture
+					// Configure texture settings
 					loadedTexture.wrapS = THREE.RepeatWrapping;
 					loadedTexture.wrapT = THREE.ClampToEdgeWrapping;
 					loadedTexture.repeat.set(1, 1);
@@ -282,20 +286,24 @@ async function init() {
 						loadedTexture.matrix.setUvTransform(0, 0, window.innerWidth / window.innerHeight, 1, 0, 0, 0);
 					}
 					
+					// Standard texture settings
 					loadedTexture.colorSpace = THREE.SRGBColorSpace;
 					loadedTexture.generateMipmaps = false;
 					loadedTexture.minFilter = THREE.LinearFilter;
 					loadedTexture.magFilter = THREE.LinearFilter;
 					loadedTexture.needsUpdate = true;
 					
+					// Apply to scene
 					window.scene.background = loadedTexture;
 				},
-				// Progress handler
+				// Progress handler - unused but required by API
 				undefined,
 				// Error handler
 				(error) => {
-					console.error('Failed to load background texture from raw GitHub URL:', error);
-					// No fallback, leave the black background
+					console.error('Error loading background texture:', error);
+					console.error('Failed URL:', imageUrl);
+					console.error('Current location:', window.location.href);
+					// Keep the black background
 				}
 			);
 			

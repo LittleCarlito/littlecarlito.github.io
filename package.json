@@ -34,7 +34,11 @@
     "changeset": "changeset",
     "version": "changeset version",
     "release": "changeset publish",
-    "change": "node scripts/create-changeset.js"
+    "change": "node scripts/create-changeset.js",
+    "gh-pages:server": "node tests/apps/portfolio/gh-pages-simulator.js",
+    "gh-pages:test": "node tests/apps/portfolio/environment/gh-pages-texture-test.js --keep-open",
+    "gh-pages:debug": "chmod +x .husky/gh-pages-test && .husky/gh-pages-test",
+    "gh-pages:check": "node tests/apps/portfolio/environment/gh-pages-texture-test.js --headless"
   },
   "dependencies": {
     "express": "^4.18.3",
@@ -57,13 +61,14 @@
     "jest-environment-jsdom": "^29.7.0",
     "jest-junit": "^16.0.0",
     "js-yaml": "^4.1.0",
+    "jsdom": "^24.0.0",
     "license-webpack-plugin": "^4.0.2",
     "prettier": "^3.2.5",
+    "puppeteer": "^22.15.0",
     "terser": "^5.39.0",
     "tree-kill": "^1.2.2",
     "turbo": "latest",
-    "yaml": "^2.7.0",
-    "jsdom": "^24.0.0"
+    "yaml": "^2.7.0"
   },
   "packageManager": "pnpm@8.15.4",
   "engines": {
