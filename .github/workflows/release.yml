@@ -7,6 +7,10 @@ on:
         description: 'Package to release (all, blorkpack, blorktools, blorkboard)'
         required: true
         default: 'all'
+  push:
+    tags:
+      - 'v*'
+      - '@littlecarlito/*'
 
 # Add concurrency group to prevent conflicts with other workflows
 concurrency:
