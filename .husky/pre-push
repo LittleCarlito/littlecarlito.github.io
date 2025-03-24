@@ -19,8 +19,15 @@ BRANCH=$(git symbolic-ref --short HEAD)
 # Check if files related to Rapier or module loading have been modified
 echo "Checking for changes to module loading or Rapier-related files..."
 HAS_MODULE_CHANGES=0
-if ! git diff --cached --name-only | grep -q -E "(loader\.js|importmap|rapier|index\.html)"; then
+if git diff --cached --name-only | grep -q -E "(loader\.js|importmap|rapier|index\.html)"; then
     HAS_MODULE_CHANGES=1
+fi
+
+# Check if files related to asset loading or path resolution have been modified
+echo "Checking for changes to asset paths or GitHub Pages related files..."
+HAS_ASSET_CHANGES=0
+if git diff --cached --name-only | grep -q -E "(main\.js|\.jpg|\.png|\.svg|manifest\.json|vite\.config|path)"; then
+    HAS_ASSET_CHANGES=1
 fi
 
 # Run tests first to catch any immediate issues
@@ -38,11 +45,21 @@ pnpm build || {
 }
 
 # Check if we need to run build integrity tests
-if [ $HAS_MODULE_CHANGES -eq 0 ]; then
+if [ $HAS_MODULE_CHANGES -eq 1 ]; then
     echo "🔍 Module loading changes detected, running build integrity tests..."
     pnpm test:build-integrity || {
         echo "❌ Module integrity tests failed. The changes you've made might break Rapier loading."
         echo "Please review your changes to module imports, especially Rapier loading."
+        exit 1
+    }
+fi
+
+# Check if asset paths or GitHub Pages related files have been modified
+if [ $HAS_ASSET_CHANGES -eq 1 ]; then
+    echo "🔍 Asset path changes detected, running GitHub Pages asset loading tests..."
+    FORCE_BUILD=true pnpm test:build-integrity || {
+        echo "❌ Asset loading tests failed. The changes you've made might break asset loading on GitHub Pages."
+        echo "Please review your changes to path handling and asset loading."
         exit 1
     }
 fi

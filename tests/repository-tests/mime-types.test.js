@@ -44,8 +44,10 @@ describe('MIME Types Configuration', () => {
     
 		// Check that base path is properly configured for GitHub Pages
 		expect(viteConfigContent).toContain("isGitHubPages");
-		expect(viteConfigContent).toContain("/threejs_site/");
-		expect(viteConfigContent).toContain("base: base");
+		expect(viteConfigContent).toContain("GITHUB_PAGES_BASE");
+		expect(viteConfigContent).toContain("base = isGitHubPages");
+		// Check that it's using template literal syntax with the variable
+		expect(viteConfigContent).toContain("`${GITHUB_PAGES_BASE}/`");
 	});
 
 	// This test simulates a build and checks actual output files if possible

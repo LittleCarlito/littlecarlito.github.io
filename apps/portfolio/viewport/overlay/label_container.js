@@ -1,7 +1,7 @@
 import { get_screen_size, get_associated_position, WEST } from "./overlay_common/screen";
 import { CATEGORIES } from '../../common/categories';
 import { TEXTURE_LOADER, TYPES, PAN_SPEED, ROTATE_SPEED, FOCUS_ROTATION } from './overlay_common/index'
-import { Easing, FLAGS, THREE, Tween } from '../../common';
+import { Easing, FLAGS, THREE, Tween, resolvePath } from '../../common';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 /**
@@ -49,10 +49,8 @@ export class LabelContainer {
 	 */
 	async loadFont() {
 		try {
-			// Determine the correct font path based on deployment environment
-			const fontPath = window.location.hostname === 'littlecarlito.github.io' 
-				? '/threejs_site/fonts/quicksand_regular.json'
-				: '/fonts/quicksand_regular.json';
+			// Use our centralized path resolution utility
+			const fontPath = resolvePath('fonts/quicksand_regular.json');
 			if (FLAGS.ASSET_LOGS) console.log(`Attempting to load font from: ${fontPath}`);
 			this.font = await this.font_loader.loadAsync(fontPath);
 			if (FLAGS.ASSET_LOGS) console.log('Font loaded successfully');

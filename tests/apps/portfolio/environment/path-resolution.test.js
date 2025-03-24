@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach } from '@jest/globals';
+import { GITHUB_PAGES_BASE } from '../../../../apps/portfolio/common/path_config.js';
 
 /**
  * Utility function to test image path resolution
@@ -13,7 +14,7 @@ function resolveBackgroundImagePath(imagePath, isGitHubPages = false) {
 	}
   
 	// Determine base path based on environment
-	const basePath = isGitHubPages ? '/threejs_site/' : '/';
+	const basePath = isGitHubPages ? `/${GITHUB_PAGES_BASE}/` : '/';
   
 	// Normalize the image path by removing leading slash if present
 	const normalizedImagePath = imagePath.startsWith('/') 

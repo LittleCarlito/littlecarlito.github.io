@@ -1,6 +1,9 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals';
 import * as THREE from 'three';
 
+// Import the GitHub Pages base from our path config
+const GITHUB_PAGES_BASE = 'threejs_site';
+
 // Instead of mocking all the modules (which causes import errors),
 // we'll only mock what we need for our specific tests
 
@@ -38,7 +41,7 @@ function resolveBackgroundImagePath(imagePath, isGitHubPages = false) {
 	}
 	
 	// Determine base path based on environment
-	const basePath = isGitHubPages ? '/threejs_site/' : '/';
+	const basePath = isGitHubPages ? `/${GITHUB_PAGES_BASE}/` : '/';
 	
 	// Normalize the image path by removing leading slash if present
 	const normalizedImagePath = imagePath.startsWith('/') 
@@ -94,7 +97,7 @@ describe('Background Image Path Resolution', () => {
     
 		// Simulate the path resolution code
 		const bg = { type: 'IMAGE', image_path: 'images/gradient.jpg' };
-		const basePath = window.location.pathname.includes('/threejs_site/') ? '/threejs_site/' : '/';
+		const basePath = window.location.pathname.includes(`${GITHUB_PAGES_BASE}/`) ? `${GITHUB_PAGES_BASE}/` : '';
 		const imagePath = bg.image_path.startsWith('/') ? bg.image_path.substring(1) : bg.image_path;
 		const fullImagePath = `${basePath}${imagePath}`;
     
@@ -102,19 +105,19 @@ describe('Background Image Path Resolution', () => {
 		TEXTURE_LOADER.load(fullImagePath);
     
 		// Assert
-		expect(TEXTURE_LOADER.load).toHaveBeenCalledWith('/images/gradient.jpg');
+		expect(TEXTURE_LOADER.load).toHaveBeenCalledWith('images/gradient.jpg');
 	});
   
 	test('should resolve image path correctly for GitHub Pages', async () => {
 		// Setup
-		window.location.pathname = '/threejs_site/index.html';
+		window.location.pathname = `/${GITHUB_PAGES_BASE}/index.html`;
 		const TEXTURE_LOADER = {
 			load: jest.fn((path) => ({ path }))
 		};
     
 		// Simulate the path resolution code
 		const bg = { type: 'IMAGE', image_path: 'images/gradient.jpg' };
-		const basePath = window.location.pathname.includes('/threejs_site/') ? '/threejs_site/' : '/';
+		const basePath = window.location.pathname.includes(`${GITHUB_PAGES_BASE}/`) ? `${GITHUB_PAGES_BASE}/` : '';
 		const imagePath = bg.image_path.startsWith('/') ? bg.image_path.substring(1) : bg.image_path;
 		const fullImagePath = `${basePath}${imagePath}`;
     
@@ -122,19 +125,19 @@ describe('Background Image Path Resolution', () => {
 		TEXTURE_LOADER.load(fullImagePath);
     
 		// Assert
-		expect(TEXTURE_LOADER.load).toHaveBeenCalledWith('/threejs_site/images/gradient.jpg');
+		expect(TEXTURE_LOADER.load).toHaveBeenCalledWith(`${GITHUB_PAGES_BASE}/images/gradient.jpg`);
 	});
   
 	test('should handle absolute paths in image_path correctly', async () => {
 		// Setup
-		window.location.pathname = '/threejs_site/index.html';
+		window.location.pathname = `/${GITHUB_PAGES_BASE}/index.html`;
 		const TEXTURE_LOADER = {
 			load: jest.fn((path) => ({ path }))
 		};
     
 		// Simulate the path resolution code
 		const bg = { type: 'IMAGE', image_path: '/images/gradient.jpg' }; // Note the leading slash
-		const basePath = window.location.pathname.includes('/threejs_site/') ? '/threejs_site/' : '/';
+		const basePath = window.location.pathname.includes(`${GITHUB_PAGES_BASE}/`) ? `${GITHUB_PAGES_BASE}/` : '';
 		const imagePath = bg.image_path.startsWith('/') ? bg.image_path.substring(1) : bg.image_path;
 		const fullImagePath = `${basePath}${imagePath}`;
     
@@ -142,7 +145,7 @@ describe('Background Image Path Resolution', () => {
 		TEXTURE_LOADER.load(fullImagePath);
     
 		// Assert
-		expect(TEXTURE_LOADER.load).toHaveBeenCalledWith('/threejs_site/images/gradient.jpg');
+		expect(TEXTURE_LOADER.load).toHaveBeenCalledWith(`${GITHUB_PAGES_BASE}/images/gradient.jpg`);
 	});
 
 	test('should correctly resolve a relative path in local environment', () => {

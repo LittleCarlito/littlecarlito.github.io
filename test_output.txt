@@ -1,0 +1,1018 @@
+
+> threejs-site-monorepo@0.12.16 test /Users/stevenmeier/Documents/repo/threejs_site
+> node tests/config/prepare-tests.cjs && jest --config=tests/config/jest.config.cjs
+
+📦 Verifying build environment...
+✅ Build verification complete!
+  console.log
+    Jest setup complete - Mocks initialized
+
+      at Object.<anonymous> (tests/config/jest.setup.cjs:178:10)
+
+(node:19963) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+  console.log
+    Jest setup complete - Mocks initialized
+
+      at Object.<anonymous> (tests/config/jest.setup.cjs:178:10)
+
+FAIL tests/repository-tests/mime-types.test.js
+  MIME Types Configuration
+    ✓ _headers file exists and has proper MIME type configurations (8 ms)
+    ✓ index.html references main.js with correct path (1 ms)
+    ✕ vite.config.js configures proper base path for GitHub Pages (2 ms)
+    ✓ build produces files with correct paths (1 ms)
+
+  ● MIME Types Configuration › vite.config.js configures proper base path for GitHub Pages
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected substring: "/threejs_site/"
+    Received string:    "import { defineConfig } from 'vite'
+    import path from 'path'
+    import fs from 'fs'
+    import { ViteImageOptimizer } from 'vite-plugin-image-optimizer'
+    import {·
+    	gracefulShutdownPlugin,·
+    	timestampPlugin,
+    	createVirtualBlorkpackPlugin
+    } from '../../scripts/vite-plugins.js'
+    import baseConfig from '../../vite.config.base.js'
+    import { fileURLToPath } from 'url'·
+    const __dirname = path.dirname(fileURLToPath(import.meta.url))
+    const outputPath = path.resolve(__dirname, 'dist/index.js')·
+    // Define the GitHub Pages project name - should match the one in path_config.js
+    const GITHUB_PAGES_BASE = 'threejs_site';·
+    // Determine if building for GitHub Pages
+    const isGitHubPages = process.env.GITHUB_PAGES === 'true'
+    const base = isGitHubPages ? `${GITHUB_PAGES_BASE}/` : '/'·
+    // Helper function to copy directory contents to the dist folder
+    /**
+     *
+     */
+    function copyDirectory(src, dest) {
+    	if (!fs.existsSync(src)) {
+    		console.warn(`Source directory ${src} doesn't exist`);
+    		return;
+    	}
+    	if (!fs.existsSync(dest)) {
+    		try {
+    			fs.mkdirSync(dest, { recursive: true });
+    		} catch (error) {
+    			console.error(`Failed to create destination directory: ${error.message}`);
+    			return;
+    		}
+    	}
+    	try {
+    		const entries = fs.readdirSync(src, { withFileTypes: true });
+    		for (const entry of entries) {
+    			const srcPath = path.join(src, entry.name);
+    			const destPath = path.join(dest, entry.name);
+    			if (entry.isDirectory()) {
+    				copyDirectory(srcPath, destPath);
+    			} else {
+    				try {
+    					fs.copyFileSync(srcPath, destPath);
+    					// Reduce verbosity - only log directory copying, not each file
+    				} catch (error) {
+    					console.error(`Failed to copy file ${path.basename(srcPath)}: ${error.message}`);
+    				}
+    			}
+    		}
+    	} catch (error) {
+    		console.error(`Error reading directory: ${error.message}`);
+    	}
+    }·
+    export default defineConfig(({ command }) => {
+    	const isProduction = command === 'build'
+    	console.log(`Starting ${isProduction ? 'production' : 'development'} build...`)
+    	// Skip optimization for blorkpack entirely
+    	const optimizeDepsConfig = {}
+    	return {
+    		base: base,
+    		optimizeDeps: optimizeDepsConfig,
+    		resolve: {
+    			// Let the virtual module plugin handle resolution
+    			alias: {
+    				'@littlecarlito/blorkpack': '@littlecarlito/blorkpack'
+    			}
+    		},
+    		build: {
+    			outDir: 'dist',
+    			assetsDir: 'assets',
+    			emptyOutDir: true,
+    			minify: isProduction ? 'terser' : false,
+    			terserOptions: isProduction ? {
+    				compress: {
+    					drop_console: false,
+    					drop_debugger: true
+    				},
+    				format: {
+    					comments: false
+    				}
+    			} : undefined,
+    			rollupOptions: {
+    				output: {
+    					manualChunks: {
+    						'three': ['three'],
+    						'three-addons': [
+    							'three/examples/jsm/controls/OrbitControls',
+    							'three/examples/jsm/Addons.js'
+    						]
+    					},
+    					globals: {
+    						'three': 'THREE'
+    					},
+    					format: 'es',
+    					entryFileNames: '[name].js',
+    					chunkFileNames: '[name].[hash].js',
+    					assetFileNames: '[name].[hash].[ext]'
+    				},
+    				external: [],
+    				input: {
+    					main: 'index.html',
+    					...(isProduction ? {} : {·
+    						packageTest: 'tests/package-test.html'
+    					})
+    				},
+    				onwarn(warning, warn) {
+    					// Only log critical warnings, skip eval warnings from three.js libs
+    					if (warning.code === 'EVAL' && warning.id.includes('node_modules/three')) {
+    						return;
+    					}
+    					console.warn(`Build warning: ${warning.message}`);
+    					warn(warning);
+    				}
+    			},
+    			sourcemap: !isProduction,
+    			chunkSizeWarningLimit: 1000,
+    			reportCompressedSize: false,
+    			target: 'esnext',
+    			modulePreload: false,
+    			cssCodeSplit: true,
+    			write: true,
+    			watch: false,
+    			commonjsOptions: {
+    				include: [/node_modules/],
+    				transformMixedEsModules: true,
+    				requireReturnsDefault: 'auto'
+    			}
+    		},
+    		server: {
+    			hmr: {
+    				overlay: true,
+    			},
+    			port: parseInt(process.env.PORT || '3000', 10),
+    			strictPort: true,
+    			open: false
+    		},
+    		plugins: [
+    			createVirtualBlorkpackPlugin(),
+    			gracefulShutdownPlugin(),
+    			{
+    				name: 'blorkpack-hmr-helper',
+    				transformIndexHtml(html) {
+    					// First add the error handler script
+    					let updatedHtml = html.replace('</head>', `
+                <script>
+                  window.__BLORKPACK_ERROR_HANDLER = (error) => {
+                    if (error && error.message && error.message.includes('blorkpack')) {
+                      console.log('Blorkpack module error detected, HMR will handle it');
+                    }
+                  };···············
+                  window.addEventListener('error', (e) => window.__BLORKPACK_ERROR_HANDLER(e.error));
+                  window.addEventListener('unhandledrejection', (e) => window.__BLORKPACK_ERROR_HANDLER(e.reason));
+                </script>
+              </head>`);······
+    					// Then make sure script paths use the correct base
+    					if (isGitHubPages) {
+    						updatedHtml = updatedHtml.replace(
+    							/<script\\s+type=\"module\"\\s+src=\"\\.\\/([^\"]+)\"/g,·
+    							`<script type=\"module\" src=\"${base}$1\"`
+    						);
+    					}······
+    					return updatedHtml;
+    				}
+    			},
+    			{
+    				name: 'build-error-logger',
+    				buildStart() {
+    					console.log('🚀 Starting build process...');
+    				},
+    				buildEnd(error) {
+    					if (error) {
+    						console.error('⛔ BUILD ERROR ⛔');
+    						console.error(`Error: ${error.message}`);
+    						if (error.stack) {
+    							console.error(`Stack: ${error.stack.split('\\n')[0]}`);
+    						}
+    						if (error.loc) {
+    							console.error(`Location: ${error.loc.file}:${error.loc.line}:${error.loc.column}`);
+    						}
+    						console.error('⛔ END BUILD ERROR ⛔');
+    					}
+    				},
+    				renderError(error) {
+    					console.error('⛔ RENDER ERROR ⛔');
+    					console.error(`Error: ${error.message}`);
+    					if (error.frame) {
+    						console.error(`Context: ${error.frame}`);
+    					}
+    					if (error.id) {
+    						console.error(`File: ${error.id}`);
+    					}
+    					console.error('⛔ END RENDER ERROR ⛔');
+    					return null;
+    				},
+    				closeBundle() {
+    					console.log('✅ Build bundle completed successfully');
+    				},
+    			},
+    			{
+    				name: 'general-error-handler',
+    				configResolved(config) {
+    					process.on('unhandledRejection', (reason, promise) => {
+    						console.error('⚠️ Unhandled Rejection during build:');
+    						console.error(reason);
+    					});·
+    					process.on('uncaughtException', (error) => {
+    						console.error('⚠️ Uncaught Exception during build:');
+    						console.error(error);
+    					});
+    				},
+    				options(options) {
+    					if (!options.plugins) {
+    						options.plugins = [];
+    					}
+    					options.plugins.push({
+    						name: 'rollup-error-detector',
+    						buildStart() {
+    							console.log('📦 Rollup build started');
+    						},
+    						moduleParsed(moduleInfo) {
+    							if (moduleInfo.isEntry) {
+    								console.log(`✓ Parsed entry module: ${path.basename(moduleInfo.id)}`);
+    							}
+    						},
+    						buildEnd(error) {
+    							if (error) {
+    								console.error('⛔ ROLLUP BUILD ERROR ⛔');
+    								console.error(error);
+    							}
+    						}
+    					});
+    					return options;
+    				}
+    			},
+    			isProduction && ViteImageOptimizer({
+    				png: { quality: 80 },
+    				jpeg: { quality: 80 },
+    				jpg: { quality: 80 },
+    				webp: { lossless: true },
+    				avif: { lossless: true },
+    				gif: { optimizationLevel: 3 },
+    				svg: {
+    					multipass: true,
+    					plugins: [
+    						{
+    							name: 'preset-default',
+    							params: {
+    								overrides: {
+    									removeViewBox: false,
+    								},
+    							},
+    						},
+    					],
+    				},
+    			}),
+    			{
+    				name: 'copy-resources',
+    				closeBundle() {
+    					if (isProduction) {
+    						console.log('🔄 Copying static resources...');
+    						try {
+    							const manifestSrc = path.resolve(__dirname, 'public/resources/manifest.json');
+    							const manifestDest = path.resolve(__dirname, 'dist/resources/manifest.json');
+    							if (fs.existsSync(manifestSrc)) {
+    								const resourcesDir = path.resolve(__dirname, 'dist/resources');
+    								if (!fs.existsSync(resourcesDir)) {
+    									fs.mkdirSync(resourcesDir, { recursive: true });
+    								}
+    								fs.copyFileSync(manifestSrc, manifestDest);
+    							} else {
+    								console.warn('⚠️ No manifest.json found in public/resources directory');
+    							}
+    							const pagesSrc = path.resolve(__dirname, 'public/pages');
+    							const pagesDest = path.resolve(__dirname, 'dist/pages');
+    							copyDirectory(pagesSrc, pagesDest);
+    							console.log('✅ Static resources copied successfully');
+    						} catch (error) {
+    							console.error('❌ Error copying resources:', error.message);
+    							throw error;
+    						}
+    					}
+    					return Promise.resolve();
+    				}
+    			},
+    			{
+    				name: 'copy-extra-files',
+    				closeBundle() {
+    					console.log('✅ Copying additional files to dist');
+    					// Copy custom_types.json to the dist root
+    					try {
+    						fs.copyFileSync(
+    							path.resolve(__dirname, 'custom_types.json'),
+    							path.resolve(__dirname, 'dist/custom_types.json')
+    						);
+    						console.log('✓ Copied custom_types.json to dist root');········
+    						// Copy .nojekyll file to disable Jekyll processing on GitHub Pages
+    						fs.writeFileSync(
+    							path.resolve(__dirname, 'dist/.nojekyll'),
+    							''
+    						);
+    						console.log('✓ Created .nojekyll file in dist root');
+    					} catch (error) {
+    						console.error('Failed to copy extra files:', error);
+    					}
+    				}
+    			},
+    			{
+    				name: 'process-terminator',
+    				closeBundle() {
+    					setTimeout(() => {
+    						process.exit(0);
+    					}, 100);
+    				}
+    			}
+    		].filter(Boolean)
+    	};
+    }) "
+
+      45 | 		// Check that base path is properly configured for GitHub Pages
+      46 | 		expect(viteConfigContent).toContain("isGitHubPages");
+    > 47 | 		expect(viteConfigContent).toContain("/threejs_site/");
+         | 		                          ^
+      48 | 		expect(viteConfigContent).toContain("base: base");
+      49 | 	});
+      50 |
+
+      at Object.toContain (tests/repository-tests/mime-types.test.js:47:29)
+
+  console.log
+    Jest setup complete - Mocks initialized
+
+      at Object.<anonymous> (tests/config/jest.setup.cjs:178:10)
+
+  console.log
+    Jest setup complete - Mocks initialized
+
+      at Object.<anonymous> (tests/config/jest.setup.cjs:178:10)
+
+  console.log
+    Jest setup complete - Mocks initialized
+
+      at Object.<anonymous> (tests/config/jest.setup.cjs:178:10)
+
+  console.log
+    Jest setup complete - Mocks initialized
+
+      at Object.<anonymous> (tests/config/jest.setup.cjs:178:10)
+
+(node:19968) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS tests/apps/portfolio/index.test.js
+  Background Image Path Resolution Function
+    ✓ should resolve relative paths correctly for local development (2 ms)
+    ✓ should resolve relative paths correctly for GitHub Pages (1 ms)
+    ✓ should handle absolute paths correctly for local development
+    ✓ should handle absolute paths correctly for GitHub Pages
+    ✓ should handle nested paths correctly
+    ✓ should handle empty paths gracefully (1 ms)
+    ✓ should handle paths with query parameters
+  Background Image Path Resolution Integration
+    ✓ should correctly load resolved paths in local environment (2 ms)
+    ✓ should correctly load resolved paths in GitHub Pages environment (1 ms)
+    ✓ should properly handle texture load errors
+  Background Setup Integration with Manifest
+    ✓ should load background image with correct path in local environment (7 ms)
+    ✓ should load background image with correct path in GitHub Pages environment (1 ms)
+    ✓ should handle COLOR type background (1 ms)
+    ✓ should handle absolute paths in GitHub Pages environment (1 ms)
+    ✓ should handle texture load errors by using fallback color
+    ✓ should handle invalid background type by using default color
+    ✓ should handle standard size images appropriately (1 ms)
+  Portfolio Application Test Suite
+    ✓ Test suite loaded successfully
+
+(node:19962) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:19967) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS tests/apps/portfolio/main.test.js
+  Background Image Path Resolution
+    ✓ should resolve image path correctly for local development (3 ms)
+    ✓ should resolve image path correctly for GitHub Pages (1 ms)
+    ✓ should handle absolute paths in image_path correctly (1 ms)
+    ✓ should correctly resolve a relative path in local environment
+    ✓ should correctly resolve an absolute path in local environment (1 ms)
+    ✓ should correctly resolve a relative path in GitHub Pages environment
+    ✓ should correctly resolve an absolute path in GitHub Pages environment (1 ms)
+    ✓ should handle nested paths correctly
+    ✓ should handle empty paths
+    ✓ should handle paths with query parameters (1 ms)
+  Texture Loading and Configuration
+    ✓ should configure 1-pixel wide textures correctly (1 ms)
+    ✓ should handle texture load errors gracefully
+    ✓ should register window resize handler for gradient scaling (1 ms)
+
+FAIL tests/repository-tests/github-pages.test.js
+  GitHub Pages Deployment
+    Essential files for deployment
+      ✓ index.html exists and has correct CSP configuration (26 ms)
+      ✓ AppRenderer properly enables WebGL extensions (1 ms)
+      ✓ Rapier loader handles WebAssembly imports properly (1 ms)
+      ✓ _headers file exists with proper MIME type definitions (1 ms)
+      ✓ .nojekyll file exists in public directory
+      ✓ custom_types.json exists and is valid JSON
+    Build output verification
+      ✕ vite.config.js has GitHub Pages base configuration (2 ms)
+      ✓ vite.config.js includes file copy logic for custom_types.json (2 ms)
+  GitHub Pages Dependencies
+    ✓ portfolio depends on blorkpack properly
+    ✓ main.js imports from blorkpack correctly (3 ms)
+  Built output validation
+    ✓ main JavaScript file exists in dist directory
+    ✓ custom_types.json is copied to dist directory (1 ms)
+    ✓ .nojekyll file exists in dist directory
+    ✓ _headers file is copied to dist directory
+  GitHub Pages Rapier Loading Integrity
+    ✓ built main.js file does not contain timestamp parameters for Rapier imports (2 ms)
+    ✓ built index.html has correct import map for Rapier (1 ms)
+
+  ● GitHub Pages Deployment › Build output verification › vite.config.js has GitHub Pages base configuration
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected substring: "/threejs_site/"
+    Received string:    "import { defineConfig } from 'vite'
+    import path from 'path'
+    import fs from 'fs'
+    import { ViteImageOptimizer } from 'vite-plugin-image-optimizer'
+    import {·
+    	gracefulShutdownPlugin,·
+    	timestampPlugin,
+    	createVirtualBlorkpackPlugin
+    } from '../../scripts/vite-plugins.js'
+    import baseConfig from '../../vite.config.base.js'
+    import { fileURLToPath } from 'url'·
+    const __dirname = path.dirname(fileURLToPath(import.meta.url))
+    const outputPath = path.resolve(__dirname, 'dist/index.js')·
+    // Define the GitHub Pages project name - should match the one in path_config.js
+    const GITHUB_PAGES_BASE = 'threejs_site';·
+    // Determine if building for GitHub Pages
+    const isGitHubPages = process.env.GITHUB_PAGES === 'true'
+    const base = isGitHubPages ? `${GITHUB_PAGES_BASE}/` : '/'·
+    // Helper function to copy directory contents to the dist folder
+    /**
+     *
+     */
+    function copyDirectory(src, dest) {
+    	if (!fs.existsSync(src)) {
+    		console.warn(`Source directory ${src} doesn't exist`);
+    		return;
+    	}
+    	if (!fs.existsSync(dest)) {
+    		try {
+    			fs.mkdirSync(dest, { recursive: true });
+    		} catch (error) {
+    			console.error(`Failed to create destination directory: ${error.message}`);
+    			return;
+    		}
+    	}
+    	try {
+    		const entries = fs.readdirSync(src, { withFileTypes: true });
+    		for (const entry of entries) {
+    			const srcPath = path.join(src, entry.name);
+    			const destPath = path.join(dest, entry.name);
+    			if (entry.isDirectory()) {
+    				copyDirectory(srcPath, destPath);
+    			} else {
+    				try {
+    					fs.copyFileSync(srcPath, destPath);
+    					// Reduce verbosity - only log directory copying, not each file
+    				} catch (error) {
+    					console.error(`Failed to copy file ${path.basename(srcPath)}: ${error.message}`);
+    				}
+    			}
+    		}
+    	} catch (error) {
+    		console.error(`Error reading directory: ${error.message}`);
+    	}
+    }·
+    export default defineConfig(({ command }) => {
+    	const isProduction = command === 'build'
+    	console.log(`Starting ${isProduction ? 'production' : 'development'} build...`)
+    	// Skip optimization for blorkpack entirely
+    	const optimizeDepsConfig = {}
+    	return {
+    		base: base,
+    		optimizeDeps: optimizeDepsConfig,
+    		resolve: {
+    			// Let the virtual module plugin handle resolution
+    			alias: {
+    				'@littlecarlito/blorkpack': '@littlecarlito/blorkpack'
+    			}
+    		},
+    		build: {
+    			outDir: 'dist',
+    			assetsDir: 'assets',
+    			emptyOutDir: true,
+    			minify: isProduction ? 'terser' : false,
+    			terserOptions: isProduction ? {
+    				compress: {
+    					drop_console: false,
+    					drop_debugger: true
+    				},
+    				format: {
+    					comments: false
+    				}
+    			} : undefined,
+    			rollupOptions: {
+    				output: {
+    					manualChunks: {
+    						'three': ['three'],
+    						'three-addons': [
+    							'three/examples/jsm/controls/OrbitControls',
+    							'three/examples/jsm/Addons.js'
+    						]
+    					},
+    					globals: {
+    						'three': 'THREE'
+    					},
+    					format: 'es',
+    					entryFileNames: '[name].js',
+    					chunkFileNames: '[name].[hash].js',
+    					assetFileNames: '[name].[hash].[ext]'
+    				},
+    				external: [],
+    				input: {
+    					main: 'index.html',
+    					...(isProduction ? {} : {·
+    						packageTest: 'tests/package-test.html'
+    					})
+    				},
+    				onwarn(warning, warn) {
+    					// Only log critical warnings, skip eval warnings from three.js libs
+    					if (warning.code === 'EVAL' && warning.id.includes('node_modules/three')) {
+    						return;
+    					}
+    					console.warn(`Build warning: ${warning.message}`);
+    					warn(warning);
+    				}
+    			},
+    			sourcemap: !isProduction,
+    			chunkSizeWarningLimit: 1000,
+    			reportCompressedSize: false,
+    			target: 'esnext',
+    			modulePreload: false,
+    			cssCodeSplit: true,
+    			write: true,
+    			watch: false,
+    			commonjsOptions: {
+    				include: [/node_modules/],
+    				transformMixedEsModules: true,
+    				requireReturnsDefault: 'auto'
+    			}
+    		},
+    		server: {
+    			hmr: {
+    				overlay: true,
+    			},
+    			port: parseInt(process.env.PORT || '3000', 10),
+    			strictPort: true,
+    			open: false
+    		},
+    		plugins: [
+    			createVirtualBlorkpackPlugin(),
+    			gracefulShutdownPlugin(),
+    			{
+    				name: 'blorkpack-hmr-helper',
+    				transformIndexHtml(html) {
+    					// First add the error handler script
+    					let updatedHtml = html.replace('</head>', `
+                <script>
+                  window.__BLORKPACK_ERROR_HANDLER = (error) => {
+                    if (error && error.message && error.message.includes('blorkpack')) {
+                      console.log('Blorkpack module error detected, HMR will handle it');
+                    }
+                  };···············
+                  window.addEventListener('error', (e) => window.__BLORKPACK_ERROR_HANDLER(e.error));
+                  window.addEventListener('unhandledrejection', (e) => window.__BLORKPACK_ERROR_HANDLER(e.reason));
+                </script>
+              </head>`);······
+    					// Then make sure script paths use the correct base
+    					if (isGitHubPages) {
+    						updatedHtml = updatedHtml.replace(
+    							/<script\\s+type=\"module\"\\s+src=\"\\.\\/([^\"]+)\"/g,·
+    							`<script type=\"module\" src=\"${base}$1\"`
+    						);
+    					}······
+    					return updatedHtml;
+    				}
+    			},
+    			{
+    				name: 'build-error-logger',
+    				buildStart() {
+    					console.log('🚀 Starting build process...');
+    				},
+    				buildEnd(error) {
+    					if (error) {
+    						console.error('⛔ BUILD ERROR ⛔');
+    						console.error(`Error: ${error.message}`);
+    						if (error.stack) {
+    							console.error(`Stack: ${error.stack.split('\\n')[0]}`);
+    						}
+    						if (error.loc) {
+    							console.error(`Location: ${error.loc.file}:${error.loc.line}:${error.loc.column}`);
+    						}
+    						console.error('⛔ END BUILD ERROR ⛔');
+    					}
+    				},
+    				renderError(error) {
+    					console.error('⛔ RENDER ERROR ⛔');
+    					console.error(`Error: ${error.message}`);
+    					if (error.frame) {
+    						console.error(`Context: ${error.frame}`);
+    					}
+    					if (error.id) {
+    						console.error(`File: ${error.id}`);
+    					}
+    					console.error('⛔ END RENDER ERROR ⛔');
+    					return null;
+    				},
+    				closeBundle() {
+    					console.log('✅ Build bundle completed successfully');
+    				},
+    			},
+    			{
+    				name: 'general-error-handler',
+    				configResolved(config) {
+    					process.on('unhandledRejection', (reason, promise) => {
+    						console.error('⚠️ Unhandled Rejection during build:');
+    						console.error(reason);
+    					});·
+    					process.on('uncaughtException', (error) => {
+    						console.error('⚠️ Uncaught Exception during build:');
+    						console.error(error);
+    					});
+    				},
+    				options(options) {
+    					if (!options.plugins) {
+    						options.plugins = [];
+    					}
+    					options.plugins.push({
+    						name: 'rollup-error-detector',
+    						buildStart() {
+    							console.log('📦 Rollup build started');
+    						},
+    						moduleParsed(moduleInfo) {
+    							if (moduleInfo.isEntry) {
+    								console.log(`✓ Parsed entry module: ${path.basename(moduleInfo.id)}`);
+    							}
+    						},
+    						buildEnd(error) {
+    							if (error) {
+    								console.error('⛔ ROLLUP BUILD ERROR ⛔');
+    								console.error(error);
+    							}
+    						}
+    					});
+    					return options;
+    				}
+    			},
+    			isProduction && ViteImageOptimizer({
+    				png: { quality: 80 },
+    				jpeg: { quality: 80 },
+    				jpg: { quality: 80 },
+    				webp: { lossless: true },
+    				avif: { lossless: true },
+    				gif: { optimizationLevel: 3 },
+    				svg: {
+    					multipass: true,
+    					plugins: [
+    						{
+    							name: 'preset-default',
+    							params: {
+    								overrides: {
+    									removeViewBox: false,
+    								},
+    							},
+    						},
+    					],
+    				},
+    			}),
+    			{
+    				name: 'copy-resources',
+    				closeBundle() {
+    					if (isProduction) {
+    						console.log('🔄 Copying static resources...');
+    						try {
+    							const manifestSrc = path.resolve(__dirname, 'public/resources/manifest.json');
+    							const manifestDest = path.resolve(__dirname, 'dist/resources/manifest.json');
+    							if (fs.existsSync(manifestSrc)) {
+    								const resourcesDir = path.resolve(__dirname, 'dist/resources');
+    								if (!fs.existsSync(resourcesDir)) {
+    									fs.mkdirSync(resourcesDir, { recursive: true });
+    								}
+    								fs.copyFileSync(manifestSrc, manifestDest);
+    							} else {
+    								console.warn('⚠️ No manifest.json found in public/resources directory');
+    							}
+    							const pagesSrc = path.resolve(__dirname, 'public/pages');
+    							const pagesDest = path.resolve(__dirname, 'dist/pages');
+    							copyDirectory(pagesSrc, pagesDest);
+    							console.log('✅ Static resources copied successfully');
+    						} catch (error) {
+    							console.error('❌ Error copying resources:', error.message);
+    							throw error;
+    						}
+    					}
+    					return Promise.resolve();
+    				}
+    			},
+    			{
+    				name: 'copy-extra-files',
+    				closeBundle() {
+    					console.log('✅ Copying additional files to dist');
+    					// Copy custom_types.json to the dist root
+    					try {
+    						fs.copyFileSync(
+    							path.resolve(__dirname, 'custom_types.json'),
+    							path.resolve(__dirname, 'dist/custom_types.json')
+    						);
+    						console.log('✓ Copied custom_types.json to dist root');········
+    						// Copy .nojekyll file to disable Jekyll processing on GitHub Pages
+    						fs.writeFileSync(
+    							path.resolve(__dirname, 'dist/.nojekyll'),
+    							''
+    						);
+    						console.log('✓ Created .nojekyll file in dist root');
+    					} catch (error) {
+    						console.error('Failed to copy extra files:', error);
+    					}
+    				}
+    			},
+    			{
+    				name: 'process-terminator',
+    				closeBundle() {
+    					setTimeout(() => {
+    						process.exit(0);
+    					}, 100);
+    				}
+    			}
+    		].filter(Boolean)
+    	};
+    }) "
+
+      105 | 			// Check that the config handles GitHub Pages base path
+      106 | 			expect(viteConfigContent).toContain('isGitHubPages');
+    > 107 | 			expect(viteConfigContent).toContain('/threejs_site/');
+          | 			                          ^
+      108 | 		});
+      109 |
+      110 | 		test('vite.config.js includes file copy logic for custom_types.json', () => {
+
+      at Object.toContain (tests/repository-tests/github-pages.test.js:107:30)
+
+PASS tests/repository-tests/build-dependencies.test.js
+  Build Dependencies
+    ✓ workspace package.json files should be valid (26 ms)
+    ✓ portfolio app dependencies are properly configured (1 ms)
+    ✓ GitHub Pages workflow builds packages in the correct order (8 ms)
+    ✓ verify build process works with simulated dependency build (1 ms)
+
+(node:19966) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+  console.log
+    Jest setup complete - Mocks initialized
+
+      at Object.<anonymous> (tests/config/jest.setup.cjs:178:10)
+
+  console.log
+    Jest setup complete - Mocks initialized
+
+      at Object.<anonymous> (tests/config/jest.setup.cjs:178:10)
+
+  console.log
+    Jest setup complete - Mocks initialized
+
+      at Object.<anonymous> (tests/config/jest.setup.cjs:178:10)
+
+  console.log
+    Jest setup complete - Mocks initialized
+
+      at Object.<anonymous> (tests/config/jest.setup.cjs:178:10)
+
+PASS tests/apps/portfolio/environment/path-resolution.test.js
+  Background Image Path Resolution
+    ✓ should correctly resolve a relative path in local environment (6 ms)
+    ✓ should correctly resolve an absolute path in local environment (1 ms)
+    ✓ should correctly resolve a relative path in GitHub Pages environment (1 ms)
+    ✓ should correctly resolve an absolute path in GitHub Pages environment
+    ✓ should handle nested paths correctly (1 ms)
+    ✓ should handle empty paths
+    ✓ should handle paths with query parameters (1 ms)
+    ✓ should handle paths with both query parameters and hash (1 ms)
+    ✓ should handle null or undefined paths
+    ✓ should handle paths when window.location.pathname has nested directories (1 ms)
+
+PASS tests/apps/portfolio/environment/background-manifest-integration.test.js
+  Background Setup Integration with Manifest
+    ✓ should load background image with correct path in local environment (5 ms)
+    ✓ should load background image with correct path in GitHub Pages environment (1 ms)
+    ✓ should handle COLOR type background (3 ms)
+    ✓ should handle absolute paths in GitHub Pages environment (1 ms)
+    ✓ should handle texture load errors by using fallback color
+    ✓ should handle invalid background type by using default color
+    ✓ should handle standard size images appropriately
+
+  console.log
+    Test server running at http://localhost:9876
+
+      at Server.log (tests/repository-tests/build-integrity.test.js:73:12)
+
+PASS tests/packages/blorkpack/src/asset_handlers/factories/debug_factory-test.js
+  DebugFactory
+    Singleton Pattern
+      ✓ should not allow direct instantiation with new (17 ms)
+      ✓ get_instance returns the same object when called multiple times (1 ms)
+      ✓ get_instance updates scene and world when provided
+      ✓ get_instance creates new instance after dispose_instance (1 ms)
+    Debug Wireframe Methods
+      ✓ create_debug_wireframe correctly passes parameters (1 ms)
+      ✓ update_debug_wireframes correctly calls spawner
+      ✓ set_collision_debug correctly passes parameters (1 ms)
+      ✓ create_debug_wireframes_for_all_bodies correctly passes parameters
+    Debug Mesh Methods
+      ✓ create_debug_mesh correctly passes parameters
+      ✓ despawn_debug_meshes correctly passes parameters
+      ✓ update_debug_meshes correctly passes parameters
+      ✓ forceDebugMeshUpdate correctly calls spawner
+    Visualization Update Methods
+      ✓ update_visualizations calls update_debug_wireframes when flag is true (1 ms)
+      ✓ update_visualizations does not call update_debug_wireframes when flag is false
+    Cleanup and Disposal Methods
+      ✓ cleanup_debug calls cleanup methods
+      ✓ dispose cleans up and clears instance variables (4 ms)
+      ✓ dispose_instance calls dispose on the instance (4 ms)
+      ✓ dispose handles null instance gracefully (1 ms)
+
+  console.log
+    Jest setup complete - Mocks initialized
+
+      at Object.<anonymous> (tests/config/jest.setup.cjs:178:10)
+
+  console.log
+    Jest setup complete - Mocks initialized
+
+      at Object.<anonymous> (tests/config/jest.setup.cjs:178:10)
+
+PASS tests/repository-tests/lockfile.test.js
+  Lockfile Integrity
+    ✓ pnpm-lock.yaml should be in sync with package.json (2 ms)
+
+PASS tests/repository-tests/build-integrity.test.js
+  GitHub Pages Build Integrity Tests
+    Rapier Physics Loading
+      ✓ loader.js should use standard import without timestamp parameter (2 ms)
+      ✓ index.html should include Rapier in import map (2 ms)
+      ✓ built main.js should NOT contain timestamp parameters (3 ms)
+      ✓ built index.html should have correct import map with Rapier (3 ms)
+      ✓ should properly bundle Rapier without dynamic timestamp imports (3 ms)
+    Build Consistency
+      ✓ should have matching import map in source and built files (1 ms)
+      ✓ should verify build script preserves import map functionality
+    Regression Prevention
+      ✓ loader.js should not contain any dynamic timestamp generation code (1 ms)
+      ✓ should have consistent loading strategy across source files
+    Asset Loading
+      ✓ manifest.json should be accessible (43 ms)
+      ✓ gradient.jpg should be accessible from GitHub Pages path (7 ms)
+      ✓ should correctly resolve image paths in main.js (1 ms)
+      ✓ should test all manifest-referenced assets are accessible
+      ✓ should correctly resolve assets with both leading slash and non-leading slash paths (6 ms)
+
+  console.log
+    Jest setup complete - Mocks initialized
+
+      at Object.<anonymous> (tests/config/jest.setup.cjs:178:10)
+
+  console.log
+    Jest setup complete - Mocks initialized
+
+      at Object.<anonymous> (tests/config/jest.setup.cjs:178:10)
+
+PASS tests/repository-tests/export-test.js
+  ✓ THREE object is available globally (1 ms)
+  ✓ RAPIER object is available globally
+
+PASS tests/config/github-pages-workflow.test.js
+  GitHub Pages Workflow Configuration
+    ✓ workflow file exists
+    ✓ workflow has GitHub Pages permissions (1 ms)
+    ✓ workflow has build-site job for GitHub Pages (1 ms)
+    ✓ build-site job includes GITHUB_PAGES environment variable
+    ✓ workflow ensures _headers file is copied to dist
+    ✓ workflow ensures .nojekyll file is created
+    ✓ workflow includes proper deployment step (1 ms)
+
+  console.log
+    Jest setup complete - Mocks initialized
+
+      at Object.<anonymous> (tests/config/jest.setup.cjs:178:10)
+
+  console.log
+    Jest setup complete - Mocks initialized
+
+      at Object.<anonymous> (tests/config/jest.setup.cjs:178:10)
+
+PASS tests/apps/portfolio/environment/texture-loading.test.js
+  Texture Loading and Configuration
+    ✓ should load and configure 1-pixel wide textures correctly (14 ms)
+    ✓ should handle standard size images (not 1-pixel wide) appropriately (9 ms)
+    ✓ should handle texture load errors with fallback (5 ms)
+    ✓ should update texture matrix on window resize (5 ms)
+    ✓ should apply crossOrigin setting for GitHub Pages environment (21 ms)
+
+PASS tests/repository-tests/lint.test.js
+  ESLint Rules
+    Indentation
+      ✓ should process code for indentation (1 ms)
+      ✓ should handle nested structures
+    Blank Lines
+      ✓ should process blank lines (1 ms)
+      ✓ should handle multiple functions
+    JSDoc
+      ✓ should handle basic functions
+      ✓ should handle functions with JSDoc
+    Quotes
+      ✓ should handle string formatting
+    Complex Cases
+      ✓ should handle conditional logic
+      ✓ should handle async functions (1 ms)
+
+PASS tests/apps/portfolio/environment/background-path-resolution.test.js
+  Background Image Path Resolution Function
+    ✓ should resolve relative paths correctly for local development (1 ms)
+    ✓ should resolve relative paths correctly for GitHub Pages
+    ✓ should handle absolute paths correctly for local development
+    ✓ should handle absolute paths correctly for GitHub Pages (1 ms)
+    ✓ should handle nested paths correctly
+    ✓ should handle empty paths gracefully
+    ✓ should handle paths with query parameters
+  Background Image Path Resolution Integration
+    ✓ should correctly load resolved paths in local environment
+    ✓ should correctly load resolved paths in GitHub Pages environment (1 ms)
+    ✓ should properly handle texture load errors
+
+  console.log
+    Jest setup complete - Mocks initialized
+
+      at Object.<anonymous> (tests/config/jest.setup.cjs:178:10)
+
+(node:19965) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS tests/repository-tests/module-loading.test.js
+  Module Loading Tests
+    ✓ should have es-module-shims script loaded (3 ms)
+    ✓ should have correct import map configuration (1 ms)
+    ✓ should have main.js loaded as a module (1 ms)
+  Vite Configuration Tests
+    ✓ should have correct base URL for GitHub Pages
+    ✓ should have Three.js properly configured in rollup options (1 ms)
+    ✓ should have correct chunk naming configuration
+    ✓ should include Three.js in the runtime bundle
+  Content Security Policy Tests
+    ✓ should have correct CSP headers for module loading
+    ✓ should verify all required domains for external resources are in CSP (1 ms)
+  ES Module Shims Compatibility Tests
+    ✓ should have es-module-shims correctly referenced
+  Import Map Configuration Tests
+    ✓ should have correct entries in import map in index.html (1 ms)
+    ✓ should have matching import strategy in loader.js and import map
+    ✓ should have consistency between loader.js and built main.js file
+
+(node:19964) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS tests/repository-tests/script-binary-check.test.js
+  Package Scripts Binary Check
+    ✓ All package.json files are found and parsed (2 ms)
+    ✓ All binaries referenced by dlx/npx exist with executable (2 ms)
+    ✓ No package names with -cli alternatives are used directly
+
+Test Suites: 2 failed, 15 passed, 17 total
+Tests:       2 failed, 152 passed, 154 total
+Snapshots:   0 total
+Time:        2.113 s
+Ran all test suites.
+ ELIFECYCLE  Test failed. See above for more details.

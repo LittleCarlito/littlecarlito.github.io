@@ -1,4 +1,4 @@
-import { THREE, initThree } from "../../../common";
+import { THREE, initThree, GITHUB_PAGES_BASE } from "../../../common";
 // Create a lazy-loaded TextureLoader
 let textureLoader = null;
 /**
@@ -18,7 +18,7 @@ export const TEXTURE_LOADER = {
 	load: (url, onLoad, onProgress, onError) => {
 		const loader = getTextureLoader();
 		// Enable CORS specifically for GitHub Pages URLs
-		if (url.includes('/threejs_site/')) {
+		if (url.includes(`${GITHUB_PAGES_BASE}/`)) {
 			loader.crossOrigin = 'anonymous';
 		}
 		return loader.load(url, onLoad, onProgress, onError);
