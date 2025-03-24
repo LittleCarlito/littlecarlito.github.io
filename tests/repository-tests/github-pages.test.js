@@ -172,4 +172,61 @@ describe('GitHub Pages Dependencies', () => {
 		const headersDistPath = path.resolve(PORTFOLIO_DIST_DIR, '_headers');
 		expect(fs.existsSync(headersDistPath)).toBe(true);
 	});
+});
+
+// New test specifically for Rapier loading
+(fs.existsSync(PORTFOLIO_DIST_DIR) ? describe : describe.skip)('GitHub Pages Rapier Loading Integrity', () => {
+	test('built main.js file does not contain timestamp parameters for Rapier imports', () => {
+		// Find the main.js file in the dist directory
+		const distFiles = fs.readdirSync(PORTFOLIO_DIST_DIR);
+		const mainJsFile = distFiles.find(file => file === 'main.js' || file.match(/^main\.[a-zA-Z0-9]+\.js$/));
+		
+		expect(mainJsFile).toBeTruthy();
+		if (mainJsFile) {
+			const mainJsPath = path.resolve(PORTFOLIO_DIST_DIR, mainJsFile);
+			const mainJsContent = fs.readFileSync(mainJsPath, 'utf8');
+			
+			// Should NOT contain timestamp parameter for Rapier imports
+			expect(mainJsContent).not.toContain('import("@dimforge/rapier3d-compat?t=');
+			expect(mainJsContent).not.toContain('import(\'@dimforge/rapier3d-compat?t=');
+			expect(mainJsContent).not.toContain('const timestamp = Date.now()');
+		}
+	});
+	
+	test('built index.html has correct import map for Rapier', () => {
+		const indexHtmlPath = path.resolve(PORTFOLIO_DIST_DIR, 'index.html');
+		expect(fs.existsSync(indexHtmlPath)).toBe(true);
+		
+		const indexHtmlContent = fs.readFileSync(indexHtmlPath, 'utf8');
+		
+		// Extract import map
+		const importMapMatch = indexHtmlContent.match(/<script type="importmap">([\s\S]*?)<\/script>/);
+		expect(importMapMatch).toBeTruthy();
+		
+		if (importMapMatch) {
+			const importMapText = importMapMatch[1];
+			let importMap;
+			
+			try {
+				importMap = JSON.parse(importMapText);
+			} catch (e) {
+				console.error('Failed to parse import map:', e);
+				// Force test failure if JSON is invalid
+				expect('Valid JSON').toBe('Invalid JSON: ' + e.message);
+				return;
+			}
+			
+			// Verify Rapier entry exists in the import map
+			expect(importMap.imports).toBeDefined();
+			expect(importMap.imports['@dimforge/rapier3d-compat']).toBeDefined();
+			
+			// Verify it points to a valid URL (no timestamp parameters)
+			const rapierUrl = importMap.imports['@dimforge/rapier3d-compat'];
+			expect(rapierUrl).toContain('https://unpkg.com/@dimforge/rapier3d-compat');
+			expect(rapierUrl).toContain('rapier.es.js');
+			
+			// Make sure there's no timestamp parameter
+			expect(rapierUrl).not.toContain('?t=');
+		}
+	});
 }); 
