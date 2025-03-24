@@ -28,16 +28,10 @@ export class AppRenderer {
 		this.webgl_renderer.setSize(window.innerWidth, window.innerHeight);
 		this.webgl_renderer.shadowMap.enabled = true;
 		this.webgl_renderer.shadowMap.type = THREE.VSMShadowMap;
-		this.webgl_renderer.domElement.style.position = 'absolute';
-		this.webgl_renderer.domElement.style.top = '0';
+		this. webgl_renderer.domElement.style.position = 'absolute';
+		this. webgl_renderer.domElement.style.top = '0';
 		this.webgl_renderer.domElement.style.zIndex = '0';
 		document.body.appendChild(this.webgl_renderer.domElement);
-		
-		// Enable WebGL extensions to avoid warnings
-		if (THREE.enableWebGLExtensions) {
-			THREE.enableWebGLExtensions(this.webgl_renderer);
-		}
-		
 		// After effects
 		this.composer = new EffectComposer(this.webgl_renderer);
 		const output_pass = new OutputPass();

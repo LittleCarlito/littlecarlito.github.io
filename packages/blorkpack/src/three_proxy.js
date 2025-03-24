@@ -4,45 +4,6 @@ import { load_three } from './loader.js';
 let threeModule = null;
 let isInitialized = false;
 let initPromise = null;
-
-// Add this variable to track if we've added our extension enabler
-let extensionEnablerAdded = false;
-
-/**
- * A simple function that enables the necessary WebGL extensions for a renderer
- * @param {THREE.WebGLRenderer} renderer - The renderer to enable extensions for
- */
-function enableExtensionsForRenderer(renderer) {
-	if (!renderer) return;
-	
-	try {
-		const gl = renderer.getContext();
-		if (gl) {
-			gl.getExtension('EXT_float_blend');
-			gl.getExtension('OES_texture_float');
-			gl.getExtension('OES_texture_float_linear');
-			gl.getExtension('WEBGL_depth_texture');
-		}
-	} catch (e) {
-		console.warn('Could not enable WebGL extensions:', e);
-	}
-}
-
-/**
- * We'll add this function to the THREE global so it can be called manually
- */
-function setupExtensionEnabler(three) {
-	if (extensionEnablerAdded) return;
-	
-	// Add our enableExtensions helper to the THREE global
-	three.enableWebGLExtensions = enableExtensionsForRenderer;
-	
-	// Print a helpful message in the console
-	console.log('THREE.enableWebGLExtensions() is now available to manually enable WebGL extensions on any renderer');
-	
-	extensionEnablerAdded = true;
-}
-
 /**
  * Creates a proxy for the THREE module that lazily loads the actual module
  */
@@ -55,10 +16,6 @@ export function createThreeProxy() {
 			initPromise = (async () => {
 				const module = await load_three();
 				threeModule = module.THREE;
-				
-				// Add our extension enabler to THREE
-				setupExtensionEnabler(threeModule);
-				
 				isInitialized = true;
 				return threeModule;
 			})();
