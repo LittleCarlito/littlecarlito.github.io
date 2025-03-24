@@ -49,15 +49,19 @@ describe('GitHub Pages Deployment', () => {
 			expect(appRendererContent).toContain('gl.getExtension(\'EXT_float_blend\')');
 		});
 
-		test('Rapier loader handles WebAssembly source maps properly', () => {
+		test('Rapier loader handles WebAssembly imports properly', () => {
 			const loaderPath = path.resolve(BLORKPACK_DIR, 'src/loader.js');
 			expect(fs.existsSync(loaderPath)).toBe(true);
 			
 			const loaderContent = fs.readFileSync(loaderPath, 'utf8');
 			
-			// Check that Rapier loader uses dynamic imports with cache busting
-			expect(loaderContent).toContain('const timestamp = Date.now()');
-			expect(loaderContent).toContain('await import(\'@dimforge/rapier3d-compat?t=\'');
+			// Check that Rapier loader uses standard import with no timestamp parameter for GitHub Pages
+			// This is required to work with import maps
+			expect(loaderContent).toContain('await import(\'@dimforge/rapier3d-compat\')');
+			
+			// Make sure there's no timestamp parameter in the import (would break import map)
+			expect(loaderContent).not.toContain('await import(\'@dimforge/rapier3d-compat?t=\'');
+			expect(loaderContent).not.toContain('const timestamp = Date.now()');
 		});
 
 		test('_headers file exists with proper MIME type definitions', () => {
