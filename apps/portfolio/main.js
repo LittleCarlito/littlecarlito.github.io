@@ -252,15 +252,17 @@ async function init() {
 			// Input image path from config
 			let imagePath = bg.image_path;
 			
-			// Normalize path 
-			if (!imagePath.startsWith('/')) {
-				imagePath = '/' + imagePath;
+			// Normalize path for consistency
+			// Remove leading slash if present for more consistent handling
+			if (imagePath.startsWith('/')) {
+				imagePath = imagePath.substring(1);
 			}
 			
 			// Create correct absolute URL based on environment
+			// For GitHub Pages, use relative path (no leading slash) to ensure proper resolution
 			const imageUrl = isGitHubPages 
-				? `/threejs_site${imagePath}` // GitHub Pages path
-				: imagePath; // Local development path
+				? `images/gradient.jpg` // Direct path to the image without leading slash
+				: `/${imagePath}`; // Local development path with leading slash
 			
 			console.log(`Loading texture from: ${imageUrl}`);
 			
