@@ -240,7 +240,7 @@ async function init() {
 		switch (bg.type) {
 		case 'IMAGE':
 			// Fix for GitHub Pages path resolution for background image
-			const basePath = window.location.pathname.includes('/threejs_site/') ? '/threejs_site/' : '/';
+			const basePath = window.location.hostname.includes('github.io') ? '/threejs_site/' : '/';
 			const imagePath = bg.image_path.startsWith('/') ? bg.image_path.substring(1) : bg.image_path;
 			const fullImagePath = `${basePath}${imagePath}`;
 			
