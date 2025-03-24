@@ -261,7 +261,7 @@ async function init() {
 			// Create correct absolute URL based on environment
 			// For GitHub Pages, use relative path (no leading slash) to ensure proper resolution
 			const imageUrl = isGitHubPages 
-				? `images/gradient.jpg` // Direct path to the image without leading slash
+				? `/threejs_site/images/gradient.jpg` // Add the correct base path for GitHub Pages
 				: `/${imagePath}`; // Local development path with leading slash
 			
 			console.log(`Loading texture from: ${imageUrl}`);
