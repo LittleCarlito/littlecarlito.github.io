@@ -21,6 +21,12 @@ This monorepo houses a collection of high-performance tools and applications for
 - **Physics Integration** - Seamless integration with Rapier3D for realistic physical interactions
 - **Developer Experience** - Comprehensive tooling for debugging and analyzing 3D applications
 
+## 🌐 GitHub Pages Deployment
+
+This project is deployed to GitHub Pages at [https://littlecarlito.github.io/threejs_site/](https://littlecarlito.github.io/threejs_site/).
+
+For information on how the GitHub Pages deployment works and how to test it locally, see the [GitHub Pages documentation](documentation/github-pages.md).
+
 ## 🏗️ Project Structure
 
 ```

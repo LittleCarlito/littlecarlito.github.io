@@ -21,6 +21,9 @@
 
 <!-- Please describe the tests that you ran to verify your changes -->
 - [ ] All tests pass locally
+- [ ] I've run `pnpm test:gh-pages` to ensure GitHub Pages deployment will work correctly
+- [ ] I've tested path-related changes with both regular and GitHub Pages environments  
+- [ ] I've verified resources like manifest.json and images load correctly with GitHub Pages base path
 - [ ] I've added tests that prove my fix is effective or that my feature works
 - [ ] I've manually tested the changes
 

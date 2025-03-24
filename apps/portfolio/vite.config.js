@@ -278,6 +278,10 @@ export default defineConfig(({ command }) => {
 									fs.mkdirSync(resourcesDir, { recursive: true });
 								}
 								fs.copyFileSync(manifestSrc, manifestDest);
+								
+								// Also copy to the root directory for easier access
+								fs.copyFileSync(manifestSrc, path.resolve(__dirname, 'dist/manifest.json'));
+								console.log('✓ Copied manifest.json to both resources directory and root');
 							} else {
 								console.warn('⚠️ No manifest.json found in public/resources directory');
 							}
