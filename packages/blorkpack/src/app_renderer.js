@@ -32,6 +32,13 @@ export class AppRenderer {
 		this. webgl_renderer.domElement.style.top = '0';
 		this.webgl_renderer.domElement.style.zIndex = '0';
 		document.body.appendChild(this.webgl_renderer.domElement);
+		
+		// Explicitly enable the EXT_float_blend extension
+		const gl = this.webgl_renderer.getContext();
+		if (gl) {
+			gl.getExtension('EXT_float_blend');
+		}
+		
 		// After effects
 		this.composer = new EffectComposer(this.webgl_renderer);
 		const output_pass = new OutputPass();
