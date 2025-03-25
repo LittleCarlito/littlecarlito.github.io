@@ -170,28 +170,28 @@ jobs:
             -f description="Changesets validated successfully" \
             -f context="Test Changesets"
           
-          # Try to merge with multiple strategies
-          echo "Attempting to merge PR #$PR_NUMBER"
+          # Wait for GitHub to register all status checks
+          echo "Waiting for GitHub to register all status checks..."
+          sleep 15
           
-          # First try with admin privileges
-          echo "Trying admin merge..."
-          if gh pr merge $PR_NUMBER --merge --admin --delete-branch; then
-            echo "Successfully merged with admin privileges"
+          # Try direct squash merge with admin flag
+          echo "Attempting to squash and merge PR #$PR_NUMBER..."
+          gh pr merge $PR_NUMBER --squash --admin --delete-branch
+          
+          # Verify merge actually happened
+          sleep 5
+          PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
+          if [ "$PR_STATE" == "MERGED" ]; then
+            echo "Successfully merged PR #$PR_NUMBER"
           else
-            # Then try standard merge
-            echo "Admin merge failed, trying standard merge..."
-            if gh pr merge $PR_NUMBER --merge --delete-branch; then
-              echo "Successfully merged with standard permissions"
-            else
-              # Finally try to enable auto-merge
-              echo "Standard merge failed, trying to enable auto-merge..."
-              if gh pr merge $PR_NUMBER --merge --auto --delete-branch; then
-                echo "Auto-merge enabled, PR will merge when checks pass"
-              else
-                echo "All merge attempts failed. Manual merge required."
-                echo "PR URL: $PR_URL"
-              fi
-            fi
+            echo "WARNING: Merge command succeeded but PR #$PR_NUMBER is still in state: $PR_STATE"
+            echo "Attempting direct merge with API..."
+            # Force merge with direct API call as last resort
+            gh api \
+              --method PUT \
+              -H "Accept: application/vnd.github+json" \
+              /repos/${{ github.repository }}/pulls/$PR_NUMBER/merge \
+              -f merge_method=squash
           fi
           
           echo "Created PR #$PR_NUMBER: $PR_URL"
