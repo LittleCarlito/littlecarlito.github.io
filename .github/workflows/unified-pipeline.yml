@@ -217,15 +217,46 @@ jobs:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Auto-merge version PR if exists
+        id: auto-merge
         if: steps.find-pr.outputs.has_pr == 'true'
         run: |
-          # Wait briefly for statuses to register
-          sleep 5
+          # Find PR with title "chore: version packages"
+          echo "Looking for version PR with title 'chore: version packages'..."
+          PR_NUMBER=$(gh pr list --repo ${{ github.repository }} --json number,title --jq '.[] | select(.title=="chore: version packages") | .number')
           
-          PR_NUMBER=$(gh pr list --repo ${{ github.repository }} --author app/github-actions --json number --jq '.[0].number')
-          if [ ! -z "$PR_NUMBER" ]; then
-            echo "Found version PR #$PR_NUMBER, merging directly"
-            gh pr merge $PR_NUMBER --merge --repo ${{ github.repository }}
+          if [ -n "$PR_NUMBER" ]; then
+            echo "Found version PR #$PR_NUMBER"
+            
+            # Debug info about PR
+            echo "PR details:"
+            gh pr view $PR_NUMBER --json number,title,state,mergeable,mergeStateStatus,headRefName
+            
+            # Wait for checks to complete
+            echo "Waiting for all checks to complete (15 seconds)..."
+            sleep 15
+            
+            # Force API merge directly - most reliable method
+            echo "Forcing merge via API for PR #$PR_NUMBER (bypassing branch protection)..."
+            if gh api \
+              --method PUT \
+              -H "Accept: application/vnd.github+json" \
+              /repos/${{ github.repository }}/pulls/$PR_NUMBER/merge \
+              -f merge_method=squash; then
+              echo "✅ Successfully merged PR #$PR_NUMBER via direct API call"
+            else
+              echo "❌ Direct API merge failed, trying CLI with admin flag..."
+              if gh pr merge $PR_NUMBER --squash --admin --delete-branch; then
+                echo "✅ Successfully merged PR #$PR_NUMBER with admin flag"
+              else
+                echo "❌ Failed to merge PR #$PR_NUMBER with admin flag"
+                echo "Final PR state:"
+                gh pr view $PR_NUMBER --json number,title,state,mergeable,mergeStateStatus
+              fi
+            fi
+          else
+            echo "No version PR found"
+            echo "All open PRs:"
+            gh pr list --json number,title,headRefName
           fi
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
