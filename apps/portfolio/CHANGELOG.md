@@ -1,5 +1,14 @@
 # @littlecarlito/portfolio
 
+## 1.10.3
+
+### Patch Changes
+
+- 215405c: Fix portfolio release mechanism to ensure consistent releases
+- 215405c: Fix portfolio automatic release process
+- 215405c: Fix portfolio release in workflow
+  - @littlecarlito/blorkpack@1.10.3
+
 ## 1.10.2
 
 ### Patch Changes
