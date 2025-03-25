@@ -460,21 +460,17 @@ jobs:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       # Create fallback release for portfolio when changesets action didn't publish but we want to continue
-      - name: Create fallback portfolio release
-        if: (steps.changesets.outputs.published != 'true' && steps.check-pr-error.outputs.continue_workflow == 'true') || (steps.changesets.outputs.published == 'true')
+      - name: Create portfolio release
+        # Always run this step, regardless of other conditions
         run: |
-          echo "Creating fallback portfolio release..."
+          echo "Creating portfolio release..."
           
-          # Determine which step to get the version from
-          if [[ "${{ steps.changesets.outputs.published }}" == "true" ]]; then
-            echo "Using version from successful publish step"
-            PORTFOLIO_VERSION=${{ steps.get_versions.outputs.portfolio_version }}
-          else
-            echo "Using version from fallback step"
-            PORTFOLIO_VERSION=${{ steps.get_fallback_versions.outputs.portfolio_version }}
-          fi
-          
+          # Get portfolio version directly from package.json
+          PORTFOLIO_VERSION=$(node -p "require('./apps/portfolio/package.json').version")
           PORTFOLIO_TAG="@littlecarlito/portfolio@${PORTFOLIO_VERSION}"
+          
+          echo "Portfolio version: ${PORTFOLIO_VERSION}"
+          echo "Portfolio tag: ${PORTFOLIO_TAG}"
           
           # First ensure the tag exists
           if ! git rev-parse -q --verify "refs/tags/${PORTFOLIO_TAG}" >/dev/null; then
@@ -511,7 +507,7 @@ jobs:
                 -f generate_release_notes=true
             fi
             
-            echo "Created fallback release for portfolio!"
+            echo "Created portfolio release!"
           fi
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 
