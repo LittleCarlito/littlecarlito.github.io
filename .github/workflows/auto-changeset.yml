@@ -167,9 +167,9 @@ jobs:
             -f description="Changesets validated successfully" \
             -f context="Test Changesets"
           
-          # Auto-merge the PR
+          # Merge the PR
           sleep 5  # Wait briefly for statuses to register
-          gh pr merge $PR_NUMBER --merge --auto --delete-branch
+          gh pr merge $PR_NUMBER --merge --delete-branch
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
