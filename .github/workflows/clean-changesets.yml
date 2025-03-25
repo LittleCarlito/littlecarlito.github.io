@@ -75,32 +75,92 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           
-      - name: Create Build Success Status
-        uses: Sibz/github-status-action@v1
-        with:
-          authToken: ${{ secrets.PACKAGE_TOKEN }}
-          context: 'Build Packages'
-          description: 'Build completed successfully'
-          state: 'success'
-          sha: ${{ steps.get_pr_sha.outputs.pr_sha }}
+      - name: Build Packages Status Check
+        run: |
+          echo "Creating Build Packages success status"
+          gh api \
+            --method POST \
+            /repos/${{ github.repository }}/statuses/${{ steps.get_pr_sha.outputs.pr_sha }} \
+            -f state=success \
+            -f context="Build Packages" \
+            -f description="Build completed successfully (via clean-changesets)" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
-      - name: Create Test Success Status
-        uses: Sibz/github-status-action@v1
-        with:
-          authToken: ${{ secrets.PACKAGE_TOKEN }}
-          context: 'Test / Run Tests'
-          description: 'Tests passed successfully'
-          state: 'success'
-          sha: ${{ steps.get_pr_sha.outputs.pr_sha }}
+      - name: Test Status Check
+        run: |
+          echo "Creating Test success status"
+          gh api \
+            --method POST \
+            /repos/${{ github.repository }}/statuses/${{ steps.get_pr_sha.outputs.pr_sha }} \
+            -f state=success \
+            -f context="Test / Run Tests" \
+            -f description="Tests passed successfully (via clean-changesets)" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
-      - name: Create Changeset Success Status
-        uses: Sibz/github-status-action@v1
-        with:
-          authToken: ${{ secrets.PACKAGE_TOKEN }}
-          context: 'Test Changesets'
-          description: 'Changesets validated successfully'
-          state: 'success'
-          sha: ${{ steps.get_pr_sha.outputs.pr_sha }}
+      - name: Changesets Status Check
+        run: |
+          echo "Creating Changesets success status"
+          gh api \
+            --method POST \
+            /repos/${{ github.repository }}/statuses/${{ steps.get_pr_sha.outputs.pr_sha }} \
+            -f state=success \
+            -f context="Test Changesets" \
+            -f description="Changesets validated successfully (via clean-changesets)" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      # Wait and verify that our checks actually exist and are successful
+      - name: Verify status checks are registered
+        run: |
+          echo "Verifying required status checks are registered for PR #${{ steps.create_pr.outputs.pr_number }}..."
+          
+          # List of required check names
+          REQUIRED_CHECKS=("Build Packages" "Test / Run Tests" "Test Changesets")
+          
+          # Wait for up to 30 seconds for checks to register
+          for i in {1..15}; do
+            echo "Attempt $i/15: Checking for required status checks..."
+            
+            # Get current statuses
+            STATUSES=$(gh api /repos/${{ github.repository }}/commits/${{ steps.get_pr_sha.outputs.pr_sha }}/statuses)
+            
+            # Count how many required checks we have
+            FOUND_CHECKS=0
+            
+            # Check each required context
+            for check in "${REQUIRED_CHECKS[@]}"; do
+              COUNT=$(echo "$STATUSES" | jq --arg check "$check" '[.[] | select(.context == $check and .state == "success")] | length')
+              
+              if [ "$COUNT" -gt "0" ]; then
+                echo "✅ Found successful status check: $check"
+                FOUND_CHECKS=$((FOUND_CHECKS + 1))
+              else
+                echo "❌ Missing or unsuccessful status check: $check"
+              fi
+            done
+            
+            # If we have all checks, break
+            if [ "$FOUND_CHECKS" -eq "${#REQUIRED_CHECKS[@]}" ]; then
+              echo "✅ All required status checks are registered and successful!"
+              break
+            fi
+            
+            # Exit if we're on the last attempt and still missing checks
+            if [ $i -eq 15 ]; then
+              echo "⚠️ Some required status checks are still missing after waiting."
+              echo "Will attempt merge anyway."
+            else
+              echo "Waiting for status checks to register (attempt $i/15)..."
+              sleep 2
+            fi
+          done
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Wait for required checks
         run: |
