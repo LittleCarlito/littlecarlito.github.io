@@ -1,5 +1,11 @@
 # @littlecarlito/blorkboard
 
+## 1.2.0
+
+### Minor Changes
+
+- 35e96b6: Forcing test release
+
 ## 1.1.0
 
 ### Minor Changes
