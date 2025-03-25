@@ -459,27 +459,30 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
-      # Create fallback release for portfolio when changesets action didn't publish but we want to continue
+      # Create portfolio release only if version changed
       - name: Create portfolio release
-        # Always run this step, regardless of other conditions
         run: |
-          echo "Creating portfolio release..."
+          echo "Checking if portfolio version has changed..."
           
-          # Get portfolio version directly from package.json
+          # Get portfolio version from package.json
           PORTFOLIO_VERSION=$(node -p "require('./apps/portfolio/package.json').version")
           PORTFOLIO_TAG="@littlecarlito/portfolio@${PORTFOLIO_VERSION}"
           
-          echo "Portfolio version: ${PORTFOLIO_VERSION}"
-          echo "Portfolio tag: ${PORTFOLIO_TAG}"
+          echo "Current portfolio version: ${PORTFOLIO_VERSION}"
           
-          # First ensure the tag exists
-          if ! git rev-parse -q --verify "refs/tags/${PORTFOLIO_TAG}" >/dev/null; then
-            echo "Tag ${PORTFOLIO_TAG} does not exist, creating it"
-            git tag -a "${PORTFOLIO_TAG}" -m "Portfolio v${PORTFOLIO_VERSION}"
-            git push origin "${PORTFOLIO_TAG}" || echo "Warning: Failed to push tag, but continuing"
+          # Check if tag already exists
+          if git rev-parse -q --verify "refs/tags/${PORTFOLIO_TAG}" >/dev/null; then
+            echo "Tag ${PORTFOLIO_TAG} already exists, skipping release creation"
+            exit 0
           fi
           
-          # Check if release already exists
+          echo "Version ${PORTFOLIO_VERSION} is new, creating tag and release"
+          
+          # Create the tag
+          git tag -a "${PORTFOLIO_TAG}" -m "Portfolio v${PORTFOLIO_VERSION}"
+          git push origin "${PORTFOLIO_TAG}" || echo "Warning: Failed to push tag, but continuing"
+          
+          # Check if release already exists (shouldn't, but just in case)
           RELEASE_EXISTS=$(gh api \
             -H "Accept: application/vnd.github+json" \
             /repos/${{ github.repository }}/releases/tags/${PORTFOLIO_TAG} \
