@@ -70,9 +70,19 @@ jobs:
     with:
       artifact_name: package-builds
 
+  auto-changeset:
+    name: Auto Generate Changesets
+    # Only run this on main branch pushes, not on tags
+    if: github.ref == 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/')
+    needs: test
+    uses: ./.github/workflows/auto-changeset.yml
+    secrets: inherit
+
   version-and-publish:
     name: Version and Publish
-    needs: test
+    # Run this job even if auto-changeset job is skipped
+    needs: [test, auto-changeset]
+    if: always() && needs.test.result == 'success'
     runs-on: ubuntu-latest
     outputs:
       published: ${{ steps.changesets.outputs.published }}
@@ -113,6 +123,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          
+      # Pull latest changes because auto-changeset might have pushed a new changeset
+      - name: Pull latest changes
+        run: git pull origin main
           
       - name: Check for changesets
         id: check-changesets
