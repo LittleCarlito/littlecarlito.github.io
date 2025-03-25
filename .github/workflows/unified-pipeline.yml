@@ -8,10 +8,6 @@ on:
       - 'v*'
   workflow_dispatch:
     inputs:
-      clean_changesets:
-        description: 'Clean all existing changeset files'
-        type: boolean
-        default: false
       regenerate_from:
         description: 'Regenerate changesets from this commit (commit hash or "HEAD~N")'
         type: string
@@ -58,30 +54,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install
         
-      # Configure Git identity before cleaning changesets
+      # Configure Git identity
       - name: Configure Git identity
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        
-      # Optional step to clean out existing changesets if requested
-      - name: Clean existing changesets
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.clean_changesets == 'true'
-        run: |
-          echo "Cleaning out existing changesets..."
-          find .changeset -type f -not -name 'config.json' -not -name 'README.md' -delete
-          echo "Remaining files in .changeset directory:"
-          ls -la .changeset/
-          
-          # Commit the changes if any files were removed
-          if git status --porcelain | grep -q '.changeset'; then
-            git add .changeset
-            git commit -m "chore: clean out existing changesets [skip ci]"
-            git push origin main
-            echo "Removed changeset files and pushed changes"
-          else
-            echo "No changeset files to remove"
-          fi
         
       - name: Build packages
         run: |
