@@ -1,5 +1,11 @@
 ## [0.12.21](https://github.com/littlecarlito/threejs_site/compare/v0.12.20...v0.12.21) (2025-03-20)
 
+## 1.2.0
+
+### Minor Changes
+
+- 35e96b6: Forcing test release
+
 ## 1.1.0
 
 ### Minor Changes
