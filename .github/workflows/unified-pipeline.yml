@@ -58,6 +58,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install
         
+      # Configure Git identity before cleaning changesets
+      - name: Configure Git identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        
       # Optional step to clean out existing changesets if requested
       - name: Clean existing changesets
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.clean_changesets == 'true'
@@ -305,6 +311,32 @@ jobs:
           echo "blorkpack: $BLORKPACK_VERSION"
           echo "blorktools: $BLORKTOOLS_VERSION"
           echo "blorkboard: $BLORKBOARD_VERSION"
+
+      # Auto-publish any draft releases
+      - name: Auto-publish GitHub Releases
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          # Get all draft releases
+          RELEASES=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${{ github.repository }}/releases \
+            --jq '.[] | select(.draft==true)')
+          
+          echo "$RELEASES" | jq -c '.' | while read -r release; do
+            RELEASE_ID=$(echo "$release" | jq -r '.id')
+            echo "Publishing draft release ID: $RELEASE_ID"
+            
+            # Update release to remove draft status
+            gh api \
+              --method PATCH \
+              -H "Accept: application/vnd.github+json" \
+              /repos/${{ github.repository }}/releases/$RELEASE_ID \
+              -f draft=false
+            
+            echo "Release has been published!"
+          done
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
   # Build the site for GitHub Pages
   build-site:
