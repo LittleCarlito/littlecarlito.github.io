@@ -1,5 +1,12 @@
 # @littlecarlito/portfolio
 
+## 1.10.1
+
+### Patch Changes
+
+- e3a4b5d: Fix portfolio release in workflow
+  - @littlecarlito/blorkpack@1.10.1
+
 ## 1.10.0
 
 ### Minor Changes
