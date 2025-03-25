@@ -1,15 +1,6 @@
 name: Auto Changeset
 
 on:
-  # Standalone workflow trigger
-  push:
-    branches:
-      - 'feature/**'
-      - 'fix/**'
-      - 'docs/**'
-    # Exclude main branch as it's handled by unified-pipeline
-    branches-ignore:
-      - main
   workflow_call:
     inputs:
       since:
