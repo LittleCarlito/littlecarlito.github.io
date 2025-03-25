@@ -1,4 +1,4 @@
-name: Direct Publish
+name: Release Direct
 
 on:
   workflow_call:

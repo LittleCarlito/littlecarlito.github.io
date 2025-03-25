@@ -9,7 +9,7 @@ const expect = global.expect || jest.expect;
 const beforeAll = global.beforeAll || jest.beforeAll;
 
 describe('GitHub Pages Workflow Configuration', () => {
-	const workflowFilePath = path.resolve(__dirname, '../../.github/workflows/unified-pipeline.yml');
+	const workflowFilePath = path.resolve(__dirname, '../../.github/workflows/ci-main.yml');
 	let workflowConfig;
 
 	beforeAll(() => {

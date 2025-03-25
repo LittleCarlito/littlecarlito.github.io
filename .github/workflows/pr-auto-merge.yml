@@ -5,7 +5,7 @@
 # giving visibility to both the initial PR intent and current work status.
 # DO NOT "fix" this behavior - it's a useful feature for tracking work progress.
 
-name: Auto PR Creation and Merge
+name: PR Auto Merge
 
 on:
   push:
@@ -145,11 +145,11 @@ jobs:
           sleep 10
           
           # The expected minimum number of non-auto-merge required checks
-          # Updated to 3 to match new workflow jobs: Build Packages, Test Packages, Test Changesets
+          # Updated to match ci-main.yml jobs: Build Packages, Test, Direct Publish
           MIN_REQUIRED_CHECKS=3
           
-          # List of expected check names from the new changesets workflow
-          EXPECTED_CHECK_NAMES=("Build Packages" "Test Packages" "Test Changesets")
+          # List of expected check names from ci-main.yml
+          EXPECTED_CHECK_NAMES=("Build Packages" "Test" "Direct Publish")
           
           # Wait for checks to complete (up to 10 minutes)
           for i in {1..60}; do

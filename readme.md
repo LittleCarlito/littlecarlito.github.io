@@ -3,7 +3,7 @@
 A monorepo containing advanced Three.js tooling libraries and interactive 3D applications built with these tools. This project includes physics-based 3D environments, asset management systems, and development tools for creating immersive web experiences with industry-leading performance optimization.
 
 [![Live Site](https://img.shields.io/badge/🌐_Live_Site-Visit-blue)](https://littlecarlito.github.io/threejs_site/)
-![Deployment Status](https://github.com/LittleCarlito/threejs_site/actions/workflows/unified-pipeline.yml/badge.svg)
+![Deployment Status](https://github.com/LittleCarlito/threejs_site/actions/workflows/ci-main.yml/badge.svg)
 ![Under Construction](https://img.shields.io/badge/status-under%20construction-yellow)
 ![Three.js](https://img.shields.io/badge/Three.js-black?logo=three.js)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)

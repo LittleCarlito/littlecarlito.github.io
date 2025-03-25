@@ -137,7 +137,7 @@ describe('Build Dependencies', () => {
 
 	test('GitHub Pages workflow builds packages in the correct order', () => {
 		// Check that the GitHub workflow builds blorkpack before portfolio
-		const workflowPath = path.resolve(__dirname, '../../.github/workflows/unified-pipeline.yml');
+		const workflowPath = path.resolve(__dirname, '../../.github/workflows/ci-main.yml');
 		expect(fs.existsSync(workflowPath)).toBe(true);
 		
 		const workflowContent = fs.readFileSync(workflowPath, 'utf8');

@@ -820,6 +820,10 @@
 
 - 236cf2c: Changeset created from conventional commits:
 
+  - chore: auto-generate changeset (#251)
+  - fix: better auto merge logs
+  - chore: auto-generate changeset (#248)
+  - fix: merging within pipeline
   - chore: auto-generate changeset (#245)
   - fix: trigger name
   - chore: auto-generate changeset (#242)
@@ -1220,8 +1224,6 @@
 
 - d1559d1: Changeset created from conventional commits:
 
-  - chore: auto-generate changeset (#248)
-  - fix: merging within pipeline
   - chore: auto-generate changeset (#245)
   - fix: trigger name
   - chore: auto-generate changeset (#242)
