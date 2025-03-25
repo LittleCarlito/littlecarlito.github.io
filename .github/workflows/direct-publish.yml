@@ -1,0 +1,130 @@
+name: Direct Publish
+
+on:
+  workflow_call:
+    inputs:
+      regenerate_from:
+        description: 'Regenerate changesets from this commit (commit hash or "HEAD~N")'
+        required: false
+        type: string
+        default: ''
+    outputs:
+      published:
+        description: "Whether packages were published"
+        value: ${{ jobs.publish.outputs.published }}
+    secrets:
+      PACKAGE_TOKEN:
+        required: true
+      GITHUB_TOKEN:
+        required: true
+
+permissions:
+  contents: write
+  packages: write
+  statuses: write
+
+jobs:
+  publish:
+    name: Generate and Apply Changesets
+    runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.version.outputs.published }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PACKAGE_TOKEN }}
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://npm.pkg.github.com'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+          
+      - name: Install dependencies
+        run: pnpm install
+        
+      - name: Configure Git identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+      - name: Check conventional commits
+        id: check_commits
+        run: |
+          # Count conventional commits since latest changeset or tag
+          LATEST_CHANGESET_COMMIT=$(git log -1 --format=%H -- .changeset/)
+          LATEST_TAG_COMMIT=$(git rev-list --tags --max-count=1)
+          
+          # Determine base commit to check from
+          if [ -n "${{ inputs.regenerate_from }}" ]; then
+            BASE_COMMIT="${{ inputs.regenerate_from }}"
+            echo "Using forced base commit: $BASE_COMMIT"
+          elif [ -n "$LATEST_CHANGESET_COMMIT" ]; then
+            BASE_COMMIT=$LATEST_CHANGESET_COMMIT
+            echo "Using latest changeset commit as base: $BASE_COMMIT"
+          elif [ -n "$LATEST_TAG_COMMIT" ]; then
+            BASE_COMMIT=$LATEST_TAG_COMMIT
+            echo "Using latest tag commit as base: $BASE_COMMIT"
+          else
+            # Get the first commit in the repo
+            BASE_COMMIT=$(git rev-list --max-parents=0 HEAD)
+            echo "No changesets or tags found, using first commit in repo: $BASE_COMMIT"
+          fi
+          
+          # Count conventional commits, excluding auto-generated changeset commits
+          CONVENTIONAL_COUNT=$(git log $BASE_COMMIT..HEAD --format=%s | grep -E '^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([^)]+\))?!?:' | grep -v "auto-generate changeset" | wc -l)
+          
+          echo "Found $CONVENTIONAL_COUNT conventional commits since $BASE_COMMIT"
+          echo "base_commit=$BASE_COMMIT" >> $GITHUB_OUTPUT
+          echo "conventional_count=$CONVENTIONAL_COUNT" >> $GITHUB_OUTPUT
+          
+      - name: Generate changeset
+        if: steps.check_commits.outputs.conventional_count != '0'
+        run: |
+          # Run the auto-changeset script
+          node scripts/auto-changeset.js --since=${{ steps.check_commits.outputs.base_commit }}
+          
+          # Check if changeset was created
+          if ls .changeset/auto-*.md 1> /dev/null 2>&1; then
+            echo "Changeset generated successfully!"
+            
+            # Commit the changeset
+            git add .changeset/
+            git commit -m "chore: auto-generate changeset [skip ci]"
+            git push origin main
+          else
+            echo "No changeset was generated - all updates may be covered by existing changesets"
+          fi
+          
+      - name: Version and Publish
+        id: version
+        if: steps.check_commits.outputs.conventional_count != '0'
+        run: |
+          # Pull latest changes in case changeset was just committed
+          git pull origin main
+          
+          # Version and publish packages
+          pnpm run version
+          pnpm run release
+          
+          # Get package versions for output
+          BLORKPACK_VERSION=$(node -p "require('./packages/blorkpack/package.json').version")
+          BLORKTOOLS_VERSION=$(node -p "require('./packages/blorktools/package.json').version")
+          BLORKBOARD_VERSION=$(node -p "require('./packages/blorkboard/package.json').version")
+          
+          echo "Published versions:"
+          echo "blorkpack: $BLORKPACK_VERSION"
+          echo "blorktools: $BLORKTOOLS_VERSION"
+          echo "blorkboard: $BLORKBOARD_VERSION"
+          
+          echo "published=true" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 
