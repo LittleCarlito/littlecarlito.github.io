@@ -54,14 +54,17 @@ jobs:
       - name: Create Pull Request
         id: create_pr
         run: |
-          PR_RESPONSE=$(gh pr create \
+          # Create the PR and capture the URL output
+          PR_URL=$(gh pr create \
             --title "chore: clean out existing changesets" \
             --body "This PR cleans out existing changesets to start fresh." \
             --base main \
             --head chore/clean-changesets)
           
-          # Extract PR number from response and set it as an output
-          PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r '.number')
+          # Extract PR number from URL
+          PR_NUMBER=$(echo "$PR_URL" | grep -o '[0-9]*$')
+          
+          echo "Created PR #$PR_NUMBER: $PR_URL"
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
