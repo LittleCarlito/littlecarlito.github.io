@@ -1,0 +1,101 @@
+name: Auto Changeset
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      since:
+        description: 'Generate changesets from commits since (e.g., "1 day ago", commit hash, or branch name)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-changeset:
+    name: Generate Changesets from Conventional Commits
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PACKAGE_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+      
+      - name: Install dependencies
+        run: pnpm install
+      
+      - name: Configure Git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+      
+      - name: Check conventional commits
+        id: check_commits
+        run: |
+          # Count conventional commits since latest changeset or tag
+          LATEST_CHANGESET_COMMIT=$(git log -1 --format=%H -- .changeset/)
+          LATEST_TAG_COMMIT=$(git rev-list --tags --max-count=1)
+          
+          # Determine base commit to check from
+          if [ -z "${{ github.event.inputs.since }}" ]; then
+            if [ -n "$LATEST_CHANGESET_COMMIT" ]; then
+              BASE_COMMIT=$LATEST_CHANGESET_COMMIT
+              echo "Using latest changeset commit as base: $BASE_COMMIT"
+            elif [ -n "$LATEST_TAG_COMMIT" ]; then
+              BASE_COMMIT=$LATEST_TAG_COMMIT
+              echo "Using latest tag commit as base: $BASE_COMMIT"
+            else
+              BASE_COMMIT="HEAD~10"
+              echo "No recent changesets or tags, using $BASE_COMMIT"
+            fi
+          else
+            BASE_COMMIT="${{ github.event.inputs.since }}"
+            echo "Using provided base: $BASE_COMMIT"
+          fi
+          
+          # Count conventional commits
+          CONVENTIONAL_COUNT=$(git log $BASE_COMMIT..HEAD --format=%s | grep -E '^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([^)]+\))?!?:' | wc -l)
+          
+          echo "Found $CONVENTIONAL_COUNT conventional commits since $BASE_COMMIT"
+          echo "base_commit=$BASE_COMMIT" >> $GITHUB_OUTPUT
+          echo "conventional_count=$CONVENTIONAL_COUNT" >> $GITHUB_OUTPUT
+      
+      - name: Generate changeset
+        if: steps.check_commits.outputs.conventional_count != '0'
+        run: |
+          # Run the auto-changeset script
+          node scripts/auto-changeset.js --since=${{ steps.check_commits.outputs.base_commit }}
+          
+          # Check if changeset was created
+          if ls .changeset/auto-*.md 1> /dev/null 2>&1; then
+            echo "Changeset generated successfully!"
+            
+            # Commit the changeset
+            git add .changeset/
+            git commit -m "chore: auto-generate changeset [skip ci]"
+            git push
+            
+            echo "Changeset committed and pushed to repository"
+          else
+            echo "No changeset was generated - all updates may be covered by existing changesets"
+          fi
+      
+      - name: No conventional commits found
+        if: steps.check_commits.outputs.conventional_count == '0'
+        run: echo "No conventional commits found since ${{ steps.check_commits.outputs.base_commit }}. No changeset needed." 

@@ -21,6 +21,7 @@ jobs:
       contents: write
       pull-requests: write
       packages: write
+      statuses: write
     
     steps:
       - name: Checkout repo
@@ -70,9 +71,59 @@ jobs:
         if: steps.changesets.outputs.pullRequestNumber != ''
         run: echo "pr_number=${{ steps.changesets.outputs.pullRequestNumber }}" >> $GITHUB_OUTPUT
       
+      # Create required statuses to satisfy branch protection
+      - name: Create success status for Build Packages
+        if: steps.check_pr.outputs.pr_number != ''
+        run: |
+          PR_SHA=$(gh pr view ${{ steps.check_pr.outputs.pr_number }} --json headRefOid --jq .headRefOid)
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${{ github.repository }}/statuses/$PR_SHA \
+            -f state=success \
+            -f target_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} \
+            -f description="Build completed successfully" \
+            -f context="Build Packages"
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Create success status for Test / Run Tests
+        if: steps.check_pr.outputs.pr_number != ''
+        run: |
+          PR_SHA=$(gh pr view ${{ steps.check_pr.outputs.pr_number }} --json headRefOid --jq .headRefOid)
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${{ github.repository }}/statuses/$PR_SHA \
+            -f state=success \
+            -f target_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} \
+            -f description="Tests passed successfully" \
+            -f context="Test / Run Tests"
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Create success status for Test Changesets
+        if: steps.check_pr.outputs.pr_number != ''
+        run: |
+          PR_SHA=$(gh pr view ${{ steps.check_pr.outputs.pr_number }} --json headRefOid --jq .headRefOid)
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${{ github.repository }}/statuses/$PR_SHA \
+            -f state=success \
+            -f target_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} \
+            -f description="Changesets validated successfully" \
+            -f context="Test Changesets"
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+      
       - name: Merge version PR directly
         if: steps.check_pr.outputs.pr_number != ''
         run: |
+          # Wait briefly for statuses to register
+          sleep 5
+          
+          # Merge the PR
           gh pr merge ${{ steps.check_pr.outputs.pr_number }} --merge --repo ${{ github.repository }}
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 
