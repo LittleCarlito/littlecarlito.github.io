@@ -317,15 +317,18 @@ jobs:
           BLORKPACK_VERSION=$(node -p "require('./packages/blorkpack/package.json').version")
           BLORKTOOLS_VERSION=$(node -p "require('./packages/blorktools/package.json').version")
           BLORKBOARD_VERSION=$(node -p "require('./packages/blorkboard/package.json').version")
+          PORTFOLIO_VERSION=$(node -p "require('./apps/portfolio/package.json').version")
           
           echo "blorkpack_version=$BLORKPACK_VERSION" >> $GITHUB_OUTPUT
           echo "blorktools_version=$BLORKTOOLS_VERSION" >> $GITHUB_OUTPUT
           echo "blorkboard_version=$BLORKBOARD_VERSION" >> $GITHUB_OUTPUT
+          echo "portfolio_version=$PORTFOLIO_VERSION" >> $GITHUB_OUTPUT
           
           echo "Published versions:"
           echo "blorkpack: $BLORKPACK_VERSION"
           echo "blorktools: $BLORKTOOLS_VERSION"
           echo "blorkboard: $BLORKBOARD_VERSION"
+          echo "portfolio: $PORTFOLIO_VERSION"
 
       # Auto-publish any draft releases
       - name: Auto-publish GitHub Releases

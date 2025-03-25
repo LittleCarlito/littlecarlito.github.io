@@ -54,23 +54,51 @@ if (sinceArg) {
  */
 function getPackages() {
 	const packagesDir = path.join(process.cwd(), 'packages');
+	const appsDir = path.join(process.cwd(), 'apps');
 	const packages = [];
 
-	fs.readdirSync(packagesDir, { withFileTypes: true })
-		.filter(dirent => dirent.isDirectory())
-		.forEach(dirent => {
-			const packagePath = path.join(packagesDir, dirent.name);
-			const packageJsonPath = path.join(packagePath, 'package.json');
-      
-			if (fs.existsSync(packageJsonPath)) {
-				const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-				packages.push({
-					name: packageJson.name,
-					path: packagePath,
-					directory: dirent.name
-				});
-			}
-		});
+	// Get packages from packages directory
+	if (fs.existsSync(packagesDir)) {
+		fs.readdirSync(packagesDir, { withFileTypes: true })
+			.filter(dirent => dirent.isDirectory())
+			.forEach(dirent => {
+				const packagePath = path.join(packagesDir, dirent.name);
+				const packageJsonPath = path.join(packagePath, 'package.json');
+				
+				if (fs.existsSync(packageJsonPath)) {
+					const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+					packages.push({
+						name: packageJson.name,
+						path: packagePath,
+						directory: dirent.name,
+						type: 'package'
+					});
+				}
+			});
+	}
+
+	// Get packages from apps directory
+	if (fs.existsSync(appsDir)) {
+		fs.readdirSync(appsDir, { withFileTypes: true })
+			.filter(dirent => dirent.isDirectory())
+			.forEach(dirent => {
+				const appPath = path.join(appsDir, dirent.name);
+				const packageJsonPath = path.join(appPath, 'package.json');
+				
+				if (fs.existsSync(packageJsonPath)) {
+					const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+					// Only include if not marked as private or if it's the portfolio app
+					if (!packageJson.private || packageJson.name === '@littlecarlito/portfolio') {
+						packages.push({
+							name: packageJson.name,
+							path: appPath,
+							directory: dirent.name,
+							type: 'app'
+						});
+					}
+				}
+			});
+	}
 
 	return packages;
 }
@@ -171,7 +199,12 @@ function determineAffectedPackages(commits, allPackages) {
 		} else if (affectedPackages.size === 0) {
 			// For less important changes like 'fix', use a heuristic or default packages
 			// For now we'll use the main packages
-			const mainPackages = ['@littlecarlito/blorkpack', '@littlecarlito/blorktools', '@littlecarlito/blorkboard'];
+			const mainPackages = [
+				'@littlecarlito/blorkpack', 
+				'@littlecarlito/blorktools', 
+				'@littlecarlito/blorkboard',
+				'@littlecarlito/portfolio'
+			];
 			mainPackages.forEach(pkg => affectedPackages.add(pkg));
 		}
     
