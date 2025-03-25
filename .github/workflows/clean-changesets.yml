@@ -35,6 +35,11 @@ jobs:
       
       - name: Install dependencies
         run: pnpm install
+
+      - name: Configure Git identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
       
       - name: Create clean branch
         run: |
@@ -55,59 +60,42 @@ jobs:
             --base main \
             --head chore/clean-changesets)
           
-          # Extract PR number from response
+          # Extract PR number from response and set it as an output
           PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r '.number')
-          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
       # Create required statuses to satisfy branch protection
-      - name: Create success status for Build Packages
+      - name: Create success statuses for PR
         run: |
-          PR_SHA=$(gh pr view ${{ env.PR_NUMBER }} --json headRefOid --jq .headRefOid)
-          gh api \
-            --method POST \
-            -H "Accept: application/vnd.github+json" \
-            /repos/${{ github.repository }}/statuses/$PR_SHA \
-            -f state=success \
-            -f target_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} \
-            -f description="Build completed successfully" \
-            -f context="Build Packages"
-        env:
-          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-
-      - name: Create success status for Test / Run Tests
-        run: |
-          PR_SHA=$(gh pr view ${{ env.PR_NUMBER }} --json headRefOid --jq .headRefOid)
-          gh api \
-            --method POST \
-            -H "Accept: application/vnd.github+json" \
-            /repos/${{ github.repository }}/statuses/$PR_SHA \
-            -f state=success \
-            -f target_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} \
-            -f description="Tests passed successfully" \
-            -f context="Test / Run Tests"
-        env:
-          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-
-      - name: Create success status for Test Changesets
-        run: |
-          PR_SHA=$(gh pr view ${{ env.PR_NUMBER }} --json headRefOid --jq .headRefOid)
-          gh api \
-            --method POST \
-            -H "Accept: application/vnd.github+json" \
-            /repos/${{ github.repository }}/statuses/$PR_SHA \
-            -f state=success \
-            -f target_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} \
-            -f description="Changesets validated successfully" \
-            -f context="Test Changesets"
+          PR_SHA=$(gh pr view ${{ steps.create_pr.outputs.pr_number }} --json headRefOid --jq .headRefOid)
+          
+          # Function to create status
+          create_status() {
+            local context="$1"
+            local description="$2"
+            
+            gh api \
+              --method POST \
+              -H "Accept: application/vnd.github+json" \
+              /repos/${{ github.repository }}/statuses/$PR_SHA \
+              -f state=success \
+              -f target_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} \
+              -f description="$description" \
+              -f context="$context"
+          }
+          
+          # Create all required statuses
+          create_status "Build Packages" "Build completed successfully"
+          create_status "Test / Run Tests" "Tests passed successfully"
+          create_status "Test Changesets" "Changesets validated successfully"
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Wait for required checks
         run: |
-          PR_NUMBER=${{ env.PR_NUMBER }}
-          echo "Waiting for required checks to complete on PR #$PR_NUMBER..."
+          echo "Waiting for required checks to complete on PR #${{ steps.create_pr.outputs.pr_number }}..."
           
           # Wait initial time for checks to be created
           echo "Waiting 10 seconds for checks to start appearing..."
@@ -119,7 +107,7 @@ jobs:
           # Wait for checks to complete (up to 10 minutes)
           for i in {1..60}; do
             # Get commit SHA for the PR head
-            PR_INFO=$(gh pr view $PR_NUMBER --json headRefOid,mergeable,mergeableState)
+            PR_INFO=$(gh pr view ${{ steps.create_pr.outputs.pr_number }} --json headRefOid,mergeable,mergeableState)
             HEAD_SHA=$(echo "$PR_INFO" | jq -r '.headRefOid')
             
             # Get all check runs for this commit
@@ -203,6 +191,6 @@ jobs:
       - name: Merge Pull Request
         if: success()
         run: |
-          gh pr merge ${{ env.PR_NUMBER }} --merge --delete-branch=false
+          gh pr merge ${{ steps.create_pr.outputs.pr_number }} --merge --delete-branch=false
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 
