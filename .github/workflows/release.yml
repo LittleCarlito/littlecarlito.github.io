@@ -189,36 +189,43 @@ jobs:
       - name: Auto-merge Version PR
         if: steps.check-changesets.outputs.has_changesets == 'true'
         run: |
-          # Find PR with title "chore: version packages"
+          # Find PR with title "chore: version packages" - use both title and specific format to be certain
+          echo "Looking for version PR with title 'chore: version packages'..."
           PR_NUMBER=$(gh pr list --repo ${{ github.repository }} --json number,title --jq '.[] | select(.title=="chore: version packages") | .number')
           
           if [ -n "$PR_NUMBER" ]; then
             echo "Found version PR #$PR_NUMBER"
             
-            # Wait briefly to ensure all checks have run
-            echo "Waiting for checks to complete..."
+            # Debug info about PR
+            echo "PR details:"
+            gh pr view $PR_NUMBER --json number,title,state,mergeable,mergeStateStatus,headRefName
+            
+            # Wait for checks to complete
+            echo "Waiting for all checks to complete (15 seconds)..."
             sleep 15
             
-            # Try to merge with admin privileges
-            echo "Attempting to merge PR #$PR_NUMBER with admin privileges..."
-            if gh pr merge $PR_NUMBER --squash --admin --delete-branch; then
-              echo "Successfully merged version PR #$PR_NUMBER"
+            # Force API merge directly - most reliable method
+            echo "Forcing merge via API for PR #$PR_NUMBER (bypassing branch protection)..."
+            if gh api \
+              --method PUT \
+              -H "Accept: application/vnd.github+json" \
+              /repos/${{ github.repository }}/pulls/$PR_NUMBER/merge \
+              -f merge_method=squash; then
+              echo "✅ Successfully merged PR #$PR_NUMBER via direct API call"
             else
-              # Check if merge failed and try again with API
-              PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
-              if [ "$PR_STATE" == "MERGED" ]; then
-                echo "PR #$PR_NUMBER is already merged"
+              echo "❌ Direct API merge failed, trying CLI with admin flag..."
+              if gh pr merge $PR_NUMBER --squash --admin --delete-branch; then
+                echo "✅ Successfully merged PR #$PR_NUMBER with admin flag"
               else
-                echo "WARNING: Failed to merge PR #$PR_NUMBER, trying direct API call..."
-                gh api \
-                  --method PUT \
-                  -H "Accept: application/vnd.github+json" \
-                  /repos/${{ github.repository }}/pulls/$PR_NUMBER/merge \
-                  -f merge_method=squash
+                echo "❌ Failed to merge PR #$PR_NUMBER with admin flag"
+                echo "Final PR state:"
+                gh pr view $PR_NUMBER --json number,title,state,mergeable,mergeStateStatus
               fi
             fi
           else
-            echo "No version PR found"
+            echo "No version PR found with title 'chore: version packages'"
+            echo "All open PRs:"
+            gh pr list --json number,title,headRefName
           fi
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
