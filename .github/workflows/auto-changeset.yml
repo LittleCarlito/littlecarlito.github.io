@@ -128,7 +128,11 @@ jobs:
         run: |
           PR_URL=$(gh pr create --base main --head ${{ env.branch_name }} \
             --title "chore: auto-generate changeset" \
-            --body "This PR was automatically created by the Auto Changeset workflow. It contains auto-generated changesets from conventional commits.")
+            --body "This PR was automatically created by the Auto Changeset workflow. It contains auto-generated changesets from conventional commits.
+
+            **Note:** This is the first step of a two-step process:
+            1. This PR adds changeset files to the .changeset directory
+            2. After this merges, another PR will be created to version packages")
           
           PR_NUMBER=$(echo $PR_URL | awk -F/ '{print $NF}')
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
@@ -166,9 +170,29 @@ jobs:
             -f description="Changesets validated successfully" \
             -f context="Test Changesets"
           
-          # Try to merge with admin privileges
-          sleep 5  # Wait briefly for statuses to register
-          gh pr merge $PR_NUMBER --merge --admin --delete-branch || echo "Couldn't automatically merge PR. Manual merge required."
+          # Try to merge with multiple strategies
+          echo "Attempting to merge PR #$PR_NUMBER"
+          
+          # First try with admin privileges
+          echo "Trying admin merge..."
+          if gh pr merge $PR_NUMBER --merge --admin --delete-branch; then
+            echo "Successfully merged with admin privileges"
+          else
+            # Then try standard merge
+            echo "Admin merge failed, trying standard merge..."
+            if gh pr merge $PR_NUMBER --merge --delete-branch; then
+              echo "Successfully merged with standard permissions"
+            else
+              # Finally try to enable auto-merge
+              echo "Standard merge failed, trying to enable auto-merge..."
+              if gh pr merge $PR_NUMBER --merge --auto --delete-branch; then
+                echo "Auto-merge enabled, PR will merge when checks pass"
+              else
+                echo "All merge attempts failed. Manual merge required."
+                echo "PR URL: $PR_URL"
+              fi
+            fi
+          fi
           
           echo "Created PR #$PR_NUMBER: $PR_URL"
         env:
