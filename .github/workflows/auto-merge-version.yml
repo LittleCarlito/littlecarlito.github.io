@@ -1,0 +1,62 @@
+name: Auto Merge Version PR
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [Release]  # This should be the name of your Changesets release workflow
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge-version:
+    name: Auto-merge Version PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.PR_CREATION_TOKEN }}
+      
+      - name: Find and merge version PR
+        run: |
+          # Find PR with title "chore: version packages"
+          PR_NUMBER=$(gh pr list --repo ${{ github.repository }} --json number,title --jq '.[] | select(.title=="chore: version packages") | .number')
+          
+          if [ -n "$PR_NUMBER" ]; then
+            echo "Found version PR #$PR_NUMBER"
+            
+            # Wait briefly to ensure all checks have run
+            echo "Waiting briefly to ensure checks are complete..."
+            sleep 15
+            
+            # Try to merge with admin privileges
+            echo "Attempting to merge PR #$PR_NUMBER with admin privileges..."
+            if gh pr merge $PR_NUMBER --squash --admin --delete-branch; then
+              echo "Successfully merged version PR #$PR_NUMBER"
+            else
+              # Check PR state
+              PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
+              if [ "$PR_STATE" == "MERGED" ]; then
+                echo "PR #$PR_NUMBER is already merged"
+              else
+                echo "WARNING: Failed to merge PR #$PR_NUMBER, state: $PR_STATE"
+                echo "Attempting direct API merge as last resort..."
+                
+                # Force merge with API call
+                gh api \
+                  --method PUT \
+                  -H "Accept: application/vnd.github+json" \
+                  /repos/${{ github.repository }}/pulls/$PR_NUMBER/merge \
+                  -f merge_method=squash
+              fi
+            fi
+          else
+            echo "No version PR found"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }} 
