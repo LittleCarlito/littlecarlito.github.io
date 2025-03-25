@@ -148,10 +148,12 @@ jobs:
             echo "has_changesets=true" >> $GITHUB_OUTPUT
           else
             echo "has_changesets=false" >> $GITHUB_OUTPUT
+            echo "No changesets found - skipping version step"
           fi
         
       - name: Create Release PR or Publish to GitHub npm
         id: changesets
+        if: steps.check-changesets.outputs.has_changesets == 'true'
         uses: changesets/action@v1
         with:
           publish: pnpm run release
@@ -165,10 +167,35 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+        continue-on-error: true
+
+      # Check if PR creation failed due to no commits between branches
+      - name: Check PR creation error
+        id: check-pr-error
+        if: steps.changesets.outcome == 'failure'
+        run: |
+          # Check if this was a "no commits between branches" error, which is actually fine
+          echo "Checking error message from changesets action..."
+          
+          # Get the error output from the previous step
+          ERROR_OUTPUT="${{ toJSON(steps.changesets.outputs) }}"
+          echo "Error output: $ERROR_OUTPUT"
+          
+          # Look for common no-change error patterns
+          if [[ "$ERROR_OUTPUT" == *"No commits between"* ]] || \
+             [[ "$ERROR_OUTPUT" == *"No unreleased changesets found"* ]] || \
+             [[ "$ERROR_OUTPUT" == *"Validation Failed"* && "$ERROR_OUTPUT" == *"No commits between"* ]]; then
+            echo "No changes to version - this is normal when no changesets exist"
+            echo "continue_workflow=true" >> $GITHUB_OUTPUT
+          else
+            echo "Error in changesets action that is not related to missing changesets"
+            echo "continue_workflow=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
 
       # Auto-approve and merge any version PRs that get created
       - name: Find open version PRs
-        if: steps.check-changesets.outputs.has_changesets == 'true' && steps.changesets.outputs.published != 'true'
+        if: (steps.check-changesets.outputs.has_changesets == 'true' && steps.changesets.outputs.published != 'true') || (steps.check-pr-error.outputs.continue_workflow == 'true')
         id: find-pr
         run: |
           PR_NUMBER=$(gh pr list --repo ${{ github.repository }} --json number,title --jq '.[] | select(.title=="chore: version packages") | .number')
@@ -177,7 +204,7 @@ jobs:
             echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
             echo "has_pr=true" >> $GITHUB_OUTPUT
           else
-            echo "No version PR found"
+            echo "No version PR found - this is expected when no changes need to be versioned"
             echo "has_pr=false" >> $GITHUB_OUTPUT
           fi
         env:
