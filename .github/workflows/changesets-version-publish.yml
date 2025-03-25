@@ -409,6 +409,15 @@ jobs:
           PORTFOLIO_VERSION=${{ steps.get_versions.outputs.portfolio_version }}
           PORTFOLIO_TAG="@littlecarlito/portfolio@${PORTFOLIO_VERSION}"
           
+          echo "Checking for portfolio tag: ${PORTFOLIO_TAG}"
+          
+          # First, check if the tag exists
+          if ! git rev-parse -q --verify "refs/tags/${PORTFOLIO_TAG}" >/dev/null; then
+            echo "Tag ${PORTFOLIO_TAG} does not exist, creating it"
+            git tag -a "${PORTFOLIO_TAG}" -m "Portfolio v${PORTFOLIO_VERSION}"
+            git push origin "${PORTFOLIO_TAG}" || echo "Warning: Failed to push tag, but continuing"
+          fi
+          
           # Check if release already exists
           RELEASE_EXISTS=$(gh api \
             -H "Accept: application/vnd.github+json" \
@@ -423,17 +432,27 @@ jobs:
             # Get latest commit message for the release notes
             COMMIT_MSG=$(git log -1 --pretty=%B)
             
-            # Create the release
-            gh api \
-              --method POST \
-              -H "Accept: application/vnd.github+json" \
-              /repos/${{ github.repository }}/releases \
-              -f tag_name="${PORTFOLIO_TAG}" \
-              -f name="Portfolio v${PORTFOLIO_VERSION}" \
-              -f body="## Portfolio Release v${PORTFOLIO_VERSION}\n\n${COMMIT_MSG}" \
-              -f draft=false \
-              -f prerelease=false \
-              -f generate_release_notes=true
+            # Extract changelog if it exists
+            CHANGELOG=""
+            if [ -f "apps/portfolio/CHANGELOG.md" ]; then
+              CHANGELOG=$(sed -n "/## ${PORTFOLIO_VERSION}/,/## /p" apps/portfolio/CHANGELOG.md | sed '$ d')
+            fi
+            
+            # Try to create release using the GitHub CLI first
+            if ! gh release create "${PORTFOLIO_TAG}" --title "Portfolio v${PORTFOLIO_VERSION}" --notes "Portfolio v${PORTFOLIO_VERSION}" --repo ${{ github.repository }}; then
+              # If that fails, try the API approach
+              echo "CLI release creation failed, trying API..."
+              gh api \
+                --method POST \
+                -H "Accept: application/vnd.github+json" \
+                /repos/${{ github.repository }}/releases \
+                -f tag_name="${PORTFOLIO_TAG}" \
+                -f name="Portfolio v${PORTFOLIO_VERSION}" \
+                -f body="## Portfolio Release v${PORTFOLIO_VERSION}\n\n${COMMIT_MSG}" \
+                -f draft=false \
+                -f prerelease=false \
+                -f generate_release_notes=true
+            fi
             
             echo "Created release for portfolio!"
           fi
@@ -450,6 +469,13 @@ jobs:
           PORTFOLIO_VERSION=${{ steps.get_fallback_versions.outputs.portfolio_version }}
           PORTFOLIO_TAG="@littlecarlito/portfolio@${PORTFOLIO_VERSION}"
           
+          # First ensure the tag exists
+          if ! git rev-parse -q --verify "refs/tags/${PORTFOLIO_TAG}" >/dev/null; then
+            echo "Tag ${PORTFOLIO_TAG} does not exist, creating it"
+            git tag -a "${PORTFOLIO_TAG}" -m "Portfolio v${PORTFOLIO_VERSION}"
+            git push origin "${PORTFOLIO_TAG}" || echo "Warning: Failed to push tag, but continuing"
+          fi
+          
           # Check if release already exists
           RELEASE_EXISTS=$(gh api \
             -H "Accept: application/vnd.github+json" \
@@ -459,34 +485,24 @@ jobs:
           if [[ "$RELEASE_EXISTS" == "200" ]]; then
             echo "Release for ${PORTFOLIO_TAG} already exists, skipping creation"
           else
-            # Create a new branch for portfolio release
-            BRANCH_NAME="portfolio-release/${PORTFOLIO_VERSION}"
-            git checkout -b $BRANCH_NAME
-            
             # Get commit message
             COMMIT_MSG=$(git log -1 --pretty=%B)
             
-            # Create a dummy change to portfolio README if it exists
-            if [ -f "apps/portfolio/README.md" ]; then
-              echo -e "\n<!-- Release $PORTFOLIO_VERSION - $(date) -->" >> apps/portfolio/README.md
-              git add apps/portfolio/README.md
-              git commit -m "chore: prepare portfolio release v${PORTFOLIO_VERSION}"
-              git push --set-upstream origin $BRANCH_NAME
+            # Try to create release using the GitHub CLI first
+            if ! gh release create "${PORTFOLIO_TAG}" --title "Portfolio v${PORTFOLIO_VERSION}" --notes "Portfolio v${PORTFOLIO_VERSION}" --repo ${{ github.repository }}; then
+              # If that fails, try the API approach
+              echo "CLI release creation failed, trying API..."
+              gh api \
+                --method POST \
+                -H "Accept: application/vnd.github+json" \
+                /repos/${{ github.repository }}/releases \
+                -f tag_name="${PORTFOLIO_TAG}" \
+                -f name="Portfolio v${PORTFOLIO_VERSION}" \
+                -f body="## Portfolio Release v${PORTFOLIO_VERSION}\n\n${COMMIT_MSG}" \
+                -f draft=false \
+                -f prerelease=false \
+                -f generate_release_notes=true
             fi
-            
-            # Create the release via API
-            echo "Creating release for portfolio v${PORTFOLIO_VERSION}"
-            gh api \
-              --method POST \
-              -H "Accept: application/vnd.github+json" \
-              /repos/${{ github.repository }}/releases \
-              -f tag_name="${PORTFOLIO_TAG}" \
-              -f target_commitish="${BRANCH_NAME}" \
-              -f name="Portfolio v${PORTFOLIO_VERSION}" \
-              -f body="## Portfolio Release v${PORTFOLIO_VERSION}\n\n${COMMIT_MSG}" \
-              -f draft=false \
-              -f prerelease=false \
-              -f generate_release_notes=true
             
             echo "Created fallback release for portfolio!"
           fi
