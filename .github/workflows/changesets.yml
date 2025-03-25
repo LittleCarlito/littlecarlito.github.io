@@ -62,4 +62,17 @@ jobs:
           title: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          
+      # Replace the PR approval with direct merge if a PR was created    
+      - name: Check if version PR was created
+        id: check_pr
+        if: steps.changesets.outputs.pullRequestNumber != ''
+        run: echo "pr_number=${{ steps.changesets.outputs.pullRequestNumber }}" >> $GITHUB_OUTPUT
+      
+      - name: Merge version PR directly
+        if: steps.check_pr.outputs.pr_number != ''
+        run: |
+          gh pr merge ${{ steps.check_pr.outputs.pr_number }} --merge --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 
