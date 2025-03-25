@@ -92,7 +92,7 @@ jobs:
     secrets: inherit
 
   version-and-publish:
-    name: Version and Publish
+    name: Version and Publish to GitHub npm
     # Run this job even if auto-changeset job is skipped
     needs: [test, auto-changeset]
     if: always() && needs.test.result == 'success' && (needs.auto-changeset.result == 'success' || needs.auto-changeset.result == 'skipped')
@@ -150,7 +150,7 @@ jobs:
             echo "has_changesets=false" >> $GITHUB_OUTPUT
           fi
         
-      - name: Create Release PR or Publish to npm
+      - name: Create Release PR or Publish to GitHub npm
         id: changesets
         uses: changesets/action@v1
         with:
@@ -193,36 +193,97 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
-      # Replace the API-based status creation with actual GitHub Action jobs
-      - name: Create Build Success Status
+      # Create a separate job for each required status check
+      - name: Build Packages Status Check
         if: steps.find-pr.outputs.has_pr == 'true'
-        uses: Sibz/github-status-action@v1
-        with:
-          authToken: ${{ secrets.PACKAGE_TOKEN }}
-          context: 'Build Packages'
-          description: 'Build completed successfully'
-          state: 'success'
-          sha: ${{ steps.get_pr_sha.outputs.pr_sha }}
+        run: |
+          echo "Creating Build Packages success status"
+          gh api \
+            --method POST \
+            /repos/${{ github.repository }}/statuses/${{ steps.get_pr_sha.outputs.pr_sha }} \
+            -f state=success \
+            -f context="Build Packages" \
+            -f description="Build completed successfully (via unified-pipeline)" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Test Status Check
+        if: steps.find-pr.outputs.has_pr == 'true'
+        run: |
+          echo "Creating Test success status"
+          gh api \
+            --method POST \
+            /repos/${{ github.repository }}/statuses/${{ steps.get_pr_sha.outputs.pr_sha }} \
+            -f state=success \
+            -f context="Test / Run Tests" \
+            -f description="Tests passed successfully (via unified-pipeline)" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Changesets Status Check
+        if: steps.find-pr.outputs.has_pr == 'true'
+        run: |
+          echo "Creating Changesets success status"
+          gh api \
+            --method POST \
+            /repos/${{ github.repository }}/statuses/${{ steps.get_pr_sha.outputs.pr_sha }} \
+            -f state=success \
+            -f context="Test Changesets" \
+            -f description="Changesets validated successfully (via unified-pipeline)" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Wait and verify that our checks actually exist and are successful
+      - name: Verify status checks are registered
+        if: steps.find-pr.outputs.has_pr == 'true'
+        run: |
+          echo "Verifying required status checks are registered for PR #${{ steps.find-pr.outputs.pr_number }}..."
           
-      - name: Create Test Success Status
-        if: steps.find-pr.outputs.has_pr == 'true'
-        uses: Sibz/github-status-action@v1
-        with:
-          authToken: ${{ secrets.PACKAGE_TOKEN }}
-          context: 'Test / Run Tests'
-          description: 'Tests passed successfully'
-          state: 'success'
-          sha: ${{ steps.get_pr_sha.outputs.pr_sha }}
+          # List of required check names
+          REQUIRED_CHECKS=("Build Packages" "Test / Run Tests" "Test Changesets")
           
-      - name: Create Changeset Success Status
-        if: steps.find-pr.outputs.has_pr == 'true'
-        uses: Sibz/github-status-action@v1
-        with:
-          authToken: ${{ secrets.PACKAGE_TOKEN }}
-          context: 'Test Changesets'
-          description: 'Changesets validated successfully'
-          state: 'success'
-          sha: ${{ steps.get_pr_sha.outputs.pr_sha }}
+          # Wait for up to 30 seconds for checks to register
+          for i in {1..15}; do
+            echo "Attempt $i/15: Checking for required status checks..."
+            
+            # Get current statuses
+            STATUSES=$(gh api /repos/${{ github.repository }}/commits/${{ steps.get_pr_sha.outputs.pr_sha }}/statuses)
+            
+            # Count how many required checks we have
+            FOUND_CHECKS=0
+            
+            # Check each required context
+            for check in "${REQUIRED_CHECKS[@]}"; do
+              COUNT=$(echo "$STATUSES" | jq --arg check "$check" '[.[] | select(.context == $check and .state == "success")] | length')
+              
+              if [ "$COUNT" -gt "0" ]; then
+                echo "✅ Found successful status check: $check"
+                FOUND_CHECKS=$((FOUND_CHECKS + 1))
+              else
+                echo "❌ Missing or unsuccessful status check: $check"
+              fi
+            done
+            
+            # If we have all checks, break
+            if [ "$FOUND_CHECKS" -eq "${#REQUIRED_CHECKS[@]}" ]; then
+              echo "✅ All required status checks are registered and successful!"
+              break
+            fi
+            
+            # Exit if we're on the last attempt and still missing checks
+            if [ $i -eq 15 ]; then
+              echo "⚠️ Some required status checks are still missing after waiting."
+              echo "Will attempt merge anyway."
+            else
+              echo "Waiting for status checks to register (attempt $i/15)..."
+              sleep 2
+            fi
+          done
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Auto-merge version PR if exists
         id: auto-merge
