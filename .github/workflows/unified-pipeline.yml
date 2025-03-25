@@ -155,17 +155,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
-      - name: Auto-approve version PR
+      - name: Auto-merge version PR if exists
         if: steps.find-pr.outputs.has_pr == 'true'
         run: |
-          gh pr review ${{ steps.find-pr.outputs.pr_number }} --approve --repo ${{ github.repository }}
-        env:
-          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-
-      - name: Auto-merge version PR
-        if: steps.find-pr.outputs.has_pr == 'true'
-        run: |
-          gh pr merge ${{ steps.find-pr.outputs.pr_number }} --auto --merge --repo ${{ github.repository }}
+          PR_NUMBER=$(gh pr list --repo ${{ github.repository }} --author app/github-actions --json number --jq '.[0].number')
+          if [ ! -z "$PR_NUMBER" ]; then
+            echo "Found version PR #$PR_NUMBER, merging directly"
+            gh pr merge $PR_NUMBER --merge --repo ${{ github.repository }}
+          fi
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           
