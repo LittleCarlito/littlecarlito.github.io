@@ -8,6 +8,11 @@ on:
         required: false
         type: string
         default: ''
+      force_base_commit:
+        description: 'Force a specific base commit to check from (useful for initial setup)'
+        required: false
+        type: string
+        default: ''
     outputs:
       changeset_created:
         description: "Whether a changeset was created"
@@ -22,6 +27,10 @@ on:
     inputs:
       since:
         description: 'Generate changesets from commits since (e.g., "1 day ago", commit hash, or branch name)'
+        required: false
+        default: ''
+      force_base_commit:
+        description: 'Force a specific base commit to check from (useful for initial setup)'
         required: false
         default: ''
 
@@ -72,7 +81,10 @@ jobs:
           LATEST_TAG_COMMIT=$(git rev-list --tags --max-count=1)
           
           # Determine base commit to check from
-          if [ -z "${{ inputs.since }}" ]; then
+          if [ -n "${{ inputs.force_base_commit }}" ]; then
+            BASE_COMMIT="${{ inputs.force_base_commit }}"
+            echo "Using forced base commit: $BASE_COMMIT"
+          elif [ -z "${{ inputs.since }}" ]; then
             if [ -n "$LATEST_CHANGESET_COMMIT" ]; then
               BASE_COMMIT=$LATEST_CHANGESET_COMMIT
               echo "Using latest changeset commit as base: $BASE_COMMIT"
@@ -80,8 +92,9 @@ jobs:
               BASE_COMMIT=$LATEST_TAG_COMMIT
               echo "Using latest tag commit as base: $BASE_COMMIT"
             else
-              BASE_COMMIT="HEAD~10"
-              echo "No recent changesets or tags, using $BASE_COMMIT"
+              # Get the first commit in the repo
+              BASE_COMMIT=$(git rev-list --max-parents=0 HEAD)
+              echo "No changesets or tags found, using first commit in repo: $BASE_COMMIT"
             fi
           else
             BASE_COMMIT="${{ inputs.since }}"
