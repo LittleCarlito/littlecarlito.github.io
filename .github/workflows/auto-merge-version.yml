@@ -3,7 +3,7 @@ name: Auto Merge Version PR
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: [Release]  # This should be the name of your Changesets release workflow
+    workflows: [Release Workflow]  # This is the name of your Changesets release workflow
     types:
       - completed
 
