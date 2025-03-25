@@ -1,9 +1,20 @@
 name: Auto Changeset
 
 on:
-  push:
-    branches:
-      - main
+  workflow_call:
+    inputs:
+      since:
+        description: 'Generate changesets from commits since (e.g., "1 day ago", commit hash, or branch name)'
+        required: false
+        type: string
+        default: ''
+    outputs:
+      changeset_created:
+        description: "Whether a changeset was created"
+        value: ${{ jobs.auto-changeset.outputs.changeset_created }}
+      base_commit:
+        description: "The base commit used for comparison"
+        value: ${{ jobs.auto-changeset.outputs.base_commit }}
   workflow_dispatch:
     inputs:
       since:
@@ -19,6 +30,9 @@ jobs:
   auto-changeset:
     name: Generate Changesets from Conventional Commits
     runs-on: ubuntu-latest
+    outputs:
+      changeset_created: ${{ steps.generate_changeset.outputs.changeset_created }}
+      base_commit: ${{ steps.check_commits.outputs.base_commit }}
     
     steps:
       - name: Checkout repository
@@ -53,7 +67,7 @@ jobs:
           LATEST_TAG_COMMIT=$(git rev-list --tags --max-count=1)
           
           # Determine base commit to check from
-          if [ -z "${{ github.event.inputs.since }}" ]; then
+          if [ -z "${{ inputs.since }}" ]; then
             if [ -n "$LATEST_CHANGESET_COMMIT" ]; then
               BASE_COMMIT=$LATEST_CHANGESET_COMMIT
               echo "Using latest changeset commit as base: $BASE_COMMIT"
@@ -65,7 +79,7 @@ jobs:
               echo "No recent changesets or tags, using $BASE_COMMIT"
             fi
           else
-            BASE_COMMIT="${{ github.event.inputs.since }}"
+            BASE_COMMIT="${{ inputs.since }}"
             echo "Using provided base: $BASE_COMMIT"
           fi
           
@@ -77,6 +91,7 @@ jobs:
           echo "conventional_count=$CONVENTIONAL_COUNT" >> $GITHUB_OUTPUT
       
       - name: Generate changeset
+        id: generate_changeset
         if: steps.check_commits.outputs.conventional_count != '0'
         run: |
           # Run the auto-changeset script
@@ -92,10 +107,14 @@ jobs:
             git push
             
             echo "Changeset committed and pushed to repository"
+            echo "changeset_created=true" >> $GITHUB_OUTPUT
           else
             echo "No changeset was generated - all updates may be covered by existing changesets"
+            echo "changeset_created=false" >> $GITHUB_OUTPUT
           fi
       
       - name: No conventional commits found
         if: steps.check_commits.outputs.conventional_count == '0'
-        run: echo "No conventional commits found since ${{ steps.check_commits.outputs.base_commit }}. No changeset needed." 
+        run: |
+          echo "No conventional commits found since ${{ steps.check_commits.outputs.base_commit }}. No changeset needed."
+          echo "changeset_created=false" >> $GITHUB_OUTPUT 

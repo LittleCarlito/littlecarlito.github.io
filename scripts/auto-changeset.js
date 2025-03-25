@@ -89,9 +89,21 @@ function getConventionalCommits() {
 	}
 
 	return gitLogOutput.split('\n').map(line => {
-		const [hash, subject, body] = line.split('||');
+		const parts = line.split('||');
+		const hash = parts[0] || '';
+		const subject = parts[1] || '';
+		const body = parts[2] || '';
     
-		// Parse conventional commit
+		// Parse conventional commit - add null check
+		if (!subject) {
+			return {
+				hash,
+				conventional: false,
+				subject: '',
+				body
+			};
+		}
+    
 		const typeMatch = subject.match(/^(\w+)(\(.*?\))?(!)?:\s*(.*)$/);
     
 		if (!typeMatch) {
@@ -104,7 +116,7 @@ function getConventionalCommits() {
 		}
     
 		const [, type, scope, breaking, message] = typeMatch;
-		const isBreaking = breaking === '!' || body.includes('BREAKING CHANGE:');
+		const isBreaking = breaking === '!' || (body && body.includes('BREAKING CHANGE:'));
     
 		return {
 			hash,
