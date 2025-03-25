@@ -461,12 +461,19 @@ jobs:
 
       # Create fallback release for portfolio when changesets action didn't publish but we want to continue
       - name: Create fallback portfolio release
-        if: steps.changesets.outputs.published != 'true' && steps.check-pr-error.outputs.continue_workflow == 'true'
+        if: (steps.changesets.outputs.published != 'true' && steps.check-pr-error.outputs.continue_workflow == 'true') || (steps.changesets.outputs.published == 'true')
         run: |
           echo "Creating fallback portfolio release..."
           
-          # Get portfolio version from fallback step
-          PORTFOLIO_VERSION=${{ steps.get_fallback_versions.outputs.portfolio_version }}
+          # Determine which step to get the version from
+          if [[ "${{ steps.changesets.outputs.published }}" == "true" ]]; then
+            echo "Using version from successful publish step"
+            PORTFOLIO_VERSION=${{ steps.get_versions.outputs.portfolio_version }}
+          else
+            echo "Using version from fallback step"
+            PORTFOLIO_VERSION=${{ steps.get_fallback_versions.outputs.portfolio_version }}
+          fi
+          
           PORTFOLIO_TAG="@littlecarlito/portfolio@${PORTFOLIO_VERSION}"
           
           # First ensure the tag exists
