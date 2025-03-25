@@ -353,5 +353,39 @@ jobs:
             
             echo "Release has been published!"
           done
+          
+          # Check if we need to create a portfolio release
+          # Since it's private, changesets may not have created a release for it
+          PORTFOLIO_VERSION=${{ steps.get_versions.outputs.portfolio_version }}
+          PORTFOLIO_TAG="@littlecarlito/portfolio@${PORTFOLIO_VERSION}"
+          
+          # Check if release already exists
+          RELEASE_EXISTS=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${{ github.repository }}/releases/tags/${PORTFOLIO_TAG} \
+            --silent --include -w "%{http_code}") || true
+          
+          if [[ "$RELEASE_EXISTS" == "200" ]]; then
+            echo "Release for ${PORTFOLIO_TAG} already exists, skipping creation"
+          else
+            echo "Creating release for portfolio version ${PORTFOLIO_VERSION}"
+            
+            # Get latest commit message for the release notes
+            COMMIT_MSG=$(git log -1 --pretty=%B)
+            
+            # Create the release
+            gh api \
+              --method POST \
+              -H "Accept: application/vnd.github+json" \
+              /repos/${{ github.repository }}/releases \
+              -f tag_name="${PORTFOLIO_TAG}" \
+              -f name="Portfolio v${PORTFOLIO_VERSION}" \
+              -f body="## Portfolio Release v${PORTFOLIO_VERSION}\n\n${COMMIT_MSG}" \
+              -f draft=false \
+              -f prerelease=false \
+              -f generate_release_notes=true
+            
+            echo "Created release for portfolio!"
+          fi
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 
