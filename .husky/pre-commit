@@ -33,4 +33,23 @@ pnpm test:build-deps || (echo "❌ Build dependency tests failed. Please fix the
 echo "Running tests with coverage..."
 pnpm test:coverage || (echo "❌ Tests failed. Please fix the failing tests and try committing again." && exit 1)
 
+# Dependency check for branch reference validator
+if [ -f "tests/lint-tests/workflow-branch-refs.js" ]; then
+  echo "🔍 Checking workflow files for branch reference issues..."
+  
+  # Check if required dependencies are installed
+  if ! npx --no-install js-yaml --version &>/dev/null || ! npx --no-install glob --version &>/dev/null; then
+    echo "Installing required dependencies for workflow validation..."
+    npm install --no-save js-yaml glob
+  fi
+  
+  # Run the validator
+  node tests/lint-tests/workflow-branch-refs.js
+  if [ $? -ne 0 ]; then
+    echo "❌ Workflow branch reference validation failed. Please fix the issues and try again."
+    exit 1
+  fi
+  echo "✅ Workflow branch reference validation passed."
+fi
+
 echo "✅ All checks passed!" 
