@@ -220,7 +220,14 @@ function determineAffectedPackages(commits, allPackages) {
 		if (affectedPackages.size === 0) {
 			console.log(`${colors.yellow}Warning: Could not determine affected packages for commit: ${commit.subject}${colors.reset}`);
 			// Add a single metadata package to ensure the changeset is created
-			affectedPackages.add(allPackages[0].name);
+			if (allPackages && allPackages.length > 0) {
+				affectedPackages.add(allPackages[0].name);
+			} else {
+				// Fallback if no packages can be found
+				console.log(`${colors.red}Error: No packages found to add to changeset${colors.reset}`);
+				// Add a default package to prevent failures
+				affectedPackages.add('@littlecarlito/blorkpack');
+			}
 		}
     
 		packagesByCommit[commit.hash] = {
@@ -299,6 +306,7 @@ function createChangeset(packageBumps, commits) {
 	});
   
 	// Add required summary field to pass validation
+	// Using a more descriptive summary that clearly indicates it's auto-generated
 	changesetContent += 'summary: "Auto-generated changeset from conventional commits"\n';
 	
 	changesetContent += '---\n\n';
