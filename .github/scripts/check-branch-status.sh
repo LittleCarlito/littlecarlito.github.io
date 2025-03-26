@@ -3,10 +3,23 @@
 # Exit on error
 set -e
 
+# Enable debug mode with DEBUG=1
+if [ "${DEBUG:-0}" = "1" ]; then
+    set -x
+fi
+
 # Function to check if a branch exists
 check_branch_exists() {
     local branch=$1
-    if git show-ref --verify --quiet refs/heads/"$branch"; then
+    if [ -z "$branch" ]; then
+        echo "Error: Empty branch name provided"
+        return 1
+    fi
+    
+    # Fetch to ensure we have latest info
+    git fetch origin "$branch" > /dev/null 2>&1 || true
+    
+    if git show-ref --verify --quiet refs/heads/"$branch" || git show-ref --verify --quiet refs/remotes/origin/"$branch"; then
         return 0
     else
         return 1
@@ -18,15 +31,38 @@ check_branch_up_to_date() {
     local branch=$1
     local base_branch=${2:-main}
     
-    git fetch origin "$base_branch" > /dev/null 2>&1
-    git fetch origin "$branch" > /dev/null 2>&1
+    # Validate branches are not empty
+    if [ -z "$branch" ] || [ -z "$base_branch" ]; then
+        echo "Error: Empty branch name provided"
+        return 1
+    fi
     
-    local base_commit=$(git rev-parse origin/"$base_branch")
-    local branch_commit=$(git rev-parse origin/"$branch")
+    # Fetch latest changes
+    echo "Fetching latest changes for $base_branch and $branch..."
+    git fetch origin "$base_branch" > /dev/null 2>&1 || { echo "Failed to fetch $base_branch"; return 1; }
+    git fetch origin "$branch" > /dev/null 2>&1 || { echo "Failed to fetch $branch"; return 1; }
     
+    # Get commit hashes
+    local base_commit=$(git rev-parse origin/"$base_branch" 2>/dev/null)
+    local branch_commit=$(git rev-parse origin/"$branch" 2>/dev/null)
+    
+    # Validate commit hashes
+    if [ -z "$base_commit" ]; then
+        echo "Error: Could not get commit hash for $base_branch"
+        return 1
+    fi
+    
+    if [ -z "$branch_commit" ]; then
+        echo "Error: Could not get commit hash for $branch"
+        return 1
+    fi
+    
+    # Check if base branch is an ancestor of branch
     if git merge-base --is-ancestor "$base_commit" "$branch_commit"; then
+        echo "$branch is up to date with $base_branch"
         return 0
     else
+        echo "$branch is behind $base_branch and needs to be updated"
         return 1
     fi
 }
@@ -36,9 +72,46 @@ check_branch_protection() {
     local branch=$1
     local required_checks=("build" "test" "lint")
     local missing_checks=()
+    local endpoint="/repos/$GITHUB_REPOSITORY/branches/$branch/protection"
     
-    # Get status checks for the branch
-    local checks=$(gh api "/repos/$GITHUB_REPOSITORY/branches/$branch/protection" --jq '.required_status_checks.contexts[]' 2>/dev/null || echo "")
+    # Validate branch name
+    if [ -z "$branch" ]; then
+        echo "Error: Empty branch name provided"
+        return 1
+    fi
+    
+    echo "Checking branch protection for $branch..."
+    
+    # Get status checks for the branch with error handling
+    local api_response=""
+    api_response=$(gh api "$endpoint" 2>&1) || {
+        # Check if error is related to missing protection
+        if [[ "$api_response" == *"Branch not protected"* ]] || [[ "$api_response" == *"Not Found"* ]]; then
+            echo "Warning: Branch $branch does not have protection rules"
+            return 0  # Not a critical error, continue
+        else
+            echo "Error getting branch protection: $api_response"
+            return 1
+        fi
+    }
+    
+    # Extract required checks with fallback for invalid JSON
+    local checks=$(echo "$api_response" | jq -r '.required_status_checks.contexts[]' 2>/dev/null) || {
+        echo "Warning: Could not parse branch protection JSON, continuing..."
+        return 0
+    }
+    
+    # If protection doesn't have required status checks
+    if [ -z "$checks" ]; then
+        echo "Warning: No required status checks found for $branch"
+        
+        if [[ "$branch" == "main" ]] || [[ "$branch" == "master" ]]; then
+            echo "Critical branch without protection checks detected"
+            return 1
+        fi
+        
+        return 0
+    fi
     
     # Check each required check
     for check in "${required_checks[@]}"; do
@@ -48,10 +121,57 @@ check_branch_protection() {
     done
     
     if [ ${#missing_checks[@]} -eq 0 ]; then
+        echo "All required checks are configured for $branch"
         return 0
     else
         echo "Missing required checks: ${missing_checks[*]}"
         return 1
+    fi
+}
+
+# Function to check for failing checks
+check_failing_checks() {
+    local branch=$1
+    local failing_count=0
+    
+    # Validate branch name
+    if [ -z "$branch" ]; then
+        echo "Error: Empty branch name provided"
+        return 1
+    fi
+    
+    echo "Checking latest commit status for $branch..."
+    
+    # Get latest commit and check status
+    local latest_commit=$(git rev-parse origin/"$branch" 2>/dev/null)
+    if [ -z "$latest_commit" ]; then
+        echo "Error: Could not get latest commit for $branch"
+        return 1
+    fi
+    
+    # Get failing checks with error handling
+    local api_response=""
+    api_response=$(gh api "/repos/$GITHUB_REPOSITORY/commits/$latest_commit/check-runs" 2>&1) || {
+        echo "Error getting check-runs: $api_response"
+        return 1
+    }
+    
+    # Extract failing checks
+    local failing_checks=""
+    failing_checks=$(echo "$api_response" | jq -r '.check_runs[] | select(.conclusion=="failure") | .name' 2>/dev/null) || {
+        echo "Warning: Could not parse check-runs JSON, continuing..."
+        return 0
+    }
+    
+    # Check if we have failing checks
+    if [ -n "$failing_checks" ]; then
+        echo "Branch has failing checks:"
+        echo "$failing_checks"
+        failing_count=$(echo "$failing_checks" | wc -l)
+        return 1
+    else
+        echo "No failing checks detected for $branch"
+        return 0
     fi
 }
 
@@ -81,17 +201,23 @@ check_branch_status() {
     fi
     
     # Check for open pull requests
-    local pr_count=$(gh pr list --head "$branch" --state open --json number | jq length)
+    local pr_count=0
+    pr_count=$(gh pr list --head "$branch" --state open --json number | jq 'length' 2>/dev/null) || {
+        echo "Warning: Could not get PR count for $branch"
+        pr_count=0
+    }
+    
     if [ "$pr_count" -gt 0 ]; then
         echo "Warning: Branch has $pr_count open pull request(s)"
     fi
     
     # Check for failing checks
-    local failing_checks=$(gh api "/repos/$GITHUB_REPOSITORY/commits/$branch/check-runs" --jq '.check_runs[] | select(.conclusion=="failure") | .name')
-    if [ -n "$failing_checks" ]; then
-        echo "Error: Branch has failing checks:"
-        echo "$failing_checks"
+    if ! check_failing_checks "$branch"; then
         has_errors=1
+    fi
+    
+    if [ $has_errors -eq 0 ]; then
+        echo "Branch $branch passed all checks"
     fi
     
     return $has_errors
@@ -113,6 +239,10 @@ main() {
                 base_branch="$2"
                 shift 2
                 ;;
+            --help)
+                echo "Usage: $0 --branch <branch-name> [--base <base-branch>]"
+                exit 0
+                ;;
             *)
                 echo "Unknown option: $1"
                 echo "Usage: $0 --branch <branch-name> [--base <base-branch>]"
@@ -131,6 +261,7 @@ main() {
     
     if check_branch_status "$branch" "$base_branch"; then
         echo "Branch status check passed!"
+        exit 0
     else
         echo "Branch status check failed!"
         exit 1

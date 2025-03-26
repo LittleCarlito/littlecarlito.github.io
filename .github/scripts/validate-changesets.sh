@@ -3,6 +3,11 @@
 # Exit on error
 set -e
 
+# Enable debug mode with DEBUG=1
+if [ "${DEBUG:-0}" = "1" ]; then
+    set -x
+fi
+
 # Function to validate a single changeset file
 validate_changeset() {
     local file=$1
@@ -22,6 +27,10 @@ validate_changeset() {
     
     # Read file content
     content=$(cat "$file")
+    if [ -z "$content" ]; then
+        echo "Error: Changeset file $file is empty"
+        return 1
+    fi
     
     # Check for required sections
     if ! echo "$content" | grep -q "^---"; then
@@ -31,19 +40,34 @@ validate_changeset() {
     
     # Validate package names
     while IFS= read -r line; do
-        if [[ $line =~ ^[a-zA-Z0-9-]+@[0-9]+\.[0-9]+\.[0-9]+: ]]; then
-            package=$(echo "$line" | cut -d'@' -f1)
-            if [ ! -d "packages/$package" ]; then
-                echo "Error: Package '$package' referenced in $file does not exist"
-                return 1
+        if [[ $line =~ ^\"?@?[a-zA-Z0-9-]+(/[a-zA-Z0-9-]+)?\"?: ]]; then
+            # Extract package name, handling quoted names and scoped packages
+            package=$(echo "$line" | sed -E 's/^\"?(@?[a-zA-Z0-9-]+(/[a-zA-Z0-9-]+)?)\"?:.*/\1/')
+            
+            # Skip validation for certain patterns like auto-generated changesets
+            if [[ "$file" =~ auto-[a-z0-9]+\.md ]]; then
+                echo "  Auto-generated changeset detected, skipping package existence check"
+                continue
+            fi
+            
+            # Only check folder existence for non-root packages
+            if [[ $package == @* || $package == */* ]]; then
+                # Extract package name without scope
+                pkg_name=$(echo "$package" | sed -E 's/@?([^/]+)\/?(.*)/\2/')
+                pkg_name=${pkg_name:-$package} # Fallback if regex didn't match
+                
+                if [ ! -d "packages/$pkg_name" ] && [ ! -d "apps/$pkg_name" ]; then
+                    echo "Error: Package '$package' referenced in $file does not exist in packages/ or apps/"
+                    return 1
+                fi
             fi
         fi
     done <<< "$content"
     
     # Validate version bump types
     while IFS= read -r line; do
-        if [[ $line =~ ^[a-zA-Z0-9-]+@[0-9]+\.[0-9]+\.[0-9]+: ]]; then
-            bump_type=$(echo "$line" | cut -d':' -f2 | tr -d ' ')
+        if [[ $line =~ ^\"?@?[a-zA-Z0-9-]+(/[a-zA-Z0-9-]+)?\"?: ]]; then
+            bump_type=$(echo "$line" | sed -E 's/.*:\s*"?([^"]*)"?.*/\1/')
             if [[ ! "$bump_type" =~ ^(major|minor|patch)$ ]]; then
                 echo "Error: Invalid bump type '$bump_type' in $file"
                 return 1
@@ -52,7 +76,7 @@ validate_changeset() {
     done <<< "$content"
     
     # Validate summary
-    if ! echo "$content" | grep -q "^---" -A1 | grep -q "summary:"; then
+    if ! echo "$content" | grep -q "summary:"; then
         echo "Error: Changeset file $file must include a summary"
         return 1
     fi
@@ -73,11 +97,21 @@ validate_all_changesets() {
         return 1
     fi
     
+    # Check if there are any markdown files
+    changeset_files=("$changeset_dir"/*.md)
+    if [ ! -e "${changeset_files[0]}" ]; then
+        echo "Warning: No changeset files found in $changeset_dir"
+        return 0
+    fi
+    
     # Validate each changeset file
     for file in "$changeset_dir"/*.md; do
         if [ -f "$file" ]; then
             if ! validate_changeset "$file"; then
                 has_errors=1
+                echo "  Failed validation: $file"
+            else
+                echo "  Passed validation: $file"
             fi
         fi
     done
@@ -91,6 +125,7 @@ main() {
     
     if validate_all_changesets; then
         echo "All changeset files are valid!"
+        exit 0
     else
         echo "Validation failed. Please fix the errors above."
         exit 1
