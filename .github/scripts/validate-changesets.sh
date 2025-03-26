@@ -38,22 +38,32 @@ validate_changeset() {
         return 1
     fi
     
+    # Check if this is an auto-generated changeset
+    is_auto_changeset=0
+    if [[ "$file" =~ auto-[a-z0-9]+\.md ]]; then
+        echo "  Auto-generated changeset detected, applying special validation rules"
+        is_auto_changeset=1
+    fi
+    
     # Validate package names
     while IFS= read -r line; do
-        if [[ $line =~ ^\"?@?[a-zA-Z0-9-]+(/[a-zA-Z0-9-]+)?\"?: ]]; then
+        # Clean the line to handle potential special characters
+        clean_line=$(echo "$line" | tr -d '\r')
+        
+        if [[ $clean_line =~ ^\"?@?[a-zA-Z0-9-]+(/[a-zA-Z0-9-]+)?\"?: ]]; then
             # Extract package name, handling quoted names and scoped packages
-            package=$(echo "$line" | sed -E 's/^\"?(@?[a-zA-Z0-9-]+(/[a-zA-Z0-9-]+)?)\"?:.*/\1/')
+            package=$(echo "$clean_line" | sed 's/^"//;s/":/:/;s/:.*//' | tr -d '"')
             
-            # Skip validation for certain patterns like auto-generated changesets
-            if [[ "$file" =~ auto-[a-z0-9]+\.md ]]; then
-                echo "  Auto-generated changeset detected, skipping package existence check"
+            # Skip validation for auto-generated changesets
+            if [ $is_auto_changeset -eq 1 ]; then
+                echo "  Skipping package existence check for auto-generated changeset"
                 continue
             fi
             
             # Only check folder existence for non-root packages
             if [[ $package == @* || $package == */* ]]; then
                 # Extract package name without scope
-                pkg_name=$(echo "$package" | sed -E 's/@?([^/]+)\/?(.*)/\2/')
+                pkg_name=$(echo "$package" | sed 's/@\{0,1\}\([^/]*\)\/\{0,1\}\(.*\)/\2/')
                 pkg_name=${pkg_name:-$package} # Fallback if regex didn't match
                 
                 if [ ! -d "packages/$pkg_name" ] && [ ! -d "apps/$pkg_name" ]; then
@@ -66,8 +76,18 @@ validate_changeset() {
     
     # Validate version bump types
     while IFS= read -r line; do
-        if [[ $line =~ ^\"?@?[a-zA-Z0-9-]+(/[a-zA-Z0-9-]+)?\"?: ]]; then
-            bump_type=$(echo "$line" | sed -E 's/.*:\s*"?([^"]*)"?.*/\1/')
+        # Clean the line to handle potential special characters
+        clean_line=$(echo "$line" | tr -d '\r')
+        
+        if [[ $clean_line =~ ^\"?@?[a-zA-Z0-9-]+(/[a-zA-Z0-9-]+)?\"?: ]]; then
+            # Skip bump type validation for auto-generated changesets
+            if [ $is_auto_changeset -eq 1 ]; then
+                echo "  Skipping bump type validation for auto-generated changeset"
+                continue
+            fi
+            
+            # For regular changesets, validate the bump type
+            bump_type=$(echo "$clean_line" | sed 's/.*: *"\{0,1\}\([^"]*\)"\{0,1\}.*/\1/')
             if [[ ! "$bump_type" =~ ^(major|minor|patch)$ ]]; then
                 echo "Error: Invalid bump type '$bump_type' in $file"
                 return 1
