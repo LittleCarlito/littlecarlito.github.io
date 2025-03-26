@@ -193,19 +193,34 @@ function determineAffectedPackages(commits, allPackages) {
 			packagesFromMessage.forEach(pkg => affectedPackages.add(pkg.name));
 		}
     
-		// If still no packages found, assume all packages are affected for important changes
-		if (affectedPackages.size === 0 && (commit.breaking || commit.type === 'feat')) {
-			allPackages.forEach(pkg => affectedPackages.add(pkg.name));
-		} else if (affectedPackages.size === 0) {
-			// For less important changes like 'fix', use a heuristic or default packages
-			// For now we'll use the main packages
-			const mainPackages = [
-				'@littlecarlito/blorkpack', 
-				'@littlecarlito/blorktools', 
-				'@littlecarlito/blorkboard',
-				'@littlecarlito/portfolio'
-			];
-			mainPackages.forEach(pkg => affectedPackages.add(pkg));
+		// If still no packages found and it's a breaking change or feature, look at changed files
+		if (affectedPackages.size === 0) {
+			try {
+				// Get files changed in this commit
+				const filesChanged = execSync(`git show --name-only --pretty=format: ${commit.hash}`).toString().trim().split('\n');
+				
+				// Map files to packages
+				allPackages.forEach(pkg => {
+					const packagePath = pkg.directory;
+					const matchingFiles = filesChanged.filter(file => 
+						file.startsWith(`packages/${packagePath}/`) || 
+						file.startsWith(`apps/${packagePath}/`)
+					);
+					
+					if (matchingFiles.length > 0) {
+						affectedPackages.add(pkg.name);
+					}
+				});
+			} catch (error) {
+				console.error(`Error checking changed files for commit ${commit.hash}: ${error.message}`);
+			}
+		}
+		
+		// If still no packages identified, mark it as unknown but don't assume all packages
+		if (affectedPackages.size === 0) {
+			console.log(`${colors.yellow}Warning: Could not determine affected packages for commit: ${commit.subject}${colors.reset}`);
+			// Add a single metadata package to ensure the changeset is created
+			affectedPackages.add(allPackages[0].name);
 		}
     
 		packagesByCommit[commit.hash] = {
