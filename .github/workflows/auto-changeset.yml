@@ -130,7 +130,7 @@ jobs:
             
             echo "Changeset committed and pushed to branch $BRANCH_NAME"
             echo "changeset_created=true" >> $GITHUB_OUTPUT
-            echo "branch_name=$BRANCH_NAME" >> $GITHUB_ENV
+            echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
           else
             echo "No changeset was generated - all updates may be covered by existing changesets"
             echo "changeset_created=false" >> $GITHUB_OUTPUT
@@ -140,7 +140,7 @@ jobs:
         id: create_pr
         if: steps.generate_changeset.outputs.changeset_created == 'true'
         run: |
-          PR_URL=$(gh pr create --base main --head ${{ env.branch_name }} \
+          PR_URL=$(gh pr create --base main --head ${{ steps.generate_changeset.outputs.branch_name }} \
             --title "chore: auto-generate changeset" \
             --body "This PR was automatically created by the Auto Changeset workflow. It contains auto-generated changesets from conventional commits.
 

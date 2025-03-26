@@ -404,6 +404,12 @@ jobs:
             echo "Release has been published!"
           done
           
+          # Delete the changeset-release/main branch if it exists
+          if git ls-remote --heads origin changeset-release/main; then
+            echo "Deleting changeset-release/main branch..."
+            git push origin --delete changeset-release/main || echo "Failed to delete branch, it may have been already deleted"
+          fi
+          
           # Check if we need to create a portfolio release
           # Since it's private, changesets may not have created a release for it
           PORTFOLIO_VERSION=${{ steps.get_versions.outputs.portfolio_version }}
