@@ -12,13 +12,13 @@ validate_changeset() {
     if [ ! -f "$file" ]; then
         echo "Error: Changeset file $file does not exist"
         return 1
-    }
+    fi
     
     # Check file extension
     if [[ ! "$file" =~ \.md$ ]]; then
         echo "Error: Changeset file $file must have .md extension"
         return 1
-    }
+    fi
     
     # Read file content
     content=$(cat "$file")
@@ -27,7 +27,7 @@ validate_changeset() {
     if ! echo "$content" | grep -q "^---"; then
         echo "Error: Changeset file $file must start with '---'"
         return 1
-    }
+    fi
     
     # Validate package names
     while IFS= read -r line; do
@@ -55,7 +55,7 @@ validate_changeset() {
     if ! echo "$content" | grep -q "^---" -A1 | grep -q "summary:"; then
         echo "Error: Changeset file $file must include a summary"
         return 1
-    }
+    fi
     
     return 0
 }
@@ -71,7 +71,7 @@ validate_all_changesets() {
     if [ ! -d "$changeset_dir" ]; then
         echo "Error: Changeset directory $changeset_dir does not exist"
         return 1
-    }
+    fi
     
     # Validate each changeset file
     for file in "$changeset_dir"/*.md; do
