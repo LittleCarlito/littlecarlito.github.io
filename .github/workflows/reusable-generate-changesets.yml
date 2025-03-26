@@ -1,4 +1,4 @@
-name: Auto Changeset
+name: Reusable Generate Changesets
 
 on:
   workflow_call:
@@ -16,13 +16,13 @@ on:
     outputs:
       changeset_created:
         description: "Whether a changeset was created"
-        value: ${{ jobs.auto-changeset.outputs.changeset_created }}
+        value: ${{ jobs.generate-changesets.outputs.changeset_created }}
       base_commit:
         description: "The base commit used for comparison"
-        value: ${{ jobs.auto-changeset.outputs.base_commit }}
+        value: ${{ jobs.generate-changesets.outputs.base_commit }}
       pr_number:
         description: "The PR number if one was created"
-        value: ${{ jobs.auto-changeset.outputs.pr_number }}
+        value: ${{ jobs.generate-changesets.outputs.pr_number }}
   workflow_dispatch:
     inputs:
       since:
@@ -40,7 +40,7 @@ permissions:
   statuses: write
 
 jobs:
-  auto-changeset:
+  generate-changesets:
     name: Generate Changesets from Conventional Commits
     runs-on: ubuntu-latest
     outputs:
@@ -136,17 +136,26 @@ jobs:
             echo "changeset_created=false" >> $GITHUB_OUTPUT
           fi
       
+      - name: Validate generated changesets
+        id: validate_changesets
+        if: steps.generate_changeset.outputs.changeset_created == 'true'
+        run: bash .github/scripts/validate-changesets.sh
+      
       - name: Create Pull Request
         id: create_pr
         if: steps.generate_changeset.outputs.changeset_created == 'true'
         run: |
-          PR_URL=$(gh pr create --base main --head ${{ steps.generate_changeset.outputs.branch_name }} \
+          PR_URL=$(bash .github/scripts/create-pr.sh \
+            --branch ${{ steps.generate_changeset.outputs.branch_name }} \
             --title "chore: auto-generate changeset" \
             --body "This PR was automatically created by the Auto Changeset workflow. It contains auto-generated changesets from conventional commits.
 
             **Note:** This is the first step of a two-step process:
             1. This PR adds changeset files to the .changeset directory
-            2. After this merges, another PR will be created to version packages")
+            2. After this merges, another PR will be created to version packages" \
+            --base main \
+            --label "automation" \
+            --label "changeset")
           
           PR_NUMBER=$(echo $PR_URL | awk -F/ '{print $NF}')
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
@@ -184,28 +193,18 @@ jobs:
           # Wait for GitHub to register all status checks
           echo "Waiting for GitHub to register all status checks..."
           sleep 15
-          
-          # Try direct squash merge with admin flag using PR_CREATION_TOKEN
-          echo "Attempting to squash and merge PR #$PR_NUMBER..."
-          gh pr merge $PR_NUMBER --squash --admin --delete-branch
-          
-          # Verify merge actually happened
-          sleep 5
-          PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
-          if [ "$PR_STATE" == "MERGED" ]; then
-            echo "Successfully merged PR #$PR_NUMBER"
-          else
-            echo "WARNING: Merge command succeeded but PR #$PR_NUMBER is still in state: $PR_STATE"
-            echo "Attempting direct merge with API..."
-            # Force merge with direct API call as last resort
-            gh api \
-              --method PUT \
-              -H "Accept: application/vnd.github+json" \
-              /repos/${{ github.repository }}/pulls/$PR_NUMBER/merge \
-              -f merge_method=squash
-          fi
-          
-          echo "Created PR #$PR_NUMBER: $PR_URL"
+      
+      - name: Check required checks
+        id: check_checks
+        if: steps.create_pr.outputs.pr_number != ''
+        run: |
+          bash .github/scripts/check-required-checks.sh --branch ${{ steps.generate_changeset.outputs.branch_name }} --wait --timeout 60
+      
+      - name: Force Merge Pull Request
+        id: merge_pr
+        if: steps.create_pr.outputs.pr_number != ''
+        run: |
+          bash .github/scripts/force-merge-pr.sh --pr ${{ steps.create_pr.outputs.pr_number }} --method squash
         env:
           GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
