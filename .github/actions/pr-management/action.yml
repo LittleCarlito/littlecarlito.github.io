@@ -1,0 +1,118 @@
+name: 'PR Management'
+description: 'Handles Pull Request operations including creation, merging, and cleanup'
+
+inputs:
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  repository:
+    description: 'Repository name (owner/repo)'
+    required: true
+  base-branch:
+    description: 'Base branch for PR'
+    required: false
+    default: 'main'
+  head-branch:
+    description: 'Head branch for PR'
+    required: true
+  title:
+    description: 'PR title'
+    required: true
+  body:
+    description: 'PR body'
+    required: false
+    default: ''
+  merge-method:
+    description: 'Merge method to use (merge, squash, rebase)'
+    required: false
+    default: 'squash'
+  delete-branch:
+    description: 'Whether to delete the head branch after merge'
+    required: false
+    default: 'true'
+  auto-merge:
+    description: 'Whether to attempt auto-merge'
+    required: false
+    default: 'false'
+
+outputs:
+  pr-number:
+    description: 'Number of the created/found PR'
+    value: ${{ steps.manage-pr.outputs.pr_number }}
+  pr-url:
+    description: 'URL of the created/found PR'
+    value: ${{ steps.manage-pr.outputs.pr_url }}
+  pr-state:
+    description: 'State of the PR (open, closed, merged)'
+    value: ${{ steps.manage-pr.outputs.pr_state }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Manage PR
+      id: manage-pr
+      shell: bash
+      run: |
+        # Check if PR already exists
+        EXISTING_PR=$(gh pr list \
+          --repo ${{ inputs.repository }} \
+          --head ${{ inputs.head-branch }} \
+          --base ${{ inputs.base-branch }} \
+          --json number,url,state \
+          --jq '.[0]')
+        
+        if [ -n "$EXISTING_PR" ]; then
+          echo "Found existing PR"
+          PR_NUMBER=$(echo "$EXISTING_PR" | jq -r '.number')
+          PR_URL=$(echo "$EXISTING_PR" | jq -r '.url')
+          PR_STATE=$(echo "$EXISTING_PR" | jq -r '.state')
+        else
+          echo "Creating new PR"
+          # Create PR
+          PR_RESPONSE=$(gh pr create \
+            --repo ${{ inputs.repository }} \
+            --base ${{ inputs.base-branch }} \
+            --head ${{ inputs.head-branch }} \
+            --title "${{ inputs.title }}" \
+            --body "${{ inputs.body }}")
+          
+          PR_NUMBER=$(echo "$PR_RESPONSE" | grep -o '[0-9]*$')
+          PR_URL="https://github.com/${{ inputs.repository }}/pull/$PR_NUMBER"
+          PR_STATE="open"
+        fi
+        
+        echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+        echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+        echo "pr_state=$PR_STATE" >> $GITHUB_OUTPUT
+        
+        # Auto-merge if requested
+        if [ "${{ inputs.auto-merge }}" = "true" ] && [ "$PR_STATE" = "open" ]; then
+          echo "Attempting to merge PR #$PR_NUMBER..."
+          
+          # Try API merge first
+          if gh api \
+            --method PUT \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${{ inputs.repository }}/pulls/$PR_NUMBER/merge \
+            -f merge_method=${{ inputs.merge-method }}; then
+            echo "✅ Successfully merged PR #$PR_NUMBER"
+          else
+            echo "API merge failed, attempting merge with admin flag..."
+            if gh pr merge $PR_NUMBER --${{ inputs.merge-method }} --admin; then
+              echo "✅ Successfully merged PR #$PR_NUMBER with admin flag"
+            else
+              echo "❌ Failed to merge PR #$PR_NUMBER"
+              exit 1
+            fi
+          fi
+          
+          # Delete branch if requested
+          if [ "${{ inputs.delete-branch }}" = "true" ]; then
+            echo "Deleting branch ${{ inputs.head-branch }}..."
+            gh api \
+              --method DELETE \
+              /repos/${{ inputs.repository }}/git/refs/heads/${{ inputs.head-branch }}
+          fi
+        fi
+      env:
+        GH_TOKEN: ${{ inputs.github-token }} 
