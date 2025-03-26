@@ -1,4 +1,4 @@
-name: Clean Changesets
+name: Manual Clean Changesets
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
   clean:
-    name: Clean Changesets
+    name: Manual Clean Changesets
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -114,7 +114,7 @@ jobs:
             /repos/${{ github.repository }}/statuses/${{ steps.get_pr_sha.outputs.pr_sha }} \
             -f state=success \
             -f context="Build Packages" \
-            -f description="Build completed successfully (via clean-changesets)" \
+            -f description="Build completed successfully (via manual-clean-changesets)" \
             -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -127,7 +127,7 @@ jobs:
             /repos/${{ github.repository }}/statuses/${{ steps.get_pr_sha.outputs.pr_sha }} \
             -f state=success \
             -f context="Test / Run Tests" \
-            -f description="Tests passed successfully (via clean-changesets)" \
+            -f description="Tests passed successfully (via manual-clean-changesets)" \
             -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -140,7 +140,7 @@ jobs:
             /repos/${{ github.repository }}/statuses/${{ steps.get_pr_sha.outputs.pr_sha }} \
             -f state=success \
             -f context="Test Changesets" \
-            -f description="Changesets validated successfully (via clean-changesets)" \
+            -f description="Changesets validated successfully (via manual-clean-changesets)" \
             -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -198,7 +198,7 @@ jobs:
           echo "Waiting for required checks to complete on PR #${{ steps.create_pr.outputs.pr_number }}..."
           
           # Get current workflow name for filtering
-          CURRENT_WORKFLOW_NAME="Clean Changesets"
+          CURRENT_WORKFLOW_NAME="Manual Clean Changesets"
           
           # Wait for all required checks except our own
           for i in {1..15}; do

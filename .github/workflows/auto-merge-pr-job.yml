@@ -52,15 +52,15 @@ jobs:
         run: |
           # Check if PR already exists for this branch
           EXISTING_PR=$(curl -s -H "Authorization: token ${{ secrets.PR_CREATION_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:${{ env.BRANCH_NAME }}&base=main&state=open" | \
+            "https://api.github.com/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:${{ github.ref_name }}&base=main&state=open" | \
             jq -r '.[0].number')
           
           if [ "$EXISTING_PR" != "null" ] && [ -n "$EXISTING_PR" ]; then
-            echo "Found existing PR #$EXISTING_PR for branch ${{ env.BRANCH_NAME }}"
+            echo "Found existing PR #$EXISTING_PR for branch ${{ github.ref_name }}"
             echo "pr_exists=true" >> "$GITHUB_OUTPUT"
             echo "pr_number=$EXISTING_PR" >> "$GITHUB_OUTPUT"
           else
-            echo "No existing PR found for branch ${{ env.BRANCH_NAME }}"
+            echo "No existing PR found for branch ${{ github.ref_name }}"
             echo "pr_exists=false" >> "$GITHUB_OUTPUT"
           fi
       
@@ -68,13 +68,19 @@ jobs:
         id: create_pr
         if: steps.check_pr.outputs.pr_exists != 'true'
         run: |
+          # Get the commit message directly
+          PR_COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+          
+          # Extract PR title from commit message (first line)
+          PR_TITLE=$(echo "$PR_COMMIT_MESSAGE" | head -n 1)
+          
           # Don't modify the existing branch - just create a PR from it
           PR_BODY=$(cat << EOF
-          This PR was automatically created from branch \`${{ env.BRANCH_NAME }}\`.
+          This PR was automatically created from branch \`${{ github.ref_name }}\`.
           
           Original commit message:
           \`\`\`
-          ${{ env.COMMIT_MESSAGE }}
+          $PR_COMMIT_MESSAGE
           \`\`\`
           
           ## Changes
@@ -93,9 +99,9 @@ jobs:
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/${{ github.repository }}/pulls" \
             -d "$(jq -n \
-              --arg title "${{ env.PR_TITLE }}" \
+              --arg title "$PR_TITLE" \
               --arg body "$PR_BODY" \
-              --arg head "${{ env.BRANCH_NAME }}" \
+              --arg head "${{ github.ref_name }}" \
               --arg base "main" \
               '{
                 "title": $title,
@@ -112,7 +118,7 @@ jobs:
           
           # Check if PR was created successfully
           if [ "$PR_NUMBER" != "null" ] && [ -n "$PR_NUMBER" ]; then
-            echo "Created new PR #$PR_NUMBER for branch ${{ env.BRANCH_NAME }}"
+            echo "Created new PR #$PR_NUMBER for branch ${{ github.ref_name }}"
             echo "pull-request-number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
           else
             echo "Failed to create PR. API response: $PR_RESPONSE"
@@ -135,9 +141,13 @@ jobs:
       
       - name: Wait for required checks
         id: wait_checks
-        if: env.PR_NUMBER != ''
         run: |
-          PR_NUMBER=${{ env.PR_NUMBER }}
+          # Check if PR_NUMBER is set in the environment
+          if [ -z "${PR_NUMBER:-}" ]; then
+            echo "No PR number available. Skipping checks."
+            exit 0
+          fi
+          
           echo "Waiting for required checks to complete on PR #$PR_NUMBER..."
           
           # Wait initial time for checks to be created
@@ -257,14 +267,23 @@ jobs:
         id: merge_message
         if: steps.wait_checks.outcome == 'success'
         run: |
+          # Get the commit message directly
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          
+          # Extract PR title from commit message (first line)
+          PR_TITLE=$(echo "$COMMIT_MSG" | head -n 1)
+          
+          # Extract semantic type (feat, fix, etc.)
+          SEMANTIC_TYPE=$(echo "$PR_TITLE" | grep -oP '^(\w+)(?:\(.*\))?:' | sed 's/://g' || echo "")
+          
           # Check if SEMANTIC_TYPE is set and not empty
-          if [ -n "${SEMANTIC_TYPE:-}" ]; then
-            echo "Using existing semantic type: ${SEMANTIC_TYPE}"
-            MERGE_MSG="${COMMIT_MESSAGE:-}"
+          if [ -n "$SEMANTIC_TYPE" ]; then
+            echo "Using existing semantic type: $SEMANTIC_TYPE"
+            MERGE_MSG="$COMMIT_MSG"
           else
             # Default to fix: if no semantic type is detected
             echo "No semantic type detected, defaulting to fix:"
-            MERGE_MSG="fix: ${PR_TITLE:-}"
+            MERGE_MSG="fix: $PR_TITLE"
           fi
           
           echo "MERGE_MESSAGE<<EOF" >> "$GITHUB_ENV"
@@ -274,10 +293,15 @@ jobs:
       - name: Merge Pull Request
         if: steps.merge_message.outcome == 'success'
         run: |
-          PR_NUMBER=${PR_NUMBER:-}
+          # Check if PR_NUMBER is set in the environment
+          if [ -z "${PR_NUMBER:-}" ]; then
+            echo "No PR number available. Cannot merge."
+            exit 0
+          fi
           
-          # Create properly escaped JSON payload
-          MERGE_TITLE=$(echo "${MERGE_MESSAGE:-}" | head -n 1)
+          # Get the merge title directly from git or use the previously set variable
+          MERGE_MSG=$(git log -1 --pretty=%B)
+          MERGE_TITLE=$(echo "$MERGE_MSG" | head -n 1)
           
           # Create JSON payload with jq to handle escaping properly
           JSON_PAYLOAD=$(jq -n \
@@ -315,7 +339,7 @@ jobs:
         if: success() && steps.merge_message.outcome == 'success'
         run: |
           # Extract branch name from GITHUB_REF to ensure we have it
-          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          BRANCH_NAME="${{ github.ref_name }}"
           echo "Deleting branch $BRANCH_NAME after successful merge..."
           
           # Delete the branch using GitHub API
