@@ -48,6 +48,7 @@ module.exports = {
 				'common',
 				'core',
 				'docs',
+				'pipeline',
 				'release',
 				'no-release'
 			]
@@ -73,8 +74,9 @@ module.exports = {
 					let willTriggerRelease = false;
 					let releaseType = null;
 					
-					if (scope === 'no-release') {
-						return [true, 'Commit will not trigger a release (no-release scope)'];
+					// Do not trigger releases for no-release or pipeline scopes
+					if (scope === 'no-release' || scope === 'pipeline') {
+						return [true, `Commit will not trigger a release (${scope} scope)`];
 					}
 					
 					if (type === 'feat') {

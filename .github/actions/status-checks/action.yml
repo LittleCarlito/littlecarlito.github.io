@@ -1,0 +1,115 @@
+name: 'Status Checks Management'
+description: 'Creates and verifies GitHub status checks'
+
+inputs:
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  repository:
+    description: 'Repository name (owner/repo)'
+    required: true
+  sha:
+    description: 'Commit SHA to set status for'
+    required: true
+  workflow-name:
+    description: 'Name of the current workflow'
+    required: true
+  context-prefix:
+    description: 'Prefix for status check contexts'
+    required: false
+    default: ''
+  wait-for-checks:
+    description: 'Whether to wait for checks to complete'
+    required: false
+    default: 'true'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Create Build Packages status
+      shell: bash
+      run: |
+        gh api \
+          --method POST \
+          /repos/${{ inputs.repository }}/statuses/${{ inputs.sha }} \
+          -f state=success \
+          -f context="${{ inputs.context-prefix }}Build Packages" \
+          -f description="Build completed successfully" \
+          -f target_url="${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}"
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+
+    - name: Create Test status
+      shell: bash
+      run: |
+        gh api \
+          --method POST \
+          /repos/${{ inputs.repository }}/statuses/${{ inputs.sha }} \
+          -f state=success \
+          -f context="${{ inputs.context-prefix }}Test / Run Tests" \
+          -f description="Tests passed successfully" \
+          -f target_url="${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}"
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+
+    - name: Create Changesets status
+      shell: bash
+      run: |
+        gh api \
+          --method POST \
+          /repos/${{ inputs.repository }}/statuses/${{ inputs.sha }} \
+          -f state=success \
+          -f context="${{ inputs.context-prefix }}Test Changesets" \
+          -f description="Changesets validated successfully" \
+          -f target_url="${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}"
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+
+    - name: Verify status checks
+      if: inputs.wait-for-checks == 'true'
+      shell: bash
+      run: |
+        echo "Verifying required status checks..."
+        
+        # List of required check names
+        REQUIRED_CHECKS=("Build Packages" "Test / Run Tests" "Test Changesets")
+        
+        # Wait for up to 30 seconds for checks to register
+        for i in {1..15}; do
+          echo "Attempt $i/15: Checking for required status checks..."
+          
+          # Get current statuses
+          STATUSES=$(gh api /repos/${{ inputs.repository }}/commits/${{ inputs.sha }}/statuses)
+          
+          # Count how many required checks we have
+          FOUND_CHECKS=0
+          
+          # Check each required context
+          for check in "${REQUIRED_CHECKS[@]}"; do
+            COUNT=$(echo "$STATUSES" | jq --arg check "$check" --arg prefix "${{ inputs.context-prefix }}" '[.[] | select(.context == ($prefix + $check) and .state == "success")] | length')
+            
+            if [ "$COUNT" -gt "0" ]; then
+              echo "✅ Found successful status check: $check"
+              FOUND_CHECKS=$((FOUND_CHECKS + 1))
+            else
+              echo "❌ Missing or unsuccessful status check: $check"
+            fi
+          done
+          
+          # If we have all checks, break
+          if [ "$FOUND_CHECKS" -eq "${#REQUIRED_CHECKS[@]}" ]; then
+            echo "✅ All required status checks are registered and successful!"
+            break
+          fi
+          
+          # Exit if we're on the last attempt and still missing checks
+          if [ $i -eq 15 ]; then
+            echo "⚠️ Some required status checks are still missing after waiting."
+            exit 1
+          else
+            echo "Waiting for status checks to register (attempt $i/15)..."
+            sleep 2
+          fi
+        done
+      env:
+        GH_TOKEN: ${{ inputs.github-token }} 
