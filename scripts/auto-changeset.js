@@ -298,6 +298,9 @@ function createChangeset(packageBumps, commits) {
 		changesetContent += `"${pkg}": ${bump}\n`;
 	});
   
+	// Add required summary field to pass validation
+	changesetContent += 'summary: "Auto-generated changeset from conventional commits"\n';
+	
 	changesetContent += '---\n\n';
   
 	// Add summary from commits
