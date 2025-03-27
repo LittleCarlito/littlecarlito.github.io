@@ -4,7 +4,7 @@
 # Exit on error
 set -e
 
-echo "🔍 Running comprehensive pre-push checks..."
+echo "🔍 Running pre-push checks..."
 
 # First, verify the lockfile is in sync with package.json
 echo "Verifying lockfile integrity..."
@@ -17,19 +17,44 @@ pnpm verify-lockfile || {
 # Get the current branch name
 BRANCH=$(git symbolic-ref --short HEAD)
 
-# Run tests first to catch any immediate issues
-echo "Running tests..."
-pnpm test || {
-    echo "❌ Tests failed. Please fix failing tests before pushing."
-    exit 1
-}
+# Check for changes outside development/ and public/ directories
+echo "Checking for relevant file changes..."
+# Get files changed between current branch and remote
+CHANGED_FILES=$(git diff --name-only origin/$(git branch --show-current) HEAD)
 
-# Run build to ensure it succeeds
-echo "Running build..."
-pnpm build || {
-    echo "❌ Build failed. Please fix build issues before pushing."
-    exit 1
-}
+# Flag to indicate if we need to run tests
+RUN_TESTS=false
+
+# Use a different approach to avoid subshell issues
+for file in $CHANGED_FILES; do
+    # Skip empty lines
+    [ -z "$file" ] && continue
+    
+    # Check if file is NOT in development/ or public/ directories
+    if ! [[ "$file" =~ ^(development/|public/) ]]; then
+        echo "🔍 Found change in $file - will run tests"
+        RUN_TESTS=true
+        break
+    fi
+done
+
+if [ "$RUN_TESTS" = true ]; then
+    # Run tests to catch any immediate issues
+    echo "Running tests..."
+    pnpm test || {
+        echo "❌ Tests failed. Please fix failing tests before pushing."
+        exit 1
+    }
+
+    # Run build to ensure it succeeds
+    echo "Running build..."
+    pnpm build || {
+        echo "❌ Build failed. Please fix build issues before pushing."
+        exit 1
+    }
+else
+    echo "✅ No changes detected outside development/ and public/ directories. Skipping tests."
+fi
 
 # If pushing to main or merging into main, run additional checks
 if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ] || git rev-parse "origin/main...HEAD" >/dev/null 2>&1; then
