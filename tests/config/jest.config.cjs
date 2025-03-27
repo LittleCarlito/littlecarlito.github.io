@@ -40,6 +40,7 @@ module.exports = {
 	coverageDirectory: '<rootDir>/coverage',
 	collectCoverageFrom: [
 		'packages/*/src/**/*.js',
+		'.github/**/*.js',
 		'!packages/*/src/test/**',
 		'!packages/*/dist/**',
 		'!**/node_modules/**'
