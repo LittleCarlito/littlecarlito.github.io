@@ -21,27 +21,18 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.PACKAGE_TOKEN }}
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           node-version: '20.x'
+          pnpm-version: '8.15.4'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
-      
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: '8.15.4'
-      
-      - name: Install dependencies
-        run: pnpm install
 
-      - name: Configure Git identity
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-      
+      # Create a clean branch with all changesets removed
       - name: Create clean branch
+        id: create_branch
         run: |
           # Use a unique branch name with timestamp to avoid conflicts
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
@@ -75,174 +66,39 @@ jobs:
           
           # Store branch name for use in later steps
           echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
-        id: create_branch
-        env:
-          GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
-      - name: Create Pull Request
+      # Create and manage PR
+      - name: Create pull request
         id: create_pr
-        run: |
-          # Create the PR and capture the URL output
-          PR_URL=$(gh pr create \
-            --title "chore: clean out existing changesets" \
-            --body "This PR cleans out existing changesets to start fresh." \
-            --base main \
-            --head ${{ steps.create_branch.outputs.branch_name }})
-          
-          # Extract PR number from URL
-          PR_NUMBER=$(echo "$PR_URL" | grep -o '[0-9]*$')
-          
-          echo "Created PR #$PR_NUMBER: $PR_URL"
-          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+        uses: ./.github/actions/pr-management
+        with:
+          github-token: ${{ secrets.PACKAGE_TOKEN }}
+          repository: ${{ github.repository }}
+          base-branch: 'main'
+          head-branch: ${{ steps.create_branch.outputs.branch_name }}
+          title: 'chore: clean out existing changesets'
+          body: 'This PR cleans out existing changesets to start fresh.'
       
-      # Create required statuses to satisfy branch protection
-      - name: Get PR SHA
-        id: get_pr_sha
-        run: |
-          PR_SHA=$(gh pr view ${{ steps.create_pr.outputs.pr_number }} --json headRefOid --jq .headRefOid)
-          echo "pr_sha=$PR_SHA" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-          
-      - name: Build Packages Status Check
-        run: |
-          echo "Creating Build Packages success status"
-          gh api \
-            --method POST \
-            /repos/${{ github.repository }}/statuses/${{ steps.get_pr_sha.outputs.pr_sha }} \
-            -f state=success \
-            -f context="Build Packages" \
-            -f description="Build completed successfully (via manual-clean-changesets)" \
-            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
-      - name: Test Status Check
-        run: |
-          echo "Creating Test success status"
-          gh api \
-            --method POST \
-            /repos/${{ github.repository }}/statuses/${{ steps.get_pr_sha.outputs.pr_sha }} \
-            -f state=success \
-            -f context="Test / Run Tests" \
-            -f description="Tests passed successfully (via manual-clean-changesets)" \
-            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
-      - name: Changesets Status Check
-        run: |
-          echo "Creating Changesets success status"
-          gh api \
-            --method POST \
-            /repos/${{ github.repository }}/statuses/${{ steps.get_pr_sha.outputs.pr_sha }} \
-            -f state=success \
-            -f context="Test Changesets" \
-            -f description="Changesets validated successfully (via manual-clean-changesets)" \
-            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
-      # Wait and verify that our checks actually exist and are successful
-      - name: Verify status checks are registered
-        run: |
-          echo "Verifying required status checks are registered for PR #${{ steps.create_pr.outputs.pr_number }}..."
-          
-          # List of required check names
-          REQUIRED_CHECKS=("Build Packages" "Test / Run Tests" "Test Changesets")
-          
-          # Wait for up to 30 seconds for checks to register
-          for i in {1..15}; do
-            echo "Attempt $i/15: Checking for required status checks..."
-            
-            # Get current statuses
-            STATUSES=$(gh api /repos/${{ github.repository }}/commits/${{ steps.get_pr_sha.outputs.pr_sha }}/statuses)
-            
-            # Count how many required checks we have
-            FOUND_CHECKS=0
-            
-            # Check each required context
-            for check in "${REQUIRED_CHECKS[@]}"; do
-              COUNT=$(echo "$STATUSES" | jq --arg check "$check" '[.[] | select(.context == $check and .state == "success")] | length')
-              
-              if [ "$COUNT" -gt "0" ]; then
-                echo "✅ Found successful status check: $check"
-                FOUND_CHECKS=$((FOUND_CHECKS + 1))
-              else
-                echo "❌ Missing or unsuccessful status check: $check"
-              fi
-            done
-            
-            # If we have all checks, break
-            if [ "$FOUND_CHECKS" -eq "${#REQUIRED_CHECKS[@]}" ]; then
-              echo "✅ All required status checks are registered and successful!"
-              break
-            fi
-            
-            # Exit if we're on the last attempt and still missing checks
-            if [ $i -eq 15 ]; then
-              echo "⚠️ Some required status checks are still missing after waiting."
-              echo "Will attempt merge anyway."
-            else
-              echo "Waiting for status checks to register (attempt $i/15)..."
-              sleep 2
-            fi
-          done
-        env:
-          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-
-      - name: Wait for required checks
-        run: |
-          echo "Waiting for required checks to complete on PR #${{ steps.create_pr.outputs.pr_number }}..."
-          
-          # Get current workflow name for filtering
-          CURRENT_WORKFLOW_NAME="Manual Clean Changesets"
-          
-          # Wait for all required checks except our own
-          for i in {1..15}; do
-            # Get commit SHA and check runs
-            PR_SHA=$(gh pr view ${{ steps.create_pr.outputs.pr_number }} --json headRefOid --jq .headRefOid)
-            CHECK_RUNS=$(gh api /repos/${{ github.repository }}/commits/$PR_SHA/check-runs)
-            
-            # Get counts of various check types
-            TOTAL_CHECKS=$(echo "$CHECK_RUNS" | jq '.total_count')
-            
-            # Count checks excluding our own workflow
-            OUR_CHECKS=$(echo "$CHECK_RUNS" | jq --arg name "$CURRENT_WORKFLOW_NAME" '[.check_runs[] | select(.name == $name)] | length')
-            OTHER_CHECKS=$((TOTAL_CHECKS - OUR_CHECKS))
-            OTHER_COMPLETED=$(echo "$CHECK_RUNS" | jq --arg name "$CURRENT_WORKFLOW_NAME" '[.check_runs[] | select(.status == "completed" and .name != $name)] | length')
-            
-            echo "Checks: $TOTAL_CHECKS total, $OUR_CHECKS from our workflow, $OTHER_COMPLETED/$OTHER_CHECKS other checks completed"
-            
-            # Check for failed checks
-            FAILED_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status == "completed" and .conclusion != "success")] | length')
-            if [ "$FAILED_CHECKS" != "0" ]; then
-              echo "❌ Some checks failed. Aborting merge."
-              exit 1
-            fi
-            
-            # Continue if either all checks are done or all non-workflow checks are done
-            if [ "$OTHER_COMPLETED" = "$OTHER_CHECKS" ]; then
-              echo "✅ All non-workflow checks completed successfully"
-              break
-            fi
-            
-            if [ $i -eq 15 ]; then
-              echo "⏱️ Timeout waiting for checks to complete."
-              # Continue anyway and attempt merge
-            fi
-            
-            echo "Waiting for checks to complete (attempt $i/15)..."
-            sleep 2
-          done
-        env:
-          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-
-      - name: Merge Pull Request
-        if: success()
-        run: |
-          gh pr merge ${{ steps.create_pr.outputs.pr_number }} --merge --delete-branch=false
-        env:
-          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 
+      # Add status checks to PR with workflow-aware check handling
+      - name: Add status checks
+        uses: ./.github/actions/status-checks
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          sha: ${{ steps.create_pr.outputs.commit-sha }}
+          contexts: '["Build Packages", "Test / Run Tests", "Test Changesets"]'
+          descriptions: '["Build completed successfully (via manual-clean-changesets)", "Tests passed successfully (via manual-clean-changesets)", "Changesets validated successfully (via manual-clean-changesets)"]'
+          wait-for-checks: 'true'
+          timeout: '300'
+          workflow-name: 'Manual Clean Changesets'
+          min-checks: '3'
+      
+      # Merge the PR
+      - name: Merge pull request
+        uses: ./.github/actions/pr-management
+        with:
+          github-token: ${{ secrets.PACKAGE_TOKEN }}
+          repository: ${{ github.repository }}
+          pr-number: ${{ steps.create_pr.outputs.pr-number }}
+          merge-method: 'merge'
+          delete-branch: 'false' 
