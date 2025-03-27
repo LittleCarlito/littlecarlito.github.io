@@ -129,8 +129,8 @@ runs:
       if: steps.check-changesets.outputs.has_changesets == 'true' || steps.generate-changeset.outputs.changeset_created == 'true'
       shell: bash
       run: |
-        if [ -f ".github/scripts/validate-changesets.sh" ]; then
-          bash .github/scripts/validate-changesets.sh
+        if [ -f ".github/scripts/version/validate-changesets.sh" ]; then
+          bash .github/scripts/version/validate-changesets.sh
         else
           echo "Validating changesets..."
           # Simple validation if script doesn't exist

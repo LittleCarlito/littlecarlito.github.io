@@ -9,7 +9,7 @@ const GH_SCRIPTS_DIR = path.join(process.cwd(), '.github', 'scripts');
 
 // Path to specific scripts
 const AUTO_CHANGESET_SCRIPT = path.join(SCRIPTS_DIR, 'auto-changeset.js');
-const VALIDATE_CHANGESET_SCRIPT = path.join(GH_SCRIPTS_DIR, 'validate-changesets.sh');
+const VALIDATE_CHANGESET_SCRIPT = path.join(GH_SCRIPTS_DIR, 'version/validate-changesets.sh');
 
 describe('Changeset Validation', () => {
 	// Ensure the scripts exist
