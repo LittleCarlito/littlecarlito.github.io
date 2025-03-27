@@ -1,0 +1,89 @@
+name: 'Force Merge PR'
+description: 'Force merges a PR even if workflow checks are still running, for self-managed workflows'
+
+inputs:
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  repository:
+    description: 'Repository name (owner/repo)'
+    required: true
+  pr-number:
+    description: 'PR number to merge'
+    required: true
+  commit-title:
+    description: 'Title for the merge commit'
+    required: true
+  merge-method:
+    description: 'Merge method to use (merge, squash, rebase)'
+    required: false
+    default: 'squash'
+  delete-branch:
+    description: 'Whether to delete the head branch after merge'
+    required: false
+    default: 'true'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Force merge PR
+      shell: bash
+      run: |
+        # Get PR details
+        PR_INFO=$(gh pr view ${{ inputs.pr-number }} --json headRefName,mergeable,mergeStateStatus)
+        HEAD_BRANCH=$(echo "$PR_INFO" | jq -r '.headRefName')
+        MERGEABLE=$(echo "$PR_INFO" | jq -r '.mergeable')
+        MERGE_STATE=$(echo "$PR_INFO" | jq -r '.mergeStateStatus')
+        
+        echo "PR #${{ inputs.pr-number }} details:"
+        echo "Head branch: $HEAD_BRANCH"
+        echo "Mergeable: $MERGEABLE"
+        echo "Merge state: $MERGE_STATE"
+        
+        # Create JSON payload with jq to handle escaping properly
+        JSON_PAYLOAD=$(jq -n \
+          --arg title "${{ inputs.commit-title }}" \
+          --arg method "${{ inputs.merge-method }}" \
+          '{
+            "commit_title": $title,
+            "commit_message": "",
+            "merge_method": $method
+          }')
+        
+        echo "Attempting direct API merge with title: ${{ inputs.commit-title }}"
+        
+        # Merge the PR using the GitHub API directly
+        RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT \
+          -H "Authorization: token ${{ inputs.github-token }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/${{ inputs.repository }}/pulls/${{ inputs.pr-number }}/merge" \
+          -d "$JSON_PAYLOAD")
+        
+        # Extract status code and response body
+        HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
+        RESPONSE_BODY=$(echo "$RESPONSE" | sed '$ d')
+        
+        echo "Response body: $RESPONSE_BODY"
+        echo "Status code: $HTTP_STATUS"
+        
+        # Check if merge was successful (2xx status code)
+        if [[ $HTTP_STATUS -ge 200 && $HTTP_STATUS -lt 300 ]]; then
+          echo "✅ Successfully merged PR #${{ inputs.pr-number }}"
+          
+          # Delete branch if requested
+          if [ "${{ inputs.delete-branch }}" = "true" ]; then
+            echo "Deleting branch $HEAD_BRANCH..."
+            curl -X DELETE \
+              -H "Authorization: token ${{ inputs.github-token }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ inputs.repository }}/git/refs/heads/$HEAD_BRANCH"
+            
+            echo "Branch $HEAD_BRANCH has been deleted"
+          fi
+        else
+          echo "❌ Failed to merge PR #${{ inputs.pr-number }}. Status: $HTTP_STATUS"
+          echo "Error: $RESPONSE_BODY"
+          exit 1
+        fi
+      env:
+        GH_TOKEN: ${{ inputs.github-token }} 

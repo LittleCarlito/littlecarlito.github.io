@@ -2,14 +2,14 @@
  * Root Jest configuration for the monorepo
  */
 module.exports = {
-	rootDir: '../..',
+	rootDir: '../../..',
 	testEnvironment: 'jsdom',
 	transform: {
-		'^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { configFile: './tests/config/babel.config.cjs' }],
-		'^.+\\.(yml|yaml)$': '<rootDir>/tests/config/yaml-transformer.cjs',
-		'^.+\\.sh$': '<rootDir>/tests/config/shell-transformer.cjs'
+		'^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { configFile: './tests/config/jest/babel.config.cjs' }],
+		'^.+\\.(yml|yaml)$': '<rootDir>/tests/config/transformers/yaml-transformer.cjs',
+		'^.+\\.sh$': '<rootDir>/tests/config/transformers/shell-transformer.cjs'
 	},
-	setupFilesAfterEnv: ['<rootDir>/tests/config/jest.setup.cjs'],
+	setupFilesAfterEnv: ['<rootDir>/tests/config/setup/jest.setup.cjs'],
 	testMatch: [
 		'<rootDir>/tests/**/*.test.js',
 		'<rootDir>/tests/**/*-test.js',
@@ -35,14 +35,14 @@ module.exports = {
 	modulePaths: ['<rootDir>'],
 	moduleDirectories: ['node_modules', '<rootDir>'],
 	// Use our custom preparation script before running tests
-	globalSetup: '<rootDir>/tests/config/prepare-tests.cjs',
+	globalSetup: '<rootDir>/tests/config/setup/prepare-tests.cjs',
 	// Add verbose module reporting to help debug issues
 	verbose: true,
 	// Configure coverage settings
 	coverageDirectory: '<rootDir>/coverage',
 	collectCoverageFrom: [
 		'packages/*/src/**/*.js',
-		'.github/**/*',
+		'.github/**/*.{js,yml,yaml,sh}',
 		'!packages/*/src/test/**',
 		'!packages/*/dist/**',
 		'!**/node_modules/**'

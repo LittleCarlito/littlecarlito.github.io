@@ -43,7 +43,7 @@ get_required_checks() {
     if [ -z "$checks" ]; then
         echo "Warning: No required checks found for branch $branch"
         return 0
-    }
+    fi
     
     echo "$checks"
     return 0
@@ -78,7 +78,7 @@ get_commit_checks() {
     if [ -z "$checks" ]; then
         echo "Warning: No check runs found for commit $sha"
         return 0
-    }
+    fi
     
     echo "$checks"
     return 0

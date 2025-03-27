@@ -50,7 +50,8 @@ module.exports = {
 				'docs',
 				'pipeline',
 				'release',
-				'no-release'
+				'no-release',
+				'tests'
 			]
 		],
 		// Ensure scopes are lowercase
@@ -75,7 +76,7 @@ module.exports = {
 					let releaseType = null;
 					
 					// Do not trigger releases for no-release or pipeline scopes
-					if (scope === 'no-release' || scope === 'pipeline') {
+					if (scope === 'no-release' || scope === 'pipeline' || scope === 'tests') {
 						return [true, `Commit will not trigger a release (${scope} scope)`];
 					}
 					

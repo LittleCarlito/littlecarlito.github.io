@@ -1,0 +1,199 @@
+/**
+ * @jest-environment node
+ */
+
+const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+describe('wait-checks.sh Script Tests', () => {
+	const scriptPath = path.resolve(process.cwd(), '.github/scripts/branch/wait-checks.sh');
+	let testDir;
+
+	// Setup mock API responses
+	beforeEach(() => {
+		if (!fs.existsSync(scriptPath)) {
+			throw new Error(`Script not found at: ${scriptPath}`);
+		}
+        
+		// Create temp directory synchronously before each test
+		testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wait-checks-test-'));
+	});
+
+	afterEach(() => {
+		// Clean up any mock files
+		try {
+			if (testDir && fs.existsSync(testDir)) {
+				fs.rmSync(testDir, { recursive: true, force: true });
+			}
+		} catch (e) {
+			console.error('Error cleaning up test directory:', e);
+		}
+	});
+
+	/**
+   * Create a mock gh command that returns predefined responses
+   */
+	const createMockGh = (responses) => {
+		// Ensure test directory exists
+		if (!fs.existsSync(testDir)) {
+			throw new Error('Test directory does not exist');
+		}
+
+		const mockGhPath = path.join(testDir, 'gh');
+    
+		const scriptContent = `#!/bin/bash
+      # Mock gh command
+      if [[ "$1" == "api" && "$2" == "/repos/test-owner/test-repo/commits/test-sha/check-runs" ]]; then
+        echo '${JSON.stringify(responses)}'
+        exit 0
+      fi
+
+      # For any other command, pass through to real gh
+      exec $(which gh) "$@"
+    `;
+    
+		fs.writeFileSync(mockGhPath, scriptContent);
+		fs.chmodSync(mockGhPath, '755');
+		return mockGhPath;
+	};
+
+	/**
+   * Execute the wait-checks script with mocked gh command
+   */
+	const runScript = (mockGhPath, args = {}) => {
+		const {
+			repo = 'test-owner/test-repo',
+			sha = 'test-sha',
+			workflow = 'Test Workflow',
+			timeout = '3',
+			minChecks = '3',
+		} = args;
+
+		try {
+			const output = execSync(
+				`PATH=${path.dirname(mockGhPath)}:$PATH ${scriptPath} --repo ${repo} --sha ${sha} --workflow "${workflow}" --timeout ${timeout} --min-checks ${minChecks} --test-mode`,
+				{ 
+					env: { ...process.env, PATH: `${path.dirname(mockGhPath)}:${process.env.PATH}` }, 
+					timeout: 5000,
+					shell: '/bin/bash'
+				}
+			).toString();
+			return { output, exitCode: 0 };
+		} catch (error) {
+			return { output: error.stdout?.toString() || '', exitCode: error.status || 1 };
+		}
+	};
+
+	test('should succeed when all checks are complete', () => {
+		const mockResponse = {
+			total_count: 4,
+			check_runs: [
+				{ name: 'Build Packages', status: 'completed', conclusion: 'success' },
+				{ name: 'Test / Run Tests', status: 'completed', conclusion: 'success' },
+				{ name: 'Test Changesets', status: 'completed', conclusion: 'success' },
+				{ name: 'Test Workflow', status: 'completed', conclusion: 'success' }
+			]
+		};
+
+		const mockGhPath = createMockGh(mockResponse);
+		const { output, exitCode } = runScript(mockGhPath);
+    
+		expect(exitCode).toBe(0);
+		expect(output).toContain('All required checks completed successfully');
+	});
+
+	test('should succeed when only workflow check is running', () => {
+		// This is the critical test case that verifies the fix
+		const mockResponse = {
+			total_count: 4,
+			check_runs: [
+				{ name: 'Build Packages', status: 'completed', conclusion: 'success' },
+				{ name: 'Test / Run Tests', status: 'completed', conclusion: 'success' },
+				{ name: 'Test Changesets', status: 'completed', conclusion: 'success' },
+				{ name: 'Test Workflow', status: 'in_progress', conclusion: null }
+			]
+		};
+
+		const mockGhPath = createMockGh(mockResponse);
+		const { output, exitCode } = runScript(mockGhPath);
+    
+		expect(exitCode).toBe(0);
+		expect(output).toContain('All required checks completed successfully (except possibly our own workflow)');
+	});
+
+	test('should not proceed when non-workflow checks are still running', () => {
+		const mockResponse = {
+			total_count: 4,
+			check_runs: [
+				{ name: 'Build Packages', status: 'in_progress', conclusion: null },
+				{ name: 'Test / Run Tests', status: 'completed', conclusion: 'success' },
+				{ name: 'Test Changesets', status: 'completed', conclusion: 'success' },
+				{ name: 'Test Workflow', status: 'in_progress', conclusion: null }
+			]
+		};
+
+		const mockGhPath = createMockGh(mockResponse);
+		const { output, exitCode } = runScript(mockGhPath);
+    
+		expect(exitCode).toBe(1); // Should time out
+		expect(output).toContain('Timeout waiting for checks to complete');
+	});
+
+	test('should fail when a check fails', () => {
+		const mockResponse = {
+			total_count: 4,
+			check_runs: [
+				{ name: 'Build Packages', status: 'completed', conclusion: 'failure' },
+				{ name: 'Test / Run Tests', status: 'completed', conclusion: 'success' },
+				{ name: 'Test Changesets', status: 'completed', conclusion: 'success' },
+				{ name: 'Test Workflow', status: 'in_progress', conclusion: null }
+			]
+		};
+
+		const mockGhPath = createMockGh(mockResponse);
+		const { output, exitCode } = runScript(mockGhPath);
+    
+		expect(exitCode).toBe(1);
+		expect(output).toContain('Some checks failed');
+	});
+
+	test('should not proceed when minimum required checks are not met', () => {
+		const mockResponse = {
+			total_count: 3, // Only 3 total including workflow, but we require 3 non-workflow
+			check_runs: [
+				{ name: 'Build Packages', status: 'completed', conclusion: 'success' },
+				{ name: 'Test / Run Tests', status: 'completed', conclusion: 'success' },
+				{ name: 'Test Workflow', status: 'in_progress', conclusion: null }
+			]
+		};
+
+		const mockGhPath = createMockGh(mockResponse);
+		const { output, exitCode } = runScript(mockGhPath);
+    
+		expect(exitCode).toBe(1);
+		expect(output).toContain('Waiting for more checks to appear');
+	});
+
+	test('should handle multiple workflow checks with same name', () => {
+		// Edge case: multiple checks with same name as our workflow
+		const mockResponse = {
+			total_count: 5,
+			check_runs: [
+				{ name: 'Build Packages', status: 'completed', conclusion: 'success' },
+				{ name: 'Test / Run Tests', status: 'completed', conclusion: 'success' },
+				{ name: 'Test Changesets', status: 'completed', conclusion: 'success' },
+				{ name: 'Test Workflow', status: 'completed', conclusion: 'success' },
+				{ name: 'Test Workflow', status: 'in_progress', conclusion: null }
+			]
+		};
+
+		const mockGhPath = createMockGh(mockResponse);
+		const { output, exitCode } = runScript(mockGhPath);
+    
+		// Should not proceed since WORKFLOW_CHECKS > 1
+		expect(exitCode).toBe(1);
+		expect(output).toContain('Timeout waiting for checks to complete');
+	});
+}); 

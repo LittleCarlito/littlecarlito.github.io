@@ -81,13 +81,21 @@ jobs:
       
       # Add status checks to PR with workflow-aware check handling
       - name: Add status checks
-        uses: ./.github/actions/status-checks
+        uses: ./.github/actions/force-status-checks
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
           sha: ${{ steps.create_pr.outputs.commit-sha }}
           contexts: '["Build Packages", "Test / Run Tests", "Test Changesets"]'
           descriptions: '["Build completed successfully (via manual-clean-changesets)", "Tests passed successfully (via manual-clean-changesets)", "Changesets validated successfully (via manual-clean-changesets)"]'
+      
+      # Wait for checks to complete before merging
+      - name: Wait for checks to complete
+        uses: ./.github/actions/status-checks
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          sha: ${{ steps.create_pr.outputs.commit-sha }}
           wait-for-checks: 'true'
           timeout: '300'
           workflow-name: 'Manual Clean Changesets'
