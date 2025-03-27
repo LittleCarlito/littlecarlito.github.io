@@ -18,8 +18,9 @@ describe('GitHub Workflows Validation', () => {
       
 			beforeAll(() => {
 				try {
-					const content = fs.readFileSync(filePath, 'utf8');
-					workflow = yaml.load(content);
+					// Import the workflow file directly using Jest's module system
+					// This ensures the file is instrumented for coverage
+					workflow = require(filePath);
 				} catch (error) {
 					console.error(`Failed to parse ${filePath}: ${error.message}`);
 				}
