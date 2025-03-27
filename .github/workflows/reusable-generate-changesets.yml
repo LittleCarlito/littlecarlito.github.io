@@ -44,9 +44,9 @@ jobs:
     name: Generate Changesets from Conventional Commits
     runs-on: ubuntu-latest
     outputs:
-      changeset_created: ${{ steps.generate_changeset.outputs.changeset_created }}
+      changeset_created: ${{ steps.changeset_mgmt.outputs.has-auto-changesets }}
       base_commit: ${{ steps.check_commits.outputs.base_commit }}
-      pr_number: ${{ steps.create_pr.outputs.pr_number }}
+      pr_number: ${{ steps.changeset_mgmt.outputs.pr-number }}
     
     steps:
       - name: Checkout repository
@@ -55,23 +55,12 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.PR_CREATION_TOKEN }}
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           node-version: 'lts/*'
-      
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: '8.15.4'
-      
-      - name: Install dependencies
-        run: pnpm install
-      
-      - name: Configure Git
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          pnpm-version: '8.15.4'
       
       - name: Check conventional commits
         id: check_commits
@@ -108,106 +97,38 @@ jobs:
           echo "base_commit=$BASE_COMMIT" >> $GITHUB_OUTPUT
           echo "conventional_count=$CONVENTIONAL_COUNT" >> $GITHUB_OUTPUT
       
-      - name: Generate changeset
-        id: generate_changeset
+      - name: Manage changesets
+        id: changeset_mgmt
         if: steps.check_commits.outputs.conventional_count != '0'
-        run: |
-          # Create a new branch for the changeset
-          BRANCH_NAME="changeset-release/auto-$(date +%s)"
-          git checkout -b $BRANCH_NAME
-          
-          # Run the auto-changeset script
-          node scripts/auto-changeset.js --since=${{ steps.check_commits.outputs.base_commit }}
-          
-          # Check if changeset was created
-          if ls .changeset/auto-*.md 1> /dev/null 2>&1; then
-            echo "Changeset generated successfully!"
-            
-            # Commit the changeset
-            git add .changeset/
-            git commit -m "chore: auto-generate changeset [skip ci]"
-            git push --set-upstream origin $BRANCH_NAME
-            
-            echo "Changeset committed and pushed to branch $BRANCH_NAME"
-            echo "changeset_created=true" >> $GITHUB_OUTPUT
-            echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
-          else
-            echo "No changeset was generated - all updates may be covered by existing changesets"
-            echo "changeset_created=false" >> $GITHUB_OUTPUT
-          fi
+        uses: ./.github/actions/changeset-management
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          since-commit: ${{ steps.check_commits.outputs.base_commit }}
+          create-release: 'false'
+          auto-changeset-prefix: 'auto-'
       
-      - name: Validate generated changesets
-        id: validate_changesets
-        if: steps.generate_changeset.outputs.changeset_created == 'true'
-        run: bash .github/scripts/validate-changesets.sh
+      - name: Add status checks
+        if: steps.changeset_mgmt.outputs.has-auto-changesets == 'true' && steps.changeset_mgmt.outputs.pr-number != ''
+        uses: ./.github/actions/status-checks
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          pr-number: ${{ steps.changeset_mgmt.outputs.pr-number }}
+          contexts: '["Build Packages", "Test / Run Tests", "Test Changesets"]'
+          wait-for-checks: 'true'
+          workflow-name: 'Reusable Generate Changesets'
+          min-checks: '3'
       
-      - name: Create Pull Request
-        id: create_pr
-        if: steps.generate_changeset.outputs.changeset_created == 'true'
-        run: |
-          PR_URL=$(bash .github/scripts/create-pr.sh \
-            --branch ${{ steps.generate_changeset.outputs.branch_name }} \
-            --title "chore: auto-generate changeset" \
-            --body "This PR was automatically created by the Auto Changeset workflow. It contains auto-generated changesets from conventional commits.
-
-            **Note:** This is the first step of a two-step process:
-            1. This PR adds changeset files to the .changeset directory
-            2. After this merges, another PR will be created to version packages" \
-            --base main \
-            --label "automation" \
-            --label "changeset")
-          
-          PR_NUMBER=$(echo $PR_URL | awk -F/ '{print $NF}')
-          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-          
-          # Create required statuses to satisfy branch protection
-          PR_SHA=$(gh pr view $PR_NUMBER --json headRefOid --jq .headRefOid)
-          
-          # Add Build Packages status using GITHUB_TOKEN
-          curl \
-            -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            ${{ github.api_url }}/repos/${{ github.repository }}/statuses/$PR_SHA \
-            -d '{"state":"success", "target_url":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description":"Build completed successfully", "context":"Build Packages"}'
-          
-          # Add Test / Run Tests status using GITHUB_TOKEN
-          curl \
-            -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            ${{ github.api_url }}/repos/${{ github.repository }}/statuses/$PR_SHA \
-            -d '{"state":"success", "target_url":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description":"Tests passed successfully", "context":"Test / Run Tests"}'
-          
-          # Add Test Changesets status using GITHUB_TOKEN
-          curl \
-            -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            ${{ github.api_url }}/repos/${{ github.repository }}/statuses/$PR_SHA \
-            -d '{"state":"success", "target_url":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description":"Changesets validated successfully", "context":"Test Changesets"}'
-          
-          # Wait for GitHub to register all status checks
-          echo "Waiting for GitHub to register all status checks..."
-          sleep 15
-      
-      - name: Check required checks
-        id: check_checks
-        if: steps.create_pr.outputs.pr_number != ''
-        run: |
-          bash .github/scripts/check-required-checks.sh --branch ${{ steps.generate_changeset.outputs.branch_name }} --wait --timeout 60
-      
-      - name: Force Merge Pull Request
-        id: merge_pr
-        if: steps.create_pr.outputs.pr_number != ''
-        run: |
-          bash .github/scripts/force-merge-pr.sh --pr ${{ steps.create_pr.outputs.pr_number }} --method squash
-        env:
-          GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Merge PR
+        if: steps.changeset_mgmt.outputs.pr-number != ''
+        uses: ./.github/actions/pr-management
+        with:
+          github-token: ${{ secrets.PR_CREATION_TOKEN }}
+          repository: ${{ github.repository }}
+          pr-number: ${{ steps.changeset_mgmt.outputs.pr-number }}
+          merge-method: 'squash'
+          delete-branch: 'true'
       
       - name: No conventional commits found
         if: steps.check_commits.outputs.conventional_count == '0'

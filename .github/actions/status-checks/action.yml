@@ -1,5 +1,5 @@
-name: 'Status Checks Management'
-description: 'Creates and verifies GitHub status checks'
+name: 'Status Checks'
+description: 'Manages GitHub status checks for builds, tests, and changesets'
 
 inputs:
   github-token:
@@ -9,107 +9,129 @@ inputs:
     description: 'Repository name (owner/repo)'
     required: true
   sha:
-    description: 'Commit SHA to set status for'
-    required: true
-  workflow-name:
-    description: 'Name of the current workflow'
-    required: true
+    description: 'Commit SHA to add status checks to'
+    required: false
+    default: ''
+  pr-number:
+    description: 'PR number to add status checks to (alternative to SHA)'
+    required: false
+    default: ''
+  contexts:
+    description: 'JSON array of context names to create'
+    required: false
+    default: '["Build Packages", "Test / Run Tests", "Test Changesets"]'
+  descriptions:
+    description: 'JSON array of descriptions for each context'
+    required: false
+    default: '["Build completed successfully", "Tests passed successfully", "Changesets validated successfully"]'
   context-prefix:
-    description: 'Prefix for status check contexts'
+    description: 'Prefix to add to all context names'
     required: false
     default: ''
   wait-for-checks:
     description: 'Whether to wait for checks to complete'
     required: false
-    default: 'true'
+    default: 'false'
+  timeout:
+    description: 'Timeout in seconds when waiting for checks'
+    required: false
+    default: '300'
+  workflow-name:
+    description: 'Current workflow name for filtering when waiting for checks'
+    required: false
+    default: ''
+  min-checks:
+    description: 'Minimum number of non-workflow checks required'
+    required: false
+    default: '3'
+
+outputs:
+  pr-sha:
+    description: 'The SHA of the PR head'
+    value: ${{ steps.get-sha.outputs.sha }}
 
 runs:
   using: "composite"
   steps:
-    - name: Create Build Packages status
+    # Get SHA from PR if needed
+    - name: Get PR SHA if PR number provided
+      id: get-sha
       shell: bash
       run: |
-        gh api \
-          --method POST \
-          /repos/${{ inputs.repository }}/statuses/${{ inputs.sha }} \
-          -f state=success \
-          -f context="${{ inputs.context-prefix }}Build Packages" \
-          -f description="Build completed successfully" \
-          -f target_url="${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}"
+        if [ -n "${{ inputs.sha }}" ]; then
+          echo "Using provided SHA: ${{ inputs.sha }}"
+          echo "sha=${{ inputs.sha }}" >> $GITHUB_OUTPUT
+        elif [ -n "${{ inputs.pr-number }}" ]; then
+          echo "Getting SHA from PR #${{ inputs.pr-number }}"
+          PR_SHA=$(gh pr view ${{ inputs.pr-number }} --json headRefOid --jq .headRefOid)
+          echo "Got SHA: $PR_SHA"
+          echo "sha=$PR_SHA" >> $GITHUB_OUTPUT
+        else
+          echo "Error: Either 'sha' or 'pr-number' must be provided"
+          exit 1
+        fi
       env:
         GH_TOKEN: ${{ inputs.github-token }}
 
-    - name: Create Test status
+    # Create status checks
+    - name: Create status checks
       shell: bash
       run: |
-        gh api \
-          --method POST \
-          /repos/${{ inputs.repository }}/statuses/${{ inputs.sha }} \
-          -f state=success \
-          -f context="${{ inputs.context-prefix }}Test / Run Tests" \
-          -f description="Tests passed successfully" \
-          -f target_url="${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}"
+        CONTEXTS=$(echo '${{ inputs.contexts }}' | jq -c '.')
+        DESCRIPTIONS=$(echo '${{ inputs.descriptions }}' | jq -c '.')
+        
+        CONTEXTS_LENGTH=$(echo $CONTEXTS | jq 'length')
+        DESCRIPTIONS_LENGTH=$(echo $DESCRIPTIONS | jq 'length')
+        
+        # Parse contexts
+        for (( i=0; i<$CONTEXTS_LENGTH; i++ )); do
+          CONTEXT=$(echo $CONTEXTS | jq -r ".[$i]")
+          
+          # Get description (if available)
+          DESCRIPTION=""
+          if [ $i -lt $DESCRIPTIONS_LENGTH ]; then
+            DESCRIPTION=$(echo $DESCRIPTIONS | jq -r ".[$i]")
+          else
+            DESCRIPTION="Status check passed"
+          fi
+          
+          # Add prefix if provided
+          if [ -n "${{ inputs.context-prefix }}" ]; then
+            CONTEXT="${{ inputs.context-prefix }}$CONTEXT"
+          fi
+          
+          echo "Creating status check: $CONTEXT"
+          gh api \
+            --method POST \
+            /repos/${{ inputs.repository }}/statuses/${{ steps.get-sha.outputs.sha }} \
+            -f state=success \
+            -f context="$CONTEXT" \
+            -f description="$DESCRIPTION" \
+            -f target_url="${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}"
+        done
       env:
         GH_TOKEN: ${{ inputs.github-token }}
 
-    - name: Create Changesets status
-      shell: bash
-      run: |
-        gh api \
-          --method POST \
-          /repos/${{ inputs.repository }}/statuses/${{ inputs.sha }} \
-          -f state=success \
-          -f context="${{ inputs.context-prefix }}Test Changesets" \
-          -f description="Changesets validated successfully" \
-          -f target_url="${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}"
-      env:
-        GH_TOKEN: ${{ inputs.github-token }}
-
-    - name: Verify status checks
+    # Wait for checks if requested
+    - name: Wait for checks to complete
       if: inputs.wait-for-checks == 'true'
       shell: bash
       run: |
-        echo "Verifying required status checks..."
+        if [ -z "${{ inputs.workflow-name }}" ]; then
+          # Extract workflow name from GITHUB_WORKFLOW
+          WORKFLOW_NAME="${{ github.workflow }}"
+        else
+          WORKFLOW_NAME="${{ inputs.workflow-name }}"
+        fi
         
-        # List of required check names
-        REQUIRED_CHECKS=("Build Packages" "Test / Run Tests" "Test Changesets")
+        echo "Waiting for checks to complete with workflow name: $WORKFLOW_NAME"
         
-        # Wait for up to 30 seconds for checks to register
-        for i in {1..15}; do
-          echo "Attempt $i/15: Checking for required status checks..."
-          
-          # Get current statuses
-          STATUSES=$(gh api /repos/${{ inputs.repository }}/commits/${{ inputs.sha }}/statuses)
-          
-          # Count how many required checks we have
-          FOUND_CHECKS=0
-          
-          # Check each required context
-          for check in "${REQUIRED_CHECKS[@]}"; do
-            COUNT=$(echo "$STATUSES" | jq --arg check "$check" --arg prefix "${{ inputs.context-prefix }}" '[.[] | select(.context == ($prefix + $check) and .state == "success")] | length')
-            
-            if [ "$COUNT" -gt "0" ]; then
-              echo "✅ Found successful status check: $check"
-              FOUND_CHECKS=$((FOUND_CHECKS + 1))
-            else
-              echo "❌ Missing or unsuccessful status check: $check"
-            fi
-          done
-          
-          # If we have all checks, break
-          if [ "$FOUND_CHECKS" -eq "${#REQUIRED_CHECKS[@]}" ]; then
-            echo "✅ All required status checks are registered and successful!"
-            break
-          fi
-          
-          # Exit if we're on the last attempt and still missing checks
-          if [ $i -eq 15 ]; then
-            echo "⚠️ Some required status checks are still missing after waiting."
-            exit 1
-          else
-            echo "Waiting for status checks to register (attempt $i/15)..."
-            sleep 2
-          fi
-        done
+        # Use the workflow-aware check handling script
+        bash .github/scripts/wait-for-checks.sh \
+          --repo "${{ inputs.repository }}" \
+          --sha "${{ steps.get-sha.outputs.sha }}" \
+          --workflow "$WORKFLOW_NAME" \
+          --timeout "${{ inputs.timeout }}" \
+          --min-checks "${{ inputs.min-checks }}"
       env:
         GH_TOKEN: ${{ inputs.github-token }} 
