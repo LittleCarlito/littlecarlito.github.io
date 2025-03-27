@@ -136,14 +136,11 @@ jobs:
 
       - name: Merge Pull Request
         if: success()
-        uses: ./.github/actions/pr-management
+        uses: ./.github/actions/force-merge-pr
         with:
           github-token: ${{ secrets.PR_CREATION_TOKEN }}
           repository: ${{ github.repository }}
-          base-branch: main
-          head-branch: ${{ github.ref_name }}
-          title: ${{ steps.merge_message.outputs.merge_title }}
           pr-number: ${{ steps.manage_pr.outputs.pr-number }}
+          commit-title: ${{ steps.merge_message.outputs.merge_title }}
           merge-method: squash
-          delete-branch: true
-          auto-merge: true 
+          delete-branch: true 
