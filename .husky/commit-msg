@@ -36,11 +36,12 @@ if [ "$STRICT_VALIDATION" = true ]; then
       echo "  type[(scope)]: subject"
       echo ""
       echo "Types: build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test"
-      echo "Scopes (optional): blorkpack, blorktools, common, core, docs, release, no-release"
+      echo "Scopes (optional): blorkpack, blorktools, common, core, docs, release, no-release, tests"
       echo ""
       echo "Examples:"
       echo "  feat: add new feature"
       echo "  fix(blorktools): resolve issue with tool X"
+      echo "  chore(tests): update test framework"
       echo ""
       exit 1
     )
@@ -56,8 +57,8 @@ if [ "$STRICT_VALIDATION" = true ]; then
       echo "🚀 This commit would trigger a MINOR version bump"
     elif [ "$TYPE" = "fix" ] || [ "$TYPE" = "perf" ]; then
       echo "🔧 This commit would trigger a PATCH version bump"
-    elif [ "$SCOPE" = "no-release" ]; then
-      echo "⏸️  This commit will NOT trigger a version bump (no-release scope)"
+    elif [ "$SCOPE" = "no-release" ] || [ "$SCOPE" = "tests" ]; then
+      echo "⏸️  This commit will NOT trigger a version bump (${SCOPE} scope)"
     else
       echo "📝 This commit may trigger a PATCH version bump depending on configuration"
     fi

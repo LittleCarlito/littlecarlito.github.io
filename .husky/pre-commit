@@ -73,6 +73,12 @@ RUN_CHECKS=false
 # Flag to check if GitHub workflow files were modified
 GITHUB_WORKFLOWS_CHANGED=false
 
+# Flags to check if specific packages were modified
+BLORKPACK_CHANGED=false
+BLORKTOOLS_CHANGED=false
+BLORKBOARD_CHANGED=false
+PORTFOLIO_CHANGED=false
+
 # Check staged files to determine which checks to run
 for file in $STAGED_FILES; do
     # Skip empty lines
@@ -82,6 +88,27 @@ for file in $STAGED_FILES; do
     if [[ "$file" =~ ^\.github/workflows/ ]]; then
         echo "🔍 Found change in GitHub workflow file: $file"
         GITHUB_WORKFLOWS_CHANGED=true
+    fi
+    
+    # Check if specific packages were modified
+    if [[ "$file" =~ ^packages/blorkpack/ ]]; then
+        echo "🔍 Found change in blorkpack package: $file"
+        BLORKPACK_CHANGED=true
+    fi
+    
+    if [[ "$file" =~ ^packages/blorktools/ ]]; then
+        echo "🔍 Found change in blorktools package: $file"
+        BLORKTOOLS_CHANGED=true
+    fi
+    
+    if [[ "$file" =~ ^packages/blorkboard/ ]]; then
+        echo "🔍 Found change in blorkboard package: $file"
+        BLORKBOARD_CHANGED=true
+    fi
+    
+    if [[ "$file" =~ ^apps/portfolio/ ]]; then
+        echo "🔍 Found change in portfolio app: $file"
+        PORTFOLIO_CHANGED=true
     fi
     
     # Check if file is NOT in development/ or public/ directories
@@ -180,20 +207,24 @@ if [ "$RUN_CHECKS" = true ]; then
       fi
     )
 
-    # Run unified pipeline test with timeout to prevent hanging
-    echo "🚀 Running unified pipeline test..."
-    run_with_timeout "pnpm test:build-deps" 120
-    PIPELINE_STATUS=$?
-    
-    if [ $PIPELINE_STATUS -eq 124 ]; then
-        echo "❌ Build dependency tests timed out after 2 minutes. This may indicate a hanging process."
-        exit 1
-    elif [ $PIPELINE_STATUS -ne 0 ]; then
-        echo "❌ Build dependency tests failed. Please fix the build dependency issues and try committing again."
-        exit 1
+    # Run build dependency tests only if relevant packages were modified
+    if [ "$BLORKPACK_CHANGED" = true ] || [ "$BLORKTOOLS_CHANGED" = true ] || [ "$BLORKBOARD_CHANGED" = true ] || [ "$PORTFOLIO_CHANGED" = true ]; then
+        echo "🚀 Running build dependency tests for modified packages..."
+        run_with_timeout "pnpm test:build-deps" 120
+        PIPELINE_STATUS=$?
+        
+        if [ $PIPELINE_STATUS -eq 124 ]; then
+            echo "❌ Build dependency tests timed out after 2 minutes. This may indicate a hanging process."
+            exit 1
+        elif [ $PIPELINE_STATUS -ne 0 ]; then
+            echo "❌ Build dependency tests failed. Please fix the build dependency issues and try committing again."
+            exit 1
+        fi
+        
+        echo "✅ Build dependency tests passed!"
+    else
+        echo "✅ No package changes detected that require build dependency tests."
     fi
-    
-    echo "✅ Build dependency tests passed!"
 
     # Run tests with coverage, also with timeout
     echo "Running tests with coverage..."
