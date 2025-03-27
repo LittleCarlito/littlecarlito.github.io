@@ -14,10 +14,16 @@ inputs:
     default: 'main'
   head-branch:
     description: 'Head branch for PR'
-    required: true
+    required: false
+    default: ''
+  pr-number:
+    description: 'PR number (if managing existing PR)'
+    required: false
+    default: ''
   title:
     description: 'PR title'
-    required: true
+    required: false
+    default: ''
   body:
     description: 'PR body'
     required: false
@@ -38,81 +44,142 @@ inputs:
 outputs:
   pr-number:
     description: 'Number of the created/found PR'
-    value: ${{ steps.manage-pr.outputs.pr_number }}
+    value: ${{ steps.manage-pr.outputs.pr_number || steps.use-pr.outputs.pr_number }}
   pr-url:
     description: 'URL of the created/found PR'
-    value: ${{ steps.manage-pr.outputs.pr_url }}
+    value: ${{ steps.manage-pr.outputs.pr_url || steps.use-pr.outputs.pr_url }}
   pr-state:
     description: 'State of the PR (open, closed, merged)'
-    value: ${{ steps.manage-pr.outputs.pr_state }}
+    value: ${{ steps.manage-pr.outputs.pr_state || steps.use-pr.outputs.pr_state }}
+  commit-sha:
+    description: 'HEAD SHA of the PR'
+    value: ${{ steps.get-sha.outputs.sha }}
 
 runs:
   using: "composite"
   steps:
-    - name: Manage PR
-      id: manage-pr
+    # Validate inputs - either head-branch or pr-number must be provided
+    - name: Validate inputs
       shell: bash
       run: |
-        # Check if PR already exists
-        EXISTING_PR=$(gh pr list \
-          --repo ${{ inputs.repository }} \
-          --head ${{ inputs.head-branch }} \
-          --base ${{ inputs.base-branch }} \
-          --json number,url,state \
-          --jq '.[0]')
-        
-        if [ -n "$EXISTING_PR" ]; then
-          echo "Found existing PR"
-          PR_NUMBER=$(echo "$EXISTING_PR" | jq -r '.number')
-          PR_URL=$(echo "$EXISTING_PR" | jq -r '.url')
-          PR_STATE=$(echo "$EXISTING_PR" | jq -r '.state')
-        else
-          echo "Creating new PR"
-          # Create PR
-          PR_RESPONSE=$(gh pr create \
-            --repo ${{ inputs.repository }} \
-            --base ${{ inputs.base-branch }} \
-            --head ${{ inputs.head-branch }} \
-            --title "${{ inputs.title }}" \
-            --body "${{ inputs.body }}")
-          
-          PR_NUMBER=$(echo "$PR_RESPONSE" | grep -o '[0-9]*$')
-          PR_URL="https://github.com/${{ inputs.repository }}/pull/$PR_NUMBER"
-          PR_STATE="open"
+        if [ -z "${{ inputs.head-branch }}" ] && [ -z "${{ inputs.pr-number }}" ]; then
+          echo "Error: Either head-branch or pr-number must be provided"
+          exit 1
         fi
+        
+        if [ -z "${{ inputs.pr-number }}" ] && [ -z "${{ inputs.title }}" ]; then
+          echo "Error: title is required when creating a new PR (no pr-number provided)"
+          exit 1
+        fi
+
+    # Create or find PR
+    - name: Create or find PR
+      id: manage-pr
+      if: inputs.head-branch != ''
+      shell: bash
+      run: |
+        # First make sure the script is executable
+        chmod +x .github/scripts/pr/create-or-update.sh
+        
+        # Run the PR creation/finding script with properly quoted arguments
+        OUTPUT=$(.github/scripts/pr/create-or-update.sh \
+          --token "${{ inputs.github-token }}" \
+          --repo "${{ inputs.repository }}" \
+          --base-branch "${{ inputs.base-branch }}" \
+          --head-branch "${{ inputs.head-branch }}" \
+          --title "${{ inputs.title }}" \
+          --body "${{ inputs.body }}")
+        
+        # Debug output for logging
+        echo "Script output:"
+        echo "$OUTPUT"
+        
+        # Parse and export the result
+        PR_NUMBER=$(echo "$OUTPUT" | grep "^PR_NUMBER=" | cut -d= -f2)
+        PR_URL=$(echo "$OUTPUT" | grep "^PR_URL=" | cut -d= -f2)
+        PR_STATE=$(echo "$OUTPUT" | grep "^PR_STATE=" | cut -d= -f2)
         
         echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
         echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
         echo "pr_state=$PR_STATE" >> $GITHUB_OUTPUT
+
+    # Use provided PR number if not creating a new one
+    - name: Use provided PR number
+      id: use-pr
+      if: inputs.pr-number != ''
+      shell: bash
+      run: |
+        PR_NUMBER="${{ inputs.pr-number }}"
+        PR_URL="https://github.com/${{ inputs.repository }}/pull/$PR_NUMBER"
+        PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
         
-        # Auto-merge if requested
-        if [ "${{ inputs.auto-merge }}" = "true" ] && [ "$PR_STATE" = "open" ]; then
-          echo "Attempting to merge PR #$PR_NUMBER..."
+        echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+        echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+        echo "pr_state=$PR_STATE" >> $GITHUB_OUTPUT
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        
+    # Get PR SHA
+    - name: Get PR SHA
+      id: get-sha
+      shell: bash
+      run: |
+        # First make sure the script is executable
+        chmod +x .github/scripts/branch/get-sha.sh
+        
+        # Determine which PR number to use
+        if [ -n "${{ steps.manage-pr.outputs.pr_number }}" ]; then
+          PR_NUMBER="${{ steps.manage-pr.outputs.pr_number }}"
+        else
+          PR_NUMBER="${{ steps.use-pr.outputs.pr_number }}"
+        fi
+        
+        # Execute the get-sha script and capture only the SHA output
+        SHA=$(.github/scripts/branch/get-sha.sh \
+          --token "${{ inputs.github-token }}" \
+          --repo "${{ inputs.repository }}" \
+          --pr-number "$PR_NUMBER")
+        
+        # Debug output for logging
+        echo "Retrieved SHA: $SHA"
+        
+        # Set the output
+        echo "sha=$SHA" >> $GITHUB_OUTPUT
+
+    # Auto-merge if requested
+    - name: Auto-merge PR
+      if: inputs.auto-merge == 'true'
+      shell: bash
+      run: |
+        # Make sure scripts are executable
+        chmod +x .github/scripts/pr/merge.sh .github/scripts/branch/delete.sh
+        
+        # Determine which PR number to use
+        if [ -n "${{ steps.manage-pr.outputs.pr_number }}" ]; then
+          PR_NUMBER="${{ steps.manage-pr.outputs.pr_number }}"
+        else
+          PR_NUMBER="${{ steps.use-pr.outputs.pr_number }}"
+        fi
+        
+        # Configure git for use with the scripts
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+        
+        # Use the existing merge.sh script
+        .github/scripts/pr/merge.sh \
+          --pr "$PR_NUMBER" \
+          --method "${{ inputs.merge-method }}"
           
-          # Try API merge first
-          if gh api \
-            --method PUT \
-            -H "Accept: application/vnd.github+json" \
-            /repos/${{ inputs.repository }}/pulls/$PR_NUMBER/merge \
-            -f merge_method=${{ inputs.merge-method }}; then
-            echo "✅ Successfully merged PR #$PR_NUMBER"
-          else
-            echo "API merge failed, attempting merge with admin flag..."
-            if gh pr merge $PR_NUMBER --${{ inputs.merge-method }} --admin; then
-              echo "✅ Successfully merged PR #$PR_NUMBER with admin flag"
-            else
-              echo "❌ Failed to merge PR #$PR_NUMBER"
-              exit 1
-            fi
-          fi
+        # Delete branch if requested
+        if [ "${{ inputs.delete-branch }}" = "true" ]; then
+          # Get branch name from PR
+          BRANCH=$(gh pr view $PR_NUMBER --json headRefName --jq .headRefName)
           
-          # Delete branch if requested
-          if [ "${{ inputs.delete-branch }}" = "true" ]; then
-            echo "Deleting branch ${{ inputs.head-branch }}..."
-            gh api \
-              --method DELETE \
-              /repos/${{ inputs.repository }}/git/refs/heads/${{ inputs.head-branch }}
-          fi
+          # Delete branch
+          .github/scripts/branch/delete.sh \
+            --token "${{ inputs.github-token }}" \
+            --repo "${{ inputs.repository }}" \
+            --branch "$BRANCH"
         fi
       env:
         GH_TOKEN: ${{ inputs.github-token }} 

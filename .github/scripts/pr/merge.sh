@@ -44,7 +44,7 @@ check_pr_status() {
     if [ -z "$pr_state" ] || [ "$pr_state" = "null" ]; then
         echo "Error: Could not extract PR state from API response"
         return 1
-    }
+    fi
     
     # Check if PR is open
     if [ "$pr_state" != "OPEN" ]; then
@@ -57,20 +57,20 @@ check_pr_status() {
     if [ -z "$mergeable" ] || [ "$mergeable" = "null" ]; then
         echo "Warning: Could not extract mergeable status from API response"
         # Don't fail here, we'll check merge state status
-    } else {
+    else
         # Check if PR is mergeable
         if [ "$mergeable" != "MERGEABLE" ]; then
             echo "Error: PR #$pr_number is not mergeable (status: $mergeable)"
             return 1
         fi
-    }
+    fi
     
     # Extract merge state status
     local merge_state=$(echo "$status_json" | jq -r '.mergeStateStatus' 2>/dev/null)
     if [ -z "$merge_state" ] || [ "$merge_state" = "null" ]; then
         echo "Warning: Could not extract merge state status from API response"
         # Don't fail here, perhaps there are no checks required
-    } else {
+    else
         # Check merge state status
         case "$merge_state" in
             "BLOCKED")
@@ -96,21 +96,21 @@ check_pr_status() {
                 echo "Warning: Unrecognized merge state: $merge_state"
                 ;;
         esac
-    }
+    fi
     
     # Extract review decision
     local review_decision=$(echo "$status_json" | jq -r '.reviewDecision' 2>/dev/null)
     if [ -z "$review_decision" ] || [ "$review_decision" = "null" ]; then
         echo "Warning: No review decision found, PR may not require reviews"
-    } else {
+    else
         # Check review decision
         if [ "$review_decision" != "APPROVED" ]; then
             echo "Error: PR #$pr_number is not approved (status: $review_decision)"
             return 1
-        } else {
+        else
             echo "PR #$pr_number is approved"
-        }
-    }
+        fi
+    fi
     
     return 0
 }
@@ -161,7 +161,7 @@ merge_pr() {
     if [ -z "$head_branch" ] || [ -z "$base_branch" ]; then
         echo "Error: Could not extract branch names from PR #$pr_number"
         return 1
-    }
+    fi
     
     echo "PR #$pr_number: $head_branch -> $base_branch"
     

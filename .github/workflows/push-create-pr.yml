@@ -98,9 +98,6 @@ jobs:
           
           echo "workflow_file=$WORKFLOW_FILE" >> $GITHUB_OUTPUT
           echo "check_name=$JOB_NAME" >> $GITHUB_OUTPUT
-          
-          # Also store the check name directly in an env var for immediate use
-          echo "CHECK_NAME=$JOB_NAME" >> $GITHUB_ENV
 
       - name: Check GitHub check names
         id: check_names
@@ -124,23 +121,40 @@ jobs:
             OUR_CHECK_NAME=$(echo "$WORKFLOW_CHECKS" | head -n 1)
             echo "Found our workflow check: $OUR_CHECK_NAME"
             echo "check_name=$OUR_CHECK_NAME" >> $GITHUB_OUTPUT
-            echo "CHECK_NAME=$OUR_CHECK_NAME" >> $GITHUB_ENV
           else
-            echo "Couldn't find exact check name, using default: $CHECK_NAME"
+            echo "Couldn't find exact check name, using default: ${{ steps.workflow_details.outputs.check_name }}"
           fi
         env:
           GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }}
 
+      # Get PR SHA
+      - name: Get PR SHA
+        id: get-sha
+        shell: bash
+        run: |
+          # Use shared script to get PR SHA
+          SHA=$(bash .github/scripts/branch/get-sha.sh \
+            --token "${{ secrets.PR_CREATION_TOKEN }}" \
+            --repo "${{ github.repository }}" \
+            --pr-number "${{ steps.manage_pr.outputs.pr-number }}")
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }}
+
       - name: Wait for required checks
-        uses: ./.github/actions/status-checks
-        with:
-          github-token: ${{ secrets.PR_CREATION_TOKEN }}
-          repository: ${{ github.repository }}
-          pr-number: ${{ steps.manage_pr.outputs.pr-number }}
-          min-checks: 3
-          wait-for-checks: true
-          timeout: 600
-          workflow-name: ${{ env.CHECK_NAME }}
+        shell: bash
+        run: |
+          WORKFLOW_NAME="${{ steps.check_names.outputs.check_name || steps.workflow_details.outputs.check_name }}"
+          echo "Waiting for checks to complete with workflow name: $WORKFLOW_NAME"
+          
+          bash .github/scripts/branch/wait-checks.sh \
+            --repo "${{ github.repository }}" \
+            --sha "${{ steps.get-sha.outputs.sha }}" \
+            --workflow "$WORKFLOW_NAME" \
+            --timeout "600" \
+            --min-checks "3"
+        env:
+          GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }}
 
       - name: Additional Check Verification
         id: verify_checks
@@ -150,7 +164,7 @@ jobs:
           PR_HEAD_SHA=$(gh pr view ${{ steps.manage_pr.outputs.pr-number }} --json headRefOid --jq .headRefOid)
           
           # Use the dynamically determined workflow name for self-identification
-          OUR_WORKFLOW_NAME="${{ env.CHECK_NAME }}"
+          OUR_WORKFLOW_NAME="${{ steps.check_names.outputs.check_name || steps.workflow_details.outputs.check_name }}"
           echo "Using workflow name for self-identification: $OUR_WORKFLOW_NAME"
           
           # Use the wait-checks script for more precise verification
@@ -210,7 +224,7 @@ jobs:
             echo "workflow_triggered=true" >> $GITHUB_OUTPUT
           else
             echo "Couldn't trigger merge workflow (likely not on main branch yet). Falling back to local merge..."
-            echo "Will use force-merge-pr action for consistency"
+            echo "Will use force-merge script for consistency"
             echo "workflow_triggered=false" >> $GITHUB_OUTPUT
             exit 1  # Explicitly mark as failed so fallback step runs
           fi
@@ -218,13 +232,14 @@ jobs:
           GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }}
 
       # Fallback merge step - only runs if workflow trigger fails
-      - name: Fallback Merge (using force-merge-pr)
+      - name: Fallback Merge (using force-merge script)
         if: steps.trigger_merge.outcome == 'failure' && steps.verify_checks.outcome == 'success'
-        uses: ./.github/actions/force-merge-pr
-        with:
-          github-token: ${{ secrets.PR_CREATION_TOKEN }}
-          repository: ${{ github.repository }}
-          pr-number: ${{ steps.manage_pr.outputs.pr-number }}
-          commit-title: ${{ steps.merge_message.outputs.merge_title }}
-          merge-method: squash
-          delete-branch: true 
+        shell: bash
+        run: |
+          bash .github/scripts/pr/force-merge.sh \
+            --token "${{ secrets.PR_CREATION_TOKEN }}" \
+            --repo "${{ github.repository }}" \
+            --pr-number "${{ steps.manage_pr.outputs.pr-number }}" \
+            --commit-title "${{ steps.merge_message.outputs.merge_title }}" \
+            --merge-method "squash" \
+            --delete-branch "true" 

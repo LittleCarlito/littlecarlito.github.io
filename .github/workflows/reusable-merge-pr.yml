@@ -42,11 +42,12 @@ jobs:
           token: ${{ secrets.PR_CREATION_TOKEN }}
       
       - name: Merge Pull Request
-        uses: ./.github/actions/force-merge-pr
-        with:
-          github-token: ${{ secrets.PR_CREATION_TOKEN }}
-          repository: ${{ github.repository }}
-          pr-number: ${{ inputs.pr-number }}
-          commit-title: ${{ inputs.commit-title }}
-          merge-method: ${{ inputs.merge-method }}
-          delete-branch: ${{ inputs.delete-branch }} 
+        shell: bash
+        run: |
+          bash .github/scripts/pr/force-merge.sh \
+            --token "${{ secrets.PR_CREATION_TOKEN }}" \
+            --repo "${{ github.repository }}" \
+            --pr-number "${{ inputs.pr-number }}" \
+            --commit-title "${{ inputs.commit-title }}" \
+            --merge-method "${{ inputs.merge-method }}" \
+            --delete-branch "${{ inputs.delete-branch }}" 
