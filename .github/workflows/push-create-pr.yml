@@ -10,7 +10,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  create-pr:
+  create-pull-request:
     name: Create PR
     runs-on: ubuntu-latest
     outputs:
@@ -31,7 +31,7 @@ jobs:
 
       - name: Create PR and wait for checks
         id: create_pr
-        uses: ./.github/actions/create-pr
+        uses: ./.github/actions/create-pull-request
         with:
           github-token: ${{ secrets.PR_CREATION_TOKEN }}
           repository: ${{ github.repository }}
@@ -41,7 +41,7 @@ jobs:
       
       # Directly merge the PR using the merge-pr action
       - name: Merge PR
-        uses: ./.github/actions/merge-pr
+        uses: ./.github/actions/merge-pull-request
         with:
           github-token: ${{ secrets.PR_CREATION_TOKEN }}
           repository: ${{ github.repository }}

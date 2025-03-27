@@ -67,10 +67,10 @@ jobs:
           # Store branch name for use in later steps
           echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
       
-      # Create and manage PR
-      - name: Create pull request
+      # Create PR
+      - name: Create PR
         id: create_pr
-        uses: ./.github/actions/pr-management
+        uses: ./.github/actions/manage-pull-request
         with:
           github-token: ${{ secrets.PACKAGE_TOKEN }}
           repository: ${{ github.repository }}
@@ -81,7 +81,8 @@ jobs:
       
       # Add status checks to PR with workflow-aware check handling
       - name: Add status checks
-        uses: ./.github/actions/force-status-checks
+        if: steps.create_pr.outputs.pr-number != ''
+        uses: ./.github/actions/set-status-checks
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
@@ -91,7 +92,7 @@ jobs:
       
       # Wait for checks to complete before merging
       - name: Wait for checks to complete
-        uses: ./.github/actions/status-checks
+        uses: ./.github/actions/verify-status-checks
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
@@ -103,7 +104,7 @@ jobs:
       
       # Merge the PR
       - name: Merge pull request
-        uses: ./.github/actions/pr-management
+        uses: ./.github/actions/manage-pull-request
         with:
           github-token: ${{ secrets.PACKAGE_TOKEN }}
           repository: ${{ github.repository }}

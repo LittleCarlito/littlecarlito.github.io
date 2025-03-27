@@ -80,7 +80,7 @@ runs:
 
     - name: Create or Find PR
       id: manage_pr
-      uses: ./.github/actions/pr-management
+      uses: ./.github/actions/manage-pull-request
       with:
         github-token: ${{ inputs.github-token }}
         repository: ${{ inputs.repository }}
@@ -148,7 +148,7 @@ runs:
 
     - name: Wait for required checks
       if: inputs.wait-for-checks == 'true'
-      uses: ./.github/actions/status-checks
+      uses: ./.github/actions/verify-status-checks
       with:
         github-token: ${{ inputs.github-token }}
         repository: ${{ inputs.repository }}

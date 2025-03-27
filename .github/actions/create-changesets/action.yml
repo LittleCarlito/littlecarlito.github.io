@@ -79,7 +79,7 @@ runs:
     - name: Manage changesets
       id: changeset_mgmt
       if: steps.check_commits.outputs.conventional_count != '0'
-      uses: ./.github/actions/changeset-management
+      uses: ./.github/actions/manage-changesets
       with:
         github-token: ${{ inputs.github-token }}
         repository: ${{ inputs.repository }}
@@ -130,7 +130,7 @@ runs:
     # Wait for checks to complete before merging
     - name: Wait for checks to complete
       if: steps.changeset_mgmt.outputs.has-auto-changesets == 'true' && steps.changeset_mgmt.outputs.pr-number != ''
-      uses: ./.github/actions/status-checks
+      uses: ./.github/actions/verify-status-checks
       with:
         github-token: ${{ inputs.github-token }}
         repository: ${{ inputs.repository }}
@@ -142,7 +142,7 @@ runs:
     
     - name: Merge PR
       if: steps.changeset_mgmt.outputs.pr-number != ''
-      uses: ./.github/actions/merge-pr
+      uses: ./.github/actions/merge-pull-request
       with:
         github-token: ${{ inputs.github-token }}
         repository: ${{ inputs.repository }}

@@ -81,7 +81,7 @@ jobs:
     with:
       artifact_name: package-builds
 
-  generate-changesets:
+  create-changesets:
     name: Generate Changesets
     # Only run this on main branch pushes, not on tags
     if: github.ref == 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/')
@@ -107,7 +107,7 @@ jobs:
       
       - name: Generate Changesets
         id: generate_changesets
-        uses: ./.github/actions/generate-changesets
+        uses: ./.github/actions/create-changesets
         with:
           github-token: ${{ secrets.PR_CREATION_TOKEN }}
           repository: ${{ github.repository }}
@@ -118,8 +118,8 @@ jobs:
   version-and-publish:
     name: Version and Publish to GitHub npm
     # Run this job even if auto-changeset job is skipped
-    needs: [test, generate-changesets]
-    if: always() && needs.test.result == 'success' && (needs.generate-changesets.result == 'success' || needs.generate-changesets.result == 'skipped')
+    needs: [test, create-changesets]
+    if: always() && needs.test.result == 'success' && (needs.create-changesets.result == 'success' || needs.create-changesets.result == 'skipped')
     uses: ./.github/workflows/changesets-version-publish.yml
     with:
       artifact_name: package-builds
