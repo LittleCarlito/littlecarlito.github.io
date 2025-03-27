@@ -109,5 +109,18 @@ jobs:
           repository: ${{ github.repository }}
           pr-number: ${{ steps.create_pr.outputs.pr-number }}
           merge-method: 'merge'
-          delete-branch: 'false'
-          auto-merge: 'true' 
+          delete-branch: 'true'
+          auto-merge: 'true'
+      
+      # Manually delete the branch to ensure it's gone
+      - name: Delete clean branch
+        if: success()
+        shell: bash
+        run: |
+          echo "Manually deleting branch: ${{ steps.create_branch.outputs.branch_name }}"
+          bash .github/scripts/branch/delete.sh \
+            --token "${{ secrets.PACKAGE_TOKEN }}" \
+            --repo "${{ github.repository }}" \
+            --branch "${{ steps.create_branch.outputs.branch_name }}"
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }} 

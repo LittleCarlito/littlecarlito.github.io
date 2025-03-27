@@ -41,92 +41,73 @@ outputs:
 runs:
   using: "composite"
   steps:
-    # Setup environment
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ inputs.node-version }}
-        registry-url: 'https://npm.pkg.github.com'
-
-    - name: Setup pnpm
-      uses: pnpm/action-setup@v3
-      with:
-        version: ${{ inputs.pnpm-version }}
-
-    - name: Install dependencies
+    # Setup environment using our script
+    - name: Setup environment
+      id: setup
       shell: bash
-      run: pnpm install
+      run: |
+        bash .github/scripts/maintenance/setup-environment.sh \
+          --github-token "${{ inputs.github-token }}" \
+          --node-version "${{ inputs.node-version }}" \
+          --pnpm-version "${{ inputs.pnpm-version }}"
 
-    # Build step
+    # Build step using our script
     - name: Build packages
       id: build
       shell: bash
       run: |
-        echo "Building packages..."
-        if ${{ inputs.build-command }}; then
-          echo "Build successful"
-          echo "result=success" >> $GITHUB_OUTPUT
-        else
-          echo "Build failed"
-          echo "result=failure" >> $GITHUB_OUTPUT
-          exit 1
-        fi
+        RESULT=$(bash .github/scripts/maintenance/build-packages.sh \
+          --build-command "${{ inputs.build-command }}")
+        echo "result=$RESULT" >> $GITHUB_OUTPUT
 
-    # Upload artifacts
+    # Upload artifacts using GitHub's native action
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.artifact-name }}
         path: ${{ inputs.artifact-path }}
 
-    # Test step
+    # Test step using our script
     - name: Run tests
       id: test
       shell: bash
       run: |
-        echo "Running tests..."
-        if ${{ inputs.test-command }}; then
-          echo "Tests passed"
-          echo "result=success" >> $GITHUB_OUTPUT
-        else
-          echo "Tests failed"
-          echo "result=failure" >> $GITHUB_OUTPUT
-          exit 1
-        fi
+        RESULT=$(bash .github/scripts/maintenance/run-tests.sh \
+          --test-command "${{ inputs.test-command }}")
+        echo "result=$RESULT" >> $GITHUB_OUTPUT
 
-    # Status Check Creation if PR is available
+    # Create build status check if PR_SHA is available
     - name: Create Build Status Check
       if: ${{ env.PR_SHA != '' }}
       shell: bash
       run: |
         if [ -n "$PR_SHA" ]; then
-          echo "Creating Build success status check"
-          gh api \
-            --method POST \
-            /repos/${{ github.repository }}/statuses/$PR_SHA \
-            -f state=success \
-            -f context="Build Packages" \
-            -f description="Build completed successfully" \
-            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          bash .github/scripts/branch/force-status.sh \
+            --token "${{ inputs.github-token }}" \
+            --repo "${{ github.repository }}" \
+            --sha "$PR_SHA" \
+            --context "Build Packages" \
+            --description "Build completed successfully" \
+            --state "success" \
+            --target-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         fi
       env:
-        GH_TOKEN: ${{ inputs.github-token }}
         PR_SHA: ${{ env.PR_SHA }}
 
+    # Create test status check if PR_SHA is available
     - name: Create Test Status Check
       if: ${{ env.PR_SHA != '' }}
       shell: bash
       run: |
         if [ -n "$PR_SHA" ]; then
-          echo "Creating Test success status check"
-          gh api \
-            --method POST \
-            /repos/${{ github.repository }}/statuses/$PR_SHA \
-            -f state=success \
-            -f context="Test / Run Tests" \
-            -f description="Tests passed successfully" \
-            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          bash .github/scripts/branch/force-status.sh \
+            --token "${{ inputs.github-token }}" \
+            --repo "${{ github.repository }}" \
+            --sha "$PR_SHA" \
+            --context "Test / Run Tests" \
+            --description "Tests passed successfully" \
+            --state "success" \
+            --target-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         fi
       env:
-        GH_TOKEN: ${{ inputs.github-token }}
         PR_SHA: ${{ env.PR_SHA }} 
