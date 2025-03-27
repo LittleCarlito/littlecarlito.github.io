@@ -266,14 +266,15 @@ jobs:
       - name: Auto-merge version PR if exists
         id: auto-merge
         if: steps.find-pr.outputs.has_pr == 'true'
-        uses: ./.github/actions/force-merge-pr
-        with:
-          github-token: ${{ secrets.PACKAGE_TOKEN }}
-          repository: ${{ github.repository }}
-          pr-number: ${{ steps.find-pr.outputs.pr_number }}
-          commit-title: "chore: version packages"
-          merge-method: squash
-          delete-branch: true
+        shell: bash
+        run: |
+          bash .github/scripts/pr/force-merge.sh \
+            --token "${{ secrets.PACKAGE_TOKEN }}" \
+            --repo "${{ github.repository }}" \
+            --pr-number "${{ steps.find-pr.outputs.pr_number }}" \
+            --commit-title "chore: version packages" \
+            --merge-method "squash" \
+            --delete-branch "true"
 
       - name: Get package versions
         id: get_versions
