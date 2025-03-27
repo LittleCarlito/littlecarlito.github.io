@@ -24,6 +24,7 @@
     "test:coverage": "CHECK_ALL_BUILDS=true JEST_COVERAGE=true node tests/config/setup/prepare-tests.cjs && jest --config=tests/config/jest/jest.config.cjs --coverage",
     "test:discover": "jest --config=tests/config/jest/jest.config.cjs --listTests",
     "test:build-deps": "IS_TEST_SPECIFIC=true node tests/config/setup/prepare-tests.cjs && jest tests/repository-tests/build-dependencies.test.js --config=tests/config/jest/jest.config.cjs",
+    "test:pipeline-scripts": "IS_TEST_SPECIFIC=true node tests/config/setup/prepare-tests.cjs && jest tests/repository-tests/pipeline_scripts --config=tests/config/jest/jest.config.cjs",
     "test:all": "CHECK_ALL_BUILDS=true pnpm test",
     "verify-lockfile": "node tests/repository-tests/lockfile.test.cjs",
     "update-lockfile": "pnpm install --no-frozen-lockfile",

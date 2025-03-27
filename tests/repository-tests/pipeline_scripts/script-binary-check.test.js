@@ -27,7 +27,7 @@ describe('Package Scripts Binary Check', () => {
   
 	beforeAll(() => {
 		// Find all package.json files in the project
-		const repoRoot = path.resolve(__dirname, '../..');
+		const repoRoot = path.resolve(__dirname, '../../..');
 		packageFiles = glob.sync('**/package.json', {
 			cwd: repoRoot,
 			ignore: ['**/node_modules/**', '**/dist/**', '**/coverage/**']
