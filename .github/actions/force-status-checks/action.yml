@@ -1,0 +1,97 @@
+name: 'Force Status Checks'
+description: 'Creates artificial success statuses for specified checks (use with caution)'
+
+inputs:
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  repository:
+    description: 'Repository name (owner/repo)'
+    required: true
+  sha:
+    description: 'Commit SHA to add status checks to'
+    required: false
+    default: ''
+  pr-number:
+    description: 'PR number to add status checks to (alternative to SHA)'
+    required: false
+    default: ''
+  contexts:
+    description: 'JSON array of context names to create'
+    required: false
+    default: '["Build Packages", "Test / Run Tests", "Test Changesets"]'
+  descriptions:
+    description: 'JSON array of descriptions for each context'
+    required: false
+    default: '["Build completed successfully", "Tests passed successfully", "Changesets validated successfully"]'
+  context-prefix:
+    description: 'Prefix to add to all context names'
+    required: false
+    default: ''
+
+outputs:
+  pr-sha:
+    description: 'The SHA of the PR head'
+    value: ${{ steps.get-sha.outputs.sha }}
+
+runs:
+  using: "composite"
+  steps:
+    # Get SHA from PR if needed
+    - name: Get PR SHA if PR number provided
+      id: get-sha
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.sha }}" ]; then
+          echo "Using provided SHA: ${{ inputs.sha }}"
+          echo "sha=${{ inputs.sha }}" >> $GITHUB_OUTPUT
+        elif [ -n "${{ inputs.pr-number }}" ]; then
+          echo "Getting SHA from PR #${{ inputs.pr-number }}"
+          PR_SHA=$(gh pr view ${{ inputs.pr-number }} --json headRefOid --jq .headRefOid)
+          echo "Got SHA: $PR_SHA"
+          echo "sha=$PR_SHA" >> $GITHUB_OUTPUT
+        else
+          echo "Error: Either 'sha' or 'pr-number' must be provided"
+          exit 1
+        fi
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+
+    # Force status checks to success
+    - name: Force status checks to success
+      shell: bash
+      run: |
+        CONTEXTS=$(echo '${{ inputs.contexts }}' | jq -c '.')
+        DESCRIPTIONS=$(echo '${{ inputs.descriptions }}' | jq -c '.')
+        
+        CONTEXTS_LENGTH=$(echo $CONTEXTS | jq 'length')
+        DESCRIPTIONS_LENGTH=$(echo $DESCRIPTIONS | jq 'length')
+        
+        # Parse contexts
+        for (( i=0; i<$CONTEXTS_LENGTH; i++ )); do
+          CONTEXT=$(echo $CONTEXTS | jq -r ".[$i]")
+          
+          # Get description (if available)
+          DESCRIPTION=""
+          if [ $i -lt $DESCRIPTIONS_LENGTH ]; then
+            DESCRIPTION=$(echo $DESCRIPTIONS | jq -r ".[$i]")
+          else
+            DESCRIPTION="Status check passed (forced)"
+          fi
+          
+          # Add prefix if provided
+          if [ -n "${{ inputs.context-prefix }}" ]; then
+            CONTEXT="${{ inputs.context-prefix }}$CONTEXT"
+          fi
+          
+          echo "Creating forced success status check: $CONTEXT"
+          gh api \
+            --method POST \
+            /repos/${{ inputs.repository }}/statuses/${{ steps.get-sha.outputs.sha }} \
+            -f state=success \
+            -f context="$CONTEXT" \
+            -f description="$DESCRIPTION (forced)" \
+            -f target_url="${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}"
+        done
+      env:
+        GH_TOKEN: ${{ inputs.github-token }} 

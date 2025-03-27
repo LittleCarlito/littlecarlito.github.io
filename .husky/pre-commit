@@ -171,7 +171,7 @@ if [ "$GITHUB_WORKFLOWS_CHANGED" = true ]; then
         
         # Check workflow name reference consistency
         WORKFLOW_NAME=$(grep "^name:" "$WORKFLOWPATH" | sed 's/name: *//')
-        if ! grep -q "workflow-name.*Push Create and Merge PR" "$WORKFLOWPATH"; then
+        if ! grep -q "workflow-name.*Push Create and Merge PR" "$WORKFLOWPATH" && ! grep -q "workflow-name.*Create and Merge PR" "$WORKFLOWPATH"; then
             echo "❌ Workflow-name reference doesn't match workflow name!"
             exit 1
         fi

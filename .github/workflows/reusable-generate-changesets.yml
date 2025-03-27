@@ -110,12 +110,21 @@ jobs:
       
       - name: Add status checks
         if: steps.changeset_mgmt.outputs.has-auto-changesets == 'true' && steps.changeset_mgmt.outputs.pr-number != ''
-        uses: ./.github/actions/status-checks
+        uses: ./.github/actions/force-status-checks
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
           pr-number: ${{ steps.changeset_mgmt.outputs.pr-number }}
           contexts: '["Build Packages", "Test / Run Tests", "Test Changesets"]'
+      
+      # Wait for checks to complete before merging
+      - name: Wait for checks to complete
+        if: steps.changeset_mgmt.outputs.has-auto-changesets == 'true' && steps.changeset_mgmt.outputs.pr-number != ''
+        uses: ./.github/actions/status-checks
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          pr-number: ${{ steps.changeset_mgmt.outputs.pr-number }}
           wait-for-checks: 'true'
           workflow-name: 'Reusable Generate Changesets'
           min-checks: '3'

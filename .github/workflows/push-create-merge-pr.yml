@@ -1,10 +1,3 @@
-# This workflow creates and merges PRs automatically.
-# IMPORTANT BEHAVIOR NOTE:
-# This workflow intentionally uses the latest commit message (git log -1) for status display.
-# This works in conjunction with the Dry Run Pipeline which shows the original PR title,
-# giving visibility to both the initial PR intent and current work status.
-# DO NOT "fix" this behavior - it's a useful feature for tracking work progress.
-
 name: Push Create and Merge PR
 
 on:
@@ -90,7 +83,7 @@ jobs:
           min-checks: 3
           wait-for-checks: true
           timeout: 600
-          workflow-name: "Push Create and Merge PR"
+          workflow-name: "Create and Merge PR"
 
       - name: Additional Check Verification
         id: verify_checks
@@ -99,11 +92,14 @@ jobs:
           # Get commit SHA for PR head
           PR_HEAD_SHA=$(gh pr view ${{ steps.manage_pr.outputs.pr-number }} --json headRefOid --jq .headRefOid)
           
+          # Define our own workflow name for self-identification
+          OUR_WORKFLOW_NAME="Create and Merge PR"
+          
           # Use the wait-checks script for more precise verification
           bash .github/scripts/branch/wait-checks.sh \
             --repo "${{ github.repository }}" \
             --sha "$PR_HEAD_SHA" \
-            --workflow "Push Create and Merge PR" \
+            --workflow "$OUR_WORKFLOW_NAME" \
             --timeout 300 \
             --min-checks 3
         env:

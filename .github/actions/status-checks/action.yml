@@ -1,5 +1,5 @@
 name: 'Status Checks'
-description: 'Manages GitHub status checks for builds, tests, and changesets'
+description: 'Verify GitHub status checks for builds, tests, and changesets (does not create statuses)'
 
 inputs:
   github-token:
@@ -9,29 +9,17 @@ inputs:
     description: 'Repository name (owner/repo)'
     required: true
   sha:
-    description: 'Commit SHA to add status checks to'
+    description: 'Commit SHA to verify status checks against'
     required: false
     default: ''
   pr-number:
-    description: 'PR number to add status checks to (alternative to SHA)'
-    required: false
-    default: ''
-  contexts:
-    description: 'JSON array of context names to create'
-    required: false
-    default: '["Build Packages", "Test / Run Tests", "Test Changesets"]'
-  descriptions:
-    description: 'JSON array of descriptions for each context'
-    required: false
-    default: '["Build completed successfully", "Tests passed successfully", "Changesets validated successfully"]'
-  context-prefix:
-    description: 'Prefix to add to all context names'
+    description: 'PR number to verify status checks against (alternative to SHA)'
     required: false
     default: ''
   wait-for-checks:
     description: 'Whether to wait for checks to complete'
     required: false
-    default: 'false'
+    default: 'true'
   timeout:
     description: 'Timeout in seconds when waiting for checks'
     required: false
@@ -73,46 +61,7 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.github-token }}
 
-    # Create status checks
-    - name: Create status checks
-      shell: bash
-      run: |
-        CONTEXTS=$(echo '${{ inputs.contexts }}' | jq -c '.')
-        DESCRIPTIONS=$(echo '${{ inputs.descriptions }}' | jq -c '.')
-        
-        CONTEXTS_LENGTH=$(echo $CONTEXTS | jq 'length')
-        DESCRIPTIONS_LENGTH=$(echo $DESCRIPTIONS | jq 'length')
-        
-        # Parse contexts
-        for (( i=0; i<$CONTEXTS_LENGTH; i++ )); do
-          CONTEXT=$(echo $CONTEXTS | jq -r ".[$i]")
-          
-          # Get description (if available)
-          DESCRIPTION=""
-          if [ $i -lt $DESCRIPTIONS_LENGTH ]; then
-            DESCRIPTION=$(echo $DESCRIPTIONS | jq -r ".[$i]")
-          else
-            DESCRIPTION="Status check passed"
-          fi
-          
-          # Add prefix if provided
-          if [ -n "${{ inputs.context-prefix }}" ]; then
-            CONTEXT="${{ inputs.context-prefix }}$CONTEXT"
-          fi
-          
-          echo "Creating status check: $CONTEXT"
-          gh api \
-            --method POST \
-            /repos/${{ inputs.repository }}/statuses/${{ steps.get-sha.outputs.sha }} \
-            -f state=success \
-            -f context="$CONTEXT" \
-            -f description="$DESCRIPTION" \
-            -f target_url="${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}"
-        done
-      env:
-        GH_TOKEN: ${{ inputs.github-token }}
-
-    # Wait for checks if requested
+    # Wait for checks to complete
     - name: Wait for checks to complete
       if: inputs.wait-for-checks == 'true'
       shell: bash
