@@ -27,7 +27,7 @@ jobs:
         run: |
           bash .github/scripts/maintenance/setup-environment.sh \
             --github-token "${{ secrets.PR_CREATION_TOKEN }}" \
-            --fetch-depth 0
+            --fetch-depth "0"
 
       - name: Extract branch name
         shell: bash

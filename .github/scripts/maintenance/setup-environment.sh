@@ -18,6 +18,7 @@ setup_environment() {
     local github_token="$3"
     local registry_url="$4"
     local scope="$5"
+    local fetch_depth="$6"
     
     echo "Setting up environment with Node.js $node_version and pnpm $pnpm_version" >&2
     
@@ -68,6 +69,7 @@ main() {
     local github_token=""
     local registry_url="https://npm.pkg.github.com"
     local scope="@littlecarlito"
+    local fetch_depth="0"  # Adding fetch-depth parameter with default
     
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -91,9 +93,13 @@ main() {
                 scope="$2"
                 shift 2
                 ;;
+            --fetch-depth)
+                fetch_depth="$2"
+                shift 2
+                ;;
             *)
                 echo "Unknown option: $1" >&2
-                echo "Usage: $0 [--node-version <version>] [--pnpm-version <version>] --github-token <token> [--registry-url <url>] [--scope <scope>]" >&2
+                echo "Usage: $0 [--node-version <version>] [--pnpm-version <version>] --github-token <token> [--registry-url <url>] [--scope <scope>] [--fetch-depth <depth>]" >&2
                 exit 1
                 ;;
         esac
@@ -105,8 +111,12 @@ main() {
         exit 1
     fi
     
+    # Display fetch-depth for information (we don't actually use it in the script,
+    # but we include it for compatibility with the original action)
+    echo "Note: fetch-depth parameter ($fetch_depth) is accepted but not used in this script" >&2
+    
     # Call setup function
-    setup_environment "$node_version" "$pnpm_version" "$github_token" "$registry_url" "$scope"
+    setup_environment "$node_version" "$pnpm_version" "$github_token" "$registry_url" "$scope" "$fetch_depth"
 }
 
 # Run main function (if script is not sourced)
