@@ -196,11 +196,30 @@ jobs:
       - name: Trigger PR Merge
         if: success()
         run: |
-          echo "All checks passed! Triggering merge workflow..."
-          gh workflow run reusable-merge-pr.yml \
+          echo "All checks passed! Attempting to trigger merge workflow..."
+          
+          # Try to trigger the reusable workflow first
+          if gh workflow run reusable-merge-pr.yml \
             -f pr-number=${{ steps.manage_pr.outputs.pr-number }} \
             -f commit-title="${{ steps.merge_message.outputs.merge_title }}" \
             -f merge-method=squash \
-            -f delete-branch=true
+            -f delete-branch=true; then
+            echo "Merge workflow triggered successfully!"
+          else
+            echo "Couldn't trigger merge workflow (likely not on main branch yet). Falling back to local merge..."
+            echo "Will use force-merge-pr action for consistency"
+          fi
         env:
-          GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }} 
+          GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }}
+
+      # Fallback merge step - only runs if workflow trigger fails
+      - name: Fallback Merge (using force-merge-pr)
+        if: failure() && steps.verify_checks.outcome == 'success'
+        uses: ./.github/actions/force-merge-pr
+        with:
+          github-token: ${{ secrets.PR_CREATION_TOKEN }}
+          repository: ${{ github.repository }}
+          pr-number: ${{ steps.manage_pr.outputs.pr-number }}
+          commit-title: ${{ steps.merge_message.outputs.merge_title }}
+          merge-method: squash
+          delete-branch: true 
