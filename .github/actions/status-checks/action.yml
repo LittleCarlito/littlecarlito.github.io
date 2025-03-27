@@ -127,7 +127,7 @@ runs:
         echo "Waiting for checks to complete with workflow name: $WORKFLOW_NAME"
         
         # Use the workflow-aware check handling script
-        bash .github/scripts/wait-for-checks.sh \
+        bash .github/scripts/branch/wait-checks.sh \
           --repo "${{ inputs.repository }}" \
           --sha "${{ steps.get-sha.outputs.sha }}" \
           --workflow "$WORKFLOW_NAME" \
