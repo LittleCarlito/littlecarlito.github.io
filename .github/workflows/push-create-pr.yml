@@ -196,6 +196,7 @@ jobs:
       - name: Trigger PR Merge
         id: trigger_merge
         if: success()
+        continue-on-error: true
         run: |
           echo "All checks passed! Attempting to trigger merge workflow..."
           
