@@ -194,6 +194,7 @@ jobs:
       
       # Trigger the PR merge workflow but as a separate workflow run
       - name: Trigger PR Merge
+        id: trigger_merge
         if: success()
         run: |
           echo "All checks passed! Attempting to trigger merge workflow..."
@@ -205,16 +206,19 @@ jobs:
             -f merge-method=squash \
             -f delete-branch=true; then
             echo "Merge workflow triggered successfully!"
+            echo "workflow_triggered=true" >> $GITHUB_OUTPUT
           else
             echo "Couldn't trigger merge workflow (likely not on main branch yet). Falling back to local merge..."
             echo "Will use force-merge-pr action for consistency"
+            echo "workflow_triggered=false" >> $GITHUB_OUTPUT
+            exit 1  # Explicitly mark as failed so fallback step runs
           fi
         env:
           GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }}
 
       # Fallback merge step - only runs if workflow trigger fails
       - name: Fallback Merge (using force-merge-pr)
-        if: failure() && steps.verify_checks.outcome == 'success'
+        if: steps.trigger_merge.outcome == 'failure' && steps.verify_checks.outcome == 'success'
         uses: ./.github/actions/force-merge-pr
         with:
           github-token: ${{ secrets.PR_CREATION_TOKEN }}
