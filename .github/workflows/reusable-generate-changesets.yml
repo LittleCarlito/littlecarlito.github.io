@@ -160,6 +160,19 @@ jobs:
           merge-method: 'squash'
           delete-branch: 'true'
       
+      # Manually delete the branch to ensure it's gone
+      - name: Delete changeset branch
+        if: steps.changeset_mgmt.outputs.branch-name != ''
+        shell: bash
+        run: |
+          echo "Manually deleting branch: ${{ steps.changeset_mgmt.outputs.branch-name }}"
+          bash .github/scripts/branch/delete.sh \
+            --token "${{ secrets.PR_CREATION_TOKEN }}" \
+            --repo "${{ github.repository }}" \
+            --branch "${{ steps.changeset_mgmt.outputs.branch-name }}"
+        env:
+          GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }}
+      
       - name: No conventional commits found
         if: steps.check_commits.outputs.conventional_count == '0'
         run: |
