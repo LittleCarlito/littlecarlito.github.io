@@ -42,13 +42,19 @@ wait_for_checks() {
         SUCCESSFUL_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status == "completed" and .conclusion == "success")] | length')
         FAILED_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status == "completed" and .conclusion != "success" and .conclusion != "neutral" and .conclusion != "skipped")] | length')
         
-        # Count checks from current workflow - EXACT NAME MATCHING
-        WORKFLOW_CHECKS=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '[.check_runs[] | select(.name == $name)] | length')
-        WORKFLOW_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '[.check_runs[] | select(.status != "completed" and .name == $name)] | length')
+        # Count checks from current workflow - MORE FLEXIBLE MATCHING
+        # Using contains() rather than exact match to be more resilient to name changes
+        # Make sure we only apply contains() to string values
+        WORKFLOW_CHECKS=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '[.check_runs[] | select((.name | type == "string") and (.name | contains($name)))] | length')
+        WORKFLOW_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '[.check_runs[] | select(.status != "completed" and (.name | type == "string") and (.name | contains($name)))] | length')
+        
+        # For debugging: show exactly which checks were recognized as "our workflow"
+        OUR_WORKFLOW_CHECKS=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '.check_runs[] | select((.name | type == "string") and (.name | contains($name))) | .name')
+        echo "Identified as our workflow checks: $OUR_WORKFLOW_CHECKS"
         
         # Calculate non-workflow checks
         NON_WORKFLOW_TOTAL=$((TOTAL_CHECKS - WORKFLOW_CHECKS))
-        NON_WORKFLOW_COMPLETED=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '[.check_runs[] | select(.status == "completed" and .name != $name)] | length')
+        NON_WORKFLOW_COMPLETED=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '[.check_runs[] | select(.status == "completed" and ((.name | type != "string") or (.name | contains($name) | not)))] | length')
         
         echo "Checks: $COMPLETED_CHECKS/$TOTAL_CHECKS completed overall"
         echo "Non-workflow checks: $NON_WORKFLOW_COMPLETED/$NON_WORKFLOW_TOTAL completed"
