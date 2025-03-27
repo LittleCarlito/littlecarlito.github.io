@@ -17,6 +17,68 @@ pnpm verify-lockfile || {
 # Get the current branch name
 BRANCH=$(git symbolic-ref --short HEAD)
 
+# Create a timeout function
+run_with_timeout() {
+    # Command to run
+    cmd="$1"
+    # Timeout in seconds
+    timeout="$2"
+    
+    # Use perl to create a timeout wrapper since 'timeout' command isn't available on all systems
+    perl -e '
+        use strict;
+        use warnings;
+        
+        # Get command and timeout
+        my $cmd = $ARGV[0];
+        my $timeout = $ARGV[1];
+        
+        # Fork a child process
+        my $pid = fork();
+        
+        if (!defined $pid) {
+            die "Cannot fork: $!";
+        }
+        
+        if ($pid == 0) {
+            # Child process - execute the command
+            exec($cmd) or die "Cannot execute command: $!";
+        } else {
+            # Parent process - wait for child with timeout
+            my $killed = 0;
+            
+            # Set alarm for timeout
+            eval {
+                local $SIG{ALRM} = sub { 
+                    kill("TERM", $pid); 
+                    sleep(1);
+                    kill("KILL", $pid) if kill(0, $pid);
+                    $killed = 1;
+                    die "Timeout\n";
+                };
+                
+                alarm($timeout);
+                waitpid($pid, 0);
+                alarm(0);
+            };
+            
+            if ($@) {
+                if ($killed) {
+                    print "Command timed out after $timeout seconds\n";
+                    exit 124;  # Exit code for timeout
+                } else {
+                    die $@;  # Re-throw other exceptions
+                }
+            }
+            
+            my $exit_code = $? >> 8;
+            exit $exit_code;
+        }
+    ' "$cmd" "$timeout"
+    
+    return $?
+}
+
 # Check for changes outside development/ and public/ directories
 echo "Checking for relevant file changes..."
 # Get files changed between current branch and remote
@@ -32,19 +94,30 @@ for file in $CHANGED_FILES; do
     
     # Check if file is NOT in development/ or public/ directories
     if ! [[ "$file" =~ ^(development/|public/) ]]; then
-        echo "🔍 Found change in $file - will run tests"
+        echo "🔍 Found change in $file - will run pipeline tests"
         RUN_TESTS=true
-        break
     fi
 done
 
 if [ "$RUN_TESTS" = true ]; then
-    # Run tests to catch any immediate issues
-    echo "Running tests..."
-    pnpm test || {
-        echo "❌ Tests failed. Please fix failing tests before pushing."
+    # Run unified pipeline with timeout to prevent hanging
+    echo "🚀 Running unified pipeline test..."
+    
+    # Run unified pipeline with 5-minute timeout
+    run_with_timeout "pnpm test" 300
+    PIPELINE_STATUS=$?
+    
+    if [ $PIPELINE_STATUS -eq 124 ]; then
+        echo "❌ Pipeline test timed out after 5 minutes. This may indicate a hanging process."
+        echo "Please check your tests for infinite loops or blocking operations."
         exit 1
-    }
+    elif [ $PIPELINE_STATUS -ne 0 ]; then
+        echo "❌ Pipeline test failed with status $PIPELINE_STATUS."
+        echo "Please fix the issues before pushing."
+        exit 1
+    fi
+    
+    echo "✅ Pipeline test passed!"
 
     # Run build to ensure it succeeds
     echo "Running build..."

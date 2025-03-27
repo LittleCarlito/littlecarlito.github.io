@@ -2,25 +2,290 @@
 
 echo "🔍 Running pre-commit checks..."
 
+# Create a timeout function for handling potential hanging tests
+run_with_timeout() {
+    # Command to run
+    cmd="$1"
+    # Timeout in seconds
+    timeout="$2"
+    
+    # Use perl to create a timeout wrapper since 'timeout' command isn't available on all systems
+    perl -e '
+        use strict;
+        use warnings;
+        
+        # Get command and timeout
+        my $cmd = $ARGV[0];
+        my $timeout = $ARGV[1];
+        
+        # Fork a child process
+        my $pid = fork();
+        
+        if (!defined $pid) {
+            die "Cannot fork: $!";
+        }
+        
+        if ($pid == 0) {
+            # Child process - execute the command
+            exec($cmd) or die "Cannot execute command: $!";
+        } else {
+            # Parent process - wait for child with timeout
+            my $killed = 0;
+            
+            # Set alarm for timeout
+            eval {
+                local $SIG{ALRM} = sub { 
+                    kill("TERM", $pid); 
+                    sleep(1);
+                    kill("KILL", $pid) if kill(0, $pid);
+                    $killed = 1;
+                    die "Timeout\n";
+                };
+                
+                alarm($timeout);
+                waitpid($pid, 0);
+                alarm(0);
+            };
+            
+            if ($@) {
+                if ($killed) {
+                    print "Command timed out after $timeout seconds\n";
+                    exit 124;  # Exit code for timeout
+                } else {
+                    die $@;  # Re-throw other exceptions
+                }
+            }
+            
+            my $exit_code = $? >> 8;
+            exit $exit_code;
+        }
+    ' "$cmd" "$timeout"
+    
+    return $?
+}
+
 # Check which files are being committed
 STAGED_FILES=$(git diff --cached --name-only)
 
 # Flag to indicate if any files outside development/ or public/ are being committed
 RUN_CHECKS=false
 
-# Check if any file outside development/ and public/ is being committed
+# Flag to check if GitHub workflow files were modified
+GITHUB_WORKFLOWS_CHANGED=false
+
+# Check staged files to determine which checks to run
 for file in $STAGED_FILES; do
     # Skip empty lines
     [ -z "$file" ] && continue
     
+    # Check if file is in .github/workflows directory
+    if [[ "$file" =~ ^\.github/workflows/ ]]; then
+        echo "🔍 Found change in GitHub workflow file: $file"
+        GITHUB_WORKFLOWS_CHANGED=true
+    fi
+    
     # Check if file is NOT in development/ or public/ directories
     if ! [[ "$file" =~ ^(development/|public/) ]]; then
-        echo "🔍 Found change in $file - will run checks"
+        echo "🔍 Found change in $file - will run standard checks"
         RUN_CHECKS=true
-        break
     fi
 done
 
+# Run GitHub workflow validation if workflow files were changed
+if [ "$GITHUB_WORKFLOWS_CHANGED" = true ]; then
+    echo "🔄 Testing GitHub workflow files..."
+    
+    # Check for auto-merge-pr-job workflow
+    if [ -f ".github/workflows/auto-merge-pr.yml" ] || [ -f ".github/workflows/auto-merge-pr.yaml" ]; then
+        echo "🔍 Testing auto-merge-pr-job workflow..."
+        
+        # Create a temporary script to test the workflow
+        cat > /tmp/test-auto-merge-pr.js << 'EOF'
+#!/usr/bin/env node
+
+const fs = require('fs');
+const yaml = require('js-yaml');
+const path = require('path');
+
+// Find the auto-merge PR workflow file
+const workflowPath = fs.existsSync('.github/workflows/auto-merge-pr.yml') 
+    ? '.github/workflows/auto-merge-pr.yml' 
+    : '.github/workflows/auto-merge-pr.yaml';
+
+try {
+    // Read and parse the workflow file
+    const content = fs.readFileSync(workflowPath, 'utf8');
+    const workflow = yaml.load(content);
+    
+    console.log(`Testing workflow: ${workflowPath}`);
+    
+    // Check basic structure
+    if (!workflow.name) {
+        throw new Error('Workflow is missing a name');
+    }
+    
+    if (!workflow.on) {
+        throw new Error('Workflow is missing trigger events');
+    }
+    
+    if (!workflow.jobs || Object.keys(workflow.jobs).length === 0) {
+        throw new Error('Workflow has no jobs defined');
+    }
+    
+    // Check each job for required permissions
+    for (const [jobName, job] of Object.entries(workflow.jobs)) {
+        if (job.runs && job.runs.includes('merge') && !job.permissions) {
+            console.warn(`⚠️ Warning: Job "${jobName}" may need explicit permissions for merging PRs`);
+        }
+        
+        // Check for each step in the job
+        if (job.steps) {
+            for (const step of job.steps) {
+                // Check referenced actions
+                if (step.uses) {
+                    // Add any specific action validation here
+                    console.log(`Validating action: ${step.uses}`);
+                }
+                
+                // Check run commands
+                if (step.run) {
+                    const cmds = step.run.split('\n');
+                    for (const cmd of cmds) {
+                        if (cmd.includes('npm') && !cmd.includes('pnpm') && !workflowPath.includes('npm')) {
+                            console.warn(`⚠️ Warning: Command uses npm instead of pnpm: ${cmd}`);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    console.log('✅ auto-merge-pr workflow validation passed!');
+} catch (error) {
+    console.error(`❌ auto-merge-pr workflow validation failed: ${error.message}`);
+    process.exit(1);
+}
+EOF
+
+        # Install dependencies if needed
+        if ! npx --no-install js-yaml --version &>/dev/null; then
+            echo "Installing required dependencies for workflow validation..."
+            npm install --no-save js-yaml
+        fi
+        
+        # Run the test script with timeout
+        run_with_timeout "node /tmp/test-auto-merge-pr.js" 60
+        AUTO_MERGE_STATUS=$?
+        
+        # Clean up temporary file
+        rm /tmp/test-auto-merge-pr.js
+        
+        if [ $AUTO_MERGE_STATUS -ne 0 ]; then
+            echo "❌ auto-merge-pr-job workflow validation failed!"
+            exit 1
+        fi
+    fi
+    
+    # Check for dry-run workflow
+    if [ -f ".github/workflows/dry-run.yml" ] || [ -f ".github/workflows/dry-run.yaml" ]; then
+        echo "🔍 Testing dry-run workflow..."
+        
+        # Create a temporary script to test the workflow
+        cat > /tmp/test-dry-run.js << 'EOF'
+#!/usr/bin/env node
+
+const fs = require('fs');
+const yaml = require('js-yaml');
+const path = require('path');
+
+// Find the dry-run workflow file
+const workflowPath = fs.existsSync('.github/workflows/dry-run.yml') 
+    ? '.github/workflows/dry-run.yml' 
+    : '.github/workflows/dry-run.yaml';
+
+try {
+    // Read and parse the workflow file
+    const content = fs.readFileSync(workflowPath, 'utf8');
+    const workflow = yaml.load(content);
+    
+    console.log(`Testing workflow: ${workflowPath}`);
+    
+    // Check basic structure
+    if (!workflow.name) {
+        throw new Error('Workflow is missing a name');
+    }
+    
+    if (!workflow.on) {
+        throw new Error('Workflow is missing trigger events');
+    }
+    
+    if (!workflow.jobs || Object.keys(workflow.jobs).length === 0) {
+        throw new Error('Workflow has no jobs defined');
+    }
+    
+    // Validate specific aspects of the dry-run workflow
+    // E.g., check that it doesn't actually deploy or make permanent changes
+    let hasBuildStep = false;
+    let hasTestStep = false;
+    
+    for (const [jobName, job] of Object.entries(workflow.jobs)) {
+        if (!job.steps) continue;
+        
+        for (const step of job.steps) {
+            if (step.run && step.run.includes('build')) {
+                hasBuildStep = true;
+            }
+            
+            if (step.run && step.run.includes('test')) {
+                hasTestStep = true;
+            }
+            
+            // Check for any deployment actions that shouldn't be in a dry-run
+            if (step.uses && (
+                step.uses.includes('deploy-to') || 
+                step.uses.includes('aws-actions/') || 
+                step.uses.includes('azure/') ||
+                step.uses.includes('google-github-actions/')
+            )) {
+                console.warn(`⚠️ Warning: Dry-run workflow includes deployment action: ${step.uses}`);
+                // Not failing here as this might be intentional, just warning
+            }
+        }
+    }
+    
+    // Ensure it has expected steps
+    if (!hasBuildStep) {
+        console.warn('⚠️ Warning: Dry-run workflow might be missing build steps');
+    }
+    
+    if (!hasTestStep) {
+        console.warn('⚠️ Warning: Dry-run workflow might be missing test steps');
+    }
+    
+    console.log('✅ dry-run workflow validation passed!');
+} catch (error) {
+    console.error(`❌ dry-run workflow validation failed: ${error.message}`);
+    process.exit(1);
+}
+EOF
+
+        # Run the test script with timeout
+        run_with_timeout "node /tmp/test-dry-run.js" 60
+        DRY_RUN_STATUS=$?
+        
+        # Clean up temporary file
+        rm /tmp/test-dry-run.js
+        
+        if [ $DRY_RUN_STATUS -ne 0 ]; then
+            echo "❌ dry-run workflow validation failed!"
+            exit 1
+        fi
+    fi
+    
+    echo "✅ GitHub workflow validation completed!"
+fi
+
+# Run standard checks if needed
 if [ "$RUN_CHECKS" = true ]; then
     # Initial lint check
     echo "Running initial lint check..."
@@ -45,13 +310,35 @@ if [ "$RUN_CHECKS" = true ]; then
       fi
     )
 
-    # Check build dependencies - this helps catch build order issues
-    echo "Checking build dependencies..."
-    pnpm test:build-deps || (echo "❌ Build dependency tests failed. Please fix the build dependency issues and try committing again." && exit 1)
+    # Run unified pipeline test with timeout to prevent hanging
+    echo "🚀 Running unified pipeline test..."
+    run_with_timeout "pnpm test:build-deps" 120
+    PIPELINE_STATUS=$?
+    
+    if [ $PIPELINE_STATUS -eq 124 ]; then
+        echo "❌ Build dependency tests timed out after 2 minutes. This may indicate a hanging process."
+        exit 1
+    elif [ $PIPELINE_STATUS -ne 0 ]; then
+        echo "❌ Build dependency tests failed. Please fix the build dependency issues and try committing again."
+        exit 1
+    fi
+    
+    echo "✅ Build dependency tests passed!"
 
-    # Run tests with coverage
+    # Run tests with coverage, also with timeout
     echo "Running tests with coverage..."
-    pnpm test:coverage || (echo "❌ Tests failed. Please fix the failing tests and try committing again." && exit 1)
+    run_with_timeout "pnpm test:coverage" 300
+    TEST_STATUS=$?
+    
+    if [ $TEST_STATUS -eq 124 ]; then
+        echo "❌ Tests timed out after 5 minutes. This may indicate a hanging test."
+        exit 1
+    elif [ $TEST_STATUS -ne 0 ]; then
+        echo "❌ Tests failed. Please fix the failing tests and try committing again."
+        exit 1
+    fi
+    
+    echo "✅ Tests passed!"
 
     # Dependency check for branch reference validator
     if [ -f "tests/lint-tests/workflow-branch-refs.js" ]; then
@@ -63,8 +350,8 @@ if [ "$RUN_CHECKS" = true ]; then
         npm install --no-save js-yaml glob
       fi
       
-      # Run the validator
-      node tests/lint-tests/workflow-branch-refs.js
+      # Run the validator with timeout
+      run_with_timeout "node tests/lint-tests/workflow-branch-refs.js" 60
       if [ $? -ne 0 ]; then
         echo "❌ Workflow branch reference validation failed. Please fix the issues and try again."
         exit 1
