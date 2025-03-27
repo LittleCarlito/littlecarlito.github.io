@@ -1,4 +1,4 @@
-name: Push Create and Merge PR
+name: Push Create PR
 
 on:
   push:
@@ -10,9 +10,12 @@ permissions:
   pull-requests: write
 
 jobs:
-  auto-pr:
-    name: Create and Merge PR
+  create-pr:
+    name: Create PR
     runs-on: ubuntu-latest
+    outputs:
+      pr-number: ${{ steps.manage_pr.outputs.pr-number }}
+      merge-title: ${{ steps.merge_message.outputs.merge_title }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -83,7 +86,7 @@ jobs:
           min-checks: 3
           wait-for-checks: true
           timeout: 600
-          workflow-name: "Create and Merge PR"
+          workflow-name: "Push Create PR"
 
       - name: Additional Check Verification
         id: verify_checks
@@ -93,7 +96,7 @@ jobs:
           PR_HEAD_SHA=$(gh pr view ${{ steps.manage_pr.outputs.pr-number }} --json headRefOid --jq .headRefOid)
           
           # Define our own workflow name for self-identification
-          OUR_WORKFLOW_NAME="Create and Merge PR"
+          OUR_WORKFLOW_NAME="Push Create PR"
           
           # Use the wait-checks script for more precise verification
           bash .github/scripts/branch/wait-checks.sh \
@@ -133,14 +136,16 @@ jobs:
           
           # Output for next steps
           echo "merge_title=$MERGE_TITLE" >> $GITHUB_OUTPUT
-
-      - name: Merge Pull Request
+      
+      # Trigger the PR merge workflow but as a separate workflow run
+      - name: Trigger PR Merge
         if: success()
-        uses: ./.github/actions/force-merge-pr
-        with:
-          github-token: ${{ secrets.PR_CREATION_TOKEN }}
-          repository: ${{ github.repository }}
-          pr-number: ${{ steps.manage_pr.outputs.pr-number }}
-          commit-title: ${{ steps.merge_message.outputs.merge_title }}
-          merge-method: squash
-          delete-branch: true 
+        run: |
+          echo "All checks passed! Triggering merge workflow..."
+          gh workflow run reusable-merge-pr.yml \
+            -f pr-number=${{ steps.manage_pr.outputs.pr-number }} \
+            -f commit-title="${{ steps.merge_message.outputs.merge_title }}" \
+            -f merge-method=squash \
+            -f delete-branch=true
+        env:
+          GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }} 
