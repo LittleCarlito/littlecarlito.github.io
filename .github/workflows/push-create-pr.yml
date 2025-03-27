@@ -98,9 +98,6 @@ jobs:
           
           echo "workflow_file=$WORKFLOW_FILE" >> $GITHUB_OUTPUT
           echo "check_name=$JOB_NAME" >> $GITHUB_OUTPUT
-          
-          # Also store the check name directly in an env var for immediate use
-          echo "CHECK_NAME=$JOB_NAME" >> $GITHUB_ENV
 
       - name: Check GitHub check names
         id: check_names
@@ -124,9 +121,8 @@ jobs:
             OUR_CHECK_NAME=$(echo "$WORKFLOW_CHECKS" | head -n 1)
             echo "Found our workflow check: $OUR_CHECK_NAME"
             echo "check_name=$OUR_CHECK_NAME" >> $GITHUB_OUTPUT
-            echo "CHECK_NAME=$OUR_CHECK_NAME" >> $GITHUB_ENV
           else
-            echo "Couldn't find exact check name, using default: $CHECK_NAME"
+            echo "Couldn't find exact check name, using default: ${{ steps.workflow_details.outputs.check_name }}"
           fi
         env:
           GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }}
@@ -140,7 +136,7 @@ jobs:
           min-checks: 3
           wait-for-checks: true
           timeout: 600
-          workflow-name: ${{ env.CHECK_NAME }}
+          workflow-name: ${{ steps.check_names.outputs.check_name || steps.workflow_details.outputs.check_name }}
 
       - name: Additional Check Verification
         id: verify_checks
@@ -150,7 +146,7 @@ jobs:
           PR_HEAD_SHA=$(gh pr view ${{ steps.manage_pr.outputs.pr-number }} --json headRefOid --jq .headRefOid)
           
           # Use the dynamically determined workflow name for self-identification
-          OUR_WORKFLOW_NAME="${{ env.CHECK_NAME }}"
+          OUR_WORKFLOW_NAME="${{ steps.check_names.outputs.check_name || steps.workflow_details.outputs.check_name }}"
           echo "Using workflow name for self-identification: $OUR_WORKFLOW_NAME"
           
           # Use the wait-checks script for more precise verification
