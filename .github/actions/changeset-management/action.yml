@@ -57,109 +57,59 @@ outputs:
 runs:
   using: "composite"
   steps:
-    # Check for existing changesets
+    # Check for existing changesets using our script
     - name: Check for changesets
       id: check-changesets
       shell: bash
       run: |
-        # Check for any changesets
-        if [ -d ".changeset" ] && [ "$(ls -A .changeset | grep -v README.md | grep -v config.json)" ]; then
-          echo "Changesets found, will proceed with versioning"
-          echo "has_changesets=true" >> $GITHUB_OUTPUT
-        else
-          echo "No changesets found, skipping version updates"
-          echo "has_changesets=false" >> $GITHUB_OUTPUT
-        fi
+        OUTPUT=$(bash .github/scripts/version/check-changesets.sh \
+          --auto-changeset-prefix "${{ inputs.auto-changeset-prefix }}")
         
-        # Check specifically for auto-generated changesets
-        if ls .changeset/${{ inputs.auto-changeset-prefix }}*.md 1> /dev/null 2>&1; then
-          echo "Auto-generated changesets found with prefix: ${{ inputs.auto-changeset-prefix }}"
-          echo "has_auto_changesets=true" >> $GITHUB_OUTPUT
-        else
-          echo "No auto-generated changesets found with prefix: ${{ inputs.auto-changeset-prefix }}"
-          echo "has_auto_changesets=false" >> $GITHUB_OUTPUT
-        fi
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
 
-    # Generate changeset (if requested)
+    # Generate changeset using our script (if requested)
     - name: Generate changeset
       id: generate-changeset
       if: inputs.since-commit != ''
       shell: bash
       run: |
-        # Create a new branch for the changeset
-        BRANCH_NAME="changeset-release/auto-$(date +%s)"
-        git checkout -b $BRANCH_NAME
+        OUTPUT=$(bash .github/scripts/version/generate-changeset.sh \
+          --since-commit "${{ inputs.since-commit }}" \
+          --package-name "${{ inputs.package-name }}" \
+          --version-type "${{ inputs.version-type }}" \
+          --auto-changeset-prefix "${{ inputs.auto-changeset-prefix }}")
         
-        # Generate changeset from conventional commits
-        if [ -f "scripts/auto-changeset.js" ]; then
-          node scripts/auto-changeset.js --since=${{ inputs.since-commit }}
-        else
-          # Create manual changeset if script doesn't exist
-          mkdir -p .changeset
-          CHANGESET_ID="${{ inputs.auto-changeset-prefix }}$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 8 | head -n 1)"
-          
-          if [ "${{ inputs.package-name }}" != "all" ]; then
-            echo "---" > .changeset/$CHANGESET_ID.md
-            echo "\"${{ inputs.package-name }}\": ${{ inputs.version-type }}" >> .changeset/$CHANGESET_ID.md
-            echo "---" >> .changeset/$CHANGESET_ID.md
-            echo "" >> .changeset/$CHANGESET_ID.md
-            echo "Auto-generated changeset for ${{ inputs.package-name }}" >> .changeset/$CHANGESET_ID.md
-          fi
-        fi
-        
-        # Check specifically for auto-generated changesets
-        if ls .changeset/${{ inputs.auto-changeset-prefix }}*.md 1> /dev/null 2>&1; then
-          echo "Changeset generated successfully!"
-          
-          # Commit the changeset
-          git add .changeset/
-          git commit -m "chore: auto-generate changeset [skip ci]"
-          git push --set-upstream origin $BRANCH_NAME
-          
-          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
-          echo "changeset_created=true" >> $GITHUB_OUTPUT
-        else
-          echo "No changeset was generated"
-          echo "changeset_created=false" >> $GITHUB_OUTPUT
-        fi
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
 
-    # Validate changesets
+    # Validate changesets using our script
     - name: Validate changesets
       id: validate-changesets
       if: steps.check-changesets.outputs.has_changesets == 'true' || steps.generate-changeset.outputs.changeset_created == 'true'
       shell: bash
       run: |
-        if [ -f ".github/scripts/version/validate-changesets.sh" ]; then
-          bash .github/scripts/version/validate-changesets.sh
-        else
-          echo "Validating changesets..."
-          # Simple validation if script doesn't exist
-          for file in .changeset/*.md; do
-            if [ -f "$file" ] && [ "$file" != ".changeset/README.md" ] && [ "$file" != ".changeset/config.json" ]; then
-              if ! grep -q "^---" "$file"; then
-                echo "Error: Invalid changeset format in $file"
-                exit 1
-              fi
-            fi
-          done
-          echo "All changesets are valid!"
-        fi
+        bash .github/scripts/version/validate-changesets.sh
 
-    # Run changesets action if needed
+    # Run version/release if needed using our script
     - name: Create Release or Version PR
       id: changesets
       if: (steps.check-changesets.outputs.has_changesets == 'true' || steps.generate-changeset.outputs.changeset_created == 'true') && inputs.create-release == 'true'
       shell: bash
       run: |
-        # Use the changesets CLI directly
         if [ "${{ inputs.publish }}" == "true" ]; then
           echo "Versioning and publishing packages..."
-          pnpm run version
-          pnpm run release
+          # Use update-packages.sh for versioning
+          bash .github/scripts/version/update-packages.sh
+          
+          # Use publish-packages.sh for publishing
+          RESULT=$(bash .github/scripts/version/publish-packages.sh \
+            --package-path "${{ inputs.package-name }}")
+          
           echo "published=true" >> $GITHUB_OUTPUT
         else
           echo "Versioning packages only..."
-          pnpm run version
+          bash .github/scripts/version/update-packages.sh
           echo "published=false" >> $GITHUB_OUTPUT
         fi
         
@@ -169,37 +119,36 @@ runs:
           git push origin changeset-release/main
         fi
 
-    # Find any version PRs
+    # Find any version PRs using our script
     - name: Find open version PRs
       id: find-pr
       shell: bash
       run: |
-        PR_NUMBER=$(gh pr list --repo ${{ inputs.repository }} --json number,title --jq '.[] | select(.title=="chore: version packages") | .number')
-        if [ -n "$PR_NUMBER" ]; then
-          echo "Found version PR #$PR_NUMBER"
-          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-          echo "has_pr=true" >> $GITHUB_OUTPUT
-        else
-          echo "No version PR found"
-          echo "has_pr=false" >> $GITHUB_OUTPUT
-        fi
-      env:
-        GH_TOKEN: ${{ inputs.github-token }}
+        OUTPUT=$(bash .github/scripts/pr/find-pr.sh \
+          --token "${{ inputs.github-token }}" \
+          --repo "${{ inputs.repository }}" \
+          --title "chore: version packages")
+        
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
 
-    # Create status checks for PR if found
+    # Create status checks for PR if found using our script
     - name: Create Changesets Status Check
       if: steps.find-pr.outputs.has_pr == 'true'
       shell: bash
       run: |
-        PR_SHA=$(gh pr view ${{ steps.find-pr.outputs.pr_number }} --json headRefOid --jq .headRefOid)
+        # First get the PR SHA using our script
+        PR_SHA=$(bash .github/scripts/branch/get-sha.sh \
+          --token "${{ inputs.github-token }}" \
+          --repo "${{ inputs.repository }}" \
+          --pr-number "${{ steps.find-pr.outputs.pr_number }}")
         
-        echo "Creating Changesets success status"
-        gh api \
-          --method POST \
-          /repos/${{ inputs.repository }}/statuses/$PR_SHA \
-          -f state=success \
-          -f context="Test Changesets" \
-          -f description="Changesets validated successfully" \
-          -f target_url="${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}"
-      env:
-        GH_TOKEN: ${{ inputs.github-token }} 
+        # Then create the status check using our script
+        bash .github/scripts/branch/force-status.sh \
+          --token "${{ inputs.github-token }}" \
+          --repo "${{ inputs.repository }}" \
+          --sha "$PR_SHA" \
+          --context "Test Changesets" \
+          --description "Changesets validated successfully" \
+          --state "success" \
+          --target-url "${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}" 
