@@ -56,11 +56,11 @@ jobs:
           token: ${{ secrets.PR_CREATION_TOKEN }}
       
       - name: Setup environment
-        uses: ./.github/actions/setup-environment
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          node-version: 'lts/*'
-          pnpm-version: '8.15.4'
+        run: |
+          bash .github/scripts/maintenance/setup-environment.sh \
+            --github-token "${{ secrets.GITHUB_TOKEN }}" \
+            --node-version "lts/*" \
+            --pnpm-version "8.15.4"
       
       - name: Check conventional commits
         id: check_commits
