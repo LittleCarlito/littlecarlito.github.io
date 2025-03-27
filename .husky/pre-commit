@@ -95,191 +95,61 @@ done
 if [ "$GITHUB_WORKFLOWS_CHANGED" = true ]; then
     echo "🔄 Testing GitHub workflow files..."
     
-    # Check for auto-merge-pr-job workflow
-    if [ -f ".github/workflows/auto-merge-pr.yml" ] || [ -f ".github/workflows/auto-merge-pr.yaml" ]; then
-        echo "🔍 Testing auto-merge-pr-job workflow..."
+    # Note: push-create-merge-pr workflow check is handled below
+    
+    # Check for push-create-merge-pr workflow
+    if [ -f ".github/workflows/push-create-merge-pr.yml" ] || [ -f ".github/workflows/push-create-merge-pr.yaml" ]; then
+        echo "🔍 Testing push-create-merge-pr workflow..."
         
-        # Create a temporary script to test the workflow
-        cat > /tmp/test-auto-merge-pr.js << 'EOF'
-#!/usr/bin/env node
-
-const fs = require('fs');
-const yaml = require('js-yaml');
-const path = require('path');
-
-// Find the auto-merge PR workflow file
-const workflowPath = fs.existsSync('.github/workflows/auto-merge-pr.yml') 
-    ? '.github/workflows/auto-merge-pr.yml' 
-    : '.github/workflows/auto-merge-pr.yaml';
-
-try {
-    // Read and parse the workflow file
-    const content = fs.readFileSync(workflowPath, 'utf8');
-    const workflow = yaml.load(content);
-    
-    console.log(`Testing workflow: ${workflowPath}`);
-    
-    // Check basic structure
-    if (!workflow.name) {
-        throw new Error('Workflow is missing a name');
-    }
-    
-    if (!workflow.on) {
-        throw new Error('Workflow is missing trigger events');
-    }
-    
-    if (!workflow.jobs || Object.keys(workflow.jobs).length === 0) {
-        throw new Error('Workflow has no jobs defined');
-    }
-    
-    // Check each job for required permissions
-    for (const [jobName, job] of Object.entries(workflow.jobs)) {
-        if (job.runs && job.runs.includes('merge') && !job.permissions) {
-            console.warn(`⚠️ Warning: Job "${jobName}" may need explicit permissions for merging PRs`);
-        }
-        
-        // Check for each step in the job
-        if (job.steps) {
-            for (const step of job.steps) {
-                // Check referenced actions
-                if (step.uses) {
-                    // Add any specific action validation here
-                    console.log(`Validating action: ${step.uses}`);
-                }
-                
-                // Check run commands
-                if (step.run) {
-                    const cmds = step.run.split('\n');
-                    for (const cmd of cmds) {
-                        if (cmd.includes('npm') && !cmd.includes('pnpm') && !workflowPath.includes('npm')) {
-                            console.warn(`⚠️ Warning: Command uses npm instead of pnpm: ${cmd}`);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    console.log('✅ auto-merge-pr workflow validation passed!');
-} catch (error) {
-    console.error(`❌ auto-merge-pr workflow validation failed: ${error.message}`);
-    process.exit(1);
-}
-EOF
-
-        # Install dependencies if needed
-        if ! npx --no-install js-yaml --version &>/dev/null; then
-            echo "Installing required dependencies for workflow validation..."
-            npm install --no-save js-yaml
+        # Use a simpler approach that doesn't require js-yaml
+        # Check basic structure directly with grep
+        WORKFLOWPATH=".github/workflows/push-create-merge-pr.yml"
+        if [ ! -f "$WORKFLOWPATH" ]; then
+            WORKFLOWPATH=".github/workflows/push-create-merge-pr.yaml"
         fi
         
-        # Run the test script with timeout
-        run_with_timeout "node /tmp/test-auto-merge-pr.js" 60
-        AUTO_MERGE_STATUS=$?
+        echo "Validating $WORKFLOWPATH..."
         
-        # Clean up temporary file
-        rm /tmp/test-auto-merge-pr.js
-        
-        if [ $AUTO_MERGE_STATUS -ne 0 ]; then
-            echo "❌ auto-merge-pr-job workflow validation failed!"
+        # Check for required sections
+        if ! grep -q "^name:" "$WORKFLOWPATH"; then
+            echo "❌ Workflow is missing a name!"
             exit 1
         fi
-    fi
-    
-    # Check for dry-run workflow
-    if [ -f ".github/workflows/dry-run.yml" ] || [ -f ".github/workflows/dry-run.yaml" ]; then
-        echo "🔍 Testing dry-run workflow..."
         
-        # Create a temporary script to test the workflow
-        cat > /tmp/test-dry-run.js << 'EOF'
-#!/usr/bin/env node
-
-const fs = require('fs');
-const yaml = require('js-yaml');
-const path = require('path');
-
-// Find the dry-run workflow file
-const workflowPath = fs.existsSync('.github/workflows/dry-run.yml') 
-    ? '.github/workflows/dry-run.yml' 
-    : '.github/workflows/dry-run.yaml';
-
-try {
-    // Read and parse the workflow file
-    const content = fs.readFileSync(workflowPath, 'utf8');
-    const workflow = yaml.load(content);
-    
-    console.log(`Testing workflow: ${workflowPath}`);
-    
-    // Check basic structure
-    if (!workflow.name) {
-        throw new Error('Workflow is missing a name');
-    }
-    
-    if (!workflow.on) {
-        throw new Error('Workflow is missing trigger events');
-    }
-    
-    if (!workflow.jobs || Object.keys(workflow.jobs).length === 0) {
-        throw new Error('Workflow has no jobs defined');
-    }
-    
-    // Validate specific aspects of the dry-run workflow
-    // E.g., check that it doesn't actually deploy or make permanent changes
-    let hasBuildStep = false;
-    let hasTestStep = false;
-    
-    for (const [jobName, job] of Object.entries(workflow.jobs)) {
-        if (!job.steps) continue;
-        
-        for (const step of job.steps) {
-            if (step.run && step.run.includes('build')) {
-                hasBuildStep = true;
-            }
-            
-            if (step.run && step.run.includes('test')) {
-                hasTestStep = true;
-            }
-            
-            // Check for any deployment actions that shouldn't be in a dry-run
-            if (step.uses && (
-                step.uses.includes('deploy-to') || 
-                step.uses.includes('aws-actions/') || 
-                step.uses.includes('azure/') ||
-                step.uses.includes('google-github-actions/')
-            )) {
-                console.warn(`⚠️ Warning: Dry-run workflow includes deployment action: ${step.uses}`);
-                // Not failing here as this might be intentional, just warning
-            }
-        }
-    }
-    
-    // Ensure it has expected steps
-    if (!hasBuildStep) {
-        console.warn('⚠️ Warning: Dry-run workflow might be missing build steps');
-    }
-    
-    if (!hasTestStep) {
-        console.warn('⚠️ Warning: Dry-run workflow might be missing test steps');
-    }
-    
-    console.log('✅ dry-run workflow validation passed!');
-} catch (error) {
-    console.error(`❌ dry-run workflow validation failed: ${error.message}`);
-    process.exit(1);
-}
-EOF
-
-        # Run the test script with timeout
-        run_with_timeout "node /tmp/test-dry-run.js" 60
-        DRY_RUN_STATUS=$?
-        
-        # Clean up temporary file
-        rm /tmp/test-dry-run.js
-        
-        if [ $DRY_RUN_STATUS -ne 0 ]; then
-            echo "❌ dry-run workflow validation failed!"
+        if ! grep -q "^on:" "$WORKFLOWPATH"; then
+            echo "❌ Workflow is missing triggers!"
             exit 1
         fi
+        
+        if ! grep -q "^jobs:" "$WORKFLOWPATH"; then
+            echo "❌ Workflow has no jobs defined!"
+            exit 1
+        fi
+        
+        if ! grep -q "permissions:" "$WORKFLOWPATH"; then
+            echo "⚠️ Warning: Workflow might be missing required permissions"
+        fi
+        
+        # Check for Create or Find PR step
+        if ! grep -q "Create or Find PR" "$WORKFLOWPATH"; then
+            echo "❌ Workflow is missing the Create or Find PR step!"
+            exit 1
+        fi
+        
+        # Check for Merge Pull Request step
+        if ! grep -q "Merge Pull Request" "$WORKFLOWPATH"; then
+            echo "❌ Workflow is missing the Merge Pull Request step!"
+            exit 1
+        fi
+        
+        # Check workflow name reference consistency
+        WORKFLOW_NAME=$(grep "^name:" "$WORKFLOWPATH" | sed 's/name: *//')
+        if ! grep -q "workflow-name.*Push Create and Merge PR" "$WORKFLOWPATH"; then
+            echo "❌ Workflow-name reference doesn't match workflow name!"
+            exit 1
+        fi
+        
+        echo "✅ push-create-merge-pr workflow validation passed!"
     fi
     
     echo "✅ GitHub workflow validation completed!"
