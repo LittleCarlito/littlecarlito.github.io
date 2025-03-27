@@ -77,6 +77,60 @@ jobs:
           auto-merge: false
           delete-branch: false
       
+      - name: Extract workflow details
+        id: workflow_details
+        run: |
+          # Get the current workflow file name without extension
+          WORKFLOW_FILE="${GITHUB_WORKFLOW}"
+          echo "Workflow file: $WORKFLOW_FILE"
+          
+          # Get the job name which is used in check names (this is how GitHub displays it)
+          JOB_NAME="Create PR"
+          
+          # Try to get it from the runtime if possible
+          if [ -n "$GITHUB_JOB" ]; then
+            echo "Getting job name from runtime: $GITHUB_JOB"
+            JOB_NAME=$(echo "$GITHUB_JOB" | sed -E 's/[_-]/ /g' | awk '{for(i=1;i<=NF;i++)sub(/./,toupper(substr($i,1,1)),$i)}1')
+          fi
+          
+          echo "Determined workflow file: $WORKFLOW_FILE"
+          echo "Will use check name: $JOB_NAME"
+          
+          echo "workflow_file=$WORKFLOW_FILE" >> $GITHUB_OUTPUT
+          echo "check_name=$JOB_NAME" >> $GITHUB_OUTPUT
+          
+          # Also store the check name directly in an env var for immediate use
+          echo "CHECK_NAME=$JOB_NAME" >> $GITHUB_ENV
+
+      - name: Check GitHub check names
+        id: check_names
+        run: |
+          # Get PR SHA
+          PR_SHA=$(gh pr view ${{ steps.manage_pr.outputs.pr-number }} --json headRefOid --jq .headRefOid)
+          
+          # Get the actual check names from GitHub for validation
+          echo "Getting actual check names for SHA: $PR_SHA"
+          CHECK_RUNS=$(gh api /repos/${{ github.repository }}/commits/$PR_SHA/check-runs)
+          
+          # Extract all check names for logging
+          echo "All check names:"
+          echo "$CHECK_RUNS" | jq -r '.check_runs[] | "\(.name), status: \(.status)"'
+          
+          # Try to find this workflow's check name
+          WORKFLOW_CHECKS=$(echo "$CHECK_RUNS" | jq -r '.check_runs[] | select(.name | contains("Create PR") or contains("Push Create PR")) | .name')
+          
+          if [ -n "$WORKFLOW_CHECKS" ]; then
+            # Use the first match (most likely match)
+            OUR_CHECK_NAME=$(echo "$WORKFLOW_CHECKS" | head -n 1)
+            echo "Found our workflow check: $OUR_CHECK_NAME"
+            echo "check_name=$OUR_CHECK_NAME" >> $GITHUB_OUTPUT
+            echo "CHECK_NAME=$OUR_CHECK_NAME" >> $GITHUB_ENV
+          else
+            echo "Couldn't find exact check name, using default: $CHECK_NAME"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }}
+
       - name: Wait for required checks
         uses: ./.github/actions/status-checks
         with:
@@ -86,7 +140,7 @@ jobs:
           min-checks: 3
           wait-for-checks: true
           timeout: 600
-          workflow-name: "Push Create PR"
+          workflow-name: ${{ env.CHECK_NAME }}
 
       - name: Additional Check Verification
         id: verify_checks
@@ -95,8 +149,9 @@ jobs:
           # Get commit SHA for PR head
           PR_HEAD_SHA=$(gh pr view ${{ steps.manage_pr.outputs.pr-number }} --json headRefOid --jq .headRefOid)
           
-          # Define our own workflow name for self-identification
-          OUR_WORKFLOW_NAME="Push Create PR"
+          # Use the dynamically determined workflow name for self-identification
+          OUR_WORKFLOW_NAME="${{ env.CHECK_NAME }}"
+          echo "Using workflow name for self-identification: $OUR_WORKFLOW_NAME"
           
           # Use the wait-checks script for more precise verification
           bash .github/scripts/branch/wait-checks.sh \
