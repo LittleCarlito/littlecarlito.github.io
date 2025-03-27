@@ -43,77 +43,68 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Get current version
+    # Calculate version using our script
+    - name: Calculate new version
       id: version
       shell: bash
       run: |
-        if [ "${{ inputs.package-name }}" = "all" ]; then
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-        else
-          CURRENT_VERSION=$(node -p "require('./packages/${{ inputs.package-name }}/package.json').version")
-        fi
+        OUTPUT=$(bash .github/scripts/version/calculate-version.sh \
+          --package-path "${{ inputs.package-name }}" \
+          --version-type "${{ inputs.version-type }}")
         
-        # Calculate new version
-        IFS='.' read -r -a version_parts <<< "$CURRENT_VERSION"
-        MAJOR="${version_parts[0]}"
-        MINOR="${version_parts[1]}"
-        PATCH="${version_parts[2]}"
+        # Extract the new version from the output
+        NEW_VERSION=$(echo "$OUTPUT" | grep "^new_version=" | cut -d= -f2)
         
-        case "${{ inputs.version-type }}" in
-          "major")
-            NEW_VERSION="$((MAJOR + 1)).0.0"
-            ;;
-          "minor")
-            NEW_VERSION="${MAJOR}.$((MINOR + 1)).0"
-            ;;
-          "patch")
-            NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
-            ;;
-        esac
-        
+        # Pass it to the output
         echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-        echo "Current version: $CURRENT_VERSION"
-        echo "New version: $NEW_VERSION"
+        echo "Calculated new version: $NEW_VERSION"
 
+    # Create tag using our script
+    - name: Create Git tag
+      id: create-tag
+      shell: bash
+      run: |
+        OUTPUT=$(bash .github/scripts/version/create-tag.sh \
+          --version "${{ steps.version.outputs.new_version }}" \
+          --tag-prefix "v" \
+          --message "Release v${{ steps.version.outputs.new_version }}")
+        
+        # Extract tag name from output
+        TAG_NAME=$(echo "$OUTPUT" | grep "^tag_name=" | cut -d= -f2)
+        echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+        echo "Created tag: $TAG_NAME"
+
+    # Create GitHub release using our script
     - name: Create GitHub release
       id: create-release
       shell: bash
       run: |
-        # Create tag
-        TAG_NAME="v${{ steps.version.outputs.new_version }}"
-        git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
-        git push origin "$TAG_NAME"
+        OUTPUT=$(bash .github/scripts/version/create-release.sh \
+          --token "${{ inputs.github-token }}" \
+          --repo "${{ inputs.repository }}" \
+          --tag-name "${{ steps.create-tag.outputs.tag_name }}" \
+          --name "Release ${{ steps.create-tag.outputs.tag_name }}" \
+          --draft "${{ inputs.draft }}" \
+          --prerelease "${{ inputs.prerelease }}" \
+          --generate-notes "${{ inputs.generate-notes }}")
         
-        # Create release
-        RELEASE_RESPONSE=$(gh api \
-          --method POST \
-          /repos/${{ inputs.repository }}/releases \
-          -f tag_name="$TAG_NAME" \
-          -f name="Release $TAG_NAME" \
-          -f draft=${{ inputs.draft }} \
-          -f prerelease=${{ inputs.prerelease }} \
-          -f generate_release_notes=${{ inputs.generate-notes }})
-        
-        RELEASE_ID=$(echo "$RELEASE_RESPONSE" | jq -r '.id')
-        RELEASE_URL=$(echo "$RELEASE_RESPONSE" | jq -r '.html_url')
+        # Extract release ID and URL
+        RELEASE_ID=$(echo "$OUTPUT" | grep "^release_id=" | cut -d= -f2)
+        RELEASE_URL=$(echo "$OUTPUT" | grep "^release_url=" | cut -d= -f2)
         
         echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
         echo "release_url=$RELEASE_URL" >> $GITHUB_OUTPUT
-        
         echo "Created release: $RELEASE_URL"
-      env:
-        GH_TOKEN: ${{ inputs.github-token }}
 
+    # Publish to npm using our script
     - name: Publish to npm
+      id: publish
       shell: bash
       run: |
-        if [ "${{ inputs.package-name }}" = "all" ]; then
-          echo "Publishing all packages..."
-          pnpm -r publish --no-git-checks
-        else
-          echo "Publishing package ${{ inputs.package-name }}..."
-          cd "packages/${{ inputs.package-name }}"
-          pnpm publish --no-git-checks
-        fi
+        OUTPUT=$(bash .github/scripts/version/publish-packages.sh \
+          --package-path "${{ inputs.package-name }}" \
+          --no-git-checks "true")
+        
+        echo "Packages published successfully"
       env:
         NODE_AUTH_TOKEN: ${{ inputs.github-token }} 

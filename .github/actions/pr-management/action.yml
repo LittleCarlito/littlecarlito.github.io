@@ -72,17 +72,14 @@ runs:
           exit 1
         fi
 
-    # Create or find PR
+    # Create or find PR using our script
     - name: Create or find PR
       id: manage-pr
       if: inputs.head-branch != ''
       shell: bash
       run: |
-        # First make sure the script is executable
-        chmod +x .github/scripts/pr/create-or-update.sh
-        
-        # Run the PR creation/finding script with properly quoted arguments
-        OUTPUT=$(.github/scripts/pr/create-or-update.sh \
+        # Run the PR creation/finding script
+        OUTPUT=$(bash .github/scripts/pr/create-or-update.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --base-branch "${{ inputs.base-branch }}" \
@@ -109,9 +106,21 @@ runs:
       if: inputs.pr-number != ''
       shell: bash
       run: |
+        # Use find-pr.sh to get PR details
+        OUTPUT=$(bash .github/scripts/pr/find-pr.sh \
+          --token "${{ inputs.github-token }}" \
+          --repo "${{ inputs.repository }}" \
+          --pr-number "${{ inputs.pr-number }}")
+        
         PR_NUMBER="${{ inputs.pr-number }}"
         PR_URL="https://github.com/${{ inputs.repository }}/pull/$PR_NUMBER"
-        PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
+        
+        # Parse the state from the output
+        PR_STATE=$(echo "$OUTPUT" | grep "^pr_state=" | cut -d= -f2)
+        if [ -z "$PR_STATE" ]; then
+          # Fallback if not found in output
+          PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
+        fi
         
         echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
         echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
@@ -119,14 +128,11 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.github-token }}
         
-    # Get PR SHA
+    # Get PR SHA using our script
     - name: Get PR SHA
       id: get-sha
       shell: bash
       run: |
-        # First make sure the script is executable
-        chmod +x .github/scripts/branch/get-sha.sh
-        
         # Determine which PR number to use
         if [ -n "${{ steps.manage-pr.outputs.pr_number }}" ]; then
           PR_NUMBER="${{ steps.manage-pr.outputs.pr_number }}"
@@ -134,16 +140,13 @@ runs:
           PR_NUMBER="${{ steps.use-pr.outputs.pr_number }}"
         fi
         
-        # Execute the get-sha script and capture only the SHA output
-        SHA=$(.github/scripts/branch/get-sha.sh \
+        # Get SHA using our script
+        SHA=$(bash .github/scripts/branch/get-sha.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --pr-number "$PR_NUMBER")
         
-        # Debug output for logging
         echo "Retrieved SHA: $SHA"
-        
-        # Set the output
         echo "sha=$SHA" >> $GITHUB_OUTPUT
 
     # Auto-merge if requested
@@ -151,9 +154,6 @@ runs:
       if: inputs.auto-merge == 'true'
       shell: bash
       run: |
-        # Make sure scripts are executable
-        chmod +x .github/scripts/pr/merge.sh .github/scripts/branch/delete.sh
-        
         # Determine which PR number to use
         if [ -n "${{ steps.manage-pr.outputs.pr_number }}" ]; then
           PR_NUMBER="${{ steps.manage-pr.outputs.pr_number }}"
@@ -165,18 +165,20 @@ runs:
         git config --global user.name "GitHub Actions"
         git config --global user.email "actions@github.com"
         
-        # Use the existing merge.sh script
-        .github/scripts/pr/merge.sh \
+        # Use our merge script
+        bash .github/scripts/pr/merge.sh \
+          --token "${{ inputs.github-token }}" \
+          --repo "${{ inputs.repository }}" \
           --pr "$PR_NUMBER" \
           --method "${{ inputs.merge-method }}"
           
         # Delete branch if requested
         if [ "${{ inputs.delete-branch }}" = "true" ]; then
-          # Get branch name from PR
+          # Get branch name from PR using find-pr.sh output or gh cli
           BRANCH=$(gh pr view $PR_NUMBER --json headRefName --jq .headRefName)
           
-          # Delete branch
-          .github/scripts/branch/delete.sh \
+          # Delete the branch using our script
+          bash .github/scripts/branch/delete.sh \
             --token "${{ inputs.github-token }}" \
             --repo "${{ inputs.repository }}" \
             --branch "$BRANCH"
