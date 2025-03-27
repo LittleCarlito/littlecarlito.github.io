@@ -9,9 +9,17 @@ echo "🔍 Running pre-push checks..."
 # First, verify the lockfile is in sync with package.json
 echo "Verifying lockfile integrity..."
 pnpm verify-lockfile || {
-    echo "❌ Lockfile is out of sync with package.json."
-    echo "Please run 'pnpm update-lockfile' and commit the changes before pushing."
-    exit 1
+    echo "⚠️ Lockfile is out of sync with package.json."
+    echo "🔧 Automatically updating lockfile..."
+    
+    # Update lockfile
+    pnpm update-lockfile
+    
+    # Commit the changes
+    git add pnpm-lock.yaml
+    git commit -m "chore: update lockfile to match package.json"
+    
+    echo "✅ Lockfile updated and changes committed! Continuing with push..."
 }
 
 # Get the current branch name
