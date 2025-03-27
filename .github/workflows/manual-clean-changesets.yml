@@ -82,7 +82,7 @@ jobs:
       # Add status checks to PR with workflow-aware check handling
       - name: Add status checks
         run: |
-          .github/scripts/branch/force-status.sh \
+          bash .github/scripts/branch/force-status.sh \
             --token "${{ secrets.GITHUB_TOKEN }}" \
             --repo "${{ github.repository }}" \
             --sha "${{ steps.create_pr.outputs.commit-sha }}" \
@@ -92,7 +92,7 @@ jobs:
       # Wait for checks to complete before merging
       - name: Wait for checks to complete
         run: |
-          .github/scripts/branch/wait-checks.sh \
+          bash .github/scripts/branch/wait-checks.sh \
             --repo "${{ github.repository }}" \
             --sha "${{ steps.create_pr.outputs.commit-sha }}" \
             --workflow "Manual Clean Changesets" \

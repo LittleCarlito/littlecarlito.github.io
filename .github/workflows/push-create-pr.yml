@@ -133,7 +133,10 @@ jobs:
         shell: bash
         run: |
           # Use shared script to get PR SHA
-          SHA=$(bash .github/scripts/branch/get-sha.sh --pr-number "${{ steps.manage_pr.outputs.pr-number }}")
+          SHA=$(bash .github/scripts/branch/get-sha.sh \
+            --token "${{ secrets.PR_CREATION_TOKEN }}" \
+            --repo "${{ github.repository }}" \
+            --pr-number "${{ steps.manage_pr.outputs.pr-number }}")
           echo "sha=$SHA" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }}
