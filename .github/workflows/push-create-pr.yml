@@ -127,16 +127,31 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }}
 
+      # Get PR SHA
+      - name: Get PR SHA
+        id: get-sha
+        shell: bash
+        run: |
+          # Use shared script to get PR SHA
+          SHA=$(bash .github/scripts/branch/get-sha.sh --pr-number "${{ steps.manage_pr.outputs.pr-number }}")
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }}
+
       - name: Wait for required checks
-        uses: ./.github/actions/status-checks
-        with:
-          github-token: ${{ secrets.PR_CREATION_TOKEN }}
-          repository: ${{ github.repository }}
-          pr-number: ${{ steps.manage_pr.outputs.pr-number }}
-          min-checks: 3
-          wait-for-checks: true
-          timeout: 600
-          workflow-name: ${{ steps.check_names.outputs.check_name || steps.workflow_details.outputs.check_name }}
+        shell: bash
+        run: |
+          WORKFLOW_NAME="${{ steps.check_names.outputs.check_name || steps.workflow_details.outputs.check_name }}"
+          echo "Waiting for checks to complete with workflow name: $WORKFLOW_NAME"
+          
+          bash .github/scripts/branch/wait-checks.sh \
+            --repo "${{ github.repository }}" \
+            --sha "${{ steps.get-sha.outputs.sha }}" \
+            --workflow "$WORKFLOW_NAME" \
+            --timeout "600" \
+            --min-checks "3"
+        env:
+          GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }}
 
       - name: Additional Check Verification
         id: verify_checks

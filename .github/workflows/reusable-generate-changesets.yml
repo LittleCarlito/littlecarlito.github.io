@@ -108,26 +108,44 @@ jobs:
           create-release: 'false'
           auto-changeset-prefix: 'auto-'
       
+      # Get PR SHA 
+      - name: Get PR SHA
+        id: get-sha
+        if: steps.changeset_mgmt.outputs.has-auto-changesets == 'true' && steps.changeset_mgmt.outputs.pr-number != ''
+        shell: bash
+        run: |
+          # Use shared script to get PR SHA
+          SHA=$(bash .github/scripts/branch/get-sha.sh --pr-number "${{ steps.changeset_mgmt.outputs.pr-number }}")
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
       - name: Add status checks
         if: steps.changeset_mgmt.outputs.has-auto-changesets == 'true' && steps.changeset_mgmt.outputs.pr-number != ''
-        uses: ./.github/actions/force-status-checks
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          pr-number: ${{ steps.changeset_mgmt.outputs.pr-number }}
-          contexts: '["Build Packages", "Test / Run Tests", "Test Changesets"]'
+        shell: bash
+        run: |
+          bash .github/scripts/branch/force-status.sh \
+            --token "${{ secrets.GITHUB_TOKEN }}" \
+            --repo "${{ github.repository }}" \
+            --sha "${{ steps.get-sha.outputs.sha }}" \
+            --contexts '["Build Packages", "Test / Run Tests", "Test Changesets"]'
       
       # Wait for checks to complete before merging
       - name: Wait for checks to complete
         if: steps.changeset_mgmt.outputs.has-auto-changesets == 'true' && steps.changeset_mgmt.outputs.pr-number != ''
-        uses: ./.github/actions/status-checks
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          pr-number: ${{ steps.changeset_mgmt.outputs.pr-number }}
-          wait-for-checks: 'true'
-          workflow-name: 'Reusable Generate Changesets'
-          min-checks: '3'
+        shell: bash
+        run: |
+          WORKFLOW_NAME="Reusable Generate Changesets"
+          echo "Waiting for checks to complete with workflow name: $WORKFLOW_NAME"
+          
+          bash .github/scripts/branch/wait-checks.sh \
+            --repo "${{ github.repository }}" \
+            --sha "${{ steps.get-sha.outputs.sha }}" \
+            --workflow "$WORKFLOW_NAME" \
+            --timeout "300" \
+            --min-checks "3"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Merge PR
         if: steps.changeset_mgmt.outputs.pr-number != ''
