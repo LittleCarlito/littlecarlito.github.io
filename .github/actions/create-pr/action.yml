@@ -1,0 +1,216 @@
+name: 'Create PR'
+description: 'Creates a PR from a branch, waits for status checks, and optionally prepares it for merge'
+
+inputs:
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  repository:
+    description: 'Repository name (owner/repo)'
+    required: true
+  base-branch:
+    description: 'Base branch for PR'
+    required: false
+    default: 'main'
+  head-branch:
+    description: 'Head branch for PR'
+    required: true
+  title:
+    description: 'PR title'
+    required: false
+    default: ''
+  body:
+    description: 'PR body'
+    required: false
+    default: ''
+  commit-message:
+    description: 'Original commit message for context'
+    required: false
+    default: ''
+  min-checks:
+    description: 'Minimum number of checks required to pass'
+    required: false
+    default: '3'
+  wait-for-checks:
+    description: 'Whether to wait for checks to complete'
+    required: false
+    default: 'true'
+  timeout:
+    description: 'Timeout in seconds for waiting for checks'
+    required: false
+    default: '600'
+
+outputs:
+  pr-number:
+    description: 'Number of the created/found PR'
+    value: ${{ steps.manage_pr.outputs.pr-number }}
+  merge-title:
+    description: 'Title to use for merge commit'
+    value: ${{ steps.merge_message.outputs.merge_title }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Extract branch name
+      shell: bash
+      run: echo "BRANCH_NAME=${{ inputs.head-branch }}" >> "$GITHUB_ENV"
+    
+    - name: Extract commit details
+      id: commit_details
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.commit-message }}" ]; then
+          COMMIT_MSG="${{ inputs.commit-message }}"
+        else
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+        fi
+        
+        # Extract PR title from commit message (first line)
+        PR_TITLE=$(echo "$COMMIT_MSG" | head -n 1)
+        
+        # Extract semantic type (feat, fix, etc.)
+        SEMANTIC_TYPE=$(echo "$PR_TITLE" | grep -oP '^(\w+)(?:\(.*\))?:' | sed 's/://g' || echo "")
+        
+        # Output these values for use in next steps
+        echo "commit_message<<EOF" >> $GITHUB_OUTPUT
+        echo "$COMMIT_MSG" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        echo "pr_title=$PR_TITLE" >> $GITHUB_OUTPUT
+        echo "semantic_type=$SEMANTIC_TYPE" >> $GITHUB_OUTPUT
+
+    - name: Create or Find PR
+      id: manage_pr
+      uses: ./.github/actions/pr-management
+      with:
+        github-token: ${{ inputs.github-token }}
+        repository: ${{ inputs.repository }}
+        base-branch: ${{ inputs.base-branch }}
+        head-branch: ${{ inputs.head-branch }}
+        title: ${{ inputs.title != '' && inputs.title || steps.commit_details.outputs.pr_title }}
+        body: |
+          ${{ inputs.body != '' && inputs.body || format('This PR was automatically created from branch `{0}`.
+
+          Original commit message:
+          ```
+          {1}
+          ```
+
+          ## Changes
+
+          <!-- List of changes in this PR -->
+
+          ## Checks
+
+          - [ ] Passes all required checks', inputs.head-branch, steps.commit_details.outputs.commit_message) }}
+        auto-merge: false
+        delete-branch: false
+    
+    - name: Extract workflow details
+      id: workflow_details
+      shell: bash
+      run: |
+        # Default job name
+        JOB_NAME="Create PR"
+        
+        # Store the check name directly in an env var for immediate use
+        echo "CHECK_NAME=$JOB_NAME" >> $GITHUB_ENV
+        echo "check_name=$JOB_NAME" >> $GITHUB_OUTPUT
+
+    - name: Check GitHub check names
+      id: check_names
+      shell: bash
+      run: |
+        # Get PR SHA
+        PR_SHA=$(gh pr view ${{ steps.manage_pr.outputs.pr-number }} --json headRefOid --jq .headRefOid)
+        
+        # Get the actual check names from GitHub for validation
+        echo "Getting actual check names for SHA: $PR_SHA"
+        CHECK_RUNS=$(gh api /repos/${{ inputs.repository }}/commits/$PR_SHA/check-runs)
+        
+        # Extract all check names for logging
+        echo "All check names:"
+        echo "$CHECK_RUNS" | jq -r '.check_runs[] | "\(.name), status: \(.status)"'
+        
+        # Try to find this workflow's check name
+        WORKFLOW_CHECKS=$(echo "$CHECK_RUNS" | jq -r '.check_runs[] | select(.name | contains("Create PR") or contains("Push Create PR")) | .name')
+        
+        if [ -n "$WORKFLOW_CHECKS" ]; then
+          # Use the first match (most likely match)
+          OUR_CHECK_NAME=$(echo "$WORKFLOW_CHECKS" | head -n 1)
+          echo "Found our workflow check: $OUR_CHECK_NAME"
+          echo "check_name=$OUR_CHECK_NAME" >> $GITHUB_OUTPUT
+          echo "CHECK_NAME=$OUR_CHECK_NAME" >> $GITHUB_ENV
+        else
+          echo "Couldn't find exact check name, using default: $CHECK_NAME"
+        fi
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+
+    - name: Wait for required checks
+      if: inputs.wait-for-checks == 'true'
+      uses: ./.github/actions/status-checks
+      with:
+        github-token: ${{ inputs.github-token }}
+        repository: ${{ inputs.repository }}
+        pr-number: ${{ steps.manage_pr.outputs.pr-number }}
+        min-checks: ${{ inputs.min-checks }}
+        wait-for-checks: true
+        timeout: ${{ inputs.timeout }}
+        workflow-name: ${{ env.CHECK_NAME }}
+
+    - name: Additional Check Verification
+      id: verify_checks
+      if: inputs.wait-for-checks == 'true'
+      shell: bash
+      run: |
+        # Get commit SHA for PR head
+        PR_HEAD_SHA=$(gh pr view ${{ steps.manage_pr.outputs.pr-number }} --json headRefOid --jq .headRefOid)
+        
+        # Use the dynamically determined workflow name for self-identification
+        OUR_WORKFLOW_NAME="${{ env.CHECK_NAME }}"
+        echo "Using workflow name for self-identification: $OUR_WORKFLOW_NAME"
+        
+        # Use the wait-checks script for more precise verification
+        bash .github/scripts/branch/wait-checks.sh \
+          --repo "${{ inputs.repository }}" \
+          --sha "$PR_HEAD_SHA" \
+          --workflow "$OUR_WORKFLOW_NAME" \
+          --timeout ${{ inputs.timeout }} \
+          --min-checks ${{ inputs.min-checks }}
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+
+    - name: Determine semantic merge message
+      id: merge_message
+      shell: bash
+      run: |
+        # Get the commit message
+        if [ -n "${{ inputs.commit-message }}" ]; then
+          COMMIT_MSG="${{ inputs.commit-message }}"
+        elif [ -n "${{ steps.commit_details.outputs.commit_message }}" ]; then
+          COMMIT_MSG="${{ steps.commit_details.outputs.commit_message }}"
+        else
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+        fi
+        
+        # Extract PR title from commit message (first line)
+        PR_TITLE=$(echo "$COMMIT_MSG" | head -n 1)
+        
+        # Extract semantic type (feat, fix, etc.)
+        SEMANTIC_TYPE=$(echo "$PR_TITLE" | grep -oP '^(\w+)(?:\(.*\))?:' | sed 's/://g' || echo "")
+        
+        # Check if SEMANTIC_TYPE is set and not empty
+        if [ -n "$SEMANTIC_TYPE" ]; then
+          echo "Using existing semantic type: $SEMANTIC_TYPE"
+          MERGE_MSG="$COMMIT_MSG"
+        else
+          # Default to fix: if no semantic type is detected
+          echo "No semantic type detected, defaulting to fix:"
+          MERGE_MSG="fix: $PR_TITLE"
+        fi
+        
+        # Set first line as title
+        MERGE_TITLE=$(echo "$MERGE_MSG" | head -n 1)
+        
+        # Output for next steps
+        echo "merge_title=$MERGE_TITLE" >> $GITHUB_OUTPUT 

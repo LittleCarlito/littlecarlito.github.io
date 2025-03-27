@@ -1,0 +1,55 @@
+name: 'Merge PR'
+description: 'Merges a pull request with specified options and error handling'
+
+inputs:
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  repository:
+    description: 'Repository name (owner/repo)'
+    required: false
+    default: ${{ github.repository }}
+  pr-number:
+    description: 'PR number to merge'
+    required: true
+  commit-title:
+    description: 'Title for the merge commit'
+    required: true
+  merge-method:
+    description: 'Merge method to use (merge, squash, rebase)'
+    required: false
+    default: 'squash'
+  delete-branch:
+    description: 'Whether to delete the branch after merging'
+    required: false
+    default: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Merge PR
+      shell: bash
+      run: |
+        echo "Merging PR #${{ inputs.pr-number }} with title '${{ inputs.commit-title }}'"
+        
+        # Attempt regular merge
+        if gh pr merge ${{ inputs.pr-number }} \
+          --${{ inputs.merge-method }} \
+          --title "${{ inputs.commit-title }}" \
+          ${{ inputs.delete-branch && '--delete-branch' || '' }}; then
+          echo "✅ Successfully merged PR #${{ inputs.pr-number }}"
+        else
+          echo "Standard merge failed, attempting merge with admin flag..."
+          if gh pr merge ${{ inputs.pr-number }} \
+            --${{ inputs.merge-method }} \
+            --title "${{ inputs.commit-title }}" \
+            ${{ inputs.delete-branch && '--delete-branch' || '' }} \
+            --admin; then
+            echo "✅ Successfully merged PR #${{ inputs.pr-number }} with admin flag"
+          else
+            echo "❌ Failed to merge PR #${{ inputs.pr-number }}"
+            exit 1
+          fi
+        fi
+      env:
+        GH_TOKEN: ${{ inputs.github-token }} 

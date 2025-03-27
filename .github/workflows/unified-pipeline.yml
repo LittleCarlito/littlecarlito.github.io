@@ -86,10 +86,34 @@ jobs:
     # Only run this on main branch pushes, not on tags
     if: github.ref == 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/')
     needs: test
-    uses: ./.github/workflows/reusable-generate-changesets.yml
-    with:
-      force_base_commit: ${{ github.event.inputs.regenerate_from }}
-    secrets: inherit
+    runs-on: ubuntu-latest
+    outputs:
+      changeset_created: ${{ steps.generate_changesets.outputs.changeset-created }}
+      base_commit: ${{ steps.generate_changesets.outputs.base-commit }}
+      pr_number: ${{ steps.generate_changesets.outputs.pr-number }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PR_CREATION_TOKEN }}
+      
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          node-version: 'lts/*'
+          pnpm-version: '8.15.4'
+      
+      - name: Generate Changesets
+        id: generate_changesets
+        uses: ./.github/actions/generate-changesets
+        with:
+          github-token: ${{ secrets.PR_CREATION_TOKEN }}
+          repository: ${{ github.repository }}
+          force-base-commit: ${{ github.event.inputs.regenerate_from }}
+          min-checks: '3'
+          timeout: '600'
 
   version-and-publish:
     name: Version and Publish to GitHub npm

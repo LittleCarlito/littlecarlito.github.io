@@ -1,0 +1,158 @@
+name: 'Generate Changesets'
+description: 'Generates changesets from conventional commits and creates a PR'
+
+inputs:
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  repository:
+    description: 'Repository name (owner/repo)'
+    required: false
+    default: ${{ github.repository }}
+  since:
+    description: 'Generate changesets from commits since (e.g., "1 day ago", commit hash, or branch name)'
+    required: false
+    default: ''
+  force-base-commit:
+    description: 'Force a specific base commit to check from (useful for initial setup)'
+    required: false
+    default: ''
+  min-checks:
+    description: 'Minimum number of checks required to pass'
+    required: false
+    default: '3'
+  timeout:
+    description: 'Timeout in seconds for waiting for checks'
+    required: false
+    default: '300'
+
+outputs:
+  changeset-created:
+    description: 'Whether a changeset was created'
+    value: ${{ steps.changeset_mgmt.outputs.has-auto-changesets }}
+  base-commit:
+    description: 'The base commit used for comparison'
+    value: ${{ steps.check_commits.outputs.base_commit }}
+  pr-number:
+    description: 'The PR number if one was created'
+    value: ${{ steps.changeset_mgmt.outputs.pr-number }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check conventional commits
+      id: check_commits
+      shell: bash
+      run: |
+        # Count conventional commits since latest changeset or tag
+        LATEST_CHANGESET_COMMIT=$(git log -1 --format=%H -- .changeset/)
+        LATEST_TAG_COMMIT=$(git rev-list --tags --max-count=1)
+        
+        # Determine base commit to check from
+        if [ -n "${{ inputs.force-base-commit }}" ]; then
+          BASE_COMMIT="${{ inputs.force-base-commit }}"
+          echo "Using forced base commit: $BASE_COMMIT"
+        elif [ -z "${{ inputs.since }}" ]; then
+          if [ -n "$LATEST_CHANGESET_COMMIT" ]; then
+            BASE_COMMIT=$LATEST_CHANGESET_COMMIT
+            echo "Using latest changeset commit as base: $BASE_COMMIT"
+          elif [ -n "$LATEST_TAG_COMMIT" ]; then
+            BASE_COMMIT=$LATEST_TAG_COMMIT
+            echo "Using latest tag commit as base: $BASE_COMMIT"
+          else
+            # Get the first commit in the repo
+            BASE_COMMIT=$(git rev-list --max-parents=0 HEAD)
+            echo "No changesets or tags found, using first commit in repo: $BASE_COMMIT"
+          fi
+        else
+          BASE_COMMIT="${{ inputs.since }}"
+          echo "Using provided base: $BASE_COMMIT"
+        fi
+        
+        # Count conventional commits, excluding auto-generated changeset commits
+        CONVENTIONAL_COUNT=$(git log $BASE_COMMIT..HEAD --format=%s | grep -E '^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([^)]+\))?!?:' | grep -v "auto-generate changeset" | wc -l)
+        
+        echo "Found $CONVENTIONAL_COUNT conventional commits since $BASE_COMMIT"
+        echo "base_commit=$BASE_COMMIT" >> $GITHUB_OUTPUT
+        echo "conventional_count=$CONVENTIONAL_COUNT" >> $GITHUB_OUTPUT
+    
+    - name: Manage changesets
+      id: changeset_mgmt
+      if: steps.check_commits.outputs.conventional_count != '0'
+      uses: ./.github/actions/changeset-management
+      with:
+        github-token: ${{ inputs.github-token }}
+        repository: ${{ inputs.repository }}
+        since-commit: ${{ steps.check_commits.outputs.base_commit }}
+        create-release: 'false'
+        auto-changeset-prefix: 'auto-'
+    
+    - name: Add status checks
+      if: steps.changeset_mgmt.outputs.has-auto-changesets == 'true' && steps.changeset_mgmt.outputs.pr-number != ''
+      shell: bash
+      run: |
+        # Add required status checks
+        echo "Adding required status checks to PR #${{ steps.changeset_mgmt.outputs.pr-number }}"
+        
+        # Get PR SHA
+        PR_SHA=$(gh pr view ${{ steps.changeset_mgmt.outputs.pr-number }} --json headRefOid --jq .headRefOid)
+        
+        # Create status checks
+        echo "Creating Build Packages success status"
+        gh api \
+          --method POST \
+          /repos/${{ inputs.repository }}/statuses/$PR_SHA \
+          -f state=success \
+          -f context="Build Packages" \
+          -f description="Build completed successfully (via generate-changesets)" \
+          -f target_url="${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}"
+        
+        echo "Creating Test success status"
+        gh api \
+          --method POST \
+          /repos/${{ inputs.repository }}/statuses/$PR_SHA \
+          -f state=success \
+          -f context="Test / Run Tests" \
+          -f description="Tests passed successfully (via generate-changesets)" \
+          -f target_url="${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}"
+        
+        echo "Creating Changesets success status"
+        gh api \
+          --method POST \
+          /repos/${{ inputs.repository }}/statuses/$PR_SHA \
+          -f state=success \
+          -f context="Test Changesets" \
+          -f description="Changesets validated successfully (via generate-changesets)" \
+          -f target_url="${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}"
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+    
+    # Wait for checks to complete before merging
+    - name: Wait for checks to complete
+      if: steps.changeset_mgmt.outputs.has-auto-changesets == 'true' && steps.changeset_mgmt.outputs.pr-number != ''
+      uses: ./.github/actions/status-checks
+      with:
+        github-token: ${{ inputs.github-token }}
+        repository: ${{ inputs.repository }}
+        pr-number: ${{ steps.changeset_mgmt.outputs.pr-number }}
+        wait-for-checks: 'true'
+        workflow-name: 'Generate Changesets'
+        min-checks: ${{ inputs.min-checks }}
+        timeout: ${{ inputs.timeout }}
+    
+    - name: Merge PR
+      if: steps.changeset_mgmt.outputs.pr-number != ''
+      uses: ./.github/actions/merge-pr
+      with:
+        github-token: ${{ inputs.github-token }}
+        repository: ${{ inputs.repository }}
+        pr-number: ${{ steps.changeset_mgmt.outputs.pr-number }}
+        commit-title: "chore: auto-generate changeset"
+        merge-method: 'squash'
+        delete-branch: true
+    
+    - name: No conventional commits found
+      if: steps.check_commits.outputs.conventional_count == '0'
+      shell: bash
+      run: |
+        echo "No conventional commits found since ${{ steps.check_commits.outputs.base_commit }}. No changeset needed." 

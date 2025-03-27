@@ -266,7 +266,7 @@ jobs:
       - name: Auto-merge version PR if exists
         id: auto-merge
         if: steps.find-pr.outputs.has_pr == 'true'
-        uses: ./.github/actions/force-merge-pr
+        uses: ./.github/actions/merge-pr
         with:
           github-token: ${{ secrets.PACKAGE_TOKEN }}
           repository: ${{ github.repository }}
