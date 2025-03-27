@@ -37,20 +37,22 @@ wait_for_checks() {
             continue
         fi
         
-        # Count checks from current workflow
-        OUR_CHECKS=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '[.check_runs[] | select(.name == $name)] | length')
-        OUR_CHECKS_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '[.check_runs[] | select(.status != "completed" and .name == $name)] | length')
-        
-        # Calculate non-workflow checks
-        NON_WORKFLOW_TOTAL=$((TOTAL_CHECKS - OUR_CHECKS))
-        NON_WORKFLOW_COMPLETED=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '[.check_runs[] | select(.status == "completed" and .name != $name)] | length')
-        
-        # Count successful and failed checks
+        # Count completed and successful checks
+        COMPLETED_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status == "completed")] | length')
         SUCCESSFUL_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status == "completed" and .conclusion == "success")] | length')
         FAILED_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status == "completed" and .conclusion != "success" and .conclusion != "neutral" and .conclusion != "skipped")] | length')
         
-        echo "Checks: $NON_WORKFLOW_COMPLETED/$NON_WORKFLOW_TOTAL completed (excluding current workflow)"
-        echo "Current workflow checks: $OUR_CHECKS total, $OUR_CHECKS_IN_PROGRESS in progress"
+        # Count checks from current workflow - EXACT NAME MATCHING
+        WORKFLOW_CHECKS=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '[.check_runs[] | select(.name == $name)] | length')
+        WORKFLOW_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '[.check_runs[] | select(.status != "completed" and .name == $name)] | length')
+        
+        # Calculate non-workflow checks
+        NON_WORKFLOW_TOTAL=$((TOTAL_CHECKS - WORKFLOW_CHECKS))
+        NON_WORKFLOW_COMPLETED=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '[.check_runs[] | select(.status == "completed" and .name != $name)] | length')
+        
+        echo "Checks: $COMPLETED_CHECKS/$TOTAL_CHECKS completed overall"
+        echo "Non-workflow checks: $NON_WORKFLOW_COMPLETED/$NON_WORKFLOW_TOTAL completed"
+        echo "Current workflow checks: $WORKFLOW_CHECKS total, $WORKFLOW_IN_PROGRESS in progress"
         echo "All checks: $SUCCESSFUL_CHECKS successful, $FAILED_CHECKS failed"
         
         # Output all check names for better debugging
@@ -71,9 +73,12 @@ wait_for_checks() {
             continue
         fi
         
-        # Proceed if all non-workflow checks are complete
-        if [ "$NON_WORKFLOW_COMPLETED" = "$NON_WORKFLOW_TOTAL" ]; then
-            echo "All required checks completed successfully (excluding current workflow)!"
+        # CRITICAL FIX: Match the original lies.yaml logic
+        # Proceed ONLY if either:
+        # 1. ALL checks are complete, OR
+        # 2. All non-workflow checks are complete AND exactly one workflow check is still running
+        if [ "$COMPLETED_CHECKS" = "$TOTAL_CHECKS" ] || [ "$NON_WORKFLOW_COMPLETED" = "$NON_WORKFLOW_TOTAL" -a "$WORKFLOW_IN_PROGRESS" = "1" -a "$WORKFLOW_CHECKS" = "1" ]; then
+            echo "All required checks completed successfully (except possibly our own workflow)!"
             return 0
         fi
         
