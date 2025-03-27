@@ -9,9 +9,9 @@ get_sha_from_pr() {
     local repo=$2
     local pr_number=$3
     
-    echo "Getting SHA from PR #$pr_number"
+    echo "Getting SHA from PR #$pr_number" >&2
     PR_SHA=$(gh pr view $pr_number --json headRefOid --jq .headRefOid)
-    echo "Got SHA: $PR_SHA"
+    echo "Got SHA: $PR_SHA" >&2
     echo "$PR_SHA"
 }
 
@@ -47,14 +47,21 @@ force_status_checks() {
             CONTEXT="$context_prefix$CONTEXT"
         fi
         
-        echo "Creating forced success status check: $CONTEXT"
+        echo "Creating forced success status check: $CONTEXT" >&2
+        
+        # Use the GitHub server URL from environment if available, otherwise default to github.com
+        local github_server_url=${GITHUB_SERVER_URL:-"https://github.com"}
+        
+        # Use the GitHub run ID from environment if available, otherwise default to 0
+        local github_run_id=${GITHUB_RUN_ID:-"0"}
+        
         gh api \
             --method POST \
             /repos/$repo/statuses/$sha \
             -f state=success \
             -f context="$CONTEXT" \
             -f description="$DESCRIPTION (forced)" \
-            -f target_url="${GITHUB_SERVER_URL:-https://github.com}/$repo/actions/runs/${GITHUB_RUN_ID:-0}"
+            -f target_url="$github_server_url/$repo/actions/runs/$github_run_id"
     done
 }
 
@@ -100,8 +107,8 @@ main() {
                 shift 2
                 ;;
             *)
-                echo "Unknown option: $1"
-                echo "Usage: $0 --token <github-token> --repo <owner/repo> (--sha <commit-sha> | --pr-number <pr-number>) [--contexts <json-array>] [--descriptions <json-array>] [--context-prefix <prefix>]"
+                echo "Unknown option: $1" >&2
+                echo "Usage: $0 --token <github-token> --repo <owner/repo> (--sha <commit-sha> | --pr-number <pr-number>) [--contexts <json-array>] [--descriptions <json-array>] [--context-prefix <prefix>]" >&2
                 exit 1
                 ;;
         esac
@@ -109,18 +116,18 @@ main() {
     
     # Validate required arguments
     if [ -z "$token" ]; then
-        echo "Error: --token is required"
+        echo "Error: --token is required" >&2
         exit 1
     fi
     
     if [ -z "$repo" ]; then
-        echo "Error: --repo is required"
+        echo "Error: --repo is required" >&2
         exit 1
     fi
     
     # At least one of sha or pr-number must be provided
     if [ -z "$sha" ] && [ -z "$pr_number" ]; then
-        echo "Error: Either --sha or --pr-number must be provided"
+        echo "Error: Either --sha or --pr-number must be provided" >&2
         exit 1
     fi
     
@@ -130,6 +137,17 @@ main() {
     # If sha is not provided but pr-number is, get sha from PR
     if [ -z "$sha" ]; then
         sha=$(get_sha_from_pr "$token" "$repo" "$pr_number")
+    fi
+    
+    # Ensure the contexts and descriptions are valid JSON arrays
+    if ! echo "$contexts" | jq empty 2>/dev/null; then
+        echo "Error: Invalid JSON in contexts parameter" >&2
+        exit 1
+    fi
+    
+    if ! echo "$descriptions" | jq empty 2>/dev/null; then
+        echo "Error: Invalid JSON in descriptions parameter" >&2
+        exit 1
     fi
     
     force_status_checks "$token" "$repo" "$sha" "$contexts" "$descriptions" "$context_prefix"

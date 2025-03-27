@@ -44,13 +44,13 @@ inputs:
 outputs:
   pr-number:
     description: 'Number of the created/found PR'
-    value: ${{ steps.manage-pr.outputs.pr_number }}
+    value: ${{ steps.manage-pr.outputs.pr_number || steps.use-pr.outputs.pr_number }}
   pr-url:
     description: 'URL of the created/found PR'
-    value: ${{ steps.manage-pr.outputs.pr_url }}
+    value: ${{ steps.manage-pr.outputs.pr_url || steps.use-pr.outputs.pr_url }}
   pr-state:
     description: 'State of the PR (open, closed, merged)'
-    value: ${{ steps.manage-pr.outputs.pr_state }}
+    value: ${{ steps.manage-pr.outputs.pr_state || steps.use-pr.outputs.pr_state }}
   commit-sha:
     description: 'HEAD SHA of the PR'
     value: ${{ steps.get-sha.outputs.sha }}
@@ -78,8 +78,11 @@ runs:
       if: inputs.head-branch != ''
       shell: bash
       run: |
-        # Run the PR creation/finding script
-        RESULT=$(.github/scripts/pr/create-or-update.sh \
+        # First make sure the script is executable
+        chmod +x .github/scripts/pr/create-or-update.sh
+        
+        # Run the PR creation/finding script with properly quoted arguments
+        OUTPUT=$(.github/scripts/pr/create-or-update.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --base-branch "${{ inputs.base-branch }}" \
@@ -87,10 +90,14 @@ runs:
           --title "${{ inputs.title }}" \
           --body "${{ inputs.body }}")
         
+        # Debug output for logging
+        echo "Script output:"
+        echo "$OUTPUT"
+        
         # Parse and export the result
-        PR_NUMBER=$(echo "$RESULT" | grep "PR_NUMBER=" | cut -d= -f2)
-        PR_URL=$(echo "$RESULT" | grep "PR_URL=" | cut -d= -f2)
-        PR_STATE=$(echo "$RESULT" | grep "PR_STATE=" | cut -d= -f2)
+        PR_NUMBER=$(echo "$OUTPUT" | grep "^PR_NUMBER=" | cut -d= -f2)
+        PR_URL=$(echo "$OUTPUT" | grep "^PR_URL=" | cut -d= -f2)
+        PR_STATE=$(echo "$OUTPUT" | grep "^PR_STATE=" | cut -d= -f2)
         
         echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
         echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
@@ -104,8 +111,7 @@ runs:
       run: |
         PR_NUMBER="${{ inputs.pr-number }}"
         PR_URL="https://github.com/${{ inputs.repository }}/pull/$PR_NUMBER"
-        PR_DETAILS=$(gh pr view $PR_NUMBER --json state --jq '.state')
-        PR_STATE=$(echo "$PR_DETAILS" | jq -r '.state')
+        PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
         
         echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
         echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
@@ -118,6 +124,9 @@ runs:
       id: get-sha
       shell: bash
       run: |
+        # First make sure the script is executable
+        chmod +x .github/scripts/branch/get-sha.sh
+        
         # Determine which PR number to use
         if [ -n "${{ steps.manage-pr.outputs.pr_number }}" ]; then
           PR_NUMBER="${{ steps.manage-pr.outputs.pr_number }}"
@@ -125,12 +134,16 @@ runs:
           PR_NUMBER="${{ steps.use-pr.outputs.pr_number }}"
         fi
         
-        # Get the SHA using the script
+        # Execute the get-sha script and capture only the SHA output
         SHA=$(.github/scripts/branch/get-sha.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --pr-number "$PR_NUMBER")
-          
+        
+        # Debug output for logging
+        echo "Retrieved SHA: $SHA"
+        
+        # Set the output
         echo "sha=$SHA" >> $GITHUB_OUTPUT
 
     # Auto-merge if requested
@@ -138,6 +151,9 @@ runs:
       if: inputs.auto-merge == 'true'
       shell: bash
       run: |
+        # Make sure scripts are executable
+        chmod +x .github/scripts/pr/merge.sh .github/scripts/branch/delete.sh
+        
         # Determine which PR number to use
         if [ -n "${{ steps.manage-pr.outputs.pr_number }}" ]; then
           PR_NUMBER="${{ steps.manage-pr.outputs.pr_number }}"

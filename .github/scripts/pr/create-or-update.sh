@@ -27,11 +27,11 @@ find_or_create_pr() {
         PR_STATE=$(echo "$EXISTING_PR" | jq -r '.state')
     else
         echo "Creating new PR"
-        # Create PR
+        # Create PR - use the GitHub CLI which properly handles special characters
         PR_RESPONSE=$(gh pr create \
-          --repo $repo \
-          --base $base_branch \
-          --head $head_branch \
+          --repo "$repo" \
+          --base "$base_branch" \
+          --head "$head_branch" \
           --title "$title" \
           --body "$body")
         
@@ -40,7 +40,7 @@ find_or_create_pr() {
         PR_STATE="open"
     fi
     
-    # Output results
+    # Output results in a format suitable for parsing
     echo "PR_NUMBER=$PR_NUMBER"
     echo "PR_URL=$PR_URL"
     echo "PR_STATE=$PR_STATE"

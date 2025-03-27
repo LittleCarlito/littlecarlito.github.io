@@ -11,15 +11,15 @@ get_sha() {
     local pr_number=$4
     
     if [ -n "$sha" ]; then
-        echo "Using provided SHA: $sha"
+        # Only print the actual SHA with no additional text
         echo "$sha"
     elif [ -n "$pr_number" ]; then
-        echo "Getting SHA from PR #$pr_number"
+        # Get SHA using GitHub CLI
         PR_SHA=$(gh pr view $pr_number --json headRefOid --jq .headRefOid)
-        echo "Got SHA: $PR_SHA"
+        # Only print the actual SHA with no additional text
         echo "$PR_SHA"
     else
-        echo "Error: Either 'sha' or 'pr-number' must be provided"
+        echo "Error: Either 'sha' or 'pr-number' must be provided" >&2
         return 1
     fi
 }
@@ -51,8 +51,8 @@ main() {
                 shift 2
                 ;;
             *)
-                echo "Unknown option: $1"
-                echo "Usage: $0 --token <github-token> --repo <owner/repo> [--sha <commit-sha>] [--pr-number <pr-number>]"
+                echo "Unknown option: $1" >&2
+                echo "Usage: $0 --token <github-token> --repo <owner/repo> [--sha <commit-sha>] [--pr-number <pr-number>]" >&2
                 exit 1
                 ;;
         esac
@@ -60,24 +60,34 @@ main() {
     
     # Validate required arguments
     if [ -z "$token" ]; then
-        echo "Error: --token is required"
+        echo "Error: --token is required" >&2
         exit 1
     fi
     
     if [ -z "$repo" ]; then
-        echo "Error: --repo is required"
+        echo "Error: --repo is required" >&2
         exit 1
     fi
     
     # At least one of sha or pr-number must be provided
     if [ -z "$sha" ] && [ -z "$pr_number" ]; then
-        echo "Error: Either --sha or --pr-number must be provided"
+        echo "Error: Either --sha or --pr-number must be provided" >&2
         exit 1
     fi
     
     # Set GH_TOKEN for gh commands
     export GH_TOKEN="$token"
     
+    # Redirect informational messages to stderr
+    if [ -n "$sha" ]; then
+        echo "Using provided SHA: $sha" >&2
+    elif [ -n "$pr_number" ]; then
+        echo "Getting SHA from PR #$pr_number" >&2
+        PR_SHA=$(gh pr view $pr_number --json headRefOid --jq .headRefOid)
+        echo "Got SHA: $PR_SHA" >&2
+    fi
+    
+    # Call the function which will output only the SHA to stdout
     get_sha "$token" "$repo" "$sha" "$pr_number"
 }
 
