@@ -22,13 +22,13 @@ jobs:
           token: ${{ secrets.PACKAGE_TOKEN }}
       
       - name: Setup environment
-        uses: ./.github/actions/setup-environment
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          node-version: '20.x'
-          pnpm-version: '8.15.4'
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@littlecarlito'
+        run: |
+          bash .github/scripts/maintenance/setup-environment.sh \
+            --github-token "${{ secrets.GITHUB_TOKEN }}" \
+            --node-version "20.x" \
+            --pnpm-version "8.15.4" \
+            --registry-url "https://npm.pkg.github.com" \
+            --scope "@littlecarlito"
 
       # Create a clean branch with all changesets removed
       - name: Create clean branch

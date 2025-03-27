@@ -24,10 +24,10 @@ jobs:
           token: ${{ secrets.PR_CREATION_TOKEN }}
 
       - name: Setup Environment
-        uses: ./.github/actions/setup-environment
-        with:
-          github-token: ${{ secrets.PR_CREATION_TOKEN }}
-          fetch-depth: 0
+        run: |
+          bash .github/scripts/maintenance/setup-environment.sh \
+            --github-token "${{ secrets.PR_CREATION_TOKEN }}" \
+            --fetch-depth 0
 
       - name: Extract branch name
         shell: bash
