@@ -81,25 +81,25 @@ jobs:
       
       # Add status checks to PR with workflow-aware check handling
       - name: Add status checks
-        uses: ./.github/actions/force-status-checks
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          sha: ${{ steps.create_pr.outputs.commit-sha }}
-          contexts: '["Build Packages", "Test / Run Tests", "Test Changesets"]'
-          descriptions: '["Build completed successfully (via manual-clean-changesets)", "Tests passed successfully (via manual-clean-changesets)", "Changesets validated successfully (via manual-clean-changesets)"]'
+        run: |
+          .github/scripts/branch/force-status.sh \
+            --token "${{ secrets.GITHUB_TOKEN }}" \
+            --repo "${{ github.repository }}" \
+            --sha "${{ steps.create_pr.outputs.commit-sha }}" \
+            --contexts '["Build Packages", "Test / Run Tests", "Test Changesets"]' \
+            --descriptions '["Build completed successfully (via manual-clean-changesets)", "Tests passed successfully (via manual-clean-changesets)", "Changesets validated successfully (via manual-clean-changesets)"]'
       
       # Wait for checks to complete before merging
       - name: Wait for checks to complete
-        uses: ./.github/actions/status-checks
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          sha: ${{ steps.create_pr.outputs.commit-sha }}
-          wait-for-checks: 'true'
-          timeout: '300'
-          workflow-name: 'Manual Clean Changesets'
-          min-checks: '3'
+        run: |
+          .github/scripts/branch/wait-checks.sh \
+            --repo "${{ github.repository }}" \
+            --sha "${{ steps.create_pr.outputs.commit-sha }}" \
+            --workflow "Manual Clean Changesets" \
+            --timeout "300" \
+            --min-checks "3"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       # Merge the PR
       - name: Merge pull request
@@ -109,4 +109,5 @@ jobs:
           repository: ${{ github.repository }}
           pr-number: ${{ steps.create_pr.outputs.pr-number }}
           merge-method: 'merge'
-          delete-branch: 'false' 
+          delete-branch: 'false'
+          auto-merge: 'true' 
