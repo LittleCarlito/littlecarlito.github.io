@@ -51,13 +51,12 @@ runs:
         TOKEN="${{ inputs.github-token }}"
         NODE_VERSION="${{ inputs.node-version }}"
         PNPM_VERSION="${{ inputs.pnpm-version }}"
-        OUTPUT=$(bash .github/scripts/maintenance/setup-environment.sh \
+        
+        # Run script and filter only properly formatted output lines for GITHUB_OUTPUT
+        bash .github/scripts/maintenance/setup-environment.sh \
           --github-token "$TOKEN" \
           --node-version "$NODE_VERSION" \
-          --pnpm-version "$PNPM_VERSION")
-          
-        # Parse the output and set it to GITHUB_OUTPUT
-        echo "$OUTPUT" >> $GITHUB_OUTPUT
+          --pnpm-version "$PNPM_VERSION" 2>&1 | grep -E "^[a-zA-Z0-9_-]+=.+" >> $GITHUB_OUTPUT || true
 
     # Build step using our script
     - name: Build packages

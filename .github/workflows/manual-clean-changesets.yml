@@ -23,12 +23,13 @@ jobs:
       
       - name: Setup environment
         run: |
+          # Run the setup script and filter only properly formatted output lines 
           bash .github/scripts/maintenance/setup-environment.sh \
             --github-token "${{ secrets.GITHUB_TOKEN }}" \
             --node-version "20.x" \
             --pnpm-version "8.15.4" \
             --registry-url "https://npm.pkg.github.com" \
-            --scope "@littlecarlito"
+            --scope "@littlecarlito" 2>&1 | grep -E "^[a-zA-Z0-9_-]+=.+" || true
 
       # Create a clean branch with all changesets removed
       - name: Create clean branch
