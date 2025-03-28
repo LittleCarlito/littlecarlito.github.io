@@ -53,6 +53,8 @@ runs:
       with:
         name: ${{ inputs.artifact-name }}
         path: ${{ inputs.artifact-path }}
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
     
     # Create fallback if artifacts weren't downloaded
     - name: Handle missing artifacts

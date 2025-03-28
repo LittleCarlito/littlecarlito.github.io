@@ -93,7 +93,7 @@ runs:
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ inputs.artifact-name }}
+        name: ${{ inputs.artifact-name }}-${{ github.job }}
         path: ${{ inputs.artifact-path }}
 
     # Test step using our script
