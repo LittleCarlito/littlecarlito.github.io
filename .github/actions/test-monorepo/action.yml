@@ -49,10 +49,31 @@ runs:
 
     # Download build artifacts using GitHub's native action
     - name: Download build artifacts
+      id: download-artifacts
+      continue-on-error: true
       uses: actions/download-artifact@v4
       with:
         name: ${{ inputs.artifact-name }}
         path: ${{ inputs.artifact-path }}
+    
+    # Create fallback if artifacts weren't downloaded
+    - name: Handle missing artifacts
+      if: steps.download-artifacts.outcome != 'success'
+      shell: bash
+      run: |
+        echo "Warning: Artifacts were not found or couldn't be downloaded."
+        echo "This is expected if you're skipping the build step or running tests directly."
+        echo "Creating directories to ensure tests can run..."
+        
+        # Create the packages directory structure if it doesn't exist
+        mkdir -p ${{ inputs.artifact-path }}
+        
+        # List what's in the directory
+        echo "Current directory structure:"
+        ls -la
+        
+        # Note that tests will run with whatever is in the workspace
+        echo "Tests will run with the current workspace files."
         
     # Run tests using our script
     - name: Run tests
