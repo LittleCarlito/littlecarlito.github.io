@@ -80,11 +80,14 @@ runs:
       id: run-tests
       shell: bash
       run: |
-        OUTPUT=$(bash .github/scripts/maintenance/run-tests.sh \
-          --test-command "${{ inputs.test-command }}")
+        # Run the test script directly without capturing output - this ensures exit codes are propagated
+        bash .github/scripts/maintenance/run-tests.sh --test-command "${{ inputs.test-command }}" >> $GITHUB_OUTPUT
         
-        # Parse the output and set it to GITHUB_OUTPUT
-        echo "$OUTPUT" >> $GITHUB_OUTPUT
+        # Check the test result output for failure and fail explicitly
+        if grep -q "result=failure" $GITHUB_OUTPUT; then
+          echo "Tests failed! Failing the workflow."
+          exit 1
+        fi
         
     # Create test status check if PR_SHA is available
     - name: Create Test Status Check

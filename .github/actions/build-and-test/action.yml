@@ -74,10 +74,13 @@ runs:
         rm "$BUILD_COMMAND_FILE"
         
         # Run the build script with proper quoting for the command
-        OUTPUT=$(bash .github/scripts/maintenance/build-packages.sh --build-command "$BUILD_COMMAND")
+        bash .github/scripts/maintenance/build-packages.sh --build-command "$BUILD_COMMAND" >> $GITHUB_OUTPUT
         
-        # Parse the output and set it to GITHUB_OUTPUT
-        echo "$OUTPUT" >> $GITHUB_OUTPUT
+        # Check the build result output for failure and fail explicitly
+        if grep -q "result=failure" $GITHUB_OUTPUT; then
+          echo "Build failed! Failing the workflow."
+          exit 1
+        fi
 
     # Upload artifacts using GitHub's native action
     - name: Upload build artifacts
@@ -101,10 +104,13 @@ runs:
         rm "$TEST_COMMAND_FILE"
         
         # Run the test script with proper quoting for the command
-        OUTPUT=$(bash .github/scripts/maintenance/run-tests.sh --test-command "$TEST_COMMAND")
+        bash .github/scripts/maintenance/run-tests.sh --test-command "$TEST_COMMAND" >> $GITHUB_OUTPUT
         
-        # Parse the output and set it to GITHUB_OUTPUT
-        echo "$OUTPUT" >> $GITHUB_OUTPUT
+        # Check the test result output for failure and fail explicitly
+        if grep -q "result=failure" $GITHUB_OUTPUT; then
+          echo "Tests failed! Failing the workflow."
+          exit 1
+        fi
 
     # Create build status check if PR_SHA is available
     - name: Create Build Status Check

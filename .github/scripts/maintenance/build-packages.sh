@@ -12,6 +12,28 @@ build_packages() {
     
     echo "DEBUG: Received build command: '$build_command'" >&2
     
+    # Make sure pnpm is available by sourcing nvm
+    if [[ "$build_command" == *"pnpm"* ]]; then
+        echo "Command uses pnpm, ensuring it's available..." >&2
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        
+        # Check if pnpm is available
+        if ! command -v pnpm &> /dev/null; then
+            echo "ERROR: pnpm command not found! Trying to install it..." >&2
+            npm install -g pnpm
+        fi
+        
+        # Verify pnpm is now available
+        if ! command -v pnpm &> /dev/null; then
+            echo "FATAL: Could not install pnpm. Build cannot run." >&2
+            echo "result=failure"
+            return 1
+        else
+            echo "pnpm is available at $(which pnpm)" >&2
+        fi
+    fi
+    
     # Create a temporary file to capture command output
     BUILD_OUTPUT=$(mktemp)
     
