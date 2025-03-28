@@ -90,11 +90,60 @@ jobs:
     # Run this job even if auto-changeset job is skipped
     needs: [test, generate-changesets]
     if: always() && needs.test.result == 'success' && (needs.generate-changesets.result == 'success' || needs.generate-changesets.result == 'skipped')
-    uses: ./.github/workflows/changesets-version-publish.yml
-    with:
-      artifact_name: package-builds
-    secrets:
-      PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PACKAGE_TOKEN }}
+          
+      # Download build artifacts
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: package-builds
+          path: ./
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          
+      # Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://npm.pkg.github.com'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+          
+      - name: Install dependencies
+        run: pnpm install
+          
+      # Use the new composite action
+      - name: Version and Publish Packages
+        id: version-publish
+        uses: ./.github/actions/changeset-version-publish
+        with:
+          github-token: ${{ secrets.PACKAGE_TOKEN }}
+          artifact-name: 'package-builds'
+          publish-command: 'pnpm run release'
+          version-command: 'pnpm run version'
+          commit-message: 'chore: version packages'
+          pr-title: 'chore: version packages'
+          create-github-releases: 'true'
+          registry-url: 'https://npm.pkg.github.com'
+          npm-scope: '@littlecarlito'
+          package-paths: 'packages/blorkpack,packages/blorktools,packages/blorkboard,apps/portfolio'
+          package-names: '@littlecarlito/blorkpack,@littlecarlito/blorktools,@littlecarlito/blorkboard,@littlecarlito/portfolio'
 
   # Build the site for GitHub Pages
   build-site:

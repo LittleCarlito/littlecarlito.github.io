@@ -1,6 +1,9 @@
 name: Push and Create PR
 
 on:
+  push:
+    branches-ignore:
+      - main
   workflow_dispatch:
     inputs:
       branch_name:
@@ -41,19 +44,52 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           token: ${{ secrets.PR_CREATION_TOKEN }}
           
-      # Get current timestamp-based branch name
-      - name: Generate branch name
-        id: branch_name
+      # Extract branch name based on trigger context
+      - name: Extract branch info
+        id: branch_info
         run: |
-          if [ -n "${{ github.event.inputs.branch_name }}" ]; then
-            BRANCH="${{ github.event.inputs.branch_name }}"
+          if [ "${{ github.event_name }}" == "push" ]; then
+            # For push event, extract from github context
+            BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+            echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+            
+            # Get the commit message for PR title
+            COMMIT_MSG=$(git log -1 --pretty=%B)
+            PR_TITLE=$(echo "$COMMIT_MSG" | head -n 1)
+            echo "title=$PR_TITLE" >> $GITHUB_OUTPUT
+            
+            # Create PR body from full commit message
+            echo "body<<EOF" >> $GITHUB_OUTPUT
+            echo "Automated PR created from push to branch \`$BRANCH_NAME\`." >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "**Original commit message:**" >> $GITHUB_OUTPUT
+            echo '```' >> $GITHUB_OUTPUT
+            echo "$COMMIT_MSG" >> $GITHUB_OUTPUT
+            echo '```' >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            
+            # Default target branch to main
+            echo "target_branch=main" >> $GITHUB_OUTPUT
+            
+            # Default auto_merge to true
+            echo "auto_merge=true" >> $GITHUB_OUTPUT
           else
-            TIMESTAMP=$(date +%Y%m%d%H%M%S)
-            BRANCH="auto-pr-${TIMESTAMP}"
+            # For manual workflow dispatch, use inputs
+            if [ -n "${{ github.event.inputs.branch_name }}" ]; then
+              BRANCH="${{ github.event.inputs.branch_name }}"
+            else
+              TIMESTAMP=$(date +%Y%m%d%H%M%S)
+              BRANCH="auto-pr-${TIMESTAMP}"
+            fi
+            echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+            echo "title=${{ github.event.inputs.title }}" >> $GITHUB_OUTPUT
+            echo "body=${{ github.event.inputs.body }}" >> $GITHUB_OUTPUT
+            echo "target_branch=${{ github.event.inputs.target_branch }}" >> $GITHUB_OUTPUT
+            echo "auto_merge=${{ github.event.inputs.auto_merge }}" >> $GITHUB_OUTPUT
           fi
-          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
       
       # Setup environment and tools
       - name: Setup tools
@@ -64,39 +100,53 @@ jobs:
           build-command: 'echo "Skipping build for PR creation"'
           test-command: 'echo "Skipping tests for PR creation"'
       
-      # Create and switch to new branch
-      - name: Create and switch to branch
+      # Create and switch to new branch (only for workflow_dispatch)
+      - name: Create branch (for workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
         run: |
-          git checkout -b ${{ steps.branch_name.outputs.branch }}
+          git checkout -b ${{ steps.branch_info.outputs.branch }}
           git config --global user.name "Github Actions"
           git config --global user.email "actions@github.com"
       
-      # Make changes here - for this example we're just touching a file
-      - name: Make example changes
+      # Make example changes (only for workflow_dispatch)
+      - name: Make example changes (for workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
         run: |
           echo "# Auto-generated changelog entry" > change.md
-          echo "Title: ${{ github.event.inputs.title }}" >> change.md
+          echo "Title: ${{ steps.branch_info.outputs.title }}" >> change.md
           echo "Generated: $(date)" >> change.md
       
-      # Commit changes
-      - name: Commit changes
+      # Commit changes (only for workflow_dispatch)
+      - name: Commit changes (for workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
         run: |
           git add .
-          git commit -m "${{ github.event.inputs.title }}"
+          git commit -m "${{ steps.branch_info.outputs.title }}"
       
-      # Push branch
-      - name: Push changes
+      # Push branch (only for workflow_dispatch)
+      - name: Push changes (for workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
         id: push_changes
         run: |
-          git push origin ${{ steps.branch_name.outputs.branch }}
+          git push origin ${{ steps.branch_info.outputs.branch }}
           echo "commit_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+      
+      # Extract SHA for push event
+      - name: Get commit SHA
+        id: get_sha
+        run: |
+          if [ "${{ github.event_name }}" == "push" ]; then
+            echo "commit_sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+          else
+            echo "commit_sha=${{ steps.push_changes.outputs.commit_sha }}" >> $GITHUB_OUTPUT
+          fi
       
       # Setup PR message
       - name: Setup PR commit message
         id: merge_message
         run: |
           # Create consistent PR title/message
-          MERGE_TITLE="${{ github.event.inputs.title }}"
+          MERGE_TITLE="${{ steps.branch_info.outputs.title }}"
           echo "merge_title=$MERGE_TITLE" >> $GITHUB_OUTPUT
       
       # Create PR
@@ -105,21 +155,21 @@ jobs:
         uses: ./.github/actions/pr-management
         with:
           github-token: ${{ secrets.PR_CREATION_TOKEN }}
-          base-branch: ${{ github.event.inputs.target_branch }}
-          head-branch: ${{ steps.branch_name.outputs.branch }}
-          title: ${{ github.event.inputs.title }}
-          body: ${{ github.event.inputs.body }}
+          base-branch: ${{ steps.branch_info.outputs.target_branch }}
+          head-branch: ${{ steps.branch_info.outputs.branch }}
+          title: ${{ steps.branch_info.outputs.title }}
+          body: ${{ steps.branch_info.outputs.body }}
       
       # Wait for GitHub checks to complete
       - name: Wait for checks
         id: verify_checks
-        if: github.event.inputs.auto_merge == 'true'
+        if: steps.branch_info.outputs.auto_merge == 'true'
         shell: bash
         run: |
           echo "Waiting for checks to complete on PR #${{ steps.manage_pr.outputs.pr-number }}..."
           
           # We need to get the SHA from the PR
-          SHA=${{ steps.push_changes.outputs.commit_sha }}
+          SHA=${{ steps.get_sha.outputs.commit_sha }}
           
           bash .github/scripts/branch/wait-checks.sh \
             --repo "${{ github.repository }}" \
@@ -134,7 +184,7 @@ jobs:
       # Trigger the PR merge workflow but as a separate workflow run
       - name: Trigger PR Merge
         id: trigger_merge
-        if: success() && github.event.inputs.auto_merge == 'true'
+        if: success() && steps.branch_info.outputs.auto_merge == 'true'
         continue-on-error: true
         run: |
           echo "All checks passed! Merging PR directly using action..."
@@ -144,7 +194,7 @@ jobs:
 
       # Use the merge-pr action directly instead of calling the workflow
       - name: Merge PR
-        if: github.event.inputs.auto_merge == 'true' && steps.verify_checks.outcome == 'success'
+        if: steps.branch_info.outputs.auto_merge == 'true' && steps.verify_checks.outcome == 'success'
         uses: ./.github/actions/merge-pr
         with:
           github-token: ${{ secrets.PR_CREATION_TOKEN }}
@@ -156,7 +206,7 @@ jobs:
 
       # Cleanup if no auto-merge
       - name: Status update
-        if: github.event.inputs.auto_merge != 'true'
+        if: steps.branch_info.outputs.auto_merge != 'true'
         run: |
           echo "PR created but not auto-merging as requested"
           echo "PR: ${{ steps.manage_pr.outputs.pr-url }}" 
