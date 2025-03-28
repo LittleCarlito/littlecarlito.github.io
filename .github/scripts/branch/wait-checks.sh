@@ -88,30 +88,32 @@ wait_for_checks() {
         FAILED_CHECKS=$(safe_jq '[.check_runs[] | select((. | type == "object") and (.status == "completed" and .conclusion != "success" and .conclusion != "neutral" and .conclusion != "skipped"))] | length' "0")
         
         # Use echo and grep to identify which check runs match our workflow
-        all_check_names=$(safe_jq '[.check_runs[] | select((. | type == "object") and (.name | type == "string")) | .name] | @csv' "[]")
-        all_check_names=$(echo "$all_check_names" | sed 's/"//g' | tr ',' '\n')
+        all_check_names=$(safe_jq '[.check_runs[] | select((. | type == "object") and (.name | type == "string")) | .name]' "[]")
         
-        # Find workflow checks using grep with simpler pattern matching
-        # Use string comparison instead of grep to avoid backslash issues
+        # Extract names in a cleaner way without adding backslashes
+        mapfile -t check_name_array < <(echo "$all_check_names" | jq -r '.[]')
+        
+        # Find workflow checks using pattern matching
         workflow_check_names=""
-        while read -r check_name; do
+        for check_name in "${check_name_array[@]}"; do
             # If the check name contains push/create/pr keywords, mark it as a workflow check
-            if [[ -n "$check_name" ]] && [[ "$check_name" =~ [Pp]ush|[Cc]reat|PR|[Pp]ull.[Rr]equest ]]; then
-                workflow_check_names="${workflow_check_names}${check_name}"$'\n'
+            if [[ -n "$check_name" ]] && [[ "$check_name" =~ [Pp]ush|[Cc]reat|PR|[Pp]ull[[:space:]]?[Rr]equest ]]; then
+                if [[ -n "$workflow_check_names" ]]; then
+                    workflow_check_names="$workflow_check_names
+$check_name"
+                else
+                    workflow_check_names="$check_name"
+                fi
             fi
-        done <<< "$all_check_names"
-        
-        # Remove trailing newline
-        workflow_check_names=$(echo "$workflow_check_names" | sed '/^$/d')
+        done
         
         # Count the matches
-        WORKFLOW_CHECKS=$(echo "$workflow_check_names" | wc -l)
-        WORKFLOW_CHECKS=$(echo "$WORKFLOW_CHECKS" | tr -d '[:space:]')
-        
-        # Ensure we have a sensible value
-        if [ -z "$WORKFLOW_CHECKS" ] || [ "$WORKFLOW_CHECKS" = "0" ]; then
-            WORKFLOW_CHECKS=0
+        workflow_count=0
+        if [[ -n "$workflow_check_names" ]]; then
+            workflow_count=$(echo "$workflow_check_names" | wc -l)
+            workflow_count=$(echo "$workflow_count" | tr -d '[:space:]')
         fi
+        WORKFLOW_CHECKS=$workflow_count
         
         # Get in-progress workflow checks
         all_statuses=$(safe_jq '[.check_runs[] | select((. | type == "object") and (.name | type == "string")) | {name: .name, status: .status}]' "[]")
@@ -121,13 +123,13 @@ wait_for_checks() {
         echo "Workflow check identification:" >&2
         
         # Iterate over all check names to verify detection
-        while read -r check_name; do
+        for check_name in "${check_name_array[@]}"; do
             if [[ -n "$check_name" ]]; then
                 is_workflow="No"
                 status="unknown"
                 
                 # Check if it's identified as a workflow check
-                if echo "$workflow_check_names" | grep -q "^$check_name$"; then
+                if echo "$workflow_check_names" | grep -Fq "$check_name"; then
                     is_workflow="Yes"
                     
                     # Get status for this check
@@ -141,11 +143,16 @@ wait_for_checks() {
                 
                 echo "  - '$check_name': workflow=$is_workflow, status=$status" >&2
             fi
-        done <<< "$all_check_names"
+        done
         
         WORKFLOW_IN_PROGRESS=$workflow_in_progress_count
         
-        echo "Identified as our workflow checks: $workflow_check_names" >&2
+        echo "Identified as our workflow checks:" >&2
+        if [[ -n "$workflow_check_names" ]]; then
+            echo "$workflow_check_names" | sed 's/^/  - /' >&2
+        else
+            echo "  (none)" >&2
+        fi
         
         # Calculate non-workflow checks - ensure we don't get negative numbers
         NON_WORKFLOW_TOTAL=$((TOTAL_CHECKS - WORKFLOW_CHECKS))
@@ -154,20 +161,18 @@ wait_for_checks() {
         fi
         
         # Calculate completed non-workflow checks using set operations
-        # First get all completed check names
-        completed_checks=$(safe_jq '[.check_runs[] | select((. | type == "object") and (.status == "completed")) | .name] | @csv' "[]")
-        completed_checks=$(echo "$completed_checks" | sed 's/"//g' | tr ',' '\n')
+        # Get completed check names
+        completed_checks=$(safe_jq '[.check_runs[] | select((. | type == "object") and (.status == "completed")) | .name]' "[]")
+        mapfile -t completed_name_array < <(echo "$completed_checks" | jq -r '.[]')
         
         # Count completed checks that aren't workflow checks
         non_workflow_completed_count=0
-        while read -r check_name; do
-            if [[ -n "$check_name" ]]; then
-                # Check if this name is in workflow_check_names
-                if ! echo "$workflow_check_names" | grep -q "^$check_name$"; then
-                    non_workflow_completed_count=$((non_workflow_completed_count + 1))
-                fi
+        for check_name in "${completed_name_array[@]}"; do
+            # Check if this name is in workflow_check_names - if not, it's a non-workflow check
+            if ! echo "$workflow_check_names" | grep -Fq "$check_name"; then
+                non_workflow_completed_count=$((non_workflow_completed_count + 1))
             fi
-        done <<< "$completed_checks"
+        done
         
         NON_WORKFLOW_COMPLETED=$non_workflow_completed_count
         
