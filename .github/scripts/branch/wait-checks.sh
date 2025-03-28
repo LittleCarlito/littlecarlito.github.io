@@ -83,8 +83,8 @@ wait_for_checks() {
         # CRITICAL FIX: Match the original lies.yaml logic
         # Proceed ONLY if either:
         # 1. ALL checks are complete, OR
-        # 2. All non-workflow checks are complete AND exactly one workflow check is still running
-        if [ "$COMPLETED_CHECKS" = "$TOTAL_CHECKS" ] || [ "$NON_WORKFLOW_COMPLETED" = "$NON_WORKFLOW_TOTAL" -a "$WORKFLOW_IN_PROGRESS" = "1" -a "$WORKFLOW_CHECKS" = "1" ]; then
+        # 2. All non-workflow checks are complete (don't require the workflow itself to complete)
+        if [ "$COMPLETED_CHECKS" = "$TOTAL_CHECKS" ] || [ "$NON_WORKFLOW_COMPLETED" = "$NON_WORKFLOW_TOTAL" ]; then
             echo "All required checks completed successfully (except possibly our own workflow)!" >&2
             printf "checks_status=success\n"
             printf "completed_checks=$COMPLETED_CHECKS\n"
