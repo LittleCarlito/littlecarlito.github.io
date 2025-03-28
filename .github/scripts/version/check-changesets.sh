@@ -15,8 +15,8 @@ check_changesets() {
     # Check if .changeset directory exists
     if [ ! -d ".changeset" ]; then
         echo "No .changeset directory found" >&2
-        echo "has_changesets=false" > /dev/stdout
-        echo "has_auto_changesets=false" > /dev/stdout
+        echo "has_changesets=false"
+        echo "has_auto_changesets=false"
         return 1
     fi
     
@@ -25,10 +25,10 @@ check_changesets() {
     
     if [ "$CHANGESET_COUNT" -gt 0 ]; then
         echo "Found $CHANGESET_COUNT changeset file(s)" >&2
-        echo "has_changesets=true" > /dev/stdout
+        echo "has_changesets=true"
     else
         echo "No changeset files found" >&2
-        echo "has_changesets=false" > /dev/stdout
+        echo "has_changesets=false"
     fi
     
     # Check for auto-generated changesets if prefix is provided
@@ -37,14 +37,14 @@ check_changesets() {
         
         if [ "$AUTO_CHANGESET_COUNT" -gt 0 ]; then
             echo "Found $AUTO_CHANGESET_COUNT auto-generated changeset file(s) with prefix '$auto_changeset_prefix'" >&2
-            echo "has_auto_changesets=true" > /dev/stdout
+            echo "has_auto_changesets=true"
         else
             echo "No auto-generated changeset files found with prefix '$auto_changeset_prefix'" >&2
-            echo "has_auto_changesets=false" > /dev/stdout
+            echo "has_auto_changesets=false"
         fi
     else
         echo "No auto-changeset prefix specified, skipping auto-changeset check" >&2
-        echo "has_auto_changesets=false" > /dev/stdout
+        echo "has_auto_changesets=false"
     fi
 }
 
