@@ -1,0 +1,84 @@
+name: 'Test Monorepo'
+description: 'Handles testing of packages in the monorepo, with artifact support'
+
+inputs:
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: 'lts/*'
+  pnpm-version:
+    description: 'PNPM version to use'
+    required: false
+    default: '8.15.4'
+  artifact-name:
+    description: 'Name of the artifact to download'
+    required: false
+    default: 'package-builds'
+  artifact-path:
+    description: 'Path for downloaded artifacts'
+    required: false
+    default: 'packages'
+  test-command:
+    description: 'Command to run for testing'
+    required: false
+    default: 'pnpm test'
+
+outputs:
+  test-result:
+    description: 'Result of the test operation (success/failure)'
+    value: ${{ steps.run-tests.outputs.result }}
+
+runs:
+  using: "composite"
+  steps:
+    # Setup environment using our script
+    - name: Setup environment
+      id: setup
+      shell: bash
+      run: |
+        OUTPUT=$(bash .github/scripts/maintenance/setup-environment.sh \
+          --github-token "${{ inputs.github-token }}" \
+          --node-version "${{ inputs.node-version }}" \
+          --pnpm-version "${{ inputs.pnpm-version }}")
+        
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
+
+    # Download build artifacts using GitHub's native action
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.artifact-path }}
+        
+    # Run tests using our script
+    - name: Run tests
+      id: run-tests
+      shell: bash
+      run: |
+        OUTPUT=$(bash .github/scripts/maintenance/run-tests.sh \
+          --test-command "${{ inputs.test-command }}")
+        
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
+        
+    # Create test status check if PR_SHA is available
+    - name: Create Test Status Check
+      if: ${{ env.PR_SHA != '' }}
+      shell: bash
+      run: |
+        if [ -n "$PR_SHA" ]; then
+          bash .github/scripts/branch/force-status.sh \
+            --token "${{ inputs.github-token }}" \
+            --repo "${{ github.repository }}" \
+            --sha "$PR_SHA" \
+            --context "Test / Run Tests" \
+            --description "Tests passed successfully" \
+            --state "success" \
+            --target-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        fi
+      env:
+        PR_SHA: ${{ env.PR_SHA }} 

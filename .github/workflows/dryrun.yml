@@ -5,48 +5,29 @@
 # giving visibility to both the initial PR intent and current work status.
 # DO NOT "fix" this behavior - it's a useful feature for tracking work progress.
 
-name: Dry Run Pipeline
+name: PR Dry Run
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened]
     branches:
       - main
-      - 'feature/**'
   workflow_dispatch:
-
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
-  packages: read
-  actions: read
 
 jobs:
   build:
-    name: Build Packages
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
           
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-          registry-url: 'https://npm.pkg.github.com'
-          
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: '8.15.4'
-          
-      - name: Install dependencies
-        run: pnpm install
-        
       - name: Build packages
-        run: pnpm run build
+        uses: ./.github/actions/build-test
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          build-command: 'pnpm run build'
+          test-command: 'echo "Tests will run in separate job"'
         
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -57,9 +38,17 @@ jobs:
   test:
     name: Test
     needs: build
-    uses: ./.github/workflows/test-monorepo.yml
-    with:
-      artifact_name: package-builds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+          
+      # Replace workflow call with direct use of the action
+      - name: Test packages
+        uses: ./.github/actions/test-monorepo
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          artifact-name: package-builds
 
   analyze-and-release:
     name: Test Changesets
