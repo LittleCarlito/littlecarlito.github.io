@@ -92,13 +92,21 @@ jobs:
           fi
       
       # Setup environment and tools
-      - name: Setup tools
+      - name: Build packages
         id: setup
         uses: ./.github/actions/build-test
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           build-command: 'echo "Skipping build for PR creation"'
           test-command: 'echo "Skipping tests for PR creation"'
+      
+      # Only upload artifacts if we're not skipping the build
+      - name: Upload build artifacts
+        if: ${{ !contains(steps.setup.outputs.build-result, 'Skipping') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-builds
+          path: packages/*/dist
       
       # Create and switch to new branch (only for workflow_dispatch)
       - name: Create branch (for workflow_dispatch)
@@ -155,6 +163,7 @@ jobs:
         uses: ./.github/actions/pr-management
         with:
           github-token: ${{ secrets.PR_CREATION_TOKEN }}
+          repository: ${{ github.repository }}
           base-branch: ${{ steps.branch_info.outputs.target_branch }}
           head-branch: ${{ steps.branch_info.outputs.branch }}
           title: ${{ steps.branch_info.outputs.title }}
