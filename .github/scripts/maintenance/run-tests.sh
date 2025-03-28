@@ -21,7 +21,8 @@ run_tests() {
         # Check if pnpm is available
         if ! command -v pnpm &> /dev/null; then
             echo "ERROR: pnpm command not found! Trying to install it..." >&2
-            npm install -g pnpm
+            # Redirect all npm output to stderr
+            npm install -g pnpm >&2 2>&1
         fi
         
         # Verify pnpm is now available

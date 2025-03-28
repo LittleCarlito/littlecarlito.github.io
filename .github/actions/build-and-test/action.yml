@@ -73,13 +73,21 @@ runs:
         rm "$BUILD_COMMAND_FILE"
         
         # Run the build script with proper quoting for the command
-        bash .github/scripts/maintenance/build-packages.sh --build-command "$BUILD_COMMAND" >> $GITHUB_OUTPUT
+        # Filter output to only include correctly formatted key=value pairs
+        bash .github/scripts/maintenance/build-packages.sh --build-command "$BUILD_COMMAND" 2>&1 | grep -E "^result=" > build_result.txt || true
         
-        # Check the build result output for failure and fail explicitly
-        if grep -q "result=failure" $GITHUB_OUTPUT; then
-          echo "Build failed! Failing the workflow."
-          exit 1
+        # Check if we have a result file and it contains success/failure
+        if [ -f build_result.txt ]; then
+          cat build_result.txt >> $GITHUB_OUTPUT
+          if grep -q "result=failure" build_result.txt; then
+            echo "Build failed! Failing the workflow."
+            exit 1
+          fi
+        else
+          echo "result=success" >> $GITHUB_OUTPUT
         fi
+        
+        rm -f build_result.txt
 
     # Upload artifacts using GitHub's native action
     - name: Upload build artifacts
@@ -103,13 +111,21 @@ runs:
         rm "$TEST_COMMAND_FILE"
         
         # Run the test script with proper quoting for the command
-        bash .github/scripts/maintenance/run-tests.sh --test-command "$TEST_COMMAND" >> $GITHUB_OUTPUT
+        # Filter output to only include correctly formatted key=value pairs
+        bash .github/scripts/maintenance/run-tests.sh --test-command "$TEST_COMMAND" 2>&1 | grep -E "^result=" > test_result.txt || true
         
-        # Check the test result output for failure and fail explicitly
-        if grep -q "result=failure" $GITHUB_OUTPUT; then
-          echo "Tests failed! Failing the workflow."
-          exit 1
+        # Check if we have a result file and it contains success/failure
+        if [ -f test_result.txt ]; then
+          cat test_result.txt >> $GITHUB_OUTPUT
+          if grep -q "result=failure" test_result.txt; then
+            echo "Tests failed! Failing the workflow."
+            exit 1
+          fi
+        else
+          echo "result=success" >> $GITHUB_OUTPUT
         fi
+        
+        rm -f test_result.txt
 
     # Create build status check if PR_SHA is available
     - name: Create Build Status Check
