@@ -74,13 +74,11 @@ runs:
       shell: bash
       run: |
         # Use our dedicated script for checking conventional commits
-        OUTPUT=$(bash .github/scripts/version/check-conventional-commits.sh \
+        # Redirect stdout to stderr to avoid mixing with GITHUB_OUTPUT
+        bash .github/scripts/version/check-conventional-commits.sh \
           --since "${{ inputs.since }}" \
           --base-commit "${{ inputs.force-base-commit }}" \
-          --auto-changeset-prefix "${{ inputs.auto-changeset-prefix }}")
-        
-        # Parse the output and set it to GITHUB_OUTPUT
-        echo "$OUTPUT" >> $GITHUB_OUTPUT
+          --auto-changeset-prefix "${{ inputs.auto-changeset-prefix }}" > >(tee /dev/stderr) | grep -E "^(base_commit|conventional_count)=" >> $GITHUB_OUTPUT || true
       
     # Use the changeset management action
     - name: Manage changesets
