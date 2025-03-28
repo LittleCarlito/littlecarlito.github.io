@@ -12,7 +12,7 @@ get_sha_from_pr() {
     echo "Getting SHA from PR #$pr_number" >&2
     PR_SHA=$(gh pr view $pr_number --json headRefOid --jq .headRefOid)
     echo "Got SHA: $PR_SHA" >&2
-    echo "$PR_SHA"
+    echo "$PR_SHA" >&2
 }
 
 # Function to force status checks to success

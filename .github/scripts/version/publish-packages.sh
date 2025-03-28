@@ -12,7 +12,7 @@ publish_packages() {
     local no_git_checks="$2"
     local tag="$3"
     
-    echo "Publishing packages to npm" >&2
+    echo "Publishing packages..." >&2
     
     # Determine publish command
     local publish_cmd="pnpm publish"
@@ -28,7 +28,7 @@ publish_packages() {
     # Publish all packages or specific package
     if [ "$package_path" = "all" ]; then
         echo "Publishing all packages..." >&2
-        eval "pnpm -r $publish_cmd"
+        eval "$publish_cmd"
     else
         echo "Publishing package at $package_path..." >&2
         
@@ -42,7 +42,7 @@ publish_packages() {
     fi
     
     echo "Publishing completed successfully" >&2
-    echo "published=true"
+    printf "published=true\n"
 }
 
 # Parse command line arguments

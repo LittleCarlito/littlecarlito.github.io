@@ -8,7 +8,7 @@ set -e
 
 # Main function
 preserve_config() {
-    echo "Ensuring changeset config uses independent versioning..." >&2
+    printf "Preserving config...\n" >&2
     
     # Create a backup of our config
     cp .changeset/config.json .changeset/config.json.bak
@@ -30,14 +30,14 @@ EOF
     
     # Check if the config was changed
     if ! cmp -s .changeset/config.json .changeset/config.json.bak; then
-        echo "Config was restored to independent versioning" >&2
-        git add .changeset/config.json
-        git commit -m "chore: restore independent versioning in changeset config"
-        git push
-        echo "true"  # Output for capture
+        printf "Config was restored to independent versioning\n" >&2
+        git add .changeset/config.json 2>&1 >&2
+        git commit -m "chore: restore independent versioning in changeset config" 2>&1 >&2
+        git push origin HEAD 2>&1 >&2
+        printf "config_updated=true\n"
     else
-        echo "Config already has independent versioning" >&2
-        echo "false"  # Output for capture
+        printf "Config already has independent versioning\n" >&2
+        printf "config_updated=false\n"
     fi
     
     rm .changeset/config.json.bak

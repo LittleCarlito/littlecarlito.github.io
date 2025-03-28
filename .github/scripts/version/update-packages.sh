@@ -16,27 +16,27 @@ get_package_version() {
     if [ -f "packages/$package/package.json" ]; then
         version=$(node -p "try { require('./packages/$package/package.json').version } catch(e) { console.error(e); process.exit(1) }" 2>/dev/null)
         if [ $? -ne 0 ] || [ -z "$version" ]; then
-            echo "Error: Failed to parse package.json for $package"
+            echo "Error: Failed to parse package.json for $package" >&2
             return 1
         fi
     elif [ -f "package.json" ]; then
         version=$(node -p "try { require('./package.json').version } catch(e) { console.error(e); process.exit(1) }" 2>/dev/null)
         if [ $? -ne 0 ] || [ -z "$version" ]; then
-            echo "Error: Failed to parse root package.json"
+            echo "Error: Failed to parse root package.json" >&2
             return 1
         fi
     else
-        echo "Error: No package.json found for $package"
+        echo "Error: No package.json found for $package" >&2
         return 1
     fi
     
     # Verify version format
     if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]; then
-        echo "Error: Invalid version format: $version"
+        echo "Error: Invalid version format: $version" >&2
         return 1
     fi
     
-    echo "$version"
+    echo "$version" >&2
 }
 
 # Function to update version in package.json
@@ -62,11 +62,11 @@ update_package_version() {
         " || result=1
         
         if [ $result -ne 0 ]; then
-            echo "Error: Failed to update version in $package_json"
+            echo "Error: Failed to update version in $package_json" >&2
             return 1
         fi
     else
-        echo "Warning: Package.json not found at $package_json"
+        echo "Warning: Package.json not found at $package_json" >&2
         return 0  # Continue with other packages
     fi
     
@@ -116,7 +116,7 @@ update_dependencies() {
         " || result=1
         
         if [ $result -ne 0 ]; then
-            echo "Error: Failed to update dependencies in $pkg_file"
+            echo "Error: Failed to update dependencies in $pkg_file" >&2
             return 1
         fi
     done
@@ -151,7 +151,7 @@ version_package() {
                 new_version="$major.$minor.$((patch + 1))"
                 ;;
             *)
-                echo "Error: Invalid version type: $version_type"
+                echo "Error: Invalid version type: $version_type" >&2
                 return 1
                 ;;
         esac
@@ -161,7 +161,7 @@ version_package() {
             new_version="$new_version$prerelease"
         fi
     else
-        echo "Error: Failed to parse version components from: $current_version"
+        echo "Error: Failed to parse version components from: $current_version" >&2
         return 1
     fi
     
@@ -171,7 +171,7 @@ version_package() {
     # Update dependencies
     update_dependencies "$package" "$new_version" || return 1
     
-    echo "$new_version"
+    echo "$new_version" >&2
     return 0
 }
 
@@ -194,22 +194,22 @@ version_all_packages() {
     fi
     
     if [ ${#packages[@]} -eq 0 ]; then
-        echo "Warning: No packages found to version"
+        echo "Warning: No packages found to version" >&2
         return 0
     fi
     
     # Version each package
     for package in "${packages[@]}"; do
-        echo "Versioning package: $package"
+        echo "Versioning package: $package" >&2
         if ! version_package "$package" "$version_type"; then
-            echo "Failed to version package: $package"
+            echo "Failed to version package: $package" >&2
             failed_packages+=("$package")
             success=1
         fi
     done
     
     if [ ${#failed_packages[@]} -gt 0 ]; then
-        echo "The following packages failed to version: ${failed_packages[*]}"
+        echo "The following packages failed to version: ${failed_packages[*]}" >&2
         return 1
     fi
     
@@ -227,12 +227,12 @@ main() {
                 shift 2
                 ;;
             --help)
-                echo "Usage: $0 [--type major|minor|patch]"
+                echo "Usage: $0 [--type major|minor|patch]" >&2
                 exit 0
                 ;;
             *)
-                echo "Unknown option: $1"
-                echo "Usage: $0 [--type major|minor|patch]"
+                echo "Unknown option: $1" >&2
+                echo "Usage: $0 [--type major|minor|patch]" >&2
                 exit 1
                 ;;
         esac
@@ -240,17 +240,17 @@ main() {
     
     # Validate version type
     if [[ ! "$version_type" =~ ^(major|minor|patch)$ ]]; then
-        echo "Error: Invalid version type: $version_type. Must be 'major', 'minor', or 'patch'."
+        echo "Error: Invalid version type: $version_type. Must be 'major', 'minor', or 'patch'." >&2
         exit 1
     fi
     
-    echo "Starting package versioning with type: $version_type..."
+    echo "Starting package versioning with type: $version_type..." >&2
     
     if version_all_packages "$version_type"; then
-        echo "Package versioning completed successfully!"
+        echo "Package versioning completed successfully!" >&2
         exit 0
     else
-        echo "Package versioning completed with errors."
+        echo "Package versioning completed with errors." >&2
         exit 1
     fi
 }

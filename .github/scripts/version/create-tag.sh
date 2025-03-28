@@ -15,37 +15,46 @@ create_tag() {
     # Create tag name
     TAG_NAME="${tag_prefix}${version}"
     
-    echo "Creating tag: $TAG_NAME" >&2
+    printf "Creating tag: %s\n" "$TAG_NAME" >&2
     
     # Check if tag already exists
-    if git tag | grep -q "^$TAG_NAME$"; then
-        echo "Warning: Tag $TAG_NAME already exists" >&2
+    if git tag 2>&1 >&2 | grep -q "^$TAG_NAME$"; then
+        printf "Warning: Tag %s already exists\n" "$TAG_NAME" >&2
         
         # Check if we should force update
         if [ "$force" = "true" ]; then
-            echo "Force updating existing tag" >&2
-            git tag -d "$TAG_NAME"
+            printf "Force updating existing tag\n" "$TAG_NAME" >&2
+            git tag -d "$TAG_NAME" >&2
         else
-            echo "Skipping tag creation (use --force to update existing tag)" >&2
-            echo "tag_name=$TAG_NAME"
-            echo "created=false"
+            printf "Skipping tag creation (use --force to update existing tag)\n" >&2
+            printf "tag_name=%s\n" "$TAG_NAME"
+            printf "created=false\n"
             return 0
         fi
     fi
     
     # Create the tag
     if [ -n "$tag_message" ]; then
-        git tag -a "$TAG_NAME" -m "$tag_message"
+        git tag -a "$TAG_NAME" -m "$tag_message" >&2 || {
+            printf "Error creating tag %s\n" "$TAG_NAME" >&2
+            return 1
+        }
     else
-        git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
+        git tag -a "$TAG_NAME" -m "Release $TAG_NAME" >&2 || {
+            printf "Error creating tag %s\n" "$TAG_NAME" >&2
+            return 1
+        }
     fi
     
     # Push the tag
-    git push origin "$TAG_NAME"
+    git push origin "$TAG_NAME" >&2 || {
+        printf "Error pushing tag %s\n" "$TAG_NAME" >&2
+        return 1
+    }
     
-    echo "Tag $TAG_NAME created and pushed" >&2
-    echo "tag_name=$TAG_NAME"
-    echo "created=true"
+    printf "Tag %s created and pushed\n" "$TAG_NAME" >&2
+    printf "tag_name=%s\n" "$TAG_NAME"
+    printf "created=true\n"
 }
 
 # Parse command line arguments
@@ -74,8 +83,8 @@ main() {
                 shift
                 ;;
             *)
-                echo "Unknown option: $1" >&2
-                echo "Usage: $0 --version <version> [--tag-prefix <prefix>] [--message <msg>] [--force]" >&2
+                printf "Unknown option: %s\n" "$1" >&2
+                printf "Usage: %s --version <version> [--tag-prefix <prefix>] [--message <msg>] [--force]\n" "$0" >&2
                 exit 1
                 ;;
         esac
@@ -83,7 +92,7 @@ main() {
     
     # Validate required arguments
     if [ -z "$version" ]; then
-        echo "Error: --version is required" >&2
+        printf "Error: --version is required\n" >&2
         exit 1
     fi
     

@@ -12,12 +12,12 @@ get_sha() {
     
     if [ -n "$sha" ]; then
         # Only print the actual SHA with no additional text
-        echo "$sha"
+        echo "$sha" >&2
     elif [ -n "$pr_number" ]; then
         # Get SHA using GitHub CLI
         PR_SHA=$(gh pr view $pr_number --json headRefOid --jq .headRefOid)
         # Only print the actual SHA with no additional text
-        echo "$PR_SHA"
+        echo "$PR_SHA" >&2
     else
         echo "Error: Either 'sha' or 'pr-number' must be provided" >&2
         return 1

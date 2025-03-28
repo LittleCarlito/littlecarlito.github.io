@@ -11,58 +11,57 @@ calculate_version() {
     local package_path="$1"
     local version_type="$2"
     
-    # Determine path to package.json
-    if [ "$package_path" = "all" ] || [ "$package_path" = "." ] || [ -z "$package_path" ]; then
-        PACKAGE_JSON_PATH="./package.json"
+    # Determine package.json path
+    if [ -z "$package_path" ]; then
+        PACKAGE_JSON_PATH="package.json"
         echo "Using root package.json" >&2
     else
-        if [[ "$package_path" == packages/* ]]; then
-            PACKAGE_JSON_PATH="$package_path/package.json"
-        else
-            PACKAGE_JSON_PATH="./packages/$package_path/package.json"
-        fi
+        PACKAGE_JSON_PATH="$package_path/package.json"
         echo "Using package.json at $PACKAGE_JSON_PATH" >&2
     fi
     
     # Check if package.json exists
     if [ ! -f "$PACKAGE_JSON_PATH" ]; then
         echo "Error: Package.json not found at $PACKAGE_JSON_PATH" >&2
-        exit 1
+        return 1
     fi
     
     # Get current version
-    CURRENT_VERSION=$(node -p "require('$PACKAGE_JSON_PATH').version")
+    CURRENT_VERSION=$(node -p "require('./$PACKAGE_JSON_PATH').version")
     echo "Current version: $CURRENT_VERSION" >&2
     
     # Split version into parts
     IFS='.' read -r -a version_parts <<< "$CURRENT_VERSION"
     MAJOR="${version_parts[0]}"
     MINOR="${version_parts[1]}"
-    # Handle case where patch might have a suffix
     PATCH=$(echo "${version_parts[2]}" | grep -o '^[0-9]*')
     SUFFIX=$(echo "${version_parts[2]}" | grep -o '[^0-9].*$' || echo "")
     
-    # Calculate new version based on version type
+    # Calculate new version based on type
     case "$version_type" in
-        "major")
-            NEW_VERSION="$((MAJOR + 1)).0.0$SUFFIX"
+        major)
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
             ;;
-        "minor")
-            NEW_VERSION="${MAJOR}.$((MINOR + 1)).0$SUFFIX"
+        minor)
+            MINOR=$((MINOR + 1))
+            PATCH=0
             ;;
-        "patch")
-            NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))$SUFFIX"
+        patch)
+            PATCH=$((PATCH + 1))
             ;;
         *)
             echo "Error: Invalid version type '$version_type'. Must be 'major', 'minor', or 'patch'." >&2
-            exit 1
+            return 1
             ;;
     esac
     
+    NEW_VERSION="$MAJOR.$MINOR.$PATCH$SUFFIX"
     echo "New version: $NEW_VERSION" >&2
-    echo "current_version=$CURRENT_VERSION"
-    echo "new_version=$NEW_VERSION"
-    echo "package_path=$PACKAGE_JSON_PATH"
+    echo "current_version=$CURRENT_VERSION" > /dev/stdout
+    echo "new_version=$NEW_VERSION" > /dev/stdout
+    echo "package_path=$PACKAGE_JSON_PATH" > /dev/stdout
 }
 
 # Parse command line arguments

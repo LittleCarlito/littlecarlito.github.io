@@ -63,12 +63,12 @@ runs:
       shell: bash
       run: |
         if [ -z "${{ inputs.head-branch }}" ] && [ -z "${{ inputs.pr-number }}" ]; then
-          echo "Error: Either head-branch or pr-number must be provided"
+          echo "Error: Either head-branch or pr-number must be provided" >&2
           exit 1
         fi
         
         if [ -z "${{ inputs.pr-number }}" ] && [ -z "${{ inputs.title }}" ]; then
-          echo "Error: title is required when creating a new PR (no pr-number provided)"
+          echo "Error: title is required when creating a new PR (no pr-number provided)" >&2
           exit 1
         fi
 
@@ -78,27 +78,17 @@ runs:
       if: inputs.head-branch != ''
       shell: bash
       run: |
-        # Run the PR creation/finding script
-        OUTPUT=$(bash .github/scripts/pr/create-or-update.sh \
+        while IFS= read -r line; do
+          if [[ "$line" == *"="* ]]; then
+            echo "$line" >> $GITHUB_OUTPUT
+          fi
+        done < <(bash .github/scripts/pr/create-or-update.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --base-branch "${{ inputs.base-branch }}" \
           --head-branch "${{ inputs.head-branch }}" \
           --title "${{ inputs.title }}" \
           --body "${{ inputs.body }}")
-        
-        # Debug output for logging
-        echo "Script output:"
-        echo "$OUTPUT"
-        
-        # Parse and export the result
-        PR_NUMBER=$(echo "$OUTPUT" | grep "^PR_NUMBER=" | cut -d= -f2)
-        PR_URL=$(echo "$OUTPUT" | grep "^PR_URL=" | cut -d= -f2)
-        PR_STATE=$(echo "$OUTPUT" | grep "^PR_STATE=" | cut -d= -f2)
-        
-        echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-        echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
-        echo "pr_state=$PR_STATE" >> $GITHUB_OUTPUT
 
     # Use provided PR number if not creating a new one
     - name: Use provided PR number
@@ -106,8 +96,11 @@ runs:
       if: inputs.pr-number != ''
       shell: bash
       run: |
-        # Use find-pr.sh to get PR details
-        OUTPUT=$(bash .github/scripts/pr/find-pr.sh \
+        while IFS= read -r line; do
+          if [[ "$line" == *"="* ]]; then
+            echo "$line" >> $GITHUB_OUTPUT
+          fi
+        done < <(bash .github/scripts/pr/find-pr.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --pr-number "${{ inputs.pr-number }}")
@@ -115,16 +108,8 @@ runs:
         PR_NUMBER="${{ inputs.pr-number }}"
         PR_URL="https://github.com/${{ inputs.repository }}/pull/$PR_NUMBER"
         
-        # Parse the state from the output
-        PR_STATE=$(echo "$OUTPUT" | grep "^pr_state=" | cut -d= -f2)
-        if [ -z "$PR_STATE" ]; then
-          # Fallback if not found in output
-          PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
-        fi
-        
         echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
         echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
-        echo "pr_state=$PR_STATE" >> $GITHUB_OUTPUT
       env:
         GH_TOKEN: ${{ inputs.github-token }}
         
@@ -140,14 +125,14 @@ runs:
           PR_NUMBER="${{ steps.use-pr.outputs.pr_number }}"
         fi
         
-        # Get SHA using our script
-        SHA=$(bash .github/scripts/branch/get-sha.sh \
+        while IFS= read -r line; do
+          if [[ "$line" == *"="* ]]; then
+            echo "$line" >> $GITHUB_OUTPUT
+          fi
+        done < <(bash .github/scripts/branch/get-sha.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --pr-number "$PR_NUMBER")
-        
-        echo "Retrieved SHA: $SHA"
-        echo "sha=$SHA" >> $GITHUB_OUTPUT
 
     # Auto-merge if requested
     - name: Auto-merge PR
@@ -162,15 +147,19 @@ runs:
         fi
         
         # Configure git for use with the scripts
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
+        git config --global user.name "GitHub Actions" >&2
+        git config --global user.email "actions@github.com" >&2
         
         # Use our merge script
-        bash .github/scripts/pr/merge.sh \
+        while IFS= read -r line; do
+          if [[ "$line" == *"="* ]]; then
+            echo "$line" >> $GITHUB_OUTPUT
+          fi
+        done < <(bash .github/scripts/pr/merge.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --pr "$PR_NUMBER" \
-          --method "${{ inputs.merge-method }}"
+          --method "${{ inputs.merge-method }}")
           
         # Delete branch if requested
         if [ "${{ inputs.delete-branch }}" = "true" ]; then
@@ -178,10 +167,14 @@ runs:
           BRANCH=$(gh pr view $PR_NUMBER --json headRefName --jq .headRefName)
           
           # Delete the branch using our script
-          bash .github/scripts/branch/delete.sh \
+          while IFS= read -r line; do
+            if [[ "$line" == *"="* ]]; then
+              echo "$line" >> $GITHUB_OUTPUT
+            fi
+          done < <(bash .github/scripts/branch/delete.sh \
             --token "${{ inputs.github-token }}" \
             --repo "${{ inputs.repository }}" \
-            --branch "$BRANCH"
+            --branch "$BRANCH")
         fi
       env:
         GH_TOKEN: ${{ inputs.github-token }} 
