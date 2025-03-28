@@ -38,19 +38,19 @@ check_branch_up_to_date() {
     fi
     
     # Fetch latest changes
-    echo "Fetching latest changes for $base_branch and $branch..." >&2
+    echo "Fetching latest changes for $base_branch and $branch..."
     git fetch origin "$base_branch" 2>&1 >&2 || { echo "Failed to fetch $base_branch" >&2; return 1; }
     git fetch origin "$branch" 2>&1 >&2 || { echo "Failed to fetch $branch" >&2; return 1; }
     
     # Get commit hashes
     local base_commit=""
     base_commit=$(git rev-parse origin/"$base_branch" 2>&1) || {
-        echo "Error getting commit hash for $base_branch" >&2
+        echo "Error getting commit hash for $base_branch"
         return 1
     }
     local branch_commit=""
     branch_commit=$(git rev-parse origin/"$branch" 2>&1) || {
-        echo "Error getting commit hash for $branch" >&2
+        echo "Error getting commit hash for $branch"
         return 1
     }
     
@@ -67,10 +67,10 @@ check_branch_up_to_date() {
     
     # Check if base branch is an ancestor of branch
     if git merge-base --is-ancestor "$base_commit" "$branch_commit" 2>&1 >&2; then
-        echo "$branch is up to date with $base_branch" >&2
+        echo "$branch is up to date with $base_branch"
         return 0
     else
-        echo "$branch is behind $base_branch and needs to be updated" >&2
+        echo "$branch is behind $base_branch and needs to be updated"
         return 1
     fi
 }
@@ -78,9 +78,9 @@ check_branch_up_to_date() {
 # Function to check branch protection rules
 check_branch_protection() {
     local branch=$1
-    local required_checks=("build" "test" "lint")
-    local missing_checks=()
     local endpoint="/repos/$GITHUB_REPOSITORY/branches/$branch/protection"
+    local github_checks=("ci" "test" "lint")
+    local missing_checks=()
     
     # Validate branch name
     if [ -z "$branch" ]; then
@@ -88,7 +88,7 @@ check_branch_protection() {
         return 1
     fi
     
-    echo "Checking branch protection for $branch..." >&2
+    echo "Checking branch protection for $branch..."
     
     # Get status checks for the branch with error handling
     local api_response=""
@@ -98,7 +98,7 @@ check_branch_protection() {
             echo "Warning: Branch $branch does not have protection rules" >&2
             return 0  # Not a critical error, continue
         else
-            echo "Error getting branch protection: $api_response" >&2
+            echo "Error getting branch protection: $api_response"
             return 1
         fi
     }
@@ -115,25 +115,25 @@ check_branch_protection() {
         echo "Warning: No required status checks found for $branch" >&2
         
         if [[ "$branch" == "main" ]] || [[ "$branch" == "master" ]]; then
-            echo "Critical branch without protection checks detected" >&2
+            echo "Critical branch without protection checks detected"
             return 1
         fi
         
-        return 0
+        return 0  # Not a critical error for non-main branches
     fi
     
-    # Check each required check
-    for check in "${required_checks[@]}"; do
+    # Check if all required checks exist
+    for check in "${github_checks[@]}"; do
         if ! echo "$checks" | grep -q "$check"; then
             missing_checks+=("$check")
         fi
     done
     
     if [ ${#missing_checks[@]} -eq 0 ]; then
-        echo "All required checks are configured for $branch" >&2
+        echo "All required checks are configured for $branch"
         return 0
     else
-        echo "Missing required checks: ${missing_checks[*]}" >&2
+        echo "Missing required checks: ${missing_checks[*]}"
         return 1
     fi
 }
@@ -141,7 +141,6 @@ check_branch_protection() {
 # Function to check for failing checks
 check_failing_checks() {
     local branch=$1
-    local failing_count=0
     
     # Validate branch name
     if [ -z "$branch" ]; then
@@ -149,12 +148,12 @@ check_failing_checks() {
         return 1
     fi
     
-    echo "Checking latest commit status for $branch..." >&2
+    echo "Checking latest commit status for $branch..."
     
     # Get latest commit and check status
     local latest_commit=""
     latest_commit=$(git rev-parse origin/"$branch" 2>&1) || {
-        echo "Error getting latest commit for $branch" >&2
+        echo "Error getting latest commit for $branch"
         return 1
     }
     
@@ -166,7 +165,7 @@ check_failing_checks() {
     # Get failing checks with error handling
     local api_response=""
     api_response=$(gh api "/repos/$GITHUB_REPOSITORY/commits/$latest_commit/check-runs" 2>&1) || {
-        echo "Error getting check-runs: $api_response" >&2
+        echo "Error getting check-runs: $api_response"
         return 1
     }
     
@@ -179,23 +178,23 @@ check_failing_checks() {
     
     # Check if we have failing checks
     if [ -n "$failing_checks" ]; then
-        echo "Branch has failing checks:" >&2
-        echo "$failing_checks" >&2
+        echo "Branch has failing checks:"
+        echo "$failing_checks"
         failing_count=$(echo "$failing_checks" | wc -l)
         return 1
     else
-        echo "No failing checks detected for $branch" >&2
+        echo "No failing checks detected for $branch"
         return 0
     fi
 }
 
-# Function to check branch status
+# Function to check overall branch status
 check_branch_status() {
     local branch=$1
     local base_branch=${2:-main}
     local has_errors=0
     
-    echo "Checking status for branch: $branch" >&2
+    echo "Checking status for branch: $branch"
     
     # Check if branch exists
     if ! check_branch_exists "$branch"; then
@@ -209,7 +208,7 @@ check_branch_status() {
         has_errors=1
     fi
     
-    # Check branch protection rules
+    # Check branch protection
     if ! check_branch_protection "$branch"; then
         has_errors=1
     fi
@@ -231,18 +230,19 @@ check_branch_status() {
     fi
     
     if [ $has_errors -eq 0 ]; then
-        echo "Branch $branch passed all checks" >&2
+        echo "Branch $branch passed all checks"
     fi
     
+    # Return status as a value to be captured by the caller
     return $has_errors
 }
 
-# Main function
+# Main function to parse arguments and run validations
 main() {
-    # Parse command line arguments
     local branch=""
     local base_branch="main"
     
+    # Parse command line arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
             --branch)
@@ -254,12 +254,12 @@ main() {
                 shift 2
                 ;;
             --help)
-                echo "Usage: $0 --branch <branch-name> [--base <base-branch>]" >&2
+                echo "Usage: $0 --branch <branch-name> [--base <base-branch>]"
                 exit 0
                 ;;
             *)
-                echo "Unknown option: $1" >&2
-                echo "Usage: $0 --branch <branch-name> [--base <base-branch>]" >&2
+                echo "Unknown option: $1"
+                echo "Usage: $0 --branch <branch-name> [--base <base-branch>]"
                 exit 1
                 ;;
         esac
@@ -271,13 +271,17 @@ main() {
         exit 1
     fi
     
-    echo "Starting branch status check..." >&2
+    echo "Starting branch status check..."
     
     if check_branch_status "$branch" "$base_branch"; then
-        echo "Branch status check passed!" >&2
+        echo "Branch status check passed!"
+        # Output a success value for scripts that capture the output
+        printf "branch_status=pass\n"
         exit 0
     else
-        echo "Branch status check failed!" >&2
+        echo "Branch status check failed!"
+        # Output a success value for scripts that capture the output
+        printf "branch_status=fail\n"
         exit 1
     fi
 }

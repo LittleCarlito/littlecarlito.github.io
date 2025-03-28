@@ -36,7 +36,8 @@ get_package_version() {
         return 1
     fi
     
-    echo "$version" >&2
+    # Output the version to stdout (no redirection)
+    echo "$version"
 }
 
 # Function to update version in package.json
@@ -171,7 +172,8 @@ version_package() {
     # Update dependencies
     update_dependencies "$package" "$new_version" || return 1
     
-    echo "$new_version" >&2
+    # Output the new version to stdout (no redirection)
+    echo "$new_version"
     return 0
 }
 
@@ -200,16 +202,16 @@ version_all_packages() {
     
     # Version each package
     for package in "${packages[@]}"; do
-        echo "Versioning package: $package" >&2
+        echo "Versioning package: $package"
         if ! version_package "$package" "$version_type"; then
-            echo "Failed to version package: $package" >&2
+            echo "Failed to version package: $package"
             failed_packages+=("$package")
             success=1
         fi
     done
     
     if [ ${#failed_packages[@]} -gt 0 ]; then
-        echo "The following packages failed to version: ${failed_packages[*]}" >&2
+        echo "The following packages failed to version: ${failed_packages[*]}"
         return 1
     fi
     
@@ -227,12 +229,12 @@ main() {
                 shift 2
                 ;;
             --help)
-                echo "Usage: $0 [--type major|minor|patch]" >&2
+                echo "Usage: $0 [--type major|minor|patch]"
                 exit 0
                 ;;
             *)
-                echo "Unknown option: $1" >&2
-                echo "Usage: $0 [--type major|minor|patch]" >&2
+                echo "Unknown option: $1"
+                echo "Usage: $0 [--type major|minor|patch]"
                 exit 1
                 ;;
         esac
@@ -244,13 +246,13 @@ main() {
         exit 1
     fi
     
-    echo "Starting package versioning with type: $version_type..." >&2
+    echo "Starting package versioning with type: $version_type..."
     
     if version_all_packages "$version_type"; then
-        echo "Package versioning completed successfully!" >&2
+        echo "Package versioning completed successfully!"
         exit 0
     else
-        echo "Package versioning completed with errors." >&2
+        echo "Package versioning completed with errors."
         exit 1
     fi
 }

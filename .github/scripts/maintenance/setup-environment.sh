@@ -50,8 +50,8 @@ setup_environment() {
     # Configure npm registry (if not in a GitHub Action environment)
     if [ -z "$GITHUB_ACTIONS" ]; then
         echo "Configuring npm registry..." >&2
-        echo "@$scope:registry=$registry_url" > .npmrc >&2
-        echo "${registry_url#https:}/:_authToken=$github_token" >> .npmrc >&2
+        echo "@$scope:registry=$registry_url" > .npmrc
+        echo "${registry_url#https:}/:_authToken=$github_token" >> .npmrc
     fi
     
     # Install dependencies

@@ -101,7 +101,7 @@ validate_changeset() {
         return 1
     fi
     
-    echo "Changeset $file is valid" >&2
+    echo "Changeset $file is valid"
     return 0
 }
 

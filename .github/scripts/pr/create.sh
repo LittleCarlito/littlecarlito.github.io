@@ -125,7 +125,7 @@ push_changes() {
         return 1
     }
     
-    echo "Successfully pushed changes to $branch_name" >&2
+    echo "Successfully pushed changes to $branch_name"
     return 0
 }
 

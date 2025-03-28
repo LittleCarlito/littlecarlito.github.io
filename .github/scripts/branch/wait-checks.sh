@@ -11,11 +11,11 @@ wait_for_checks() {
     local timeout=${4:-300}
     local min_required_checks=${5:-3}
     
-    echo "Waiting for checks to complete on commit $sha (excluding $current_workflow)..." >&2
-    echo "Timeout: $timeout seconds, Minimum required checks: $min_required_checks" >&2
+    echo "Waiting for checks to complete on commit $sha (excluding $current_workflow)..."
+    echo "Timeout: $timeout seconds, Minimum required checks: $min_required_checks"
     
     # Wait initial time for checks to start appearing
-    echo "Waiting 5 seconds for checks to start appearing..." >&2
+    echo "Waiting 5 seconds for checks to start appearing..."
     sleep 5
     
     # Wait for checks to complete (until timeout)
@@ -28,10 +28,10 @@ wait_for_checks() {
         
         # Get total count of check runs
         TOTAL_CHECKS=$(echo "$CHECK_RUNS" | jq '.total_count')
-        echo "Total check runs: $TOTAL_CHECKS" >&2
+        echo "Total check runs: $TOTAL_CHECKS"
         
         if [ "$TOTAL_CHECKS" = "0" ]; then
-            echo "No checks found yet. Waiting..." >&2
+            echo "No checks found yet. Waiting..."
             sleep $interval
             elapsed=$((elapsed + interval))
             continue
@@ -50,30 +50,31 @@ wait_for_checks() {
         
         # For debugging: show exactly which checks were recognized as "our workflow"
         OUR_WORKFLOW_CHECKS=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '.check_runs[] | select((.name | type == "string") and (.name | contains($name))) | .name')
-        echo "Identified as our workflow checks: $OUR_WORKFLOW_CHECKS" >&2
+        echo "Identified as our workflow checks: $OUR_WORKFLOW_CHECKS"
         
         # Calculate non-workflow checks
         NON_WORKFLOW_TOTAL=$((TOTAL_CHECKS - WORKFLOW_CHECKS))
         NON_WORKFLOW_COMPLETED=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '[.check_runs[] | select(.status == "completed" and ((.name | type != "string") or (.name | contains($name) | not)))] | length')
         
-        echo "Checks: $COMPLETED_CHECKS/$TOTAL_CHECKS completed overall" >&2
-        echo "Non-workflow checks: $NON_WORKFLOW_COMPLETED/$NON_WORKFLOW_TOTAL completed" >&2
-        echo "Current workflow checks: $WORKFLOW_CHECKS total, $WORKFLOW_IN_PROGRESS in progress" >&2
-        echo "All checks: $SUCCESSFUL_CHECKS successful, $FAILED_CHECKS failed" >&2
+        echo "Checks: $COMPLETED_CHECKS/$TOTAL_CHECKS completed overall"
+        echo "Non-workflow checks: $NON_WORKFLOW_COMPLETED/$NON_WORKFLOW_TOTAL completed"
+        echo "Current workflow checks: $WORKFLOW_CHECKS total, $WORKFLOW_IN_PROGRESS in progress"
+        echo "All checks: $SUCCESSFUL_CHECKS successful, $FAILED_CHECKS failed"
         
         # Output all check names for better debugging
-        echo "All check names:" >&2
-        echo "$CHECK_RUNS" | jq -r '.check_runs[] | "\(.name), status: \(.status), conclusion: \(.conclusion)"' >&2
+        echo "All check names:"
+        echo "$CHECK_RUNS" | jq -r '.check_runs[] | "\(.name), status: \(.status), conclusion: \(.conclusion)"'
         
         # If any checks failed, exit
         if [ "$FAILED_CHECKS" != "0" ]; then
-            echo "Some checks failed. Aborting." >&2
+            echo "Some checks failed. Aborting."
+            printf "checks_status=failed\n"
             return 1
         fi
         
         # Make sure we have at least the minimum required number of non-workflow checks
         if [ "$NON_WORKFLOW_TOTAL" -lt "$min_required_checks" ]; then
-            echo "Waiting for more checks to appear. Expected at least $min_required_checks, but found $NON_WORKFLOW_TOTAL" >&2
+            echo "Waiting for more checks to appear. Expected at least $min_required_checks, but found $NON_WORKFLOW_TOTAL"
             sleep $interval
             elapsed=$((elapsed + interval))
             continue
@@ -84,22 +85,28 @@ wait_for_checks() {
         # 1. ALL checks are complete, OR
         # 2. All non-workflow checks are complete AND exactly one workflow check is still running
         if [ "$COMPLETED_CHECKS" = "$TOTAL_CHECKS" ] || [ "$NON_WORKFLOW_COMPLETED" = "$NON_WORKFLOW_TOTAL" -a "$WORKFLOW_IN_PROGRESS" = "1" -a "$WORKFLOW_CHECKS" = "1" ]; then
-            echo "All required checks completed successfully (except possibly our own workflow)!" >&2
+            echo "All required checks completed successfully (except possibly our own workflow)!"
+            printf "checks_status=success\n"
+            printf "completed_checks=$COMPLETED_CHECKS\n"
+            printf "total_checks=$TOTAL_CHECKS\n"
+            printf "successful_checks=$SUCCESSFUL_CHECKS\n"
             return 0
         fi
         
         # Check if we're out of time
         if [ $elapsed -ge $timeout ]; then
-            echo "Timeout waiting for checks to complete." >&2
+            echo "Timeout waiting for checks to complete."
+            printf "checks_status=timeout\n"
             return 1
         fi
         
-        echo "Waiting for all checks to complete ($elapsed/$timeout seconds elapsed)..." >&2
+        echo "Waiting for all checks to complete ($elapsed/$timeout seconds elapsed)..."
         sleep $interval
         elapsed=$((elapsed + interval))
     done
     
-    echo "Timeout waiting for checks to complete." >&2
+    echo "Timeout waiting for checks to complete."
+    printf "checks_status=timeout\n"
     return 1
 }
 
@@ -135,8 +142,8 @@ main() {
                 shift 2
                 ;;
             *)
-                echo "Unknown option: $1" >&2
-                echo "Usage: $0 --repo <owner/repo> --sha <commit-sha> --workflow <workflow-name> [--timeout <seconds>] [--min-checks <number>]" >&2
+                echo "Unknown option: $1"
+                echo "Usage: $0 --repo <owner/repo> --sha <commit-sha> --workflow <workflow-name> [--timeout <seconds>] [--min-checks <number>]"
                 exit 1
                 ;;
         esac

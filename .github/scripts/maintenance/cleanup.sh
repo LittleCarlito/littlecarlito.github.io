@@ -27,7 +27,7 @@ cleanup_temp_files() {
         echo "Warning: This operation will delete all node_modules directories and may require reinstalling dependencies" >&2
         read -p "Continue? (y/n): " confirm
         if [ "$confirm" != "y" ]; then
-            echo "Skipping node_modules, .turbo, and dist deletion" >&2
+            echo "Skipping node_modules, .turbo, and dist deletion"
             return 0
         fi
     fi
@@ -42,7 +42,7 @@ cleanup_temp_files() {
     find . -type d -name "dist" -exec rm -rf {} + >&2 && { echo "  Deleted dist directories" >&2; dirs_deleted=1; } || echo "  No dist directories found or permission denied" >&2
     
     if [ $files_deleted -eq 0 ] && [ $dirs_deleted -eq 0 ]; then
-        echo "No temporary files or directories were found to clean up" >&2
+        echo "No temporary files or directories were found to clean up"
         return 0
     fi
     
@@ -68,12 +68,12 @@ cleanup_temp_branches() {
     echo "Finding temporary branches..." >&2
     local temp_branches=""
     temp_branches=$(git branch -r | grep -E "changeset-release/|temp/|temporary/") || {
-        echo "No temporary branches found matching the patterns" >&2
+        echo "No temporary branches found matching the patterns"
         return 0
     }
     
     if [ -z "$temp_branches" ]; then
-        echo "No temporary branches found matching the patterns" >&2
+        echo "No temporary branches found matching the patterns"
         return 0
     fi
     
@@ -85,7 +85,7 @@ cleanup_temp_branches() {
         echo "Warning: This operation will delete remote branches" >&2
         read -p "Continue? (y/n): " confirm
         if [ "$confirm" != "y" ]; then
-            echo "Skipping branch deletion" >&2
+            echo "Skipping branch deletion"
             return 0
         fi
     fi
@@ -148,7 +148,7 @@ cleanup_artifacts() {
         echo "Warning: This operation will delete build artifacts and may require rebuilding your project" >&2
         read -p "Continue? (y/n): " confirm
         if [ "$confirm" != "y" ]; then
-            echo "Skipping artifacts deletion" >&2
+            echo "Skipping artifacts deletion"
             return 0
         fi
     fi
@@ -196,8 +196,8 @@ print_help() {
     echo "  $0 --all           Clean up everything (explicitly)" >&2
     echo "" >&2
     echo "Environment variables:" >&2
-    echo "  DEBUG=1            Enable debug output" >&2
-    echo "  CI=true            Skip confirmation prompts (for CI environments)" >&2
+    echo "  DEBUG=1            Enable debug output" 
+    echo "  CI=true            Skip confirmation prompts (for CI environments)" 
 }
 
 # Main cleanup function

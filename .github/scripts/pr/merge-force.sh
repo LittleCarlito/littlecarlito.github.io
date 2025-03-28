@@ -46,7 +46,7 @@ get_pr_state() {
         return 1
     fi
     
-    echo "$state" >&2
+    echo "$state"
     return 0
 }
 

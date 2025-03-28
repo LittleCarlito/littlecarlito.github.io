@@ -20,7 +20,7 @@ get_required_checks() {
     local api_output=""
     local endpoint="/repos/$GITHUB_REPOSITORY/branches/$branch/protection"
     
-    echo "Fetching required checks for branch: $branch" >&2
+    echo "Fetching required checks for branch: $branch"
     
     api_output=$(gh api "$endpoint" 2>&1) || {
         # Check if error is due to branch not having protection
@@ -29,7 +29,7 @@ get_required_checks() {
             return 0
         fi
         
-        echo "Error fetching branch protection: $api_output" >&2
+        echo "Error fetching branch protection: $api_output"
         return 1
     }
     
@@ -45,7 +45,7 @@ get_required_checks() {
         return 0
     fi
     
-    echo "$checks" >&2
+    echo "$checks"
     return 0
 }
 
@@ -61,10 +61,10 @@ get_commit_checks() {
     local api_output=""
     local endpoint="/repos/$GITHUB_REPOSITORY/commits/$sha/check-runs"
     
-    echo "Fetching check runs for commit: $sha" >&2
+    echo "Fetching check runs for commit: $sha"
     
     api_output=$(gh api "$endpoint" 2>&1) || {
-        echo "Error fetching check runs: $api_output" >&2
+        echo "Error fetching check runs: $api_output"
         return 1
     }
     
@@ -80,7 +80,7 @@ get_commit_checks() {
         return 0
     fi
     
-    echo "$checks" >&2
+    echo "$checks"
     return 0
 }
 
@@ -115,7 +115,7 @@ check_if_passing() {
     fi
     
     if [ "$check_status" = "success" ]; then
-        echo "Check '$check_name' is passing ✓" >&2
+        echo "Check '$check_name' is passing ✓"
         return 0
     else
         echo "Check '$check_name' is not passing (status: $check_status) ✗" >&2
@@ -142,7 +142,7 @@ check_required_checks() {
     echo "Checking required checks for branch: $branch" >&2
     echo "Commit SHA: $sha" >&2
     
-    # Get required checks
+    # Fetch required checks
     local required_checks=""
     required_checks=$(get_required_checks "$branch") || {
         # If there's an error but the function returned 0, it means there are no required checks
@@ -154,12 +154,12 @@ check_required_checks() {
     }
     
     if [ -z "$required_checks" ]; then
-        echo "No required checks found for branch $branch, skipping check verification" >&2
+        echo "No required checks found for branch $branch, skipping check verification"
         return 0
     fi
     
     echo "Required checks:" >&2
-    echo "$required_checks" >&2
+    echo "$required_checks"
     
     # Get current checks
     local current_checks=""
@@ -169,7 +169,7 @@ check_required_checks() {
     }
     
     echo "Current checks:" >&2
-    echo "$current_checks" >&2
+    echo "$current_checks"
     
     # Check each required check
     while IFS= read -r check; do
@@ -191,7 +191,7 @@ check_required_checks() {
     done <<< "$required_checks"
     
     if [ $has_errors -eq 0 ]; then
-        echo "All required checks are passing! ✓" >&2
+        echo "All required checks are passing! ✓"
         return 0
     else
         echo "Some required checks are failing or missing ✗" >&2
@@ -225,7 +225,7 @@ wait_for_checks() {
         echo "Elapsed time: $elapsed seconds (timeout: $timeout seconds)" >&2
         
         if check_required_checks "$branch" "$sha"; then
-            echo "All required checks are passing within $elapsed seconds!" >&2
+            echo "All required checks are passing within $elapsed seconds!"
             return 0
         fi
         
@@ -312,9 +312,13 @@ main() {
     else
         if check_required_checks "$branch" "$sha"; then
             echo "All required checks are passing" >&2
+            # Output a success value for scripts that capture the output
+            printf "checks_status=pass\n"
             exit 0
         else
             echo "Some required checks are failing or missing" >&2
+            # Output a failure value for scripts that capture the output
+            printf "checks_status=fail\n"
             exit 1
         fi
     fi
