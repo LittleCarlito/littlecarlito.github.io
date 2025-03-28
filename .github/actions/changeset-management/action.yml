@@ -40,10 +40,10 @@ inputs:
 outputs:
   has-changesets:
     description: 'Whether any changesets were found'
-    value: ${{ steps.check-changesets.outputs.has_changesets }}
+    value: ${{ steps.changeset-gen.outputs.has_changesets }}
   has-auto-changesets:
     description: 'Whether any auto-generated changesets were found'
-    value: ${{ steps.check-changesets.outputs.has_auto_changesets }}
+    value: ${{ steps.changeset-gen.outputs.has_auto_changesets }}
   published:
     description: 'Whether any packages were published'
     value: ${{ steps.changesets.outputs.published }}
@@ -52,41 +52,27 @@ outputs:
     value: ${{ steps.find-pr.outputs.pr_number }}
   branch-name:
     description: 'Branch name used for the changeset'
-    value: ${{ steps.generate-changeset.outputs.branch_name }}
+    value: ${{ steps.changeset-gen.outputs.branch_name }}
 
 runs:
   using: "composite"
   steps:
-    # Check for existing changesets using our script
-    - name: Check for changesets
-      id: check-changesets
-      shell: bash
-      run: |
-        OUTPUT=$(bash .github/scripts/version/check-changesets.sh \
-          --auto-changeset-prefix "${{ inputs.auto-changeset-prefix }}")
-        
-        # Parse the output and set it to GITHUB_OUTPUT
-        echo "$OUTPUT" >> $GITHUB_OUTPUT
-
-    # Generate changeset using our script (if requested)
-    - name: Generate changeset
-      id: generate-changeset
-      if: inputs.since-commit != ''
-      shell: bash
-      run: |
-        OUTPUT=$(bash .github/scripts/version/generate-changeset.sh \
-          --since-commit "${{ inputs.since-commit }}" \
-          --package-name "${{ inputs.package-name }}" \
-          --version-type "${{ inputs.version-type }}" \
-          --auto-changeset-prefix "${{ inputs.auto-changeset-prefix }}")
-        
-        # Parse the output and set it to GITHUB_OUTPUT
-        echo "$OUTPUT" >> $GITHUB_OUTPUT
+    # Use our new changeset-generation action to check for, and generate changesets
+    - name: Changeset generation and management 
+      id: changeset-gen
+      uses: ./.github/actions/changeset-generation
+      with:
+        github-token: ${{ inputs.github-token }}
+        repository: ${{ inputs.repository }}
+        since-commit: ${{ inputs.since-commit }}
+        package-name: ${{ inputs.package-name }}
+        version-type: ${{ inputs.version-type }}
+        auto-changeset-prefix: ${{ inputs.auto-changeset-prefix }}
 
     # Validate changesets using our script
     - name: Validate changesets
       id: validate-changesets
-      if: steps.check-changesets.outputs.has_changesets == 'true' || steps.generate-changeset.outputs.changeset_created == 'true'
+      if: steps.changeset-gen.outputs.has_changesets == 'true' || steps.changeset-gen.outputs.changeset_created == 'true'
       shell: bash
       run: |
         bash .github/scripts/version/validate-changesets.sh
@@ -94,7 +80,7 @@ runs:
     # Run version/release if needed using our script
     - name: Create Release or Version PR
       id: changesets
-      if: (steps.check-changesets.outputs.has_changesets == 'true' || steps.generate-changeset.outputs.changeset_created == 'true') && inputs.create-release == 'true'
+      if: (steps.changeset-gen.outputs.has_changesets == 'true' || steps.changeset-gen.outputs.changeset_created == 'true') && inputs.create-release == 'true'
       shell: bash
       run: |
         if [ "${{ inputs.publish }}" == "true" ]; then
