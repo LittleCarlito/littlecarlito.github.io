@@ -55,7 +55,7 @@ update_package_version() {
             const pkg = require('./$package_json');
             pkg.version = '$new_version';
             fs.writeFileSync('./$package_json', JSON.stringify(pkg, null, 2) + '\n');
-            console.log('Updated $package to version $new_version');
+            console.error('Updated $package to version $new_version');
         } catch(error) {
             console.error('Error updating version in $package_json:', error);
             process.exit(1);
@@ -108,7 +108,7 @@ update_dependencies() {
             
             if (updated) {
                 fs.writeFileSync('$(pwd)/$pkg_file', JSON.stringify(pkg, null, 2) + '\n');
-                console.log('Updated $package dependency in $pkg_file');
+                console.error('Updated $package dependency in $pkg_file');
             }
         } catch(error) {
             console.error('Error updating dependencies in $pkg_file:', error);
@@ -202,16 +202,16 @@ version_all_packages() {
     
     # Version each package
     for package in "${packages[@]}"; do
-        echo "Versioning package: $package"
+        echo "Versioning package: $package" >&2
         if ! version_package "$package" "$version_type"; then
-            echo "Failed to version package: $package"
+            echo "Failed to version package: $package" >&2
             failed_packages+=("$package")
             success=1
         fi
     done
     
     if [ ${#failed_packages[@]} -gt 0 ]; then
-        echo "The following packages failed to version: ${failed_packages[*]}"
+        echo "The following packages failed to version: ${failed_packages[*]}" >&2
         return 1
     fi
     
@@ -229,12 +229,12 @@ main() {
                 shift 2
                 ;;
             --help)
-                echo "Usage: $0 [--type major|minor|patch]"
+                echo "Usage: $0 [--type major|minor|patch]" >&2
                 exit 0
                 ;;
             *)
-                echo "Unknown option: $1"
-                echo "Usage: $0 [--type major|minor|patch]"
+                echo "Unknown option: $1" >&2
+                echo "Usage: $0 [--type major|minor|patch]" >&2
                 exit 1
                 ;;
         esac
@@ -246,13 +246,13 @@ main() {
         exit 1
     fi
     
-    echo "Starting package versioning with type: $version_type..."
+    echo "Starting package versioning with type: $version_type..." >&2
     
     if version_all_packages "$version_type"; then
-        echo "Package versioning completed successfully!"
+        echo "Package versioning completed successfully!" >&2
         exit 0
     else
-        echo "Package versioning completed with errors."
+        echo "Package versioning completed with errors." >&2
         exit 1
     fi
 }

@@ -20,7 +20,7 @@ get_required_checks() {
     local api_output=""
     local endpoint="/repos/$GITHUB_REPOSITORY/branches/$branch/protection"
     
-    echo "Fetching required checks for branch: $branch"
+    echo "Fetching required checks for branch: $branch" >&2
     
     api_output=$(gh api "$endpoint" 2>&1) || {
         # Check if error is due to branch not having protection
@@ -29,7 +29,7 @@ get_required_checks() {
             return 0
         fi
         
-        echo "Error fetching branch protection: $api_output"
+        echo "Error fetching branch protection: $api_output" >&2
         return 1
     }
     
@@ -61,10 +61,10 @@ get_commit_checks() {
     local api_output=""
     local endpoint="/repos/$GITHUB_REPOSITORY/commits/$sha/check-runs"
     
-    echo "Fetching check runs for commit: $sha"
+    echo "Fetching check runs for commit: $sha" >&2
     
     api_output=$(gh api "$endpoint" 2>&1) || {
-        echo "Error fetching check runs: $api_output"
+        echo "Error fetching check runs: $api_output" >&2
         return 1
     }
     
@@ -115,7 +115,7 @@ check_if_passing() {
     fi
     
     if [ "$check_status" = "success" ]; then
-        echo "Check '$check_name' is passing ✓"
+        echo "Check '$check_name' is passing ✓" >&2
         return 0
     else
         echo "Check '$check_name' is not passing (status: $check_status) ✗" >&2
@@ -154,7 +154,7 @@ check_required_checks() {
     }
     
     if [ -z "$required_checks" ]; then
-        echo "No required checks found for branch $branch, skipping check verification"
+        echo "No required checks found for branch $branch, skipping check verification" >&2
         return 0
     fi
     
@@ -191,7 +191,7 @@ check_required_checks() {
     done <<< "$required_checks"
     
     if [ $has_errors -eq 0 ]; then
-        echo "All required checks are passing! ✓"
+        echo "All required checks are passing! ✓" >&2
         return 0
     else
         echo "Some required checks are failing or missing ✗" >&2
@@ -225,7 +225,7 @@ wait_for_checks() {
         echo "Elapsed time: $elapsed seconds (timeout: $timeout seconds)" >&2
         
         if check_required_checks "$branch" "$sha"; then
-            echo "All required checks are passing within $elapsed seconds!"
+            echo "All required checks are passing within $elapsed seconds!" >&2
             return 0
         fi
         

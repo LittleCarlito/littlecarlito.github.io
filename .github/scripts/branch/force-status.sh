@@ -9,9 +9,9 @@ get_sha_from_pr() {
     local repo=$2
     local pr_number=$3
     
-    echo "Getting SHA from PR #$pr_number"
+    echo "Getting SHA from PR #$pr_number" >&2
     PR_SHA=$(gh pr view $pr_number --json headRefOid --jq .headRefOid)
-    echo "Got SHA: $PR_SHA"
+    echo "Got SHA: $PR_SHA" >&2
     echo "$PR_SHA"
 }
 

@@ -21,7 +21,7 @@ delete_branch() {
     
     # Check if delete was successful (2xx status code)
     if [[ $HTTP_STATUS -ge 200 && $HTTP_STATUS -lt 300 ]]; then
-        echo "✅ Successfully deleted branch $branch"
+        echo "✅ Successfully deleted branch $branch" >&2
         return 0
     else
         echo "❌ Failed to delete branch $branch. Status: $HTTP_STATUS" >&2

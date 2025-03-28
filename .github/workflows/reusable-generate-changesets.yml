@@ -119,7 +119,14 @@ jobs:
             --token "${{ secrets.GITHUB_TOKEN }}" \
             --repo "${{ github.repository }}" \
             --pr-number "${{ steps.changeset_mgmt.outputs.pr-number }}")
-          echo "sha=$SHA" >> $GITHUB_OUTPUT
+          
+          # Validate SHA format before setting output
+          if [[ "$SHA" =~ ^[0-9a-f]{7,40}$ ]]; then
+            echo "sha=$SHA" >> $GITHUB_OUTPUT
+          else
+            echo "ERROR: Invalid SHA format received: '$SHA'" >&2
+            exit 1
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
