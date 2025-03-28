@@ -1,4 +1,14 @@
 #!/bin/bash
+# DEPRECATED: This script has been replaced by the modular scripts:
+# - create-changeset-branch.sh
+# - generate-changeset-content.sh
+# - commit-changeset.sh
+# - cleanup-changeset.sh
+#
+# Please use those scripts directly or use the changeset-generation action.
+
+echo "WARNING: generate-changeset.sh is deprecated. Please use the modular scripts instead." >&2
+exit 1
 
 # Exit on error
 set -e
@@ -16,15 +26,15 @@ generate_changeset() {
     # Log message - redirect to stderr
     echo "Generating changeset..." >&2
     
-    # Create a new branch for the changeset
+    # Create a new branch for the changeset - suppress ALL git output
     BRANCH_NAME="changeset-release/auto-$(date +%s)"
     echo "Using branch name: $BRANCH_NAME" >&2
     
-    # Redirect git command output to stderr
-    { git checkout -b "$BRANCH_NAME"; } 2>&1 >&2 || {
+    # Completely suppress git output to prevent GitHub Actions parsing issues
+    if ! git checkout -b "$BRANCH_NAME" > /dev/null 2>&1; then
         echo "Error creating branch $BRANCH_NAME" >&2
         return 1
-    }
+    fi
     
     CHANGESET_CREATED=false
     
@@ -58,19 +68,21 @@ EOF
     if ls .changeset/${auto_changeset_prefix}*.md 1> /dev/null 2>&1; then
         echo "Changeset generated successfully!" >&2
         
-        # Commit the changeset - redirect all output to stderr
-        { git add .changeset/; } 2>&1 >&2 || {
+        # Commit the changeset - suppress all git output
+        if ! git add .changeset/ > /dev/null 2>&1; then
             echo "Error adding changeset files" >&2
             return 1
-        }
-        { git commit -m "chore: auto-generate changeset [skip ci]"; } 2>&1 >&2 || {
+        fi
+        
+        if ! git commit -m "chore: auto-generate changeset [skip ci]" > /dev/null 2>&1; then
             echo "Error committing changeset" >&2
             return 1
-        }
-        { git push --set-upstream origin "$BRANCH_NAME"; } 2>&1 >&2 || {
+        fi
+        
+        if ! git push --set-upstream origin "$BRANCH_NAME" > /dev/null 2>&1; then
             echo "Error pushing branch $BRANCH_NAME" >&2
             return 1
-        }
+        fi
         
         # Output values - send to stdout without >&2 redirection
         echo "branch_name=$BRANCH_NAME"
@@ -79,16 +91,18 @@ EOF
         echo "No changeset was generated" >&2
         # Output values - send to stdout without >&2 redirection
         echo "changeset_created=false"
-        # Return to the original branch
-        { git checkout -; } 2>&1 >&2 || {
+        
+        # Return to the original branch - suppress git output
+        if ! git checkout - > /dev/null 2>&1; then
             echo "Error returning to original branch" >&2
             return 1
-        }
-        # Delete the temporary branch
-        { git branch -D "$BRANCH_NAME"; } 2>&1 >&2 || {
+        fi
+        
+        # Delete the temporary branch - suppress git output
+        if ! git branch -D "$BRANCH_NAME" > /dev/null 2>&1; then
             echo "Error deleting branch $BRANCH_NAME" >&2
             return 1
-        }
+        fi
     fi
 }
 
