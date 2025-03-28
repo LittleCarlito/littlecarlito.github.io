@@ -18,10 +18,10 @@ force_merge_pr() {
     MERGEABLE=$(echo "$PR_INFO" | jq -r '.mergeable')
     MERGE_STATE=$(echo "$PR_INFO" | jq -r '.mergeStateStatus')
     
-    echo "PR #$pr_number details:"
-    echo "Head branch: $HEAD_BRANCH"
-    echo "Mergeable: $MERGEABLE"
-    echo "Merge state: $MERGE_STATE"
+    echo "PR #$pr_number details:" >&2
+    echo "Head branch: $HEAD_BRANCH" >&2
+    echo "Mergeable: $MERGEABLE" >&2
+    echo "Merge state: $MERGE_STATE" >&2
     
     # Create JSON payload with jq to handle escaping properly
     JSON_PAYLOAD=$(jq -n \
@@ -33,7 +33,7 @@ force_merge_pr() {
         "merge_method": $method
       }')
     
-    echo "Attempting direct API merge with title: $commit_title"
+    echo "Attempting direct API merge with title: $commit_title" >&2
     
     # Merge the PR using the GitHub API directly
     RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT \
@@ -46,27 +46,27 @@ force_merge_pr() {
     HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
     RESPONSE_BODY=$(echo "$RESPONSE" | sed '$ d')
     
-    echo "Response body: $RESPONSE_BODY"
-    echo "Status code: $HTTP_STATUS"
+    echo "Response body: $RESPONSE_BODY" >&2
+    echo "Status code: $HTTP_STATUS" >&2
     
     # Check if merge was successful (2xx status code)
     if [[ $HTTP_STATUS -ge 200 && $HTTP_STATUS -lt 300 ]]; then
-        echo "✅ Successfully merged PR #$pr_number"
+        echo "✅ Successfully merged PR #$pr_number" >&2
         
         # Delete branch if requested
         if [ "$delete_branch" = "true" ]; then
-            echo "Deleting branch $HEAD_BRANCH..."
+            echo "Deleting branch $HEAD_BRANCH..." >&2
             curl -X DELETE \
               -H "Authorization: token $token" \
               -H "Accept: application/vnd.github.v3+json" \
               "https://api.github.com/repos/$repo/git/refs/heads/$HEAD_BRANCH"
             
-            echo "Branch $HEAD_BRANCH has been deleted"
+            echo "Branch $HEAD_BRANCH has been deleted" >&2
         fi
         return 0
     else
-        echo "❌ Failed to merge PR #$pr_number. Status: $HTTP_STATUS"
-        echo "Error: $RESPONSE_BODY"
+        echo "❌ Failed to merge PR #$pr_number. Status: $HTTP_STATUS" >&2
+        echo "Error: $RESPONSE_BODY" >&2
         return 1
     fi
 }
@@ -108,8 +108,8 @@ main() {
                 shift 2
                 ;;
             *)
-                echo "Unknown option: $1"
-                echo "Usage: $0 --token <github-token> --repo <owner/repo> --pr-number <pr-number> [--commit-title <title>] [--merge-method <merge|squash|rebase>] [--delete-branch <true|false>]"
+                echo "Unknown option: $1" >&2
+                echo "Usage: $0 --token <github-token> --repo <owner/repo> --pr-number <pr-number> [--commit-title <title>] [--merge-method <merge|squash|rebase>] [--delete-branch <true|false>]" >&2
                 exit 1
                 ;;
         esac
@@ -117,17 +117,17 @@ main() {
     
     # Validate required arguments
     if [ -z "$token" ]; then
-        echo "Error: --token is required"
+        echo "Error: --token is required" >&2
         exit 1
     fi
     
     if [ -z "$repo" ]; then
-        echo "Error: --repo is required"
+        echo "Error: --repo is required" >&2
         exit 1
     fi
     
     if [ -z "$pr_number" ]; then
-        echo "Error: --pr-number is required"
+        echo "Error: --pr-number is required" >&2
         exit 1
     fi
     

@@ -44,8 +44,8 @@ setup_environment() {
     
     # Configure Git identity
     echo "Configuring Git identity..." >&2
-    git config --global user.name "github-actions[bot]"
-    git config --global user.email "github-actions[bot]@users.noreply.github.com"
+    git config --global user.name "github-actions[bot]" >&2
+    git config --global user.email "github-actions[bot]@users.noreply.github.com" >&2
     
     # Configure npm registry (if not in a GitHub Action environment)
     if [ -z "$GITHUB_ACTIONS" ]; then
@@ -59,7 +59,7 @@ setup_environment() {
     pnpm install
     
     echo "Environment setup complete" >&2
-    echo "true"  # Output for capture
+    printf "setup_complete=true\n"
 }
 
 # Parse command line arguments

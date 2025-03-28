@@ -46,8 +46,8 @@ create_release() {
     RELEASE_URL=$(echo "$RELEASE_RESPONSE" | jq -r '.html_url')
     
     echo "Created release: $RELEASE_URL" >&2
-    echo "release_id=$RELEASE_ID"
-    echo "release_url=$RELEASE_URL"
+    echo "release_id=$RELEASE_ID" > /dev/stdout
+    echo "release_url=$RELEASE_URL" > /dev/stdout
 }
 
 # Parse command line arguments

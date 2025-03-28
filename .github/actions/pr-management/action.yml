@@ -63,12 +63,12 @@ runs:
       shell: bash
       run: |
         if [ -z "${{ inputs.head-branch }}" ] && [ -z "${{ inputs.pr-number }}" ]; then
-          echo "Error: Either head-branch or pr-number must be provided"
+          echo "Error: Either head-branch or pr-number must be provided" >&2
           exit 1
         fi
         
         if [ -z "${{ inputs.pr-number }}" ] && [ -z "${{ inputs.title }}" ]; then
-          echo "Error: title is required when creating a new PR (no pr-number provided)"
+          echo "Error: title is required when creating a new PR (no pr-number provided)" >&2
           exit 1
         fi
 
@@ -78,7 +78,6 @@ runs:
       if: inputs.head-branch != ''
       shell: bash
       run: |
-        # Run the PR creation/finding script
         OUTPUT=$(bash .github/scripts/pr/create-or-update.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
@@ -87,18 +86,8 @@ runs:
           --title "${{ inputs.title }}" \
           --body "${{ inputs.body }}")
         
-        # Debug output for logging
-        echo "Script output:"
-        echo "$OUTPUT"
-        
-        # Parse and export the result
-        PR_NUMBER=$(echo "$OUTPUT" | grep "^PR_NUMBER=" | cut -d= -f2)
-        PR_URL=$(echo "$OUTPUT" | grep "^PR_URL=" | cut -d= -f2)
-        PR_STATE=$(echo "$OUTPUT" | grep "^PR_STATE=" | cut -d= -f2)
-        
-        echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-        echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
-        echo "pr_state=$PR_STATE" >> $GITHUB_OUTPUT
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
 
     # Use provided PR number if not creating a new one
     - name: Use provided PR number
@@ -106,25 +95,19 @@ runs:
       if: inputs.pr-number != ''
       shell: bash
       run: |
-        # Use find-pr.sh to get PR details
         OUTPUT=$(bash .github/scripts/pr/find-pr.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --pr-number "${{ inputs.pr-number }}")
         
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
+        
         PR_NUMBER="${{ inputs.pr-number }}"
         PR_URL="https://github.com/${{ inputs.repository }}/pull/$PR_NUMBER"
         
-        # Parse the state from the output
-        PR_STATE=$(echo "$OUTPUT" | grep "^pr_state=" | cut -d= -f2)
-        if [ -z "$PR_STATE" ]; then
-          # Fallback if not found in output
-          PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state')
-        fi
-        
         echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
         echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
-        echo "pr_state=$PR_STATE" >> $GITHUB_OUTPUT
       env:
         GH_TOKEN: ${{ inputs.github-token }}
         
@@ -146,7 +129,6 @@ runs:
           --repo "${{ inputs.repository }}" \
           --pr-number "$PR_NUMBER")
         
-        echo "Retrieved SHA: $SHA"
         echo "sha=$SHA" >> $GITHUB_OUTPUT
 
     # Auto-merge if requested
@@ -162,8 +144,8 @@ runs:
         fi
         
         # Configure git for use with the scripts
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
+        git config --global user.name "GitHub Actions" >&2
+        git config --global user.email "actions@github.com" >&2
         
         # Use our merge script
         bash .github/scripts/pr/merge.sh \

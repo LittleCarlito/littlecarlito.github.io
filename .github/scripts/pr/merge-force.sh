@@ -13,13 +13,13 @@ check_pr_exists() {
     local pr_number=$1
     
     if [ -z "$pr_number" ]; then
-        echo "Error: No PR number provided"
+        echo "Error: No PR number provided" >&2
         return 1
     fi
     
     local pr_info=""
     pr_info=$(gh pr view "$pr_number" 2>&1) || {
-        echo "Error checking PR existence: $pr_info"
+        echo "Error checking PR existence: $pr_info" >&2
         return 1
     }
     
@@ -32,19 +32,19 @@ get_pr_state() {
     local state=""
     
     if [ -z "$pr_number" ]; then
-        echo "Error: No PR number provided"
+        echo "Error: No PR number provided" >&2
         return 1
-    }
+    fi
     
-    state=$(gh pr view "$pr_number" --json state --jq '.state' 2>/dev/null) || {
-        echo "Error: Could not get state for PR #$pr_number"
+    state=$(gh pr view "$pr_number" --json state --jq '.state' 2>&1) || {
+        echo "Error: Could not get state for PR #$pr_number" >&2
         return 1
     }
     
     if [ -z "$state" ] || [ "$state" = "null" ]; then
-        echo "Error: Invalid state returned for PR #$pr_number"
+        echo "Error: Invalid state returned for PR #$pr_number" >&2
         return 1
-    }
+    fi
     
     echo "$state"
     return 0
@@ -55,18 +55,18 @@ check_branch_exists() {
     local branch=$1
     
     if [ -z "$branch" ]; then
-        echo "Error: No branch name provided"
+        echo "Error: No branch name provided" >&2
         return 1
     fi
     
     # Try to fetch the branch
-    git fetch origin "$branch" --quiet 2>/dev/null || {
+    git fetch origin "$branch" 2>&1 >&2 || {
         # If fetch fails, the branch likely doesn't exist
         return 1
     }
     
     # Check if branch exists on remote
-    if git show-ref --verify --quiet refs/remotes/origin/"$branch"; then
+    if git show-ref --verify --quiet refs/remotes/origin/"$branch" 2>&1 >&2; then
         return 0
     else
         return 1
@@ -79,45 +79,53 @@ force_merge_pr() {
     local merge_method=${2:-"squash"}
     local delete_branch=${3:-true}
     
-    echo "Force merging PR #$pr_number with admin privileges using method: $merge_method..."
+    echo "Force merging PR #$pr_number with admin privileges using method: $merge_method..." >&2
     
     # Validate input
     if [ -z "$pr_number" ]; then
-        echo "Error: No PR number provided"
+        echo "Error: No PR number provided" >&2
         return 1
     fi
     
     # Validate merge method
     if [[ ! "$merge_method" =~ ^(merge|squash|rebase)$ ]]; then
-        echo "Error: Invalid merge method: $merge_method. Must be 'merge', 'squash', or 'rebase'."
+        echo "Error: Invalid merge method: $merge_method. Must be 'merge', 'squash', or 'rebase'." >&2
         return 1
-    }
+    fi
     
     # Get PR details
     local pr_details=""
     pr_details=$(gh pr view "$pr_number" --json headRefName,baseRefName 2>&1) || {
-        echo "Error getting PR details: $pr_details"
+        echo "Error getting PR details: $pr_details" >&2
         return 1
     }
     
     # Extract branch names
-    local head_branch=$(echo "$pr_details" | jq -r '.headRefName' 2>/dev/null)
-    local base_branch=$(echo "$pr_details" | jq -r '.baseRefName' 2>/dev/null)
-    
-    if [ -z "$head_branch" ] || [ -z "$base_branch" ]; then
-        echo "Error: Could not extract branch names from PR #$pr_number"
+    local head_branch=""
+    head_branch=$(echo "$pr_details" | jq -r '.headRefName' 2>&1) || {
+        echo "Error extracting head branch name: $head_branch" >&2
+        return 1
+    }
+    local base_branch=""
+    base_branch=$(echo "$pr_details" | jq -r '.baseRefName' 2>&1) || {
+        echo "Error extracting base branch name: $base_branch" >&2
         return 1
     }
     
-    echo "PR #$pr_number: $head_branch -> $base_branch"
+    if [ -z "$head_branch" ] || [ -z "$base_branch" ]; then
+        echo "Error: Could not extract branch names from PR #$pr_number" >&2
+        return 1
+    fi
+    
+    echo "PR #$pr_number: $head_branch -> $base_branch" >&2
     
     # Try to merge with admin flag first
-    echo "Attempting to $merge_method merge PR #$pr_number with --admin flag..."
+    echo "Attempting to $merge_method merge PR #$pr_number with --admin flag..." >&2
     
     local merge_output=""
     merge_output=$(gh pr merge "$pr_number" --"$merge_method" --admin --delete-branch 2>&1) || {
-        echo "Warning: Admin merge command was not successful: $merge_output"
-        echo "Will try alternate merge method..."
+        echo "Warning: Admin merge command was not successful: $merge_output" >&2
+        echo "Will try alternate merge method..." >&2
     }
     
     # Check if the PR was merged
@@ -125,16 +133,17 @@ force_merge_pr() {
     local pr_state=""
     pr_state=$(get_pr_state "$pr_number")
     if [ $? -ne 0 ]; then
-        echo "Error: Could not get PR state after merge attempt"
+        echo "Error: Could not get PR state after merge attempt" >&2
         return 1
     fi
     
     if [ "$pr_state" == "MERGED" ]; then
-        echo "Successfully merged PR #$pr_number using admin flag"
+        echo "Successfully merged PR #$pr_number using admin flag" >&2
+        printf "merged=true\n"
     else
         # If still not merged, try direct API call as a fallback
-        echo "Admin merge command unsuccessful. PR #$pr_number is still in state: $pr_state"
-        echo "Attempting direct merge with API as fallback..."
+        echo "Admin merge command unsuccessful. PR #$pr_number is still in state: $pr_state" >&2
+        echo "Attempting direct merge with API as fallback..." >&2
         
         # Force merge with direct API call
         local api_output=""
@@ -143,7 +152,7 @@ force_merge_pr() {
             -H "Accept: application/vnd.github+json" \
             "/repos/$GITHUB_REPOSITORY/pulls/$pr_number/merge" \
             -f merge_method="$merge_method" 2>&1) || {
-            echo "Error: API merge failed: $api_output"
+            echo "Error: API merge failed: $api_output" >&2
             return 1
         }
         
@@ -151,67 +160,68 @@ force_merge_pr() {
         sleep 5
         pr_state=$(get_pr_state "$pr_number")
         if [ $? -ne 0 ]; then
-            echo "Error: Could not get PR state after API merge attempt"
+            echo "Error: Could not get PR state after API merge attempt" >&2
             return 1
         fi
     fi
     
     # Final check if PR is merged
     if [ "$pr_state" == "MERGED" ]; then
-        echo "Successfully merged PR #$pr_number"
+        echo "Successfully merged PR #$pr_number" >&2
+        printf "merged=true\n"
         
         # Delete branch if requested and not already deleted
         if [ "$delete_branch" = true ]; then
-            echo "Checking if branch $head_branch should be deleted..."
+            echo "Checking if branch $head_branch should be deleted..." >&2
             
             # Only delete if branch exists
             if check_branch_exists "$head_branch"; then
-                echo "Deleting branch: $head_branch"
-                git push origin --delete "$head_branch" 2>/dev/null || {
-                    echo "Warning: Failed to delete branch $head_branch, it may have been deleted automatically or by another process"
+                echo "Deleting branch: $head_branch" >&2
+                git push origin --delete "$head_branch" 2>&1 >&2 || {
+                    echo "Error: Failed to delete branch $head_branch" >&2
+                    return 1
                 }
+                echo "Branch $head_branch deleted successfully" >&2
+                printf "branch_deleted=true\n"
             else
-                echo "Branch $head_branch doesn't exist or was already deleted"
+                echo "Branch $head_branch does not exist or cannot be accessed" >&2
             fi
         else
-            echo "Keeping branch $head_branch (delete_branch=$delete_branch)"
+            echo "Branch $head_branch will be kept" >&2
+            printf "delete_branch=%s\n" "$delete_branch"
         fi
         
         return 0
     else
-        echo "ERROR: Failed to merge PR #$pr_number. Current state: $pr_state"
+        echo "ERROR: Failed to merge PR #$pr_number. Current state: $pr_state" >&2
+        printf "merged=false\n"
         return 1
     fi
 }
 
-# Main function
+# Parse command line arguments
 main() {
-    # Parse command line arguments
     local pr_number=""
     local merge_method="squash"
     local delete_branch=true
     
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --pr)
+            --pr-number)
                 pr_number="$2"
                 shift 2
                 ;;
-            --method)
+            --merge-method)
                 merge_method="$2"
                 shift 2
                 ;;
-            --keep-branch)
-                delete_branch=false
-                shift
-                ;;
-            --help)
-                echo "Usage: $0 --pr <pr-number> [--method merge|squash|rebase] [--keep-branch]"
-                exit 0
+            --delete-branch)
+                delete_branch="$2"
+                shift 2
                 ;;
             *)
-                echo "Unknown option: $1"
-                echo "Usage: $0 --pr <pr-number> [--method merge|squash|rebase] [--keep-branch]"
+                echo "Unknown option: $1" >&2
+                echo "Usage: $0 --pr-number <number> [--merge-method <merge|squash|rebase>] [--delete-branch <true|false>]" >&2
                 exit 1
                 ;;
         esac
@@ -219,33 +229,20 @@ main() {
     
     # Validate required arguments
     if [ -z "$pr_number" ]; then
-        echo "Error: --pr is required"
+        echo "Error: --pr-number is required" >&2
         exit 1
     fi
-    
-    # Validate merge method
-    if [[ ! "$merge_method" =~ ^(merge|squash|rebase)$ ]]; then
-        echo "Error: Invalid merge method: $merge_method. Must be 'merge', 'squash', or 'rebase'."
-        exit 1
-    fi
-    
-    echo "Starting force PR merge process for PR #$pr_number..."
     
     # Check if PR exists
-    if ! check_pr_exists "$pr_number"; then
-        echo "Error: PR #$pr_number does not exist"
-        exit 1
-    fi
+    check_pr_exists "$pr_number" || exit 1
     
-    # Attempt force merge
-    if force_merge_pr "$pr_number" "$merge_method" "$delete_branch"; then
-        echo "Force merge of PR #$pr_number completed successfully!"
-        exit 0
-    else
-        echo "Force merge of PR #$pr_number failed."
-        exit 1
-    fi
+    # Force merge PR
+    force_merge_pr "$pr_number" "$merge_method" "$delete_branch" || exit 1
+    
+    printf "merge_complete=true\n"
 }
 
-# Run main function with all arguments
-main "$@" 
+# Run main function (if script is not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi 

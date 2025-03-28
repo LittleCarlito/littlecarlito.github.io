@@ -47,8 +47,8 @@ find_pr() {
     
     if [ -z "$PR_DATA" ]; then
         echo "No PR found matching criteria" >&2
-        echo "pr_number="
-        echo "has_pr=false"
+        echo "pr_number=" > /dev/stdout
+        echo "has_pr=false" > /dev/stdout
     else
         # Assuming we might get multiple results, take the first one
         PR_NUMBER=$(echo "$PR_DATA" | jq -r '.number' | head -n 1)
@@ -56,10 +56,10 @@ find_pr() {
         PR_STATE=$(echo "$PR_DATA" | jq -r '.state' | head -n 1)
         
         echo "Found PR #$PR_NUMBER: $PR_TITLE (state: $PR_STATE)" >&2
-        echo "pr_number=$PR_NUMBER"
-        echo "has_pr=true"
-        echo "pr_title=$PR_TITLE"
-        echo "pr_state=$PR_STATE"
+        echo "pr_number=$PR_NUMBER" > /dev/stdout
+        echo "has_pr=true" > /dev/stdout
+        echo "pr_title=$PR_TITLE" > /dev/stdout
+        echo "pr_state=$PR_STATE" > /dev/stdout
     fi
 }
 

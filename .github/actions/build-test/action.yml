@@ -46,19 +46,24 @@ runs:
       id: setup
       shell: bash
       run: |
-        bash .github/scripts/maintenance/setup-environment.sh \
+        OUTPUT=$(bash .github/scripts/maintenance/setup-environment.sh \
           --github-token "${{ inputs.github-token }}" \
           --node-version "${{ inputs.node-version }}" \
-          --pnpm-version "${{ inputs.pnpm-version }}"
+          --pnpm-version "${{ inputs.pnpm-version }}")
+        
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
 
     # Build step using our script
     - name: Build packages
       id: build
       shell: bash
       run: |
-        RESULT=$(bash .github/scripts/maintenance/build-packages.sh \
+        OUTPUT=$(bash .github/scripts/maintenance/build-packages.sh \
           --build-command "${{ inputs.build-command }}")
-        echo "result=$RESULT" >> $GITHUB_OUTPUT
+        
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
 
     # Upload artifacts using GitHub's native action
     - name: Upload build artifacts
@@ -72,9 +77,11 @@ runs:
       id: test
       shell: bash
       run: |
-        RESULT=$(bash .github/scripts/maintenance/run-tests.sh \
+        OUTPUT=$(bash .github/scripts/maintenance/run-tests.sh \
           --test-command "${{ inputs.test-command }}")
-        echo "result=$RESULT" >> $GITHUB_OUTPUT
+        
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
 
     # Create build status check if PR_SHA is available
     - name: Create Build Status Check

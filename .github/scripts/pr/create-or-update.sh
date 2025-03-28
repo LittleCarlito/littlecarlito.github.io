@@ -13,27 +13,28 @@ find_or_create_pr() {
     local body=$6
     
     # Check if PR already exists
+    echo "Checking for existing PR..." >&2
     EXISTING_PR=$(gh pr list \
-      --repo $repo \
-      --head $head_branch \
-      --base $base_branch \
+      --repo "$repo" \
+      --head "$head_branch" \
+      --base "$base_branch" \
       --json number,url,state \
-      --jq '.[0]')
+      --jq '.[0]' 2>&2)
     
     if [ -n "$EXISTING_PR" ]; then
-        echo "Found existing PR"
+        echo "Found existing PR" >&2
         PR_NUMBER=$(echo "$EXISTING_PR" | jq -r '.number')
         PR_URL=$(echo "$EXISTING_PR" | jq -r '.url')
         PR_STATE=$(echo "$EXISTING_PR" | jq -r '.state')
     else
-        echo "Creating new PR"
+        echo "Creating new PR" >&2
         # Create PR - use the GitHub CLI which properly handles special characters
         PR_RESPONSE=$(gh pr create \
           --repo "$repo" \
           --base "$base_branch" \
           --head "$head_branch" \
           --title "$title" \
-          --body "$body")
+          --body "$body" 2>&2)
         
         PR_NUMBER=$(echo "$PR_RESPONSE" | grep -o '[0-9]*$')
         PR_URL="https://github.com/$repo/pull/$PR_NUMBER"
@@ -41,9 +42,9 @@ find_or_create_pr() {
     fi
     
     # Output results in a format suitable for parsing
-    echo "PR_NUMBER=$PR_NUMBER"
-    echo "PR_URL=$PR_URL"
-    echo "PR_STATE=$PR_STATE"
+    printf "pr_number=%s\n" "$PR_NUMBER"
+    printf "pr_url=%s\n" "$PR_URL"
+    printf "pr_state=%s\n" "$PR_STATE"
 }
 
 # Main function
@@ -83,8 +84,8 @@ main() {
                 shift 2
                 ;;
             *)
-                echo "Unknown option: $1"
-                echo "Usage: $0 --token <github-token> --repo <owner/repo> --head-branch <branch> --title <title> [--base-branch <branch>] [--body <body>]"
+                echo "Unknown option: $1" >&2
+                echo "Usage: $0 --token <github-token> --repo <owner/repo> --head-branch <branch> --title <title> [--base-branch <branch>] [--body <body>]" >&2
                 exit 1
                 ;;
         esac
@@ -92,22 +93,22 @@ main() {
     
     # Validate required arguments
     if [ -z "$token" ]; then
-        echo "Error: --token is required"
+        echo "Error: --token is required" >&2
         exit 1
     fi
     
     if [ -z "$repo" ]; then
-        echo "Error: --repo is required"
+        echo "Error: --repo is required" >&2
         exit 1
     fi
     
     if [ -z "$head_branch" ]; then
-        echo "Error: --head-branch is required"
+        echo "Error: --head-branch is required" >&2
         exit 1
     fi
     
     if [ -z "$title" ]; then
-        echo "Error: --title is required"
+        echo "Error: --title is required" >&2
         exit 1
     fi
     

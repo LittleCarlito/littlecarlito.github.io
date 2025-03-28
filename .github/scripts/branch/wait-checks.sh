@@ -68,6 +68,7 @@ wait_for_checks() {
         # If any checks failed, exit
         if [ "$FAILED_CHECKS" != "0" ]; then
             echo "Some checks failed. Aborting."
+            printf "checks_status=failed\n"
             return 1
         fi
         
@@ -85,12 +86,17 @@ wait_for_checks() {
         # 2. All non-workflow checks are complete AND exactly one workflow check is still running
         if [ "$COMPLETED_CHECKS" = "$TOTAL_CHECKS" ] || [ "$NON_WORKFLOW_COMPLETED" = "$NON_WORKFLOW_TOTAL" -a "$WORKFLOW_IN_PROGRESS" = "1" -a "$WORKFLOW_CHECKS" = "1" ]; then
             echo "All required checks completed successfully (except possibly our own workflow)!"
+            printf "checks_status=success\n"
+            printf "completed_checks=$COMPLETED_CHECKS\n"
+            printf "total_checks=$TOTAL_CHECKS\n"
+            printf "successful_checks=$SUCCESSFUL_CHECKS\n"
             return 0
         fi
         
         # Check if we're out of time
         if [ $elapsed -ge $timeout ]; then
             echo "Timeout waiting for checks to complete."
+            printf "checks_status=timeout\n"
             return 1
         fi
         
@@ -100,6 +106,7 @@ wait_for_checks() {
     done
     
     echo "Timeout waiting for checks to complete."
+    printf "checks_status=timeout\n"
     return 1
 }
 
@@ -144,17 +151,17 @@ main() {
     
     # Validate required arguments
     if [ -z "$repo" ]; then
-        echo "Error: --repo is required"
+        echo "Error: --repo is required" >&2
         exit 1
     fi
     
     if [ -z "$sha" ]; then
-        echo "Error: --sha is required"
+        echo "Error: --sha is required" >&2
         exit 1
     fi
     
     if [ -z "$workflow_name" ]; then
-        echo "Error: --workflow is required"
+        echo "Error: --workflow is required" >&2
         exit 1
     fi
     

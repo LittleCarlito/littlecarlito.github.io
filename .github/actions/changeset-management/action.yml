@@ -100,22 +100,25 @@ runs:
         if [ "${{ inputs.publish }}" == "true" ]; then
           echo "Versioning and publishing packages..."
           # Use update-packages.sh for versioning
-          bash .github/scripts/version/update-packages.sh
+          OUTPUT1=$(bash .github/scripts/version/update-packages.sh)
           
           # Use publish-packages.sh for publishing
-          RESULT=$(bash .github/scripts/version/publish-packages.sh \
+          OUTPUT2=$(bash .github/scripts/version/publish-packages.sh \
             --package-path "${{ inputs.package-name }}")
           
+          echo "$OUTPUT1" >> $GITHUB_OUTPUT
+          echo "$OUTPUT2" >> $GITHUB_OUTPUT
           echo "published=true" >> $GITHUB_OUTPUT
         else
           echo "Versioning packages only..."
-          bash .github/scripts/version/update-packages.sh
+          OUTPUT=$(bash .github/scripts/version/update-packages.sh)
+          echo "$OUTPUT" >> $GITHUB_OUTPUT
           echo "published=false" >> $GITHUB_OUTPUT
         fi
         
         # Check if changeset-release/main branch exists and push it
         if git show-ref --verify --quiet refs/heads/changeset-release/main; then
-          echo "Pushing changeset-release/main branch..."
+          echo "Pushing changeset-release/main branch..." >&2
           git push origin changeset-release/main
         fi
 
@@ -151,4 +154,4 @@ runs:
           --context "Test Changesets" \
           --description "Changesets validated successfully" \
           --state "success" \
-          --target-url "${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}" 
+          --target-url "${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}"

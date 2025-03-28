@@ -52,11 +52,11 @@ runs:
           --package-path "${{ inputs.package-name }}" \
           --version-type "${{ inputs.version-type }}")
         
-        # Extract the new version from the output
-        NEW_VERSION=$(echo "$OUTPUT" | grep "^new_version=" | cut -d= -f2)
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
         
-        # Pass it to the output
-        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        # Extract the new version for logging
+        NEW_VERSION=$(echo "$OUTPUT" | grep "^new_version=" | cut -d= -f2)
         echo "Calculated new version: $NEW_VERSION"
 
     # Create tag using our script
@@ -69,9 +69,11 @@ runs:
           --tag-prefix "v" \
           --message "Release v${{ steps.version.outputs.new_version }}")
         
-        # Extract tag name from output
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
+        
+        # Extract tag name for logging
         TAG_NAME=$(echo "$OUTPUT" | grep "^tag_name=" | cut -d= -f2)
-        echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
         echo "Created tag: $TAG_NAME"
 
     # Create GitHub release using our script
@@ -88,12 +90,11 @@ runs:
           --prerelease "${{ inputs.prerelease }}" \
           --generate-notes "${{ inputs.generate-notes }}")
         
-        # Extract release ID and URL
-        RELEASE_ID=$(echo "$OUTPUT" | grep "^release_id=" | cut -d= -f2)
-        RELEASE_URL=$(echo "$OUTPUT" | grep "^release_url=" | cut -d= -f2)
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
         
-        echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
-        echo "release_url=$RELEASE_URL" >> $GITHUB_OUTPUT
+        # Extract release URL for logging
+        RELEASE_URL=$(echo "$OUTPUT" | grep "^release_url=" | cut -d= -f2)
         echo "Created release: $RELEASE_URL"
 
     # Publish to npm using our script
@@ -105,6 +106,8 @@ runs:
           --package-path "${{ inputs.package-name }}" \
           --no-git-checks "true")
         
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
         echo "Packages published successfully"
       env:
         NODE_AUTH_TOKEN: ${{ inputs.github-token }} 

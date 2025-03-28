@@ -9,7 +9,7 @@ delete_branch() {
     local repo=$2
     local branch=$3
     
-    echo "Deleting branch $branch..."
+    echo "Deleting branch $branch..." >&2
     RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE \
       -H "Authorization: token $token" \
       -H "Accept: application/vnd.github.v3+json" \
@@ -24,8 +24,8 @@ delete_branch() {
         echo "✅ Successfully deleted branch $branch"
         return 0
     else
-        echo "❌ Failed to delete branch $branch. Status: $HTTP_STATUS"
-        echo "Error: $RESPONSE_BODY"
+        echo "❌ Failed to delete branch $branch. Status: $HTTP_STATUS" >&2
+        echo "Error: $RESPONSE_BODY" >&2
         return 1
     fi
 }
@@ -52,8 +52,8 @@ main() {
                 shift 2
                 ;;
             *)
-                echo "Unknown option: $1"
-                echo "Usage: $0 --token <github-token> --repo <owner/repo> --branch <branch-name>"
+                echo "Unknown option: $1" >&2
+                echo "Usage: $0 --token <github-token> --repo <owner/repo> --branch <branch-name>" >&2
                 exit 1
                 ;;
         esac
@@ -61,17 +61,17 @@ main() {
     
     # Validate required arguments
     if [ -z "$token" ]; then
-        echo "Error: --token is required"
+        echo "Error: --token is required" >&2
         exit 1
     fi
     
     if [ -z "$repo" ]; then
-        echo "Error: --repo is required"
+        echo "Error: --repo is required" >&2
         exit 1
     fi
     
     if [ -z "$branch" ]; then
-        echo "Error: --branch is required"
+        echo "Error: --branch is required" >&2
         exit 1
     fi
     
