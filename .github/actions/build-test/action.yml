@@ -48,10 +48,14 @@ runs:
       run: |
         # Run the setup script and capture only its actual output variables
         # All logs and progress messages are directed to stderr
+        # Ensure correct option format with double dash
+        TOKEN="${{ inputs.github-token }}"
+        NODE_VERSION="${{ inputs.node-version }}"
+        PNPM_VERSION="${{ inputs.pnpm-version }}"
         OUTPUT=$(bash .github/scripts/maintenance/setup-environment.sh \
-          --github-token "${{ inputs.github-token }}" \
-          --node-version "${{ inputs.node-version }}" \
-          --pnpm-version "${{ inputs.pnpm-version }}")
+          --github-token "$TOKEN" \
+          --node-version "$NODE_VERSION" \
+          --pnpm-version "$PNPM_VERSION")
           
         # Parse the output and set it to GITHUB_OUTPUT
         echo "$OUTPUT" >> $GITHUB_OUTPUT
@@ -62,8 +66,9 @@ runs:
       shell: bash
       run: |
         # Run the build script and capture output variables
-        OUTPUT=$(bash .github/scripts/maintenance/build-packages.sh \
-          --build-command "${{ inputs.build-command }}")
+        # Ensure correct option format with double dash
+        CMD="${{ inputs.build-command }}"
+        OUTPUT=$(bash .github/scripts/maintenance/build-packages.sh --build-command "$CMD")
           
         # Parse the output and set it to GITHUB_OUTPUT
         echo "$OUTPUT" >> $GITHUB_OUTPUT
@@ -81,8 +86,9 @@ runs:
       shell: bash
       run: |
         # Run the test script and capture output variables
-        OUTPUT=$(bash .github/scripts/maintenance/run-tests.sh \
-          --test-command "${{ inputs.test-command }}")
+        # Ensure correct option format with double dash
+        CMD="${{ inputs.test-command }}"
+        OUTPUT=$(bash .github/scripts/maintenance/run-tests.sh --test-command "$CMD")
           
         # Parse the output and set it to GITHUB_OUTPUT
         echo "$OUTPUT" >> $GITHUB_OUTPUT
