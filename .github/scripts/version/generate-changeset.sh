@@ -19,7 +19,9 @@ generate_changeset() {
     # Create a new branch for the changeset
     BRANCH_NAME="changeset-release/auto-$(date +%s)"
     echo "Using branch name: $BRANCH_NAME" >&2
-    git checkout -b "$BRANCH_NAME" 2>&1 >&2 || {
+    
+    # Redirect git command output to stderr
+    { git checkout -b "$BRANCH_NAME"; } 2>&1 >&2 || {
         echo "Error creating branch $BRANCH_NAME" >&2
         return 1
     }
@@ -56,16 +58,16 @@ EOF
     if ls .changeset/${auto_changeset_prefix}*.md 1> /dev/null 2>&1; then
         echo "Changeset generated successfully!" >&2
         
-        # Commit the changeset
-        git add .changeset/ 2>&1 >&2 || {
+        # Commit the changeset - redirect all output to stderr
+        { git add .changeset/; } 2>&1 >&2 || {
             echo "Error adding changeset files" >&2
             return 1
         }
-        git commit -m "chore: auto-generate changeset [skip ci]" 2>&1 >&2 || {
+        { git commit -m "chore: auto-generate changeset [skip ci]"; } 2>&1 >&2 || {
             echo "Error committing changeset" >&2
             return 1
         }
-        git push --set-upstream origin "$BRANCH_NAME" 2>&1 >&2 || {
+        { git push --set-upstream origin "$BRANCH_NAME"; } 2>&1 >&2 || {
             echo "Error pushing branch $BRANCH_NAME" >&2
             return 1
         }
@@ -78,12 +80,12 @@ EOF
         # Output values - send to stdout without >&2 redirection
         echo "changeset_created=false"
         # Return to the original branch
-        git checkout - 2>&1 >&2 || {
+        { git checkout -; } 2>&1 >&2 || {
             echo "Error returning to original branch" >&2
             return 1
         }
         # Delete the temporary branch
-        git branch -D "$BRANCH_NAME" 2>&1 >&2 || {
+        { git branch -D "$BRANCH_NAME"; } 2>&1 >&2 || {
             echo "Error deleting branch $BRANCH_NAME" >&2
             return 1
         }
