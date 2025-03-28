@@ -46,26 +46,24 @@ runs:
       id: setup
       shell: bash
       run: |
-        while IFS= read -r line; do
-          if [[ "$line" == *"="* ]]; then
-            echo "$line" >> $GITHUB_OUTPUT
-          fi
-        done < <(bash .github/scripts/maintenance/setup-environment.sh \
+        OUTPUT=$(bash .github/scripts/maintenance/setup-environment.sh \
           --github-token "${{ inputs.github-token }}" \
           --node-version "${{ inputs.node-version }}" \
           --pnpm-version "${{ inputs.pnpm-version }}")
+        
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
 
     # Build step using our script
     - name: Build packages
       id: build
       shell: bash
       run: |
-        while IFS= read -r line; do
-          if [[ "$line" == *"="* ]]; then
-            echo "$line" >> $GITHUB_OUTPUT
-          fi
-        done < <(bash .github/scripts/maintenance/build-packages.sh \
+        OUTPUT=$(bash .github/scripts/maintenance/build-packages.sh \
           --build-command "${{ inputs.build-command }}")
+        
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
 
     # Upload artifacts using GitHub's native action
     - name: Upload build artifacts
@@ -79,12 +77,11 @@ runs:
       id: test
       shell: bash
       run: |
-        while IFS= read -r line; do
-          if [[ "$line" == *"="* ]]; then
-            echo "$line" >> $GITHUB_OUTPUT
-          fi
-        done < <(bash .github/scripts/maintenance/run-tests.sh \
+        OUTPUT=$(bash .github/scripts/maintenance/run-tests.sh \
           --test-command "${{ inputs.test-command }}")
+        
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
 
     # Create build status check if PR_SHA is available
     - name: Create Build Status Check
@@ -92,18 +89,14 @@ runs:
       shell: bash
       run: |
         if [ -n "$PR_SHA" ]; then
-          while IFS= read -r line; do
-            if [[ "$line" == *"="* ]]; then
-              echo "$line" >> $GITHUB_OUTPUT
-            fi
-          done < <(bash .github/scripts/branch/force-status.sh \
+          bash .github/scripts/branch/force-status.sh \
             --token "${{ inputs.github-token }}" \
             --repo "${{ github.repository }}" \
             --sha "$PR_SHA" \
             --context "Build Packages" \
             --description "Build completed successfully" \
             --state "success" \
-            --target-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}")
+            --target-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         fi
       env:
         PR_SHA: ${{ env.PR_SHA }}
@@ -114,18 +107,14 @@ runs:
       shell: bash
       run: |
         if [ -n "$PR_SHA" ]; then
-          while IFS= read -r line; do
-            if [[ "$line" == *"="* ]]; then
-              echo "$line" >> $GITHUB_OUTPUT
-            fi
-          done < <(bash .github/scripts/branch/force-status.sh \
+          bash .github/scripts/branch/force-status.sh \
             --token "${{ inputs.github-token }}" \
             --repo "${{ github.repository }}" \
             --sha "$PR_SHA" \
             --context "Test / Run Tests" \
             --description "Tests passed successfully" \
             --state "success" \
-            --target-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}")
+            --target-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         fi
       env:
         PR_SHA: ${{ env.PR_SHA }} 

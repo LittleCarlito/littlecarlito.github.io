@@ -48,44 +48,40 @@ runs:
       id: version
       shell: bash
       run: |
-        while IFS= read -r line; do
-          if [[ "$line" == *"="* ]]; then
-            echo "$line" >> $GITHUB_OUTPUT
-          fi
-        done < <(bash .github/scripts/version/calculate-version.sh \
+        OUTPUT=$(bash .github/scripts/version/calculate-version.sh \
           --package-path "${{ inputs.package-name }}" \
           --version-type "${{ inputs.version-type }}")
         
-        # Log the new version to stderr
-        echo "Calculated new version: ${{ steps.version.outputs.new_version }}" >&2
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
+        
+        # Extract the new version for logging
+        NEW_VERSION=$(echo "$OUTPUT" | grep "^new_version=" | cut -d= -f2)
+        echo "Calculated new version: $NEW_VERSION"
 
     # Create tag using our script
     - name: Create Git tag
       id: create-tag
       shell: bash
       run: |
-        while IFS= read -r line; do
-          if [[ "$line" == *"="* ]]; then
-            echo "$line" >> $GITHUB_OUTPUT
-          fi
-        done < <(bash .github/scripts/version/create-tag.sh \
+        OUTPUT=$(bash .github/scripts/version/create-tag.sh \
           --version "${{ steps.version.outputs.new_version }}" \
           --tag-prefix "v" \
           --message "Release v${{ steps.version.outputs.new_version }}")
         
-        # Log the tag name to stderr
-        echo "Created tag: ${{ steps.create-tag.outputs.tag_name }}" >&2
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
+        
+        # Extract tag name for logging
+        TAG_NAME=$(echo "$OUTPUT" | grep "^tag_name=" | cut -d= -f2)
+        echo "Created tag: $TAG_NAME"
 
     # Create GitHub release using our script
     - name: Create GitHub release
       id: create-release
       shell: bash
       run: |
-        while IFS= read -r line; do
-          if [[ "$line" == *"="* ]]; then
-            echo "$line" >> $GITHUB_OUTPUT
-          fi
-        done < <(bash .github/scripts/version/create-release.sh \
+        OUTPUT=$(bash .github/scripts/version/create-release.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --tag-name "${{ steps.create-tag.outputs.tag_name }}" \
@@ -94,23 +90,24 @@ runs:
           --prerelease "${{ inputs.prerelease }}" \
           --generate-notes "${{ inputs.generate-notes }}")
         
-        # Log the release URL to stderr
-        echo "Created release: ${{ steps.create-release.outputs.release_url }}" >&2
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
+        
+        # Extract release URL for logging
+        RELEASE_URL=$(echo "$OUTPUT" | grep "^release_url=" | cut -d= -f2)
+        echo "Created release: $RELEASE_URL"
 
     # Publish to npm using our script
     - name: Publish to npm
       id: publish
       shell: bash
       run: |
-        while IFS= read -r line; do
-          if [[ "$line" == *"="* ]]; then
-            echo "$line" >> $GITHUB_OUTPUT
-          fi
-        done < <(bash .github/scripts/version/publish-packages.sh \
+        OUTPUT=$(bash .github/scripts/version/publish-packages.sh \
           --package-path "${{ inputs.package-name }}" \
           --no-git-checks "true")
         
-        # Log success message to stderr
-        echo "Packages published successfully" >&2
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
+        echo "Packages published successfully"
       env:
         NODE_AUTH_TOKEN: ${{ inputs.github-token }} 

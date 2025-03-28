@@ -62,12 +62,11 @@ runs:
       id: check-changesets
       shell: bash
       run: |
-        while IFS= read -r line; do
-          if [[ "$line" == *"="* ]]; then
-            echo "$line" >> $GITHUB_OUTPUT
-          fi
-        done < <(bash .github/scripts/version/check-changesets.sh \
+        OUTPUT=$(bash .github/scripts/version/check-changesets.sh \
           --auto-changeset-prefix "${{ inputs.auto-changeset-prefix }}")
+        
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
 
     # Generate changeset using our script (if requested)
     - name: Generate changeset
@@ -75,15 +74,14 @@ runs:
       if: inputs.since-commit != ''
       shell: bash
       run: |
-        while IFS= read -r line; do
-          if [[ "$line" == *"="* ]]; then
-            echo "$line" >> $GITHUB_OUTPUT
-          fi
-        done < <(bash .github/scripts/version/generate-changeset.sh \
+        OUTPUT=$(bash .github/scripts/version/generate-changeset.sh \
           --since-commit "${{ inputs.since-commit }}" \
           --package-name "${{ inputs.package-name }}" \
           --version-type "${{ inputs.version-type }}" \
           --auto-changeset-prefix "${{ inputs.auto-changeset-prefix }}")
+        
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
 
     # Validate changesets using our script
     - name: Validate changesets
@@ -91,11 +89,7 @@ runs:
       if: steps.check-changesets.outputs.has_changesets == 'true' || steps.generate-changeset.outputs.changeset_created == 'true'
       shell: bash
       run: |
-        while IFS= read -r line; do
-          if [[ "$line" == *"="* ]]; then
-            echo "$line" >> $GITHUB_OUTPUT
-          fi
-        done < <(bash .github/scripts/version/validate-changesets.sh)
+        bash .github/scripts/version/validate-changesets.sh
 
     # Run version/release if needed using our script
     - name: Create Release or Version PR
@@ -104,30 +98,21 @@ runs:
       shell: bash
       run: |
         if [ "${{ inputs.publish }}" == "true" ]; then
-          echo "Versioning and publishing packages..." >&2
+          echo "Versioning and publishing packages..."
           # Use update-packages.sh for versioning
-          while IFS= read -r line; do
-            if [[ "$line" == *"="* ]]; then
-              echo "$line" >> $GITHUB_OUTPUT
-            fi
-          done < <(bash .github/scripts/version/update-packages.sh)
+          OUTPUT1=$(bash .github/scripts/version/update-packages.sh)
           
           # Use publish-packages.sh for publishing
-          while IFS= read -r line; do
-            if [[ "$line" == *"="* ]]; then
-              echo "$line" >> $GITHUB_OUTPUT
-            fi
-          done < <(bash .github/scripts/version/publish-packages.sh \
+          OUTPUT2=$(bash .github/scripts/version/publish-packages.sh \
             --package-path "${{ inputs.package-name }}")
           
+          echo "$OUTPUT1" >> $GITHUB_OUTPUT
+          echo "$OUTPUT2" >> $GITHUB_OUTPUT
           echo "published=true" >> $GITHUB_OUTPUT
         else
-          echo "Versioning packages only..." >&2
-          while IFS= read -r line; do
-            if [[ "$line" == *"="* ]]; then
-              echo "$line" >> $GITHUB_OUTPUT
-            fi
-          done < <(bash .github/scripts/version/update-packages.sh)
+          echo "Versioning packages only..."
+          OUTPUT=$(bash .github/scripts/version/update-packages.sh)
+          echo "$OUTPUT" >> $GITHUB_OUTPUT
           echo "published=false" >> $GITHUB_OUTPUT
         fi
         
@@ -142,14 +127,13 @@ runs:
       id: find-pr
       shell: bash
       run: |
-        while IFS= read -r line; do
-          if [[ "$line" == *"="* ]]; then
-            echo "$line" >> $GITHUB_OUTPUT
-          fi
-        done < <(bash .github/scripts/pr/find-pr.sh \
+        OUTPUT=$(bash .github/scripts/pr/find-pr.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --title "chore: version packages")
+        
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
 
     # Create status checks for PR if found using our script
     - name: Create Changesets Status Check
@@ -157,25 +141,17 @@ runs:
       shell: bash
       run: |
         # First get the PR SHA using our script
-        while IFS= read -r line; do
-          if [[ "$line" == *"="* ]]; then
-            echo "$line" >> $GITHUB_OUTPUT
-          fi
-        done < <(bash .github/scripts/branch/get-sha.sh \
+        PR_SHA=$(bash .github/scripts/branch/get-sha.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --pr-number "${{ steps.find-pr.outputs.pr_number }}")
         
         # Then create the status check using our script
-        while IFS= read -r line; do
-          if [[ "$line" == *"="* ]]; then
-            echo "$line" >> $GITHUB_OUTPUT
-          fi
-        done < <(bash .github/scripts/branch/force-status.sh \
+        bash .github/scripts/branch/force-status.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
-          --sha "${{ steps.get-sha.outputs.sha }}" \
+          --sha "$PR_SHA" \
           --context "Test Changesets" \
           --description "Changesets validated successfully" \
           --state "success" \
-          --target-url "${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}") 
+          --target-url "${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}"

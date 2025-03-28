@@ -139,6 +139,7 @@ jobs:
             --pr-number "${{ steps.manage_pr.outputs.pr-number }}")
           echo "sha=$SHA" >> $GITHUB_OUTPUT
         env:
+          BRANCH_NAME: RenamePipeline
           GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }}
 
       - name: Wait for required checks

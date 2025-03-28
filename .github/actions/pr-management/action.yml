@@ -78,17 +78,16 @@ runs:
       if: inputs.head-branch != ''
       shell: bash
       run: |
-        while IFS= read -r line; do
-          if [[ "$line" == *"="* ]]; then
-            echo "$line" >> $GITHUB_OUTPUT
-          fi
-        done < <(bash .github/scripts/pr/create-or-update.sh \
+        OUTPUT=$(bash .github/scripts/pr/create-or-update.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --base-branch "${{ inputs.base-branch }}" \
           --head-branch "${{ inputs.head-branch }}" \
           --title "${{ inputs.title }}" \
           --body "${{ inputs.body }}")
+        
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
 
     # Use provided PR number if not creating a new one
     - name: Use provided PR number
@@ -96,14 +95,13 @@ runs:
       if: inputs.pr-number != ''
       shell: bash
       run: |
-        while IFS= read -r line; do
-          if [[ "$line" == *"="* ]]; then
-            echo "$line" >> $GITHUB_OUTPUT
-          fi
-        done < <(bash .github/scripts/pr/find-pr.sh \
+        OUTPUT=$(bash .github/scripts/pr/find-pr.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --pr-number "${{ inputs.pr-number }}")
+        
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
         
         PR_NUMBER="${{ inputs.pr-number }}"
         PR_URL="https://github.com/${{ inputs.repository }}/pull/$PR_NUMBER"
@@ -125,14 +123,13 @@ runs:
           PR_NUMBER="${{ steps.use-pr.outputs.pr_number }}"
         fi
         
-        while IFS= read -r line; do
-          if [[ "$line" == *"="* ]]; then
-            echo "$line" >> $GITHUB_OUTPUT
-          fi
-        done < <(bash .github/scripts/branch/get-sha.sh \
+        # Get SHA using our script
+        SHA=$(bash .github/scripts/branch/get-sha.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --pr-number "$PR_NUMBER")
+        
+        echo "sha=$SHA" >> $GITHUB_OUTPUT
 
     # Auto-merge if requested
     - name: Auto-merge PR
@@ -151,15 +148,11 @@ runs:
         git config --global user.email "actions@github.com" >&2
         
         # Use our merge script
-        while IFS= read -r line; do
-          if [[ "$line" == *"="* ]]; then
-            echo "$line" >> $GITHUB_OUTPUT
-          fi
-        done < <(bash .github/scripts/pr/merge.sh \
+        bash .github/scripts/pr/merge.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --pr "$PR_NUMBER" \
-          --method "${{ inputs.merge-method }}")
+          --method "${{ inputs.merge-method }}"
           
         # Delete branch if requested
         if [ "${{ inputs.delete-branch }}" = "true" ]; then
@@ -167,14 +160,10 @@ runs:
           BRANCH=$(gh pr view $PR_NUMBER --json headRefName --jq .headRefName)
           
           # Delete the branch using our script
-          while IFS= read -r line; do
-            if [[ "$line" == *"="* ]]; then
-              echo "$line" >> $GITHUB_OUTPUT
-            fi
-          done < <(bash .github/scripts/branch/delete.sh \
+          bash .github/scripts/branch/delete.sh \
             --token "${{ inputs.github-token }}" \
             --repo "${{ inputs.repository }}" \
-            --branch "$BRANCH")
+            --branch "$BRANCH"
         fi
       env:
         GH_TOKEN: ${{ inputs.github-token }} 
