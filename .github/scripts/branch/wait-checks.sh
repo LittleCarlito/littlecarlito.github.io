@@ -38,9 +38,9 @@ wait_for_checks() {
         fi
         
         # Count completed and successful checks
-        COMPLETED_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status == "completed")] | length')
-        SUCCESSFUL_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status == "completed" and .conclusion == "success")] | length')
-        FAILED_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status == "completed" and .conclusion != "success" and .conclusion != "neutral" and .conclusion != "skipped")] | length')
+        COMPLETED_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select((. | type == "object") and (.status == "completed"))] | length')
+        SUCCESSFUL_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select((. | type == "object") and (.status == "completed" and .conclusion == "success"))] | length')
+        FAILED_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select((. | type == "object") and (.status == "completed" and .conclusion != "success" and .conclusion != "neutral" and .conclusion != "skipped"))] | length')
         
         # Count checks from current workflow - MUCH MORE FLEXIBLE MATCHING
         # Convert both the check name and the workflow name to lowercase and remove common words for comparison
@@ -48,6 +48,7 @@ wait_for_checks() {
         WORKFLOW_CHECKS=$(echo "$CHECK_RUNS" | jq --arg name "$(echo "$current_workflow" | tr '[:upper:]' '[:lower:]' | sed 's/and//g' | sed 's/pr//g' | sed 's/pull//g' | sed 's/request//g')" '
         [.check_runs[] | 
           select(
+            (. | type == "object") and 
             (.name | type == "string") and 
             ((.name | ascii_downcase | gsub("and|pr|pull|request"; "")) | contains($name) or $name | contains(.name | ascii_downcase | gsub("and|pr|pull|request"; "")))
           )
@@ -56,6 +57,7 @@ wait_for_checks() {
         WORKFLOW_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq --arg name "$(echo "$current_workflow" | tr '[:upper:]' '[:lower:]' | sed 's/and//g' | sed 's/pr//g' | sed 's/pull//g' | sed 's/request//g')" '
         [.check_runs[] | 
           select(
+            (. | type == "object") and
             (.status != "completed") and
             (.name | type == "string") and 
             ((.name | ascii_downcase | gsub("and|pr|pull|request"; "")) | contains($name) or $name | contains(.name | ascii_downcase | gsub("and|pr|pull|request"; "")))
@@ -66,6 +68,7 @@ wait_for_checks() {
         OUR_WORKFLOW_CHECKS=$(echo "$CHECK_RUNS" | jq --arg name "$(echo "$current_workflow" | tr '[:upper:]' '[:lower:]' | sed 's/and//g' | sed 's/pr//g' | sed 's/pull//g' | sed 's/request//g')" '
         .check_runs[] | 
           select(
+            (. | type == "object") and
             (.name | type == "string") and 
             ((.name | ascii_downcase | gsub("and|pr|pull|request"; "")) | contains($name) or $name | contains(.name | ascii_downcase | gsub("and|pr|pull|request"; "")))
           ) | .name')
@@ -73,9 +76,9 @@ wait_for_checks() {
         # FALLBACK: If no checks were identified as workflow checks, look for specific push/create PR patterns
         if [ "$WORKFLOW_CHECKS" = "0" ]; then
             echo "No workflow checks identified by name matching, looking for specific patterns..." >&2
-            WORKFLOW_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.name | test("(?i)push.*creat|creat.*pr|push.*pr|pull.*request"))] | length')
-            WORKFLOW_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status != "completed" and (.name | test("(?i)push.*creat|creat.*pr|push.*pr|pull.*request")))] | length')
-            OUR_WORKFLOW_CHECKS=$(echo "$CHECK_RUNS" | jq '.check_runs[] | select(.name | test("(?i)push.*creat|creat.*pr|push.*pr|pull.*request")) | .name')
+            WORKFLOW_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select((. | type == "object") and (.name | type == "string") and (.name | test("(?i)push.*creat|creat.*pr|push.*pr|pull.*request")))] | length')
+            WORKFLOW_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select((. | type == "object") and (.status != "completed") and (.name | type == "string") and (.name | test("(?i)push.*creat|creat.*pr|push.*pr|pull.*request")))] | length')
+            OUR_WORKFLOW_CHECKS=$(echo "$CHECK_RUNS" | jq '.check_runs[] | select((. | type == "object") and (.name | type == "string") and (.name | test("(?i)push.*creat|creat.*pr|push.*pr|pull.*request"))) | .name')
             echo "After fallback pattern matching, found $WORKFLOW_CHECKS workflow checks" >&2
         fi
         
@@ -83,7 +86,7 @@ wait_for_checks() {
         
         # Calculate non-workflow checks
         NON_WORKFLOW_TOTAL=$((TOTAL_CHECKS - WORKFLOW_CHECKS))
-        NON_WORKFLOW_COMPLETED=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '[.check_runs[] | select(.status == "completed" and ((.name | type != "string") or (.name | contains($name) | not)))] | length')
+        NON_WORKFLOW_COMPLETED=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '[.check_runs[] | select((. | type == "object") and (.status == "completed") and ((.name | type != "string") or (.name | contains($name) | not)))] | length')
         
         echo "Checks: $COMPLETED_CHECKS/$TOTAL_CHECKS completed overall" >&2
         echo "Non-workflow checks: $NON_WORKFLOW_COMPLETED/$NON_WORKFLOW_TOTAL completed" >&2
