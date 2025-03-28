@@ -13,13 +13,14 @@ generate_changeset() {
     local version_type="$3"
     local auto_changeset_prefix="$4"
     
-    printf "Generating changeset...\n"
+    # Log message - redirect to stderr
+    echo "Generating changeset..." >&2
     
     # Create a new branch for the changeset
     BRANCH_NAME="changeset-release/auto-$(date +%s)"
-    printf "Using branch name: %s\n" "$BRANCH_NAME"
+    echo "Using branch name: $BRANCH_NAME" >&2
     git checkout -b "$BRANCH_NAME" 2>&1 >&2 || {
-        printf "Error creating branch %s\n" "$BRANCH_NAME"
+        echo "Error creating branch $BRANCH_NAME" >&2
         return 1
     }
     
@@ -27,20 +28,20 @@ generate_changeset() {
     
     # Generate changeset from conventional commits
     if [ -f "scripts/auto-changeset.js" ]; then
-        printf "Using scripts/auto-changeset.js to generate changeset\n"
+        echo "Using scripts/auto-changeset.js to generate changeset" >&2
         if [ -n "$since_commit" ]; then
             node scripts/auto-changeset.js --since="$since_commit" >&2
         else
             node scripts/auto-changeset.js >&2
         fi
     else
-        printf "No auto-changeset.js script found, creating manual changeset\n"
+        echo "No auto-changeset.js script found, creating manual changeset" >&2
         # Create manual changeset
         mkdir -p .changeset
         CHANGESET_ID="${auto_changeset_prefix}$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 8 | head -n 1)"
         
         if [ "$package_name" != "all" ]; then
-            printf "Creating changeset for package: %s with version type: %s\n" "$package_name" "$version_type"
+            echo "Creating changeset for package: $package_name with version type: $version_type" >&2
             cat > ".changeset/$CHANGESET_ID.md" << EOF
 ---
 "$package_name": $version_type
@@ -53,35 +54,37 @@ EOF
     
     # Check if any changesets were created
     if ls .changeset/${auto_changeset_prefix}*.md 1> /dev/null 2>&1; then
-        printf "Changeset generated successfully!\n"
+        echo "Changeset generated successfully!" >&2
         
         # Commit the changeset
         git add .changeset/ 2>&1 >&2 || {
-            printf "Error adding changeset files\n"
+            echo "Error adding changeset files" >&2
             return 1
         }
         git commit -m "chore: auto-generate changeset [skip ci]" 2>&1 >&2 || {
-            printf "Error committing changeset\n"
+            echo "Error committing changeset" >&2
             return 1
         }
         git push --set-upstream origin "$BRANCH_NAME" 2>&1 >&2 || {
-            printf "Error pushing branch %s\n" "$BRANCH_NAME"
+            echo "Error pushing branch $BRANCH_NAME" >&2
             return 1
         }
         
-        printf "branch_name=%s\n" "$BRANCH_NAME"
-        printf "changeset_created=true\n"
+        # Output values - send to stdout without >&2 redirection
+        echo "branch_name=$BRANCH_NAME"
+        echo "changeset_created=true"
     else
-        printf "No changeset was generated\n"
-        printf "changeset_created=false\n"
+        echo "No changeset was generated" >&2
+        # Output values - send to stdout without >&2 redirection
+        echo "changeset_created=false"
         # Return to the original branch
         git checkout - 2>&1 >&2 || {
-            printf "Error returning to original branch\n"
+            echo "Error returning to original branch" >&2
             return 1
         }
         # Delete the temporary branch
         git branch -D "$BRANCH_NAME" 2>&1 >&2 || {
-            printf "Error deleting branch %s\n" "$BRANCH_NAME"
+            echo "Error deleting branch $BRANCH_NAME" >&2
             return 1
         }
     fi
@@ -113,8 +116,8 @@ main() {
                 shift 2
                 ;;
             *)
-                printf "Unknown option: %s\n" "$1"
-                printf "Usage: %s [--since-commit <sha>] [--package-name <n>] [--version-type <type>] [--auto-changeset-prefix <prefix>]\n" "$0"
+                echo "Unknown option: $1" >&2
+                echo "Usage: $0 [--since-commit <sha>] [--package-name <n>] [--version-type <type>] [--auto-changeset-prefix <prefix>]" >&2
                 exit 1
                 ;;
         esac
