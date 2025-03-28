@@ -35,19 +35,23 @@ if ! git add .changeset/ 2>/dev/null; then
     exit 1
 fi
 
-# Commit changes
-if ! git commit -m "chore: auto-generate changeset [skip ci]" 2>/dev/null; then
-    echo "Error committing changeset" >&2
+# Commit changes with all output redirected to stderr
+COMMIT_OUTPUT=$(git commit -m "chore: auto-generate changeset [skip ci]" 2>&1) || {
+    echo "Error committing changeset: $COMMIT_OUTPUT" >&2
     echo "commit_success=false"
     exit 1
-fi
+}
 
-# Push branch
-if ! git push --set-upstream origin "$BRANCH_NAME" 2>/dev/null; then
-    echo "Error pushing branch $BRANCH_NAME" >&2
+# Store commit SHA for possible future use
+COMMIT_SHA=$(git rev-parse HEAD 2>/dev/null)
+
+# Push branch with all output redirected to stderr
+PUSH_OUTPUT=$(git push --set-upstream origin "$BRANCH_NAME" 2>&1) || {
+    echo "Error pushing branch $BRANCH_NAME: $PUSH_OUTPUT" >&2
     echo "commit_success=false"
     exit 1
-fi
+}
 
 echo "Changeset committed and pushed successfully" >&2
-echo "commit_success=true" 
+echo "commit_success=true"
+echo "commit_sha=$COMMIT_SHA" 

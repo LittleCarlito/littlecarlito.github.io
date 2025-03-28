@@ -10,11 +10,15 @@ get_sha() {
     local pr_number=$4
 
     if [ -n "$sha" ]; then
-        # Only print the SHA
+        # Only print the SHA, nothing else
         echo "$sha"
     elif [ -n "$pr_number" ]; then
         # Get SHA using GitHub CLI and print only the SHA
-        gh pr view "$pr_number" --json headRefOid --jq .headRefOid
+        # Redirect any potential error messages to stderr
+        gh pr view "$pr_number" --json headRefOid --jq .headRefOid 2>/dev/null || {
+            echo "Error: Failed to get SHA from PR $pr_number" >&2
+            return 1
+        }
     else
         echo "Error: Either 'sha' or 'pr-number' must be provided" >&2
         return 1
@@ -48,8 +52,8 @@ main() {
                 shift 2
                 ;;
             *)
-                echo "Unknown option: $1"
-                echo "Usage: $0 --token <github-token> --repo <owner/repo> [--sha <commit-sha>] [--pr-number <pr-number>]"
+                echo "Unknown option: $1" >&2
+                echo "Usage: $0 --token <github-token> --repo <owner/repo> [--sha <commit-sha>] [--pr-number <pr-number>]" >&2
                 exit 1
                 ;;
         esac
@@ -75,7 +79,16 @@ main() {
     export GH_TOKEN="$token"
 
     # Call the function which will output only the SHA to stdout
-    get_sha "$token" "$repo" "$sha" "$pr_number"
+    # Capture the result to ensure we only output the SHA and nothing else
+    local result=$(get_sha "$token" "$repo" "$sha" "$pr_number")
+    
+    # Only output the SHA if it's a valid format (40 or 7 character hex)
+    if [[ "$result" =~ ^[0-9a-f]{7,40}$ ]]; then
+        echo "$result"
+    else
+        echo "Error: Invalid SHA format: $result" >&2
+        exit 1
+    fi
 }
 
 # Run main function with all arguments (if script is not sourced)
