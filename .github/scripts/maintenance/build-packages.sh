@@ -10,7 +10,7 @@ set -e
 build_packages() {
     local build_command="$1"
     
-    echo "Building packages with command: $build_command" >&2
+    echo "DEBUG: Received build command: '$build_command'" >&2
     
     # Create a temporary file to capture command output
     BUILD_OUTPUT=$(mktemp)
@@ -39,19 +39,25 @@ build_packages() {
 main() {
     local build_command="pnpm run build"
     
+    # Better argument parsing that handles spaces in arguments
     while [[ $# -gt 0 ]]; do
-        case $1 in
+        case "$1" in
             --build-command)
-                build_command="$2"
-                shift 2
+                # Shift to get the value and use it directly
+                shift
+                # Handle the entire argument, including any spaces
+                build_command="$1"
+                shift
                 ;;
             *)
                 echo "Unknown option: $1" >&2
-                echo "Usage: $0 [--build-command <command>]" >&2
+                echo "Usage: $0 [--build-command \"command with args\"]" >&2
                 exit 1
                 ;;
         esac
     done
+    
+    echo "DEBUG: Final build command: '$build_command'" >&2
     
     # Call build function
     build_packages "$build_command"

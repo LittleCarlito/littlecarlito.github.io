@@ -10,7 +10,7 @@ set -e
 run_tests() {
     local test_command="$1"
     
-    echo "Running tests with command: $test_command" >&2
+    echo "DEBUG: Received test command: '$test_command'" >&2
     
     # Create a temporary file to capture command output
     TEST_OUTPUT=$(mktemp)
@@ -39,19 +39,25 @@ run_tests() {
 main() {
     local test_command="pnpm test"
     
+    # Better argument parsing that handles spaces in arguments
     while [[ $# -gt 0 ]]; do
-        case $1 in
+        case "$1" in
             --test-command)
-                test_command="$2"
-                shift 2
+                # Shift to get the value and use it directly
+                shift
+                # Handle the entire argument, including any spaces
+                test_command="$1"
+                shift
                 ;;
             *)
                 echo "Unknown option: $1" >&2
-                echo "Usage: $0 [--test-command <command>]" >&2
+                echo "Usage: $0 [--test-command \"command with args\"]" >&2
                 exit 1
                 ;;
         esac
     done
+    
+    echo "DEBUG: Final test command: '$test_command'" >&2
     
     # Call test function
     run_tests "$test_command"

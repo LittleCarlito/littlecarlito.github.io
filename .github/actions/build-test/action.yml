@@ -48,7 +48,6 @@ runs:
       run: |
         # Run the setup script and capture only its actual output variables
         # All logs and progress messages are directed to stderr
-        # Ensure correct option format with double dash
         TOKEN="${{ inputs.github-token }}"
         NODE_VERSION="${{ inputs.node-version }}"
         PNPM_VERSION="${{ inputs.pnpm-version }}"
@@ -68,8 +67,14 @@ runs:
         # Debug what command is being used
         echo "Using build command: ${{ inputs.build-command }}" >&2
         
-        # Run the build script with explicit command in quotes
-        OUTPUT=$(bash .github/scripts/maintenance/build-packages.sh --build-command "${{ inputs.build-command }}")
+        # Create a file to properly handle command with spaces
+        BUILD_COMMAND_FILE=$(mktemp)
+        echo '${{ inputs.build-command }}' > "$BUILD_COMMAND_FILE"
+        BUILD_COMMAND=$(cat "$BUILD_COMMAND_FILE")
+        rm "$BUILD_COMMAND_FILE"
+        
+        # Run the build script with proper quoting for the command
+        OUTPUT=$(bash .github/scripts/maintenance/build-packages.sh --build-command "$BUILD_COMMAND")
         
         # Parse the output and set it to GITHUB_OUTPUT
         echo "$OUTPUT" >> $GITHUB_OUTPUT
@@ -89,8 +94,14 @@ runs:
         # Debug what command is being used
         echo "Using test command: ${{ inputs.test-command }}" >&2
         
-        # Run the test script with explicit command in quotes
-        OUTPUT=$(bash .github/scripts/maintenance/run-tests.sh --test-command "${{ inputs.test-command }}")
+        # Create a file to properly handle command with spaces
+        TEST_COMMAND_FILE=$(mktemp)
+        echo '${{ inputs.test-command }}' > "$TEST_COMMAND_FILE"
+        TEST_COMMAND=$(cat "$TEST_COMMAND_FILE")
+        rm "$TEST_COMMAND_FILE"
+        
+        # Run the test script with proper quoting for the command
+        OUTPUT=$(bash .github/scripts/maintenance/run-tests.sh --test-command "$TEST_COMMAND")
         
         # Parse the output and set it to GITHUB_OUTPUT
         echo "$OUTPUT" >> $GITHUB_OUTPUT
