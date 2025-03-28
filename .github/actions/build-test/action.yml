@@ -65,11 +65,12 @@ runs:
       id: build
       shell: bash
       run: |
-        # Run the build script and capture output variables
-        # Ensure correct option format with double dash
-        CMD="${{ inputs.build-command }}"
-        OUTPUT=$(bash .github/scripts/maintenance/build-packages.sh --build-command "$CMD")
-          
+        # Debug what command is being used
+        echo "Using build command: ${{ inputs.build-command }}" >&2
+        
+        # Run the build script with explicit command in quotes
+        OUTPUT=$(bash .github/scripts/maintenance/build-packages.sh --build-command "${{ inputs.build-command }}")
+        
         # Parse the output and set it to GITHUB_OUTPUT
         echo "$OUTPUT" >> $GITHUB_OUTPUT
 
@@ -85,11 +86,12 @@ runs:
       id: test
       shell: bash
       run: |
-        # Run the test script and capture output variables
-        # Ensure correct option format with double dash
-        CMD="${{ inputs.test-command }}"
-        OUTPUT=$(bash .github/scripts/maintenance/run-tests.sh --test-command "$CMD")
-          
+        # Debug what command is being used
+        echo "Using test command: ${{ inputs.test-command }}" >&2
+        
+        # Run the test script with explicit command in quotes
+        OUTPUT=$(bash .github/scripts/maintenance/run-tests.sh --test-command "${{ inputs.test-command }}")
+        
         # Parse the output and set it to GITHUB_OUTPUT
         echo "$OUTPUT" >> $GITHUB_OUTPUT
 
