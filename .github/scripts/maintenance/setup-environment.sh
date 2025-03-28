@@ -25,12 +25,13 @@ setup_environment() {
     # Check if nvm is installed, use it if available
     if [ -s "$HOME/.nvm/nvm.sh" ]; then
         echo "Using nvm to install Node.js..." >&2
-        source "$HOME/.nvm/nvm.sh"
-        nvm install "$node_version"
-        nvm use "$node_version"
+        # This redirect ensures no stdout output from nvm that could interfere with output parsing
+        { source "$HOME/.nvm/nvm.sh"; } 2>&1
+        { nvm install "$node_version"; } 2>&1
+        { nvm use "$node_version"; } 2>&1
     elif command_exists volta; then
         echo "Using volta to install Node.js..." >&2
-        volta install node@"$node_version"
+        { volta install node@"$node_version"; } 2>&1
     elif ! command_exists node; then
         echo "Error: Node.js is not installed and neither nvm nor volta are available" >&2
         return 1
@@ -39,13 +40,13 @@ setup_environment() {
     # Install pnpm if not present
     if ! command_exists pnpm; then
         echo "Installing pnpm $pnpm_version..." >&2
-        npm install -g pnpm@"$pnpm_version"
+        { npm install -g pnpm@"$pnpm_version"; } 2>&1
     fi
     
     # Configure Git identity
     echo "Configuring Git identity..." >&2
-    git config --global user.name "github-actions[bot]" >&2
-    git config --global user.email "github-actions[bot]@users.noreply.github.com" >&2
+    { git config --global user.name "github-actions[bot]"; } 2>&1
+    { git config --global user.email "github-actions[bot]@users.noreply.github.com"; } 2>&1
     
     # Configure npm registry (if not in a GitHub Action environment)
     if [ -z "$GITHUB_ACTIONS" ]; then
@@ -56,10 +57,12 @@ setup_environment() {
     
     # Install dependencies
     echo "Installing dependencies..." >&2
-    pnpm install
+    { pnpm install; } 2>&1
     
     echo "Environment setup complete" >&2
-    printf "setup_complete=true\n"
+    
+    # Only print the output data in the exact format needed for GitHub Actions output
+    echo "setup_complete=true"
 }
 
 # Parse command line arguments

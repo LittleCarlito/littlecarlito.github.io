@@ -28,10 +28,10 @@ build_packages() {
     # Return the result
     if [ $BUILD_RESULT -eq 0 ]; then
         echo "Build successful" >&2
-        printf "build_status=success\n"
+        echo "result=success"
     else
         echo "Build failed with exit code $BUILD_RESULT" >&2
-        printf "build_status=failure\n"
+        echo "result=failure"
     fi
 }
 

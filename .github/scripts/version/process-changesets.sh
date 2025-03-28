@@ -2,7 +2,7 @@
 
 # Help text
 show_help() {
-  cat << EOF
+  cat << EOF >&2
 Usage: $(basename "$0") [OPTIONS]
 
 This script processes changesets by running version or publish commands,
@@ -56,7 +56,7 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     *)
-      echo "Error: Unknown option: $1"
+      echo "Error: Unknown option: $1" >&2
       show_help
       exit 1
       ;;
@@ -65,7 +65,7 @@ done
 
 # Function to check if we have changesets
 check_changesets() {
-  if [ -d ".changeset" ] && [ "$(ls -A .changeset | grep -v README.md | grep -v config.json)" ]; then
+  if [[ -d ".changeset" && "$(ls -A .changeset | grep -v README.md | grep -v config.json)" ]]; then
     echo "true"
   else
     echo "false"
@@ -75,42 +75,43 @@ check_changesets() {
 # Determine if we have changesets
 HAS_CHANGESETS=$(check_changesets)
 
-echo "has_changesets=${HAS_CHANGESETS}" >> $GITHUB_OUTPUT
+echo "has_changesets=${HAS_CHANGESETS}"
 
-if [ "${HAS_CHANGESETS}" != "true" ]; then
-  echo "No changesets found - skipping version and publish steps"
-  echo "published=false" >> $GITHUB_OUTPUT
+if [[ "${HAS_CHANGESETS}" != "true" ]]; then
+  echo "No changesets found - skipping version and publish steps" >&2
+  echo "published=false"
   exit 0
 fi
 
 # Try to create a version PR first
-echo "Attempting to create a version PR..."
+echo "Attempting to create a version PR..." >&2
 
 # Create a new branch for versioning
 BRANCH_NAME="version-packages-$(date +%s)"
-git checkout -b "${BRANCH_NAME}"
+{ git checkout -b "${BRANCH_NAME}"; } 2>&1
 
 # Run the version command
-echo "Running version command: ${VERSION_CMD}"
-eval "${VERSION_CMD}"
+echo "Running version command: ${VERSION_CMD}" >&2
+{ eval "${VERSION_CMD}"; } 2>&1
 
 # Check if there are changes to commit
-if [ -z "$(git status --porcelain)" ]; then
-  echo "No changes from versioning - nothing to commit or create PR for"
-  git checkout - # Return to original branch
-  echo "published=false" >> $GITHUB_OUTPUT
+if [[ -z "$(git status --porcelain)" ]]; then
+  echo "No changes from versioning - nothing to commit or create PR for" >&2
+  { git checkout -; } 2>&1 # Return to original branch
+  echo "published=false"
   exit 0
 fi
 
 # Commit changes
-git add .
-git commit -m "${COMMIT_MESSAGE}"
+{ git add .; } 2>&1
+{ git commit -m "${COMMIT_MESSAGE}"; } 2>&1
 
 # Push changes
-git push origin "${BRANCH_NAME}"
+echo "Pushing changes to branch ${BRANCH_NAME}..." >&2
+{ git push origin "${BRANCH_NAME}"; } 2>&1
 
 # Create a PR
-echo "Creating PR for versioning changes..."
+echo "Creating PR for versioning changes..." >&2
 PR_RESPONSE=$(curl -s -X POST \
   -H "Authorization: token ${GITHUB_TOKEN}" \
   -H "Accept: application/vnd.github+json" \
@@ -119,47 +120,53 @@ PR_RESPONSE=$(curl -s -X POST \
 
 PR_NUMBER=$(echo "${PR_RESPONSE}" | grep -o '"number": [0-9]*' | head -1 | cut -d' ' -f2)
 
-if [ -n "${PR_NUMBER}" ]; then
-  echo "PR #${PR_NUMBER} created successfully"
-  echo "pr_number=${PR_NUMBER}" >> $GITHUB_OUTPUT
-  echo "pr_url=https://github.com/${GITHUB_REPOSITORY}/pull/${PR_NUMBER}" >> $GITHUB_OUTPUT
-  echo "published=false" >> $GITHUB_OUTPUT
+if [[ -n "${PR_NUMBER}" ]]; then
+  echo "PR #${PR_NUMBER} created successfully" >&2
+  echo "pr_number=${PR_NUMBER}"
+  echo "pr_url=https://github.com/${GITHUB_REPOSITORY}/pull/${PR_NUMBER}"
+  echo "published=false"
   exit 0
 else
-  echo "Failed to create PR, response: ${PR_RESPONSE}"
+  echo "Failed to create PR, response: ${PR_RESPONSE}" >&2
   
   # Check if this is due to "no commits between" error
   if [[ "${PR_RESPONSE}" == *"No commits between"* ]] || [[ "${PR_RESPONSE}" == *"Validation Failed"* ]]; then
-    echo "No new commits to create PR with - this is expected if no changesets were processed"
-    git checkout - # Return to original branch
-    echo "published=false" >> $GITHUB_OUTPUT
+    echo "No new commits to create PR with - this is expected if no changesets were processed" >&2
+    { git checkout -; } 2>&1 # Return to original branch
+    echo "published=false"
     exit 0
   fi
   
   # Try direct publish if PR creation fails
-  echo "Attempting direct publish instead..."
-  git checkout main
+  echo "Attempting direct publish instead..." >&2
+  { git checkout main; } 2>&1
 fi
 
 # If we reach here, we're attempting direct publish
-echo "Running publish command: ${PUBLISH_CMD}"
-PUBLISH_RESULT=$(eval "${PUBLISH_CMD}" 2>&1)
+echo "Running publish command: ${PUBLISH_CMD}" >&2
+PUBLISH_OUTPUT=$(mktemp)
+set +e
+eval "${PUBLISH_CMD}" > "$PUBLISH_OUTPUT" 2>&1
 PUBLISH_EXIT_CODE=$?
+set -e
+
+# Display the output for debugging
+cat "$PUBLISH_OUTPUT" >&2
+rm -f "$PUBLISH_OUTPUT"
 
 # Check if publish was successful
-if [ ${PUBLISH_EXIT_CODE} -eq 0 ]; then
-  echo "Successfully published packages"
-  echo "published=true" >> $GITHUB_OUTPUT
+if [[ ${PUBLISH_EXIT_CODE} -eq 0 ]]; then
+  echo "Successfully published packages" >&2
+  echo "published=true"
   
   # Create releases if requested
-  if [ "${CREATE_RELEASES}" == "true" ]; then
-    echo "Creating GitHub releases is enabled, this will be handled by the next step"
+  if [[ "${CREATE_RELEASES}" == "true" ]]; then
+    echo "Creating GitHub releases is enabled, this will be handled by the next step" >&2
   fi
   
   exit 0
 else
-  echo "Failed to publish packages:"
-  echo "${PUBLISH_RESULT}"
-  echo "published=false" >> $GITHUB_OUTPUT
+  echo "Failed to publish packages with exit code ${PUBLISH_EXIT_CODE}" >&2
+  echo "published=false"
   exit 1
 fi 

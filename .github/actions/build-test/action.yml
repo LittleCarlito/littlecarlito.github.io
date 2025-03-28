@@ -46,24 +46,23 @@ runs:
       id: setup
       shell: bash
       run: |
-        OUTPUT=$(bash .github/scripts/maintenance/setup-environment.sh \
+        # Run the script and redirect all output to stderr to avoid GitHub Actions parsing issues
+        # Only actual output variables will be captured from stdout
+        bash .github/scripts/maintenance/setup-environment.sh \
           --github-token "${{ inputs.github-token }}" \
           --node-version "${{ inputs.node-version }}" \
-          --pnpm-version "${{ inputs.pnpm-version }}")
-        
-        # Parse the output and set it to GITHUB_OUTPUT
-        echo "$OUTPUT" >> $GITHUB_OUTPUT
+          --pnpm-version "${{ inputs.pnpm-version }}" \
+          >> $GITHUB_OUTPUT
 
     # Build step using our script
     - name: Build packages
       id: build
       shell: bash
       run: |
-        OUTPUT=$(bash .github/scripts/maintenance/build-packages.sh \
-          --build-command "${{ inputs.build-command }}")
-        
-        # Parse the output and set it to GITHUB_OUTPUT
-        echo "$OUTPUT" >> $GITHUB_OUTPUT
+        # Run the build script and capture only the output variables
+        bash .github/scripts/maintenance/build-packages.sh \
+          --build-command "${{ inputs.build-command }}" \
+          >> $GITHUB_OUTPUT
 
     # Upload artifacts using GitHub's native action
     - name: Upload build artifacts
@@ -77,11 +76,10 @@ runs:
       id: test
       shell: bash
       run: |
-        OUTPUT=$(bash .github/scripts/maintenance/run-tests.sh \
-          --test-command "${{ inputs.test-command }}")
-        
-        # Parse the output and set it to GITHUB_OUTPUT
-        echo "$OUTPUT" >> $GITHUB_OUTPUT
+        # Run the test script and capture only the output variables
+        bash .github/scripts/maintenance/run-tests.sh \
+          --test-command "${{ inputs.test-command }}" \
+          >> $GITHUB_OUTPUT
 
     # Create build status check if PR_SHA is available
     - name: Create Build Status Check
@@ -117,4 +115,4 @@ runs:
             --target-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         fi
       env:
-        PR_SHA: ${{ env.PR_SHA }} 
+        PR_SHA: ${{ env.PR_SHA }}

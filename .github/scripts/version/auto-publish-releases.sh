@@ -2,7 +2,7 @@
 
 # Help text
 show_help() {
-  cat << EOF
+  cat << EOF >&2
 Usage: $(basename "$0") [OPTIONS]
 
 This script creates GitHub releases for packages that have been published.
@@ -52,7 +52,7 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     *)
-      echo "Error: Unknown option: $1"
+      echo "Error: Unknown option: $1" >&2
       show_help
       exit 1
       ;;
@@ -61,19 +61,19 @@ done
 
 # Validate required parameters
 if [[ -z "$TOKEN" ]]; then
-  echo "Error: GitHub token is required"
+  echo "Error: GitHub token is required" >&2
   show_help
   exit 1
 fi
 
 if [[ -z "$PACKAGE_NAMES" ]]; then
-  echo "Error: Package names are required"
+  echo "Error: Package names are required" >&2
   show_help
   exit 1
 fi
 
 if [[ -z "$PACKAGE_PATHS" ]]; then
-  echo "Error: Package paths are required"
+  echo "Error: Package paths are required" >&2
   show_help
   exit 1
 fi
@@ -82,7 +82,7 @@ fi
 if [[ -z "$REPO" && -n "$GITHUB_REPOSITORY" ]]; then
   REPO="$GITHUB_REPOSITORY"
 elif [[ -z "$REPO" ]]; then
-  echo "Error: Repository information not available"
+  echo "Error: Repository information not available" >&2
   exit 1
 fi
 
@@ -91,7 +91,7 @@ IFS=',' read -ra NAME_ARRAY <<< "$PACKAGE_NAMES"
 IFS=',' read -ra PATH_ARRAY <<< "$PACKAGE_PATHS"
 
 if [[ ${#NAME_ARRAY[@]} -ne ${#PATH_ARRAY[@]} ]]; then
-  echo "Error: Number of package names must match number of package paths"
+  echo "Error: Number of package names must match number of package paths" >&2
   exit 1
 fi
 
@@ -102,7 +102,7 @@ HEADER_ACCEPT="Accept: application/vnd.github+json"
 # Get version branch info if it exists
 VERSION_BRANCH=$(git branch -a | grep "version-packages" | sed 's/.*\///')
 
-echo "Creating GitHub releases for published packages..."
+echo "Creating GitHub releases for published packages..." >&2
 RELEASES_CREATED=0
 
 # Process each package
@@ -118,7 +118,7 @@ for i in "${!NAME_ARRAY[@]}"; do
     VERSION=$(cat "$PKG_PATH/package.json" | grep -o '"version": "[^"]*' | cut -d'"' -f4)
     
     if [[ -n "$VERSION" ]]; then
-      echo "Found version $VERSION for package $PKG_NAME"
+      echo "Found version $VERSION for package $PKG_NAME" >&2
       
       # Create a tag name
       TAG_NAME="${CLEAN_PKG_NAME}-v${VERSION}"
@@ -128,7 +128,7 @@ for i in "${!NAME_ARRAY[@]}"; do
         "https://api.github.com/repos/$REPO/git/refs/tags/$TAG_NAME" | grep -c "\"ref\"")
       
       if [[ $TAG_EXISTS -eq 0 ]]; then
-        echo "Creating tag $TAG_NAME for $PKG_NAME v$VERSION"
+        echo "Creating tag $TAG_NAME for $PKG_NAME v$VERSION" >&2
         
         # Get latest commit SHA
         COMMIT_SHA=$(git rev-parse HEAD)
@@ -144,7 +144,7 @@ for i in "${!NAME_ARRAY[@]}"; do
           # Create reference for tag
           curl -s -X POST -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
             -d "{\"ref\":\"refs/tags/$TAG_NAME\",\"sha\":\"$TAG_SHA\"}" \
-            "https://api.github.com/repos/$REPO/git/refs"
+            "https://api.github.com/repos/$REPO/git/refs" >/dev/null 2>&1
             
           # Create release from tag
           RELEASE_RESPONSE=$(curl -s -X POST -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
@@ -154,33 +154,35 @@ for i in "${!NAME_ARRAY[@]}"; do
           RELEASE_ID=$(echo "$RELEASE_RESPONSE" | grep -o '"id": [0-9]*' | head -1 | cut -d' ' -f2)
           
           if [[ -n "$RELEASE_ID" ]]; then
-            echo "Successfully created release for $PKG_NAME v$VERSION"
+            echo "Successfully created release for $PKG_NAME v$VERSION" >&2
             RELEASES_CREATED=$((RELEASES_CREATED + 1))
           else
-            echo "Failed to create release for $PKG_NAME v$VERSION"
-            echo "API response: $RELEASE_RESPONSE"
+            echo "Failed to create release for $PKG_NAME v$VERSION" >&2
+            echo "API response: $RELEASE_RESPONSE" >&2
           fi
         else
-          echo "Failed to create tag for $PKG_NAME v$VERSION"
-          echo "API response: $TAG_RESPONSE"
+          echo "Failed to create tag for $PKG_NAME v$VERSION" >&2
+          echo "API response: $TAG_RESPONSE" >&2
         fi
       else
-        echo "Tag $TAG_NAME already exists, skipping release creation"
+        echo "Tag $TAG_NAME already exists, skipping release creation" >&2
       fi
     else
-      echo "Could not determine version for $PKG_NAME"
+      echo "Could not determine version for $PKG_NAME" >&2
     fi
   else
-    echo "Package.json not found at $PKG_PATH"
+    echo "Package.json not found at $PKG_PATH" >&2
   fi
 done
 
-echo "Created $RELEASES_CREATED releases"
+echo "Created $RELEASES_CREATED releases" >&2
+echo "releases_created=$RELEASES_CREATED"
 
 # Delete version branch if requested and it exists
 if [[ "$DELETE_BRANCH" == "true" && -n "$VERSION_BRANCH" ]]; then
-  echo "Deleting version branch: $VERSION_BRANCH"
-  git push origin --delete "$VERSION_BRANCH" 2>/dev/null || echo "Branch $VERSION_BRANCH not found or already deleted"
+  echo "Deleting version branch: $VERSION_BRANCH" >&2
+  { git push origin --delete "$VERSION_BRANCH" 2>/dev/null || echo "Branch $VERSION_BRANCH not found or already deleted" >&2; }
+  echo "branch_deleted=true"
 fi
 
 exit 0 

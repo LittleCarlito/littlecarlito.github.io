@@ -28,10 +28,10 @@ run_tests() {
     # Return the result
     if [ $TEST_RESULT -eq 0 ]; then
         echo "Tests passed" >&2
-        printf "test_status=success\n"
+        echo "result=success"
     else
         echo "Tests failed with exit code $TEST_RESULT" >&2
-        printf "test_status=failure\n"
+        echo "result=failure"
     fi
 }
 
