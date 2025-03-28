@@ -39,13 +39,11 @@ runs:
       id: setup
       shell: bash
       run: |
-        OUTPUT=$(bash .github/scripts/maintenance/setup-environment.sh \
+        # Run the setup script and filter only properly formatted output lines for GITHUB_OUTPUT
+        bash .github/scripts/maintenance/setup-environment.sh \
           --github-token "${{ inputs.github-token }}" \
           --node-version "${{ inputs.node-version }}" \
-          --pnpm-version "${{ inputs.pnpm-version }}")
-        
-        # Parse the output and set it to GITHUB_OUTPUT
-        echo "$OUTPUT" >> $GITHUB_OUTPUT
+          --pnpm-version "${{ inputs.pnpm-version }}" 2>&1 | grep -E "^[a-zA-Z0-9_-]+=.+" >> $GITHUB_OUTPUT || true
 
     # Download build artifacts using GitHub's native action
     - name: Download build artifacts
@@ -55,6 +53,8 @@ runs:
       with:
         name: ${{ inputs.artifact-name }}
         path: ${{ inputs.artifact-path }}
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
     
     # Create fallback if artifacts weren't downloaded
     - name: Handle missing artifacts
@@ -80,11 +80,22 @@ runs:
       id: run-tests
       shell: bash
       run: |
-        OUTPUT=$(bash .github/scripts/maintenance/run-tests.sh \
-          --test-command "${{ inputs.test-command }}")
+        # Run the test script directly without capturing output - this ensures exit codes are propagated
+        # Filter output to only include correctly formatted key=value pairs
+        bash .github/scripts/maintenance/run-tests.sh --test-command "${{ inputs.test-command }}" 2>&1 | grep -E "^result=" > test_result.txt || true
         
-        # Parse the output and set it to GITHUB_OUTPUT
-        echo "$OUTPUT" >> $GITHUB_OUTPUT
+        # Check if we have a result file and it contains success/failure
+        if [ -f test_result.txt ]; then
+          cat test_result.txt >> $GITHUB_OUTPUT
+          if grep -q "result=failure" test_result.txt; then
+            echo "Tests failed! Failing the workflow."
+            exit 1
+          fi
+        else
+          echo "result=success" >> $GITHUB_OUTPUT
+        fi
+        
+        rm -f test_result.txt
         
     # Create test status check if PR_SHA is available
     - name: Create Test Status Check

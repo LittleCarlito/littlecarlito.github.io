@@ -63,5 +63,5 @@ if [ "$STRICT_VALIDATION" = true ]; then
       echo "📝 This commit may trigger a PATCH version bump depending on configuration"
     fi
 else
-    echo "✅ Only changes in development/ or public/ directories. Allowing any commit message format for artists."
+    echo "✅ Only changes in development/ or public/ directories. Allowing any commit message."
 fi 

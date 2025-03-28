@@ -60,13 +60,11 @@ runs:
       id: setup
       shell: bash
       run: |
-        OUTPUT=$(bash .github/scripts/maintenance/setup-environment.sh \
+        # Run the setup script and filter only properly formatted output lines for GITHUB_OUTPUT
+        bash .github/scripts/maintenance/setup-environment.sh \
           --github-token "${{ inputs.github-token }}" \
           --node-version "${{ inputs.node-version }}" \
-          --pnpm-version "${{ inputs.pnpm-version }}")
-        
-        # Parse the output and set it to GITHUB_OUTPUT
-        echo "$OUTPUT" >> $GITHUB_OUTPUT
+          --pnpm-version "${{ inputs.pnpm-version }}" 2>&1 | grep -E "^[a-zA-Z0-9_-]+=.+" >> $GITHUB_OUTPUT || true
       
     # Check conventional commits
     - name: Check conventional commits
