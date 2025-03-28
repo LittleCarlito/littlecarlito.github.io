@@ -78,13 +78,17 @@ runs:
       if: inputs.head-branch != ''
       shell: bash
       run: |
+        # Write title and body to temporary files to avoid shell expansion issues
+        echo "${{ inputs.title }}" > /tmp/pr_title.txt
+        echo "${{ inputs.body }}" > /tmp/pr_body.txt
+        
         OUTPUT=$(bash .github/scripts/pr/create-or-update.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --base-branch "${{ inputs.base-branch }}" \
           --head-branch "${{ inputs.head-branch }}" \
-          --title "${{ inputs.title }}" \
-          --body "${{ inputs.body }}")
+          --title "$(cat /tmp/pr_title.txt)" \
+          --body "$(cat /tmp/pr_body.txt)")
         
         # Parse the output and set it to GITHUB_OUTPUT
         echo "$OUTPUT" >> $GITHUB_OUTPUT

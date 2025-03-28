@@ -60,7 +60,7 @@ runs:
     # Use our new changeset-generation action to check for, and generate changesets
     - name: Changeset generation and management 
       id: changeset-gen
-      uses: ./.github/actions/changeset-generation
+      uses: ./.github/actions/generate-changeset
       with:
         github-token: ${{ inputs.github-token }}
         repository: ${{ inputs.repository }}
@@ -141,3 +141,14 @@ runs:
           --description "Changesets validated successfully" \
           --state "success" \
           --target-url "${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}"
+
+    # Generate changesets using our script
+    - name: Generate changesets
+      id: generate
+      uses: ./.github/actions/generate-changeset
+      with:
+        github-token: ${{ inputs.github-token }}
+        repository: ${{ inputs.repository }}
+        base-commit: ${{ inputs.base-commit }}
+        head-commit: ${{ inputs.head-commit }}
+        auto-changeset-prefix: ${{ inputs.auto-changeset-prefix }}

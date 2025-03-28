@@ -1,0 +1,86 @@
+name: 'Merge PR'
+description: 'Handles merging of PRs with customizable merge methods and options'
+
+inputs:
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  repository:
+    description: 'Repository name (owner/repo)'
+    required: false
+    default: ${{ github.repository }}
+  pr-number:
+    description: 'PR number to merge'
+    required: true
+  commit-title:
+    description: 'Title for the merge commit'
+    required: false
+    default: ''
+  merge-method:
+    description: 'Merge method to use (merge, squash, rebase)'
+    required: false
+    default: 'squash'
+  delete-branch:
+    description: 'Whether to delete the branch after merging'
+    required: false
+    default: 'true'
+
+outputs:
+  merged:
+    description: 'Whether the PR was successfully merged'
+    value: ${{ steps.merge-pr.outputs.merged }}
+  branch-deleted:
+    description: 'Whether the branch was successfully deleted'
+    value: ${{ steps.delete-branch.outputs.deleted }}
+
+runs:
+  using: "composite"
+  steps:
+    # Merge PR using our script
+    - name: Merge Pull Request
+      id: merge-pr
+      shell: bash
+      run: |
+        OUTPUT=$(bash .github/scripts/pr/force-merge.sh \
+          --token "${{ inputs.github-token }}" \
+          --repo "${{ inputs.repository }}" \
+          --pr-number "${{ inputs.pr-number }}" \
+          --commit-title "${{ inputs.commit-title }}" \
+          --merge-method "${{ inputs.merge-method }}")
+        
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        
+    # Delete branch if requested
+    - name: Delete branch
+      id: delete-branch
+      if: inputs.delete-branch == 'true' && steps.merge-pr.outputs.merged == 'true'
+      shell: bash
+      run: |
+        # Get branch name from PR using find-pr.sh script
+        PR_INFO=$(bash .github/scripts/pr/find-pr.sh \
+          --token "${{ inputs.github-token }}" \
+          --repo "${{ inputs.repository }}" \
+          --pr-number "${{ inputs.pr-number }}")
+          
+        # Extract branch name
+        BRANCH_NAME=$(echo "$PR_INFO" | grep "^head_ref=" | cut -d= -f2)
+        
+        if [ -n "$BRANCH_NAME" ]; then
+          # Delete the branch using our script
+          OUTPUT=$(bash .github/scripts/branch/delete.sh \
+            --token "${{ inputs.github-token }}" \
+            --repo "${{ inputs.repository }}" \
+            --branch "$BRANCH_NAME")
+            
+          # Parse the output and set it to GITHUB_OUTPUT
+          echo "$OUTPUT" >> $GITHUB_OUTPUT
+          echo "Branch $BRANCH_NAME deleted"
+        else
+          echo "deleted=false" >> $GITHUB_OUTPUT
+          echo "Could not determine branch name to delete"
+        fi
+      env:
+        GH_TOKEN: ${{ inputs.github-token }} 

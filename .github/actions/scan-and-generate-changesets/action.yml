@@ -1,0 +1,188 @@
+name: 'Generate Changesets'
+description: 'Generates changesets from conventional commits and manages related processes'
+
+inputs:
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  repository:
+    description: 'Repository name (owner/repo)'
+    required: false
+    default: ${{ github.repository }}
+  since:
+    description: 'Generate changesets from commits since (e.g., "1 day ago", commit hash, or branch name)'
+    required: false
+    default: ''
+  force-base-commit:
+    description: 'Force a specific base commit to check from (useful for initial setup)'
+    required: false
+    default: ''
+  auto-changeset-prefix:
+    description: 'Prefix for auto-generated changeset files'
+    required: false
+    default: 'auto-'
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: 'lts/*'
+  pnpm-version:
+    description: 'PNPM version to use'
+    required: false
+    default: '8.15.4'
+  min-checks:
+    description: 'Minimum number of checks to wait for before merging'
+    required: false
+    default: '3'
+  timeout:
+    description: 'Timeout in seconds for waiting for checks'
+    required: false
+    default: '300'
+
+outputs:
+  changeset-created:
+    description: 'Whether a changeset was created'
+    value: ${{ steps.manage_changesets.outputs.changes_made }}
+  base-commit:
+    description: 'The base commit used for comparison'
+    value: ${{ steps.get_base.outputs.base_commit }}
+  pr-number:
+    description: 'The PR number if one was created'
+    value: ${{ steps.create_pr.outputs.pr_number }}
+  branch-name:
+    description: 'Branch name used for the changeset'
+    value: ${{ steps.create_branch.outputs.branch_name }}
+
+runs:
+  using: "composite"
+  steps:
+    # Setup environment using our script
+    - name: Setup environment
+      id: setup
+      shell: bash
+      run: |
+        OUTPUT=$(bash .github/scripts/maintenance/setup-environment.sh \
+          --github-token "${{ inputs.github-token }}" \
+          --node-version "${{ inputs.node-version }}" \
+          --pnpm-version "${{ inputs.pnpm-version }}")
+        
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
+      
+    # Check conventional commits
+    - name: Check conventional commits
+      id: check-commits
+      shell: bash
+      run: |
+        # Use our dedicated script for checking conventional commits
+        OUTPUT=$(bash .github/scripts/version/check-conventional-commits.sh \
+          --since "${{ inputs.since }}" \
+          --base-commit "${{ inputs.force-base-commit }}" \
+          --auto-changeset-prefix "${{ inputs.auto-changeset-prefix }}")
+        
+        # Parse the output and set it to GITHUB_OUTPUT
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
+      
+    # Use the changeset management action
+    - name: Manage changesets
+      id: manage_changesets
+      uses: ./.github/actions/manage-changeset
+      with:
+        github-token: ${{ inputs.github-token }}
+        repository: ${{ inputs.repository }}
+        base-commit: ${{ steps.get_base.outputs.base_commit }}
+        head-commit: ${{ steps.get_head.outputs.head_commit }}
+        auto-changeset-prefix: ${{ inputs.auto-changeset-prefix }}
+      
+    # Create PR if changes were made
+    - name: Create PR
+      id: create_pr
+      if: steps.manage_changesets.outputs.changes_made == 'true'
+      uses: ./.github/actions/manage-pull-request
+      with:
+        github-token: ${{ inputs.github-token }}
+        repository: ${{ inputs.repository }}
+        base-branch: 'main'
+        head-branch: ${{ steps.create_branch.outputs.branch_name }}
+        title: 'chore: add missing changesets'
+        body: ${{ steps.pr_body.outputs.body }}
+      
+    # Get PR SHA
+    - name: Get PR SHA
+      id: get-sha
+      if: steps.manage_changesets.outputs.changes_made == 'true' && steps.create_pr.outputs.pr_number != ''
+      shell: bash
+      run: |
+        # Use shared script to get PR SHA
+        SHA=$(bash .github/scripts/branch/get-sha.sh \
+          --token "${{ inputs.github-token }}" \
+          --repo "${{ inputs.repository }}" \
+          --pr-number "${{ steps.create_pr.outputs.pr_number }}")
+        
+        # Validate SHA format before setting output
+        if [[ "$SHA" =~ ^[0-9a-f]{7,40}$ ]]; then
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
+        else
+          echo "ERROR: Invalid SHA format received: '$SHA'" >&2
+          exit 1
+        fi
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      
+    # Add status checks
+    - name: Add status checks
+      if: steps.manage_changesets.outputs.changes_made == 'true' && steps.create_pr.outputs.pr_number != ''
+      shell: bash
+      run: |
+        bash .github/scripts/branch/force-status.sh \
+          --token "${{ inputs.github-token }}" \
+          --repo "${{ inputs.repository }}" \
+          --sha "${{ steps.get-sha.outputs.sha }}" \
+          --contexts '["Build Packages", "Test / Run Tests", "Test Changesets"]'
+      
+    # Wait for checks to complete before merging
+    - name: Wait for checks to complete
+      id: wait-checks
+      if: steps.manage_changesets.outputs.changes_made == 'true' && steps.create_pr.outputs.pr_number != ''
+      shell: bash
+      run: |
+        bash .github/scripts/branch/wait-checks.sh \
+          --repo "${{ inputs.repository }}" \
+          --sha "${{ steps.get-sha.outputs.sha }}" \
+          --workflow "Generate Changesets" \
+          --timeout "${{ inputs.timeout }}" \
+          --min-checks "${{ inputs.min-checks }}"
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      
+    # Merge PR
+    - name: Merge PR
+      id: merge-pr
+      if: steps.create_pr.outputs.pr_number != ''
+      uses: ./.github/actions/manage-pull-request
+      with:
+        github-token: ${{ inputs.github-token }}
+        repository: ${{ inputs.repository }}
+        pr-number: ${{ steps.create_pr.outputs.pr_number }}
+        merge-method: 'squash'
+        delete-branch: 'true'
+      
+    # Manually delete the branch to ensure it's gone
+    - name: Delete changeset branch
+      id: delete-branch
+      if: steps.manage_changesets.outputs.changes_made == 'true' && steps.create_branch.outputs.branch_name != ''
+      shell: bash
+      run: |
+        echo "Manually deleting branch: ${{ steps.create_branch.outputs.branch_name }}"
+        bash .github/scripts/branch/delete.sh \
+          --token "${{ inputs.github-token }}" \
+          --repo "${{ inputs.repository }}" \
+          --branch "${{ steps.create_branch.outputs.branch_name }}"
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      
+    # Report when no conventional commits are found
+    - name: No conventional commits found
+      if: steps.check-commits.outputs.conventional_count == '0'
+      shell: bash
+      run: |
+        echo "No conventional commits found since ${{ steps.check-commits.outputs.base_commit }}. No changeset needed." 

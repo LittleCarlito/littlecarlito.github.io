@@ -1,4 +1,4 @@
-name: Unified Pipeline
+name: Unified CI/CD Pipeline
 
 on:
   push:
@@ -9,8 +9,8 @@ on:
   workflow_dispatch:
     inputs:
       regenerate_from:
-        description: 'Regenerate changesets from this commit (commit hash or "HEAD~N")'
-        type: string
+        description: 'Force regenerate changesets from this commit'
+        required: false
         default: ''
 
 # Add concurrency to ensure only one instance runs at a time
@@ -22,24 +22,98 @@ concurrency:
 # The separate deploy-pages.yml workflow should be disabled or deleted.
 permissions:
   contents: write
-  issues: write
-  pull-requests: write
   packages: write
-  actions: read
-  pages: write
-  id-token: write
+  pull-requests: write
   statuses: write
 
 jobs:
   build:
-    name: Build Packages
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+          
+      - name: Build packages
+        uses: ./.github/actions/build-and-test
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          build-command: 'pnpm run build'
+          test-command: 'echo "Tests will run in separate job"'
+        
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-builds
+          path: packages/*/dist
+
+  test:
+    name: Test
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+          
+      # Replace workflow call with direct use of the action
+      - name: Test packages
+        uses: ./.github/actions/test-packages
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          artifact-name: package-builds
+
+  generate-changesets:
+    name: Generate Changesets
+    # Only run this on main branch pushes, not on tags
+    if: github.ref == 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/')
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      # Replace workflow call with direct use of the action
+      - name: Generate Changesets
+        id: generate-changesets
+        uses: ./.github/actions/scan-and-generate-changesets
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          force-base-commit: ${{ github.event.inputs.regenerate_from }}
+          auto-changeset-prefix: 'auto-'
+
+  version-and-publish:
+    name: Version and Publish to GitHub npm
+    # Run this job even if auto-changeset job is skipped
+    needs: [test, generate-changesets]
+    if: always() && needs.test.result == 'success' && (needs.generate-changesets.result == 'success' || needs.generate-changesets.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PACKAGE_TOKEN }}
           
+      # Download build artifacts
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: package-builds
+          path: ./
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          
+      # Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -53,54 +127,23 @@ jobs:
           
       - name: Install dependencies
         run: pnpm install
-        
-      # Configure Git identity
-      - name: Configure Git identity
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        
-      - name: Build packages
-        run: |
-          # Build packages in order of dependency
-          echo "Building all packages in the correct order..."
-          pnpm --filter=@littlecarlito/blorkpack build
-          pnpm --filter=@littlecarlito/blorktools build
-          pnpm --filter=@littlecarlito/blorkboard build
-        
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+          
+      # Use the new composite action
+      - name: Version and Publish Packages
+        id: version-publish
+        uses: ./.github/actions/version-and-publish
         with:
-          name: package-builds
-          path: packages/*/dist
-
-  test:
-    name: Test
-    needs: build
-    uses: ./.github/workflows/test-monorepo.yml
-    with:
-      artifact_name: package-builds
-
-  generate-changesets:
-    name: Generate Changesets
-    # Only run this on main branch pushes, not on tags
-    if: github.ref == 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/')
-    needs: test
-    uses: ./.github/workflows/reusable-generate-changesets.yml
-    with:
-      force_base_commit: ${{ github.event.inputs.regenerate_from }}
-    secrets: inherit
-
-  version-and-publish:
-    name: Version and Publish to GitHub npm
-    # Run this job even if auto-changeset job is skipped
-    needs: [test, generate-changesets]
-    if: always() && needs.test.result == 'success' && (needs.generate-changesets.result == 'success' || needs.generate-changesets.result == 'skipped')
-    uses: ./.github/workflows/changesets-version-publish.yml
-    with:
-      artifact_name: package-builds
-    secrets:
-      PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          github-token: ${{ secrets.PACKAGE_TOKEN }}
+          artifact-name: 'package-builds'
+          publish-command: 'pnpm run release'
+          version-command: 'pnpm run version'
+          commit-message: 'chore: version packages'
+          pr-title: 'chore: version packages'
+          create-github-releases: 'true'
+          registry-url: 'https://npm.pkg.github.com'
+          npm-scope: '@littlecarlito'
+          package-paths: 'packages/blorkpack,packages/blorktools,packages/blorkboard,apps/portfolio'
+          package-names: '@littlecarlito/blorkpack,@littlecarlito/blorktools,@littlecarlito/blorkboard,@littlecarlito/portfolio'
 
   # Build the site for GitHub Pages
   build-site:

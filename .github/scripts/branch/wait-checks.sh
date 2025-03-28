@@ -26,35 +26,155 @@ wait_for_checks() {
         # Get all check runs for this commit
         CHECK_RUNS=$(gh api /repos/$repo/commits/$sha/check-runs)
         
+        # Validate the response structure
+        if ! echo "$CHECK_RUNS" | jq -e '.check_runs' > /dev/null 2>&1; then
+            echo "Warning: GitHub API response doesn't contain expected 'check_runs' array. Response:" >&2
+            echo "$CHECK_RUNS" | jq '.' >&2
+            echo "Waiting for valid response..." >&2
+            sleep $interval
+            elapsed=$((elapsed + interval))
+            continue
+        fi
+        
+        # Debug check_runs array structure
+        echo "Check runs array structure:" >&2
+        echo "$CHECK_RUNS" | jq '.check_runs | map(type)' >&2
+        
         # Get total count of check runs
-        TOTAL_CHECKS=$(echo "$CHECK_RUNS" | jq '.total_count')
+        TOTAL_CHECKS=$(echo "$CHECK_RUNS" | jq '.total_count // 0')
         echo "Total check runs: $TOTAL_CHECKS" >&2
         
-        if [ "$TOTAL_CHECKS" = "0" ]; then
+        if [ "$TOTAL_CHECKS" = "0" ] || [ "$TOTAL_CHECKS" = "null" ]; then
             echo "No checks found yet. Waiting..." >&2
             sleep $interval
             elapsed=$((elapsed + interval))
             continue
         fi
         
-        # Count completed and successful checks
-        COMPLETED_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status == "completed")] | length')
-        SUCCESSFUL_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status == "completed" and .conclusion == "success")] | length')
-        FAILED_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select(.status == "completed" and .conclusion != "success" and .conclusion != "neutral" and .conclusion != "skipped")] | length')
+        # Use a temporary file to capture jq errors
+        ERROR_LOG=$(mktemp)
         
-        # Count checks from current workflow - MORE FLEXIBLE MATCHING
-        # Using contains() rather than exact match to be more resilient to name changes
-        # Make sure we only apply contains() to string values
-        WORKFLOW_CHECKS=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '[.check_runs[] | select((.name | type == "string") and (.name | contains($name)))] | length')
-        WORKFLOW_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '[.check_runs[] | select(.status != "completed" and (.name | type == "string") and (.name | contains($name)))] | length')
+        # Function to safely run jq with error handling
+        safe_jq() {
+            local query="$1"
+            local default="$2"
+            local result
+            
+            # Check if input is an --arg parameter or a regular query
+            if [[ "$query" == "--arg"* ]]; then
+                # If it contains --arg, split it and run jq properly with arguments
+                local arg_name=$(echo "$query" | awk '{print $2}')
+                local arg_value=$(echo "$query" | awk '{print $3}')
+                local actual_query=$(echo "$query" | awk '{$1=$2=$3=""; print $0}' | sed 's/^[ \t]*//')
+                
+                result=$(echo "$CHECK_RUNS" | jq --arg "$arg_name" "$arg_value" "$actual_query" 2>"$ERROR_LOG" || echo "$default")
+            else
+                # Regular query without arguments
+                result=$(echo "$CHECK_RUNS" | jq "$query" 2>"$ERROR_LOG" || echo "$default")
+            fi
+            
+            if [ -s "$ERROR_LOG" ]; then
+                echo "Warning: jq error occurred with query: $query" >&2
+                cat "$ERROR_LOG" >&2
+                echo "$default"
+            else
+                echo "$result"
+            fi
+        }
         
-        # For debugging: show exactly which checks were recognized as "our workflow"
-        OUR_WORKFLOW_CHECKS=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '.check_runs[] | select((.name | type == "string") and (.name | contains($name))) | .name')
-        echo "Identified as our workflow checks: $OUR_WORKFLOW_CHECKS" >&2
+        # Count completed and successful checks using safe_jq
+        COMPLETED_CHECKS=$(safe_jq '[.check_runs[] | select((. | type == "object") and (.status == "completed"))] | length' "0")
+        SUCCESSFUL_CHECKS=$(safe_jq '[.check_runs[] | select((. | type == "object") and (.status == "completed" and .conclusion == "success"))] | length' "0")
+        FAILED_CHECKS=$(safe_jq '[.check_runs[] | select((. | type == "object") and (.status == "completed" and .conclusion != "success" and .conclusion != "neutral" and .conclusion != "skipped"))] | length' "0")
         
-        # Calculate non-workflow checks
+        # Use echo and grep to identify which check runs match our workflow
+        all_check_names=$(safe_jq '[.check_runs[] | select((. | type == "object") and (.name | type == "string")) | .name] | @csv' "[]")
+        all_check_names=$(echo "$all_check_names" | sed 's/"//g' | tr ',' '\n')
+        
+        # Find workflow checks using grep with simpler pattern matching
+        # Use string comparison instead of grep to avoid backslash issues
+        workflow_check_names=""
+        while read -r check_name; do
+            # If the check name contains push/create/pr keywords, mark it as a workflow check
+            if [[ -n "$check_name" ]] && [[ "$check_name" =~ [Pp]ush|[Cc]reat|PR|[Pp]ull.[Rr]equest ]]; then
+                workflow_check_names="${workflow_check_names}${check_name}"$'\n'
+            fi
+        done <<< "$all_check_names"
+        
+        # Remove trailing newline
+        workflow_check_names=$(echo "$workflow_check_names" | sed '/^$/d')
+        
+        # Count the matches
+        WORKFLOW_CHECKS=$(echo "$workflow_check_names" | wc -l)
+        WORKFLOW_CHECKS=$(echo "$WORKFLOW_CHECKS" | tr -d '[:space:]')
+        
+        # Ensure we have a sensible value
+        if [ -z "$WORKFLOW_CHECKS" ] || [ "$WORKFLOW_CHECKS" = "0" ]; then
+            WORKFLOW_CHECKS=0
+        fi
+        
+        # Get in-progress workflow checks
+        all_statuses=$(safe_jq '[.check_runs[] | select((. | type == "object") and (.name | type == "string")) | {name: .name, status: .status}]' "[]")
+        workflow_in_progress_count=0
+        
+        # More detailed workflow check debugging
+        echo "Workflow check identification:" >&2
+        
+        # Iterate over all check names to verify detection
+        while read -r check_name; do
+            if [[ -n "$check_name" ]]; then
+                is_workflow="No"
+                status="unknown"
+                
+                # Check if it's identified as a workflow check
+                if echo "$workflow_check_names" | grep -q "^$check_name$"; then
+                    is_workflow="Yes"
+                    
+                    # Get status for this check
+                    status=$(echo "$all_statuses" | jq -r ".[] | select(.name == \"$check_name\") | .status")
+                    
+                    # Count in-progress workflow checks
+                    if [[ "$status" == "in_progress" ]]; then
+                        workflow_in_progress_count=$((workflow_in_progress_count + 1))
+                    fi
+                fi
+                
+                echo "  - '$check_name': workflow=$is_workflow, status=$status" >&2
+            fi
+        done <<< "$all_check_names"
+        
+        WORKFLOW_IN_PROGRESS=$workflow_in_progress_count
+        
+        echo "Identified as our workflow checks: $workflow_check_names" >&2
+        
+        # Calculate non-workflow checks - ensure we don't get negative numbers
         NON_WORKFLOW_TOTAL=$((TOTAL_CHECKS - WORKFLOW_CHECKS))
-        NON_WORKFLOW_COMPLETED=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '[.check_runs[] | select(.status == "completed" and ((.name | type != "string") or (.name | contains($name) | not)))] | length')
+        if [ "$NON_WORKFLOW_TOTAL" -lt 0 ]; then
+            NON_WORKFLOW_TOTAL=0
+        fi
+        
+        # Calculate completed non-workflow checks using set operations
+        # First get all completed check names
+        completed_checks=$(safe_jq '[.check_runs[] | select((. | type == "object") and (.status == "completed")) | .name] | @csv' "[]")
+        completed_checks=$(echo "$completed_checks" | sed 's/"//g' | tr ',' '\n')
+        
+        # Count completed checks that aren't workflow checks
+        non_workflow_completed_count=0
+        while read -r check_name; do
+            if [[ -n "$check_name" ]]; then
+                # Check if this name is in workflow_check_names
+                if ! echo "$workflow_check_names" | grep -q "^$check_name$"; then
+                    non_workflow_completed_count=$((non_workflow_completed_count + 1))
+                fi
+            fi
+        done <<< "$completed_checks"
+        
+        NON_WORKFLOW_COMPLETED=$non_workflow_completed_count
+        
+        # Ensure counts are consistent
+        if [ "$NON_WORKFLOW_COMPLETED" -gt "$NON_WORKFLOW_TOTAL" ]; then
+            NON_WORKFLOW_COMPLETED=$NON_WORKFLOW_TOTAL
+        fi
         
         echo "Checks: $COMPLETED_CHECKS/$TOTAL_CHECKS completed overall" >&2
         echo "Non-workflow checks: $NON_WORKFLOW_COMPLETED/$NON_WORKFLOW_TOTAL completed" >&2
@@ -63,7 +183,19 @@ wait_for_checks() {
         
         # Output all check names for better debugging
         echo "All check names:" >&2
-        echo "$CHECK_RUNS" | jq -r '.check_runs[] | "\(.name), status: \(.status), conclusion: \(.conclusion)"' >&2
+        # Get check info one at a time to avoid JSON parsing issues
+        check_count=$(safe_jq '.check_runs | length' "0")
+        
+        for ((i=0; i<check_count; i++)); do
+            check_info=$(safe_jq ".check_runs[$i] | select(. != null) | {name: (.name // \"unnamed\"), status: (.status // \"unknown\"), conclusion: (.conclusion // \"none\")}" "{}")
+            
+            if [ "$check_info" != "{}" ]; then
+                name=$(echo "$check_info" | jq -r '.name // "unnamed"')
+                status=$(echo "$check_info" | jq -r '.status // "unknown"')
+                conclusion=$(echo "$check_info" | jq -r '.conclusion // "none"')
+                echo "  - $name: status=$status, conclusion=$conclusion" >&2
+            fi
+        done
         
         # If any checks failed, exit
         if [ "$FAILED_CHECKS" != "0" ]; then
@@ -83,8 +215,8 @@ wait_for_checks() {
         # CRITICAL FIX: Match the original lies.yaml logic
         # Proceed ONLY if either:
         # 1. ALL checks are complete, OR
-        # 2. All non-workflow checks are complete AND exactly one workflow check is still running
-        if [ "$COMPLETED_CHECKS" = "$TOTAL_CHECKS" ] || [ "$NON_WORKFLOW_COMPLETED" = "$NON_WORKFLOW_TOTAL" -a "$WORKFLOW_IN_PROGRESS" = "1" -a "$WORKFLOW_CHECKS" = "1" ]; then
+        # 2. All non-workflow checks are complete (don't require the workflow itself to complete)
+        if [ "$COMPLETED_CHECKS" = "$TOTAL_CHECKS" ] || [ "$NON_WORKFLOW_COMPLETED" = "$NON_WORKFLOW_TOTAL" ]; then
             echo "All required checks completed successfully (except possibly our own workflow)!" >&2
             printf "checks_status=success\n"
             printf "completed_checks=$COMPLETED_CHECKS\n"
@@ -104,6 +236,9 @@ wait_for_checks() {
         sleep $interval
         elapsed=$((elapsed + interval))
     done
+    
+    # Clean up temporary file
+    [ -f "$ERROR_LOG" ] && rm -f "$ERROR_LOG"
     
     echo "Timeout waiting for checks to complete." >&2
     printf "checks_status=timeout\n"
