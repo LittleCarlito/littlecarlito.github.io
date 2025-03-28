@@ -95,8 +95,8 @@ wait_for_checks() {
         all_check_names=$(safe_jq '[.check_runs[] | select((. | type == "object") and (.name | type == "string")) | .name] | @csv' "[]")
         all_check_names=$(echo "$all_check_names" | sed 's/"//g' | tr ',' '\n')
         
-        # Find workflow checks using grep (case-insensitive)
-        workflow_check_names=$(echo "$all_check_names" | grep -i "push\|create\|pr\|pull request" || echo "")
+        # Find workflow checks using grep with fixed pattern (avoid backslash issues)
+        workflow_check_names=$(echo "$all_check_names" | grep -i -E 'push|create|pr|pull request' || echo "")
         
         # Count the matches
         WORKFLOW_CHECKS=$(echo "$workflow_check_names" | grep -v "^$" | wc -l)
@@ -142,14 +142,16 @@ wait_for_checks() {
         
         # Output all check names for better debugging
         echo "All check names:" >&2
-        all_check_info=$(safe_jq '.check_runs[] | select(. | type == "object") | {name: (.name // "unnamed"), status: (.status // "unknown"), conclusion: (.conclusion // "none")}' "[]")
+        # Get check info one at a time to avoid JSON parsing issues
+        check_count=$(safe_jq '.check_runs | length' "0")
         
-        # Format and display each check on its own line
-        echo "$all_check_info" | while read -r check; do
-            if [ -n "$check" ]; then
-                name=$(echo "$check" | jq -r '.name')
-                status=$(echo "$check" | jq -r '.status')
-                conclusion=$(echo "$check" | jq -r '.conclusion')
+        for ((i=0; i<check_count; i++)); do
+            check_info=$(safe_jq ".check_runs[$i] | select(. != null) | {name: (.name // \"unnamed\"), status: (.status // \"unknown\"), conclusion: (.conclusion // \"none\")}" "{}")
+            
+            if [ "$check_info" != "{}" ]; then
+                name=$(echo "$check_info" | jq -r '.name // "unnamed"')
+                status=$(echo "$check_info" | jq -r '.status // "unknown"')
+                conclusion=$(echo "$check_info" | jq -r '.conclusion // "none"')
                 echo "  - $name: status=$status, conclusion=$conclusion" >&2
             fi
         done
