@@ -183,6 +183,7 @@ jobs:
           bash .github/scripts/branch/wait-checks.sh \
             --repo "${{ github.repository }}" \
             --sha "$SHA" \
+            --workflow "Push and Create PR" \
             --timeout "300" \
             --min-checks "2"  # Adjust based on expected number of checks
             
