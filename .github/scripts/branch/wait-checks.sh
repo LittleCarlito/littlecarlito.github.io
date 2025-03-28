@@ -26,35 +26,71 @@ wait_for_checks() {
         # Get all check runs for this commit
         CHECK_RUNS=$(gh api /repos/$repo/commits/$sha/check-runs)
         
+        # Validate the response structure
+        if ! echo "$CHECK_RUNS" | jq -e '.check_runs' > /dev/null 2>&1; then
+            echo "Warning: GitHub API response doesn't contain expected 'check_runs' array. Response:" >&2
+            echo "$CHECK_RUNS" | jq '.' >&2
+            echo "Waiting for valid response..." >&2
+            sleep $interval
+            elapsed=$((elapsed + interval))
+            continue
+        fi
+        
+        # Debug check_runs array structure
+        echo "Check runs array structure:" >&2
+        echo "$CHECK_RUNS" | jq '.check_runs | map(type)' >&2
+        
         # Get total count of check runs
-        TOTAL_CHECKS=$(echo "$CHECK_RUNS" | jq '.total_count')
+        TOTAL_CHECKS=$(echo "$CHECK_RUNS" | jq '.total_count // 0')
         echo "Total check runs: $TOTAL_CHECKS" >&2
         
-        if [ "$TOTAL_CHECKS" = "0" ]; then
+        if [ "$TOTAL_CHECKS" = "0" ] || [ "$TOTAL_CHECKS" = "null" ]; then
             echo "No checks found yet. Waiting..." >&2
             sleep $interval
             elapsed=$((elapsed + interval))
             continue
         fi
         
-        # Count completed and successful checks
-        COMPLETED_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select((. | type == "object") and (.status == "completed"))] | length')
-        SUCCESSFUL_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select((. | type == "object") and (.status == "completed" and .conclusion == "success"))] | length')
-        FAILED_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select((. | type == "object") and (.status == "completed" and .conclusion != "success" and .conclusion != "neutral" and .conclusion != "skipped"))] | length')
+        # Use a temporary file to capture jq errors
+        ERROR_LOG=$(mktemp)
+        
+        # Function to safely run jq with error handling
+        safe_jq() {
+            local query="$1"
+            local default="$2"
+            local result
+            
+            result=$(echo "$CHECK_RUNS" | jq "$query" 2>"$ERROR_LOG" || echo "$default")
+            
+            if [ -s "$ERROR_LOG" ]; then
+                echo "Warning: jq error occurred with query: $query" >&2
+                cat "$ERROR_LOG" >&2
+                echo "$default"
+            else
+                echo "$result"
+            fi
+        }
+        
+        # Count completed and successful checks using safe_jq
+        COMPLETED_CHECKS=$(safe_jq '[.check_runs[] | select((. | type == "object") and (.status == "completed"))] | length' "0")
+        SUCCESSFUL_CHECKS=$(safe_jq '[.check_runs[] | select((. | type == "object") and (.status == "completed" and .conclusion == "success"))] | length' "0")
+        FAILED_CHECKS=$(safe_jq '[.check_runs[] | select((. | type == "object") and (.status == "completed" and .conclusion != "success" and .conclusion != "neutral" and .conclusion != "skipped"))] | length' "0")
         
         # Count checks from current workflow - MUCH MORE FLEXIBLE MATCHING
         # Convert both the check name and the workflow name to lowercase and remove common words for comparison
         # This makes the matching more resistant to minor wording changes
-        WORKFLOW_CHECKS=$(echo "$CHECK_RUNS" | jq --arg name "$(echo "$current_workflow" | tr '[:upper:]' '[:lower:]' | sed 's/and//g' | sed 's/pr//g' | sed 's/pull//g' | sed 's/request//g')" '
+        simplified_name=$(echo "$current_workflow" | tr '[:upper:]' '[:lower:]' | sed 's/and//g' | sed 's/pr//g' | sed 's/pull//g' | sed 's/request//g')
+        
+        WORKFLOW_CHECKS=$(safe_jq --arg name "$simplified_name" '
         [.check_runs[] | 
           select(
             (. | type == "object") and 
             (.name | type == "string") and 
             ((.name | ascii_downcase | gsub("and|pr|pull|request"; "")) | contains($name) or $name | contains(.name | ascii_downcase | gsub("and|pr|pull|request"; "")))
           )
-        ] | length')
+        ] | length' "0")
         
-        WORKFLOW_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq --arg name "$(echo "$current_workflow" | tr '[:upper:]' '[:lower:]' | sed 's/and//g' | sed 's/pr//g' | sed 's/pull//g' | sed 's/request//g')" '
+        WORKFLOW_IN_PROGRESS=$(safe_jq --arg name "$simplified_name" '
         [.check_runs[] | 
           select(
             (. | type == "object") and
@@ -62,23 +98,23 @@ wait_for_checks() {
             (.name | type == "string") and 
             ((.name | ascii_downcase | gsub("and|pr|pull|request"; "")) | contains($name) or $name | contains(.name | ascii_downcase | gsub("and|pr|pull|request"; "")))
           )
-        ] | length')
+        ] | length' "0")
         
         # For debugging: show exactly which checks were recognized as "our workflow"
-        OUR_WORKFLOW_CHECKS=$(echo "$CHECK_RUNS" | jq --arg name "$(echo "$current_workflow" | tr '[:upper:]' '[:lower:]' | sed 's/and//g' | sed 's/pr//g' | sed 's/pull//g' | sed 's/request//g')" '
-        .check_runs[] | 
+        OUR_WORKFLOW_CHECKS=$(safe_jq --arg name "$simplified_name" '
+        [.check_runs[] | 
           select(
             (. | type == "object") and
             (.name | type == "string") and 
             ((.name | ascii_downcase | gsub("and|pr|pull|request"; "")) | contains($name) or $name | contains(.name | ascii_downcase | gsub("and|pr|pull|request"; "")))
-          ) | .name')
+          ) | .name] | join(", ")' "none")
         
         # FALLBACK: If no checks were identified as workflow checks, look for specific push/create PR patterns
         if [ "$WORKFLOW_CHECKS" = "0" ]; then
             echo "No workflow checks identified by name matching, looking for specific patterns..." >&2
-            WORKFLOW_CHECKS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select((. | type == "object") and (.name | type == "string") and (.name | test("(?i)push.*creat|creat.*pr|push.*pr|pull.*request")))] | length')
-            WORKFLOW_IN_PROGRESS=$(echo "$CHECK_RUNS" | jq '[.check_runs[] | select((. | type == "object") and (.status != "completed") and (.name | type == "string") and (.name | test("(?i)push.*creat|creat.*pr|push.*pr|pull.*request")))] | length')
-            OUR_WORKFLOW_CHECKS=$(echo "$CHECK_RUNS" | jq '.check_runs[] | select((. | type == "object") and (.name | type == "string") and (.name | test("(?i)push.*creat|creat.*pr|push.*pr|pull.*request"))) | .name')
+            WORKFLOW_CHECKS=$(safe_jq '[.check_runs[] | select((. | type == "object") and (.name | type == "string") and (.name | test("(?i)push.*creat|creat.*pr|push.*pr|pull.*request")))] | length' "0")
+            WORKFLOW_IN_PROGRESS=$(safe_jq '[.check_runs[] | select((. | type == "object") and (.status != "completed") and (.name | type == "string") and (.name | test("(?i)push.*creat|creat.*pr|push.*pr|pull.*request")))] | length' "0")
+            OUR_WORKFLOW_CHECKS=$(safe_jq '[.check_runs[] | select((. | type == "object") and (.name | type == "string") and (.name | test("(?i)push.*creat|creat.*pr|push.*pr|pull.*request"))) | .name] | join(", ")' "none")
             echo "After fallback pattern matching, found $WORKFLOW_CHECKS workflow checks" >&2
         fi
         
@@ -86,7 +122,7 @@ wait_for_checks() {
         
         # Calculate non-workflow checks
         NON_WORKFLOW_TOTAL=$((TOTAL_CHECKS - WORKFLOW_CHECKS))
-        NON_WORKFLOW_COMPLETED=$(echo "$CHECK_RUNS" | jq --arg name "$current_workflow" '[.check_runs[] | select((. | type == "object") and (.status == "completed") and ((.name | type != "string") or (.name | contains($name) | not)))] | length')
+        NON_WORKFLOW_COMPLETED=$(safe_jq --arg name "$current_workflow" '[.check_runs[] | select((. | type == "object") and (.status == "completed") and ((.name | type != "string") or (.name | contains($name) | not)))] | length' "0")
         
         echo "Checks: $COMPLETED_CHECKS/$TOTAL_CHECKS completed overall" >&2
         echo "Non-workflow checks: $NON_WORKFLOW_COMPLETED/$NON_WORKFLOW_TOTAL completed" >&2
@@ -95,7 +131,8 @@ wait_for_checks() {
         
         # Output all check names for better debugging
         echo "All check names:" >&2
-        echo "$CHECK_RUNS" | jq -r '.check_runs[] | "\(.name), status: \(.status), conclusion: \(.conclusion)"' >&2
+        FULL_CHECK_INFO=$(safe_jq '.check_runs[] | select(. | type == "object") | "\(.name // "unnamed"), status: \(.status // "unknown"), conclusion: \(.conclusion // "none")"' "[]" | tr '\n' ', ')
+        echo "$FULL_CHECK_INFO" >&2
         
         # If any checks failed, exit
         if [ "$FAILED_CHECKS" != "0" ]; then
@@ -136,6 +173,9 @@ wait_for_checks() {
         sleep $interval
         elapsed=$((elapsed + interval))
     done
+    
+    # Clean up temporary file
+    [ -f "$ERROR_LOG" ] && rm -f "$ERROR_LOG"
     
     echo "Timeout waiting for checks to complete." >&2
     printf "checks_status=timeout\n"
