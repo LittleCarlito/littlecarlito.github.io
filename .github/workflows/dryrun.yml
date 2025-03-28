@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v4
           
       - name: Build packages
-        uses: ./.github/actions/build-test
+        uses: ./.github/actions/build-and-test
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           build-command: 'pnpm run build'
@@ -45,7 +45,7 @@ jobs:
           
       # Replace workflow call with direct use of the action
       - name: Test packages
-        uses: ./.github/actions/test-monorepo
+        uses: ./.github/actions/test-packages
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           artifact-name: package-builds

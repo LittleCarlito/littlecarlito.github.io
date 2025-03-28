@@ -92,9 +92,9 @@ jobs:
           fi
       
       # Setup environment and tools
-      - name: Build packages
+      - name: Setup tools
         id: setup
-        uses: ./.github/actions/build-test
+        uses: ./.github/actions/build-and-test
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           build-command: 'echo "Skipping build for PR creation"'
@@ -160,7 +160,7 @@ jobs:
       # Create PR
       - name: Create PR
         id: manage_pr
-        uses: ./.github/actions/pr-management
+        uses: ./.github/actions/manage-pull-request
         with:
           github-token: ${{ secrets.PR_CREATION_TOKEN }}
           repository: ${{ github.repository }}
@@ -205,7 +205,7 @@ jobs:
       # Use the merge-pr action directly instead of calling the workflow
       - name: Merge PR
         if: steps.branch_info.outputs.auto_merge == 'true' && steps.verify_checks.outcome == 'success'
-        uses: ./.github/actions/merge-pr
+        uses: ./.github/actions/merge-pull-request
         with:
           github-token: ${{ secrets.PR_CREATION_TOKEN }}
           repository: ${{ github.repository }}

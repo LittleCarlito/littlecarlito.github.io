@@ -41,16 +41,16 @@ inputs:
 outputs:
   changeset-created:
     description: 'Whether a changeset was created'
-    value: ${{ steps.changeset-mgmt.outputs.has-auto-changesets }}
+    value: ${{ steps.manage_changesets.outputs.changes_made }}
   base-commit:
     description: 'The base commit used for comparison'
-    value: ${{ steps.check-commits.outputs.base_commit }}
+    value: ${{ steps.get_base.outputs.base_commit }}
   pr-number:
     description: 'The PR number if one was created'
-    value: ${{ steps.changeset-mgmt.outputs.pr-number }}
+    value: ${{ steps.create_pr.outputs.pr_number }}
   branch-name:
     description: 'Branch name used for the changeset'
-    value: ${{ steps.changeset-mgmt.outputs.branch-name }}
+    value: ${{ steps.create_branch.outputs.branch_name }}
 
 runs:
   using: "composite"
@@ -82,29 +82,41 @@ runs:
         # Parse the output and set it to GITHUB_OUTPUT
         echo "$OUTPUT" >> $GITHUB_OUTPUT
       
-    # Manage changesets
+    # Use the changeset management action
     - name: Manage changesets
-      id: changeset-mgmt
-      if: steps.check-commits.outputs.conventional_count != '0'
-      uses: ./.github/actions/changeset-management
+      id: manage_changesets
+      uses: ./.github/actions/manage-changeset
       with:
         github-token: ${{ inputs.github-token }}
         repository: ${{ inputs.repository }}
-        since-commit: ${{ steps.check-commits.outputs.base_commit }}
-        create-release: 'false'
+        base-commit: ${{ steps.get_base.outputs.base_commit }}
+        head-commit: ${{ steps.get_head.outputs.head_commit }}
         auto-changeset-prefix: ${{ inputs.auto-changeset-prefix }}
+      
+    # Create PR if changes were made
+    - name: Create PR
+      id: create_pr
+      if: steps.manage_changesets.outputs.changes_made == 'true'
+      uses: ./.github/actions/manage-pull-request
+      with:
+        github-token: ${{ inputs.github-token }}
+        repository: ${{ inputs.repository }}
+        base-branch: 'main'
+        head-branch: ${{ steps.create_branch.outputs.branch_name }}
+        title: 'chore: add missing changesets'
+        body: ${{ steps.pr_body.outputs.body }}
       
     # Get PR SHA
     - name: Get PR SHA
       id: get-sha
-      if: steps.changeset-mgmt.outputs.has-auto-changesets == 'true' && steps.changeset-mgmt.outputs.pr-number != ''
+      if: steps.manage_changesets.outputs.changes_made == 'true' && steps.create_pr.outputs.pr_number != ''
       shell: bash
       run: |
         # Use shared script to get PR SHA
         SHA=$(bash .github/scripts/branch/get-sha.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
-          --pr-number "${{ steps.changeset-mgmt.outputs.pr-number }}")
+          --pr-number "${{ steps.create_pr.outputs.pr_number }}")
         
         # Validate SHA format before setting output
         if [[ "$SHA" =~ ^[0-9a-f]{7,40}$ ]]; then
@@ -118,7 +130,7 @@ runs:
       
     # Add status checks
     - name: Add status checks
-      if: steps.changeset-mgmt.outputs.has-auto-changesets == 'true' && steps.changeset-mgmt.outputs.pr-number != ''
+      if: steps.manage_changesets.outputs.changes_made == 'true' && steps.create_pr.outputs.pr_number != ''
       shell: bash
       run: |
         bash .github/scripts/branch/force-status.sh \
@@ -130,7 +142,7 @@ runs:
     # Wait for checks to complete before merging
     - name: Wait for checks to complete
       id: wait-checks
-      if: steps.changeset-mgmt.outputs.has-auto-changesets == 'true' && steps.changeset-mgmt.outputs.pr-number != ''
+      if: steps.manage_changesets.outputs.changes_made == 'true' && steps.create_pr.outputs.pr_number != ''
       shell: bash
       run: |
         bash .github/scripts/branch/wait-checks.sh \
@@ -145,26 +157,26 @@ runs:
     # Merge PR
     - name: Merge PR
       id: merge-pr
-      if: steps.changeset-mgmt.outputs.pr-number != ''
-      uses: ./.github/actions/pr-management
+      if: steps.create_pr.outputs.pr_number != ''
+      uses: ./.github/actions/manage-pull-request
       with:
         github-token: ${{ inputs.github-token }}
         repository: ${{ inputs.repository }}
-        pr-number: ${{ steps.changeset-mgmt.outputs.pr-number }}
+        pr-number: ${{ steps.create_pr.outputs.pr_number }}
         merge-method: 'squash'
         delete-branch: 'true'
       
     # Manually delete the branch to ensure it's gone
     - name: Delete changeset branch
       id: delete-branch
-      if: steps.changeset-mgmt.outputs.branch-name != ''
+      if: steps.manage_changesets.outputs.changes_made == 'true' && steps.create_branch.outputs.branch_name != ''
       shell: bash
       run: |
-        echo "Manually deleting branch: ${{ steps.changeset-mgmt.outputs.branch-name }}"
+        echo "Manually deleting branch: ${{ steps.create_branch.outputs.branch_name }}"
         bash .github/scripts/branch/delete.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
-          --branch "${{ steps.changeset-mgmt.outputs.branch-name }}"
+          --branch "${{ steps.create_branch.outputs.branch_name }}"
       env:
         GH_TOKEN: ${{ inputs.github-token }}
       

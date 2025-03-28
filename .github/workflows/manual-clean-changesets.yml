@@ -68,13 +68,12 @@ jobs:
           echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
       
       # Create and manage PR
-      - name: Create pull request
+      - name: Create PR
         id: create_pr
-        uses: ./.github/actions/pr-management
+        uses: ./.github/actions/manage-pull-request
         with:
-          github-token: ${{ secrets.PACKAGE_TOKEN }}
-          repository: ${{ github.repository }}
-          base-branch: 'main'
+          github-token: ${{ secrets.PR_CREATION_TOKEN }}
+          base-branch: main
           head-branch: ${{ steps.create_branch.outputs.branch_name }}
           title: 'chore: clean out existing changesets'
           body: 'This PR cleans out existing changesets to start fresh.'
@@ -103,7 +102,7 @@ jobs:
       
       # Merge the PR
       - name: Merge pull request
-        uses: ./.github/actions/pr-management
+        uses: ./.github/actions/manage-pull-request
         with:
           github-token: ${{ secrets.PACKAGE_TOKEN }}
           repository: ${{ github.repository }}
