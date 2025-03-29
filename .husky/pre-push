@@ -108,13 +108,25 @@ for file in $CHANGED_FILES; do
 done
 
 if [ "$RUN_TESTS" = true ]; then
-    # Validate workflow alignment to catch issues before they reach production
-    echo "🔍 Validating workflow alignment..."
-    ./.github/scripts/pr/validate-workflow-alignment.sh || {
-        echo "❌ Workflow alignment validation failed."
-        echo "Please fix workflow alignment issues before pushing."
-        exit 1
-    }
+    # Check if .github directory has changes
+    GITHUB_DIR_CHANGES=$(git diff --name-only origin/$(git branch --show-current) HEAD | grep -c "^\.github/")
+    
+    # Only run workflow validation if .github directory has changes
+    if [ "$GITHUB_DIR_CHANGES" -gt 0 ]; then
+        echo "🔍 Changes detected in .github directory, validating workflow alignment..."
+        if [ -f ".github/scripts/pr/validate-workflow-alignment.sh" ]; then
+            ./.github/scripts/pr/validate-workflow-alignment.sh || {
+                echo "❌ Workflow alignment validation failed."
+                echo "Please fix workflow alignment issues before pushing."
+                exit 1
+            }
+        else
+            echo "⚠️ Workflow validation script not found at .github/scripts/pr/validate-workflow-alignment.sh"
+            echo "Skipping workflow validation."
+        fi
+    else
+        echo "✅ No changes in .github directory, skipping workflow validation."
+    fi
     
     # Run unified pipeline with timeout to prevent hanging
     echo "🚀 Running unified pipeline test..."

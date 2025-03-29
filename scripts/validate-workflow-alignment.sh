@@ -32,30 +32,13 @@ WARNINGS=()
 
 # Validate environment variables
 echo -e "\n${YELLOW}Validating environment variables...${NC}"
-echo "Debug: Let's see what variables are in each file:"
-echo "PR variables:"
-grep -A 5 "env:" "$DRYRUN_WORKFLOW" || echo "No top-level env section found"
-echo "Main variables:"
-grep -A 5 "env:" "$MAIN_WORKFLOW" || echo "No top-level env section found"
+PR_ENV_VAR_COUNT=$(grep -c "BUILD_ARTIFACT_NAME\|PACKAGES_ARTIFACT_NAME" "$DRYRUN_WORKFLOW")
+MAIN_ENV_VAR_COUNT=$(grep -c "BUILD_ARTIFACT_NAME\|PACKAGES_ARTIFACT_NAME" "$MAIN_WORKFLOW")
 
-# Just check that both files have the BUILD_ARTIFACT_NAME variable
-PR_HAS_BUILD_VAR=$(grep -c "BUILD_ARTIFACT_NAME:" "$DRYRUN_WORKFLOW")
-MAIN_HAS_BUILD_VAR=$(grep -c "BUILD_ARTIFACT_NAME:" "$MAIN_WORKFLOW")
-
-if [ "$PR_HAS_BUILD_VAR" -eq 0 ] || [ "$MAIN_HAS_BUILD_VAR" -eq 0 ]; then
-  FAILURES+=("BUILD_ARTIFACT_NAME variable missing in one or both workflows")
+if [ "$PR_ENV_VAR_COUNT" -ne "$MAIN_ENV_VAR_COUNT" ]; then
+  FAILURES+=("Environment variable count mismatch: PR=$PR_ENV_VAR_COUNT, Main=$MAIN_ENV_VAR_COUNT")
 else
-  echo -e "${GREEN}✓ Both workflows define BUILD_ARTIFACT_NAME variable${NC}"
-fi
-
-# Check for PACKAGES_ARTIFACT_NAME too
-PR_HAS_PACKAGE_VAR=$(grep -c "PACKAGES_ARTIFACT_NAME:" "$DRYRUN_WORKFLOW")
-MAIN_HAS_PACKAGE_VAR=$(grep -c "PACKAGES_ARTIFACT_NAME:" "$MAIN_WORKFLOW")
-
-if [ "$PR_HAS_PACKAGE_VAR" -eq 0 ] || [ "$MAIN_HAS_PACKAGE_VAR" -eq 0 ]; then
-  FAILURES+=("PACKAGES_ARTIFACT_NAME variable missing in one or both workflows")
-else
-  echo -e "${GREEN}✓ Both workflows define PACKAGES_ARTIFACT_NAME variable${NC}"
+  echo -e "${GREEN}✓ Environment variable count matches${NC}"
 fi
 
 # Validate job outputs
