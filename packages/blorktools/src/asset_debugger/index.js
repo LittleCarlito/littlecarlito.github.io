@@ -3,6 +3,7 @@ import { setupScene, animate } from './core/scene.js';
 import { setupDragDrop } from './ui/dragdrop.js';
 import { setupDebugPanel, autoShowAtlasVisualization } from './ui/debugPanel.js';
 import { setupEventListeners } from './utils/events.js';
+import { initDebugOverlay } from './utils/debugOverlay.js';
 // Application state - central store
 export const state = {
 	// Scene-related state
@@ -40,6 +41,8 @@ export function init() {
 	setupDragDrop(state);
 	// Set up event listeners
 	setupEventListeners(state);
+	// Initialize the debug overlay (activated by pressing 's')
+	initDebugOverlay();
 	// Hide loading screen if it's showing
 	const loadingScreen = document.getElementById('loading');
 	if (loadingScreen) {

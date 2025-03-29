@@ -1,5 +1,6 @@
 // UI Components Utility Module
 // Reusable UI creation patterns for the asset debugger
+import { UIDebugFlags } from './flags.js';
 
 /**
  * Creates a movable panel with standard styling and functionality
@@ -252,7 +253,7 @@ function updateScrollableHeight(panel) {
 	let availableHeight = windowHeight;
 	let isOffscreen = false;
 	
-	// Check if panel extends beyond screen edges
+	// Check if panel extends beyond screen edges - we still need to detect this for scrollbar purposes
 	if (rect.top < 0) {
 		availableHeight += rect.top;
 		isOffscreen = true;
@@ -262,6 +263,14 @@ function updateScrollableHeight(panel) {
 		availableHeight -= (rect.bottom - windowHeight);
 		isOffscreen = true;
 	}
+	
+	// Check if panel extends beyond horizontal screen edges too
+	if (rect.left < 0 || rect.right > window.innerWidth) {
+		isOffscreen = true;
+	}
+	
+	// Apply debug visualization if enabled
+	applyOffscreenIndicator(panel, isOffscreen);
 	
 	// Ensure minimum height (always leave room for at least some content)
 	availableHeight = Math.max(150, availableHeight);
@@ -286,7 +295,7 @@ function updateScrollableHeight(panel) {
 	// ONLY show scrollbar when needed (content taller than container)
 	const needsScrollbar = realContentHeight > contentHeight;
 	
-	// Apply height first (to ensure content is measured properly)
+	// Apply max height to content container only (not the entire panel)
 	contentContainer.style.maxHeight = `${Math.max(100, contentHeight)}px`;
 	
 	// Apply appropriate overflow style (with a small delay to prevent flickering)
@@ -326,22 +335,85 @@ function updateScrollableHeight(panel) {
 	// Restore scroll position
 	contentContainer.scrollTop = scrollTop;
 	
-	// Adjust overall panel height
+	// Adjust overall panel height - MODIFIED to prevent resize when off-screen
+	// Regardless of on-screen or off-screen, we keep the panel's natural height
+	panel.style.height = 'auto';
+	panel.style.maxHeight = 'calc(100vh - 40px)';
+	
+	// Log position info if debug logging enabled
+	if (UIDebugFlags.logPositionInfo) {
+		console.log(`Panel ${panel.id} position:`, {
+			rect,
+			isOffscreen,
+			viewportDimensions: { width: window.innerWidth, height: window.innerHeight }
+		});
+	}
+}
+
+/**
+ * Apply visual indicator for off-screen panels
+ * @param {HTMLElement} panel - The panel to check and apply indicator to
+ * @param {boolean} isOffscreen - Whether the panel is detected as being off-screen
+ */
+function applyOffscreenIndicator(panel, isOffscreen) {
+	// Only apply if debug flag is enabled
+	if (!UIDebugFlags.showOffscreenIndicators) {
+		// Remove any existing indicator
+		const existingIndicator = panel.querySelector('.offscreen-indicator');
+		if (existingIndicator) {
+			panel.removeChild(existingIndicator);
+		}
+		return;
+	}
+	
+	// Get or create the offscreen indicator
+	let indicator = panel.querySelector('.offscreen-indicator');
+	
 	if (isOffscreen) {
-		// When off-screen, constrain to available visible area
-		panel.style.height = `${Math.min(windowHeight, availableHeight)}px`;
-	} else {
-		// When fully visible, let content determine height (up to viewport limit)
-		panel.style.height = 'auto';
-		panel.style.maxHeight = 'calc(100vh - 40px)';
+		// Create indicator if it doesn't exist
+		if (!indicator) {
+			indicator = document.createElement('div');
+			indicator.className = 'offscreen-indicator';
+			indicator.style.position = 'absolute';
+			indicator.style.top = '0';
+			indicator.style.left = '0';
+			indicator.style.right = '0';
+			indicator.style.bottom = '0';
+			indicator.style.backgroundColor = 'rgba(255, 0, 0, ' + UIDebugFlags.offscreenIndicatorOpacity + ')';
+			indicator.style.pointerEvents = 'none'; // Don't block interactions
+			indicator.style.zIndex = '10000'; // Above panel content
+			
+			// Add text label
+			const label = document.createElement('div');
+			label.textContent = 'OFFSCREEN DETECTED';
+			label.style.position = 'absolute';
+			label.style.top = '50%';
+			label.style.left = '50%';
+			label.style.transform = 'translate(-50%, -50%)';
+			label.style.color = 'white';
+			label.style.fontWeight = 'bold';
+			label.style.textShadow = '1px 1px 2px black';
+			indicator.appendChild(label);
+			
+			panel.appendChild(indicator);
+		}
+	} else if (indicator) {
+		// Remove indicator if panel is not offscreen
+		panel.removeChild(indicator);
 	}
 }
 
 // Replace the old check visibility function
 /**
- *
+ * Check visibility of a panel and add scrollbars if needed
+ * @param {HTMLElement} element - The panel to check
  */
 function checkVisibilityAndAddScroll(element) {
+	if (!element || !document.body.contains(element)) {
+		return;
+	}
+	
+	// Call the updated function that includes offscreen detection
 	updateScrollableHeight(element);
 }
 
@@ -619,4 +691,48 @@ if (typeof window !== 'undefined') {
 	} else {
 		window.addEventListener('load', setupPanelEventHandlers);
 	}
+}
+
+/**
+ * Export functions to control debugging visualization
+ */
+export function toggleOffscreenIndicators() {
+	UIDebugFlags.showOffscreenIndicators = !UIDebugFlags.showOffscreenIndicators;
+	
+	// Update all panels immediately
+	allMovablePanels.forEach(panel => {
+		if (panel && document.body.contains(panel)) {
+			checkVisibilityAndAddScroll(panel);
+		}
+	});
+	
+	return UIDebugFlags.showOffscreenIndicators;
+}
+
+/**
+ * Set the opacity for offscreen indicators
+ * @param {number} opacity - Value between 0 and 1
+ */
+export function setOffscreenIndicatorOpacity(opacity) {
+	if (opacity >= 0 && opacity <= 1) {
+		UIDebugFlags.offscreenIndicatorOpacity = opacity;
+		
+		// Update existing indicators
+		document.querySelectorAll('.offscreen-indicator').forEach(indicator => {
+			indicator.style.backgroundColor = `rgba(255, 0, 0, ${opacity})`;
+		});
+		
+		return UIDebugFlags.offscreenIndicatorOpacity;
+	}
+	
+	console.warn('Opacity must be between 0 and 1');
+	return UIDebugFlags.offscreenIndicatorOpacity;
+}
+
+/**
+ * Toggle position information logging
+ */
+export function togglePositionLogging() {
+	UIDebugFlags.logPositionInfo = !UIDebugFlags.logPositionInfo;
+	return UIDebugFlags.logPositionInfo;
 } 
