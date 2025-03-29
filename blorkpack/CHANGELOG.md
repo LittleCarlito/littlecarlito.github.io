@@ -1,0 +1,7818 @@
+## [0.14.9] - 2025-03-22
+
+## 1.12.0
+
+### Minor Changes
+
+- 65e5082: Changeset created from conventional commits:
+
+  - chore: auto-generate changeset (#302)
+  - fix: disabling portfolio force release
+  - chore: version packages (#300)
+  - fix: portfolio auto release
+  - chore: version packages (#298)
+  - fix: portfolio publish flow
+  - chore: version packages (#296)
+  - fix: manual bump for portfolio
+  - chore: version packages (#293)
+  - fix: portfolio release
+  - chore: version packages (#291)
+  - chore: auto-generate changeset (#290)
+  - fix: always version portfolio
+  - chore: auto-generate changeset (#288)
+  - fix: portfolio github deploy
+  - chore: version packages (#286)
+  - fix: portfolio to releases
+  - chore: version packages (#284)
+  - chore: auto-generate changeset (#283)
+  - feat: breaking out direct publish
+  - chore: auto-generate changeset (#281)
+  - fix: cleanset pr creation
+  - chore: clean out existing changesets [skip ci]
+  - chore: version packages (#278)
+  - chore: auto-generate changeset (#277)
+  - fix: cleanset
+  - chore: version packages (#274)
+  - chore: auto-generate changeset (#273)
+  - fix: token usage
+  - chore: auto-generate changeset (#270)
+  - fix: package version merge
+  - chore: auto-generate changeset (#267)
+  - fix: manual release job lol
+  - chore: version packages (#265)
+  - chore: auto-generate changeset (#264)
+  - refactor: removing gh pages husky test
+  - chore: version packages (#261)
+  - chore: auto-generate changeset (#260)
+  - fix: manual changeset command bot name
+  - chore: version packages (#258)
+  - chore: auto-generate changeset (#257)
+  - fix: last one
+  - chore: auto-generate changeset (#254)
+  - fix: unified version merge
+  - chore: auto-generate changeset (#251)
+  - fix: better auto merge logs
+  - chore: auto-generate changeset (#248)
+  - fix: merging within pipeline
+  - chore: auto-generate changeset (#245)
+  - fix: trigger name
+  - chore: auto-generate changeset (#242)
+  - fix: auto run version merge
+  - chore: auto-generate changeset (#239)
+  - fix: write permissions
+  - fix: Merge branch 'main' into AutoSets
+  - fix: logging
+  - fix: pr creation token
+  - fix: merge command
+  - fix: Merge branch 'main' into AutoSets
+  - fix: autosets triggers
+  - feat: auto changesets
+  - fix: removing approval
+  - fix: test pnpm change
+  - revert: to warning state
+  - fix: webgl ext at three load
+  - fix: webgl warning
+  - fix: regression tests
+  - fix: now i member
+  - fix: cleaning up useless tests
+  - fix: fucking asshole
+  - fix: hoooooly
+  - fix: local load tests
+  - fix: direct image link
+  - fix: real solution
+  - revert: revert to commit 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: won't work
+  - fix: background path
+  - fix: gradient path resolving
+  - fix: reverting to 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: site path refs
+  - fix: manifest load w/verification
+  - fix: image load with verification
+  - fix: husky predeploy
+  - fix: threejs load w/ tests
+  - fix: warnings on load
+  - fix: gradient loading
+  - fix: display paths w/tests
+  - fix: csp meta tag
+  - fix: csp w/tests
+  - fix: frozen lock w/tests
+  - slice: new type
+  - fix: improving husky pre release
+  - fix: missing files and tests
+  - fix: cli and tests
+  - fix: test job
+  - fix: claude fix
+  - fix: drafts to finalized
+  - fix: single working deploy
+  - fix: no double deploy
+  - chore: version packages
+  - fix: csp protection
+  - fix: unbalanced grep
+  - fix: same shit differnt context
+  - fix: merging main
+  - fix: syntax issue
+  - fix: force pnpm
+  - fix: using pnpm
+  - fix: workspaces
+  - fix: fully rely on bot
+  - chore: 0.14.9 [skip ci]
+  - fix: typo
+  - chore: 0.14.8 [skip ci]
+  - fix: wait hack
+  - chore: 0.14.7 [skip ci]
+  - fix: so the big man says
+  - chore: 0.14.6 [skip ci]
+  - fix: improved self detection
+  - chore: 0.14.5 [skip ci]
+  - fix: simple approach
+  - chore: 0.14.4 [skip ci]
+  - fix: using new pat
+  - chore: 0.14.3 [skip ci]
+  - fix: overwrite development public/assets
+  - chore: 0.14.2 [skip ci]
+  - fix: rule check instead
+  - chore: 0.14.1 [skip ci]
+  - fix: welcome back semanto (#135)
+  - chore: 0.14.0 [skip ci]
+  - feat: blorkboard package(#134)
+  - fix: pnpm ref for semantic (#133)
+  - fix: versioning need check (#132)
+  - fix: adding semantic versioning (#131)
+  - fix: pipeline view (#130)
+  - refactor: pipeline jobs (#129)
+  - fix: pipeline repairs (#128)
+  - fix: repairing poor semantic bot (#127)
+  - fix: outputting test artifacts (#126)
+  - feat: jest unit tests (#125)
+  - fix: status link path (#123)
+  - chore: 0.12.21 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.20 [skip ci]
+  - fix: forcing delete gh branch (#122)
+  - chore: 0.12.19 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.18 [skip ci]
+  - fix: forcing deploy (#121)
+  - chore: 0.12.17 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.16 [skip ci]
+  - fix: force version bump for root project
+  - chore: 0.12.15 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.14 [skip ci]
+  - fix: semantic versioning (#119)
+  - fix: loading path (#118)
+  - fix: multiple custom_types (#117)
+  - fix: removing pipeline ci (#116)
+  - fix: spawner system (#115)
+  - chore: 0.12.13 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.12 [skip ci]
+  - fix: manual build button (#113)
+  - chore: 0.12.11 [skip ci]
+  - fix: license module to package (#112)
+  - chore: 0.12.10 [skip ci]
+  - fix: license package fix (#111)
+  - chore: 0.12.9 [skip ci]
+  - fix: licensing wording (#110)
+  - chore: 0.12.8 [skip ci]
+  - fix: package filtering publish workflow (#109)
+  - chore: 0.12.7 [skip ci]
+  - chore: readme updates (#108)
+  - chore: 0.12.6 [skip ci]
+  - fix: actually fixing tags (#107)
+  - chore: 0.12.5 [skip ci]
+  - fix: pushing tags to remote (#106)
+  - chore: 0.12.4 [skip ci]
+  - chore: 0.12.3 [skip ci]
+  - fix: husky tshy stubs (#104)
+  - chore: 0.12.2 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.1 [skip ci]
+  - fix: force version bump for blorkpack
+  - fix: variable syntax (#103)
+  - fix: husky disable (#102)
+  - fix: not skipping generation step (#101)
+  - fix: it belongs in a museum
+  - fix: versioning (#99)
+  - chore: update package-lock.json files [skip ci]
+  - fix: turbo deployment scripts (#96)
+  - chore: 0.12.0 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - feat: gh links
+  - refactor: web to porfolio
+  - fix: description web
+  - feat: color coding tabs
+  - fix: blorktools not blorkpack links
+  - feat: dynamic dashboard
+  - fix: port aquisition
+  - feat: launch dashboard
+  - fix: dev startup
+  - feat: TurboRepo/pnpm
+  - chore: 0.11.7 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - fix: hmr (#94)
+  - chore: 0.11.6 [skip ci]
+  - fix: manifest load (#93)
+  - chore: 0.11.5 [skip ci]
+  - fix: manifest pathing fix (#91)
+  - chore: 0.11.4 [skip ci]
+  - fix: back to install; sad (#89)
+  - fix: back to ci from install (#88)
+  - chore: 0.11.3 [skip ci]
+  - fix: blank cache (#87)
+  - chore: 0.11.2 [skip ci]
+  - fix: removing cache (#86)
+  - fix: deploy lock file check (#85)
+  - chore: 0.11.1 [skip ci]
+  - fix: intermediate fix (#84)
+  - chore: 0.11.0 [skip ci]
+  - fix: lock file creation (#83)
+  - chore: update package-lock.json files [skip ci]
+  - fix: package locks (#82)
+  - fix: updating dependency version (#81)
+  - feat: pipeline passes version (#80)
+  - chore: 0.10.5 [skip ci]
+  - fix: having pipeline wait for deploy (#79)
+  - chore: adding descriptors to steps (#78)
+  - chore: 0.10.4 [skip ci]
+  - fix: waiting for completion
+  - chore: 0.10.3 [skip ci]
+  - fix: spotlight toggle control
+  - fix: finding lights properly
+  - fix: spotlight debug lengths
+  - fix: always create spotlight meshes
+  - chore: vs code adjustments
+  - fix: update tween targets
+  - fix: prevent hide click
+  - fix: control menu debug spawn
+  - fix: container debug lying mesh
+  - fix: pink and red spots
+  - fix: control menu mesh
+  - fix: control menu spotlight
+  - fix: control drop physics
+  - fix: break chains small fix
+  - chore: 0.10.2 [skip ci]
+  - fix: force versioning
+  - chore: 0.10.1 [skip ci]
+  - fix: adding common scope
+  - chore: 0.10.0 [skip ci]
+  - feat: semantic release sync
+  - chore: running pipeline
+  - chore: 0.9.1 [skip ci]
+  - fix: semantic releasing for packages
+  - chore: 0.9.0 [skip ci]
+  - chore: removing temp
+  - chore: readme updates
+  - feat: blorktools package release
+  - fix: adding tools to run script
+  - fix: default to uv
+  - fix: atlas swapping kinda
+  - fix: atlas loading
+  - chore: making breakpoint for atlas fixing
+  - fix: show hide group location
+  - fix: atlas map fixed only
+  - feat: still broke but more grouping
+  - fix: all but the textures and map
+  - refactor: breaks it but more modular
+  - fix: uv select
+  - fix: dynamic uv detection
+  - fix: minimap fixes
+  - feat: atlas minimap
+  - fix: drag drop setup
+  - feat: blorktools
+  - fix: improvements to view
+  - feat: asset debugger
+  - feat: display transparent default
+  - refactor: hiding controls
+  - feat: basic display controls
+  - feat: display detection
+  - fix: more log silencing
+  - fix: silencing logs
+  - chore: 0.8.3 [skip ci]
+  - fix: using public package
+  - chore: 0.8.2 [skip ci]
+  - fix: skipping tests
+  - chore: 0.8.1 [skip ci]
+  - fix: name in pipeline
+  - fix: blorkpack pipeline
+  - chore: 0.8.0 [skip ci]
+  - fix: spotlights to asset spawner
+  - fix: spotlight helper methods copied
+  - fix: asset spawn functions async
+  - refactor: duplicate signatures
+  - refactor: system type creation functions
+  - fix: camera through manifest
+  - fix: primary spotlight through manifest
+  - fix: spotlight fields
+  - fix: single spotlight mesh flag
+  - fix: floor to system
+  - fix: camera from manifest
+  - fix: camera properties
+  - refactor: floor to manifest
+  - fix: spawn manifest assets to blorkpack
+  - fix: auto throttle to manifest
+  - fix: wording
+  - refactor: modal function
+  - fix: getter null checks
+  - fix: function name
+  - fix: debug mesh updates
+  - fix: physics optimization settings
+  - fix: background defaulting
+  - refactor: background typing
+  - chore: 0.7.3 [skip ci]
+  - fix: monitor display test
+  - refactor: loading html breakout
+  - refactor: app renderer to blorkpack
+  - fix: fucntion casing
+  - refactor: blorkpack exports
+  - refactor: blorkfield three rapier exports
+  - fix: gravity set
+  - refactor: moving null checks
+  - fix: more log fixes
+  - fix: silencing logs
+  - fix: package and flag renaming
+  - fix: correcting casing
+  - refactor: blorkpack rebrand
+  - fix: gravity to vector3
+  - fix: test restructure/manifest types created
+  - feat: manifest base
+  - fix: all objects grabbable
+  - fix: multicolored wireframes
+  - fix: forcing col layer
+  - fix: collision align
+  - fix: wireframe connection
+  - fix: mesh sizing
+  - feat: editor break
+  - chore: 0.7.2 [skip ci]
+  - fix: build error
+  - refactor: breaking to fix
+  - fix: partial fix for work resizing
+  - refactor: better monitor resizing
+  - fix: more monitor adjusts
+  - refactor: monitor background adjust
+  - fix: background hover ui filter
+  - refactor: shared creation function
+  - refactor: work background removal
+  - refactor: cube removal
+  - refactor: workd cube
+  - refactor: projects cube
+  - patch: separate education diplomas
+  - patch: new assets (#60)
+  - chore: 0.7.1 [skip ci]
+  - fix: reverting config change (#59)
+  - refactor: path to config
+  - chore: 0.7.0 [skip ci]
+  - fix: contact text bubbles
+  - fix: actually fixing right side hover
+  - fix: right side hover
+  - refactor: font util
+  - fix: query error
+  - fix: pond expand
+  - fix: water shader large bug
+  - fix: water resize
+  - fix: easing water
+  - refactor: ripple effect
+  - feat: about ripple
+  - refactor: swimming animation
+  - reafactor: phyics pause on active text
+  - fix: pause button icon
+  - fix: sleeping objects wakeup
+  - feat: debug ui pause
+  - fix: swim animation improvments
+  - refactor: chain bounce
+  - fix: smoothing scaling
+  - fix: scroll dynamic switch
+  - chore: 0.6.0 [skip ci]
+  - fix: chain wakeup timing
+  - fix: calming chain
+  - fix: scroll break chains dynamic
+  - fix: scroll break chain cleanup
+  - feat: chain dynamic conversion
+  - chore: logging flags
+  - feat: scroll kinematic
+  - fix: scroll debug meshes
+  - fix: scroll visibility
+  - refactor: scroll sign inside container
+  - fix: keep scroll mesh
+  - feat: assembly box despawn
+  - refactor: assembly box creation
+  - fix: memory management
+  - fix: control menu beam despawn
+  - chore: log base
+  - chore: purging mordor
+  - fix: scroll chain adjust
+  - fix: scroll debug meshes
+  - fix: text container off screen position
+  - fix: scroll menu animation
+  - refactor: scroll spotlight tracking
+  - fix: control menu spotlight
+  - fix: grab order
+  - chore: 0.5.6 [skip ci]
+  - fix: double cursor
+  - fix: debug clickthrough
+  - chore: 0.5.5 [skip ci]
+  - fix: UVMap updates
+  - chore: 0.5.4 [skip ci]
+  - fix: deployed font path (#53)
+  - chore: 0.5.3 [skip ci]
+  - fix: labels to text (#52)
+  - chore: 0.5.2 [skip ci]
+  - fix: .blend file update
+  - chore: 0.5.1 [skip ci]
+  - fix: full model set update
+  - chore: 0.5.0 [skip ci]
+  - feat: svgs to text (#48)
+  - refactor: sign spawn change (#47)
+  - chore: 0.4.0 [skip ci]
+  - feat: tablet added (#46)
+  - chore: 0.3.1 [skip ci]
+  - fix: label wireframes (#44)
+  - chore: 0.3.0 [skip ci]
+  - feat: debug ui (#43)
+  - chore: 0.2.1 [skip ci]
+  - fix: a return to sanity (#42)
+  - chore: small optimizations (#38)
+  - chore: 0.2.0 [skip ci]
+  - feat: collision wire frames (#37)
+  - chore: 0.1.0 [skip ci]
+  - feat: Max overlay width (#36)
+  - chore: 0.0.8 [skip ci]
+  - fix: localhost url (#35)
+  - chore: 0.0.7 [skip ci]
+  - fix: laxing bot to allow github messages (#34)
+  - chore: 0.0.6 [skip ci]
+  - fix: removing bad icon
+  - chore: updating readme (#32)
+  - chore: 0.0.5 [skip ci]
+  - fix: or so it claims
+  - fix: less picky now
+  - chore: asset storage refactor
+  - fix: removing missed refs
+  - chore: packages are a bad idea
+  - feat: semantic versioning
+
+## 1.11.0
+
+### Minor Changes
+
+- b00168c: Changeset created from conventional commits:
+
+  - chore: version packages (#300)
+  - fix: portfolio auto release
+  - chore: version packages (#298)
+  - fix: portfolio publish flow
+  - chore: version packages (#296)
+  - fix: manual bump for portfolio
+  - chore: version packages (#293)
+  - fix: portfolio release
+  - chore: version packages (#291)
+  - chore: auto-generate changeset (#290)
+  - fix: always version portfolio
+  - chore: auto-generate changeset (#288)
+  - fix: portfolio github deploy
+  - chore: version packages (#286)
+  - fix: portfolio to releases
+  - chore: version packages (#284)
+  - chore: auto-generate changeset (#283)
+  - feat: breaking out direct publish
+  - chore: auto-generate changeset (#281)
+  - fix: cleanset pr creation
+  - chore: clean out existing changesets [skip ci]
+  - chore: version packages (#278)
+  - chore: auto-generate changeset (#277)
+  - fix: cleanset
+  - chore: version packages (#274)
+  - chore: auto-generate changeset (#273)
+  - fix: token usage
+  - chore: auto-generate changeset (#270)
+  - fix: package version merge
+  - chore: auto-generate changeset (#267)
+  - fix: manual release job lol
+  - chore: version packages (#265)
+  - chore: auto-generate changeset (#264)
+  - refactor: removing gh pages husky test
+  - chore: version packages (#261)
+  - chore: auto-generate changeset (#260)
+  - fix: manual changeset command bot name
+  - chore: version packages (#258)
+  - chore: auto-generate changeset (#257)
+  - fix: last one
+  - chore: auto-generate changeset (#254)
+  - fix: unified version merge
+  - chore: auto-generate changeset (#251)
+  - fix: better auto merge logs
+  - chore: auto-generate changeset (#248)
+  - fix: merging within pipeline
+  - chore: auto-generate changeset (#245)
+  - fix: trigger name
+  - chore: auto-generate changeset (#242)
+  - fix: auto run version merge
+  - chore: auto-generate changeset (#239)
+  - fix: write permissions
+  - fix: Merge branch 'main' into AutoSets
+  - fix: logging
+  - fix: pr creation token
+  - fix: merge command
+  - fix: Merge branch 'main' into AutoSets
+  - fix: autosets triggers
+  - feat: auto changesets
+  - fix: removing approval
+  - fix: test pnpm change
+  - revert: to warning state
+  - fix: webgl ext at three load
+  - fix: webgl warning
+  - fix: regression tests
+  - fix: now i member
+  - fix: cleaning up useless tests
+  - fix: fucking asshole
+  - fix: hoooooly
+  - fix: local load tests
+  - fix: direct image link
+  - fix: real solution
+  - revert: revert to commit 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: won't work
+  - fix: background path
+  - fix: gradient path resolving
+  - fix: reverting to 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: site path refs
+  - fix: manifest load w/verification
+  - fix: image load with verification
+  - fix: husky predeploy
+  - fix: threejs load w/ tests
+  - fix: warnings on load
+  - fix: gradient loading
+  - fix: display paths w/tests
+  - fix: csp meta tag
+  - fix: csp w/tests
+  - fix: frozen lock w/tests
+  - slice: new type
+  - fix: improving husky pre release
+  - fix: missing files and tests
+  - fix: cli and tests
+  - fix: test job
+  - fix: claude fix
+  - fix: drafts to finalized
+  - fix: single working deploy
+  - fix: no double deploy
+  - chore: version packages
+  - fix: csp protection
+  - fix: unbalanced grep
+  - fix: same shit differnt context
+  - fix: merging main
+  - fix: syntax issue
+  - fix: force pnpm
+  - fix: using pnpm
+  - fix: workspaces
+  - fix: fully rely on bot
+  - chore: 0.14.9 [skip ci]
+  - fix: typo
+  - chore: 0.14.8 [skip ci]
+  - fix: wait hack
+  - chore: 0.14.7 [skip ci]
+  - fix: so the big man says
+  - chore: 0.14.6 [skip ci]
+  - fix: improved self detection
+  - chore: 0.14.5 [skip ci]
+  - fix: simple approach
+  - chore: 0.14.4 [skip ci]
+  - fix: using new pat
+  - chore: 0.14.3 [skip ci]
+  - fix: overwrite development public/assets
+  - chore: 0.14.2 [skip ci]
+  - fix: rule check instead
+  - chore: 0.14.1 [skip ci]
+  - fix: welcome back semanto (#135)
+  - chore: 0.14.0 [skip ci]
+  - feat: blorkboard package(#134)
+  - fix: pnpm ref for semantic (#133)
+  - fix: versioning need check (#132)
+  - fix: adding semantic versioning (#131)
+  - fix: pipeline view (#130)
+  - refactor: pipeline jobs (#129)
+  - fix: pipeline repairs (#128)
+  - fix: repairing poor semantic bot (#127)
+  - fix: outputting test artifacts (#126)
+  - feat: jest unit tests (#125)
+  - fix: status link path (#123)
+  - chore: 0.12.21 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.20 [skip ci]
+  - fix: forcing delete gh branch (#122)
+  - chore: 0.12.19 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.18 [skip ci]
+  - fix: forcing deploy (#121)
+  - chore: 0.12.17 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.16 [skip ci]
+  - fix: force version bump for root project
+  - chore: 0.12.15 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.14 [skip ci]
+  - fix: semantic versioning (#119)
+  - fix: loading path (#118)
+  - fix: multiple custom_types (#117)
+  - fix: removing pipeline ci (#116)
+  - fix: spawner system (#115)
+  - chore: 0.12.13 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.12 [skip ci]
+  - fix: manual build button (#113)
+  - chore: 0.12.11 [skip ci]
+  - fix: license module to package (#112)
+  - chore: 0.12.10 [skip ci]
+  - fix: license package fix (#111)
+  - chore: 0.12.9 [skip ci]
+  - fix: licensing wording (#110)
+  - chore: 0.12.8 [skip ci]
+  - fix: package filtering publish workflow (#109)
+  - chore: 0.12.7 [skip ci]
+  - chore: readme updates (#108)
+  - chore: 0.12.6 [skip ci]
+  - fix: actually fixing tags (#107)
+  - chore: 0.12.5 [skip ci]
+  - fix: pushing tags to remote (#106)
+  - chore: 0.12.4 [skip ci]
+  - chore: 0.12.3 [skip ci]
+  - fix: husky tshy stubs (#104)
+  - chore: 0.12.2 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.1 [skip ci]
+  - fix: force version bump for blorkpack
+  - fix: variable syntax (#103)
+  - fix: husky disable (#102)
+  - fix: not skipping generation step (#101)
+  - fix: it belongs in a museum
+  - fix: versioning (#99)
+  - chore: update package-lock.json files [skip ci]
+  - fix: turbo deployment scripts (#96)
+  - chore: 0.12.0 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - feat: gh links
+  - refactor: web to porfolio
+  - fix: description web
+  - feat: color coding tabs
+  - fix: blorktools not blorkpack links
+  - feat: dynamic dashboard
+  - fix: port aquisition
+  - feat: launch dashboard
+  - fix: dev startup
+  - feat: TurboRepo/pnpm
+  - chore: 0.11.7 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - fix: hmr (#94)
+  - chore: 0.11.6 [skip ci]
+  - fix: manifest load (#93)
+  - chore: 0.11.5 [skip ci]
+  - fix: manifest pathing fix (#91)
+  - chore: 0.11.4 [skip ci]
+  - fix: back to install; sad (#89)
+  - fix: back to ci from install (#88)
+  - chore: 0.11.3 [skip ci]
+  - fix: blank cache (#87)
+  - chore: 0.11.2 [skip ci]
+  - fix: removing cache (#86)
+  - fix: deploy lock file check (#85)
+  - chore: 0.11.1 [skip ci]
+  - fix: intermediate fix (#84)
+  - chore: 0.11.0 [skip ci]
+  - fix: lock file creation (#83)
+  - chore: update package-lock.json files [skip ci]
+  - fix: package locks (#82)
+  - fix: updating dependency version (#81)
+  - feat: pipeline passes version (#80)
+  - chore: 0.10.5 [skip ci]
+  - fix: having pipeline wait for deploy (#79)
+  - chore: adding descriptors to steps (#78)
+  - chore: 0.10.4 [skip ci]
+  - fix: waiting for completion
+  - chore: 0.10.3 [skip ci]
+  - fix: spotlight toggle control
+  - fix: finding lights properly
+  - fix: spotlight debug lengths
+  - fix: always create spotlight meshes
+  - chore: vs code adjustments
+  - fix: update tween targets
+  - fix: prevent hide click
+  - fix: control menu debug spawn
+  - fix: container debug lying mesh
+  - fix: pink and red spots
+  - fix: control menu mesh
+  - fix: control menu spotlight
+  - fix: control drop physics
+  - fix: break chains small fix
+  - chore: 0.10.2 [skip ci]
+  - fix: force versioning
+  - chore: 0.10.1 [skip ci]
+  - fix: adding common scope
+  - chore: 0.10.0 [skip ci]
+  - feat: semantic release sync
+  - chore: running pipeline
+  - chore: 0.9.1 [skip ci]
+  - fix: semantic releasing for packages
+  - chore: 0.9.0 [skip ci]
+  - chore: removing temp
+  - chore: readme updates
+  - feat: blorktools package release
+  - fix: adding tools to run script
+  - fix: default to uv
+  - fix: atlas swapping kinda
+  - fix: atlas loading
+  - chore: making breakpoint for atlas fixing
+  - fix: show hide group location
+  - fix: atlas map fixed only
+  - feat: still broke but more grouping
+  - fix: all but the textures and map
+  - refactor: breaks it but more modular
+  - fix: uv select
+  - fix: dynamic uv detection
+  - fix: minimap fixes
+  - feat: atlas minimap
+  - fix: drag drop setup
+  - feat: blorktools
+  - fix: improvements to view
+  - feat: asset debugger
+  - feat: display transparent default
+  - refactor: hiding controls
+  - feat: basic display controls
+  - feat: display detection
+  - fix: more log silencing
+  - fix: silencing logs
+  - chore: 0.8.3 [skip ci]
+  - fix: using public package
+  - chore: 0.8.2 [skip ci]
+  - fix: skipping tests
+  - chore: 0.8.1 [skip ci]
+  - fix: name in pipeline
+  - fix: blorkpack pipeline
+  - chore: 0.8.0 [skip ci]
+  - fix: spotlights to asset spawner
+  - fix: spotlight helper methods copied
+  - fix: asset spawn functions async
+  - refactor: duplicate signatures
+  - refactor: system type creation functions
+  - fix: camera through manifest
+  - fix: primary spotlight through manifest
+  - fix: spotlight fields
+  - fix: single spotlight mesh flag
+  - fix: floor to system
+  - fix: camera from manifest
+  - fix: camera properties
+  - refactor: floor to manifest
+  - fix: spawn manifest assets to blorkpack
+  - fix: auto throttle to manifest
+  - fix: wording
+  - refactor: modal function
+  - fix: getter null checks
+  - fix: function name
+  - fix: debug mesh updates
+  - fix: physics optimization settings
+  - fix: background defaulting
+  - refactor: background typing
+  - chore: 0.7.3 [skip ci]
+  - fix: monitor display test
+  - refactor: loading html breakout
+  - refactor: app renderer to blorkpack
+  - fix: fucntion casing
+  - refactor: blorkpack exports
+  - refactor: blorkfield three rapier exports
+  - fix: gravity set
+  - refactor: moving null checks
+  - fix: more log fixes
+  - fix: silencing logs
+  - fix: package and flag renaming
+  - fix: correcting casing
+  - refactor: blorkpack rebrand
+  - fix: gravity to vector3
+  - fix: test restructure/manifest types created
+  - feat: manifest base
+  - fix: all objects grabbable
+  - fix: multicolored wireframes
+  - fix: forcing col layer
+  - fix: collision align
+  - fix: wireframe connection
+  - fix: mesh sizing
+  - feat: editor break
+  - chore: 0.7.2 [skip ci]
+  - fix: build error
+  - refactor: breaking to fix
+  - fix: partial fix for work resizing
+  - refactor: better monitor resizing
+  - fix: more monitor adjusts
+  - refactor: monitor background adjust
+  - fix: background hover ui filter
+  - refactor: shared creation function
+  - refactor: work background removal
+  - refactor: cube removal
+  - refactor: workd cube
+  - refactor: projects cube
+  - patch: separate education diplomas
+  - patch: new assets (#60)
+  - chore: 0.7.1 [skip ci]
+  - fix: reverting config change (#59)
+  - refactor: path to config
+  - chore: 0.7.0 [skip ci]
+  - fix: contact text bubbles
+  - fix: actually fixing right side hover
+  - fix: right side hover
+  - refactor: font util
+  - fix: query error
+  - fix: pond expand
+  - fix: water shader large bug
+  - fix: water resize
+  - fix: easing water
+  - refactor: ripple effect
+  - feat: about ripple
+  - refactor: swimming animation
+  - reafactor: phyics pause on active text
+  - fix: pause button icon
+  - fix: sleeping objects wakeup
+  - feat: debug ui pause
+  - fix: swim animation improvments
+  - refactor: chain bounce
+  - fix: smoothing scaling
+  - fix: scroll dynamic switch
+  - chore: 0.6.0 [skip ci]
+  - fix: chain wakeup timing
+  - fix: calming chain
+  - fix: scroll break chains dynamic
+  - fix: scroll break chain cleanup
+  - feat: chain dynamic conversion
+  - chore: logging flags
+  - feat: scroll kinematic
+  - fix: scroll debug meshes
+  - fix: scroll visibility
+  - refactor: scroll sign inside container
+  - fix: keep scroll mesh
+  - feat: assembly box despawn
+  - refactor: assembly box creation
+  - fix: memory management
+  - fix: control menu beam despawn
+  - chore: log base
+  - chore: purging mordor
+  - fix: scroll chain adjust
+  - fix: scroll debug meshes
+  - fix: text container off screen position
+  - fix: scroll menu animation
+  - refactor: scroll spotlight tracking
+  - fix: control menu spotlight
+  - fix: grab order
+  - chore: 0.5.6 [skip ci]
+  - fix: double cursor
+  - fix: debug clickthrough
+  - chore: 0.5.5 [skip ci]
+  - fix: UVMap updates
+  - chore: 0.5.4 [skip ci]
+  - fix: deployed font path (#53)
+  - chore: 0.5.3 [skip ci]
+  - fix: labels to text (#52)
+  - chore: 0.5.2 [skip ci]
+  - fix: .blend file update
+  - chore: 0.5.1 [skip ci]
+  - fix: full model set update
+  - chore: 0.5.0 [skip ci]
+  - feat: svgs to text (#48)
+  - refactor: sign spawn change (#47)
+  - chore: 0.4.0 [skip ci]
+  - feat: tablet added (#46)
+  - chore: 0.3.1 [skip ci]
+  - fix: label wireframes (#44)
+  - chore: 0.3.0 [skip ci]
+  - feat: debug ui (#43)
+  - chore: 0.2.1 [skip ci]
+  - fix: a return to sanity (#42)
+  - chore: small optimizations (#38)
+  - chore: 0.2.0 [skip ci]
+  - feat: collision wire frames (#37)
+  - chore: 0.1.0 [skip ci]
+  - feat: Max overlay width (#36)
+  - chore: 0.0.8 [skip ci]
+  - fix: localhost url (#35)
+  - chore: 0.0.7 [skip ci]
+  - fix: laxing bot to allow github messages (#34)
+  - chore: 0.0.6 [skip ci]
+  - fix: removing bad icon
+  - chore: updating readme (#32)
+  - chore: 0.0.5 [skip ci]
+  - fix: or so it claims
+  - fix: less picky now
+  - chore: asset storage refactor
+  - fix: removing missed refs
+  - chore: packages are a bad idea
+  - feat: semantic versioning
+
+## 1.10.3
+
+## 1.10.2
+
+## 1.10.1
+
+## 1.10.0
+
+### Minor Changes
+
+- bec8c22: Changeset created from conventional commits:
+
+  - chore: auto-generate changeset (#288)
+  - fix: portfolio github deploy
+  - chore: version packages (#286)
+  - fix: portfolio to releases
+  - chore: version packages (#284)
+  - chore: auto-generate changeset (#283)
+  - feat: breaking out direct publish
+  - chore: auto-generate changeset (#281)
+  - fix: cleanset pr creation
+  - chore: clean out existing changesets [skip ci]
+  - chore: version packages (#278)
+  - chore: auto-generate changeset (#277)
+  - fix: cleanset
+  - chore: version packages (#274)
+  - chore: auto-generate changeset (#273)
+  - fix: token usage
+  - chore: auto-generate changeset (#270)
+  - fix: package version merge
+  - chore: auto-generate changeset (#267)
+  - fix: manual release job lol
+  - chore: version packages (#265)
+  - chore: auto-generate changeset (#264)
+  - refactor: removing gh pages husky test
+  - chore: version packages (#261)
+  - chore: auto-generate changeset (#260)
+  - fix: manual changeset command bot name
+  - chore: version packages (#258)
+  - chore: auto-generate changeset (#257)
+  - fix: last one
+  - chore: auto-generate changeset (#254)
+  - fix: unified version merge
+  - chore: auto-generate changeset (#251)
+  - fix: better auto merge logs
+  - chore: auto-generate changeset (#248)
+  - fix: merging within pipeline
+  - chore: auto-generate changeset (#245)
+  - fix: trigger name
+  - chore: auto-generate changeset (#242)
+  - fix: auto run version merge
+  - chore: auto-generate changeset (#239)
+  - fix: write permissions
+  - fix: Merge branch 'main' into AutoSets
+  - fix: logging
+  - fix: pr creation token
+  - fix: merge command
+  - fix: Merge branch 'main' into AutoSets
+  - fix: autosets triggers
+  - feat: auto changesets
+  - fix: removing approval
+  - fix: test pnpm change
+  - revert: to warning state
+  - fix: webgl ext at three load
+  - fix: webgl warning
+  - fix: regression tests
+  - fix: now i member
+  - fix: cleaning up useless tests
+  - fix: fucking asshole
+  - fix: hoooooly
+  - fix: local load tests
+  - fix: direct image link
+  - fix: real solution
+  - revert: revert to commit 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: won't work
+  - fix: background path
+  - fix: gradient path resolving
+  - fix: reverting to 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: site path refs
+  - fix: manifest load w/verification
+  - fix: image load with verification
+  - fix: husky predeploy
+  - fix: threejs load w/ tests
+  - fix: warnings on load
+  - fix: gradient loading
+  - fix: display paths w/tests
+  - fix: csp meta tag
+  - fix: csp w/tests
+  - fix: frozen lock w/tests
+  - slice: new type
+  - fix: improving husky pre release
+  - fix: missing files and tests
+  - fix: cli and tests
+  - fix: test job
+  - fix: claude fix
+  - fix: drafts to finalized
+  - fix: single working deploy
+  - fix: no double deploy
+  - chore: version packages
+  - fix: csp protection
+  - fix: unbalanced grep
+  - fix: same shit differnt context
+  - fix: merging main
+  - fix: syntax issue
+  - fix: force pnpm
+  - fix: using pnpm
+  - fix: workspaces
+  - fix: fully rely on bot
+  - chore: 0.14.9 [skip ci]
+  - fix: typo
+  - chore: 0.14.8 [skip ci]
+  - fix: wait hack
+  - chore: 0.14.7 [skip ci]
+  - fix: so the big man says
+  - chore: 0.14.6 [skip ci]
+  - fix: improved self detection
+  - chore: 0.14.5 [skip ci]
+  - fix: simple approach
+  - chore: 0.14.4 [skip ci]
+  - fix: using new pat
+  - chore: 0.14.3 [skip ci]
+  - fix: overwrite development public/assets
+  - chore: 0.14.2 [skip ci]
+  - fix: rule check instead
+  - chore: 0.14.1 [skip ci]
+  - fix: welcome back semanto (#135)
+  - chore: 0.14.0 [skip ci]
+  - feat: blorkboard package(#134)
+  - fix: pnpm ref for semantic (#133)
+  - fix: versioning need check (#132)
+  - fix: adding semantic versioning (#131)
+  - fix: pipeline view (#130)
+  - refactor: pipeline jobs (#129)
+  - fix: pipeline repairs (#128)
+  - fix: repairing poor semantic bot (#127)
+  - fix: outputting test artifacts (#126)
+  - feat: jest unit tests (#125)
+  - fix: status link path (#123)
+  - chore: 0.12.21 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.20 [skip ci]
+  - fix: forcing delete gh branch (#122)
+  - chore: 0.12.19 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.18 [skip ci]
+  - fix: forcing deploy (#121)
+  - chore: 0.12.17 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.16 [skip ci]
+  - fix: force version bump for root project
+  - chore: 0.12.15 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.14 [skip ci]
+  - fix: semantic versioning (#119)
+  - fix: loading path (#118)
+  - fix: multiple custom_types (#117)
+  - fix: removing pipeline ci (#116)
+  - fix: spawner system (#115)
+  - chore: 0.12.13 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.12 [skip ci]
+  - fix: manual build button (#113)
+  - chore: 0.12.11 [skip ci]
+  - fix: license module to package (#112)
+  - chore: 0.12.10 [skip ci]
+  - fix: license package fix (#111)
+  - chore: 0.12.9 [skip ci]
+  - fix: licensing wording (#110)
+  - chore: 0.12.8 [skip ci]
+  - fix: package filtering publish workflow (#109)
+  - chore: 0.12.7 [skip ci]
+  - chore: readme updates (#108)
+  - chore: 0.12.6 [skip ci]
+  - fix: actually fixing tags (#107)
+  - chore: 0.12.5 [skip ci]
+  - fix: pushing tags to remote (#106)
+  - chore: 0.12.4 [skip ci]
+  - chore: 0.12.3 [skip ci]
+  - fix: husky tshy stubs (#104)
+  - chore: 0.12.2 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.1 [skip ci]
+  - fix: force version bump for blorkpack
+  - fix: variable syntax (#103)
+  - fix: husky disable (#102)
+  - fix: not skipping generation step (#101)
+  - fix: it belongs in a museum
+  - fix: versioning (#99)
+  - chore: update package-lock.json files [skip ci]
+  - fix: turbo deployment scripts (#96)
+  - chore: 0.12.0 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - feat: gh links
+  - refactor: web to porfolio
+  - fix: description web
+  - feat: color coding tabs
+  - fix: blorktools not blorkpack links
+  - feat: dynamic dashboard
+  - fix: port aquisition
+  - feat: launch dashboard
+  - fix: dev startup
+  - feat: TurboRepo/pnpm
+  - chore: 0.11.7 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - fix: hmr (#94)
+  - chore: 0.11.6 [skip ci]
+  - fix: manifest load (#93)
+  - chore: 0.11.5 [skip ci]
+  - fix: manifest pathing fix (#91)
+  - chore: 0.11.4 [skip ci]
+  - fix: back to install; sad (#89)
+  - fix: back to ci from install (#88)
+  - chore: 0.11.3 [skip ci]
+  - fix: blank cache (#87)
+  - chore: 0.11.2 [skip ci]
+  - fix: removing cache (#86)
+  - fix: deploy lock file check (#85)
+  - chore: 0.11.1 [skip ci]
+  - fix: intermediate fix (#84)
+  - chore: 0.11.0 [skip ci]
+  - fix: lock file creation (#83)
+  - chore: update package-lock.json files [skip ci]
+  - fix: package locks (#82)
+  - fix: updating dependency version (#81)
+  - feat: pipeline passes version (#80)
+  - chore: 0.10.5 [skip ci]
+  - fix: having pipeline wait for deploy (#79)
+  - chore: adding descriptors to steps (#78)
+  - chore: 0.10.4 [skip ci]
+  - fix: waiting for completion
+  - chore: 0.10.3 [skip ci]
+  - fix: spotlight toggle control
+  - fix: finding lights properly
+  - fix: spotlight debug lengths
+  - fix: always create spotlight meshes
+  - chore: vs code adjustments
+  - fix: update tween targets
+  - fix: prevent hide click
+  - fix: control menu debug spawn
+  - fix: container debug lying mesh
+  - fix: pink and red spots
+  - fix: control menu mesh
+  - fix: control menu spotlight
+  - fix: control drop physics
+  - fix: break chains small fix
+  - chore: 0.10.2 [skip ci]
+  - fix: force versioning
+  - chore: 0.10.1 [skip ci]
+  - fix: adding common scope
+  - chore: 0.10.0 [skip ci]
+  - feat: semantic release sync
+  - chore: running pipeline
+  - chore: 0.9.1 [skip ci]
+  - fix: semantic releasing for packages
+  - chore: 0.9.0 [skip ci]
+  - chore: removing temp
+  - chore: readme updates
+  - feat: blorktools package release
+  - fix: adding tools to run script
+  - fix: default to uv
+  - fix: atlas swapping kinda
+  - fix: atlas loading
+  - chore: making breakpoint for atlas fixing
+  - fix: show hide group location
+  - fix: atlas map fixed only
+  - feat: still broke but more grouping
+  - fix: all but the textures and map
+  - refactor: breaks it but more modular
+  - fix: uv select
+  - fix: dynamic uv detection
+  - fix: minimap fixes
+  - feat: atlas minimap
+  - fix: drag drop setup
+  - feat: blorktools
+  - fix: improvements to view
+  - feat: asset debugger
+  - feat: display transparent default
+  - refactor: hiding controls
+  - feat: basic display controls
+  - feat: display detection
+  - fix: more log silencing
+  - fix: silencing logs
+  - chore: 0.8.3 [skip ci]
+  - fix: using public package
+  - chore: 0.8.2 [skip ci]
+  - fix: skipping tests
+  - chore: 0.8.1 [skip ci]
+  - fix: name in pipeline
+  - fix: blorkpack pipeline
+  - chore: 0.8.0 [skip ci]
+  - fix: spotlights to asset spawner
+  - fix: spotlight helper methods copied
+  - fix: asset spawn functions async
+  - refactor: duplicate signatures
+  - refactor: system type creation functions
+  - fix: camera through manifest
+  - fix: primary spotlight through manifest
+  - fix: spotlight fields
+  - fix: single spotlight mesh flag
+  - fix: floor to system
+  - fix: camera from manifest
+  - fix: camera properties
+  - refactor: floor to manifest
+  - fix: spawn manifest assets to blorkpack
+  - fix: auto throttle to manifest
+  - fix: wording
+  - refactor: modal function
+  - fix: getter null checks
+  - fix: function name
+  - fix: debug mesh updates
+  - fix: physics optimization settings
+  - fix: background defaulting
+  - refactor: background typing
+  - chore: 0.7.3 [skip ci]
+  - fix: monitor display test
+  - refactor: loading html breakout
+  - refactor: app renderer to blorkpack
+  - fix: fucntion casing
+  - refactor: blorkpack exports
+  - refactor: blorkfield three rapier exports
+  - fix: gravity set
+  - refactor: moving null checks
+  - fix: more log fixes
+  - fix: silencing logs
+  - fix: package and flag renaming
+  - fix: correcting casing
+  - refactor: blorkpack rebrand
+  - fix: gravity to vector3
+  - fix: test restructure/manifest types created
+  - feat: manifest base
+  - fix: all objects grabbable
+  - fix: multicolored wireframes
+  - fix: forcing col layer
+  - fix: collision align
+  - fix: wireframe connection
+  - fix: mesh sizing
+  - feat: editor break
+  - chore: 0.7.2 [skip ci]
+  - fix: build error
+  - refactor: breaking to fix
+  - fix: partial fix for work resizing
+  - refactor: better monitor resizing
+  - fix: more monitor adjusts
+  - refactor: monitor background adjust
+  - fix: background hover ui filter
+  - refactor: shared creation function
+  - refactor: work background removal
+  - refactor: cube removal
+  - refactor: workd cube
+  - refactor: projects cube
+  - patch: separate education diplomas
+  - patch: new assets (#60)
+  - chore: 0.7.1 [skip ci]
+  - fix: reverting config change (#59)
+  - refactor: path to config
+  - chore: 0.7.0 [skip ci]
+  - fix: contact text bubbles
+  - fix: actually fixing right side hover
+  - fix: right side hover
+  - refactor: font util
+  - fix: query error
+  - fix: pond expand
+  - fix: water shader large bug
+  - fix: water resize
+  - fix: easing water
+  - refactor: ripple effect
+  - feat: about ripple
+  - refactor: swimming animation
+  - reafactor: phyics pause on active text
+  - fix: pause button icon
+  - fix: sleeping objects wakeup
+  - feat: debug ui pause
+  - fix: swim animation improvments
+  - refactor: chain bounce
+  - fix: smoothing scaling
+  - fix: scroll dynamic switch
+  - chore: 0.6.0 [skip ci]
+  - fix: chain wakeup timing
+  - fix: calming chain
+  - fix: scroll break chains dynamic
+  - fix: scroll break chain cleanup
+  - feat: chain dynamic conversion
+  - chore: logging flags
+  - feat: scroll kinematic
+  - fix: scroll debug meshes
+  - fix: scroll visibility
+  - refactor: scroll sign inside container
+  - fix: keep scroll mesh
+  - feat: assembly box despawn
+  - refactor: assembly box creation
+  - fix: memory management
+  - fix: control menu beam despawn
+  - chore: log base
+  - chore: purging mordor
+  - fix: scroll chain adjust
+  - fix: scroll debug meshes
+  - fix: text container off screen position
+  - fix: scroll menu animation
+  - refactor: scroll spotlight tracking
+  - fix: control menu spotlight
+  - fix: grab order
+  - chore: 0.5.6 [skip ci]
+  - fix: double cursor
+  - fix: debug clickthrough
+  - chore: 0.5.5 [skip ci]
+  - fix: UVMap updates
+  - chore: 0.5.4 [skip ci]
+  - fix: deployed font path (#53)
+  - chore: 0.5.3 [skip ci]
+  - fix: labels to text (#52)
+  - chore: 0.5.2 [skip ci]
+  - fix: .blend file update
+  - chore: 0.5.1 [skip ci]
+  - fix: full model set update
+  - chore: 0.5.0 [skip ci]
+  - feat: svgs to text (#48)
+  - refactor: sign spawn change (#47)
+  - chore: 0.4.0 [skip ci]
+  - feat: tablet added (#46)
+  - chore: 0.3.1 [skip ci]
+  - fix: label wireframes (#44)
+  - chore: 0.3.0 [skip ci]
+  - feat: debug ui (#43)
+  - chore: 0.2.1 [skip ci]
+  - fix: a return to sanity (#42)
+  - chore: small optimizations (#38)
+  - chore: 0.2.0 [skip ci]
+  - feat: collision wire frames (#37)
+  - chore: 0.1.0 [skip ci]
+  - feat: Max overlay width (#36)
+  - chore: 0.0.8 [skip ci]
+  - fix: localhost url (#35)
+  - chore: 0.0.7 [skip ci]
+  - fix: laxing bot to allow github messages (#34)
+  - chore: 0.0.6 [skip ci]
+  - fix: removing bad icon
+  - chore: updating readme (#32)
+  - chore: 0.0.5 [skip ci]
+  - fix: or so it claims
+  - fix: less picky now
+  - chore: asset storage refactor
+  - fix: removing missed refs
+  - chore: packages are a bad idea
+  - feat: semantic versioning
+
+## 1.9.0
+
+### Minor Changes
+
+- 6119203: Changeset created from conventional commits:
+
+  - chore: version packages (#286)
+  - fix: portfolio to releases
+  - chore: version packages (#284)
+  - chore: auto-generate changeset (#283)
+  - feat: breaking out direct publish
+  - chore: auto-generate changeset (#281)
+  - fix: cleanset pr creation
+  - chore: clean out existing changesets [skip ci]
+  - chore: version packages (#278)
+  - chore: auto-generate changeset (#277)
+  - fix: cleanset
+  - chore: version packages (#274)
+  - chore: auto-generate changeset (#273)
+  - fix: token usage
+  - chore: auto-generate changeset (#270)
+  - fix: package version merge
+  - chore: auto-generate changeset (#267)
+  - fix: manual release job lol
+  - chore: version packages (#265)
+  - chore: auto-generate changeset (#264)
+  - refactor: removing gh pages husky test
+  - chore: version packages (#261)
+  - chore: auto-generate changeset (#260)
+  - fix: manual changeset command bot name
+  - chore: version packages (#258)
+  - chore: auto-generate changeset (#257)
+  - fix: last one
+  - chore: auto-generate changeset (#254)
+  - fix: unified version merge
+  - chore: auto-generate changeset (#251)
+  - fix: better auto merge logs
+  - chore: auto-generate changeset (#248)
+  - fix: merging within pipeline
+  - chore: auto-generate changeset (#245)
+  - fix: trigger name
+  - chore: auto-generate changeset (#242)
+  - fix: auto run version merge
+  - chore: auto-generate changeset (#239)
+  - fix: write permissions
+  - fix: Merge branch 'main' into AutoSets
+  - fix: logging
+  - fix: pr creation token
+  - fix: merge command
+  - fix: Merge branch 'main' into AutoSets
+  - fix: autosets triggers
+  - feat: auto changesets
+  - fix: removing approval
+  - fix: test pnpm change
+  - revert: to warning state
+  - fix: webgl ext at three load
+  - fix: webgl warning
+  - fix: regression tests
+  - fix: now i member
+  - fix: cleaning up useless tests
+  - fix: fucking asshole
+  - fix: hoooooly
+  - fix: local load tests
+  - fix: direct image link
+  - fix: real solution
+  - revert: revert to commit 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: won't work
+  - fix: background path
+  - fix: gradient path resolving
+  - fix: reverting to 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: site path refs
+  - fix: manifest load w/verification
+  - fix: image load with verification
+  - fix: husky predeploy
+  - fix: threejs load w/ tests
+  - fix: warnings on load
+  - fix: gradient loading
+  - fix: display paths w/tests
+  - fix: csp meta tag
+  - fix: csp w/tests
+  - fix: frozen lock w/tests
+  - slice: new type
+  - fix: improving husky pre release
+  - fix: missing files and tests
+  - fix: cli and tests
+  - fix: test job
+  - fix: claude fix
+  - fix: drafts to finalized
+  - fix: single working deploy
+  - fix: no double deploy
+  - chore: version packages
+  - fix: csp protection
+  - fix: unbalanced grep
+  - fix: same shit differnt context
+  - fix: merging main
+  - fix: syntax issue
+  - fix: force pnpm
+  - fix: using pnpm
+  - fix: workspaces
+  - fix: fully rely on bot
+  - chore: 0.14.9 [skip ci]
+  - fix: typo
+  - chore: 0.14.8 [skip ci]
+  - fix: wait hack
+  - chore: 0.14.7 [skip ci]
+  - fix: so the big man says
+  - chore: 0.14.6 [skip ci]
+  - fix: improved self detection
+  - chore: 0.14.5 [skip ci]
+  - fix: simple approach
+  - chore: 0.14.4 [skip ci]
+  - fix: using new pat
+  - chore: 0.14.3 [skip ci]
+  - fix: overwrite development public/assets
+  - chore: 0.14.2 [skip ci]
+  - fix: rule check instead
+  - chore: 0.14.1 [skip ci]
+  - fix: welcome back semanto (#135)
+  - chore: 0.14.0 [skip ci]
+  - feat: blorkboard package(#134)
+  - fix: pnpm ref for semantic (#133)
+  - fix: versioning need check (#132)
+  - fix: adding semantic versioning (#131)
+  - fix: pipeline view (#130)
+  - refactor: pipeline jobs (#129)
+  - fix: pipeline repairs (#128)
+  - fix: repairing poor semantic bot (#127)
+  - fix: outputting test artifacts (#126)
+  - feat: jest unit tests (#125)
+  - fix: status link path (#123)
+  - chore: 0.12.21 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.20 [skip ci]
+  - fix: forcing delete gh branch (#122)
+  - chore: 0.12.19 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.18 [skip ci]
+  - fix: forcing deploy (#121)
+  - chore: 0.12.17 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.16 [skip ci]
+  - fix: force version bump for root project
+  - chore: 0.12.15 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.14 [skip ci]
+  - fix: semantic versioning (#119)
+  - fix: loading path (#118)
+  - fix: multiple custom_types (#117)
+  - fix: removing pipeline ci (#116)
+  - fix: spawner system (#115)
+  - chore: 0.12.13 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.12 [skip ci]
+  - fix: manual build button (#113)
+  - chore: 0.12.11 [skip ci]
+  - fix: license module to package (#112)
+  - chore: 0.12.10 [skip ci]
+  - fix: license package fix (#111)
+  - chore: 0.12.9 [skip ci]
+  - fix: licensing wording (#110)
+  - chore: 0.12.8 [skip ci]
+  - fix: package filtering publish workflow (#109)
+  - chore: 0.12.7 [skip ci]
+  - chore: readme updates (#108)
+  - chore: 0.12.6 [skip ci]
+  - fix: actually fixing tags (#107)
+  - chore: 0.12.5 [skip ci]
+  - fix: pushing tags to remote (#106)
+  - chore: 0.12.4 [skip ci]
+  - chore: 0.12.3 [skip ci]
+  - fix: husky tshy stubs (#104)
+  - chore: 0.12.2 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.1 [skip ci]
+  - fix: force version bump for blorkpack
+  - fix: variable syntax (#103)
+  - fix: husky disable (#102)
+  - fix: not skipping generation step (#101)
+  - fix: it belongs in a museum
+  - fix: versioning (#99)
+  - chore: update package-lock.json files [skip ci]
+  - fix: turbo deployment scripts (#96)
+  - chore: 0.12.0 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - feat: gh links
+  - refactor: web to porfolio
+  - fix: description web
+  - feat: color coding tabs
+  - fix: blorktools not blorkpack links
+  - feat: dynamic dashboard
+  - fix: port aquisition
+  - feat: launch dashboard
+  - fix: dev startup
+  - feat: TurboRepo/pnpm
+  - chore: 0.11.7 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - fix: hmr (#94)
+  - chore: 0.11.6 [skip ci]
+  - fix: manifest load (#93)
+  - chore: 0.11.5 [skip ci]
+  - fix: manifest pathing fix (#91)
+  - chore: 0.11.4 [skip ci]
+  - fix: back to install; sad (#89)
+  - fix: back to ci from install (#88)
+  - chore: 0.11.3 [skip ci]
+  - fix: blank cache (#87)
+  - chore: 0.11.2 [skip ci]
+  - fix: removing cache (#86)
+  - fix: deploy lock file check (#85)
+  - chore: 0.11.1 [skip ci]
+  - fix: intermediate fix (#84)
+  - chore: 0.11.0 [skip ci]
+  - fix: lock file creation (#83)
+  - chore: update package-lock.json files [skip ci]
+  - fix: package locks (#82)
+  - fix: updating dependency version (#81)
+  - feat: pipeline passes version (#80)
+  - chore: 0.10.5 [skip ci]
+  - fix: having pipeline wait for deploy (#79)
+  - chore: adding descriptors to steps (#78)
+  - chore: 0.10.4 [skip ci]
+  - fix: waiting for completion
+  - chore: 0.10.3 [skip ci]
+  - fix: spotlight toggle control
+  - fix: finding lights properly
+  - fix: spotlight debug lengths
+  - fix: always create spotlight meshes
+  - chore: vs code adjustments
+  - fix: update tween targets
+  - fix: prevent hide click
+  - fix: control menu debug spawn
+  - fix: container debug lying mesh
+  - fix: pink and red spots
+  - fix: control menu mesh
+  - fix: control menu spotlight
+  - fix: control drop physics
+  - fix: break chains small fix
+  - chore: 0.10.2 [skip ci]
+  - fix: force versioning
+  - chore: 0.10.1 [skip ci]
+  - fix: adding common scope
+  - chore: 0.10.0 [skip ci]
+  - feat: semantic release sync
+  - chore: running pipeline
+  - chore: 0.9.1 [skip ci]
+  - fix: semantic releasing for packages
+  - chore: 0.9.0 [skip ci]
+  - chore: removing temp
+  - chore: readme updates
+  - feat: blorktools package release
+  - fix: adding tools to run script
+  - fix: default to uv
+  - fix: atlas swapping kinda
+  - fix: atlas loading
+  - chore: making breakpoint for atlas fixing
+  - fix: show hide group location
+  - fix: atlas map fixed only
+  - feat: still broke but more grouping
+  - fix: all but the textures and map
+  - refactor: breaks it but more modular
+  - fix: uv select
+  - fix: dynamic uv detection
+  - fix: minimap fixes
+  - feat: atlas minimap
+  - fix: drag drop setup
+  - feat: blorktools
+  - fix: improvements to view
+  - feat: asset debugger
+  - feat: display transparent default
+  - refactor: hiding controls
+  - feat: basic display controls
+  - feat: display detection
+  - fix: more log silencing
+  - fix: silencing logs
+  - chore: 0.8.3 [skip ci]
+  - fix: using public package
+  - chore: 0.8.2 [skip ci]
+  - fix: skipping tests
+  - chore: 0.8.1 [skip ci]
+  - fix: name in pipeline
+  - fix: blorkpack pipeline
+  - chore: 0.8.0 [skip ci]
+  - fix: spotlights to asset spawner
+  - fix: spotlight helper methods copied
+  - fix: asset spawn functions async
+  - refactor: duplicate signatures
+  - refactor: system type creation functions
+  - fix: camera through manifest
+  - fix: primary spotlight through manifest
+  - fix: spotlight fields
+  - fix: single spotlight mesh flag
+  - fix: floor to system
+  - fix: camera from manifest
+  - fix: camera properties
+  - refactor: floor to manifest
+  - fix: spawn manifest assets to blorkpack
+  - fix: auto throttle to manifest
+  - fix: wording
+  - refactor: modal function
+  - fix: getter null checks
+  - fix: function name
+  - fix: debug mesh updates
+  - fix: physics optimization settings
+  - fix: background defaulting
+  - refactor: background typing
+  - chore: 0.7.3 [skip ci]
+  - fix: monitor display test
+  - refactor: loading html breakout
+  - refactor: app renderer to blorkpack
+  - fix: fucntion casing
+  - refactor: blorkpack exports
+  - refactor: blorkfield three rapier exports
+  - fix: gravity set
+  - refactor: moving null checks
+  - fix: more log fixes
+  - fix: silencing logs
+  - fix: package and flag renaming
+  - fix: correcting casing
+  - refactor: blorkpack rebrand
+  - fix: gravity to vector3
+  - fix: test restructure/manifest types created
+  - feat: manifest base
+  - fix: all objects grabbable
+  - fix: multicolored wireframes
+  - fix: forcing col layer
+  - fix: collision align
+  - fix: wireframe connection
+  - fix: mesh sizing
+  - feat: editor break
+  - chore: 0.7.2 [skip ci]
+  - fix: build error
+  - refactor: breaking to fix
+  - fix: partial fix for work resizing
+  - refactor: better monitor resizing
+  - fix: more monitor adjusts
+  - refactor: monitor background adjust
+  - fix: background hover ui filter
+  - refactor: shared creation function
+  - refactor: work background removal
+  - refactor: cube removal
+  - refactor: workd cube
+  - refactor: projects cube
+  - patch: separate education diplomas
+  - patch: new assets (#60)
+  - chore: 0.7.1 [skip ci]
+  - fix: reverting config change (#59)
+  - refactor: path to config
+  - chore: 0.7.0 [skip ci]
+  - fix: contact text bubbles
+  - fix: actually fixing right side hover
+  - fix: right side hover
+  - refactor: font util
+  - fix: query error
+  - fix: pond expand
+  - fix: water shader large bug
+  - fix: water resize
+  - fix: easing water
+  - refactor: ripple effect
+  - feat: about ripple
+  - refactor: swimming animation
+  - reafactor: phyics pause on active text
+  - fix: pause button icon
+  - fix: sleeping objects wakeup
+  - feat: debug ui pause
+  - fix: swim animation improvments
+  - refactor: chain bounce
+  - fix: smoothing scaling
+  - fix: scroll dynamic switch
+  - chore: 0.6.0 [skip ci]
+  - fix: chain wakeup timing
+  - fix: calming chain
+  - fix: scroll break chains dynamic
+  - fix: scroll break chain cleanup
+  - feat: chain dynamic conversion
+  - chore: logging flags
+  - feat: scroll kinematic
+  - fix: scroll debug meshes
+  - fix: scroll visibility
+  - refactor: scroll sign inside container
+  - fix: keep scroll mesh
+  - feat: assembly box despawn
+  - refactor: assembly box creation
+  - fix: memory management
+  - fix: control menu beam despawn
+  - chore: log base
+  - chore: purging mordor
+  - fix: scroll chain adjust
+  - fix: scroll debug meshes
+  - fix: text container off screen position
+  - fix: scroll menu animation
+  - refactor: scroll spotlight tracking
+  - fix: control menu spotlight
+  - fix: grab order
+  - chore: 0.5.6 [skip ci]
+  - fix: double cursor
+  - fix: debug clickthrough
+  - chore: 0.5.5 [skip ci]
+  - fix: UVMap updates
+  - chore: 0.5.4 [skip ci]
+  - fix: deployed font path (#53)
+  - chore: 0.5.3 [skip ci]
+  - fix: labels to text (#52)
+  - chore: 0.5.2 [skip ci]
+  - fix: .blend file update
+  - chore: 0.5.1 [skip ci]
+  - fix: full model set update
+  - chore: 0.5.0 [skip ci]
+  - feat: svgs to text (#48)
+  - refactor: sign spawn change (#47)
+  - chore: 0.4.0 [skip ci]
+  - feat: tablet added (#46)
+  - chore: 0.3.1 [skip ci]
+  - fix: label wireframes (#44)
+  - chore: 0.3.0 [skip ci]
+  - feat: debug ui (#43)
+  - chore: 0.2.1 [skip ci]
+  - fix: a return to sanity (#42)
+  - chore: small optimizations (#38)
+  - chore: 0.2.0 [skip ci]
+  - feat: collision wire frames (#37)
+  - chore: 0.1.0 [skip ci]
+  - feat: Max overlay width (#36)
+  - chore: 0.0.8 [skip ci]
+  - fix: localhost url (#35)
+  - chore: 0.0.7 [skip ci]
+  - fix: laxing bot to allow github messages (#34)
+  - chore: 0.0.6 [skip ci]
+  - fix: removing bad icon
+  - chore: updating readme (#32)
+  - chore: 0.0.5 [skip ci]
+  - fix: or so it claims
+  - fix: less picky now
+  - chore: asset storage refactor
+  - fix: removing missed refs
+  - chore: packages are a bad idea
+  - feat: semantic versioning
+
+## 1.8.0
+
+### Minor Changes
+
+- 5607ff2: Changeset created from conventional commits:
+
+  - chore: auto-generate changeset (#281)
+  - fix: cleanset pr creation
+  - chore: clean out existing changesets [skip ci]
+  - chore: version packages (#278)
+  - chore: auto-generate changeset (#277)
+  - fix: cleanset
+  - chore: version packages (#274)
+  - chore: auto-generate changeset (#273)
+  - fix: token usage
+  - chore: auto-generate changeset (#270)
+  - fix: package version merge
+  - chore: auto-generate changeset (#267)
+  - fix: manual release job lol
+  - chore: version packages (#265)
+  - chore: auto-generate changeset (#264)
+  - refactor: removing gh pages husky test
+  - chore: version packages (#261)
+  - chore: auto-generate changeset (#260)
+  - fix: manual changeset command bot name
+  - chore: version packages (#258)
+  - chore: auto-generate changeset (#257)
+  - fix: last one
+  - chore: auto-generate changeset (#254)
+  - fix: unified version merge
+  - chore: auto-generate changeset (#251)
+  - fix: better auto merge logs
+  - chore: auto-generate changeset (#248)
+  - fix: merging within pipeline
+  - chore: auto-generate changeset (#245)
+  - fix: trigger name
+  - chore: auto-generate changeset (#242)
+  - fix: auto run version merge
+  - chore: auto-generate changeset (#239)
+  - fix: write permissions
+  - fix: Merge branch 'main' into AutoSets
+  - fix: logging
+  - fix: pr creation token
+  - fix: merge command
+  - fix: Merge branch 'main' into AutoSets
+  - fix: autosets triggers
+  - feat: auto changesets
+  - fix: removing approval
+  - fix: test pnpm change
+  - revert: to warning state
+  - fix: webgl ext at three load
+  - fix: webgl warning
+  - fix: regression tests
+  - fix: now i member
+  - fix: cleaning up useless tests
+  - fix: fucking asshole
+  - fix: hoooooly
+  - fix: local load tests
+  - fix: direct image link
+  - fix: real solution
+  - revert: revert to commit 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: won't work
+  - fix: background path
+  - fix: gradient path resolving
+  - fix: reverting to 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: site path refs
+  - fix: manifest load w/verification
+  - fix: image load with verification
+  - fix: husky predeploy
+  - fix: threejs load w/ tests
+  - fix: warnings on load
+  - fix: gradient loading
+  - fix: display paths w/tests
+  - fix: csp meta tag
+  - fix: csp w/tests
+  - fix: frozen lock w/tests
+  - slice: new type
+  - fix: improving husky pre release
+  - fix: missing files and tests
+  - fix: cli and tests
+  - fix: test job
+  - fix: claude fix
+  - fix: drafts to finalized
+  - fix: single working deploy
+  - fix: no double deploy
+  - chore: version packages
+  - fix: csp protection
+  - fix: unbalanced grep
+  - fix: same shit differnt context
+  - fix: merging main
+  - fix: syntax issue
+  - fix: force pnpm
+  - fix: using pnpm
+  - fix: workspaces
+  - fix: fully rely on bot
+  - chore: 0.14.9 [skip ci]
+  - fix: typo
+  - chore: 0.14.8 [skip ci]
+  - fix: wait hack
+  - chore: 0.14.7 [skip ci]
+  - fix: so the big man says
+  - chore: 0.14.6 [skip ci]
+  - fix: improved self detection
+  - chore: 0.14.5 [skip ci]
+  - fix: simple approach
+  - chore: 0.14.4 [skip ci]
+  - fix: using new pat
+  - chore: 0.14.3 [skip ci]
+  - fix: overwrite development public/assets
+  - chore: 0.14.2 [skip ci]
+  - fix: rule check instead
+  - chore: 0.14.1 [skip ci]
+  - fix: welcome back semanto (#135)
+  - chore: 0.14.0 [skip ci]
+  - feat: blorkboard package(#134)
+  - fix: pnpm ref for semantic (#133)
+  - fix: versioning need check (#132)
+  - fix: adding semantic versioning (#131)
+  - fix: pipeline view (#130)
+  - refactor: pipeline jobs (#129)
+  - fix: pipeline repairs (#128)
+  - fix: repairing poor semantic bot (#127)
+  - fix: outputting test artifacts (#126)
+  - feat: jest unit tests (#125)
+  - fix: status link path (#123)
+  - chore: 0.12.21 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.20 [skip ci]
+  - fix: forcing delete gh branch (#122)
+  - chore: 0.12.19 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.18 [skip ci]
+  - fix: forcing deploy (#121)
+  - chore: 0.12.17 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.16 [skip ci]
+  - fix: force version bump for root project
+  - chore: 0.12.15 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.14 [skip ci]
+  - fix: semantic versioning (#119)
+  - fix: loading path (#118)
+  - fix: multiple custom_types (#117)
+  - fix: removing pipeline ci (#116)
+  - fix: spawner system (#115)
+  - chore: 0.12.13 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.12 [skip ci]
+  - fix: manual build button (#113)
+  - chore: 0.12.11 [skip ci]
+  - fix: license module to package (#112)
+  - chore: 0.12.10 [skip ci]
+  - fix: license package fix (#111)
+  - chore: 0.12.9 [skip ci]
+  - fix: licensing wording (#110)
+  - chore: 0.12.8 [skip ci]
+  - fix: package filtering publish workflow (#109)
+  - chore: 0.12.7 [skip ci]
+  - chore: readme updates (#108)
+  - chore: 0.12.6 [skip ci]
+  - fix: actually fixing tags (#107)
+  - chore: 0.12.5 [skip ci]
+  - fix: pushing tags to remote (#106)
+  - chore: 0.12.4 [skip ci]
+  - chore: 0.12.3 [skip ci]
+  - fix: husky tshy stubs (#104)
+  - chore: 0.12.2 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.1 [skip ci]
+  - fix: force version bump for blorkpack
+  - fix: variable syntax (#103)
+  - fix: husky disable (#102)
+  - fix: not skipping generation step (#101)
+  - fix: it belongs in a museum
+  - fix: versioning (#99)
+  - chore: update package-lock.json files [skip ci]
+  - fix: turbo deployment scripts (#96)
+  - chore: 0.12.0 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - feat: gh links
+  - refactor: web to porfolio
+  - fix: description web
+  - feat: color coding tabs
+  - fix: blorktools not blorkpack links
+  - feat: dynamic dashboard
+  - fix: port aquisition
+  - feat: launch dashboard
+  - fix: dev startup
+  - feat: TurboRepo/pnpm
+  - chore: 0.11.7 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - fix: hmr (#94)
+  - chore: 0.11.6 [skip ci]
+  - fix: manifest load (#93)
+  - chore: 0.11.5 [skip ci]
+  - fix: manifest pathing fix (#91)
+  - chore: 0.11.4 [skip ci]
+  - fix: back to install; sad (#89)
+  - fix: back to ci from install (#88)
+  - chore: 0.11.3 [skip ci]
+  - fix: blank cache (#87)
+  - chore: 0.11.2 [skip ci]
+  - fix: removing cache (#86)
+  - fix: deploy lock file check (#85)
+  - chore: 0.11.1 [skip ci]
+  - fix: intermediate fix (#84)
+  - chore: 0.11.0 [skip ci]
+  - fix: lock file creation (#83)
+  - chore: update package-lock.json files [skip ci]
+  - fix: package locks (#82)
+  - fix: updating dependency version (#81)
+  - feat: pipeline passes version (#80)
+  - chore: 0.10.5 [skip ci]
+  - fix: having pipeline wait for deploy (#79)
+  - chore: adding descriptors to steps (#78)
+  - chore: 0.10.4 [skip ci]
+  - fix: waiting for completion
+  - chore: 0.10.3 [skip ci]
+  - fix: spotlight toggle control
+  - fix: finding lights properly
+  - fix: spotlight debug lengths
+  - fix: always create spotlight meshes
+  - chore: vs code adjustments
+  - fix: update tween targets
+  - fix: prevent hide click
+  - fix: control menu debug spawn
+  - fix: container debug lying mesh
+  - fix: pink and red spots
+  - fix: control menu mesh
+  - fix: control menu spotlight
+  - fix: control drop physics
+  - fix: break chains small fix
+  - chore: 0.10.2 [skip ci]
+  - fix: force versioning
+  - chore: 0.10.1 [skip ci]
+  - fix: adding common scope
+  - chore: 0.10.0 [skip ci]
+  - feat: semantic release sync
+  - chore: running pipeline
+  - chore: 0.9.1 [skip ci]
+  - fix: semantic releasing for packages
+  - chore: 0.9.0 [skip ci]
+  - chore: removing temp
+  - chore: readme updates
+  - feat: blorktools package release
+  - fix: adding tools to run script
+  - fix: default to uv
+  - fix: atlas swapping kinda
+  - fix: atlas loading
+  - chore: making breakpoint for atlas fixing
+  - fix: show hide group location
+  - fix: atlas map fixed only
+  - feat: still broke but more grouping
+  - fix: all but the textures and map
+  - refactor: breaks it but more modular
+  - fix: uv select
+  - fix: dynamic uv detection
+  - fix: minimap fixes
+  - feat: atlas minimap
+  - fix: drag drop setup
+  - feat: blorktools
+  - fix: improvements to view
+  - feat: asset debugger
+  - feat: display transparent default
+  - refactor: hiding controls
+  - feat: basic display controls
+  - feat: display detection
+  - fix: more log silencing
+  - fix: silencing logs
+  - chore: 0.8.3 [skip ci]
+  - fix: using public package
+  - chore: 0.8.2 [skip ci]
+  - fix: skipping tests
+  - chore: 0.8.1 [skip ci]
+  - fix: name in pipeline
+  - fix: blorkpack pipeline
+  - chore: 0.8.0 [skip ci]
+  - fix: spotlights to asset spawner
+  - fix: spotlight helper methods copied
+  - fix: asset spawn functions async
+  - refactor: duplicate signatures
+  - refactor: system type creation functions
+  - fix: camera through manifest
+  - fix: primary spotlight through manifest
+  - fix: spotlight fields
+  - fix: single spotlight mesh flag
+  - fix: floor to system
+  - fix: camera from manifest
+  - fix: camera properties
+  - refactor: floor to manifest
+  - fix: spawn manifest assets to blorkpack
+  - fix: auto throttle to manifest
+  - fix: wording
+  - refactor: modal function
+  - fix: getter null checks
+  - fix: function name
+  - fix: debug mesh updates
+  - fix: physics optimization settings
+  - fix: background defaulting
+  - refactor: background typing
+  - chore: 0.7.3 [skip ci]
+  - fix: monitor display test
+  - refactor: loading html breakout
+  - refactor: app renderer to blorkpack
+  - fix: fucntion casing
+  - refactor: blorkpack exports
+  - refactor: blorkfield three rapier exports
+  - fix: gravity set
+  - refactor: moving null checks
+  - fix: more log fixes
+  - fix: silencing logs
+  - fix: package and flag renaming
+  - fix: correcting casing
+  - refactor: blorkpack rebrand
+  - fix: gravity to vector3
+  - fix: test restructure/manifest types created
+  - feat: manifest base
+  - fix: all objects grabbable
+  - fix: multicolored wireframes
+  - fix: forcing col layer
+  - fix: collision align
+  - fix: wireframe connection
+  - fix: mesh sizing
+  - feat: editor break
+  - chore: 0.7.2 [skip ci]
+  - fix: build error
+  - refactor: breaking to fix
+  - fix: partial fix for work resizing
+  - refactor: better monitor resizing
+  - fix: more monitor adjusts
+  - refactor: monitor background adjust
+  - fix: background hover ui filter
+  - refactor: shared creation function
+  - refactor: work background removal
+  - refactor: cube removal
+  - refactor: workd cube
+  - refactor: projects cube
+  - patch: separate education diplomas
+  - patch: new assets (#60)
+  - chore: 0.7.1 [skip ci]
+  - fix: reverting config change (#59)
+  - refactor: path to config
+  - chore: 0.7.0 [skip ci]
+  - fix: contact text bubbles
+  - fix: actually fixing right side hover
+  - fix: right side hover
+  - refactor: font util
+  - fix: query error
+  - fix: pond expand
+  - fix: water shader large bug
+  - fix: water resize
+  - fix: easing water
+  - refactor: ripple effect
+  - feat: about ripple
+  - refactor: swimming animation
+  - reafactor: phyics pause on active text
+  - fix: pause button icon
+  - fix: sleeping objects wakeup
+  - feat: debug ui pause
+  - fix: swim animation improvments
+  - refactor: chain bounce
+  - fix: smoothing scaling
+  - fix: scroll dynamic switch
+  - chore: 0.6.0 [skip ci]
+  - fix: chain wakeup timing
+  - fix: calming chain
+  - fix: scroll break chains dynamic
+  - fix: scroll break chain cleanup
+  - feat: chain dynamic conversion
+  - chore: logging flags
+  - feat: scroll kinematic
+  - fix: scroll debug meshes
+  - fix: scroll visibility
+  - refactor: scroll sign inside container
+  - fix: keep scroll mesh
+  - feat: assembly box despawn
+  - refactor: assembly box creation
+  - fix: memory management
+  - fix: control menu beam despawn
+  - chore: log base
+  - chore: purging mordor
+  - fix: scroll chain adjust
+  - fix: scroll debug meshes
+  - fix: text container off screen position
+  - fix: scroll menu animation
+  - refactor: scroll spotlight tracking
+  - fix: control menu spotlight
+  - fix: grab order
+  - chore: 0.5.6 [skip ci]
+  - fix: double cursor
+  - fix: debug clickthrough
+  - chore: 0.5.5 [skip ci]
+  - fix: UVMap updates
+  - chore: 0.5.4 [skip ci]
+  - fix: deployed font path (#53)
+  - chore: 0.5.3 [skip ci]
+  - fix: labels to text (#52)
+  - chore: 0.5.2 [skip ci]
+  - fix: .blend file update
+  - chore: 0.5.1 [skip ci]
+  - fix: full model set update
+  - chore: 0.5.0 [skip ci]
+  - feat: svgs to text (#48)
+  - refactor: sign spawn change (#47)
+  - chore: 0.4.0 [skip ci]
+  - feat: tablet added (#46)
+  - chore: 0.3.1 [skip ci]
+  - fix: label wireframes (#44)
+  - chore: 0.3.0 [skip ci]
+  - feat: debug ui (#43)
+  - chore: 0.2.1 [skip ci]
+  - fix: a return to sanity (#42)
+  - chore: small optimizations (#38)
+  - chore: 0.2.0 [skip ci]
+  - feat: collision wire frames (#37)
+  - chore: 0.1.0 [skip ci]
+  - feat: Max overlay width (#36)
+  - chore: 0.0.8 [skip ci]
+  - fix: localhost url (#35)
+  - chore: 0.0.7 [skip ci]
+  - fix: laxing bot to allow github messages (#34)
+  - chore: 0.0.6 [skip ci]
+  - fix: removing bad icon
+  - chore: updating readme (#32)
+  - chore: 0.0.5 [skip ci]
+  - fix: or so it claims
+  - fix: less picky now
+  - chore: asset storage refactor
+  - fix: removing missed refs
+  - chore: packages are a bad idea
+  - feat: semantic versioning
+
+## 1.7.0
+
+### Minor Changes
+
+- 48d4f62: Changeset created from conventional commits:
+
+  - chore: clean out existing changesets [skip ci]
+  - chore: version packages (#278)
+  - chore: auto-generate changeset (#277)
+  - fix: cleanset
+  - chore: version packages (#274)
+  - chore: auto-generate changeset (#273)
+  - fix: token usage
+  - chore: auto-generate changeset (#270)
+  - fix: package version merge
+  - chore: auto-generate changeset (#267)
+  - fix: manual release job lol
+  - chore: version packages (#265)
+  - chore: auto-generate changeset (#264)
+  - refactor: removing gh pages husky test
+  - chore: version packages (#261)
+  - chore: auto-generate changeset (#260)
+  - fix: manual changeset command bot name
+  - chore: version packages (#258)
+  - chore: auto-generate changeset (#257)
+  - fix: last one
+  - chore: auto-generate changeset (#254)
+  - fix: unified version merge
+  - chore: auto-generate changeset (#251)
+  - fix: better auto merge logs
+  - chore: auto-generate changeset (#248)
+  - fix: merging within pipeline
+  - chore: auto-generate changeset (#245)
+  - fix: trigger name
+  - chore: auto-generate changeset (#242)
+  - fix: auto run version merge
+  - chore: auto-generate changeset (#239)
+  - fix: write permissions
+  - fix: Merge branch 'main' into AutoSets
+  - fix: logging
+  - fix: pr creation token
+  - fix: merge command
+  - fix: Merge branch 'main' into AutoSets
+  - fix: autosets triggers
+  - feat: auto changesets
+  - fix: removing approval
+  - fix: test pnpm change
+  - revert: to warning state
+  - fix: webgl ext at three load
+  - fix: webgl warning
+  - fix: regression tests
+  - fix: now i member
+  - fix: cleaning up useless tests
+  - fix: fucking asshole
+  - fix: hoooooly
+  - fix: local load tests
+  - fix: direct image link
+  - fix: real solution
+  - revert: revert to commit 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: won't work
+  - fix: background path
+  - fix: gradient path resolving
+  - fix: reverting to 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: site path refs
+  - fix: manifest load w/verification
+  - fix: image load with verification
+  - fix: husky predeploy
+  - fix: threejs load w/ tests
+  - fix: warnings on load
+  - fix: gradient loading
+  - fix: display paths w/tests
+  - fix: csp meta tag
+  - fix: csp w/tests
+  - fix: frozen lock w/tests
+  - slice: new type
+  - fix: improving husky pre release
+  - fix: missing files and tests
+  - fix: cli and tests
+  - fix: test job
+  - fix: claude fix
+  - fix: drafts to finalized
+  - fix: single working deploy
+  - fix: no double deploy
+  - chore: version packages
+  - fix: csp protection
+  - fix: unbalanced grep
+  - fix: same shit differnt context
+  - fix: merging main
+  - fix: syntax issue
+  - fix: force pnpm
+  - fix: using pnpm
+  - fix: workspaces
+  - fix: fully rely on bot
+  - chore: 0.14.9 [skip ci]
+  - fix: typo
+  - chore: 0.14.8 [skip ci]
+  - fix: wait hack
+  - chore: 0.14.7 [skip ci]
+  - fix: so the big man says
+  - chore: 0.14.6 [skip ci]
+  - fix: improved self detection
+  - chore: 0.14.5 [skip ci]
+  - fix: simple approach
+  - chore: 0.14.4 [skip ci]
+  - fix: using new pat
+  - chore: 0.14.3 [skip ci]
+  - fix: overwrite development public/assets
+  - chore: 0.14.2 [skip ci]
+  - fix: rule check instead
+  - chore: 0.14.1 [skip ci]
+  - fix: welcome back semanto (#135)
+  - chore: 0.14.0 [skip ci]
+  - feat: blorkboard package(#134)
+  - fix: pnpm ref for semantic (#133)
+  - fix: versioning need check (#132)
+  - fix: adding semantic versioning (#131)
+  - fix: pipeline view (#130)
+  - refactor: pipeline jobs (#129)
+  - fix: pipeline repairs (#128)
+  - fix: repairing poor semantic bot (#127)
+  - fix: outputting test artifacts (#126)
+  - feat: jest unit tests (#125)
+  - fix: status link path (#123)
+  - chore: 0.12.21 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.20 [skip ci]
+  - fix: forcing delete gh branch (#122)
+  - chore: 0.12.19 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.18 [skip ci]
+  - fix: forcing deploy (#121)
+  - chore: 0.12.17 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.16 [skip ci]
+  - fix: force version bump for root project
+  - chore: 0.12.15 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.14 [skip ci]
+  - fix: semantic versioning (#119)
+  - fix: loading path (#118)
+  - fix: multiple custom_types (#117)
+  - fix: removing pipeline ci (#116)
+  - fix: spawner system (#115)
+  - chore: 0.12.13 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.12 [skip ci]
+  - fix: manual build button (#113)
+  - chore: 0.12.11 [skip ci]
+  - fix: license module to package (#112)
+  - chore: 0.12.10 [skip ci]
+  - fix: license package fix (#111)
+  - chore: 0.12.9 [skip ci]
+  - fix: licensing wording (#110)
+  - chore: 0.12.8 [skip ci]
+  - fix: package filtering publish workflow (#109)
+  - chore: 0.12.7 [skip ci]
+  - chore: readme updates (#108)
+  - chore: 0.12.6 [skip ci]
+  - fix: actually fixing tags (#107)
+  - chore: 0.12.5 [skip ci]
+  - fix: pushing tags to remote (#106)
+  - chore: 0.12.4 [skip ci]
+  - chore: 0.12.3 [skip ci]
+  - fix: husky tshy stubs (#104)
+  - chore: 0.12.2 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.1 [skip ci]
+  - fix: force version bump for blorkpack
+  - fix: variable syntax (#103)
+  - fix: husky disable (#102)
+  - fix: not skipping generation step (#101)
+  - fix: it belongs in a museum
+  - fix: versioning (#99)
+  - chore: update package-lock.json files [skip ci]
+  - fix: turbo deployment scripts (#96)
+  - chore: 0.12.0 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - feat: gh links
+  - refactor: web to porfolio
+  - fix: description web
+  - feat: color coding tabs
+  - fix: blorktools not blorkpack links
+  - feat: dynamic dashboard
+  - fix: port aquisition
+  - feat: launch dashboard
+  - fix: dev startup
+  - feat: TurboRepo/pnpm
+  - chore: 0.11.7 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - fix: hmr (#94)
+  - chore: 0.11.6 [skip ci]
+  - fix: manifest load (#93)
+  - chore: 0.11.5 [skip ci]
+  - fix: manifest pathing fix (#91)
+  - chore: 0.11.4 [skip ci]
+  - fix: back to install; sad (#89)
+  - fix: back to ci from install (#88)
+  - chore: 0.11.3 [skip ci]
+  - fix: blank cache (#87)
+  - chore: 0.11.2 [skip ci]
+  - fix: removing cache (#86)
+  - fix: deploy lock file check (#85)
+  - chore: 0.11.1 [skip ci]
+  - fix: intermediate fix (#84)
+  - chore: 0.11.0 [skip ci]
+  - fix: lock file creation (#83)
+  - chore: update package-lock.json files [skip ci]
+  - fix: package locks (#82)
+  - fix: updating dependency version (#81)
+  - feat: pipeline passes version (#80)
+  - chore: 0.10.5 [skip ci]
+  - fix: having pipeline wait for deploy (#79)
+  - chore: adding descriptors to steps (#78)
+  - chore: 0.10.4 [skip ci]
+  - fix: waiting for completion
+  - chore: 0.10.3 [skip ci]
+  - fix: spotlight toggle control
+  - fix: finding lights properly
+  - fix: spotlight debug lengths
+  - fix: always create spotlight meshes
+  - chore: vs code adjustments
+  - fix: update tween targets
+  - fix: prevent hide click
+  - fix: control menu debug spawn
+  - fix: container debug lying mesh
+  - fix: pink and red spots
+  - fix: control menu mesh
+  - fix: control menu spotlight
+  - fix: control drop physics
+  - fix: break chains small fix
+  - chore: 0.10.2 [skip ci]
+  - fix: force versioning
+  - chore: 0.10.1 [skip ci]
+  - fix: adding common scope
+  - chore: 0.10.0 [skip ci]
+  - feat: semantic release sync
+  - chore: running pipeline
+  - chore: 0.9.1 [skip ci]
+  - fix: semantic releasing for packages
+  - chore: 0.9.0 [skip ci]
+  - chore: removing temp
+  - chore: readme updates
+  - feat: blorktools package release
+  - fix: adding tools to run script
+  - fix: default to uv
+  - fix: atlas swapping kinda
+  - fix: atlas loading
+  - chore: making breakpoint for atlas fixing
+  - fix: show hide group location
+  - fix: atlas map fixed only
+  - feat: still broke but more grouping
+  - fix: all but the textures and map
+  - refactor: breaks it but more modular
+  - fix: uv select
+  - fix: dynamic uv detection
+  - fix: minimap fixes
+  - feat: atlas minimap
+  - fix: drag drop setup
+  - feat: blorktools
+  - fix: improvements to view
+  - feat: asset debugger
+  - feat: display transparent default
+  - refactor: hiding controls
+  - feat: basic display controls
+  - feat: display detection
+  - fix: more log silencing
+  - fix: silencing logs
+  - chore: 0.8.3 [skip ci]
+  - fix: using public package
+  - chore: 0.8.2 [skip ci]
+  - fix: skipping tests
+  - chore: 0.8.1 [skip ci]
+  - fix: name in pipeline
+  - fix: blorkpack pipeline
+  - chore: 0.8.0 [skip ci]
+  - fix: spotlights to asset spawner
+  - fix: spotlight helper methods copied
+  - fix: asset spawn functions async
+  - refactor: duplicate signatures
+  - refactor: system type creation functions
+  - fix: camera through manifest
+  - fix: primary spotlight through manifest
+  - fix: spotlight fields
+  - fix: single spotlight mesh flag
+  - fix: floor to system
+  - fix: camera from manifest
+  - fix: camera properties
+  - refactor: floor to manifest
+  - fix: spawn manifest assets to blorkpack
+  - fix: auto throttle to manifest
+  - fix: wording
+  - refactor: modal function
+  - fix: getter null checks
+  - fix: function name
+  - fix: debug mesh updates
+  - fix: physics optimization settings
+  - fix: background defaulting
+  - refactor: background typing
+  - chore: 0.7.3 [skip ci]
+  - fix: monitor display test
+  - refactor: loading html breakout
+  - refactor: app renderer to blorkpack
+  - fix: fucntion casing
+  - refactor: blorkpack exports
+  - refactor: blorkfield three rapier exports
+  - fix: gravity set
+  - refactor: moving null checks
+  - fix: more log fixes
+  - fix: silencing logs
+  - fix: package and flag renaming
+  - fix: correcting casing
+  - refactor: blorkpack rebrand
+  - fix: gravity to vector3
+  - fix: test restructure/manifest types created
+  - feat: manifest base
+  - fix: all objects grabbable
+  - fix: multicolored wireframes
+  - fix: forcing col layer
+  - fix: collision align
+  - fix: wireframe connection
+  - fix: mesh sizing
+  - feat: editor break
+  - chore: 0.7.2 [skip ci]
+  - fix: build error
+  - refactor: breaking to fix
+  - fix: partial fix for work resizing
+  - refactor: better monitor resizing
+  - fix: more monitor adjusts
+  - refactor: monitor background adjust
+  - fix: background hover ui filter
+  - refactor: shared creation function
+  - refactor: work background removal
+  - refactor: cube removal
+  - refactor: workd cube
+  - refactor: projects cube
+  - patch: separate education diplomas
+  - patch: new assets (#60)
+  - chore: 0.7.1 [skip ci]
+  - fix: reverting config change (#59)
+  - refactor: path to config
+  - chore: 0.7.0 [skip ci]
+  - fix: contact text bubbles
+  - fix: actually fixing right side hover
+  - fix: right side hover
+  - refactor: font util
+  - fix: query error
+  - fix: pond expand
+  - fix: water shader large bug
+  - fix: water resize
+  - fix: easing water
+  - refactor: ripple effect
+  - feat: about ripple
+  - refactor: swimming animation
+  - reafactor: phyics pause on active text
+  - fix: pause button icon
+  - fix: sleeping objects wakeup
+  - feat: debug ui pause
+  - fix: swim animation improvments
+  - refactor: chain bounce
+  - fix: smoothing scaling
+  - fix: scroll dynamic switch
+  - chore: 0.6.0 [skip ci]
+  - fix: chain wakeup timing
+  - fix: calming chain
+  - fix: scroll break chains dynamic
+  - fix: scroll break chain cleanup
+  - feat: chain dynamic conversion
+  - chore: logging flags
+  - feat: scroll kinematic
+  - fix: scroll debug meshes
+  - fix: scroll visibility
+  - refactor: scroll sign inside container
+  - fix: keep scroll mesh
+  - feat: assembly box despawn
+  - refactor: assembly box creation
+  - fix: memory management
+  - fix: control menu beam despawn
+  - chore: log base
+  - chore: purging mordor
+  - fix: scroll chain adjust
+  - fix: scroll debug meshes
+  - fix: text container off screen position
+  - fix: scroll menu animation
+  - refactor: scroll spotlight tracking
+  - fix: control menu spotlight
+  - fix: grab order
+  - chore: 0.5.6 [skip ci]
+  - fix: double cursor
+  - fix: debug clickthrough
+  - chore: 0.5.5 [skip ci]
+  - fix: UVMap updates
+  - chore: 0.5.4 [skip ci]
+  - fix: deployed font path (#53)
+  - chore: 0.5.3 [skip ci]
+  - fix: labels to text (#52)
+  - chore: 0.5.2 [skip ci]
+  - fix: .blend file update
+  - chore: 0.5.1 [skip ci]
+  - fix: full model set update
+  - chore: 0.5.0 [skip ci]
+  - feat: svgs to text (#48)
+  - refactor: sign spawn change (#47)
+  - chore: 0.4.0 [skip ci]
+  - feat: tablet added (#46)
+  - chore: 0.3.1 [skip ci]
+  - fix: label wireframes (#44)
+  - chore: 0.3.0 [skip ci]
+  - feat: debug ui (#43)
+  - chore: 0.2.1 [skip ci]
+  - fix: a return to sanity (#42)
+  - chore: small optimizations (#38)
+  - chore: 0.2.0 [skip ci]
+  - feat: collision wire frames (#37)
+  - chore: 0.1.0 [skip ci]
+  - feat: Max overlay width (#36)
+  - chore: 0.0.8 [skip ci]
+  - fix: localhost url (#35)
+  - chore: 0.0.7 [skip ci]
+  - fix: laxing bot to allow github messages (#34)
+  - chore: 0.0.6 [skip ci]
+  - fix: removing bad icon
+  - chore: updating readme (#32)
+  - chore: 0.0.5 [skip ci]
+  - fix: or so it claims
+  - fix: less picky now
+  - chore: asset storage refactor
+  - fix: removing missed refs
+  - chore: packages are a bad idea
+  - feat: semantic versioning
+
+## 1.6.0
+
+### Minor Changes
+
+- 9d7ebb0: Changeset created from conventional commits:
+
+  - chore: auto-generate changeset (#270)
+  - fix: package version merge
+  - chore: auto-generate changeset (#267)
+  - fix: manual release job lol
+  - chore: version packages (#265)
+  - chore: auto-generate changeset (#264)
+  - refactor: removing gh pages husky test
+  - chore: version packages (#261)
+  - chore: auto-generate changeset (#260)
+  - fix: manual changeset command bot name
+  - chore: version packages (#258)
+  - chore: auto-generate changeset (#257)
+  - fix: last one
+  - chore: auto-generate changeset (#254)
+  - fix: unified version merge
+  - chore: auto-generate changeset (#251)
+  - fix: better auto merge logs
+  - chore: auto-generate changeset (#248)
+  - fix: merging within pipeline
+  - chore: auto-generate changeset (#245)
+  - fix: trigger name
+  - chore: auto-generate changeset (#242)
+  - fix: auto run version merge
+  - chore: auto-generate changeset (#239)
+  - fix: write permissions
+  - fix: Merge branch 'main' into AutoSets
+  - fix: logging
+  - fix: pr creation token
+  - fix: merge command
+  - fix: Merge branch 'main' into AutoSets
+  - fix: autosets triggers
+  - feat: auto changesets
+  - fix: removing approval
+  - fix: test pnpm change
+  - revert: to warning state
+  - fix: webgl ext at three load
+  - fix: webgl warning
+  - fix: regression tests
+  - fix: now i member
+  - fix: cleaning up useless tests
+  - fix: fucking asshole
+  - fix: hoooooly
+  - fix: local load tests
+  - fix: direct image link
+  - fix: real solution
+  - revert: revert to commit 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: won't work
+  - fix: background path
+  - fix: gradient path resolving
+  - fix: reverting to 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: site path refs
+  - fix: manifest load w/verification
+  - fix: image load with verification
+  - fix: husky predeploy
+  - fix: threejs load w/ tests
+  - fix: warnings on load
+  - fix: gradient loading
+  - fix: display paths w/tests
+  - fix: csp meta tag
+  - fix: csp w/tests
+  - fix: frozen lock w/tests
+  - slice: new type
+  - fix: improving husky pre release
+  - fix: missing files and tests
+  - fix: cli and tests
+  - fix: test job
+  - fix: claude fix
+  - fix: drafts to finalized
+  - fix: single working deploy
+  - fix: no double deploy
+  - chore: version packages
+  - fix: csp protection
+  - fix: unbalanced grep
+  - fix: same shit differnt context
+  - fix: merging main
+  - fix: syntax issue
+  - fix: force pnpm
+  - fix: using pnpm
+  - fix: workspaces
+  - fix: fully rely on bot
+  - chore: 0.14.9 [skip ci]
+  - fix: typo
+  - chore: 0.14.8 [skip ci]
+  - fix: wait hack
+  - chore: 0.14.7 [skip ci]
+  - fix: so the big man says
+  - chore: 0.14.6 [skip ci]
+  - fix: improved self detection
+  - chore: 0.14.5 [skip ci]
+  - fix: simple approach
+  - chore: 0.14.4 [skip ci]
+  - fix: using new pat
+  - chore: 0.14.3 [skip ci]
+  - fix: overwrite development public/assets
+  - chore: 0.14.2 [skip ci]
+  - fix: rule check instead
+  - chore: 0.14.1 [skip ci]
+  - fix: welcome back semanto (#135)
+  - chore: 0.14.0 [skip ci]
+  - feat: blorkboard package(#134)
+  - fix: pnpm ref for semantic (#133)
+  - fix: versioning need check (#132)
+  - fix: adding semantic versioning (#131)
+  - fix: pipeline view (#130)
+  - refactor: pipeline jobs (#129)
+  - fix: pipeline repairs (#128)
+  - fix: repairing poor semantic bot (#127)
+  - fix: outputting test artifacts (#126)
+  - feat: jest unit tests (#125)
+  - fix: status link path (#123)
+  - chore: 0.12.21 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.20 [skip ci]
+  - fix: forcing delete gh branch (#122)
+  - chore: 0.12.19 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.18 [skip ci]
+  - fix: forcing deploy (#121)
+  - chore: 0.12.17 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.16 [skip ci]
+  - fix: force version bump for root project
+  - chore: 0.12.15 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.14 [skip ci]
+  - fix: semantic versioning (#119)
+  - fix: loading path (#118)
+  - fix: multiple custom_types (#117)
+  - fix: removing pipeline ci (#116)
+  - fix: spawner system (#115)
+  - chore: 0.12.13 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.12 [skip ci]
+  - fix: manual build button (#113)
+  - chore: 0.12.11 [skip ci]
+  - fix: license module to package (#112)
+  - chore: 0.12.10 [skip ci]
+  - fix: license package fix (#111)
+  - chore: 0.12.9 [skip ci]
+  - fix: licensing wording (#110)
+  - chore: 0.12.8 [skip ci]
+  - fix: package filtering publish workflow (#109)
+  - chore: 0.12.7 [skip ci]
+  - chore: readme updates (#108)
+  - chore: 0.12.6 [skip ci]
+  - fix: actually fixing tags (#107)
+  - chore: 0.12.5 [skip ci]
+  - fix: pushing tags to remote (#106)
+  - chore: 0.12.4 [skip ci]
+  - chore: 0.12.3 [skip ci]
+  - fix: husky tshy stubs (#104)
+  - chore: 0.12.2 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.1 [skip ci]
+  - fix: force version bump for blorkpack
+  - fix: variable syntax (#103)
+  - fix: husky disable (#102)
+  - fix: not skipping generation step (#101)
+  - fix: it belongs in a museum
+  - fix: versioning (#99)
+  - chore: update package-lock.json files [skip ci]
+  - fix: turbo deployment scripts (#96)
+  - chore: 0.12.0 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - feat: gh links
+  - refactor: web to porfolio
+  - fix: description web
+  - feat: color coding tabs
+  - fix: blorktools not blorkpack links
+  - feat: dynamic dashboard
+  - fix: port aquisition
+  - feat: launch dashboard
+  - fix: dev startup
+  - feat: TurboRepo/pnpm
+  - chore: 0.11.7 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - fix: hmr (#94)
+  - chore: 0.11.6 [skip ci]
+  - fix: manifest load (#93)
+  - chore: 0.11.5 [skip ci]
+  - fix: manifest pathing fix (#91)
+  - chore: 0.11.4 [skip ci]
+  - fix: back to install; sad (#89)
+  - fix: back to ci from install (#88)
+  - chore: 0.11.3 [skip ci]
+  - fix: blank cache (#87)
+  - chore: 0.11.2 [skip ci]
+  - fix: removing cache (#86)
+  - fix: deploy lock file check (#85)
+  - chore: 0.11.1 [skip ci]
+  - fix: intermediate fix (#84)
+  - chore: 0.11.0 [skip ci]
+  - fix: lock file creation (#83)
+  - chore: update package-lock.json files [skip ci]
+  - fix: package locks (#82)
+  - fix: updating dependency version (#81)
+  - feat: pipeline passes version (#80)
+  - chore: 0.10.5 [skip ci]
+  - fix: having pipeline wait for deploy (#79)
+  - chore: adding descriptors to steps (#78)
+  - chore: 0.10.4 [skip ci]
+  - fix: waiting for completion
+  - chore: 0.10.3 [skip ci]
+  - fix: spotlight toggle control
+  - fix: finding lights properly
+  - fix: spotlight debug lengths
+  - fix: always create spotlight meshes
+  - chore: vs code adjustments
+  - fix: update tween targets
+  - fix: prevent hide click
+  - fix: control menu debug spawn
+  - fix: container debug lying mesh
+  - fix: pink and red spots
+  - fix: control menu mesh
+  - fix: control menu spotlight
+  - fix: control drop physics
+  - fix: break chains small fix
+  - chore: 0.10.2 [skip ci]
+  - fix: force versioning
+  - chore: 0.10.1 [skip ci]
+  - fix: adding common scope
+  - chore: 0.10.0 [skip ci]
+  - feat: semantic release sync
+  - chore: running pipeline
+  - chore: 0.9.1 [skip ci]
+  - fix: semantic releasing for packages
+  - chore: 0.9.0 [skip ci]
+  - chore: removing temp
+  - chore: readme updates
+  - feat: blorktools package release
+  - fix: adding tools to run script
+  - fix: default to uv
+  - fix: atlas swapping kinda
+  - fix: atlas loading
+  - chore: making breakpoint for atlas fixing
+  - fix: show hide group location
+  - fix: atlas map fixed only
+  - feat: still broke but more grouping
+  - fix: all but the textures and map
+  - refactor: breaks it but more modular
+  - fix: uv select
+  - fix: dynamic uv detection
+  - fix: minimap fixes
+  - feat: atlas minimap
+  - fix: drag drop setup
+  - feat: blorktools
+  - fix: improvements to view
+  - feat: asset debugger
+  - feat: display transparent default
+  - refactor: hiding controls
+  - feat: basic display controls
+  - feat: display detection
+  - fix: more log silencing
+  - fix: silencing logs
+  - chore: 0.8.3 [skip ci]
+  - fix: using public package
+  - chore: 0.8.2 [skip ci]
+  - fix: skipping tests
+  - chore: 0.8.1 [skip ci]
+  - fix: name in pipeline
+  - fix: blorkpack pipeline
+  - chore: 0.8.0 [skip ci]
+  - fix: spotlights to asset spawner
+  - fix: spotlight helper methods copied
+  - fix: asset spawn functions async
+  - refactor: duplicate signatures
+  - refactor: system type creation functions
+  - fix: camera through manifest
+  - fix: primary spotlight through manifest
+  - fix: spotlight fields
+  - fix: single spotlight mesh flag
+  - fix: floor to system
+  - fix: camera from manifest
+  - fix: camera properties
+  - refactor: floor to manifest
+  - fix: spawn manifest assets to blorkpack
+  - fix: auto throttle to manifest
+  - fix: wording
+  - refactor: modal function
+  - fix: getter null checks
+  - fix: function name
+  - fix: debug mesh updates
+  - fix: physics optimization settings
+  - fix: background defaulting
+  - refactor: background typing
+  - chore: 0.7.3 [skip ci]
+  - fix: monitor display test
+  - refactor: loading html breakout
+  - refactor: app renderer to blorkpack
+  - fix: fucntion casing
+  - refactor: blorkpack exports
+  - refactor: blorkfield three rapier exports
+  - fix: gravity set
+  - refactor: moving null checks
+  - fix: more log fixes
+  - fix: silencing logs
+  - fix: package and flag renaming
+  - fix: correcting casing
+  - refactor: blorkpack rebrand
+  - fix: gravity to vector3
+  - fix: test restructure/manifest types created
+  - feat: manifest base
+  - fix: all objects grabbable
+  - fix: multicolored wireframes
+  - fix: forcing col layer
+  - fix: collision align
+  - fix: wireframe connection
+  - fix: mesh sizing
+  - feat: editor break
+  - chore: 0.7.2 [skip ci]
+  - fix: build error
+  - refactor: breaking to fix
+  - fix: partial fix for work resizing
+  - refactor: better monitor resizing
+  - fix: more monitor adjusts
+  - refactor: monitor background adjust
+  - fix: background hover ui filter
+  - refactor: shared creation function
+  - refactor: work background removal
+  - refactor: cube removal
+  - refactor: workd cube
+  - refactor: projects cube
+  - patch: separate education diplomas
+  - patch: new assets (#60)
+  - chore: 0.7.1 [skip ci]
+  - fix: reverting config change (#59)
+  - refactor: path to config
+  - chore: 0.7.0 [skip ci]
+  - fix: contact text bubbles
+  - fix: actually fixing right side hover
+  - fix: right side hover
+  - refactor: font util
+  - fix: query error
+  - fix: pond expand
+  - fix: water shader large bug
+  - fix: water resize
+  - fix: easing water
+  - refactor: ripple effect
+  - feat: about ripple
+  - refactor: swimming animation
+  - reafactor: phyics pause on active text
+  - fix: pause button icon
+  - fix: sleeping objects wakeup
+  - feat: debug ui pause
+  - fix: swim animation improvments
+  - refactor: chain bounce
+  - fix: smoothing scaling
+  - fix: scroll dynamic switch
+  - chore: 0.6.0 [skip ci]
+  - fix: chain wakeup timing
+  - fix: calming chain
+  - fix: scroll break chains dynamic
+  - fix: scroll break chain cleanup
+  - feat: chain dynamic conversion
+  - chore: logging flags
+  - feat: scroll kinematic
+  - fix: scroll debug meshes
+  - fix: scroll visibility
+  - refactor: scroll sign inside container
+  - fix: keep scroll mesh
+  - feat: assembly box despawn
+  - refactor: assembly box creation
+  - fix: memory management
+  - fix: control menu beam despawn
+  - chore: log base
+  - chore: purging mordor
+  - fix: scroll chain adjust
+  - fix: scroll debug meshes
+  - fix: text container off screen position
+  - fix: scroll menu animation
+  - refactor: scroll spotlight tracking
+  - fix: control menu spotlight
+  - fix: grab order
+  - chore: 0.5.6 [skip ci]
+  - fix: double cursor
+  - fix: debug clickthrough
+  - chore: 0.5.5 [skip ci]
+  - fix: UVMap updates
+  - chore: 0.5.4 [skip ci]
+  - fix: deployed font path (#53)
+  - chore: 0.5.3 [skip ci]
+  - fix: labels to text (#52)
+  - chore: 0.5.2 [skip ci]
+  - fix: .blend file update
+  - chore: 0.5.1 [skip ci]
+  - fix: full model set update
+  - chore: 0.5.0 [skip ci]
+  - feat: svgs to text (#48)
+  - refactor: sign spawn change (#47)
+  - chore: 0.4.0 [skip ci]
+  - feat: tablet added (#46)
+  - chore: 0.3.1 [skip ci]
+  - fix: label wireframes (#44)
+  - chore: 0.3.0 [skip ci]
+  - feat: debug ui (#43)
+  - chore: 0.2.1 [skip ci]
+  - fix: a return to sanity (#42)
+  - chore: small optimizations (#38)
+  - chore: 0.2.0 [skip ci]
+  - feat: collision wire frames (#37)
+  - chore: 0.1.0 [skip ci]
+  - feat: Max overlay width (#36)
+  - chore: 0.0.8 [skip ci]
+  - fix: localhost url (#35)
+  - chore: 0.0.7 [skip ci]
+  - fix: laxing bot to allow github messages (#34)
+  - chore: 0.0.6 [skip ci]
+  - fix: removing bad icon
+  - chore: updating readme (#32)
+  - chore: 0.0.5 [skip ci]
+  - fix: or so it claims
+  - fix: less picky now
+  - chore: asset storage refactor
+  - fix: removing missed refs
+  - chore: packages are a bad idea
+  - feat: semantic versioning
+
+## 1.5.0
+
+### Minor Changes
+
+- fddd0b4: Changeset created from conventional commits:
+
+  - chore: auto-generate changeset (#267)
+  - fix: manual release job lol
+  - chore: version packages (#265)
+  - chore: auto-generate changeset (#264)
+  - refactor: removing gh pages husky test
+  - chore: version packages (#261)
+  - chore: auto-generate changeset (#260)
+  - fix: manual changeset command bot name
+  - chore: version packages (#258)
+  - chore: auto-generate changeset (#257)
+  - fix: last one
+  - chore: auto-generate changeset (#254)
+  - fix: unified version merge
+  - chore: auto-generate changeset (#251)
+  - fix: better auto merge logs
+  - chore: auto-generate changeset (#248)
+  - fix: merging within pipeline
+  - chore: auto-generate changeset (#245)
+  - fix: trigger name
+  - chore: auto-generate changeset (#242)
+  - fix: auto run version merge
+  - chore: auto-generate changeset (#239)
+  - fix: write permissions
+  - fix: Merge branch 'main' into AutoSets
+  - fix: logging
+  - fix: pr creation token
+  - fix: merge command
+  - fix: Merge branch 'main' into AutoSets
+  - fix: autosets triggers
+  - feat: auto changesets
+  - fix: removing approval
+  - fix: test pnpm change
+  - revert: to warning state
+  - fix: webgl ext at three load
+  - fix: webgl warning
+  - fix: regression tests
+  - fix: now i member
+  - fix: cleaning up useless tests
+  - fix: fucking asshole
+  - fix: hoooooly
+  - fix: local load tests
+  - fix: direct image link
+  - fix: real solution
+  - revert: revert to commit 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: won't work
+  - fix: background path
+  - fix: gradient path resolving
+  - fix: reverting to 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: site path refs
+  - fix: manifest load w/verification
+  - fix: image load with verification
+  - fix: husky predeploy
+  - fix: threejs load w/ tests
+  - fix: warnings on load
+  - fix: gradient loading
+  - fix: display paths w/tests
+  - fix: csp meta tag
+  - fix: csp w/tests
+  - fix: frozen lock w/tests
+  - slice: new type
+  - fix: improving husky pre release
+  - fix: missing files and tests
+  - fix: cli and tests
+  - fix: test job
+  - fix: claude fix
+  - fix: drafts to finalized
+  - fix: single working deploy
+  - fix: no double deploy
+  - chore: version packages
+  - fix: csp protection
+  - fix: unbalanced grep
+  - fix: same shit differnt context
+  - fix: merging main
+  - fix: syntax issue
+  - fix: force pnpm
+  - fix: using pnpm
+  - fix: workspaces
+  - fix: fully rely on bot
+  - chore: 0.14.9 [skip ci]
+  - fix: typo
+  - chore: 0.14.8 [skip ci]
+  - fix: wait hack
+  - chore: 0.14.7 [skip ci]
+  - fix: so the big man says
+  - chore: 0.14.6 [skip ci]
+  - fix: improved self detection
+  - chore: 0.14.5 [skip ci]
+  - fix: simple approach
+  - chore: 0.14.4 [skip ci]
+  - fix: using new pat
+  - chore: 0.14.3 [skip ci]
+  - fix: overwrite development public/assets
+  - chore: 0.14.2 [skip ci]
+  - fix: rule check instead
+  - chore: 0.14.1 [skip ci]
+  - fix: welcome back semanto (#135)
+  - chore: 0.14.0 [skip ci]
+  - feat: blorkboard package(#134)
+  - fix: pnpm ref for semantic (#133)
+  - fix: versioning need check (#132)
+  - fix: adding semantic versioning (#131)
+  - fix: pipeline view (#130)
+  - refactor: pipeline jobs (#129)
+  - fix: pipeline repairs (#128)
+  - fix: repairing poor semantic bot (#127)
+  - fix: outputting test artifacts (#126)
+  - feat: jest unit tests (#125)
+  - fix: status link path (#123)
+  - chore: 0.12.21 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.20 [skip ci]
+  - fix: forcing delete gh branch (#122)
+  - chore: 0.12.19 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.18 [skip ci]
+  - fix: forcing deploy (#121)
+  - chore: 0.12.17 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.16 [skip ci]
+  - fix: force version bump for root project
+  - chore: 0.12.15 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.14 [skip ci]
+  - fix: semantic versioning (#119)
+  - fix: loading path (#118)
+  - fix: multiple custom_types (#117)
+  - fix: removing pipeline ci (#116)
+  - fix: spawner system (#115)
+  - chore: 0.12.13 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.12 [skip ci]
+  - fix: manual build button (#113)
+  - chore: 0.12.11 [skip ci]
+  - fix: license module to package (#112)
+  - chore: 0.12.10 [skip ci]
+  - fix: license package fix (#111)
+  - chore: 0.12.9 [skip ci]
+  - fix: licensing wording (#110)
+  - chore: 0.12.8 [skip ci]
+  - fix: package filtering publish workflow (#109)
+  - chore: 0.12.7 [skip ci]
+  - chore: readme updates (#108)
+  - chore: 0.12.6 [skip ci]
+  - fix: actually fixing tags (#107)
+  - chore: 0.12.5 [skip ci]
+  - fix: pushing tags to remote (#106)
+  - chore: 0.12.4 [skip ci]
+  - chore: 0.12.3 [skip ci]
+  - fix: husky tshy stubs (#104)
+  - chore: 0.12.2 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.1 [skip ci]
+  - fix: force version bump for blorkpack
+  - fix: variable syntax (#103)
+  - fix: husky disable (#102)
+  - fix: not skipping generation step (#101)
+  - fix: it belongs in a museum
+  - fix: versioning (#99)
+  - chore: update package-lock.json files [skip ci]
+  - fix: turbo deployment scripts (#96)
+  - chore: 0.12.0 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - feat: gh links
+  - refactor: web to porfolio
+  - fix: description web
+  - feat: color coding tabs
+  - fix: blorktools not blorkpack links
+  - feat: dynamic dashboard
+  - fix: port aquisition
+  - feat: launch dashboard
+  - fix: dev startup
+  - feat: TurboRepo/pnpm
+  - chore: 0.11.7 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - fix: hmr (#94)
+  - chore: 0.11.6 [skip ci]
+  - fix: manifest load (#93)
+  - chore: 0.11.5 [skip ci]
+  - fix: manifest pathing fix (#91)
+  - chore: 0.11.4 [skip ci]
+  - fix: back to install; sad (#89)
+  - fix: back to ci from install (#88)
+  - chore: 0.11.3 [skip ci]
+  - fix: blank cache (#87)
+  - chore: 0.11.2 [skip ci]
+  - fix: removing cache (#86)
+  - fix: deploy lock file check (#85)
+  - chore: 0.11.1 [skip ci]
+  - fix: intermediate fix (#84)
+  - chore: 0.11.0 [skip ci]
+  - fix: lock file creation (#83)
+  - chore: update package-lock.json files [skip ci]
+  - fix: package locks (#82)
+  - fix: updating dependency version (#81)
+  - feat: pipeline passes version (#80)
+  - chore: 0.10.5 [skip ci]
+  - fix: having pipeline wait for deploy (#79)
+  - chore: adding descriptors to steps (#78)
+  - chore: 0.10.4 [skip ci]
+  - fix: waiting for completion
+  - chore: 0.10.3 [skip ci]
+  - fix: spotlight toggle control
+  - fix: finding lights properly
+  - fix: spotlight debug lengths
+  - fix: always create spotlight meshes
+  - chore: vs code adjustments
+  - fix: update tween targets
+  - fix: prevent hide click
+  - fix: control menu debug spawn
+  - fix: container debug lying mesh
+  - fix: pink and red spots
+  - fix: control menu mesh
+  - fix: control menu spotlight
+  - fix: control drop physics
+  - fix: break chains small fix
+  - chore: 0.10.2 [skip ci]
+  - fix: force versioning
+  - chore: 0.10.1 [skip ci]
+  - fix: adding common scope
+  - chore: 0.10.0 [skip ci]
+  - feat: semantic release sync
+  - chore: running pipeline
+  - chore: 0.9.1 [skip ci]
+  - fix: semantic releasing for packages
+  - chore: 0.9.0 [skip ci]
+  - chore: removing temp
+  - chore: readme updates
+  - feat: blorktools package release
+  - fix: adding tools to run script
+  - fix: default to uv
+  - fix: atlas swapping kinda
+  - fix: atlas loading
+  - chore: making breakpoint for atlas fixing
+  - fix: show hide group location
+  - fix: atlas map fixed only
+  - feat: still broke but more grouping
+  - fix: all but the textures and map
+  - refactor: breaks it but more modular
+  - fix: uv select
+  - fix: dynamic uv detection
+  - fix: minimap fixes
+  - feat: atlas minimap
+  - fix: drag drop setup
+  - feat: blorktools
+  - fix: improvements to view
+  - feat: asset debugger
+  - feat: display transparent default
+  - refactor: hiding controls
+  - feat: basic display controls
+  - feat: display detection
+  - fix: more log silencing
+  - fix: silencing logs
+  - chore: 0.8.3 [skip ci]
+  - fix: using public package
+  - chore: 0.8.2 [skip ci]
+  - fix: skipping tests
+  - chore: 0.8.1 [skip ci]
+  - fix: name in pipeline
+  - fix: blorkpack pipeline
+  - chore: 0.8.0 [skip ci]
+  - fix: spotlights to asset spawner
+  - fix: spotlight helper methods copied
+  - fix: asset spawn functions async
+  - refactor: duplicate signatures
+  - refactor: system type creation functions
+  - fix: camera through manifest
+  - fix: primary spotlight through manifest
+  - fix: spotlight fields
+  - fix: single spotlight mesh flag
+  - fix: floor to system
+  - fix: camera from manifest
+  - fix: camera properties
+  - refactor: floor to manifest
+  - fix: spawn manifest assets to blorkpack
+  - fix: auto throttle to manifest
+  - fix: wording
+  - refactor: modal function
+  - fix: getter null checks
+  - fix: function name
+  - fix: debug mesh updates
+  - fix: physics optimization settings
+  - fix: background defaulting
+  - refactor: background typing
+  - chore: 0.7.3 [skip ci]
+  - fix: monitor display test
+  - refactor: loading html breakout
+  - refactor: app renderer to blorkpack
+  - fix: fucntion casing
+  - refactor: blorkpack exports
+  - refactor: blorkfield three rapier exports
+  - fix: gravity set
+  - refactor: moving null checks
+  - fix: more log fixes
+  - fix: silencing logs
+  - fix: package and flag renaming
+  - fix: correcting casing
+  - refactor: blorkpack rebrand
+  - fix: gravity to vector3
+  - fix: test restructure/manifest types created
+  - feat: manifest base
+  - fix: all objects grabbable
+  - fix: multicolored wireframes
+  - fix: forcing col layer
+  - fix: collision align
+  - fix: wireframe connection
+  - fix: mesh sizing
+  - feat: editor break
+  - chore: 0.7.2 [skip ci]
+  - fix: build error
+  - refactor: breaking to fix
+  - fix: partial fix for work resizing
+  - refactor: better monitor resizing
+  - fix: more monitor adjusts
+  - refactor: monitor background adjust
+  - fix: background hover ui filter
+  - refactor: shared creation function
+  - refactor: work background removal
+  - refactor: cube removal
+  - refactor: workd cube
+  - refactor: projects cube
+  - patch: separate education diplomas
+  - patch: new assets (#60)
+  - chore: 0.7.1 [skip ci]
+  - fix: reverting config change (#59)
+  - refactor: path to config
+  - chore: 0.7.0 [skip ci]
+  - fix: contact text bubbles
+  - fix: actually fixing right side hover
+  - fix: right side hover
+  - refactor: font util
+  - fix: query error
+  - fix: pond expand
+  - fix: water shader large bug
+  - fix: water resize
+  - fix: easing water
+  - refactor: ripple effect
+  - feat: about ripple
+  - refactor: swimming animation
+  - reafactor: phyics pause on active text
+  - fix: pause button icon
+  - fix: sleeping objects wakeup
+  - feat: debug ui pause
+  - fix: swim animation improvments
+  - refactor: chain bounce
+  - fix: smoothing scaling
+  - fix: scroll dynamic switch
+  - chore: 0.6.0 [skip ci]
+  - fix: chain wakeup timing
+  - fix: calming chain
+  - fix: scroll break chains dynamic
+  - fix: scroll break chain cleanup
+  - feat: chain dynamic conversion
+  - chore: logging flags
+  - feat: scroll kinematic
+  - fix: scroll debug meshes
+  - fix: scroll visibility
+  - refactor: scroll sign inside container
+  - fix: keep scroll mesh
+  - feat: assembly box despawn
+  - refactor: assembly box creation
+  - fix: memory management
+  - fix: control menu beam despawn
+  - chore: log base
+  - chore: purging mordor
+  - fix: scroll chain adjust
+  - fix: scroll debug meshes
+  - fix: text container off screen position
+  - fix: scroll menu animation
+  - refactor: scroll spotlight tracking
+  - fix: control menu spotlight
+  - fix: grab order
+  - chore: 0.5.6 [skip ci]
+  - fix: double cursor
+  - fix: debug clickthrough
+  - chore: 0.5.5 [skip ci]
+  - fix: UVMap updates
+  - chore: 0.5.4 [skip ci]
+  - fix: deployed font path (#53)
+  - chore: 0.5.3 [skip ci]
+  - fix: labels to text (#52)
+  - chore: 0.5.2 [skip ci]
+  - fix: .blend file update
+  - chore: 0.5.1 [skip ci]
+  - fix: full model set update
+  - chore: 0.5.0 [skip ci]
+  - feat: svgs to text (#48)
+  - refactor: sign spawn change (#47)
+  - chore: 0.4.0 [skip ci]
+  - feat: tablet added (#46)
+  - chore: 0.3.1 [skip ci]
+  - fix: label wireframes (#44)
+  - chore: 0.3.0 [skip ci]
+  - feat: debug ui (#43)
+  - chore: 0.2.1 [skip ci]
+  - fix: a return to sanity (#42)
+  - chore: small optimizations (#38)
+  - chore: 0.2.0 [skip ci]
+  - feat: collision wire frames (#37)
+  - chore: 0.1.0 [skip ci]
+  - feat: Max overlay width (#36)
+  - chore: 0.0.8 [skip ci]
+  - fix: localhost url (#35)
+  - chore: 0.0.7 [skip ci]
+  - fix: laxing bot to allow github messages (#34)
+  - chore: 0.0.6 [skip ci]
+  - fix: removing bad icon
+  - chore: updating readme (#32)
+  - chore: 0.0.5 [skip ci]
+  - fix: or so it claims
+  - fix: less picky now
+  - chore: asset storage refactor
+  - fix: removing missed refs
+  - chore: packages are a bad idea
+  - feat: semantic versioning
+
+- c2433e6: Changeset created from conventional commits:
+
+  - chore: version packages (#265)
+  - chore: auto-generate changeset (#264)
+  - refactor: removing gh pages husky test
+  - chore: version packages (#261)
+  - chore: auto-generate changeset (#260)
+  - fix: manual changeset command bot name
+  - chore: version packages (#258)
+  - chore: auto-generate changeset (#257)
+  - fix: last one
+  - chore: auto-generate changeset (#254)
+  - fix: unified version merge
+  - chore: auto-generate changeset (#251)
+  - fix: better auto merge logs
+  - chore: auto-generate changeset (#248)
+  - fix: merging within pipeline
+  - chore: auto-generate changeset (#245)
+  - fix: trigger name
+  - chore: auto-generate changeset (#242)
+  - fix: auto run version merge
+  - chore: auto-generate changeset (#239)
+  - fix: write permissions
+  - fix: Merge branch 'main' into AutoSets
+  - fix: logging
+  - fix: pr creation token
+  - fix: merge command
+  - fix: Merge branch 'main' into AutoSets
+  - fix: autosets triggers
+  - feat: auto changesets
+  - fix: removing approval
+  - fix: test pnpm change
+  - revert: to warning state
+  - fix: webgl ext at three load
+  - fix: webgl warning
+  - fix: regression tests
+  - fix: now i member
+  - fix: cleaning up useless tests
+  - fix: fucking asshole
+  - fix: hoooooly
+  - fix: local load tests
+  - fix: direct image link
+  - fix: real solution
+  - revert: revert to commit 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: won't work
+  - fix: background path
+  - fix: gradient path resolving
+  - fix: reverting to 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: site path refs
+  - fix: manifest load w/verification
+  - fix: image load with verification
+  - fix: husky predeploy
+  - fix: threejs load w/ tests
+  - fix: warnings on load
+  - fix: gradient loading
+  - fix: display paths w/tests
+  - fix: csp meta tag
+  - fix: csp w/tests
+  - fix: frozen lock w/tests
+  - slice: new type
+  - fix: improving husky pre release
+  - fix: missing files and tests
+  - fix: cli and tests
+  - fix: test job
+  - fix: claude fix
+  - fix: drafts to finalized
+  - fix: single working deploy
+  - fix: no double deploy
+  - chore: version packages
+  - fix: csp protection
+  - fix: unbalanced grep
+  - fix: same shit differnt context
+  - fix: merging main
+  - fix: syntax issue
+  - fix: force pnpm
+  - fix: using pnpm
+  - fix: workspaces
+  - fix: fully rely on bot
+  - chore: 0.14.9 [skip ci]
+  - fix: typo
+  - chore: 0.14.8 [skip ci]
+  - fix: wait hack
+  - chore: 0.14.7 [skip ci]
+  - fix: so the big man says
+  - chore: 0.14.6 [skip ci]
+  - fix: improved self detection
+  - chore: 0.14.5 [skip ci]
+  - fix: simple approach
+  - chore: 0.14.4 [skip ci]
+  - fix: using new pat
+  - chore: 0.14.3 [skip ci]
+  - fix: overwrite development public/assets
+  - chore: 0.14.2 [skip ci]
+  - fix: rule check instead
+  - chore: 0.14.1 [skip ci]
+  - fix: welcome back semanto (#135)
+  - chore: 0.14.0 [skip ci]
+  - feat: blorkboard package(#134)
+  - fix: pnpm ref for semantic (#133)
+  - fix: versioning need check (#132)
+  - fix: adding semantic versioning (#131)
+  - fix: pipeline view (#130)
+  - refactor: pipeline jobs (#129)
+  - fix: pipeline repairs (#128)
+  - fix: repairing poor semantic bot (#127)
+  - fix: outputting test artifacts (#126)
+  - feat: jest unit tests (#125)
+  - fix: status link path (#123)
+  - chore: 0.12.21 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.20 [skip ci]
+  - fix: forcing delete gh branch (#122)
+  - chore: 0.12.19 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.18 [skip ci]
+  - fix: forcing deploy (#121)
+  - chore: 0.12.17 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.16 [skip ci]
+  - fix: force version bump for root project
+  - chore: 0.12.15 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.14 [skip ci]
+  - fix: semantic versioning (#119)
+  - fix: loading path (#118)
+  - fix: multiple custom_types (#117)
+  - fix: removing pipeline ci (#116)
+  - fix: spawner system (#115)
+  - chore: 0.12.13 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.12 [skip ci]
+  - fix: manual build button (#113)
+  - chore: 0.12.11 [skip ci]
+  - fix: license module to package (#112)
+  - chore: 0.12.10 [skip ci]
+  - fix: license package fix (#111)
+  - chore: 0.12.9 [skip ci]
+  - fix: licensing wording (#110)
+  - chore: 0.12.8 [skip ci]
+  - fix: package filtering publish workflow (#109)
+  - chore: 0.12.7 [skip ci]
+  - chore: readme updates (#108)
+  - chore: 0.12.6 [skip ci]
+  - fix: actually fixing tags (#107)
+  - chore: 0.12.5 [skip ci]
+  - fix: pushing tags to remote (#106)
+  - chore: 0.12.4 [skip ci]
+  - chore: 0.12.3 [skip ci]
+  - fix: husky tshy stubs (#104)
+  - chore: 0.12.2 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.1 [skip ci]
+  - fix: force version bump for blorkpack
+  - fix: variable syntax (#103)
+  - fix: husky disable (#102)
+  - fix: not skipping generation step (#101)
+  - fix: it belongs in a museum
+  - fix: versioning (#99)
+  - chore: update package-lock.json files [skip ci]
+  - fix: turbo deployment scripts (#96)
+  - chore: 0.12.0 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - feat: gh links
+  - refactor: web to porfolio
+  - fix: description web
+  - feat: color coding tabs
+  - fix: blorktools not blorkpack links
+  - feat: dynamic dashboard
+  - fix: port aquisition
+  - feat: launch dashboard
+  - fix: dev startup
+  - feat: TurboRepo/pnpm
+  - chore: 0.11.7 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - fix: hmr (#94)
+  - chore: 0.11.6 [skip ci]
+  - fix: manifest load (#93)
+  - chore: 0.11.5 [skip ci]
+  - fix: manifest pathing fix (#91)
+  - chore: 0.11.4 [skip ci]
+  - fix: back to install; sad (#89)
+  - fix: back to ci from install (#88)
+  - chore: 0.11.3 [skip ci]
+  - fix: blank cache (#87)
+  - chore: 0.11.2 [skip ci]
+  - fix: removing cache (#86)
+  - fix: deploy lock file check (#85)
+  - chore: 0.11.1 [skip ci]
+  - fix: intermediate fix (#84)
+  - chore: 0.11.0 [skip ci]
+  - fix: lock file creation (#83)
+  - chore: update package-lock.json files [skip ci]
+  - fix: package locks (#82)
+  - fix: updating dependency version (#81)
+  - feat: pipeline passes version (#80)
+  - chore: 0.10.5 [skip ci]
+  - fix: having pipeline wait for deploy (#79)
+  - chore: adding descriptors to steps (#78)
+  - chore: 0.10.4 [skip ci]
+  - fix: waiting for completion
+  - chore: 0.10.3 [skip ci]
+  - fix: spotlight toggle control
+  - fix: finding lights properly
+  - fix: spotlight debug lengths
+  - fix: always create spotlight meshes
+  - chore: vs code adjustments
+  - fix: update tween targets
+  - fix: prevent hide click
+  - fix: control menu debug spawn
+  - fix: container debug lying mesh
+  - fix: pink and red spots
+  - fix: control menu mesh
+  - fix: control menu spotlight
+  - fix: control drop physics
+  - fix: break chains small fix
+  - chore: 0.10.2 [skip ci]
+  - fix: force versioning
+  - chore: 0.10.1 [skip ci]
+  - fix: adding common scope
+  - chore: 0.10.0 [skip ci]
+  - feat: semantic release sync
+  - chore: running pipeline
+  - chore: 0.9.1 [skip ci]
+  - fix: semantic releasing for packages
+  - chore: 0.9.0 [skip ci]
+  - chore: removing temp
+  - chore: readme updates
+  - feat: blorktools package release
+  - fix: adding tools to run script
+  - fix: default to uv
+  - fix: atlas swapping kinda
+  - fix: atlas loading
+  - chore: making breakpoint for atlas fixing
+  - fix: show hide group location
+  - fix: atlas map fixed only
+  - feat: still broke but more grouping
+  - fix: all but the textures and map
+  - refactor: breaks it but more modular
+  - fix: uv select
+  - fix: dynamic uv detection
+  - fix: minimap fixes
+  - feat: atlas minimap
+  - fix: drag drop setup
+  - feat: blorktools
+  - fix: improvements to view
+  - feat: asset debugger
+  - feat: display transparent default
+  - refactor: hiding controls
+  - feat: basic display controls
+  - feat: display detection
+  - fix: more log silencing
+  - fix: silencing logs
+  - chore: 0.8.3 [skip ci]
+  - fix: using public package
+  - chore: 0.8.2 [skip ci]
+  - fix: skipping tests
+  - chore: 0.8.1 [skip ci]
+  - fix: name in pipeline
+  - fix: blorkpack pipeline
+  - chore: 0.8.0 [skip ci]
+  - fix: spotlights to asset spawner
+  - fix: spotlight helper methods copied
+  - fix: asset spawn functions async
+  - refactor: duplicate signatures
+  - refactor: system type creation functions
+  - fix: camera through manifest
+  - fix: primary spotlight through manifest
+  - fix: spotlight fields
+  - fix: single spotlight mesh flag
+  - fix: floor to system
+  - fix: camera from manifest
+  - fix: camera properties
+  - refactor: floor to manifest
+  - fix: spawn manifest assets to blorkpack
+  - fix: auto throttle to manifest
+  - fix: wording
+  - refactor: modal function
+  - fix: getter null checks
+  - fix: function name
+  - fix: debug mesh updates
+  - fix: physics optimization settings
+  - fix: background defaulting
+  - refactor: background typing
+  - chore: 0.7.3 [skip ci]
+  - fix: monitor display test
+  - refactor: loading html breakout
+  - refactor: app renderer to blorkpack
+  - fix: fucntion casing
+  - refactor: blorkpack exports
+  - refactor: blorkfield three rapier exports
+  - fix: gravity set
+  - refactor: moving null checks
+  - fix: more log fixes
+  - fix: silencing logs
+  - fix: package and flag renaming
+  - fix: correcting casing
+  - refactor: blorkpack rebrand
+  - fix: gravity to vector3
+  - fix: test restructure/manifest types created
+  - feat: manifest base
+  - fix: all objects grabbable
+  - fix: multicolored wireframes
+  - fix: forcing col layer
+  - fix: collision align
+  - fix: wireframe connection
+  - fix: mesh sizing
+  - feat: editor break
+  - chore: 0.7.2 [skip ci]
+  - fix: build error
+  - refactor: breaking to fix
+  - fix: partial fix for work resizing
+  - refactor: better monitor resizing
+  - fix: more monitor adjusts
+  - refactor: monitor background adjust
+  - fix: background hover ui filter
+  - refactor: shared creation function
+  - refactor: work background removal
+  - refactor: cube removal
+  - refactor: workd cube
+  - refactor: projects cube
+  - patch: separate education diplomas
+  - patch: new assets (#60)
+  - chore: 0.7.1 [skip ci]
+  - fix: reverting config change (#59)
+  - refactor: path to config
+  - chore: 0.7.0 [skip ci]
+  - fix: contact text bubbles
+  - fix: actually fixing right side hover
+  - fix: right side hover
+  - refactor: font util
+  - fix: query error
+  - fix: pond expand
+  - fix: water shader large bug
+  - fix: water resize
+  - fix: easing water
+  - refactor: ripple effect
+  - feat: about ripple
+  - refactor: swimming animation
+  - reafactor: phyics pause on active text
+  - fix: pause button icon
+  - fix: sleeping objects wakeup
+  - feat: debug ui pause
+  - fix: swim animation improvments
+  - refactor: chain bounce
+  - fix: smoothing scaling
+  - fix: scroll dynamic switch
+  - chore: 0.6.0 [skip ci]
+  - fix: chain wakeup timing
+  - fix: calming chain
+  - fix: scroll break chains dynamic
+  - fix: scroll break chain cleanup
+  - feat: chain dynamic conversion
+  - chore: logging flags
+  - feat: scroll kinematic
+  - fix: scroll debug meshes
+  - fix: scroll visibility
+  - refactor: scroll sign inside container
+  - fix: keep scroll mesh
+  - feat: assembly box despawn
+  - refactor: assembly box creation
+  - fix: memory management
+  - fix: control menu beam despawn
+  - chore: log base
+  - chore: purging mordor
+  - fix: scroll chain adjust
+  - fix: scroll debug meshes
+  - fix: text container off screen position
+  - fix: scroll menu animation
+  - refactor: scroll spotlight tracking
+  - fix: control menu spotlight
+  - fix: grab order
+  - chore: 0.5.6 [skip ci]
+  - fix: double cursor
+  - fix: debug clickthrough
+  - chore: 0.5.5 [skip ci]
+  - fix: UVMap updates
+  - chore: 0.5.4 [skip ci]
+  - fix: deployed font path (#53)
+  - chore: 0.5.3 [skip ci]
+  - fix: labels to text (#52)
+  - chore: 0.5.2 [skip ci]
+  - fix: .blend file update
+  - chore: 0.5.1 [skip ci]
+  - fix: full model set update
+  - chore: 0.5.0 [skip ci]
+  - feat: svgs to text (#48)
+  - refactor: sign spawn change (#47)
+  - chore: 0.4.0 [skip ci]
+  - feat: tablet added (#46)
+  - chore: 0.3.1 [skip ci]
+  - fix: label wireframes (#44)
+  - chore: 0.3.0 [skip ci]
+  - feat: debug ui (#43)
+  - chore: 0.2.1 [skip ci]
+  - fix: a return to sanity (#42)
+  - chore: small optimizations (#38)
+  - chore: 0.2.0 [skip ci]
+  - feat: collision wire frames (#37)
+  - chore: 0.1.0 [skip ci]
+  - feat: Max overlay width (#36)
+  - chore: 0.0.8 [skip ci]
+  - fix: localhost url (#35)
+  - chore: 0.0.7 [skip ci]
+  - fix: laxing bot to allow github messages (#34)
+  - chore: 0.0.6 [skip ci]
+  - fix: removing bad icon
+  - chore: updating readme (#32)
+  - chore: 0.0.5 [skip ci]
+  - fix: or so it claims
+  - fix: less picky now
+  - chore: asset storage refactor
+  - fix: removing missed refs
+  - chore: packages are a bad idea
+  - feat: semantic versioning
+
+- e75ec94: Changeset created from conventional commits:
+
+  - chore: version packages (#261)
+  - chore: auto-generate changeset (#260)
+  - fix: manual changeset command bot name
+  - chore: version packages (#258)
+  - chore: auto-generate changeset (#257)
+  - fix: last one
+  - chore: auto-generate changeset (#254)
+  - fix: unified version merge
+  - chore: auto-generate changeset (#251)
+  - fix: better auto merge logs
+  - chore: auto-generate changeset (#248)
+  - fix: merging within pipeline
+  - chore: auto-generate changeset (#245)
+  - fix: trigger name
+  - chore: auto-generate changeset (#242)
+  - fix: auto run version merge
+  - chore: auto-generate changeset (#239)
+  - fix: write permissions
+  - fix: Merge branch 'main' into AutoSets
+  - fix: logging
+  - fix: pr creation token
+  - fix: merge command
+  - fix: Merge branch 'main' into AutoSets
+  - fix: autosets triggers
+  - feat: auto changesets
+  - fix: removing approval
+  - fix: test pnpm change
+  - revert: to warning state
+  - fix: webgl ext at three load
+  - fix: webgl warning
+  - fix: regression tests
+  - fix: now i member
+  - fix: cleaning up useless tests
+  - fix: fucking asshole
+  - fix: hoooooly
+  - fix: local load tests
+  - fix: direct image link
+  - fix: real solution
+  - revert: revert to commit 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: won't work
+  - fix: background path
+  - fix: gradient path resolving
+  - fix: reverting to 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: site path refs
+  - fix: manifest load w/verification
+  - fix: image load with verification
+  - fix: husky predeploy
+  - fix: threejs load w/ tests
+  - fix: warnings on load
+  - fix: gradient loading
+  - fix: display paths w/tests
+  - fix: csp meta tag
+  - fix: csp w/tests
+  - fix: frozen lock w/tests
+  - slice: new type
+  - fix: improving husky pre release
+  - fix: missing files and tests
+  - fix: cli and tests
+  - fix: test job
+  - fix: claude fix
+  - fix: drafts to finalized
+  - fix: single working deploy
+  - fix: no double deploy
+  - chore: version packages
+  - fix: csp protection
+  - fix: unbalanced grep
+  - fix: same shit differnt context
+  - fix: merging main
+  - fix: syntax issue
+  - fix: force pnpm
+  - fix: using pnpm
+  - fix: workspaces
+  - fix: fully rely on bot
+  - chore: 0.14.9 [skip ci]
+  - fix: typo
+  - chore: 0.14.8 [skip ci]
+  - fix: wait hack
+  - chore: 0.14.7 [skip ci]
+  - fix: so the big man says
+  - chore: 0.14.6 [skip ci]
+  - fix: improved self detection
+  - chore: 0.14.5 [skip ci]
+  - fix: simple approach
+  - chore: 0.14.4 [skip ci]
+  - fix: using new pat
+  - chore: 0.14.3 [skip ci]
+  - fix: overwrite development public/assets
+  - chore: 0.14.2 [skip ci]
+  - fix: rule check instead
+  - chore: 0.14.1 [skip ci]
+  - fix: welcome back semanto (#135)
+  - chore: 0.14.0 [skip ci]
+  - feat: blorkboard package(#134)
+  - fix: pnpm ref for semantic (#133)
+  - fix: versioning need check (#132)
+  - fix: adding semantic versioning (#131)
+  - fix: pipeline view (#130)
+  - refactor: pipeline jobs (#129)
+  - fix: pipeline repairs (#128)
+  - fix: repairing poor semantic bot (#127)
+  - fix: outputting test artifacts (#126)
+  - feat: jest unit tests (#125)
+  - fix: status link path (#123)
+  - chore: 0.12.21 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.20 [skip ci]
+  - fix: forcing delete gh branch (#122)
+  - chore: 0.12.19 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.18 [skip ci]
+  - fix: forcing deploy (#121)
+  - chore: 0.12.17 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.16 [skip ci]
+  - fix: force version bump for root project
+  - chore: 0.12.15 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.14 [skip ci]
+  - fix: semantic versioning (#119)
+  - fix: loading path (#118)
+  - fix: multiple custom_types (#117)
+  - fix: removing pipeline ci (#116)
+  - fix: spawner system (#115)
+  - chore: 0.12.13 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.12 [skip ci]
+  - fix: manual build button (#113)
+  - chore: 0.12.11 [skip ci]
+  - fix: license module to package (#112)
+  - chore: 0.12.10 [skip ci]
+  - fix: license package fix (#111)
+  - chore: 0.12.9 [skip ci]
+  - fix: licensing wording (#110)
+  - chore: 0.12.8 [skip ci]
+  - fix: package filtering publish workflow (#109)
+  - chore: 0.12.7 [skip ci]
+  - chore: readme updates (#108)
+  - chore: 0.12.6 [skip ci]
+  - fix: actually fixing tags (#107)
+  - chore: 0.12.5 [skip ci]
+  - fix: pushing tags to remote (#106)
+  - chore: 0.12.4 [skip ci]
+  - chore: 0.12.3 [skip ci]
+  - fix: husky tshy stubs (#104)
+  - chore: 0.12.2 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.1 [skip ci]
+  - fix: force version bump for blorkpack
+  - fix: variable syntax (#103)
+  - fix: husky disable (#102)
+  - fix: not skipping generation step (#101)
+  - fix: it belongs in a museum
+  - fix: versioning (#99)
+  - chore: update package-lock.json files [skip ci]
+  - fix: turbo deployment scripts (#96)
+  - chore: 0.12.0 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - feat: gh links
+  - refactor: web to porfolio
+  - fix: description web
+  - feat: color coding tabs
+  - fix: blorktools not blorkpack links
+  - feat: dynamic dashboard
+  - fix: port aquisition
+  - feat: launch dashboard
+  - fix: dev startup
+  - feat: TurboRepo/pnpm
+  - chore: 0.11.7 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - fix: hmr (#94)
+  - chore: 0.11.6 [skip ci]
+  - fix: manifest load (#93)
+  - chore: 0.11.5 [skip ci]
+  - fix: manifest pathing fix (#91)
+  - chore: 0.11.4 [skip ci]
+  - fix: back to install; sad (#89)
+  - fix: back to ci from install (#88)
+  - chore: 0.11.3 [skip ci]
+  - fix: blank cache (#87)
+  - chore: 0.11.2 [skip ci]
+  - fix: removing cache (#86)
+  - fix: deploy lock file check (#85)
+  - chore: 0.11.1 [skip ci]
+  - fix: intermediate fix (#84)
+  - chore: 0.11.0 [skip ci]
+  - fix: lock file creation (#83)
+  - chore: update package-lock.json files [skip ci]
+  - fix: package locks (#82)
+  - fix: updating dependency version (#81)
+  - feat: pipeline passes version (#80)
+  - chore: 0.10.5 [skip ci]
+  - fix: having pipeline wait for deploy (#79)
+  - chore: adding descriptors to steps (#78)
+  - chore: 0.10.4 [skip ci]
+  - fix: waiting for completion
+  - chore: 0.10.3 [skip ci]
+  - fix: spotlight toggle control
+  - fix: finding lights properly
+  - fix: spotlight debug lengths
+  - fix: always create spotlight meshes
+  - chore: vs code adjustments
+  - fix: update tween targets
+  - fix: prevent hide click
+  - fix: control menu debug spawn
+  - fix: container debug lying mesh
+  - fix: pink and red spots
+  - fix: control menu mesh
+  - fix: control menu spotlight
+  - fix: control drop physics
+  - fix: break chains small fix
+  - chore: 0.10.2 [skip ci]
+  - fix: force versioning
+  - chore: 0.10.1 [skip ci]
+  - fix: adding common scope
+  - chore: 0.10.0 [skip ci]
+  - feat: semantic release sync
+  - chore: running pipeline
+  - chore: 0.9.1 [skip ci]
+  - fix: semantic releasing for packages
+  - chore: 0.9.0 [skip ci]
+  - chore: removing temp
+  - chore: readme updates
+  - feat: blorktools package release
+  - fix: adding tools to run script
+  - fix: default to uv
+  - fix: atlas swapping kinda
+  - fix: atlas loading
+  - chore: making breakpoint for atlas fixing
+  - fix: show hide group location
+  - fix: atlas map fixed only
+  - feat: still broke but more grouping
+  - fix: all but the textures and map
+  - refactor: breaks it but more modular
+  - fix: uv select
+  - fix: dynamic uv detection
+  - fix: minimap fixes
+  - feat: atlas minimap
+  - fix: drag drop setup
+  - feat: blorktools
+  - fix: improvements to view
+  - feat: asset debugger
+  - feat: display transparent default
+  - refactor: hiding controls
+  - feat: basic display controls
+  - feat: display detection
+  - fix: more log silencing
+  - fix: silencing logs
+  - chore: 0.8.3 [skip ci]
+  - fix: using public package
+  - chore: 0.8.2 [skip ci]
+  - fix: skipping tests
+  - chore: 0.8.1 [skip ci]
+  - fix: name in pipeline
+  - fix: blorkpack pipeline
+  - chore: 0.8.0 [skip ci]
+  - fix: spotlights to asset spawner
+  - fix: spotlight helper methods copied
+  - fix: asset spawn functions async
+  - refactor: duplicate signatures
+  - refactor: system type creation functions
+  - fix: camera through manifest
+  - fix: primary spotlight through manifest
+  - fix: spotlight fields
+  - fix: single spotlight mesh flag
+  - fix: floor to system
+  - fix: camera from manifest
+  - fix: camera properties
+  - refactor: floor to manifest
+  - fix: spawn manifest assets to blorkpack
+  - fix: auto throttle to manifest
+  - fix: wording
+  - refactor: modal function
+  - fix: getter null checks
+  - fix: function name
+  - fix: debug mesh updates
+  - fix: physics optimization settings
+  - fix: background defaulting
+  - refactor: background typing
+  - chore: 0.7.3 [skip ci]
+  - fix: monitor display test
+  - refactor: loading html breakout
+  - refactor: app renderer to blorkpack
+  - fix: fucntion casing
+  - refactor: blorkpack exports
+  - refactor: blorkfield three rapier exports
+  - fix: gravity set
+  - refactor: moving null checks
+  - fix: more log fixes
+  - fix: silencing logs
+  - fix: package and flag renaming
+  - fix: correcting casing
+  - refactor: blorkpack rebrand
+  - fix: gravity to vector3
+  - fix: test restructure/manifest types created
+  - feat: manifest base
+  - fix: all objects grabbable
+  - fix: multicolored wireframes
+  - fix: forcing col layer
+  - fix: collision align
+  - fix: wireframe connection
+  - fix: mesh sizing
+  - feat: editor break
+  - chore: 0.7.2 [skip ci]
+  - fix: build error
+  - refactor: breaking to fix
+  - fix: partial fix for work resizing
+  - refactor: better monitor resizing
+  - fix: more monitor adjusts
+  - refactor: monitor background adjust
+  - fix: background hover ui filter
+  - refactor: shared creation function
+  - refactor: work background removal
+  - refactor: cube removal
+  - refactor: workd cube
+  - refactor: projects cube
+  - patch: separate education diplomas
+  - patch: new assets (#60)
+  - chore: 0.7.1 [skip ci]
+  - fix: reverting config change (#59)
+  - refactor: path to config
+  - chore: 0.7.0 [skip ci]
+  - fix: contact text bubbles
+  - fix: actually fixing right side hover
+  - fix: right side hover
+  - refactor: font util
+  - fix: query error
+  - fix: pond expand
+  - fix: water shader large bug
+  - fix: water resize
+  - fix: easing water
+  - refactor: ripple effect
+  - feat: about ripple
+  - refactor: swimming animation
+  - reafactor: phyics pause on active text
+  - fix: pause button icon
+  - fix: sleeping objects wakeup
+  - feat: debug ui pause
+  - fix: swim animation improvments
+  - refactor: chain bounce
+  - fix: smoothing scaling
+  - fix: scroll dynamic switch
+  - chore: 0.6.0 [skip ci]
+  - fix: chain wakeup timing
+  - fix: calming chain
+  - fix: scroll break chains dynamic
+  - fix: scroll break chain cleanup
+  - feat: chain dynamic conversion
+  - chore: logging flags
+  - feat: scroll kinematic
+  - fix: scroll debug meshes
+  - fix: scroll visibility
+  - refactor: scroll sign inside container
+  - fix: keep scroll mesh
+  - feat: assembly box despawn
+  - refactor: assembly box creation
+  - fix: memory management
+  - fix: control menu beam despawn
+  - chore: log base
+  - chore: purging mordor
+  - fix: scroll chain adjust
+  - fix: scroll debug meshes
+  - fix: text container off screen position
+  - fix: scroll menu animation
+  - refactor: scroll spotlight tracking
+  - fix: control menu spotlight
+  - fix: grab order
+  - chore: 0.5.6 [skip ci]
+  - fix: double cursor
+  - fix: debug clickthrough
+  - chore: 0.5.5 [skip ci]
+  - fix: UVMap updates
+  - chore: 0.5.4 [skip ci]
+  - fix: deployed font path (#53)
+  - chore: 0.5.3 [skip ci]
+  - fix: labels to text (#52)
+  - chore: 0.5.2 [skip ci]
+  - fix: .blend file update
+  - chore: 0.5.1 [skip ci]
+  - fix: full model set update
+  - chore: 0.5.0 [skip ci]
+  - feat: svgs to text (#48)
+  - refactor: sign spawn change (#47)
+  - chore: 0.4.0 [skip ci]
+  - feat: tablet added (#46)
+  - chore: 0.3.1 [skip ci]
+  - fix: label wireframes (#44)
+  - chore: 0.3.0 [skip ci]
+  - feat: debug ui (#43)
+  - chore: 0.2.1 [skip ci]
+  - fix: a return to sanity (#42)
+  - chore: small optimizations (#38)
+  - chore: 0.2.0 [skip ci]
+  - feat: collision wire frames (#37)
+  - chore: 0.1.0 [skip ci]
+  - feat: Max overlay width (#36)
+  - chore: 0.0.8 [skip ci]
+  - fix: localhost url (#35)
+  - chore: 0.0.7 [skip ci]
+  - fix: laxing bot to allow github messages (#34)
+  - chore: 0.0.6 [skip ci]
+  - fix: removing bad icon
+  - chore: updating readme (#32)
+  - chore: 0.0.5 [skip ci]
+  - fix: or so it claims
+  - fix: less picky now
+  - chore: asset storage refactor
+  - fix: removing missed refs
+  - chore: packages are a bad idea
+  - feat: semantic versioning
+
+## 1.4.0
+
+### Minor Changes
+
+- 4943aa2: Changeset created from conventional commits:
+
+  - chore: version packages (#258)
+  - chore: auto-generate changeset (#257)
+  - fix: last one
+  - chore: auto-generate changeset (#254)
+  - fix: unified version merge
+  - chore: auto-generate changeset (#251)
+  - fix: better auto merge logs
+  - chore: auto-generate changeset (#248)
+  - fix: merging within pipeline
+  - chore: auto-generate changeset (#245)
+  - fix: trigger name
+  - chore: auto-generate changeset (#242)
+  - fix: auto run version merge
+  - chore: auto-generate changeset (#239)
+  - fix: write permissions
+  - fix: Merge branch 'main' into AutoSets
+  - fix: logging
+  - fix: pr creation token
+  - fix: merge command
+  - fix: Merge branch 'main' into AutoSets
+  - fix: autosets triggers
+  - feat: auto changesets
+  - fix: removing approval
+  - fix: test pnpm change
+  - revert: to warning state
+  - fix: webgl ext at three load
+  - fix: webgl warning
+  - fix: regression tests
+  - fix: now i member
+  - fix: cleaning up useless tests
+  - fix: fucking asshole
+  - fix: hoooooly
+  - fix: local load tests
+  - fix: direct image link
+  - fix: real solution
+  - revert: revert to commit 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: won't work
+  - fix: background path
+  - fix: gradient path resolving
+  - fix: reverting to 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: site path refs
+  - fix: manifest load w/verification
+  - fix: image load with verification
+  - fix: husky predeploy
+  - fix: threejs load w/ tests
+  - fix: warnings on load
+  - fix: gradient loading
+  - fix: display paths w/tests
+  - fix: csp meta tag
+  - fix: csp w/tests
+  - fix: frozen lock w/tests
+  - slice: new type
+  - fix: improving husky pre release
+  - fix: missing files and tests
+  - fix: cli and tests
+  - fix: test job
+  - fix: claude fix
+  - fix: drafts to finalized
+  - fix: single working deploy
+  - fix: no double deploy
+  - chore: version packages
+  - fix: csp protection
+  - fix: unbalanced grep
+  - fix: same shit differnt context
+  - fix: merging main
+  - fix: syntax issue
+  - fix: force pnpm
+  - fix: using pnpm
+  - fix: workspaces
+  - fix: fully rely on bot
+  - chore: 0.14.9 [skip ci]
+  - fix: typo
+  - chore: 0.14.8 [skip ci]
+  - fix: wait hack
+  - chore: 0.14.7 [skip ci]
+  - fix: so the big man says
+  - chore: 0.14.6 [skip ci]
+  - fix: improved self detection
+  - chore: 0.14.5 [skip ci]
+  - fix: simple approach
+  - chore: 0.14.4 [skip ci]
+  - fix: using new pat
+  - chore: 0.14.3 [skip ci]
+  - fix: overwrite development public/assets
+  - chore: 0.14.2 [skip ci]
+  - fix: rule check instead
+  - chore: 0.14.1 [skip ci]
+  - fix: welcome back semanto (#135)
+  - chore: 0.14.0 [skip ci]
+  - feat: blorkboard package(#134)
+  - fix: pnpm ref for semantic (#133)
+  - fix: versioning need check (#132)
+  - fix: adding semantic versioning (#131)
+  - fix: pipeline view (#130)
+  - refactor: pipeline jobs (#129)
+  - fix: pipeline repairs (#128)
+  - fix: repairing poor semantic bot (#127)
+  - fix: outputting test artifacts (#126)
+  - feat: jest unit tests (#125)
+  - fix: status link path (#123)
+  - chore: 0.12.21 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.20 [skip ci]
+  - fix: forcing delete gh branch (#122)
+  - chore: 0.12.19 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.18 [skip ci]
+  - fix: forcing deploy (#121)
+  - chore: 0.12.17 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.16 [skip ci]
+  - fix: force version bump for root project
+  - chore: 0.12.15 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.14 [skip ci]
+  - fix: semantic versioning (#119)
+  - fix: loading path (#118)
+  - fix: multiple custom_types (#117)
+  - fix: removing pipeline ci (#116)
+  - fix: spawner system (#115)
+  - chore: 0.12.13 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.12 [skip ci]
+  - fix: manual build button (#113)
+  - chore: 0.12.11 [skip ci]
+  - fix: license module to package (#112)
+  - chore: 0.12.10 [skip ci]
+  - fix: license package fix (#111)
+  - chore: 0.12.9 [skip ci]
+  - fix: licensing wording (#110)
+  - chore: 0.12.8 [skip ci]
+  - fix: package filtering publish workflow (#109)
+  - chore: 0.12.7 [skip ci]
+  - chore: readme updates (#108)
+  - chore: 0.12.6 [skip ci]
+  - fix: actually fixing tags (#107)
+  - chore: 0.12.5 [skip ci]
+  - fix: pushing tags to remote (#106)
+  - chore: 0.12.4 [skip ci]
+  - chore: 0.12.3 [skip ci]
+  - fix: husky tshy stubs (#104)
+  - chore: 0.12.2 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.1 [skip ci]
+  - fix: force version bump for blorkpack
+  - fix: variable syntax (#103)
+  - fix: husky disable (#102)
+  - fix: not skipping generation step (#101)
+  - fix: it belongs in a museum
+  - fix: versioning (#99)
+  - chore: update package-lock.json files [skip ci]
+  - fix: turbo deployment scripts (#96)
+  - chore: 0.12.0 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - feat: gh links
+  - refactor: web to porfolio
+  - fix: description web
+  - feat: color coding tabs
+  - fix: blorktools not blorkpack links
+  - feat: dynamic dashboard
+  - fix: port aquisition
+  - feat: launch dashboard
+  - fix: dev startup
+  - feat: TurboRepo/pnpm
+  - chore: 0.11.7 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - fix: hmr (#94)
+  - chore: 0.11.6 [skip ci]
+  - fix: manifest load (#93)
+  - chore: 0.11.5 [skip ci]
+  - fix: manifest pathing fix (#91)
+  - chore: 0.11.4 [skip ci]
+  - fix: back to install; sad (#89)
+  - fix: back to ci from install (#88)
+  - chore: 0.11.3 [skip ci]
+  - fix: blank cache (#87)
+  - chore: 0.11.2 [skip ci]
+  - fix: removing cache (#86)
+  - fix: deploy lock file check (#85)
+  - chore: 0.11.1 [skip ci]
+  - fix: intermediate fix (#84)
+  - chore: 0.11.0 [skip ci]
+  - fix: lock file creation (#83)
+  - chore: update package-lock.json files [skip ci]
+  - fix: package locks (#82)
+  - fix: updating dependency version (#81)
+  - feat: pipeline passes version (#80)
+  - chore: 0.10.5 [skip ci]
+  - fix: having pipeline wait for deploy (#79)
+  - chore: adding descriptors to steps (#78)
+  - chore: 0.10.4 [skip ci]
+  - fix: waiting for completion
+  - chore: 0.10.3 [skip ci]
+  - fix: spotlight toggle control
+  - fix: finding lights properly
+  - fix: spotlight debug lengths
+  - fix: always create spotlight meshes
+  - chore: vs code adjustments
+  - fix: update tween targets
+  - fix: prevent hide click
+  - fix: control menu debug spawn
+  - fix: container debug lying mesh
+  - fix: pink and red spots
+  - fix: control menu mesh
+  - fix: control menu spotlight
+  - fix: control drop physics
+  - fix: break chains small fix
+  - chore: 0.10.2 [skip ci]
+  - fix: force versioning
+  - chore: 0.10.1 [skip ci]
+  - fix: adding common scope
+  - chore: 0.10.0 [skip ci]
+  - feat: semantic release sync
+  - chore: running pipeline
+  - chore: 0.9.1 [skip ci]
+  - fix: semantic releasing for packages
+  - chore: 0.9.0 [skip ci]
+  - chore: removing temp
+  - chore: readme updates
+  - feat: blorktools package release
+  - fix: adding tools to run script
+  - fix: default to uv
+  - fix: atlas swapping kinda
+  - fix: atlas loading
+  - chore: making breakpoint for atlas fixing
+  - fix: show hide group location
+  - fix: atlas map fixed only
+  - feat: still broke but more grouping
+  - fix: all but the textures and map
+  - refactor: breaks it but more modular
+  - fix: uv select
+  - fix: dynamic uv detection
+  - fix: minimap fixes
+  - feat: atlas minimap
+  - fix: drag drop setup
+  - feat: blorktools
+  - fix: improvements to view
+  - feat: asset debugger
+  - feat: display transparent default
+  - refactor: hiding controls
+  - feat: basic display controls
+  - feat: display detection
+  - fix: more log silencing
+  - fix: silencing logs
+  - chore: 0.8.3 [skip ci]
+  - fix: using public package
+  - chore: 0.8.2 [skip ci]
+  - fix: skipping tests
+  - chore: 0.8.1 [skip ci]
+  - fix: name in pipeline
+  - fix: blorkpack pipeline
+  - chore: 0.8.0 [skip ci]
+  - fix: spotlights to asset spawner
+  - fix: spotlight helper methods copied
+  - fix: asset spawn functions async
+  - refactor: duplicate signatures
+  - refactor: system type creation functions
+  - fix: camera through manifest
+  - fix: primary spotlight through manifest
+  - fix: spotlight fields
+  - fix: single spotlight mesh flag
+  - fix: floor to system
+  - fix: camera from manifest
+  - fix: camera properties
+  - refactor: floor to manifest
+  - fix: spawn manifest assets to blorkpack
+  - fix: auto throttle to manifest
+  - fix: wording
+  - refactor: modal function
+  - fix: getter null checks
+  - fix: function name
+  - fix: debug mesh updates
+  - fix: physics optimization settings
+  - fix: background defaulting
+  - refactor: background typing
+  - chore: 0.7.3 [skip ci]
+  - fix: monitor display test
+  - refactor: loading html breakout
+  - refactor: app renderer to blorkpack
+  - fix: fucntion casing
+  - refactor: blorkpack exports
+  - refactor: blorkfield three rapier exports
+  - fix: gravity set
+  - refactor: moving null checks
+  - fix: more log fixes
+  - fix: silencing logs
+  - fix: package and flag renaming
+  - fix: correcting casing
+  - refactor: blorkpack rebrand
+  - fix: gravity to vector3
+  - fix: test restructure/manifest types created
+  - feat: manifest base
+  - fix: all objects grabbable
+  - fix: multicolored wireframes
+  - fix: forcing col layer
+  - fix: collision align
+  - fix: wireframe connection
+  - fix: mesh sizing
+  - feat: editor break
+  - chore: 0.7.2 [skip ci]
+  - fix: build error
+  - refactor: breaking to fix
+  - fix: partial fix for work resizing
+  - refactor: better monitor resizing
+  - fix: more monitor adjusts
+  - refactor: monitor background adjust
+  - fix: background hover ui filter
+  - refactor: shared creation function
+  - refactor: work background removal
+  - refactor: cube removal
+  - refactor: workd cube
+  - refactor: projects cube
+  - patch: separate education diplomas
+  - patch: new assets (#60)
+  - chore: 0.7.1 [skip ci]
+  - fix: reverting config change (#59)
+  - refactor: path to config
+  - chore: 0.7.0 [skip ci]
+  - fix: contact text bubbles
+  - fix: actually fixing right side hover
+  - fix: right side hover
+  - refactor: font util
+  - fix: query error
+  - fix: pond expand
+  - fix: water shader large bug
+  - fix: water resize
+  - fix: easing water
+  - refactor: ripple effect
+  - feat: about ripple
+  - refactor: swimming animation
+  - reafactor: phyics pause on active text
+  - fix: pause button icon
+  - fix: sleeping objects wakeup
+  - feat: debug ui pause
+  - fix: swim animation improvments
+  - refactor: chain bounce
+  - fix: smoothing scaling
+  - fix: scroll dynamic switch
+  - chore: 0.6.0 [skip ci]
+  - fix: chain wakeup timing
+  - fix: calming chain
+  - fix: scroll break chains dynamic
+  - fix: scroll break chain cleanup
+  - feat: chain dynamic conversion
+  - chore: logging flags
+  - feat: scroll kinematic
+  - fix: scroll debug meshes
+  - fix: scroll visibility
+  - refactor: scroll sign inside container
+  - fix: keep scroll mesh
+  - feat: assembly box despawn
+  - refactor: assembly box creation
+  - fix: memory management
+  - fix: control menu beam despawn
+  - chore: log base
+  - chore: purging mordor
+  - fix: scroll chain adjust
+  - fix: scroll debug meshes
+  - fix: text container off screen position
+  - fix: scroll menu animation
+  - refactor: scroll spotlight tracking
+  - fix: control menu spotlight
+  - fix: grab order
+  - chore: 0.5.6 [skip ci]
+  - fix: double cursor
+  - fix: debug clickthrough
+  - chore: 0.5.5 [skip ci]
+  - fix: UVMap updates
+  - chore: 0.5.4 [skip ci]
+  - fix: deployed font path (#53)
+  - chore: 0.5.3 [skip ci]
+  - fix: labels to text (#52)
+  - chore: 0.5.2 [skip ci]
+  - fix: .blend file update
+  - chore: 0.5.1 [skip ci]
+  - fix: full model set update
+  - chore: 0.5.0 [skip ci]
+  - feat: svgs to text (#48)
+  - refactor: sign spawn change (#47)
+  - chore: 0.4.0 [skip ci]
+  - feat: tablet added (#46)
+  - chore: 0.3.1 [skip ci]
+  - fix: label wireframes (#44)
+  - chore: 0.3.0 [skip ci]
+  - feat: debug ui (#43)
+  - chore: 0.2.1 [skip ci]
+  - fix: a return to sanity (#42)
+  - chore: small optimizations (#38)
+  - chore: 0.2.0 [skip ci]
+  - feat: collision wire frames (#37)
+  - chore: 0.1.0 [skip ci]
+  - feat: Max overlay width (#36)
+  - chore: 0.0.8 [skip ci]
+  - fix: localhost url (#35)
+  - chore: 0.0.7 [skip ci]
+  - fix: laxing bot to allow github messages (#34)
+  - chore: 0.0.6 [skip ci]
+  - fix: removing bad icon
+  - chore: updating readme (#32)
+  - chore: 0.0.5 [skip ci]
+  - fix: or so it claims
+  - fix: less picky now
+  - chore: asset storage refactor
+  - fix: removing missed refs
+  - chore: packages are a bad idea
+  - feat: semantic versioning
+
+## 1.3.0
+
+### Minor Changes
+
+- 9da9dbf: Changeset created from conventional commits:
+
+  - chore: auto-generate changeset (#254)
+  - fix: unified version merge
+  - chore: auto-generate changeset (#251)
+  - fix: better auto merge logs
+  - chore: auto-generate changeset (#248)
+  - fix: merging within pipeline
+  - chore: auto-generate changeset (#245)
+  - fix: trigger name
+  - chore: auto-generate changeset (#242)
+  - fix: auto run version merge
+  - chore: auto-generate changeset (#239)
+  - fix: write permissions
+  - fix: Merge branch 'main' into AutoSets
+  - fix: logging
+  - fix: pr creation token
+  - fix: merge command
+  - fix: Merge branch 'main' into AutoSets
+  - fix: autosets triggers
+  - feat: auto changesets
+  - fix: removing approval
+  - fix: test pnpm change
+  - revert: to warning state
+  - fix: webgl ext at three load
+  - fix: webgl warning
+  - fix: regression tests
+  - fix: now i member
+  - fix: cleaning up useless tests
+  - fix: fucking asshole
+  - fix: hoooooly
+  - fix: local load tests
+  - fix: direct image link
+  - fix: real solution
+  - revert: revert to commit 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: won't work
+  - fix: background path
+  - fix: gradient path resolving
+  - fix: reverting to 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: site path refs
+  - fix: manifest load w/verification
+  - fix: image load with verification
+  - fix: husky predeploy
+  - fix: threejs load w/ tests
+  - fix: warnings on load
+  - fix: gradient loading
+  - fix: display paths w/tests
+  - fix: csp meta tag
+  - fix: csp w/tests
+  - fix: frozen lock w/tests
+  - slice: new type
+  - fix: improving husky pre release
+  - fix: missing files and tests
+  - fix: cli and tests
+  - fix: test job
+  - fix: claude fix
+  - fix: drafts to finalized
+  - fix: single working deploy
+  - fix: no double deploy
+  - chore: version packages
+  - fix: csp protection
+  - fix: unbalanced grep
+  - fix: same shit differnt context
+  - fix: merging main
+  - fix: syntax issue
+  - fix: force pnpm
+  - fix: using pnpm
+  - fix: workspaces
+  - fix: fully rely on bot
+  - chore: 0.14.9 [skip ci]
+  - fix: typo
+  - chore: 0.14.8 [skip ci]
+  - fix: wait hack
+  - chore: 0.14.7 [skip ci]
+  - fix: so the big man says
+  - chore: 0.14.6 [skip ci]
+  - fix: improved self detection
+  - chore: 0.14.5 [skip ci]
+  - fix: simple approach
+  - chore: 0.14.4 [skip ci]
+  - fix: using new pat
+  - chore: 0.14.3 [skip ci]
+  - fix: overwrite development public/assets
+  - chore: 0.14.2 [skip ci]
+  - fix: rule check instead
+  - chore: 0.14.1 [skip ci]
+  - fix: welcome back semanto (#135)
+  - chore: 0.14.0 [skip ci]
+  - feat: blorkboard package(#134)
+  - fix: pnpm ref for semantic (#133)
+  - fix: versioning need check (#132)
+  - fix: adding semantic versioning (#131)
+  - fix: pipeline view (#130)
+  - refactor: pipeline jobs (#129)
+  - fix: pipeline repairs (#128)
+  - fix: repairing poor semantic bot (#127)
+  - fix: outputting test artifacts (#126)
+  - feat: jest unit tests (#125)
+  - fix: status link path (#123)
+  - chore: 0.12.21 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.20 [skip ci]
+  - fix: forcing delete gh branch (#122)
+  - chore: 0.12.19 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.18 [skip ci]
+  - fix: forcing deploy (#121)
+  - chore: 0.12.17 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.16 [skip ci]
+  - fix: force version bump for root project
+  - chore: 0.12.15 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.14 [skip ci]
+  - fix: semantic versioning (#119)
+  - fix: loading path (#118)
+  - fix: multiple custom_types (#117)
+  - fix: removing pipeline ci (#116)
+  - fix: spawner system (#115)
+  - chore: 0.12.13 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.12 [skip ci]
+  - fix: manual build button (#113)
+  - chore: 0.12.11 [skip ci]
+  - fix: license module to package (#112)
+  - chore: 0.12.10 [skip ci]
+  - fix: license package fix (#111)
+  - chore: 0.12.9 [skip ci]
+  - fix: licensing wording (#110)
+  - chore: 0.12.8 [skip ci]
+  - fix: package filtering publish workflow (#109)
+  - chore: 0.12.7 [skip ci]
+  - chore: readme updates (#108)
+  - chore: 0.12.6 [skip ci]
+  - fix: actually fixing tags (#107)
+  - chore: 0.12.5 [skip ci]
+  - fix: pushing tags to remote (#106)
+  - chore: 0.12.4 [skip ci]
+  - chore: 0.12.3 [skip ci]
+  - fix: husky tshy stubs (#104)
+  - chore: 0.12.2 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.1 [skip ci]
+  - fix: force version bump for blorkpack
+  - fix: variable syntax (#103)
+  - fix: husky disable (#102)
+  - fix: not skipping generation step (#101)
+  - fix: it belongs in a museum
+  - fix: versioning (#99)
+  - chore: update package-lock.json files [skip ci]
+  - fix: turbo deployment scripts (#96)
+  - chore: 0.12.0 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - feat: gh links
+  - refactor: web to porfolio
+  - fix: description web
+  - feat: color coding tabs
+  - fix: blorktools not blorkpack links
+  - feat: dynamic dashboard
+  - fix: port aquisition
+  - feat: launch dashboard
+  - fix: dev startup
+  - feat: TurboRepo/pnpm
+  - chore: 0.11.7 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - fix: hmr (#94)
+  - chore: 0.11.6 [skip ci]
+  - fix: manifest load (#93)
+  - chore: 0.11.5 [skip ci]
+  - fix: manifest pathing fix (#91)
+  - chore: 0.11.4 [skip ci]
+  - fix: back to install; sad (#89)
+  - fix: back to ci from install (#88)
+  - chore: 0.11.3 [skip ci]
+  - fix: blank cache (#87)
+  - chore: 0.11.2 [skip ci]
+  - fix: removing cache (#86)
+  - fix: deploy lock file check (#85)
+  - chore: 0.11.1 [skip ci]
+  - fix: intermediate fix (#84)
+  - chore: 0.11.0 [skip ci]
+  - fix: lock file creation (#83)
+  - chore: update package-lock.json files [skip ci]
+  - fix: package locks (#82)
+  - fix: updating dependency version (#81)
+  - feat: pipeline passes version (#80)
+  - chore: 0.10.5 [skip ci]
+  - fix: having pipeline wait for deploy (#79)
+  - chore: adding descriptors to steps (#78)
+  - chore: 0.10.4 [skip ci]
+  - fix: waiting for completion
+  - chore: 0.10.3 [skip ci]
+  - fix: spotlight toggle control
+  - fix: finding lights properly
+  - fix: spotlight debug lengths
+  - fix: always create spotlight meshes
+  - chore: vs code adjustments
+  - fix: update tween targets
+  - fix: prevent hide click
+  - fix: control menu debug spawn
+  - fix: container debug lying mesh
+  - fix: pink and red spots
+  - fix: control menu mesh
+  - fix: control menu spotlight
+  - fix: control drop physics
+  - fix: break chains small fix
+  - chore: 0.10.2 [skip ci]
+  - fix: force versioning
+  - chore: 0.10.1 [skip ci]
+  - fix: adding common scope
+  - chore: 0.10.0 [skip ci]
+  - feat: semantic release sync
+  - chore: running pipeline
+  - chore: 0.9.1 [skip ci]
+  - fix: semantic releasing for packages
+  - chore: 0.9.0 [skip ci]
+  - chore: removing temp
+  - chore: readme updates
+  - feat: blorktools package release
+  - fix: adding tools to run script
+  - fix: default to uv
+  - fix: atlas swapping kinda
+  - fix: atlas loading
+  - chore: making breakpoint for atlas fixing
+  - fix: show hide group location
+  - fix: atlas map fixed only
+  - feat: still broke but more grouping
+  - fix: all but the textures and map
+  - refactor: breaks it but more modular
+  - fix: uv select
+  - fix: dynamic uv detection
+  - fix: minimap fixes
+  - feat: atlas minimap
+  - fix: drag drop setup
+  - feat: blorktools
+  - fix: improvements to view
+  - feat: asset debugger
+  - feat: display transparent default
+  - refactor: hiding controls
+  - feat: basic display controls
+  - feat: display detection
+  - fix: more log silencing
+  - fix: silencing logs
+  - chore: 0.8.3 [skip ci]
+  - fix: using public package
+  - chore: 0.8.2 [skip ci]
+  - fix: skipping tests
+  - chore: 0.8.1 [skip ci]
+  - fix: name in pipeline
+  - fix: blorkpack pipeline
+  - chore: 0.8.0 [skip ci]
+  - fix: spotlights to asset spawner
+  - fix: spotlight helper methods copied
+  - fix: asset spawn functions async
+  - refactor: duplicate signatures
+  - refactor: system type creation functions
+  - fix: camera through manifest
+  - fix: primary spotlight through manifest
+  - fix: spotlight fields
+  - fix: single spotlight mesh flag
+  - fix: floor to system
+  - fix: camera from manifest
+  - fix: camera properties
+  - refactor: floor to manifest
+  - fix: spawn manifest assets to blorkpack
+  - fix: auto throttle to manifest
+  - fix: wording
+  - refactor: modal function
+  - fix: getter null checks
+  - fix: function name
+  - fix: debug mesh updates
+  - fix: physics optimization settings
+  - fix: background defaulting
+  - refactor: background typing
+  - chore: 0.7.3 [skip ci]
+  - fix: monitor display test
+  - refactor: loading html breakout
+  - refactor: app renderer to blorkpack
+  - fix: fucntion casing
+  - refactor: blorkpack exports
+  - refactor: blorkfield three rapier exports
+  - fix: gravity set
+  - refactor: moving null checks
+  - fix: more log fixes
+  - fix: silencing logs
+  - fix: package and flag renaming
+  - fix: correcting casing
+  - refactor: blorkpack rebrand
+  - fix: gravity to vector3
+  - fix: test restructure/manifest types created
+  - feat: manifest base
+  - fix: all objects grabbable
+  - fix: multicolored wireframes
+  - fix: forcing col layer
+  - fix: collision align
+  - fix: wireframe connection
+  - fix: mesh sizing
+  - feat: editor break
+  - chore: 0.7.2 [skip ci]
+  - fix: build error
+  - refactor: breaking to fix
+  - fix: partial fix for work resizing
+  - refactor: better monitor resizing
+  - fix: more monitor adjusts
+  - refactor: monitor background adjust
+  - fix: background hover ui filter
+  - refactor: shared creation function
+  - refactor: work background removal
+  - refactor: cube removal
+  - refactor: workd cube
+  - refactor: projects cube
+  - patch: separate education diplomas
+  - patch: new assets (#60)
+  - chore: 0.7.1 [skip ci]
+  - fix: reverting config change (#59)
+  - refactor: path to config
+  - chore: 0.7.0 [skip ci]
+  - fix: contact text bubbles
+  - fix: actually fixing right side hover
+  - fix: right side hover
+  - refactor: font util
+  - fix: query error
+  - fix: pond expand
+  - fix: water shader large bug
+  - fix: water resize
+  - fix: easing water
+  - refactor: ripple effect
+  - feat: about ripple
+  - refactor: swimming animation
+  - reafactor: phyics pause on active text
+  - fix: pause button icon
+  - fix: sleeping objects wakeup
+  - feat: debug ui pause
+  - fix: swim animation improvments
+  - refactor: chain bounce
+  - fix: smoothing scaling
+  - fix: scroll dynamic switch
+  - chore: 0.6.0 [skip ci]
+  - fix: chain wakeup timing
+  - fix: calming chain
+  - fix: scroll break chains dynamic
+  - fix: scroll break chain cleanup
+  - feat: chain dynamic conversion
+  - chore: logging flags
+  - feat: scroll kinematic
+  - fix: scroll debug meshes
+  - fix: scroll visibility
+  - refactor: scroll sign inside container
+  - fix: keep scroll mesh
+  - feat: assembly box despawn
+  - refactor: assembly box creation
+  - fix: memory management
+  - fix: control menu beam despawn
+  - chore: log base
+  - chore: purging mordor
+  - fix: scroll chain adjust
+  - fix: scroll debug meshes
+  - fix: text container off screen position
+  - fix: scroll menu animation
+  - refactor: scroll spotlight tracking
+  - fix: control menu spotlight
+  - fix: grab order
+  - chore: 0.5.6 [skip ci]
+  - fix: double cursor
+  - fix: debug clickthrough
+  - chore: 0.5.5 [skip ci]
+  - fix: UVMap updates
+  - chore: 0.5.4 [skip ci]
+  - fix: deployed font path (#53)
+  - chore: 0.5.3 [skip ci]
+  - fix: labels to text (#52)
+  - chore: 0.5.2 [skip ci]
+  - fix: .blend file update
+  - chore: 0.5.1 [skip ci]
+  - fix: full model set update
+  - chore: 0.5.0 [skip ci]
+  - feat: svgs to text (#48)
+  - refactor: sign spawn change (#47)
+  - chore: 0.4.0 [skip ci]
+  - feat: tablet added (#46)
+  - chore: 0.3.1 [skip ci]
+  - fix: label wireframes (#44)
+  - chore: 0.3.0 [skip ci]
+  - feat: debug ui (#43)
+  - chore: 0.2.1 [skip ci]
+  - fix: a return to sanity (#42)
+  - chore: small optimizations (#38)
+  - chore: 0.2.0 [skip ci]
+  - feat: collision wire frames (#37)
+  - chore: 0.1.0 [skip ci]
+  - feat: Max overlay width (#36)
+  - chore: 0.0.8 [skip ci]
+  - fix: localhost url (#35)
+  - chore: 0.0.7 [skip ci]
+  - fix: laxing bot to allow github messages (#34)
+  - chore: 0.0.6 [skip ci]
+  - fix: removing bad icon
+  - chore: updating readme (#32)
+  - chore: 0.0.5 [skip ci]
+  - fix: or so it claims
+  - fix: less picky now
+  - chore: asset storage refactor
+  - fix: removing missed refs
+  - chore: packages are a bad idea
+  - feat: semantic versioning
+
+## 1.2.0
+
+### Minor Changes
+
+- 7acb212: Changeset created from conventional commits:
+
+  - chore: auto-generate changeset (#251)
+  - fix: better auto merge logs
+  - chore: auto-generate changeset (#248)
+  - fix: merging within pipeline
+  - chore: auto-generate changeset (#245)
+  - fix: trigger name
+  - chore: auto-generate changeset (#242)
+  - fix: auto run version merge
+  - chore: auto-generate changeset (#239)
+  - fix: write permissions
+  - fix: Merge branch 'main' into AutoSets
+  - fix: logging
+  - fix: pr creation token
+  - fix: merge command
+  - fix: Merge branch 'main' into AutoSets
+  - fix: autosets triggers
+  - feat: auto changesets
+  - fix: removing approval
+  - fix: test pnpm change
+  - revert: to warning state
+  - fix: webgl ext at three load
+  - fix: webgl warning
+  - fix: regression tests
+  - fix: now i member
+  - fix: cleaning up useless tests
+  - fix: fucking asshole
+  - fix: hoooooly
+  - fix: local load tests
+  - fix: direct image link
+  - fix: real solution
+  - revert: revert to commit 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: won't work
+  - fix: background path
+  - fix: gradient path resolving
+  - fix: reverting to 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: site path refs
+  - fix: manifest load w/verification
+  - fix: image load with verification
+  - fix: husky predeploy
+  - fix: threejs load w/ tests
+  - fix: warnings on load
+  - fix: gradient loading
+  - fix: display paths w/tests
+  - fix: csp meta tag
+  - fix: csp w/tests
+  - fix: frozen lock w/tests
+  - slice: new type
+  - fix: improving husky pre release
+  - fix: missing files and tests
+  - fix: cli and tests
+  - fix: test job
+  - fix: claude fix
+  - fix: drafts to finalized
+  - fix: single working deploy
+  - fix: no double deploy
+  - chore: version packages
+  - fix: csp protection
+  - fix: unbalanced grep
+  - fix: same shit differnt context
+  - fix: merging main
+  - fix: syntax issue
+  - fix: force pnpm
+  - fix: using pnpm
+  - fix: workspaces
+  - fix: fully rely on bot
+  - chore: 0.14.9 [skip ci]
+  - fix: typo
+  - chore: 0.14.8 [skip ci]
+  - fix: wait hack
+  - chore: 0.14.7 [skip ci]
+  - fix: so the big man says
+  - chore: 0.14.6 [skip ci]
+  - fix: improved self detection
+  - chore: 0.14.5 [skip ci]
+  - fix: simple approach
+  - chore: 0.14.4 [skip ci]
+  - fix: using new pat
+  - chore: 0.14.3 [skip ci]
+  - fix: overwrite development public/assets
+  - chore: 0.14.2 [skip ci]
+  - fix: rule check instead
+  - chore: 0.14.1 [skip ci]
+  - fix: welcome back semanto (#135)
+  - chore: 0.14.0 [skip ci]
+  - feat: blorkboard package(#134)
+  - fix: pnpm ref for semantic (#133)
+  - fix: versioning need check (#132)
+  - fix: adding semantic versioning (#131)
+  - fix: pipeline view (#130)
+  - refactor: pipeline jobs (#129)
+  - fix: pipeline repairs (#128)
+  - fix: repairing poor semantic bot (#127)
+  - fix: outputting test artifacts (#126)
+  - feat: jest unit tests (#125)
+  - fix: status link path (#123)
+  - chore: 0.12.21 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.20 [skip ci]
+  - fix: forcing delete gh branch (#122)
+  - chore: 0.12.19 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.18 [skip ci]
+  - fix: forcing deploy (#121)
+  - chore: 0.12.17 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.16 [skip ci]
+  - fix: force version bump for root project
+  - chore: 0.12.15 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.14 [skip ci]
+  - fix: semantic versioning (#119)
+  - fix: loading path (#118)
+  - fix: multiple custom_types (#117)
+  - fix: removing pipeline ci (#116)
+  - fix: spawner system (#115)
+  - chore: 0.12.13 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.12 [skip ci]
+  - fix: manual build button (#113)
+  - chore: 0.12.11 [skip ci]
+  - fix: license module to package (#112)
+  - chore: 0.12.10 [skip ci]
+  - fix: license package fix (#111)
+  - chore: 0.12.9 [skip ci]
+  - fix: licensing wording (#110)
+  - chore: 0.12.8 [skip ci]
+  - fix: package filtering publish workflow (#109)
+  - chore: 0.12.7 [skip ci]
+  - chore: readme updates (#108)
+  - chore: 0.12.6 [skip ci]
+  - fix: actually fixing tags (#107)
+  - chore: 0.12.5 [skip ci]
+  - fix: pushing tags to remote (#106)
+  - chore: 0.12.4 [skip ci]
+  - chore: 0.12.3 [skip ci]
+  - fix: husky tshy stubs (#104)
+  - chore: 0.12.2 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.1 [skip ci]
+  - fix: force version bump for blorkpack
+  - fix: variable syntax (#103)
+  - fix: husky disable (#102)
+  - fix: not skipping generation step (#101)
+  - fix: it belongs in a museum
+  - fix: versioning (#99)
+  - chore: update package-lock.json files [skip ci]
+  - fix: turbo deployment scripts (#96)
+  - chore: 0.12.0 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - feat: gh links
+  - refactor: web to porfolio
+  - fix: description web
+  - feat: color coding tabs
+  - fix: blorktools not blorkpack links
+  - feat: dynamic dashboard
+  - fix: port aquisition
+  - feat: launch dashboard
+  - fix: dev startup
+  - feat: TurboRepo/pnpm
+  - chore: 0.11.7 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - fix: hmr (#94)
+  - chore: 0.11.6 [skip ci]
+  - fix: manifest load (#93)
+  - chore: 0.11.5 [skip ci]
+  - fix: manifest pathing fix (#91)
+  - chore: 0.11.4 [skip ci]
+  - fix: back to install; sad (#89)
+  - fix: back to ci from install (#88)
+  - chore: 0.11.3 [skip ci]
+  - fix: blank cache (#87)
+  - chore: 0.11.2 [skip ci]
+  - fix: removing cache (#86)
+  - fix: deploy lock file check (#85)
+  - chore: 0.11.1 [skip ci]
+  - fix: intermediate fix (#84)
+  - chore: 0.11.0 [skip ci]
+  - fix: lock file creation (#83)
+  - chore: update package-lock.json files [skip ci]
+  - fix: package locks (#82)
+  - fix: updating dependency version (#81)
+  - feat: pipeline passes version (#80)
+  - chore: 0.10.5 [skip ci]
+  - fix: having pipeline wait for deploy (#79)
+  - chore: adding descriptors to steps (#78)
+  - chore: 0.10.4 [skip ci]
+  - fix: waiting for completion
+  - chore: 0.10.3 [skip ci]
+  - fix: spotlight toggle control
+  - fix: finding lights properly
+  - fix: spotlight debug lengths
+  - fix: always create spotlight meshes
+  - chore: vs code adjustments
+  - fix: update tween targets
+  - fix: prevent hide click
+  - fix: control menu debug spawn
+  - fix: container debug lying mesh
+  - fix: pink and red spots
+  - fix: control menu mesh
+  - fix: control menu spotlight
+  - fix: control drop physics
+  - fix: break chains small fix
+  - chore: 0.10.2 [skip ci]
+  - fix: force versioning
+  - chore: 0.10.1 [skip ci]
+  - fix: adding common scope
+  - chore: 0.10.0 [skip ci]
+  - feat: semantic release sync
+  - chore: running pipeline
+  - chore: 0.9.1 [skip ci]
+  - fix: semantic releasing for packages
+  - chore: 0.9.0 [skip ci]
+  - chore: removing temp
+  - chore: readme updates
+  - feat: blorktools package release
+  - fix: adding tools to run script
+  - fix: default to uv
+  - fix: atlas swapping kinda
+  - fix: atlas loading
+  - chore: making breakpoint for atlas fixing
+  - fix: show hide group location
+  - fix: atlas map fixed only
+  - feat: still broke but more grouping
+  - fix: all but the textures and map
+  - refactor: breaks it but more modular
+  - fix: uv select
+  - fix: dynamic uv detection
+  - fix: minimap fixes
+  - feat: atlas minimap
+  - fix: drag drop setup
+  - feat: blorktools
+  - fix: improvements to view
+  - feat: asset debugger
+  - feat: display transparent default
+  - refactor: hiding controls
+  - feat: basic display controls
+  - feat: display detection
+  - fix: more log silencing
+  - fix: silencing logs
+  - chore: 0.8.3 [skip ci]
+  - fix: using public package
+  - chore: 0.8.2 [skip ci]
+  - fix: skipping tests
+  - chore: 0.8.1 [skip ci]
+  - fix: name in pipeline
+  - fix: blorkpack pipeline
+  - chore: 0.8.0 [skip ci]
+  - fix: spotlights to asset spawner
+  - fix: spotlight helper methods copied
+  - fix: asset spawn functions async
+  - refactor: duplicate signatures
+  - refactor: system type creation functions
+  - fix: camera through manifest
+  - fix: primary spotlight through manifest
+  - fix: spotlight fields
+  - fix: single spotlight mesh flag
+  - fix: floor to system
+  - fix: camera from manifest
+  - fix: camera properties
+  - refactor: floor to manifest
+  - fix: spawn manifest assets to blorkpack
+  - fix: auto throttle to manifest
+  - fix: wording
+  - refactor: modal function
+  - fix: getter null checks
+  - fix: function name
+  - fix: debug mesh updates
+  - fix: physics optimization settings
+  - fix: background defaulting
+  - refactor: background typing
+  - chore: 0.7.3 [skip ci]
+  - fix: monitor display test
+  - refactor: loading html breakout
+  - refactor: app renderer to blorkpack
+  - fix: fucntion casing
+  - refactor: blorkpack exports
+  - refactor: blorkfield three rapier exports
+  - fix: gravity set
+  - refactor: moving null checks
+  - fix: more log fixes
+  - fix: silencing logs
+  - fix: package and flag renaming
+  - fix: correcting casing
+  - refactor: blorkpack rebrand
+  - fix: gravity to vector3
+  - fix: test restructure/manifest types created
+  - feat: manifest base
+  - fix: all objects grabbable
+  - fix: multicolored wireframes
+  - fix: forcing col layer
+  - fix: collision align
+  - fix: wireframe connection
+  - fix: mesh sizing
+  - feat: editor break
+  - chore: 0.7.2 [skip ci]
+  - fix: build error
+  - refactor: breaking to fix
+  - fix: partial fix for work resizing
+  - refactor: better monitor resizing
+  - fix: more monitor adjusts
+  - refactor: monitor background adjust
+  - fix: background hover ui filter
+  - refactor: shared creation function
+  - refactor: work background removal
+  - refactor: cube removal
+  - refactor: workd cube
+  - refactor: projects cube
+  - patch: separate education diplomas
+  - patch: new assets (#60)
+  - chore: 0.7.1 [skip ci]
+  - fix: reverting config change (#59)
+  - refactor: path to config
+  - chore: 0.7.0 [skip ci]
+  - fix: contact text bubbles
+  - fix: actually fixing right side hover
+  - fix: right side hover
+  - refactor: font util
+  - fix: query error
+  - fix: pond expand
+  - fix: water shader large bug
+  - fix: water resize
+  - fix: easing water
+  - refactor: ripple effect
+  - feat: about ripple
+  - refactor: swimming animation
+  - reafactor: phyics pause on active text
+  - fix: pause button icon
+  - fix: sleeping objects wakeup
+  - feat: debug ui pause
+  - fix: swim animation improvments
+  - refactor: chain bounce
+  - fix: smoothing scaling
+  - fix: scroll dynamic switch
+  - chore: 0.6.0 [skip ci]
+  - fix: chain wakeup timing
+  - fix: calming chain
+  - fix: scroll break chains dynamic
+  - fix: scroll break chain cleanup
+  - feat: chain dynamic conversion
+  - chore: logging flags
+  - feat: scroll kinematic
+  - fix: scroll debug meshes
+  - fix: scroll visibility
+  - refactor: scroll sign inside container
+  - fix: keep scroll mesh
+  - feat: assembly box despawn
+  - refactor: assembly box creation
+  - fix: memory management
+  - fix: control menu beam despawn
+  - chore: log base
+  - chore: purging mordor
+  - fix: scroll chain adjust
+  - fix: scroll debug meshes
+  - fix: text container off screen position
+  - fix: scroll menu animation
+  - refactor: scroll spotlight tracking
+  - fix: control menu spotlight
+  - fix: grab order
+  - chore: 0.5.6 [skip ci]
+  - fix: double cursor
+  - fix: debug clickthrough
+  - chore: 0.5.5 [skip ci]
+  - fix: UVMap updates
+  - chore: 0.5.4 [skip ci]
+  - fix: deployed font path (#53)
+  - chore: 0.5.3 [skip ci]
+  - fix: labels to text (#52)
+  - chore: 0.5.2 [skip ci]
+  - fix: .blend file update
+  - chore: 0.5.1 [skip ci]
+  - fix: full model set update
+  - chore: 0.5.0 [skip ci]
+  - feat: svgs to text (#48)
+  - refactor: sign spawn change (#47)
+  - chore: 0.4.0 [skip ci]
+  - feat: tablet added (#46)
+  - chore: 0.3.1 [skip ci]
+  - fix: label wireframes (#44)
+  - chore: 0.3.0 [skip ci]
+  - feat: debug ui (#43)
+  - chore: 0.2.1 [skip ci]
+  - fix: a return to sanity (#42)
+  - chore: small optimizations (#38)
+  - chore: 0.2.0 [skip ci]
+  - feat: collision wire frames (#37)
+  - chore: 0.1.0 [skip ci]
+  - feat: Max overlay width (#36)
+  - chore: 0.0.8 [skip ci]
+  - fix: localhost url (#35)
+  - chore: 0.0.7 [skip ci]
+  - fix: laxing bot to allow github messages (#34)
+  - chore: 0.0.6 [skip ci]
+  - fix: removing bad icon
+  - chore: updating readme (#32)
+  - chore: 0.0.5 [skip ci]
+  - fix: or so it claims
+  - fix: less picky now
+  - chore: asset storage refactor
+  - fix: removing missed refs
+  - chore: packages are a bad idea
+  - feat: semantic versioning
+
+- 236cf2c: Changeset created from conventional commits:
+
+  - chore: auto-generate changeset (#245)
+  - fix: trigger name
+  - chore: auto-generate changeset (#242)
+  - fix: auto run version merge
+  - chore: auto-generate changeset (#239)
+  - fix: write permissions
+  - fix: Merge branch 'main' into AutoSets
+  - fix: logging
+  - fix: pr creation token
+  - fix: merge command
+  - fix: Merge branch 'main' into AutoSets
+  - fix: autosets triggers
+  - feat: auto changesets
+  - fix: removing approval
+  - fix: test pnpm change
+  - revert: to warning state
+  - fix: webgl ext at three load
+  - fix: webgl warning
+  - fix: regression tests
+  - fix: now i member
+  - fix: cleaning up useless tests
+  - fix: fucking asshole
+  - fix: hoooooly
+  - fix: local load tests
+  - fix: direct image link
+  - fix: real solution
+  - revert: revert to commit 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: won't work
+  - fix: background path
+  - fix: gradient path resolving
+  - fix: reverting to 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: site path refs
+  - fix: manifest load w/verification
+  - fix: image load with verification
+  - fix: husky predeploy
+  - fix: threejs load w/ tests
+  - fix: warnings on load
+  - fix: gradient loading
+  - fix: display paths w/tests
+  - fix: csp meta tag
+  - fix: csp w/tests
+  - fix: frozen lock w/tests
+  - slice: new type
+  - fix: improving husky pre release
+  - fix: missing files and tests
+  - fix: cli and tests
+  - fix: test job
+  - fix: claude fix
+  - fix: drafts to finalized
+  - fix: single working deploy
+  - fix: no double deploy
+  - chore: version packages
+  - fix: csp protection
+  - fix: unbalanced grep
+  - fix: same shit differnt context
+  - fix: merging main
+  - fix: syntax issue
+  - fix: force pnpm
+  - fix: using pnpm
+  - fix: workspaces
+  - fix: fully rely on bot
+  - chore: 0.14.9 [skip ci]
+  - fix: typo
+  - chore: 0.14.8 [skip ci]
+  - fix: wait hack
+  - chore: 0.14.7 [skip ci]
+  - fix: so the big man says
+  - chore: 0.14.6 [skip ci]
+  - fix: improved self detection
+  - chore: 0.14.5 [skip ci]
+  - fix: simple approach
+  - chore: 0.14.4 [skip ci]
+  - fix: using new pat
+  - chore: 0.14.3 [skip ci]
+  - fix: overwrite development public/assets
+  - chore: 0.14.2 [skip ci]
+  - fix: rule check instead
+  - chore: 0.14.1 [skip ci]
+  - fix: welcome back semanto (#135)
+  - chore: 0.14.0 [skip ci]
+  - feat: blorkboard package(#134)
+  - fix: pnpm ref for semantic (#133)
+  - fix: versioning need check (#132)
+  - fix: adding semantic versioning (#131)
+  - fix: pipeline view (#130)
+  - refactor: pipeline jobs (#129)
+  - fix: pipeline repairs (#128)
+  - fix: repairing poor semantic bot (#127)
+  - fix: outputting test artifacts (#126)
+  - feat: jest unit tests (#125)
+  - fix: status link path (#123)
+  - chore: 0.12.21 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.20 [skip ci]
+  - fix: forcing delete gh branch (#122)
+  - chore: 0.12.19 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.18 [skip ci]
+  - fix: forcing deploy (#121)
+  - chore: 0.12.17 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.16 [skip ci]
+  - fix: force version bump for root project
+  - chore: 0.12.15 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.14 [skip ci]
+  - fix: semantic versioning (#119)
+  - fix: loading path (#118)
+  - fix: multiple custom_types (#117)
+  - fix: removing pipeline ci (#116)
+  - fix: spawner system (#115)
+  - chore: 0.12.13 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.12 [skip ci]
+  - fix: manual build button (#113)
+  - chore: 0.12.11 [skip ci]
+  - fix: license module to package (#112)
+  - chore: 0.12.10 [skip ci]
+  - fix: license package fix (#111)
+  - chore: 0.12.9 [skip ci]
+  - fix: licensing wording (#110)
+  - chore: 0.12.8 [skip ci]
+  - fix: package filtering publish workflow (#109)
+  - chore: 0.12.7 [skip ci]
+  - chore: readme updates (#108)
+  - chore: 0.12.6 [skip ci]
+  - fix: actually fixing tags (#107)
+  - chore: 0.12.5 [skip ci]
+  - fix: pushing tags to remote (#106)
+  - chore: 0.12.4 [skip ci]
+  - chore: 0.12.3 [skip ci]
+  - fix: husky tshy stubs (#104)
+  - chore: 0.12.2 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.1 [skip ci]
+  - fix: force version bump for blorkpack
+  - fix: variable syntax (#103)
+  - fix: husky disable (#102)
+  - fix: not skipping generation step (#101)
+  - fix: it belongs in a museum
+  - fix: versioning (#99)
+  - chore: update package-lock.json files [skip ci]
+  - fix: turbo deployment scripts (#96)
+  - chore: 0.12.0 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - feat: gh links
+  - refactor: web to porfolio
+  - fix: description web
+  - feat: color coding tabs
+  - fix: blorktools not blorkpack links
+  - feat: dynamic dashboard
+  - fix: port aquisition
+  - feat: launch dashboard
+  - fix: dev startup
+  - feat: TurboRepo/pnpm
+  - chore: 0.11.7 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - fix: hmr (#94)
+  - chore: 0.11.6 [skip ci]
+  - fix: manifest load (#93)
+  - chore: 0.11.5 [skip ci]
+  - fix: manifest pathing fix (#91)
+  - chore: 0.11.4 [skip ci]
+  - fix: back to install; sad (#89)
+  - fix: back to ci from install (#88)
+  - chore: 0.11.3 [skip ci]
+  - fix: blank cache (#87)
+  - chore: 0.11.2 [skip ci]
+  - fix: removing cache (#86)
+  - fix: deploy lock file check (#85)
+  - chore: 0.11.1 [skip ci]
+  - fix: intermediate fix (#84)
+  - chore: 0.11.0 [skip ci]
+  - fix: lock file creation (#83)
+  - chore: update package-lock.json files [skip ci]
+  - fix: package locks (#82)
+  - fix: updating dependency version (#81)
+  - feat: pipeline passes version (#80)
+  - chore: 0.10.5 [skip ci]
+  - fix: having pipeline wait for deploy (#79)
+  - chore: adding descriptors to steps (#78)
+  - chore: 0.10.4 [skip ci]
+  - fix: waiting for completion
+  - chore: 0.10.3 [skip ci]
+  - fix: spotlight toggle control
+  - fix: finding lights properly
+  - fix: spotlight debug lengths
+  - fix: always create spotlight meshes
+  - chore: vs code adjustments
+  - fix: update tween targets
+  - fix: prevent hide click
+  - fix: control menu debug spawn
+  - fix: container debug lying mesh
+  - fix: pink and red spots
+  - fix: control menu mesh
+  - fix: control menu spotlight
+  - fix: control drop physics
+  - fix: break chains small fix
+  - chore: 0.10.2 [skip ci]
+  - fix: force versioning
+  - chore: 0.10.1 [skip ci]
+  - fix: adding common scope
+  - chore: 0.10.0 [skip ci]
+  - feat: semantic release sync
+  - chore: running pipeline
+  - chore: 0.9.1 [skip ci]
+  - fix: semantic releasing for packages
+  - chore: 0.9.0 [skip ci]
+  - chore: removing temp
+  - chore: readme updates
+  - feat: blorktools package release
+  - fix: adding tools to run script
+  - fix: default to uv
+  - fix: atlas swapping kinda
+  - fix: atlas loading
+  - chore: making breakpoint for atlas fixing
+  - fix: show hide group location
+  - fix: atlas map fixed only
+  - feat: still broke but more grouping
+  - fix: all but the textures and map
+  - refactor: breaks it but more modular
+  - fix: uv select
+  - fix: dynamic uv detection
+  - fix: minimap fixes
+  - feat: atlas minimap
+  - fix: drag drop setup
+  - feat: blorktools
+  - fix: improvements to view
+  - feat: asset debugger
+  - feat: display transparent default
+  - refactor: hiding controls
+  - feat: basic display controls
+  - feat: display detection
+  - fix: more log silencing
+  - fix: silencing logs
+  - chore: 0.8.3 [skip ci]
+  - fix: using public package
+  - chore: 0.8.2 [skip ci]
+  - fix: skipping tests
+  - chore: 0.8.1 [skip ci]
+  - fix: name in pipeline
+  - fix: blorkpack pipeline
+  - chore: 0.8.0 [skip ci]
+  - fix: spotlights to asset spawner
+  - fix: spotlight helper methods copied
+  - fix: asset spawn functions async
+  - refactor: duplicate signatures
+  - refactor: system type creation functions
+  - fix: camera through manifest
+  - fix: primary spotlight through manifest
+  - fix: spotlight fields
+  - fix: single spotlight mesh flag
+  - fix: floor to system
+  - fix: camera from manifest
+  - fix: camera properties
+  - refactor: floor to manifest
+  - fix: spawn manifest assets to blorkpack
+  - fix: auto throttle to manifest
+  - fix: wording
+  - refactor: modal function
+  - fix: getter null checks
+  - fix: function name
+  - fix: debug mesh updates
+  - fix: physics optimization settings
+  - fix: background defaulting
+  - refactor: background typing
+  - chore: 0.7.3 [skip ci]
+  - fix: monitor display test
+  - refactor: loading html breakout
+  - refactor: app renderer to blorkpack
+  - fix: fucntion casing
+  - refactor: blorkpack exports
+  - refactor: blorkfield three rapier exports
+  - fix: gravity set
+  - refactor: moving null checks
+  - fix: more log fixes
+  - fix: silencing logs
+  - fix: package and flag renaming
+  - fix: correcting casing
+  - refactor: blorkpack rebrand
+  - fix: gravity to vector3
+  - fix: test restructure/manifest types created
+  - feat: manifest base
+  - fix: all objects grabbable
+  - fix: multicolored wireframes
+  - fix: forcing col layer
+  - fix: collision align
+  - fix: wireframe connection
+  - fix: mesh sizing
+  - feat: editor break
+  - chore: 0.7.2 [skip ci]
+  - fix: build error
+  - refactor: breaking to fix
+  - fix: partial fix for work resizing
+  - refactor: better monitor resizing
+  - fix: more monitor adjusts
+  - refactor: monitor background adjust
+  - fix: background hover ui filter
+  - refactor: shared creation function
+  - refactor: work background removal
+  - refactor: cube removal
+  - refactor: workd cube
+  - refactor: projects cube
+  - patch: separate education diplomas
+  - patch: new assets (#60)
+  - chore: 0.7.1 [skip ci]
+  - fix: reverting config change (#59)
+  - refactor: path to config
+  - chore: 0.7.0 [skip ci]
+  - fix: contact text bubbles
+  - fix: actually fixing right side hover
+  - fix: right side hover
+  - refactor: font util
+  - fix: query error
+  - fix: pond expand
+  - fix: water shader large bug
+  - fix: water resize
+  - fix: easing water
+  - refactor: ripple effect
+  - feat: about ripple
+  - refactor: swimming animation
+  - reafactor: phyics pause on active text
+  - fix: pause button icon
+  - fix: sleeping objects wakeup
+  - feat: debug ui pause
+  - fix: swim animation improvments
+  - refactor: chain bounce
+  - fix: smoothing scaling
+  - fix: scroll dynamic switch
+  - chore: 0.6.0 [skip ci]
+  - fix: chain wakeup timing
+  - fix: calming chain
+  - fix: scroll break chains dynamic
+  - fix: scroll break chain cleanup
+  - feat: chain dynamic conversion
+  - chore: logging flags
+  - feat: scroll kinematic
+  - fix: scroll debug meshes
+  - fix: scroll visibility
+  - refactor: scroll sign inside container
+  - fix: keep scroll mesh
+  - feat: assembly box despawn
+  - refactor: assembly box creation
+  - fix: memory management
+  - fix: control menu beam despawn
+  - chore: log base
+  - chore: purging mordor
+  - fix: scroll chain adjust
+  - fix: scroll debug meshes
+  - fix: text container off screen position
+  - fix: scroll menu animation
+  - refactor: scroll spotlight tracking
+  - fix: control menu spotlight
+  - fix: grab order
+  - chore: 0.5.6 [skip ci]
+  - fix: double cursor
+  - fix: debug clickthrough
+  - chore: 0.5.5 [skip ci]
+  - fix: UVMap updates
+  - chore: 0.5.4 [skip ci]
+  - fix: deployed font path (#53)
+  - chore: 0.5.3 [skip ci]
+  - fix: labels to text (#52)
+  - chore: 0.5.2 [skip ci]
+  - fix: .blend file update
+  - chore: 0.5.1 [skip ci]
+  - fix: full model set update
+  - chore: 0.5.0 [skip ci]
+  - feat: svgs to text (#48)
+  - refactor: sign spawn change (#47)
+  - chore: 0.4.0 [skip ci]
+  - feat: tablet added (#46)
+  - chore: 0.3.1 [skip ci]
+  - fix: label wireframes (#44)
+  - chore: 0.3.0 [skip ci]
+  - feat: debug ui (#43)
+  - chore: 0.2.1 [skip ci]
+  - fix: a return to sanity (#42)
+  - chore: small optimizations (#38)
+  - chore: 0.2.0 [skip ci]
+  - feat: collision wire frames (#37)
+  - chore: 0.1.0 [skip ci]
+  - feat: Max overlay width (#36)
+  - chore: 0.0.8 [skip ci]
+  - fix: localhost url (#35)
+  - chore: 0.0.7 [skip ci]
+  - fix: laxing bot to allow github messages (#34)
+  - chore: 0.0.6 [skip ci]
+  - fix: removing bad icon
+  - chore: updating readme (#32)
+  - chore: 0.0.5 [skip ci]
+  - fix: or so it claims
+  - fix: less picky now
+  - chore: asset storage refactor
+  - fix: removing missed refs
+  - chore: packages are a bad idea
+  - feat: semantic versioning
+
+- d1559d1: Changeset created from conventional commits:
+
+  - chore: auto-generate changeset (#248)
+  - fix: merging within pipeline
+  - chore: auto-generate changeset (#245)
+  - fix: trigger name
+  - chore: auto-generate changeset (#242)
+  - fix: auto run version merge
+  - chore: auto-generate changeset (#239)
+  - fix: write permissions
+  - fix: Merge branch 'main' into AutoSets
+  - fix: logging
+  - fix: pr creation token
+  - fix: merge command
+  - fix: Merge branch 'main' into AutoSets
+  - fix: autosets triggers
+  - feat: auto changesets
+  - fix: removing approval
+  - fix: test pnpm change
+  - revert: to warning state
+  - fix: webgl ext at three load
+  - fix: webgl warning
+  - fix: regression tests
+  - fix: now i member
+  - fix: cleaning up useless tests
+  - fix: fucking asshole
+  - fix: hoooooly
+  - fix: local load tests
+  - fix: direct image link
+  - fix: real solution
+  - revert: revert to commit 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: won't work
+  - fix: background path
+  - fix: gradient path resolving
+  - fix: reverting to 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: site path refs
+  - fix: manifest load w/verification
+  - fix: image load with verification
+  - fix: husky predeploy
+  - fix: threejs load w/ tests
+  - fix: warnings on load
+  - fix: gradient loading
+  - fix: display paths w/tests
+  - fix: csp meta tag
+  - fix: csp w/tests
+  - fix: frozen lock w/tests
+  - slice: new type
+  - fix: improving husky pre release
+  - fix: missing files and tests
+  - fix: cli and tests
+  - fix: test job
+  - fix: claude fix
+  - fix: drafts to finalized
+  - fix: single working deploy
+  - fix: no double deploy
+  - chore: version packages
+  - fix: csp protection
+  - fix: unbalanced grep
+  - fix: same shit differnt context
+  - fix: merging main
+  - fix: syntax issue
+  - fix: force pnpm
+  - fix: using pnpm
+  - fix: workspaces
+  - fix: fully rely on bot
+  - chore: 0.14.9 [skip ci]
+  - fix: typo
+  - chore: 0.14.8 [skip ci]
+  - fix: wait hack
+  - chore: 0.14.7 [skip ci]
+  - fix: so the big man says
+  - chore: 0.14.6 [skip ci]
+  - fix: improved self detection
+  - chore: 0.14.5 [skip ci]
+  - fix: simple approach
+  - chore: 0.14.4 [skip ci]
+  - fix: using new pat
+  - chore: 0.14.3 [skip ci]
+  - fix: overwrite development public/assets
+  - chore: 0.14.2 [skip ci]
+  - fix: rule check instead
+  - chore: 0.14.1 [skip ci]
+  - fix: welcome back semanto (#135)
+  - chore: 0.14.0 [skip ci]
+  - feat: blorkboard package(#134)
+  - fix: pnpm ref for semantic (#133)
+  - fix: versioning need check (#132)
+  - fix: adding semantic versioning (#131)
+  - fix: pipeline view (#130)
+  - refactor: pipeline jobs (#129)
+  - fix: pipeline repairs (#128)
+  - fix: repairing poor semantic bot (#127)
+  - fix: outputting test artifacts (#126)
+  - feat: jest unit tests (#125)
+  - fix: status link path (#123)
+  - chore: 0.12.21 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.20 [skip ci]
+  - fix: forcing delete gh branch (#122)
+  - chore: 0.12.19 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.18 [skip ci]
+  - fix: forcing deploy (#121)
+  - chore: 0.12.17 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.16 [skip ci]
+  - fix: force version bump for root project
+  - chore: 0.12.15 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.14 [skip ci]
+  - fix: semantic versioning (#119)
+  - fix: loading path (#118)
+  - fix: multiple custom_types (#117)
+  - fix: removing pipeline ci (#116)
+  - fix: spawner system (#115)
+  - chore: 0.12.13 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.12 [skip ci]
+  - fix: manual build button (#113)
+  - chore: 0.12.11 [skip ci]
+  - fix: license module to package (#112)
+  - chore: 0.12.10 [skip ci]
+  - fix: license package fix (#111)
+  - chore: 0.12.9 [skip ci]
+  - fix: licensing wording (#110)
+  - chore: 0.12.8 [skip ci]
+  - fix: package filtering publish workflow (#109)
+  - chore: 0.12.7 [skip ci]
+  - chore: readme updates (#108)
+  - chore: 0.12.6 [skip ci]
+  - fix: actually fixing tags (#107)
+  - chore: 0.12.5 [skip ci]
+  - fix: pushing tags to remote (#106)
+  - chore: 0.12.4 [skip ci]
+  - chore: 0.12.3 [skip ci]
+  - fix: husky tshy stubs (#104)
+  - chore: 0.12.2 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.1 [skip ci]
+  - fix: force version bump for blorkpack
+  - fix: variable syntax (#103)
+  - fix: husky disable (#102)
+  - fix: not skipping generation step (#101)
+  - fix: it belongs in a museum
+  - fix: versioning (#99)
+  - chore: update package-lock.json files [skip ci]
+  - fix: turbo deployment scripts (#96)
+  - chore: 0.12.0 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - feat: gh links
+  - refactor: web to porfolio
+  - fix: description web
+  - feat: color coding tabs
+  - fix: blorktools not blorkpack links
+  - feat: dynamic dashboard
+  - fix: port aquisition
+  - feat: launch dashboard
+  - fix: dev startup
+  - feat: TurboRepo/pnpm
+  - chore: 0.11.7 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - fix: hmr (#94)
+  - chore: 0.11.6 [skip ci]
+  - fix: manifest load (#93)
+  - chore: 0.11.5 [skip ci]
+  - fix: manifest pathing fix (#91)
+  - chore: 0.11.4 [skip ci]
+  - fix: back to install; sad (#89)
+  - fix: back to ci from install (#88)
+  - chore: 0.11.3 [skip ci]
+  - fix: blank cache (#87)
+  - chore: 0.11.2 [skip ci]
+  - fix: removing cache (#86)
+  - fix: deploy lock file check (#85)
+  - chore: 0.11.1 [skip ci]
+  - fix: intermediate fix (#84)
+  - chore: 0.11.0 [skip ci]
+  - fix: lock file creation (#83)
+  - chore: update package-lock.json files [skip ci]
+  - fix: package locks (#82)
+  - fix: updating dependency version (#81)
+  - feat: pipeline passes version (#80)
+  - chore: 0.10.5 [skip ci]
+  - fix: having pipeline wait for deploy (#79)
+  - chore: adding descriptors to steps (#78)
+  - chore: 0.10.4 [skip ci]
+  - fix: waiting for completion
+  - chore: 0.10.3 [skip ci]
+  - fix: spotlight toggle control
+  - fix: finding lights properly
+  - fix: spotlight debug lengths
+  - fix: always create spotlight meshes
+  - chore: vs code adjustments
+  - fix: update tween targets
+  - fix: prevent hide click
+  - fix: control menu debug spawn
+  - fix: container debug lying mesh
+  - fix: pink and red spots
+  - fix: control menu mesh
+  - fix: control menu spotlight
+  - fix: control drop physics
+  - fix: break chains small fix
+  - chore: 0.10.2 [skip ci]
+  - fix: force versioning
+  - chore: 0.10.1 [skip ci]
+  - fix: adding common scope
+  - chore: 0.10.0 [skip ci]
+  - feat: semantic release sync
+  - chore: running pipeline
+  - chore: 0.9.1 [skip ci]
+  - fix: semantic releasing for packages
+  - chore: 0.9.0 [skip ci]
+  - chore: removing temp
+  - chore: readme updates
+  - feat: blorktools package release
+  - fix: adding tools to run script
+  - fix: default to uv
+  - fix: atlas swapping kinda
+  - fix: atlas loading
+  - chore: making breakpoint for atlas fixing
+  - fix: show hide group location
+  - fix: atlas map fixed only
+  - feat: still broke but more grouping
+  - fix: all but the textures and map
+  - refactor: breaks it but more modular
+  - fix: uv select
+  - fix: dynamic uv detection
+  - fix: minimap fixes
+  - feat: atlas minimap
+  - fix: drag drop setup
+  - feat: blorktools
+  - fix: improvements to view
+  - feat: asset debugger
+  - feat: display transparent default
+  - refactor: hiding controls
+  - feat: basic display controls
+  - feat: display detection
+  - fix: more log silencing
+  - fix: silencing logs
+  - chore: 0.8.3 [skip ci]
+  - fix: using public package
+  - chore: 0.8.2 [skip ci]
+  - fix: skipping tests
+  - chore: 0.8.1 [skip ci]
+  - fix: name in pipeline
+  - fix: blorkpack pipeline
+  - chore: 0.8.0 [skip ci]
+  - fix: spotlights to asset spawner
+  - fix: spotlight helper methods copied
+  - fix: asset spawn functions async
+  - refactor: duplicate signatures
+  - refactor: system type creation functions
+  - fix: camera through manifest
+  - fix: primary spotlight through manifest
+  - fix: spotlight fields
+  - fix: single spotlight mesh flag
+  - fix: floor to system
+  - fix: camera from manifest
+  - fix: camera properties
+  - refactor: floor to manifest
+  - fix: spawn manifest assets to blorkpack
+  - fix: auto throttle to manifest
+  - fix: wording
+  - refactor: modal function
+  - fix: getter null checks
+  - fix: function name
+  - fix: debug mesh updates
+  - fix: physics optimization settings
+  - fix: background defaulting
+  - refactor: background typing
+  - chore: 0.7.3 [skip ci]
+  - fix: monitor display test
+  - refactor: loading html breakout
+  - refactor: app renderer to blorkpack
+  - fix: fucntion casing
+  - refactor: blorkpack exports
+  - refactor: blorkfield three rapier exports
+  - fix: gravity set
+  - refactor: moving null checks
+  - fix: more log fixes
+  - fix: silencing logs
+  - fix: package and flag renaming
+  - fix: correcting casing
+  - refactor: blorkpack rebrand
+  - fix: gravity to vector3
+  - fix: test restructure/manifest types created
+  - feat: manifest base
+  - fix: all objects grabbable
+  - fix: multicolored wireframes
+  - fix: forcing col layer
+  - fix: collision align
+  - fix: wireframe connection
+  - fix: mesh sizing
+  - feat: editor break
+  - chore: 0.7.2 [skip ci]
+  - fix: build error
+  - refactor: breaking to fix
+  - fix: partial fix for work resizing
+  - refactor: better monitor resizing
+  - fix: more monitor adjusts
+  - refactor: monitor background adjust
+  - fix: background hover ui filter
+  - refactor: shared creation function
+  - refactor: work background removal
+  - refactor: cube removal
+  - refactor: workd cube
+  - refactor: projects cube
+  - patch: separate education diplomas
+  - patch: new assets (#60)
+  - chore: 0.7.1 [skip ci]
+  - fix: reverting config change (#59)
+  - refactor: path to config
+  - chore: 0.7.0 [skip ci]
+  - fix: contact text bubbles
+  - fix: actually fixing right side hover
+  - fix: right side hover
+  - refactor: font util
+  - fix: query error
+  - fix: pond expand
+  - fix: water shader large bug
+  - fix: water resize
+  - fix: easing water
+  - refactor: ripple effect
+  - feat: about ripple
+  - refactor: swimming animation
+  - reafactor: phyics pause on active text
+  - fix: pause button icon
+  - fix: sleeping objects wakeup
+  - feat: debug ui pause
+  - fix: swim animation improvments
+  - refactor: chain bounce
+  - fix: smoothing scaling
+  - fix: scroll dynamic switch
+  - chore: 0.6.0 [skip ci]
+  - fix: chain wakeup timing
+  - fix: calming chain
+  - fix: scroll break chains dynamic
+  - fix: scroll break chain cleanup
+  - feat: chain dynamic conversion
+  - chore: logging flags
+  - feat: scroll kinematic
+  - fix: scroll debug meshes
+  - fix: scroll visibility
+  - refactor: scroll sign inside container
+  - fix: keep scroll mesh
+  - feat: assembly box despawn
+  - refactor: assembly box creation
+  - fix: memory management
+  - fix: control menu beam despawn
+  - chore: log base
+  - chore: purging mordor
+  - fix: scroll chain adjust
+  - fix: scroll debug meshes
+  - fix: text container off screen position
+  - fix: scroll menu animation
+  - refactor: scroll spotlight tracking
+  - fix: control menu spotlight
+  - fix: grab order
+  - chore: 0.5.6 [skip ci]
+  - fix: double cursor
+  - fix: debug clickthrough
+  - chore: 0.5.5 [skip ci]
+  - fix: UVMap updates
+  - chore: 0.5.4 [skip ci]
+  - fix: deployed font path (#53)
+  - chore: 0.5.3 [skip ci]
+  - fix: labels to text (#52)
+  - chore: 0.5.2 [skip ci]
+  - fix: .blend file update
+  - chore: 0.5.1 [skip ci]
+  - fix: full model set update
+  - chore: 0.5.0 [skip ci]
+  - feat: svgs to text (#48)
+  - refactor: sign spawn change (#47)
+  - chore: 0.4.0 [skip ci]
+  - feat: tablet added (#46)
+  - chore: 0.3.1 [skip ci]
+  - fix: label wireframes (#44)
+  - chore: 0.3.0 [skip ci]
+  - feat: debug ui (#43)
+  - chore: 0.2.1 [skip ci]
+  - fix: a return to sanity (#42)
+  - chore: small optimizations (#38)
+  - chore: 0.2.0 [skip ci]
+  - feat: collision wire frames (#37)
+  - chore: 0.1.0 [skip ci]
+  - feat: Max overlay width (#36)
+  - chore: 0.0.8 [skip ci]
+  - fix: localhost url (#35)
+  - chore: 0.0.7 [skip ci]
+  - fix: laxing bot to allow github messages (#34)
+  - chore: 0.0.6 [skip ci]
+  - fix: removing bad icon
+  - chore: updating readme (#32)
+  - chore: 0.0.5 [skip ci]
+  - fix: or so it claims
+  - fix: less picky now
+  - chore: asset storage refactor
+  - fix: removing missed refs
+  - chore: packages are a bad idea
+  - feat: semantic versioning
+
+- 6d21b14: Changeset created from conventional commits:
+
+  - chore: auto-generate changeset (#242)
+  - fix: auto run version merge
+  - chore: auto-generate changeset (#239)
+  - fix: write permissions
+  - fix: Merge branch 'main' into AutoSets
+  - fix: logging
+  - fix: pr creation token
+  - fix: merge command
+  - fix: Merge branch 'main' into AutoSets
+  - fix: autosets triggers
+  - feat: auto changesets
+  - fix: removing approval
+  - fix: test pnpm change
+  - revert: to warning state
+  - fix: webgl ext at three load
+  - fix: webgl warning
+  - fix: regression tests
+  - fix: now i member
+  - fix: cleaning up useless tests
+  - fix: fucking asshole
+  - fix: hoooooly
+  - fix: local load tests
+  - fix: direct image link
+  - fix: real solution
+  - revert: revert to commit 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: won't work
+  - fix: background path
+  - fix: gradient path resolving
+  - fix: reverting to 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: site path refs
+  - fix: manifest load w/verification
+  - fix: image load with verification
+  - fix: husky predeploy
+  - fix: threejs load w/ tests
+  - fix: warnings on load
+  - fix: gradient loading
+  - fix: display paths w/tests
+  - fix: csp meta tag
+  - fix: csp w/tests
+  - fix: frozen lock w/tests
+  - slice: new type
+  - fix: improving husky pre release
+  - fix: missing files and tests
+  - fix: cli and tests
+  - fix: test job
+  - fix: claude fix
+  - fix: drafts to finalized
+  - fix: single working deploy
+  - fix: no double deploy
+  - chore: version packages
+  - fix: csp protection
+  - fix: unbalanced grep
+  - fix: same shit differnt context
+  - fix: merging main
+  - fix: syntax issue
+  - fix: force pnpm
+  - fix: using pnpm
+  - fix: workspaces
+  - fix: fully rely on bot
+  - chore: 0.14.9 [skip ci]
+  - fix: typo
+  - chore: 0.14.8 [skip ci]
+  - fix: wait hack
+  - chore: 0.14.7 [skip ci]
+  - fix: so the big man says
+  - chore: 0.14.6 [skip ci]
+  - fix: improved self detection
+  - chore: 0.14.5 [skip ci]
+  - fix: simple approach
+  - chore: 0.14.4 [skip ci]
+  - fix: using new pat
+  - chore: 0.14.3 [skip ci]
+  - fix: overwrite development public/assets
+  - chore: 0.14.2 [skip ci]
+  - fix: rule check instead
+  - chore: 0.14.1 [skip ci]
+  - fix: welcome back semanto (#135)
+  - chore: 0.14.0 [skip ci]
+  - feat: blorkboard package(#134)
+  - fix: pnpm ref for semantic (#133)
+  - fix: versioning need check (#132)
+  - fix: adding semantic versioning (#131)
+  - fix: pipeline view (#130)
+  - refactor: pipeline jobs (#129)
+  - fix: pipeline repairs (#128)
+  - fix: repairing poor semantic bot (#127)
+  - fix: outputting test artifacts (#126)
+  - feat: jest unit tests (#125)
+  - fix: status link path (#123)
+  - chore: 0.12.21 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.20 [skip ci]
+  - fix: forcing delete gh branch (#122)
+  - chore: 0.12.19 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.18 [skip ci]
+  - fix: forcing deploy (#121)
+  - chore: 0.12.17 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.16 [skip ci]
+  - fix: force version bump for root project
+  - chore: 0.12.15 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.14 [skip ci]
+  - fix: semantic versioning (#119)
+  - fix: loading path (#118)
+  - fix: multiple custom_types (#117)
+  - fix: removing pipeline ci (#116)
+  - fix: spawner system (#115)
+  - chore: 0.12.13 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.12 [skip ci]
+  - fix: manual build button (#113)
+  - chore: 0.12.11 [skip ci]
+  - fix: license module to package (#112)
+  - chore: 0.12.10 [skip ci]
+  - fix: license package fix (#111)
+  - chore: 0.12.9 [skip ci]
+  - fix: licensing wording (#110)
+  - chore: 0.12.8 [skip ci]
+  - fix: package filtering publish workflow (#109)
+  - chore: 0.12.7 [skip ci]
+  - chore: readme updates (#108)
+  - chore: 0.12.6 [skip ci]
+  - fix: actually fixing tags (#107)
+  - chore: 0.12.5 [skip ci]
+  - fix: pushing tags to remote (#106)
+  - chore: 0.12.4 [skip ci]
+  - chore: 0.12.3 [skip ci]
+  - fix: husky tshy stubs (#104)
+  - chore: 0.12.2 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.1 [skip ci]
+  - fix: force version bump for blorkpack
+  - fix: variable syntax (#103)
+  - fix: husky disable (#102)
+  - fix: not skipping generation step (#101)
+  - fix: it belongs in a museum
+  - fix: versioning (#99)
+  - chore: update package-lock.json files [skip ci]
+  - fix: turbo deployment scripts (#96)
+  - chore: 0.12.0 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - feat: gh links
+  - refactor: web to porfolio
+  - fix: description web
+  - feat: color coding tabs
+  - fix: blorktools not blorkpack links
+  - feat: dynamic dashboard
+  - fix: port aquisition
+  - feat: launch dashboard
+  - fix: dev startup
+  - feat: TurboRepo/pnpm
+  - chore: 0.11.7 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - fix: hmr (#94)
+  - chore: 0.11.6 [skip ci]
+  - fix: manifest load (#93)
+  - chore: 0.11.5 [skip ci]
+  - fix: manifest pathing fix (#91)
+  - chore: 0.11.4 [skip ci]
+  - fix: back to install; sad (#89)
+  - fix: back to ci from install (#88)
+  - chore: 0.11.3 [skip ci]
+  - fix: blank cache (#87)
+  - chore: 0.11.2 [skip ci]
+  - fix: removing cache (#86)
+  - fix: deploy lock file check (#85)
+  - chore: 0.11.1 [skip ci]
+  - fix: intermediate fix (#84)
+  - chore: 0.11.0 [skip ci]
+  - fix: lock file creation (#83)
+  - chore: update package-lock.json files [skip ci]
+  - fix: package locks (#82)
+  - fix: updating dependency version (#81)
+  - feat: pipeline passes version (#80)
+  - chore: 0.10.5 [skip ci]
+  - fix: having pipeline wait for deploy (#79)
+  - chore: adding descriptors to steps (#78)
+  - chore: 0.10.4 [skip ci]
+  - fix: waiting for completion
+  - chore: 0.10.3 [skip ci]
+  - fix: spotlight toggle control
+  - fix: finding lights properly
+  - fix: spotlight debug lengths
+  - fix: always create spotlight meshes
+  - chore: vs code adjustments
+  - fix: update tween targets
+  - fix: prevent hide click
+  - fix: control menu debug spawn
+  - fix: container debug lying mesh
+  - fix: pink and red spots
+  - fix: control menu mesh
+  - fix: control menu spotlight
+  - fix: control drop physics
+  - fix: break chains small fix
+  - chore: 0.10.2 [skip ci]
+  - fix: force versioning
+  - chore: 0.10.1 [skip ci]
+  - fix: adding common scope
+  - chore: 0.10.0 [skip ci]
+  - feat: semantic release sync
+  - chore: running pipeline
+  - chore: 0.9.1 [skip ci]
+  - fix: semantic releasing for packages
+  - chore: 0.9.0 [skip ci]
+  - chore: removing temp
+  - chore: readme updates
+  - feat: blorktools package release
+  - fix: adding tools to run script
+  - fix: default to uv
+  - fix: atlas swapping kinda
+  - fix: atlas loading
+  - chore: making breakpoint for atlas fixing
+  - fix: show hide group location
+  - fix: atlas map fixed only
+  - feat: still broke but more grouping
+  - fix: all but the textures and map
+  - refactor: breaks it but more modular
+  - fix: uv select
+  - fix: dynamic uv detection
+  - fix: minimap fixes
+  - feat: atlas minimap
+  - fix: drag drop setup
+  - feat: blorktools
+  - fix: improvements to view
+  - feat: asset debugger
+  - feat: display transparent default
+  - refactor: hiding controls
+  - feat: basic display controls
+  - feat: display detection
+  - fix: more log silencing
+  - fix: silencing logs
+  - chore: 0.8.3 [skip ci]
+  - fix: using public package
+  - chore: 0.8.2 [skip ci]
+  - fix: skipping tests
+  - chore: 0.8.1 [skip ci]
+  - fix: name in pipeline
+  - fix: blorkpack pipeline
+  - chore: 0.8.0 [skip ci]
+  - fix: spotlights to asset spawner
+  - fix: spotlight helper methods copied
+  - fix: asset spawn functions async
+  - refactor: duplicate signatures
+  - refactor: system type creation functions
+  - fix: camera through manifest
+  - fix: primary spotlight through manifest
+  - fix: spotlight fields
+  - fix: single spotlight mesh flag
+  - fix: floor to system
+  - fix: camera from manifest
+  - fix: camera properties
+  - refactor: floor to manifest
+  - fix: spawn manifest assets to blorkpack
+  - fix: auto throttle to manifest
+  - fix: wording
+  - refactor: modal function
+  - fix: getter null checks
+  - fix: function name
+  - fix: debug mesh updates
+  - fix: physics optimization settings
+  - fix: background defaulting
+  - refactor: background typing
+  - chore: 0.7.3 [skip ci]
+  - fix: monitor display test
+  - refactor: loading html breakout
+  - refactor: app renderer to blorkpack
+  - fix: fucntion casing
+  - refactor: blorkpack exports
+  - refactor: blorkfield three rapier exports
+  - fix: gravity set
+  - refactor: moving null checks
+  - fix: more log fixes
+  - fix: silencing logs
+  - fix: package and flag renaming
+  - fix: correcting casing
+  - refactor: blorkpack rebrand
+  - fix: gravity to vector3
+  - fix: test restructure/manifest types created
+  - feat: manifest base
+  - fix: all objects grabbable
+  - fix: multicolored wireframes
+  - fix: forcing col layer
+  - fix: collision align
+  - fix: wireframe connection
+  - fix: mesh sizing
+  - feat: editor break
+  - chore: 0.7.2 [skip ci]
+  - fix: build error
+  - refactor: breaking to fix
+  - fix: partial fix for work resizing
+  - refactor: better monitor resizing
+  - fix: more monitor adjusts
+  - refactor: monitor background adjust
+  - fix: background hover ui filter
+  - refactor: shared creation function
+  - refactor: work background removal
+  - refactor: cube removal
+  - refactor: workd cube
+  - refactor: projects cube
+  - patch: separate education diplomas
+  - patch: new assets (#60)
+  - chore: 0.7.1 [skip ci]
+  - fix: reverting config change (#59)
+  - refactor: path to config
+  - chore: 0.7.0 [skip ci]
+  - fix: contact text bubbles
+  - fix: actually fixing right side hover
+  - fix: right side hover
+  - refactor: font util
+  - fix: query error
+  - fix: pond expand
+  - fix: water shader large bug
+  - fix: water resize
+  - fix: easing water
+  - refactor: ripple effect
+  - feat: about ripple
+  - refactor: swimming animation
+  - reafactor: phyics pause on active text
+  - fix: pause button icon
+  - fix: sleeping objects wakeup
+  - feat: debug ui pause
+  - fix: swim animation improvments
+  - refactor: chain bounce
+  - fix: smoothing scaling
+  - fix: scroll dynamic switch
+  - chore: 0.6.0 [skip ci]
+  - fix: chain wakeup timing
+  - fix: calming chain
+  - fix: scroll break chains dynamic
+  - fix: scroll break chain cleanup
+  - feat: chain dynamic conversion
+  - chore: logging flags
+  - feat: scroll kinematic
+  - fix: scroll debug meshes
+  - fix: scroll visibility
+  - refactor: scroll sign inside container
+  - fix: keep scroll mesh
+  - feat: assembly box despawn
+  - refactor: assembly box creation
+  - fix: memory management
+  - fix: control menu beam despawn
+  - chore: log base
+  - chore: purging mordor
+  - fix: scroll chain adjust
+  - fix: scroll debug meshes
+  - fix: text container off screen position
+  - fix: scroll menu animation
+  - refactor: scroll spotlight tracking
+  - fix: control menu spotlight
+  - fix: grab order
+  - chore: 0.5.6 [skip ci]
+  - fix: double cursor
+  - fix: debug clickthrough
+  - chore: 0.5.5 [skip ci]
+  - fix: UVMap updates
+  - chore: 0.5.4 [skip ci]
+  - fix: deployed font path (#53)
+  - chore: 0.5.3 [skip ci]
+  - fix: labels to text (#52)
+  - chore: 0.5.2 [skip ci]
+  - fix: .blend file update
+  - chore: 0.5.1 [skip ci]
+  - fix: full model set update
+  - chore: 0.5.0 [skip ci]
+  - feat: svgs to text (#48)
+  - refactor: sign spawn change (#47)
+  - chore: 0.4.0 [skip ci]
+  - feat: tablet added (#46)
+  - chore: 0.3.1 [skip ci]
+  - fix: label wireframes (#44)
+  - chore: 0.3.0 [skip ci]
+  - feat: debug ui (#43)
+  - chore: 0.2.1 [skip ci]
+  - fix: a return to sanity (#42)
+  - chore: small optimizations (#38)
+  - chore: 0.2.0 [skip ci]
+  - feat: collision wire frames (#37)
+  - chore: 0.1.0 [skip ci]
+  - feat: Max overlay width (#36)
+  - chore: 0.0.8 [skip ci]
+  - fix: localhost url (#35)
+  - chore: 0.0.7 [skip ci]
+  - fix: laxing bot to allow github messages (#34)
+  - chore: 0.0.6 [skip ci]
+  - fix: removing bad icon
+  - chore: updating readme (#32)
+  - chore: 0.0.5 [skip ci]
+  - fix: or so it claims
+  - fix: less picky now
+  - chore: asset storage refactor
+  - fix: removing missed refs
+  - chore: packages are a bad idea
+  - feat: semantic versioning
+
+- 8a716ee: Changeset created from conventional commits:
+
+  - fix: test pnpm change
+  - revert: to warning state
+  - fix: webgl ext at three load
+  - fix: webgl warning
+  - fix: regression tests
+  - fix: now i member
+  - fix: cleaning up useless tests
+  - fix: fucking asshole
+  - fix: hoooooly
+  - fix: local load tests
+  - fix: direct image link
+  - fix: real solution
+  - revert: revert to commit 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: won't work
+  - fix: background path
+  - fix: gradient path resolving
+  - fix: reverting to 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: site path refs
+  - fix: manifest load w/verification
+  - fix: image load with verification
+  - fix: husky predeploy
+  - fix: threejs load w/ tests
+  - fix: warnings on load
+  - fix: gradient loading
+  - fix: display paths w/tests
+  - fix: csp meta tag
+  - fix: csp w/tests
+  - fix: frozen lock w/tests
+  - slice: new type
+  - fix: improving husky pre release
+  - fix: missing files and tests
+  - fix: cli and tests
+  - fix: test job
+  - fix: claude fix
+  - fix: drafts to finalized
+  - fix: single working deploy
+  - fix: no double deploy
+  - chore: version packages
+  - fix: csp protection
+  - fix: unbalanced grep
+  - fix: same shit differnt context
+  - fix: merging main
+  - fix: syntax issue
+  - fix: force pnpm
+  - fix: using pnpm
+  - fix: workspaces
+  - fix: fully rely on bot
+  - chore: 0.14.9 [skip ci]
+  - fix: typo
+  - chore: 0.14.8 [skip ci]
+  - fix: wait hack
+  - chore: 0.14.7 [skip ci]
+  - fix: so the big man says
+  - chore: 0.14.6 [skip ci]
+  - fix: improved self detection
+  - chore: 0.14.5 [skip ci]
+  - fix: simple approach
+  - chore: 0.14.4 [skip ci]
+  - fix: using new pat
+  - chore: 0.14.3 [skip ci]
+  - fix: overwrite development public/assets
+  - chore: 0.14.2 [skip ci]
+  - fix: rule check instead
+  - chore: 0.14.1 [skip ci]
+  - fix: welcome back semanto (#135)
+  - chore: 0.14.0 [skip ci]
+  - feat: blorkboard package(#134)
+  - fix: pnpm ref for semantic (#133)
+  - fix: versioning need check (#132)
+  - fix: adding semantic versioning (#131)
+  - fix: pipeline view (#130)
+  - refactor: pipeline jobs (#129)
+  - fix: pipeline repairs (#128)
+  - fix: repairing poor semantic bot (#127)
+  - fix: outputting test artifacts (#126)
+  - feat: jest unit tests (#125)
+  - fix: status link path (#123)
+  - chore: 0.12.21 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.20 [skip ci]
+  - fix: forcing delete gh branch (#122)
+  - chore: 0.12.19 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.18 [skip ci]
+  - fix: forcing deploy (#121)
+  - chore: 0.12.17 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.16 [skip ci]
+  - fix: force version bump for root project
+  - chore: 0.12.15 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.14 [skip ci]
+  - fix: semantic versioning (#119)
+  - fix: loading path (#118)
+  - fix: multiple custom_types (#117)
+  - fix: removing pipeline ci (#116)
+  - fix: spawner system (#115)
+  - chore: 0.12.13 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.12 [skip ci]
+  - fix: manual build button (#113)
+  - chore: 0.12.11 [skip ci]
+  - fix: license module to package (#112)
+  - chore: 0.12.10 [skip ci]
+  - fix: license package fix (#111)
+  - chore: 0.12.9 [skip ci]
+  - fix: licensing wording (#110)
+  - chore: 0.12.8 [skip ci]
+  - fix: package filtering publish workflow (#109)
+  - chore: 0.12.7 [skip ci]
+  - chore: readme updates (#108)
+  - chore: 0.12.6 [skip ci]
+  - fix: actually fixing tags (#107)
+  - chore: 0.12.5 [skip ci]
+  - fix: pushing tags to remote (#106)
+  - chore: 0.12.4 [skip ci]
+  - chore: 0.12.3 [skip ci]
+  - fix: husky tshy stubs (#104)
+  - chore: 0.12.2 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.1 [skip ci]
+  - fix: force version bump for blorkpack
+  - fix: variable syntax (#103)
+  - fix: husky disable (#102)
+  - fix: not skipping generation step (#101)
+  - fix: it belongs in a museum
+  - fix: versioning (#99)
+  - chore: update package-lock.json files [skip ci]
+  - fix: turbo deployment scripts (#96)
+  - chore: 0.12.0 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - feat: gh links
+  - refactor: web to porfolio
+  - fix: description web
+  - feat: color coding tabs
+  - fix: blorktools not blorkpack links
+  - feat: dynamic dashboard
+  - fix: port aquisition
+  - feat: launch dashboard
+  - fix: dev startup
+  - feat: TurboRepo/pnpm
+  - chore: 0.11.7 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - fix: hmr (#94)
+  - chore: 0.11.6 [skip ci]
+  - fix: manifest load (#93)
+  - chore: 0.11.5 [skip ci]
+  - fix: manifest pathing fix (#91)
+  - chore: 0.11.4 [skip ci]
+  - fix: back to install; sad (#89)
+  - fix: back to ci from install (#88)
+  - chore: 0.11.3 [skip ci]
+  - fix: blank cache (#87)
+  - chore: 0.11.2 [skip ci]
+  - fix: removing cache (#86)
+  - fix: deploy lock file check (#85)
+  - chore: 0.11.1 [skip ci]
+  - fix: intermediate fix (#84)
+  - chore: 0.11.0 [skip ci]
+  - fix: lock file creation (#83)
+  - chore: update package-lock.json files [skip ci]
+  - fix: package locks (#82)
+  - fix: updating dependency version (#81)
+  - feat: pipeline passes version (#80)
+  - chore: 0.10.5 [skip ci]
+  - fix: having pipeline wait for deploy (#79)
+  - chore: adding descriptors to steps (#78)
+  - chore: 0.10.4 [skip ci]
+  - fix: waiting for completion
+  - chore: 0.10.3 [skip ci]
+  - fix: spotlight toggle control
+  - fix: finding lights properly
+  - fix: spotlight debug lengths
+  - fix: always create spotlight meshes
+  - chore: vs code adjustments
+  - fix: update tween targets
+  - fix: prevent hide click
+  - fix: control menu debug spawn
+  - fix: container debug lying mesh
+  - fix: pink and red spots
+  - fix: control menu mesh
+  - fix: control menu spotlight
+  - fix: control drop physics
+  - fix: break chains small fix
+  - chore: 0.10.2 [skip ci]
+  - fix: force versioning
+  - chore: 0.10.1 [skip ci]
+  - fix: adding common scope
+  - chore: 0.10.0 [skip ci]
+  - feat: semantic release sync
+  - chore: running pipeline
+  - chore: 0.9.1 [skip ci]
+  - fix: semantic releasing for packages
+  - chore: 0.9.0 [skip ci]
+  - chore: removing temp
+  - chore: readme updates
+  - feat: blorktools package release
+  - fix: adding tools to run script
+  - fix: default to uv
+  - fix: atlas swapping kinda
+  - fix: atlas loading
+  - chore: making breakpoint for atlas fixing
+  - fix: show hide group location
+  - fix: atlas map fixed only
+  - feat: still broke but more grouping
+  - fix: all but the textures and map
+  - refactor: breaks it but more modular
+  - fix: uv select
+  - fix: dynamic uv detection
+  - fix: minimap fixes
+  - feat: atlas minimap
+  - fix: drag drop setup
+  - feat: blorktools
+  - fix: improvements to view
+  - feat: asset debugger
+  - feat: display transparent default
+  - refactor: hiding controls
+  - feat: basic display controls
+  - feat: display detection
+  - fix: more log silencing
+  - fix: silencing logs
+  - chore: 0.8.3 [skip ci]
+  - fix: using public package
+  - chore: 0.8.2 [skip ci]
+  - fix: skipping tests
+  - chore: 0.8.1 [skip ci]
+  - fix: name in pipeline
+  - fix: blorkpack pipeline
+  - chore: 0.8.0 [skip ci]
+  - fix: spotlights to asset spawner
+  - fix: spotlight helper methods copied
+  - fix: asset spawn functions async
+  - refactor: duplicate signatures
+  - refactor: system type creation functions
+  - fix: camera through manifest
+  - fix: primary spotlight through manifest
+  - fix: spotlight fields
+  - fix: single spotlight mesh flag
+  - fix: floor to system
+  - fix: camera from manifest
+  - fix: camera properties
+  - refactor: floor to manifest
+  - fix: spawn manifest assets to blorkpack
+  - fix: auto throttle to manifest
+  - fix: wording
+  - refactor: modal function
+  - fix: getter null checks
+  - fix: function name
+  - fix: debug mesh updates
+  - fix: physics optimization settings
+  - fix: background defaulting
+  - refactor: background typing
+  - chore: 0.7.3 [skip ci]
+  - fix: monitor display test
+  - refactor: loading html breakout
+  - refactor: app renderer to blorkpack
+  - fix: fucntion casing
+  - refactor: blorkpack exports
+  - refactor: blorkfield three rapier exports
+  - fix: gravity set
+  - refactor: moving null checks
+  - fix: more log fixes
+  - fix: silencing logs
+  - fix: package and flag renaming
+  - fix: correcting casing
+  - refactor: blorkpack rebrand
+  - fix: gravity to vector3
+  - fix: test restructure/manifest types created
+  - feat: manifest base
+  - fix: all objects grabbable
+  - fix: multicolored wireframes
+  - fix: forcing col layer
+  - fix: collision align
+  - fix: wireframe connection
+  - fix: mesh sizing
+  - feat: editor break
+  - chore: 0.7.2 [skip ci]
+  - fix: build error
+  - refactor: breaking to fix
+  - fix: partial fix for work resizing
+  - refactor: better monitor resizing
+  - fix: more monitor adjusts
+  - refactor: monitor background adjust
+  - fix: background hover ui filter
+  - refactor: shared creation function
+  - refactor: work background removal
+  - refactor: cube removal
+  - refactor: workd cube
+  - refactor: projects cube
+  - patch: separate education diplomas
+  - patch: new assets (#60)
+  - chore: 0.7.1 [skip ci]
+  - fix: reverting config change (#59)
+  - refactor: path to config
+  - chore: 0.7.0 [skip ci]
+  - fix: contact text bubbles
+  - fix: actually fixing right side hover
+  - fix: right side hover
+  - refactor: font util
+  - fix: query error
+  - fix: pond expand
+  - fix: water shader large bug
+  - fix: water resize
+  - fix: easing water
+  - refactor: ripple effect
+  - feat: about ripple
+  - refactor: swimming animation
+  - reafactor: phyics pause on active text
+  - fix: pause button icon
+  - fix: sleeping objects wakeup
+  - feat: debug ui pause
+  - fix: swim animation improvments
+  - refactor: chain bounce
+  - fix: smoothing scaling
+  - fix: scroll dynamic switch
+  - chore: 0.6.0 [skip ci]
+  - fix: chain wakeup timing
+  - fix: calming chain
+  - fix: scroll break chains dynamic
+  - fix: scroll break chain cleanup
+  - feat: chain dynamic conversion
+  - chore: logging flags
+  - feat: scroll kinematic
+  - fix: scroll debug meshes
+  - fix: scroll visibility
+  - refactor: scroll sign inside container
+  - fix: keep scroll mesh
+  - feat: assembly box despawn
+  - refactor: assembly box creation
+  - fix: memory management
+  - fix: control menu beam despawn
+  - chore: log base
+  - chore: purging mordor
+  - fix: scroll chain adjust
+  - fix: scroll debug meshes
+  - fix: text container off screen position
+  - fix: scroll menu animation
+  - refactor: scroll spotlight tracking
+  - fix: control menu spotlight
+  - fix: grab order
+  - chore: 0.5.6 [skip ci]
+  - fix: double cursor
+  - fix: debug clickthrough
+  - chore: 0.5.5 [skip ci]
+  - fix: UVMap updates
+  - chore: 0.5.4 [skip ci]
+  - fix: deployed font path (#53)
+  - chore: 0.5.3 [skip ci]
+  - fix: labels to text (#52)
+  - chore: 0.5.2 [skip ci]
+  - fix: .blend file update
+  - chore: 0.5.1 [skip ci]
+  - fix: full model set update
+  - chore: 0.5.0 [skip ci]
+  - feat: svgs to text (#48)
+  - refactor: sign spawn change (#47)
+  - chore: 0.4.0 [skip ci]
+  - feat: tablet added (#46)
+  - chore: 0.3.1 [skip ci]
+  - fix: label wireframes (#44)
+  - chore: 0.3.0 [skip ci]
+  - feat: debug ui (#43)
+  - chore: 0.2.1 [skip ci]
+  - fix: a return to sanity (#42)
+  - chore: small optimizations (#38)
+  - chore: 0.2.0 [skip ci]
+  - feat: collision wire frames (#37)
+  - chore: 0.1.0 [skip ci]
+  - feat: Max overlay width (#36)
+  - chore: 0.0.8 [skip ci]
+  - fix: localhost url (#35)
+  - chore: 0.0.7 [skip ci]
+  - fix: laxing bot to allow github messages (#34)
+  - chore: 0.0.6 [skip ci]
+  - fix: removing bad icon
+  - chore: updating readme (#32)
+  - chore: 0.0.5 [skip ci]
+  - fix: or so it claims
+  - fix: less picky now
+  - chore: asset storage refactor
+  - fix: removing missed refs
+  - chore: packages are a bad idea
+  - feat: semantic versioning
+
+- d7ba6e6: Changeset created from conventional commits:
+
+  - chore: auto-generate changeset (#239)
+  - fix: write permissions
+  - fix: Merge branch 'main' into AutoSets
+  - fix: logging
+  - fix: pr creation token
+  - fix: merge command
+  - fix: Merge branch 'main' into AutoSets
+  - fix: autosets triggers
+  - feat: auto changesets
+  - fix: removing approval
+  - fix: test pnpm change
+  - revert: to warning state
+  - fix: webgl ext at three load
+  - fix: webgl warning
+  - fix: regression tests
+  - fix: now i member
+  - fix: cleaning up useless tests
+  - fix: fucking asshole
+  - fix: hoooooly
+  - fix: local load tests
+  - fix: direct image link
+  - fix: real solution
+  - revert: revert to commit 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: won't work
+  - fix: background path
+  - fix: gradient path resolving
+  - fix: reverting to 04059da2f4c08927477db0e92b8bcc3e5865c9e7
+  - fix: site path refs
+  - fix: manifest load w/verification
+  - fix: image load with verification
+  - fix: husky predeploy
+  - fix: threejs load w/ tests
+  - fix: warnings on load
+  - fix: gradient loading
+  - fix: display paths w/tests
+  - fix: csp meta tag
+  - fix: csp w/tests
+  - fix: frozen lock w/tests
+  - slice: new type
+  - fix: improving husky pre release
+  - fix: missing files and tests
+  - fix: cli and tests
+  - fix: test job
+  - fix: claude fix
+  - fix: drafts to finalized
+  - fix: single working deploy
+  - fix: no double deploy
+  - chore: version packages
+  - fix: csp protection
+  - fix: unbalanced grep
+  - fix: same shit differnt context
+  - fix: merging main
+  - fix: syntax issue
+  - fix: force pnpm
+  - fix: using pnpm
+  - fix: workspaces
+  - fix: fully rely on bot
+  - chore: 0.14.9 [skip ci]
+  - fix: typo
+  - chore: 0.14.8 [skip ci]
+  - fix: wait hack
+  - chore: 0.14.7 [skip ci]
+  - fix: so the big man says
+  - chore: 0.14.6 [skip ci]
+  - fix: improved self detection
+  - chore: 0.14.5 [skip ci]
+  - fix: simple approach
+  - chore: 0.14.4 [skip ci]
+  - fix: using new pat
+  - chore: 0.14.3 [skip ci]
+  - fix: overwrite development public/assets
+  - chore: 0.14.2 [skip ci]
+  - fix: rule check instead
+  - chore: 0.14.1 [skip ci]
+  - fix: welcome back semanto (#135)
+  - chore: 0.14.0 [skip ci]
+  - feat: blorkboard package(#134)
+  - fix: pnpm ref for semantic (#133)
+  - fix: versioning need check (#132)
+  - fix: adding semantic versioning (#131)
+  - fix: pipeline view (#130)
+  - refactor: pipeline jobs (#129)
+  - fix: pipeline repairs (#128)
+  - fix: repairing poor semantic bot (#127)
+  - fix: outputting test artifacts (#126)
+  - feat: jest unit tests (#125)
+  - fix: status link path (#123)
+  - chore: 0.12.21 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.20 [skip ci]
+  - fix: forcing delete gh branch (#122)
+  - chore: 0.12.19 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.18 [skip ci]
+  - fix: forcing deploy (#121)
+  - chore: 0.12.17 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.16 [skip ci]
+  - fix: force version bump for root project
+  - chore: 0.12.15 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.14 [skip ci]
+  - fix: semantic versioning (#119)
+  - fix: loading path (#118)
+  - fix: multiple custom_types (#117)
+  - fix: removing pipeline ci (#116)
+  - fix: spawner system (#115)
+  - chore: 0.12.13 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.12 [skip ci]
+  - fix: manual build button (#113)
+  - chore: 0.12.11 [skip ci]
+  - fix: license module to package (#112)
+  - chore: 0.12.10 [skip ci]
+  - fix: license package fix (#111)
+  - chore: 0.12.9 [skip ci]
+  - fix: licensing wording (#110)
+  - chore: 0.12.8 [skip ci]
+  - fix: package filtering publish workflow (#109)
+  - chore: 0.12.7 [skip ci]
+  - chore: readme updates (#108)
+  - chore: 0.12.6 [skip ci]
+  - fix: actually fixing tags (#107)
+  - chore: 0.12.5 [skip ci]
+  - fix: pushing tags to remote (#106)
+  - chore: 0.12.4 [skip ci]
+  - chore: 0.12.3 [skip ci]
+  - fix: husky tshy stubs (#104)
+  - chore: 0.12.2 [skip ci]
+  - fix: force version bump for blorktools
+  - chore: 0.12.1 [skip ci]
+  - fix: force version bump for blorkpack
+  - fix: variable syntax (#103)
+  - fix: husky disable (#102)
+  - fix: not skipping generation step (#101)
+  - fix: it belongs in a museum
+  - fix: versioning (#99)
+  - chore: update package-lock.json files [skip ci]
+  - fix: turbo deployment scripts (#96)
+  - chore: 0.12.0 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - feat: gh links
+  - refactor: web to porfolio
+  - fix: description web
+  - feat: color coding tabs
+  - fix: blorktools not blorkpack links
+  - feat: dynamic dashboard
+  - fix: port aquisition
+  - feat: launch dashboard
+  - fix: dev startup
+  - feat: TurboRepo/pnpm
+  - chore: 0.11.7 [skip ci]
+  - chore: update package-lock.json files [skip ci]
+  - fix: hmr (#94)
+  - chore: 0.11.6 [skip ci]
+  - fix: manifest load (#93)
+  - chore: 0.11.5 [skip ci]
+  - fix: manifest pathing fix (#91)
+  - chore: 0.11.4 [skip ci]
+  - fix: back to install; sad (#89)
+  - fix: back to ci from install (#88)
+  - chore: 0.11.3 [skip ci]
+  - fix: blank cache (#87)
+  - chore: 0.11.2 [skip ci]
+  - fix: removing cache (#86)
+  - fix: deploy lock file check (#85)
+  - chore: 0.11.1 [skip ci]
+  - fix: intermediate fix (#84)
+  - chore: 0.11.0 [skip ci]
+  - fix: lock file creation (#83)
+  - chore: update package-lock.json files [skip ci]
+  - fix: package locks (#82)
+  - fix: updating dependency version (#81)
+  - feat: pipeline passes version (#80)
+  - chore: 0.10.5 [skip ci]
+  - fix: having pipeline wait for deploy (#79)
+  - chore: adding descriptors to steps (#78)
+  - chore: 0.10.4 [skip ci]
+  - fix: waiting for completion
+  - chore: 0.10.3 [skip ci]
+  - fix: spotlight toggle control
+  - fix: finding lights properly
+  - fix: spotlight debug lengths
+  - fix: always create spotlight meshes
+  - chore: vs code adjustments
+  - fix: update tween targets
+  - fix: prevent hide click
+  - fix: control menu debug spawn
+  - fix: container debug lying mesh
+  - fix: pink and red spots
+  - fix: control menu mesh
+  - fix: control menu spotlight
+  - fix: control drop physics
+  - fix: break chains small fix
+  - chore: 0.10.2 [skip ci]
+  - fix: force versioning
+  - chore: 0.10.1 [skip ci]
+  - fix: adding common scope
+  - chore: 0.10.0 [skip ci]
+  - feat: semantic release sync
+  - chore: running pipeline
+  - chore: 0.9.1 [skip ci]
+  - fix: semantic releasing for packages
+  - chore: 0.9.0 [skip ci]
+  - chore: removing temp
+  - chore: readme updates
+  - feat: blorktools package release
+  - fix: adding tools to run script
+  - fix: default to uv
+  - fix: atlas swapping kinda
+  - fix: atlas loading
+  - chore: making breakpoint for atlas fixing
+  - fix: show hide group location
+  - fix: atlas map fixed only
+  - feat: still broke but more grouping
+  - fix: all but the textures and map
+  - refactor: breaks it but more modular
+  - fix: uv select
+  - fix: dynamic uv detection
+  - fix: minimap fixes
+  - feat: atlas minimap
+  - fix: drag drop setup
+  - feat: blorktools
+  - fix: improvements to view
+  - feat: asset debugger
+  - feat: display transparent default
+  - refactor: hiding controls
+  - feat: basic display controls
+  - feat: display detection
+  - fix: more log silencing
+  - fix: silencing logs
+  - chore: 0.8.3 [skip ci]
+  - fix: using public package
+  - chore: 0.8.2 [skip ci]
+  - fix: skipping tests
+  - chore: 0.8.1 [skip ci]
+  - fix: name in pipeline
+  - fix: blorkpack pipeline
+  - chore: 0.8.0 [skip ci]
+  - fix: spotlights to asset spawner
+  - fix: spotlight helper methods copied
+  - fix: asset spawn functions async
+  - refactor: duplicate signatures
+  - refactor: system type creation functions
+  - fix: camera through manifest
+  - fix: primary spotlight through manifest
+  - fix: spotlight fields
+  - fix: single spotlight mesh flag
+  - fix: floor to system
+  - fix: camera from manifest
+  - fix: camera properties
+  - refactor: floor to manifest
+  - fix: spawn manifest assets to blorkpack
+  - fix: auto throttle to manifest
+  - fix: wording
+  - refactor: modal function
+  - fix: getter null checks
+  - fix: function name
+  - fix: debug mesh updates
+  - fix: physics optimization settings
+  - fix: background defaulting
+  - refactor: background typing
+  - chore: 0.7.3 [skip ci]
+  - fix: monitor display test
+  - refactor: loading html breakout
+  - refactor: app renderer to blorkpack
+  - fix: fucntion casing
+  - refactor: blorkpack exports
+  - refactor: blorkfield three rapier exports
+  - fix: gravity set
+  - refactor: moving null checks
+  - fix: more log fixes
+  - fix: silencing logs
+  - fix: package and flag renaming
+  - fix: correcting casing
+  - refactor: blorkpack rebrand
+  - fix: gravity to vector3
+  - fix: test restructure/manifest types created
+  - feat: manifest base
+  - fix: all objects grabbable
+  - fix: multicolored wireframes
+  - fix: forcing col layer
+  - fix: collision align
+  - fix: wireframe connection
+  - fix: mesh sizing
+  - feat: editor break
+  - chore: 0.7.2 [skip ci]
+  - fix: build error
+  - refactor: breaking to fix
+  - fix: partial fix for work resizing
+  - refactor: better monitor resizing
+  - fix: more monitor adjusts
+  - refactor: monitor background adjust
+  - fix: background hover ui filter
+  - refactor: shared creation function
+  - refactor: work background removal
+  - refactor: cube removal
+  - refactor: workd cube
+  - refactor: projects cube
+  - patch: separate education diplomas
+  - patch: new assets (#60)
+  - chore: 0.7.1 [skip ci]
+  - fix: reverting config change (#59)
+  - refactor: path to config
+  - chore: 0.7.0 [skip ci]
+  - fix: contact text bubbles
+  - fix: actually fixing right side hover
+  - fix: right side hover
+  - refactor: font util
+  - fix: query error
+  - fix: pond expand
+  - fix: water shader large bug
+  - fix: water resize
+  - fix: easing water
+  - refactor: ripple effect
+  - feat: about ripple
+  - refactor: swimming animation
+  - reafactor: phyics pause on active text
+  - fix: pause button icon
+  - fix: sleeping objects wakeup
+  - feat: debug ui pause
+  - fix: swim animation improvments
+  - refactor: chain bounce
+  - fix: smoothing scaling
+  - fix: scroll dynamic switch
+  - chore: 0.6.0 [skip ci]
+  - fix: chain wakeup timing
+  - fix: calming chain
+  - fix: scroll break chains dynamic
+  - fix: scroll break chain cleanup
+  - feat: chain dynamic conversion
+  - chore: logging flags
+  - feat: scroll kinematic
+  - fix: scroll debug meshes
+  - fix: scroll visibility
+  - refactor: scroll sign inside container
+  - fix: keep scroll mesh
+  - feat: assembly box despawn
+  - refactor: assembly box creation
+  - fix: memory management
+  - fix: control menu beam despawn
+  - chore: log base
+  - chore: purging mordor
+  - fix: scroll chain adjust
+  - fix: scroll debug meshes
+  - fix: text container off screen position
+  - fix: scroll menu animation
+  - refactor: scroll spotlight tracking
+  - fix: control menu spotlight
+  - fix: grab order
+  - chore: 0.5.6 [skip ci]
+  - fix: double cursor
+  - fix: debug clickthrough
+  - chore: 0.5.5 [skip ci]
+  - fix: UVMap updates
+  - chore: 0.5.4 [skip ci]
+  - fix: deployed font path (#53)
+  - chore: 0.5.3 [skip ci]
+  - fix: labels to text (#52)
+  - chore: 0.5.2 [skip ci]
+  - fix: .blend file update
+  - chore: 0.5.1 [skip ci]
+  - fix: full model set update
+  - chore: 0.5.0 [skip ci]
+  - feat: svgs to text (#48)
+  - refactor: sign spawn change (#47)
+  - chore: 0.4.0 [skip ci]
+  - feat: tablet added (#46)
+  - chore: 0.3.1 [skip ci]
+  - fix: label wireframes (#44)
+  - chore: 0.3.0 [skip ci]
+  - feat: debug ui (#43)
+  - chore: 0.2.1 [skip ci]
+  - fix: a return to sanity (#42)
+  - chore: small optimizations (#38)
+  - chore: 0.2.0 [skip ci]
+  - feat: collision wire frames (#37)
+  - chore: 0.1.0 [skip ci]
+  - feat: Max overlay width (#36)
+  - chore: 0.0.8 [skip ci]
+  - fix: localhost url (#35)
+  - chore: 0.0.7 [skip ci]
+  - fix: laxing bot to allow github messages (#34)
+  - chore: 0.0.6 [skip ci]
+  - fix: removing bad icon
+  - chore: updating readme (#32)
+  - chore: 0.0.5 [skip ci]
+  - fix: or so it claims
+  - fix: less picky now
+  - chore: asset storage refactor
+  - fix: removing missed refs
+  - chore: packages are a bad idea
+  - feat: semantic versioning
+
+- 35e96b6: Forcing test release
+
+## 1.1.0
+
+### Minor Changes
+
+- 726bdfd: Switch from semantic-release to changesets for version management and GitHub releases
+
+### Patch Changes
+
+- 726bdfd: Remove semantic-release dependencies and configurations, completing migration to changesets
+- 726bdfd: Migrated CI/CD workflows from semantic-release to changesets.
+
+  This change:
+
+  - Adds workflows for changesets (dryrun, unified-pipeline, release, prerelease)
+  - Removes legacy semantic-release files and configurations
+  - Updates Git identity configuration to use GitHub Actions bot
+  - Simplifies publishing process with unified workflows
+
+### Bug Fixes
+
+- fix: typo
+
+## [0.14.8] - 2025-03-22
+
+### Bug Fixes
+
+- fix: wait hack
+
+## [0.14.7] - 2025-03-22
+
+### Bug Fixes
+
+- fix: so the big man says
+
+## [0.14.6] - 2025-03-22
+
+### Bug Fixes
+
+- fix: improved self detection
+
+## [0.14.5] - 2025-03-22
+
+### Bug Fixes
+
+- fix: simple approach
+
+## [0.14.4] - 2025-03-22
+
+### Bug Fixes
+
+- fix: using new pat
+
+## [0.14.3] - 2025-03-22
+
+### Bug Fixes
+
+- fix: overwrite development public/assets
+
+## [0.14.2] - 2025-03-22
+
+### Bug Fixes
+
+- fix: rule check instead
+
+## [0.14.1] - 2025-03-21
+
+### Bug Fixes
+
+- fix: welcome back semanto (#135)
+
+## [0.14.0] - 2025-03-21
+
+### Bug Fixes
+
+- fix: pnpm ref for semantic (#133)
+- fix: versioning need check (#132)
+- fix: adding semantic versioning (#131)
+- fix: pipeline view (#130)
+- fix: pipeline repairs (#128)
+- fix: repairing poor semantic bot (#127)
+- fix: outputting test artifacts (#126)
+
+## [0.12.20](https://github.com/littlecarlito/threejs_site/compare/v0.12.19...v0.12.20) (2025-03-20)
+
+### Bug Fixes
+
+- forcing delete gh branch ([#122](https://github.com/littlecarlito/threejs_site/issues/122)) ([22a9d6e](https://github.com/littlecarlito/threejs_site/commit/22a9d6eb563d4a34c3dd92a9ef150ec55836eab8))
+
+## [0.12.18](https://github.com/littlecarlito/threejs_site/compare/v0.12.17...v0.12.18) (2025-03-20)
+
+### Bug Fixes
+
+- forcing deploy ([#121](https://github.com/littlecarlito/threejs_site/issues/121)) ([79f1c68](https://github.com/littlecarlito/threejs_site/commit/79f1c68b899aea61e5dce8180e67c1c4a771e936))
+
+## [0.12.14](https://github.com/littlecarlito/threejs_site/compare/v0.12.13...v0.12.14) (2025-03-20)
+
+### Bug Fixes
+
+- loading path ([#118](https://github.com/littlecarlito/threejs_site/issues/118)) ([f199de9](https://github.com/littlecarlito/threejs_site/commit/f199de9e512103dd3d201ab91769218413fde212))
+- multiple custom_types ([#117](https://github.com/littlecarlito/threejs_site/issues/117)) ([c906c05](https://github.com/littlecarlito/threejs_site/commit/c906c05a680b616fa8bab32d9ea2d86e09c1a717))
+- removing pipeline ci ([#116](https://github.com/littlecarlito/threejs_site/issues/116)) ([9080824](https://github.com/littlecarlito/threejs_site/commit/90808247aa18d71d0174e39cb031fbb09708b5be))
+- semantic versioning ([#119](https://github.com/littlecarlito/threejs_site/issues/119)) ([4f1ff3b](https://github.com/littlecarlito/threejs_site/commit/4f1ff3b62f27f5b2266ba055ebbd847c082704c0))
+- spawner system ([#115](https://github.com/littlecarlito/threejs_site/issues/115)) ([e0e641c](https://github.com/littlecarlito/threejs_site/commit/e0e641cb49ca572364ac7404ad513af619ab03c5))
+
+## [0.12.12](https://github.com/littlecarlito/threejs_site/compare/v0.12.11...v0.12.12) (2025-03-18)
+
+### Bug Fixes
+
+- manual build button ([#113](https://github.com/littlecarlito/threejs_site/issues/113)) ([9b01892](https://github.com/littlecarlito/threejs_site/commit/9b01892e91153ac5ab7505f1f5a4d5fbdd75d7ce))
+
+## [0.12.11](https://github.com/littlecarlito/threejs_site/compare/v0.12.10...v0.12.11) (2025-03-18)
+
+### Bug Fixes
+
+- license module to package ([#112](https://github.com/littlecarlito/threejs_site/issues/112)) ([bb81c5f](https://github.com/littlecarlito/threejs_site/commit/bb81c5fddd02a2d5621f65f38b8fbe7f19816b5a))
+
+## [0.12.10](https://github.com/littlecarlito/threejs_site/compare/v0.12.9...v0.12.10) (2025-03-18)
+
+### Bug Fixes
+
+- license package fix ([#111](https://github.com/littlecarlito/threejs_site/issues/111)) ([624e191](https://github.com/littlecarlito/threejs_site/commit/624e1911a02670f69b5434790a76acfc22c106dd))
+
+## [0.12.9](https://github.com/littlecarlito/threejs_site/compare/v0.12.8...v0.12.9) (2025-03-18)
+
+### Bug Fixes
+
+- licensing wording ([#110](https://github.com/littlecarlito/threejs_site/issues/110)) ([e515219](https://github.com/littlecarlito/threejs_site/commit/e515219eaf6663dee3584f551e86b842b531273f))
+
+## [0.12.8](https://github.com/littlecarlito/threejs_site/compare/v0.12.7...v0.12.8) (2025-03-18)
+
+### Bug Fixes
+
+- package filtering publish workflow ([#109](https://github.com/littlecarlito/threejs_site/issues/109)) ([392ee3b](https://github.com/littlecarlito/threejs_site/commit/392ee3b850ec5f86a3e2b3bb18beea3161edf8e3))
+
+## [0.12.7](https://github.com/littlecarlito/threejs_site/compare/v0.12.6...v0.12.7) (2025-03-18)
+
+## [0.12.6](https://github.com/littlecarlito/threejs_site/compare/v0.12.5...v0.12.6) (2025-03-18)
+
+### Bug Fixes
+
+- actually fixing tags ([#107](https://github.com/littlecarlito/threejs_site/issues/107)) ([c12a82f](https://github.com/littlecarlito/threejs_site/commit/c12a82fbecbcf325c7edcc5b87fe511e834d3c66))
+
+## [0.12.5](https://github.com/littlecarlito/threejs_site/compare/v0.12.4...v0.12.5) (2025-03-18)
+
+### Bug Fixes
+
+- pushing tags to remote ([#106](https://github.com/littlecarlito/threejs_site/issues/106)) ([513c231](https://github.com/littlecarlito/threejs_site/commit/513c231619032d89a3cd629dcd75cb955e9bc971))
+
+## [0.12.4](https://github.com/littlecarlito/threejs_site/compare/v0.12.3...v0.12.4) (2025-03-18)
+
+### Bug Fixes
+
+- tag pushing ([#105](https://github.com/littlecarlito/threejs_site/issues/105)) ([9524772](https://github.com/littlecarlito/threejs_site/commit/95247721d52f2215f8e4fc7b0237a497e3a5a5a0))
+
+## [0.12.3](https://github.com/littlecarlito/threejs_site/compare/v0.12.2...v0.12.3) (2025-03-18)
+
+### Bug Fixes
+
+- husky tshy stubs ([#104](https://github.com/littlecarlito/threejs_site/issues/104)) ([fbe5525](https://github.com/littlecarlito/threejs_site/commit/fbe55252fe11f3666977c091b9ef0208e5589cd1))
+
+## [0.12.1](https://github.com/littlecarlito/threejs_site/compare/v0.12.0...v0.12.1) (2025-03-18)
+
+### Bug Fixes
+
+- force version bump for blorkpack ([74f1527](https://github.com/littlecarlito/threejs_site/commit/74f1527efe63b24522f405087ca3034ad88b91d8))
+- husky disable ([#102](https://github.com/littlecarlito/threejs_site/issues/102)) ([24956fd](https://github.com/littlecarlito/threejs_site/commit/24956fd779d67e25e9be607763a0c86a6f6a35cb))
+- it belongs in a museum ([515268e](https://github.com/littlecarlito/threejs_site/commit/515268e226afd0b173cdfba8c5477ae8dd5d16b2))
+- it belongs in a museum [#100](https://github.com/littlecarlito/threejs_site/issues/100) ([e1701a7](https://github.com/littlecarlito/threejs_site/commit/e1701a721840543154a18ad03e191b558b1c0f90))
+- not skipping generation step ([#101](https://github.com/littlecarlito/threejs_site/issues/101)) ([2bdf04a](https://github.com/littlecarlito/threejs_site/commit/2bdf04a5f62af57959cd4361f29c505fd13060cf))
+- turbo deployment scripts ([#96](https://github.com/littlecarlito/threejs_site/issues/96)) ([6aa7555](https://github.com/littlecarlito/threejs_site/commit/6aa75559a065cceff11f74e24df264223529d337))
+- variable syntax ([#103](https://github.com/littlecarlito/threejs_site/issues/103)) ([b4b7604](https://github.com/littlecarlito/threejs_site/commit/b4b76043907f8920e18d94e3dccd1d316930f5dc))
+- versioning ([#99](https://github.com/littlecarlito/threejs_site/issues/99)) ([31cdcbb](https://github.com/littlecarlito/threejs_site/commit/31cdcbbd6c5fdb84b583220dda975d43632511b3))
+
+# [0.12.0](https://github.com/littlecarlito/threejs_site/compare/v0.11.7...v0.12.0) (2025-03-18)
+
+### Bug Fixes
+
+- blorktools not blorkpack links ([a1371a5](https://github.com/littlecarlito/threejs_site/commit/a1371a56f7a2344fb3280429309dbc052d1f7590))
+- description web ([0433296](https://github.com/littlecarlito/threejs_site/commit/04332961fe2950f67009ac216462c67d15f229c0))
+- dev startup ([6c511f7](https://github.com/littlecarlito/threejs_site/commit/6c511f79c48de6663d25403a9abef05afce3b214))
+- port aquisition ([5e03061](https://github.com/littlecarlito/threejs_site/commit/5e03061f9d5ac35c46da793ae6cb019337c5aa83))
+
+### Features
+
+- color coding tabs ([a601472](https://github.com/littlecarlito/threejs_site/commit/a601472ff1080d72141506a71971fb16479e81d2))
+- dynamic dashboard ([396d7c5](https://github.com/littlecarlito/threejs_site/commit/396d7c5fb197fca1bc16dc943ed5377eca1564e0))
+- gh links ([ba9aeb9](https://github.com/littlecarlito/threejs_site/commit/ba9aeb93b124bf45034bd064d88c5f83a0c3ad89))
+- launch dashboard ([d7355c9](https://github.com/littlecarlito/threejs_site/commit/d7355c9d6e83dcb5d14d6cd8f788ee5e0e894579))
+- pnpm + TurboRepo [#95](https://github.com/littlecarlito/threejs_site/issues/95) ([7b6c565](https://github.com/littlecarlito/threejs_site/commit/7b6c565e3fdc1aa455903cf520cf5a0a26d25a91))
+- TurboRepo/pnpm ([0c19de8](https://github.com/littlecarlito/threejs_site/commit/0c19de868926e8c6d3b1fcd6ff5d78097dce723e))
+
+## [0.11.7](https://github.com/littlecarlito/threejs_site/compare/v0.11.6...v0.11.7) (2025-03-14)
+
+### Bug Fixes
+
+- hmr ([#94](https://github.com/littlecarlito/threejs_site/issues/94)) ([e805a06](https://github.com/littlecarlito/threejs_site/commit/e805a064361abdc84dae746a337d5de5ccb06d64))
+
+## [0.11.6](https://github.com/littlecarlito/threejs_site/compare/v0.11.5...v0.11.6) (2025-03-14)
+
+### Bug Fixes
+
+- manifest load ([#93](https://github.com/littlecarlito/threejs_site/issues/93)) ([0c3e655](https://github.com/littlecarlito/threejs_site/commit/0c3e6558f24867fe58d531959a4f5a024c466adc))
+
+## [0.11.5](https://github.com/littlecarlito/threejs_site/compare/v0.11.4...v0.11.5) (2025-03-14)
+
+### Bug Fixes
+
+- **common:** manifest pathing fix ([#91](https://github.com/littlecarlito/threejs_site/issues/91)) ([61bfada](https://github.com/littlecarlito/threejs_site/commit/61bfada4a5261208a5ce52c786d7c32763e0a5ce))
+
+## [0.11.4](https://github.com/littlecarlito/threejs_site/compare/v0.11.3...v0.11.4) (2025-03-14)
+
+### Bug Fixes
+
+- back to ci from install ([#88](https://github.com/littlecarlito/threejs_site/issues/88)) ([b66d3b9](https://github.com/littlecarlito/threejs_site/commit/b66d3b9a275268b49e7947fa3bd05b36aaff758f))
+- back to install; sad ([#89](https://github.com/littlecarlito/threejs_site/issues/89)) ([6077abb](https://github.com/littlecarlito/threejs_site/commit/6077abb6bcc6bbd1cebcd668173a324ea60cb996))
+
+## [0.11.3](https://github.com/littlecarlito/threejs_site/compare/v0.11.2...v0.11.3) (2025-03-14)
+
+### Bug Fixes
+
+- blank cache ([#87](https://github.com/littlecarlito/threejs_site/issues/87)) ([ce2ad7c](https://github.com/littlecarlito/threejs_site/commit/ce2ad7c1dd60880de4fa788447472bc68c4ebffa))
+
+## [0.11.2](https://github.com/littlecarlito/threejs_site/compare/v0.11.1...v0.11.2) (2025-03-14)
+
+### Bug Fixes
+
+- deploy lock file check ([#85](https://github.com/littlecarlito/threejs_site/issues/85)) ([f670849](https://github.com/littlecarlito/threejs_site/commit/f670849dce242632a1f524d3800e87eb57c3946a))
+- removing cache ([#86](https://github.com/littlecarlito/threejs_site/issues/86)) ([32d7fdd](https://github.com/littlecarlito/threejs_site/commit/32d7fdd75845b0afc8515c23aad97c3695a0cc6d))
+
+## [0.11.1](https://github.com/littlecarlito/threejs_site/compare/v0.11.0...v0.11.1) (2025-03-14)
+
+### Bug Fixes
+
+- intermediate fix ([#84](https://github.com/littlecarlito/threejs_site/issues/84)) ([64b9bfc](https://github.com/littlecarlito/threejs_site/commit/64b9bfc552cbe78daea45203cf0a6150e72874c9))
+
+# [0.11.0](https://github.com/littlecarlito/threejs_site/compare/v0.10.5...v0.11.0) (2025-03-14)
+
+### Bug Fixes
+
+- lock file creation ([#83](https://github.com/littlecarlito/threejs_site/issues/83)) ([5436195](https://github.com/littlecarlito/threejs_site/commit/5436195930753557e5cbd0df0799cdce4b6510d7))
+- package locks ([#82](https://github.com/littlecarlito/threejs_site/issues/82)) ([2f7d530](https://github.com/littlecarlito/threejs_site/commit/2f7d5308f01ded4ba1b3f811cb2c4ea0a2c1b1cb))
+- updating dependency version ([#81](https://github.com/littlecarlito/threejs_site/issues/81)) ([cad690c](https://github.com/littlecarlito/threejs_site/commit/cad690cf32bfe2d75b2303f196332da6753bff99))
+
+### Features
+
+- **common:** pipeline passes version ([#80](https://github.com/littlecarlito/threejs_site/issues/80)) ([22608d0](https://github.com/littlecarlito/threejs_site/commit/22608d000cbf8114aba4e6514f3bf0371e26d8f1))
+
+## [0.10.5](https://github.com/littlecarlito/threejs_site/compare/v0.10.4...v0.10.5) (2025-03-14)
+
+### Bug Fixes
+
+- having pipeline wait for deploy ([#79](https://github.com/littlecarlito/threejs_site/issues/79)) ([6197d7e](https://github.com/littlecarlito/threejs_site/commit/6197d7e8def579abf7004eb38bd5278ecb711288))
+
+## [0.10.4](https://github.com/littlecarlito/threejs_site/compare/v0.10.3...v0.10.4) (2025-03-14)
+
+### Bug Fixes
+
+- waiting for completion ([1017bb0](https://github.com/littlecarlito/threejs_site/commit/1017bb0b9e84f35f5300e61f58813e531e1cb3fc))
+
+## [0.10.3](https://github.com/littlecarlito/threejs_site/compare/v0.10.2...v0.10.3) (2025-03-14)
+
+### Bug Fixes
+
+- always create spotlight meshes ([31cbafe](https://github.com/littlecarlito/threejs_site/commit/31cbafed88cd286464a86239926ed96563a1c624))
+- break chains small fix ([ec60a99](https://github.com/littlecarlito/threejs_site/commit/ec60a99e109d8ab8dab3330cc50c155654b6ec64))
+- **common:** multiple bug fixes [#76](https://github.com/littlecarlito/threejs_site/issues/76) ([334180c](https://github.com/littlecarlito/threejs_site/commit/334180c319d0654e7c30f38b3ab8f25292845e48))
+- container debug lying mesh ([96c26d9](https://github.com/littlecarlito/threejs_site/commit/96c26d9fa8bdcd980d4c7ead63b81d1a290231ec))
+- control drop physics ([4498a49](https://github.com/littlecarlito/threejs_site/commit/4498a493f8ba830d53bff0f7c7d0f1cc95ee6709))
+- control menu debug spawn ([98ca165](https://github.com/littlecarlito/threejs_site/commit/98ca16526e83aeaa8e304c715b03f02b00080561))
+- control menu mesh ([ff815d4](https://github.com/littlecarlito/threejs_site/commit/ff815d46c3a2622f0f2ec64987140f8cc16e2180))
+- control menu spotlight ([ac7b899](https://github.com/littlecarlito/threejs_site/commit/ac7b899604ba88a3fa16b4e450508fbcae5bb157))
+- finding lights properly ([8aca54c](https://github.com/littlecarlito/threejs_site/commit/8aca54cec3eccd7000c62a0e0cfe7a33e4d930a3))
+- pink and red spots ([d0e31be](https://github.com/littlecarlito/threejs_site/commit/d0e31be9959496ed16904020aa4405ac02f51628))
+- prevent hide click ([c29709f](https://github.com/littlecarlito/threejs_site/commit/c29709f1caa804c2c90e23889e3a1b0d5f548bf4))
+- spotlight debug lengths ([98697ab](https://github.com/littlecarlito/threejs_site/commit/98697ab4eb1bc0be8e706cd2b4c6d0f836f9c838))
+- spotlight toggle control ([2e247b7](https://github.com/littlecarlito/threejs_site/commit/2e247b79831e4edc8c78ec68f9c3238339c93d1d))
+- update tween targets ([349d533](https://github.com/littlecarlito/threejs_site/commit/349d53353d8ff2a4098e1485fe3b42444fb16c7d))
+
+## [0.9.1](https://github.com/littlecarlito/threejs_site/compare/v0.9.0...v0.9.1) (2025-03-13)
+
+### Bug Fixes
+
+- semantic releasing for packages ([f791f35](https://github.com/littlecarlito/threejs_site/commit/f791f3522bf7059ca401a07ed7bd1478a3e45246))
+- semantic releasing for packages ([38a99dc](https://github.com/littlecarlito/threejs_site/commit/38a99dc5e16960c45a097cfce7b58cfd103bce6e))
