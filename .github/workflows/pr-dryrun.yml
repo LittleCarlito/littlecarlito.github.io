@@ -14,7 +14,7 @@ on:
       - main
   workflow_dispatch:
 
-# Define the same artifact naming strategy as unified-pipeline.yml
+# Define the same artifact naming strategy as main-pipeline.yml
 env:
   BUILD_ARTIFACT_NAME: build-artifacts-${{ github.run_id }}
   PACKAGES_ARTIFACT_NAME: package-builds-${{ github.run_id }}
@@ -44,19 +44,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
           
-      # Add workflow validation step to ensure alignment with unified-pipeline.yml
+      # Add workflow validation step to ensure alignment with main-pipeline.yml
       - name: Verify workflow alignment with main pipeline
         run: |
           echo "Verifying workflow alignment with main pipeline..."
-          # Extract artifact naming and structure from unified-pipeline.yml
-          MAIN_ARTIFACT_NAME=$(grep -A 2 "BUILD_ARTIFACT_NAME:" .github/workflows/unified-pipeline.yml | grep -v "#" | head -1 | awk -F: '{print $2}' | xargs)
+          # Extract artifact naming and structure from main-pipeline.yml
+          MAIN_ARTIFACT_NAME=$(grep -A 2 "BUILD_ARTIFACT_NAME:" .github/workflows/main-pipeline.yml | grep -v "#" | head -1 | awk -F: '{print $2}' | xargs)
           PR_ARTIFACT_NAME="${{ env.BUILD_ARTIFACT_NAME }}"
           
           echo "Main pipeline artifact naming: $MAIN_ARTIFACT_NAME"
           echo "PR pipeline artifact naming: $PR_ARTIFACT_NAME"
           
           # Check that we have job output structure matching the main pipeline
-          JOB_OUTPUT_MAIN=$(grep -A 2 "outputs:" .github/workflows/unified-pipeline.yml | grep "build_artifact_name:" | head -1)
+          JOB_OUTPUT_MAIN=$(grep -A 2 "outputs:" .github/workflows/main-pipeline.yml | grep "build_artifact_name:" | head -1)
           JOB_OUTPUT_PR="build_artifact_name: ${{ env.BUILD_ARTIFACT_NAME }}"
           
           echo "Main pipeline job output structure: $JOB_OUTPUT_MAIN"

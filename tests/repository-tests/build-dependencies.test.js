@@ -240,7 +240,7 @@ describe('Build Dependencies', () => {
 
 	test('GitHub Pages workflow builds packages in the correct order', () => {
 		// Check that package dependencies are built in the correct order in GitHub workflows
-		const workflowPath = path.resolve(__dirname, '../../.github/workflows/unified-pipeline.yml');
+		const workflowPath = path.resolve(__dirname, '../../.github/workflows/main-pipeline.yml');
 		expect(fs.existsSync(workflowPath)).toBe(true);
 		
 		const workflowContent = fs.readFileSync(workflowPath, 'utf8');

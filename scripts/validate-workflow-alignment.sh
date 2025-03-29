@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to validate that PR workflow (dryrun.yml) and main workflow (unified-pipeline.yml) 
+# Script to validate that PR workflow (pr-dryrun.yml) and main workflow (main-pipeline.yml) 
 # are properly aligned to catch issues before they reach production
 
 # Colors for output
@@ -12,8 +12,8 @@ NC='\033[0m' # No Color
 echo "🔍 Validating workflow alignment between PR workflow and main pipeline..."
 
 # Define paths
-DRYRUN_WORKFLOW=".github/workflows/dryrun.yml"
-MAIN_WORKFLOW=".github/workflows/unified-pipeline.yml"
+DRYRUN_WORKFLOW=".github/workflows/pr-dryrun.yml"
+MAIN_WORKFLOW=".github/workflows/main-pipeline.yml"
 
 # Check if files exist
 if [ ! -f "$DRYRUN_WORKFLOW" ]; then
