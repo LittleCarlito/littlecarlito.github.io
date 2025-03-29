@@ -137,8 +137,8 @@ runs:
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --sha "$PR_SHA" \
-          --context "Test Changesets" \
-          --description "Changesets validated successfully" \
+          --contexts '["Test Changesets"]' \
+          --descriptions '["Changesets validated successfully"]' \
           --state "success" \
           --target-url "${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}"
 
