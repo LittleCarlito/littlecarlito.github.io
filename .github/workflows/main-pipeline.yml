@@ -304,3 +304,26 @@ jobs:
         uses: actions/deploy-pages@v4
         with:
           token: ${{ secrets.PACKAGE_TOKEN }} 
+
+  # Clean up any remaining changeset branches
+  cleanup-branches:
+    name: Cleanup Changeset Branches
+    needs: version-and-publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PACKAGE_TOKEN }}
+      
+      # Use our specialized script that handles this task
+      - name: Clean up changeset branches
+        run: |
+          echo "Running changeset branch cleanup..."
+          bash .github/scripts/version/cleanup-changeset-branches.sh \
+            --token "${{ secrets.PACKAGE_TOKEN }}" \
+            --repo "${{ github.repository }}" \
+            --max-attempts 3 

@@ -161,18 +161,21 @@ runs:
         pr-number: ${{ steps.create_pr.outputs.pr_number }}
         merge-method: 'squash'
         delete-branch: 'true'
+        cleanup-changesets: 'true'
       
-    # Manually delete the branch to ensure it's gone
+    # Manually delete the branch to ensure it's gone - using maximum attempts and explicit cleanup flag
     - name: Delete changeset branch
       id: delete-branch
-      if: steps.manage_changesets.outputs.changes_made == 'true' && steps.create_branch.outputs.branch_name != ''
+      if: always() && steps.manage_changesets.outputs.changes_made == 'true' && steps.create_branch.outputs.branch_name != ''
       shell: bash
       run: |
         echo "Manually deleting branch: ${{ steps.create_branch.outputs.branch_name }}"
         bash .github/scripts/branch/delete.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
-          --branch "${{ steps.create_branch.outputs.branch_name }}"
+          --branch "${{ steps.create_branch.outputs.branch_name }}" \
+          --cleanup-changesets "true" \
+          --max-attempts 5
       env:
         GH_TOKEN: ${{ inputs.github-token }}
       
