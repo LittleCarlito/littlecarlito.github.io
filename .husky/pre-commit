@@ -122,6 +122,37 @@ done
 if [ "$GITHUB_WORKFLOWS_CHANGED" = true ]; then
     echo "🔄 Testing GitHub workflow files..."
     
+    # Validate script parameter usage in workflow files
+    echo "🔍 Checking for common script parameter issues..."
+    
+    # Check for --context instead of --contexts in force-status.sh calls
+    if grep -r --include="*.yml" --include="*.yaml" "force-status\.sh.*--context [^-]" .github/ >/dev/null; then
+        echo "❌ Found incorrect parameter usage: using --context instead of --contexts in force-status.sh calls"
+        echo "⚠️ The force-status.sh script requires --contexts (plural) with a JSON array value"
+        echo "Example: --contexts '[\"Build Packages\"]' instead of --context \"Build Packages\""
+        grep -r --include="*.yml" --include="*.yaml" "force-status\.sh.*--context [^-]" .github/
+        exit 1
+    fi
+    
+    # Check for --description instead of --descriptions in force-status.sh calls
+    if grep -r --include="*.yml" --include="*.yaml" "force-status\.sh.*--description [^-]" .github/ >/dev/null; then
+        echo "❌ Found incorrect parameter usage: using --description instead of --descriptions in force-status.sh calls"
+        echo "⚠️ The force-status.sh script requires --descriptions (plural) with a JSON array value"
+        echo "Example: --descriptions '[\"Build completed successfully\"]' instead of --description \"Build completed successfully\""
+        grep -r --include="*.yml" --include="*.yaml" "force-status\.sh.*--description [^-]" .github/
+        exit 1
+    fi
+    
+    # Validate shell scripts syntax
+    echo "🔍 Validating shell scripts syntax..."
+    for script in $(find .github/scripts -name "*.sh"); do
+        echo "Checking $script..."
+        if ! bash -n "$script"; then
+            echo "❌ Shell script syntax error in $script"
+            exit 1
+        fi
+    done
+    
     # Note: push-create-merge-pr workflow check is handled below
     
     # Check for push-create-merge-pr workflow

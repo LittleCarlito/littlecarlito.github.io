@@ -22,7 +22,7 @@ create_branch() {
     if [ -z "$base_branch" ]; then
         echo "Error: Empty base branch name provided" >&2
         return 1
-    }
+    fi
     
     echo "Creating branch: $branch_name from $base_branch" >&2
     
@@ -45,7 +45,7 @@ create_branch() {
         echo "Warning: Branch $branch_name already exists on remote, checking out existing branch" >&2
         git checkout -b "$branch_name" "origin/$branch_name" 2>&1 >&2 || return 1
         return 0
-    }
+    fi
     
     # Create and checkout new branch
     git checkout -b "$branch_name" "origin/$base_branch" 2>&1 >&2 || {
@@ -367,7 +367,7 @@ main() {
     if [ -z "$pr_number" ]; then
         echo "Warning: Could not extract PR number from URL: $pr_url" >&2
         # Continue anyway, since the PR might have been created
-    }
+    fi
     
     # Add reviewers and assignees
     if [ -n "$pr_number" ]; then

@@ -119,8 +119,8 @@ runs:
             --token "${{ inputs.github-token }}" \
             --repo "${{ github.repository }}" \
             --sha "$PR_SHA" \
-            --context "Test / Run Tests" \
-            --description "Tests passed successfully" \
+            --contexts '["Test / Run Tests"]' \
+            --descriptions '["Tests passed successfully"]' \
             --state "success" \
             --target-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         fi
