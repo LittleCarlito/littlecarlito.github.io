@@ -507,9 +507,7 @@ export function updateUvChannelPanel(state) {
  */
 export function removeUvChannelPanel() {
 	if (uvChannelPanelContainer) {
-		if (document.body.contains(uvChannelPanelContainer)) {
-			document.body.removeChild(uvChannelPanelContainer);
-		}
-		uvChannelPanelContainer = null;
+		// Instead of removing, just hide the panel
+		uvChannelPanelContainer.style.display = 'none';
 	}
 } 
