@@ -1,7 +1,13 @@
 #!/bin/bash
 
-# Script to validate that PR workflow (dryrun.yml) and main workflow (unified-pipeline.yml) 
-# are properly aligned to catch issues before they reach production
+# Script to validate that PR workflow (pr-dryrun.yml) and main workflow (main-pipeline.yml)
+# are properly aligned in terms of their functionality and output structure.
+# This helps ensure that we don't have unexpected differences between PR and main workflows.
+
+# This script is designed to be run as part of the PR workflow to check for misalignments
+# that might cause issues when merging PR code into main.
+
+set -e
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -11,18 +17,18 @@ NC='\033[0m' # No Color
 
 echo "🔍 Validating workflow alignment between PR workflow and main pipeline..."
 
-# Define paths
-DRYRUN_WORKFLOW=".github/workflows/dryrun.yml"
-MAIN_WORKFLOW=".github/workflows/unified-pipeline.yml"
+# Define the paths to the workflow files
+DRYRUN_WORKFLOW=".github/workflows/pr-dryrun.yml"
+MAIN_WORKFLOW=".github/workflows/main-pipeline.yml"
 
-# Check if files exist
-if [ ! -f "$DRYRUN_WORKFLOW" ]; then
-  echo -e "${RED}Error: $DRYRUN_WORKFLOW does not exist${NC}"
+# Check if workflow files exist
+if [[ ! -f "$DRYRUN_WORKFLOW" ]]; then
+  echo "Error: PR workflow file $DRYRUN_WORKFLOW not found!"
   exit 1
 fi
 
-if [ ! -f "$MAIN_WORKFLOW" ]; then
-  echo -e "${RED}Error: $MAIN_WORKFLOW does not exist${NC}"
+if [[ ! -f "$MAIN_WORKFLOW" ]]; then
+  echo "Error: Main workflow file $MAIN_WORKFLOW not found!"
   exit 1
 fi
 
