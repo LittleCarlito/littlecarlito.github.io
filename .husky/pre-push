@@ -89,8 +89,24 @@ run_with_timeout() {
 
 # Check for changes outside development/ and public/ directories
 echo "Checking for relevant file changes..."
-# Get files changed between current branch and remote
-CHANGED_FILES=$(git diff --name-only origin/$(git branch --show-current) HEAD)
+
+# Get the base commit for comparison - use safer detection
+CURRENT_BRANCH=$(git branch --show-current)
+BASE_COMMIT=""
+
+# Check if the branch exists on the remote
+if git ls-remote --heads origin $CURRENT_BRANCH | grep -q $CURRENT_BRANCH; then
+    # Branch exists on remote, use it as base
+    BASE_COMMIT="origin/$CURRENT_BRANCH"
+    echo "Comparing with existing remote branch: $BASE_COMMIT"
+else
+    # Branch doesn't exist on remote yet, use the branch point from main
+    BASE_COMMIT=$(git merge-base origin/main HEAD)
+    echo "New branch, comparing with merge-base from main: $BASE_COMMIT"
+fi
+
+# Get files changed between base commit and HEAD
+CHANGED_FILES=$(git diff --name-only $BASE_COMMIT HEAD)
 
 # Flag to indicate if we need to run tests
 RUN_TESTS=false
@@ -109,7 +125,7 @@ done
 
 if [ "$RUN_TESTS" = true ]; then
     # Check if .github directory has changes
-    GITHUB_DIR_CHANGES=$(git diff --name-only origin/$(git branch --show-current) HEAD | grep -c "^\.github/")
+    GITHUB_DIR_CHANGES=$(git diff --name-only $BASE_COMMIT HEAD | grep -c "^\.github/")
     
     # Only run workflow validation if .github directory has changes
     if [ "$GITHUB_DIR_CHANGES" -gt 0 ]; then
