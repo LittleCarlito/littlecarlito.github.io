@@ -10,13 +10,14 @@
 // Import from index.js
 import { init, state } from './index.js';
 import { autoShowAtlasVisualization } from './ui/debugPanel.js';
-// Listen for texture loaded event to show atlas visualization
+import { createUvChannelPanel } from './ui/uvChannelPanel.js';
+// Listen for texture loaded event to show visualization panels
 document.addEventListener('textureLoaded', () => {
 	if (state.textureObject && state.modelObject) {
 		autoShowAtlasVisualization(state);
 	}
 });
-// Listen for model loaded event to show atlas visualization
+// Listen for model loaded event to show visualization panels
 document.addEventListener('modelLoaded', () => {
 	if (state.textureObject && state.modelObject) {
 		autoShowAtlasVisualization(state);
