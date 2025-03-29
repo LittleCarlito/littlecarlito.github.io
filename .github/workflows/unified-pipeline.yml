@@ -17,6 +17,11 @@ on:
 concurrency:
   group: github-pages-deploy-${{ github.sha }}
   cancel-in-progress: true
+
+# Define reusable variables
+env:
+  BUILD_ARTIFACT_NAME: build-artifacts-${{ github.run_id }}
+  PACKAGES_ARTIFACT_NAME: package-builds-${{ github.run_id }}
   
 # Note: This workflow handles GitHub Pages deployment directly.
 # The separate deploy-pages.yml workflow should be disabled or deleted.
@@ -25,11 +30,6 @@ permissions:
   packages: write
   pull-requests: write
   statuses: write
-
-# Define the same artifact naming strategy as dryrun.yml
-env:
-  BUILD_ARTIFACT_NAME: build-artifacts-${{ github.run_id }}
-  PACKAGES_ARTIFACT_NAME: package-builds-${{ github.run_id }}
 
 jobs:
   build:
@@ -97,6 +97,9 @@ jobs:
         with:
           name: ${{ needs.build.outputs.build_artifact_name }}
           path: packages
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           
       # Validate that artifacts were successfully downloaded
       - name: Validate downloaded artifacts
@@ -175,6 +178,9 @@ jobs:
         with:
           name: ${{ needs.build.outputs.build_artifact_name }}
           path: packages
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           
       # Validate that artifacts were successfully downloaded
       - name: Validate downloaded artifacts
