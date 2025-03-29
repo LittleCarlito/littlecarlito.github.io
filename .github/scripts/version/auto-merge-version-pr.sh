@@ -133,9 +133,33 @@ if [[ -n "$PR_NUMBER" && "$PR_NUMBER" != "null" ]]; then
       # Delete branch if requested
       if [[ "$DELETE_BRANCH" == "true" && -n "$PR_HEAD" ]]; then
         echo "Deleting branch: $PR_HEAD" >&2
-        curl -s -X DELETE -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
-          "https://api.github.com/repos/$REPO/git/refs/heads/$PR_HEAD" >/dev/null 2>&1
-        echo "branch_deleted=true"
+        
+        # Determine if this is a version PR to clean up changesets too
+        CLEANUP_CHANGESETS="false"
+        if [[ "$PR_TITLE" == *"version packages"* ]] || [[ "$PR_HEAD" == version-packages-* ]]; then
+          echo "This is a version PR, will also clean up changesets" >&2
+          CLEANUP_CHANGESETS="true"
+        fi
+        
+        # Use the enhanced branch deletion script
+        DELETE_OUTPUT=$(bash .github/scripts/branch/delete.sh \
+          --token "$TOKEN" \
+          --repo "$REPO" \
+          --branch "$PR_HEAD" \
+          --cleanup-changesets "$CLEANUP_CHANGESETS" \
+          --max-attempts 3)
+          
+        # Check result
+        if echo "$DELETE_OUTPUT" | grep -q "branch_deleted=true"; then
+          echo "Successfully deleted branch: $PR_HEAD" >&2
+          echo "branch_deleted=true"
+        else  
+          echo "Warning: Failed to delete branch $PR_HEAD" >&2
+          echo "branch_deleted=false"
+        fi
+      else
+        echo "Branch deletion not requested or head ref not found" >&2
+        echo "branch_deleted=false"
       fi
     else
       echo "Failed to merge PR #$PR_NUMBER" >&2

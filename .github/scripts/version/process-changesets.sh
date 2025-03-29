@@ -154,6 +154,28 @@ set -e
 cat "$PUBLISH_OUTPUT" >&2
 rm -f "$PUBLISH_OUTPUT"
 
+# Clean up the branch regardless of success or failure
+if [[ -n "${BRANCH_NAME}" ]]; then
+  echo "Cleaning up temporary branch ${BRANCH_NAME}..." >&2
+  
+  # Switch back to main first
+  { git checkout main; } 2>&1 || true
+  
+  # Use the enhanced branch deletion script for more reliable cleanup
+  DELETE_OUTPUT=$(bash .github/scripts/branch/delete.sh \
+    --token "${GITHUB_TOKEN}" \
+    --repo "${GITHUB_REPOSITORY}" \
+    --branch "${BRANCH_NAME}" \
+    --cleanup-changesets "true" \
+    --max-attempts 3)
+    
+  if echo "$DELETE_OUTPUT" | grep -q "branch_deleted=true"; then
+    echo "Successfully cleaned up temporary branch: ${BRANCH_NAME}" >&2
+  else
+    echo "Note: Could not fully clean up branch ${BRANCH_NAME}, but continuing..." >&2
+  fi
+fi
+
 # Check if publish was successful
 if [[ ${PUBLISH_EXIT_CODE} -eq 0 ]]; then
   echo "Successfully published packages" >&2

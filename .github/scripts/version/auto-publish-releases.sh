@@ -181,8 +181,22 @@ echo "releases_created=$RELEASES_CREATED"
 # Delete version branch if requested and it exists
 if [[ "$DELETE_BRANCH" == "true" && -n "$VERSION_BRANCH" ]]; then
   echo "Deleting version branch: $VERSION_BRANCH" >&2
-  { git push origin --delete "$VERSION_BRANCH" 2>/dev/null || echo "Branch $VERSION_BRANCH not found or already deleted" >&2; }
-  echo "branch_deleted=true"
+  
+  # Use the enhanced branch deletion script with changeset cleanup
+  DELETE_OUTPUT=$(bash .github/scripts/branch/delete.sh \
+    --token "$TOKEN" \
+    --repo "$REPO" \
+    --branch "$VERSION_BRANCH" \
+    --cleanup-changesets "true" \
+    --max-attempts 3)
+    
+  if echo "$DELETE_OUTPUT" | grep -q "branch_deleted=true"; then
+    echo "Successfully deleted version branch: $VERSION_BRANCH" >&2
+    echo "branch_deleted=true"
+  else
+    echo "Warning: Failed to delete version branch: $VERSION_BRANCH" >&2
+    echo "branch_deleted=false"
+  fi
 fi
 
 exit 0 
