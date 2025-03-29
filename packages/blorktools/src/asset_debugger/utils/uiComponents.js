@@ -182,11 +182,9 @@ function makeDraggableWithMagnetism(element, defaultPosition) {
 		const left = e.clientX - offset.x;
 		const top = e.clientY - offset.y;
         
-		// Keep within window bounds
-		const maxLeft = window.innerWidth - element.offsetWidth;
-		const maxTop = window.innerHeight - element.offsetHeight;
-		element.style.left = Math.min(Math.max(0, left), maxLeft) + 'px';
-		element.style.top = Math.min(Math.max(0, top), maxTop) + 'px';
+		// Allow dragging beyond window bounds (removed restrictions)
+		element.style.left = left + 'px';
+		element.style.top = top + 'px';
         
 		// Ensure bottom position is cleared when dragging by top
 		element.style.bottom = 'auto';
