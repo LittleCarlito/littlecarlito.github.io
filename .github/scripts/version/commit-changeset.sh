@@ -52,6 +52,10 @@ PUSH_OUTPUT=$(git push --set-upstream origin "$BRANCH_NAME" 2>&1) || {
     exit 1
 }
 
+# Record this branch in a file for guaranteed cleanup (belt and suspenders approach)
+mkdir -p .github/temp
+echo "$BRANCH_NAME" >> .github/temp/changeset_branches_to_cleanup.txt 2>/dev/null || true
+
 echo "Changeset committed and pushed successfully" >&2
 echo "commit_success=true"
 echo "commit_sha=$COMMIT_SHA" 

@@ -37,6 +37,7 @@
     "release": "changeset publish",
     "change": "node scripts/create-changeset.js",
     "auto-change": "node scripts/auto-changeset.js",
+    "cleanup:changeset-branches": "bash .github/scripts/version/cleanup-changeset-branches.sh --token $(gh auth token) --repo $(git config --get remote.origin.url | sed -E 's/.*[:\\/]([\\w-]+\\/[\\w-]+)(\\.git)?$/\\1/')",
     "gh-pages:server": "node tests/apps/portfolio/gh-pages-simulator.js",
     "gh-pages:test": "node tests/apps/portfolio/environment/gh-pages-texture-test.js --keep-open",
     "gh-pages:debug": "chmod +x .husky/gh-pages-test && .husky/gh-pages-test",
