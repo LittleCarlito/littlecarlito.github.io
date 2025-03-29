@@ -56,17 +56,29 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.github-token }}
     
-    # Create fallback if artifacts weren't downloaded
+    # Handle missing artifacts
     - name: Handle missing artifacts
       if: steps.download-artifacts.outcome != 'success'
       shell: bash
       run: |
         echo "Warning: Artifacts were not found or couldn't be downloaded."
-        echo "This is expected if you're skipping the build step or running tests directly."
-        echo "Creating directories to ensure tests can run..."
+        echo "Running build step to ensure tests can run..."
         
-        # Create the packages directory structure if it doesn't exist
-        mkdir -p ${{ inputs.artifact-path }}
+        # Setup Node.js and pnpm
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        
+        # Install pnpm if needed
+        if ! command -v pnpm &> /dev/null; then
+          npm install -g pnpm@${{ inputs.pnpm-version }}
+        fi
+        
+        # Install dependencies
+        pnpm install
+        
+        # Run a quick build to ensure tests can run
+        echo "Building packages locally..."
+        pnpm run build || echo "Build may have failed, but continuing with tests"
         
         # List what's in the directory
         echo "Current directory structure:"

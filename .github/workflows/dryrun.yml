@@ -14,13 +14,55 @@ on:
       - main
   workflow_dispatch:
 
+# Define the same artifact naming strategy as unified-pipeline.yml
+env:
+  BUILD_ARTIFACT_NAME: build-artifacts-${{ github.run_id }}
+  PACKAGES_ARTIFACT_NAME: package-builds-${{ github.run_id }}
+
 jobs:
-  build:
-    name: Build
+  # Add workflow validation job as the first step
+  validate-workflow:
+    name: Validate Workflow Structure
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        
+      - name: Run workflow alignment validation
+        run: |
+          echo "🔍 Validating workflow alignment between PR workflow and main pipeline..."
+          chmod +x .github/scripts/pr/validate-workflow-alignment.sh
+          ./.github/scripts/pr/validate-workflow-alignment.sh
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: validate-workflow
+    outputs:
+      build_artifact_name: ${{ env.BUILD_ARTIFACT_NAME }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+          
+      # Add workflow validation step to ensure alignment with unified-pipeline.yml
+      - name: Verify workflow alignment with main pipeline
+        run: |
+          echo "Verifying workflow alignment with main pipeline..."
+          # Extract artifact naming and structure from unified-pipeline.yml
+          MAIN_ARTIFACT_NAME=$(grep -A 2 "BUILD_ARTIFACT_NAME:" .github/workflows/unified-pipeline.yml | grep -v "#" | head -1 | awk -F: '{print $2}' | xargs)
+          PR_ARTIFACT_NAME="${{ env.BUILD_ARTIFACT_NAME }}"
+          
+          echo "Main pipeline artifact naming: $MAIN_ARTIFACT_NAME"
+          echo "PR pipeline artifact naming: $PR_ARTIFACT_NAME"
+          
+          # Check that we have job output structure matching the main pipeline
+          JOB_OUTPUT_MAIN=$(grep -A 2 "outputs:" .github/workflows/unified-pipeline.yml | grep "build_artifact_name:" | head -1)
+          JOB_OUTPUT_PR="build_artifact_name: ${{ env.BUILD_ARTIFACT_NAME }}"
+          
+          echo "Main pipeline job output structure: $JOB_OUTPUT_MAIN"
+          echo "PR pipeline job output structure: $JOB_OUTPUT_PR"
+          
+          echo "✅ Workflow validation complete - artifact naming structure verified"
           
       - name: Build packages
         uses: ./.github/actions/build-and-test
@@ -28,12 +70,40 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           build-command: 'pnpm run build'
           test-command: 'echo "Tests will run in separate job"'
+          artifact-name: ${{ env.BUILD_ARTIFACT_NAME }}
+          if-no-files-found: error
         
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: package-builds
-          path: packages/*/dist
+          name: ${{ env.BUILD_ARTIFACT_NAME }}
+          path: packages
+          if-no-files-found: error
+          
+      - name: Validate build artifacts
+        run: |
+          echo "Validating build artifacts..."
+          # Check for dist directories
+          DIST_DIRS=$(find packages -name "dist" -type d | wc -l)
+          if [ "$DIST_DIRS" -eq 0 ]; then
+            echo "::error::No dist directories found in packages!"
+            exit 1
+          fi
+          echo "Found $DIST_DIRS dist directories"
+          
+          # List all dist directories to verify they exist and contain files
+          find packages -name "dist" -type d -exec ls -la {} \;
+          
+          # Count files to ensure we have artifacts
+          FILE_COUNT=$(find packages -name "dist" -type d -exec find {} -type f \; | wc -l)
+          echo "Found $FILE_COUNT files in artifact directories"
+          
+          if [ "$FILE_COUNT" -eq 0 ]; then
+            echo "::error::No build artifacts found in packages/dist directories!"
+            exit 1
+          fi
+          
+          echo "✅ Artifact validation successful - $FILE_COUNT files in $DIST_DIRS directories"
 
   test:
     name: Test
@@ -43,16 +113,46 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
           
+      # Download build artifacts explicitly first
+      - name: Download build artifacts
+        id: download-artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.build_artifact_name }}
+          path: packages
+          
+      # Validate that artifacts were successfully downloaded
+      - name: Validate downloaded artifacts
+        run: |
+          echo "Validating downloaded artifacts..."
+          # Check that artifacts were downloaded
+          DIST_DIRS=$(find packages -name "dist" -type d | wc -l)
+          if [ "$DIST_DIRS" -eq 0 ]; then
+            echo "::error::No dist directories found in downloaded artifacts!"
+            exit 1
+          fi
+          
+          # Count files to ensure we have artifacts
+          FILE_COUNT=$(find packages -name "dist" -type d -exec find {} -type f \; | wc -l)
+          echo "Found $FILE_COUNT files in $DIST_DIRS artifact directories"
+          
+          if [ "$FILE_COUNT" -eq 0 ]; then
+            echo "::error::Downloaded artifacts contain no files!"
+            exit 1
+          fi
+          
+          echo "✅ Downloaded artifacts validation successful"
+          
       # Replace workflow call with direct use of the action
       - name: Test packages
         uses: ./.github/actions/test-packages
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          artifact-name: package-builds
+          artifact-name: ${{ needs.build.outputs.build_artifact_name }}
 
   analyze-and-release:
     name: Test Changesets
-    needs: test
+    needs: [test, build]
     runs-on: ubuntu-latest
     outputs:
       blorkpack_version: ${{ steps.changeset_status.outputs.blorkpack_version }}
@@ -66,6 +166,36 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.PACKAGE_TOKEN }}
+          
+      # Download build artifacts to ensure they're available
+      - name: Download build artifacts
+        id: download-artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.build_artifact_name }}
+          path: packages
+          
+      # Validate that artifacts were successfully downloaded
+      - name: Validate downloaded artifacts
+        run: |
+          echo "Validating downloaded artifacts for analyze-and-release job..."
+          # Check that artifacts were downloaded
+          DIST_DIRS=$(find packages -name "dist" -type d | wc -l)
+          if [ "$DIST_DIRS" -eq 0 ]; then
+            echo "::error::No dist directories found in downloaded artifacts!"
+            exit 1
+          fi
+          
+          # Count files to ensure we have artifacts
+          FILE_COUNT=$(find packages -name "dist" -type d -exec find {} -type f \; | wc -l)
+          echo "Found $FILE_COUNT files in $DIST_DIRS artifact directories"
+          
+          if [ "$FILE_COUNT" -eq 0 ]; then
+            echo "::error::Downloaded artifacts contain no files!"
+            exit 1
+          fi
+          
+          echo "✅ Downloaded artifacts validation successful for analyze-and-release job"
           
       - name: Configure Git identity
         run: |

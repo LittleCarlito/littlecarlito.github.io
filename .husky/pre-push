@@ -108,6 +108,14 @@ for file in $CHANGED_FILES; do
 done
 
 if [ "$RUN_TESTS" = true ]; then
+    # Validate workflow alignment to catch issues before they reach production
+    echo "🔍 Validating workflow alignment..."
+    ./.github/scripts/pr/validate-workflow-alignment.sh || {
+        echo "❌ Workflow alignment validation failed."
+        echo "Please fix workflow alignment issues before pushing."
+        exit 1
+    }
+    
     # Run unified pipeline with timeout to prevent hanging
     echo "🚀 Running unified pipeline test..."
     

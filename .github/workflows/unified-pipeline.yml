@@ -17,11 +17,6 @@ on:
 concurrency:
   group: github-pages-deploy-${{ github.sha }}
   cancel-in-progress: true
-
-# Define reusable variables
-env:
-  BUILD_ARTIFACT_NAME: build-and-test-artifacts
-  PACKAGES_ARTIFACT_NAME: package-builds
   
 # Note: This workflow handles GitHub Pages deployment directly.
 # The separate deploy-pages.yml workflow should be disabled or deleted.
@@ -45,12 +40,12 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           build-command: 'pnpm run build'
           test-command: 'echo "Tests will run in separate job"'
-          artifact-name: ${{ env.BUILD_ARTIFACT_NAME }}
+          artifact-name: 'build-and-test-artifacts'
         
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.PACKAGES_ARTIFACT_NAME }}
+          name: package-builds
           path: packages/*/dist
 
   test:
@@ -66,7 +61,7 @@ jobs:
         uses: ./.github/actions/test-packages
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          artifact-name: ${{ env.BUILD_ARTIFACT_NAME }}
+          artifact-name: build-and-test-artifacts
 
   generate-changesets:
     name: Generate Changesets
@@ -113,7 +108,7 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: ${{ env.BUILD_ARTIFACT_NAME }}
+          name: build-and-test-artifacts
           path: ./
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -140,7 +135,7 @@ jobs:
         uses: ./.github/actions/version-and-publish
         with:
           github-token: ${{ secrets.PACKAGE_TOKEN }}
-          artifact-name: ${{ env.BUILD_ARTIFACT_NAME }}
+          artifact-name: 'build-and-test-artifacts'
           publish-command: 'pnpm run release'
           version-command: 'pnpm run version'
           commit-message: 'chore: version packages'
