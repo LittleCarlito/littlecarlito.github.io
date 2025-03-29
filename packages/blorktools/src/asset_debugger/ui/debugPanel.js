@@ -11,12 +11,13 @@ export let updateTextureInfo = null;
  *
  */
 export function setupDebugPanel(state) {
+	// Create the debug panel
 	const panel = createDebugPanel(state);
 	
-	// Add UV channel selector
+	// Set up UV information section - first create section with controls
 	setupUvSwitcher(state);
 	
-	// NEW: Add atlas segment cycling button
+	// Then add the atlas cycler and manual controls to the same section
 	addAtlasSegmentCycler(state);
 }
 // Start debugging (called from dragdrop.js)
@@ -512,19 +513,52 @@ export function autoShowAtlasVisualization(state) {
  */
 function setupUvSwitcher(state) {
 	const uvInfoSection = document.getElementById('uv-info-section');
-	if (!uvInfoSection) return;
-	// Clear previous content
-	while (uvInfoSection.firstChild) {
-		uvInfoSection.removeChild(uvInfoSection.firstChild);
+	if (!uvInfoSection) {
+		// Create the section if it doesn't exist
+		const debugPanel = document.getElementById('debug-panel');
+		if (!debugPanel) return;
+		
+		const newSection = document.createElement('div');
+		newSection.className = 'debug-section';
+		newSection.id = 'uv-info-section';
+		
+		// Create label
+		const uvLabel = document.createElement('div');
+		uvLabel.className = 'debug-label';
+		uvLabel.textContent = 'UV Information:';
+		uvLabel.style.fontWeight = 'bold';
+		uvLabel.style.marginBottom = '10px';
+		uvLabel.style.color = '#95a5a6';
+		newSection.appendChild(uvLabel);
+		
+		debugPanel.appendChild(newSection);
+		
+		// Continue with the new section
+		setupUvControls(state, newSection);
+	} else {
+		// Clear only the UV controls part, preserving other components that might have been added
+		const existingControls = uvInfoSection.querySelector('#uv-controls');
+		const existingInfoContainer = uvInfoSection.querySelector('#uv-info-container');
+		
+		if (existingControls) {
+			existingControls.remove();
+		}
+		
+		if (existingInfoContainer) {
+			existingInfoContainer.remove();
+		}
+		
+		// Setup controls in the existing section
+		setupUvControls(state, uvInfoSection);
 	}
-	// Create label
-	const uvLabel = document.createElement('div');
-	uvLabel.className = 'debug-label';
-	uvLabel.textContent = 'UV Information:';
-	uvLabel.style.fontWeight = 'bold';
-	uvLabel.style.marginBottom = '10px';
-	uvLabel.style.color = '#95a5a6';
-	uvInfoSection.appendChild(uvLabel);
+}
+
+/**
+ * Helper function to set up UV controls within a container
+ * @param {Object} state - Application state
+ * @param {HTMLElement} container - Container to add controls to
+ */
+function setupUvControls(state, container) {
 	// If no UV sets found
 	if (state.availableUvSets.length === 0) {
 		const noUvInfo = document.createElement('div');
@@ -533,19 +567,22 @@ function setupUvSwitcher(state) {
 		noUvInfo.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
 		noUvInfo.style.borderRadius = '5px';
 		noUvInfo.textContent = 'No UV data found in this model.';
-		uvInfoSection.appendChild(noUvInfo);
+		container.appendChild(noUvInfo);
 		return;
 	}
+	
 	// Create UV controls
 	const uvControls = document.createElement('div');
 	uvControls.id = 'uv-controls';
 	uvControls.style.marginBottom = '15px';
+	
 	// Create a label for the dropdown
 	const dropdownLabel = document.createElement('div');
 	dropdownLabel.textContent = 'Select UV Channel:';
 	dropdownLabel.style.marginBottom = '5px';
 	dropdownLabel.style.color = 'white';
 	uvControls.appendChild(dropdownLabel);
+	
 	// Create select dropdown
 	const select = document.createElement('select');
 	select.id = 'uv-channel-select';
@@ -557,6 +594,7 @@ function setupUvSwitcher(state) {
 	select.style.borderRadius = '3px';
 	select.style.marginBottom = '10px';
 	select.style.cursor = 'pointer';
+	
 	// Add options for each UV set
 	state.uvSetNames.forEach((name, index) => {
 		const option = document.createElement('option');
@@ -564,6 +602,7 @@ function setupUvSwitcher(state) {
 		option.textContent = name;
 		select.appendChild(option);
 	});
+	
 	// Set current value - make sure it's properly initialized
 	if (state.currentUvSet !== undefined && state.currentUvSet >= 0 && state.currentUvSet < state.availableUvSets.length) {
 		select.value = state.currentUvSet;
@@ -574,8 +613,10 @@ function setupUvSwitcher(state) {
 		state.currentUvSet = 0;
 		console.log(`Defaulting dropdown to first UV set: ${state.availableUvSets[0]}`);
 	}
+	
 	// Log the selected UV channel for debugging
 	console.log(`UV Dropdown initialized with value: ${select.value}, text: ${select.options[select.selectedIndex].text}`);
+	
 	// Add change event
 	select.addEventListener('change', function() {
 		const selectedIndex = parseInt(this.value);
@@ -584,8 +625,10 @@ function setupUvSwitcher(state) {
 		// Pass the actual channel name (e.g., 'uv', 'uv2') to switchUvChannel
 		switchUvChannel(state, channelName);
 	});
+	
 	uvControls.appendChild(select);
-	uvInfoSection.appendChild(uvControls);
+	container.appendChild(uvControls);
+	
 	// Add UV info container
 	const uvInfoContainer = document.createElement('div');
 	uvInfoContainer.id = 'uv-info-container';
@@ -597,7 +640,7 @@ function setupUvSwitcher(state) {
 	uvInfoContainer.style.marginBottom = '15px';
 	uvInfoContainer.style.color = '#ddd';
 	uvInfoContainer.style.lineHeight = '1.4';
-	uvInfoSection.appendChild(uvInfoContainer);
+	container.appendChild(uvInfoContainer);
 }
 
 /**
@@ -605,16 +648,16 @@ function setupUvSwitcher(state) {
  * @param {Object} state - Global application state
  */
 function addAtlasSegmentCycler(state) {
-	const debugPanel = document.querySelector('#debug-panel');
-	if (!debugPanel) return;
-	
-	// Find or create UV information section
-	let uvInfoSection = debugPanel.querySelector('.uv-information');
+	// Find the UV info section
+	const uvInfoSection = document.getElementById('uv-info-section');
 	if (!uvInfoSection) {
-		uvInfoSection = document.createElement('div');
-		uvInfoSection.className = 'uv-information';
-		uvInfoSection.innerHTML = '<h3>UV Information:</h3>';
-		debugPanel.appendChild(uvInfoSection);
+		console.warn('UV info section not found, cannot add atlas segment cycler');
+		return;
+	}
+
+	// Check if the cycle button already exists
+	if (uvInfoSection.querySelector('#cycle-segments-button')) {
+		return; // Button already exists, don't duplicate
 	}
 	
 	// Create atlas segment cycling button
@@ -649,8 +692,11 @@ function addAtlasSegmentCycler(state) {
 	helpText.style.marginBottom = '15px';
 	uvInfoSection.appendChild(helpText);
 	
-	// Add manual UV mapping controls
-	addManualUvControls(state, uvInfoSection);
+	// Check if manual UV controls already exist
+	if (!uvInfoSection.querySelector('.manual-uv-controls')) {
+		// Add manual UV mapping controls only if they don't exist yet
+		addManualUvControls(state, uvInfoSection);
+	}
 }
 
 /**
@@ -672,7 +718,7 @@ function addManualUvControls(state, container) {
 	heading.textContent = 'Manual UV Mapping Controls';
 	heading.style.fontWeight = 'bold';
 	heading.style.marginBottom = '10px';
-	heading.style.color = '#3498db';
+	heading.style.color = '#95a5a6';  // Changed to match other headers
 	manualControlsSection.appendChild(heading);
 	
 	// Create labels and input styles
