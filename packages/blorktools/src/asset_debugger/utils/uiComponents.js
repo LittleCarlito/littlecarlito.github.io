@@ -196,9 +196,6 @@ export function createMovablePanel(options) {
 	// Make the container draggable
 	makeDraggableWithMagnetism(container, position);
     
-	// Add touch support for mobile devices
-	addTouchSupport(container, header);
-    
 	// Track this panel for resize handling
 	allMovablePanels.add(container);
     
@@ -371,6 +368,7 @@ window.addEventListener('resize', () => {
 function makeDraggableWithMagnetism(element, defaultPosition) {
 	let isDragging = false;
 	let offset = { x: 0, y: 0 };
+	let initialRect = null;
     
 	// Magnetism threshold in pixels (distance at which to snap back)
 	const magnetThreshold = 50;
@@ -378,13 +376,31 @@ function makeDraggableWithMagnetism(element, defaultPosition) {
 	const header = element.querySelector('div:first-child');
 	if (!header) return;
     
+	// Store initial position to prevent window scroll from affecting dragged panels
+	/**
+	 *
+	 */
+	function storeInitialPosition() {
+		// Store relative position to viewport for scroll correction
+		const rect = element.getBoundingClientRect();
+		initialRect = {
+			left: rect.left,
+			top: rect.top,
+			width: rect.width,
+			height: rect.height
+		};
+	}
+    
 	// Mouse down handler
 	header.addEventListener('mousedown', (e) => {
 		isDragging = true;
+		storeInitialPosition();
 		offset.x = e.clientX - element.offsetLeft;
 		offset.y = e.clientY - element.offsetTop;
 		// Add a class to indicate dragging
 		element.style.opacity = '0.8';
+		// Prevent default to avoid text selection while dragging
+		e.preventDefault();
 	});
     
 	// Mouse move handler
@@ -393,17 +409,13 @@ function makeDraggableWithMagnetism(element, defaultPosition) {
 		const left = e.clientX - offset.x;
 		const top = e.clientY - offset.y;
         
-		// Allow dragging beyond window bounds (removed restrictions)
+		// Allow dragging beyond window bounds
 		element.style.left = left + 'px';
 		element.style.top = top + 'px';
         
-		// Ensure bottom position is cleared when dragging by top
+		// Ensure bottom and right positions are cleared when dragging
 		element.style.bottom = 'auto';
 		element.style.right = 'auto';
-        
-		// Don't check scrolling on every mouse move (causes flickering)
-		// Instead, only update scrolling when dragging stops
-		element.setAttribute('data-needs-scroll-check', 'true');
 	});
     
 	// Mouse up handler with magnetism
@@ -466,14 +478,16 @@ function makeDraggableWithMagnetism(element, defaultPosition) {
 		if (shouldSnapBack) {
 			setTimeout(() => {
 				element.style.transition = '';
+				// Only check visibility if the panel snaps back
+				checkVisibilityAndAddScroll(element);
 			}, 300);
-		}
-		
-		// Check visibility after snap back
-		if (element.getAttribute('data-needs-scroll-check') === 'true') {
-			element.removeAttribute('data-needs-scroll-check');
+		} else {
+			// Only check scrollbar needs when position has changed
+			// Check if the panel now needs a scrollbar based on new position
 			checkVisibilityAndAddScroll(element);
 		}
+		
+		initialRect = null; // Clear stored position
 	});
 }
 
@@ -577,87 +591,32 @@ export function createDropdown(options) {
 	return select;
 }
 
-// When a panel is dragged off screen or has a lot of content, make sure scrolling works
 /**
- *
+ * Setup essential panel event handlers without intervals
  */
-function setupScrollForcing() {
-	// Use a slower interval to reduce flickering (500ms instead of 1000ms)
-	const checkInterval = setInterval(() => {
+function setupPanelEventHandlers() {
+	// ONLY check scroll on window resize - no intervals
+	window.addEventListener('resize', () => {
 		allMovablePanels.forEach(panel => {
-			if (panel && document.body.contains(panel)) {
-				// Only update panels that are visible
-				if (panel.style.display !== 'none') {
-					checkVisibilityAndAddScroll(panel);
-				}
-			} else {
+			if (panel && document.body.contains(panel) && panel.style.display !== 'none') {
+				checkVisibilityAndAddScroll(panel);
+			} else if (!document.body.contains(panel)) {
 				allMovablePanels.delete(panel);
 			}
 		});
-	}, 500);
-	
-	// Clean up interval when page unloads
+	});
+    
+	// Clean up on page unload
 	window.addEventListener('beforeunload', () => {
-		clearInterval(checkInterval);
+		allMovablePanels.clear();
 	});
 }
 
-// Run setup on load
+// Run setup once on load
 if (typeof window !== 'undefined') {
-	// Setup once the DOM is fully loaded
 	if (document.readyState === 'complete') {
-		setupScrollForcing();
+		setupPanelEventHandlers();
 	} else {
-		window.addEventListener('load', setupScrollForcing);
+		window.addEventListener('load', setupPanelEventHandlers);
 	}
-}
-
-/**
- * Add touchscreen support to element
- * @param {HTMLElement} element - Element to make touch-draggable
- * @param {HTMLElement} handle - Drag handle element (usually header)
- */
-function addTouchSupport(element, handle) {
-	let touchStartX = 0;
-	let touchStartY = 0;
-	let initialLeft = 0;
-	let initialTop = 0;
-	
-	handle.addEventListener('touchstart', (e) => {
-		const touch = e.touches[0];
-		touchStartX = touch.clientX;
-		touchStartY = touch.clientY;
-		initialLeft = element.offsetLeft;
-		initialTop = element.offsetTop;
-		
-		// Indicate dragging
-		element.style.opacity = '0.8';
-		e.preventDefault();
-	});
-	
-	document.addEventListener('touchmove', (e) => {
-		if (!touchStartX && !touchStartY) return;
-		
-		const touch = e.touches[0];
-		const deltaX = touch.clientX - touchStartX;
-		const deltaY = touch.clientY - touchStartY;
-		
-		// Apply new position
-		element.style.left = (initialLeft + deltaX) + 'px';
-		element.style.top = (initialTop + deltaY) + 'px';
-		
-		// Update scrolling
-		checkVisibilityAndAddScroll(element);
-		e.preventDefault();
-	});
-	
-	document.addEventListener('touchend', (e) => {
-		touchStartX = 0;
-		touchStartY = 0;
-		element.style.opacity = '1';
-		
-		// Update scrolling for final position
-		checkVisibilityAndAddScroll(element);
-		e.preventDefault();
-	});
 } 
