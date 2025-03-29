@@ -27,7 +27,8 @@ export class ProcessManager {
 		project.port = port;
 
 		try {
-			if (project.name.includes('blorktools')) {
+			if (project.name === '@littlecarlito/blorktools') {
+				console.log(`Starting Blorktools on port ${port}...`);
 				const process = await this.startToolsProcess(project);
 				this.processes.set(project.name, process);
 				project.process = process;
@@ -57,7 +58,8 @@ export class ProcessManager {
      */
 	async startToolsProcess(project) {
 		return new Promise((resolve, reject) => {
-			const childProcess = spawn('pnpm', ['run', project.devScript], {
+			// For blorktools, we want to run the tools script which uses our modified tools.js
+			const childProcess = spawn('pnpm', ['run', 'tools'], {
 				cwd: project.path,
 				env: {
 					...process.env,
@@ -71,12 +73,16 @@ export class ProcessManager {
 
 			childProcess.stdout.on('data', (data) => {
 				const output = data.toString();
-				if (!isReady && output.includes('Server running on port')) {
-					const portMatch = output.match(/port (\d+)/);
+				console.log(`[${project.name}] ${output}`);
+				
+				if (!isReady && output.includes('VITE_READY:')) {
+					const portMatch = output.match(/VITE_READY:(\d+)/);
 					if (portMatch) {
 						port = parseInt(portMatch[1]);
+						isReady = true;
+						console.log(`[${project.name}] Ready on port ${port}`);
+						resolve({ process: childProcess, port, isReady });
 					}
-					isReady = true;
 				}
 			});
 
@@ -89,12 +95,19 @@ export class ProcessManager {
 			});
 
 			childProcess.on('close', (code) => {
-				if (code !== 0) {
+				if (code !== 0 && !isReady) {
 					reject(new Error(`Process exited with code ${code}`));
 				}
 			});
-
-			resolve({ process: childProcess, port, isReady });
+			
+			// Set a timeout in case VITE_READY is never received
+			setTimeout(() => {
+				if (!isReady) {
+					console.log(`[${project.name}] No ready signal received, assuming ready on port ${port}`);
+					isReady = true;
+					resolve({ process: childProcess, port, isReady });
+				}
+			}, 10000);
 		});
 	}
 

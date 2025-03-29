@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 import { createServer } from 'vite';
 import net from 'net';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Function to check if a port is in use
 /**
@@ -33,27 +38,36 @@ async function isPortInUse(port) {
 }
 
 /**
- *
+ * Starts the Vite server with proper configuration
  */
 async function startTools() {
 	const port = parseInt(process.env.PORT || '3001', 10);
     
 	try {
+		// Only log port info to help debugging
+		console.log(`Starting blorktools on port ${port}...`);
+		
+		// Create server with explicitly set config to ensure correct behavior
 		const server = await createServer({
-			root: 'src',
+			// Specify the root as src directory (where index.html is)
+			root: path.resolve(__dirname, 'src'),
+			// Configure server settings
 			server: {
 				port,
-				strictPort: false, // Allow Vite to find another port if this one is taken
+				strictPort: true,  // Try to use exact port
 				open: false
-			}
+			},
+			// Apply necessary plugins
+			plugins: []
 		});
         
 		await server.listen();
         
 		// Get the actual port that Vite is using
 		const actualPort = server.config.server.port;
-        
-		// Signal that we're ready and what port we're using
+		
+		// Send the signal that blorkboard is expecting
+		console.log(`Server running on port ${actualPort}`);
 		console.log(`VITE_READY:${actualPort}`);
 		server.printUrls();
 	} catch (e) {

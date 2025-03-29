@@ -141,12 +141,13 @@ export class ProjectInvestigator {
 	determineProjectType(projectPath, packageData) {
 		if (packageData.blorkType) return packageData.blorkType;
 
+		if (packageData.name === '@littlecarlito/blorktools') return 'tool';
+		if (packageData.name === '@littlecarlito/blorkboard') return 'tool';
+		if (packageData.name.includes('blorkpack')) return 'package';
+		
 		if (packageData.name.includes('web') || packageData.name.includes('portfolio') || packageData.name.includes('site')) {
 			return 'app';
 		}
-		if (packageData.name.includes('blorktools')) return 'tool';
-		if (packageData.name.includes('blorkboard')) return 'tool';
-		if (packageData.name.includes('blorkpack')) return 'package';
 		if (packageData.name.includes('ui')) return 'ui';
 		if (packageData.name.includes('api')) return 'api';
 		if (path.basename(projectPath).includes('lib') || packageData.name.includes('lib')) return 'library';
@@ -210,8 +211,8 @@ export class ProjectInvestigator {
      * @returns {string} Script name to use
      */
 	determineScriptToUse(packageData) {
-		if (packageData.name.includes('blorktools') && packageData.scripts.tools) {
-			return packageData.scripts.tools;
+		if (packageData.name === '@littlecarlito/blorktools') {
+			return 'tools';
 		}
 		return packageData.scripts.dev || packageData.scripts.start;
 	}
@@ -226,8 +227,8 @@ export class ProjectInvestigator {
 		return projects.sort((a, b) => {
 			if (a.name.includes('web')) return -1;
 			if (b.name.includes('web')) return 1;
-			if (a.name.includes('blorktools')) return -1;
-			if (b.name.includes('blorktools')) return 1;
+			if (a.name === '@littlecarlito/blorktools') return -1;
+			if (b.name === '@littlecarlito/blorktools') return 1;
 			return 0;
 		});
 	}

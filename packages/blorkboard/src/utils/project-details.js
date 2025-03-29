@@ -84,7 +84,12 @@ export class ProjectDetailFactory {
 		if (project.isSelf) {
 			openButton = `<a href="/" class="open-button">Open ${simpleName.toLowerCase()}</a>`;
 		} else if (project.shouldServe && project.process && project.ready) {
-			const openUrl = `http://localhost:${project.port}`;
+			// Special case for blorktools to ensure we open the correct page
+			let openUrl = `http://localhost:${project.port}`;
+			if (project.name === '@littlecarlito/blorktools') {
+				// Make sure it goes to the right index page for tools
+				openUrl = `http://localhost:${project.port}/index.html`;
+			}
 			openButton = `<a href="${openUrl}" target="_blank" class="open-button">Open ${simpleName.toLowerCase()}</a>`;
 		}
 
