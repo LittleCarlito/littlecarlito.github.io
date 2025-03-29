@@ -69,13 +69,14 @@ export async function loadTexture(state, file) {
  */
 export function applyTextureToModel(state) {
 	if (!state.modelObject || !state.textureObject) {
-		console.warn('Cannot apply texture: Model or texture not loaded', {
-			modelExists: !!state.modelObject,
-			textureExists: !!state.textureObject
-		});
+		console.warn('Cannot apply texture: Model or texture not loaded');
 		return;
 	}
-	console.log('Applying texture to model', state.textureObject);
+	console.log('Applying texture to model...');
+	
+	// Track if any screen mesh was successfully textured
+	let anyScreenMeshTextured = false;
+	
 	// Find all screen meshes and store their original materials
 	state.modelObject.traverse((child) => {
 		if (child.isMesh && child.material) {
@@ -126,49 +127,195 @@ export function applyTextureToModel(state) {
 				// Make sure screen is visible with emissive
 				material.emissiveMap = material.map;
 				material.emissive.set(1, 1, 1); // Full emissive intensity
+				
+				// NEW: Advanced texture mapping with multiple fallback strategies
 				// Start with no offset/repeat modification
 				material.map.offset.set(0, 0);
 				material.map.repeat.set(1, 1);
 				material.emissiveMap.offset.set(0, 0);
 				material.emissiveMap.repeat.set(1, 1);
-				// Make sure texture settings are applied
-				material.map.needsUpdate = true;
-				material.emissiveMap.needsUpdate = true;
-				material.needsUpdate = true;
-				// Apply to mesh
+				
+				// Store original material for future reference
+				child.userData.originalMaterial = child.material;
 				child.material = material;
-				// Add to state.screenMeshes for tracking
-				if (!state.screenMeshes) {
-					state.screenMeshes = [];
-				}
-				if (!state.screenMeshes.includes(child)) {
-					state.screenMeshes.push(child);
-				}
+				
+				// Add to screen meshes array for UV visualization
+				state.screenMeshes.push(child);
+				
+				// NEW: Attempt progressive texture mapping strategies
+				attemptProgressiveMapping(child, material, state);
+				
+				// Track successful texturing
+				anyScreenMeshTextured = true;
 			}
 		}
 	});
-	// Force a render update
-	if (state.renderer && state.camera && state.scene) {
-		console.log('Forcing render update');
-		state.renderer.render(state.scene, state.camera);
-		// Automatically show the texture atlas visualization
-		try {
-			// Import and call createAtlasVisualization asynchronously to avoid circular dependencies
-			import('../ui/atlasVisualization.js').then(module => {
-				console.log('Auto-showing texture atlas visualization');
-				module.createAtlasVisualization(state);
-				// Force another render to ensure atlas is visible
-				if (state.renderer && state.camera && state.scene) {
-					setTimeout(() => {
-						state.renderer.render(state.scene, state.camera);
-						console.log('Atlas visualization should now be visible');
-					}, 100);
-				}
-			});
-		} catch (error) {
-			console.error('Failed to auto-show atlas visualization:', error);
-		}
+	
+	// Make setCurrentUvRegion available in state for manual controls
+	import('../ui/atlasVisualization.js').then(module => {
+		state.setCurrentUvRegion = module.setCurrentUvRegion;
+	});
+	
+	// If no mesh was successfully textured, try more aggressive fallback approaches
+	if (!anyScreenMeshTextured && state.screenMeshes.length > 0) {
+		console.log("No meshes were successfully textured with standard approach. Trying fallback strategies...");
+		attemptFallbackStrategies(state);
 	}
+}
+
+/**
+ * Attempts progressive texture mapping strategies on a mesh
+ * @param {THREE.Mesh} mesh - The mesh to apply texture to
+ * @param {THREE.Material} material - The material with texture
+ * @param {Object} state - Global application state
+ */
+function attemptProgressiveMapping(mesh, material, state) {
+	// Strategy 1: Check if mesh has UV2 or UV3 and try those first
+	const tryAlternativeUVs = () => {
+		if (mesh.geometry.attributes.uv2) {
+			console.log(`Trying UV2 channel for ${mesh.name}`);
+			// Create temporary attributes to swap
+			const tempUV = mesh.geometry.attributes.uv;
+			mesh.geometry.attributes.uv = mesh.geometry.attributes.uv2.clone();
+			mesh.geometry.attributes.uv2 = tempUV;
+			return true;
+		} else if (mesh.geometry.attributes.uv3) {
+			console.log(`Trying UV3 channel for ${mesh.name}`);
+			// Create temporary attributes to swap
+			const tempUV = mesh.geometry.attributes.uv;
+			mesh.geometry.attributes.uv = mesh.geometry.attributes.uv3.clone();
+			mesh.geometry.attributes.uv3 = tempUV;
+			return true;
+		}
+		return false;
+	};
+	
+	// Strategy 2: Analyze UV bounds and adjust if they're outside normal range
+	const analyzeAndAdjustUVs = () => {
+		if (!mesh.geometry.attributes.uv) return false;
+		
+		// Analyze UV bounds
+		const uvAttribute = mesh.geometry.attributes.uv;
+		let minU = Infinity, minV = Infinity;
+		let maxU = -Infinity, maxV = -Infinity;
+		
+		for (let i = 0; i < uvAttribute.count; i++) {
+			const u = uvAttribute.getX(i);
+			const v = uvAttribute.getY(i);
+			minU = Math.min(minU, u);
+			minV = Math.min(minV, v);
+			maxU = Math.max(maxU, u);
+			maxV = Math.max(maxV, v);
+		}
+		
+		console.log(`UV bounds for ${mesh.name}: U(${minU.toFixed(2)}-${maxU.toFixed(2)}), V(${minV.toFixed(2)}-${maxV.toFixed(2)})`);
+		
+		// If UVs are outside [0,1] range or in a very small portion, adjust them
+		if (minU < 0 || minV < 0 || maxU > 1 || maxV > 1 || 
+			(maxU - minU < 0.2) || (maxV - minV < 0.2)) {
+			console.log(`Adjusting UVs to fit texture for ${mesh.name}`);
+			
+			// Calculate scale and offset to fit [0,1] range
+			const rangeU = maxU - minU;
+			const rangeV = maxV - minV;
+			
+			if (rangeU > 0 && rangeV > 0) {
+				// Apply scaling to material instead of modifying geometry
+				material.map.repeat.set(1/rangeU, 1/rangeV);
+				material.map.offset.set(-minU/rangeU, -minV/rangeV);
+				material.emissiveMap.repeat.set(1/rangeU, 1/rangeV);
+				material.emissiveMap.offset.set(-minU/rangeU, -minV/rangeV);
+				return true;
+			}
+		}
+		return false;
+	};
+	
+	// Strategy 3: Try atlas segmentation approach - assume texture might be an atlas
+	const tryAtlasSegmentation = () => {
+		// Common atlas segments to try (from top-left): full, quarters, and thirds
+		const segments = [
+			{ u: 0, v: 0, w: 1, h: 1 },      // Full texture
+			{ u: 0, v: 0, w: 0.5, h: 0.5 },   // Top-left quarter
+			{ u: 0.5, v: 0, w: 0.5, h: 0.5 }, // Top-right quarter
+			{ u: 0, v: 0.5, w: 0.5, h: 0.5 }, // Bottom-left quarter
+			{ u: 0.5, v: 0.5, w: 0.5, h: 0.5 }, // Bottom-right quarter
+			{ u: 0, v: 0, w: 0.33, h: 0.33 },   // Top-left ninth
+			{ u: 0.33, v: 0, w: 0.33, h: 0.33 } // Top-center ninth
+		];
+		
+		console.log(`Trying atlas segmentation for ${mesh.name}`);
+		// Apply first segment (full texture) initially
+		const segment = segments[0];
+		material.map.offset.set(segment.u, segment.v);
+		material.map.repeat.set(segment.w, segment.h);
+		material.emissiveMap.offset.set(segment.u, segment.v);
+		material.emissiveMap.repeat.set(segment.w, segment.h);
+		
+		// Store segments for potential cycling
+		mesh.userData.atlasSegments = segments;
+		mesh.userData.currentSegment = 0;
+		
+		return true;
+	};
+	
+	// Try strategies in sequence
+	let success = false;
+	
+	// Only log once per strategy
+	if (!success) success = tryAlternativeUVs();
+	if (!success) success = analyzeAndAdjustUVs();
+	if (!success) success = tryAtlasSegmentation();
+	
+	// Always mark texture for update
+	material.map.needsUpdate = true;
+	material.needsUpdate = true;
+	
+	return success;
+}
+
+/**
+ * Attempts more aggressive fallback strategies across all meshes
+ * @param {Object} state - Global application state
+ */
+function attemptFallbackStrategies(state) {
+	// For each screen mesh, try a different atlas segment
+	state.screenMeshes.forEach(mesh => {
+		if (mesh.userData.atlasSegments && mesh.material && mesh.material.map) {
+			// Cycle to next segment
+			mesh.userData.currentSegment = (mesh.userData.currentSegment + 1) % mesh.userData.atlasSegments.length;
+			const segment = mesh.userData.atlasSegments[mesh.userData.currentSegment];
+			
+			console.log(`Trying atlas segment ${mesh.userData.currentSegment} for ${mesh.name}: `, segment);
+			
+			// Apply segment
+			mesh.material.map.offset.set(segment.u, segment.v);
+			mesh.material.map.repeat.set(segment.w, segment.h);
+			mesh.material.emissiveMap.offset.set(segment.u, segment.v);
+			mesh.material.emissiveMap.repeat.set(segment.w, segment.h);
+			mesh.material.map.needsUpdate = true;
+			mesh.material.needsUpdate = true;
+		}
+	});
+	
+	// Add a cycler function to state for UI to call
+	state.cycleAtlasSegments = () => {
+		state.screenMeshes.forEach(mesh => {
+			if (mesh.userData.atlasSegments && mesh.material && mesh.material.map) {
+				// Cycle to next segment
+				mesh.userData.currentSegment = (mesh.userData.currentSegment + 1) % mesh.userData.atlasSegments.length;
+				const segment = mesh.userData.atlasSegments[mesh.userData.currentSegment];
+				
+				// Apply segment
+				mesh.material.map.offset.set(segment.u, segment.v);
+				mesh.material.map.repeat.set(segment.w, segment.h);
+				mesh.material.emissiveMap.offset.set(segment.u, segment.v);
+				mesh.material.emissiveMap.repeat.set(segment.w, segment.h);
+				mesh.material.map.needsUpdate = true;
+				mesh.material.needsUpdate = true;
+			}
+		});
+	};
 }
 
 /**

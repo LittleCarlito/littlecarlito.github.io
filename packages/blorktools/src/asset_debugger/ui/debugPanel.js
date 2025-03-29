@@ -12,6 +12,12 @@ export let updateTextureInfo = null;
  */
 export function setupDebugPanel(state) {
 	const panel = createDebugPanel(state);
+	
+	// Add UV channel selector
+	setupUvSwitcher(state);
+	
+	// NEW: Add atlas segment cycling button
+	addAtlasSegmentCycler(state);
 }
 // Start debugging (called from dragdrop.js)
 /**
@@ -592,4 +598,338 @@ function setupUvSwitcher(state) {
 	uvInfoContainer.style.color = '#ddd';
 	uvInfoContainer.style.lineHeight = '1.4';
 	uvInfoSection.appendChild(uvInfoContainer);
+}
+
+/**
+ * Adds a button to cycle through atlas texture segments
+ * @param {Object} state - Global application state
+ */
+function addAtlasSegmentCycler(state) {
+	const debugPanel = document.querySelector('#debug-panel');
+	if (!debugPanel) return;
+	
+	// Find or create UV information section
+	let uvInfoSection = debugPanel.querySelector('.uv-information');
+	if (!uvInfoSection) {
+		uvInfoSection = document.createElement('div');
+		uvInfoSection.className = 'uv-information';
+		uvInfoSection.innerHTML = '<h3>UV Information:</h3>';
+		debugPanel.appendChild(uvInfoSection);
+	}
+	
+	// Create atlas segment cycling button
+	const cycleButton = document.createElement('button');
+	cycleButton.id = 'cycle-segments-button';
+	cycleButton.textContent = 'Cycle Atlas Segments';
+	cycleButton.className = 'debug-button';
+	cycleButton.style.marginTop = '10px';
+	cycleButton.style.display = 'block';
+	cycleButton.style.width = '100%';
+	
+	// Add click handler
+	cycleButton.addEventListener('click', () => {
+		if (state.cycleAtlasSegments) {
+			state.cycleAtlasSegments();
+			console.log('Cycling atlas segments');
+		} else {
+			console.warn('Atlas segment cycling function not available');
+		}
+	});
+	
+	// Add to UV information section
+	uvInfoSection.appendChild(cycleButton);
+	
+	// Add a help text
+	const helpText = document.createElement('div');
+	helpText.className = 'help-text';
+	helpText.textContent = 'If textures aren\'t displaying correctly, try cycling through different sections of the texture atlas.';
+	helpText.style.fontSize = '12px';
+	helpText.style.color = '#aaa';
+	helpText.style.marginTop = '5px';
+	helpText.style.marginBottom = '15px';
+	uvInfoSection.appendChild(helpText);
+	
+	// Add manual UV mapping controls
+	addManualUvControls(state, uvInfoSection);
+}
+
+/**
+ * Add manual UV mapping controls to the debug panel
+ * @param {Object} state - Global state object
+ * @param {HTMLElement} container - Container to add controls to
+ */
+function addManualUvControls(state, container) {
+	// Create section for manual controls
+	const manualControlsSection = document.createElement('div');
+	manualControlsSection.className = 'manual-uv-controls';
+	manualControlsSection.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
+	manualControlsSection.style.padding = '10px';
+	manualControlsSection.style.borderRadius = '5px';
+	manualControlsSection.style.marginTop = '5px';
+	
+	// Add heading
+	const heading = document.createElement('div');
+	heading.textContent = 'Manual UV Mapping Controls';
+	heading.style.fontWeight = 'bold';
+	heading.style.marginBottom = '10px';
+	heading.style.color = '#3498db';
+	manualControlsSection.appendChild(heading);
+	
+	// Create labels and input styles
+	const createLabel = (text) => {
+		const label = document.createElement('div');
+		label.textContent = text;
+		label.style.fontSize = '11px';
+		label.style.color = '#bbb';
+		label.style.marginTop = '5px';
+		return label;
+	};
+	
+	const setInputStyles = (input) => {
+		input.style.width = '100%';
+		input.style.padding = '4px';
+		input.style.backgroundColor = '#333';
+		input.style.border = '1px solid #555';
+		input.style.borderRadius = '3px';
+		input.style.color = 'white';
+		input.style.marginBottom = '5px';
+		return input;
+	};
+	
+	// 1. UV Offset Controls (x, y)
+	manualControlsSection.appendChild(createLabel('UV Offset (0-1):'));
+	
+	// Offset X input
+	const offsetXContainer = document.createElement('div');
+	offsetXContainer.style.display = 'flex';
+	offsetXContainer.style.alignItems = 'center';
+	offsetXContainer.style.marginBottom = '5px';
+	
+	const offsetXLabel = document.createElement('span');
+	offsetXLabel.textContent = 'X: ';
+	offsetXLabel.style.width = '20px';
+	offsetXContainer.appendChild(offsetXLabel);
+	
+	const offsetXInput = document.createElement('input');
+	offsetXInput.type = 'number';
+	offsetXInput.min = '0';
+	offsetXInput.max = '1';
+	offsetXInput.step = '0.01';
+	offsetXInput.value = '0';
+	setInputStyles(offsetXInput);
+	offsetXContainer.appendChild(offsetXInput);
+	
+	manualControlsSection.appendChild(offsetXContainer);
+	
+	// Offset Y input
+	const offsetYContainer = document.createElement('div');
+	offsetYContainer.style.display = 'flex';
+	offsetYContainer.style.alignItems = 'center';
+	offsetYContainer.style.marginBottom = '5px';
+	
+	const offsetYLabel = document.createElement('span');
+	offsetYLabel.textContent = 'Y: ';
+	offsetYLabel.style.width = '20px';
+	offsetYContainer.appendChild(offsetYLabel);
+	
+	const offsetYInput = document.createElement('input');
+	offsetYInput.type = 'number';
+	offsetYInput.min = '0';
+	offsetYInput.max = '1';
+	offsetYInput.step = '0.01';
+	offsetYInput.value = '0';
+	setInputStyles(offsetYInput);
+	offsetYContainer.appendChild(offsetYInput);
+	
+	manualControlsSection.appendChild(offsetYContainer);
+	
+	// 2. UV Scale Controls (w, h)
+	manualControlsSection.appendChild(createLabel('UV Scale (0-1):'));
+	
+	// Scale Width input
+	const scaleWContainer = document.createElement('div');
+	scaleWContainer.style.display = 'flex';
+	scaleWContainer.style.alignItems = 'center';
+	scaleWContainer.style.marginBottom = '5px';
+	
+	const scaleWLabel = document.createElement('span');
+	scaleWLabel.textContent = 'W: ';
+	scaleWLabel.style.width = '20px';
+	scaleWContainer.appendChild(scaleWLabel);
+	
+	const scaleWInput = document.createElement('input');
+	scaleWInput.type = 'number';
+	scaleWInput.min = '0.01';
+	scaleWInput.max = '1';
+	scaleWInput.step = '0.01';
+	scaleWInput.value = '1';
+	setInputStyles(scaleWInput);
+	scaleWContainer.appendChild(scaleWInput);
+	
+	manualControlsSection.appendChild(scaleWContainer);
+	
+	// Scale Height input
+	const scaleHContainer = document.createElement('div');
+	scaleHContainer.style.display = 'flex';
+	scaleHContainer.style.alignItems = 'center';
+	scaleHContainer.style.marginBottom = '5px';
+	
+	const scaleHLabel = document.createElement('span');
+	scaleHLabel.textContent = 'H: ';
+	scaleHLabel.style.width = '20px';
+	scaleHContainer.appendChild(scaleHLabel);
+	
+	const scaleHInput = document.createElement('input');
+	scaleHInput.type = 'number';
+	scaleHInput.min = '0.01';
+	scaleHInput.max = '1';
+	scaleHInput.step = '0.01';
+	scaleHInput.value = '1';
+	setInputStyles(scaleHInput);
+	scaleHContainer.appendChild(scaleHInput);
+	
+	manualControlsSection.appendChild(scaleHContainer);
+	
+	// Function to apply mapping changes automatically
+	const applyMapping = () => {
+		// Get values
+		const offsetX = parseFloat(offsetXInput.value) || 0;
+		const offsetY = parseFloat(offsetYInput.value) || 0;
+		const scaleW = parseFloat(scaleWInput.value) || 1;
+		const scaleH = parseFloat(scaleHInput.value) || 1;
+		
+		// Check if all values are valid
+		if (offsetX < 0 || offsetX > 1 || 
+            offsetY < 0 || offsetY > 1 || 
+            scaleW <= 0 || scaleW > 1 || 
+            scaleH <= 0 || scaleH > 1) {
+			return;
+		}
+		
+		// Apply mapping to all screen meshes
+		if (state.screenMeshes && state.screenMeshes.length > 0) {
+			state.screenMeshes.forEach(mesh => {
+				if (mesh.material && mesh.material.map) {
+					// Apply offset and scale
+					mesh.material.map.offset.set(offsetX, offsetY);
+					mesh.material.map.repeat.set(scaleW, scaleH);
+					
+					// If material has emissive map, apply same settings
+					if (mesh.material.emissiveMap) {
+						mesh.material.emissiveMap.offset.set(offsetX, offsetY);
+						mesh.material.emissiveMap.repeat.set(scaleW, scaleH);
+					}
+					
+					// Update textures
+					mesh.material.map.needsUpdate = true;
+					mesh.material.needsUpdate = true;
+				}
+			});
+			
+			console.log(`Applied manual UV mapping: Offset(${offsetX}, ${offsetY}), Scale(${scaleW}, ${scaleH})`);
+			
+			// Update the current UV region for visualization
+			if (state.setCurrentUvRegion) {
+				state.setCurrentUvRegion([offsetX, offsetY], [offsetX + scaleW, offsetY + scaleH], state);
+			}
+			
+			// Update atlas visualization
+			import('../ui/atlasVisualization.js').then(module => {
+				module.updateAtlasVisualization(state);
+			});
+		} else {
+			console.warn('No screen meshes found to apply mapping to');
+		}
+	};
+	
+	// Add listeners to auto-apply when any input changes
+	offsetXInput.addEventListener('input', applyMapping);
+	offsetYInput.addEventListener('input', applyMapping);
+	scaleWInput.addEventListener('input', applyMapping);
+	scaleHInput.addEventListener('input', applyMapping);
+	
+	// Apply button (now optional as a fallback)
+	const applyButton = document.createElement('button');
+	applyButton.textContent = 'Apply Manual Mapping';
+	applyButton.className = 'debug-button';
+	applyButton.style.width = '100%';
+	applyButton.style.marginTop = '8px';
+	applyButton.style.backgroundColor = '#27ae60';
+	applyButton.style.padding = '6px';
+	applyButton.style.fontWeight = 'bold';
+	applyButton.style.display = 'none'; // Hide by default since auto-apply is enabled
+	
+	// Add click handler for apply button
+	applyButton.addEventListener('click', applyMapping);
+	
+	manualControlsSection.appendChild(applyButton);
+	
+	// 3. Predefined Segments Dropdown
+	manualControlsSection.appendChild(createLabel('Predefined Segments:'));
+	
+	const segmentsSelect = document.createElement('select');
+	segmentsSelect.style.width = '100%';
+	segmentsSelect.style.padding = '5px';
+	segmentsSelect.style.backgroundColor = '#333';
+	segmentsSelect.style.border = '1px solid #555';
+	segmentsSelect.style.borderRadius = '3px';
+	segmentsSelect.style.color = 'white';
+	segmentsSelect.style.marginBottom = '10px';
+	
+	// Add common segment options
+	const segments = [
+		{ name: 'Full texture (1×1)', u: 0, v: 0, w: 1, h: 1 },
+		{ name: 'Top-left quarter (1/2×1/2)', u: 0, v: 0, w: 0.5, h: 0.5 },
+		{ name: 'Top-right quarter (1/2×1/2)', u: 0.5, v: 0, w: 0.5, h: 0.5 },
+		{ name: 'Bottom-left quarter (1/2×1/2)', u: 0, v: 0.5, w: 0.5, h: 0.5 },
+		{ name: 'Bottom-right quarter (1/2×1/2)', u: 0.5, v: 0.5, w: 0.5, h: 0.5 },
+		{ name: 'Top-left ninth (1/3×1/3)', u: 0, v: 0, w: 0.33, h: 0.33 },
+		{ name: 'Top-center ninth (1/3×1/3)', u: 0.33, v: 0, w: 0.33, h: 0.33 },
+		{ name: 'Top-right ninth (1/3×1/3)', u: 0.66, v: 0, w: 0.33, h: 0.33 },
+		{ name: 'Middle-left ninth (1/3×1/3)', u: 0, v: 0.33, w: 0.33, h: 0.33 }
+	];
+	
+	segments.forEach((segment, index) => {
+		const option = document.createElement('option');
+		option.value = index;
+		option.textContent = segment.name;
+		segmentsSelect.appendChild(option);
+	});
+	
+	segmentsSelect.addEventListener('change', function() {
+		const selectedSegment = segments[this.value];
+		
+		// Update input fields
+		offsetXInput.value = selectedSegment.u;
+		offsetYInput.value = selectedSegment.v;
+		scaleWInput.value = selectedSegment.w;
+		scaleHInput.value = selectedSegment.h;
+		
+		// Auto-apply the mapping immediately
+		applyMapping();
+	});
+	
+	manualControlsSection.appendChild(segmentsSelect);
+	
+	// Add the section to the container
+	container.appendChild(manualControlsSection);
+	
+	// Add note about auto-apply
+	const autoApplyNote = document.createElement('div');
+	autoApplyNote.textContent = 'Changes auto-apply immediately';
+	autoApplyNote.style.fontSize = '11px';
+	autoApplyNote.style.color = '#27ae60';
+	autoApplyNote.style.marginTop = '5px';
+	autoApplyNote.style.textAlign = 'center';
+	manualControlsSection.appendChild(autoApplyNote);
+	
+	// Expose a global function to reset the values to defaults
+	state.resetManualMappingControls = () => {
+		offsetXInput.value = '0';
+		offsetYInput.value = '0';
+		scaleWInput.value = '1';
+		scaleHInput.value = '1';
+		segmentsSelect.selectedIndex = 0;
+		applyMapping(); // Apply the reset values
+	};
 }

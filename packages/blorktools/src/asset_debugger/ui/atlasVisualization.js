@@ -166,15 +166,82 @@ export function createAtlasVisualization(state) {
  */
 export function updateAtlasVisualization(state) {
 	if (!state.textureObject || !atlasVisualizationContainer) return;
+	
 	// Get the current UV region or use full texture as default
 	const currentRegion = state.currentUvRegion || { min: [0, 0], max: [1, 1] };
+	
+	// NEW: Check if any mesh is using a specific atlas segment
+	let currentSegment = null;
+	if (state.screenMeshes && state.screenMeshes.length > 0) {
+		// Use the first mesh with a defined segment
+		for (const mesh of state.screenMeshes) {
+			if (mesh.userData.atlasSegments && mesh.userData.currentSegment !== undefined) {
+				const segmentIndex = mesh.userData.currentSegment;
+				currentSegment = mesh.userData.atlasSegments[segmentIndex];
+				break;
+			}
+		}
+	}
+	
+	// If a segment is active, use that instead of the current region
+	if (currentSegment) {
+		currentRegion.min = [currentSegment.u, currentSegment.v];
+		currentRegion.max = [currentSegment.u + currentSegment.w, currentSegment.v + currentSegment.h];
+	}
+	
 	// Update the canvas with the texture and current UV region
 	updateCanvasWithTexture(state.textureObject, currentRegion);
+	
 	// Make sure the visualization is visible
 	if (atlasVisualizationContainer.style.display === 'none') {
 		atlasVisualizationContainer.style.display = 'block';
 	}
+	
+	// NEW: Update segment info in the visualization
+	updateSegmentInfo(state, currentSegment);
+	
 	console.log('Atlas visualization updated with new texture');
+}
+
+/**
+ * Update segment information in the visualization
+ * @param {Object} state - Global state object
+ * @param {Object} segment - Current segment information
+ */
+function updateSegmentInfo(state, segment) {
+	if (!atlasVisualizationContainer) return;
+	
+	// Find or create segment info container
+	let segmentInfo = atlasVisualizationContainer.querySelector('.segment-info');
+	if (!segmentInfo) {
+		segmentInfo = document.createElement('div');
+		segmentInfo.className = 'segment-info';
+		segmentInfo.style.fontSize = '10px';
+		segmentInfo.style.color = '#aaa';
+		segmentInfo.style.marginTop = '5px';
+		
+		// Add to container after coords text
+		const coordsText = atlasVisualizationContainer.querySelector('.coords-text');
+		if (coordsText) {
+			coordsText.parentNode.insertBefore(segmentInfo, coordsText.nextSibling);
+		} else {
+			const contentContainer = atlasVisualizationContainer.querySelector('.atlas-content');
+			if (contentContainer) {
+				contentContainer.appendChild(segmentInfo);
+			}
+		}
+	}
+	
+	// Update segment info text
+	if (segment) {
+		const totalSegments = state.screenMeshes[0]?.userData.atlasSegments?.length || 0;
+		const currentIndex = state.screenMeshes[0]?.userData.currentSegment || 0;
+		
+		segmentInfo.textContent = `Atlas segment: ${currentIndex+1}/${totalSegments} - Offset: (${segment.u.toFixed(2)},${segment.v.toFixed(2)}), Size: ${segment.w.toFixed(2)}x${segment.h.toFixed(2)}`;
+		segmentInfo.style.display = 'block';
+	} else {
+		segmentInfo.style.display = 'none';
+	}
 }
 
 /**
