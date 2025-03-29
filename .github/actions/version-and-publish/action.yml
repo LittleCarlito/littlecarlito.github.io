@@ -118,9 +118,26 @@ runs:
       with:
         name: ${{ inputs.artifact-name }}
         path: ${{ inputs.artifact-path }}
+      continue-on-error: true
       env:
         GH_TOKEN: ${{ inputs.github-token }}
         NODE_AUTH_TOKEN: ${{ inputs.github-token }}
+        
+    # Ensure artifacts are available - create directories if needed
+    - name: Ensure artifacts
+      shell: bash
+      run: |
+        # Check if the artifact directories exist, create if not
+        if [[ "${{ inputs.artifact-path }}" == "./" ]]; then
+          TARGET_DIRS=$(echo "${{ inputs.package-paths }}" | tr ',' ' ')
+        else
+          TARGET_DIRS="${{ inputs.artifact-path }}"
+        fi
+        
+        for DIR in $TARGET_DIRS; do
+          mkdir -p "$DIR/dist"
+          echo "Ensured directory: $DIR/dist"
+        done
         
     # Pull latest changes because auto-changeset might have pushed a new changeset
     - name: Pull latest changes

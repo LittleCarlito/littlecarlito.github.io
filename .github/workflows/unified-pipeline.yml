@@ -20,8 +20,8 @@ concurrency:
 
 # Define reusable variables
 env:
-  BUILD_ARTIFACT_NAME: build-and-test-artifacts
-  PACKAGES_ARTIFACT_NAME: package-builds
+  BUILD_ARTIFACT_NAME: build-artifacts-${{ github.run_id }}
+  PACKAGES_ARTIFACT_NAME: package-builds-${{ github.run_id }}
   
 # Note: This workflow handles GitHub Pages deployment directly.
 # The separate deploy-pages.yml workflow should be disabled or deleted.
@@ -35,6 +35,8 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    outputs:
+      build_artifact_name: ${{ env.BUILD_ARTIFACT_NAME }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -46,12 +48,39 @@ jobs:
           build-command: 'pnpm run build'
           test-command: 'echo "Tests will run in separate job"'
           artifact-name: ${{ env.BUILD_ARTIFACT_NAME }}
+          if-no-files-found: error
         
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.PACKAGES_ARTIFACT_NAME }}
-          path: packages/*/dist
+          name: ${{ env.BUILD_ARTIFACT_NAME }}
+          path: packages
+          if-no-files-found: error
+          
+      - name: Validate build artifacts
+        run: |
+          echo "Validating build artifacts..."
+          # Check for dist directories
+          DIST_DIRS=$(find packages -name "dist" -type d | wc -l)
+          if [ "$DIST_DIRS" -eq 0 ]; then
+            echo "::error::No dist directories found in packages!"
+            exit 1
+          fi
+          echo "Found $DIST_DIRS dist directories"
+          
+          # List all dist directories to verify they exist and contain files
+          find packages -name "dist" -type d -exec ls -la {} \;
+          
+          # Count files to ensure we have artifacts
+          FILE_COUNT=$(find packages -name "dist" -type d -exec find {} -type f \; | wc -l)
+          echo "Found $FILE_COUNT files in artifact directories"
+          
+          if [ "$FILE_COUNT" -eq 0 ]; then
+            echo "::error::No build artifacts found in packages/dist directories!"
+            exit 1
+          fi
+          
+          echo "✅ Artifact validation successful - $FILE_COUNT files in $DIST_DIRS directories"
 
   test:
     name: Test
@@ -61,12 +90,45 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
           
+      # Download build artifacts explicitly first
+      - name: Download build artifacts
+        id: download-artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.build_artifact_name }}
+          path: packages
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          
+      # Validate that artifacts were successfully downloaded
+      - name: Validate downloaded artifacts
+        run: |
+          echo "Validating downloaded artifacts..."
+          # Check that artifacts were downloaded
+          DIST_DIRS=$(find packages -name "dist" -type d | wc -l)
+          if [ "$DIST_DIRS" -eq 0 ]; then
+            echo "::error::No dist directories found in downloaded artifacts!"
+            exit 1
+          fi
+          
+          # Count files to ensure we have artifacts
+          FILE_COUNT=$(find packages -name "dist" -type d -exec find {} -type f \; | wc -l)
+          echo "Found $FILE_COUNT files in $DIST_DIRS artifact directories"
+          
+          if [ "$FILE_COUNT" -eq 0 ]; then
+            echo "::error::Downloaded artifacts contain no files!"
+            exit 1
+          fi
+          
+          echo "✅ Downloaded artifacts validation successful"
+          
       # Replace workflow call with direct use of the action
       - name: Test packages
         uses: ./.github/actions/test-packages
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          artifact-name: ${{ env.BUILD_ARTIFACT_NAME }}
+          artifact-name: ${{ needs.build.outputs.build_artifact_name }}
 
   generate-changesets:
     name: Generate Changesets
@@ -94,7 +156,7 @@ jobs:
   version-and-publish:
     name: Version and Publish to GitHub npm
     # Run this job even if auto-changeset job is skipped
-    needs: [test, generate-changesets]
+    needs: [test, generate-changesets, build]
     if: always() && needs.test.result == 'success' && (needs.generate-changesets.result == 'success' || needs.generate-changesets.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
@@ -111,13 +173,36 @@ jobs:
           
       # Download build artifacts
       - name: Download build artifacts
+        id: download-artifacts
         uses: actions/download-artifact@v4
         with:
-          name: ${{ env.BUILD_ARTIFACT_NAME }}
-          path: ./
+          name: ${{ needs.build.outputs.build_artifact_name }}
+          path: packages
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          
+      # Validate that artifacts were successfully downloaded
+      - name: Validate downloaded artifacts
+        run: |
+          echo "Validating downloaded artifacts for version-and-publish job..."
+          # Check that artifacts were downloaded
+          DIST_DIRS=$(find packages -name "dist" -type d | wc -l)
+          if [ "$DIST_DIRS" -eq 0 ]; then
+            echo "::error::No dist directories found in downloaded artifacts!"
+            exit 1
+          fi
+          
+          # Count files to ensure we have artifacts
+          FILE_COUNT=$(find packages -name "dist" -type d -exec find {} -type f \; | wc -l)
+          echo "Found $FILE_COUNT files in $DIST_DIRS artifact directories"
+          
+          if [ "$FILE_COUNT" -eq 0 ]; then
+            echo "::error::Downloaded artifacts contain no files!"
+            exit 1
+          fi
+          
+          echo "✅ Downloaded artifacts validation successful for version-and-publish job"
           
       # Setup Node.js
       - name: Setup Node.js
@@ -140,7 +225,7 @@ jobs:
         uses: ./.github/actions/version-and-publish
         with:
           github-token: ${{ secrets.PACKAGE_TOKEN }}
-          artifact-name: ${{ env.BUILD_ARTIFACT_NAME }}
+          artifact-name: ${{ needs.build.outputs.build_artifact_name }}
           publish-command: 'pnpm run release'
           version-command: 'pnpm run version'
           commit-message: 'chore: version packages'
