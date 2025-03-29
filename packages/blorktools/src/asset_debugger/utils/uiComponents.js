@@ -2,6 +2,131 @@
 // Reusable UI creation patterns for the asset debugger
 import { UIDebugFlags } from './flags.js';
 
+// Track all created movable panels for global management
+const allMovablePanels = new Set();
+
+// Panel type definitions for specialized handling
+const PANEL_TYPES = {
+	DEFAULT: 'default',
+	UV_CHANNEL: 'uv-channel',
+	ATLAS_VISUALIZATION: 'atlas-visualization'
+};
+
+// Panel configuration presets
+const PANEL_CONFIGS = {
+	[PANEL_TYPES.DEFAULT]: {
+		minHeight: 100,
+		maxHeight: 600,
+		defaultHeight: null, // Will be calculated based on content
+		fixedHeight: false
+	},
+	[PANEL_TYPES.UV_CHANNEL]: {
+		minHeight: 400,
+		maxHeight: 600,
+		defaultHeight: 500, // Fixed reasonable size
+		fixedHeight: true
+	},
+	[PANEL_TYPES.ATLAS_VISUALIZATION]: {
+		minHeight: 200,
+		maxHeight: 800,
+		defaultHeight: null,
+		fixedHeight: false
+	}
+};
+
+/**
+ * Panel Manager - handles global panel operations
+ */
+const PanelManager = {
+	/**
+	 * Initialize the panel management system
+	 */
+	init() {
+		// Set up resize listener
+		window.addEventListener('resize', this.handleWindowResize.bind(this));
+		
+		// Create periodic check for panel visibility
+		setInterval(this.checkPanelsVisibility.bind(this), 1000);
+		
+		console.log('Panel Manager initialized');
+	},
+	
+	/**
+	 * Handle window resize events
+	 */
+	handleWindowResize() {
+		this.refreshAllPanels();
+	},
+	
+	/**
+	 * Refresh all panels to update their visibility and sizing
+	 * @param {boolean} force - Whether to force update even for invisible panels
+	 */
+	refreshAllPanels(force = false) {
+		allMovablePanels.forEach(panel => {
+			if (panel && document.body.contains(panel)) {
+				if (force || panel.style.display !== 'none') {
+					panel._panelConfig.updatePanelLayout(panel);
+				}
+			} else {
+				// Clean up references to removed panels
+				allMovablePanels.delete(panel);
+			}
+		});
+	},
+	
+	/**
+	 * Check if panels are visible and properly positioned
+	 */
+	checkPanelsVisibility() {
+		allMovablePanels.forEach(panel => {
+			if (panel && document.body.contains(panel) && panel.style.display !== 'none') {
+				this.checkPanelVisibility(panel);
+			}
+		});
+	},
+	
+	/**
+	 * Check visibility of a specific panel
+	 * @param {HTMLElement} panel - The panel to check
+	 */
+	checkPanelVisibility(panel) {
+		const rect = panel.getBoundingClientRect();
+		
+		// Get window dimensions
+		const windowHeight = window.innerHeight;
+		const windowWidth = window.innerWidth;
+		
+		// Check if panel extends beyond screen edges
+		const isOffscreenTop = rect.top < 0;
+		const isOffscreenBottom = rect.bottom > windowHeight;
+		const isOffscreenLeft = rect.left < 0;
+		const isOffscreenRight = rect.right > windowWidth;
+		const isOffscreen = isOffscreenTop || isOffscreenBottom || isOffscreenLeft || isOffscreenRight;
+		
+		// Apply visual indicator for offscreen panels
+		applyOffscreenIndicator(panel, isOffscreen);
+		
+		// Log position info if enabled
+		if (UIDebugFlags.logPositionInfo && isOffscreen) {
+			console.log(`Panel ${panel.id} offscreen status:`, {
+				top: isOffscreenTop ? `${Math.abs(rect.top)}px above viewport` : 'in view',
+				bottom: isOffscreenBottom ? `${Math.abs(rect.bottom - windowHeight)}px below viewport` : 'in view',
+				left: isOffscreenLeft ? `${Math.abs(rect.left)}px left of viewport` : 'in view',
+				right: isOffscreenRight ? `${Math.abs(rect.right - windowWidth)}px right of viewport` : 'in view'
+			});
+		}
+	},
+	
+	/**
+	 * Register a panel with the manager
+	 * @param {HTMLElement} panel - The panel to register
+	 */
+	registerPanel(panel) {
+		allMovablePanels.add(panel);
+	}
+};
+
 /**
  * Creates a movable panel with standard styling and functionality
  * @param {Object} options - Configuration options
@@ -21,13 +146,20 @@ export function createMovablePanel(options) {
 		width = '300px',
 		startCollapsed = false
 	} = options;
-
+	
+	// Determine panel type based on ID
+	let panelType = PANEL_TYPES.DEFAULT;
+	if (id === 'uv-channel-panel') panelType = PANEL_TYPES.UV_CHANNEL;
+	if (id === 'atlas-visualization') panelType = PANEL_TYPES.ATLAS_VISUALIZATION;
+	
+	// Get configuration for this panel type
+	const config = PANEL_CONFIGS[panelType];
+	
 	// Create container
 	const container = document.createElement('div');
 	container.id = id;
 	container.style.position = 'absolute';
 	container.style.width = width;
-	container.style.maxHeight = 'calc(100vh - 40px)';
 	container.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
 	container.style.border = '1px solid #666';
 	container.style.borderRadius = '5px';
@@ -36,96 +168,110 @@ export function createMovablePanel(options) {
 	container.style.fontSize = '12px';
 	container.style.zIndex = '1000';
 	container.style.boxSizing = 'border-box';
-	container.style.overflow = 'hidden'; // Keep this as hidden
+	container.style.overflow = 'hidden';
 	container.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.5)';
 	container.style.display = 'flex';
-	container.style.flexDirection = 'column'; // Stack header and content
-
+	container.style.flexDirection = 'column';
+	
 	// Apply position
 	Object.keys(position).forEach(key => {
 		container.style[key] = position[key];
 	});
-
-	// Create header with title, collapse caret and close button
+	
+	// Create header with title and collapse caret
 	const header = document.createElement('div');
 	header.style.display = 'flex';
 	header.style.justifyContent = 'space-between';
 	header.style.alignItems = 'center';
 	header.style.padding = '10px';
-	header.style.cursor = 'move'; // Indicate draggable
+	header.style.cursor = 'move';
 	header.style.borderBottom = '1px solid #444';
 	header.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
-	header.style.position = 'relative'; // Add positioning for proper layout
-	header.style.overflow = 'visible'; // Ensure close button is never cut off
+	header.style.position = 'relative';
+	header.style.overflow = 'visible';
 	header.style.width = '100%';
 	
 	// Create left section with caret and title
 	const leftSection = document.createElement('div');
 	leftSection.style.display = 'flex';
 	leftSection.style.alignItems = 'center';
-	leftSection.style.overflow = 'hidden'; // Prevent overflow
-	leftSection.style.flexGrow = '1'; // Let left section take available space
-	leftSection.style.width = '100%'; // Take full width
-
+	leftSection.style.overflow = 'hidden';
+	leftSection.style.flexGrow = '1';
+	leftSection.style.width = '100%';
+	
 	// Add collapse caret
 	const caret = document.createElement('span');
-	caret.textContent = startCollapsed ? '►' : '▼'; // Down arrow for expanded, right for collapsed
+	caret.textContent = startCollapsed ? '►' : '▼';
 	caret.style.marginRight = '5px';
 	caret.style.cursor = 'pointer';
 	caret.style.fontSize = '10px';
 	caret.style.color = '#aaa';
 	caret.style.transition = 'transform 0.2s';
-	caret.style.flexShrink = '0'; // Don't allow caret to shrink
+	caret.style.flexShrink = '0';
 	leftSection.appendChild(caret);
-
+	
 	// Add title
 	const titleElement = document.createElement('div');
 	titleElement.className = 'panel-title';
 	titleElement.textContent = title;
 	titleElement.style.fontWeight = 'bold';
-	titleElement.style.overflow = 'hidden'; // Prevent overflow
-	titleElement.style.textOverflow = 'ellipsis'; // Show ellipsis if title is too long
-	titleElement.style.whiteSpace = 'nowrap'; // Keep title on one line
+	titleElement.style.overflow = 'hidden';
+	titleElement.style.textOverflow = 'ellipsis';
+	titleElement.style.whiteSpace = 'nowrap';
 	leftSection.appendChild(titleElement);
 	header.appendChild(leftSection);
 	
 	// Add header to container
 	container.appendChild(header);
-
+	
 	// Content container (everything except the header)
 	const contentContainer = document.createElement('div');
 	contentContainer.className = 'panel-content';
 	contentContainer.style.padding = '10px';
 	contentContainer.style.paddingTop = '5px';
-	contentContainer.style.paddingRight = '18px'; // Increased space for scrollbar
+	contentContainer.style.paddingRight = '18px';
 	contentContainer.style.display = startCollapsed ? 'none' : 'block';
-	contentContainer.style.overflowY = 'auto'; // Changed from 'scroll' to 'auto'
+	contentContainer.style.overflowY = 'auto';
 	contentContainer.style.overflowX = 'hidden';
-	contentContainer.style.boxSizing = 'border-box'; // Make sure padding is included in width
-	contentContainer.style.maxHeight = 'calc(100vh - 120px)'; // Default max height
-	contentContainer.style.flexGrow = '1'; // Allow content to grow and fill space
+	contentContainer.style.boxSizing = 'border-box';
+	
+	// Apply type-specific styles
+	if (config.fixedHeight && config.defaultHeight) {
+		// Fixed height panels (like UV Channel panel)
+		contentContainer.style.height = `${config.defaultHeight}px`;
+		contentContainer.style.maxHeight = `${config.defaultHeight}px`;
+		contentContainer.style.minHeight = `${config.defaultHeight}px`;
+		
+		if (panelType === PANEL_TYPES.UV_CHANNEL) {
+			// Remove transitions for UV panel to prevent animation
+			contentContainer.style.transition = 'none';
+		}
+	} else {
+		// Flexible panels
+		contentContainer.style.maxHeight = 'calc(100vh - 120px)';
+		contentContainer.style.flexGrow = '1';
+	}
 	
 	// Add content to container
 	container.appendChild(contentContainer);
 	
-	// Add very explicit scrollbar styles
+	// Add panel-specific CSS
 	const scrollStyles = document.createElement('style');
 	scrollStyles.textContent = `
 		#${id} .panel-content {
-			overflow-y: auto !important; /* Changed from scroll to auto */
+			overflow-y: auto !important;
 			overflow-x: hidden !important;
-			transition: max-height 0.2s ease;
-			scrollbar-width: thin; /* For Firefox */
-			-ms-overflow-style: -ms-autohiding-scrollbar; /* For IE/Edge */
+			scrollbar-width: thin;
+			-ms-overflow-style: -ms-autohiding-scrollbar;
 			box-sizing: border-box;
-			width: 100%; /* Ensure it doesn't expand beyond container */
+			width: 100%;
 		}
 		#${id} .panel-content::-webkit-scrollbar {
-			width: 8px !important; /* Smaller scrollbar */
-			background-color: transparent !important; /* Make background transparent */
+			width: 8px !important;
+			background-color: transparent !important;
 		}
 		#${id} .panel-content::-webkit-scrollbar-thumb {
-			background-color: rgba(102, 102, 102, 0.5) !important; /* Semi-transparent thumb */
+			background-color: rgba(102, 102, 102, 0.5) !important;
 			border-radius: 4px !important;
 		}
 		#${id} .panel-content::-webkit-scrollbar-thumb:hover {
@@ -141,9 +287,7 @@ export function createMovablePanel(options) {
 		#${id} [id*="controls"] {
 			overflow: visible !important;
 			max-height: none !important;
-			/* Force all child elements to take natural height */
 		}
-		/* Style for when scrollbar is needed */
 		#${id} .panel-content.needs-scrollbar {
 			overflow-y: scroll !important;
 		}
@@ -151,8 +295,7 @@ export function createMovablePanel(options) {
 			background-color: rgba(102, 102, 102, 0.8) !important;
 		}
 		
-		/* Special styling for the Atlas Visualization panel */
-		${id === 'atlas-visualization' ? `
+		${panelType === PANEL_TYPES.ATLAS_VISUALIZATION ? `
 		#atlas-visualization canvas {
 			display: block;
 			max-width: 100%;
@@ -160,49 +303,132 @@ export function createMovablePanel(options) {
 		}
 		#atlas-visualization .coords-text,
 		#atlas-visualization .segment-info {
-			margin-right: 10px; /* Give room for scrollbar */
+			margin-right: 10px;
 		}
 		` : ''}
 		
-		/* Special styling for the UV Channel panel */
-		${id === 'uv-channel-panel' ? `
+		${panelType === PANEL_TYPES.UV_CHANNEL ? `
 		#uv-channel-panel input,
 		#uv-channel-panel select {
-			max-width: calc(100% - 10px); /* Prevent controls from overflowing */
+			max-width: calc(100% - 10px);
+		}
+		#uv-channel-panel {
+			height: auto !important;
+			transition: none !important;
+		}
+		#uv-channel-panel .panel-content {
+			transition: none !important;
 		}
 		` : ''}
 	`;
 	document.head.appendChild(scrollStyles);
-
+	
+	// Create Panel Configuration object to manage this panel
+	const panelConfig = {
+		type: panelType,
+		config: config,
+		
+		/**
+		 * Update panel layout based on content and current state
+		 * @param {HTMLElement} panel - The panel to update
+		 */
+		updatePanelLayout(panel) {
+			const contentContainer = panel.querySelector('.panel-content');
+			const header = panel.querySelector('div:first-child');
+			
+			if (!contentContainer || !header) return;
+			
+			// Skip height calculations for fixed height panels
+			if (this.config.fixedHeight) {
+				// Only update scrollbar visibility
+				if (contentContainer.scrollHeight > contentContainer.clientHeight) {
+					contentContainer.style.overflowY = 'auto';
+					contentContainer.classList.add('needs-scrollbar');
+				}
+				return;
+			}
+			
+			// For flexible panels, calculate appropriate height
+			const windowHeight = window.innerHeight;
+			
+			// Calculate content height (all children + padding)
+			const realContentHeight = Array.from(contentContainer.children)
+				.reduce((total, child) => total + (child.offsetHeight || 0), 0) + 20;
+			
+			// Get or calculate appropriate max height
+			const contentMaxHeight = Math.min(this.config.maxHeight, windowHeight - 80);
+			
+			// Remember scroll position
+			const scrollTop = contentContainer.scrollTop;
+			
+			// Set max height on content container
+			contentContainer.style.maxHeight = `${contentMaxHeight}px`;
+			
+			// Show scrollbar if content won't fit
+			const needsScrollbar = realContentHeight > contentMaxHeight;
+			
+			// Apply scrollbar style
+			if (needsScrollbar) {
+				contentContainer.style.overflowY = 'scroll';
+				contentContainer.classList.add('needs-scrollbar');
+				
+				// Ensure smooth scrolling is added
+				addSmoothScrolling(contentContainer);
+			} else {
+				contentContainer.style.overflowY = 'hidden';
+				contentContainer.classList.remove('needs-scrollbar');
+			}
+			
+			// Restore scroll position
+			contentContainer.scrollTop = scrollTop;
+		},
+		
+		/**
+		 * Toggle panel collapse state
+		 */
+		toggleCollapse() {
+			const contentContainer = container.querySelector('.panel-content');
+			const header = container.querySelector('div:first-child');
+			const isCollapsed = contentContainer.style.display === 'none';
+			
+			if (isCollapsed) {
+				// Expand
+				contentContainer.style.display = 'block';
+				caret.textContent = '▼';
+				header.style.borderBottom = '1px solid #444';
+				this.updatePanelLayout(container);
+			} else {
+				// Collapse
+				contentContainer.style.display = 'none';
+				caret.textContent = '►';
+				header.style.borderBottom = 'none';
+				// Just set height to header height
+				container.style.height = `${header.offsetHeight}px`;
+			}
+		}
+	};
+	
+	// Store panel config with the container
+	container._panelConfig = panelConfig;
+	
 	// Add click event for collapsing/expanding
 	caret.addEventListener('click', (e) => {
 		e.stopPropagation(); // Prevent triggering drag
-		const isCollapsed = contentContainer.style.display === 'none';
-		if (isCollapsed) {
-			// Expand
-			contentContainer.style.display = 'block';
-			caret.textContent = '▼';
-			header.style.borderBottom = '1px solid #444';
-			setTimeout(() => updateScrollableHeight(container), 50);
-		} else {
-			// Collapse
-			contentContainer.style.display = 'none';
-			caret.textContent = '►';
-			header.style.borderBottom = 'none';
-			// Just set height to header height
-			container.style.height = `${header.offsetHeight}px`;
-		}
+		panelConfig.toggleCollapse();
 	});
-
+	
 	// Make the container draggable
 	makeDraggableWithMagnetism(container, position);
-    
-	// Track this panel for resize handling
-	allMovablePanels.add(container);
-    
-	// Initial update of scrollable height
-	setTimeout(() => updateScrollableHeight(container), 100);
-
+	
+	// Register with panel manager
+	PanelManager.registerPanel(container);
+	
+	// Add smooth scrolling to content container
+	addSmoothScrolling(contentContainer);
+	
+	// Initial update of panel layout
+	setTimeout(() => panelConfig.updatePanelLayout(container), 100);
+	
 	// Return the container and important elements for further manipulation
 	return {
 		container,
@@ -212,142 +438,26 @@ export function createMovablePanel(options) {
 }
 
 /**
- * Update the scrollable height of a panel based on screen position
- * @param {HTMLElement} panel - The panel element to update
+ * Add smooth scrolling to an element
+ * @param {HTMLElement} element - The element to add smooth scrolling to
  */
-function updateScrollableHeight(panel) {
-	const rect = panel.getBoundingClientRect();
-	const contentContainer = panel.querySelector('.panel-content');
-	const header = panel.querySelector('div:first-child');
-	
-	if (!contentContainer || !header) return;
-	
-	// Special handling for Atlas Visualization panel
-	const isAtlasPanel = panel.id === 'atlas-visualization';
-	
-	// Get window dimensions
-	const windowHeight = window.innerHeight;
-	const headerHeight = header.offsetHeight;
-	
-	// Calculate content height differently for Atlas panel
-	let realContentHeight = 0;
-	
-	if (isAtlasPanel) {
-		// For Atlas panel, consider canvas height + info text
-		const canvas = panel.querySelector('canvas');
-		const infoTexts = panel.querySelectorAll('.coords-text, .segment-info');
-		
-		realContentHeight = (canvas ? canvas.offsetHeight : 0) + 20; // Canvas + margin
-		
-		// Add height of info texts
-		infoTexts.forEach(text => {
-			realContentHeight += text.offsetHeight + 5; // Add some spacing
-		});
-	} else {
-		// For other panels, calculate based on all children
-		realContentHeight = Array.from(contentContainer.children)
-			.reduce((total, child) => total + (child.offsetHeight || 0), 0) + 20; // Add 20px buffer
+function addSmoothScrolling(element) {
+	if (element.hasAttribute('data-smooth-scroll-added')) {
+		return;
 	}
 	
-	// Default - show all content within viewport
-	let availableHeight = windowHeight;
-	let isOffscreen = false;
+	element.setAttribute('data-smooth-scroll-added', 'true');
 	
-	// Check if panel extends beyond screen edges - we still need to detect this for scrollbar purposes
-	if (rect.top < 0) {
-		availableHeight += rect.top;
-		isOffscreen = true;
-	}
-	
-	if (rect.bottom > windowHeight) {
-		availableHeight -= (rect.bottom - windowHeight);
-		isOffscreen = true;
-	}
-	
-	// Check if panel extends beyond horizontal screen edges too
-	if (rect.left < 0 || rect.right > window.innerWidth) {
-		isOffscreen = true;
-	}
-	
-	// Apply debug visualization if enabled
-	applyOffscreenIndicator(panel, isOffscreen);
-	
-	// Ensure minimum height (always leave room for at least some content)
-	availableHeight = Math.max(150, availableHeight);
-	
-	// Calculate content area height
-	const contentHeight = availableHeight - headerHeight - 20;
-	
-	// Store current scroll position to restore after adjustments
-	const scrollTop = contentContainer.scrollTop;
-	
-	// Special handling for atlas panel - ensure consistent height
-	if (isAtlasPanel) {
-		// Force a minimum height for atlas visualization
-		contentContainer.style.minHeight = '100px';
-		
-		// Always size atlas panel to fit content when not off-screen
-		if (!isOffscreen) {
-			availableHeight = Math.min(windowHeight - 40, realContentHeight + headerHeight + 20);
-		}
-	}
-	
-	// ONLY show scrollbar when needed (content taller than container)
-	const needsScrollbar = realContentHeight > contentHeight;
-	
-	// Apply max height to content container only (not the entire panel)
-	contentContainer.style.maxHeight = `${Math.max(100, contentHeight)}px`;
-	
-	// Apply appropriate overflow style (with a small delay to prevent flickering)
-	if (needsScrollbar) {
-		// Ensure we're using the right overflow mode
-		contentContainer.style.overflowY = 'scroll';
-		contentContainer.classList.add('needs-scrollbar');
-		
-		// For atlas panel, make scrollbar more prominent
-		if (isAtlasPanel) {
-			contentContainer.style.paddingRight = '15px';
-		}
-		
-		// Add mouse wheel event handler for smoother scrolling
-		if (!contentContainer.hasAttribute('data-scroll-handler-added')) {
-			contentContainer.setAttribute('data-scroll-handler-added', 'true');
+	element.addEventListener('wheel', (e) => {
+		// Only apply custom scrolling when element has scrollbar visible
+		if (element.scrollHeight > element.clientHeight) {
+			const delta = e.deltaY || e.detail || e.wheelDelta;
+			const scrollAmount = delta > 0 ? 40 : -40;
 			
-			// Improve wheel scrolling
-			contentContainer.addEventListener('wheel', (e) => {
-				if (contentContainer.classList.contains('needs-scrollbar')) {
-					const delta = e.deltaY || e.detail || e.wheelDelta;
-					contentContainer.scrollTop += delta > 0 ? 40 : -40;
-					e.preventDefault();
-				}
-			}, { passive: false });
+			element.scrollTop += scrollAmount;
+			e.preventDefault();
 		}
-	} else {
-		contentContainer.style.overflowY = 'hidden';
-		contentContainer.classList.remove('needs-scrollbar');
-		
-		// Reset padding for atlas panel
-		if (isAtlasPanel) {
-			contentContainer.style.paddingRight = '10px';
-		}
-	}
-	
-	// Restore scroll position
-	contentContainer.scrollTop = scrollTop;
-	
-	// Adjust overall panel height - MODIFIED to prevent resize when off-screen
-	// Regardless of on-screen or off-screen, we keep the panel's natural height
-	panel.style.height = 'auto';
-	panel.style.maxHeight = 'calc(100vh - 40px)';
-	
-	// Log position info if debug logging enabled
-	if (UIDebugFlags.logPositionInfo) {
-		console.log(`Panel ${panel.id} position:`, {
-			rect,
-			isOffscreen,
-			viewportDimensions: { width: window.innerWidth, height: window.innerHeight }
-		});
-	}
+	}, { passive: false });
 }
 
 /**
@@ -403,164 +513,120 @@ function applyOffscreenIndicator(panel, isOffscreen) {
 	}
 }
 
-// Replace the old check visibility function
-/**
- * Check visibility of a panel and add scrollbars if needed
- * @param {HTMLElement} element - The panel to check
- */
-function checkVisibilityAndAddScroll(element) {
-	if (!element || !document.body.contains(element)) {
-		return;
-	}
-	
-	// Call the updated function that includes offscreen detection
-	updateScrollableHeight(element);
-}
-
-// Track all created movable panels for global resize handling
-const allMovablePanels = new Set();
-
-// Add window resize handler to update scrollbars on all panels
-window.addEventListener('resize', () => {
-	allMovablePanels.forEach(panel => {
-		if (panel && document.body.contains(panel)) {
-			checkVisibilityAndAddScroll(panel);
-		} else {
-			// Clean up references to removed panels
-			allMovablePanels.delete(panel);
-		}
-	});
-});
-
 /**
  * Make an element draggable with magnetism to its default position
  * @param {HTMLElement} element - The element to make draggable
  * @param {Object} defaultPosition - Default position {top, right, bottom, left}
  */
 function makeDraggableWithMagnetism(element, defaultPosition) {
-	let isDragging = false;
-	let offset = { x: 0, y: 0 };
-	let initialRect = null;
-    
-	// Magnetism threshold in pixels (distance at which to snap back)
-	const magnetThreshold = 50;
-    
-	const header = element.querySelector('div:first-child');
-	if (!header) return;
-    
-	// Store initial position to prevent window scroll from affecting dragged panels
+	let dragState = {
+		isDragging: false,
+		startMouseX: 0,
+		startMouseY: 0,
+		startElemTop: 0,
+		startElemLeft: 0,
+		wasDetachedFromRight: false,
+		wasDetachedFromBottom: false
+	};
+	
+	// Get the draggable handler (first child - header)
+	const dragHandle = element.querySelector('div:first-child');
+	
+	// Add mouse event listeners
+	dragHandle.addEventListener('mousedown', startDrag);
+	
 	/**
 	 *
 	 */
-	function storeInitialPosition() {
-		// Store relative position to viewport for scroll correction
-		const rect = element.getBoundingClientRect();
-		initialRect = {
-			left: rect.left,
-			top: rect.top,
-			width: rect.width,
-			height: rect.height
-		};
-	}
-    
-	// Mouse down handler
-	header.addEventListener('mousedown', (e) => {
-		isDragging = true;
-		storeInitialPosition();
-		offset.x = e.clientX - element.offsetLeft;
-		offset.y = e.clientY - element.offsetTop;
-		// Add a class to indicate dragging
-		element.style.opacity = '0.8';
-		// Prevent default to avoid text selection while dragging
-		e.preventDefault();
-	});
-    
-	// Mouse move handler
-	document.addEventListener('mousemove', (e) => {
-		if (!isDragging) return;
-		const left = e.clientX - offset.x;
-		const top = e.clientY - offset.y;
-        
-		// Allow dragging beyond window bounds
-		element.style.left = left + 'px';
-		element.style.top = top + 'px';
-        
-		// Ensure bottom and right positions are cleared when dragging
-		element.style.bottom = 'auto';
-		element.style.right = 'auto';
-	});
-    
-	// Mouse up handler with magnetism
-	document.addEventListener('mouseup', () => {
-		if (!isDragging) return;
-		isDragging = false;
-		element.style.opacity = '1';
-        
-		// Get current position
-		const rect = element.getBoundingClientRect();
-        
-		// Check if default position uses bottom/right or top/left
-		let shouldSnapBack = false;
-        
-		if (defaultPosition.bottom !== undefined && defaultPosition.left !== undefined) {
-			// Bottom-left positioning
-			const left = rect.left;
-			const bottom = window.innerHeight - rect.bottom;
-			const isCloseToDefaultX = Math.abs(left - parseInt(defaultPosition.left)) < magnetThreshold;
-			const isCloseToDefaultY = Math.abs(bottom - parseInt(defaultPosition.bottom)) < magnetThreshold;
-			shouldSnapBack = isCloseToDefaultX && isCloseToDefaultY;
-            
-			if (shouldSnapBack) {
-				// Animate back to default position
-				element.style.transition = 'left 0.3s ease, bottom 0.3s ease, top 0.3s ease';
-				element.style.left = defaultPosition.left;
-				element.style.bottom = defaultPosition.bottom;
-				element.style.top = 'auto';
-			}
-		} else if (defaultPosition.top !== undefined && defaultPosition.right !== undefined) {
-			// Top-right positioning
-			const right = window.innerWidth - rect.right;
-			const top = rect.top;
-			const isCloseToDefaultX = Math.abs(right - parseInt(defaultPosition.right)) < magnetThreshold;
-			const isCloseToDefaultY = Math.abs(top - parseInt(defaultPosition.top)) < magnetThreshold;
-			shouldSnapBack = isCloseToDefaultX && isCloseToDefaultY;
-            
-			if (shouldSnapBack) {
-				element.style.transition = 'right 0.3s ease, top 0.3s ease, left 0.3s ease';
-				element.style.right = defaultPosition.right;
-				element.style.top = defaultPosition.top;
-				element.style.left = 'auto';
-			}
-		} else if (defaultPosition.top !== undefined && defaultPosition.left !== undefined) {
-			// Top-left positioning
-			const left = rect.left;
-			const top = rect.top;
-			const isCloseToDefaultX = Math.abs(left - parseInt(defaultPosition.left)) < magnetThreshold;
-			const isCloseToDefaultY = Math.abs(top - parseInt(defaultPosition.top)) < magnetThreshold;
-			shouldSnapBack = isCloseToDefaultX && isCloseToDefaultY;
-            
-			if (shouldSnapBack) {
-				element.style.transition = 'left 0.3s ease, top 0.3s ease';
-				element.style.left = defaultPosition.left;
-				element.style.top = defaultPosition.top;
-			}
-		}
-        
-		// Reset the transition after animation
-		if (shouldSnapBack) {
-			setTimeout(() => {
-				element.style.transition = '';
-				// Only check visibility if the panel snaps back
-				checkVisibilityAndAddScroll(element);
-			}, 300);
-		} else {
-			// Only check scrollbar needs when position has changed
-			// Check if the panel now needs a scrollbar based on new position
-			checkVisibilityAndAddScroll(element);
+	function startDrag(e) {
+		// Skip if clicking on interactive elements
+		if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') {
+			return;
 		}
 		
-		initialRect = null; // Clear stored position
-	});
+		dragState.isDragging = true;
+		
+		// Get current position
+		const rect = element.getBoundingClientRect();
+		
+		// Store mouse position
+		dragState.startMouseX = e.clientX;
+		dragState.startMouseY = e.clientY;
+		
+		// Store starting element position
+		dragState.startElemTop = rect.top;
+		dragState.startElemLeft = rect.left;
+		
+		// Check if the element uses right/bottom positioning
+		dragState.wasDetachedFromRight = element.style.right !== '';
+		dragState.wasDetachedFromBottom = element.style.bottom !== '';
+		
+		// Add document event listeners
+		document.addEventListener('mousemove', onDrag);
+		document.addEventListener('mouseup', stopDrag);
+		
+		// Prevent default selection behavior
+		e.preventDefault();
+	}
+	
+	/**
+	 *
+	 */
+	function onDrag(e) {
+		if (!dragState.isDragging) return;
+		
+		// Calculate how far the mouse has moved
+		const dx = e.clientX - dragState.startMouseX;
+		const dy = e.clientY - dragState.startMouseY;
+		
+		// Switch to top/left positioning if using right/bottom
+		if (dragState.wasDetachedFromRight) {
+			element.style.right = '';
+			dragState.wasDetachedFromRight = false;
+		}
+		
+		if (dragState.wasDetachedFromBottom) {
+			element.style.bottom = '';
+			dragState.wasDetachedFromBottom = false;
+		}
+		
+		// Apply new position
+		element.style.top = `${dragState.startElemTop + dy}px`;
+		element.style.left = `${dragState.startElemLeft + dx}px`;
+		
+		// Check for offscreen status after drag
+		PanelManager.checkPanelVisibility(element);
+	}
+	
+	/**
+	 *
+	 */
+	function stopDrag() {
+		dragState.isDragging = false;
+		
+		// Remove document event listeners
+		document.removeEventListener('mousemove', onDrag);
+		document.removeEventListener('mouseup', stopDrag);
+		
+		// Apply magnetic snapping here if needed
+		applyMagneticSnapping(element, defaultPosition);
+	}
+	
+	/**
+	 *
+	 */
+	function applyMagneticSnapping(element, defaultPosition) {
+		// Implement magnetic snapping if needed
+		// Could snap to edges of screen or default position
+	}
+}
+
+/**
+ * Export the refreshAllPanels function for external use
+ * @param {boolean} force - Whether to force update even for invisible panels
+ */
+export function refreshAllPanels(force = false) {
+	PanelManager.refreshAllPanels(force);
 }
 
 /**
@@ -577,7 +643,7 @@ export function createButton(options) {
 		color = '#3498db',
 		onClick
 	} = options;
-    
+	
 	const button = document.createElement('button');
 	button.textContent = text;
 	button.className = 'debug-button';
@@ -590,11 +656,11 @@ export function createButton(options) {
 	button.style.color = 'white';
 	button.style.cursor = 'pointer';
 	button.style.fontWeight = 'bold';
-    
+	
 	if (onClick && typeof onClick === 'function') {
 		button.addEventListener('click', onClick);
 	}
-    
+	
 	return button;
 }
 
@@ -630,7 +696,7 @@ export function createDropdown(options) {
 		selectedValue,
 		onChange
 	} = options;
-    
+	
 	const select = document.createElement('select');
 	select.id = id;
 	select.style.width = '100%';
@@ -641,7 +707,7 @@ export function createDropdown(options) {
 	select.style.borderRadius = '3px';
 	select.style.marginBottom = '10px';
 	select.style.cursor = 'pointer';
-    
+	
 	// Add options
 	items.forEach(item => {
 		const option = document.createElement('option');
@@ -649,48 +715,18 @@ export function createDropdown(options) {
 		option.textContent = item.text;
 		select.appendChild(option);
 	});
-    
+	
 	// Set selected value if provided
 	if (selectedValue !== undefined) {
 		select.value = selectedValue;
 	}
-    
+	
 	// Add change event listener
 	if (onChange && typeof onChange === 'function') {
 		select.addEventListener('change', onChange);
 	}
-    
+	
 	return select;
-}
-
-/**
- * Setup essential panel event handlers without intervals
- */
-function setupPanelEventHandlers() {
-	// ONLY check scroll on window resize - no intervals
-	window.addEventListener('resize', () => {
-		allMovablePanels.forEach(panel => {
-			if (panel && document.body.contains(panel) && panel.style.display !== 'none') {
-				checkVisibilityAndAddScroll(panel);
-			} else if (!document.body.contains(panel)) {
-				allMovablePanels.delete(panel);
-			}
-		});
-	});
-    
-	// Clean up on page unload
-	window.addEventListener('beforeunload', () => {
-		allMovablePanels.clear();
-	});
-}
-
-// Run setup once on load
-if (typeof window !== 'undefined') {
-	if (document.readyState === 'complete') {
-		setupPanelEventHandlers();
-	} else {
-		window.addEventListener('load', setupPanelEventHandlers);
-	}
 }
 
 /**
@@ -700,11 +736,7 @@ export function toggleOffscreenIndicators() {
 	UIDebugFlags.showOffscreenIndicators = !UIDebugFlags.showOffscreenIndicators;
 	
 	// Update all panels immediately
-	allMovablePanels.forEach(panel => {
-		if (panel && document.body.contains(panel)) {
-			checkVisibilityAndAddScroll(panel);
-		}
-	});
+	PanelManager.refreshAllPanels(true);
 	
 	return UIDebugFlags.showOffscreenIndicators;
 }
@@ -735,4 +767,7 @@ export function setOffscreenIndicatorOpacity(opacity) {
 export function togglePositionLogging() {
 	UIDebugFlags.logPositionInfo = !UIDebugFlags.logPositionInfo;
 	return UIDebugFlags.logPositionInfo;
-} 
+}
+
+// Initialize the panel manager
+PanelManager.init(); 

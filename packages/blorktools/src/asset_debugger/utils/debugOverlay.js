@@ -2,7 +2,7 @@
 // Creates a modal debug settings panel triggered by "s" key
 
 import { UIDebugFlags, toggleDebugFlag } from './flags.js';
-import { toggleOffscreenIndicators, setOffscreenIndicatorOpacity, togglePositionLogging } from './uiComponents.js';
+import { toggleOffscreenIndicators, setOffscreenIndicatorOpacity, togglePositionLogging, refreshAllPanels } from './uiComponents.js';
 
 // Track instances
 let overlayContainer = null;
@@ -119,6 +119,8 @@ function createDebugPanel() {
 	// Add controls
 	addOffscreenControls(content);
 	addSeparator(content);
+	addActionButtons(content);
+	addSeparator(content);
 	addLoggingControls(content);
 	addSeparator(content);
 	addAdditionalInfo(content);
@@ -161,6 +163,60 @@ function addOffscreenControls(container) {
 			setOffscreenIndicatorOpacity(value);
 		}
 	);
+}
+
+/**
+ * Add action buttons for immediate operations
+ * @param {HTMLElement} container - Container to add controls to
+ */
+function addActionButtons(container) {
+	// Section title
+	const sectionTitle = document.createElement('div');
+	sectionTitle.textContent = 'Actions';
+	sectionTitle.style.fontSize = '13px';
+	sectionTitle.style.fontWeight = 'bold';
+	sectionTitle.style.marginBottom = '10px';
+	sectionTitle.style.color = '#90CAF9';
+	container.appendChild(sectionTitle);
+    
+	// Create refresh button
+	const refreshButton = document.createElement('button');
+	refreshButton.textContent = 'Force Refresh All Panels';
+	refreshButton.style.width = '100%';
+	refreshButton.style.padding = '8px 12px';
+	refreshButton.style.backgroundColor = '#007BFF';
+	refreshButton.style.color = 'white';
+	refreshButton.style.border = 'none';
+	refreshButton.style.borderRadius = '4px';
+	refreshButton.style.cursor = 'pointer';
+	refreshButton.style.fontWeight = 'bold';
+	refreshButton.style.marginBottom = '8px';
+    
+	// Add click handler
+	refreshButton.addEventListener('click', () => {
+		// Force refresh all panels, including hidden ones
+		refreshAllPanels(true);
+        
+		// Visual feedback
+		refreshButton.textContent = 'Refreshed!';
+		refreshButton.style.backgroundColor = '#28a745';
+        
+		// Reset after a moment
+		setTimeout(() => {
+			refreshButton.textContent = 'Force Refresh All Panels';
+			refreshButton.style.backgroundColor = '#007BFF';
+		}, 1000);
+	});
+    
+	container.appendChild(refreshButton);
+    
+	// Add help text
+	const helpText = document.createElement('div');
+	helpText.textContent = 'Use this button to force recalculation of panel positioning and scrollbars.';
+	helpText.style.fontSize = '11px';
+	helpText.style.color = '#aaa';
+	helpText.style.marginTop = '5px';
+	container.appendChild(helpText);
 }
 
 /**
