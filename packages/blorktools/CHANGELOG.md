@@ -1,5 +1,11 @@
 ## [0.12.21](https://github.com/littlecarlito/threejs_site/compare/v0.12.20...v0.12.21) (2025-03-20)
 
+## 1.13.0
+
+### Minor Changes
+
+- c2bbf45: Now landing directly into the editor
+
 ## 1.12.0
 
 ### Minor Changes
