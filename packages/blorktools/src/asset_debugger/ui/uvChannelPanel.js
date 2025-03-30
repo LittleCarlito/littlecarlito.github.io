@@ -32,7 +32,7 @@ export function createUvChannelPanel(state) {
 	const { container, contentContainer } = createMovablePanel({
 		id: 'uv-channel-panel',
 		title: 'UV Channel Controls',
-		position: { top: '20px', left: '20px' },
+		position: { top: '80px', left: '20px' },
 		width: '280px',
 		startCollapsed: false
 	});
