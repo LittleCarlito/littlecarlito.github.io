@@ -1,0 +1,77 @@
+{
+  "name": "@littlecarlito/blorkpack",
+  "version": "1.12.0",
+  "description": "Asset management utilities for 3D scenes",
+  "type": "module",
+  "blorkType": "package",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./app-renderer": "./dist/app_renderer.js",
+    "./asset-activator": "./dist/asset_activator.js",
+    "./custom-factory": "./dist/asset_handler/asset_factories/custom_factory.js",
+    "./system-factory": "./dist/asset_handler/asset_factories/system_factory.js",
+    "./box-spawner": "./dist/asset_handler/asset_factories/system_spawners/box_spawner.js",
+    "./capsule-spawner": "./dist/asset_handler/asset_factories/system_spawners/capsule_spawner.js",
+    "./cylinder-spawner": "./dist/asset_handler/asset_factories/system_spawners/cylinder_spawner.js",
+    "./sphere-spawner": "./dist/asset_handler/asset_factories/system_spawners/sphere_spawner.js",
+    "./spotlight-spawner": "./dist/asset_handler/asset_factories/system_spawners/spotlight_spawner.js",
+    "./spawner": "./dist/asset_handler/asset_handler.js",
+    "./id-generator": "./dist/asset_handler/common/id_generator.js",
+    "./system-asset-types": "./dist/asset_handler/common/system_asset_types.js",
+    "./asset-storage": "./dist/asset_storage.js",
+    "./blorkpack-flags": "./dist/blorkpack_flags.js",
+    "./custom-type-manager": "./dist/custom_type_manager.js",
+    "./loaders": "./dist/loaders.js",
+    "./manifest-manager": "./dist/manifest_manager.js",
+    "./manifest-types": "./dist/manifest_types.js",
+    "./physics-util": "./dist/physics/physics_util.js",
+    "./rapier-proxy": "./dist/rapier_proxy.js",
+    "./three-proxy": "./dist/three_proxy.js",
+    "./asset_handler/asset_factories/system_spawners": "./dist/asset_handler/asset_factories/system_spawners/index.js",
+    "./physics": "./dist/physics/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "generate-exports": "node scripts/generate-exports.js",
+    "test": "cd ../.. && jest packages/blorkpack/src/test --config=tests/config/jest/jest.config.cjs",
+    "jest-test": "cd ../.. && jest packages/blorkpack/src/test/debug_factory-test.js --config=tests/config/jest/jest.config.cjs",
+    "generate-mocks": "node scripts/generate-mocks.js",
+    "example:usage": "node examples/usage-example.js",
+    "example:exports": "node examples/export-test.js",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.14.0",
+    "three": "^0.172.0"
+  },
+  "devDependencies": {
+    "@babel/plugin-transform-modules-commonjs": "^7.26.3",
+    "@babel/preset-env": "^7.26.9",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^9.2.6",
+    "babel-jest": "^29.7.0",
+    "esbuild": "^0.20.0",
+    "jest": "^29.7.0",
+    "license-webpack-plugin": "^4.0.2",
+    "rimraf": "^5.0.5",
+    "semantic-release": "^23.0.2",
+    "vite": "^6.0.11"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/littlecarlito/threejs_site.git",
+    "directory": "packages/blorkpack"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "copyright": "Copyright (C) 2024 Steven Meier"
+}
