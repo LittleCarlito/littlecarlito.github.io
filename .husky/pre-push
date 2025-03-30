@@ -1,5 +1,5 @@
-#!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
+#!/bin/bash
+# Running pre-push checks directly without husky sourcing
 
 # Exit on error
 set -e
