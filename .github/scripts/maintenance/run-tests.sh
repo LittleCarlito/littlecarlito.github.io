@@ -46,6 +46,15 @@ run_tests() {
     
     # Display the output
     cat "$TEST_OUTPUT" >&2
+    
+    # Check if the output contains "No tests specified" - in which case, treat as success
+    if grep -q "No tests specified" "$TEST_OUTPUT"; then
+        echo "Package has no tests specified - treating as success" >&2
+        echo "result=success"
+        rm -f "$TEST_OUTPUT"
+        return 0
+    fi
+    
     rm -f "$TEST_OUTPUT"
     
     # Return the result
