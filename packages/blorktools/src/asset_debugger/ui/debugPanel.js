@@ -5,6 +5,7 @@ import { toggleTextureEditor } from './textureEditor.js';
 import { createAtlasVisualization } from './atlasVisualization.js';
 import { createUvChannelPanel, updateUvChannelPanel } from './uvChannelPanel.js';
 import { createButton } from '../utils/uiComponents.js';
+import { toggleDropPanel } from './dropPanel.js';
 
 // Exported functions for external use
 export let updateModelInfo = null;
@@ -25,22 +26,24 @@ export function setupDebugPanel(state) {
  */
 export function startDebugging(state) {
 	console.log('Starting debugging with files:', state.modelFile, state.textureFile);
-	// Hide drag-drop zone
-	const dragDropZone = document.getElementById('drop-container');
-	if (dragDropZone) {
-		dragDropZone.style.display = 'none';
-	}
+	
+	// Hide the drop panel since we're now in debug mode
+	toggleDropPanel(false);
+	
 	// Show loading screen
 	const loadingScreen = document.getElementById('loading');
 	if (loadingScreen) {
 		loadingScreen.style.display = 'flex';
 	}
+	
 	// Show renderer canvas
 	if (state.renderer) {
 		state.renderer.domElement.style.display = 'block';
 	}
+	
 	// Set debug mode
 	state.isDebugMode = true;
+	
 	// If debug panel exists already, show it
 	const debugPanel = document.getElementById('debug-panel');
 	if (debugPanel) {

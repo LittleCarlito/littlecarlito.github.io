@@ -4,6 +4,7 @@ import { setupDragDrop } from './ui/dragdrop.js';
 import { setupDebugPanel, autoShowAtlasVisualization } from './ui/debugPanel.js';
 import { setupEventListeners } from './utils/events.js';
 import { initDebugOverlay } from './utils/debugOverlay.js';
+import { createDropPanel } from './ui/dropPanel.js';
 // Application state - central store
 export const state = {
 	// Scene-related state
@@ -37,6 +38,8 @@ export function init() {
 	setupScene(state);
 	// Initialize debug panel (it starts hidden)
 	setupDebugPanel(state);
+	// Create the movable drop panel
+	createDropPanel(state);
 	// Setup drag and drop functionality
 	setupDragDrop(state);
 	// Set up event listeners

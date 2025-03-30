@@ -6,74 +6,56 @@ import { setupCamera } from '../core/camera.js';
 import { loadModel } from '../core/loader.js';
 import { loadTexture } from '../materials/textureManager.js';
 import { startDebugging } from './debugPanel.js';
+import { createDropPanel, updateDropPanel, toggleDropPanel } from './dropPanel.js';
+
 // Setup the drag and drop functionality
 /**
  *
  */
 export function setupDragDrop(state) {
-	// Get the main drop container
-	const dropContainer = document.getElementById('drop-container');
-	if (!dropContainer) {
-		console.error('Drop container not found');
+	// Create the movable drop panel
+	const dropPanelContainer = createDropPanel(state);
+	if (!dropPanelContainer) {
+		console.error('Could not create drop panel');
 		return;
 	}
-	// Get the individual drop zones
-	const modelDropZone = document.getElementById('drop-zone-model');
-	const textureDropZone = document.getElementById('drop-zone-texture');
+	
+	// Get the individual drop zones from the new panel
+	const modelDropZone = dropPanelContainer.querySelector('#drop-zone-model');
+	const textureDropZone = dropPanelContainer.querySelector('#drop-zone-texture');
 	if (!modelDropZone || !textureDropZone) {
-		console.error('Drop zones not found');
+		console.error('Drop zones not found in panel');
 		return;
 	}
+	
 	// Setup drag and drop events for model zone
 	setupDropZoneEvents(modelDropZone, (file) => {
 		if (file.name.toLowerCase().endsWith('.glb') || file.name.toLowerCase().endsWith('.gltf')) {
 			state.modelFile = file;
-			// Update file info display
-			const modelInfo = document.getElementById('model-file-info');
-			if (modelInfo) {
-				modelInfo.textContent = file.name;
-			}
-			// Add 'has-file' class to zone
-			modelDropZone.classList.add('has-file');
-			// Enable start button if both files are selected or just this one
-			updateStartButton(state);
+			// Update file info in panel using the updateDropPanel function
+			updateDropPanel(state);
 		} else {
 			alert('Please drop a valid model file (GLB or GLTF)');
 		}
 	});
+	
 	// Setup drag and drop events for texture zone
 	setupDropZoneEvents(textureDropZone, (file) => {
 		const validExtensions = ['jpg', 'jpeg', 'png', 'webp'];
 		const fileExt = file.name.split('.').pop().toLowerCase();
 		if (validExtensions.includes(fileExt)) {
 			state.textureFile = file;
-			// Update file info display
-			const textureInfo = document.getElementById('texture-file-info');
-			if (textureInfo) {
-				textureInfo.textContent = file.name;
-			}
-			// Add 'has-file' class to zone
-			textureDropZone.classList.add('has-file');
-			// Enable start button if both files are selected or just this one
-			updateStartButton(state);
+			// Update file info in panel using the updateDropPanel function
+			updateDropPanel(state);
 		} else {
 			alert('Please drop a valid image file (JPG, PNG, WEBP)');
 		}
 	});
-	// Setup start button
-	const startButton = document.getElementById('start-button');
-	if (startButton) {
-		startButton.addEventListener('click', () => {
-			handleFileUploads(state);
-		});
-	}
-	// Make drop zones visible
-	dropContainer.style.display = 'flex';
+	
 	console.log('Drag and drop initialized with the following elements:');
-	console.log('- dropContainer:', dropContainer);
+	console.log('- dropPanelContainer:', dropPanelContainer);
 	console.log('- modelDropZone:', modelDropZone);
 	console.log('- textureDropZone:', textureDropZone);
-	console.log('- startButton:', startButton);
 }
 
 // Set up events for a drop zone
@@ -122,22 +104,6 @@ function setupDropZoneEvents(dropZone, onFileDrop) {
 	});
 }
 
-// Enable/disable start button based on file selection
-/**
- *
- */
-function updateStartButton(state) {
-	const startButton = document.getElementById('start-button');
-	if (!startButton) return;
-	if (state.modelFile || state.textureFile) {
-		startButton.disabled = false;
-		startButton.style.display = 'block';
-	} else {
-		startButton.disabled = true;
-		startButton.style.display = 'none';
-	}
-}
-
 // Prevent default browser behavior for drag events
 /**
  *
@@ -172,32 +138,12 @@ export function resetToDropZone(state) {
 	state.textureLoaded = false;
 	state.modelFile = null;
 	state.textureFile = null;
-	// Reset drop zones
-	const modelDropZone = document.getElementById('drop-zone-model');
-	const textureDropZone = document.getElementById('drop-zone-texture');
-	if (modelDropZone) {
-		modelDropZone.classList.remove('has-file');
-	}
-	if (textureDropZone) {
-		textureDropZone.classList.remove('has-file');
-	}
-	// Reset file info displays
-	const modelInfo = document.getElementById('model-file-info');
-	const textureInfo = document.getElementById('texture-file-info');
-	if (modelInfo) {
-		modelInfo.textContent = '';
-	}
-	if (textureInfo) {
-		textureInfo.textContent = '';
-	}
-	// Hide start button
-	updateStartButton(state);
-	// Show drop container
-	const dropContainer = document.getElementById('drop-container');
-	if (dropContainer) {
-		dropContainer.style.display = 'flex';
-	}
+	
+	// Create and show the drop panel if it doesn't exist
+	createDropPanel(state);
+	toggleDropPanel(true);
 }
+
 // Handle file uploads for model and texture
 /**
  *
@@ -248,62 +194,52 @@ export async function handleFileUploads(state) {
 					// Add UV coordinate numbers
 					ctx.fillStyle = '#ffffff';
 					ctx.font = '16px Arial';
-					ctx.fillText(`${(x/canvas.width).toFixed(1)},${(y/canvas.height).toFixed(1)}`, x + 10, y + 30);
+					ctx.textAlign = 'center';
+					ctx.textBaseline = 'middle';
+					ctx.fillText(`${(x / canvas.width).toFixed(1)},${(y / canvas.height).toFixed(1)}`, x + tileSize / 2, y + tileSize / 2);
 				}
 			}
-			// Convert to texture
+			// Create the texture
 			const texture = new THREE.CanvasTexture(canvas);
 			state.textureObject = texture;
-			// Create a dummy file object for the UI
-			state.textureFile = {
-				name: "sample_texture.png",
-				size: canvas.width * canvas.height * 4
-			};
-			// Update texture info in UI
-			if (state.updateTextureInfo) {
-				state.updateTextureInfo({
-					name: state.textureFile.name,
-					size: state.textureFile.size,
-					dimensions: { width: canvas.width, height: canvas.height }
-				});
-			}
 			state.textureLoaded = true;
-			console.log('Sample texture created successfully');
+			console.log('Sample texture created');
 		}
-		// Start debugging when both files are loaded or when just one is loaded
+		
+		// Start debugging when both assets are loaded
 		if (state.modelLoaded || state.textureLoaded) {
-			// Hide drop container
-			const dropContainer = document.getElementById('drop-container');
-			if (dropContainer) {
-				dropContainer.style.display = 'none';
-			}
+			// Hide the drop panel now that we're in debug mode
+			toggleDropPanel(false);
+			
 			startDebugging(state);
+			hideLoadingIndicator();
+		} else {
+			alert('Please provide at least one file (model or texture) to debug.');
 			hideLoadingIndicator();
 		}
 	} catch (error) {
-		console.error('Error handling file uploads:', error);
+		console.error('Error loading files:', error);
+		alert(`Error loading files: ${error.message}`);
 		hideLoadingIndicator();
-		alert('Error processing files. Please try again.');
-		resetToDropZone(state);
 	}
 }
 
-// Helper function to show loading indicator with custom message
+// Show loading indicator
 /**
  *
  */
 function showLoadingIndicator(message = 'Loading...') {
 	const loadingScreen = document.getElementById('loading');
-	const loadingMessage = loadingScreen?.querySelector('div:not(.spinner)');
 	if (loadingScreen) {
+		const messageElement = loadingScreen.querySelector('div:not(.spinner)');
+		if (messageElement) {
+			messageElement.textContent = message;
+		}
 		loadingScreen.style.display = 'flex';
-	}
-	if (loadingMessage) {
-		loadingMessage.textContent = message;
 	}
 }
 
-// Helper function to hide loading indicator
+// Hide loading indicator
 /**
  *
  */

@@ -47,25 +47,10 @@
       100% { transform: rotate(360deg); }
     }
     
-    /* Drop zones styling */
-    #drop-container {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 20px;
-      padding: 40px;
-      background-color: rgba(0, 0, 0, 0.7);
-      border-radius: 10px;
-      z-index: 200;
-      text-align: center;
-    }
+    /* Drop zones styling - now applied dynamically to the movable panel */
     .drop-zone {
-      width: 300px;
-      height: 150px;
+      width: 260px;
+      height: 130px;
       border: 3px dashed #3498db;
       border-radius: 10px;
       display: flex;
@@ -75,6 +60,7 @@
       cursor: pointer;
       transition: all 0.3s ease;
       background-color: rgba(52, 152, 219, 0.1);
+      margin-bottom: 15px;
     }
     .drop-zone:hover, .drop-zone.active {
       background-color: rgba(52, 152, 219, 0.2);
@@ -97,24 +83,23 @@
       margin-bottom: 10px;
       color: #3498db;
     }
-    #drop-zone-model.has-file, #drop-zone-texture.has-file {
+    .drop-zone.has-file {
       border-color: #27ae60;
       background-color: rgba(39, 174, 96, 0.1);
     }
-    #drop-zone-model.has-file .drop-zone-prompt, 
-    #drop-zone-texture.has-file .drop-zone-prompt,
-    #drop-zone-model.has-file .drop-zone-icon, 
-    #drop-zone-texture.has-file .drop-zone-icon {
+    .drop-zone.has-file .drop-zone-prompt, 
+    .drop-zone.has-file .drop-zone-icon {
       color: #27ae60;
     }
     .file-info {
       margin-top: 5px;
       font-size: 0.9em;
       color: #bbb;
-      max-width: 280px;
+      max-width: 240px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      text-align: center;
     }
     #start-button {
       background-color: #27ae60;
@@ -126,7 +111,7 @@
       font-weight: bold;
       cursor: pointer;
       transition: background-color 0.2s;
-      display: none;
+      width: 100%;
     }
     #start-button:hover {
       background-color: #2ecc71;
@@ -211,28 +196,6 @@
   <div id="loading">
     <div class="spinner"></div>
     <div>Initializing 3D Asset Debugger...</div>
-  </div>
-  
-  <!-- Drop zones for model and texture -->
-  <div id="drop-container">
-    <h2>3D Asset Debugger</h2>
-    <p>Drop your model and texture files to begin debugging</p>
-    
-    <div id="drop-zone-model" class="drop-zone">
-      <div class="drop-zone-icon">📦</div>
-      <p class="drop-zone-prompt">Drop 3D Model Here</p>
-      <p class="drop-zone-formats">Supported format: .glb</p>
-      <p class="file-info" id="model-file-info"></p>
-    </div>
-    
-    <div id="drop-zone-texture" class="drop-zone">
-      <div class="drop-zone-icon">🖼️</div>
-      <p class="drop-zone-prompt">Drop Texture Atlas Here</p>
-      <p class="drop-zone-formats">Supported formats: .jpg, .png</p>
-      <p class="file-info" id="texture-file-info"></p>
-    </div>
-    
-    <button id="start-button" disabled>Start Debugging</button>
   </div>
   
   <!-- Debug panel -->
