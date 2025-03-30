@@ -2,44 +2,8 @@
 // Reusable UI creation patterns for the asset debugger
 import { UIDebugFlags } from './flags.js';
 
-// Check if localStorage is available (for private browsing support)
-const isLocalStorageAvailable = (() => {
-	try {
-		const test = 'test';
-		localStorage.setItem(test, test);
-		localStorage.removeItem(test);
-		return true;
-	} catch (e) {
-		return false;
-	}
-})();
-
 // Track all created movable panels for global management
 const allMovablePanels = new Set();
-
-// Memory storage fallback when localStorage isn't available
-const memoryStorage = new Map();
-
-// Safe storage functions that work in both regular and private browsing
-const safeStorage = {
-	getItem(key) {
-		if (isLocalStorageAvailable) {
-			return localStorage.getItem(key);
-		}
-		return memoryStorage.get(key);
-	},
-	setItem(key, value) {
-		if (isLocalStorageAvailable) {
-			try {
-				localStorage.setItem(key, value);
-			} catch (e) {
-				memoryStorage.set(key, value);
-			}
-		} else {
-			memoryStorage.set(key, value);
-		}
-	}
-};
 
 // Panel type definitions for specialized handling
 const PANEL_TYPES = {
@@ -511,6 +475,13 @@ export function createMovablePanel(options) {
 					container.style.bottom = '';
 				}
 			}
+			
+			// Store "false" for collapsed state to prevent persistence between sessions
+			try {
+				localStorage.setItem(`${id}_collapsed`, 'false');
+			} catch (e) {
+				console.warn('Could not save panel state to localStorage', e);
+			}
 		}
 	};
 	
@@ -540,6 +511,21 @@ export function createMovablePanel(options) {
 	
 	// Initial update of panel layout
 	setTimeout(() => panelConfig.updatePanelLayout(container), 100);
+	
+	// Always ensure panels start in expanded state (override any saved state)
+	if (startCollapsed) {
+		// Only collapse if explicitly requested via parameter
+		contentContainer.style.display = 'none';
+		if (caret) caret.textContent = '►';
+		header.style.borderBottom = 'none';
+		// Just set height to header height
+		container.style.height = `${header.offsetHeight}px`;
+	} else {
+		// Ensure expanded
+		contentContainer.style.display = 'block';
+		if (caret) caret.textContent = '▼';
+		header.style.borderBottom = '1px solid #444';
+	}
 	
 	// Return the container and important elements for further manipulation
 	return {
