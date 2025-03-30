@@ -1,11 +1,8 @@
 // Debug Panel Module
 // Handles the asset debug info panel and interaction
 import { switchUvChannel } from '../core/analyzer.js';
-import { toggleTextureEditor } from './textureEditor.js';
-import { createAtlasVisualization } from './atlasVisualization.js';
 import { createUvChannelPanel, updateUvChannelPanel } from './uvChannelPanel.js';
 import { createButton } from '../utils/uiComponents.js';
-import { toggleDropPanel } from './dropPanel.js';
 
 // Exported functions for external use
 export let updateModelInfo = null;
@@ -16,8 +13,31 @@ export let updateTextureInfo = null;
  *
  */
 export function setupDebugPanel(state) {
-	// Create the debug panel
-	const panel = createDebugPanel(state);
+	console.log('Setting up debug panel');
+	createDebugPanel(state);
+	
+	// Update with initial state if available
+	if (state.modelObject && state.modelFile) {
+		console.log('Initial model data available, updating debug panel');
+		state.updateModelInfo({
+			name: state.modelFile.name,
+			size: state.modelFile.size,
+			uvSets: state.availableUvSets || [],
+			meshes: getMeshesFromModel(state.modelObject)
+		});
+	}
+	
+	if (state.textureObject && state.textureFile) {
+		console.log('Initial texture data available, updating debug panel');
+		state.updateTextureInfo({
+			name: state.textureFile.name,
+			size: state.textureFile.size,
+			dimensions: state.textureObject.image ? {
+				width: state.textureObject.image.width,
+				height: state.textureObject.image.height
+			} : undefined
+		});
+	}
 }
 
 // Start debugging (called from dragdrop.js)
@@ -25,29 +45,57 @@ export function setupDebugPanel(state) {
  *
  */
 export function startDebugging(state) {
-	console.log('Starting debugging with files:', state.modelFile, state.textureFile);
+	console.log('Starting debugging with files:', state.modelFile, '\n', state.textureFile);
 	
-	// Hide the drop panel since we're now in debug mode
-	toggleDropPanel(false);
-	
-	// Show loading screen
-	const loadingScreen = document.getElementById('loading');
-	if (loadingScreen) {
-		loadingScreen.style.display = 'flex';
+	// Show debug panel
+	const debugPanel = document.getElementById('debug-panel');
+	if (debugPanel) {
+		debugPanel.style.display = 'block';
 	}
 	
 	// Show renderer canvas
 	if (state.renderer) {
+		console.log('Making renderer visible');
 		state.renderer.domElement.style.display = 'block';
 	}
 	
 	// Set debug mode
 	state.isDebugMode = true;
 	
-	// If debug panel exists already, show it
-	const debugPanel = document.getElementById('debug-panel');
-	if (debugPanel) {
-		debugPanel.style.display = 'block';
+	// Force update model info
+	if (state.modelObject && state.updateModelInfo) {
+		console.log('Force updating model info panel');
+		state.updateModelInfo({
+			name: state.modelFile?.name || 'Model object available',
+			size: state.modelFile?.size || 0,
+			uvSets: state.availableUvSets || [],
+			meshes: getMeshesFromModel(state.modelObject)
+		});
+	}
+	
+	// Force update texture info
+	if (state.textureObject && state.updateTextureInfo) {
+		console.log('Force updating texture info panel');
+		state.updateTextureInfo({
+			name: state.textureFile?.name || 'Texture object available',
+			size: state.textureFile?.size || 0,
+			dimensions: state.textureObject.image ? {
+				width: state.textureObject.image.width,
+				height: state.textureObject.image.height
+			} : undefined
+		});
+	}
+	
+	// Hide loading screen
+	const loadingScreen = document.getElementById('loading');
+	if (loadingScreen) {
+		loadingScreen.style.display = 'none';
+	}
+	
+	// Analyze UV channels if we have a model
+	if (state.modelObject) {
+		console.log('Analyzing UV channels in startDebugging');
+		analyzeUvChannels(state);
 	}
 }
 
@@ -56,124 +104,94 @@ export function startDebugging(state) {
  *
  */
 export function createDebugPanel(state) {
+	console.log('Creating debug panel with state:', {
+		modelObject: state.modelObject ? 'Available' : 'Missing',
+		textureObject: state.textureObject ? 'Available' : 'Missing',
+		modelLoaded: state.modelLoaded,
+		textureLoaded: state.textureLoaded
+	});
+
 	// Create the debug panel - simple fixed panel style
 	const panel = document.createElement('div');
 	panel.id = 'debug-panel';
+	panel.className = 'debug-panel';
 	panel.style.position = 'fixed';
 	panel.style.top = '20px';
 	panel.style.right = '20px';
-	panel.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-	panel.style.padding = '15px';
-	panel.style.borderRadius = '8px';
-	panel.style.width = '300px';
-	panel.style.maxHeight = 'calc(100vh - 40px)';
+	panel.style.width = '280px';
+	panel.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+	panel.style.color = '#eee';
+	panel.style.padding = '10px';
+	panel.style.borderRadius = '5px';
+	panel.style.backdropFilter = 'blur(5px)';
+	panel.style.zIndex = '1000';
+	panel.style.fontFamily = 'monospace';
+	panel.style.fontSize = '12px';
+	panel.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
 	panel.style.overflowY = 'auto';
-	panel.style.zIndex = '100';
-	panel.style.display = 'none';
-	panel.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.5)';
-	// Panel title
-	const title = document.createElement('h3');
-	title.textContent = 'Asset Debug Info';
-	title.style.marginTop = '0';
-	title.style.color = '#3498db';
-	panel.appendChild(title);
-	// Model info section
-	const modelSection = document.createElement('div');
-	modelSection.className = 'debug-section';
-	modelSection.style.marginBottom = '15px';
-	const modelLabel = document.createElement('div');
-	modelLabel.className = 'debug-label';
-	modelLabel.textContent = 'Model Info:';
-	modelLabel.style.fontWeight = 'bold';
-	modelLabel.style.marginBottom = '5px';
-	modelLabel.style.color = '#95a5a6';
-	const modelInfoDiv = document.createElement('div');
-	modelInfoDiv.id = 'model-info';
-	modelInfoDiv.className = 'debug-value';
-	modelInfoDiv.textContent = 'No model loaded';
-	modelInfoDiv.style.fontFamily = 'monospace';
-	modelInfoDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-	modelInfoDiv.style.padding = '5px';
-	modelInfoDiv.style.borderRadius = '3px';
-	modelInfoDiv.style.wordBreak = 'break-word';
-	modelSection.appendChild(modelLabel);
-	modelSection.appendChild(modelInfoDiv);
-	panel.appendChild(modelSection);
-	// Texture info section
-	const textureSection = document.createElement('div');
-	textureSection.className = 'debug-section';
-	textureSection.style.marginBottom = '15px';
-	const textureLabel = document.createElement('div');
-	textureLabel.className = 'debug-label';
-	textureLabel.textContent = 'Texture Info:';
-	textureLabel.style.fontWeight = 'bold';
-	textureLabel.style.marginBottom = '5px';
-	textureLabel.style.color = '#95a5a6';
-	const textureInfoDiv = document.createElement('div');
-	textureInfoDiv.id = 'texture-info';
-	textureInfoDiv.className = 'debug-value';
-	textureInfoDiv.textContent = 'No texture loaded';
-	textureInfoDiv.style.fontFamily = 'monospace';
-	textureInfoDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-	textureInfoDiv.style.padding = '5px';
-	textureInfoDiv.style.borderRadius = '3px';
-	textureInfoDiv.style.wordBreak = 'break-word';
-	textureSection.appendChild(textureLabel);
-	textureSection.appendChild(textureInfoDiv);
-	panel.appendChild(textureSection);
-	// Mesh visibility section
-	const meshSection = document.createElement('div');
-	meshSection.className = 'debug-section';
-	meshSection.style.marginBottom = '15px';
-	const meshLabel = document.createElement('div');
-	meshLabel.className = 'debug-label';
-	meshLabel.textContent = 'Mesh Visibility:';
-	meshLabel.style.fontWeight = 'bold';
-	meshLabel.style.marginBottom = '5px';
-	meshLabel.style.color = '#95a5a6';
-	const meshToggles = document.createElement('div');
-	meshToggles.id = 'mesh-toggles';
-	const meshHelp = document.createElement('div');
-	meshHelp.style.fontSize = '0.85em';
-	meshHelp.style.color = '#999';
-	meshHelp.style.marginTop = '5px';
-	meshHelp.textContent = 'Toggle visibility of individual meshes or entire groups.';
-	meshSection.appendChild(meshLabel);
-	meshSection.appendChild(meshToggles);
-	meshSection.appendChild(meshHelp);
-	panel.appendChild(meshSection);
+	panel.style.maxHeight = '80vh';
 
-	// Atlas visualization button (for the minimap)
-	const atlasSection = document.createElement('div');
-	atlasSection.className = 'debug-section';
-	const atlasButton = document.createElement('button');
-	atlasButton.className = 'debug-button';
-	atlasButton.textContent = 'Show Texture Atlas';
-	atlasButton.style.width = '100%';
-	atlasButton.style.padding = '8px';
-	atlasButton.style.marginBottom = '10px';
-	atlasButton.style.backgroundColor = '#e67e22';
-	atlasButton.addEventListener('click', () => {
-		createAtlasVisualization(state);
-	});
-	atlasSection.appendChild(atlasButton);
-	panel.appendChild(atlasSection);
-	
-	// Texture Editor Button
-	const editorSection = document.createElement('div');
-	editorSection.className = 'debug-section';
-	const editorButton = document.createElement('button');
-	editorButton.className = 'debug-button';
-	editorButton.textContent = 'Open Texture Editor';
-	editorButton.style.width = '100%';
-	editorButton.style.padding = '8px';
-	editorButton.style.marginTop = '10px';
-	editorButton.style.backgroundColor = '#9b59b6';
-	editorButton.addEventListener('click', () => {
-		toggleTextureEditor(state);
-	});
-	editorSection.appendChild(editorButton);
-	panel.appendChild(editorSection);
+	// Create and add title
+	const title = document.createElement('div');
+	title.textContent = 'Asset Debug Info';
+	title.style.fontWeight = 'bold';
+	title.style.fontSize = '14px';
+	title.style.marginBottom = '15px';
+	title.style.borderBottom = '1px solid #555';
+	title.style.paddingBottom = '5px';
+	title.style.textAlign = 'center';
+	panel.appendChild(title);
+
+	// Create model info section
+	const modelInfoTitle = document.createElement('div');
+	modelInfoTitle.textContent = 'Model Info:';
+	modelInfoTitle.style.fontWeight = 'bold';
+	modelInfoTitle.style.marginBottom = '5px';
+	panel.appendChild(modelInfoTitle);
+
+	const modelInfo = document.createElement('div');
+	modelInfo.id = 'model-info';
+	modelInfo.style.marginBottom = '15px';
+	modelInfo.style.paddingLeft = '10px';
+	// Default info
+	modelInfo.textContent = 'No model loaded';
+	panel.appendChild(modelInfo);
+
+	// Create texture info section
+	const textureInfoTitle = document.createElement('div');
+	textureInfoTitle.textContent = 'Texture Info:';
+	textureInfoTitle.style.fontWeight = 'bold';
+	textureInfoTitle.style.marginBottom = '5px';
+	panel.appendChild(textureInfoTitle);
+
+	const textureInfo = document.createElement('div');
+	textureInfo.id = 'texture-info';
+	textureInfo.style.marginBottom = '15px';
+	textureInfo.style.paddingLeft = '10px';
+	// Default info
+	textureInfo.textContent = 'No texture loaded';
+	panel.appendChild(textureInfo);
+
+	// Create mesh visibility section
+	const meshVisibilityTitle = document.createElement('div');
+	meshVisibilityTitle.textContent = 'Mesh Visibility:';
+	meshVisibilityTitle.style.fontWeight = 'bold';
+	meshVisibilityTitle.style.marginBottom = '5px';
+	panel.appendChild(meshVisibilityTitle);
+
+	const meshVisibilityDesc = document.createElement('div');
+	meshVisibilityDesc.textContent = 'Toggle visibility of individual meshes or entire groups';
+	meshVisibilityDesc.style.fontSize = '10px';
+	meshVisibilityDesc.style.marginBottom = '10px';
+	meshVisibilityDesc.style.paddingLeft = '10px';
+	panel.appendChild(meshVisibilityDesc);
+
+	// Mesh toggles container
+	const meshTogglesContainer = document.createElement('div');
+	meshTogglesContainer.id = 'mesh-toggles';
+	meshTogglesContainer.style.marginBottom = '15px';
+	panel.appendChild(meshTogglesContainer);
+
 	// Add to document
 	document.body.appendChild(panel);
 
@@ -182,12 +200,37 @@ export function createDebugPanel(state) {
 	 *
 	 */
 	function updateModelInfoImpl(info) {
-		const modelInfo = document.getElementById('model-info');
-		if (!modelInfo) return;
+		console.log('updateModelInfoImpl called with:', info);
+		// First try to find the element by ID
+		let modelInfo = document.getElementById('model-info');
+		
+		// If not found, try to find it by query selector within the debug panel
+		if (!modelInfo && panel) {
+			modelInfo = panel.querySelector('#model-info');
+		}
+		
+		// If still not found, create it
+		if (!modelInfo) {
+			console.error('Model info element not found, creating one');
+			modelInfo = document.createElement('div');
+			modelInfo.id = 'model-info';
+			modelInfo.style.marginBottom = '15px';
+			modelInfo.style.paddingLeft = '10px';
+			
+			// Try to append to panel if it exists
+			if (panel && panel.querySelector('div:first-child')) {
+				const title = panel.querySelector('div:first-child');
+				panel.insertBefore(modelInfo, title.nextSibling);
+			} else {
+				// Fallback to appending to document body
+				document.body.appendChild(modelInfo);
+			}
+		}
+		
 		if (info) {
 			let content = '';
-			content += `Name: ${info.name || 'Unknown'}<br>`;
-			content += `Size: ${formatBytes(info.size || 0)}<br>`;
+			content += `<strong>Name:</strong> ${info.name || 'Unknown'}<br>`;
+			content += `<strong>Size:</strong> ${formatBytes(info.size || 0)}<br>`;
 			// Add UV map availability with more prominence
 			if (info.uvSets && info.uvSets.length > 0) {
 				content += `<span style="color: #3498db; font-weight: bold;">UV Maps: ${info.uvSets.join(', ')}</span><br>`;
@@ -197,7 +240,7 @@ export function createDebugPanel(state) {
 			}
 			// If we have mesh info, create mesh toggles
 			if (info.meshes && info.meshes.length > 0) {
-				content += `<br>Meshes: ${info.meshes.length}<br>`;
+				content += `<br><strong>Meshes:</strong> ${info.meshes.length}<br>`;
 				createMeshToggles(info.meshes);
 			}
 			modelInfo.innerHTML = content;
@@ -331,25 +374,52 @@ export function createDebugPanel(state) {
 	 *
 	 */
 	function updateTextureInfoImpl(info) {
-		const textureInfo = document.getElementById('texture-info');
-		if (!textureInfo) return;
+		console.log('updateTextureInfoImpl called with:', info);
+		// First try to find the element by ID
+		let textureInfo = document.getElementById('texture-info');
+		
+		// If not found, try to find it by query selector within the debug panel
+		if (!textureInfo && panel) {
+			textureInfo = panel.querySelector('#texture-info');
+		}
+		
+		// If still not found, create it
+		if (!textureInfo) {
+			console.error('Texture info element not found, creating one');
+			textureInfo = document.createElement('div');
+			textureInfo.id = 'texture-info';
+			textureInfo.style.marginBottom = '15px';
+			textureInfo.style.paddingLeft = '10px';
+			
+			// Try to append to panel if it exists
+			if (panel && panel.querySelector('#model-info')) {
+				const modelInfo = panel.querySelector('#model-info');
+				panel.insertBefore(textureInfo, modelInfo.nextSibling);
+			} else if (panel) {
+				panel.appendChild(textureInfo);
+			} else {
+				// Fallback to appending to document body
+				document.body.appendChild(textureInfo);
+			}
+		}
+		
 		// If passed a state object instead of direct texture info
 		if (info && info.textureFile) {
 			const file = info.textureFile;
 			let content = '';
-			content += `Name: ${file.name || 'Unknown'}<br>`;
-			content += `Size: ${formatBytes(file.size || 0)}<br>`;
+			content += `<strong>Name:</strong> ${file.name || 'Unknown'}<br>`;
+			content += `<strong>Size:</strong> ${formatBytes(file.size || 0)}<br>`;
 			if (info.textureObject && info.textureObject.image) {
-				content += `Dimensions: ${info.textureObject.image.width} x ${info.textureObject.image.height}<br>`;
+				content += `<strong>Dimensions:</strong> ${info.textureObject.image.width} x ${info.textureObject.image.height}<br>`;
 			}
 			textureInfo.innerHTML = content;
 		} else if (info) {
 			// Direct texture info object
 			let content = '';
-			content += `Name: ${info.name || 'Unknown'}<br>`;
-			content += `Size: ${formatBytes(info.size || 0)}<br>`;
+			content += `<strong>Name:</strong> ${info.name || 'Unknown'}<br>`;
+			content += `<strong>Size:</strong> ${formatBytes(info.size || 0)}<br>`;
 			if (info.dimensions) {
-				content += `Dimensions: ${info.dimensions.width} x ${info.dimensions.height}<br>`;
+				content += `<strong>Dimensions:</strong> ${info.dimensions.width} x ${info.dimensions.height}<br>`;
 			}
 			textureInfo.innerHTML = content;
 		} else {
@@ -369,35 +439,78 @@ export function createDebugPanel(state) {
 		return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 	}
 
-	// Set the exported functions
+	// Set the exported functions and expose to state
 	updateModelInfo = updateModelInfoImpl;
 	updateTextureInfo = updateTextureInfoImpl;
+	
 	// Expose update methods to the state for use elsewhere
 	state.updateModelInfo = updateModelInfoImpl;
 	state.updateTextureInfo = updateTextureInfoImpl;
+	
+	console.log('Debug panel created and functions exported to state');
+	
+	// Make the panel visible immediately
+	panel.style.display = 'block';
+	
+	// Update with current data if available
+	if (state.modelFile && state.modelObject) {
+		updateModelInfoImpl({
+			name: state.modelFile.name,
+			size: state.modelFile.size,
+			uvSets: state.availableUvSets || [],
+			meshes: state.modelObject ? getMeshesFromModel(state.modelObject) : []
+		});
+	}
+	
+	if (state.textureFile && state.textureObject) {
+		updateTextureInfoImpl({
+			name: state.textureFile.name,
+			size: state.textureFile.size,
+			dimensions: state.textureObject.image ? {
+				width: state.textureObject.image.width,
+				height: state.textureObject.image.height
+			} : undefined
+		});
+	}
+	
 	return panel;
 }
 
-// Automatically show atlas visualization when both model and texture are loaded
+// Helper function to get meshes from a model for model info updates
 /**
  *
  */
-export function autoShowAtlasVisualization(state) {
-	if (!state.modelObject || !state.textureObject) {
-		console.log('Cannot show atlas visualization: Model or texture not loaded');
+function getMeshesFromModel(model) {
+	const meshes = [];
+	if (model) {
+		model.traverse((child) => {
+			if (child.isMesh) {
+				meshes.push(child);
+			}
+		});
+	}
+	return meshes;
+}
+
+// Helper function to analyze UV channels for switching
+/**
+ *
+ */
+export function analyzeUvChannels(state) {
+	if (!state.modelObject) {
+		console.log('Cannot analyze UV channels: Model not loaded');
 		return;
 	}
-	console.log('Auto-showing atlas visualization');
-	// First, analyze the model to find available UV channels
-	state.availableUvSets = [];
-	state.uvSetNames = [];
+	
 	// Create a list of potential UV attributes to check for in the model
 	const potentialUvAttributes = [];
 	for (let i = 0; i < 8; i++) { // Check up to 8 possible UV channels
 		potentialUvAttributes.push(i === 0 ? 'uv' : `uv${i+1}`);
 	}
+	
 	// Track which channels exist in the model with detailed information
 	const detectedUvChannels = new Map();
+	
 	// First pass: collect all meshes and detect UV channels
 	state.modelObject.traverse((child) => {
 		if (child.isMesh && child.geometry) {
@@ -420,14 +533,16 @@ export function autoShowAtlasVisualization(state) {
 					const info = detectedUvChannels.get(attrName);
 					info.count++;
 					info.meshes.push(child);
+					
 					// Store sample UVs for analysis if this is a screen mesh
 					const isScreenMesh = child.name.toLowerCase().includes('screen') || 
-                              child.name.toLowerCase().includes('display') || 
-                              child.name.toLowerCase().includes('monitor');
+										 child.name.toLowerCase().includes('display') || 
+										 child.name.toLowerCase().includes('monitor');
 					if (isScreenMesh && !info.sampleUVs) {
 						info.sampleUVs = child.geometry.attributes[attrName].array;
 						info.sampleMesh = child;
 					}
+					
 					// Analyze UV bounds
 					const attr = child.geometry.attributes[attrName];
 					for (let i = 0; i < attr.count; i++) {
@@ -444,11 +559,16 @@ export function autoShowAtlasVisualization(state) {
 			});
 		}
 	});
+	
 	// Build availableUvSets and uvSetNames arrays from detected channels
+	state.availableUvSets = [];
+	state.uvSetNames = [];
+	
 	detectedUvChannels.forEach((info, channelName) => {
 		// Determine what type of mapping this is
 		let mappingType = "Unknown";
 		let textureUsage = "Unknown";
+		
 		if (info.maxU > 1 || info.minU < 0 || info.maxV > 1 || info.minV < 0) {
 			mappingType = "Tiling";
 		} else {
@@ -462,6 +582,7 @@ export function autoShowAtlasVisualization(state) {
 				textureUsage = "Full Texture";
 			}
 		}
+		
 		// Add to the arrays
 		state.availableUvSets.push(channelName);
 		// Create descriptive name with detailed info
@@ -484,12 +605,14 @@ export function autoShowAtlasVisualization(state) {
 			sampleMesh: info.sampleMesh
 		};
 	});
+	
 	console.log('Available UV sets:', state.availableUvSets);
 	console.log('UV set display names:', state.uvSetNames);
 	
 	// Try to find a screen mesh with UV2/UV3 first (common for screens)
 	let foundScreenUv = false;
 	let bestUvChannel = null; // Start with no selection
+	
 	// Prioritize 'uv' (UV1) as the industry standard default
 	// First check if 'uv' exists in the available sets
 	if (state.availableUvSets.includes('uv')) {
@@ -504,11 +627,13 @@ export function autoShowAtlasVisualization(state) {
 		foundScreenUv = true;
 		console.log(`UV1 not found, using ${bestUvChannel} as fallback`);
 	}
+	
 	// If we still don't have a channel (unlikely), default to 'uv'
 	if (!bestUvChannel) {
 		bestUvChannel = 'uv';
 		console.log('No UV channels found, defaulting to uv');
 	}
+	
 	if (bestUvChannel) {
 		// Find the index in the availableUvSets array
 		const selectedIndex = state.availableUvSets.indexOf(bestUvChannel);
@@ -520,7 +645,6 @@ export function autoShowAtlasVisualization(state) {
 		}
 	}
 	
-	// Create the separate panels
-	createAtlasVisualization(state);
-	createUvChannelPanel(state);
+	// Update the panels with the new data
+	updateUvChannelPanel(state);
 }

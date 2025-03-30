@@ -3,10 +3,10 @@
 import * as THREE from 'three';
 import { setupRenderer } from '../core/renderer.js';
 import { setupCamera } from '../core/camera.js';
-import { loadModel } from '../core/loader.js';
+import { loadModel, checkLoadingComplete } from '../core/loader.js';
 import { loadTexture } from '../materials/textureManager.js';
 import { startDebugging } from './debugPanel.js';
-import { createDropPanel, updateDropPanel, toggleDropPanel } from './dropPanel.js';
+import { createDropPanel, updateDropPanel } from './dropPanel.js';
 
 // Setup the drag and drop functionality
 /**
@@ -127,11 +127,6 @@ export function resetToDropZone(state) {
 	if (state.renderer && state.renderer.domElement) {
 		state.renderer.domElement.style.display = 'none';
 	}
-	// Hide debug panel
-	const debugPanel = document.getElementById('debug-panel');
-	if (debugPanel) {
-		debugPanel.style.display = 'none';
-	}
 	// Reset state
 	state.isDebugMode = false;
 	state.modelLoaded = false;
@@ -139,9 +134,8 @@ export function resetToDropZone(state) {
 	state.modelFile = null;
 	state.textureFile = null;
 	
-	// Create and show the drop panel if it doesn't exist
-	createDropPanel(state);
-	toggleDropPanel(true);
+	// Reset drop panel with empty state
+	updateDropPanel(state);
 }
 
 // Handle file uploads for model and texture
@@ -149,16 +143,26 @@ export function resetToDropZone(state) {
  *
  */
 export async function handleFileUploads(state) {
+	console.log('handleFileUploads called with state:', {
+		modelFile: state.modelFile ? state.modelFile.name : 'none',
+		textureFile: state.textureFile ? state.textureFile.name : 'none',
+		modelLoaded: state.modelLoaded,
+		textureLoaded: state.textureLoaded
+	});
+
 	// Show loading indicator
 	showLoadingIndicator('Initializing...');
+	
 	// Setup renderer if not already created
 	if (!state.renderer) {
 		setupRenderer(state);
 	}
+	
 	// Setup camera if not already created
 	if (!state.camera) {
 		setupCamera(state);
 	}
+	
 	try {
 		// First, load the model if provided
 		if (state.modelFile) {
@@ -167,7 +171,12 @@ export async function handleFileUploads(state) {
 			await loadModel(state, state.modelFile);
 			state.modelLoaded = true;
 			console.log('Model loaded successfully');
+			
+			// Ensure event is dispatched for model
+			console.log('Manually dispatching modelLoaded event');
+			document.dispatchEvent(new CustomEvent('modelLoaded'));
 		}
+		
 		// Then, load the texture if provided
 		if (state.textureFile) {
 			console.log('Loading texture:', state.textureFile.name);
@@ -175,6 +184,10 @@ export async function handleFileUploads(state) {
 			await loadTexture(state, state.textureFile);
 			state.textureLoaded = true;
 			console.log('Texture loaded successfully');
+			
+			// Ensure event is dispatched for texture
+			console.log('Manually dispatching textureLoaded event');
+			document.dispatchEvent(new CustomEvent('textureLoaded'));
 		} else if (state.modelLoaded) {
 			// If model is loaded but no texture is provided, create a sample texture
 			console.log('No texture provided, creating a sample texture.');
@@ -204,13 +217,15 @@ export async function handleFileUploads(state) {
 			state.textureObject = texture;
 			state.textureLoaded = true;
 			console.log('Sample texture created');
+			
+			// Ensure event is dispatched for the sample texture
+			console.log('Manually dispatching textureLoaded event for sample texture');
+			document.dispatchEvent(new CustomEvent('textureLoaded'));
 		}
 		
 		// Start debugging when both assets are loaded
 		if (state.modelLoaded || state.textureLoaded) {
-			// Hide the drop panel now that we're in debug mode
-			toggleDropPanel(false);
-			
+			// Keep the drop panel visible in debug mode
 			startDebugging(state);
 			hideLoadingIndicator();
 		} else {
@@ -219,8 +234,34 @@ export async function handleFileUploads(state) {
 		}
 	} catch (error) {
 		console.error('Error loading files:', error);
-		alert(`Error loading files: ${error.message}`);
+		alert('Error loading files: ' + error.message);
+		resetToDropZone(state);
+	} finally {
+		// Hide all loading indicators
 		hideLoadingIndicator();
+		
+		// Also call the checkLoadingComplete function for a thorough cleanup
+		checkLoadingComplete(state);
+		
+		// Ensure all loading text is hidden
+		document.querySelectorAll('.loading-text').forEach(el => {
+			el.style.display = 'none';
+		});
+	}
+	
+	// Start debugging mode if either model or texture is loaded
+	if (state.modelLoaded || state.textureLoaded) {
+		console.log('Starting debug mode with:', {
+			modelLoaded: state.modelLoaded,
+			textureLoaded: state.textureLoaded
+		});
+		startDebugging(state);
+		
+		// One more explicit call to hide any lingering loading indicators
+		setTimeout(() => {
+			hideLoadingIndicator();
+			checkLoadingComplete(state);
+		}, 500);
 	}
 }
 
@@ -244,8 +285,73 @@ function showLoadingIndicator(message = 'Loading...') {
  *
  */
 function hideLoadingIndicator() {
-	const loadingScreen = document.getElementById('loading');
-	if (loadingScreen) {
-		loadingScreen.style.display = 'none';
+	console.log('Hiding loading indicator');
+	
+	// Find all loading screens and hide them
+	const loadingScreens = document.querySelectorAll('#loading, .loading');
+	loadingScreens.forEach(screen => {
+		screen.style.display = 'none';
+	});
+	
+	// Also check for any elements with loading text
+	const loadingTexts = document.querySelectorAll('.loading-text');
+	loadingTexts.forEach(text => {
+		text.style.display = 'none';
+	});
+	
+	// Remove any inline loaders
+	const spinners = document.querySelectorAll('.spinner');
+	spinners.forEach(spinner => {
+		if (spinner.parentElement && !spinner.parentElement.id.includes('loading')) {
+			spinner.style.display = 'none';
+		}
+	});
+	
+	console.log('All loading indicators hidden');
+}
+
+// Add debug logging to the handleFileSelect function to track file processing
+
+/**
+ * Handle file select from the drag and drop or file input
+ */
+export function handleFileSelect(state, files, dropType) {
+	console.log('handleFileSelect called with:', {
+		fileCount: files.length,
+		dropType: dropType,
+		existingState: {
+			modelLoaded: state.modelLoaded,
+			textureLoaded: state.textureLoaded
+		}
+	});
+	
+	// ... existing file handling code ...
+	
+	// Process each file based on type
+	for (let i = 0; i < files.length; i++) {
+		const file = files[i];
+		console.log('Processing file:', file.name, file.type);
+		
+		// ... existing file type handling ...
+		
+		// For model files
+		if (isModelFile) {
+			console.log('Model file detected:', file.name);
+			state.modelFile = file;
+			loadModel(state, file).catch(err => {
+				console.error('Error loading model:', err);
+			});
+		}
+		
+		// For texture files
+		if (isTextureFile) {
+			console.log('Texture file detected:', file.name);
+			state.textureFile = file;
+			loadTexture(state, file).catch(err => {
+				console.error('Error loading texture:', err);
+			});
+		}
 	}
+	
+	// ... existing code ...
 } 

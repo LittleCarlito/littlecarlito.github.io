@@ -4,14 +4,17 @@ import * as THREE from 'three';
 import { createMultiTextureMaterial } from './multiTextureMaterial.js';
 import { originalUvData } from '../core/analyzer.js';
 import { updateTextureInfo } from '../ui/debugPanel.js';
+import { checkLoadingComplete } from '../core/loader.js';
 
 /**
- * Load texture from file
+ * Load a texture from a file or URL
  * @param {Object} state - Global state object
- * @param {File} file - Texture file to load
- * @returns {Promise} - Promise that resolves when texture is loaded
+ * @param {File|String} file - File object or URL string
+ * @returns {Promise} Promise that resolves to the loaded texture
  */
-export async function loadTexture(state, file) {
+export function loadTexture(state, file) {
+	console.log('loadTexture called with file:', file ? file.name : 'unknown');
+	
 	return new Promise((resolve, reject) => {
 		if (!file) {
 			reject(new Error('No texture file provided'));
@@ -51,6 +54,7 @@ export async function loadTexture(state, file) {
 				// Clean up URL
 				URL.revokeObjectURL(fileUrl);
 				// Dispatch event for texture loaded
+				console.log('Dispatching textureLoaded event with texture:', texture);
 				document.dispatchEvent(new CustomEvent('textureLoaded'));
 				resolve(texture);
 			},
@@ -160,6 +164,18 @@ export function applyTextureToModel(state) {
 	if (!anyScreenMeshTextured && state.screenMeshes.length > 0) {
 		console.log("No meshes were successfully textured with standard approach. Trying fallback strategies...");
 		attemptFallbackStrategies(state);
+	}
+	
+	// Try to hide loading elements now that textures are applied
+	checkLoadingComplete(state);
+	
+	// Hide loading text that might be visible
+	const loadingTexts = document.querySelectorAll('.loading-text');
+	loadingTexts.forEach(el => el.style.display = 'none');
+	
+	// Ensure renderer is visible
+	if (state.renderer && state.renderer.domElement) {
+		state.renderer.domElement.style.display = 'block';
 	}
 }
 

@@ -1,16 +1,25 @@
 // Drop Panel module
 // Creates a movable panel with drag & drop functionality for models and textures
-import { createMovablePanel } from '../utils/uiComponents.js';
+import { createMovablePanel, createButton } from '../utils/uiComponents.js';
 import { handleFileUploads } from './dragdrop.js';
 
 // Keep track of created drop panel container
 let dropPanelContainer = null;
+
+console.log('Drop Panel module loaded');
 
 /**
  * Create or toggle the movable drop panel for file uploads
  * @param {Object} state - Global state object
  */
 export function createDropPanel(state) {
+	console.log('Creating drop panel with state:', {
+		modelLoaded: state.modelLoaded,
+		textureLoaded: state.textureLoaded,
+		modelFile: state.modelFile ? 'present' : 'none',
+		textureFile: state.textureFile ? 'present' : 'none',
+	});
+
 	// Clean up any rogue visualization containers
 	const existingContainers = document.querySelectorAll('#drop-panel');
 	if (existingContainers.length > 1) {
@@ -113,14 +122,28 @@ export function createDropPanel(state) {
 	contentContainer.appendChild(textureDropZone);
     
 	// Create start button
-	const startButton = document.createElement('button');
-	startButton.id = 'start-button';
-	startButton.textContent = 'Start Debugging';
-	startButton.disabled = true;
-	startButton.style.width = '80%'; // Make it slightly narrower than the panel
-	startButton.style.margin = '0 auto'; // Center horizontally
-	startButton.addEventListener('click', () => {
-		handleFileUploads(state);
+	const startButton = createButton({
+		id: 'start-debugging-button',
+		text: 'Start Debugging',
+		onClick: () => {
+			console.log('Start debugging button clicked with files:', {
+				modelFile: state.modelFile ? state.modelFile.name : 'none',
+				textureFile: state.textureFile ? state.textureFile.name : 'none'
+			});
+			
+			// Check if we have at least one file
+			if (!state.modelFile && !state.textureFile) {
+				console.warn('No files selected for debugging');
+				alert('Please drop at least one model or texture file to begin debugging.');
+				return;
+			}
+			
+			// Start file processing
+			console.log('Starting file uploads process');
+			handleFileUploads(state);
+		},
+		width: '80%', // Make it slightly narrower than the panel
+		margin: '0 auto', // Center horizontally
 	});
 	contentContainer.appendChild(startButton);
 
@@ -140,6 +163,11 @@ export function createDropPanel(state) {
  * @param {Object} state - Global state object
  */
 export function updateDropPanel(state) {
+	console.log('Updating drop panel with state:', {
+		modelFile: state.modelFile ? state.modelFile.name : 'none',
+		textureFile: state.textureFile ? state.textureFile.name : 'none'
+	});
+
 	if (!dropPanelContainer) return;
     
 	// Update model file info if available

@@ -12,10 +12,6 @@ let atlasVisualization3D = null;
  * @param {Object} state - Global state object
  */
 export function createAtlasVisualization(state) {
-	if (!state.textureObject) {
-		console.warn('No texture loaded. Cannot create atlas visualization.');
-		return;
-	}
 	// Clean up any rogue visualization containers
 	const existingContainers = document.querySelectorAll('#atlas-visualization');
 	if (existingContainers.length > 1) {
@@ -31,8 +27,10 @@ export function createAtlasVisualization(state) {
 		if (atlasVisualizationContainer.style.display === 'none') {
 			atlasVisualizationContainer.style.display = 'block';
 		}
-		// Update visualization with current texture state
-		updateCanvasWithTexture(state.textureObject, state.currentUvRegion || { min: [0, 0], max: [1, 1] });
+		// Update visualization with current texture state if available
+		if (state.textureObject) {
+			updateCanvasWithTexture(state.textureObject, state.currentUvRegion || { min: [0, 0], max: [1, 1] });
+		}
 		return;
 	}
 
@@ -53,6 +51,8 @@ export function createAtlasVisualization(state) {
 	atlasCanvas.style.border = '1px solid #444';
 	atlasCanvas.style.display = 'block';
 	atlasCanvas.style.maxHeight = '400px'; // Limit maximum height
+	atlasCanvas.width = 280;
+	atlasCanvas.height = 280;
 	
 	// Add the canvas to the content container
 	contentContainer.appendChild(atlasCanvas);
@@ -69,18 +69,81 @@ export function createAtlasVisualization(state) {
 	// Add container to the document
 	document.body.appendChild(container);
 	
-	// Draw the texture onto the canvas - use full texture as default with no highlighting
-	updateCanvasWithTexture(state.textureObject, { min: [0, 0], max: [1, 1] });
+	// Draw the texture onto the canvas if available, otherwise show a "no data" message
+	if (state.textureObject) {
+		updateCanvasWithTexture(state.textureObject, { min: [0, 0], max: [1, 1] });
+	} else {
+		showNoTextureState(atlasCanvas);
+	}
+	
 	console.log('Atlas visualization created with HTML canvas');
 	
 	return container;
 }
+
+/**
+ * Show a "No texture loaded" message in the canvas
+ * @param {HTMLCanvasElement} canvas - The canvas to draw on
+ */
+function showNoTextureState(canvas) {
+	const ctx = canvas.getContext('2d');
+	
+	// Clear canvas with dark background
+	ctx.fillStyle = '#1a1a1a';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	
+	// Draw a border
+	ctx.strokeStyle = '#444';
+	ctx.lineWidth = 2;
+	ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+	
+	// Draw "No texture loaded" text
+	ctx.fillStyle = '#aaa';
+	ctx.font = '14px monospace';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText('No texture loaded', canvas.width / 2, canvas.height / 2 - 15);
+	
+	// Add additional help text
+	ctx.font = '12px monospace';
+	ctx.fillText('Drop and drop a texture to view', canvas.width / 2, canvas.height / 2 + 15);
+	
+	// Update the coordinates text if it exists
+	if (atlasVisualizationContainer) {
+		const coordsText = atlasVisualizationContainer.querySelector('.coords-text');
+		if (coordsText) {
+			coordsText.textContent = 'No texture loaded. Drag and drop a texture file to view.';
+		}
+	}
+}
+
 /**
  * Update the atlas visualization with new texture
  * @param {Object} state - Global state object
  */
 export function updateAtlasVisualization(state) {
-	if (!state.textureObject || !atlasVisualizationContainer) return;
+	console.log('updateAtlasVisualization called with state:', {
+		textureObject: state.textureObject ? 'Texture loaded' : 'No texture',
+		modelObject: state.modelObject ? 'Model loaded' : 'No model',
+		textureLoaded: state.textureLoaded,
+		modelLoaded: state.modelLoaded
+	});
+	
+	if (!atlasVisualizationContainer) {
+		console.log('No atlas visualization container exists - creating one');
+		createAtlasVisualization(state);
+		return;
+	}
+	
+	// If no texture, show the "no data" state
+	if (!state.textureObject) {
+		console.log('No texture object available - showing no data state');
+		const canvas = atlasVisualizationContainer.querySelector('canvas');
+		if (canvas) {
+			showNoTextureState(canvas);
+		}
+		return;
+	}
 	
 	// Get the current UV region or use full texture as default
 	const currentRegion = state.currentUvRegion || { min: [0, 0], max: [1, 1] };
@@ -316,6 +379,29 @@ export function removeAtlasVisualization() {
 }
 
 /**
+ * Set the current UV region displayed on the model
+ * @param {Array} min - Min coordinates [x, y] (0 to 1)
+ * @param {Array} max - Max coordinates [x, y] (0 to 1)
+ * @param {Object} state - Global state object
+ */
+export function setCurrentUvRegion(min, max, state) {
+	if (!state.textureObject) return;
+	// Store the current UV region in state
+	state.currentUvRegion = { min, max };
+	// Update the visualization if it exists
+	if (atlasVisualizationContainer) {
+		// Update the canvas with the new region
+		updateCanvasWithTexture(state.textureObject, state.currentUvRegion);
+		// Make sure the visualization is visible
+		if (atlasVisualizationContainer.style.display === 'none') {
+			atlasVisualizationContainer.style.display = 'block';
+		}
+	}
+	console.log(`Updated current UV region to: (${min[0].toFixed(2)},${min[1].toFixed(2)}) - (${max[0].toFixed(2)},${max[1].toFixed(2)})`);
+	return state.currentUvRegion;
+}
+
+/**
  * Make an element draggable
  * @param {HTMLElement} element - The element to make draggable
  */
@@ -351,29 +437,6 @@ function makeDraggable(element) {
 			element.style.opacity = '1';
 		}
 	});
-}
-
-/**
- * Set the current UV region displayed on the model
- * @param {Array} min - Min coordinates [x, y] (0 to 1)
- * @param {Array} max - Max coordinates [x, y] (0 to 1)
- * @param {Object} state - Global state object
- */
-export function setCurrentUvRegion(min, max, state) {
-	if (!state.textureObject) return;
-	// Store the current UV region in state
-	state.currentUvRegion = { min, max };
-	// Update the visualization if it exists
-	if (atlasVisualizationContainer) {
-		// Update the canvas with the new region
-		updateCanvasWithTexture(state.textureObject, state.currentUvRegion);
-		// Make sure the visualization is visible
-		if (atlasVisualizationContainer.style.display === 'none') {
-			atlasVisualizationContainer.style.display = 'block';
-		}
-	}
-	console.log(`Updated current UV region to: (${min[0].toFixed(2)},${min[1].toFixed(2)}) - (${max[0].toFixed(2)},${max[1].toFixed(2)})`);
-	return state.currentUvRegion;
 }
 
 /**

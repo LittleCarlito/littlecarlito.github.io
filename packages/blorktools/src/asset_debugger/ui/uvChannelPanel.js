@@ -12,19 +12,20 @@ let uvChannelPanelContainer = null;
  * @returns {HTMLElement} The panel container
  */
 export function createUvChannelPanel(state) {
-	console.log('Creating UV Channel Panel...');
-    
+	console.log('Creating UV Channel Panel with state:', {
+		availableUvSets: state.availableUvSets ? state.availableUvSets.length + ' sets' : 'None',
+		modelLoaded: state.modelLoaded,
+		modelObject: state.modelObject ? 'Available' : 'Missing'
+	});
+	
 	// If panel already exists, just ensure it's visible
 	if (uvChannelPanelContainer) {
+		console.log('UV Channel Panel already exists, ensuring visibility');
 		uvChannelPanelContainer.style.display = 'block';
-		console.log('UV Channel Panel visibility ensured');
+		
+		// Update panel content if state has changed
+		updateUvChannelPanel(state);
 		return uvChannelPanelContainer;
-	}
-
-	// Check if we have UV data
-	if (!state.availableUvSets || state.availableUvSets.length === 0) {
-		console.warn('No UV data available, not creating the panel');
-		return null;
 	}
 
 	// Create panel using the utility function - position consistently with Atlas panel
@@ -40,21 +41,53 @@ export function createUvChannelPanel(state) {
 	uvChannelPanelContainer = container;
 	console.log('UV Channel Panel container created');
 
-	// Add UV Channel selector
-	addUvChannelSelector(state, contentContainer);
-    
-	// Add Atlas Segment cycler
-	addAtlasSegmentCycler(state, contentContainer);
-    
-	// Add manual UV mapping controls
-	addManualUvControls(state, contentContainer);
+	// Add content to the panel - either UV data or "No model loaded" message
+	if (state.availableUvSets && state.availableUvSets.length > 0) {
+		console.log('Adding UV controls with data:', state.availableUvSets);
+		// We have UV data, add the controls
+		addUvChannelSelector(state, contentContainer);
+		addAtlasSegmentCycler(state, contentContainer);
+		addManualUvControls(state, contentContainer);
+	} else {
+		console.log('No UV data available, showing placeholder message');
+		// No UV data, show placeholder message
+		addNoDataMessage(contentContainer);
+	}
 
 	// Add to document and ensure it's visible
 	document.body.appendChild(container);
 	container.style.display = 'block';
-	console.log('UV Channel panel added to document');
+	console.log('UV Channel panel added to document and set to visible');
 
 	return container;
+}
+
+/**
+ * Add a "No model loaded" message to the panel
+ * @param {HTMLElement} container - Container to add the message to
+ */
+function addNoDataMessage(container) {
+	const messageContainer = document.createElement('div');
+	messageContainer.style.padding = '15px';
+	messageContainer.style.textAlign = 'center';
+	messageContainer.style.color = '#aaa';
+	messageContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
+	messageContainer.style.borderRadius = '5px';
+	messageContainer.style.marginTop = '10px';
+	
+	const noDataMessage = document.createElement('p');
+	noDataMessage.textContent = 'No model loaded';
+	noDataMessage.style.fontSize = '14px';
+	noDataMessage.style.fontWeight = 'bold';
+	noDataMessage.style.marginBottom = '10px';
+	messageContainer.appendChild(noDataMessage);
+	
+	const helpMessage = document.createElement('p');
+	helpMessage.textContent = 'Load a 3D model to view and manipulate UV channel data';
+	helpMessage.style.fontSize = '12px';
+	messageContainer.appendChild(helpMessage);
+	
+	container.appendChild(messageContainer);
 }
 
 /**
@@ -123,7 +156,7 @@ function addUvChannelSelector(state, container) {
  */
 function updateUvInfo(state) {
 	// Find the container within our panel rather than using document.getElementById
-	const infoContainer = uvChannelPanelContainer.querySelector('#uv-info-container');
+	const infoContainer = uvChannelPanelContainer?.querySelector('#uv-info-container');
 	if (!infoContainer) {
 		console.warn('UV info container not found in UV Channel Panel');
 		return;
@@ -492,14 +525,50 @@ function addManualUvControls(state, container) {
 }
 
 /**
- * Update UV panel with current state information
- * @param {Object} state - Global state object 
+ * Update the UV Channel Panel with current UV data
+ * @param {Object} state - Global state object
  */
 export function updateUvChannelPanel(state) {
-	if (!uvChannelPanelContainer) return;
-    
-	// Update UV info if the panel exists
-	updateUvInfo(state);
+	console.log('updateUvChannelPanel called with state:', {
+		availableUvSets: state.availableUvSets ? state.availableUvSets.length + ' sets' : 'None',
+		modelObject: state.modelObject ? 'Model loaded' : 'No model',
+		textureObject: state.textureObject ? 'Texture loaded' : 'No texture',
+		modelLoaded: state.modelLoaded,
+		textureLoaded: state.textureLoaded
+	});
+
+	// Create the panel if it doesn't exist
+	if (!uvChannelPanelContainer) {
+		console.log('Creating UV channel panel as it does not exist');
+		createUvChannelPanel(state);
+		return;
+	}
+
+	// Get the content container
+	const contentContainer = uvChannelPanelContainer.querySelector('.panel-content');
+	if (!contentContainer) {
+		console.error('Could not find content container in UV channel panel');
+		return;
+	}
+
+	// Clear out the existing content
+	contentContainer.innerHTML = '';
+
+	// Add appropriate content based on whether we have UV data
+	if (state.availableUvSets && state.availableUvSets.length > 0) {
+		console.log('Adding UV channel controls with ' + state.availableUvSets.length + ' UV sets');
+		// We have UV data, add the controls
+		addUvChannelSelector(state, contentContainer);
+		addAtlasSegmentCycler(state, contentContainer);
+		addManualUvControls(state, contentContainer);
+	} else {
+		console.log('No UV data available, showing no data message');
+		// No UV data, show placeholder message
+		addNoDataMessage(contentContainer);
+	}
+
+	// Ensure the panel is visible
+	uvChannelPanelContainer.style.display = 'block';
 }
 
 /**
