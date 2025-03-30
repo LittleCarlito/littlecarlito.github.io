@@ -2,8 +2,44 @@
 // Reusable UI creation patterns for the asset debugger
 import { UIDebugFlags } from './flags.js';
 
+// Check if localStorage is available (for private browsing support)
+const isLocalStorageAvailable = (() => {
+	try {
+		const test = 'test';
+		localStorage.setItem(test, test);
+		localStorage.removeItem(test);
+		return true;
+	} catch (e) {
+		return false;
+	}
+})();
+
 // Track all created movable panels for global management
 const allMovablePanels = new Set();
+
+// Memory storage fallback when localStorage isn't available
+const memoryStorage = new Map();
+
+// Safe storage functions that work in both regular and private browsing
+const safeStorage = {
+	getItem(key) {
+		if (isLocalStorageAvailable) {
+			return localStorage.getItem(key);
+		}
+		return memoryStorage.get(key);
+	},
+	setItem(key, value) {
+		if (isLocalStorageAvailable) {
+			try {
+				localStorage.setItem(key, value);
+			} catch (e) {
+				memoryStorage.set(key, value);
+			}
+		} else {
+			memoryStorage.set(key, value);
+		}
+	}
+};
 
 // Panel type definitions for specialized handling
 const PANEL_TYPES = {
@@ -142,7 +178,7 @@ export function createMovablePanel(options) {
 	const {
 		id,
 		title,
-		position = { bottom: '20px', left: '20px' },
+		position = { top: '20px', right: '20px' },
 		width = '300px',
 		startCollapsed = false
 	} = options;
@@ -172,6 +208,26 @@ export function createMovablePanel(options) {
 	container.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.5)';
 	container.style.display = 'flex';
 	container.style.flexDirection = 'column';
+	
+	// Convert bottom position to top position for consistent behavior
+	if (position.bottom !== undefined && position.top === undefined) {
+		// Store original position for reference
+		container._originalPosition = { ...position };
+		
+		// We'll need to calculate the top position after the panel is in the DOM
+		setTimeout(() => {
+			// If the panel is already in the DOM, calculate top position
+			if (document.body.contains(container)) {
+				const windowHeight = window.innerHeight;
+				const bottomPosition = parseInt(position.bottom, 10);
+				const panelHeight = container.offsetHeight;
+				
+				// Set top position instead of bottom
+				container.style.top = (windowHeight - panelHeight - bottomPosition) + 'px';
+				container.style.bottom = '';
+			}
+		}, 100);
+	}
 	
 	// Apply position
 	Object.keys(position).forEach(key => {
@@ -422,6 +478,10 @@ export function createMovablePanel(options) {
 			const caret = header.querySelector('.panel-collapse-caret');
 			const isCollapsed = contentContainer.style.display === 'none';
 			
+			// Save the original position
+			const rect = container.getBoundingClientRect();
+			const hasBottomPosition = container.style.bottom !== '';
+			
 			if (isCollapsed) {
 				// Expand
 				contentContainer.style.display = 'block';
@@ -429,6 +489,13 @@ export function createMovablePanel(options) {
 				header.style.borderBottom = '1px solid #444';
 				// Set to auto height
 				container.style.height = 'auto';
+				
+				// If positioned from bottom, adjust top position to maintain header position
+				if (hasBottomPosition) {
+					container.style.top = (rect.top) + 'px';
+					container.style.bottom = '';
+				}
+				
 				this.updatePanelLayout(container);
 			} else {
 				// Collapse
@@ -437,13 +504,12 @@ export function createMovablePanel(options) {
 				header.style.borderBottom = 'none';
 				// Just set height to header height
 				container.style.height = `${header.offsetHeight}px`;
-			}
-			
-			// Store the collapsed state in localStorage
-			try {
-				localStorage.setItem(`${id}_collapsed`, isCollapsed ? 'false' : 'true');
-			} catch (e) {
-				console.warn('Could not save panel state to localStorage', e);
+				
+				// If positioned from bottom, adjust top position to maintain header position
+				if (hasBottomPosition) {
+					container.style.top = (rect.top) + 'px';
+					container.style.bottom = '';
+				}
 			}
 		}
 	};
@@ -474,20 +540,6 @@ export function createMovablePanel(options) {
 	
 	// Initial update of panel layout
 	setTimeout(() => panelConfig.updatePanelLayout(container), 100);
-	
-	// After creating the panel, check if there's a saved state in localStorage
-	try {
-		const savedCollapsedState = localStorage.getItem(`${id}_collapsed`);
-		if (savedCollapsedState === 'true' && contentContainer.style.display !== 'none') {
-			// Panel should be collapsed but is currently expanded
-			panelConfig.toggleCollapse();
-		} else if (savedCollapsedState === 'false' && contentContainer.style.display === 'none') {
-			// Panel should be expanded but is currently collapsed
-			panelConfig.toggleCollapse();
-		}
-	} catch (e) {
-		console.warn('Could not restore panel state from localStorage', e);
-	}
 	
 	// Return the container and important elements for further manipulation
 	return {
