@@ -1,6 +1,8 @@
 // Atlas Visualization module
 // Creates a minimap/visualization of the texture atlas with UV coordinates
 import * as THREE from 'three';
+import { createMovablePanel, createButton, createLabel } from '../utils/uiComponents.js';
+
 // Keep track of created atlas visualization container
 let atlasVisualizationContainer = null;
 // Keep track of 3D visualization object (for cleanup)
@@ -10,10 +12,6 @@ let atlasVisualization3D = null;
  * @param {Object} state - Global state object
  */
 export function createAtlasVisualization(state) {
-	if (!state.textureObject) {
-		console.warn('No texture loaded. Cannot create atlas visualization.');
-		return;
-	}
 	// Clean up any rogue visualization containers
 	const existingContainers = document.querySelectorAll('#atlas-visualization');
 	if (existingContainers.length > 1) {
@@ -29,120 +27,36 @@ export function createAtlasVisualization(state) {
 		if (atlasVisualizationContainer.style.display === 'none') {
 			atlasVisualizationContainer.style.display = 'block';
 		}
-		// Update visualization with current texture state
-		updateCanvasWithTexture(state.textureObject, state.currentUvRegion || { min: [0, 0], max: [1, 1] });
+		// Update visualization with current texture state if available
+		if (state.textureObject) {
+			updateCanvasWithTexture(state.textureObject, state.currentUvRegion || { min: [0, 0], max: [1, 1] });
+		}
 		return;
 	}
-	// Create container for the atlas visualization
-	atlasVisualizationContainer = document.createElement('div');
-	atlasVisualizationContainer.id = 'atlas-visualization';
-	atlasVisualizationContainer.style.position = 'absolute';
-	atlasVisualizationContainer.style.bottom = '20px';
-	atlasVisualizationContainer.style.left = '20px'; 
-	atlasVisualizationContainer.style.width = '300px';
-	atlasVisualizationContainer.style.height = 'auto'; // Auto height based on content
-	atlasVisualizationContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-	atlasVisualizationContainer.style.border = '1px solid #666';
-	atlasVisualizationContainer.style.borderRadius = '5px';
-	atlasVisualizationContainer.style.color = 'white';
-	atlasVisualizationContainer.style.fontFamily = 'monospace';
-	atlasVisualizationContainer.style.fontSize = '12px';
-	atlasVisualizationContainer.style.zIndex = '1000';
-	atlasVisualizationContainer.style.boxSizing = 'border-box';
-	atlasVisualizationContainer.style.overflow = 'hidden'; // Prevent content overflow
-	// Create header with title, collapse caret and close button
-	const header = document.createElement('div');
-	header.style.display = 'flex';
-	header.style.justifyContent = 'space-between';
-	header.style.alignItems = 'center';
-	header.style.padding = '10px';
-	header.style.cursor = 'move'; // Indicate draggable
-	header.style.borderBottom = '1px solid #444';
-	// Create left section with caret and title
-	const leftSection = document.createElement('div');
-	leftSection.style.display = 'flex';
-	leftSection.style.alignItems = 'center';
-	// Add collapse caret
-	const caret = document.createElement('span');
-	caret.textContent = '▼'; // Down arrow for expanded state
-	caret.style.marginRight = '5px';
-	caret.style.cursor = 'pointer';
-	caret.style.fontSize = '10px';
-	caret.style.color = '#aaa';
-	caret.style.transition = 'transform 0.2s';
-	// Content container (everything except the header)
-	const contentContainer = document.createElement('div');
-	contentContainer.className = 'atlas-content';
-	contentContainer.style.padding = '10px';
-	contentContainer.style.paddingTop = '5px';
-	contentContainer.style.display = 'block'; // Start expanded
-	// Add click event for collapsing/expanding
-	caret.addEventListener('click', (e) => {
-		e.stopPropagation(); // Prevent triggering drag
-		const isCollapsed = contentContainer.style.display === 'none';
-		if (isCollapsed) {
-			// Expand
-			contentContainer.style.display = 'block';
-			caret.textContent = '▼';
-			// Add back the border at the bottom of the header
-			header.style.borderBottom = '1px solid #444';
-			// Transition to larger height
-			atlasVisualizationContainer.style.transition = 'height 0.3s ease';
-			atlasVisualizationContainer.style.height = 'auto';
-			// Remove transition after animation completes
-			setTimeout(() => {
-				atlasVisualizationContainer.style.transition = '';
-			}, 300);
-		} else {
-			// Before collapsing, get the header height to set as the new container height
-			const headerHeight = header.offsetHeight;
-			// Collapse
-			contentContainer.style.display = 'none';
-			caret.textContent = '►';
-			// Remove the border at the bottom of the header when collapsed
-			header.style.borderBottom = 'none';
-			// Set the container height to just the header height
-			atlasVisualizationContainer.style.transition = 'height 0.3s ease';
-			atlasVisualizationContainer.style.height = `${headerHeight}px`;
-			// Remove transition after animation completes
-			setTimeout(() => {
-				atlasVisualizationContainer.style.transition = '';
-			}, 300);
-		}
+
+	// Create panel using the utility function - position at bottom left, not overlapping with UV Channel panel
+	const { container, contentContainer } = createMovablePanel({
+		id: 'atlas-visualization',
+		title: 'Atlas Texture Visualization',
+		position: { bottom: '20px', left: '20px' },
+		width: '300px'
 	});
-	leftSection.appendChild(caret);
-	// Add title
-	const title = document.createElement('div');
-	title.className = 'atlas-title';
-	title.textContent = 'Atlas Texture Visualization';
-	title.style.fontWeight = 'bold';
-	leftSection.appendChild(title);
-	header.appendChild(leftSection);
-	// Add close button
-	const closeButton = document.createElement('button');
-	closeButton.textContent = '×';
-	closeButton.style.background = 'none';
-	closeButton.style.border = 'none';
-	closeButton.style.color = 'white';
-	closeButton.style.fontSize = '16px';
-	closeButton.style.cursor = 'pointer';
-	closeButton.style.padding = '0 5px';
-	closeButton.addEventListener('click', (e) => {
-		e.stopPropagation(); // Prevent triggering drag
-		atlasVisualizationContainer.style.display = 'none';
-	});
-	header.appendChild(closeButton);
-	atlasVisualizationContainer.appendChild(header);
-	// Add the content container
-	atlasVisualizationContainer.appendChild(contentContainer);
+	
+	// Store the container for future reference
+	atlasVisualizationContainer = container;
+
 	// Create canvas for atlas visualization
 	const atlasCanvas = document.createElement('canvas');
 	atlasCanvas.style.width = '100%';
 	atlasCanvas.style.border = '1px solid #444';
 	atlasCanvas.style.display = 'block';
 	atlasCanvas.style.maxHeight = '400px'; // Limit maximum height
+	atlasCanvas.width = 280;
+	atlasCanvas.height = 280;
+	
 	// Add the canvas to the content container
 	contentContainer.appendChild(atlasCanvas);
+	
 	// Create coordinates text element
 	const coordsText = document.createElement('div');
 	coordsText.className = 'coords-text';
@@ -151,30 +65,161 @@ export function createAtlasVisualization(state) {
 	coordsText.style.color = '#aaa';
 	coordsText.textContent = 'UV coordinates: Full texture is shown';
 	contentContainer.appendChild(coordsText);
+	
 	// Add container to the document
-	document.body.appendChild(atlasVisualizationContainer);
-	// Draw the texture onto the canvas - use full texture as default with no highlighting
-	updateCanvasWithTexture(state.textureObject, { min: [0, 0], max: [1, 1] });
+	document.body.appendChild(container);
+	
+	// Draw the texture onto the canvas if available, otherwise show a "no data" message
+	if (state.textureObject) {
+		updateCanvasWithTexture(state.textureObject, { min: [0, 0], max: [1, 1] });
+	} else {
+		showNoTextureState(atlasCanvas);
+	}
+	
 	console.log('Atlas visualization created with HTML canvas');
-	// Make the container draggable with magnetism
-	makeDraggableWithMagnetism(atlasVisualizationContainer);
-	return atlasVisualizationContainer;
+	
+	return container;
 }
+
+/**
+ * Show a "No texture loaded" message in the canvas
+ * @param {HTMLCanvasElement} canvas - The canvas to draw on
+ */
+function showNoTextureState(canvas) {
+	const ctx = canvas.getContext('2d');
+	
+	// Clear canvas with dark background
+	ctx.fillStyle = '#1a1a1a';
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	
+	// Draw a border
+	ctx.strokeStyle = '#444';
+	ctx.lineWidth = 2;
+	ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+	
+	// Draw "No texture loaded" text
+	ctx.fillStyle = '#aaa';
+	ctx.font = '14px monospace';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText('No texture loaded', canvas.width / 2, canvas.height / 2 - 15);
+	
+	// Add additional help text
+	ctx.font = '12px monospace';
+	ctx.fillText('Drop and drop a texture to view', canvas.width / 2, canvas.height / 2 + 15);
+	
+	// Update the coordinates text if it exists
+	if (atlasVisualizationContainer) {
+		const coordsText = atlasVisualizationContainer.querySelector('.coords-text');
+		if (coordsText) {
+			coordsText.textContent = 'No texture loaded. Drag and drop a texture file to view.';
+		}
+	}
+}
+
 /**
  * Update the atlas visualization with new texture
  * @param {Object} state - Global state object
  */
 export function updateAtlasVisualization(state) {
-	if (!state.textureObject || !atlasVisualizationContainer) return;
+	console.log('updateAtlasVisualization called with state:', {
+		textureObject: state.textureObject ? 'Texture loaded' : 'No texture',
+		modelObject: state.modelObject ? 'Model loaded' : 'No model',
+		textureLoaded: state.textureLoaded,
+		modelLoaded: state.modelLoaded
+	});
+	
+	if (!atlasVisualizationContainer) {
+		console.log('No atlas visualization container exists - creating one');
+		createAtlasVisualization(state);
+		return;
+	}
+	
+	// If no texture, show the "no data" state
+	if (!state.textureObject) {
+		console.log('No texture object available - showing no data state');
+		const canvas = atlasVisualizationContainer.querySelector('canvas');
+		if (canvas) {
+			showNoTextureState(canvas);
+		}
+		return;
+	}
+	
 	// Get the current UV region or use full texture as default
 	const currentRegion = state.currentUvRegion || { min: [0, 0], max: [1, 1] };
+	
+	// NEW: Check if any mesh is using a specific atlas segment
+	let currentSegment = null;
+	if (state.screenMeshes && state.screenMeshes.length > 0) {
+		// Use the first mesh with a defined segment
+		for (const mesh of state.screenMeshes) {
+			if (mesh.userData.atlasSegments && mesh.userData.currentSegment !== undefined) {
+				const segmentIndex = mesh.userData.currentSegment;
+				currentSegment = mesh.userData.atlasSegments[segmentIndex];
+				break;
+			}
+		}
+	}
+	
+	// If a segment is active, use that instead of the current region
+	if (currentSegment) {
+		currentRegion.min = [currentSegment.u, currentSegment.v];
+		currentRegion.max = [currentSegment.u + currentSegment.w, currentSegment.v + currentSegment.h];
+	}
+	
 	// Update the canvas with the texture and current UV region
 	updateCanvasWithTexture(state.textureObject, currentRegion);
+	
 	// Make sure the visualization is visible
 	if (atlasVisualizationContainer.style.display === 'none') {
 		atlasVisualizationContainer.style.display = 'block';
 	}
+	
+	// NEW: Update segment info in the visualization
+	updateSegmentInfo(state, currentSegment);
+	
 	console.log('Atlas visualization updated with new texture');
+}
+
+/**
+ * Update segment information in the visualization
+ * @param {Object} state - Global state object
+ * @param {Object} segment - Current segment information
+ */
+function updateSegmentInfo(state, segment) {
+	if (!atlasVisualizationContainer) return;
+	
+	// Find or create segment info container
+	let segmentInfo = atlasVisualizationContainer.querySelector('.segment-info');
+	if (!segmentInfo) {
+		segmentInfo = document.createElement('div');
+		segmentInfo.className = 'segment-info';
+		segmentInfo.style.fontSize = '10px';
+		segmentInfo.style.color = '#aaa';
+		segmentInfo.style.marginTop = '5px';
+		
+		// Add to container after coords text
+		const coordsText = atlasVisualizationContainer.querySelector('.coords-text');
+		if (coordsText) {
+			coordsText.parentNode.insertBefore(segmentInfo, coordsText.nextSibling);
+		} else {
+			const contentContainer = atlasVisualizationContainer.querySelector('.panel-content');
+			if (contentContainer) {
+				contentContainer.appendChild(segmentInfo);
+			}
+		}
+	}
+	
+	// Update segment info text
+	if (segment) {
+		const totalSegments = state.screenMeshes[0]?.userData.atlasSegments?.length || 0;
+		const currentIndex = state.screenMeshes[0]?.userData.currentSegment || 0;
+		
+		segmentInfo.textContent = `Atlas segment: ${currentIndex+1}/${totalSegments} - Offset: (${segment.u.toFixed(2)},${segment.v.toFixed(2)}), Size: ${segment.w.toFixed(2)}x${segment.h.toFixed(2)}`;
+		segmentInfo.style.display = 'block';
+	} else {
+		segmentInfo.style.display = 'none';
+	}
 }
 
 /**
@@ -192,7 +237,7 @@ function updateCanvasWithTexture(texture, currentRegion = { min: [0, 0], max: [1
 		canvas.style.border = '1px solid #444';
 		canvas.style.display = 'block';
 		canvas.style.maxHeight = '300px'; // Limit maximum height
-		const contentContainer = atlasVisualizationContainer.querySelector('.atlas-content');
+		const contentContainer = atlasVisualizationContainer.querySelector('.panel-content');
 		if (contentContainer) {
 			contentContainer.appendChild(canvas);
 		} else {
@@ -227,7 +272,7 @@ function updateCanvasWithTexture(texture, currentRegion = { min: [0, 0], max: [1
 		coordsText.style.marginBottom = '0'; // Ensure no bottom margin
 		coordsText.style.fontSize = '10px';
 		coordsText.style.color = '#aaa';
-		const contentContainer = atlasVisualizationContainer.querySelector('.atlas-content');
+		const contentContainer = atlasVisualizationContainer.querySelector('.panel-content');
 		if (contentContainer) {
 			contentContainer.appendChild(coordsText);
 		} else {
@@ -334,44 +379,6 @@ export function removeAtlasVisualization() {
 }
 
 /**
- * Make an element draggable
- * @param {HTMLElement} element - The element to make draggable
- */
-function makeDraggable(element) {
-	let isDragging = false;
-	let offset = { x: 0, y: 0 };
-	const header = element.querySelector('div:first-child');
-	if (!header) return;
-	header.style.cursor = 'move';
-	// Mouse down handler
-	header.addEventListener('mousedown', (e) => {
-		isDragging = true;
-		offset.x = e.clientX - element.offsetLeft;
-		offset.y = e.clientY - element.offsetTop;
-		// Add a class to indicate dragging
-		element.style.opacity = '0.8';
-	});
-	// Mouse move handler
-	document.addEventListener('mousemove', (e) => {
-		if (!isDragging) return;
-		const left = e.clientX - offset.x;
-		const top = e.clientY - offset.y;
-		// Keep within window bounds
-		const maxLeft = window.innerWidth - element.offsetWidth;
-		const maxTop = window.innerHeight - element.offsetHeight;
-		element.style.left = Math.min(Math.max(0, left), maxLeft) + 'px';
-		element.style.top = Math.min(Math.max(0, top), maxTop) + 'px';
-	});
-	// Mouse up handler
-	document.addEventListener('mouseup', () => {
-		if (isDragging) {
-			isDragging = false;
-			element.style.opacity = '1';
-		}
-	});
-}
-
-/**
  * Set the current UV region displayed on the model
  * @param {Array} min - Min coordinates [x, y] (0 to 1)
  * @param {Array} max - Max coordinates [x, y] (0 to 1)
@@ -392,66 +399,4 @@ export function setCurrentUvRegion(min, max, state) {
 	}
 	console.log(`Updated current UV region to: (${min[0].toFixed(2)},${min[1].toFixed(2)}) - (${max[0].toFixed(2)},${max[1].toFixed(2)})`);
 	return state.currentUvRegion;
-}
-
-/**
- * Make an element draggable with magnetism
- * @param {HTMLElement} element - The element to make draggable with magnetism
- */
-function makeDraggableWithMagnetism(element) {
-	let isDragging = false;
-	let offset = { x: 0, y: 0 };
-	// Default position (bottom left)
-	const defaultPosition = { left: 20, bottom: 20 };
-	// Magnetism threshold in pixels (distance at which to snap back)
-	const magnetThreshold = 50;
-	const header = element.querySelector('div:first-child');
-	if (!header) return;
-	header.style.cursor = 'move';
-	// Mouse down handler
-	header.addEventListener('mousedown', (e) => {
-		isDragging = true;
-		offset.x = e.clientX - element.offsetLeft;
-		offset.y = e.clientY - element.offsetTop;
-		// Add a class to indicate dragging
-		element.style.opacity = '0.8';
-	});
-	// Mouse move handler
-	document.addEventListener('mousemove', (e) => {
-		if (!isDragging) return;
-		const left = e.clientX - offset.x;
-		const top = e.clientY - offset.y;
-		// Keep within window bounds
-		const maxLeft = window.innerWidth - element.offsetWidth;
-		const maxTop = window.innerHeight - element.offsetHeight;
-		element.style.left = Math.min(Math.max(0, left), maxLeft) + 'px';
-		element.style.top = Math.min(Math.max(0, top), maxTop) + 'px';
-		// Ensure bottom position is cleared when dragging by top
-		element.style.bottom = 'auto';
-	});
-	// Mouse up handler with magnetism
-	document.addEventListener('mouseup', () => {
-		if (!isDragging) return;
-		isDragging = false;
-		element.style.opacity = '1';
-		// Get current position
-		const rect = element.getBoundingClientRect();
-		const left = rect.left;
-		const bottom = window.innerHeight - rect.bottom;
-		// Check if close to default position
-		const isCloseToDefaultX = Math.abs(left - defaultPosition.left) < magnetThreshold;
-		const isCloseToDefaultY = Math.abs(bottom - defaultPosition.bottom) < magnetThreshold;
-		// Apply magnetism if close to default position on both axes
-		if (isCloseToDefaultX && isCloseToDefaultY) {
-			// Animate back to default position
-			element.style.transition = 'left 0.3s ease, bottom 0.3s ease, top 0.3s ease';
-			element.style.left = `${defaultPosition.left}px`;
-			element.style.bottom = `${defaultPosition.bottom}px`;
-			element.style.top = 'auto'; // Reset top position to use bottom
-			// Reset the transition after animation
-			setTimeout(() => {
-				element.style.transition = '';
-			}, 300);
-		}
-	});
 } 

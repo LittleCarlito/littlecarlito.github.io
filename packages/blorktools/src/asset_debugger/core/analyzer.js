@@ -292,8 +292,20 @@ function analyzeUvBounds(state, channelIndex) {
  * @param {Number|String} activeChannel - Currently active UV channel (index or name)
  */
 function updateUvDisplayInformation(state, activeChannel) {
-	const uvInfoContainer = document.getElementById('uv-info-container');
-	if (!uvInfoContainer) return;
+	// Find the UV info container within the UV Channel Panel
+	const uvChannelPanel = document.getElementById('uv-channel-panel');
+	const uvInfoContainer = uvChannelPanel ? uvChannelPanel.querySelector('#uv-info-container') : null;
+	
+	if (!uvInfoContainer) {
+		console.warn('UV info container not found in UV Channel Panel');
+		// Try to update the separate panel if it exists
+		import('../ui/uvChannelPanel.js').then(module => {
+			module.updateUvChannelPanel(state);
+		}).catch(error => {
+			console.error('Failed to import uvChannelPanel:', error);
+		});
+		return;
+	}
 	// Get the UV channel name 
 	let channelName;
 	if (typeof activeChannel === 'number') {
