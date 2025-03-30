@@ -95,11 +95,11 @@ validate_changeset() {
         fi
     done <<< "$content"
     
-    # Validate summary
-    if ! echo "$content" | grep -q "summary:"; then
-        echo "Error: Changeset file $file must include a summary" >&2
-        return 1
-    fi
+    # Validate summary - removing this check as it's not part of standard changeset format
+    # if ! echo "$content" | grep -q "summary:"; then
+    #     echo "Error: Changeset file $file must include a summary" >&2
+    #     return 1
+    # fi
     
     echo "Changeset $file is valid"
     return 0
