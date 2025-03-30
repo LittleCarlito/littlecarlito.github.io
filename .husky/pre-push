@@ -145,10 +145,13 @@ if [ "$RUN_TESTS" = true ]; then
     fi
     
     # Run unified pipeline with timeout to prevent hanging
-    echo "🚀 Running unified pipeline test..."
+    echo "🚀 Running unified pipeline test with full logging..."
     
     # Run unified pipeline with 5-minute timeout
-    run_with_timeout "pnpm test" 300
+    pnpm test || {
+        echo "❌ Pipeline test failed. See output above for details."
+        exit 1
+    }
     PIPELINE_STATUS=$?
     
     if [ $PIPELINE_STATUS -eq 124 ]; then
