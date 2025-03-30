@@ -2,7 +2,10 @@
 // Handles the asset debug info panel and interaction
 import { switchUvChannel } from '../core/analyzer.js';
 import { createUvChannelPanel, updateUvChannelPanel } from './uvChannelPanel.js';
-import { createButton } from '../utils/uiComponents.js';
+import { createButton, createMovablePanel } from '../utils/uiComponents.js';
+
+// Keep track of created panel
+let debugPanelContainer = null;
 
 // Exported functions for external use
 export let updateModelInfo = null;
@@ -42,15 +45,25 @@ export function setupDebugPanel(state) {
 
 // Start debugging (called from dragdrop.js)
 /**
- *
+ * Start debugging mode with loaded assets
+ * @param {Object} state - Global state object
  */
 export function startDebugging(state) {
 	console.log('Starting debugging with files:', state.modelFile, '\n', state.textureFile);
 	
-	// Show debug panel
-	const debugPanel = document.getElementById('debug-panel');
-	if (debugPanel) {
-		debugPanel.style.display = 'block';
+	// Show debug panel - find it either by ID or in our global reference
+	if (debugPanelContainer) {
+		console.log('Making debug panel visible via container reference');
+		debugPanelContainer.style.display = 'block';
+	} else {
+		const debugPanel = document.getElementById('debug-panel');
+		if (debugPanel) {
+			console.log('Making debug panel visible via DOM lookup');
+			debugPanel.style.display = 'block';
+		} else {
+			console.log('Debug panel not found, creating it');
+			createDebugPanel(state);
+		}
 	}
 	
 	// Show renderer canvas
@@ -101,7 +114,9 @@ export function startDebugging(state) {
 
 // Create debug panel
 /**
- *
+ * Create or toggle a debug info panel
+ * @param {Object} state - Global state object
+ * @returns {HTMLElement} The panel container
  */
 export function createDebugPanel(state) {
 	console.log('Creating debug panel with state:', {
@@ -111,43 +126,32 @@ export function createDebugPanel(state) {
 		textureLoaded: state.textureLoaded
 	});
 
-	// Create the debug panel - simple fixed panel style
-	const panel = document.createElement('div');
-	panel.id = 'debug-panel';
-	panel.className = 'debug-panel';
-	panel.style.position = 'fixed';
-	panel.style.top = '20px';
-	panel.style.right = '20px';
-	panel.style.width = '280px';
-	panel.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-	panel.style.color = '#eee';
-	panel.style.padding = '10px';
-	panel.style.borderRadius = '5px';
-	panel.style.backdropFilter = 'blur(5px)';
-	panel.style.zIndex = '1000';
-	panel.style.fontFamily = 'monospace';
-	panel.style.fontSize = '12px';
-	panel.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
-	panel.style.overflowY = 'auto';
-	panel.style.maxHeight = '80vh';
+	// If panel already exists, just ensure it's visible
+	if (debugPanelContainer) {
+		console.log('Debug panel already exists, ensuring visibility');
+		debugPanelContainer.style.display = 'block';
+		return debugPanelContainer;
+	}
 
-	// Create and add title
-	const title = document.createElement('div');
-	title.textContent = 'Asset Debug Info';
-	title.style.fontWeight = 'bold';
-	title.style.fontSize = '14px';
-	title.style.marginBottom = '15px';
-	title.style.borderBottom = '1px solid #555';
-	title.style.paddingBottom = '5px';
-	title.style.textAlign = 'center';
-	panel.appendChild(title);
+	// Create panel using the utility function
+	const { container, contentContainer } = createMovablePanel({
+		id: 'debug-panel',
+		title: 'Asset Debug Info',
+		position: { top: '20px', right: '20px' },
+		width: '280px',
+		startCollapsed: false
+	});
+
+	// Store for future reference
+	debugPanelContainer = container;
+	console.log('Debug panel container created');
 
 	// Create model info section
 	const modelInfoTitle = document.createElement('div');
 	modelInfoTitle.textContent = 'Model Info:';
 	modelInfoTitle.style.fontWeight = 'bold';
 	modelInfoTitle.style.marginBottom = '5px';
-	panel.appendChild(modelInfoTitle);
+	contentContainer.appendChild(modelInfoTitle);
 
 	const modelInfo = document.createElement('div');
 	modelInfo.id = 'model-info';
@@ -155,14 +159,14 @@ export function createDebugPanel(state) {
 	modelInfo.style.paddingLeft = '10px';
 	// Default info
 	modelInfo.textContent = 'No model loaded';
-	panel.appendChild(modelInfo);
+	contentContainer.appendChild(modelInfo);
 
 	// Create texture info section
 	const textureInfoTitle = document.createElement('div');
 	textureInfoTitle.textContent = 'Texture Info:';
 	textureInfoTitle.style.fontWeight = 'bold';
 	textureInfoTitle.style.marginBottom = '5px';
-	panel.appendChild(textureInfoTitle);
+	contentContainer.appendChild(textureInfoTitle);
 
 	const textureInfo = document.createElement('div');
 	textureInfo.id = 'texture-info';
@@ -170,34 +174,37 @@ export function createDebugPanel(state) {
 	textureInfo.style.paddingLeft = '10px';
 	// Default info
 	textureInfo.textContent = 'No texture loaded';
-	panel.appendChild(textureInfo);
+	contentContainer.appendChild(textureInfo);
 
 	// Create mesh visibility section
 	const meshVisibilityTitle = document.createElement('div');
 	meshVisibilityTitle.textContent = 'Mesh Visibility:';
 	meshVisibilityTitle.style.fontWeight = 'bold';
 	meshVisibilityTitle.style.marginBottom = '5px';
-	panel.appendChild(meshVisibilityTitle);
+	contentContainer.appendChild(meshVisibilityTitle);
 
 	const meshVisibilityDesc = document.createElement('div');
 	meshVisibilityDesc.textContent = 'Toggle visibility of individual meshes or entire groups';
 	meshVisibilityDesc.style.fontSize = '10px';
 	meshVisibilityDesc.style.marginBottom = '10px';
 	meshVisibilityDesc.style.paddingLeft = '10px';
-	panel.appendChild(meshVisibilityDesc);
+	contentContainer.appendChild(meshVisibilityDesc);
 
 	// Mesh toggles container
 	const meshTogglesContainer = document.createElement('div');
 	meshTogglesContainer.id = 'mesh-toggles';
 	meshTogglesContainer.style.marginBottom = '15px';
-	panel.appendChild(meshTogglesContainer);
+	contentContainer.appendChild(meshTogglesContainer);
 
 	// Add to document
-	document.body.appendChild(panel);
+	document.body.appendChild(container);
+	container.style.display = 'block';
+	console.log('Debug panel added to document and set to visible');
 
 	// Helper functions for updating panel content
 	/**
-	 *
+	 * Update model info with new data
+	 * @param {Object} info - Model information object
 	 */
 	function updateModelInfoImpl(info) {
 		console.log('updateModelInfoImpl called with:', info);
@@ -205,8 +212,8 @@ export function createDebugPanel(state) {
 		let modelInfo = document.getElementById('model-info');
 		
 		// If not found, try to find it by query selector within the debug panel
-		if (!modelInfo && panel) {
-			modelInfo = panel.querySelector('#model-info');
+		if (!modelInfo && debugPanelContainer) {
+			modelInfo = debugPanelContainer.querySelector('#model-info');
 		}
 		
 		// If still not found, create it
@@ -218,15 +225,20 @@ export function createDebugPanel(state) {
 			modelInfo.style.paddingLeft = '10px';
 			
 			// Try to append to panel if it exists
-			if (panel && panel.querySelector('div:first-child')) {
-				const title = panel.querySelector('div:first-child');
-				panel.insertBefore(modelInfo, title.nextSibling);
+			if (debugPanelContainer && debugPanelContainer.querySelector('.panel-content')) {
+				const content = debugPanelContainer.querySelector('.panel-content');
+				if (content.firstChild) {
+					content.insertBefore(modelInfo, content.firstChild.nextSibling);
+				} else {
+					content.appendChild(modelInfo);
+				}
 			} else {
 				// Fallback to appending to document body
 				document.body.appendChild(modelInfo);
 			}
 		}
 		
+		// Update content
 		if (info) {
 			let content = '';
 			content += `<strong>Name:</strong> ${info.name || 'Unknown'}<br>`;
@@ -371,6 +383,7 @@ export function createDebugPanel(state) {
 	}
 
 	/**
+	 * Update texture info with new data
 	 *
 	 */
 	function updateTextureInfoImpl(info) {
@@ -379,8 +392,8 @@ export function createDebugPanel(state) {
 		let textureInfo = document.getElementById('texture-info');
 		
 		// If not found, try to find it by query selector within the debug panel
-		if (!textureInfo && panel) {
-			textureInfo = panel.querySelector('#texture-info');
+		if (!textureInfo && debugPanelContainer) {
+			textureInfo = debugPanelContainer.querySelector('#texture-info');
 		}
 		
 		// If still not found, create it
@@ -392,11 +405,11 @@ export function createDebugPanel(state) {
 			textureInfo.style.paddingLeft = '10px';
 			
 			// Try to append to panel if it exists
-			if (panel && panel.querySelector('#model-info')) {
-				const modelInfo = panel.querySelector('#model-info');
-				panel.insertBefore(textureInfo, modelInfo.nextSibling);
-			} else if (panel) {
-				panel.appendChild(textureInfo);
+			if (debugPanelContainer && debugPanelContainer.querySelector('#model-info')) {
+				const modelInfo = debugPanelContainer.querySelector('#model-info');
+				debugPanelContainer.insertBefore(textureInfo, modelInfo.nextSibling);
+			} else if (debugPanelContainer) {
+				debugPanelContainer.appendChild(textureInfo);
 			} else {
 				// Fallback to appending to document body
 				document.body.appendChild(textureInfo);
@@ -439,7 +452,7 @@ export function createDebugPanel(state) {
 		return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 	}
 
-	// Set the exported functions and expose to state
+	// Set the exported functions
 	updateModelInfo = updateModelInfoImpl;
 	updateTextureInfo = updateTextureInfoImpl;
 	
@@ -449,31 +462,7 @@ export function createDebugPanel(state) {
 	
 	console.log('Debug panel created and functions exported to state');
 	
-	// Make the panel visible immediately
-	panel.style.display = 'block';
-	
-	// Update with current data if available
-	if (state.modelFile && state.modelObject) {
-		updateModelInfoImpl({
-			name: state.modelFile.name,
-			size: state.modelFile.size,
-			uvSets: state.availableUvSets || [],
-			meshes: state.modelObject ? getMeshesFromModel(state.modelObject) : []
-		});
-	}
-	
-	if (state.textureFile && state.textureObject) {
-		updateTextureInfoImpl({
-			name: state.textureFile.name,
-			size: state.textureFile.size,
-			dimensions: state.textureObject.image ? {
-				width: state.textureObject.image.width,
-				height: state.textureObject.image.height
-			} : undefined
-		});
-	}
-	
-	return panel;
+	return debugPanelContainer;
 }
 
 // Helper function to get meshes from a model for model info updates

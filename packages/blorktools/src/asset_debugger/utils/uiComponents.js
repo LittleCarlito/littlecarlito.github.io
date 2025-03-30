@@ -208,6 +208,7 @@ export function createMovablePanel(options) {
 	caret.style.color = '#aaa';
 	caret.style.transition = 'transform 0.2s';
 	caret.style.flexShrink = '0';
+	caret.className = 'panel-collapse-caret';
 	leftSection.appendChild(caret);
 	
 	// Add title
@@ -218,8 +219,37 @@ export function createMovablePanel(options) {
 	titleElement.style.overflow = 'hidden';
 	titleElement.style.textOverflow = 'ellipsis';
 	titleElement.style.whiteSpace = 'nowrap';
+	titleElement.style.cursor = 'pointer';
 	leftSection.appendChild(titleElement);
 	header.appendChild(leftSection);
+	
+	// Add a right section for additional controls
+	const rightSection = document.createElement('div');
+	rightSection.style.display = 'flex';
+	rightSection.style.alignItems = 'center';
+	rightSection.style.marginLeft = 'auto';
+	
+	// Close button (X)
+	const closeButton = document.createElement('span');
+	closeButton.textContent = '✕';
+	closeButton.style.marginLeft = '8px';
+	closeButton.style.cursor = 'pointer';
+	closeButton.style.fontSize = '12px';
+	closeButton.style.color = '#aaa';
+	closeButton.style.padding = '2px 4px';
+	closeButton.style.borderRadius = '3px';
+	closeButton.addEventListener('mouseenter', () => {
+		closeButton.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+	});
+	closeButton.addEventListener('mouseleave', () => {
+		closeButton.style.backgroundColor = 'transparent';
+	});
+	closeButton.addEventListener('click', (e) => {
+		e.stopPropagation();
+		container.style.display = 'none';
+	});
+	rightSection.appendChild(closeButton);
+	header.appendChild(rightSection);
 	
 	// Add header to container
 	container.appendChild(header);
@@ -389,21 +419,31 @@ export function createMovablePanel(options) {
 		toggleCollapse() {
 			const contentContainer = container.querySelector('.panel-content');
 			const header = container.querySelector('div:first-child');
+			const caret = header.querySelector('.panel-collapse-caret');
 			const isCollapsed = contentContainer.style.display === 'none';
 			
 			if (isCollapsed) {
 				// Expand
 				contentContainer.style.display = 'block';
-				caret.textContent = '▼';
+				if (caret) caret.textContent = '▼';
 				header.style.borderBottom = '1px solid #444';
+				// Set to auto height
+				container.style.height = 'auto';
 				this.updatePanelLayout(container);
 			} else {
 				// Collapse
 				contentContainer.style.display = 'none';
-				caret.textContent = '►';
+				if (caret) caret.textContent = '►';
 				header.style.borderBottom = 'none';
 				// Just set height to header height
 				container.style.height = `${header.offsetHeight}px`;
+			}
+			
+			// Store the collapsed state in localStorage
+			try {
+				localStorage.setItem(`${id}_collapsed`, isCollapsed ? 'false' : 'true');
+			} catch (e) {
+				console.warn('Could not save panel state to localStorage', e);
 			}
 		}
 	};
@@ -413,6 +453,12 @@ export function createMovablePanel(options) {
 	
 	// Add click event for collapsing/expanding
 	caret.addEventListener('click', (e) => {
+		e.stopPropagation(); // Prevent triggering drag
+		panelConfig.toggleCollapse();
+	});
+	
+	// Also allow clicking on title to toggle collapse
+	titleElement.addEventListener('click', (e) => {
 		e.stopPropagation(); // Prevent triggering drag
 		panelConfig.toggleCollapse();
 	});
@@ -428,6 +474,20 @@ export function createMovablePanel(options) {
 	
 	// Initial update of panel layout
 	setTimeout(() => panelConfig.updatePanelLayout(container), 100);
+	
+	// After creating the panel, check if there's a saved state in localStorage
+	try {
+		const savedCollapsedState = localStorage.getItem(`${id}_collapsed`);
+		if (savedCollapsedState === 'true' && contentContainer.style.display !== 'none') {
+			// Panel should be collapsed but is currently expanded
+			panelConfig.toggleCollapse();
+		} else if (savedCollapsedState === 'false' && contentContainer.style.display === 'none') {
+			// Panel should be expanded but is currently collapsed
+			panelConfig.toggleCollapse();
+		}
+	} catch (e) {
+		console.warn('Could not restore panel state from localStorage', e);
+	}
 	
 	// Return the container and important elements for further manipulation
 	return {

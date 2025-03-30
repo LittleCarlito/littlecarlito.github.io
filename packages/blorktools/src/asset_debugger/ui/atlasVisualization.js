@@ -34,7 +34,7 @@ export function createAtlasVisualization(state) {
 		return;
 	}
 
-	// Create panel using the utility function
+	// Create panel using the utility function - position at bottom left, not overlapping with UV Channel panel
 	const { container, contentContainer } = createMovablePanel({
 		id: 'atlas-visualization',
 		title: 'Atlas Texture Visualization',

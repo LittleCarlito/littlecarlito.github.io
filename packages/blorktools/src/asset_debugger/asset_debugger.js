@@ -9,12 +9,23 @@
  */
 // Import from index.js
 import { init, state } from './index.js';
-import { analyzeUvChannels } from './ui/debugPanel.js';
+import { analyzeUvChannels, createDebugPanel } from './ui/debugPanel.js';
 import { createUvChannelPanel, updateUvChannelPanel } from './ui/uvChannelPanel.js';
-import { updateAtlasVisualization } from './ui/atlasVisualization.js';
+import { createAtlasVisualization, updateAtlasVisualization } from './ui/atlasVisualization.js';
 
 // Initialize debug logging
 console.log('Asset Debugger entry point loaded, setting up event listeners');
+
+// Initialize all panels at startup - this ensures they're visible immediately
+document.addEventListener('DOMContentLoaded', () => {
+	console.log('DOM loaded, initializing all panels');
+	// Create Asset Debug Info panel
+	createDebugPanel(state);
+	// Create UV Channel panel
+	createUvChannelPanel(state);
+	// Create Atlas Visualization panel
+	createAtlasVisualization(state);
+});
 
 // Listen for texture loaded event
 document.addEventListener('textureLoaded', (event) => {
