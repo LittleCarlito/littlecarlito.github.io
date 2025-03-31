@@ -6,7 +6,7 @@ show_help() {
 Usage: $(basename "$0") [OPTIONS]
 
 This script processes changesets by running version or publish commands,
-handling pull request creation, and setting up GitHub output variables.
+handling direct publishing by default, and setting up GitHub output variables.
 
 Options:
   --publish CMD             Command to run for publishing (default: pnpm run release)
@@ -14,6 +14,7 @@ Options:
   --commit-message MSG      Commit message for version changes (default: "chore: version packages")
   --pr-title TITLE          PR title for version changes (default: "chore: version packages")
   --create-releases BOOL    Whether to create GitHub releases (default: true)
+  --create-pr BOOL          Whether to create a PR instead of direct publishing (default: false)
   --help                    Display this help and exit
 
 Example:
@@ -27,6 +28,7 @@ VERSION_CMD="pnpm run version"
 COMMIT_MESSAGE="chore: version packages"
 PR_TITLE="chore: version packages"
 CREATE_RELEASES="true"
+CREATE_PR="false"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -49,6 +51,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --create-releases)
       CREATE_RELEASES="$2"
+      shift 2
+      ;;
+    --create-pr)
+      CREATE_PR="$2"
       shift 2
       ;;
     --help)
@@ -83,66 +89,86 @@ if [[ "${HAS_CHANGESETS}" != "true" ]]; then
   exit 0
 fi
 
-# Try to create a version PR first
-echo "Attempting to create a version PR..." >&2
+# Check if we should create a PR or directly publish
+if [[ "${CREATE_PR}" == "true" ]]; then
+  echo "PR creation requested - attempting to create a version PR..." >&2
 
-# Create a new branch for versioning
-BRANCH_NAME="version-packages-$(date +%s)"
-{ git checkout -b "${BRANCH_NAME}"; } 2>&1
+  # Create a new branch for versioning
+  BRANCH_NAME="version-packages-$(date +%s)"
+  { git checkout -b "${BRANCH_NAME}"; } 2>&1
 
-# Run the version command
-echo "Running version command: ${VERSION_CMD}" >&2
-{ eval "${VERSION_CMD}"; } 2>&1
+  # Run the version command
+  echo "Running version command: ${VERSION_CMD}" >&2
+  { eval "${VERSION_CMD}"; } 2>&1
 
-# Check if there are changes to commit
-if [[ -z "$(git status --porcelain)" ]]; then
-  echo "No changes from versioning - nothing to commit or create PR for" >&2
-  { git checkout -; } 2>&1 # Return to original branch
-  echo "published=false"
-  exit 0
-fi
-
-# Commit changes
-{ git add .; } 2>&1
-{ git commit -m "${COMMIT_MESSAGE}"; } 2>&1
-
-# Push changes
-echo "Pushing changes to branch ${BRANCH_NAME}..." >&2
-{ git push origin "${BRANCH_NAME}"; } 2>&1
-
-# Create a PR
-echo "Creating PR for versioning changes..." >&2
-PR_RESPONSE=$(curl -s -X POST \
-  -H "Authorization: token ${GITHUB_TOKEN}" \
-  -H "Accept: application/vnd.github+json" \
-  "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls" \
-  -d "{\"title\":\"${PR_TITLE}\",\"head\":\"${BRANCH_NAME}\",\"base\":\"main\",\"body\":\"This PR was created by the changesets action to version packages.\"}")
-
-PR_NUMBER=$(echo "${PR_RESPONSE}" | grep -o '"number": [0-9]*' | head -1 | cut -d' ' -f2)
-
-if [[ -n "${PR_NUMBER}" ]]; then
-  echo "PR #${PR_NUMBER} created successfully" >&2
-  echo "pr_number=${PR_NUMBER}"
-  echo "pr_url=https://github.com/${GITHUB_REPOSITORY}/pull/${PR_NUMBER}"
-  echo "published=false"
-  exit 0
-else
-  echo "Failed to create PR, response: ${PR_RESPONSE}" >&2
-  
-  # Check if this is due to "no commits between" error
-  if [[ "${PR_RESPONSE}" == *"No commits between"* ]] || [[ "${PR_RESPONSE}" == *"Validation Failed"* ]]; then
-    echo "No new commits to create PR with - this is expected if no changesets were processed" >&2
+  # Check if there are changes to commit
+  if [[ -z "$(git status --porcelain)" ]]; then
+    echo "No changes from versioning - nothing to commit or create PR for" >&2
     { git checkout -; } 2>&1 # Return to original branch
     echo "published=false"
     exit 0
   fi
-  
-  # Try direct publish if PR creation fails
-  echo "Attempting direct publish instead..." >&2
-  { git checkout main; } 2>&1
+
+  # Commit changes
+  { git add .; } 2>&1
+  { git commit -m "${COMMIT_MESSAGE}"; } 2>&1
+
+  # Push changes
+  echo "Pushing changes to branch ${BRANCH_NAME}..." >&2
+  { git push origin "${BRANCH_NAME}"; } 2>&1
+
+  # Create a PR
+  echo "Creating PR for versioning changes..." >&2
+  PR_RESPONSE=$(curl -s -X POST \
+    -H "Authorization: token ${GITHUB_TOKEN}" \
+    -H "Accept: application/vnd.github+json" \
+    "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls" \
+    -d "{\"title\":\"${PR_TITLE}\",\"head\":\"${BRANCH_NAME}\",\"base\":\"main\",\"body\":\"This PR was created by the changesets action to version packages.\"}")
+
+  PR_NUMBER=$(echo "${PR_RESPONSE}" | grep -o '"number": [0-9]*' | head -1 | cut -d' ' -f2)
+
+  if [[ -n "${PR_NUMBER}" ]]; then
+    echo "PR #${PR_NUMBER} created successfully" >&2
+    echo "pr_number=${PR_NUMBER}"
+    echo "pr_url=https://github.com/${GITHUB_REPOSITORY}/pull/${PR_NUMBER}"
+    echo "published=false"
+    exit 0
+  else
+    echo "Failed to create PR, response: ${PR_RESPONSE}" >&2
+    
+    # Check if this is due to "no commits between" error
+    if [[ "${PR_RESPONSE}" == *"No commits between"* ]] || [[ "${PR_RESPONSE}" == *"Validation Failed"* ]]; then
+      echo "No new commits to create PR with - this is expected if no changesets were processed" >&2
+      { git checkout -; } 2>&1 # Return to original branch
+      echo "published=false"
+      exit 0
+    fi
+    
+    # Fall back to direct publish if PR creation fails
+    echo "PR creation failed - falling back to direct publish..." >&2
+    { git checkout main; } 2>&1
+  fi
+else
+  # Direct publishing (default)
+  echo "Direct publishing is enabled - skipping PR creation..." >&2
+
+  # Run versioning command directly on main
+  echo "Running version command: ${VERSION_CMD}" >&2
+  { eval "${VERSION_CMD}"; } 2>&1
+
+  # Check if there are changes to commit
+  if [[ -z "$(git status --porcelain)" ]]; then
+    echo "No changes from versioning - nothing to publish" >&2
+    echo "published=false"
+    exit 0
+  fi
+
+  # Commit changes directly to main
+  { git add .; } 2>&1
+  { git commit -m "${COMMIT_MESSAGE}"; } 2>&1
 fi
 
-# If we reach here, we're attempting direct publish
+# If we reach here, we're proceeding with direct publish
 echo "Running publish command: ${PUBLISH_CMD}" >&2
 PUBLISH_OUTPUT=$(mktemp)
 set +e
@@ -154,8 +180,8 @@ set -e
 cat "$PUBLISH_OUTPUT" >&2
 rm -f "$PUBLISH_OUTPUT"
 
-# Clean up the branch regardless of success or failure
-if [[ -n "${BRANCH_NAME}" ]]; then
+# Clean up the branch if we created one
+if [[ "${CREATE_PR}" == "true" && -n "${BRANCH_NAME}" ]]; then
   echo "Cleaning up temporary branch ${BRANCH_NAME}..." >&2
   
   # Switch back to main first

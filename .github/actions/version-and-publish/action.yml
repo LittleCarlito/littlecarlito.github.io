@@ -37,6 +37,10 @@ inputs:
     description: 'Whether to create GitHub releases'
     required: false
     default: 'true'
+  create-pr:
+    description: 'Whether to create a PR for versioning instead of direct publishing'
+    required: false
+    default: 'false'
   node-version:
     description: 'Node.js version to use'
     required: false
@@ -167,7 +171,8 @@ runs:
           --version "${{ inputs.version-command }}" \
           --commit-message "${{ inputs.commit-message }}" \
           --pr-title "${{ inputs.pr-title }}" \
-          --create-releases "${{ inputs.create-github-releases }}"
+          --create-releases "${{ inputs.create-github-releases }}" \
+          --create-pr "${{ inputs.create-pr }}"
       continue-on-error: true
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
