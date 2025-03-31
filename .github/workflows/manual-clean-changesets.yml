@@ -78,28 +78,59 @@ jobs:
           CHANGESET_COUNT=$(find .changeset -name "*.md" ! -name "README.md" ! -name "config.json" | wc -l)
           echo "changeset_count=$CHANGESET_COUNT" >> $GITHUB_OUTPUT
           
-          if [ "$CHANGESET_COUNT" -gt "0" ]; then
-            echo "Found $CHANGESET_COUNT changesets to commit"
+          # Check if there are actual changes to commit
+          CHANGES=$(git status --porcelain .changeset/)
+          
+          if [ -n "$CHANGES" ]; then
+            echo "Found changes in .changeset directory to commit"
             echo "has_changes=true" >> $GITHUB_OUTPUT
-          else
-            echo "No changesets were created"
+          elif [ "$CHANGESET_COUNT" -gt "0" ]; then
+            echo "Found $CHANGESET_COUNT existing changesets, but no changes to commit"
             echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "No changesets were created, creating empty changeset to trigger release process"
+            
+            # Create a simple empty changeset to ensure changes are processed
+            CHANGESET_ID=$(date +%s | sha256sum | head -c 8)
+            echo -e "---\n---\n\nEmpty changeset to trigger release pipeline" > .changeset/empty-$CHANGESET_ID.md
+            echo "Created empty changeset to ensure release process triggers"
+            
+            # Check if there are now changes to commit
+            NEW_CHANGES=$(git status --porcelain .changeset/)
+            if [ -n "$NEW_CHANGES" ]; then
+              echo "Successfully created new changeset file"
+              echo "has_changes=true" >> $GITHUB_OUTPUT
+            else
+              echo "Failed to create new changeset file"
+              echo "has_changes=false" >> $GITHUB_OUTPUT
+            fi
           fi
       
       # Commit the generated changesets if any were created
       - name: Commit generated changesets
+        id: commit_changesets
         if: steps.check_changesets.outputs.has_changes == 'true'
         run: |
-          git add .changeset/
-          git commit -m "chore: generate changesets for unreleased changes"
-          
-          # Push the branch
-          git push origin ${{ steps.create_branch.outputs.branch_name }}
+          # Double-check if there are changes to commit (belt and suspenders)
+          CHANGES=$(git status --porcelain .changeset/)
+          if [ -n "$CHANGES" ]; then
+            echo "Committing changes to .changeset directory"
+            git add .changeset/
+            git commit -m "chore: generate changesets for unreleased changes"
+            
+            # Push the branch
+            git push origin ${{ steps.create_branch.outputs.branch_name }}
+            echo "pushed_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "No changes to commit in .changeset directory despite previous checks"
+            echo "pushed_changes=false" >> $GITHUB_OUTPUT
+            exit 0  # Exit successfully to avoid failing the workflow
+          fi
       
       # Create PR using the manage-pull-request action
       - name: Create PR
         id: create_pr
-        if: steps.check_changesets.outputs.has_changes == 'true'
+        if: steps.check_changesets.outputs.has_changes == 'true' && steps.commit_changesets.outputs.pushed_changes == 'true'
         uses: ./.github/actions/manage-pull-request
         with:
           github-token: ${{ secrets.PR_CREATION_TOKEN }}
@@ -111,7 +142,7 @@ jobs:
       
       # Add status checks to PR for workflow compatibility
       - name: Add status checks
-        if: steps.check_changesets.outputs.has_changes == 'true'
+        if: steps.check_changesets.outputs.has_changes == 'true' && steps.commit_changesets.outputs.pushed_changes == 'true' && steps.create_pr.outputs.pr-number != ''
         run: |
           bash .github/scripts/branch/force-status.sh \
             --token "${{ secrets.GITHUB_TOKEN }}" \
@@ -122,7 +153,7 @@ jobs:
       
       # Wait for checks to complete before merging
       - name: Wait for checks to complete
-        if: steps.check_changesets.outputs.has_changes == 'true'
+        if: steps.check_changesets.outputs.has_changes == 'true' && steps.commit_changesets.outputs.pushed_changes == 'true' && steps.create_pr.outputs.pr-number != ''
         run: |
           bash .github/scripts/branch/wait-checks.sh \
             --repo "${{ github.repository }}" \
@@ -135,7 +166,7 @@ jobs:
       
       # Merge the PR using the merge-pull-request action
       - name: Merge pull request
-        if: steps.check_changesets.outputs.has_changes == 'true'
+        if: steps.check_changesets.outputs.has_changes == 'true' && steps.commit_changesets.outputs.pushed_changes == 'true' && steps.create_pr.outputs.pr-number != ''
         uses: ./.github/actions/merge-pull-request
         with:
           github-token: ${{ secrets.PACKAGE_TOKEN }}
@@ -148,9 +179,16 @@ jobs:
       # Output status message for completion
       - name: Status check
         run: |
-          if [ "${{ steps.check_changesets.outputs.has_changes }}" == "true" ]; then
+          if [ "${{ steps.check_changesets.outputs.has_changes }}" == "true" ] && [ "${{ steps.commit_changesets.outputs.pushed_changes }}" == "true" ] && [ -n "${{ steps.create_pr.outputs.pr-number }}" ]; then
             echo "Successfully generated changesets and created PR #${{ steps.create_pr.outputs.pr-number }}"
             echo "After merging, main-pipeline.yml will run and publish packages with direct publishing."
           else
-            echo "No unreleased changes detected or no changesets were generated."
+            if [ "${{ steps.check_changesets.outputs.has_changes }}" != "true" ]; then
+              echo "No changes to commit: No new changesets were needed or could be created."
+            elif [ "${{ steps.commit_changesets.outputs.pushed_changes }}" != "true" ]; then
+              echo "Failed to push changes: Changes were detected but could not be committed."
+            else
+              echo "Failed to create PR: Changes were committed but PR creation failed."
+            fi
+            echo "No action was needed or the process could not complete."
           fi 
