@@ -31,8 +31,12 @@ This will guide you through selecting:
 2. **Add a changeset** with `pnpm change`
 3. **Commit the changeset** with your changes
 4. **Create a PR** with your changes
-5. When your PR is **merged to main**, a new PR will be created by the changesets bot with version bumps
-6. When that PR is **merged**, packages will be automatically published
+5. When your PR is **merged to main**:
+   - By default, packages are automatically versioned and published directly
+   - GitHub releases and tags are created automatically
+   - No additional PR steps are required (unless you've explicitly requested PR-based publishing)
+
+You can optionally request PR-based publishing by including `create-pr: true` in your commit message footer (see Direct vs. PR-Based Publishing section for details).
 
 ## Understanding Version Types
 
@@ -90,11 +94,66 @@ This repository is configured for fully automated versioning and publishing:
 1. When a PR with changesets is merged to main, the unified pipeline will:
    - Detect the changesets
    - Automatically version the packages
-   - Create a version PR
-   - Auto-approve and merge that PR
-   - Publish the packages to the GitHub registry
+   - **Directly publish to the GitHub registry** (default behavior)
+   - Create GitHub releases with appropriate tags
 
 This process happens completely automatically with no manual intervention required. The `PACKAGE_TOKEN` GitHub secret has the necessary permissions to handle this entire flow.
+
+### Direct vs. PR-Based Publishing
+
+By default, the pipeline uses **direct publishing**, which means:
+- Version changes are committed directly to `main`
+- Releases are created immediately
+- No intermediate PR review step
+
+If you want your changes to go through a PR review process before publishing, you can request this by adding a special footer to your commit message:
+
+```
+feat(scope): add new feature description
+
+Detailed explanation of the feature...
+
+create-pr: true
+```
+
+When this footer is detected, the pipeline will:
+1. Create a PR with versioning changes
+2. Wait for review and approval
+3. Publish packages after the PR is merged
+
+#### Commit Footer Format
+
+The footer must:
+- Appear after a blank line following the commit message body
+- Use the exact format `create-pr: true`
+
+#### Example Commit Messages
+
+Direct Publishing (default):
+```
+feat(auth): add new login mechanism
+
+Implement OAuth2 authentication flow with Google provider.
+```
+
+PR-Based Publishing:
+```
+feat(auth): add new login mechanism
+
+Implement OAuth2 authentication flow with Google provider.
+
+BREAKING CHANGE: Previous session tokens will be invalidated
+Refs: #123
+create-pr: true
+```
+
+#### When to Use PR-Based Publishing
+
+Consider requesting PR-based publishing for:
+- Complex version changes
+- Breaking changes
+- When you need to verify the exact version numbers
+- When you're unsure about the versioning impact
 
 ## Workflow Organization
 
