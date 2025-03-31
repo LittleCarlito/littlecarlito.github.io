@@ -60,6 +60,52 @@ jobs:
           git add .changeset/
           git commit -m "chore: clear all unreleased changesets" || echo "No changes to commit"
       
+      # Debug step to show commit info
+      - name: Debug commit information
+        run: |
+          echo "==== DEBUG COMMIT INFORMATION ===="
+          echo "Latest tags:"
+          git tag -l --sort=-creatordate | head -5
+          
+          echo "Recent commits:"
+          git log --oneline -n 10
+          
+          # Get the latest tag for blorktools specifically
+          LATEST_BLORKTOOLS_TAG=$(git tag -l "@littlecarlito/blorktools*" --sort=-creatordate | head -1)
+          echo "Latest blorktools tag: $LATEST_BLORKTOOLS_TAG"
+          
+          # Get commits since that tag that might include blorktools changes
+          if [ -n "$LATEST_BLORKTOOLS_TAG" ]; then
+            echo "Commits since latest blorktools tag that mention blorktools:"
+            git log $LATEST_BLORKTOOLS_TAG..HEAD --grep="blorktools" --oneline
+            
+            echo "Conventional commits since latest blorktools tag:"
+            git log $LATEST_BLORKTOOLS_TAG..HEAD --format=%s | grep -E '^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([^)]+\))?!?:'
+          fi
+          
+          echo "==== END DEBUG INFO ===="
+
+      # Get base commit for comparison
+      - name: Get base commit
+        id: get_base
+        run: |
+          # Determine the base commit from the most recent tag or specified commit
+          BASE_COMMIT=""
+          if [ -z "$BASE_COMMIT" ]; then
+            echo "Finding most recent tag as base commit"
+            BASE_COMMIT=$(git describe --tags --abbrev=0 || git rev-list --max-parents=0 HEAD)
+          fi
+          echo "Using base commit: $BASE_COMMIT"
+          echo "base_commit=$BASE_COMMIT" >> $GITHUB_OUTPUT
+
+      # Get head commit
+      - name: Get head commit
+        id: get_head
+        run: |
+          HEAD_COMMIT=$(git rev-parse HEAD)
+          echo "Using head commit: $HEAD_COMMIT"
+          echo "head_commit=$HEAD_COMMIT" >> $GITHUB_OUTPUT
+      
       # Generate new changesets based on unreleased changes
       - name: Generate changesets for unreleased changes
         id: generate_changesets
@@ -70,6 +116,7 @@ jobs:
           # Use empty force-base-commit to auto-detect from tags/releases
           force-base-commit: ""
           auto-changeset-prefix: 'auto-'
+          # Let the action auto-detect the appropriate base commit
 
       # Check if changesets were created
       - name: Check if changesets were created
@@ -80,6 +127,22 @@ jobs:
           
           # Check if there are actual changes to commit
           CHANGES=$(git status --porcelain .changeset/)
+          
+          echo "==== CHANGESET DEBUG INFO ===="
+          echo "Changeset count: $CHANGESET_COUNT"
+          if [ -n "$CHANGES" ]; then
+            echo "Changes detected in .changeset directory:"
+            echo "$CHANGES"
+          else
+            echo "No changes detected in .changeset directory"
+          fi
+          
+          # List any changesets that exist
+          if [ "$CHANGESET_COUNT" -gt "0" ]; then
+            echo "Existing changesets:"
+            find .changeset -name "*.md" ! -name "README.md" ! -name "config.json" | xargs cat
+          fi
+          echo "==== END CHANGESET DEBUG INFO ===="
           
           if [ -n "$CHANGES" ]; then
             echo "Found changes in .changeset directory to commit"
