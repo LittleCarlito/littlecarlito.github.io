@@ -32,8 +32,8 @@ echo "$TAGS_INPUT" | jq -e . > /dev/null || {
   exit 1
 }
 
-# Output the parsed JSON directly as matrix input
-echo "tags_matrix=$TAGS_INPUT"
+# Output the parsed JSON directly as matrix input - add single quotes to preserve the JSON structure
+echo "tags_matrix='$TAGS_INPUT'"
 
 # Display what we're going to delete for logging
 echo "Will delete the following tags:"
