@@ -48,34 +48,32 @@ STATUS_EMOJI=$(jq -r '.display.status_emoji' "$SUMMARY_FILE")
 COLOR=$(jq -r '.display.color' "$SUMMARY_FILE" | sed 's/0x//')
 
 # Get additional details if present
-TRIGGER_DETAILS=$(jq -r '.trigger.details // "N/A"' "$SUMMARY_FILE")
-TRIGGER_SOURCE=$(jq -r '.trigger.source // "N/A"' "$SUMMARY_FILE")
-TRIGGER_INFO=$(jq -r '.trigger.info // "N/A"' "$SUMMARY_FILE")
+TRIGGER_DETAILS=$(jq -r '.trigger.details // ""' "$SUMMARY_FILE")
+TRIGGER_SOURCE=$(jq -r '.trigger.source // ""' "$SUMMARY_FILE")
+TRIGGER_INFO=$(jq -r '.trigger.info // ""' "$SUMMARY_FILE")
 
 # Convert hex color to decimal (Discord requires decimal)
 COLOR_DEC=$((16#$COLOR))
 
-# Create a more detailed description
+# Create a concise, non-repetitive description
 DESCRIPTION="**Result:** ${WORKFLOW_RESULT}\n**Repository:** ${REPOSITORY}"
 
-# Add branch details
-if [ "$TRIGGER_SOURCE" != "N/A" ] && [ "$TRIGGER_SOURCE" != "null" ]; then
-  DESCRIPTION="${DESCRIPTION}\n**Source:** ${TRIGGER_SOURCE}"
-else
+# Add branch info - prioritize source branch if available
+if [ -n "$TRIGGER_SOURCE" ] && [ "$TRIGGER_SOURCE" != "null" ]; then
+  DESCRIPTION="${DESCRIPTION}\n**Branch:** ${TRIGGER_SOURCE}"
+elif [ -n "$TRIGGER_BRANCH" ]; then
   DESCRIPTION="${DESCRIPTION}\n**Branch:** ${TRIGGER_BRANCH}"
 fi
 
 # Add commit info
 DESCRIPTION="${DESCRIPTION}\n**Commit:** ${SHORT_SHA}"
 
-# Add trigger details if available
-if [ "$TRIGGER_DETAILS" != "N/A" ] && [ "$TRIGGER_DETAILS" != "null" ]; then
-  DESCRIPTION="${DESCRIPTION}\n**Details:** ${TRIGGER_DETAILS}"
-fi
-
-# Add trigger info if available
-if [ "$TRIGGER_INFO" != "N/A" ] && [ "$TRIGGER_INFO" != "null" ]; then
-  DESCRIPTION="${DESCRIPTION}\n**Trigger:** ${TRIGGER_INFO}"
+# Add trigger details if available and not redundant
+if [ -n "$TRIGGER_DETAILS" ] && [ "$TRIGGER_DETAILS" != "null" ]; then
+  # Only add if it contains unique information (not already in description)
+  if ! echo "$DESCRIPTION" | grep -q "$TRIGGER_DETAILS"; then
+    DESCRIPTION="${DESCRIPTION}\n**Details:** ${TRIGGER_DETAILS}"
+  fi
 fi
 
 # Create Discord embed JSON
