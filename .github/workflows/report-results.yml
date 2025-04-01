@@ -1,4 +1,8 @@
-name: Report Pipeline Results
+name: Report Pipeline Results [DEPRECATED]
+
+# DEPRECATED: This workflow has been converted to a reusable action.
+# Please use the new .github/actions/report-workflow-results action instead.
+# This file is kept for backward compatibility but will be removed in the future.
 
 on:
   workflow_run:
@@ -31,125 +35,24 @@ permissions:
   actions: read
 
 jobs:
-  check-report-eligibility:
-    name: Check Report Eligibility
-    runs-on: ubuntu-latest
-    outputs:
-      should_report: ${{ steps.filter_report.outputs.should_report }}
-      reason: ${{ steps.filter_report.outputs.reason }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        
-      - name: Extract workflow information
-        id: workflow_info
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_run" ]; then
-            # Set workflow info from workflow_run event
-            echo "workflow_name=${{ github.event.workflow_run.name }}" >> $GITHUB_OUTPUT
-            echo "branch=${{ github.event.workflow_run.head_branch }}" >> $GITHUB_OUTPUT
-            echo "result=${{ github.event.workflow_run.conclusion }}" >> $GITHUB_OUTPUT
-            echo "source=webhook" >> $GITHUB_OUTPUT
-            # No summary for webhook events
-            echo "summary=" >> $GITHUB_OUTPUT
-          else
-            # Set workflow info from dispatch inputs
-            echo "workflow_name=${{ github.event.inputs.workflow_name }}" >> $GITHUB_OUTPUT
-            echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-            echo "result=${{ github.event.inputs.result }}" >> $GITHUB_OUTPUT
-            echo "source=dispatch" >> $GITHUB_OUTPUT
-            echo "summary=${{ github.event.inputs.summary }}" >> $GITHUB_OUTPUT
-          fi
-          
-      - name: Filter report
-        id: filter_report
-        run: |
-          OUTPUT=$(bash .github/scripts/reporting/filter-workflow-reports.sh \
-            --workflow-name "${{ steps.workflow_info.outputs.workflow_name }}" \
-            --branch "${{ steps.workflow_info.outputs.branch }}" \
-            --source "${{ steps.workflow_info.outputs.source }}" \
-            --summary "${{ steps.workflow_info.outputs.summary }}")
-          
-          # Extract values from output
-          SHOULD_REPORT=$(echo "$OUTPUT" | grep "^should_report=" | cut -d= -f2)
-          REASON=$(echo "$OUTPUT" | grep "^reason=" | cut -d= -f2)
-          
-          echo "should_report=$SHOULD_REPORT" >> $GITHUB_OUTPUT
-          echo "reason=$REASON" >> $GITHUB_OUTPUT
-          
-          echo "Decision: $SHOULD_REPORT"
-          echo "Reason: $REASON"
-
-  report-results:
-    name: Generate and Send Reports
-    needs: check-report-eligibility
-    if: needs.check-report-eligibility.outputs.should_report == 'true'
+  redirect-to-action:
+    name: Redirect to Action
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        
-      - name: Get workflow information
-        id: workflow-info
+      
+      - name: Display warning
         run: |
-          if [ "${{ github.event_name }}" == "workflow_run" ]; then
-            # Extract workflow info from the triggering workflow
-            echo "workflow_name=${{ github.event.workflow_run.name }}" >> $GITHUB_OUTPUT
-            echo "workflow_result=${{ github.event.workflow_run.conclusion }}" >> $GITHUB_OUTPUT
-            echo "workflow_id=${{ github.event.workflow_run.id }}" >> $GITHUB_OUTPUT
-            echo "workflow_url=${{ github.event.workflow_run.html_url }}" >> $GITHUB_OUTPUT
-            echo "repository=${{ github.repository }}" >> $GITHUB_OUTPUT
-            echo "trigger_sha=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
-            echo "trigger_branch=${{ github.event.workflow_run.head_branch }}" >> $GITHUB_OUTPUT
-          else
-            # Use provided input parameters for manual dispatch
-            echo "workflow_name=${{ github.event.inputs.workflow_name }}" >> $GITHUB_OUTPUT
-            echo "workflow_result=${{ github.event.inputs.result }}" >> $GITHUB_OUTPUT
-            echo "workflow_id=${{ github.run_id }}" >> $GITHUB_OUTPUT
-            echo "workflow_url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_OUTPUT
-            echo "repository=${{ github.repository }}" >> $GITHUB_OUTPUT
-            echo "trigger_sha=${{ github.sha }}" >> $GITHUB_OUTPUT
-            echo "trigger_branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-          fi
+          echo "::warning::This workflow is deprecated and will be removed in the future. Please use the .github/actions/report-workflow-results action instead."
           
-          echo "Report eligibility reason: ${{ needs.check-report-eligibility.outputs.reason }}"
-      
-      # Create a directory for report artifacts
-      - name: Setup report directory
-        run: mkdir -p ./report-artifacts
-      
-      # Generate a report summary using the new action
-      - name: Generate pipeline summary
-        id: generate-summary
-        uses: ./.github/actions/report-pipeline-results
+      - name: Forward to report-workflow-results action
+        uses: ./.github/actions/report-workflow-results
         with:
-          mode: 'generate'
-          workflow-name: ${{ steps.workflow-info.outputs.workflow_name }}
-          workflow-result: ${{ steps.workflow-info.outputs.workflow_result }}
-          workflow-id: ${{ steps.workflow-info.outputs.workflow_id }}
-          workflow-url: ${{ steps.workflow-info.outputs.workflow_url }}
-          repository: ${{ steps.workflow-info.outputs.repository }}
-          trigger-sha: ${{ steps.workflow-info.outputs.trigger_sha }}
-          trigger-branch: ${{ steps.workflow-info.outputs.trigger_branch }}
-          trigger-details: ${{ contains(github.event.inputs.summary, 'Details:') && github.event.inputs.summary || '' }}
-          trigger-source: ${{ contains(github.event.inputs.summary, 'Branch:') && github.event.inputs.summary || '' }}
-          trigger-info: ${{ contains(github.event.inputs.summary, 'Triggered by') && github.event.inputs.summary || '' }}
-          output-path: './report-artifacts/summary.json'
-      
-      # Send the report to Discord
-      - name: Send to Discord
-        uses: ./.github/actions/report-pipeline-results
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        with:
-          mode: 'send-discord'
-          summary-file: './report-artifacts/summary.json'
-          discord-webhook-url: ${{ env.DISCORD_WEBHOOK }}
-
-      # Upload summary as an artifact for debugging
-      - name: Upload summary artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pipeline-summary
-          path: ./report-artifacts/summary.json
-          retention-days: 5 
+          workflow-name: ${{ github.event.inputs.workflow_name || github.event.workflow_run.name }}
+          result: ${{ github.event.inputs.result || github.event.workflow_run.conclusion }}
+          branch: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          summary: ${{ github.event.inputs.summary || '' }}
+          source: ${{ github.event_name == 'workflow_run' && 'webhook' || 'dispatch' }}
+          discord-webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          github-token: ${{ secrets.PR_CREATION_TOKEN }} 

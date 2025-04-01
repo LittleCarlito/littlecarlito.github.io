@@ -461,20 +461,17 @@ jobs:
           echo "trigger_detail=${{ needs.capture-trigger-info.outputs.trigger_detail }}" >> $GITHUB_OUTPUT
           echo "source_branch=${{ needs.capture-trigger-info.outputs.source_branch }}" >> $GITHUB_OUTPUT
           
-      # Trigger the report-results workflow using GitHub Script
-      - name: Trigger report-results workflow
-        uses: actions/github-script@v7
+      # Use the new action to report results
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Report pipeline results
+        uses: ./.github/actions/report-workflow-results
         with:
-          github-token: ${{ secrets.PR_CREATION_TOKEN }}
-          script: |
-            await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'report-results.yml',
-              ref: 'main',
-              inputs: {
-                result: '${{ steps.workflow-result.outputs.result }}',
-                workflow_name: 'Main Pipeline',
-                summary: 'Main Pipeline ${{ steps.workflow-result.outputs.result }}. ${{ needs.capture-trigger-info.outputs.trigger_info }}. Details: ${{ needs.capture-trigger-info.outputs.trigger_detail }}. Branch: ${{ needs.capture-trigger-info.outputs.source_branch }}'
-              }
-            }); 
+          workflow-name: 'Main Pipeline'
+          result: ${{ steps.workflow-result.outputs.result }}
+          branch: ${{ needs.capture-trigger-info.outputs.source_branch }}
+          summary: 'Main Pipeline ${{ steps.workflow-result.outputs.result }}. ${{ needs.capture-trigger-info.outputs.trigger_info }}. Details: ${{ needs.capture-trigger-info.outputs.trigger_detail }}. Branch: ${{ needs.capture-trigger-info.outputs.source_branch }}'
+          source: 'dispatch'
+          discord-webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          github-token: ${{ secrets.PR_CREATION_TOKEN }} 
