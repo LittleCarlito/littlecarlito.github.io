@@ -30,36 +30,35 @@ build_packages() {
     # Make sure pnpm is available by sourcing nvm
     if [[ "$build_command" == *"pnpm"* ]]; then
         echo "Command uses pnpm, ensuring it's available..." >&2
-        export NVM_DIR="$HOME/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
         
-        # Check if pnpm is available
-        if ! command -v pnpm &> /dev/null; then
-            echo "ERROR: pnpm command not found! Trying to install it..." >&2
-            # Redirect all npm output to stderr
-            npm install -g pnpm >&2 2>&1
-        fi
-        
-        # Verify pnpm is now available
-        if ! command -v pnpm &> /dev/null; then
-            echo "FATAL: Could not install pnpm. Build cannot run." >&2
-            echo "result=failure"
-            return 1
+        # Check if pnpm is directly available in PATH first
+        if command -v pnpm &> /dev/null; then
+            echo "pnpm is available in PATH: $(which pnpm) version $(pnpm --version)" >&2
         else
-            echo "pnpm is available at $(which pnpm) version $(pnpm --version)" >&2
+            # Try to source NVM if available
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
-            # Check pnpm configuration
-            echo "pnpm configuration:" >&2
-            pnpm config list >&2 || echo "Unable to list pnpm config" >&2
+            # Check again after sourcing NVM
+            if ! command -v pnpm &> /dev/null; then
+                echo "ERROR: pnpm command not found! Trying to install it..." >&2
+                # Redirect all npm output to stderr
+                npm install -g pnpm >&2 2>&1
+            fi
             
-            # Check if .npmrc exists
-            if [ -f ".npmrc" ]; then
-                echo ".npmrc file exists:" >&2
-                cat .npmrc | grep -v "authToken" >&2
+            # Verify pnpm is now available
+            if ! command -v pnpm &> /dev/null; then
+                echo "FATAL: Could not install pnpm. Build cannot run." >&2
+                echo "result=failure"
+                return 1
             else
-                echo "No .npmrc file found in current directory" >&2
+                echo "pnpm is available at $(which pnpm) version $(pnpm --version)" >&2
             fi
         fi
+        
+        # Ensure dependencies are installed
+        echo "Ensuring dependencies are installed..." >&2
+        pnpm install >&2 || echo "Warning: pnpm install may have issues, but continuing with build..." >&2
     fi
     
     # List workspace packages if using pnpm

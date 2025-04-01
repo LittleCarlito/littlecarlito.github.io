@@ -57,6 +57,44 @@ runs:
           --github-token "$TOKEN" \
           --node-version "$NODE_VERSION" \
           --pnpm-version "$PNPM_VERSION" 2>&1 | grep -E "^[a-zA-Z0-9_-]+=.+" >> $GITHUB_OUTPUT || true
+          
+    # Explicitly install pnpm - this ensures it's available regardless of setup outcome
+    - name: Ensure pnpm is installed
+      shell: bash
+      run: |
+        echo "Explicitly installing pnpm version ${{ inputs.pnpm-version }}..."
+        # First check if it's already installed
+        if command -v pnpm &>/dev/null; then
+          echo "pnpm is already installed: $(pnpm --version)"
+        else
+          # Install using npm
+          echo "pnpm not found, installing it..."
+          npm install -g pnpm@${{ inputs.pnpm-version }}
+          
+          # Verify installation succeeded
+          if command -v pnpm &>/dev/null; then
+            echo "pnpm successfully installed: $(pnpm --version)"
+          else
+            echo "Failed to install pnpm. Trying alternative method..."
+            # Use npm's npx as a fallback
+            npm i -g @pnpm/exe@${{ inputs.pnpm-version }}
+            
+            if command -v pnpm &>/dev/null; then
+              echo "pnpm installed via alternative method: $(pnpm --version)"
+            else
+              echo "FATAL: Could not install pnpm after multiple attempts"
+              exit 1
+            fi
+          fi
+        fi
+        
+        # Configure pnpm
+        echo "Configuring pnpm..."
+        pnpm config set store-dir ~/.pnpm-store
+        
+        # Install dependencies
+        echo "Installing dependencies with pnpm..."
+        pnpm install
 
     # Build step using our script
     - name: Build packages
