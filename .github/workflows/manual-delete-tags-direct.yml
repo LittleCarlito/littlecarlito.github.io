@@ -1,0 +1,129 @@
+name: Delete Git Tags (Direct)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tags-list:
+        description: 'JSON array of tags to delete: [{"package":"blorktools","version":"1.1.0"},{"package":"blorkboard","version":"1.6.0"}]'
+        required: true
+        type: string
+      normalize-package-names:
+        description: 'Automatically prefix with @littlecarlito/ if needed'
+        required: false
+        type: boolean
+        default: true
+      check-both-formats:
+        description: 'Check both tag formats (@scope/pkg@version and scope-pkg@version)'
+        required: false
+        type: boolean
+        default: true
+      dry-run:
+        description: 'Dry run (show what would happen without doing it)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  delete-tags-direct:
+    name: Delete Git Tags (Direct Method)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.VERSION_TOKEN }}
+      
+      - name: Delete Git tags directly
+        run: |
+          # Parse the JSON input
+          TAGS_JSON='${{ github.event.inputs.tags-list }}'
+          
+          # Validate JSON
+          echo "$TAGS_JSON" | jq -e . > /dev/null || {
+            echo "Error: Invalid JSON input"
+            exit 1
+          }
+          
+          # Display what we're going to delete
+          echo "Will delete the following tags:"
+          echo "$TAGS_JSON" | jq -r '.[] | "- \(.package)@\(.version)"'
+          
+          # Process each tag
+          echo "$TAGS_JSON" | jq -c '.[]' | while read -r TAG_INFO; do
+            PACKAGE=$(echo "$TAG_INFO" | jq -r '.package')
+            VERSION=$(echo "$TAG_INFO" | jq -r '.version')
+            
+            # Normalize package name if needed
+            if [[ "${{ github.event.inputs.normalize-package-names }}" == "true" && ! "$PACKAGE" == @littlecarlito* ]]; then
+              PACKAGE="@littlecarlito/$PACKAGE"
+              echo "Normalized package name to $PACKAGE"
+            fi
+            
+            # Primary tag format
+            TAG_NAME="${PACKAGE}@${VERSION}"
+            echo "Processing tag: $TAG_NAME"
+            
+            # If dry run, just show what would happen
+            if [[ "${{ github.event.inputs.dry-run }}" == "true" ]]; then
+              echo "[DRY RUN] Would delete tag: $TAG_NAME"
+            else
+              # First try local deletion
+              git tag -d "$TAG_NAME" 2>/dev/null && echo "Deleted local tag: $TAG_NAME" || echo "Tag $TAG_NAME doesn't exist locally"
+              
+              # Then try remote deletion
+              git push --delete origin "$TAG_NAME" 2>/dev/null && echo "Deleted remote tag: $TAG_NAME" || echo "Tag $TAG_NAME doesn't exist on remote"
+            fi
+            
+            # Check for alternative tag format if requested
+            if [[ "${{ github.event.inputs.check-both-formats }}" == "true" ]]; then
+              CLEAN_PKG_NAME=$(echo "$PACKAGE" | sed 's/@//g' | sed 's/\//-/g')
+              ALT_TAG_NAME="${CLEAN_PKG_NAME}@${VERSION}"
+              
+              echo "Checking for alternative tag: $ALT_TAG_NAME"
+              
+              # If dry run, just show what would happen
+              if [[ "${{ github.event.inputs.dry-run }}" == "true" ]]; then
+                echo "[DRY RUN] Would delete tag: $ALT_TAG_NAME"
+              else
+                # Try local deletion
+                git tag -d "$ALT_TAG_NAME" 2>/dev/null && echo "Deleted local tag: $ALT_TAG_NAME" || echo "Tag $ALT_TAG_NAME doesn't exist locally"
+                
+                # Try remote deletion
+                git push --delete origin "$ALT_TAG_NAME" 2>/dev/null && echo "Deleted remote tag: $ALT_TAG_NAME" || echo "Tag $ALT_TAG_NAME doesn't exist on remote"
+              fi
+            fi
+          done
+      
+      - name: Generate summary
+        run: |
+          echo "# Tag Deletion Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The following tags were processed:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Display each package directly from the input
+          echo '${{ github.event.inputs.tags-list }}' | jq -r '.[] | "- \(.package)@\(.version)"' >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ github.event.inputs.dry-run }}" == "true" ]]; then
+            echo "**Note**: This was a dry run. No actual changes were made." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Note**: Tags were deleted from the repository." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+      # Report failure using the existing action    
+      - name: Report failure
+        if: failure()
+        uses: ./.github/actions/report-workflow-results
+        with:
+          workflow-name: 'Manual Delete Tags Direct'
+          result: 'failure'
+          branch: ${{ github.ref_name }}
+          summary: 'Failed to delete tags - See workflow run for details'
+          source: 'dispatch'
+          discord-webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          github-token: ${{ secrets.VERSION_TOKEN }} 
