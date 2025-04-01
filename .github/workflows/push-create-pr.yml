@@ -213,10 +213,32 @@ jobs:
           commit-title: ${{ steps.merge_message.outputs.merge_title }}
           merge-method: 'squash'
           delete-branch: 'true'
+          commit-message: 'Merge PR #${{ steps.manage_pr.outputs.pr-number }} from ${{ steps.branch_info.outputs.branch }}\n\ncreate-pr: true\ntriggered-by: push-create-pr'
 
       # Cleanup if no auto-merge
       - name: Status update
         if: steps.branch_info.outputs.auto_merge != 'true'
         run: |
           echo "PR created but not auto-merging as requested"
-          echo "PR: ${{ steps.manage_pr.outputs.pr-url }}" 
+          echo "PR: ${{ steps.manage_pr.outputs.pr-url }}"
+          
+      # Trigger the report-results workflow if the PR fails
+      - name: Report failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'report-results.yml',
+              ref: 'main',
+              inputs: {
+                result: 'failure',
+                workflow_name: 'Push and Create PR',
+                summary: `PR creation failed for branch ${process.env.BRANCH}`
+              }
+            });
+        env:
+          BRANCH: ${{ steps.branch_info.outputs.branch }} 

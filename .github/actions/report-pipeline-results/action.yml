@@ -1,0 +1,87 @@
+name: 'Report Pipeline Results'
+description: 'Generate and send pipeline execution reports to various platforms'
+author: 'LittleCarlito'
+
+inputs:
+  mode:
+    description: 'Mode of operation (generate, send-discord)'
+    required: true
+    default: 'generate'
+  
+  # Inputs for 'generate' mode
+  workflow-name:
+    description: 'Name of the workflow that triggered this report'
+    required: false
+    default: ''
+  workflow-result:
+    description: 'Outcome of the workflow (success/failure)'
+    required: false
+    default: 'success'
+  workflow-id:
+    description: 'ID of the workflow run'
+    required: false
+    default: ''
+  workflow-url:
+    description: 'URL to the workflow run'
+    required: false
+    default: ''
+  repository:
+    description: 'Repository name (org/repo)'
+    required: false
+    default: ''
+  trigger-sha:
+    description: 'Commit SHA that triggered the workflow'
+    required: false
+    default: ''
+  trigger-branch:
+    description: 'Branch that triggered the workflow'
+    required: false
+    default: ''
+  output-path:
+    description: 'Path to write the summary JSON output'
+    required: false
+    default: './summary.json'
+  
+  # Inputs for 'send-discord' mode
+  summary-file:
+    description: 'Path to the summary JSON file to use for reporting'
+    required: false
+    default: './summary.json'
+  discord-webhook-url:
+    description: 'Discord webhook URL to send the report to'
+    required: false
+    default: ''
+
+outputs:
+  summary-path:
+    description: 'Path to the generated summary JSON file'
+    value: ${{ inputs.output-path }}
+
+runs:
+  using: "composite"
+  steps:
+    # Generate mode - creates a JSON summary of the pipeline run
+    - name: Generate pipeline summary
+      if: inputs.mode == 'generate'
+      shell: bash
+      run: |
+        echo "Generating pipeline summary..."
+        bash ${{ github.action_path }}/../../scripts/reporting/generate-summary.sh \
+          --workflow-name "${{ inputs.workflow-name }}" \
+          --workflow-result "${{ inputs.workflow-result }}" \
+          --workflow-id "${{ inputs.workflow-id }}" \
+          --workflow-url "${{ inputs.workflow-url }}" \
+          --repository "${{ inputs.repository }}" \
+          --trigger-sha "${{ inputs.trigger-sha }}" \
+          --trigger-branch "${{ inputs.trigger-branch }}" \
+          --output-path "${{ inputs.output-path }}"
+    
+    # Send-discord mode - sends the summary to a Discord webhook
+    - name: Send to Discord
+      if: inputs.mode == 'send-discord'
+      shell: bash
+      run: |
+        echo "Sending report to Discord..."
+        bash ${{ github.action_path }}/../../scripts/reporting/send-to-discord.sh \
+          --summary-file "${{ inputs.summary-file }}" \
+          --webhook-url "${{ inputs.discord-webhook-url }}" 

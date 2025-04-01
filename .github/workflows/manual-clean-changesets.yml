@@ -35,12 +35,13 @@ jobs:
       # Create a unique branch for new changesets
       - name: Create branch for changesets
         id: create_branch
-        if: steps.check_changesets.outputs.has_changes == 'true'
         run: |
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           BRANCH_NAME="chore/generate-changesets-$TIMESTAMP"
-          OUTPUT=$(bash .github/scripts/version/create-changeset-branch.sh --branch-name "$BRANCH_NAME")
-          echo "$OUTPUT" >> $GITHUB_OUTPUT
+          echo "Creating branch: $BRANCH_NAME"
+          git checkout -b $BRANCH_NAME
+          git config --global user.name "Github Actions"
+          git config --global user.email "actions@github.com"
           echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
 
       # Clear all unreleased changeset files
@@ -55,38 +56,28 @@ jobs:
           git add .changeset/
           git commit -m "chore: clear all unreleased changesets" || echo "No changes to commit"
       
-      # Use the check-conventional-commits script to get base commit info
-      - name: Check conventional commits
-        id: check_commits
-        run: |
-          bash .github/scripts/version/check-conventional-commits.sh \
-            --base-commit "" \
-            --auto-changeset-prefix "auto-" > >(tee /dev/stderr) | grep -E "^(base_commit|conventional_count)=" >> $GITHUB_OUTPUT || true
-      
-      # Use the existing scan-and-generate-changesets action
-      - name: Generate changesets for unreleased changes
+      # Use our new action to generate precise changesets
+      - name: Generate precise changesets
         id: generate_changesets
-        uses: ./.github/actions/scan-and-generate-changesets
+        uses: ./.github/actions/generate-precise-changesets
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
-          # Empty force-base-commit triggers auto-detection from tags
-          force-base-commit: ""
           auto-changeset-prefix: 'auto-'
+          force-generate: 'false'
       
-      # Use check-changesets script to verify what was created
+      # Check if changesets were created
       - name: Check if changesets were created
         id: check_changesets
         run: |
-          bash .github/scripts/version/check-changesets.sh | grep -E "^changeset_count=" >> $GITHUB_OUTPUT || true
-          
-          # Add additional debug information
           CHANGESET_COUNT=$(find .changeset -name "*.md" ! -name "README.md" ! -name "config.json" | wc -l)
-          echo "==== CHANGESET DEBUG INFO ===="
-          echo "Changeset count: $CHANGESET_COUNT"
+          echo "changeset_count=$CHANGESET_COUNT" >> $GITHUB_OUTPUT
           
           # Check if there are actual changes to commit
           CHANGES=$(git status --porcelain .changeset/)
+          
+          echo "==== CHANGESET DEBUG INFO ===="
+          echo "Changeset count: $CHANGESET_COUNT"
           if [ -n "$CHANGES" ]; then
             echo "Changes detected in .changeset directory:"
             echo "$CHANGES"
@@ -103,26 +94,20 @@ jobs:
           fi
           echo "==== END CHANGESET DEBUG INFO ===="
       
-      # Validate changesets using existing script
-      - name: Validate changesets
-        id: validate_changesets
-        if: steps.check_changesets.outputs.changeset_count > '0'
-        run: |
-          bash .github/scripts/version/validate-changesets.sh
-      
-      # Use commit-changeset script to save changes
-      - name: Commit generated changesets
+      # Commit and push the generated changesets
+      - name: Commit and push changesets
         id: commit_changesets
         if: steps.check_changesets.outputs.has_changes == 'true'
         run: |
-          BRANCH_NAME="${{ steps.create_branch.outputs.branch_name }}"
-          OUTPUT=$(bash .github/scripts/version/commit-changeset.sh --branch-name "$BRANCH_NAME")
-          echo "$OUTPUT" >> $GITHUB_OUTPUT
+          echo "Committing changes to .changeset directory"
+          git add .changeset/
+          git commit -m "chore: generate changesets for unreleased changes" || echo "No changes to commit"
           
-          # Extract and check if commit was successful 
-          COMMIT_SUCCESS=$(echo "$OUTPUT" | grep "^commit_success=" | cut -d= -f2)
-          if [ "$COMMIT_SUCCESS" == "true" ]; then
-            echo "pushed_changes=true" >> $GITHUB_OUTPUT
+          # Push the branch
+          git push origin ${{ steps.create_branch.outputs.branch_name }}
+          
+          if [ $? -eq 0 ]; then
+            echo "pushed_changes=true" >> $GITHUB_OUTPUT  
           else
             echo "pushed_changes=false" >> $GITHUB_OUTPUT
           fi
@@ -191,4 +176,23 @@ jobs:
               echo "Failed to create PR: Changes were committed but PR creation failed."
             fi
             echo "No action was needed or the process could not complete."
-          fi 
+          fi
+          
+      # Report failure if the workflow fails
+      - name: Report failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'report-results.yml',
+              ref: 'main',
+              inputs: {
+                result: 'failure',
+                workflow_name: 'Manual Clean and Generate Changesets',
+                summary: 'The manual clean and generate changesets workflow failed'
+              }
+            }); 

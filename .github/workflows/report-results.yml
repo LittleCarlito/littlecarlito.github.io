@@ -1,0 +1,107 @@
+name: Report Pipeline Results
+
+on:
+  workflow_run:
+    workflows:
+      - "Push and Create PR"
+      - "Main Pipeline"
+      - "Manual Clean and Generate Changesets"
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      result:
+        description: 'Pipeline result (success/failure)'
+        required: true
+        default: 'success'
+        type: choice
+        options:
+          - 'success'
+          - 'failure'
+      workflow_name:
+        description: 'Name of the workflow that triggered this report'
+        required: true
+        default: 'Manual Trigger'
+      summary:
+        description: 'Pipeline summary'
+        required: false
+        default: 'Manually triggered report'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  report-results:
+    name: Generate and Send Reports
+    runs-on: ubuntu-latest
+    # Only trigger in specific circumstances
+    if: >-
+      (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.name == 'Push and Create PR') ||
+      (github.event.workflow_run.name == 'Main Pipeline') ||
+      (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.name == 'Manual Clean and Generate Changesets') ||
+      github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Get workflow information
+        id: workflow-info
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_run" ]; then
+            # Extract workflow info from the triggering workflow
+            echo "workflow_name=${{ github.event.workflow_run.name }}" >> $GITHUB_OUTPUT
+            echo "workflow_result=${{ github.event.workflow_run.conclusion }}" >> $GITHUB_OUTPUT
+            echo "workflow_id=${{ github.event.workflow_run.id }}" >> $GITHUB_OUTPUT
+            echo "workflow_url=${{ github.event.workflow_run.html_url }}" >> $GITHUB_OUTPUT
+            echo "repository=${{ github.repository }}" >> $GITHUB_OUTPUT
+            echo "trigger_sha=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+            echo "trigger_branch=${{ github.event.workflow_run.head_branch }}" >> $GITHUB_OUTPUT
+          else
+            # Use provided input parameters for manual dispatch
+            echo "workflow_name=${{ github.event.inputs.workflow_name }}" >> $GITHUB_OUTPUT
+            echo "workflow_result=${{ github.event.inputs.result }}" >> $GITHUB_OUTPUT
+            echo "workflow_id=${{ github.run_id }}" >> $GITHUB_OUTPUT
+            echo "workflow_url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_OUTPUT
+            echo "repository=${{ github.repository }}" >> $GITHUB_OUTPUT
+            echo "trigger_sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "trigger_branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+      
+      # Create a directory for report artifacts
+      - name: Setup report directory
+        run: mkdir -p ./report-artifacts
+      
+      # Generate a report summary using the new action
+      - name: Generate pipeline summary
+        id: generate-summary
+        uses: ./.github/actions/report-pipeline-results
+        with:
+          mode: 'generate'
+          workflow-name: ${{ steps.workflow-info.outputs.workflow_name }}
+          workflow-result: ${{ steps.workflow-info.outputs.workflow_result }}
+          workflow-id: ${{ steps.workflow-info.outputs.workflow_id }}
+          workflow-url: ${{ steps.workflow-info.outputs.workflow_url }}
+          repository: ${{ steps.workflow-info.outputs.repository }}
+          trigger-sha: ${{ steps.workflow-info.outputs.trigger_sha }}
+          trigger-branch: ${{ steps.workflow-info.outputs.trigger_branch }}
+          output-path: './report-artifacts/summary.json'
+      
+      # Send the report to Discord
+      - name: Send to Discord
+        uses: ./.github/actions/report-pipeline-results
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        with:
+          mode: 'send-discord'
+          summary-file: './report-artifacts/summary.json'
+          discord-webhook-url: ${{ env.DISCORD_WEBHOOK }}
+
+      # Upload summary as an artifact for debugging
+      - name: Upload summary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-summary
+          path: ./report-artifacts/summary.json
+          retention-days: 5 
