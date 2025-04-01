@@ -84,6 +84,9 @@ jobs:
           repository: ${{ steps.workflow-info.outputs.repository }}
           trigger-sha: ${{ steps.workflow-info.outputs.trigger_sha }}
           trigger-branch: ${{ steps.workflow-info.outputs.trigger_branch }}
+          trigger-details: ${{ contains(github.event.inputs.summary, 'Details:') && github.event.inputs.summary || '' }}
+          trigger-source: ${{ contains(github.event.inputs.summary, 'Branch:') && github.event.inputs.summary || '' }}
+          trigger-info: ${{ contains(github.event.inputs.summary, 'Triggered by') && github.event.inputs.summary || '' }}
           output-path: './report-artifacts/summary.json'
       
       # Send the report to Discord

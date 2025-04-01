@@ -46,7 +46,14 @@ jobs:
       trigger_workflow: ${{ steps.set-trigger-info.outputs.trigger_workflow }}
       trigger_commit: ${{ steps.set-trigger-info.outputs.trigger_commit }}
       trigger_actor: ${{ steps.set-trigger-info.outputs.trigger_actor }}
+      trigger_detail: ${{ steps.set-trigger-info.outputs.trigger_detail }}
+      source_branch: ${{ steps.set-trigger-info.outputs.source_branch }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
       - name: Set trigger information
         id: set-trigger-info
         run: |
@@ -55,18 +62,50 @@ jobs:
             # Triggered by another workflow
             echo "trigger_workflow=${{ github.event.inputs.triggered_by }}" >> $GITHUB_OUTPUT
             echo "trigger_info=Triggered by ${{ github.event.inputs.triggered_by }} workflow" >> $GITHUB_OUTPUT
+            
+            # Extract source branch or command from commit message
+            LAST_COMMIT=$(git log -1 --pretty=%B)
+            
+            if [[ "${{ github.event.inputs.triggered_by }}" == "push-create-pr" ]]; then
+              # Extract PR number and branch from commit message
+              PR_NUM=$(echo "$LAST_COMMIT" | grep -oP "Merge PR #\K\d+")
+              SOURCE_BRANCH=$(echo "$LAST_COMMIT" | grep -oP "from \K[^ \n]+")
+              echo "trigger_detail=PR #${PR_NUM:-unknown} from branch ${SOURCE_BRANCH:-unknown}" >> $GITHUB_OUTPUT
+              echo "source_branch=${SOURCE_BRANCH:-unknown}" >> $GITHUB_OUTPUT
+            elif [[ "${{ github.event.inputs.triggered_by }}" == *"changeset"* ]]; then
+              # Extract changeset details
+              CHANGESET_INFO=$(echo "$LAST_COMMIT" | grep -oP "generate changesets \K.*" || echo "changeset operation")
+              echo "trigger_detail=Changeset operation: ${CHANGESET_INFO}" >> $GITHUB_OUTPUT
+              echo "source_branch=main" >> $GITHUB_OUTPUT
+            else
+              echo "trigger_detail=From ${{ github.event.inputs.triggered_by }}" >> $GITHUB_OUTPUT
+              echo "source_branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+            fi
+            
           elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             # Manual trigger
             echo "trigger_workflow=manual" >> $GITHUB_OUTPUT
             echo "trigger_info=Manually triggered by ${{ github.actor }}" >> $GITHUB_OUTPUT
+            echo "trigger_detail=Manual workflow dispatch" >> $GITHUB_OUTPUT
+            echo "source_branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+            
           elif [ "${{ github.event_name }}" == "push" ] && [[ "${{ github.ref }}" == refs/tags/* ]]; then
             # Tag push
             echo "trigger_workflow=tag_push" >> $GITHUB_OUTPUT
             echo "trigger_info=Triggered by tag push to ${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "trigger_detail=Tag: ${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "source_branch=tag:${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            
           else
             # Direct push to main
             echo "trigger_workflow=direct_push" >> $GITHUB_OUTPUT
             echo "trigger_info=Triggered by push to ${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            
+            # Extract commit message details
+            COMMIT_MSG=$(git log -1 --pretty=%B)
+            COMMIT_TITLE=$(echo "$COMMIT_MSG" | head -n 1)
+            echo "trigger_detail=Direct commit: ${COMMIT_TITLE}" >> $GITHUB_OUTPUT
+            echo "source_branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           fi
           
           # Set commit and actor info
@@ -418,6 +457,8 @@ jobs:
           # Get trigger info
           echo "trigger_info=${{ needs.capture-trigger-info.outputs.trigger_info }}" >> $GITHUB_OUTPUT
           echo "trigger_workflow=${{ needs.capture-trigger-info.outputs.trigger_workflow }}" >> $GITHUB_OUTPUT
+          echo "trigger_detail=${{ needs.capture-trigger-info.outputs.trigger_detail }}" >> $GITHUB_OUTPUT
+          echo "source_branch=${{ needs.capture-trigger-info.outputs.source_branch }}" >> $GITHUB_OUTPUT
           
       # Trigger the report-results workflow using GitHub Script
       - name: Trigger report-results workflow
@@ -433,6 +474,6 @@ jobs:
               inputs: {
                 result: '${{ steps.workflow-result.outputs.result }}',
                 workflow_name: 'Main Pipeline',
-                summary: 'Main Pipeline completed with result: ${{ steps.workflow-result.outputs.result }}. ${{ steps.workflow-result.outputs.trigger_info }}'
+                summary: 'Main Pipeline ${{ steps.workflow-result.outputs.result }}. ${{ needs.capture-trigger-info.outputs.trigger_info }}. Details: ${{ needs.capture-trigger-info.outputs.trigger_detail }}. Branch: ${{ needs.capture-trigger-info.outputs.source_branch }}'
               }
             }); 
