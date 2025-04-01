@@ -1,0 +1,89 @@
+name: Unpublish Package Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package name (e.g., blorktools or @littlecarlito/blorktools)'
+        required: true
+        type: string
+      version:
+        description: 'Version to unpublish (e.g., 1.13.0)'
+        required: true
+        type: string
+      unpublish-tag:
+        description: 'Also delete corresponding git tag'
+        required: false
+        type: boolean
+        default: true
+      dry-run:
+        description: 'Dry run (show what would happen without doing it)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  unpublish:
+    name: Unpublish Package Version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PACKAGE_TOKEN }}
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@littlecarlito'
+          
+      - name: Unpublish package version
+        id: unpublish
+        run: |
+          OUTPUT=$(bash .github/scripts/version/unpublish-package-versions.sh \
+            --token "${{ secrets.PACKAGE_TOKEN }}" \
+            --package "${{ github.event.inputs.package }}" \
+            --version "${{ github.event.inputs.version }}" \
+            --repository "${{ github.repository }}" \
+            --unpublish-tag "${{ github.event.inputs.unpublish-tag }}" \
+            --dry-run "${{ github.event.inputs.dry-run }}")
+            
+          echo "$OUTPUT"
+          # Extract the unpublished value
+          UNPUBLISHED=$(echo "$OUTPUT" | grep "^unpublished=" | cut -d= -f2)
+          PACKAGE=$(echo "$OUTPUT" | grep "^package=" | cut -d= -f2)
+          VERSION=$(echo "$OUTPUT" | grep "^version=" | cut -d= -f2)
+          
+          if [[ "$UNPUBLISHED" == "true" ]]; then
+            echo "Successfully unpublished $PACKAGE@$VERSION"
+            echo "unpublished=true" >> $GITHUB_OUTPUT
+          else
+            echo "Dry run completed for $PACKAGE@$VERSION"
+            echo "unpublished=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          
+      - name: Report results
+        if: always()
+        run: |
+          if [[ "${{ steps.unpublish.outputs.unpublished }}" == "true" ]]; then
+            echo "✅ Successfully unpublished ${{ github.event.inputs.package }}@${{ github.event.inputs.version }}"
+            if [[ "${{ github.event.inputs.unpublish-tag }}" == "true" ]]; then
+              echo "✅ Also deleted corresponding Git tag(s)"
+            fi
+          elif [[ "${{ github.event.inputs.dry-run }}" == "true" ]]; then
+            echo "🔍 Dry run completed for ${{ github.event.inputs.package }}@${{ github.event.inputs.version }}"
+            echo "No actual changes were made."
+          else 
+            echo "❌ Failed to unpublish ${{ github.event.inputs.package }}@${{ github.event.inputs.version }}"
+            echo "Check the logs for more details."
+          fi 

@@ -1,0 +1,97 @@
+name: Unpublish Multiple Package Versions
+
+on:
+  workflow_dispatch:
+    inputs:
+      packages-list:
+        description: 'JSON array of package versions to unpublish: [{"package":"blorktools","version":"1.13.0"},{"package":"blorkboard","version":"1.12.1"}]'
+        required: true
+        type: string
+      unpublish-tags:
+        description: 'Also delete corresponding git tags'
+        required: false
+        type: boolean
+        default: true
+      dry-run:
+        description: 'Dry run (show what would happen without doing it)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  parse-inputs:
+    name: Parse Inputs and Prepare Jobs
+    runs-on: ubuntu-latest
+    outputs:
+      packages-matrix: ${{ steps.parse.outputs.packages-matrix }}
+    steps:
+      - name: Parse package list
+        id: parse
+        run: |
+          # Validate JSON input
+          echo '${{ github.event.inputs.packages-list }}' | jq -e . > /dev/null || {
+            echo "Error: Invalid JSON input in packages-list"
+            exit 1
+          }
+          
+          # Generate matrix for dynamic jobs
+          echo "packages-matrix=$(echo '${{ github.event.inputs.packages-list }}')" >> $GITHUB_OUTPUT
+          
+          # Display what we're going to unpublish
+          echo "Will unpublish the following packages:"
+          echo '${{ github.event.inputs.packages-list }}' | jq -r '.[] | "- \(.package)@\(.version)"'
+
+  unpublish-packages:
+    name: Unpublish Package Versions
+    needs: parse-inputs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    
+    strategy:
+      matrix:
+        package-info: ${{ fromJson(needs.parse-inputs.outputs.packages-matrix) }}
+      fail-fast: false
+    
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PACKAGE_TOKEN }}
+          
+      - name: Unpublish package
+        uses: ./.github/actions/unpublish-package
+        with:
+          github-token: ${{ secrets.PACKAGE_TOKEN }}
+          package: ${{ matrix.package-info.package }}
+          version: ${{ matrix.package-info.version }}
+          unpublish-tag: ${{ github.event.inputs.unpublish-tags }}
+          dry-run: ${{ github.event.inputs.dry-run }}
+          
+  summary:
+    name: Summary of Unpublished Packages
+    needs: unpublish-packages
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate summary
+        run: |
+          echo "# Unpublish Operation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The following packages were processed:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Display each package and its status
+          echo '${{ needs.parse-inputs.outputs.packages-matrix }}' | jq -r '.[] | "- \(.package)@\(.version)"' >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ github.event.inputs.dry-run }}" == "true" ]]; then
+            echo "**Note**: This was a dry run. No actual changes were made." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Note**: Packages were unpublished from the registry." >> $GITHUB_STEP_SUMMARY
+            if [[ "${{ github.event.inputs.unpublish-tags }}" == "true" ]]; then
+              echo "Corresponding Git tags were also deleted." >> $GITHUB_STEP_SUMMARY
+            fi
+          fi 
