@@ -72,22 +72,31 @@ runs:
         BUILD_COMMAND=$(cat "$BUILD_COMMAND_FILE")
         rm "$BUILD_COMMAND_FILE"
         
-        # Run the build script with proper quoting for the command
-        # Filter output to only include correctly formatted key=value pairs
-        bash .github/scripts/maintenance/build-packages.sh --build-command "$BUILD_COMMAND" 2>&1 | grep -E "^result=" > build_result.txt || true
+        # Show environment information
+        echo "===== BUILD ENVIRONMENT ====="
+        echo "Node version: $(node -v)"
+        echo "NPM version: $(npm -v)"
+        command -v pnpm && echo "pnpm version: $(pnpm -v)" || echo "pnpm not found"
+        echo "Current directory: $(pwd)"
+        echo "Package directories:"
+        find packages -type d -maxdepth 1 | sort
+        echo "============================="
         
-        # Check if we have a result file and it contains success/failure
-        if [ -f build_result.txt ]; then
-          cat build_result.txt >> $GITHUB_OUTPUT
-          if grep -q "result=failure" build_result.txt; then
-            echo "Build failed! Failing the workflow."
-            exit 1
-          fi
+        # Run the build script with direct output (not filtered)
+        echo "Running build command: $BUILD_COMMAND"
+        set +e
+        bash .github/scripts/maintenance/build-packages.sh --build-command "$BUILD_COMMAND"
+        BUILD_RESULT=$?
+        set -e
+        
+        # Check if build succeeded or failed
+        if [ $BUILD_RESULT -ne 0 ]; then
+          echo "result=failure" >> $GITHUB_OUTPUT
+          echo "Build failed with exit code $BUILD_RESULT"
+          exit 1
         else
           echo "result=success" >> $GITHUB_OUTPUT
         fi
-        
-        rm -f build_result.txt
 
     # Upload artifacts using GitHub's native action
     - name: Upload build artifacts
