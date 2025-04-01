@@ -71,7 +71,6 @@ jobs:
           build-command: 'pnpm run build'
           test-command: 'echo "Tests will run in separate job"'
           artifact-name: ${{ env.BUILD_ARTIFACT_NAME }}
-          if-no-files-found: error
         
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

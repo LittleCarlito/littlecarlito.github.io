@@ -95,7 +95,6 @@ runs:
       with:
         name: ${{ inputs.artifact-name }}-${{ github.job }}
         path: ${{ inputs.artifact-path }}
-        if-no-files-found: warn
 
     # Test step using our script
     - name: Run tests
