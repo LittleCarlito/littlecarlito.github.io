@@ -5,25 +5,24 @@ show_help() {
   cat << EOF >&2
 Usage: $(basename "$0") [OPTIONS]
 
-This script creates GitHub releases for packages that have been published.
+This script ensures all packages in the monorepo have corresponding Git tags based on their package.json versions.
+It scans all packages and creates any missing tags.
 
 Options:
   --token TOKEN             GitHub token for authentication (required)
   --repo REPO               Repository name in format owner/repo (default: current repo)
-  --package-names NAMES     Comma-separated list of package names
   --package-paths PATHS     Comma-separated list of package paths
-  --delete-branch BOOL      Whether to delete version branch after release (default: false)
-  --force-create BOOL       Whether to force create releases for all packages (default: true)
+  --package-names NAMES     Comma-separated list of package names
+  --force-create BOOL       Whether to recreate tags even if they exist (default: true)
   --help                    Display this help and exit
 
 Example:
-  $(basename "$0") --token "gh_token" --package-names "@org/pkg1,@org/pkg2" --package-paths "packages/pkg1,packages/pkg2"
+  $(basename "$0") --token "gh_token" --repo "owner/repo" --package-paths "packages/pkg1,packages/pkg2" --package-names "@org/pkg1,@org/pkg2"
 EOF
 }
 
 # Default values
 REPO=""
-DELETE_BRANCH="false"
 FORCE_CREATE="true"
 
 # Parse arguments
@@ -37,16 +36,12 @@ while [[ $# -gt 0 ]]; do
       REPO="$2"
       shift 2
       ;;
-    --package-names)
-      PACKAGE_NAMES="$2"
-      shift 2
-      ;;
     --package-paths)
       PACKAGE_PATHS="$2"
       shift 2
       ;;
-    --delete-branch)
-      DELETE_BRANCH="$2"
+    --package-names)
+      PACKAGE_NAMES="$2"
       shift 2
       ;;
     --force-create)
@@ -72,14 +67,14 @@ if [[ -z "$TOKEN" ]]; then
   exit 1
 fi
 
-if [[ -z "$PACKAGE_NAMES" ]]; then
-  echo "Error: Package names are required" >&2
+if [[ -z "$PACKAGE_PATHS" ]]; then
+  echo "Error: Package paths are required" >&2
   show_help
   exit 1
 fi
 
-if [[ -z "$PACKAGE_PATHS" ]]; then
-  echo "Error: Package paths are required" >&2
+if [[ -z "$PACKAGE_NAMES" ]]; then
+  echo "Error: Package names are required" >&2
   show_help
   exit 1
 fi
@@ -93,11 +88,11 @@ elif [[ -z "$REPO" ]]; then
 fi
 
 # Convert comma-separated strings to arrays
-IFS=',' read -ra NAME_ARRAY <<< "$PACKAGE_NAMES"
 IFS=',' read -ra PATH_ARRAY <<< "$PACKAGE_PATHS"
+IFS=',' read -ra NAME_ARRAY <<< "$PACKAGE_NAMES"
 
-if [[ ${#NAME_ARRAY[@]} -ne ${#PATH_ARRAY[@]} ]]; then
-  echo "Error: Number of package names must match number of package paths" >&2
+if [[ ${#PATH_ARRAY[@]} -ne ${#NAME_ARRAY[@]} ]]; then
+  echo "Error: Number of package paths must match number of package names" >&2
   exit 1
 fi
 
@@ -105,19 +100,14 @@ fi
 HEADER_AUTH="Authorization: token $TOKEN"
 HEADER_ACCEPT="Accept: application/vnd.github+json"
 
-# Get version branch info if it exists
-VERSION_BRANCH=$(git branch -a | grep "version-packages" | sed 's/.*\///')
-
-echo "Creating GitHub releases for published packages..." >&2
-RELEASES_CREATED=0
+echo "Ensuring tags exist for all packages..." >&2
+TAGS_CREATED=0
+TAGS_VERIFIED=0
 
 # Process each package
-for i in "${!NAME_ARRAY[@]}"; do
-  PKG_NAME="${NAME_ARRAY[$i]}"
+for i in "${!PATH_ARRAY[@]}"; do
   PKG_PATH="${PATH_ARRAY[$i]}"
-  
-  # Clean package name for use in tag
-  CLEAN_PKG_NAME=$(echo "$PKG_NAME" | sed 's/@//g' | sed 's/\//-/g')
+  PKG_NAME="${NAME_ARRAY[$i]}"
   
   # Get package version from package.json
   if [[ -f "$PKG_PATH/package.json" ]]; then
@@ -126,14 +116,14 @@ for i in "${!NAME_ARRAY[@]}"; do
     if [[ -n "$VERSION" ]]; then
       echo "Found version $VERSION for package $PKG_NAME" >&2
       
-      # Create a tag name
+      # Format the tag name in npm standard format
       TAG_NAME="${PKG_NAME}@${VERSION}"
+      
+      # Prepare a clean package name for alternative tag format
+      CLEAN_PKG_NAME=$(echo "$PKG_NAME" | sed 's/@//g' | sed 's/\//-/g')
       ALT_TAG_NAME="${CLEAN_PKG_NAME}@${VERSION}"
       
-      # Also create standard format tag that matches npm registry format
-      echo "Using tag format: $TAG_NAME (npm standard format)" >&2
-      
-      # Check if tag already exists (try both formats)
+      # Check if tag already exists
       TAG_EXISTS=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
         "https://api.github.com/repos/$REPO/git/refs/tags/$TAG_NAME" | grep -c "\"ref\"")
       
@@ -141,19 +131,20 @@ for i in "${!NAME_ARRAY[@]}"; do
         "https://api.github.com/repos/$REPO/git/refs/tags/$ALT_TAG_NAME" | grep -c "\"ref\"")
       
       if [[ $TAG_EXISTS -eq 0 && $ALT_TAG_EXISTS -eq 0 || "$FORCE_CREATE" == "true" ]]; then
+        echo "Creating tag $TAG_NAME for $PKG_NAME v$VERSION (standard npm format)" >&2
+        
+        # Delete existing tags if force create is enabled
         if [[ $TAG_EXISTS -gt 0 ]]; then
-          echo "Tag $TAG_NAME exists but force-create is enabled. Deleting existing tag..." >&2
+          echo "Deleting existing tag $TAG_NAME" >&2
           curl -s -X DELETE -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
             "https://api.github.com/repos/$REPO/git/refs/tags/$TAG_NAME" >/dev/null 2>&1
         fi
         
         if [[ $ALT_TAG_EXISTS -gt 0 ]]; then
-          echo "Tag $ALT_TAG_NAME exists but force-create is enabled. Deleting existing tag..." >&2
+          echo "Deleting existing tag $ALT_TAG_NAME" >&2
           curl -s -X DELETE -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
             "https://api.github.com/repos/$REPO/git/refs/tags/$ALT_TAG_NAME" >/dev/null 2>&1
         fi
-        
-        echo "Creating tag $TAG_NAME for $PKG_NAME v$VERSION" >&2
         
         # Get latest commit SHA
         COMMIT_SHA=$(git rev-parse HEAD)
@@ -167,61 +158,51 @@ for i in "${!NAME_ARRAY[@]}"; do
         
         if [[ -n "$TAG_SHA" ]]; then
           # Create reference for tag
-          curl -s -X POST -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+          REF_RESPONSE=$(curl -s -X POST -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
             -d "{\"ref\":\"refs/tags/$TAG_NAME\",\"sha\":\"$TAG_SHA\"}" \
-            "https://api.github.com/repos/$REPO/git/refs" >/dev/null 2>&1
-            
-          # Create release from tag
-          RELEASE_RESPONSE=$(curl -s -X POST -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
-            -d "{\"tag_name\":\"$TAG_NAME\",\"name\":\"$PKG_NAME v$VERSION\",\"body\":\"Release of $PKG_NAME version $VERSION\",\"draft\":false,\"prerelease\":false}" \
-            "https://api.github.com/repos/$REPO/releases")
-            
-          RELEASE_ID=$(echo "$RELEASE_RESPONSE" | grep -o '"id": [0-9]*' | head -1 | cut -d' ' -f2)
+            "https://api.github.com/repos/$REPO/git/refs")
           
-          if [[ -n "$RELEASE_ID" ]]; then
-            echo "Successfully created release for $PKG_NAME v$VERSION" >&2
-            RELEASES_CREATED=$((RELEASES_CREATED + 1))
+          REF_URL=$(echo "$REF_RESPONSE" | grep -o '"url": "[^"]*' | head -1 | cut -d'"' -f4)
+          
+          if [[ -n "$REF_URL" ]]; then
+            echo "Successfully created tag $TAG_NAME" >&2
+            TAGS_CREATED=$((TAGS_CREATED + 1))
+            
+            # Create a GitHub release
+            RELEASE_RESPONSE=$(curl -s -X POST -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+              -d "{\"tag_name\":\"$TAG_NAME\",\"name\":\"$PKG_NAME v$VERSION\",\"body\":\"Release of $PKG_NAME version $VERSION\",\"draft\":false,\"prerelease\":false}" \
+              "https://api.github.com/repos/$REPO/releases")
+            
+            RELEASE_ID=$(echo "$RELEASE_RESPONSE" | grep -o '"id": [0-9]*' | head -1 | cut -d' ' -f2)
+            
+            if [[ -n "$RELEASE_ID" ]]; then
+              echo "Created GitHub release for $PKG_NAME v$VERSION" >&2
+            else
+              echo "Warning: Failed to create GitHub release for $PKG_NAME v$VERSION" >&2
+            fi
           else
-            echo "Failed to create release for $PKG_NAME v$VERSION" >&2
-            echo "API response: $RELEASE_RESPONSE" >&2
+            echo "Failed to create tag reference for $PKG_NAME v$VERSION" >&2
+            echo "API response: $REF_RESPONSE" >&2
           fi
         else
           echo "Failed to create tag for $PKG_NAME v$VERSION" >&2
           echo "API response: $TAG_RESPONSE" >&2
         fi
       else
-        echo "Tag $TAG_NAME or $ALT_TAG_NAME already exists, skipping release creation" >&2
+        echo "Tag already exists for $PKG_NAME v$VERSION, verified." >&2
+        TAGS_VERIFIED=$((TAGS_VERIFIED + 1))
       fi
     else
-      echo "Could not determine version for $PKG_NAME" >&2
+      echo "Could not determine version for $PKG_NAME, package.json seems malformed" >&2
     fi
   else
     echo "Package.json not found at $PKG_PATH" >&2
   fi
 done
 
-echo "Created $RELEASES_CREATED releases" >&2
-echo "releases_created=$RELEASES_CREATED"
-
-# Delete version branch if requested and it exists
-if [[ "$DELETE_BRANCH" == "true" && -n "$VERSION_BRANCH" ]]; then
-  echo "Deleting version branch: $VERSION_BRANCH" >&2
-  
-  # Use the enhanced branch deletion script with changeset cleanup
-  DELETE_OUTPUT=$(bash .github/scripts/branch/delete.sh \
-    --token "$TOKEN" \
-    --repo "$REPO" \
-    --branch "$VERSION_BRANCH" \
-    --cleanup-changesets "true" \
-    --max-attempts 3)
-    
-  if echo "$DELETE_OUTPUT" | grep -q "branch_deleted=true"; then
-    echo "Successfully deleted version branch: $VERSION_BRANCH" >&2
-    echo "branch_deleted=true"
-  else
-    echo "Warning: Failed to delete version branch: $VERSION_BRANCH" >&2
-    echo "branch_deleted=false"
-  fi
-fi
+echo "Tags created: $TAGS_CREATED, Tags verified: $TAGS_VERIFIED" >&2
+echo "tags_created=$TAGS_CREATED"
+echo "tags_verified=$TAGS_VERIFIED"
+echo "total_packages=${#PATH_ARRAY[@]}"
 
 exit 0 

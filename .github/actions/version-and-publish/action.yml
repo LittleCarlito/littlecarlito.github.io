@@ -41,6 +41,10 @@ inputs:
     description: 'Whether to create a PR for versioning instead of direct publishing'
     required: false
     default: 'false'
+  force-publish:
+    description: 'Whether to force publish packages even if versions already exist'
+    required: false
+    default: 'true'
   node-version:
     description: 'Node.js version to use'
     required: false
@@ -172,7 +176,8 @@ runs:
           --commit-message "${{ inputs.commit-message }}" \
           --pr-title "${{ inputs.pr-title }}" \
           --create-releases "${{ inputs.create-github-releases }}" \
-          --create-pr "${{ inputs.create-pr }}"
+          --create-pr "${{ inputs.create-pr }}" \
+          --force-publish "${{ inputs.force-publish }}"
       continue-on-error: true
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
@@ -241,7 +246,7 @@ runs:
         
     # Auto-publish GitHub releases
     - name: Auto-publish GitHub releases
-      if: steps.process-changesets.outputs.published == 'true'
+      # Always run this step, regardless of publication status
       shell: bash
       run: |
         bash .github/scripts/version/auto-publish-releases.sh \
@@ -249,6 +254,17 @@ runs:
           --repo "${{ inputs.repository }}" \
           --package-names "${{ inputs.package-names }}" \
           --package-paths "${{ inputs.package-paths }}" \
-          --delete-branch "true"
+          --force-create "true"
       env:
-        GH_TOKEN: ${{ inputs.github-token }} 
+        GH_TOKEN: ${{ inputs.github-token }}
+        
+    # Ensure all packages have tags, regardless of publishing status
+    - name: Ensure all packages have tags
+      shell: bash
+      run: |
+        bash .github/scripts/version/ensure-all-tags.sh \
+          --token "${{ inputs.github-token }}" \
+          --repo "${{ inputs.repository }}" \
+          --package-paths "${{ inputs.package-paths }}" \
+          --package-names "${{ inputs.package-names }}" \
+          --force-create "true" 

@@ -35,6 +35,7 @@
     "changeset": "changeset",
     "version": "changeset version",
     "release": "changeset publish",
+    "release:force": "changeset publish --force",
     "change": "node scripts/create-changeset.js",
     "auto-change": "node scripts/auto-changeset.js",
     "cleanup:changeset-branches": "bash .github/scripts/version/cleanup-changeset-branches.sh --token $(gh auth token) --repo $(git config --get remote.origin.url | sed -E 's/.*[:\\/]([\\w-]+\\/[\\w-]+)(\\.git)?$/\\1/')",

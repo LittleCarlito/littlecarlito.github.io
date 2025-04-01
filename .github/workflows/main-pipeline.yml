@@ -333,12 +333,13 @@ jobs:
         with:
           github-token: ${{ secrets.PACKAGE_TOKEN }}
           artifact-name: ${{ needs.build.outputs.build_artifact_name }}
-          publish-command: 'pnpm run release'
+          publish-command: 'pnpm run release:force'
           version-command: 'pnpm run version'
           commit-message: 'chore: version packages'
           pr-title: 'chore: version packages'
           create-github-releases: 'true'
           create-pr: ${{ steps.check-pr-request.outputs.create_pr }}
+          force-publish: 'true'
           registry-url: 'https://npm.pkg.github.com'
           npm-scope: '@littlecarlito'
           package-paths: 'packages/blorkpack,packages/blorktools,packages/blorkboard,apps/portfolio'
