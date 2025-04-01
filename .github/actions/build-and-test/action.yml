@@ -94,11 +94,9 @@ runs:
         
         # Create a proper .npmrc that can access both GitHub and public npm packages
         echo "Creating .npmrc file..."
-        cat > .npmrc << EOF
-registry=https://registry.npmjs.org/
-@littlecarlito:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${{ inputs.github-token }}
-EOF
+        echo "registry=https://registry.npmjs.org/" > .npmrc
+        echo "@littlecarlito:registry=https://npm.pkg.github.com" >> .npmrc
+        echo "//npm.pkg.github.com/:_authToken=${{ inputs.github-token }}" >> .npmrc
         
         # Install dependencies
         echo "Installing dependencies with pnpm..."
@@ -127,11 +125,9 @@ EOF
         # Ensure the correct .npmrc configuration
         if [ ! -f .npmrc ] || ! grep -q "registry=https://registry.npmjs.org/" .npmrc; then
           echo "Creating/updating .npmrc file for build..."
-          cat > .npmrc << EOF
-registry=https://registry.npmjs.org/
-@littlecarlito:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${{ inputs.github-token }}
-EOF
+          echo "registry=https://registry.npmjs.org/" > .npmrc
+          echo "@littlecarlito:registry=https://npm.pkg.github.com" >> .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ inputs.github-token }}" >> .npmrc
         fi
         
         pnpm install
