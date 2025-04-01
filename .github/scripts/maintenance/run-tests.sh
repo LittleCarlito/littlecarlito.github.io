@@ -63,6 +63,31 @@ run_tests() {
     
     # Run the test command, capturing exit code
     echo "Running test command: $test_command" >&2
+    
+    # Check if the command contains jest and modify it to use npx if needed
+    if [[ "$test_command" == *"jest"* ]]; then
+        echo "Test command contains jest, ensuring it can be found..." >&2
+        
+        # Check if Jest exists in node_modules
+        if [ -f "./node_modules/.bin/jest" ]; then
+            echo "Found Jest in node_modules/.bin" >&2
+            test_command="${test_command//jest/./node_modules/.bin/jest}"
+        else
+            echo "Jest not found in node_modules, installing it first..." >&2
+            npm install jest
+            
+            if [ -f "./node_modules/.bin/jest" ]; then
+                echo "Jest installed successfully" >&2
+                test_command="${test_command//jest/./node_modules/.bin/jest}"
+            else
+                echo "Falling back to npx jest" >&2
+                test_command="${test_command//jest/npx jest}"
+            fi
+        fi
+        
+        echo "Modified test command: $test_command" >&2
+    fi
+    
     set +e
     eval "$test_command" > "$TEST_OUTPUT" 2>&1
     TEST_RESULT=$?

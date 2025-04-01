@@ -103,6 +103,22 @@ runs:
         echo "Test command: ${{ inputs.test-command }}"
         echo "=================================="
         
+        # Install pnpm if needed
+        if ! command -v pnpm &> /dev/null; then
+          echo "Installing pnpm..."
+          npm install -g pnpm@8.15.4
+        fi
+        
+        # Create npmrc file
+        echo "Creating .npmrc file..."
+        echo "registry=https://registry.npmjs.org/" > .npmrc
+        echo "@littlecarlito:registry=https://npm.pkg.github.com" >> .npmrc
+        echo "//npm.pkg.github.com/:_authToken=${{ inputs.github-token }}" >> .npmrc
+        
+        # Ensure all dependencies are installed
+        echo "Installing project dependencies..."
+        pnpm install
+        
         # Check for existence of key files and directories
         echo "Checking test setup:"
         echo "- package.json present: $([[ -f package.json ]] && echo Yes || echo No)"
@@ -110,25 +126,16 @@ runs:
         echo "- Packages with dist dir:"
         find packages -name "dist" -type d | sort
         
-        # Run the test script directly without capturing output - this ensures exit codes are propagated
-        echo "Running tests with command: ${{ inputs.test-command }}"
-        bash .github/scripts/maintenance/run-tests.sh --test-command "${{ inputs.test-command }}" 2>&1 | tee test-output.log
-        
-        # Extract the result from the output
-        grep -E "^result=" test-output.log > test_result.txt || true
-        
-        # Check if we have a result file and it contains success/failure
-        if [ -f test_result.txt ]; then
-          cat test_result.txt >> $GITHUB_OUTPUT
-          if grep -q "result=failure" test_result.txt; then
-            echo "Tests failed! Failing the workflow."
-            exit 1
-          fi
-        else
+        # Run tests with npx directly to avoid PATH issues
+        echo "Running tests with npx..."
+        if pnpm exec node tests/config/setup/prepare-tests.cjs && pnpm exec jest --config=tests/config/jest/jest.config.cjs; then
+          echo "Tests passed successfully"
           echo "result=success" >> $GITHUB_OUTPUT
+        else
+          echo "Tests failed"
+          echo "result=failure" >> $GITHUB_OUTPUT
+          exit 1
         fi
-        
-        rm -f test_result.txt test-output.log
         
     # Create test status check if PR_SHA is available
     - name: Create Test Status Check
