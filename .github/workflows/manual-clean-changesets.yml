@@ -35,17 +35,12 @@ jobs:
       # Create a unique branch for new changesets
       - name: Create branch for changesets
         id: create_branch
+        if: steps.check_changesets.outputs.has_changes == 'true'
         run: |
-          # Use a unique branch name with timestamp to avoid conflicts
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           BRANCH_NAME="chore/generate-changesets-$TIMESTAMP"
-          echo "Using branch name: $BRANCH_NAME"
-          
-          # Create and switch to the new branch
-          git checkout -b $BRANCH_NAME
-          git config --global user.name "Github Actions"
-          git config --global user.email "actions@github.com"
-          
+          OUTPUT=$(bash .github/scripts/version/create-changeset-branch.sh --branch-name "$BRANCH_NAME")
+          echo "$OUTPUT" >> $GITHUB_OUTPUT
           echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
 
       # Clear all unreleased changeset files
@@ -60,81 +55,45 @@ jobs:
           git add .changeset/
           git commit -m "chore: clear all unreleased changesets" || echo "No changes to commit"
       
-      # Debug step to show commit info
-      - name: Debug commit information
+      # Use the check-conventional-commits script to get base commit info
+      - name: Check conventional commits
+        id: check_commits
         run: |
-          echo "==== DEBUG COMMIT INFORMATION ===="
-          echo "Latest tags:"
-          git tag -l --sort=-creatordate | head -5
-          
-          echo "Recent commits:"
-          git log --oneline -n 10
-          
-          # Get the latest tag for blorktools specifically
-          LATEST_BLORKTOOLS_TAG=$(git tag -l "@littlecarlito/blorktools*" --sort=-creatordate | head -1)
-          echo "Latest blorktools tag: $LATEST_BLORKTOOLS_TAG"
-          
-          # Get commits since that tag that might include blorktools changes
-          if [ -n "$LATEST_BLORKTOOLS_TAG" ]; then
-            echo "Commits since latest blorktools tag that mention blorktools:"
-            git log $LATEST_BLORKTOOLS_TAG..HEAD --grep="blorktools" --oneline
-            
-            echo "Conventional commits since latest blorktools tag:"
-            git log $LATEST_BLORKTOOLS_TAG..HEAD --format=%s | grep -E '^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([^)]+\))?!?:'
-          fi
-          
-          echo "==== END DEBUG INFO ===="
-
-      # Get base commit for comparison
-      - name: Get base commit
-        id: get_base
-        run: |
-          # Determine the base commit from the most recent tag or specified commit
-          BASE_COMMIT=""
-          if [ -z "$BASE_COMMIT" ]; then
-            echo "Finding most recent tag as base commit"
-            BASE_COMMIT=$(git describe --tags --abbrev=0 || git rev-list --max-parents=0 HEAD)
-          fi
-          echo "Using base commit: $BASE_COMMIT"
-          echo "base_commit=$BASE_COMMIT" >> $GITHUB_OUTPUT
-
-      # Get head commit
-      - name: Get head commit
-        id: get_head
-        run: |
-          HEAD_COMMIT=$(git rev-parse HEAD)
-          echo "Using head commit: $HEAD_COMMIT"
-          echo "head_commit=$HEAD_COMMIT" >> $GITHUB_OUTPUT
+          bash .github/scripts/version/check-conventional-commits.sh \
+            --base-commit "" \
+            --auto-changeset-prefix "auto-" > >(tee /dev/stderr) | grep -E "^(base_commit|conventional_count)=" >> $GITHUB_OUTPUT || true
       
-      # Generate new changesets based on unreleased changes
+      # Use the existing scan-and-generate-changesets action
       - name: Generate changesets for unreleased changes
         id: generate_changesets
         uses: ./.github/actions/scan-and-generate-changesets
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
-          # Use empty force-base-commit to auto-detect from tags/releases
+          # Empty force-base-commit triggers auto-detection from tags
           force-base-commit: ""
           auto-changeset-prefix: 'auto-'
-          # Let the action auto-detect the appropriate base commit
-
-      # Check if changesets were created
+      
+      # Use check-changesets script to verify what was created
       - name: Check if changesets were created
         id: check_changesets
         run: |
+          bash .github/scripts/version/check-changesets.sh | grep -E "^changeset_count=" >> $GITHUB_OUTPUT || true
+          
+          # Add additional debug information
           CHANGESET_COUNT=$(find .changeset -name "*.md" ! -name "README.md" ! -name "config.json" | wc -l)
-          echo "changeset_count=$CHANGESET_COUNT" >> $GITHUB_OUTPUT
+          echo "==== CHANGESET DEBUG INFO ===="
+          echo "Changeset count: $CHANGESET_COUNT"
           
           # Check if there are actual changes to commit
           CHANGES=$(git status --porcelain .changeset/)
-          
-          echo "==== CHANGESET DEBUG INFO ===="
-          echo "Changeset count: $CHANGESET_COUNT"
           if [ -n "$CHANGES" ]; then
             echo "Changes detected in .changeset directory:"
             echo "$CHANGES"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
           else
             echo "No changes detected in .changeset directory"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
           fi
           
           # List any changesets that exist
@@ -143,51 +102,29 @@ jobs:
             find .changeset -name "*.md" ! -name "README.md" ! -name "config.json" | xargs cat
           fi
           echo "==== END CHANGESET DEBUG INFO ===="
-          
-          if [ -n "$CHANGES" ]; then
-            echo "Found changes in .changeset directory to commit"
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          elif [ "$CHANGESET_COUNT" -gt "0" ]; then
-            echo "Found $CHANGESET_COUNT existing changesets, but no changes to commit"
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          else
-            echo "No changesets were created, creating empty changeset to trigger release process"
-            
-            # Create a simple empty changeset to ensure changes are processed
-            CHANGESET_ID=$(date +%s | sha256sum | head -c 8)
-            echo -e "---\n---\n\nEmpty changeset to trigger release pipeline" > .changeset/empty-$CHANGESET_ID.md
-            echo "Created empty changeset to ensure release process triggers"
-            
-            # Check if there are now changes to commit
-            NEW_CHANGES=$(git status --porcelain .changeset/)
-            if [ -n "$NEW_CHANGES" ]; then
-              echo "Successfully created new changeset file"
-              echo "has_changes=true" >> $GITHUB_OUTPUT
-            else
-              echo "Failed to create new changeset file"
-              echo "has_changes=false" >> $GITHUB_OUTPUT
-            fi
-          fi
       
-      # Commit the generated changesets if any were created
+      # Validate changesets using existing script
+      - name: Validate changesets
+        id: validate_changesets
+        if: steps.check_changesets.outputs.changeset_count > '0'
+        run: |
+          bash .github/scripts/version/validate-changesets.sh
+      
+      # Use commit-changeset script to save changes
       - name: Commit generated changesets
         id: commit_changesets
         if: steps.check_changesets.outputs.has_changes == 'true'
         run: |
-          # Double-check if there are changes to commit (belt and suspenders)
-          CHANGES=$(git status --porcelain .changeset/)
-          if [ -n "$CHANGES" ]; then
-            echo "Committing changes to .changeset directory"
-            git add .changeset/
-            git commit -m "chore: generate changesets for unreleased changes"
-            
-            # Push the branch
-            git push origin ${{ steps.create_branch.outputs.branch_name }}
+          BRANCH_NAME="${{ steps.create_branch.outputs.branch_name }}"
+          OUTPUT=$(bash .github/scripts/version/commit-changeset.sh --branch-name "$BRANCH_NAME")
+          echo "$OUTPUT" >> $GITHUB_OUTPUT
+          
+          # Extract and check if commit was successful 
+          COMMIT_SUCCESS=$(echo "$OUTPUT" | grep "^commit_success=" | cut -d= -f2)
+          if [ "$COMMIT_SUCCESS" == "true" ]; then
             echo "pushed_changes=true" >> $GITHUB_OUTPUT
           else
-            echo "No changes to commit in .changeset directory despite previous checks"
             echo "pushed_changes=false" >> $GITHUB_OUTPUT
-            exit 0  # Exit successfully to avoid failing the workflow
           fi
       
       # Create PR using the manage-pull-request action
