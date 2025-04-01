@@ -4,7 +4,6 @@ on:
   workflow_run:
     workflows:
       - "Push and Create PR"
-      - "Main Pipeline"
       - "Manual Clean and Generate Changesets"
     types:
       - completed
@@ -38,7 +37,6 @@ jobs:
     # Only trigger in specific circumstances
     if: >-
       (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.name == 'Push and Create PR') ||
-      (github.event.workflow_run.name == 'Main Pipeline') ||
       (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.name == 'Manual Clean and Generate Changesets') ||
       github.event_name == 'workflow_dispatch'
     
@@ -86,6 +84,9 @@ jobs:
           repository: ${{ steps.workflow-info.outputs.repository }}
           trigger-sha: ${{ steps.workflow-info.outputs.trigger_sha }}
           trigger-branch: ${{ steps.workflow-info.outputs.trigger_branch }}
+          trigger-details: ${{ contains(github.event.inputs.summary, 'Details:') && github.event.inputs.summary || '' }}
+          trigger-source: ${{ contains(github.event.inputs.summary, 'Branch:') && github.event.inputs.summary || '' }}
+          trigger-info: ${{ contains(github.event.inputs.summary, 'Triggered by') && github.event.inputs.summary || '' }}
           output-path: './report-artifacts/summary.json'
       
       # Send the report to Discord

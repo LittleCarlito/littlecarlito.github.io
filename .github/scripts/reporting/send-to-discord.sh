@@ -47,8 +47,36 @@ SHORT_SHA=$(jq -r '.trigger.short_sha' "$SUMMARY_FILE")
 STATUS_EMOJI=$(jq -r '.display.status_emoji' "$SUMMARY_FILE")
 COLOR=$(jq -r '.display.color' "$SUMMARY_FILE" | sed 's/0x//')
 
+# Get additional details if present
+TRIGGER_DETAILS=$(jq -r '.trigger.details // "N/A"' "$SUMMARY_FILE")
+TRIGGER_SOURCE=$(jq -r '.trigger.source // "N/A"' "$SUMMARY_FILE")
+TRIGGER_INFO=$(jq -r '.trigger.info // "N/A"' "$SUMMARY_FILE")
+
 # Convert hex color to decimal (Discord requires decimal)
 COLOR_DEC=$((16#$COLOR))
+
+# Create a more detailed description
+DESCRIPTION="**Result:** ${WORKFLOW_RESULT}\n**Repository:** ${REPOSITORY}"
+
+# Add branch details
+if [ "$TRIGGER_SOURCE" != "N/A" ] && [ "$TRIGGER_SOURCE" != "null" ]; then
+  DESCRIPTION="${DESCRIPTION}\n**Source:** ${TRIGGER_SOURCE}"
+else
+  DESCRIPTION="${DESCRIPTION}\n**Branch:** ${TRIGGER_BRANCH}"
+fi
+
+# Add commit info
+DESCRIPTION="${DESCRIPTION}\n**Commit:** ${SHORT_SHA}"
+
+# Add trigger details if available
+if [ "$TRIGGER_DETAILS" != "N/A" ] && [ "$TRIGGER_DETAILS" != "null" ]; then
+  DESCRIPTION="${DESCRIPTION}\n**Details:** ${TRIGGER_DETAILS}"
+fi
+
+# Add trigger info if available
+if [ "$TRIGGER_INFO" != "N/A" ] && [ "$TRIGGER_INFO" != "null" ]; then
+  DESCRIPTION="${DESCRIPTION}\n**Trigger:** ${TRIGGER_INFO}"
+fi
 
 # Create Discord embed JSON
 EMBED_JSON=$(cat <<EOF
@@ -56,7 +84,7 @@ EMBED_JSON=$(cat <<EOF
   "embeds": [
     {
       "title": "${STATUS_EMOJI} ${WORKFLOW_NAME}",
-      "description": "**Result:** ${WORKFLOW_RESULT}\n**Repository:** ${REPOSITORY}\n**Branch:** ${TRIGGER_BRANCH}\n**Commit:** ${SHORT_SHA}",
+      "description": "${DESCRIPTION}",
       "color": ${COLOR_DEC},
       "url": "${WORKFLOW_URL}",
       "footer": {

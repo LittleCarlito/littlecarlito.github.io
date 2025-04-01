@@ -37,6 +37,18 @@ inputs:
     description: 'Branch that triggered the workflow'
     required: false
     default: ''
+  trigger-details:
+    description: 'Additional details about what triggered the workflow'
+    required: false
+    default: ''
+  trigger-source:
+    description: 'Source branch or other source information'
+    required: false
+    default: ''
+  trigger-info:
+    description: 'General trigger information'
+    required: false
+    default: ''
   output-path:
     description: 'Path to write the summary JSON output'
     required: false
@@ -74,6 +86,9 @@ runs:
           --repository "${{ inputs.repository }}" \
           --trigger-sha "${{ inputs.trigger-sha }}" \
           --trigger-branch "${{ inputs.trigger-branch }}" \
+          --trigger-details "${{ inputs.trigger-details }}" \
+          --trigger-source "${{ inputs.trigger-source }}" \
+          --trigger-info "${{ inputs.trigger-info }}" \
           --output-path "${{ inputs.output-path }}"
     
     # Send-discord mode - sends the summary to a Discord webhook
