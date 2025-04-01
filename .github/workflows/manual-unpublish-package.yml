@@ -43,43 +43,86 @@ jobs:
           node-version: 'lts/*'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@littlecarlito'
-          
-      - name: Unpublish package version
-        id: unpublish
-        env:
-          GH_TOKEN: ${{ secrets.VERSION_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.VERSION_TOKEN }}
+      
+      # Setup explicit npm authentication
+      - name: Configure NPM Auth
         run: |
-          echo "Setting npm registry credentials..."
-          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.VERSION_TOKEN }}" > ~/.npmrc
           echo "@littlecarlito:registry=https://npm.pkg.github.com" >> ~/.npmrc
+          cat ~/.npmrc
+      
+      # Try direct npm unpublish first
+      - name: Direct NPM Unpublish
+        id: direct_unpublish
+        continue-on-error: true
+        run: |
+          echo "Attempting direct npm unpublish..."
           
-          OUTPUT=$(bash .github/scripts/version/unpublish-package-versions.sh \
-            --token "${GH_TOKEN}" \
-            --package "${{ github.event.inputs.package }}" \
-            --version "${{ github.event.inputs.version }}" \
-            --repository "${{ github.repository }}" \
-            --unpublish-tag "${{ github.event.inputs.unpublish-tag }}" \
-            --dry-run "${{ github.event.inputs.dry-run }}")
-            
-          echo "$OUTPUT"
-          # Extract the unpublished value
-          UNPUBLISHED=$(echo "$OUTPUT" | grep "^unpublished=" | cut -d= -f2)
-          PACKAGE=$(echo "$OUTPUT" | grep "^package=" | cut -d= -f2)
-          VERSION=$(echo "$OUTPUT" | grep "^version=" | cut -d= -f2)
+          PACKAGE="${{ github.event.inputs.package }}"
+          VERSION="${{ github.event.inputs.version }}"
           
-          if [[ "$UNPUBLISHED" == "true" ]]; then
-            echo "Successfully unpublished $PACKAGE@$VERSION"
-            echo "unpublished=true" >> $GITHUB_OUTPUT
-          else
-            echo "Dry run completed for $PACKAGE@$VERSION"
-            echo "unpublished=false" >> $GITHUB_OUTPUT
+          # Normalize package name if needed
+          if [[ ! "$PACKAGE" == @littlecarlito* ]]; then
+            PACKAGE="@littlecarlito/$PACKAGE"
+            echo "Normalized package name to $PACKAGE"
           fi
           
+          if [[ "${{ github.event.inputs.dry-run }}" == "true" ]]; then
+            echo "[DRY RUN] Would unpublish $PACKAGE@$VERSION"
+            echo "unpublished=false" >> $GITHUB_OUTPUT
+          else
+            npm unpublish --force "$PACKAGE@$VERSION" || {
+              echo "Direct unpublish failed, will try alternative method"
+              echo "unpublished=false" >> $GITHUB_OUTPUT
+              exit 1
+            }
+            echo "Successfully unpublished $PACKAGE@$VERSION"
+            echo "unpublished=true" >> $GITHUB_OUTPUT
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.VERSION_TOKEN }}
+          
+      # Try the action as fallback
+      - name: Unpublish package using action
+        if: steps.direct_unpublish.outputs.unpublished != 'true'
+        id: unpublish
+        uses: ./.github/actions/unpublish-package
+        with:
+          github-token: ${{ secrets.VERSION_TOKEN }}
+          package: ${{ github.event.inputs.package }}
+          version: ${{ github.event.inputs.version }}
+          unpublish-tag: ${{ github.event.inputs.unpublish-tag }}
+          dry-run: ${{ github.event.inputs.dry-run }}
+          
+      # Delete tag if requested and direct unpublish succeeded
+      - name: Delete Git tag (after direct unpublish)
+        if: steps.direct_unpublish.outputs.unpublished == 'true' && github.event.inputs.unpublish-tag == 'true' && github.event.inputs.dry-run != 'true'
+        run: |
+          PACKAGE="${{ github.event.inputs.package }}"
+          VERSION="${{ github.event.inputs.version }}"
+          
+          # Normalize package name if needed
+          if [[ ! "$PACKAGE" == @littlecarlito* ]]; then
+            PACKAGE="@littlecarlito/$PACKAGE"
+          fi
+          
+          # Try both tag formats
+          TAG_NAME="${PACKAGE}@${VERSION}"
+          CLEAN_PKG_NAME=$(echo "$PACKAGE" | sed 's/@//g' | sed 's/\//-/g')
+          ALT_TAG_NAME="${CLEAN_PKG_NAME}@${VERSION}"
+          
+          echo "Checking for tag: $TAG_NAME"
+          git tag -d "$TAG_NAME" 2>/dev/null || echo "Tag $TAG_NAME doesn't exist locally"
+          git push --delete origin "$TAG_NAME" 2>/dev/null || echo "Tag $TAG_NAME doesn't exist on remote"
+          
+          echo "Checking for alternative tag: $ALT_TAG_NAME"
+          git tag -d "$ALT_TAG_NAME" 2>/dev/null || echo "Tag $ALT_TAG_NAME doesn't exist locally"
+          git push --delete origin "$ALT_TAG_NAME" 2>/dev/null || echo "Tag $ALT_TAG_NAME doesn't exist on remote"
+      
       - name: Report results
         if: always()
         run: |
-          if [[ "${{ steps.unpublish.outputs.unpublished }}" == "true" ]]; then
+          if [[ "${{ steps.direct_unpublish.outputs.unpublished }}" == "true" || "${{ steps.unpublish.outputs.unpublished }}" == "true" ]]; then
             echo "✅ Successfully unpublished ${{ github.event.inputs.package }}@${{ github.event.inputs.version }}"
             if [[ "${{ github.event.inputs.unpublish-tag }}" == "true" ]]; then
               echo "✅ Also deleted corresponding Git tag(s)"

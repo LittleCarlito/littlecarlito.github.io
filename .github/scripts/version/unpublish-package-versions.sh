@@ -16,6 +16,7 @@ Options:
   --unpublish-tag BOOL      Whether to also delete corresponding git tag (default: true)
   --repository REPO         Repository name (owner/repo) for tag deletion
   --dry-run BOOL            Show what would be done without actually doing it (default: false)
+  --npmrc PATH              Path to a custom .npmrc file (optional)
   --help                    Display this help and exit
 
 Example:
@@ -28,6 +29,7 @@ REGISTRY="https://npm.pkg.github.com"
 SCOPE="@littlecarlito"
 UNPUBLISH_TAG="true"
 DRY_RUN="false"
+CUSTOM_NPMRC=""
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -62,6 +64,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --dry-run)
       DRY_RUN="$2"
+      shift 2
+      ;;
+    --npmrc)
+      CUSTOM_NPMRC="$2"
       shift 2
       ;;
     --help)
@@ -118,12 +124,27 @@ echo "===========================================" >&2
 echo "Unpublishing $PACKAGE@$VERSION" >&2
 echo "===========================================" >&2
 
-# Create npmrc file for authentication
+# Create or use npmrc file for authentication
 if [[ "$DRY_RUN" == "false" ]]; then
-  echo "Setting up npm authentication for GitHub Packages..." >&2
-  NPM_CONFIG_FILE=$(mktemp)
-  echo "@${SCOPE#@}:registry=$REGISTRY" > "$NPM_CONFIG_FILE"
-  echo "$REGISTRY/:_authToken=$TOKEN" >> "$NPM_CONFIG_FILE"
+  if [[ -n "$CUSTOM_NPMRC" ]]; then
+    echo "Using provided .npmrc file at $CUSTOM_NPMRC..." >&2
+    NPM_CONFIG_FILE="$CUSTOM_NPMRC"
+    
+    # Add token if not present in the custom file
+    if ! grep -q "_authToken" "$NPM_CONFIG_FILE"; then
+      echo "Adding auth token to provided .npmrc..." >&2
+      echo "$REGISTRY/:_authToken=$TOKEN" >> "$NPM_CONFIG_FILE"
+    fi
+  else
+    echo "Setting up npm authentication for GitHub Packages..." >&2
+    NPM_CONFIG_FILE=$(mktemp)
+    echo "@${SCOPE#@}:registry=$REGISTRY" > "$NPM_CONFIG_FILE"
+    echo "$REGISTRY/:_authToken=$TOKEN" >> "$NPM_CONFIG_FILE"
+  fi
+  
+  # Debug
+  echo "NPM config file contents:" >&2
+  cat "$NPM_CONFIG_FILE" >&2
 else
   echo "[DRY RUN] Would set up npm authentication" >&2
 fi
@@ -133,11 +154,11 @@ if [[ "$DRY_RUN" == "false" ]]; then
   echo "Unpublishing $PACKAGE@$VERSION from registry..." >&2
   UNPUBLISH_OUTPUT=$(npm unpublish --force "$PACKAGE@$VERSION" --registry "$REGISTRY" --userconfig "$NPM_CONFIG_FILE" 2>&1) || {
     echo "Error unpublishing package: $UNPUBLISH_OUTPUT" >&2
-    rm -f "$NPM_CONFIG_FILE"
+    [[ -z "$CUSTOM_NPMRC" ]] && rm -f "$NPM_CONFIG_FILE"
     exit 1
   }
   echo "$UNPUBLISH_OUTPUT" >&2
-  rm -f "$NPM_CONFIG_FILE"
+  [[ -z "$CUSTOM_NPMRC" ]] && rm -f "$NPM_CONFIG_FILE"
 else
   echo "[DRY RUN] Would run: npm unpublish --force $PACKAGE@$VERSION --registry $REGISTRY" >&2
 fi

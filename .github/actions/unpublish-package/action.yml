@@ -53,17 +53,41 @@ runs:
         registry-url: ${{ inputs.registry-url }}
         scope: ${{ inputs.scope }}
         
+    - name: Create .npmrc file manually
+      shell: bash
+      run: |
+        echo "Creating explicit .npmrc file for authentication..."
+        echo "//npm.pkg.github.com/:_authToken=${{ inputs.github-token }}" > ~/.npmrc
+        echo "@littlecarlito:registry=https://npm.pkg.github.com" >> ~/.npmrc
+        echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
+        cat ~/.npmrc
+        
     - name: Unpublish package version
       id: unpublish
       shell: bash
       run: |
+        # Create a temporary npmrc file for this specific operation
+        NPM_CONFIG_FILE=$(mktemp)
+        echo "//npm.pkg.github.com/:_authToken=${{ inputs.github-token }}" > "$NPM_CONFIG_FILE"
+        echo "@littlecarlito:registry=https://npm.pkg.github.com" >> "$NPM_CONFIG_FILE"
+        
+        # Debug auth setup
+        echo "NPM configuration:"
+        cat "$NPM_CONFIG_FILE"
+        echo "-------------------"
+        
+        # Debug token (masked in logs)
+        TOKEN_LENGTH=${#TOKEN}
+        echo "Token length: $TOKEN_LENGTH characters"
+        
         OUTPUT=$(bash .github/scripts/version/unpublish-package-versions.sh \
           --token "${{ inputs.github-token }}" \
           --package "${{ inputs.package }}" \
           --version "${{ inputs.version }}" \
           --repository "${{ inputs.repository }}" \
           --unpublish-tag "${{ inputs.unpublish-tag }}" \
-          --dry-run "${{ inputs.dry-run }}")
+          --dry-run "${{ inputs.dry-run }}" \
+          --npmrc "$NPM_CONFIG_FILE")
           
         echo "$OUTPUT"
         
@@ -85,5 +109,9 @@ runs:
         else
           echo "Failed to unpublish $PACKAGE@$VERSION"
         fi
+        
+        # Clean up the temporary file
+        rm -f "$NPM_CONFIG_FILE"
       env:
-        NODE_AUTH_TOKEN: ${{ inputs.github-token }} 
+        NODE_AUTH_TOKEN: ${{ inputs.github-token }}
+        TOKEN: ${{ inputs.github-token }} 
