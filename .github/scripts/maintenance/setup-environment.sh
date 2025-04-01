@@ -47,19 +47,35 @@ setup_environment() {
     if ! command_exists pnpm; then
         echo "Installing pnpm $pnpm_version..." >&2
         { npm install -g pnpm@"$pnpm_version"; } >&2
+        
+        # Verify pnpm installation
+        if ! command_exists pnpm; then
+            echo "Error: Failed to install pnpm. Check your npm installation." >&2
+            return 1
+        fi
+        echo "pnpm installed successfully: $(pnpm --version)" >&2
+    else
+        echo "Using existing pnpm: $(pnpm --version)" >&2
+    fi
+    
+    # Configure pnpm for GitHub registry
+    echo "Configuring pnpm for GitHub registry..." >&2
+    echo "registry=https://registry.npmjs.org/" > .npmrc
+    echo "@${scope#@}:registry=${registry_url}" >> .npmrc
+    echo "${registry_url#https:}/:_authToken=${github_token}" >> .npmrc
+    
+    # Verify .npmrc creation
+    if [ ! -f .npmrc ]; then
+        echo "Warning: Failed to create .npmrc file" >&2
+    else
+        echo ".npmrc file created successfully" >&2
+        cat .npmrc | grep -v "_authToken" >&2  # Print npmrc without exposing token
     fi
     
     # Configure Git identity
     echo "Configuring Git identity..." >&2
     { git config --global user.name "github-actions[bot]"; } >&2
     { git config --global user.email "github-actions[bot]@users.noreply.github.com"; } >&2
-    
-    # Configure npm registry (if not in a GitHub Action environment)
-    if [ -z "$GITHUB_ACTIONS" ]; then
-        echo "Configuring npm registry..." >&2
-        echo "@$scope:registry=$registry_url" > .npmrc
-        echo "${registry_url#https:}/:_authToken=$github_token" >> .npmrc
-    fi
     
     # Install dependencies
     echo "Installing dependencies..." >&2

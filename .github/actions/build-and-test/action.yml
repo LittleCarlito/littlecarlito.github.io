@@ -57,6 +57,50 @@ runs:
           --github-token "$TOKEN" \
           --node-version "$NODE_VERSION" \
           --pnpm-version "$PNPM_VERSION" 2>&1 | grep -E "^[a-zA-Z0-9_-]+=.+" >> $GITHUB_OUTPUT || true
+          
+    # Explicitly install pnpm - this ensures it's available regardless of setup outcome
+    - name: Ensure pnpm is installed
+      shell: bash
+      run: |
+        echo "Explicitly installing pnpm version ${{ inputs.pnpm-version }}..."
+        # First check if it's already installed
+        if command -v pnpm &>/dev/null; then
+          echo "pnpm is already installed: $(pnpm --version)"
+        else
+          # Install using npm
+          echo "pnpm not found, installing it..."
+          npm install -g pnpm@${{ inputs.pnpm-version }}
+          
+          # Verify installation succeeded
+          if command -v pnpm &>/dev/null; then
+            echo "pnpm successfully installed: $(pnpm --version)"
+          else
+            echo "Failed to install pnpm. Trying alternative method..."
+            # Use npm's npx as a fallback
+            npm i -g @pnpm/exe@${{ inputs.pnpm-version }}
+            
+            if command -v pnpm &>/dev/null; then
+              echo "pnpm installed via alternative method: $(pnpm --version)"
+            else
+              echo "FATAL: Could not install pnpm after multiple attempts"
+              exit 1
+            fi
+          fi
+        fi
+        
+        # Configure pnpm
+        echo "Configuring pnpm..."
+        pnpm config set store-dir ~/.pnpm-store
+        
+        # Create a proper .npmrc that can access both GitHub and public npm packages
+        echo "Creating .npmrc file..."
+        echo "registry=https://registry.npmjs.org/" > .npmrc
+        echo "@littlecarlito:registry=https://npm.pkg.github.com" >> .npmrc
+        echo "//npm.pkg.github.com/:_authToken=${{ inputs.github-token }}" >> .npmrc
+        
+        # Install dependencies
+        echo "Installing dependencies with pnpm..."
+        pnpm install
 
     # Build step using our script
     - name: Build packages
@@ -64,30 +108,40 @@ runs:
       shell: bash
       run: |
         # Debug what command is being used
-        echo "Using build command: ${{ inputs.build-command }}" >&2
+        echo "Using build command: ${{ inputs.build-command }}"
         
-        # Create a file to properly handle command with spaces
-        BUILD_COMMAND_FILE=$(mktemp)
-        echo '${{ inputs.build-command }}' > "$BUILD_COMMAND_FILE"
-        BUILD_COMMAND=$(cat "$BUILD_COMMAND_FILE")
-        rm "$BUILD_COMMAND_FILE"
-        
-        # Run the build script with proper quoting for the command
-        # Filter output to only include correctly formatted key=value pairs
-        bash .github/scripts/maintenance/build-packages.sh --build-command "$BUILD_COMMAND" 2>&1 | grep -E "^result=" > build_result.txt || true
-        
-        # Check if we have a result file and it contains success/failure
-        if [ -f build_result.txt ]; then
-          cat build_result.txt >> $GITHUB_OUTPUT
-          if grep -q "result=failure" build_result.txt; then
-            echo "Build failed! Failing the workflow."
-            exit 1
-          fi
-        else
-          echo "result=success" >> $GITHUB_OUTPUT
+        # Install pnpm if needed
+        if ! command -v pnpm &> /dev/null; then
+          echo "Installing pnpm..."
+          npm install -g pnpm@${{ inputs.pnpm-version }}
         fi
         
-        rm -f build_result.txt
+        # Verify pnpm is available
+        echo "pnpm version: $(pnpm --version)"
+        
+        # Install dependencies
+        echo "Installing dependencies..."
+        
+        # Ensure the correct .npmrc configuration
+        if [ ! -f .npmrc ] || ! grep -q "registry=https://registry.npmjs.org/" .npmrc; then
+          echo "Creating/updating .npmrc file for build..."
+          echo "registry=https://registry.npmjs.org/" > .npmrc
+          echo "@littlecarlito:registry=https://npm.pkg.github.com" >> .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ inputs.github-token }}" >> .npmrc
+        fi
+        
+        pnpm install
+        
+        # Run the build command directly
+        echo "Running build command: ${{ inputs.build-command }}"
+        if ${{ inputs.build-command }}; then
+          echo "Build successful"
+          echo "result=success" >> $GITHUB_OUTPUT
+        else
+          echo "Build failed!"
+          echo "result=failure" >> $GITHUB_OUTPUT
+          exit 1
+        fi
 
     # Upload artifacts using GitHub's native action
     - name: Upload build artifacts
@@ -95,7 +149,6 @@ runs:
       with:
         name: ${{ inputs.artifact-name }}-${{ github.job }}
         path: ${{ inputs.artifact-path }}
-        if-no-files-found: warn
 
     # Test step using our script
     - name: Run tests

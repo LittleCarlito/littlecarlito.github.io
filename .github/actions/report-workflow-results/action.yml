@@ -81,10 +81,19 @@ runs:
         trigger-info: ${{ contains(inputs.summary, 'Triggered by') && inputs.summary || '' }}
         output-path: './report-artifacts/summary.json'
     
+    - name: Debug Discord webhook
+      if: steps.filter_report.outputs.should_report == 'true'
+      shell: bash
+      run: |
+        if [[ -n "${{ inputs.discord-webhook-url }}" ]]; then
+          echo "Discord webhook URL is configured"
+        else
+          echo "::warning::Discord webhook URL is not configured or empty. No notification will be sent."
+        fi
+        
     - name: Send to Discord
       if: steps.filter_report.outputs.should_report == 'true' && inputs.discord-webhook-url != ''
       uses: ./.github/actions/report-pipeline-results
-      shell: bash
       env:
         DISCORD_WEBHOOK: ${{ inputs.discord-webhook-url }}
       with:

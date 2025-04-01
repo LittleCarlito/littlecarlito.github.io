@@ -78,8 +78,5 @@ echo "reason=$REASON"
 # Log the decision for debugging
 echo "$REASON"
 
-if [[ "$SHOULD_REPORT" == "true" ]]; then
-  exit 0
-else
-  exit 78 # Use a special exit code to indicate "skipped" (not an error)
-fi 
+# Always exit with success, let the calling workflow decide what to do based on the should_report value
+exit 0 

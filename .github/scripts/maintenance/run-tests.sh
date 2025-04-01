@@ -12,6 +12,29 @@ run_tests() {
     
     echo "DEBUG: Received test command: '$test_command'" >&2
     
+    # Environment diagnostics
+    echo "===== TEST ENVIRONMENT =====" >&2
+    echo "Node version: $(node -v)" >&2
+    echo "NPM version: $(npm -v)" >&2
+    echo "Current directory: $(pwd)" >&2
+    
+    # Check if node_modules exists
+    if [ ! -d "node_modules" ]; then
+        echo "WARNING: node_modules not found in current directory!" >&2
+        echo "Directory contents:" >&2
+        ls -la >&2
+    else
+        echo "node_modules found in current directory" >&2
+    fi
+    
+    # Check packages directory
+    echo "Packages directory structure:" >&2
+    find packages -type d -maxdepth 2 | sort >&2 || echo "No packages directory found" >&2
+    
+    # Check for test files
+    echo "Checking for test files:" >&2
+    find . -name "*.test.js" -o -name "*.spec.js" | grep -v node_modules | sort >&2 || echo "No test files found" >&2
+    
     # Make sure pnpm is available by sourcing nvm
     if [[ "$test_command" == *"pnpm"* ]]; then
         echo "Command uses pnpm, ensuring it's available..." >&2
@@ -39,13 +62,41 @@ run_tests() {
     TEST_OUTPUT=$(mktemp)
     
     # Run the test command, capturing exit code
+    echo "Running test command: $test_command" >&2
+    
+    # Check if the command contains jest and modify it to use npx if needed
+    if [[ "$test_command" == *"jest"* ]]; then
+        echo "Test command contains jest, ensuring it can be found..." >&2
+        
+        # Check if Jest exists in node_modules
+        if [ -f "./node_modules/.bin/jest" ]; then
+            echo "Found Jest in node_modules/.bin" >&2
+            test_command="${test_command//jest/./node_modules/.bin/jest}"
+        else
+            echo "Jest not found in node_modules, installing it first..." >&2
+            npm install jest
+            
+            if [ -f "./node_modules/.bin/jest" ]; then
+                echo "Jest installed successfully" >&2
+                test_command="${test_command//jest/./node_modules/.bin/jest}"
+            else
+                echo "Falling back to npx jest" >&2
+                test_command="${test_command//jest/npx jest}"
+            fi
+        fi
+        
+        echo "Modified test command: $test_command" >&2
+    fi
+    
     set +e
     eval "$test_command" > "$TEST_OUTPUT" 2>&1
     TEST_RESULT=$?
     set -e
     
     # Display the output
+    echo "===== TEST OUTPUT =====" >&2
     cat "$TEST_OUTPUT" >&2
+    echo "==== END TEST OUTPUT ====" >&2
     
     # Check if the output contains "No tests specified" - in which case, treat as success
     if grep -q "No tests specified" "$TEST_OUTPUT"; then

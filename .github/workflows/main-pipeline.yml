@@ -129,6 +129,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
           
+      - name: Debug environment
+        run: |
+          echo "Debugging environment before build..."
+          echo "Node version: $(node -v)"
+          echo "NPM version: $(npm -v)"
+          command -v pnpm && echo "pnpm version: $(pnpm -v)" || echo "pnpm not found"
+          echo "Current directory: $(pwd)"
+          echo "Directory contents:"
+          ls -la
+          echo "Checking for package.json:"
+          cat package.json | grep -E 'name|scripts|build'
+          echo "Installing dependencies explicitly:"
+          npm install -g pnpm
+          pnpm install
+          echo "Environment debug complete"
+          
       - name: Build packages
         uses: ./.github/actions/build-and-test
         with:
@@ -136,7 +152,6 @@ jobs:
           build-command: 'pnpm run build'
           test-command: 'echo "Tests will run in separate job"'
           artifact-name: ${{ env.BUILD_ARTIFACT_NAME }}
-          if-no-files-found: error
         
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
