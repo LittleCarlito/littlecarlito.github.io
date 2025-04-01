@@ -35,7 +35,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.PACKAGE_TOKEN }}
+          token: ${{ secrets.VERSION_TOKEN }}
           
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -46,9 +46,16 @@ jobs:
           
       - name: Unpublish package version
         id: unpublish
+        env:
+          GH_TOKEN: ${{ secrets.VERSION_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.VERSION_TOKEN }}
         run: |
+          echo "Setting npm registry credentials..."
+          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+          echo "@littlecarlito:registry=https://npm.pkg.github.com" >> ~/.npmrc
+          
           OUTPUT=$(bash .github/scripts/version/unpublish-package-versions.sh \
-            --token "${{ secrets.PACKAGE_TOKEN }}" \
+            --token "${GH_TOKEN}" \
             --package "${{ github.event.inputs.package }}" \
             --version "${{ github.event.inputs.version }}" \
             --repository "${{ github.repository }}" \
@@ -68,9 +75,6 @@ jobs:
             echo "Dry run completed for $PACKAGE@$VERSION"
             echo "unpublished=false" >> $GITHUB_OUTPUT
           fi
-        env:
-          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           
       - name: Report results
         if: always()
@@ -99,4 +103,4 @@ jobs:
           summary: 'Failed to unpublish ${{ github.event.inputs.package }}@${{ github.event.inputs.version }}'
           source: 'dispatch'
           discord-webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          github-token: ${{ secrets.PR_CREATION_TOKEN }} 
+          github-token: ${{ secrets.VERSION_TOKEN }} 

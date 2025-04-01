@@ -48,7 +48,6 @@ jobs:
     permissions:
       contents: write
       packages: write
-    
     strategy:
       matrix:
         package-info: ${{ fromJson(needs.parse-inputs.outputs.packages-matrix) }}
@@ -59,12 +58,28 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.PACKAGE_TOKEN }}
+          token: ${{ secrets.VERSION_TOKEN }}
           
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@littlecarlito'
+      
+      - name: Configure npm credentials
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.VERSION_TOKEN }}
+        run: |
+          echo "Setting npm registry credentials..."
+          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+          echo "@littlecarlito:registry=https://npm.pkg.github.com" >> ~/.npmrc
+          cat ~/.npmrc
+        
       - name: Unpublish package
         uses: ./.github/actions/unpublish-package
         with:
-          github-token: ${{ secrets.PACKAGE_TOKEN }}
+          github-token: ${{ secrets.VERSION_TOKEN }}
           package: ${{ matrix.package-info.package }}
           version: ${{ matrix.package-info.version }}
           unpublish-tag: ${{ github.event.inputs.unpublish-tags }}
@@ -72,10 +87,16 @@ jobs:
           
   summary:
     name: Summary of Unpublished Packages
-    needs: unpublish-packages
+    needs: [parse-inputs, unpublish-packages]
     if: always()
     runs-on: ubuntu-latest
     steps:
+      - name: Get packages list
+        run: |
+          # Use github.event.inputs directly instead of relying on job output
+          PACKAGES_LIST='${{ github.event.inputs.packages-list }}'
+          echo "PACKAGES_LIST=${PACKAGES_LIST}" >> $GITHUB_ENV
+          
       - name: Generate summary
         run: |
           echo "# Unpublish Operation Summary" >> $GITHUB_STEP_SUMMARY
@@ -83,8 +104,8 @@ jobs:
           echo "The following packages were processed:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          # Display each package and its status
-          echo '${{ needs.parse-inputs.outputs.packages-matrix }}' | jq -r '.[] | "- \(.package)@\(.version)"' >> $GITHUB_STEP_SUMMARY
+          # Display each package directly from the input
+          echo '${{ github.event.inputs.packages-list }}' | jq -r '.[] | "- \(.package)@\(.version)"' >> $GITHUB_STEP_SUMMARY
           
           echo "" >> $GITHUB_STEP_SUMMARY
           if [[ "${{ github.event.inputs.dry-run }}" == "true" ]]; then
@@ -107,4 +128,4 @@ jobs:
           summary: 'Failed to unpublish multiple packages - See workflow run for details'
           source: 'dispatch'
           discord-webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          github-token: ${{ secrets.PR_CREATION_TOKEN }} 
+          github-token: ${{ secrets.VERSION_TOKEN }} 
