@@ -15,6 +15,7 @@ Options:
   --pr-title TITLE          PR title for version changes (default: "chore: version packages")
   --create-releases BOOL    Whether to create GitHub releases (default: true)
   --create-pr BOOL          Whether to create a PR instead of direct publishing (default: false)
+  --force-publish BOOL      Whether to force publish even if the version exists (default: true)
   --help                    Display this help and exit
 
 Example:
@@ -29,6 +30,7 @@ COMMIT_MESSAGE="chore: version packages"
 PR_TITLE="chore: version packages"
 CREATE_RELEASES="true"
 CREATE_PR="false"
+FORCE_PUBLISH="true"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -55,6 +57,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --create-pr)
       CREATE_PR="$2"
+      shift 2
+      ;;
+    --force-publish)
+      FORCE_PUBLISH="$2"
       shift 2
       ;;
     --help)
@@ -169,6 +175,11 @@ else
 fi
 
 # If we reach here, we're proceeding with direct publish
+if [[ "${FORCE_PUBLISH}" == "true" ]]; then
+  echo "Force publishing is enabled - will use --force flag" >&2
+  PUBLISH_CMD="${PUBLISH_CMD} --force"
+fi
+
 echo "Running publish command: ${PUBLISH_CMD}" >&2
 PUBLISH_OUTPUT=$(mktemp)
 set +e

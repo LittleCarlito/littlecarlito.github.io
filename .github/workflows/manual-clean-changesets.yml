@@ -136,51 +136,79 @@ jobs:
             --contexts '["Build Packages", "Test / Run Tests", "Test Changesets"]' \
             --descriptions '["Build completed successfully (via manual-clean-changesets)", "Tests passed successfully (via manual-clean-changesets)", "Changesets validated successfully (via manual-clean-changesets)"]'
       
-      # Wait for checks to complete before merging
+      # Wait for checks to complete before merging - INCREASED TIMEOUT
       - name: Wait for checks to complete
         if: steps.check_changesets.outputs.has_changes == 'true' && steps.commit_changesets.outputs.pushed_changes == 'true' && steps.create_pr.outputs.pr-number != ''
         run: |
-          bash .github/scripts/branch/wait-checks.sh \
+          bash .github/scripts/branch/wait-with-delay.sh \
             --repo "${{ github.repository }}" \
             --sha "${{ steps.create_pr.outputs.commit-sha }}" \
             --workflow "Manual Clean and Generate Changesets" \
             --timeout "300" \
-            --min-checks "3"
+            --min-checks "3" \
+            --initial-delay "30"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
-      # Merge the PR using the merge-pull-request action
+      # Merge the PR using the merge-pull-request action - ADD RETRY LOGIC
       - name: Merge pull request
+        id: merge_pr
         if: steps.check_changesets.outputs.has_changes == 'true' && steps.commit_changesets.outputs.pushed_changes == 'true' && steps.create_pr.outputs.pr-number != ''
-        uses: ./.github/actions/merge-pull-request
-        with:
-          github-token: ${{ secrets.PACKAGE_TOKEN }}
-          repository: ${{ github.repository }}
-          pr-number: ${{ steps.create_pr.outputs.pr-number }}
-          merge-method: 'squash'
-          delete-branch: 'true'
-          auto-merge: 'true'
+        run: |
+          OUTPUT=$(bash .github/scripts/pr/merge-with-retry.sh \
+            --pr-number "${{ steps.create_pr.outputs.pr-number }}" \
+            --repository "${{ github.repository }}" \
+            --attempts "3" \
+            --delay "15" \
+            --token "${{ secrets.PACKAGE_TOKEN }}")
+          
+          echo "$OUTPUT"
+          # Extract and output merge_result for use in next steps
+          MERGE_RESULT=$(echo "$OUTPUT" | grep "^merge_result=" | cut -d= -f2)
+          echo "merge_result=$MERGE_RESULT" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
       
       # Output status message for completion
       - name: Status check
         run: |
           if [ "${{ steps.check_changesets.outputs.has_changes }}" == "true" ] && [ "${{ steps.commit_changesets.outputs.pushed_changes }}" == "true" ] && [ -n "${{ steps.create_pr.outputs.pr-number }}" ]; then
-            echo "Successfully generated changesets and created PR #${{ steps.create_pr.outputs.pr-number }}"
-            echo "After merging, main-pipeline.yml will run and publish packages with direct publishing."
+            if [ "${{ steps.merge_pr.outputs.merge_result }}" == "success" ]; then
+              echo "✅ Successfully generated changesets and merged PR #${{ steps.create_pr.outputs.pr-number }}"
+              echo "Main pipeline will run and publish packages with direct publishing."
+            else
+              echo "⚠️ Generated changesets and created PR #${{ steps.create_pr.outputs.pr-number }} but could not merge it"
+              echo "Please check and merge the PR manually if needed."
+            fi
           else
             if [ "${{ steps.check_changesets.outputs.has_changes }}" != "true" ]; then
-              echo "No changes to commit: No new changesets were needed or could be created."
+              echo "ℹ️ No changes to commit: No new changesets were needed or could be created."
             elif [ "${{ steps.commit_changesets.outputs.pushed_changes }}" != "true" ]; then
-              echo "Failed to push changes: Changes were detected but could not be committed."
+              echo "❌ Failed to push changes: Changes were detected but could not be committed."
             else
-              echo "Failed to create PR: Changes were committed but PR creation failed."
+              echo "❌ Failed to create PR: Changes were committed but PR creation failed."
             fi
             echo "No action was needed or the process could not complete."
           fi
-          
-      # Report failure if the workflow fails
-      - name: Report failure
+      
+      # Report failure if the workflow fails - USING FILTER SCRIPT
+      - name: Check if report should be sent
         if: failure()
+        id: should_report
+        run: |
+          OUTPUT=$(bash .github/scripts/reporting/filter-workflow-reports.sh \
+            --workflow-name "Manual Clean and Generate Changesets" \
+            --branch "${{ github.ref_name }}" \
+            --source "dispatch" \
+            --summary "The manual clean changeset operation failed")
+          
+          echo "$OUTPUT"
+          # Extract the should_report value
+          SHOULD_REPORT=$(echo "$OUTPUT" | grep "^should_report=" | cut -d= -f2)
+          echo "should_report=$SHOULD_REPORT" >> $GITHUB_OUTPUT
+          
+      - name: Report failure
+        if: failure() && steps.should_report.outputs.should_report == 'true'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.PR_CREATION_TOKEN }}
@@ -193,6 +221,6 @@ jobs:
               inputs: {
                 result: 'failure',
                 workflow_name: 'Manual Clean and Generate Changesets',
-                summary: 'The manual clean and generate changesets workflow failed'
+                summary: 'The manual clean changeset operation failed (reported from ${{ github.ref_name }} branch)'
               }
             }); 

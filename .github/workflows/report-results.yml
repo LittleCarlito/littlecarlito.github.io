@@ -31,15 +31,60 @@ permissions:
   actions: read
 
 jobs:
+  check-report-eligibility:
+    name: Check Report Eligibility
+    runs-on: ubuntu-latest
+    outputs:
+      should_report: ${{ steps.filter_report.outputs.should_report }}
+      reason: ${{ steps.filter_report.outputs.reason }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Extract workflow information
+        id: workflow_info
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_run" ]; then
+            # Set workflow info from workflow_run event
+            echo "workflow_name=${{ github.event.workflow_run.name }}" >> $GITHUB_OUTPUT
+            echo "branch=${{ github.event.workflow_run.head_branch }}" >> $GITHUB_OUTPUT
+            echo "result=${{ github.event.workflow_run.conclusion }}" >> $GITHUB_OUTPUT
+            echo "source=webhook" >> $GITHUB_OUTPUT
+            # No summary for webhook events
+            echo "summary=" >> $GITHUB_OUTPUT
+          else
+            # Set workflow info from dispatch inputs
+            echo "workflow_name=${{ github.event.inputs.workflow_name }}" >> $GITHUB_OUTPUT
+            echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "result=${{ github.event.inputs.result }}" >> $GITHUB_OUTPUT
+            echo "source=dispatch" >> $GITHUB_OUTPUT
+            echo "summary=${{ github.event.inputs.summary }}" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Filter report
+        id: filter_report
+        run: |
+          OUTPUT=$(bash .github/scripts/reporting/filter-workflow-reports.sh \
+            --workflow-name "${{ steps.workflow_info.outputs.workflow_name }}" \
+            --branch "${{ steps.workflow_info.outputs.branch }}" \
+            --source "${{ steps.workflow_info.outputs.source }}" \
+            --summary "${{ steps.workflow_info.outputs.summary }}")
+          
+          # Extract values from output
+          SHOULD_REPORT=$(echo "$OUTPUT" | grep "^should_report=" | cut -d= -f2)
+          REASON=$(echo "$OUTPUT" | grep "^reason=" | cut -d= -f2)
+          
+          echo "should_report=$SHOULD_REPORT" >> $GITHUB_OUTPUT
+          echo "reason=$REASON" >> $GITHUB_OUTPUT
+          
+          echo "Decision: $SHOULD_REPORT"
+          echo "Reason: $REASON"
+
   report-results:
     name: Generate and Send Reports
+    needs: check-report-eligibility
+    if: needs.check-report-eligibility.outputs.should_report == 'true'
     runs-on: ubuntu-latest
-    # Only trigger in specific circumstances
-    if: >-
-      (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.name == 'Push and Create PR') ||
-      (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.name == 'Manual Clean and Generate Changesets') ||
-      github.event_name == 'workflow_dispatch'
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -66,6 +111,8 @@ jobs:
             echo "trigger_sha=${{ github.sha }}" >> $GITHUB_OUTPUT
             echo "trigger_branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           fi
+          
+          echo "Report eligibility reason: ${{ needs.check-report-eligibility.outputs.reason }}"
       
       # Create a directory for report artifacts
       - name: Setup report directory
