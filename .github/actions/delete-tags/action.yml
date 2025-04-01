@@ -1,0 +1,51 @@
+name: 'Delete Git Tags'
+description: 'Delete git tags for packages with support for different tag formats'
+inputs:
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  package:
+    description: 'Package name (e.g. blorktools or @littlecarlito/blorktools)'
+    required: true
+  version:
+    description: 'Version to delete (e.g. 1.1.0)'
+    required: true
+  normalize-package-names:
+    description: 'Automatically prefix with @littlecarlito/ if needed'
+    required: false
+    default: 'true'
+  check-both-formats:
+    description: 'Check both tag formats (@scope/pkg@version and scope-pkg@version)'
+    required: false
+    default: 'true'
+  dry-run:
+    description: 'Dry run mode - show what would happen without executing'
+    required: false
+    default: 'false'
+
+outputs:
+  tag-deleted:
+    description: 'Whether the tag was deleted'
+    value: ${{ steps.delete-tag.outputs.deleted }}
+  tag-name:
+    description: 'The name of the deleted tag'
+    value: ${{ steps.delete-tag.outputs.tag_name }}
+  alt-tag-name:
+    description: 'The name of the alternative deleted tag (if applicable)'
+    value: ${{ steps.delete-tag.outputs.alt_tag_name }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Delete git tag
+      id: delete-tag
+      shell: bash
+      run: |
+        echo "Deleting git tag for ${{ inputs.package }}@${{ inputs.version }}"
+        bash ${{ github.action_path }}/../../scripts/version/delete-tags.sh \
+          --package "${{ inputs.package }}" \
+          --version "${{ inputs.version }}" \
+          --normalize "${{ inputs.normalize-package-names }}" \
+          --check-both-formats "${{ inputs.check-both-formats }}" \
+          --token "${{ inputs.github-token }}" \
+          --dry-run "${{ inputs.dry-run }}" 

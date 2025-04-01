@@ -1,0 +1,116 @@
+name: Delete Git Tags
+
+on:
+  workflow_dispatch:
+    inputs:
+      tags-list:
+        description: 'JSON array of tags to delete: [{"package":"blorktools","version":"1.1.0"},{"package":"blorkboard","version":"1.6.0"}]'
+        required: true
+        type: string
+      normalize-package-names:
+        description: 'Automatically prefix with @littlecarlito/ if needed'
+        required: false
+        type: boolean
+        default: true
+      check-both-formats:
+        description: 'Check both tag formats (@scope/pkg@version and scope-pkg@version)'
+        required: false
+        type: boolean
+        default: true
+      dry-run:
+        description: 'Dry run (show what would happen without doing it)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  parse-inputs:
+    name: Parse Inputs and Prepare Jobs
+    runs-on: ubuntu-latest
+    outputs:
+      tags-matrix: ${{ steps.parse.outputs.tags_matrix }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Parse tags list
+        id: parse
+        run: |
+          # Use the parse-tags-input script to process the JSON input
+          OUTPUT=$(bash .github/scripts/version/parse-tags-input.sh \
+            --tags-json '${{ github.event.inputs.tags-list }}')
+            
+          echo "$OUTPUT"
+          
+          # Extract the tags_matrix value
+          TAGS_MATRIX=$(echo "$OUTPUT" | grep "^tags_matrix=" | cut -d= -f2)
+          echo "tags_matrix=$TAGS_MATRIX" >> $GITHUB_OUTPUT
+
+  delete-tags:
+    name: Delete Git Tags
+    needs: parse-inputs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        tag-info: ${{ fromJson(needs.parse-inputs.outputs.tags-matrix) }}
+      fail-fast: false
+    
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.VERSION_TOKEN }}
+      
+      # Use the delete-tags action instead of inline script
+      - name: Delete Git tags
+        id: delete_tags
+        uses: ./.github/actions/delete-tags
+        with:
+          github-token: ${{ secrets.VERSION_TOKEN }}
+          package: ${{ matrix.tag-info.package }}
+          version: ${{ matrix.tag-info.version }}
+          normalize-package-names: ${{ github.event.inputs.normalize-package-names }}
+          check-both-formats: ${{ github.event.inputs.check-both-formats }}
+          dry-run: ${{ github.event.inputs.dry-run }}
+      
+  summary:
+    name: Summary of Deleted Tags
+    needs: [parse-inputs, delete-tags]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        
+      - name: Generate summary
+        run: |
+          echo "# Tag Deletion Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The following tags were processed:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Display each package directly from the input
+          echo '${{ github.event.inputs.tags-list }}' | jq -r '.[] | "- \(.package)@\(.version)"' >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ github.event.inputs.dry-run }}" == "true" ]]; then
+            echo "**Note**: This was a dry run. No actual changes were made." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Note**: Tags were deleted from the repository." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+      # Report failure using the existing action    
+      - name: Report failure
+        if: failure()
+        uses: ./.github/actions/report-workflow-results
+        with:
+          workflow-name: 'Manual Delete Tags'
+          result: 'failure'
+          branch: ${{ github.ref_name }}
+          summary: 'Failed to delete tags - See workflow run for details'
+          source: 'dispatch'
+          discord-webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          github-token: ${{ secrets.VERSION_TOKEN }} 
