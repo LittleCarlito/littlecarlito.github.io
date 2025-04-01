@@ -1,0 +1,101 @@
+name: 'Report Workflow Results'
+description: 'Generate and send reports for workflow results'
+
+inputs:
+  workflow-name:
+    description: 'Name of the workflow that triggered this report'
+    required: true
+  result:
+    description: 'Workflow result (success/failure)'
+    required: true
+  branch:
+    description: 'Branch that triggered the workflow'
+    required: true
+  summary:
+    description: 'Summary message or description'
+    required: false
+    default: ''
+  source:
+    description: 'Source of the trigger (webhook/dispatch)'
+    required: false
+    default: 'dispatch'
+  discord-webhook-url:
+    description: 'Discord webhook URL for sending notifications'
+    required: false
+    default: ''
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+
+outputs:
+  should-report:
+    description: 'Whether a report should be sent'
+    value: ${{ steps.filter_report.outputs.should_report }}
+  reason:
+    description: 'Reason for the reporting decision'
+    value: ${{ steps.filter_report.outputs.reason }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check if report should be sent
+      id: filter_report
+      shell: bash
+      run: |
+        OUTPUT=$(bash .github/scripts/reporting/filter-workflow-reports.sh \
+          --workflow-name "${{ inputs.workflow-name }}" \
+          --branch "${{ inputs.branch }}" \
+          --source "${{ inputs.source }}" \
+          --summary "${{ inputs.summary }}")
+          
+        # Extract values from output
+        SHOULD_REPORT=$(echo "$OUTPUT" | grep "^should_report=" | cut -d= -f2)
+        REASON=$(echo "$OUTPUT" | grep "^reason=" | cut -d= -f2)
+        
+        echo "should_report=$SHOULD_REPORT" >> $GITHUB_OUTPUT
+        echo "reason=$REASON" >> $GITHUB_OUTPUT
+        
+        echo "Decision: $SHOULD_REPORT"
+        echo "Reason: $REASON"
+        
+    - name: Create report directory
+      if: steps.filter_report.outputs.should_report == 'true'
+      shell: bash
+      run: mkdir -p ./report-artifacts
+    
+    - name: Generate workflow summary
+      if: steps.filter_report.outputs.should_report == 'true'
+      id: generate_summary
+      uses: ./.github/actions/report-pipeline-results
+      with:
+        mode: 'generate'
+        workflow-name: ${{ inputs.workflow-name }}
+        workflow-result: ${{ inputs.result }}
+        workflow-id: ${{ github.run_id }}
+        workflow-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        repository: ${{ github.repository }}
+        trigger-sha: ${{ github.sha }}
+        trigger-branch: ${{ inputs.branch }}
+        trigger-details: ${{ contains(inputs.summary, 'Details:') && inputs.summary || '' }}
+        trigger-source: ${{ contains(inputs.summary, 'Branch:') && inputs.summary || '' }}
+        trigger-info: ${{ contains(inputs.summary, 'Triggered by') && inputs.summary || '' }}
+        output-path: './report-artifacts/summary.json'
+    
+    - name: Send to Discord
+      if: steps.filter_report.outputs.should_report == 'true' && inputs.discord-webhook-url != ''
+      uses: ./.github/actions/report-pipeline-results
+      shell: bash
+      env:
+        DISCORD_WEBHOOK: ${{ inputs.discord-webhook-url }}
+      with:
+        mode: 'send-discord'
+        summary-file: './report-artifacts/summary.json'
+        discord-webhook-url: ${{ inputs.discord-webhook-url }}
+        
+    - name: Upload summary artifact
+      if: steps.filter_report.outputs.should_report == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: pipeline-summary
+        path: ./report-artifacts/summary.json
+        retention-days: 5 

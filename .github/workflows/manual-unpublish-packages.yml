@@ -94,4 +94,17 @@ jobs:
             if [[ "${{ github.event.inputs.unpublish-tags }}" == "true" ]]; then
               echo "Corresponding Git tags were also deleted." >> $GITHUB_STEP_SUMMARY
             fi
-          fi 
+          fi
+          
+      # Report failure using the new action    
+      - name: Report failure
+        if: failure()
+        uses: ./.github/actions/report-workflow-results
+        with:
+          workflow-name: 'Manual Unpublish Packages'
+          result: 'failure'
+          branch: ${{ github.ref_name }}
+          summary: 'Failed to unpublish multiple packages - See workflow run for details'
+          source: 'dispatch'
+          discord-webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          github-token: ${{ secrets.PR_CREATION_TOKEN }} 
