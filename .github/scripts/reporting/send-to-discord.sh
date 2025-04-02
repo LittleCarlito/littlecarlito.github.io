@@ -76,6 +76,57 @@ if [ -n "$TRIGGER_DETAILS" ] && [ "$TRIGGER_DETAILS" != "null" ]; then
   fi
 fi
 
+# For failures, try to capture more details about what failed
+FIELDS_JSON=""
+if [ "$WORKFLOW_RESULT" == "failure" ]; then
+  # Extract failure information if available
+  FAILED_STEP=$(jq -r '.failure.step // ""' "$SUMMARY_FILE")
+  ERROR_MESSAGE=$(jq -r '.failure.message // ""' "$SUMMARY_FILE")
+  SKIPPED_STEPS=$(jq -r '.failure.skipped_steps // ""' "$SUMMARY_FILE")
+  
+  # Add failed step information
+  if [ -n "$FAILED_STEP" ] && [ "$FAILED_STEP" != "null" ]; then
+    FIELDS_JSON="${FIELDS_JSON}, {
+      \"name\": \"❌ Failed Step\",
+      \"value\": \"${FAILED_STEP}\",
+      \"inline\": false
+    }"
+  else 
+    # If specific step information isn't available, provide generic message
+    FIELDS_JSON="${FIELDS_JSON}, {
+      \"name\": \"❌ Failure Information\",
+      \"value\": \"The workflow failed. Check the logs for details.\",
+      \"inline\": false
+    }"
+  fi
+  
+  # Add error message if available
+  if [ -n "$ERROR_MESSAGE" ] && [ "$ERROR_MESSAGE" != "null" ]; then
+    # Truncate very long error messages
+    if [ ${#ERROR_MESSAGE} -gt 300 ]; then
+      ERROR_MESSAGE="${ERROR_MESSAGE:0:297}..."
+    fi
+    
+    FIELDS_JSON="${FIELDS_JSON}, {
+      \"name\": \"Error Details\",
+      \"value\": \"${ERROR_MESSAGE}\",
+      \"inline\": false
+    }"
+  fi
+  
+  # Add skipped steps if available
+  if [ -n "$SKIPPED_STEPS" ] && [ "$SKIPPED_STEPS" != "null" ]; then
+    FIELDS_JSON="${FIELDS_JSON}, {
+      \"name\": \"⏭️ Skipped Steps\",
+      \"value\": \"${SKIPPED_STEPS}\",
+      \"inline\": false
+    }"
+  fi
+  
+  # If the fields JSON starts with a comma, remove it
+  FIELDS_JSON=$(echo "$FIELDS_JSON" | sed 's/^, //')
+fi
+
 # Create Discord embed JSON
 EMBED_JSON=$(cat <<EOF
 {
@@ -85,6 +136,7 @@ EMBED_JSON=$(cat <<EOF
       "description": "${DESCRIPTION}",
       "color": ${COLOR_DEC},
       "url": "${WORKFLOW_URL}",
+      "fields": [${FIELDS_JSON}],
       "footer": {
         "text": "GitHub Actions • $(date +'%Y-%m-%d %H:%M UTC')"
       }

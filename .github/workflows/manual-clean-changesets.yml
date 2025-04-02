@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.PACKAGE_TOKEN }}
+          token: ${{ secrets.VERSION_TOKEN }}
       
       - name: Setup environment
         id: setup
@@ -160,61 +160,93 @@ jobs:
             --repository "${{ github.repository }}" \
             --attempts "3" \
             --delay "15" \
-            --token "${{ secrets.PACKAGE_TOKEN }}")
+            --token "${{ secrets.VERSION_TOKEN }}")
           
           echo "$OUTPUT"
           # Extract and output merge_result for use in next steps
           MERGE_RESULT=$(echo "$OUTPUT" | grep "^merge_result=" | cut -d= -f2)
           echo "merge_result=$MERGE_RESULT" >> $GITHUB_OUTPUT
         env:
-          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          GH_TOKEN: ${{ secrets.VERSION_TOKEN }}
       
       # Output status message for completion
       - name: Status check
+        id: status_check
         run: |
           if [ "${{ steps.check_changesets.outputs.has_changes }}" == "true" ] && [ "${{ steps.commit_changesets.outputs.pushed_changes }}" == "true" ] && [ -n "${{ steps.create_pr.outputs.pr-number }}" ]; then
             if [ "${{ steps.merge_pr.outputs.merge_result }}" == "success" ]; then
               echo "✅ Successfully generated changesets and merged PR #${{ steps.create_pr.outputs.pr-number }}"
               echo "Main pipeline will run and publish packages with direct publishing."
+              echo "status=success" >> $GITHUB_OUTPUT
+              echo "message=Successfully generated changesets and merged PR #${{ steps.create_pr.outputs.pr-number }}" >> $GITHUB_OUTPUT
             else
               echo "⚠️ Generated changesets and created PR #${{ steps.create_pr.outputs.pr-number }} but could not merge it"
               echo "Please check and merge the PR manually if needed."
+              echo "status=partial" >> $GITHUB_OUTPUT
+              echo "message=Generated changesets but failed to merge PR #${{ steps.create_pr.outputs.pr-number }}" >> $GITHUB_OUTPUT
+              echo "step:Merge PR,error:Failed to merge PR #${{ steps.create_pr.outputs.pr-number }},skipped:None" >> $GITHUB_OUTPUT
             fi
           else
             if [ "${{ steps.check_changesets.outputs.has_changes }}" != "true" ]; then
               echo "ℹ️ No changes to commit: No new changesets were needed or could be created."
+              echo "status=no_changes" >> $GITHUB_OUTPUT
+              echo "message=No changes: No new changesets were needed or could be created" >> $GITHUB_OUTPUT
             elif [ "${{ steps.commit_changesets.outputs.pushed_changes }}" != "true" ]; then
               echo "❌ Failed to push changes: Changes were detected but could not be committed."
+              echo "status=failure" >> $GITHUB_OUTPUT
+              echo "message=Failed to commit changes" >> $GITHUB_OUTPUT
+              echo "step:Commit Changes,error:Failed to push changes,skipped:Create PR, Add status checks, Wait for checks, Merge PR" >> $GITHUB_OUTPUT
             else
               echo "❌ Failed to create PR: Changes were committed but PR creation failed."
+              echo "status=failure" >> $GITHUB_OUTPUT
+              echo "message=Failed to create PR" >> $GITHUB_OUTPUT
+              echo "step:Create PR,error:PR creation failed,skipped:Add status checks, Wait for checks, Merge PR" >> $GITHUB_OUTPUT
             fi
             echo "No action was needed or the process could not complete."
           fi
       
-      # Report failure if the workflow fails - USING FILTER SCRIPT
+      # Check if report should be sent
       - name: Check if report should be sent
-        if: failure()
+        if: failure() || steps.status_check.outputs.status == 'failure' || steps.status_check.outputs.status == 'partial'
         id: should_report
         run: |
+          # Get the result based on status check
+          if [[ "${{ steps.status_check.outputs.status }}" == "failure" ]]; then
+            RESULT="failure"
+          elif [[ "${{ steps.status_check.outputs.status }}" == "partial" ]]; then
+            RESULT="partial"
+          else
+            RESULT="failure" # Default to failure if the job actually failed
+          fi
+          
+          # Build summary with detailed information about what failed
+          if [[ -n "${{ steps.status_check.outputs.step }}" ]]; then
+            DETAILS="${{ steps.status_check.outputs.message }} (step: ${{ steps.status_check.outputs.step }})"
+          else
+            DETAILS="${{ steps.status_check.outputs.message || 'The manual clean changeset operation failed' }}"
+          fi
+          
           OUTPUT=$(bash .github/scripts/reporting/filter-workflow-reports.sh \
             --workflow-name "Manual Clean and Generate Changesets" \
             --branch "${{ github.ref_name }}" \
             --source "dispatch" \
-            --summary "The manual clean changeset operation failed")
+            --summary "$DETAILS")
           
           echo "$OUTPUT"
           # Extract the should_report value
           SHOULD_REPORT=$(echo "$OUTPUT" | grep "^should_report=" | cut -d= -f2)
           echo "should_report=$SHOULD_REPORT" >> $GITHUB_OUTPUT
+          echo "result=$RESULT" >> $GITHUB_OUTPUT
+          echo "details=$DETAILS" >> $GITHUB_OUTPUT
           
-      - name: Report failure
-        if: failure() && steps.should_report.outputs.should_report == 'true'
+      - name: Report result
+        if: (failure() || steps.status_check.outputs.status == 'failure' || steps.status_check.outputs.status == 'partial') && steps.should_report.outputs.should_report == 'true'
         uses: ./.github/actions/report-workflow-results
         with:
           workflow-name: 'Manual Clean and Generate Changesets'
-          result: 'failure'
+          result: ${{ steps.should_report.outputs.result }}
           branch: ${{ github.ref_name }}
-          summary: 'The manual clean changeset operation failed (reported from ${{ github.ref_name }} branch)'
+          summary: '${{ steps.should_report.outputs.details }} (reported from ${{ github.ref_name }} branch)'
           source: 'dispatch'
           discord-webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          github-token: ${{ secrets.PR_CREATION_TOKEN }} 
+          github-token: ${{ secrets.VERSION_TOKEN }} 
