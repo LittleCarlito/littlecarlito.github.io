@@ -2,6 +2,31 @@ name: Manual Clean and Generate Changesets
 
 on:
   workflow_dispatch:
+    inputs:
+      create-tags:
+        description: 'Create tags after changeset generation'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      package-paths:
+        description: 'Comma-separated list of package paths (only used if create-tags=true)'
+        required: false
+        default: 'packages/blorkpack,packages/blorktools,packages/blorkboard,apps/portfolio'
+      package-names:
+        description: 'Comma-separated list of package names (only used if create-tags=true)'
+        required: false
+        default: '@littlecarlito/blorkpack,@littlecarlito/blorktools,@littlecarlito/blorkboard,@littlecarlito/portfolio'
+      debug:
+        description: 'Enable debug mode'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
@@ -252,3 +277,102 @@ jobs:
           source: 'dispatch'
           discord-webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
           github-token: ${{ secrets.VERSION_TOKEN }} 
+          
+  # Add a tag creation job that runs if the create-tags input is true
+  fix-tags:
+    name: Fix Package Tags
+    needs: clean-and-generate
+    if: github.event.inputs.create-tags == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.VERSION_TOKEN }}
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://npm.pkg.github.com'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+          
+      - name: Install dependencies
+        run: pnpm install
+        
+      # Make script executable and use it to create tags
+      - name: Create Git tags
+        id: create_tags
+        run: |
+          chmod +x .github/scripts/version/create-git-tags.sh
+          
+          OUTPUT=$(.github/scripts/version/create-git-tags.sh \
+            --package-paths "${{ github.event.inputs.package-paths }}" \
+            --package-names "${{ github.event.inputs.package-names }}" \
+            --debug "${{ github.event.inputs.debug }}" \
+            --token "${{ secrets.VERSION_TOKEN }}")
+          
+          echo "$OUTPUT"
+          
+          # Extract success and fail counts
+          SUCCESS_COUNT=$(echo "$OUTPUT" | grep "^success_count=" | cut -d= -f2)
+          FAIL_COUNT=$(echo "$OUTPUT" | grep "^fail_count=" | cut -d= -f2)
+          
+          echo "success_count=$SUCCESS_COUNT" >> $GITHUB_OUTPUT
+          echo "fail_count=$FAIL_COUNT" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.VERSION_TOKEN }}
+          
+      # Create GitHub releases for successful tags
+      - name: Create GitHub releases
+        if: steps.create_tags.outputs.success_count > 0
+        id: create_releases
+        run: |
+          chmod +x .github/scripts/version/create-github-releases.sh
+          
+          OUTPUT=$(.github/scripts/version/create-github-releases.sh \
+            --package-paths "${{ github.event.inputs.package-paths }}" \
+            --package-names "${{ github.event.inputs.package-names }}" \
+            --debug "${{ github.event.inputs.debug }}" \
+            --token "${{ secrets.VERSION_TOKEN }}")
+            
+          echo "$OUTPUT"
+          
+          # Extract success and fail counts
+          SUCCESS_COUNT=$(echo "$OUTPUT" | grep "^success_count=" | cut -d= -f2)
+          FAIL_COUNT=$(echo "$OUTPUT" | grep "^fail_count=" | cut -d= -f2)
+          
+          echo "success_count=$SUCCESS_COUNT" >> $GITHUB_OUTPUT
+          echo "fail_count=$FAIL_COUNT" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.VERSION_TOKEN }}
+          
+      # Report results  
+      - name: Report tag creation results
+        run: |
+          TAGS_CREATED="${{ steps.create_tags.outputs.success_count }}"
+          TAGS_FAILED="${{ steps.create_tags.outputs.fail_count }}"
+          RELEASES_CREATED="${{ steps.create_releases.outputs.success_count || 0 }}"
+          RELEASES_FAILED="${{ steps.create_releases.outputs.fail_count || 0 }}"
+          
+          echo "Summary:"
+          echo "--------"
+          echo "Tags created: $TAGS_CREATED"
+          echo "Tags failed: $TAGS_FAILED"
+          echo "Releases created: $RELEASES_CREATED"
+          echo "Releases failed: $RELEASES_FAILED"
+          
+          # Check for failures
+          if [ "$TAGS_FAILED" -gt 0 ] || [ "$RELEASES_FAILED" -gt 0 ]; then
+            echo "⚠️ Some operations failed, check logs for details"
+          else
+            echo "✅ All operations completed successfully"
+          fi 
