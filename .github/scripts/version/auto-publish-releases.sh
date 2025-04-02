@@ -344,7 +344,8 @@ ensure_tag_and_release() {
     
     if [[ "$delete_result" != "true" ]]; then
       echo "Failed to delete existing tag $tag_name, cannot proceed with creation" >&2
-      return "false"
+      echo "false"
+      return 1
     fi
     
     # Create new tag
@@ -352,7 +353,8 @@ ensure_tag_and_release() {
     
     if [[ "$create_result" != "true" ]]; then
       echo "Failed to create tag $tag_name after deleting" >&2
-      return "false"
+      echo "false"
+      return 1
     fi
   elif [[ "$tag_exists_result" != "true" ]]; then
     # Tag doesn't exist, create it
@@ -361,7 +363,8 @@ ensure_tag_and_release() {
     
     if [[ "$create_result" != "true" ]]; then
       echo "Failed to create tag $tag_name" >&2
-      return "false"
+      echo "false"
+      return 1
     fi
   else
     echo "Tag $tag_name already exists" >&2
@@ -372,8 +375,10 @@ ensure_tag_and_release() {
   
   if [[ "$release_result" == "true" || "$release_result" == "exists" ]]; then
     echo "true"
+    return 0
   else
     echo "false"
+    return 1
   fi
 }
 
