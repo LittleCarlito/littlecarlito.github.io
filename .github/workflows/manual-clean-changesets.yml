@@ -139,42 +139,44 @@ jobs:
       # Wait for checks to complete before merging - INCREASED TIMEOUT
       - name: Wait for checks to complete
         if: steps.check_changesets.outputs.has_changes == 'true' && steps.commit_changesets.outputs.pushed_changes == 'true' && steps.create_pr.outputs.pr-number != ''
+        id: verify_checks
         run: |
-          bash .github/scripts/branch/wait-with-delay.sh \
+          echo "Waiting for checks to complete on PR #${{ steps.create_pr.outputs.pr-number }}..."
+          
+          # We need to get the SHA from the PR
+          SHA="${{ steps.create_pr.outputs.commit-sha }}"
+          
+          bash .github/scripts/branch/wait-checks.sh \
             --repo "${{ github.repository }}" \
-            --sha "${{ steps.create_pr.outputs.commit-sha }}" \
+            --sha "$SHA" \
             --workflow "Manual Clean and Generate Changesets" \
             --timeout "300" \
             --min-checks "3" \
             --initial-delay "30"
+            
+          echo "All required checks have completed successfully!"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       # Merge the PR using the merge-pull-request action - ADD RETRY LOGIC
       - name: Merge pull request
         id: merge_pr
-        if: steps.check_changesets.outputs.has_changes == 'true' && steps.commit_changesets.outputs.pushed_changes == 'true' && steps.create_pr.outputs.pr-number != ''
-        run: |
-          OUTPUT=$(bash .github/scripts/pr/merge-with-retry.sh \
-            --pr-number "${{ steps.create_pr.outputs.pr-number }}" \
-            --repository "${{ github.repository }}" \
-            --attempts "3" \
-            --delay "15" \
-            --token "${{ secrets.VERSION_TOKEN }}")
-          
-          echo "$OUTPUT"
-          # Extract and output merge_result for use in next steps
-          MERGE_RESULT=$(echo "$OUTPUT" | grep "^merge_result=" | cut -d= -f2)
-          echo "merge_result=$MERGE_RESULT" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ secrets.VERSION_TOKEN }}
+        if: steps.check_changesets.outputs.has_changes == 'true' && steps.commit_changesets.outputs.pushed_changes == 'true' && steps.create_pr.outputs.pr-number != '' && steps.verify_checks.outcome == 'success'
+        uses: ./.github/actions/merge-pull-request
+        with:
+          github-token: ${{ secrets.VERSION_TOKEN }}
+          repository: ${{ github.repository }}
+          pr-number: ${{ steps.create_pr.outputs.pr-number }}
+          merge-method: 'squash'
+          delete-branch: 'true'
+          cleanup-changesets: 'true'
       
       # Output status message for completion
       - name: Status check
         id: status_check
         run: |
           if [ "${{ steps.check_changesets.outputs.has_changes }}" == "true" ] && [ "${{ steps.commit_changesets.outputs.pushed_changes }}" == "true" ] && [ -n "${{ steps.create_pr.outputs.pr-number }}" ]; then
-            if [ "${{ steps.merge_pr.outputs.merge_result }}" == "success" ]; then
+            if [ "${{ steps.verify_checks.outcome }}" == "success" ] && [ "${{ steps.merge_pr.outcome }}" == "success" ]; then
               echo "✅ Successfully generated changesets and merged PR #${{ steps.create_pr.outputs.pr-number }}"
               echo "Main pipeline will run and publish packages with direct publishing."
               echo "status=success" >> $GITHUB_OUTPUT
