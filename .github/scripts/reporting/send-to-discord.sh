@@ -78,7 +78,7 @@ fi
 
 # For failures, try to capture more details about what failed
 FIELDS_JSON=""
-if [ "$WORKFLOW_RESULT" == "failure" ]; then
+if [ "$WORKFLOW_RESULT" == "failure" ] || [ "$WORKFLOW_RESULT" == "partial" ]; then
   # Extract failure information if available
   FAILED_STEP=$(jq -r '.failure.step // ""' "$SUMMARY_FILE")
   ERROR_MESSAGE=$(jq -r '.failure.message // ""' "$SUMMARY_FILE")
@@ -93,11 +93,19 @@ if [ "$WORKFLOW_RESULT" == "failure" ]; then
     }"
   else 
     # If specific step information isn't available, provide generic message
-    FIELDS_JSON="${FIELDS_JSON}, {
-      \"name\": \"❌ Failure Information\",
-      \"value\": \"The workflow failed. Check the logs for details.\",
-      \"inline\": false
-    }"
+    if [ "$WORKFLOW_RESULT" == "failure" ]; then
+      FIELDS_JSON="${FIELDS_JSON}, {
+        \"name\": \"❌ Failure Information\",
+        \"value\": \"The workflow failed. Check the logs for details.\",
+        \"inline\": false
+      }"
+    else
+      FIELDS_JSON="${FIELDS_JSON}, {
+        \"name\": \"⚠️ Partial Success\",
+        \"value\": \"Some steps completed but others had issues.\",
+        \"inline\": false
+      }"
+    fi
   fi
   
   # Add error message if available

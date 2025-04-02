@@ -98,6 +98,12 @@ outputs:
   skipped-steps:
     description: 'Steps that were skipped due to failures'
     value: ${{ steps.error-info.outputs.skipped_steps }}
+  releases-created:
+    description: 'Number of releases created'
+    value: ${{ steps.create-releases.outputs.releases_created }}
+  releases-failed:
+    description: 'Number of releases that failed to create'
+    value: ${{ steps.create-releases.outputs.releases_failed }}
 
 runs:
   using: "composite"
@@ -184,9 +190,8 @@ runs:
         
         # The process-changesets.sh script will handle versioning and publishing
         OUTPUT=$(bash .github/scripts/version/process-changesets.sh \
-          --github-token "${{ inputs.github-token }}" \
-          --version-command "${{ inputs.version-command }}" \
-          --publish-command "${{ inputs.publish-command }}" \
+          --version "${{ inputs.version-command }}" \
+          --publish "${{ inputs.publish-command }}" \
           --create-pr "${{ inputs.create-pr }}" \
           --commit-message "${{ inputs.commit-message }}" \
           --pr-title "${{ inputs.pr-title }}" \
@@ -202,6 +207,7 @@ runs:
       env:
         NODE_AUTH_TOKEN: ${{ inputs.github-token }}
         NPM_AUTH_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
         npm_config_registry: ${{ inputs.registry-url }}
     
     # Check if auto-merging of version PR is needed
@@ -223,6 +229,7 @@ runs:
         echo "has_pr=$HAS_PR" >> $GITHUB_OUTPUT
       env:
         GH_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
     
     # Get package versions for outputs
     - name: Get package versions
@@ -271,6 +278,8 @@ runs:
         
         echo "releases_created=$RELEASES_CREATED" >> $GITHUB_OUTPUT
         echo "releases_failed=$RELEASES_FAILED" >> $GITHUB_OUTPUT
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
     
     # Collect error information
     - name: Collect error information

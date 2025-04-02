@@ -465,7 +465,13 @@ jobs:
         run: |
           # Check results of required jobs
           if [[ "${{ needs.build.result }}" == "success" && "${{ needs.test.result }}" == "success" ]]; then
-            echo "result=success" >> $GITHUB_OUTPUT
+            # Check if version and publish had issues with releases
+            if [[ "${{ needs.version-and-publish.result }}" == "success" && "${{ needs.version-and-publish.outputs.releases_failed }}" -gt 0 ]]; then
+              echo "result=partial" >> $GITHUB_OUTPUT
+              echo "message=Package publishing succeeded but some releases failed to create" >> $GITHUB_OUTPUT
+            else
+              echo "result=success" >> $GITHUB_OUTPUT
+            fi
           else
             echo "result=failure" >> $GITHUB_OUTPUT
           fi
@@ -476,11 +482,18 @@ jobs:
           echo "trigger_detail=${{ needs.capture-trigger-info.outputs.trigger_detail }}" >> $GITHUB_OUTPUT
           echo "source_branch=${{ needs.capture-trigger-info.outputs.source_branch }}" >> $GITHUB_OUTPUT
           
-          # Get detailed error information if version-and-publish failed
-          if [[ "${{ needs.version-and-publish.result }}" == "failure" ]]; then
+          # Get detailed error information if version-and-publish failed or had issues
+          if [[ "${{ needs.version-and-publish.result }}" == "failure" || "${{ needs.version-and-publish.outputs.releases_failed }}" -gt 0 ]]; then
             FAILED_STEP="${{ needs.version-and-publish.outputs.error-step }}"
             ERROR_MESSAGE="${{ needs.version-and-publish.outputs.error-message }}"
             SKIPPED_STEPS="${{ needs.version-and-publish.outputs.skipped-steps }}"
+            
+            # If releases failed but publishing succeeded
+            if [[ "${{ needs.version-and-publish.result }}" == "success" && "${{ needs.version-and-publish.outputs.releases_failed }}" -gt 0 ]]; then
+              FAILED_STEP="Create GitHub releases"
+              ERROR_MESSAGE="Published packages but failed to create ${{ needs.version-and-publish.outputs.releases_failed }} releases/tags"
+              SKIPPED_STEPS="None (publishing completed)"
+            fi
             
             # Construct detailed error message
             DETAIL_MSG=""

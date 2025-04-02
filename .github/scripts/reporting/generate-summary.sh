@@ -90,6 +90,9 @@ if [ "$WORKFLOW_RESULT" == "success" ]; then
 elif [ "$WORKFLOW_RESULT" == "failure" ]; then
   STATUS_EMOJI="❌"
   COLOR="0xED4245" # Discord red
+elif [ "$WORKFLOW_RESULT" == "partial" ]; then
+  STATUS_EMOJI="⚠️"
+  COLOR="0xFEE75C" # Discord yellow
 else
   STATUS_EMOJI="⚠️"
   COLOR="0xFEE75C" # Discord yellow
