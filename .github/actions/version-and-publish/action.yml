@@ -98,6 +98,12 @@ outputs:
   skipped-steps:
     description: 'Steps that were skipped due to failures'
     value: ${{ steps.error-info.outputs.skipped_steps }}
+  releases-created:
+    description: 'Number of releases created'
+    value: ${{ steps.create-releases.outputs.releases_created }}
+  releases-failed:
+    description: 'Number of releases that failed to create'
+    value: ${{ steps.create-releases.outputs.releases_failed }}
 
 runs:
   using: "composite"
