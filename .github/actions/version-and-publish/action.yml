@@ -79,16 +79,25 @@ outputs:
     value: ${{ steps.check-changesets.outputs.has_changesets }}
   blorkpack-version:
     description: 'Version of blorkpack package'
-    value: ${{ steps.get-versions.outputs.blorkpack_version }}
+    value: ${{ steps.get-versions.outputs.littlecarlitoblorkpack_version }}
   blorktools-version:
     description: 'Version of blorktools package'
-    value: ${{ steps.get-versions.outputs.blorktools_version }}
+    value: ${{ steps.get-versions.outputs.littlecarlitoblorktools_version }}
   blorkboard-version:
     description: 'Version of blorkboard package'
-    value: ${{ steps.get-versions.outputs.blorkboard_version }}
+    value: ${{ steps.get-versions.outputs.littlecarlitoblorkboard_version }}
   portfolio-version:
     description: 'Version of portfolio package'
-    value: ${{ steps.get-versions.outputs.portfolio_version }}
+    value: ${{ steps.get-versions.outputs.littlecarlitoportfolio_version }}
+  error-step:
+    description: 'The step that failed, if any'
+    value: ${{ steps.error-info.outputs.error_step }}
+  error-message:
+    description: 'Error message if any step failed'
+    value: ${{ steps.error-info.outputs.error_message }}
+  skipped-steps:
+    description: 'Steps that were skipped due to failures'
+    value: ${{ steps.error-info.outputs.skipped_steps }}
 
 runs:
   using: "composite"
@@ -147,124 +156,147 @@ runs:
           echo "Ensured directory: $DIR/dist"
         done
         
-    # Pull latest changes because auto-changeset might have pushed a new changeset
+    # Pull latest changes from the repository to ensure we have all changesets
     - name: Pull latest changes
       shell: bash
       run: git pull origin main
-        
-    # Check for changesets
+    
+    # Check if changesets exist - examine .changeset directory content
     - name: Check for changesets
       id: check-changesets
       shell: bash
       run: |
         if [ -d ".changeset" ] && [ "$(ls -A .changeset | grep -v README.md | grep -v config.json)" ]; then
+          echo "Changesets found in .changeset directory"
           echo "has_changesets=true" >> $GITHUB_OUTPUT
         else
+          echo "No changesets found in .changeset directory"
           echo "has_changesets=false" >> $GITHUB_OUTPUT
-          echo "No changesets found - skipping version step"
         fi
-      
-    # Process changesets (version and publish)
+    
+    # Process changesets to version and publish packages
     - name: Process changesets
       id: process-changesets
-      if: steps.check-changesets.outputs.has_changesets == 'true'
       shell: bash
       run: |
-        bash .github/scripts/version/process-changesets.sh \
-          --publish "${{ inputs.publish-command }}" \
-          --version "${{ inputs.version-command }}" \
+        # Set error trap to collect information about failures
+        trap 'echo "Error occurred in Process changesets step"' ERR
+        
+        # The process-changesets.sh script will handle versioning and publishing
+        OUTPUT=$(bash .github/scripts/version/process-changesets.sh \
+          --github-token "${{ inputs.github-token }}" \
+          --version-command "${{ inputs.version-command }}" \
+          --publish-command "${{ inputs.publish-command }}" \
+          --create-pr "${{ inputs.create-pr }}" \
           --commit-message "${{ inputs.commit-message }}" \
           --pr-title "${{ inputs.pr-title }}" \
-          --create-releases "${{ inputs.create-github-releases }}" \
-          --create-pr "${{ inputs.create-pr }}" \
-          --force-publish "${{ inputs.force-publish }}"
-      continue-on-error: true
+          --force-publish "${{ inputs.force-publish }}" \
+          --create-releases "${{ inputs.create-github-releases }}")
+        
+        # Output the result
+        echo "$OUTPUT"
+        
+        # Extract published status for use in GitHub Actions
+        PUBLISHED=$(echo "$OUTPUT" | grep "^published=" | cut -d= -f2)
+        echo "published=$PUBLISHED" >> $GITHUB_OUTPUT
       env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
         NODE_AUTH_TOKEN: ${{ inputs.github-token }}
-        
-    # Handle PR error checking
-    - name: Check PR creation error
-      id: check-pr-error
-      if: steps.process-changesets.outcome == 'failure'
+        NPM_AUTH_TOKEN: ${{ inputs.github-token }}
+        npm_config_registry: ${{ inputs.registry-url }}
+    
+    # Check if auto-merging of version PR is needed
+    - name: Auto merge version PR
+      id: auto-merge
+      if: inputs.create-pr == 'true' && steps.process-changesets.outputs.published == 'true'
+      continue-on-error: true
       shell: bash
       run: |
-        # Check error logs to determine if it's a known, acceptable error
-        ERROR_OUTPUT="${{ toJSON(steps.process-changesets.outputs) }}"
-        echo "Error output: $ERROR_OUTPUT"
-        
-        # Special case: Check if we have changesets but nothing was published
-        if [[ "$ERROR_OUTPUT" == *"hasChangesets\":\"true"* && "$ERROR_OUTPUT" == *"published\":\"false"* ]]; then
-          echo "Has changesets but nothing published - this is normal when branches are in sync"
-          echo "continue_workflow=true" >> $GITHUB_OUTPUT
-        elif [[ "$ERROR_OUTPUT" == *"No commits between"* ]] || \
-             [[ "$ERROR_OUTPUT" == *"No unreleased changesets found"* ]] || \
-             [[ "$ERROR_OUTPUT" == *"Validation Failed"* && "$ERROR_OUTPUT" == *"No commits between"* ]]; then
-          echo "No changes to version - this is normal when no changesets exist"
-          echo "continue_workflow=true" >> $GITHUB_OUTPUT
-        else
-          # For any other error, proceed with workflow but log it
-          echo "Error in changesets action - continuing with workflow"
-          echo "continue_workflow=true" >> $GITHUB_OUTPUT
-        fi
-        
-    # Find and manage version PRs
-    - name: Find and manage version PRs
-      id: manage-pr
-      if: (steps.check-changesets.outputs.has_changesets == 'true' && steps.process-changesets.outputs.published != 'true') || (steps.check-pr-error.outputs.continue_workflow == 'true')
-      shell: bash
-      run: |
-        bash .github/scripts/version/auto-merge-version-pr.sh \
+        # Attempt to find and merge any version PRs
+        OUTPUT=$(bash .github/scripts/version/auto-merge-version-pr.sh \
           --token "${{ inputs.github-token }}" \
-          --repo "${{ inputs.repository }}" \
-          --pr-title "${{ inputs.pr-title }}" \
-          --merge-method "squash" \
-          --delete-branch "true"
+          --repo "${{ inputs.repository }}")
         
-    # Create status checks for PR if found
-    - name: Create PR status checks
-      if: steps.manage-pr.outputs.has_pr == 'true'
-      shell: bash
-      run: |
-        bash .github/scripts/branch/create-check-statuses.sh \
-          --token "${{ inputs.github-token }}" \
-          --repo "${{ inputs.repository }}" \
-          --sha "${{ steps.manage-pr.outputs.pr_sha }}" \
-          --contexts '["Build Packages", "Test / Run Tests", "Test Changesets"]' \
-          --descriptions '["Build completed successfully (via changeset-version-publish)", "Tests passed successfully (via changeset-version-publish)", "Changesets validated successfully (via changeset-version-publish)"]' \
-          --state "success" \
-          --target-url "${{ github.server_url }}/${{ inputs.repository }}/actions/runs/${{ github.run_id }}"
+        echo "$OUTPUT"
         
-    # Get package versions
+        # Extract the has_pr value
+        HAS_PR=$(echo "$OUTPUT" | grep "^has_pr=" | cut -d= -f2)
+        echo "has_pr=$HAS_PR" >> $GITHUB_OUTPUT
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+    
+    # Get package versions for outputs
     - name: Get package versions
       id: get-versions
       shell: bash
       run: |
-        bash .github/scripts/version/get-package-versions.sh \
+        # The get-package-versions.sh script will extract versions from package.json files
+        OUTPUT=$(bash .github/scripts/version/get-package-versions.sh \
           --package-paths "${{ inputs.package-paths }}" \
-          --package-names "${{ inputs.package-names }}"
+          --package-names "${{ inputs.package-names }}")
         
-    # Auto-publish GitHub releases
-    - name: Auto-publish GitHub releases
-      # Always run this step, regardless of publication status
+        echo "$OUTPUT"
+        
+        # Extract available version variables
+        VARS=$(echo "$OUTPUT" | grep "^output_vars=" | cut -d= -f2)
+        if [ -n "$VARS" ]; then
+          # Each variable should be added to GITHUB_OUTPUT
+          for VAR in $(echo $VARS | tr ',' ' '); do
+            VAL=$(echo "$OUTPUT" | grep "^$VAR=" | cut -d= -f2)
+            echo "$VAR=$VAL" >> $GITHUB_OUTPUT
+          done
+        fi
+    
+    # Create GitHub releases if enabled
+    - name: Create GitHub releases
+      id: create-releases
+      if: inputs.create-github-releases == 'true' && steps.process-changesets.outputs.published == 'true'
+      continue-on-error: true
       shell: bash
       run: |
-        bash .github/scripts/version/auto-publish-releases.sh \
+        # The auto-publish-releases.sh script creates GitHub releases for published packages
+        OUTPUT=$(bash .github/scripts/version/auto-publish-releases.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --package-names "${{ inputs.package-names }}" \
           --package-paths "${{ inputs.package-paths }}" \
-          --force-create "true"
-      env:
-        GH_TOKEN: ${{ inputs.github-token }}
+          --force-create "true" \
+          --retry-attempts "5" \
+          --debug "true")
+          
+        echo "$OUTPUT"
         
-    # Ensure all packages have tags, regardless of publishing status
-    - name: Ensure all packages have tags
+        # Extract the releases_created value
+        RELEASES_CREATED=$(echo "$OUTPUT" | grep "^releases_created=" | cut -d= -f2)
+        RELEASES_FAILED=$(echo "$OUTPUT" | grep "^releases_failed=" | cut -d= -f2)
+        
+        echo "releases_created=$RELEASES_CREATED" >> $GITHUB_OUTPUT
+        echo "releases_failed=$RELEASES_FAILED" >> $GITHUB_OUTPUT
+    
+    # Collect error information
+    - name: Collect error information
+      id: error-info
+      if: failure()
       shell: bash
       run: |
-        bash .github/scripts/version/ensure-all-tags.sh \
-          --token "${{ inputs.github-token }}" \
-          --repo "${{ inputs.repository }}" \
-          --package-paths "${{ inputs.package-paths }}" \
-          --package-names "${{ inputs.package-names }}" \
-          --force-create "true" 
+        # Determine which step failed based on previous steps' outputs
+        if [[ "${{ steps.check-changesets.outcome }}" == "failure" ]]; then
+          echo "error_step=Check for changesets" >> $GITHUB_OUTPUT
+          echo "error_message=Failed to check for changesets in repository" >> $GITHUB_OUTPUT
+          echo "skipped_steps=Process changesets, Get package versions, Create GitHub releases" >> $GITHUB_OUTPUT
+        elif [[ "${{ steps.process-changesets.outcome }}" == "failure" ]]; then
+          echo "error_step=Process changesets" >> $GITHUB_OUTPUT
+          echo "error_message=Failed to process changesets for versioning and publishing" >> $GITHUB_OUTPUT
+          echo "skipped_steps=Get package versions, Create GitHub releases" >> $GITHUB_OUTPUT
+        elif [[ "${{ steps.get-versions.outcome }}" == "failure" ]]; then
+          echo "error_step=Get package versions" >> $GITHUB_OUTPUT
+          echo "error_message=Failed to retrieve package versions" >> $GITHUB_OUTPUT
+          echo "skipped_steps=Create GitHub releases" >> $GITHUB_OUTPUT
+        elif [[ "${{ steps.create-releases.outcome }}" == "failure" ]]; then
+          echo "error_step=Create GitHub releases" >> $GITHUB_OUTPUT
+          echo "error_message=Failed to create GitHub releases for packages" >> $GITHUB_OUTPUT
+          echo "skipped_steps=None" >> $GITHUB_OUTPUT
+        else
+          echo "error_step=Unknown" >> $GITHUB_OUTPUT
+          echo "error_message=An unexpected error occurred during the workflow" >> $GITHUB_OUTPUT
+          echo "skipped_steps=Unknown" >> $GITHUB_OUTPUT
+        fi 

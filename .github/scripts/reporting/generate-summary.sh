@@ -143,6 +143,11 @@ cat > "$OUTPUT_PATH" << EOF
   "display": {
     "status_emoji": "${STATUS_EMOJI}",
     "color": "${COLOR}"
+  },
+  "failure": {
+    "step": "$(echo "$TRIGGER_DETAILS" | grep -o 'step:[^,]*' | sed 's/step://g' || echo "")",
+    "message": "$(echo "$TRIGGER_DETAILS" | grep -o 'error:[^,]*' | sed 's/error://g' || echo "")",
+    "skipped_steps": "$(echo "$TRIGGER_DETAILS" | grep -o 'skipped:[^,]*' | sed 's/skipped://g' || echo "")"
   }
 }
 EOF

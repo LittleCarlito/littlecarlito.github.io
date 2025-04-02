@@ -224,6 +224,7 @@ create_tag_with_retry() {
       else
         echo "Failed to create tag reference on attempt $((RETRY_ATTEMPTS - attempts + 1))" >&2
         debug_log "Reference response: $ref_response"
+        echo "API error: $(echo "$ref_response" | grep -o '"message": "[^"]*' | head -1 | cut -d'"' -f4)" >&2
         if [[ $attempts -gt 1 ]]; then
           echo "Retrying in 3 seconds..." >&2
           sleep 3
@@ -232,6 +233,21 @@ create_tag_with_retry() {
     else
       echo "Failed to create tag object on attempt $((RETRY_ATTEMPTS - attempts + 1))" >&2
       debug_log "Tag response: $tag_response"
+      echo "API error: $(echo "$tag_response" | grep -o '"message": "[^"]*' | head -1 | cut -d'"' -f4)" >&2
+      
+      # Check for common errors
+      if [[ "$tag_response" == *"Bad credentials"* ]]; then
+        echo "Authentication error: The token used doesn't have sufficient permissions" >&2
+        break
+      elif [[ "$tag_response" == *"rate limit"* ]]; then
+        echo "Rate limit exceeded: GitHub API rate limit reached" >&2
+        break
+      elif [[ "$tag_response" == *"Reference already exists"* ]]; then
+        echo "Tag reference already exists" >&2
+        success=true
+        break
+      fi
+      
       if [[ $attempts -gt 1 ]]; then
         echo "Retrying in 3 seconds..." >&2
         sleep 3
