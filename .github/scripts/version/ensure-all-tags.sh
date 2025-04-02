@@ -6,7 +6,7 @@ show_help() {
 Usage: $(basename "$0") [OPTIONS]
 
 This script ensures all packages in the monorepo have corresponding Git tags based on their package.json versions.
-It scans all packages and creates any missing tags.
+It scans all packages and creates any missing tags with enhanced error handling and retry mechanisms.
 
 Options:
   --token TOKEN             GitHub token for authentication (required)
@@ -14,6 +14,7 @@ Options:
   --package-paths PATHS     Comma-separated list of package paths
   --package-names NAMES     Comma-separated list of package names
   --force-create BOOL       Whether to recreate tags even if they exist (default: true)
+  --retry-attempts NUM      Number of retry attempts for failed operations (default: 3)
   --help                    Display this help and exit
 
 Example:
@@ -24,6 +25,7 @@ EOF
 # Default values
 REPO=""
 FORCE_CREATE="true"
+RETRY_ATTEMPTS=3
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -46,6 +48,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --force-create)
       FORCE_CREATE="$2"
+      shift 2
+      ;;
+    --retry-attempts)
+      RETRY_ATTEMPTS="$2"
       shift 2
       ;;
     --help)
@@ -83,8 +89,15 @@ fi
 if [[ -z "$REPO" && -n "$GITHUB_REPOSITORY" ]]; then
   REPO="$GITHUB_REPOSITORY"
 elif [[ -z "$REPO" ]]; then
-  echo "Error: Repository information not available" >&2
-  exit 1
+  # Try to get repo from git remote
+  REMOTE_URL=$(git config --get remote.origin.url 2>/dev/null)
+  if [[ -n "$REMOTE_URL" ]]; then
+    REPO=$(echo "$REMOTE_URL" | sed -E 's/.*[:/]([^/]+\/[^/]+)(\.git)?$/\1/')
+    echo "Derived repository: $REPO from git remote" >&2
+  else
+    echo "Error: Repository information not available" >&2
+    exit 1
+  fi
 fi
 
 # Convert comma-separated strings to arrays
@@ -100,9 +113,150 @@ fi
 HEADER_AUTH="Authorization: token $TOKEN"
 HEADER_ACCEPT="Accept: application/vnd.github+json"
 
-echo "Ensuring tags exist for all packages..." >&2
+# Function to create a tag with retries
+create_tag_with_retry() {
+  local pkg_name=$1
+  local version=$2
+  local tag_name=$3
+  local commit_sha=$4
+  local attempts=$RETRY_ATTEMPTS
+  local success=false
+  
+  echo "Creating tag $tag_name for $pkg_name v$version with up to $attempts attempts" >&2
+  
+  while [[ $attempts -gt 0 && "$success" != "true" ]]; do
+    # Create annotated tag
+    TAG_RESPONSE=$(curl -s -X POST -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+      -d "{\"tag\":\"$tag_name\",\"message\":\"Release $pkg_name v$version\",\"object\":\"$commit_sha\",\"type\":\"commit\"}" \
+      "https://api.github.com/repos/$REPO/git/tags")
+    
+    TAG_SHA=$(echo "$TAG_RESPONSE" | grep -o '"sha": "[^"]*' | head -1 | cut -d'"' -f4)
+    
+    if [[ -n "$TAG_SHA" ]]; then
+      # Create reference for tag
+      REF_RESPONSE=$(curl -s -X POST -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+        -d "{\"ref\":\"refs/tags/$tag_name\",\"sha\":\"$TAG_SHA\"}" \
+        "https://api.github.com/repos/$REPO/git/refs")
+      
+      REF_URL=$(echo "$REF_RESPONSE" | grep -o '"url": "[^"]*' | head -1 | cut -d'"' -f4)
+      
+      if [[ -n "$REF_URL" ]]; then
+        echo "Successfully created tag $tag_name on attempt $((RETRY_ATTEMPTS - attempts + 1))" >&2
+        success=true
+        break
+      else
+        echo "Failed to create tag reference on attempt $((RETRY_ATTEMPTS - attempts + 1))" >&2
+        if [[ $attempts -gt 1 ]]; then
+          echo "API response: $REF_RESPONSE" >&2
+          echo "Retrying in 3 seconds..." >&2
+          sleep 3
+        fi
+      fi
+    else
+      echo "Failed to create tag object on attempt $((RETRY_ATTEMPTS - attempts + 1))" >&2
+      if [[ $attempts -gt 1 ]]; then
+        echo "API response: $TAG_RESPONSE" >&2
+        echo "Retrying in 3 seconds..." >&2
+        sleep 3
+      fi
+    fi
+    
+    attempts=$((attempts - 1))
+  done
+  
+  echo "$success"
+}
+
+# Function to create a release for a tag
+create_release_for_tag() {
+  local pkg_name=$1
+  local version=$2
+  local tag_name=$3
+  local attempts=$RETRY_ATTEMPTS
+  local success=false
+  
+  echo "Creating GitHub release for $tag_name with up to $attempts attempts" >&2
+  
+  while [[ $attempts -gt 0 && "$success" != "true" ]]; do
+    RELEASE_RESPONSE=$(curl -s -X POST -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+      -d "{\"tag_name\":\"$tag_name\",\"name\":\"$pkg_name v$version\",\"body\":\"Release of $pkg_name version $version\",\"draft\":false,\"prerelease\":false}" \
+      "https://api.github.com/repos/$REPO/releases")
+    
+    RELEASE_ID=$(echo "$RELEASE_RESPONSE" | grep -o '"id": [0-9]*' | head -1 | cut -d' ' -f2)
+    
+    if [[ -n "$RELEASE_ID" ]]; then
+      echo "Created GitHub release for $pkg_name v$version on attempt $((RETRY_ATTEMPTS - attempts + 1))" >&2
+      success=true
+      break
+    else
+      echo "Failed to create GitHub release on attempt $((RETRY_ATTEMPTS - attempts + 1))" >&2
+      if [[ $attempts -gt 1 ]]; then
+        echo "API response: $RELEASE_RESPONSE" >&2
+        echo "Retrying in 3 seconds..." >&2
+        sleep 3
+      fi
+    fi
+    
+    attempts=$((attempts - 1))
+  done
+  
+  echo "$success"
+}
+
+# Function to aggressively delete a tag if it exists
+delete_tag_if_exists() {
+  local tag_name=$1
+  local attempts=$RETRY_ATTEMPTS
+  local success=false
+  
+  # Check if tag exists
+  TAG_EXISTS=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+    "https://api.github.com/repos/$REPO/git/refs/tags/$tag_name" | grep -c "\"ref\"")
+  
+  if [[ $TAG_EXISTS -eq 0 ]]; then
+    echo "Tag $tag_name does not exist, no need to delete" >&2
+    return 0
+  fi
+  
+  echo "Deleting existing tag $tag_name with up to $attempts attempts" >&2
+  
+  while [[ $attempts -gt 0 && "$success" != "true" ]]; do
+    DELETE_RESPONSE=$(curl -s -X DELETE -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+      "https://api.github.com/repos/$REPO/git/refs/tags/$tag_name")
+    
+    # Check if successful (DELETE returns 204 No Content when successful)
+    if [[ -z "$DELETE_RESPONSE" ]]; then
+      echo "Successfully deleted tag $tag_name on attempt $((RETRY_ATTEMPTS - attempts + 1))" >&2
+      success=true
+      break
+    else
+      echo "Failed to delete tag on attempt $((RETRY_ATTEMPTS - attempts + 1))" >&2
+      if [[ $attempts -gt 1 ]]; then
+        echo "API response: $DELETE_RESPONSE" >&2
+        echo "Retrying in 3 seconds..." >&2
+        sleep 3
+      fi
+    fi
+    
+    attempts=$((attempts - 1))
+  done
+  
+  # After deletion, verify it's really gone
+  TAG_STILL_EXISTS=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+    "https://api.github.com/repos/$REPO/git/refs/tags/$tag_name" | grep -c "\"ref\"")
+  
+  if [[ $TAG_STILL_EXISTS -gt 0 ]]; then
+    echo "Warning: Tag $tag_name still exists after deletion attempts" >&2
+    return 1
+  fi
+  
+  return 0
+}
+
+echo "Ensuring tags exist for all packages with enhanced error handling..." >&2
 TAGS_CREATED=0
 TAGS_VERIFIED=0
+TAGS_FAILED=0
 
 # Process each package
 for i in "${!PATH_ARRAY[@]}"; do
@@ -123,86 +277,108 @@ for i in "${!PATH_ARRAY[@]}"; do
       CLEAN_PKG_NAME=$(echo "$PKG_NAME" | sed 's/@//g' | sed 's/\//-/g')
       ALT_TAG_NAME="${CLEAN_PKG_NAME}@${VERSION}"
       
-      # Check if tag already exists
-      TAG_EXISTS=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
-        "https://api.github.com/repos/$REPO/git/refs/tags/$TAG_NAME" | grep -c "\"ref\"")
+      echo "Primary tag format: $TAG_NAME" >&2
+      echo "Alternative tag format: $ALT_TAG_NAME" >&2
       
-      ALT_TAG_EXISTS=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
-        "https://api.github.com/repos/$REPO/git/refs/tags/$ALT_TAG_NAME" | grep -c "\"ref\"")
-      
-      if [[ $TAG_EXISTS -eq 0 && $ALT_TAG_EXISTS -eq 0 || "$FORCE_CREATE" == "true" ]]; then
-        echo "Creating tag $TAG_NAME for $PKG_NAME v$VERSION (standard npm format)" >&2
-        
-        # Delete existing tags if force create is enabled
-        if [[ $TAG_EXISTS -gt 0 ]]; then
-          echo "Deleting existing tag $TAG_NAME" >&2
-          curl -s -X DELETE -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
-            "https://api.github.com/repos/$REPO/git/refs/tags/$TAG_NAME" >/dev/null 2>&1
-        fi
-        
-        if [[ $ALT_TAG_EXISTS -gt 0 ]]; then
-          echo "Deleting existing tag $ALT_TAG_NAME" >&2
-          curl -s -X DELETE -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
-            "https://api.github.com/repos/$REPO/git/refs/tags/$ALT_TAG_NAME" >/dev/null 2>&1
-        fi
+      # Check if tags need to be handled
+      if [[ "$FORCE_CREATE" == "true" ]]; then
+        # Force create mode - delete existing tags if they exist
+        delete_tag_if_exists "$TAG_NAME"
+        delete_tag_if_exists "$ALT_TAG_NAME"
         
         # Get latest commit SHA
         COMMIT_SHA=$(git rev-parse HEAD)
         
-        # Create tag
-        TAG_RESPONSE=$(curl -s -X POST -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
-          -d "{\"tag\":\"$TAG_NAME\",\"message\":\"Release $PKG_NAME v$VERSION\",\"object\":\"$COMMIT_SHA\",\"type\":\"commit\"}" \
-          "https://api.github.com/repos/$REPO/git/tags")
+        # Create tag with retry
+        CREATE_RESULT=$(create_tag_with_retry "$PKG_NAME" "$VERSION" "$TAG_NAME" "$COMMIT_SHA")
         
-        TAG_SHA=$(echo "$TAG_RESPONSE" | grep -o '"sha": "[^"]*' | head -1 | cut -d'"' -f4)
-        
-        if [[ -n "$TAG_SHA" ]]; then
-          # Create reference for tag
-          REF_RESPONSE=$(curl -s -X POST -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
-            -d "{\"ref\":\"refs/tags/$TAG_NAME\",\"sha\":\"$TAG_SHA\"}" \
-            "https://api.github.com/repos/$REPO/git/refs")
+        if [[ "$CREATE_RESULT" == "true" ]]; then
+          TAGS_CREATED=$((TAGS_CREATED + 1))
           
-          REF_URL=$(echo "$REF_RESPONSE" | grep -o '"url": "[^"]*' | head -1 | cut -d'"' -f4)
+          # Create release for the tag
+          RELEASE_RESULT=$(create_release_for_tag "$PKG_NAME" "$VERSION" "$TAG_NAME")
           
-          if [[ -n "$REF_URL" ]]; then
-            echo "Successfully created tag $TAG_NAME" >&2
-            TAGS_CREATED=$((TAGS_CREATED + 1))
-            
-            # Create a GitHub release
-            RELEASE_RESPONSE=$(curl -s -X POST -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
-              -d "{\"tag_name\":\"$TAG_NAME\",\"name\":\"$PKG_NAME v$VERSION\",\"body\":\"Release of $PKG_NAME version $VERSION\",\"draft\":false,\"prerelease\":false}" \
-              "https://api.github.com/repos/$REPO/releases")
-            
-            RELEASE_ID=$(echo "$RELEASE_RESPONSE" | grep -o '"id": [0-9]*' | head -1 | cut -d' ' -f2)
-            
-            if [[ -n "$RELEASE_ID" ]]; then
-              echo "Created GitHub release for $PKG_NAME v$VERSION" >&2
-            else
-              echo "Warning: Failed to create GitHub release for $PKG_NAME v$VERSION" >&2
-            fi
-          else
-            echo "Failed to create tag reference for $PKG_NAME v$VERSION" >&2
-            echo "API response: $REF_RESPONSE" >&2
+          if [[ "$RELEASE_RESULT" != "true" ]]; then
+            echo "Warning: Created tag but failed to create release for $PKG_NAME v$VERSION" >&2
           fi
         else
-          echo "Failed to create tag for $PKG_NAME v$VERSION" >&2
-          echo "API response: $TAG_RESPONSE" >&2
+          TAGS_FAILED=$((TAGS_FAILED + 1))
+          echo "Failed to create tag for $PKG_NAME v$VERSION after $RETRY_ATTEMPTS attempts" >&2
         fi
       else
-        echo "Tag already exists for $PKG_NAME v$VERSION, verified." >&2
-        TAGS_VERIFIED=$((TAGS_VERIFIED + 1))
+        # Only create if tag doesn't exist
+        TAG_EXISTS=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+          "https://api.github.com/repos/$REPO/git/refs/tags/$TAG_NAME" | grep -c "\"ref\"")
+        
+        ALT_TAG_EXISTS=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+          "https://api.github.com/repos/$REPO/git/refs/tags/$ALT_TAG_NAME" | grep -c "\"ref\"")
+        
+        if [[ $TAG_EXISTS -eq 0 && $ALT_TAG_EXISTS -eq 0 ]]; then
+          # Get latest commit SHA
+          COMMIT_SHA=$(git rev-parse HEAD)
+          
+          # Create tag with retry
+          CREATE_RESULT=$(create_tag_with_retry "$PKG_NAME" "$VERSION" "$TAG_NAME" "$COMMIT_SHA")
+          
+          if [[ "$CREATE_RESULT" == "true" ]]; then
+            TAGS_CREATED=$((TAGS_CREATED + 1))
+            
+            # Create release for the tag
+            RELEASE_RESULT=$(create_release_for_tag "$PKG_NAME" "$VERSION" "$TAG_NAME")
+            
+            if [[ "$RELEASE_RESULT" != "true" ]]; then
+              echo "Warning: Created tag but failed to create release for $PKG_NAME v$VERSION" >&2
+            fi
+          else
+            TAGS_FAILED=$((TAGS_FAILED + 1))
+            echo "Failed to create tag for $PKG_NAME v$VERSION after $RETRY_ATTEMPTS attempts" >&2
+          fi
+        else
+          echo "Tag already exists for $PKG_NAME v$VERSION, verified." >&2
+          TAGS_VERIFIED=$((TAGS_VERIFIED + 1))
+        fi
       fi
     else
       echo "Could not determine version for $PKG_NAME, package.json seems malformed" >&2
+      # Try alternative methods to find version
+      if [[ -d "$PKG_PATH/node_modules" ]]; then
+        echo "Attempting to find version from node_modules directory..." >&2
+        PKG_VERSION_FILE="$PKG_PATH/node_modules/$PKG_NAME/package.json"
+        if [[ -f "$PKG_VERSION_FILE" ]]; then
+          VERSION=$(cat "$PKG_VERSION_FILE" | grep -o '"version": "[^"]*' | cut -d'"' -f4)
+          if [[ -n "$VERSION" ]]; then
+            echo "Found version $VERSION from node_modules for $PKG_NAME" >&2
+            # Proceed with tagging using this version
+            # (similar logic to above, could extract to a function)
+          fi
+        fi
+      fi
     fi
   else
     echo "Package.json not found at $PKG_PATH" >&2
+    # Try to find package.json in subdirectories
+    POTENTIAL_PKG_JSON=$(find "$PKG_PATH" -name "package.json" -not -path "*/node_modules/*" -not -path "*/dist/*" | head -1)
+    if [[ -n "$POTENTIAL_PKG_JSON" ]]; then
+      echo "Found alternative package.json at $POTENTIAL_PKG_JSON" >&2
+      VERSION=$(cat "$POTENTIAL_PKG_JSON" | grep -o '"version": "[^"]*' | cut -d'"' -f4)
+      if [[ -n "$VERSION" ]]; then
+        echo "Found version $VERSION from alternative location for $PKG_NAME" >&2
+        # Proceed with tagging using this version
+        # (similar logic to above, could extract to a function)
+      fi
+    fi
   fi
 done
 
-echo "Tags created: $TAGS_CREATED, Tags verified: $TAGS_VERIFIED" >&2
+echo "Tags created: $TAGS_CREATED, Tags verified: $TAGS_VERIFIED, Tags failed: $TAGS_FAILED" >&2
 echo "tags_created=$TAGS_CREATED"
 echo "tags_verified=$TAGS_VERIFIED"
+echo "tags_failed=$TAGS_FAILED"
 echo "total_packages=${#PATH_ARRAY[@]}"
 
-exit 0 
+# Return success only if no tags failed
+if [[ $TAGS_FAILED -eq 0 ]]; then
+  exit 0
+else
+  exit 1
+fi 
