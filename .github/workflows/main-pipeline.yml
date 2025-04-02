@@ -463,10 +463,17 @@ jobs:
       - name: Determine workflow result
         id: workflow-result
         run: |
+          # Store the outputs from version-and-publish job in a format that avoids context access issues
+          PUBLISH_OUTPUTS='${{ toJSON(needs.version-and-publish.outputs) }}'
+          RELEASES_FAILED=$(echo "$PUBLISH_OUTPUTS" | jq -r '.["releases-failed"] // "0"')
+          ERROR_STEP=$(echo "$PUBLISH_OUTPUTS" | jq -r '.["error-step"] // ""')
+          ERROR_MSG=$(echo "$PUBLISH_OUTPUTS" | jq -r '.["error-message"] // ""')
+          SKIPPED_STEPS=$(echo "$PUBLISH_OUTPUTS" | jq -r '.["skipped-steps"] // ""')
+          
           # Check results of required jobs
           if [[ "${{ needs.build.result }}" == "success" && "${{ needs.test.result }}" == "success" ]]; then
             # Check if version and publish had issues with releases
-            if [[ "${{ needs.version-and-publish.result }}" == "success" && "${{ needs.version-and-publish.outputs.releases_failed }}" -gt 0 ]]; then
+            if [[ "${{ needs.version-and-publish.result }}" == "success" && -n "$RELEASES_FAILED" && "$RELEASES_FAILED" -gt 0 ]]; then
               echo "result=partial" >> $GITHUB_OUTPUT
               echo "message=Package publishing succeeded but some releases failed to create" >> $GITHUB_OUTPUT
             else
@@ -483,15 +490,15 @@ jobs:
           echo "source_branch=${{ needs.capture-trigger-info.outputs.source_branch }}" >> $GITHUB_OUTPUT
           
           # Get detailed error information if version-and-publish failed or had issues
-          if [[ "${{ needs.version-and-publish.result }}" == "failure" || "${{ needs.version-and-publish.outputs.releases_failed }}" -gt 0 ]]; then
-            FAILED_STEP="${{ needs.version-and-publish.outputs.error-step }}"
-            ERROR_MESSAGE="${{ needs.version-and-publish.outputs.error-message }}"
-            SKIPPED_STEPS="${{ needs.version-and-publish.outputs.skipped-steps }}"
+          if [[ "${{ needs.version-and-publish.result }}" == "failure" || (-n "$RELEASES_FAILED" && "$RELEASES_FAILED" -gt 0) ]]; then
+            FAILED_STEP="$ERROR_STEP"
+            ERROR_MESSAGE="$ERROR_MSG"
+            SKIPPED_STEPS="$SKIPPED_STEPS"
             
             # If releases failed but publishing succeeded
-            if [[ "${{ needs.version-and-publish.result }}" == "success" && "${{ needs.version-and-publish.outputs.releases_failed }}" -gt 0 ]]; then
+            if [[ "${{ needs.version-and-publish.result }}" == "success" && -n "$RELEASES_FAILED" && "$RELEASES_FAILED" -gt 0 ]]; then
               FAILED_STEP="Create GitHub releases"
-              ERROR_MESSAGE="Published packages but failed to create ${{ needs.version-and-publish.outputs.releases_failed }} releases/tags"
+              ERROR_MESSAGE="Published packages but failed to create $RELEASES_FAILED releases/tags"
               SKIPPED_STEPS="None (publishing completed)"
             fi
             
