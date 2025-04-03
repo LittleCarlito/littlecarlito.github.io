@@ -1,0 +1,167 @@
+name: 'Resolve Tag Conflicts'
+description: 'Detects and resolves tag conflicts before creating GitHub releases'
+
+inputs:
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  repository:
+    description: 'Repository name (owner/repo)'
+    required: false
+    default: ${{ github.repository }}
+  package-paths:
+    description: 'Comma-separated list of package paths'
+    required: true
+  package-names:
+    description: 'Comma-separated list of package names'
+    required: true
+  debug:
+    description: 'Enable verbose debug logging'
+    required: false
+    default: 'false'
+
+outputs:
+  needs-cleanup:
+    description: 'Whether conflicting tags were detected'
+    value: ${{ steps.analyze-tags.outputs.needs_cleanup }}
+  cleanup-success:
+    description: 'Whether the cleanup was successful'
+    value: ${{ steps.cleanup-tags.outputs.cleanup_success || 'false' }}
+  cleanup-skipped:
+    description: 'Whether cleanup was skipped'
+    value: ${{ steps.analyze-tags.outputs.needs_cleanup == 'false' || 'false' }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js for tag resolution
+      uses: actions/setup-node@v4
+      with:
+        node-version: 'lts/*'
+        
+    - name: Analyze existing tags
+      id: analyze-tags
+      shell: bash
+      run: |
+        echo "Analyzing existing tags for conflicts..."
+        chmod +x .github/scripts/version/analyze-and-prepare-tags.sh
+        
+        OUTPUT=$(.github/scripts/version/analyze-and-prepare-tags.sh \
+          --package-paths "${{ inputs.package-paths }}" \
+          --package-names "${{ inputs.package-names }}" \
+          --debug "${{ inputs.debug }}")
+        
+        echo "$OUTPUT"
+        
+        # Extract needs_cleanup and tags_json
+        NEEDS_CLEANUP=$(echo "$OUTPUT" | grep "^needs_cleanup=" | cut -d= -f2)
+        TAGS_JSON=$(echo "$OUTPUT" | grep "^tags_json=" | cut -d= -f2-)
+        
+        echo "needs_cleanup=$NEEDS_CLEANUP" >> $GITHUB_OUTPUT
+        echo "tags_json=$TAGS_JSON" >> $GITHUB_OUTPUT
+        
+        # If conflicts detected, output detailed information
+        if [[ "$NEEDS_CLEANUP" == "true" ]]; then
+          echo "⚠️ Tag conflicts detected! Will need to cleanup before creating releases"
+          echo "$TAGS_JSON" | jq '.' || echo "Error parsing JSON"
+        else
+          echo "✅ No tag conflicts detected"
+        fi
+
+    # Only run cleanup if conflicts were detected
+    - name: Clean up conflicting tags
+      id: cleanup-tags
+      if: steps.analyze-tags.outputs.needs_cleanup == 'true'
+      shell: bash
+      run: |
+        echo "Cleaning up conflicting tags before creating new ones..."
+        
+        # First, delete local tags directly
+        echo "Deleting local tags..."
+        TAGS_JSON='${{ steps.analyze-tags.outputs.tags_json }}'
+        
+        echo "$TAGS_JSON" | jq -c '.[]' | while read -r TAG_INFO; do
+          PACKAGE=$(echo "$TAG_INFO" | jq -r '.package')
+          VERSION=$(echo "$TAG_INFO" | jq -r '.version')
+          
+          # Try both tag formats
+          TAG_NAME="@littlecarlito/$PACKAGE@$VERSION"
+          ALT_TAG_NAME="littlecarlito-$PACKAGE@$VERSION"
+          
+          echo "Deleting local tag: $TAG_NAME"
+          git tag -d "$TAG_NAME" 2>/dev/null || echo "Tag $TAG_NAME doesn't exist locally"
+          
+          echo "Deleting local alt tag: $ALT_TAG_NAME"
+          git tag -d "$ALT_TAG_NAME" 2>/dev/null || echo "Tag $ALT_TAG_NAME doesn't exist locally"
+        done
+        
+        # Delete remote tags using GitHub API
+        echo "Deleting remote tags..."
+        
+        CLEANED_COUNT=0
+        FAILED_COUNT=0
+        
+        echo "$TAGS_JSON" | jq -c '.[]' | while read -r TAG_INFO; do
+          PACKAGE=$(echo "$TAG_INFO" | jq -r '.package')
+          VERSION=$(echo "$TAG_INFO" | jq -r '.version')
+          
+          # Try both tag formats
+          TAG_NAME="@littlecarlito/$PACKAGE@$VERSION"
+          ALT_TAG_NAME="littlecarlito-$PACKAGE@$VERSION"
+          
+          # Delete primary tag format
+          echo "Deleting remote tag: $TAG_NAME"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+            -H "Authorization: token ${{ inputs.github-token }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ inputs.repository }}/git/refs/tags/$TAG_NAME")
+            
+          if [[ "$STATUS" == "204" || "$STATUS" == "404" ]]; then
+            echo "✅ Successfully deleted or confirmed non-existence of tag: $TAG_NAME"
+            CLEANED_COUNT=$((CLEANED_COUNT+1))
+          else
+            echo "❌ Failed to delete tag: $TAG_NAME (HTTP $STATUS)"
+            FAILED_COUNT=$((FAILED_COUNT+1))
+          fi
+          
+          # Delete alternative tag format
+          echo "Deleting remote alt tag: $ALT_TAG_NAME"
+          ALT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+            -H "Authorization: token ${{ inputs.github-token }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ inputs.repository }}/git/refs/tags/$ALT_TAG_NAME")
+            
+          if [[ "$ALT_STATUS" == "204" || "$ALT_STATUS" == "404" ]]; then
+            echo "✅ Successfully deleted or confirmed non-existence of tag: $ALT_TAG_NAME"
+            CLEANED_COUNT=$((CLEANED_COUNT+1))
+          else
+            echo "❌ Failed to delete tag: $ALT_TAG_NAME (HTTP $ALT_STATUS)"
+            FAILED_COUNT=$((FAILED_COUNT+1))
+          fi
+        done
+        
+        echo "Tag cleanup summary:"
+        echo "Tags cleaned: $CLEANED_COUNT"
+        echo "Failed deletions: $FAILED_COUNT"
+        
+        # Allow the workflow to continue even if some deletions failed
+        # since 404 errors (tag doesn't exist) are counted as success
+        echo "cleanup_success=true" >> $GITHUB_OUTPUT
+        
+        # Sleep to ensure GitHub API has fully processed tag deletions
+        echo "Waiting for GitHub API to process tag deletions..."
+        sleep 5
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+
+    # Report tag resolution status
+    - name: Report tag resolution status
+      shell: bash
+      run: |
+        NEEDED_CLEANUP="${{ steps.analyze-tags.outputs.needs_cleanup }}"
+        
+        if [ "$NEEDED_CLEANUP" == "true" ]; then
+          echo "✅ Tag conflict resolution complete"
+        else
+          echo "ℹ️ No tag conflicts needed resolution"
+        fi 

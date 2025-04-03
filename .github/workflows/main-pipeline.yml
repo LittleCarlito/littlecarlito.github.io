@@ -360,6 +360,62 @@ jobs:
           package-paths: 'packages/blorkpack,packages/blorktools,packages/blorkboard,apps/portfolio'
           package-names: '@littlecarlito/blorkpack,@littlecarlito/blorktools,@littlecarlito/blorkboard,@littlecarlito/portfolio'
 
+      # Ensure changesets are properly consumed
+      - name: Ensure changeset consumption
+        id: ensure-changesets
+        if: steps.version-publish.outputs.published == 'true'
+        uses: ./.github/actions/ensure-changeset-consumption
+        with:
+          github-token: ${{ secrets.VERSION_TOKEN }}
+          force-cleanup: 'true'
+          debug: 'true'
+
+      # Resolve tag conflicts before creating GitHub releases
+      - name: Resolve tag conflicts
+        id: resolve-tags
+        if: steps.version-publish.outputs.published == 'true'
+        uses: ./.github/actions/resolve-tag-conflicts
+        with:
+          github-token: ${{ secrets.VERSION_TOKEN }}
+          repository: ${{ github.repository }}
+          package-paths: 'packages/blorkpack,packages/blorktools,packages/blorkboard,apps/portfolio'
+          package-names: '@littlecarlito/blorkpack,@littlecarlito/blorktools,@littlecarlito/blorkboard,@littlecarlito/portfolio'
+          debug: 'true'
+
+      # Wait brief period after tag conflict resolution to ensure GitHub API consistency
+      - name: Wait for tag updates to propagate
+        if: steps.resolve-tags.outputs.needs-cleanup == 'true' && steps.resolve-tags.outputs.cleanup-success == 'true'
+        run: |
+          echo "Waiting for tag updates to propagate through GitHub API..."
+          sleep 10
+
+      # Create GitHub releases if enabled
+      - name: Create GitHub releases
+        id: create-releases
+        if: steps.version-publish.outputs.published == 'true'
+        continue-on-error: true
+        run: |
+          # The auto-publish-releases.sh script creates GitHub releases for published packages
+          OUTPUT=$(bash .github/scripts/version/auto-publish-releases.sh \
+            --token "${{ secrets.VERSION_TOKEN }}" \
+            --repo "${{ github.repository }}" \
+            --package-names "@littlecarlito/blorkpack,@littlecarlito/blorktools,@littlecarlito/blorkboard,@littlecarlito/portfolio" \
+            --package-paths "packages/blorkpack,packages/blorktools,packages/blorkboard,apps/portfolio" \
+            --force-create "true" \
+            --retry-attempts "5" \
+            --debug "true")
+            
+          echo "$OUTPUT"
+          
+          # Extract the releases_created value
+          RELEASES_CREATED=$(echo "$OUTPUT" | grep "^releases_created=" | cut -d= -f2)
+          RELEASES_FAILED=$(echo "$OUTPUT" | grep "^releases_failed=" | cut -d= -f2)
+          
+          echo "releases_created=$RELEASES_CREATED" >> $GITHUB_OUTPUT
+          echo "releases_failed=$RELEASES_FAILED" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.VERSION_TOKEN }}
+
   # Build the site for GitHub Pages
   build-site:
     name: Build Site for GitHub Pages

@@ -1,0 +1,91 @@
+name: 'Ensure Changeset Consumption'
+description: 'Validates that changesets are properly consumed and cleans up any residual files'
+
+inputs:
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  force-cleanup:
+    description: 'Whether to force cleanup of unconsumed changesets'
+    required: false
+    default: 'true'
+  debug:
+    description: 'Enable verbose debug logging'
+    required: false
+    default: 'false'
+
+outputs:
+  changeset-status:
+    description: 'Status of changesets (consumed, unconsumed, not_found)'
+    value: ${{ steps.validate-changesets.outputs.changeset_status }}
+  unconsumed-count:
+    description: 'Number of unconsumed changesets found'
+    value: ${{ steps.validate-changesets.outputs.unconsumed_count || 0 }}
+  cleanup-performed:
+    description: 'Whether cleanup was performed'
+    value: ${{ steps.validate-changesets.outputs.cleanup_performed || 'false' }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js for changeset validation
+      uses: actions/setup-node@v4
+      with:
+        node-version: 'lts/*'
+        
+    - name: Validate changeset consumption
+      id: validate-changesets
+      shell: bash
+      run: |
+        echo "Validating proper changeset consumption..."
+        chmod +x .github/scripts/version/validate-changeset-consumption.sh
+        
+        OUTPUT=$(.github/scripts/version/validate-changeset-consumption.sh \
+          --force-cleanup "${{ inputs.force-cleanup }}" \
+          --debug "${{ inputs.debug }}")
+        
+        echo "$OUTPUT"
+        
+        # Extract outputs
+        CHANGESET_STATUS=$(echo "$OUTPUT" | grep "^changeset_status=" | cut -d= -f2)
+        UNCONSUMED_COUNT=$(echo "$OUTPUT" | grep "^unconsumed_count=" | cut -d= -f2)
+        CLEANUP_PERFORMED=$(echo "$OUTPUT" | grep "^cleanup_performed=" | cut -d= -f2)
+        
+        echo "changeset_status=$CHANGESET_STATUS" >> $GITHUB_OUTPUT
+        echo "unconsumed_count=$UNCONSUMED_COUNT" >> $GITHUB_OUTPUT
+        echo "cleanup_performed=$CLEANUP_PERFORMED" >> $GITHUB_OUTPUT
+        
+        # Output detailed summary
+        if [[ "$CHANGESET_STATUS" == "consumed" ]]; then
+          echo "✅ All changesets were properly consumed"
+        elif [[ "$CHANGESET_STATUS" == "unconsumed" ]]; then
+          echo "⚠️ Found $UNCONSUMED_COUNT unconsumed changesets"
+          if [[ "$CLEANUP_PERFORMED" == "true" ]]; then
+            echo "🧹 Cleanup was performed to remove unconsumed changesets"
+          else
+            echo "ℹ️ Cleanup was not performed (force-cleanup=${{ inputs.force-cleanup }})"
+          fi
+        elif [[ "$CHANGESET_STATUS" == "not_found" ]]; then
+          echo "ℹ️ No changeset directory found"
+        fi
+
+    # If cleanup was performed, commit the changes
+    - name: Commit changeset cleanup
+      if: steps.validate-changesets.outputs.cleanup_performed == 'true'
+      shell: bash
+      run: |
+        echo "Committing changeset cleanup changes..."
+        
+        # Configure git
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        
+        # Commit the changes
+        git add .changeset/
+        git commit -m "chore: cleanup unconsumed changesets [skip ci]" || echo "No changes to commit"
+        
+        # Push to the repository
+        git push origin HEAD:main
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token }} 
