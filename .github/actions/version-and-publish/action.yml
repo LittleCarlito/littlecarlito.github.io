@@ -257,29 +257,15 @@ runs:
     - name: Create GitHub releases
       id: create-releases
       if: inputs.create-github-releases == 'true' && steps.process-changesets.outputs.published == 'true'
-      continue-on-error: true
-      shell: bash
-      run: |
-        # The auto-publish-releases.sh script creates GitHub releases for published packages
-        OUTPUT=$(bash .github/scripts/version/auto-publish-releases.sh \
-          --token "${{ inputs.github-token }}" \
-          --repo "${{ inputs.repository }}" \
-          --package-names "${{ inputs.package-names }}" \
-          --package-paths "${{ inputs.package-paths }}" \
-          --force-create "true" \
-          --retry-attempts "5" \
-          --debug "true")
-          
-        echo "$OUTPUT"
-        
-        # Extract the releases_created value
-        RELEASES_CREATED=$(echo "$OUTPUT" | grep "^releases_created=" | cut -d= -f2)
-        RELEASES_FAILED=$(echo "$OUTPUT" | grep "^releases_failed=" | cut -d= -f2)
-        
-        echo "releases_created=$RELEASES_CREATED" >> $GITHUB_OUTPUT
-        echo "releases_failed=$RELEASES_FAILED" >> $GITHUB_OUTPUT
-      env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+      uses: ./.github/actions/create-github-releases
+      with:
+        github-token: ${{ inputs.github-token }}
+        package-paths: ${{ inputs.package-paths }}
+        package-names: ${{ inputs.package-names }}
+        include-changelog: true
+        force-create: true
+        retry-attempts: 5
+        debug: ${{ inputs.debug }}
     
     # Collect error information
     - name: Collect error information
