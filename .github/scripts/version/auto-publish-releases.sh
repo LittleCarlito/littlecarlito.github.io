@@ -525,6 +525,7 @@ ensure_tag_and_release() {
   fi
 }
 
+# Main processing section at the bottom
 echo "Creating GitHub releases for published packages with enhanced reliability..." >&2
 RELEASES_CREATED=0
 RELEASES_FAILED=0
@@ -575,66 +576,25 @@ for i in "${!NAME_ARRAY[@]}"; do
     else
       echo "Could not determine version for $PKG_NAME" >&2
       debug_log "package.json exists but version not found for $PKG_NAME"
-      
-      # Try to find version from node_modules
-      if [[ -d "$PKG_PATH/node_modules" ]]; then
-        echo "Trying to find version from node_modules..." >&2
-        PKG_VERSION_FILE="$PKG_PATH/node_modules/$PKG_NAME/package.json"
-        if [[ -f "$PKG_VERSION_FILE" ]]; then
-          VERSION=$(cat "$PKG_VERSION_FILE" | grep -o '"version": "[^"]*' | cut -d'"' -f4)
-          if [[ -n "$VERSION" ]]; then
-            echo "Found version $VERSION from node_modules for $PKG_NAME" >&2
-            
-            # Create a tag name
-            TAG_NAME="${PKG_NAME}@${VERSION}"
-            
-            # Ensure tag and release exist
-            RESULT=$(ensure_tag_and_release "$PKG_NAME" "$VERSION" "$TAG_NAME")
-            
-            if [[ "$RESULT" == "true" ]]; then
-              echo "Successfully created/verified tag and release for $PKG_NAME v$VERSION (from node_modules)" >&2
-              RELEASES_CREATED=$((RELEASES_CREATED + 1))
-            else
-              echo "Failed to create tag and release for $PKG_NAME v$VERSION (from node_modules)" >&2
-              RELEASES_FAILED=$((RELEASES_FAILED + 1))
-            fi
-          fi
-        fi
-      fi
+      RELEASES_FAILED=$((RELEASES_FAILED + 1))
     fi
   else
-    echo "Package.json not found at $PKG_PATH" >&2
-    debug_log "Looking for package.json in subdirectories of $PKG_PATH"
-    
-    # Try to find package.json in subdirectories
-    POTENTIAL_PKG_JSON=$(find "$PKG_PATH" -name "package.json" -not -path "*/node_modules/*" -not -path "*/dist/*" | head -1)
-    if [[ -n "$POTENTIAL_PKG_JSON" ]]; then
-      echo "Found alternative package.json at $POTENTIAL_PKG_JSON" >&2
-      VERSION=$(cat "$POTENTIAL_PKG_JSON" | grep -o '"version": "[^"]*' | cut -d'"' -f4)
-      if [[ -n "$VERSION" ]]; then
-        echo "Found version $VERSION from alternative location for $PKG_NAME" >&2
-        
-        # Create a tag name
-        TAG_NAME="${PKG_NAME}@${VERSION}"
-        
-        # Ensure tag and release exist
-        RESULT=$(ensure_tag_and_release "$PKG_NAME" "$VERSION" "$TAG_NAME")
-        
-        if [[ "$RESULT" == "true" ]]; then
-          echo "Successfully created/verified tag and release for $PKG_NAME v$VERSION (from alt location)" >&2
-          RELEASES_CREATED=$((RELEASES_CREATED + 1))
-        else
-          echo "Failed to create tag and release for $PKG_NAME v$VERSION (from alt location)" >&2
-          RELEASES_FAILED=$((RELEASES_FAILED + 1))
-        fi
-      fi
-    fi
+    echo "No package.json found for $PKG_NAME at $PKG_PATH" >&2
+    RELEASES_FAILED=$((RELEASES_FAILED + 1))
   fi
 done
 
 echo "Created/verified $RELEASES_CREATED releases, Failed: $RELEASES_FAILED" >&2
 echo "releases_created=$RELEASES_CREATED"
 echo "releases_failed=$RELEASES_FAILED"
+echo "packages_processed=${#NAME_ARRAY[@]}"
+
+# Return exit code based on success
+if [[ "$RELEASES_FAILED" -eq 0 ]]; then
+  exit 0
+else
+  exit 1
+fi
 
 # Delete version branch if requested and it exists
 if [[ "$DELETE_BRANCH" == "true" ]]; then
@@ -662,11 +622,4 @@ if [[ "$DELETE_BRANCH" == "true" ]]; then
   else
     debug_log "No version branch found to delete"
   fi
-fi
-
-# Exit with success only if no releases failed
-if [[ $RELEASES_FAILED -eq 0 ]]; then
-  exit 0
-else
-  exit 1
 fi 

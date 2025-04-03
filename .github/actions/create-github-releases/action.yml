@@ -27,6 +27,10 @@ inputs:
     description: 'Enable verbose debug output'
     required: false
     default: 'false'
+  smart-detection:
+    description: 'Only version packages with actual code changes'
+    required: false
+    default: 'true'
 
 outputs:
   releases-created:
@@ -35,6 +39,15 @@ outputs:
   releases-failed:
     description: 'Number of releases that failed to create'
     value: ${{ steps.run-releases.outputs.releases_failed }}
+  packages-processed:
+    description: 'Number of packages processed'
+    value: ${{ steps.detect-changes.outputs.total_packages || steps.input-counts.outputs.total_packages }}
+  packages-changed:
+    description: 'Number of packages with changes'
+    value: ${{ steps.detect-changes.outputs.changed_count || '0' }}
+  changed-packages:
+    description: 'List of package names with changes'
+    value: ${{ steps.detect-changes.outputs.changed_packages || '' }}
 
 runs:
   using: "composite"
@@ -45,6 +58,22 @@ runs:
       run: |
         git config --global user.name "GitHub Actions"
         git config --global user.email "actions@github.com"
+    
+    # Get initial counts for error reporting
+    - name: Count packages
+      id: input-counts
+      shell: bash
+      run: |
+        PACKAGE_NAMES="${{ inputs.package-names }}"
+        PACKAGE_PATHS="${{ inputs.package-paths }}"
+        
+        # Count packages from inputs
+        if [[ -n "$PACKAGE_NAMES" ]]; then
+          TOTAL_COUNT=$(echo "$PACKAGE_NAMES" | tr ',' '\n' | wc -l | tr -d ' ')
+          echo "total_packages=$TOTAL_COUNT" >> $GITHUB_OUTPUT
+        else
+          echo "total_packages=0" >> $GITHUB_OUTPUT
+        fi
     
     # Check token permissions
     - name: Check token permissions
@@ -72,8 +101,57 @@ runs:
         fi
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
+    
+    # Detect package changes
+    - name: Detect package changes
+      id: detect-changes
+      if: inputs.smart-detection == 'true'
+      shell: bash
+      run: |
+        echo "Detecting changes in packages..." >&2
+        # Add execution permission if needed
+        chmod +x .github/scripts/version/detect-package-changes.sh
         
-    # Run the release script
+        # Run script to detect changes
+        DETECT_OUTPUT=$(.github/scripts/version/detect-package-changes.sh \
+          --package-paths "${{ inputs.package-paths }}" \
+          --package-names "${{ inputs.package-names }}" \
+          --debug "${{ inputs.debug }}" \
+          --verbose "true" || echo "exit_code=$?")
+        
+        EXIT_CODE=$?
+        
+        # Check if no changes detected (exit code 3)
+        if [[ "$EXIT_CODE" -eq 3 ]]; then
+          echo "No package changes detected - skipping version and release process" >&2
+          echo "changed_packages=" >> $GITHUB_OUTPUT
+          echo "changed_paths=" >> $GITHUB_OUTPUT
+          echo "changed_count=0" >> $GITHUB_OUTPUT
+          echo "total_packages=$(echo "${{ inputs.package-names }}" | tr ',' '\n' | wc -l | tr -d ' ')" >> $GITHUB_OUTPUT
+          exit 0
+        elif [[ "$EXIT_CODE" -ne 0 ]]; then
+          echo "Error detecting package changes (exit code $EXIT_CODE)" >&2
+          echo "Using all packages as fallback" >&2
+          echo "changed_packages=${{ inputs.package-names }}" >> $GITHUB_OUTPUT
+          echo "changed_paths=${{ inputs.package-paths }}" >> $GITHUB_OUTPUT
+          echo "changed_count=$(echo "${{ inputs.package-names }}" | tr ',' '\n' | wc -l | tr -d ' ')" >> $GITHUB_OUTPUT
+          echo "total_packages=$(echo "${{ inputs.package-names }}" | tr ',' '\n' | wc -l | tr -d ' ')" >> $GITHUB_OUTPUT
+        else
+          # Forward outputs
+          echo "$DETECT_OUTPUT" >> $GITHUB_OUTPUT
+          
+          # Extract for reporting
+          CHANGED_PACKAGES=$(echo "$DETECT_OUTPUT" | grep "^changed_packages=" | cut -d= -f2)
+          CHANGED_COUNT=$(echo "$DETECT_OUTPUT" | grep "^changed_count=" | cut -d= -f2)
+          TOTAL_PACKAGES=$(echo "$DETECT_OUTPUT" | grep "^total_packages=" | cut -d= -f2)
+          
+          echo "Found $CHANGED_COUNT/$TOTAL_PACKAGES packages with changes:" >&2
+          if [[ -n "$CHANGED_PACKAGES" ]]; then
+            echo "$CHANGED_PACKAGES" | tr ',' '\n' | sed 's/^/- /' >&2
+          fi
+        fi
+        
+    # Run the release script with filtered packages if smart detection is enabled
     - name: Create GitHub releases
       id: run-releases
       shell: bash
@@ -83,12 +161,33 @@ runs:
         # Add execution permission if needed
         chmod +x .github/scripts/version/auto-publish-releases.sh
         
-        # Run script with all provided inputs
+        # Determine which packages to process
+        if [[ "${{ inputs.smart-detection }}" == "true" && -n "${{ steps.detect-changes.outputs.changed_packages }}" ]]; then
+          # Use packages with detected changes
+          PACKAGE_NAMES="${{ steps.detect-changes.outputs.changed_packages }}"
+          PACKAGE_PATHS="${{ steps.detect-changes.outputs.changed_paths }}"
+          echo "Using ${{ steps.detect-changes.outputs.changed_count }} packages with detected changes" >&2
+        else
+          # Use all packages from input
+          PACKAGE_NAMES="${{ inputs.package-names }}"
+          PACKAGE_PATHS="${{ inputs.package-paths }}"
+          echo "Processing all ${{ steps.input-counts.outputs.total_packages }} packages" >&2
+        fi
+        
+        # Skip if no packages to process
+        if [[ -z "$PACKAGE_NAMES" || "$PACKAGE_NAMES" == "null" ]]; then
+          echo "No packages to process, skipping release creation" >&2
+          echo "releases_created=0" >> $GITHUB_OUTPUT
+          echo "releases_failed=0" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        # Run script with all provided inputs and filtered packages
         OUTPUT=$(.github/scripts/version/auto-publish-releases.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ github.repository }}" \
-          --package-names "${{ inputs.package-names }}" \
-          --package-paths "${{ inputs.package-paths }}" \
+          --package-names "$PACKAGE_NAMES" \
+          --package-paths "$PACKAGE_PATHS" \
           --include-changelog "${{ inputs.include-changelog }}" \
           --force-create "${{ inputs.force-create }}" \
           --retry-attempts "${{ inputs.retry-attempts }}" \
