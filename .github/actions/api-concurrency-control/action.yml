@@ -1,0 +1,128 @@
+name: 'API Concurrency Control'
+description: 'Manages GitHub API concurrency and rate limiting for reliable tag and release creation'
+
+inputs:
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  repository:
+    description: 'Repository name (owner/repo)'
+    required: false
+    default: ${{ github.repository }}
+  operation:
+    description: 'Operation to perform (delete-tag, create-tag, create-release)'
+    required: true
+  tag-name:
+    description: 'Name of the tag to delete, create, or for the release'
+    required: true
+  commit-sha:
+    description: 'Commit SHA for tag creation'
+    required: false
+    default: ''
+  release-name:
+    description: 'Name of the release (if creating a release)'
+    required: false
+    default: ''
+  release-body:
+    description: 'Body text for the release (if creating a release)'
+    required: false
+    default: ''
+  max-retries:
+    description: 'Maximum number of retry attempts'
+    required: false
+    default: '5'
+  debug:
+    description: 'Enable verbose debug logging'
+    required: false
+    default: 'false'
+
+outputs:
+  success:
+    description: 'Whether the operation was successful'
+    value: ${{ steps.api-call.outputs.success || 'false' }}
+  status-code:
+    description: 'HTTP status code from the API call'
+    value: ${{ steps.api-call.outputs.status_code || '0' }}
+  response:
+    description: 'Response from the API call'
+    value: ${{ steps.api-call.outputs.response || '{}' }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Execute API call with concurrency control
+      id: api-call
+      shell: bash
+      run: |
+        echo "Performing ${{ inputs.operation }} operation with concurrency control..."
+        mkdir -p .github/scripts/api
+        chmod +x .github/scripts/api/rate-limited-api-call.sh
+        
+        # Prepare API parameters based on operation
+        case "${{ inputs.operation }}" in
+          delete-tag)
+            METHOD="DELETE"
+            ENDPOINT="/repos/${{ inputs.repository }}/git/refs/tags/${{ inputs.tag-name }}"
+            DATA=""
+            ;;
+          create-tag)
+            METHOD="POST"
+            ENDPOINT="/repos/${{ inputs.repository }}/git/refs"
+            DATA="{\"ref\":\"refs/tags/${{ inputs.tag-name }}\",\"sha\":\"${{ inputs.commit-sha }}\"}"
+            ;;
+          create-release)
+            METHOD="POST"
+            ENDPOINT="/repos/${{ inputs.repository }}/releases"
+            DATA="{\"tag_name\":\"${{ inputs.tag-name }}\",\"name\":\"${{ inputs.release-name }}\",\"body\":\"${{ inputs.release-body }}\",\"draft\":false,\"prerelease\":false}"
+            ;;
+          *)
+            echo "Error: Unknown operation ${{ inputs.operation }}"
+            echo "success=false" >> $GITHUB_OUTPUT
+            echo "status_code=400" >> $GITHUB_OUTPUT
+            echo "response={\"error\":\"Unknown operation\"}" >> $GITHUB_OUTPUT
+            exit 1
+            ;;
+        esac
+        
+        # Execute the API call with rate limiting and retries
+        RESPONSE_OUTPUT=$(mktemp)
+        
+        .github/scripts/api/rate-limited-api-call.sh \
+          --method "$METHOD" \
+          --endpoint "$ENDPOINT" \
+          --token "${{ inputs.github-token }}" \
+          --data "$DATA" \
+          --max-retries "${{ inputs.max-retries }}" \
+          --debug "${{ inputs.debug }}" > "$RESPONSE_OUTPUT" 2>&1
+        
+        API_RESULT=$?
+        RESPONSE=$(cat "$RESPONSE_OUTPUT")
+        
+        # Extract status information from stderr output
+        SUCCESS=$(grep "^success=" "$RESPONSE_OUTPUT" | cut -d= -f2)
+        STATUS_CODE=$(grep "^status_code=" "$RESPONSE_OUTPUT" | cut -d= -f2)
+        
+        # Filter out status lines to get just the JSON response
+        RESPONSE_JSON=$(grep -v "^success=" "$RESPONSE_OUTPUT" | grep -v "^status_code=" || echo "{}")
+        
+        echo "success=$SUCCESS" >> $GITHUB_OUTPUT
+        echo "status_code=$STATUS_CODE" >> $GITHUB_OUTPUT
+        echo "response=$RESPONSE_JSON" >> $GITHUB_OUTPUT
+        
+        # Clean up
+        rm -f "$RESPONSE_OUTPUT"
+        
+        # Output results
+        echo "API call result: $SUCCESS (HTTP $STATUS_CODE)"
+        if [ "${{ inputs.debug }}" == "true" ]; then
+          echo "Response:"
+          echo "$RESPONSE_JSON" | jq '.' || echo "$RESPONSE_JSON"
+        fi
+        
+        if [ "$SUCCESS" != "true" ]; then
+          echo "⚠️ API operation failed after ${{ inputs.max-retries }} retries"
+        else
+          echo "✅ API operation completed successfully"
+        fi
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }} 
