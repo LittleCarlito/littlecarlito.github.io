@@ -267,6 +267,30 @@ create_tag_with_retry() {
   echo "$success"
 }
 
+# Function to create a release - simplified version for last resort
+create_simple_release() {
+  local tag_name=$1
+  local name=$2
+  
+  debug_log "Using simplified release creation for $tag_name"
+  
+  # Simplest possible payload with minimal fields
+  local simple_response=$(curl -s -X POST -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+    -d "{\"tag_name\":\"$tag_name\",\"name\":\"$name\"}" \
+    "https://api.github.com/repos/$REPO/releases")
+  
+  local release_id=$(echo "$simple_response" | grep -o '"id": [0-9]*' | head -1 | cut -d' ' -f2)
+  
+  if [[ -n "$release_id" ]]; then
+    echo "Successfully created simplified release for $tag_name" >&2
+    return 0
+  else
+    echo "Failed to create simplified release for $tag_name" >&2
+    debug_log "Simple release response: $simple_response"
+    return 1
+  fi
+}
+
 # Function to create a release with retries
 create_release_with_retry() {
   local pkg_name=$1
@@ -313,14 +337,44 @@ create_release_with_retry() {
       local version_notes=$(echo "$changelog_content" | awk "/## $version/{flag=1;next} /## [0-9]+/{flag=0} flag" | grep -v "^$" | head -10)
       
       if [[ -n "$version_notes" ]]; then
-        release_body="$version_notes"
+        # Escape quotes and special characters for JSON
+        release_body=$(echo "$version_notes" | sed 's/"/\\"/g' | sed 's/$/\\n/g' | tr -d '\n')
       fi
     fi
     
-    # Create release
-    local release_response=$(curl -s -X POST -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
-      -d "{\"tag_name\":\"$tag_name\",\"name\":\"$pkg_name v$version\",\"body\":\"$release_body\",\"draft\":false,\"prerelease\":false}" \
-      "https://api.github.com/repos/$REPO/releases")
+    # Simplify release body for diagnostics
+    if [[ "$DEBUG" == "true" ]]; then
+      echo "Using simplified release body for debug mode..." >&2
+      release_body="Release of $pkg_name version $version (debug mode)"
+    fi
+    
+    # Create a properly formatted JSON payload
+    local payload=$(cat <<EOF
+{
+  "tag_name": "$tag_name",
+  "name": "$pkg_name v$version",
+  "body": "$release_body",
+  "draft": false,
+  "prerelease": false
+}
+EOF
+)
+    
+    if [[ "$DEBUG" == "true" ]]; then
+      echo "Release payload: $payload" >&2
+    fi
+    
+    # Create release - use verbose mode in debug mode
+    local curl_cmd="curl -s"
+    if [[ "$DEBUG" == "true" ]]; then
+      curl_cmd="curl -v"
+      echo "Using verbose curl for debugging" >&2
+    fi
+    
+    local release_response=$(eval $curl_cmd -X POST -H \"$HEADER_AUTH\" -H \"$HEADER_ACCEPT\" \
+      -H \"Content-Type: application/json\" \
+      -d \"$payload\" \
+      \"https://api.github.com/repos/$REPO/releases\")
     
     local release_id=$(echo "$release_response" | grep -o '"id": [0-9]*' | head -1 | cut -d' ' -f2)
     
@@ -330,7 +384,43 @@ create_release_with_retry() {
       break
     else
       echo "Failed to create release on attempt $((RETRY_ATTEMPTS - attempts + 1))" >&2
-      debug_log "Release response: $release_response"
+      
+      # Enhanced error reporting
+      echo "API Error Response:" >&2
+      echo "$release_response" | grep "message" >&2
+      
+      # Try an even simpler approach if we're on the last attempt
+      if [[ $attempts -eq 1 ]]; then
+        echo "Trying simplified API approach as last resort..." >&2
+        if create_simple_release "$tag_name" "$pkg_name v$version"; then
+          success=true
+          break
+        fi
+        
+        echo "Trying direct GitHub CLI approach as last resort..." >&2
+        
+        # Check if GitHub CLI is available
+        if command -v gh &> /dev/null; then
+          # Temporary file for release notes
+          TEMP_NOTES=$(mktemp)
+          echo "Release of $pkg_name version $version" > "$TEMP_NOTES"
+          
+          # Try using GitHub CLI instead
+          export GH_TOKEN="$TOKEN"
+          gh release create "$tag_name" --title "$pkg_name v$version" --notes-file "$TEMP_NOTES" || true
+          rm "$TEMP_NOTES"
+          
+          # Check if it worked
+          GH_RELEASE_CHECK=$(gh release view "$tag_name" 2>/dev/null || echo "not found")
+          if [[ "$GH_RELEASE_CHECK" != "not found" ]]; then
+            echo "Successfully created release using GitHub CLI" >&2
+            success=true
+            break
+          fi
+        fi
+      fi
+      
+      debug_log "Full release response: $release_response"
       if [[ $attempts -gt 1 ]]; then
         echo "Retrying in 3 seconds..." >&2
         sleep 3

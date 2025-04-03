@@ -1,66 +1,90 @@
-name: Create GitHub Releases
-description: Creates GitHub releases for newly created tags
+name: 'Create GitHub Releases'
+description: 'Creates GitHub releases for versioned packages'
 
 inputs:
   github-token:
-    description: GitHub token for authentication
+    description: 'GitHub token for authentication'
     required: true
   package-paths:
-    description: Comma-separated list of package paths (e.g., packages/pkg1,packages/pkg2)
+    description: 'Comma-separated list of package paths'
     required: true
   package-names:
-    description: Comma-separated list of package names (e.g., @scope/pkg1,@scope/pkg2)
+    description: 'Comma-separated list of package names'
     required: true
   include-changelog:
-    description: Whether to include changelog content in release notes
+    description: 'Whether to include changelog content in releases'
     required: false
     default: 'true'
   force-create:
-    description: Force creating releases even if they exist
+    description: 'Whether to force create releases for all packages'
     required: false
-    default: 'false'
+    default: 'true'
   retry-attempts:
-    description: Number of retry attempts for failed releases
+    description: 'Number of retry attempts for failed operations'
     required: false
     default: '3'
   debug:
-    description: Enable debug output
+    description: 'Enable verbose debug output'
     required: false
     default: 'false'
 
 outputs:
   releases-created:
-    description: Number of releases created
-    value: ${{ steps.create-releases.outputs.releases_created }}
+    description: 'Number of releases successfully created'
+    value: ${{ steps.run-releases.outputs.releases_created }}
   releases-failed:
-    description: Number of releases that failed to create
-    value: ${{ steps.create-releases.outputs.releases_failed }}
+    description: 'Number of releases that failed to create'
+    value: ${{ steps.run-releases.outputs.releases_failed }}
 
 runs:
-  using: composite
+  using: "composite"
   steps:
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 'lts/*'
-        
-    - name: Create GitHub releases
-      id: create-releases
+    # Ensure Git is configured properly
+    - name: Setup Git configuration
       shell: bash
       run: |
-        # Check if auto-publish-releases.sh exists
-        if [ ! -f "${{ github.workspace }}/.github/scripts/version/auto-publish-releases.sh" ]; then
-          echo "Error: auto-publish-releases.sh script not found"
-          echo "releases_created=0" >> $GITHUB_OUTPUT
-          echo "releases_failed=0" >> $GITHUB_OUTPUT
-          exit 1
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+    
+    # Check token permissions
+    - name: Check token permissions
+      id: check-token
+      shell: bash
+      run: |
+        echo "Testing token permissions..." >&2
+        
+        # Test basic repo access
+        REPO_TEST=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${{ inputs.github-token }}" \
+                 "https://api.github.com/repos/${{ github.repository }}")
+        echo "Repo access HTTP status: $REPO_TEST" >&2
+        
+        # Test release list access
+        RELEASES_TEST=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${{ inputs.github-token }}" \
+                    "https://api.github.com/repos/${{ github.repository }}/releases")
+        echo "Releases access HTTP status: $RELEASES_TEST" >&2
+        
+        if [[ "$REPO_TEST" != "200" || "$RELEASES_TEST" != "200" ]]; then
+          echo "⚠️ WARNING: Token may not have sufficient permissions for releases!" >&2
+          echo "has_permissions=false" >> $GITHUB_OUTPUT
+        else
+          echo "✅ Token permissions look good" >&2
+          echo "has_permissions=true" >> $GITHUB_OUTPUT
         fi
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
         
-        # Make script executable
-        chmod +x "${{ github.workspace }}/.github/scripts/version/auto-publish-releases.sh"
+    # Run the release script
+    - name: Create GitHub releases
+      id: run-releases
+      shell: bash
+      run: |
+        echo "Running auto-publish-releases.sh script..." >&2
         
-        # Run the auto-publish-releases.sh script creates GitHub releases for packages with tags
-        OUTPUT=$(bash "${{ github.workspace }}/.github/scripts/version/auto-publish-releases.sh" \
+        # Add execution permission if needed
+        chmod +x .github/scripts/version/auto-publish-releases.sh
+        
+        # Run script with all provided inputs
+        OUTPUT=$(.github/scripts/version/auto-publish-releases.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ github.repository }}" \
           --package-names "${{ inputs.package-names }}" \
@@ -69,29 +93,30 @@ runs:
           --force-create "${{ inputs.force-create }}" \
           --retry-attempts "${{ inputs.retry-attempts }}" \
           --debug "${{ inputs.debug }}")
-          
-        # Display the output
-        echo "$OUTPUT"
         
-        # Extract the releases_created value
-        RELEASES_CREATED=$(echo "$OUTPUT" | grep "^releases_created=" | cut -d= -f2 || echo "0")
-        RELEASES_FAILED=$(echo "$OUTPUT" | grep "^releases_failed=" | cut -d= -f2 || echo "0")
+        # Forward any output to GitHub step outputs
+        echo "$OUTPUT" | grep -E "^[a-zA-Z_]+=" >> $GITHUB_OUTPUT
         
-        # Set outputs
-        echo "releases_created=$RELEASES_CREATED" >> $GITHUB_OUTPUT
-        echo "releases_failed=$RELEASES_FAILED" >> $GITHUB_OUTPUT
+        # Extract counts for summary
+        RELEASES_CREATED=$(echo "$OUTPUT" | grep "^releases_created=" | cut -d= -f2)
+        RELEASES_FAILED=$(echo "$OUTPUT" | grep "^releases_failed=" | cut -d= -f2)
         
-        # Report summary
-        echo "Release Creation Results:"
-        echo "- Releases created: $RELEASES_CREATED"
-        echo "- Releases failed: $RELEASES_FAILED"
+        if [[ -z "$RELEASES_CREATED" ]]; then
+          RELEASES_CREATED=0
+          echo "releases_created=0" >> $GITHUB_OUTPUT
+        fi
         
-        # Provide guidance if no releases were created
-        if [ "$RELEASES_CREATED" = "0" ] && [ "$RELEASES_FAILED" = "0" ]; then
-          echo "No releases were created. This might be because:"
-          echo "1. No new tags were found for the specified packages"
-          echo "2. Releases already exist for all tags (unless --force-create is true)"
-          echo "3. The script failed to detect valid tags"
+        if [[ -z "$RELEASES_FAILED" ]]; then
+          RELEASES_FAILED=0
+          echo "releases_failed=0" >> $GITHUB_OUTPUT
+        fi
+        
+        # Report status
+        echo "Created $RELEASES_CREATED releases, Failed: $RELEASES_FAILED" >&2
+        
+        # Fail if any releases failed
+        if [[ "$RELEASES_FAILED" -gt 0 ]]; then
+          exit 1
         fi
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }} 
