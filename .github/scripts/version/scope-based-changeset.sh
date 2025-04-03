@@ -6,6 +6,33 @@
 
 set -e
 
+# Add a safeguard timeout - exit after 5 minutes (300 seconds) to prevent hanging
+TIMEOUT=300
+(
+  sleep $TIMEOUT
+  echo "ERROR: Script execution timed out after $TIMEOUT seconds" >&2
+  # Force exit the entire process group to ensure cleanup
+  kill -9 0
+) &
+TIMEOUT_PID=$!
+
+# Make sure to clean up the timeout process when the script exits normally
+trap "kill $TIMEOUT_PID 2>/dev/null || true" EXIT
+
+# Add environment diagnostics
+echo "=== Environment Diagnostics ===" >&2
+echo "Bash Version: ${BASH_VERSION}" >&2
+echo "Operating System: $(uname -a)" >&2
+echo "Current User: $(whoami)" >&2
+echo "Current Directory: $(pwd)" >&2
+echo "Directory permissions: $(ls -ld .)" >&2
+echo ".changeset directory exists: $([ -d .changeset ] && echo "Yes" || echo "No")" >&2
+if [ -d .changeset ]; then
+  echo ".changeset permissions: $(ls -ld .changeset)" >&2
+  echo ".changeset contents: $(ls -la .changeset)" >&2
+fi
+echo "=== End Environment Diagnostics ===" >&2
+
 # Parse command line arguments
 BASE_COMMIT=""
 AUTO_CHANGESET_PREFIX="auto-"
@@ -177,6 +204,8 @@ create_package_changeset() {
   local version_type="$2"
   local commit_msg="$3"
   
+  echo "  DEBUG: Starting changeset creation for $pkg_name" >&2
+  
   # Skip if we've already processed this package
   if is_package_processed "$pkg_name"; then
     echo "  Package $pkg_name already processed, skipping" >&2
@@ -187,12 +216,19 @@ create_package_changeset() {
   
   # Create changeset
   if [ "$DRY_RUN" != "true" ]; then
+    echo "  DEBUG: Creating changeset directory" >&2
     # Create changeset directory if it doesn't exist
     mkdir -p .changeset
     
-    # Generate a unique changeset ID
-    CHANGESET_ID="${AUTO_CHANGESET_PREFIX}$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 8 | head -n 1)"
+    echo "  DEBUG: Generating changeset ID" >&2
+    # Generate a unique changeset ID using date and nanoseconds instead of /dev/urandom
+    TIMESTAMP=$(date +%s)
+    RANDOM_PART="${TIMESTAMP}${RANDOM}${pkg_name}"
+    # Take the last 8 characters to make it shorter
+    RANDOM_PART="${RANDOM_PART: -8}"
+    CHANGESET_ID="${AUTO_CHANGESET_PREFIX}${RANDOM_PART}"
     
+    echo "  DEBUG: Writing changeset file $CHANGESET_ID.md" >&2
     # Create the changeset file
     cat > ".changeset/$CHANGESET_ID.md" << EOF
 ---
@@ -204,7 +240,9 @@ EOF
     
     echo "  Created changeset for $pkg_name: .changeset/$CHANGESET_ID.md" >&2
     CHANGESETS_CREATED=$((CHANGESETS_CREATED + 1))
+    echo "  DEBUG: Marking package as processed" >&2
     mark_package_processed "$pkg_name"
+    echo "  DEBUG: Changeset creation completed" >&2
   else
     echo "  [DRY RUN] Would create changeset for $pkg_name with $version_type version bump" >&2
   fi
