@@ -79,21 +79,49 @@ runs:
       id: generate-changesets
       shell: bash
       run: |
-        OUTPUT=$(bash .github/scripts/version/generate-package-changesets.sh \
+        set -e
+        # Add timeout safety
+        timeout_seconds=300
+        
+        # Run with timeout
+        echo "Running generate-package-changesets.sh with $timeout_seconds second timeout..." >&2
+        
+        # Create temp file for output capture
+        temp_output=$(mktemp)
+        
+        # Run the script with timeout
+        timeout $timeout_seconds bash .github/scripts/version/generate-package-changesets.sh \
           --base-commit "${{ inputs.base-commit }}" \
           --auto-changeset-prefix "${{ inputs.auto-changeset-prefix }}" \
           --default-version "${{ inputs.default-version }}" \
-          --dry-run "false")
+          --dry-run "false" > $temp_output 2>&1 || {
+            exit_code=$?
+            if [ $exit_code -eq 124 ]; then
+              echo "ERROR: Script timed out after $timeout_seconds seconds!" >&2
+            else
+              echo "ERROR: Script failed with exit code $exit_code" >&2
+            fi
+            cat $temp_output >&2
+            rm -f $temp_output
+            exit $exit_code
+          }
         
-        echo "$OUTPUT" >> $GITHUB_OUTPUT
+        # Extract output variables
+        packages_changed=$(grep "^packages_changed=" $temp_output | cut -d= -f2 || echo "0")
+        changesets_created=$(grep "^changesets_created=" $temp_output | cut -d= -f2 || echo "0") 
+        changeset_created=$(grep "^changeset_created=" $temp_output | cut -d= -f2 || echo "false")
         
-        # Extract important values for readability
-        PACKAGES_CHANGED=$(echo "$OUTPUT" | grep "^packages_changed=" | cut -d= -f2)
-        CHANGESETS_CREATED=$(echo "$OUTPUT" | grep "^changesets_created=" | cut -d= -f2)
-        CHANGESET_CREATED=$(echo "$OUTPUT" | grep "^changeset_created=" | cut -d= -f2)
+        # Set outputs for GitHub Actions
+        echo "packages_changed=$packages_changed" >> $GITHUB_OUTPUT
+        echo "changesets_created=$changesets_created" >> $GITHUB_OUTPUT
+        echo "changeset_created=$changeset_created" >> $GITHUB_OUTPUT
         
-        echo "Packages changed: $PACKAGES_CHANGED" >&2
-        echo "Changesets created: $CHANGESETS_CREATED" >&2
+        # Display details for logging
+        echo "Packages changed: $packages_changed" >&2
+        echo "Changesets created: $changesets_created" >&2
+        
+        # Clean up temp file
+        rm -f $temp_output
         
     # Commit changesets if any were created
     - name: Commit changesets
