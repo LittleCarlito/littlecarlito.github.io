@@ -87,7 +87,7 @@
     "ancestorSeparator": " › ",
     "usePathForSuiteName": "true"
   },
-  "version": "0.12.16",
+  "version": "0.0.0",
   "pnpm": {
     "overrides": {},
     "peerDependencyRules": {
