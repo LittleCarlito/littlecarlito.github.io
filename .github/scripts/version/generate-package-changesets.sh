@@ -61,6 +61,9 @@ fi
 # Detect package directories
 PACKAGE_DIRS=$(find . -type f -name "package.json" -not -path "*/node_modules/*" -not -path "*/.changeset/*" | xargs dirname | sed 's|^\./||')
 
+# Filter out the root package - only include packages and apps directories
+PACKAGE_DIRS=$(echo "$PACKAGE_DIRS" | grep -E '^(packages/|apps/)' || true)
+
 # Initialize counters
 PACKAGES_CHANGED=0
 CHANGESETS_CREATED=0
