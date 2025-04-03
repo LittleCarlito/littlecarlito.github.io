@@ -311,7 +311,8 @@ echo "DEBUG: packages_changed=$PACKAGES_CHANGED" >&2
 echo "DEBUG: changesets_created=$CHANGESETS_CREATED" >&2
 echo "DEBUG: changeset_created=$([ $CHANGESETS_CREATED -gt 0 ] && echo true || echo false)" >&2
 
-# Set output variables - Make sure these go to stdout
+# Set output variables - only to stdout and in the correct format
+# Each variable on its own line, no extra output
 echo "packages_changed=$PACKAGES_CHANGED"
 echo "changesets_created=$CHANGESETS_CREATED"
 echo "changeset_created=$([ $CHANGESETS_CREATED -gt 0 ] && echo true || echo false)"

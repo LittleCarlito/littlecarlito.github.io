@@ -89,7 +89,7 @@ runs:
         # Create temp file for output capture
         temp_output=$(mktemp)
         
-        # Run the script with timeout
+        # Run the script with timeout and capture stdout to variables
         timeout $timeout_seconds bash .github/scripts/version/generate-package-changesets.sh \
           --base-commit "${{ inputs.base-commit }}" \
           --auto-changeset-prefix "${{ inputs.auto-changeset-prefix }}" \
@@ -106,19 +106,22 @@ runs:
             exit $exit_code
           }
         
-        # Extract output variables
+        echo "DEBUG: Script output:" >&2
+        cat $temp_output >&2
+        
+        # Extract output variables with defaults to prevent errors
         packages_changed=$(grep "^packages_changed=" $temp_output | cut -d= -f2 || echo "0")
         changesets_created=$(grep "^changesets_created=" $temp_output | cut -d= -f2 || echo "0") 
         changeset_created=$(grep "^changeset_created=" $temp_output | cut -d= -f2 || echo "false")
         
         # Set outputs for GitHub Actions
-        echo "packages_changed=$packages_changed" >> $GITHUB_OUTPUT
-        echo "changesets_created=$changesets_created" >> $GITHUB_OUTPUT
-        echo "changeset_created=$changeset_created" >> $GITHUB_OUTPUT
+        echo "packages_changed=${packages_changed}" >> $GITHUB_OUTPUT
+        echo "changesets_created=${changesets_created}" >> $GITHUB_OUTPUT
+        echo "changeset_created=${changeset_created}" >> $GITHUB_OUTPUT
         
         # Display details for logging
-        echo "Packages changed: $packages_changed" >&2
-        echo "Changesets created: $changesets_created" >&2
+        echo "Packages changed: ${packages_changed}" >&2
+        echo "Changesets created: ${changesets_created}" >&2
         
         # Clean up temp file
         rm -f $temp_output

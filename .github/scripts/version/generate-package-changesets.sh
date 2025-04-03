@@ -76,13 +76,15 @@ fi
 # Clean up the temporary file
 rm -f "$TEMP_OUTPUT"
 
-# Forward these outputs explicitly
+# Log the values for debugging (to stderr only!)
+echo "Packages with changes: $PACKAGES_CHANGED" >&2
+echo "Changesets created: $CHANGESETS_CREATED" >&2
+
+# Forward these outputs explicitly - only to stdout and in the GitHub Actions format
 echo "packages_changed=$PACKAGES_CHANGED"
 echo "changesets_created=$CHANGESETS_CREATED"
 echo "changeset_created=$CHANGESET_CREATED"
 
 echo "Completed changeset generation" >&2
-echo "Packages with changes: $PACKAGES_CHANGED" >&2
-echo "Changesets created: $CHANGESETS_CREATED" >&2
 echo "Script completed successfully" >&2
 exit 0 
