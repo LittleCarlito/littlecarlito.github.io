@@ -1,0 +1,97 @@
+name: Create GitHub Releases
+description: Creates GitHub releases for newly created tags
+
+inputs:
+  github-token:
+    description: GitHub token for authentication
+    required: true
+  package-paths:
+    description: Comma-separated list of package paths (e.g., packages/pkg1,packages/pkg2)
+    required: true
+  package-names:
+    description: Comma-separated list of package names (e.g., @scope/pkg1,@scope/pkg2)
+    required: true
+  include-changelog:
+    description: Whether to include changelog content in release notes
+    required: false
+    default: 'true'
+  force-create:
+    description: Force creating releases even if they exist
+    required: false
+    default: 'false'
+  retry-attempts:
+    description: Number of retry attempts for failed releases
+    required: false
+    default: '3'
+  debug:
+    description: Enable debug output
+    required: false
+    default: 'false'
+
+outputs:
+  releases-created:
+    description: Number of releases created
+    value: ${{ steps.create-releases.outputs.releases_created }}
+  releases-failed:
+    description: Number of releases that failed to create
+    value: ${{ steps.create-releases.outputs.releases_failed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 'lts/*'
+        
+    - name: Create GitHub releases
+      id: create-releases
+      shell: bash
+      run: |
+        # Check if auto-publish-releases.sh exists
+        if [ ! -f "${{ github.workspace }}/.github/scripts/version/auto-publish-releases.sh" ]; then
+          echo "Error: auto-publish-releases.sh script not found"
+          echo "releases_created=0" >> $GITHUB_OUTPUT
+          echo "releases_failed=0" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+        
+        # Make script executable
+        chmod +x "${{ github.workspace }}/.github/scripts/version/auto-publish-releases.sh"
+        
+        # Run the auto-publish-releases.sh script creates GitHub releases for packages with tags
+        OUTPUT=$(bash "${{ github.workspace }}/.github/scripts/version/auto-publish-releases.sh" \
+          --token "${{ inputs.github-token }}" \
+          --repo "${{ github.repository }}" \
+          --package-names "${{ inputs.package-names }}" \
+          --package-paths "${{ inputs.package-paths }}" \
+          --include-changelog "${{ inputs.include-changelog }}" \
+          --force-create "${{ inputs.force-create }}" \
+          --retry-attempts "${{ inputs.retry-attempts }}" \
+          --debug "${{ inputs.debug }}")
+          
+        # Display the output
+        echo "$OUTPUT"
+        
+        # Extract the releases_created value
+        RELEASES_CREATED=$(echo "$OUTPUT" | grep "^releases_created=" | cut -d= -f2 || echo "0")
+        RELEASES_FAILED=$(echo "$OUTPUT" | grep "^releases_failed=" | cut -d= -f2 || echo "0")
+        
+        # Set outputs
+        echo "releases_created=$RELEASES_CREATED" >> $GITHUB_OUTPUT
+        echo "releases_failed=$RELEASES_FAILED" >> $GITHUB_OUTPUT
+        
+        # Report summary
+        echo "Release Creation Results:"
+        echo "- Releases created: $RELEASES_CREATED"
+        echo "- Releases failed: $RELEASES_FAILED"
+        
+        # Provide guidance if no releases were created
+        if [ "$RELEASES_CREATED" = "0" ] && [ "$RELEASES_FAILED" = "0" ]; then
+          echo "No releases were created. This might be because:"
+          echo "1. No new tags were found for the specified packages"
+          echo "2. Releases already exist for all tags (unless --force-create is true)"
+          echo "3. The script failed to detect valid tags"
+        fi
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }} 

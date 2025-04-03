@@ -389,32 +389,31 @@ jobs:
           echo "Waiting for tag updates to propagate through GitHub API..."
           sleep 10
 
+      # Prepare for releases by checking tag status and creating missing tags
+      - name: Prepare for releases
+        id: prepare-releases
+        if: steps.version-publish.outputs.published == 'true'
+        uses: ./.github/actions/prepare-for-releases
+        with:
+          github-token: ${{ secrets.VERSION_TOKEN }}
+          package-paths: 'packages/blorkpack,packages/blorktools,packages/blorkboard,apps/portfolio'
+          package-names: '@littlecarlito/blorkpack,@littlecarlito/blorktools,@littlecarlito/blorkboard,@littlecarlito/portfolio'
+          create-missing-tags: true
+          debug: true
+
       # Create GitHub releases if enabled
       - name: Create GitHub releases
         id: create-releases
         if: steps.version-publish.outputs.published == 'true'
-        continue-on-error: true
-        run: |
-          # The auto-publish-releases.sh script creates GitHub releases for published packages
-          OUTPUT=$(bash .github/scripts/version/auto-publish-releases.sh \
-            --token "${{ secrets.VERSION_TOKEN }}" \
-            --repo "${{ github.repository }}" \
-            --package-names "@littlecarlito/blorkpack,@littlecarlito/blorktools,@littlecarlito/blorkboard,@littlecarlito/portfolio" \
-            --package-paths "packages/blorkpack,packages/blorktools,packages/blorkboard,apps/portfolio" \
-            --force-create "true" \
-            --retry-attempts "5" \
-            --debug "true")
-            
-          echo "$OUTPUT"
-          
-          # Extract the releases_created value
-          RELEASES_CREATED=$(echo "$OUTPUT" | grep "^releases_created=" | cut -d= -f2)
-          RELEASES_FAILED=$(echo "$OUTPUT" | grep "^releases_failed=" | cut -d= -f2)
-          
-          echo "releases_created=$RELEASES_CREATED" >> $GITHUB_OUTPUT
-          echo "releases_failed=$RELEASES_FAILED" >> $GITHUB_OUTPUT
-        env:
-          GITHUB_TOKEN: ${{ secrets.VERSION_TOKEN }}
+        uses: ./.github/actions/create-github-releases
+        with:
+          github-token: ${{ secrets.VERSION_TOKEN }}
+          package-paths: 'packages/blorkpack,packages/blorktools,packages/blorkboard,apps/portfolio'
+          package-names: '@littlecarlito/blorkpack,@littlecarlito/blorktools,@littlecarlito/blorkboard,@littlecarlito/portfolio'
+          include-changelog: true
+          force-create: true
+          retry-attempts: 5
+          debug: true
 
   # Build the site for GitHub Pages
   build-site:

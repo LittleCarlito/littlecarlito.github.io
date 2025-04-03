@@ -1,0 +1,118 @@
+name: 'Verify Version and Publish'
+description: 'Verifies that the version and publish process was successful by checking package versions and tags'
+
+inputs:
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  package-paths:
+    description: 'Comma-separated list of package paths'
+    required: true
+  package-names:
+    description: 'Comma-separated list of package names'
+    required: true
+  auto-fix:
+    description: 'Whether to automatically fix issues if possible'
+    required: false
+    default: 'true'
+  debug:
+    description: 'Enable verbose debug logging'
+    required: false
+    default: 'false'
+
+outputs:
+  verify-result:
+    description: 'Result of verification (success, missing_packages, version_mismatch)'
+    value: ${{ steps.verify-version.outputs.verify_result }}
+  stale-changesets-found:
+    description: 'Whether stale changesets were found'
+    value: ${{ steps.cleanup-changesets.outputs.stale-changesets != '0' && steps.cleanup-changesets.outputs.stale-changesets != 'not_found' }}
+  fixes-applied:
+    description: 'Whether any fixes were applied'
+    value: ${{ steps.cleanup-changesets.outputs.cleanup-performed || 'false' }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js for verification
+      uses: actions/setup-node@v4
+      with:
+        node-version: 'lts/*'
+    
+    # First cleanup any stale changesets
+    - name: Cleanup stale changesets
+      id: cleanup-changesets
+      uses: ./.github/actions/cleanup-stale-changesets
+      with:
+        github-token: ${{ inputs.github-token }}
+        force-cleanup: ${{ inputs.auto-fix }}
+        auto-commit: ${{ inputs.auto-fix }}
+        debug: ${{ inputs.debug }}
+    
+    # Verify the version and publish status
+    - name: Verify version and publish status
+      id: verify-version
+      shell: bash
+      run: |
+        echo "Verifying version and publish status..."
+        chmod +x .github/scripts/version/verify-version-publish.sh
+        
+        OUTPUT=$(.github/scripts/version/verify-version-publish.sh \
+          --package-paths "${{ inputs.package-paths }}" \
+          --package-names "${{ inputs.package-names }}" \
+          --debug "${{ inputs.debug }}")
+        
+        echo "$OUTPUT"
+        
+        # Extract verification result
+        VERIFY_RESULT=$(echo "$OUTPUT" | grep "^verify_result=" | cut -d= -f2)
+        echo "verify_result=$VERIFY_RESULT" >> $GITHUB_OUTPUT
+        
+        # Display detailed summary based on verification result
+        if [[ "$VERIFY_RESULT" == "success" ]]; then
+          echo "✅ Version and publish verification successful"
+        elif [[ "$VERIFY_RESULT" == "missing_packages" ]]; then
+          echo "❌ Some package.json files could not be found - check your package paths"
+        elif [[ "$VERIFY_RESULT" == "version_mismatch" ]]; then
+          echo "⚠️ Some package versions don't match expected state - may need to run cleanup"
+        else
+          echo "ℹ️ Verification status: $VERIFY_RESULT"
+        fi
+    
+    # Provide actionable guidance based on verification results
+    - name: Provide guidance
+      shell: bash
+      run: |
+        # Get results from previous steps
+        VERIFY_RESULT="${{ steps.verify-version.outputs.verify_result }}"
+        STALE_CHANGESETS="${{ steps.cleanup-changesets.outputs.stale-changesets }}"
+        FIXES_APPLIED="${{ steps.cleanup-changesets.outputs.cleanup-performed }}"
+        
+        echo "==== VERSION AND PUBLISH STATUS REPORT ===="
+        
+        if [[ "$VERIFY_RESULT" == "success" && "$STALE_CHANGESETS" == "0" ]]; then
+          echo "✅ Everything looks good! Version and publish process is working correctly."
+        else
+          echo "Issues detected in your versioning and publishing process:"
+          
+          if [[ "$STALE_CHANGESETS" != "0" && "$STALE_CHANGESETS" != "not_found" ]]; then
+            echo "⚠️ Stale changesets detected: $STALE_CHANGESETS"
+            if [[ "$FIXES_APPLIED" == "true" ]]; then
+              echo "   ✅ Fixed: Stale changesets were automatically cleaned up"
+            else
+              echo "   ⚠️ Action needed: Run cleanup with --force-cleanup=true to remove stale changesets"
+            fi
+          fi
+          
+          if [[ "$VERIFY_RESULT" == "missing_packages" ]]; then
+            echo "❌ Missing packages: Some package.json files could not be found"
+            echo "   ⚠️ Action needed: Verify your package paths are correct in workflow configuration"
+          fi
+          
+          if [[ "$VERIFY_RESULT" == "version_mismatch" ]]; then
+            echo "⚠️ Version mismatch detected between packages and changesets"
+            echo "   ⚠️ Action needed: You may need to run 'pnpm changeset version' manually"
+          fi
+        fi
+        
+        echo "=============================================" 

@@ -1,0 +1,125 @@
+name: Prepare for Releases
+description: Ensures all prerequisites are met for creating GitHub releases and creates missing tags if necessary
+
+inputs:
+  github-token:
+    description: GitHub token for authentication
+    required: true
+  package-paths:
+    description: Comma-separated list of paths to package.json files
+    required: true
+  package-names:
+    description: Comma-separated list of package names
+    required: true
+  create-missing-tags:
+    description: Whether to automatically create missing tags
+    required: false
+    default: 'true'
+  debug:
+    description: Enable debug mode
+    required: false
+    default: 'false'
+
+outputs:
+  ready-for-release:
+    description: Whether the system is ready for release
+    value: ${{ steps.prepare.outputs.ready_for_release }}
+  packages-checked:
+    description: Number of packages checked
+    value: ${{ steps.prepare.outputs.packages_checked }}
+  tags-to-create:
+    description: Number of tags that need to be created
+    value: ${{ steps.prepare.outputs.tags_to_create }}
+  tags-created:
+    description: Number of tags that were created
+    value: ${{ steps.create-tags.outputs.tags_created || '0' }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 'lts/*'
+
+    - name: Prepare for releases
+      id: prepare
+      shell: bash
+      run: |
+        chmod +x ${{ github.workspace }}/.github/scripts/version/prepare-for-releases.sh
+        ${{ github.workspace }}/.github/scripts/version/prepare-for-releases.sh \
+          --package-paths "${{ inputs.package-paths }}" \
+          --package-names "${{ inputs.package-names }}" \
+          --debug "${{ inputs.debug }}"
+
+    - name: Create missing tags
+      id: create-tags
+      if: steps.prepare.outputs.tags_to_create != '0' && inputs.create-missing-tags == 'true'
+      shell: bash
+      run: |
+        echo "Creating missing tags..."
+        
+        # Configure Git
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # Extract and parse the JSON array of tags to create
+        TAGS_JSON='${{ steps.prepare.outputs.tags_json }}'
+        
+        if [ -z "$TAGS_JSON" ]; then
+          echo "No tags JSON found, cannot create tags"
+          echo "tags_created=0" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        # Parse JSON and create tags
+        TAGS_CREATED=0
+        
+        # Extract JSON objects from array
+        echo "$TAGS_JSON" | sed 's/\[//' | sed 's/\]//' | sed 's/},{/}\n{/g' | while read -r line; do
+          if [ -z "$line" ]; then continue; fi
+          
+          # Extract package and version from JSON object
+          PACKAGE=$(echo "$line" | grep -o '"package":"[^"]*"' | cut -d'"' -f4)
+          VERSION=$(echo "$line" | grep -o '"version":"[^"]*"' | cut -d'"' -f4)
+          
+          if [ -z "$PACKAGE" ] || [ -z "$VERSION" ]; then
+            echo "Failed to extract package or version from $line"
+            continue
+          fi
+          
+          # Create tag
+          SCOPED_PACKAGE="@littlecarlito/$PACKAGE"
+          TAG_NAME="${SCOPED_PACKAGE}@${VERSION}"
+          
+          echo "Creating tag: $TAG_NAME"
+          git tag -a "$TAG_NAME" -m "Release $SCOPED_PACKAGE v$VERSION"
+          TAGS_CREATED=$((TAGS_CREATED + 1))
+        done
+        
+        # Push tags to remote if any were created
+        if [ $TAGS_CREATED -gt 0 ]; then
+          git push origin --tags
+          echo "Successfully created and pushed $TAGS_CREATED tags"
+        else
+          echo "No tags were created"
+        fi
+        
+        echo "tags_created=$TAGS_CREATED" >> $GITHUB_OUTPUT
+        
+    - name: Report status
+      shell: bash
+      run: |
+        READY_FOR_RELEASE="${{ steps.prepare.outputs.ready_for_release }}"
+        TAGS_CREATED="${{ steps.create-tags.outputs.tags_created || '0' }}"
+        
+        echo "----- Release Preparation Status -----"
+        if [ "$READY_FOR_RELEASE" == "true" ]; then
+          echo "✅ System is ready for release"
+        elif [ "$TAGS_CREATED" != "0" ]; then
+          echo "✅ Created $TAGS_CREATED tags, system should now be ready for release"
+        else
+          echo "⚠️ System is not ready for release"
+          echo "Please check the prepare-for-releases output for details"
+        fi
+        echo "--------------------------------------" 
