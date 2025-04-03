@@ -35,6 +35,9 @@ permissions:
   packages: write
   pull-requests: write
   statuses: write
+  id-token: write
+  actions: write
+  issues: write
 
 jobs:
   # Capture information about what triggered this workflow
@@ -411,7 +414,7 @@ jobs:
         if: steps.version-publish.outputs.published == 'true'
         uses: ./.github/actions/create-github-releases
         with:
-          github-token: ${{ secrets.VERSION_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           package-paths: 'packages/blorkpack,packages/blorktools,packages/blorkboard,apps/portfolio'
           package-names: '@littlecarlito/blorkpack,@littlecarlito/blorktools,@littlecarlito/blorkboard,@littlecarlito/portfolio'
           include-changelog: true
@@ -419,7 +422,7 @@ jobs:
           retry-attempts: 5
           debug: true
         env:
-          GITHUB_TOKEN: ${{ secrets.VERSION_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # Build the site for GitHub Pages
   build-site:
