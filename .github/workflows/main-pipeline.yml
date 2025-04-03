@@ -418,6 +418,8 @@ jobs:
           force-create: true
           retry-attempts: 5
           debug: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.VERSION_TOKEN }}
 
   # Build the site for GitHub Pages
   build-site:
