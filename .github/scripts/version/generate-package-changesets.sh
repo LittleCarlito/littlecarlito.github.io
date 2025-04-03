@@ -1,125 +1,147 @@
 #!/bin/bash
 # generate-package-changesets.sh
-# Generates precise package-specific changesets based on actual changes since last release
+# Automatically detects changes in packages and generates appropriate changesets
+# This is an enhanced version that doesn't require manual pnpm change
 
 set -e
 
 # Parse command line arguments
+BASE_COMMIT=""
 AUTO_CHANGESET_PREFIX="auto-"
-FORCE_GENERATE=false
+DEFAULT_VERSION_TYPE="patch"
+DRY_RUN="false"
 
 while [[ $# -gt 0 ]]; do
-  key="$1"
-  case $key in
-    --auto-changeset-prefix)
-      AUTO_CHANGESET_PREFIX="$2"
-      shift
-      shift
-      ;;
-    --force-generate)
-      FORCE_GENERATE="$2"
-      shift
-      shift
-      ;;
-    *)
-      echo "Unknown option: $1"
-      echo "Usage: $0 [--auto-changeset-prefix <prefix>] [--force-generate true|false]"
-      exit 1
-      ;;
-  esac
+    case $1 in
+        --base-commit)
+            BASE_COMMIT="$2"
+            shift 2
+            ;;
+        --auto-changeset-prefix)
+            AUTO_CHANGESET_PREFIX="$2"
+            shift 2
+            ;;
+        --default-version)
+            DEFAULT_VERSION_TYPE="$2"
+            shift 2
+            ;;
+        --dry-run)
+            DRY_RUN="$2"
+            shift 2
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            echo "Usage: $0 [--base-commit <sha>] [--auto-changeset-prefix <prefix>] [--default-version <patch|minor|major>] [--dry-run <true|false>]" >&2
+            exit 1
+            ;;
+    esac
 done
 
-# Find all packages in the repo
-PACKAGES=$(find . -type f -name "package.json" -not -path "*/node_modules/*" -exec jq -r 'select(.name != null) | .name' {} \; | sort -u)
-echo "Found packages: $PACKAGES"
+echo "Auto-generating changesets for package changes..." >&2
 
-CHANGES_MADE=false
-
-# Process each package individually
-for PACKAGE in $PACKAGES; do
-  echo "Processing package: $PACKAGE"
+# Determine base commit to check from if not provided
+if [ -z "$BASE_COMMIT" ]; then
+  # Auto-detect the most recent reference point
+  LATEST_CHANGESET_COMMIT=$(git log -1 --format=%H -- .changeset/)
+  LATEST_TAG_COMMIT=$(git rev-list --tags --max-count=1)
   
-  # Get the latest tag for this specific package
-  LATEST_TAG=$(git tag -l "${PACKAGE}@*" --sort=-creatordate | head -1)
-  
-  if [ -n "$LATEST_TAG" ]; then
-    echo "Latest tag for $PACKAGE: $LATEST_TAG"
-    
-    # Identify commits that affect this specific package
-    # Clean package name for use in grep
-    PKG_NAME=$(echo "$PACKAGE" | sed 's|@.*/||')
-    
-    # Look for conventional commits with relevant scope or affecting package files
-    COMMITS=$(git log $LATEST_TAG..HEAD --format="%H" -- "packages/$PKG_NAME/" "apps/$PKG_NAME/" || true)
-    SCOPED_COMMITS=$(git log $LATEST_TAG..HEAD --grep="$PKG_NAME" --format="%H" || true)
-    FEAT_COMMITS=$(git log $LATEST_TAG..HEAD --grep="^feat" --format="%H" || true)
-    
-    # Combine and make unique
-    ALL_COMMITS=$(echo -e "$COMMITS\n$SCOPED_COMMITS\n$FEAT_COMMITS" | sort -u | grep -v "^$" || true)
-    
-    if [ -n "$ALL_COMMITS" ] || [ "$FORCE_GENERATE" == "true" ]; then
-      # Determine version bump type (minor for features, patch for fixes)
-      BUMP_TYPE="patch"
-      FEATURE_CHECK=$(git log $LATEST_TAG..HEAD --format="%s" -- "packages/$PKG_NAME/" "apps/$PKG_NAME/" | grep -E "^feat" || true)
-      if [ -n "$FEATURE_CHECK" ]; then
-        BUMP_TYPE="minor"
-      fi
-      
-      # Create a targeted changeset for just this package
-      CHANGESET_FILE=".changeset/${AUTO_CHANGESET_PREFIX}$(echo $PKG_NAME | tr '/' '-')-$BUMP_TYPE-$(date +%s | md5sum | head -c 6).md"
-      echo "---" > $CHANGESET_FILE
-      echo "\"$PACKAGE\": $BUMP_TYPE" >> $CHANGESET_FILE 
-      echo "---" >> $CHANGESET_FILE
-      echo "" >> $CHANGESET_FILE
-      echo "Changes for $PACKAGE since $LATEST_TAG" >> $CHANGESET_FILE
-      
-      # Add a few commit messages as summary
-      git log $LATEST_TAG..HEAD --format="- %s" -- "packages/$PKG_NAME/" "apps/$PKG_NAME/" | head -5 >> $CHANGESET_FILE
-      
-      echo "Created changeset for $PACKAGE with $BUMP_TYPE bump"
-      CHANGES_MADE=true
-    else
-      echo "No significant changes detected for $PACKAGE since $LATEST_TAG"
-    fi
+  if [ -n "$LATEST_CHANGESET_COMMIT" ]; then
+    BASE_COMMIT=$LATEST_CHANGESET_COMMIT
+    echo "Using latest changeset commit as base: $BASE_COMMIT" >&2
+  elif [ -n "$LATEST_TAG_COMMIT" ]; then
+    BASE_COMMIT=$LATEST_TAG_COMMIT
+    echo "Using latest tag commit as base: $BASE_COMMIT" >&2
   else
-    echo "No tags found for $PACKAGE. First release?"
+    # If no base commit can be determined, use the first commit in the repo
+    BASE_COMMIT=$(git rev-list --max-parents=0 HEAD)
+    echo "No changesets or tags found, using first commit in repo: $BASE_COMMIT" >&2
+  fi
+fi
+
+# Detect package directories
+PACKAGE_DIRS=$(find . -type f -name "package.json" -not -path "*/node_modules/*" -not -path "*/.changeset/*" | xargs dirname | sed 's|^\./||')
+
+# Initialize counters
+PACKAGES_CHANGED=0
+CHANGESETS_CREATED=0
+
+# Function to determine version type based on commit messages
+determine_version_type() {
+  local pkg_path=$1
+  local version_type=$DEFAULT_VERSION_TYPE
+  
+  # Get commit messages for this package
+  local commit_msgs=$(git log --format=%s $BASE_COMMIT..HEAD -- "$pkg_path")
+  
+  # Check for breaking changes (major)
+  if echo "$commit_msgs" | grep -E '(BREAKING CHANGE:|feat!:|fix!:|refactor!:)' > /dev/null; then
+    version_type="major"
+  # Check for features (minor)
+  elif echo "$commit_msgs" | grep -E '^feat(\([^)]+\))?:' > /dev/null; then
+    version_type="minor"
+  # Otherwise use patch (for fixes, refactors, etc.)
+  fi
+  
+  echo $version_type
+}
+
+# Process each package directory
+for dir in $PACKAGE_DIRS; do
+  # Check if package has changes
+  if git diff --name-only $BASE_COMMIT..HEAD -- "$dir" | grep -q .; then
+    echo "Detected changes in package: $dir" >&2
     
-    # Check if package directory exists and has code
-    PKG_NAME=$(echo "$PACKAGE" | sed 's|@.*/||')
-    PKG_DIR=""
-    if [ -d "packages/$PKG_NAME" ]; then
-      PKG_DIR="packages/$PKG_NAME"
-    elif [ -d "apps/$PKG_NAME" ]; then
-      PKG_DIR="apps/$PKG_NAME"
-    fi
+    # Get package name from package.json
+    PKG_NAME=$(grep -o '"name": *"[^"]*"' "$dir/package.json" | cut -d'"' -f4)
     
-    if [ -n "$PKG_DIR" ]; then
-      # For first releases, check if it has code
-      FILE_COUNT=$(find "$PKG_DIR" -type f | wc -l)
-      if [ $FILE_COUNT -gt 5 ]; then  # Arbitrary threshold for "real" package
-        # Create a minor bump for first release
-        CHANGESET_FILE=".changeset/${AUTO_CHANGESET_PREFIX}$(echo $PKG_NAME | tr '/' '-')-first-$(date +%s | md5sum | head -c 6).md"
-        echo "---" > $CHANGESET_FILE
-        echo "\"$PACKAGE\": minor" >> $CHANGESET_FILE
-        echo "---" >> $CHANGESET_FILE
-        echo "" >> $CHANGESET_FILE
-        echo "First release of $PACKAGE" >> $CHANGESET_FILE
+    if [ -n "$PKG_NAME" ]; then
+      # Determine version type based on commit messages
+      VERSION_TYPE=$(determine_version_type "$dir")
+      
+      echo "Package $PKG_NAME will receive a $VERSION_TYPE version bump" >&2
+      
+      if [ "$DRY_RUN" != "true" ]; then
+        # Create changeset directory if it doesn't exist
+        mkdir -p .changeset
         
-        echo "Created first-release changeset for $PACKAGE"
-        CHANGES_MADE=true
+        # Generate a unique changeset ID
+        CHANGESET_ID="${AUTO_CHANGESET_PREFIX}$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 8 | head -n 1)"
+        
+        # Create the changeset file
+        cat > ".changeset/$CHANGESET_ID.md" << EOF
+---
+"$PKG_NAME": $VERSION_TYPE
+---
+
+Auto-generated changeset for $PKG_NAME with $VERSION_TYPE version bump
+EOF
+        
+        echo "Created changeset for $PKG_NAME: .changeset/$CHANGESET_ID.md" >&2
+        CHANGESETS_CREATED=$((CHANGESETS_CREATED + 1))
       else
-        echo "Package $PACKAGE seems empty or incomplete. Skipping."
+        echo "[DRY RUN] Would create changeset for $PKG_NAME with $VERSION_TYPE version bump" >&2
       fi
+      
+      PACKAGES_CHANGED=$((PACKAGES_CHANGED + 1))
     else
-      echo "No package directory found for $PACKAGE. Skipping."
+      echo "WARNING: Could not determine package name for $dir" >&2
     fi
   fi
 done
 
-# Report results
-echo "changes_made=$CHANGES_MADE" >> $GITHUB_OUTPUT
-if [ "$CHANGES_MADE" == "true" ]; then
-  echo "Status: Changes were made"
+# Output results
+if [ $PACKAGES_CHANGED -eq 0 ]; then
+  echo "No package changes detected since $BASE_COMMIT" >&2
+  echo "packages_changed=0" 
+  echo "changesets_created=0"
+  echo "changeset_created=false"
 else
-  echo "Status: No changes were necessary"
+  echo "$PACKAGES_CHANGED packages have changes, created $CHANGESETS_CREATED changesets" >&2
+  echo "packages_changed=$PACKAGES_CHANGED" 
+  echo "changesets_created=$CHANGESETS_CREATED"
+  if [ $CHANGESETS_CREATED -gt 0 ]; then
+    echo "changeset_created=true"
+  else
+    echo "changeset_created=false"
+  fi
 fi 

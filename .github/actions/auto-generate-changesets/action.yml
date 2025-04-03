@@ -1,0 +1,135 @@
+name: 'Auto Generate Changesets'
+description: 'Automatically detects package changes and generates changesets without manual intervention'
+
+inputs:
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  repository:
+    description: 'Repository name (owner/repo)'
+    required: false
+    default: ${{ github.repository }}
+  base-commit:
+    description: 'Base commit to detect changes from (default: auto-detect)'
+    required: false
+    default: ''
+  auto-changeset-prefix:
+    description: 'Prefix for auto-generated changeset files'
+    required: false
+    default: 'auto-'
+  default-version:
+    description: 'Default version bump type if not determined from commits'
+    required: false
+    default: 'patch'
+  create-pr:
+    description: 'Create a PR with the changesets'
+    required: false
+    default: 'true'
+  pr-title:
+    description: 'Title for the PR'
+    required: false
+    default: 'chore: add auto-generated changesets'
+  auto-merge:
+    description: 'Auto-merge the PR if checks pass'
+    required: false
+    default: 'true'
+
+outputs:
+  changesets-created:
+    description: 'Whether any changesets were created'
+    value: ${{ steps.generate-changesets.outputs.changeset_created }}
+  packages-changed:
+    description: 'Number of packages with changes detected'
+    value: ${{ steps.generate-changesets.outputs.packages_changed }}
+  changesets-count:
+    description: 'Number of changesets created'
+    value: ${{ steps.generate-changesets.outputs.changesets_created }}
+  pr-number:
+    description: 'PR number if one was created'
+    value: ${{ steps.create-pr.outputs.pr-number }}
+  branch-name:
+    description: 'Branch name created for changesets'
+    value: ${{ steps.create-branch.outputs.branch_name }}
+
+runs:
+  using: "composite"
+  steps:
+    # Setup git
+    - name: Setup git
+      shell: bash
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+        
+    # Create branch for changesets
+    - name: Create branch for changesets
+      id: create-branch
+      shell: bash
+      run: |
+        # Create a timestamped branch name
+        TIMESTAMP=$(date +%Y%m%d%H%M%S)
+        BRANCH_NAME="auto-changesets-${TIMESTAMP}"
+        
+        echo "Creating branch: $BRANCH_NAME" >&2
+        git checkout -b "$BRANCH_NAME"
+        echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+        
+    # Generate changesets
+    - name: Generate changesets
+      id: generate-changesets
+      shell: bash
+      run: |
+        OUTPUT=$(bash .github/scripts/version/generate-package-changesets.sh \
+          --base-commit "${{ inputs.base-commit }}" \
+          --auto-changeset-prefix "${{ inputs.auto-changeset-prefix }}" \
+          --default-version "${{ inputs.default-version }}" \
+          --dry-run "false")
+        
+        echo "$OUTPUT" >> $GITHUB_OUTPUT
+        
+        # Extract important values for readability
+        PACKAGES_CHANGED=$(echo "$OUTPUT" | grep "^packages_changed=" | cut -d= -f2)
+        CHANGESETS_CREATED=$(echo "$OUTPUT" | grep "^changesets_created=" | cut -d= -f2)
+        CHANGESET_CREATED=$(echo "$OUTPUT" | grep "^changeset_created=" | cut -d= -f2)
+        
+        echo "Packages changed: $PACKAGES_CHANGED" >&2
+        echo "Changesets created: $CHANGESETS_CREATED" >&2
+        
+    # Commit changesets if any were created
+    - name: Commit changesets
+      id: commit-changesets
+      if: steps.generate-changesets.outputs.changeset_created == 'true'
+      shell: bash
+      run: |
+        git add .changeset/*.md
+        git commit -m "chore: add auto-generated changesets [skip ci]"
+        git push origin ${{ steps.create-branch.outputs.branch_name }}
+        echo "commit_success=true" >> $GITHUB_OUTPUT
+        
+    # Create PR if changesets were committed and create-pr is true
+    - name: Create PR
+      id: create-pr
+      if: steps.generate-changesets.outputs.changeset_created == 'true' && steps.commit-changesets.outputs.commit_success == 'true' && inputs.create-pr == 'true'
+      uses: ./.github/actions/manage-pull-request
+      with:
+        github-token: ${{ inputs.github-token }}
+        repository: ${{ inputs.repository }}
+        base-branch: 'main'
+        head-branch: ${{ steps.create-branch.outputs.branch_name }}
+        title: ${{ inputs.pr-title }}
+        body: |
+          This PR contains auto-generated changesets for the following packages:
+          
+          Changes were detected in ${{ steps.generate-changesets.outputs.packages_changed }} packages.
+          ${{ steps.generate-changesets.outputs.changesets_created }} changesets were created.
+          
+          This PR was created automatically by the CI system.
+          
+    # Cleanup if no changesets were created
+    - name: Cleanup if no changesets
+      if: steps.generate-changesets.outputs.changeset_created != 'true'
+      shell: bash
+      run: |
+        git checkout main
+        git branch -D ${{ steps.create-branch.outputs.branch_name }} || true
+        echo "No changesets created, branch deleted" >&2 
