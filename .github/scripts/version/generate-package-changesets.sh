@@ -39,21 +39,50 @@ done
 
 echo "Auto-generating changesets based on commit scopes..." >&2
 
-# Call our new scope-based changeset generation script
-OUTPUT=$(.github/scripts/version/scope-based-changeset.sh \
+# Create a temporary file to store the output from scope-based-changeset.sh
+TEMP_OUTPUT=$(mktemp)
+
+# Call our new scope-based changeset generation script with output capture
+echo "DEBUG: Running scope-based-changeset.sh script..." >&2
+.github/scripts/version/scope-based-changeset.sh \
   --base-commit "$BASE_COMMIT" \
   --auto-changeset-prefix "$AUTO_CHANGESET_PREFIX" \
   --default-version "$DEFAULT_VERSION_TYPE" \
-  --dry-run "$DRY_RUN")
+  --dry-run "$DRY_RUN" > "$TEMP_OUTPUT" 2>&1 || {
+    echo "ERROR: scope-based-changeset.sh script failed with status $?" >&2
+    cat "$TEMP_OUTPUT" >&2
+    rm -f "$TEMP_OUTPUT"
+    exit 1
+  }
 
-# Forward all outputs
-echo "$OUTPUT"
+# Debug: Show what was captured in the output file
+echo "DEBUG: Output from scope-based-changeset.sh:" >&2
+grep -E "^packages_changed=|^changesets_created=|^changeset_created=" "$TEMP_OUTPUT" >&2
 
-# Extract key metrics for logging
-PACKAGES_CHANGED=$(echo "$OUTPUT" | grep "^packages_changed=" | cut -d= -f2)
-CHANGESETS_CREATED=$(echo "$OUTPUT" | grep "^changesets_created=" | cut -d= -f2)
-CHANGESET_CREATED=$(echo "$OUTPUT" | grep "^changeset_created=" | cut -d= -f2)
+# Extract output variables directly from the file
+PACKAGES_CHANGED=$(grep "^packages_changed=" "$TEMP_OUTPUT" | cut -d= -f2)
+CHANGESETS_CREATED=$(grep "^changesets_created=" "$TEMP_OUTPUT" | cut -d= -f2)
+CHANGESET_CREATED=$(grep "^changeset_created=" "$TEMP_OUTPUT" | cut -d= -f2)
+
+# Check if we got all the expected outputs
+if [[ -z "$PACKAGES_CHANGED" || -z "$CHANGESETS_CREATED" || -z "$CHANGESET_CREATED" ]]; then
+  echo "ERROR: Failed to extract all required outputs from scope-based-changeset.sh" >&2
+  echo "Raw output was:" >&2
+  cat "$TEMP_OUTPUT" >&2
+  rm -f "$TEMP_OUTPUT"
+  exit 1
+fi
+
+# Clean up the temporary file
+rm -f "$TEMP_OUTPUT"
+
+# Forward these outputs explicitly
+echo "packages_changed=$PACKAGES_CHANGED"
+echo "changesets_created=$CHANGESETS_CREATED"
+echo "changeset_created=$CHANGESET_CREATED"
 
 echo "Completed changeset generation" >&2
 echo "Packages with changes: $PACKAGES_CHANGED" >&2
-echo "Changesets created: $CHANGESETS_CREATED" >&2 
+echo "Changesets created: $CHANGESETS_CREATED" >&2
+echo "Script completed successfully" >&2
+exit 0 

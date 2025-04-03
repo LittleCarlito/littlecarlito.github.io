@@ -305,7 +305,18 @@ echo "- Processed $(echo "$COMMITS" | wc -l) commits" >&2
 echo "- Found $PACKAGES_CHANGED packages with changes" >&2
 echo "- Created $CHANGESETS_CREATED changesets" >&2
 
-# Set output variables
+# Debug the outputs that will be returned
+echo "DEBUG: Setting output variables:" >&2
+echo "DEBUG: packages_changed=$PACKAGES_CHANGED" >&2
+echo "DEBUG: changesets_created=$CHANGESETS_CREATED" >&2
+echo "DEBUG: changeset_created=$([ $CHANGESETS_CREATED -gt 0 ] && echo true || echo false)" >&2
+
+# Set output variables - Make sure these go to stdout
 echo "packages_changed=$PACKAGES_CHANGED"
 echo "changesets_created=$CHANGESETS_CREATED"
-echo "changeset_created=$([ $CHANGESETS_CREATED -gt 0 ] && echo true || echo false)" 
+echo "changeset_created=$([ $CHANGESETS_CREATED -gt 0 ] && echo true || echo false)"
+
+# Force process termination for both background processes
+kill $TIMEOUT_PID 2>/dev/null || true
+echo "DEBUG: Script completed successfully" >&2
+exit 0 
