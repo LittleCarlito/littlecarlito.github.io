@@ -34,9 +34,9 @@ inputs:
     required: false
     default: 'true'
   version-token:
-    description: 'GitHub token with permissions to create PRs'
+    description: 'GitHub token with permissions to create PRs (required for PR creation)'
     required: false
-    default: ${{ inputs.github-token }}
+    default: ''
 
 outputs:
   changesets-created:
@@ -167,7 +167,7 @@ runs:
       if: steps.generate-changesets.outputs.changeset_created == 'true' && steps.commit-changesets.outputs.commit_success == 'true' && inputs.create-pr == 'true'
       uses: ./.github/actions/manage-pull-request
       with:
-        github-token: ${{ inputs.version-token }}
+        github-token: ${{ inputs.version-token != '' && inputs.version-token || inputs.github-token }}
         repository: ${{ inputs.repository }}
         base-branch: 'main'
         head-branch: ${{ steps.create-branch.outputs.branch_name }}
