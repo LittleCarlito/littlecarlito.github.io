@@ -17,6 +17,7 @@ Options:
   --force-create BOOL       Whether to force create releases for all packages (default: true)
   --retry-attempts NUM      Number of retry attempts for failed operations (default: 3)
   --debug BOOL              Enable verbose debug output (default: false)
+  --include-changelog BOOL  Whether to include changelog content in releases (default: true)
   --help                    Display this help and exit
 
 Example:
@@ -30,6 +31,7 @@ DELETE_BRANCH="false"
 FORCE_CREATE="true"
 RETRY_ATTEMPTS=3
 DEBUG="false"
+INCLUDE_CHANGELOG="true"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -64,6 +66,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --debug)
       DEBUG="$2"
+      shift 2
+      ;;
+    --include-changelog)
+      INCLUDE_CHANGELOG="$2"
       shift 2
       ;;
     --help)
@@ -299,9 +305,9 @@ create_release_with_retry() {
       changelog_path="$PKG_PATH/CHANGELOG.md"
     fi
     
-    # Extract release notes if changelog exists
+    # Extract release notes if changelog exists and include-changelog is enabled
     local release_body="Release of $pkg_name version $version"
-    if [[ -n "$changelog_path" ]]; then
+    if [[ -n "$changelog_path" && "$INCLUDE_CHANGELOG" == "true" ]]; then
       local changelog_content=$(cat "$changelog_path")
       local version_notes=$(echo "$changelog_content" | awk "/## $version/{flag=1;next} /## [0-9]+/{flag=0} flag" | grep -v "^$" | head -10)
       
@@ -406,6 +412,7 @@ RELEASES_FAILED=0
 debug_log "Processing packages in repository: $REPO"
 debug_log "Force create is set to: $FORCE_CREATE"
 debug_log "Retry attempts: $RETRY_ATTEMPTS"
+debug_log "Include changelog: $INCLUDE_CHANGELOG"
 debug_log "Package names: $PACKAGE_NAMES"
 debug_log "Package paths: $PACKAGE_PATHS"
 

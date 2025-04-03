@@ -249,15 +249,19 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
       
-      # Replace workflow call with direct use of the action
-      - name: Generate Changesets
-        id: generate-changesets
-        uses: ./.github/actions/scan-and-generate-changesets
+      # Use our new auto-generate-changesets action
+      - name: Auto Generate Changesets
+        id: auto-generate-changesets
+        uses: ./.github/actions/auto-generate-changesets
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
-          force-base-commit: ${{ github.event.inputs.regenerate_from }}
+          base-commit: ${{ github.event.inputs.regenerate_from }}
           auto-changeset-prefix: 'auto-'
+          default-version: 'patch'
+          create-pr: 'true'
+          pr-title: 'chore: add auto-generated changesets'
+          auto-merge: 'true'
 
   version-and-publish:
     name: Version and Publish to GitHub npm
