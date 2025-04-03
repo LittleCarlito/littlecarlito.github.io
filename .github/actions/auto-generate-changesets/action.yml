@@ -101,9 +101,23 @@ runs:
       if: steps.generate-changesets.outputs.changeset_created == 'true'
       shell: bash
       run: |
-        git add .changeset/*.md
-        git commit -m "chore: add auto-generated changesets [skip ci]"
-        git push origin ${{ steps.create-branch.outputs.branch_name }}
+        set -e  # Exit immediately if a command fails
+        
+        echo "Committing changesets to branch ${{ steps.create-branch.outputs.branch_name }}..."
+        
+        # Check if there are actually files to commit
+        if [ -z "$(find .changeset -name "*.md" | grep -v "README.md" | grep -v "config.json")" ]; then
+          echo "No changeset files found to commit!"
+          echo "commit_success=false" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        # Add timeout to git operations
+        timeout 60 git add .changeset/*.md || { echo "Error adding files, timed out"; exit 1; }
+        timeout 60 git commit -m "chore: add auto-generated changesets [skip ci]" || { echo "Error committing files, timed out"; exit 1; }
+        timeout 90 git push origin ${{ steps.create-branch.outputs.branch_name }} || { echo "Error pushing branch, timed out"; exit 1; }
+        
+        echo "Successfully committed and pushed changesets"
         echo "commit_success=true" >> $GITHUB_OUTPUT
         
     # Create PR if changesets were committed and create-pr is true
@@ -130,6 +144,8 @@ runs:
       if: steps.generate-changesets.outputs.changeset_created != 'true'
       shell: bash
       run: |
-        git checkout main
-        git branch -D ${{ steps.create-branch.outputs.branch_name }} || true
-        echo "No changesets created, branch deleted" >&2 
+        set -e
+        echo "No changesets created, cleaning up branch..."
+        timeout 30 git checkout main || { echo "Failed to checkout main, continuing"; }
+        timeout 30 git branch -D ${{ steps.create-branch.outputs.branch_name }} || { echo "Failed to delete branch, continuing"; }
+        echo "Cleanup complete" 
