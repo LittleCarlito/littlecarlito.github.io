@@ -419,7 +419,7 @@ jobs:
           package-names: '@littlecarlito/blorkpack,@littlecarlito/blorktools,@littlecarlito/blorkboard,@littlecarlito/portfolio'
           include-changelog: true
           force-create: true
-          retry-attempts: 5
+          retry-attempts: 1
           debug: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

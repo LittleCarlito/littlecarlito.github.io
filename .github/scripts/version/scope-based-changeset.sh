@@ -59,14 +59,20 @@ if [ -z "$BASE_COMMIT" ]; then
   fi
 fi
 
-# Get all package directories and names
-PACKAGE_DIRS=$(find . -type f -name "package.json" -not -path "*/node_modules/*" -not -path "*/.changeset/*" | xargs dirname | sed 's|^\./||')
-PACKAGE_DIRS=$(echo "$PACKAGE_DIRS" | grep -E '^(packages/|apps/)' || true)
+# Get all package directories and names - improved package detection
+PACKAGE_DIRS=""
+for PKG_DIR in "packages/blorkboard" "packages/blorkpack" "packages/blorktools" "apps/portfolio"; do
+  if [ -f "$PKG_DIR/package.json" ]; then
+    PACKAGE_DIRS="$PACKAGE_DIRS $PKG_DIR"
+  fi
+done
+
+echo "Explicitly checking these directories: $PACKAGE_DIRS" >&2
 
 # Store package information in arrays instead of associative arrays
 SCOPE_NAMES=()
 PACKAGE_NAMES=()
-PACKAGE_DIRS=()
+PACKAGE_DIRS_ARR=()
 
 # Map scope identifiers to package names
 for dir in $PACKAGE_DIRS; do
@@ -78,10 +84,18 @@ for dir in $PACKAGE_DIRS; do
     # Store in parallel arrays
     SCOPE_NAMES+=("$SHORT_NAME")
     PACKAGE_NAMES+=("$PKG_NAME")
-    PACKAGE_DIRS+=("$dir")
+    PACKAGE_DIRS_ARR+=("$dir")
     
     echo "Mapped scope $SHORT_NAME to package $PKG_NAME in directory $dir" >&2
+  else
+    echo "WARNING: Could not extract package name from $dir/package.json" >&2
   fi
+done
+
+# Debug output
+echo "Found ${#PACKAGE_NAMES[@]} packages:" >&2
+for i in "${!PACKAGE_NAMES[@]}"; do
+  echo "  Package: ${PACKAGE_NAMES[$i]}, Scope: ${SCOPE_NAMES[$i]}, Dir: ${PACKAGE_DIRS_ARR[$i]}" >&2
 done
 
 # Get all commits since base commit
@@ -117,9 +131,9 @@ extract_scope() {
   local commit_msg="$1"
   local scope=""
   
-  # Extract scope from conventional commit format
-  if [[ "$commit_msg" =~ ^[a-z]+\(([^)]+)\): ]]; then
-    scope="${BASH_REMATCH[1]}"
+  # Extract scope from conventional commit format using a safer approach
+  if echo "$commit_msg" | grep -E '^[a-z]+\(([^)]+)\):' > /dev/null; then
+    scope=$(echo "$commit_msg" | sed -E 's/^[a-z]+\(([^)]+)\):.*/\1/')
   fi
   
   echo "$scope"
@@ -223,7 +237,20 @@ while read -r commit; do
     if [ -n "$PKG_NAME" ]; then
       create_package_changeset "$PKG_NAME" "$VERSION_TYPE" "$MESSAGE"
     else
-      echo "  No package found for scope $SCOPE, skipping" >&2
+      # Special case: If scope doesn't match any package but is a "special" scope
+      # Examples: pipeline, release, etc. - treat as if it was scopeless
+      # List of special scopes that should apply to all packages
+      SPECIAL_SCOPES="pipeline release common core docs tests"
+      if echo "$SPECIAL_SCOPES" | grep -w "$SCOPE" > /dev/null; then
+        echo "  Special scope '$SCOPE' detected - incrementing ALL packages" >&2
+        
+        # Increment ALL packages for special scopes
+        for PKG_NAME in "${PACKAGE_NAMES[@]}"; do
+          create_package_changeset "$PKG_NAME" "$VERSION_TYPE" "$MESSAGE"
+        done
+      else
+        echo "  No package found for scope $SCOPE, skipping" >&2
+      fi
     fi
   else
     echo "  No scope specified in commit - incrementing ALL packages" >&2

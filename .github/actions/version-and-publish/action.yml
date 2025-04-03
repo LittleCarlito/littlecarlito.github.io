@@ -264,7 +264,7 @@ runs:
         package-names: ${{ inputs.package-names }}
         include-changelog: true
         force-create: true
-        retry-attempts: 5
+        retry-attempts: 1
         debug: ${{ inputs.debug }}
     
     # Collect error information
