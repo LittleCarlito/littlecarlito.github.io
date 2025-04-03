@@ -265,6 +265,15 @@ jobs:
           create-pr: 'true'
           pr-title: 'chore: add auto-generated changesets'
           auto-merge: 'true'
+        
+      # Display output information for debugging
+      - name: Display changeset information
+        run: |
+          echo "Changesets created: ${{ steps.auto-generate-changesets.outputs.changesets-created == 'true' }}"
+          echo "Packages changed: ${{ steps.auto-generate-changesets.outputs.packages-changed }}"
+          echo "Number of changesets: ${{ steps.auto-generate-changesets.outputs.changesets-count }}"
+          echo "PR number (if created): ${{ steps.auto-generate-changesets.outputs.pr-number }}"
+          echo "Branch name: ${{ steps.auto-generate-changesets.outputs.branch-name }}"
 
   version-and-publish:
     name: Version and Publish to GitHub npm

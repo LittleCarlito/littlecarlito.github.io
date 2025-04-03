@@ -59,10 +59,10 @@ echo "DEBUG: Running scope-based-changeset.sh script..." >&2
 echo "DEBUG: Output from scope-based-changeset.sh:" >&2
 grep -E "^packages_changed=|^changesets_created=|^changeset_created=" "$TEMP_OUTPUT" >&2
 
-# Extract output variables directly from the file
-PACKAGES_CHANGED=$(grep "^packages_changed=" "$TEMP_OUTPUT" | cut -d= -f2)
-CHANGESETS_CREATED=$(grep "^changesets_created=" "$TEMP_OUTPUT" | cut -d= -f2)
-CHANGESET_CREATED=$(grep "^changeset_created=" "$TEMP_OUTPUT" | cut -d= -f2)
+# Extract output variables directly from the file - use strict pattern matching
+PACKAGES_CHANGED=$(grep -E "^packages_changed=[0-9]+$" "$TEMP_OUTPUT" | head -1 | cut -d= -f2)
+CHANGESETS_CREATED=$(grep -E "^changesets_created=[0-9]+$" "$TEMP_OUTPUT" | head -1 | cut -d= -f2)
+CHANGESET_CREATED=$(grep -E "^changeset_created=(true|false)$" "$TEMP_OUTPUT" | head -1 | cut -d= -f2)
 
 # Check if we got all the expected outputs
 if [[ -z "$PACKAGES_CHANGED" || -z "$CHANGESETS_CREATED" || -z "$CHANGESET_CREATED" ]]; then
@@ -70,17 +70,22 @@ if [[ -z "$PACKAGES_CHANGED" || -z "$CHANGESETS_CREATED" || -z "$CHANGESET_CREAT
   echo "Raw output was:" >&2
   cat "$TEMP_OUTPUT" >&2
   rm -f "$TEMP_OUTPUT"
-  exit 1
+  # Set defaults if values are missing
+  PACKAGES_CHANGED=${PACKAGES_CHANGED:-0}
+  CHANGESETS_CREATED=${CHANGESETS_CREATED:-0}
+  CHANGESET_CREATED=${CHANGESET_CREATED:-false}
+  echo "Using default values: packages_changed=$PACKAGES_CHANGED, changesets_created=$CHANGESETS_CREATED, changeset_created=$CHANGESET_CREATED" >&2
 fi
 
 # Clean up the temporary file
 rm -f "$TEMP_OUTPUT"
 
 # Log the values for debugging (to stderr only!)
-echo "Packages with changes: $PACKAGES_CHANGED" >&2
-echo "Changesets created: $CHANGESETS_CREATED" >&2
+echo "DEBUG: Packages with changes: $PACKAGES_CHANGED" >&2
+echo "DEBUG: Changesets created: $CHANGESETS_CREATED" >&2
 
 # Forward these outputs explicitly - only to stdout and in the GitHub Actions format
+# Absolutely nothing else should be sent to stdout
 echo "packages_changed=$PACKAGES_CHANGED"
 echo "changesets_created=$CHANGESETS_CREATED"
 echo "changeset_created=$CHANGESET_CREATED"
