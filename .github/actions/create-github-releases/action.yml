@@ -18,7 +18,7 @@ inputs:
   force-create:
     description: 'Whether to force create releases for all packages'
     required: false
-    default: 'true'
+    default: 'false'
   retry-attempts:
     description: 'Number of retry attempts for failed operations'
     required: false
