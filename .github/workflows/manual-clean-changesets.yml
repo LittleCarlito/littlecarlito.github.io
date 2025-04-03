@@ -308,6 +308,71 @@ jobs:
       - name: Install dependencies
         run: pnpm install
         
+      # Analyze existing tags to identify conflicts
+      - name: Analyze existing tags
+        id: analyze_tags
+        run: |
+          chmod +x .github/scripts/version/analyze-and-prepare-tags.sh
+          
+          OUTPUT=$(.github/scripts/version/analyze-and-prepare-tags.sh \
+            --package-paths "${{ github.event.inputs.package-paths }}" \
+            --package-names "${{ github.event.inputs.package-names }}" \
+            --debug "${{ github.event.inputs.debug }}")
+          
+          echo "$OUTPUT"
+          
+          # Extract needs_cleanup and tags_json
+          NEEDS_CLEANUP=$(echo "$OUTPUT" | grep "^needs_cleanup=" | cut -d= -f2)
+          TAGS_JSON=$(echo "$OUTPUT" | grep "^tags_json=" | cut -d= -f2-)
+          
+          echo "needs_cleanup=$NEEDS_CLEANUP" >> $GITHUB_OUTPUT
+          echo "tags_json=$TAGS_JSON" >> $GITHUB_OUTPUT
+
+      # Clean up conflicting tags if needed by calling the manual-delete-tags-direct workflow
+      - name: Clean up conflicting tags
+        if: steps.analyze_tags.outputs.needs_cleanup == 'true'
+        id: cleanup_tags
+        run: |
+          echo "Cleaning up conflicting tags before creating new ones..."
+          
+          # First, delete local tags directly
+          echo "Deleting local tags..."
+          TAGS_JSON='${{ steps.analyze_tags.outputs.tags_json }}'
+          
+          echo "$TAGS_JSON" | jq -c '.[]' | while read -r TAG_INFO; do
+            PACKAGE=$(echo "$TAG_INFO" | jq -r '.package')
+            VERSION=$(echo "$TAG_INFO" | jq -r '.version')
+            
+            # Try both tag formats
+            TAG_NAME="@littlecarlito/$PACKAGE@$VERSION"
+            ALT_TAG_NAME="littlecarlito-$PACKAGE@$VERSION"
+            
+            echo "Deleting local tag: $TAG_NAME"
+            git tag -d "$TAG_NAME" 2>/dev/null || echo "Tag $TAG_NAME doesn't exist locally"
+            
+            echo "Deleting local alt tag: $ALT_TAG_NAME"
+            git tag -d "$ALT_TAG_NAME" 2>/dev/null || echo "Tag $ALT_TAG_NAME doesn't exist locally"
+          done
+          
+          # Now call the manual-delete-tags-direct workflow to handle remote tags
+          echo "Calling manual-delete-tags-direct workflow to clean remote tags..."
+          gh workflow run manual-delete-tags-direct.yml \
+            -f tags-list='${{ steps.analyze_tags.outputs.tags_json }}' \
+            -f normalize-package-names=true \
+            -f check-both-formats=true \
+            -f dry-run=false
+          
+          echo "cleanup_complete=true" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      # If we're cleaning up tags, wait a bit to ensure the cleanup workflow completes
+      - name: Wait for cleanup to complete
+        if: steps.analyze_tags.outputs.needs_cleanup == 'true' && steps.cleanup_tags.outputs.cleanup_complete == 'true'
+        run: |
+          echo "Waiting for tag cleanup workflow to complete..."
+          sleep 30  # Give the workflow some time to start and delete tags
+          
       # Make script executable and use it to create tags
       - name: Create Git tags
         id: create_tags
@@ -362,9 +427,17 @@ jobs:
           TAGS_FAILED="${{ steps.create_tags.outputs.fail_count }}"
           RELEASES_CREATED="${{ steps.create_releases.outputs.success_count || 0 }}"
           RELEASES_FAILED="${{ steps.create_releases.outputs.fail_count || 0 }}"
+          NEEDED_CLEANUP="${{ steps.analyze_tags.outputs.needs_cleanup }}"
           
           echo "Summary:"
           echo "--------"
+          
+          if [ "$NEEDED_CLEANUP" == "true" ]; then
+            echo "✅ Cleaned up conflicting tags before creating new ones"
+          else
+            echo "ℹ️ No conflicting tags needed cleanup"
+          fi
+          
           echo "Tags created: $TAGS_CREATED"
           echo "Tags failed: $TAGS_FAILED"
           echo "Releases created: $RELEASES_CREATED"
