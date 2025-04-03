@@ -206,57 +206,58 @@ create_tag_with_retry() {
   debug_log "Creating tag $tag_name for $pkg_name v$version (commit: $commit_sha)"
   
   while [[ $attempts -gt 0 && "$success" != "true" ]]; do
-    # Create annotated tag
-    local tag_response=$(curl -s -X POST -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
-      -d "{\"tag\":\"$tag_name\",\"message\":\"Release $pkg_name v$version\",\"object\":\"$commit_sha\",\"type\":\"commit\"}" \
-      "https://api.github.com/repos/$REPO/git/tags")
+    # Try using git command line to create the tag first (more reliable)
+    if [[ "$DEBUG" == "true" ]]; then
+      echo "Attempting to create tag using local git..." >&2
+    fi
     
-    local tag_sha=$(echo "$tag_response" | grep -o '"sha": "[^"]*' | head -1 | cut -d'"' -f4)
+    # Create tag locally
+    git tag -a "$tag_name" -m "Release $pkg_name v$version" "$commit_sha" 2>/dev/null || true
     
-    if [[ -n "$tag_sha" ]]; then
-      debug_log "Created tag object with SHA: $tag_sha"
+    # Push tag to remote
+    local push_output=$(git push origin "$tag_name" 2>&1 || echo "Failed to push tag")
+    
+    # Check if successful
+    if [[ "$push_output" != *"Failed to push tag"* && "$push_output" != *"error"* && "$push_output" != *"rejected"* ]]; then
+      echo "Successfully created tag $tag_name using git command line on attempt $((RETRY_ATTEMPTS - attempts + 1))" >&2
+      success=true
+      break
+    else
+      echo "Failed to create tag using git, falling back to API on attempt $((RETRY_ATTEMPTS - attempts + 1))" >&2
       
-      # Create reference for tag
+      # Fallback to GitHub API for tag creation
+      # Use simpler reference creation to avoid the "Could not verify object" error
       local ref_response=$(curl -s -X POST -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
-        -d "{\"ref\":\"refs/tags/$tag_name\",\"sha\":\"$tag_sha\"}" \
+        -d "{\"ref\":\"refs/tags/$tag_name\",\"sha\":\"$commit_sha\"}" \
         "https://api.github.com/repos/$REPO/git/refs")
       
       local ref_url=$(echo "$ref_response" | grep -o '"url": "[^"]*' | head -1 | cut -d'"' -f4)
       
       if [[ -n "$ref_url" ]]; then
-        echo "Successfully created tag $tag_name on attempt $((RETRY_ATTEMPTS - attempts + 1))" >&2
+        echo "Successfully created tag $tag_name using GitHub API on attempt $((RETRY_ATTEMPTS - attempts + 1))" >&2
         success=true
         break
       else
-        echo "Failed to create tag reference on attempt $((RETRY_ATTEMPTS - attempts + 1))" >&2
         debug_log "Reference response: $ref_response"
         echo "API error: $(echo "$ref_response" | grep -o '"message": "[^"]*' | head -1 | cut -d'"' -f4)" >&2
+        
+        # Check for specific errors
+        if [[ "$ref_response" == *"Reference already exists"* ]]; then
+          echo "Tag reference already exists" >&2
+          success=true
+          break
+        elif [[ "$ref_response" == *"Bad credentials"* ]]; then
+          echo "Authentication error: The token used doesn't have sufficient permissions" >&2
+          break
+        elif [[ "$ref_response" == *"rate limit"* ]]; then
+          echo "Rate limit exceeded: GitHub API rate limit reached" >&2
+          break
+        fi
+        
         if [[ $attempts -gt 1 ]]; then
           echo "Retrying in 3 seconds..." >&2
           sleep 3
         fi
-      fi
-    else
-      echo "Failed to create tag object on attempt $((RETRY_ATTEMPTS - attempts + 1))" >&2
-      debug_log "Tag response: $tag_response"
-      echo "API error: $(echo "$tag_response" | grep -o '"message": "[^"]*' | head -1 | cut -d'"' -f4)" >&2
-      
-      # Check for common errors
-      if [[ "$tag_response" == *"Bad credentials"* ]]; then
-        echo "Authentication error: The token used doesn't have sufficient permissions" >&2
-        break
-      elif [[ "$tag_response" == *"rate limit"* ]]; then
-        echo "Rate limit exceeded: GitHub API rate limit reached" >&2
-        break
-      elif [[ "$tag_response" == *"Reference already exists"* ]]; then
-        echo "Tag reference already exists" >&2
-        success=true
-        break
-      fi
-      
-      if [[ $attempts -gt 1 ]]; then
-        echo "Retrying in 3 seconds..." >&2
-        sleep 3
       fi
     fi
     
@@ -352,12 +353,35 @@ ensure_tag_and_release() {
   local version=$2
   local tag_name=$3
   
-  # Check if tag exists
-  local tag_exists_result=$(tag_exists "$tag_name")
-  
   # Get latest commit SHA
   local commit_sha=$(git rev-parse HEAD)
   debug_log "Latest commit SHA: $commit_sha"
+  
+  # Diagnose GitHub permissions
+  if [[ "$DEBUG" == "true" ]]; then
+    echo "Diagnosing GitHub permissions and connectivity..." >&2
+    
+    # Test connectivity to GitHub API
+    local api_test=$(curl -s -o /dev/null -w "%{http_code}" -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+      "https://api.github.com/repos/$REPO")
+    
+    echo "GitHub API connectivity test: HTTP $api_test" >&2
+    
+    # Test token permissions
+    local token_test=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+      "https://api.github.com/rate_limit")
+    
+    local rate_remaining=$(echo "$token_test" | grep -o '"remaining": [0-9]*' | head -1 | cut -d' ' -f2)
+    
+    if [[ -n "$rate_remaining" ]]; then
+      echo "GitHub token appears valid. Rate limit remaining: $rate_remaining" >&2
+    else
+      echo "GitHub token may have issues. Response: $token_test" >&2
+    fi
+  fi
+  
+  # Check if tag exists
+  local tag_exists_result=$(tag_exists "$tag_name")
   
   if [[ "$tag_exists_result" == "true" && "$FORCE_CREATE" == "true" ]]; then
     # Delete existing tag
@@ -385,8 +409,15 @@ ensure_tag_and_release() {
     
     if [[ "$create_result" != "true" ]]; then
       echo "Failed to create tag $tag_name" >&2
-      echo "false"
-      return 1
+      # Try direct git approach one more time
+      echo "Trying direct git approach as last resort..." >&2
+      git tag -a "$tag_name" -m "Release $pkg_name v$version" "$commit_sha" 2>/dev/null || true
+      git push origin "$tag_name" 2>/dev/null || {
+        echo "All tag creation methods failed" >&2
+        echo "false"
+        return 1
+      }
+      echo "Successfully created tag using direct git approach" >&2
     fi
   else
     echo "Tag $tag_name already exists" >&2
