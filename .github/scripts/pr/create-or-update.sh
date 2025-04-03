@@ -12,6 +12,9 @@ find_or_create_pr() {
     local title=$5
     local body=$6
     
+    # Set GH_TOKEN for gh commands
+    export GH_TOKEN="$token"
+    
     # Check if PR already exists
     echo "Checking for existing PR..." >&2
     EXISTING_PR=$(gh pr list \
@@ -19,9 +22,9 @@ find_or_create_pr() {
       --head "$head_branch" \
       --base "$base_branch" \
       --json number,url,state \
-      --jq '.[0]' 2>&2)
+      --jq '.[0]' 2>/dev/null || echo "")
     
-    if [ -n "$EXISTING_PR" ]; then
+    if [ -n "$EXISTING_PR" ] && [ "$EXISTING_PR" != "null" ]; then
         echo "Found existing PR" >&2
         PR_NUMBER=$(echo "$EXISTING_PR" | jq -r '.number')
         PR_URL=$(echo "$EXISTING_PR" | jq -r '.url')
@@ -29,12 +32,33 @@ find_or_create_pr() {
     else
         echo "Creating new PR" >&2
         # Create PR - use the GitHub CLI which properly handles special characters
+        # Debug token status (masked for security)
+        echo "Token provided: ${token:0:3}...${token: -3}" >&2
+        
+        # Ensure GH_TOKEN is set for gh PR creation
+        if [ -z "$GH_TOKEN" ]; then
+            echo "GH_TOKEN not set. Setting now with provided token" >&2
+            export GH_TOKEN="$token"
+        fi
+        
+        echo "Creating PR from $head_branch to $base_branch in $repo" >&2
         PR_RESPONSE=$(gh pr create \
           --repo "$repo" \
           --base "$base_branch" \
           --head "$head_branch" \
           --title "$title" \
-          --body "$body" 2>&2)
+          --body "$body" 2>&1)
+        
+        if [[ "$PR_RESPONSE" == *"pull request create failed"* ]]; then
+            echo "Error creating PR: $PR_RESPONSE" >&2
+            echo "Checking permissions..." >&2
+            if [ -n "$token" ]; then
+                # Check scopes without revealing full token
+                SCOPES=$(curl -s -H "Authorization: token $token" -I https://api.github.com/repos/$repo | grep -i x-oauth-scopes || echo "No scopes found")
+                echo "Token scopes: $SCOPES" >&2
+            fi
+            return 1
+        fi
         
         PR_NUMBER=$(echo "$PR_RESPONSE" | grep -o '[0-9]*$')
         PR_URL="https://github.com/$repo/pull/$PR_NUMBER"
@@ -112,7 +136,7 @@ main() {
         exit 1
     fi
     
-    # Set GH_TOKEN for gh commands
+    # Set GH_TOKEN for gh commands - force it to ensure it's available
     export GH_TOKEN="$token"
     
     find_or_create_pr "$token" "$repo" "$base_branch" "$head_branch" "$title" "$body"

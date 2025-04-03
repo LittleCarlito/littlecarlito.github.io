@@ -258,6 +258,7 @@ jobs:
         uses: ./.github/actions/auto-generate-changesets
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          version-token: ${{ secrets.VERSION_TOKEN }}
           repository: ${{ github.repository }}
           base-commit: ${{ github.event.inputs.regenerate_from }}
           auto-changeset-prefix: 'auto-'
@@ -265,7 +266,7 @@ jobs:
           create-pr: 'true'
           pr-title: 'chore: add auto-generated changesets'
           auto-merge: 'true'
-        
+      
       # Display output information for debugging
       - name: Display changeset information
         run: |
