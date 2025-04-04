@@ -136,29 +136,34 @@ HEADER_ACCEPT="Accept: application/vnd.github+json"
 tag_exists() {
   local tag_name=$1
   
-  # Use multiple methods to check if tag exists to be absolutely certain
-  # Method 1: Use GitHub API - most reliable but sometimes has delays
-  local api_result=$(curl -s -I -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
-    "https://api.github.com/repos/$REPO/git/refs/tags/$tag_name" | grep "^HTTP" | head -1 | cut -d' ' -f2)
-  
-  # Method 2: Use git command - faster but only works if tag is in local repo
-  local git_result=$(git tag -l "$tag_name" 2>/dev/null)
-  
-  # Method 3: Try to fetch the tag info directly from GitHub - most direct approach
-  local github_result=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
-    "https://api.github.com/repos/$REPO/git/refs/tags/$tag_name" | grep -c "\"ref\"")
-  
-  # Debug output
-  debug_log "Tag existence check for $tag_name:"
-  debug_log "  - API HTTP Status: $api_result"
-  debug_log "  - Git local check: ${git_result:-(not found locally)}"
-  debug_log "  - GitHub API check: $github_result references found"
-  
-  # Tag exists if any method confirms it
-  if [[ "$api_result" == "200" || -n "$git_result" || "$github_result" -gt 0 ]]; then
+  # Use both GitHub API and local git to check for tag existence
+  # First check with git (more reliable but requires local repo)
+  if git rev-parse --verify "refs/tags/$tag_name" >/dev/null 2>&1; then
+    debug_log "Tag $tag_name exists in git repository"
     echo "true"
+    return 0
+  fi
+  
+  # Fall back to GitHub API
+  local result=$(curl -s -o /dev/null -w "%{http_code}" -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+    "https://api.github.com/repos/$REPO/git/refs/tags/$tag_name")
+  
+  if [[ "$result" == "200" ]]; then
+    debug_log "Tag $tag_name exists via GitHub API (HTTP 200)"
+    echo "true"
+    return 0
   else
+    debug_log "Tag $tag_name does not exist via GitHub API (HTTP $result)"
+    # Double check by listing all tags from the API
+    local all_tags=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+      "https://api.github.com/repos/$REPO/git/refs/tags" | grep -o "\"ref\":.*\"refs/tags/$tag_name\"")
+    if [[ -n "$all_tags" ]]; then
+      debug_log "Tag $tag_name found in full tags list despite HTTP $result"
+      echo "true"
+      return 0
+    fi
     echo "false"
+    return 1
   fi
 }
 
@@ -615,26 +620,46 @@ for i in "${!NAME_ARRAY[@]}"; do
       RELEASE_EXISTS_LIST=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
         "https://api.github.com/repos/$REPO/releases" | grep -o "\"tag_name\":.*\"$TAG_NAME\"")
       
-      # If release exists (by either check), SKIP completely - DO NOT TOUCH EXISTING RELEASES AT ALL
+      # If release exists (by either check), SKIP completely
       if [[ "$RELEASE_EXISTS" == "200" || -n "$RELEASE_EXISTS_LIST" ]]; then
-        echo "Release for $TAG_NAME already exists, SKIPPING COMPLETELY to avoid disruption" >&2
+        echo "Release for $TAG_NAME already exists, skipping completely" >&2
         # Get release URL for logging
         EXISTING_RELEASE_URL=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
           "https://api.github.com/repos/$REPO/releases/tags/$TAG_NAME" | grep -o '"html_url": "[^"]*"' | head -1 | cut -d'"' -f4)
         echo "Existing release URL: $EXISTING_RELEASE_URL" >&2
         
+        # Check if it's a draft and try to undraft it
+        RELEASE_DETAILS=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+          "https://api.github.com/repos/$REPO/releases/tags/$TAG_NAME")
+        
+        IS_DRAFT=$(echo "$RELEASE_DETAILS" | grep -o "\"draft\":.*true")
+        RELEASE_ID=$(echo "$RELEASE_DETAILS" | grep -o '"id": [0-9]*' | head -1 | cut -d' ' -f2)
+        
+        if [[ -n "$IS_DRAFT" && -n "$RELEASE_ID" ]]; then
+          echo "Found existing draft release, attempting to undraft it" >&2
+          UNDRAFT_PAYLOAD="{\"draft\":false}"
+          UNDRAFT_RESPONSE=$(curl -s -X PATCH -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+            -H "Content-Type: application/json" \
+            -d "$UNDRAFT_PAYLOAD" \
+            "https://api.github.com/repos/$REPO/releases/$RELEASE_ID")
+          
+          UNDRAFT_SUCCESS=$(echo "$UNDRAFT_RESPONSE" | grep -o '"draft":.*false')
+          if [[ -n "$UNDRAFT_SUCCESS" ]]; then
+            echo "Successfully undrafted release" >&2
+          else
+            echo "Failed to undraft release: $(echo "$UNDRAFT_RESPONSE" | grep "message")" >&2
+          fi
+        fi
+        
         RELEASES_SKIPPED=$((RELEASES_SKIPPED + 1))
         continue
       fi
       
-      # Check if tag exists  
+      # Now check if tag exists
       TAG_EXISTS=$(tag_exists "$TAG_NAME")
-      ALT_TAG_EXISTS=$(tag_exists "$ALT_TAG_NAME")
       
-      # If tag exists in ANY form, we will simply create a release for it
-      # WITHOUT deleting or modifying the tag
-      if [[ "$TAG_EXISTS" == "true" || "$ALT_TAG_EXISTS" == "true" ]]; then
-        echo "Tag exists, creating only the release without touching the tag" >&2
+      if [[ "$TAG_EXISTS" == "true" ]]; then
+        echo "Tag $TAG_NAME already exists, creating only the release" >&2
         
         # Create release for existing tag
         RESULT=$(create_release_with_retry "$PKG_NAME" "$VERSION" "$TAG_NAME")
@@ -650,25 +675,14 @@ for i in "${!NAME_ARRAY[@]}"; do
         # Tag doesn't exist, create both tag and release
         echo "Tag $TAG_NAME does not exist. Creating both tag and release..." >&2
         
-        # Get latest commit SHA
-        COMMIT_SHA=$(git rev-parse HEAD)
+        # Use ensure_tag_and_release function
+        RESULT=$(ensure_tag_and_release "$PKG_NAME" "$VERSION" "$TAG_NAME")
         
-        # Create the tag
-        TAG_RESULT=$(create_tag_with_retry "$PKG_NAME" "$VERSION" "$TAG_NAME" "$COMMIT_SHA")
-        
-        if [[ "$TAG_RESULT" == "true" ]]; then
-          # Create release for the new tag
-          RELEASE_RESULT=$(create_release_with_retry "$PKG_NAME" "$VERSION" "$TAG_NAME")
-          
-          if [[ "$RELEASE_RESULT" == "true" || "$RELEASE_RESULT" == "exists" ]]; then
-            echo "Successfully created tag and release for $PKG_NAME v$VERSION" >&2
-            RELEASES_CREATED=$((RELEASES_CREATED + 1))
-          else
-            echo "Created tag but failed to create release for $PKG_NAME v$VERSION" >&2
-            RELEASES_FAILED=$((RELEASES_FAILED + 1))
-          fi
+        if [[ "$RESULT" == "true" ]]; then
+          echo "Successfully created tag and release for $PKG_NAME v$VERSION" >&2
+          RELEASES_CREATED=$((RELEASES_CREATED + 1))
         else
-          echo "Failed to create tag for $PKG_NAME v$VERSION" >&2
+          echo "Failed to create tag and release for $PKG_NAME v$VERSION" >&2
           RELEASES_FAILED=$((RELEASES_FAILED + 1))
         fi
       fi

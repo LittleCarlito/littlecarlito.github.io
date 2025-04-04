@@ -200,12 +200,50 @@ create_release_for_tag() {
 # Function to aggressively delete a tag if it exists
 delete_tag_if_exists() {
   local tag_name=$1
+  local attempts=$RETRY_ATTEMPTS
+  local success=false
   
-  # DISABLED: Never delete existing tags to prevent GitHub from turning releases into drafts
-  echo "WARNING: Tag deletion functionality has been DISABLED to prevent releases from being turned into drafts" >&2
-  echo "Tag $tag_name will NOT be deleted, even if it exists" >&2
+  # Check if tag exists
+  TAG_EXISTS=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+    "https://api.github.com/repos/$REPO/git/refs/tags/$tag_name" | grep -c "\"ref\"")
   
-  # Return success without deleting anything
+  if [[ $TAG_EXISTS -eq 0 ]]; then
+    echo "Tag $tag_name does not exist, no need to delete" >&2
+    return 0
+  fi
+  
+  echo "Deleting existing tag $tag_name with up to $attempts attempts" >&2
+  
+  while [[ $attempts -gt 0 && "$success" != "true" ]]; do
+    DELETE_RESPONSE=$(curl -s -X DELETE -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+      "https://api.github.com/repos/$REPO/git/refs/tags/$tag_name")
+    
+    # Check if successful (DELETE returns 204 No Content when successful)
+    if [[ -z "$DELETE_RESPONSE" ]]; then
+      echo "Successfully deleted tag $tag_name on attempt $((RETRY_ATTEMPTS - attempts + 1))" >&2
+      success=true
+      break
+    else
+      echo "Failed to delete tag on attempt $((RETRY_ATTEMPTS - attempts + 1))" >&2
+      if [[ $attempts -gt 1 ]]; then
+        echo "API response: $DELETE_RESPONSE" >&2
+        echo "Retrying in 3 seconds..." >&2
+        sleep 3
+      fi
+    fi
+    
+    attempts=$((attempts - 1))
+  done
+  
+  # After deletion, verify it's really gone
+  TAG_STILL_EXISTS=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+    "https://api.github.com/repos/$REPO/git/refs/tags/$tag_name" | grep -c "\"ref\"")
+  
+  if [[ $TAG_STILL_EXISTS -gt 0 ]]; then
+    echo "Warning: Tag $tag_name still exists after deletion attempts" >&2
+    return 1
+  fi
+  
   return 0
 }
 
