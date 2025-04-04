@@ -201,9 +201,10 @@ function updateUvInfo(state) {
 			content += `<div>V: <span style="color: #3498db">${info.minV.toFixed(4)} to ${info.maxV.toFixed(4)}</span></div>`;
 		}
         
-		// Add sample UV coordinates from a screen mesh
+		// Add sample UV coordinates from a mesh
 		if (info.sampleUVs && info.sampleMesh) {
 			content += '<div style="margin-top: 5px; color: #f1c40f;">Sample UV Coordinates:</div>';
+			content += `<div>From: <span style="color: #3498db">${info.sampleMesh.name}</span></div>`;
             
 			// Get a few sample vertices
 			const attr = info.sampleMesh.geometry.attributes[channelName];

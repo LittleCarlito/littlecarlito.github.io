@@ -523,14 +523,16 @@ export function analyzeUvChannels(state) {
 					info.count++;
 					info.meshes.push(child);
 					
-					// Store sample UVs for analysis if this is a screen mesh
-					const isScreenMesh = child.name.toLowerCase().includes('screen') || 
-										 child.name.toLowerCase().includes('display') || 
-										 child.name.toLowerCase().includes('monitor');
-					if (isScreenMesh && !info.sampleUVs) {
+					// Store sample UVs for any mesh if we don't have a sample yet
+					if (!info.sampleUVs) {
 						info.sampleUVs = child.geometry.attributes[attrName].array;
 						info.sampleMesh = child;
 					}
+					
+					// Still identify screen meshes for statistics
+					const isScreenMesh = child.name.toLowerCase().includes('screen') || 
+										 child.name.toLowerCase().includes('display') || 
+										 child.name.toLowerCase().includes('monitor');
 					
 					// Analyze UV bounds
 					const attr = child.geometry.attributes[attrName];
