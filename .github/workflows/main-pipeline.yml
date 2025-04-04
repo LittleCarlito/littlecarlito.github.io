@@ -265,7 +265,7 @@ jobs:
           default-version: 'patch'
           create-pr: 'true'
           pr-title: 'chore: add auto-generated changesets'
-          auto-merge: 'false' # Set to false to handle merging ourselves
+          auto-merge: 'true'
       
       # Display output information for debugging
       - name: Display changeset information
@@ -275,42 +275,6 @@ jobs:
           echo "Number of changesets: ${{ steps.auto-generate-changesets.outputs.changesets-count }}"
           echo "PR number (if created): ${{ steps.auto-generate-changesets.outputs.pr-number }}"
           echo "Branch name: ${{ steps.auto-generate-changesets.outputs.branch-name }}"
-      
-      # Wait for GitHub checks to complete if a PR was created
-      - name: Wait for checks
-        id: verify_checks
-        if: steps.auto-generate-changesets.outputs.pr-number != ''
-        shell: bash
-        run: |
-          echo "Waiting for checks to complete on PR #${{ steps.auto-generate-changesets.outputs.pr-number }}..."
-          
-          # Get the commit SHA from the PR
-          COMMIT_SHA=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/pulls/${{ steps.auto-generate-changesets.outputs.pr-number }}" \
-            | jq -r '.head.sha')
-          
-          bash .github/scripts/branch/wait-checks.sh \
-            --repo "${{ github.repository }}" \
-            --sha "$COMMIT_SHA" \
-            --workflow "PR Dry Run" \
-            --timeout "300" \
-            --min-checks "2"
-            
-          echo "All required checks have completed successfully!"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Merge the PR after checks have passed
-      - name: Merge PR
-        if: steps.verify_checks.outcome == 'success' && steps.auto-generate-changesets.outputs.pr-number != ''
-        uses: ./.github/actions/merge-pull-request
-        with:
-          github-token: ${{ secrets.VERSION_TOKEN }}
-          repository: ${{ github.repository }}
-          pr-number: ${{ steps.auto-generate-changesets.outputs.pr-number }}
-          merge-method: 'squash'
-          delete-branch: 'true'
-          commit-message: 'chore: generate changesets [skip ci]'
 
   version-and-publish:
     name: Version and Publish to GitHub npm
