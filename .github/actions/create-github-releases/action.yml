@@ -16,7 +16,7 @@ inputs:
     required: false
     default: 'true'
   force-create:
-    description: 'Whether to force create releases for all packages'
+    description: 'Whether to force create releases for all packages (DEPRECATED: Always false now to prevent duplicate releases)'
     required: false
     default: 'false'
   retry-attempts:
@@ -189,7 +189,7 @@ runs:
           --package-names "$PACKAGE_NAMES" \
           --package-paths "$PACKAGE_PATHS" \
           --include-changelog "${{ inputs.include-changelog }}" \
-          --force-create "${{ inputs.force-create }}" \
+          --force-create "false" \
           --retry-attempts "${{ inputs.retry-attempts }}" \
           --debug "${{ inputs.debug }}")
         
