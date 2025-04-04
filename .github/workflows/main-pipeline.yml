@@ -428,7 +428,6 @@ jobs:
           package-paths: 'packages/blorkpack,packages/blorktools,packages/blorkboard,apps/portfolio'
           package-names: '@littlecarlito/blorkpack,@littlecarlito/blorktools,@littlecarlito/blorkboard,@littlecarlito/portfolio'
           include-changelog: true
-          force-create: true
           retry-attempts: 1
           debug: true
         env:

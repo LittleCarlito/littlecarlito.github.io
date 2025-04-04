@@ -13,7 +13,6 @@ Options:
   --repo REPO               Repository name in format owner/repo (default: current repo)
   --package-paths PATHS     Comma-separated list of package paths
   --package-names NAMES     Comma-separated list of package names
-  --force-create BOOL       Whether to recreate tags even if they exist (default: true)
   --retry-attempts NUM      Number of retry attempts for failed operations (default: 3)
   --help                    Display this help and exit
 
@@ -24,7 +23,6 @@ EOF
 
 # Default values
 REPO=""
-FORCE_CREATE="true"
 RETRY_ATTEMPTS=3
 
 # Parse arguments
@@ -44,10 +42,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --package-names)
       PACKAGE_NAMES="$2"
-      shift 2
-      ;;
-    --force-create)
-      FORCE_CREATE="$2"
       shift 2
       ;;
     --retry-attempts)
@@ -281,11 +275,14 @@ for i in "${!PATH_ARRAY[@]}"; do
       echo "Alternative tag format: $ALT_TAG_NAME" >&2
       
       # Check if tags need to be handled
-      if [[ "$FORCE_CREATE" == "true" ]]; then
-        # Force create mode - delete existing tags if they exist
-        delete_tag_if_exists "$TAG_NAME"
-        delete_tag_if_exists "$ALT_TAG_NAME"
-        
+      # Only create if tag doesn't exist
+      TAG_EXISTS=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+        "https://api.github.com/repos/$REPO/git/refs/tags/$TAG_NAME" | grep -c "\"ref\"")
+      
+      ALT_TAG_EXISTS=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+        "https://api.github.com/repos/$REPO/git/refs/tags/$ALT_TAG_NAME" | grep -c "\"ref\"")
+      
+      if [[ $TAG_EXISTS -eq 0 && $ALT_TAG_EXISTS -eq 0 ]]; then
         # Get latest commit SHA
         COMMIT_SHA=$(git rev-parse HEAD)
         
@@ -306,37 +303,8 @@ for i in "${!PATH_ARRAY[@]}"; do
           echo "Failed to create tag for $PKG_NAME v$VERSION after $RETRY_ATTEMPTS attempts" >&2
         fi
       else
-        # Only create if tag doesn't exist
-        TAG_EXISTS=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
-          "https://api.github.com/repos/$REPO/git/refs/tags/$TAG_NAME" | grep -c "\"ref\"")
-        
-        ALT_TAG_EXISTS=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
-          "https://api.github.com/repos/$REPO/git/refs/tags/$ALT_TAG_NAME" | grep -c "\"ref\"")
-        
-        if [[ $TAG_EXISTS -eq 0 && $ALT_TAG_EXISTS -eq 0 ]]; then
-          # Get latest commit SHA
-          COMMIT_SHA=$(git rev-parse HEAD)
-          
-          # Create tag with retry
-          CREATE_RESULT=$(create_tag_with_retry "$PKG_NAME" "$VERSION" "$TAG_NAME" "$COMMIT_SHA")
-          
-          if [[ "$CREATE_RESULT" == "true" ]]; then
-            TAGS_CREATED=$((TAGS_CREATED + 1))
-            
-            # Create release for the tag
-            RELEASE_RESULT=$(create_release_for_tag "$PKG_NAME" "$VERSION" "$TAG_NAME")
-            
-            if [[ "$RELEASE_RESULT" != "true" ]]; then
-              echo "Warning: Created tag but failed to create release for $PKG_NAME v$VERSION" >&2
-            fi
-          else
-            TAGS_FAILED=$((TAGS_FAILED + 1))
-            echo "Failed to create tag for $PKG_NAME v$VERSION after $RETRY_ATTEMPTS attempts" >&2
-          fi
-        else
-          echo "Tag already exists for $PKG_NAME v$VERSION, verified." >&2
-          TAGS_VERIFIED=$((TAGS_VERIFIED + 1))
-        fi
+        echo "Tag already exists for $PKG_NAME v$VERSION, verified." >&2
+        TAGS_VERIFIED=$((TAGS_VERIFIED + 1))
       fi
     else
       echo "Could not determine version for $PKG_NAME, package.json seems malformed" >&2

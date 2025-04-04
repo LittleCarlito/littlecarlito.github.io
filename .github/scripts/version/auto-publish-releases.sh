@@ -135,15 +135,35 @@ HEADER_ACCEPT="Accept: application/vnd.github+json"
 # Function to check if a tag exists
 tag_exists() {
   local tag_name=$1
+  
+  # Use both GitHub API and local git to check for tag existence
+  # First check with git (more reliable but requires local repo)
+  if git rev-parse --verify "refs/tags/$tag_name" >/dev/null 2>&1; then
+    debug_log "Tag $tag_name exists in git repository"
+    echo "true"
+    return 0
+  fi
+  
+  # Fall back to GitHub API
   local result=$(curl -s -o /dev/null -w "%{http_code}" -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
     "https://api.github.com/repos/$REPO/git/refs/tags/$tag_name")
   
   if [[ "$result" == "200" ]]; then
-    debug_log "Tag $tag_name exists (HTTP 200)"
+    debug_log "Tag $tag_name exists via GitHub API (HTTP 200)"
     echo "true"
+    return 0
   else
-    debug_log "Tag $tag_name does not exist (HTTP $result)"
+    debug_log "Tag $tag_name does not exist via GitHub API (HTTP $result)"
+    # Double check by listing all tags from the API
+    local all_tags=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+      "https://api.github.com/repos/$REPO/git/refs/tags" | grep -o "\"ref\":.*\"refs/tags/$tag_name\"")
+    if [[ -n "$all_tags" ]]; then
+      debug_log "Tag $tag_name found in full tags list despite HTTP $result"
+      echo "true"
+      return 0
+    fi
     echo "false"
+    return 1
   fi
 }
 
@@ -295,16 +315,49 @@ create_release_with_retry() {
   
   debug_log "Creating release for $tag_name"
   
-  # Check if release already exists
+  # Triple check if release already exists
+  # 1. Check via GitHub API (most reliable)
   local release_exists=$(curl -s -o /dev/null -w "%{http_code}" -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
     "https://api.github.com/repos/$REPO/releases/tags/$tag_name")
   
-  if [[ "$release_exists" == "200" ]]; then
+  # 2. List all releases and check if any has our tag name
+  local list_releases=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+    "https://api.github.com/repos/$REPO/releases" | grep -o "\"tag_name\":.*\"$tag_name\"")
+  
+  if [[ "$release_exists" == "200" || -n "$list_releases" ]]; then
     echo "Release for $tag_name already exists, skipping" >&2
-    # Get release URL for logging
-    local existing_release_url=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
-      "https://api.github.com/repos/$REPO/releases/tags/$tag_name" | grep -o '"html_url": "[^"]*"' | head -1 | cut -d'"' -f4)
-    echo "Existing release URL: $existing_release_url" >&2
+    
+    # If the release exists but is a draft, we might need to undraft it
+    if [[ "$release_exists" == "200" ]]; then
+      # Get release details to check if it's a draft
+      local release_details=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+        "https://api.github.com/repos/$REPO/releases/tags/$tag_name")
+      
+      local is_draft=$(echo "$release_details" | grep -o "\"draft\":.*true")
+      local release_id=$(echo "$release_details" | grep -o '"id": [0-9]*' | head -1 | cut -d' ' -f2)
+      local release_url=$(echo "$release_details" | grep -o '"html_url": "[^"]*"' | head -1 | cut -d'"' -f4)
+      
+      echo "Existing release URL: $release_url" >&2
+      
+      # If it's a draft and we have an ID, try to undraft it
+      if [[ -n "$is_draft" && -n "$release_id" ]]; then
+        echo "Found existing draft release, attempting to undraft it" >&2
+        
+        local undraft_payload="{\"draft\":false}"
+        local undraft_response=$(curl -s -X PATCH -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+          -H "Content-Type: application/json" \
+          -d "$undraft_payload" \
+          "https://api.github.com/repos/$REPO/releases/$release_id")
+        
+        local undraft_success=$(echo "$undraft_response" | grep -o '"draft":.*false')
+        if [[ -n "$undraft_success" ]]; then
+          echo "Successfully undrafted release" >&2
+        else
+          echo "Failed to undraft release: $(echo "$undraft_response" | grep "message")" >&2
+        fi
+      fi
+    fi
+    
     echo "exists"
     return
   fi
@@ -456,13 +509,40 @@ ensure_tag_and_release() {
     fi
   fi
   
-  # Check if tag exists
+  # Check if release already exists (do this first before tag checks)
+  debug_log "Checking if release already exists for $tag_name"
+  local release_exists=$(curl -s -o /dev/null -w "%{http_code}" -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+    "https://api.github.com/repos/$REPO/releases/tags/$tag_name")
+  
+  if [[ "$release_exists" == "200" ]]; then
+    echo "Release for $tag_name already exists, skipping everything" >&2
+    # Get release URL for logging
+    local existing_release_url=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+      "https://api.github.com/repos/$REPO/releases/tags/$tag_name" | grep -o '"html_url": "[^"]*"' | head -1 | cut -d'"' -f4)
+    echo "Existing release URL: $existing_release_url" >&2
+    echo "true"
+    return 0
+  fi
+  
+  # Check if tag exists - only if no release exists
   local tag_exists_result=$(tag_exists "$tag_name")
   
   if [[ "$tag_exists_result" == "true" ]]; then
     # Never delete existing tags to avoid turning releases into drafts
     echo "Tag $tag_name already exists, will not delete or recreate" >&2
-  elif [[ "$tag_exists_result" != "true" ]]; then
+    
+    # If tag exists but release doesn't, create the release
+    debug_log "Tag exists but no release found - will create release only"
+    local release_result=$(create_release_with_retry "$pkg_name" "$version" "$tag_name")
+  
+    if [[ "$release_result" == "true" || "$release_result" == "exists" ]]; then
+      echo "true"
+      return 0
+    else
+      echo "false"
+      return 1
+    fi
+  else
     # Tag doesn't exist, create it
     echo "Tag $tag_name does not exist. Creating..." >&2
     local create_result=$(create_tag_with_retry "$pkg_name" "$version" "$tag_name" "$commit_sha")
@@ -479,17 +559,17 @@ ensure_tag_and_release() {
       }
       echo "Successfully created tag using direct git approach" >&2
     fi
-  fi
-  
-  # Create or update release
-  local release_result=$(create_release_with_retry "$pkg_name" "$version" "$tag_name")
-  
-  if [[ "$release_result" == "true" || "$release_result" == "exists" ]]; then
-    echo "true"
-    return 0
-  else
-    echo "false"
-    return 1
+    
+    # Create release after tag is created
+    local release_result=$(create_release_with_retry "$pkg_name" "$version" "$tag_name")
+    
+    if [[ "$release_result" == "true" || "$release_result" == "exists" ]]; then
+      echo "true"
+      return 0
+    else
+      echo "false"
+      return 1
+    fi
   fi
 }
 
