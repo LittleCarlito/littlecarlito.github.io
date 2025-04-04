@@ -305,22 +305,14 @@ create_release_with_retry() {
   local release_exists=$(curl -s -o /dev/null -w "%{http_code}" -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
     "https://api.github.com/repos/$REPO/releases/tags/$tag_name")
   
-  if [[ "$release_exists" == "200" && "$FORCE_CREATE" != "true" ]]; then
+  if [[ "$release_exists" == "200" ]]; then
     echo "Release for $tag_name already exists, skipping" >&2
+    # Get release URL for logging
+    local existing_release_url=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+      "https://api.github.com/repos/$REPO/releases/tags/$tag_name" | grep -o '"html_url": "[^"]*"' | head -1 | cut -d'"' -f4)
+    echo "Existing release URL: $existing_release_url" >&2
     echo "exists"
     return
-  elif [[ "$release_exists" == "200" && "$FORCE_CREATE" == "true" ]]; then
-    echo "Release for $tag_name exists but force-create is enabled, deleting existing release" >&2
-    
-    # Get release ID to delete it
-    local release_id=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
-      "https://api.github.com/repos/$REPO/releases/tags/$tag_name" | grep -o '"id": [0-9]*' | head -1 | cut -d' ' -f2)
-    
-    if [[ -n "$release_id" ]]; then
-      debug_log "Deleting release ID: $release_id"
-      curl -s -X DELETE -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
-        "https://api.github.com/repos/$REPO/releases/$release_id"
-    fi
   fi
   
   while [[ $attempts -gt 0 && "$success" != "true" ]]; do
