@@ -276,10 +276,16 @@ while read -r commit; do
       create_package_changeset "$PKG_NAME" "$VERSION_TYPE" "$MESSAGE"
     else
       # Special case: If scope doesn't match any package but is a "special" scope
-      # Examples: pipeline, release, etc. - treat as if it was scopeless
+      # Examples: release, common, core, docs, tests - treat as if it was scopeless
       # List of special scopes that should apply to all packages
-      SPECIAL_SCOPES="pipeline release common core docs tests"
-      if echo "$SPECIAL_SCOPES" | grep -w "$SCOPE" > /dev/null; then
+      SPECIAL_SCOPES="release common core docs tests"
+      
+      # Explicit list of scopes that should be ignored and not trigger any version bumps
+      IGNORED_SCOPES="pipeline ci workflow github actions"
+      
+      if echo "$IGNORED_SCOPES" | grep -w "$SCOPE" > /dev/null; then
+        echo "  Ignored scope '$SCOPE' detected - not creating any changesets" >&2
+      elif echo "$SPECIAL_SCOPES" | grep -w "$SCOPE" > /dev/null; then
         echo "  Special scope '$SCOPE' detected - incrementing ALL packages" >&2
         
         # Increment ALL packages for special scopes
