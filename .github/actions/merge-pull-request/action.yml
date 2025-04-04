@@ -45,12 +45,21 @@ runs:
       id: merge-pr
       shell: bash
       run: |
+<<<<<<< Updated upstream
         OUTPUT=$(bash .github/scripts/pr/force-merge.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --pr-number "${{ inputs.pr-number }}" \
           --commit-title "${{ inputs.commit-title }}" \
           --merge-method "${{ inputs.merge-method }}")
+=======
+        # The standard merge.sh doesn't accept --token or --repo parameters, 
+        # it only uses the GH_TOKEN environment variable
+        OUTPUT=$(bash .github/scripts/pr/merge.sh \
+          --pr-number "${{ inputs.pr-number }}" \
+          --merge-method "${{ inputs.merge-method }}" \
+          --delete-branch "${{ inputs.delete-branch }}")
+>>>>>>> Stashed changes
         
         # Parse the output and set it to GITHUB_OUTPUT
         echo "$OUTPUT" >> $GITHUB_OUTPUT
