@@ -263,7 +263,6 @@ runs:
         package-paths: ${{ inputs.package-paths }}
         package-names: ${{ inputs.package-names }}
         include-changelog: true
-        force-create: false
         retry-attempts: 1
         debug: ${{ inputs.debug }}
     
