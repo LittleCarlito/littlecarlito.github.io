@@ -576,6 +576,7 @@ ensure_tag_and_release() {
 # Main processing section at the bottom
 echo "Creating GitHub releases for published packages with enhanced reliability..." >&2
 RELEASES_CREATED=0
+RELEASES_SKIPPED=0
 RELEASES_FAILED=0
 
 # Debug information
@@ -610,15 +611,80 @@ for i in "${!NAME_ARRAY[@]}"; do
       echo "Using tag format: $TAG_NAME (npm standard format)" >&2
       debug_log "Alternative tag format: $ALT_TAG_NAME"
       
-      # Ensure tag and release exist
-      RESULT=$(ensure_tag_and_release "$PKG_NAME" "$VERSION" "$TAG_NAME")
+      # First check if release already exists (most important check)
+      debug_log "Checking if release already exists for $TAG_NAME via API"
+      RELEASE_EXISTS=$(curl -s -o /dev/null -w "%{http_code}" -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+        "https://api.github.com/repos/$REPO/releases/tags/$TAG_NAME")
       
-      if [[ "$RESULT" == "true" ]]; then
-        echo "Successfully created/verified tag and release for $PKG_NAME v$VERSION" >&2
-        RELEASES_CREATED=$((RELEASES_CREATED + 1))
+      # Double-check by listing all releases
+      RELEASE_EXISTS_LIST=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+        "https://api.github.com/repos/$REPO/releases" | grep -o "\"tag_name\":.*\"$TAG_NAME\"")
+      
+      # If release exists (by either check), SKIP completely
+      if [[ "$RELEASE_EXISTS" == "200" || -n "$RELEASE_EXISTS_LIST" ]]; then
+        echo "Release for $TAG_NAME already exists, skipping completely" >&2
+        # Get release URL for logging
+        EXISTING_RELEASE_URL=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+          "https://api.github.com/repos/$REPO/releases/tags/$TAG_NAME" | grep -o '"html_url": "[^"]*"' | head -1 | cut -d'"' -f4)
+        echo "Existing release URL: $EXISTING_RELEASE_URL" >&2
+        
+        # Check if it's a draft and try to undraft it
+        RELEASE_DETAILS=$(curl -s -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+          "https://api.github.com/repos/$REPO/releases/tags/$TAG_NAME")
+        
+        IS_DRAFT=$(echo "$RELEASE_DETAILS" | grep -o "\"draft\":.*true")
+        RELEASE_ID=$(echo "$RELEASE_DETAILS" | grep -o '"id": [0-9]*' | head -1 | cut -d' ' -f2)
+        
+        if [[ -n "$IS_DRAFT" && -n "$RELEASE_ID" ]]; then
+          echo "Found existing draft release, attempting to undraft it" >&2
+          UNDRAFT_PAYLOAD="{\"draft\":false}"
+          UNDRAFT_RESPONSE=$(curl -s -X PATCH -H "$HEADER_AUTH" -H "$HEADER_ACCEPT" \
+            -H "Content-Type: application/json" \
+            -d "$UNDRAFT_PAYLOAD" \
+            "https://api.github.com/repos/$REPO/releases/$RELEASE_ID")
+          
+          UNDRAFT_SUCCESS=$(echo "$UNDRAFT_RESPONSE" | grep -o '"draft":.*false')
+          if [[ -n "$UNDRAFT_SUCCESS" ]]; then
+            echo "Successfully undrafted release" >&2
+          else
+            echo "Failed to undraft release: $(echo "$UNDRAFT_RESPONSE" | grep "message")" >&2
+          fi
+        fi
+        
+        RELEASES_SKIPPED=$((RELEASES_SKIPPED + 1))
+        continue
+      fi
+      
+      # Now check if tag exists
+      TAG_EXISTS=$(tag_exists "$TAG_NAME")
+      
+      if [[ "$TAG_EXISTS" == "true" ]]; then
+        echo "Tag $TAG_NAME already exists, creating only the release" >&2
+        
+        # Create release for existing tag
+        RESULT=$(create_release_with_retry "$PKG_NAME" "$VERSION" "$TAG_NAME")
+        
+        if [[ "$RESULT" == "true" || "$RESULT" == "exists" ]]; then
+          echo "Successfully created release for existing tag $TAG_NAME" >&2
+          RELEASES_CREATED=$((RELEASES_CREATED + 1))
+        else
+          echo "Failed to create release for existing tag $TAG_NAME" >&2
+          RELEASES_FAILED=$((RELEASES_FAILED + 1))
+        fi
       else
-        echo "Failed to create tag and release for $PKG_NAME v$VERSION" >&2
-        RELEASES_FAILED=$((RELEASES_FAILED + 1))
+        # Tag doesn't exist, create both tag and release
+        echo "Tag $TAG_NAME does not exist. Creating both tag and release..." >&2
+        
+        # Use ensure_tag_and_release function
+        RESULT=$(ensure_tag_and_release "$PKG_NAME" "$VERSION" "$TAG_NAME")
+        
+        if [[ "$RESULT" == "true" ]]; then
+          echo "Successfully created tag and release for $PKG_NAME v$VERSION" >&2
+          RELEASES_CREATED=$((RELEASES_CREATED + 1))
+        else
+          echo "Failed to create tag and release for $PKG_NAME v$VERSION" >&2
+          RELEASES_FAILED=$((RELEASES_FAILED + 1))
+        fi
       fi
     else
       echo "Could not determine version for $PKG_NAME" >&2
@@ -631,8 +697,9 @@ for i in "${!NAME_ARRAY[@]}"; do
   fi
 done
 
-echo "Created/verified $RELEASES_CREATED releases, Failed: $RELEASES_FAILED" >&2
+echo "Created $RELEASES_CREATED releases, Skipped $RELEASES_SKIPPED existing releases, Failed: $RELEASES_FAILED" >&2
 echo "releases_created=$RELEASES_CREATED"
+echo "releases_skipped=$RELEASES_SKIPPED"
 echo "releases_failed=$RELEASES_FAILED"
 echo "packages_processed=${#NAME_ARRAY[@]}"
 
