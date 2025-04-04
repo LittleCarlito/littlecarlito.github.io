@@ -15,10 +15,6 @@ inputs:
     description: 'Whether to include changelog content in releases'
     required: false
     default: 'true'
-  force-create:
-    description: 'Whether to force create releases for all packages (DEPRECATED: Always false now to prevent duplicate releases)'
-    required: false
-    default: 'false'
   retry-attempts:
     description: 'Number of retry attempts for failed operations'
     required: false
@@ -52,90 +48,46 @@ outputs:
 runs:
   using: "composite"
   steps:
-    # Ensure Git is configured properly
-    - name: Setup Git configuration
-      shell: bash
-      run: |
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
-    
-    # Get initial counts for error reporting
-    - name: Count packages
+    # Count packages from inputs for reporting
+    - name: Count packages from inputs
       id: input-counts
       shell: bash
       run: |
-        PACKAGE_NAMES="${{ inputs.package-names }}"
-        PACKAGE_PATHS="${{ inputs.package-paths }}"
+        # Count package names
+        IFS=',' read -ra NAMES <<< "${{ inputs.package-names }}"
+        echo "package_count=${#NAMES[@]}" >> $GITHUB_OUTPUT
+        echo "total_packages=${#NAMES[@]}" >> $GITHUB_OUTPUT
         
-        # Count packages from inputs
-        if [[ -n "$PACKAGE_NAMES" ]]; then
-          TOTAL_COUNT=$(echo "$PACKAGE_NAMES" | tr ',' '\n' | wc -l | tr -d ' ')
-          echo "total_packages=$TOTAL_COUNT" >> $GITHUB_OUTPUT
-        else
-          echo "total_packages=0" >> $GITHUB_OUTPUT
-        fi
-    
-    # Check token permissions
-    - name: Check token permissions
-      id: check-token
-      shell: bash
-      run: |
-        echo "Testing token permissions..." >&2
+        echo "Processing ${#NAMES[@]} packages provided in input" >&2
         
-        # Test basic repo access
-        REPO_TEST=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${{ inputs.github-token }}" \
-                 "https://api.github.com/repos/${{ github.repository }}")
-        echo "Repo access HTTP status: $REPO_TEST" >&2
-        
-        # Test release list access
-        RELEASES_TEST=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${{ inputs.github-token }}" \
-                    "https://api.github.com/repos/${{ github.repository }}/releases")
-        echo "Releases access HTTP status: $RELEASES_TEST" >&2
-        
-        if [[ "$REPO_TEST" != "200" || "$RELEASES_TEST" != "200" ]]; then
-          echo "⚠️ WARNING: Token may not have sufficient permissions for releases!" >&2
-          echo "has_permissions=false" >> $GITHUB_OUTPUT
-        else
-          echo "✅ Token permissions look good" >&2
-          echo "has_permissions=true" >> $GITHUB_OUTPUT
-        fi
-      env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
-    
-    # Detect package changes
+    # Detect which packages have actually changed
     - name: Detect package changes
       id: detect-changes
       if: inputs.smart-detection == 'true'
       shell: bash
       run: |
-        echo "Detecting changes in packages..." >&2
+        echo "Detecting which packages have changed..." >&2
+        
         # Add execution permission if needed
-        chmod +x .github/scripts/version/detect-package-changes.sh
+        chmod +x .github/scripts/version/detect-package-changes.sh || true
         
-        # Run script to detect changes
-        DETECT_OUTPUT=$(.github/scripts/version/detect-package-changes.sh \
-          --package-paths "${{ inputs.package-paths }}" \
-          --package-names "${{ inputs.package-names }}" \
-          --debug "${{ inputs.debug }}" \
-          --verbose "true" || echo "exit_code=$?")
-        
-        EXIT_CODE=$?
-        
-        # Check if no changes detected (exit code 3)
-        if [[ "$EXIT_CODE" -eq 3 ]]; then
-          echo "No package changes detected - skipping version and release process" >&2
-          echo "changed_packages=" >> $GITHUB_OUTPUT
-          echo "changed_paths=" >> $GITHUB_OUTPUT
-          echo "changed_count=0" >> $GITHUB_OUTPUT
-          echo "total_packages=$(echo "${{ inputs.package-names }}" | tr ',' '\n' | wc -l | tr -d ' ')" >> $GITHUB_OUTPUT
+        # Skip check if script doesn't exist or is unreadable
+        if [[ ! -x ".github/scripts/version/detect-package-changes.sh" ]]; then
+          echo "detect-package-changes.sh script not found or not executable" >&2
+          echo "Processing all packages instead" >&2
           exit 0
-        elif [[ "$EXIT_CODE" -ne 0 ]]; then
-          echo "Error detecting package changes (exit code $EXIT_CODE)" >&2
-          echo "Using all packages as fallback" >&2
-          echo "changed_packages=${{ inputs.package-names }}" >> $GITHUB_OUTPUT
-          echo "changed_paths=${{ inputs.package-paths }}" >> $GITHUB_OUTPUT
-          echo "changed_count=$(echo "${{ inputs.package-names }}" | tr ',' '\n' | wc -l | tr -d ' ')" >> $GITHUB_OUTPUT
-          echo "total_packages=$(echo "${{ inputs.package-names }}" | tr ',' '\n' | wc -l | tr -d ' ')" >> $GITHUB_OUTPUT
+        fi
+        
+        # Run detection script
+        DETECT_OUTPUT=$(.github/scripts/version/detect-package-changes.sh \
+          --package-names "${{ inputs.package-names }}" \
+          --package-paths "${{ inputs.package-paths }}" \
+          --debug "${{ inputs.debug }}")
+        
+        # Check if script execution succeeded
+        if [[ $? -ne 0 ]]; then
+          echo "Failed to detect package changes" >&2
+          echo "Processing all packages instead" >&2
         else
           # Forward outputs
           echo "$DETECT_OUTPUT" >> $GITHUB_OUTPUT
@@ -189,7 +141,6 @@ runs:
           --package-names "$PACKAGE_NAMES" \
           --package-paths "$PACKAGE_PATHS" \
           --include-changelog "${{ inputs.include-changelog }}" \
-          --force-create "false" \
           --retry-attempts "${{ inputs.retry-attempts }}" \
           --debug "${{ inputs.debug }}")
         

@@ -14,7 +14,6 @@ Options:
   --package-names NAMES     Comma-separated list of package names
   --package-paths PATHS     Comma-separated list of package paths
   --delete-branch BOOL      Whether to delete version branch after release (default: false)
-  --force-create BOOL       Whether to force create releases for all packages (default: true)
   --retry-attempts NUM      Number of retry attempts for failed operations (default: 3)
   --debug BOOL              Enable verbose debug output (default: false)
   --include-changelog BOOL  Whether to include changelog content in releases (default: true)
@@ -28,7 +27,6 @@ EOF
 # Default values
 REPO=""
 DELETE_BRANCH="false"
-FORCE_CREATE="true"
 RETRY_ATTEMPTS=3
 DEBUG="false"
 INCLUDE_CHANGELOG="true"
@@ -54,10 +52,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --delete-branch)
       DELETE_BRANCH="$2"
-      shift 2
-      ;;
-    --force-create)
-      FORCE_CREATE="$2"
       shift 2
       ;;
     --retry-attempts)
@@ -465,25 +459,9 @@ ensure_tag_and_release() {
   # Check if tag exists
   local tag_exists_result=$(tag_exists "$tag_name")
   
-  if [[ "$tag_exists_result" == "true" && "$FORCE_CREATE" == "true" ]]; then
-    # Delete existing tag
-    echo "Tag $tag_name exists but force-create is enabled. Deleting existing tag..." >&2
-    local delete_result=$(delete_tag_with_retry "$tag_name")
-    
-    if [[ "$delete_result" != "true" ]]; then
-      echo "Failed to delete existing tag $tag_name, cannot proceed with creation" >&2
-      echo "false"
-      return 1
-    fi
-    
-    # Create new tag
-    local create_result=$(create_tag_with_retry "$pkg_name" "$version" "$tag_name" "$commit_sha")
-    
-    if [[ "$create_result" != "true" ]]; then
-      echo "Failed to create tag $tag_name after deleting" >&2
-      echo "false"
-      return 1
-    fi
+  if [[ "$tag_exists_result" == "true" ]]; then
+    # Never delete existing tags to avoid turning releases into drafts
+    echo "Tag $tag_name already exists, will not delete or recreate" >&2
   elif [[ "$tag_exists_result" != "true" ]]; then
     # Tag doesn't exist, create it
     echo "Tag $tag_name does not exist. Creating..." >&2
@@ -501,8 +479,6 @@ ensure_tag_and_release() {
       }
       echo "Successfully created tag using direct git approach" >&2
     fi
-  else
-    echo "Tag $tag_name already exists" >&2
   fi
   
   # Create or update release
@@ -524,7 +500,6 @@ RELEASES_FAILED=0
 
 # Debug information
 debug_log "Processing packages in repository: $REPO"
-debug_log "Force create is set to: $FORCE_CREATE"
 debug_log "Retry attempts: $RETRY_ATTEMPTS"
 debug_log "Include changelog: $INCLUDE_CHANGELOG"
 debug_log "Package names: $PACKAGE_NAMES"
