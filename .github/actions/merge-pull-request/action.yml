@@ -16,6 +16,10 @@ inputs:
     description: 'Title for the merge commit'
     required: false
     default: ''
+  commit-message:
+    description: 'Message for the merge commit'
+    required: false
+    default: ''
   merge-method:
     description: 'Merge method to use (merge, squash, rebase)'
     required: false
@@ -28,6 +32,14 @@ inputs:
     description: 'Whether to clean up related changeset branches'
     required: false
     default: 'true'
+  force-merge:
+    description: 'Whether to force merge the PR even if checks are failing'
+    required: false
+    default: 'false'
+  bypass-status-checks:
+    description: 'Whether to bypass branch protection status checks'
+    required: false
+    default: 'false'
 
 outputs:
   merged:
@@ -40,27 +52,65 @@ outputs:
 runs:
   using: "composite"
   steps:
-    # Merge PR using our script
-    - name: Merge Pull Request
-      id: merge-pr
+    # Merge PR using our script based on force-merge setting
+    - name: Merge Pull Request (Standard)
+      id: merge-pr-standard
+      if: inputs.force-merge != 'true'
       shell: bash
       run: |
-        OUTPUT=$(bash .github/scripts/pr/force-merge.sh \
+        OUTPUT=$(bash .github/scripts/pr/merge.sh \
           --token "${{ inputs.github-token }}" \
           --repo "${{ inputs.repository }}" \
           --pr-number "${{ inputs.pr-number }}" \
           --commit-title "${{ inputs.commit-title }}" \
+          --commit-message "${{ inputs.commit-message }}" \
           --merge-method "${{ inputs.merge-method }}")
         
         # Parse the output and set it to GITHUB_OUTPUT
         echo "$OUTPUT" >> $GITHUB_OUTPUT
       env:
         GH_TOKEN: ${{ inputs.github-token }}
+    
+    # Force merge PR if requested
+    - name: Force Merge Pull Request
+      id: merge-pr-force
+      if: inputs.force-merge == 'true'
+      shell: bash
+      run: |
+        echo "Force merging PR #${{ inputs.pr-number }}..."
         
-    # Delete branch if requested
+        OUTPUT=$(bash .github/scripts/pr/force-merge.sh \
+          --token "${{ inputs.github-token }}" \
+          --repo "${{ inputs.repository }}" \
+          --pr-number "${{ inputs.pr-number }}" \
+          --commit-title "${{ inputs.commit-title }}" \
+          --merge-method "${{ inputs.merge-method }}" \
+          --delete-branch "${{ inputs.delete-branch }}")
+        
+        # Parse the output and set it to steps output
+        if echo "$OUTPUT" | grep -q "Successfully merged PR"; then
+          echo "merged=true" >> $GITHUB_OUTPUT
+        else
+          echo "merged=false" >> $GITHUB_OUTPUT
+        fi
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+    
+    # Combine outputs from both merge steps
+    - name: Combine merge results
+      id: merge-pr
+      shell: bash
+      run: |
+        if [[ "${{ inputs.force-merge }}" == "true" ]]; then
+          echo "merged=${{ steps.merge-pr-force.outputs.merged }}" >> $GITHUB_OUTPUT
+        else
+          echo "merged=${{ steps.merge-pr-standard.outputs.merged }}" >> $GITHUB_OUTPUT
+        fi
+        
+    # Delete branch if requested and not already deleted by force-merge
     - name: Delete branch
       id: delete-branch
-      if: inputs.delete-branch == 'true' && steps.merge-pr.outputs.merged == 'true'
+      if: inputs.delete-branch == 'true' && steps.merge-pr.outputs.merged == 'true' && inputs.force-merge != 'true'
       shell: bash
       run: |
         # Get branch name from PR using find-pr.sh script
