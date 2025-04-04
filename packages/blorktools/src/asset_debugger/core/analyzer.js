@@ -140,73 +140,77 @@ export function switchUvChannel(state, uvChannel) {
 			if (!child.userData.originalMaterial) {
 				child.userData.originalMaterial = child.material.clone();
 			}
-			// Check if this is a screen/display mesh
+			
+			// Check if this mesh has this UV channel
+			const hasUvChannel = child.geometry && child.geometry.attributes[channelName] !== undefined;
+			
+			// Check if this is a screen/display mesh for statistics
 			const isScreenMesh = child.name.toLowerCase().includes('screen') || 
                           child.name.toLowerCase().includes('display') || 
                           child.name.toLowerCase().includes('monitor');
-			// Special handling for screen meshes
-			if (isScreenMesh) {
-				screenMeshesProcessed++;
-				// Check if this mesh has this UV channel
-				const hasUvChannel = child.geometry && child.geometry.attributes[channelName] !== undefined;
-				// Log for debugging
-				console.log(`Processing screen mesh: ${child.name}, has ${channelName}: ${hasUvChannel}`);
-				// Only apply texture if the mesh has this UV channel
-				if (state.textureObject && hasUvChannel) {
-					meshesWithThisUV++;
-					// Create a fresh material
-					const newMaterial = new THREE.MeshStandardMaterial();
-					newMaterial.roughness = 0.1;
-					newMaterial.metalness = 0.2;
-					// Clone the texture to avoid affecting other materials
-					const tex = state.textureObject.clone();
-					tex.flipY = false; // Important - keep consistent with texture loading
-					tex.encoding = THREE.sRGBEncoding;
-					// Reset offset/repeat - we're using the actual UV coordinates
-					tex.offset.set(0, 0);
-					tex.repeat.set(1, 1);
-					tex.needsUpdate = true;
-					// Store original UV data if we haven't already
-					if (!originalUvData.has(child) && child.geometry.attributes.uv) {
+			
+			// Log for debugging
+			console.log(`Processing mesh: ${child.name}, has ${channelName}: ${hasUvChannel}, isScreen: ${isScreenMesh}`);
+			
+			// Only apply texture if the mesh has this UV channel
+			if (state.textureObject && hasUvChannel) {
+				meshesWithThisUV++;
+				if (isScreenMesh) {
+					screenMeshesProcessed++;
+				}
+				
+				// Create a fresh material
+				const newMaterial = new THREE.MeshStandardMaterial();
+				newMaterial.roughness = 0.1;
+				newMaterial.metalness = 0.2;
+				// Clone the texture to avoid affecting other materials
+				const tex = state.textureObject.clone();
+				tex.flipY = false; // Important - keep consistent with texture loading
+				tex.encoding = THREE.sRGBEncoding;
+				// Reset offset/repeat - we're using the actual UV coordinates
+				tex.offset.set(0, 0);
+				tex.repeat.set(1, 1);
+				tex.needsUpdate = true;
+				// Store original UV data if we haven't already
+				if (!originalUvData.has(child) && child.geometry.attributes.uv) {
+					originalUvData.set(child, child.geometry.attributes.uv.clone());
+					console.log(`Stored original UV data for ${child.name}`);
+				}
+				// Apply texture to material
+				newMaterial.map = tex;
+				newMaterial.emissiveMap = tex;
+				newMaterial.emissive.set(1, 1, 1);
+				// Handle UV channel swapping
+				if (channelName === 'uv') {
+					// For default UV channel, restore original UV data if available
+					if (originalUvData.has(child)) {
+						// Replace the entire UV attribute with the original, don't just copy values
+						child.geometry.attributes.uv = originalUvData.get(child).clone();
+						child.geometry.attributes.uv.needsUpdate = true;
+						console.log(`Restored original UV data for ${child.name}`);
+					}
+				} else if (child.geometry.attributes[channelName]) {
+					// For non-default UV channels (uv2, uv3, etc.), we need to swap the UV sets
+					// This works by replacing the primary UV attribute with the target UV set
+					// Create a backup of the current UV data if we haven't already
+					if (!originalUvData.has(child)) {
 						originalUvData.set(child, child.geometry.attributes.uv.clone());
 						console.log(`Stored original UV data for ${child.name}`);
 					}
-					// Apply texture to material
-					newMaterial.map = tex;
-					newMaterial.emissiveMap = tex;
-					newMaterial.emissive.set(1, 1, 1);
-					// Handle UV channel swapping
-					if (channelName === 'uv') {
-						// For default UV channel, restore original UV data if available
-						if (originalUvData.has(child)) {
-							// Replace the entire UV attribute with the original, don't just copy values
-							child.geometry.attributes.uv = originalUvData.get(child).clone();
-							child.geometry.attributes.uv.needsUpdate = true;
-							console.log(`Restored original UV data for ${child.name}`);
-						}
-					} else if (child.geometry.attributes[channelName]) {
-						// For non-default UV channels (uv2, uv3, etc.), we need to swap the UV sets
-						// This works by replacing the primary UV attribute with the target UV set
-						// Create a backup of the current UV data if we haven't already
-						if (!originalUvData.has(child)) {
-							originalUvData.set(child, child.geometry.attributes.uv.clone());
-							console.log(`Stored original UV data for ${child.name}`);
-						}
-						// Replace the primary UV attribute with the target UV attribute
-						child.geometry.attributes.uv = child.geometry.attributes[channelName].clone();
-						child.geometry.attributes.uv.needsUpdate = true;
-						console.log(`Applied ${channelName} to primary UV channel for ${child.name}`);
-					}
-					// Apply the new material
-					newMaterial.needsUpdate = true;
-					child.material = newMaterial;
-					// Add to screen meshes array if not already there
-					if (!state.screenMeshes) {
-						state.screenMeshes = [];
-					}
-					if (!state.screenMeshes.includes(child)) {
-						state.screenMeshes.push(child);
-					}
+					// Replace the primary UV attribute with the target UV attribute
+					child.geometry.attributes.uv = child.geometry.attributes[channelName].clone();
+					child.geometry.attributes.uv.needsUpdate = true;
+					console.log(`Applied ${channelName} to primary UV channel for ${child.name}`);
+				}
+				// Apply the new material
+				newMaterial.needsUpdate = true;
+				child.material = newMaterial;
+				// Add to screen meshes array if not already there
+				if (!state.screenMeshes) {
+					state.screenMeshes = [];
+				}
+				if (!state.screenMeshes.includes(child)) {
+					state.screenMeshes.push(child);
 				}
 			}
 		}
