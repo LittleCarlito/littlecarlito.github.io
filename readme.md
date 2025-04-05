@@ -279,16 +279,16 @@ See the [LICENSE](LICENSE) file for full terms and conditions.
 
 ## Versioning
 
-This project uses [Changesets](https://github.com/changesets/changesets) for version management. When making changes that should result in a version bump:
+This project uses conventional commits and direct versioning for package management. When making changes that should result in a version bump:
 
 1. Make your changes
-2. Run `pnpm change` to create a changeset
-3. Commit the generated changeset file along with your changes
-4. Create a PR with your changes
+2. Use proper conventional commit format:
+   - `fix:` or `fix(package-name):` for patch updates
+   - `feat:` or `feat(package-name):` for minor updates
+   - `fix!:`, `feat!:` or adding `BREAKING CHANGE:` to commit body for major updates
+3. Create a PR with your changes
 
-When your PR is merged to main, a "Version Packages" PR will be automatically created. When that PR is merged, packages will be automatically published to GitHub Packages.
-
-See [Changesets Documentation](./documentation/changesets.md) for more details.
+When your PR is merged to main, packages affected by your changes will be automatically versioned and published to GitHub Packages through our pipeline scripts.
 
 ## GitHub Actions Workflows
 
@@ -296,21 +296,15 @@ This repository uses several GitHub Actions workflows:
 
 1. **Main Pipeline** (primary) - Runs on every push to main
    - Builds and tests packages
-   - Automatically versions and publishes packages when changesets are present
+   - Automatically versions and publishes packages based on conventional commits
    - Handles GitHub Pages deployments
    - Fully automated - no manual intervention required
 
-2. **Changesets** - Manual workflow for creating releases
-   - Only runs when manually triggered 
-   - Not needed for normal workflow as main pipeline handles publishing
-
-3. **Release/Prerelease** - For specific/beta releases
+2. **Release/Prerelease** - For specific/beta releases
    - Only run when manually triggered
    - For special release scenarios
 
 **Note:** If you see multiple workflows running in parallel after a merge to main, it may include GitHub's default Pages deployment alongside our custom workflow. This is expected behavior.
-
-For more details, see [documentation/changesets.md](documentation/changesets.md).
 
 ---
 

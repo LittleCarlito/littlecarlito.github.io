@@ -1,6 +1,6 @@
 {
   "name": "@littlecarlito/blorktools",
-  "version": "0.0.0",
+  "version": "0.0.2",
   "description": "Development tools for 3D assets and debugging",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -12,7 +12,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "test": "echo \"No tests specified for blorktools\" && echo \"result=success\" && exit 0",
+    "test": "cd ../.. && jest packages/blorktools/src/test tests/packages/blorktools --config=tests/config/jest/jest.config.cjs --passWithNoTests",
     "clean": "rimraf dist",
     "example:asset-debugger": "vite serve -c vite.config.js",
     "tools": "./tools.js",

@@ -45,6 +45,7 @@ module.exports = {
 				'blorkboard',
 				'blorkpack',
 				'blorktools',
+				'portfolio',
 				'common',
 				'core',
 				'docs',

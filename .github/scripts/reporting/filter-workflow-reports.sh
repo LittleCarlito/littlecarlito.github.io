@@ -47,10 +47,10 @@ fi
 SHOULD_REPORT="true"
 REASON="Default reporting behavior"
 
-# Rule 1: Skip changeset branches for Push and Create PR failures
-if [[ "$WORKFLOW_NAME" == "Push and Create PR" && "$BRANCH" == chore/generate-changesets-* ]]; then
+# Rule 1: Skip version branches for Push and Create PR failures
+if [[ "$WORKFLOW_NAME" == "Push and Create PR" && "$BRANCH" == version-* ]]; then
   SHOULD_REPORT="false"
-  REASON="Skipping failure report from Push and Create PR on changeset branch: $BRANCH"
+  REASON="Skipping failure report from Push and Create PR on version branch: $BRANCH"
 fi
 
 # Rule 2: Skip reports that contain 'reported from' in the summary (avoid duplicates)
@@ -65,8 +65,8 @@ if [[ "$WORKFLOW_NAME" == "Main Pipeline" ]]; then
   REASON="Always report Main Pipeline results"
 fi
 
-# Rule 4: Only report failures from Manual Clean and Generate Changesets on main branch
-if [[ "$WORKFLOW_NAME" == "Manual Clean and Generate Changesets" && "$BRANCH" != "main" ]]; then
+# Rule 4: Only report failures from Manual Clean on main branch
+if [[ "$WORKFLOW_NAME" == "Manual Clean" && "$BRANCH" != "main" ]]; then
   SHOULD_REPORT="false"
   REASON="Skipping report from Manual Clean on non-main branch: $BRANCH"
 fi

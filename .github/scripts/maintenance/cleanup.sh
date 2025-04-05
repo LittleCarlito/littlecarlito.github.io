@@ -67,7 +67,7 @@ cleanup_temp_branches() {
     # Get all branches that match our temporary branch pattern
     echo "Finding temporary branches..." >&2
     local temp_branches=""
-    temp_branches=$(git branch -r | grep -E "changeset-release/|temp/|temporary/") || {
+    temp_branches=$(git branch -r | grep -E "temp/|temporary/") || {
         echo "No temporary branches found matching the patterns"
         return 0
     }

@@ -4,11 +4,18 @@
 # Don't exit on error to allow debug logging
 set +e
 
+# Change to repository root directory to ensure commands work correctly
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
 echo "🔍 Running pre-push checks..."
 
 # First, verify the lockfile is in sync with package.json
 echo "Verifying lockfile integrity..."
-pnpm verify-lockfile || {
+# Check if lockfile is out of sync using pnpm's lockfile-report
+pnpm install --frozen-lockfile --prefer-offline --lockfile-only > /dev/null 2>&1
+LOCKFILE_STATUS=$?
+
+if [ $LOCKFILE_STATUS -ne 0 ]; then
     echo "⚠️ Lockfile is out of sync with package.json."
     echo "🔧 Automatically updating lockfile..."
     
@@ -20,7 +27,9 @@ pnpm verify-lockfile || {
     git commit -m "chore: update lockfile to match package.json"
     
     echo "✅ Lockfile updated and changes committed! Continuing with push..."
-}
+else
+    echo "✅ Lockfile is in sync with package.json"
+fi
 
 # Get the current branch name
 BRANCH=$(git symbolic-ref --short HEAD)

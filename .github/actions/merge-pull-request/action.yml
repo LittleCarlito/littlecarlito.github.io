@@ -24,10 +24,6 @@ inputs:
     description: 'Whether to delete the branch after merging'
     required: false
     default: 'true'
-  cleanup-changesets:
-    description: 'Whether to clean up related changeset branches'
-    required: false
-    default: 'true'
 
 outputs:
   merged:
@@ -78,21 +74,11 @@ runs:
           # Wait a moment to ensure GitHub API synchronizes
           sleep 3
           
-          # Check if this is a version PR to determine if we should clean up changesets
-          PR_TITLE=$(echo "$PR_INFO" | grep "^title=" | cut -d= -f2-)
-          CLEANUP_CHANGESETS="false"
-          
-          if [[ "$PR_TITLE" == *"version packages"* ]] || [[ "$BRANCH_NAME" == version-packages-* ]]; then
-            echo "This is a version PR, will also clean up changesets"
-            CLEANUP_CHANGESETS="true"
-          fi
-          
           # Use our improved delete script with better error handling and retries
           DELETE_OUTPUT=$(bash .github/scripts/branch/delete.sh \
             --token "${{ inputs.github-token }}" \
             --repo "${{ inputs.repository }}" \
             --branch "$BRANCH_NAME" \
-            --cleanup-changesets "$CLEANUP_CHANGESETS" \
             --max-attempts 3)
             
           # Parse the output and set it to GITHUB_OUTPUT

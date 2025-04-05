@@ -134,19 +134,11 @@ if [[ -n "$PR_NUMBER" && "$PR_NUMBER" != "null" ]]; then
       if [[ "$DELETE_BRANCH" == "true" && -n "$PR_HEAD" ]]; then
         echo "Deleting branch: $PR_HEAD" >&2
         
-        # Determine if this is a version PR to clean up changesets too
-        CLEANUP_CHANGESETS="false"
-        if [[ "$PR_TITLE" == *"version packages"* ]] || [[ "$PR_HEAD" == version-packages-* ]]; then
-          echo "This is a version PR, will also clean up changesets" >&2
-          CLEANUP_CHANGESETS="true"
-        fi
-        
         # Use the enhanced branch deletion script
         DELETE_OUTPUT=$(bash .github/scripts/branch/delete.sh \
           --token "$TOKEN" \
           --repo "$REPO" \
           --branch "$PR_HEAD" \
-          --cleanup-changesets "$CLEANUP_CHANGESETS" \
           --max-attempts 3)
           
         # Check result
