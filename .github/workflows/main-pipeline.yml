@@ -320,29 +320,40 @@ jobs:
       # Version packages 
       - name: Version Packages
         id: version
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
         run: |
-          echo "Running version script..."
-          node scripts/version-packages.js
-          
-          # Check if any packages were versioned
-          HAS_CHANGES=$(git status --porcelain | grep -E "packages/|apps/" | wc -l)
-          if [ "$HAS_CHANGES" -gt 0 ]; then
-            echo "Changes detected in package versions"
-            git config --global user.name "GitHub Actions"
-            git config --global user.email "actions@github.com"
-            git add .
-            git commit -m "chore: version packages [skip ci]"
-            git push
-            echo "versioned=true" >> $GITHUB_OUTPUT
+          if [ "${{ steps.check-pr-request.outputs.create_pr }}" == "true" ]; then
+            echo "Manual PR creation requested in commit footer, using standard publishing"
+            echo "Running version script..."
+            node scripts/version-packages.js
+            
+            # Check if any packages were versioned
+            HAS_CHANGES=$(git status --porcelain | grep -E "packages/|apps/" | wc -l)
+            if [ "$HAS_CHANGES" -gt 0 ]; then
+              echo "Changes detected in package versions"
+              git config --global user.name "GitHub Actions"
+              git config --global user.email "actions@github.com"
+              git add .
+              git commit -m "chore: version packages [skip ci]"
+              git push
+              echo "versioned=true" >> $GITHUB_OUTPUT
+            else
+              echo "No version changes detected"
+              echo "versioned=false" >> $GITHUB_OUTPUT
+            fi
           else
-            echo "No version changes detected"
-            echo "versioned=false" >> $GITHUB_OUTPUT
+            echo "Using direct publishing with deploy key to bypass branch protection"
+            chmod +x .github/scripts/version/direct-publish.sh
+            ./.github/scripts/version/direct-publish.sh
+            echo "versioned=true" >> $GITHUB_OUTPUT
+            echo "published=true" >> $GITHUB_OUTPUT
           fi
-      
+          
       # Publish packages
       - name: Publish Packages
         id: publish
-        if: steps.version.outputs.versioned == 'true'
+        if: steps.version.outputs.versioned == 'true' && steps.version.outputs.published != 'true'
         run: |
           echo "Publishing packages..."
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.PACKAGE_TOKEN }}" > .npmrc
