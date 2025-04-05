@@ -54,19 +54,47 @@ git fetch origin
 git checkout main
 git pull origin main
 
+# Ensure NODE_AUTH_TOKEN is set in the environment
+if [ -z "$NODE_AUTH_TOKEN" ]; then
+  echo -e "${RED}⚠️ NODE_AUTH_TOKEN is not set! Publishing will likely fail.${NC}"
+fi
+
+# Create or update npmrc file with authentication
+echo -e "${YELLOW}📝 Setting up npm authentication...${NC}"
+echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+echo "registry=https://npm.pkg.github.com/" >> ~/.npmrc
+echo -e "${GREEN}✅ npm authentication configured${NC}"
+
 # Run version script
 echo -e "${YELLOW}🔢 Running version script...${NC}"
-pnpm version
+node scripts/version-packages.js
 
-echo -e "${YELLOW}📤 Pushing version changes directly to main branch...${NC}"
-git push origin main
+# Check if any packages were versioned
+HAS_CHANGES=$(git status --porcelain | grep -E "packages/|apps/" | wc -l)
+if [ "$HAS_CHANGES" -gt 0 ]; then
+  echo -e "${GREEN}✅ Changes detected in package versions${NC}"
+  git config --global user.name "GitHub Actions"
+  git config --global user.email "actions@github.com"
+  git add .
+  git commit -m "chore: version packages [skip ci]"
+  
+  echo -e "${YELLOW}📤 Pushing version changes directly to main branch...${NC}"
+  git push origin main
 
-# Publish packages
-echo -e "${YELLOW}📦 Publishing packages...${NC}"
-pnpm release
+  # Publish packages with properly configured authentication
+  echo -e "${YELLOW}📦 Publishing packages...${NC}"
+  # Copy .npmrc to the project root to ensure it's used
+  cp ~/.npmrc ./.npmrc
+  pnpm release
+  echo -e "${GREEN}✅ Packages published successfully${NC}"
+else
+  echo -e "${YELLOW}⚠️ No version changes detected${NC}"
+fi
 
 echo -e "${GREEN}✅ Versioning and publishing completed successfully!${NC}"
 
 # Clean up credentials
 rm -f ~/.ssh/deploy_key
-rm -f ~/.ssh/config 
+rm -f ~/.ssh/config
+rm -f ~/.npmrc
+rm -f ./.npmrc 
