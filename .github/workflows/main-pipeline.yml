@@ -322,6 +322,7 @@ jobs:
         id: version
         env:
           DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         run: |
           if [ "${{ steps.check-pr-request.outputs.create_pr }}" == "true" ]; then
             echo "Manual PR creation requested in commit footer, using standard publishing"
@@ -345,6 +346,11 @@ jobs:
           else
             echo "Using direct publishing with deploy key to bypass branch protection"
             chmod +x .github/scripts/version/direct-publish.sh
+            
+            # Create .npmrc file with authentication token
+            echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+            
+            # Run the script
             ./.github/scripts/version/direct-publish.sh
             echo "versioned=true" >> $GITHUB_OUTPUT
             echo "published=true" >> $GITHUB_OUTPUT
