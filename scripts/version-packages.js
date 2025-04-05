@@ -3,7 +3,7 @@
 /**
  * version-packages.js
  * Handles versioning packages based on conventional commits and scopes
- * Replaces changesets with direct versioning
+ * Supports independent versioning for each package
  */
 
 const fs = require('fs');
@@ -110,13 +110,13 @@ function determineVersionBumps(baseCommit) {
       return;
     }
     
-    // If commit has a scope, find matching package
+    // If commit has a scope, only bump the package that matches the scope
     if (scope) {
       for (const pkg of PACKAGES) {
         const pkgName = pkg.split('/').pop();
         
         // Check if scope matches package name
-        if (pkgName === scope) {
+        if (pkgName === scope || scope === 'common') {
           // Only upgrade the bump type if it's more significant
           if (
             !packageVersions[pkg] || 
@@ -125,21 +125,42 @@ function determineVersionBumps(baseCommit) {
           ) {
             packageVersions[pkg] = bumpType;
           }
-          break;
+          
+          // Important: Don't break here, allow 'common' scope to affect multiple packages
+          // Only break if it's a package-specific scope
+          if (scope !== 'common') {
+            break;
+          }
         }
       }
     } else {
-      // No scope, bump all packages
-      PACKAGES.forEach(pkg => {
-        // Only upgrade the bump type if it's more significant
-        if (
-          !packageVersions[pkg] || 
-          (bumpType === BUMP_TYPES.MAJOR) ||
-          (bumpType === BUMP_TYPES.MINOR && packageVersions[pkg] === BUMP_TYPES.PATCH)
-        ) {
-          packageVersions[pkg] = bumpType;
+      // No scope in the commit, only bump packages directly affected by the changes
+      // This requires analyzing which files were modified in the commit
+      try {
+        const commitHash = execSync(`git log --format="%H" -1 --grep="${commit.replace(/"/g, '\\"')}"`).toString().trim();
+        if (commitHash) {
+          const changedFiles = execSync(`git show --name-only --pretty=format: ${commitHash}`).toString().trim().split('\n');
+          
+          // Map changed files to affected packages
+          PACKAGES.forEach(pkg => {
+            const pkgPrefix = pkg.replace(/^apps\//, 'apps/').replace(/^packages\//, 'packages/');
+            const isAffected = changedFiles.some(file => file.startsWith(pkgPrefix) || file === 'package.json');
+            
+            if (isAffected) {
+              // Only upgrade the bump type if it's more significant
+              if (
+                !packageVersions[pkg] || 
+                (bumpType === BUMP_TYPES.MAJOR) ||
+                (bumpType === BUMP_TYPES.MINOR && packageVersions[pkg] === BUMP_TYPES.PATCH)
+              ) {
+                packageVersions[pkg] = bumpType;
+              }
+            }
+          });
         }
-      });
+      } catch (error) {
+        console.error(`Error analyzing commit changes: ${error.message}`);
+      }
     }
   });
   

@@ -67,49 +67,12 @@ delete_branch() {
     fi
 }
 
-# Function to delete related changeset branches if any
-delete_changeset_branches() {
-    local token=$1
-    local repo=$2
-    local prefix=$3
-    
-    # Only look for changeset branches if this is a version branch
-    if [[ "$prefix" != "version-packages-"* ]]; then
-        return 0
-    fi
-    
-    echo "Looking for related changeset branches to clean up..." >&2
-    
-    # Ensure we have latest remote info
-    git fetch --prune origin 2>/dev/null || true
-    
-    # Find changeset branches (created in the last 2 days to avoid deleting unrelated ones)
-    CHANGESET_BRANCHES=$(git branch -r | grep "origin/changeset-release/auto-" | sed 's|origin/||')
-    
-    if [ -z "$CHANGESET_BRANCHES" ]; then
-        echo "No changeset branches found to clean up" >&2
-        return 0
-    fi
-    
-    echo "Found changeset branches to clean up:" >&2
-    echo "$CHANGESET_BRANCHES" >&2
-    
-    # Delete each changeset branch
-    for branch in $CHANGESET_BRANCHES; do
-        echo "Cleaning up changeset branch: $branch" >&2
-        delete_branch "$token" "$repo" "$branch" 2  # Use fewer attempts for these
-    done
-    
-    return 0
-}
-
 # Main function
 main() {
     # Parse command line arguments
     local token=""
     local repo=""
     local branch=""
-    local cleanup_changesets="false"
     local max_attempts=3
     
     while [[ $# -gt 0 ]]; do
@@ -126,17 +89,13 @@ main() {
                 branch="$2"
                 shift 2
                 ;;
-            --cleanup-changesets)
-                cleanup_changesets="$2"
-                shift 2
-                ;;
             --max-attempts)
                 max_attempts="$2"
                 shift 2
                 ;;
             *)
                 echo "Unknown option: $1" >&2
-                echo "Usage: $0 --token <github-token> --repo <owner/repo> --branch <branch-name> [--cleanup-changesets true|false] [--max-attempts <number>]" >&2
+                echo "Usage: $0 --token <github-token> --repo <owner/repo> --branch <branch-name> [--max-attempts <number>]" >&2
                 exit 1
                 ;;
         esac
@@ -161,11 +120,6 @@ main() {
     # Delete the branch
     if delete_branch "$token" "$repo" "$branch" "$max_attempts"; then
         echo "branch_deleted=true"
-        
-        # Also clean up related changeset branches if requested
-        if [ "$cleanup_changesets" = "true" ]; then
-            delete_changeset_branches "$token" "$repo" "$branch"
-        fi
     else
         echo "branch_deleted=false"
         exit 1

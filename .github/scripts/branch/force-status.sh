@@ -72,8 +72,8 @@ main() {
     local repo=""
     local sha=""
     local pr_number=""
-    local contexts='["Build Packages", "Test / Run Tests", "Test Changesets"]'
-    local descriptions='["Build completed successfully", "Tests passed successfully", "Changesets validated successfully"]'
+    local contexts='["Build Packages", "Test / Run Tests"]'
+    local descriptions='["Build completed successfully", "Tests passed successfully"]'
     local context_prefix=""
     
     while [[ $# -gt 0 ]]; do

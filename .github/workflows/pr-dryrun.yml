@@ -150,14 +150,14 @@ jobs:
           artifact-name: ${{ needs.build.outputs.build_artifact_name }}
 
   analyze-and-release:
-    name: Test Changesets
+    name: Test Version Impact
     needs: [test, build]
     runs-on: ubuntu-latest
     outputs:
-      blorkpack_version: ${{ steps.changeset_status.outputs.blorkpack_version }}
-      blorktools_version: ${{ steps.changeset_status.outputs.blorktools_version }}
-      blorkboard_version: ${{ steps.changeset_status.outputs.blorkboard_version }}
-      has_changeset: ${{ steps.changeset_status.outputs.has_changeset }}
+      blorkpack_version: ${{ steps.version_status.outputs.blorkpack_version }}
+      blorktools_version: ${{ steps.version_status.outputs.blorktools_version }}
+      blorkboard_version: ${{ steps.version_status.outputs.blorkboard_version }}
+      has_version_impact: ${{ steps.version_status.outputs.has_version_impact }}
       potential_version_changes: ${{ steps.simulate_version.outputs.potential_version_changes }}
     steps:
       - name: Checkout repository
@@ -218,39 +218,33 @@ jobs:
       - name: Install dependencies
         run: pnpm install
         
-      - name: Changeset status check
-        id: changeset_status
+      - name: Version impact analysis
+        id: version_status
         run: |
-          # Check if any changesets exist
-          if [ -d ".changeset" ] && [ "$(ls -A .changeset | grep -v README.md | grep -v config.json)" ]; then
-            echo "Changesets found, would trigger version bump in production"
-            echo "has_changeset=true" >> $GITHUB_OUTPUT
-            
-            # Get current versions for reference
-            BLORKPACK_VERSION=$(node -p "require('./packages/blorkpack/package.json').version")
-            BLORKTOOLS_VERSION=$(node -p "require('./packages/blorktools/package.json').version")
-            BLORKBOARD_VERSION=$(node -p "require('./packages/blorkboard/package.json').version")
-            
-            echo "Current versions:"
-            echo "blorkpack: $BLORKPACK_VERSION"
-            echo "blorktools: $BLORKTOOLS_VERSION"  
-            echo "blorkboard: $BLORKBOARD_VERSION"
-            
-            echo "blorkpack_version=$BLORKPACK_VERSION" >> $GITHUB_OUTPUT
-            echo "blorktools_version=$BLORKTOOLS_VERSION" >> $GITHUB_OUTPUT
-            echo "blorkboard_version=$BLORKBOARD_VERSION" >> $GITHUB_OUTPUT
+          # Get current versions for reference
+          BLORKPACK_VERSION=$(node -p "require('./packages/blorkpack/package.json').version")
+          BLORKTOOLS_VERSION=$(node -p "require('./packages/blorktools/package.json').version")
+          BLORKBOARD_VERSION=$(node -p "require('./packages/blorkboard/package.json').version")
+          
+          echo "Current versions:"
+          echo "blorkpack: $BLORKPACK_VERSION"
+          echo "blorktools: $BLORKTOOLS_VERSION"  
+          echo "blorkboard: $BLORKBOARD_VERSION"
+          
+          echo "blorkpack_version=$BLORKPACK_VERSION" >> $GITHUB_OUTPUT
+          echo "blorktools_version=$BLORKTOOLS_VERSION" >> $GITHUB_OUTPUT
+          echo "blorkboard_version=$BLORKBOARD_VERSION" >> $GITHUB_OUTPUT
+          
+          # Analyze PR commits to see if there's versioning impact
+          PR_COMMITS=$(git log --format=%s origin/main..HEAD)
+          
+          # Check if any commits would trigger version changes
+          if echo "$PR_COMMITS" | grep -q -E "^(feat|fix|perf|refactor)(\([^)]+\))?!?:"; then
+            echo "Found conventional commits that would trigger version changes"
+            echo "has_version_impact=true" >> $GITHUB_OUTPUT
           else
-            echo "No changesets found, no version changes would be triggered"
-            echo "has_changeset=false" >> $GITHUB_OUTPUT
-            
-            # Get current versions for reference
-            BLORKPACK_VERSION=$(node -p "require('./packages/blorkpack/package.json').version")
-            BLORKTOOLS_VERSION=$(node -p "require('./packages/blorktools/package.json').version")
-            BLORKBOARD_VERSION=$(node -p "require('./packages/blorkboard/package.json').version")
-            
-            echo "blorkpack_version=$BLORKPACK_VERSION" >> $GITHUB_OUTPUT
-            echo "blorktools_version=$BLORKTOOLS_VERSION" >> $GITHUB_OUTPUT
-            echo "blorkboard_version=$BLORKBOARD_VERSION" >> $GITHUB_OUTPUT
+            echo "No version-impacting commits found"
+            echo "has_version_impact=false" >> $GITHUB_OUTPUT
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -258,70 +252,135 @@ jobs:
       
       - name: Simulate version changes
         id: simulate_version
-        if: steps.changeset_status.outputs.has_changeset == 'true'
+        if: steps.version_status.outputs.has_version_impact == 'true'
         run: |
           # Create a temporary branch to simulate version changes
           git checkout -b temp-simulate-version
           
           # Create a summary of what changes would be made
-          echo "## Potential version changes based on changesets:" > version_changes.md
+          echo "## Potential version changes based on conventional commits:" > version_changes.md
           echo "" >> version_changes.md
           
-          # Extract info from changesets to determine bump types
-          echo "Analyzing changesets to determine potential version bumps:" 
+          # Extract info from commits to determine bump types
+          echo "Analyzing commits to determine potential version bumps:" 
           
-          # Parse all changesets files
-          echo "Found changesets:"
-          for f in .changeset/*.md; do
-            if [[ "$f" != ".changeset/README.md" && "$f" != ".changeset/config.json" ]]; then
-              echo "- $f"
-              
-              # Extract bump type and affected packages
-              BUMP_TYPE=$(grep -o -E "['|\"]---['|\"].*['|\"]---['|\"]" "$f" | sed 's/['\''\""]---['\''\""]//g' | tr -d '\n' || echo "")
-              
-              if [[ -n "$BUMP_TYPE" ]]; then
-                if [[ "$BUMP_TYPE" == *"major"* ]]; then
-                  echo "  - Contains major bump"
-                elif [[ "$BUMP_TYPE" == *"minor"* ]]; then
-                  echo "  - Contains minor bump"
-                elif [[ "$BUMP_TYPE" == *"patch"* ]]; then
-                  echo "  - Contains patch bump"
-                fi
-                
-                # Extract affected packages
-                PACKAGES=$(grep -A 10 -E "['|\"]---['|\"].*['|\"]---['|\"]" "$f" | grep -v "---" | grep -v "^$" | head -n 3 || echo "")
-                echo "  - Affects packages: $PACKAGES"
-                
-                # Add to summary
-                echo "### Changeset: $(basename "$f" .md)" >> version_changes.md
-                echo "- Bump type: $BUMP_TYPE" >> version_changes.md
-                echo "- Affected packages: $PACKAGES" >> version_changes.md
-                echo "" >> version_changes.md
-              fi
+          PR_COMMITS=$(git log --format=%B origin/main..HEAD)
+          
+          # Define regex patterns for different commit types
+          FEAT_PATTERN="^feat(\([^)]+\))?!?:"
+          FIX_PATTERN="^fix(\([^)]+\))?!?:"
+          BREAKING_PATTERN="^(feat|fix)(\([^)]+\))?!:"
+          BREAKING_FOOTER="BREAKING CHANGE:"
+          
+          # Analyze potential bumps for each package
+          BLORKPACK_BUMP="none"
+          BLORKTOOLS_BUMP="none"
+          BLORKBOARD_BUMP="none"
+          
+          # Check for breaking changes (major bumps)
+          if echo "$PR_COMMITS" | grep -q -E "$BREAKING_PATTERN" || echo "$PR_COMMITS" | grep -q "$BREAKING_FOOTER"; then
+            echo "Found breaking changes that would trigger major version bumps"
+            
+            # Check which packages are affected
+            if echo "$PR_COMMITS" | grep -q -E "^(feat|fix)(\(blorkpack\))?!:" || echo "$PR_COMMITS" | grep -q -E "BREAKING CHANGE:.*blorkpack"; then
+              BLORKPACK_BUMP="major"
             fi
-          done
+            
+            if echo "$PR_COMMITS" | grep -q -E "^(feat|fix)(\(blorktools\))?!:" || echo "$PR_COMMITS" | grep -q -E "BREAKING CHANGE:.*blorktools"; then
+              BLORKTOOLS_BUMP="major"
+            fi
+            
+            if echo "$PR_COMMITS" | grep -q -E "^(feat|fix)(\(blorkboard\))?!:" || echo "$PR_COMMITS" | grep -q -E "BREAKING CHANGE:.*blorkboard"; then
+              BLORKBOARD_BUMP="major"
+            fi
+          fi
           
-          # Try running a simulated version command (but don't commit/push changes)
-          echo "Running changeset version simulation (changes won't be committed)..."
+          # Check for features (minor bumps)
+          if [ "$BLORKPACK_BUMP" = "none" ] && echo "$PR_COMMITS" | grep -q -E "^feat(\(blorkpack\))?:"; then
+            BLORKPACK_BUMP="minor"
+          fi
           
-          # This will modify files but we won't commit the changes
-          pnpm changeset version || echo "Note: Simulation completed, any errors above are informational only"
+          if [ "$BLORKTOOLS_BUMP" = "none" ] && echo "$PR_COMMITS" | grep -q -E "^feat(\(blorktools\))?:"; then
+            BLORKTOOLS_BUMP="minor"
+          fi
           
-          # Get the potential new versions
-          echo "Potential new versions:"
-          NEW_BLORKPACK_VERSION=$(node -p "require('./packages/blorkpack/package.json').version")
-          NEW_BLORKTOOLS_VERSION=$(node -p "require('./packages/blorktools/package.json').version")
-          NEW_BLORKBOARD_VERSION=$(node -p "require('./packages/blorkboard/package.json').version")
+          if [ "$BLORKBOARD_BUMP" = "none" ] && echo "$PR_COMMITS" | grep -q -E "^feat(\(blorkboard\))?:"; then
+            BLORKBOARD_BUMP="minor"
+          fi
           
-          echo "blorkpack: ${{ steps.changeset_status.outputs.blorkpack_version }} -> $NEW_BLORKPACK_VERSION"
-          echo "blorktools: ${{ steps.changeset_status.outputs.blorktools_version }} -> $NEW_BLORKTOOLS_VERSION"
-          echo "blorkboard: ${{ steps.changeset_status.outputs.blorkboard_version }} -> $NEW_BLORKBOARD_VERSION"
+          # Check for fixes (patch bumps)
+          if [ "$BLORKPACK_BUMP" = "none" ] && echo "$PR_COMMITS" | grep -q -E "^fix(\(blorkpack\))?:"; then
+            BLORKPACK_BUMP="patch"
+          fi
           
-          # Add version summaries to our report
-          echo "### Version changes" >> version_changes.md
-          echo "- blorkpack: ${{ steps.changeset_status.outputs.blorkpack_version }} -> $NEW_BLORKPACK_VERSION" >> version_changes.md
-          echo "- blorktools: ${{ steps.changeset_status.outputs.blorktools_version }} -> $NEW_BLORKTOOLS_VERSION" >> version_changes.md
-          echo "- blorkboard: ${{ steps.changeset_status.outputs.blorkboard_version }} -> $NEW_BLORKBOARD_VERSION" >> version_changes.md
+          if [ "$BLORKTOOLS_BUMP" = "none" ] && echo "$PR_COMMITS" | grep -q -E "^fix(\(blorktools\))?:"; then
+            BLORKTOOLS_BUMP="patch"
+          fi
+          
+          if [ "$BLORKBOARD_BUMP" = "none" ] && echo "$PR_COMMITS" | grep -q -E "^fix(\(blorkboard\))?:"; then
+            BLORKBOARD_BUMP="patch"
+          fi
+          
+          # Check for generic commits without scopes
+          if [ "$BLORKPACK_BUMP" = "none" ] && [ "$BLORKTOOLS_BUMP" = "none" ] && [ "$BLORKBOARD_BUMP" = "none" ]; then
+            if echo "$PR_COMMITS" | grep -q -E "^feat:"; then
+              BLORKPACK_BUMP="minor"
+              BLORKTOOLS_BUMP="minor"
+              BLORKBOARD_BUMP="minor"
+            elif echo "$PR_COMMITS" | grep -q -E "^fix:"; then
+              BLORKPACK_BUMP="patch"
+              BLORKTOOLS_BUMP="patch"
+              BLORKBOARD_BUMP="patch"
+            fi
+          fi
+          
+          # Calculate potential new versions
+          calculate_new_version() {
+            local current_version=$1
+            local bump_type=$2
+            
+            if [ "$bump_type" = "none" ]; then
+              echo "$current_version"
+              return
+            fi
+            
+            # Parse the version components
+            IFS='.' read -r major minor patch <<< "$current_version"
+            
+            # Apply the bump
+            case "$bump_type" in
+              major)
+                echo "$((major + 1)).0.0"
+                ;;
+              minor)
+                echo "$major.$((minor + 1)).0"
+                ;;
+              patch)
+                echo "$major.$minor.$((patch + 1))"
+                ;;
+              *)
+                echo "$current_version"
+                ;;
+            esac
+          }
+          
+          NEW_BLORKPACK_VERSION=$(calculate_new_version "${{ steps.version_status.outputs.blorkpack_version }}" "$BLORKPACK_BUMP")
+          NEW_BLORKTOOLS_VERSION=$(calculate_new_version "${{ steps.version_status.outputs.blorktools_version }}" "$BLORKTOOLS_BUMP")
+          NEW_BLORKBOARD_VERSION=$(calculate_new_version "${{ steps.version_status.outputs.blorkboard_version }}" "$BLORKBOARD_BUMP")
+          
+          echo "Potential version changes:"
+          echo "blorkpack: ${{ steps.version_status.outputs.blorkpack_version }} -> $NEW_BLORKPACK_VERSION ($BLORKPACK_BUMP)"
+          echo "blorktools: ${{ steps.version_status.outputs.blorktools_version }} -> $NEW_BLORKTOOLS_VERSION ($BLORKTOOLS_BUMP)"
+          echo "blorkboard: ${{ steps.version_status.outputs.blorkboard_version }} -> $NEW_BLORKBOARD_VERSION ($BLORKBOARD_BUMP)"
+          
+          # Add commit summaries to our report
+          echo "### Commit Analysis" >> version_changes.md
+          echo "| Package | Current | New | Bump Type |" >> version_changes.md
+          echo "| ------- | ------- | --- | --------- |" >> version_changes.md
+          echo "| blorkpack | ${{ steps.version_status.outputs.blorkpack_version }} | $NEW_BLORKPACK_VERSION | $BLORKPACK_BUMP |" >> version_changes.md
+          echo "| blorktools | ${{ steps.version_status.outputs.blorktools_version }} | $NEW_BLORKTOOLS_VERSION | $BLORKTOOLS_BUMP |" >> version_changes.md
+          echo "| blorkboard | ${{ steps.version_status.outputs.blorkboard_version }} | $NEW_BLORKBOARD_VERSION | $BLORKBOARD_BUMP |" >> version_changes.md
+          echo "" >> version_changes.md
           
           # Set output with the formatted changes (escape newlines for GitHub Actions)
           CHANGES=$(cat version_changes.md)

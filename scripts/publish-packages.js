@@ -3,7 +3,7 @@
 /**
  * publish-packages.js
  * Publishes packages to the registry
- * Replaces changeset publish with direct publishing
+ * Handles direct publishing of packages
  */
 
 const fs = require('fs');

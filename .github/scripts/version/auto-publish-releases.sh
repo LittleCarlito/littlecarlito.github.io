@@ -718,12 +718,11 @@ if [[ "$DELETE_BRANCH" == "true" ]]; then
   if [[ -n "$VERSION_BRANCH" ]]; then
     echo "Deleting version branch: $VERSION_BRANCH" >&2
     
-    # Use the enhanced branch deletion script with changeset cleanup
+    # Use the enhanced branch deletion script
     DELETE_OUTPUT=$(bash .github/scripts/branch/delete.sh \
       --token "$TOKEN" \
       --repo "$REPO" \
       --branch "$VERSION_BRANCH" \
-      --cleanup-changesets "true" \
       --max-attempts 3)
       
     if echo "$DELETE_OUTPUT" | grep -q "branch_deleted=true"; then

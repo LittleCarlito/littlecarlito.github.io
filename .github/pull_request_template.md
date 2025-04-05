@@ -11,11 +11,13 @@
 - [ ] Documentation update
 - [ ] Refactoring (no functional changes)
 
-## Changeset
+## Versioning
 
-<!-- If this PR includes changes that should trigger a version bump, make sure you've included a changeset by running `pnpm change` -->
-- [ ] I've added a changeset by running `pnpm change` (required for version bumps)
-- [ ] This PR doesn't require a version bump
+<!-- This project uses conventional commits for versioning -->
+- [ ] I've used proper conventional commit format in my commits
+  - `fix:` or `fix(scope):` for patches
+  - `feat:` or `feat(scope):` for minor updates
+  - `fix!:`, `feat!:` or adding `BREAKING CHANGE:` for major updates
 
 ## Testing
 
