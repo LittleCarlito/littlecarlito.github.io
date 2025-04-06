@@ -965,7 +965,8 @@ function createRootBoneVisual(bone, baseSize) {
     
     // Create a directional caret/arrow pointing in the direction of root's children
     const caretLength = baseSize * 1.5;
-    const caretOffset = baseSize * 1.5; // Offset from sphere center
+    const rootSphereRadius = baseSize * 1.3; // Same as the sphere radius above
+    const caretOffset = rootSphereRadius + (baseSize * 0.5); // Offset from sphere edge
     
     // Create cone for caret
     const caretGeometry = new THREE.ConeGeometry(baseSize * 0.6, caretLength, 8);
@@ -975,25 +976,32 @@ function createRootBoneVisual(bone, baseSize) {
         transparent: false
     });
     
-    // Rotate cone to point in the direction vector (cones point along +Y by default)
-    caretGeometry.rotateX(-Math.PI / 2); // First orient along +Z
-    // Flip the cone 180 degrees so it points away from the root
-    caretGeometry.rotateZ(Math.PI);
+    // Rotate cone to point along +Z (forward)
+    caretGeometry.rotateX(Math.PI / 2);
     
+    // Create a container for the caret to manage its position and orientation separately
+    const caretContainer = new THREE.Object3D();
+    caretContainer.name = `root_caret_container_${bone.name}`;
+    caretContainer.userData.isVisualization = true;
+    
+    // Position the container at the root's position
+    caretContainer.position.copy(worldPosition);
+    
+    // Add the container to the visualization group
+    boneVisualizationGroup.add(caretContainer);
+    
+    // Create the caret mesh
     const caretMesh = new THREE.Mesh(caretGeometry, caretMaterial);
     caretMesh.name = `root_caret_${bone.name}`;
     caretMesh.userData.isVisualization = true;
     caretMesh.userData.isRootCaret = true;
     
-    // Calculate position for caret (offset from sphere in the direction)
-    const caretPosition = worldPosition.clone().add(
-        directionVector.clone().multiplyScalar(caretOffset)
-    );
-    caretMesh.position.copy(caretPosition);
+    // Position caret at an offset in the direction of bone's children
+    caretMesh.position.copy(directionVector.clone().multiplyScalar(caretOffset));
     
-    // Orient caret to point along the direction vector (points forward/away from root)
+    // Orient caret to point in the same direction
     const caretQuaternion = new THREE.Quaternion();
-    const upVector = new THREE.Vector3(0, 0, 1); // Cone now points along +Z after rotation
+    const upVector = new THREE.Vector3(0, 0, 1); // Cone points along +Z after our rotation
     
     // Special case for when direction is parallel to up vector
     if (Math.abs(upVector.dot(directionVector)) > 0.999) {
@@ -1006,9 +1014,11 @@ function createRootBoneVisual(bone, baseSize) {
     
     caretMesh.quaternion.copy(caretQuaternion);
     
-    // Add caret to the visualization group and link it to the root for dragging
-    boneVisualizationGroup.add(caretMesh);
-    rootMesh.userData.caret = caretMesh;
+    // Add the caret mesh to the container instead of directly to the visualization group
+    caretContainer.add(caretMesh);
+    
+    // No longer store caret reference in root mesh
+    // rootMesh.userData.caret = caretMesh; -- REMOVED
     
     // Add connection to parent if it exists
     if (bone.parent && (bone.parent.isBone || bone.parent.name.toLowerCase().includes('bone_'))) {
@@ -1287,13 +1297,6 @@ function handleDragMovement(object, raycaster, plane, camera) {
     
     // Update the visual representation position
     object.position.copy(dragStartPosition).add(movementDelta);
-    
-    // Update the caret position if this is a root
-    if (object.userData.isRoot && object.userData.caret) {
-        const caret = object.userData.caret;
-        const caretOffset = caret.position.clone().sub(dragStartPosition);
-        caret.position.copy(object.position).add(caretOffset);
-    }
     
     // Get the bone reference
     const bone = object.userData.boneRef;
