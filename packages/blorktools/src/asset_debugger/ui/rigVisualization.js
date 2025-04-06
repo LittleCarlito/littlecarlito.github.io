@@ -8,6 +8,10 @@ let rigVisualizationContainer = null;
 // Keep track of bone visualization objects
 let boneVisualizationGroup = null;
 
+// Variables for drag handling - moved to module scope to be accessible by all functions
+let dragStartPoint = new THREE.Vector3();
+let dragStartPosition = new THREE.Vector3();
+
 /**
  * Create or toggle a visualization of the rig and bone data
  * @param {Object} state - Global state object
@@ -53,7 +57,7 @@ export function createRigVisualization(state) {
     rigInfoContainer.style.fontSize = '12px';
     rigInfoContainer.style.fontFamily = 'monospace';
     rigInfoContainer.style.color = '#ddd';
-    rigInfoContainer.style.whiteSpace = 'pre-wrap';
+    rigInfoContainer.style.whiteSpace = 'nowrap';
     rigInfoContainer.style.overflowX = 'hidden';
     rigInfoContainer.style.maxHeight = '500px';
     // Make more compact
@@ -1048,8 +1052,6 @@ function setupBoneInteractions(state) {
     // Dragging state
     let isDragging = false;
     let draggedObject = null;
-    let dragStartPoint = new THREE.Vector3();
-    let dragStartPosition = new THREE.Vector3();
     let dragPlane = new THREE.Plane();
     
     // Store original orbital controls state to restore later
