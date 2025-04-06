@@ -773,12 +773,56 @@ function createBoneVisualization(modelObject, rigData) {
     boneVisualizationGroup = new THREE.Group();
     boneVisualizationGroup.name = 'boneVisualization';
     
-    // Add the group to the scene root instead of the model
-    // This ensures transforms are applied correctly
-    if (modelObject.parent) {
-        modelObject.parent.add(boneVisualizationGroup);
-    } else {
-        modelObject.add(boneVisualizationGroup);
+    // Find or create a parent container for the entire model
+    // This is crucial for proper movement of both model and visualization
+    let modelContainer = findModelContainer(modelObject);
+    
+    // Store backup reference of the model for recovery if needed
+    const scene = findSceneRoot(modelObject);
+    if (scene) {
+        scene.__modelObjectBackup = modelObject;
+    }
+    
+    // If we couldn't find a proper container, create one
+    if (modelContainer === modelObject) {
+        // Create a new container
+        const newContainer = new THREE.Group();
+        newContainer.name = 'modelWithVisualizationContainer';
+        
+        // Replace model in its parent
+        if (modelObject.parent) {
+            const modelIndex = modelObject.parent.children.indexOf(modelObject);
+            
+            // Make a temporary reference to the original parent
+            const originalParent = modelObject.parent;
+            
+            // Remove model from parent
+            originalParent.remove(modelObject);
+            
+            // Add model to new container
+            newContainer.add(modelObject);
+            
+            // Add container back to original parent
+            if (modelIndex >= 0) {
+                originalParent.children.splice(modelIndex, 0, newContainer);
+            } else {
+                originalParent.add(newContainer);
+            }
+        } else {
+            // If model has no parent, just add it to our new container
+            newContainer.add(modelObject);
+        }
+        
+        modelContainer = newContainer;
+    }
+    
+    // Add the visualization group to the same container as the model
+    // This ensures they move together
+    modelContainer.add(boneVisualizationGroup);
+    
+    // Store the container reference for later use
+    if (modelObject.userData) {
+        modelObject.userData.modelContainer = modelContainer;
     }
     
     // Base bone size - adjust based on model scale
@@ -1095,6 +1139,7 @@ function setupBoneInteractions(state) {
     let isDragging = false;
     let draggedObject = null;
     let dragPlane = new THREE.Plane();
+    let totalDragDelta = new THREE.Vector3(); // Track total movement during drag
     
     // Store original orbital controls state to restore later
     let orbitControlsEnabled = true;
@@ -1132,7 +1177,7 @@ function setupBoneInteractions(state) {
         
         // If dragging, update the object position
         if (isDragging && draggedObject) {
-            handleDragMovement(draggedObject, raycaster, dragPlane, state.camera);
+            handleDragMovement(draggedObject, raycaster, dragPlane, state.camera, totalDragDelta);
             return;
         }
         
@@ -1184,6 +1229,9 @@ function setupBoneInteractions(state) {
         // Ensure orbit controls are disabled during dragging
         setOrbitControlsEnabled(false);
         
+        // Reset total drag delta
+        totalDragDelta.set(0, 0, 0);
+        
         // Start dragging
         isDragging = true;
         draggedObject = hoveredObject;
@@ -1214,6 +1262,12 @@ function setupBoneInteractions(state) {
     const onMouseUp = (event) => {
         if (event.button !== 0 || !isDragging) return;
         
+        // If dragging a root object, update the entire model position
+        if (draggedObject && draggedObject.userData && draggedObject.userData.isRoot) {
+            // Apply the total drag delta to the entire model
+            applyDragToModel(state, draggedObject, totalDragDelta);
+        }
+        
         // End dragging
         isDragging = false;
         draggedObject = null;
@@ -1234,6 +1288,11 @@ function setupBoneInteractions(state) {
         if (hoveredObject) {
             hoveredObject.material.color.copy(hoveredObject.userData.originalColor);
             hoveredObject = null;
+        }
+        
+        // Apply any pending drag movement to the model if we were dragging a root
+        if (isDragging && draggedObject && draggedObject.userData && draggedObject.userData.isRoot) {
+            applyDragToModel(state, draggedObject, totalDragDelta);
         }
         
         // End any active dragging
@@ -1284,8 +1343,9 @@ function setupBoneInteractions(state) {
  * @param {THREE.Raycaster} raycaster - Current raycaster
  * @param {THREE.Plane} plane - The drag plane
  * @param {THREE.Camera} camera - The scene camera
+ * @param {THREE.Vector3} totalDragDelta - Vector to accumulate total drag movement
  */
-function handleDragMovement(object, raycaster, plane, camera) {
+function handleDragMovement(object, raycaster, plane, camera, totalDragDelta) {
     if (!object || !object.userData || !object.userData.boneRef) return;
     
     // Find the new intersection point on the plane
@@ -1294,6 +1354,11 @@ function handleDragMovement(object, raycaster, plane, camera) {
     
     // Calculate the movement delta in world space
     const movementDelta = new THREE.Vector3().subVectors(planeIntersection, dragStartPoint);
+    
+    // Accumulate total drag movement if provided
+    if (totalDragDelta) {
+        totalDragDelta.copy(movementDelta);
+    }
     
     // Update the visual representation position
     object.position.copy(dragStartPosition).add(movementDelta);
@@ -1367,68 +1432,162 @@ function handleDragMovement(object, raycaster, plane, camera) {
 }
 
 /**
- * Update connection lines for a root bone that has moved
- * @param {THREE.Object3D} rootMesh - The root mesh that moved
+ * Apply the drag movement to the entire model and reset the root visual
+ * @param {Object} state - Global state object
+ * @param {THREE.Object3D} rootVisual - The root visual object that was dragged
+ * @param {THREE.Vector3} dragDelta - The total drag movement delta
  */
-function updateRootConnections(rootMesh) {
-    if (!rootMesh || !boneVisualizationGroup) return;
+function applyDragToModel(state, rootVisual, dragDelta) {
+    if (!state.modelObject || !rootVisual || !dragDelta) return;
     
     // Get the bone reference
-    const bone = rootMesh.userData.boneRef;
+    const bone = rootVisual.userData.boneRef;
     if (!bone) return;
     
-    // Update parent connection if it exists
-    if (bone.parent) {
-        const parentConnectionLine = boneVisualizationGroup.children.find(child => 
-            child.name === `root_connection_${bone.parent.name}_to_${bone.name}`
-        );
+    console.log(`Applying drag to model: ${dragDelta.x}, ${dragDelta.y}, ${dragDelta.z}`);
+    
+    // First check if we already stored a model container in userData
+    let modelContainer = state.modelObject.userData && state.modelObject.userData.modelContainer;
+    
+    // If not stored, find the container
+    if (!modelContainer) {
+        modelContainer = findModelContainer(state.modelObject);
         
-        if (parentConnectionLine) {
-            // Get parent world position
-            const parentWorldPosition = new THREE.Vector3();
-            bone.parent.updateWorldMatrix(true, false);
-            bone.parent.getWorldPosition(parentWorldPosition);
-            
-            // Update the line geometry
-            const points = [
-                parentWorldPosition,
-                rootMesh.position.clone()
-            ];
-            
-            // Create new geometry with updated points
-            const newGeometry = new THREE.BufferGeometry().setFromPoints(points);
-            
-            // Dispose old geometry and replace
-            parentConnectionLine.geometry.dispose();
-            parentConnectionLine.geometry = newGeometry;
+        // Store it for future use
+        if (state.modelObject.userData) {
+            state.modelObject.userData.modelContainer = modelContainer;
         }
     }
     
-    // Update all child connections
-    bone.children.forEach(child => {
-        if (child.isBone || child.name.toLowerCase().includes('bone_')) {
-            const childConnectionLine = boneVisualizationGroup.children.find(line => 
-                line.name === `root_connection_${bone.name}_to_${child.name}`
-            );
+    // Move the entire model container by the drag delta
+    modelContainer.position.add(dragDelta);
+    
+    // Update matrices to propagate changes
+    modelContainer.updateMatrix();
+    modelContainer.updateWorldMatrix(true, true);
+    
+    // Reset the root visual position back to its original position
+    // (to make it ready for the next drag operation)
+    rootVisual.position.sub(dragDelta);
+    
+    // Update connections to reflect the new positions
+    updateRootConnections(rootVisual);
+    
+    console.log(`Model moved and root visual reset`);
+}
+
+/**
+ * Find the highest-level container that holds the model
+ * @param {THREE.Object3D} object - The model object
+ * @returns {THREE.Object3D} The highest parent object that contains the model
+ */
+function findModelContainer(object) {
+    if (!object) return null;
+    
+    // Start from the object and work up
+    let current = object;
+    
+    // If object's parent is the scene, create a container
+    if (!current.parent || current.parent.isScene) {
+        return current;
+    }
+    
+    // Look for container that holds both the model and possibly visualization
+    while (current.parent && !current.parent.isScene) {
+        // Check if current is a suitable container
+        if (current.name && (
+            current.name.includes('Container') || 
+            current.name.includes('Group') ||
+            current.name === 'modelWithVisualizationContainer'
+        )) {
+            return current;
+        }
+        
+        // Move up
+        current = current.parent;
+        
+        // If we reached the scene, return the last non-scene parent
+        if (current.parent && current.parent.isScene) {
+            return current;
+        }
+    }
+    
+    return current;
+}
+
+/**
+ * Update handle/control connections when moved
+ * @param {THREE.Object3D} handleMesh - The handle/control mesh that moved
+ */
+function updateHandleConnections(handleMesh) {
+    if (!handleMesh || !boneVisualizationGroup) return;
+    
+    // Get the bone reference
+    const bone = handleMesh.userData.boneRef;
+    if (!bone) return;
+    
+    // Find all connection lines related to this handle
+    boneVisualizationGroup.children.forEach(child => {
+        // Look for connection lines that connect to this bone
+        if (child.userData && child.userData.isVisualization && 
+            child.name && (
+                child.name.includes(`handle_connection_`) && 
+                (child.name.includes(`_to_${bone.name}`) || child.name.includes(`${bone.name}_to_`))
+            )) {
             
-            if (childConnectionLine) {
-                // Get child world position
-                const childWorldPosition = new THREE.Vector3();
-                child.updateWorldMatrix(true, false);
-                child.getWorldPosition(childWorldPosition);
+            // Different update logic depending on if this bone is the source or target
+            if (child.name.includes(`_to_${bone.name}`)) {
+                // This bone is the target of the connection
                 
-                // Update the line geometry
-                const points = [
-                    rootMesh.position.clone(),
-                    childWorldPosition
-                ];
+                // Get the source bone name
+                const sourceName = child.name.split('handle_connection_')[1].split('_to_')[0];
+                const sourceBone = findBoneByName(bone, sourceName);
                 
-                // Create new geometry with updated points
-                const newGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                if (sourceBone) {
+                    // Get source world position
+                    const sourceWorldPosition = new THREE.Vector3();
+                    sourceBone.updateWorldMatrix(true, false);
+                    sourceBone.getWorldPosition(sourceWorldPosition);
+                    
+                    // Update the line geometry
+                    const points = [
+                        sourceWorldPosition,
+                        handleMesh.position.clone()
+                    ];
+                    
+                    // Create new geometry with updated points
+                    const newGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                    
+                    // Dispose old geometry and replace
+                    child.geometry.dispose();
+                    child.geometry = newGeometry;
+                }
+            } else if (child.name.includes(`${bone.name}_to_`)) {
+                // This bone is the source of the connection
                 
-                // Dispose old geometry and replace
-                childConnectionLine.geometry.dispose();
-                childConnectionLine.geometry = newGeometry;
+                // Get the target bone name
+                const targetName = child.name.split(`${bone.name}_to_`)[1];
+                const targetBone = findBoneByName(bone, targetName);
+                
+                if (targetBone) {
+                    // Get target world position
+                    const targetWorldPosition = new THREE.Vector3();
+                    targetBone.updateWorldMatrix(true, false);
+                    targetBone.getWorldPosition(targetWorldPosition);
+                    
+                    // Update the line geometry
+                    const points = [
+                        handleMesh.position.clone(),
+                        targetWorldPosition
+                    ];
+                    
+                    // Create new geometry with updated points
+                    const newGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                    
+                    // Dispose old geometry and replace
+                    child.geometry.dispose();
+                    child.geometry = newGeometry;
+                }
             }
         }
     });
@@ -1588,9 +1747,25 @@ function removeBoneVisualization() {
             }
         });
         
-        // Remove from parent
+        // Remove from parent without affecting model container
         if (boneVisualizationGroup.parent) {
             boneVisualizationGroup.parent.remove(boneVisualizationGroup);
+            
+            // DO NOT destroy or modify the parent container that might contain the model
+            // If we created a container in the createBoneVisualization function, we need to preserve the model
+            if (boneVisualizationGroup.parent.name === 'modelWithVisualizationContainer') {
+                // Ensure the model is still visible and in the scene
+                const container = boneVisualizationGroup.parent;
+                if (container.children.length === 0 && container.parent) {
+                    // Container is empty, look for the model to preserve
+                    const scene = findSceneRoot(container);
+                    
+                    // Re-add any models that might have been removed accidentally
+                    if (scene && scene.__modelObjectBackup) {
+                        scene.add(scene.__modelObjectBackup);
+                    }
+                }
+            }
         }
         
         boneVisualizationGroup = null;
@@ -2061,3 +2236,88 @@ function createBoneVisual(bone, baseSize) {
         boneVisualizationGroup.add(connectionLine);
     }
 } 
+
+/**
+ * Update connection lines for a root bone that has moved
+ * @param {THREE.Object3D} rootMesh - The root mesh that moved
+ */
+function updateRootConnections(rootMesh) {
+    if (!rootMesh || !boneVisualizationGroup) return;
+    
+    // Get the bone reference
+    const bone = rootMesh.userData.boneRef;
+    if (!bone) return;
+    
+    // Update parent connection if it exists
+    if (bone.parent) {
+        const parentConnectionLine = boneVisualizationGroup.children.find(child => 
+            child.name === `root_connection_${bone.parent.name}_to_${bone.name}`
+        );
+        
+        if (parentConnectionLine) {
+            // Get parent world position
+            const parentWorldPosition = new THREE.Vector3();
+            bone.parent.updateWorldMatrix(true, false);
+            bone.parent.getWorldPosition(parentWorldPosition);
+            
+            // Update the line geometry
+            const points = [
+                parentWorldPosition,
+                rootMesh.position.clone()
+            ];
+            
+            // Create new geometry with updated points
+            const newGeometry = new THREE.BufferGeometry().setFromPoints(points);
+            
+            // Dispose old geometry and replace
+            parentConnectionLine.geometry.dispose();
+            parentConnectionLine.geometry = newGeometry;
+        }
+    }
+    
+    // Update all child connections
+    bone.children.forEach(child => {
+        if (child.isBone || child.name.toLowerCase().includes('bone_')) {
+            const childConnectionLine = boneVisualizationGroup.children.find(line => 
+                line.name === `root_connection_${bone.name}_to_${child.name}`
+            );
+            
+            if (childConnectionLine) {
+                // Get child world position
+                const childWorldPosition = new THREE.Vector3();
+                child.updateWorldMatrix(true, false);
+                child.getWorldPosition(childWorldPosition);
+                
+                // Update the line geometry
+                const points = [
+                    rootMesh.position.clone(),
+                    childWorldPosition
+                ];
+                
+                // Create new geometry with updated points
+                const newGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                
+                // Dispose old geometry and replace
+                childConnectionLine.geometry.dispose();
+                childConnectionLine.geometry = newGeometry;
+            }
+        }
+    });
+}
+
+/**
+ * Find the scene root object
+ * @param {THREE.Object3D} object - Any object in the scene
+ * @returns {THREE.Scene} The scene root object
+ */
+function findSceneRoot(object) {
+    if (!object) return null;
+    
+    // Go up until we reach the scene or a null parent
+    let current = object;
+    while (current.parent) {
+        current = current.parent;
+    }
+    
+    return current.isScene ? current : null;
+}
