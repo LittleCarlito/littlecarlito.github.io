@@ -1009,8 +1009,7 @@ function createRootBoneVisual(bone, baseSize) {
     
     // Create a directional caret/arrow pointing in the direction of root's children
     const caretLength = baseSize * 1.5;
-    const rootSphereRadius = baseSize * 1.3; // Same as the sphere radius above
-    const caretOffset = rootSphereRadius + (baseSize * 0.5); // Offset from sphere edge
+    const caretOffset = baseSize * 1.5; // Offset from sphere center
     
     // Create cone for caret
     const caretGeometry = new THREE.ConeGeometry(baseSize * 0.6, caretLength, 8);
@@ -1020,32 +1019,24 @@ function createRootBoneVisual(bone, baseSize) {
         transparent: false
     });
     
-    // Rotate cone to point along +Z (forward)
-    caretGeometry.rotateX(Math.PI / 2);
+    // Rotate cone to point in the direction vector (cones point along +Y by default)
+    // Flip the cone - point away from the root instead of toward it
+    caretGeometry.rotateX(Math.PI / 2); // First orient along Z
     
-    // Create a container for the caret to manage its position and orientation separately
-    const caretContainer = new THREE.Object3D();
-    caretContainer.name = `root_caret_container_${bone.name}`;
-    caretContainer.userData.isVisualization = true;
-    
-    // Position the container at the root's position
-    caretContainer.position.copy(worldPosition);
-    
-    // Add the container to the visualization group
-    boneVisualizationGroup.add(caretContainer);
-    
-    // Create the caret mesh
     const caretMesh = new THREE.Mesh(caretGeometry, caretMaterial);
     caretMesh.name = `root_caret_${bone.name}`;
     caretMesh.userData.isVisualization = true;
     caretMesh.userData.isRootCaret = true;
     
-    // Position caret at an offset in the direction of bone's children
-    caretMesh.position.copy(directionVector.clone().multiplyScalar(caretOffset));
+    // Calculate position for caret (offset from sphere in the direction)
+    const caretPosition = worldPosition.clone().add(
+        directionVector.clone().multiplyScalar(caretOffset)
+    );
+    caretMesh.position.copy(caretPosition);
     
-    // Orient caret to point in the same direction
+    // Orient caret to point away from the root (along the direction vector)
     const caretQuaternion = new THREE.Quaternion();
-    const upVector = new THREE.Vector3(0, 0, 1); // Cone points along +Z after our rotation
+    const upVector = new THREE.Vector3(0, 0, 1); // Cone now points along +Z after rotation
     
     // Special case for when direction is parallel to up vector
     if (Math.abs(upVector.dot(directionVector)) > 0.999) {
@@ -1058,11 +1049,8 @@ function createRootBoneVisual(bone, baseSize) {
     
     caretMesh.quaternion.copy(caretQuaternion);
     
-    // Add the caret mesh to the container instead of directly to the visualization group
-    caretContainer.add(caretMesh);
-    
-    // No longer store caret reference in root mesh
-    // rootMesh.userData.caret = caretMesh; -- REMOVED
+    // Add caret to the visualization group
+    boneVisualizationGroup.add(caretMesh);
     
     // Add connection to parent if it exists
     if (bone.parent && (bone.parent.isBone || bone.parent.name.toLowerCase().includes('bone_'))) {
@@ -1459,12 +1447,35 @@ function applyDragToModel(state, rootVisual, dragDelta) {
         }
     }
     
+    // Save the current bone positions before moving the container
+    // This will let us restore them exactly if needed to prevent double movement
+    const originalBonePositions = new Map();
+    if (state.modelObject) {
+        // Store original positions of all bones
+        state.modelObject.traverse(object => {
+            if (object.isBone || (object.userData && object.userData.type === 'bone')) {
+                originalBonePositions.set(object.uuid, object.position.clone());
+            }
+        });
+    }
+    
     // Move the entire model container by the drag delta
     modelContainer.position.add(dragDelta);
     
     // Update matrices to propagate changes
     modelContainer.updateMatrix();
     modelContainer.updateWorldMatrix(true, true);
+    
+    // Restore original bone positions to prevent double movement
+    originalBonePositions.forEach((originalPosition, uuid) => {
+        state.modelObject.traverse(object => {
+            if (object.uuid === uuid) {
+                // Restore original position to prevent double movement
+                object.position.copy(originalPosition);
+                object.updateMatrix();
+            }
+        });
+    });
     
     // Reset the root visual position back to its original position
     // (to make it ready for the next drag operation)
