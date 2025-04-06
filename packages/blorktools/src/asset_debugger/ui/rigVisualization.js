@@ -1307,7 +1307,12 @@ function handleDragMovement(object, raycaster, plane, camera) {
         // For root bones, just update the connections without modifying the actual bone
         updateRootConnections(object);
     } else {
-        // For handle/control bones, update the actual bone position
+        // For handle/control bones, only update the connections
+        // without modifying the actual bone position
+        updateHandleConnections(object);
+        
+        // The following bone manipulation code is commented out to make handles purely visual
+        /*
         // Find the root model object to access constraints
         let rootObject = findRootObject(bone);
         let constraints = [];
@@ -1357,9 +1362,7 @@ function handleDragMovement(object, raycaster, plane, camera) {
             // Find and apply any constraints affecting this bone
             applyBoneConstraints(bone, constraints);
         }
-        
-        // Update any connecting lines
-        updateHandleConnections(object);
+        */
     }
 }
 
