@@ -702,6 +702,13 @@ function toggleBoneVisualization(state) {
         
         // Apply current checkbox states if visualization is being shown
         if (boneVisualizationGroup.visible) {
+            // Ensure root nodes are properly colored on toggle
+            boneVisualizationGroup.traverse(child => {
+                if (child.userData && child.userData.isRoot && child.material) {
+                    child.material.color.copy(child.userData.originalColor);
+                }
+            });
+            
             const zOverrideCheckbox = document.getElementById('force-z-override');
             const fillCheckbox = document.getElementById('fill-visualization-meshes');
             const colorPicker = document.getElementById('visualization-color');
@@ -725,6 +732,13 @@ function toggleBoneVisualization(state) {
             // Store state in model for interactions
             state.modelObject.userData.state = state;
             createBoneVisualization(state.modelObject, rigData);
+            
+            // Ensure root nodes are properly colored
+            boneVisualizationGroup.traverse(child => {
+                if (child.userData && child.userData.isRoot && child.material) {
+                    child.material.color.copy(child.userData.originalColor);
+                }
+            });
             
             // Apply current checkbox states to new visualization
             const zOverrideCheckbox = document.getElementById('force-z-override');
@@ -781,11 +795,22 @@ function createBoneVisualization(modelObject, rigData) {
         // Skip if this is not actually a bone object
         if (!bone.isBone && !bone.isObject3D) return;
         
-        // Special handling for handle bones
-        if (bone.name && bone.name.toLowerCase().includes('_handle')) {
-            createHandleBoneVisual(bone, boneBaseSize);
+        // Special handling for different bone types
+        if (bone.name) {
+            const lowercaseName = bone.name.toLowerCase();
+            
+            if (lowercaseName.includes('_handle') || lowercaseName.includes('_control')) {
+                // Create handle visualization for handles and controls
+                createHandleBoneVisual(bone, boneBaseSize);
+            } else if (lowercaseName.includes('_root')) {
+                // Create root visualization for root bones
+                createRootBoneVisual(bone, boneBaseSize);
+            } else {
+                // Create regular bone visualization
+                createBoneVisual(bone, boneBaseSize);
+            }
         } else {
-            // Create regular bone visualization
+            // Create regular bone visualization for unnamed bones
             createBoneVisual(bone, boneBaseSize);
         }
     });
@@ -795,170 +820,6 @@ function createBoneVisualization(modelObject, rigData) {
     // Setup mouse hover interaction
     if (modelObject.userData && modelObject.userData.state) {
         setupBoneInteractions(modelObject.userData.state);
-    }
-}
-
-/**
- * Create a visual representation of a regular bone
- * @param {Object} bone - The bone object
- * @param {number} baseSize - Base size for scaling the visualization
- */
-function createBoneVisual(bone, baseSize) {
-    if (!bone || !boneVisualizationGroup) return;
-    
-    // Ensure the bone's world matrix is up to date
-    bone.updateWorldMatrix(true, false);
-    
-    // Get bone's world position and world quaternion
-    const boneWorldPosition = new THREE.Vector3();
-    const boneWorldQuaternion = new THREE.Quaternion();
-    const boneWorldScale = new THREE.Vector3();
-    
-    // Extract the bone's world transform components
-    bone.matrixWorld.decompose(boneWorldPosition, boneWorldQuaternion, boneWorldScale);
-    
-    // Find the tail position (end of the bone)
-    // In THREE.js bones, the tail is determined by the position of its child bones
-    let tailWorldPosition = null;
-    let hasChildBone = false;
-    
-    // Check if any children are bones to determine tail position
-    if (bone.children && bone.children.length > 0) {
-        // For simplicity, use the first bone child's position as the tail
-        for (const child of bone.children) {
-            if (child.isBone || child.name.toLowerCase().includes('bone_')) {
-                // Get world position of the child bone
-                const childWorldPosition = new THREE.Vector3();
-                child.updateWorldMatrix(true, false);
-                child.getWorldPosition(childWorldPosition);
-                
-                tailWorldPosition = childWorldPosition;
-                hasChildBone = true;
-                break;
-            }
-        }
-    }
-    
-    // If no bone children, estimate bone length based on model scale
-    if (!hasChildBone) {
-        // Default bone length
-        const defaultLength = baseSize * 4;
-        
-        // Create direction based on bone's local transform
-        const boneDirection = new THREE.Vector3(0, 1, 0);
-        boneDirection.applyQuaternion(boneWorldQuaternion);
-        boneDirection.normalize();
-        
-        // Create tail position at defaultLength distance in that direction
-        tailWorldPosition = boneWorldPosition.clone().add(
-            boneDirection.multiplyScalar(defaultLength)
-        );
-    }
-    
-    // Calculate bone direction and length
-    const boneDirection = new THREE.Vector3().subVectors(tailWorldPosition, boneWorldPosition);
-    const boneLength = boneDirection.length();
-    boneDirection.normalize();
-    
-    // Create a cylinder geometry for the bone
-    // This is simpler than our custom bone shape and easier to align correctly
-    const boneGeometry = new THREE.CylinderGeometry(
-        baseSize * 1.5,  // head radius (wider)
-        baseSize * 0.5,  // tail radius (narrower)
-        boneLength,      // bone length
-        8,               // radial segments
-        1,               // height segments
-        false            // open ended
-    );
-    
-    // By default, cylinder geometry is centered on the origin and aligned with Y-axis
-    // Move it so that one end is at the origin, and it extends along positive Y
-    boneGeometry.translate(0, boneLength/2, 0);
-    
-    // Create wireframe material for the bone - use red as default
-    const boneMaterial = new THREE.MeshBasicMaterial({
-        color: 0xff0000, // Changed from blue to red
-        wireframe: true,
-        transparent: false,
-        opacity: 1.0,
-        depthTest: true,
-        depthWrite: true
-    });
-    
-    // Create the bone mesh
-    const boneMesh = new THREE.Mesh(boneGeometry, boneMaterial);
-    boneMesh.name = `bone_visual_${bone.name}`;
-    boneMesh.userData.boneRef = bone;
-    boneMesh.userData.isVisualization = true;
-    boneMesh.userData.isBone = true;
-    
-    // Add to visualization group
-    boneVisualizationGroup.add(boneMesh);
-    
-    // Position the bone mesh
-    boneMesh.position.copy(boneWorldPosition);
-    
-    // Orient the mesh to point from head to tail
-    // We need to create a quaternion that rotates from the cylinder's default orientation (Y-axis)
-    // to the actual bone direction
-    const alignmentQuaternion = new THREE.Quaternion();
-    const upVector = new THREE.Vector3(0, 1, 0);
-    
-    // Handle the case where the bone direction is parallel to the up vector
-    if (Math.abs(upVector.dot(boneDirection)) > 0.999) {
-        // If pointing in the same direction, no rotation needed
-        // If pointing in the opposite direction, rotate 180 degrees around X
-        if (upVector.dot(boneDirection) < 0) {
-            alignmentQuaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
-        }
-    } else {
-        // Calculate the rotation from Y-axis to the bone direction
-        alignmentQuaternion.setFromUnitVectors(upVector, boneDirection);
-    }
-    
-    // Apply the rotation to align with bone direction
-    boneMesh.quaternion.copy(alignmentQuaternion);
-    
-    // Add head point as a small sphere for visual clarity
-    const headGeometry = new THREE.SphereGeometry(baseSize * 0.8, 8, 8);
-    const headMaterial = new THREE.MeshBasicMaterial({
-        color: 0xff3333, // Changed to red
-        wireframe: true,
-        transparent: false,
-        opacity: 1.0,
-        depthTest: true
-    });
-    const headMesh = new THREE.Mesh(headGeometry, headMaterial);
-    headMesh.position.copy(boneWorldPosition);
-    headMesh.userData.isVisualization = true;
-    headMesh.userData.isHead = true;
-    boneVisualizationGroup.add(headMesh);
-    
-    // Add connection line to parent bone for visualization clarity
-    if (bone.parent && (bone.parent.isBone || bone.parent.name.toLowerCase().includes('bone_'))) {
-        const parentWorldPosition = new THREE.Vector3();
-        bone.parent.updateWorldMatrix(true, false);
-        bone.parent.getWorldPosition(parentWorldPosition);
-        
-        // Create a connecting line
-        const connectionGeometry = new THREE.BufferGeometry().setFromPoints([
-            parentWorldPosition,
-            boneWorldPosition
-        ]);
-        
-        const connectionMaterial = new THREE.LineBasicMaterial({
-            color: 0xff5555, // Changed to red
-            transparent: false,
-            opacity: 1.0,
-            depthTest: true
-        });
-        
-        const connectionLine = new THREE.Line(connectionGeometry, connectionMaterial);
-        connectionLine.name = `connection_${bone.parent.name}_to_${bone.name}`;
-        connectionLine.userData.isVisualization = true;
-        connectionLine.userData.isConnection = true;
-        
-        boneVisualizationGroup.add(connectionLine);
     }
 }
 
@@ -1036,6 +897,177 @@ function createHandleBoneVisual(bone, baseSize) {
 }
 
 /**
+ * Create a visual representation of a root bone (as a sphere)
+ * @param {Object} bone - The root bone object
+ * @param {number} baseSize - Base size for scaling the visualization
+ */
+function createRootBoneVisual(bone, baseSize) {
+    if (!bone || !boneVisualizationGroup) return;
+    
+    // Ensure the bone's world matrix is up to date
+    bone.updateWorldMatrix(true, false);
+    
+    // Get bone's world position
+    const worldPosition = new THREE.Vector3();
+    bone.getWorldPosition(worldPosition);
+    
+    // Find direction toward child if available
+    let directionVector = new THREE.Vector3(0, 1, 0); // Default direction if no children
+    
+    // Check if any children are bones to determine direction
+    if (bone.children && bone.children.length > 0) {
+        // Find the first bone child for direction vector
+        for (const child of bone.children) {
+            if (child.isBone || child.name.toLowerCase().includes('bone_')) {
+                const childWorldPosition = new THREE.Vector3();
+                child.updateWorldMatrix(true, false);
+                child.getWorldPosition(childWorldPosition);
+                
+                // Get direction from root to child
+                directionVector = new THREE.Vector3().subVectors(childWorldPosition, worldPosition).normalize();
+                break;
+            }
+        }
+    }
+    
+    // Create sphere geometry for root - make it slightly larger than handles
+    const sphereGeometry = new THREE.SphereGeometry(baseSize * 1.3, 16, 16);
+    
+    // Create material - darker gray and solid
+    const rootMaterial = new THREE.MeshPhongMaterial({
+        color: 0x555555,
+        transparent: true,
+        opacity: 0.7,
+        depthTest: true,
+        depthWrite: true
+    });
+    
+    // Create the sphere mesh
+    const rootMesh = new THREE.Mesh(sphereGeometry, rootMaterial);
+    rootMesh.name = `root_visual_${bone.name}`;
+    rootMesh.userData.boneRef = bone;
+    rootMesh.userData.originalColor = new THREE.Color(0x555555);
+    rootMesh.userData.hoverColor = new THREE.Color(0xff0000); // Red hover color
+    rootMesh.userData.isVisualization = true;
+    rootMesh.userData.isRoot = true; // Mark as root
+    
+    // Explicitly set the material color to the original color (gray)
+    rootMesh.material.color.set(0x555555);
+    
+    // Position at bone's world position
+    rootMesh.position.copy(worldPosition);
+    
+    // Always make roots appear on top of other visualization elements
+    rootMesh.renderOrder = 1000; // Same as handles
+    
+    // Add to visualization group
+    boneVisualizationGroup.add(rootMesh);
+    
+    // Create a directional caret/arrow pointing in the direction of root's children
+    const caretLength = baseSize * 1.5;
+    const caretOffset = baseSize * 1.5; // Offset from sphere center
+    
+    // Create cone for caret
+    const caretGeometry = new THREE.ConeGeometry(baseSize * 0.6, caretLength, 8);
+    const caretMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff3333, // Red caret
+        wireframe: true,
+        transparent: false
+    });
+    
+    // Rotate cone to point in the direction vector (cones point along +Y by default)
+    caretGeometry.rotateX(-Math.PI / 2); // First orient along +Z
+    // Flip the cone 180 degrees so it points away from the root
+    caretGeometry.rotateZ(Math.PI);
+    
+    const caretMesh = new THREE.Mesh(caretGeometry, caretMaterial);
+    caretMesh.name = `root_caret_${bone.name}`;
+    caretMesh.userData.isVisualization = true;
+    caretMesh.userData.isRootCaret = true;
+    
+    // Calculate position for caret (offset from sphere in the direction)
+    const caretPosition = worldPosition.clone().add(
+        directionVector.clone().multiplyScalar(caretOffset)
+    );
+    caretMesh.position.copy(caretPosition);
+    
+    // Orient caret to point along the direction vector (points forward/away from root)
+    const caretQuaternion = new THREE.Quaternion();
+    const upVector = new THREE.Vector3(0, 0, 1); // Cone now points along +Z after rotation
+    
+    // Special case for when direction is parallel to up vector
+    if (Math.abs(upVector.dot(directionVector)) > 0.999) {
+        if (upVector.dot(directionVector) < 0) {
+            caretQuaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
+        }
+    } else {
+        caretQuaternion.setFromUnitVectors(upVector, directionVector);
+    }
+    
+    caretMesh.quaternion.copy(caretQuaternion);
+    
+    // Add caret to the visualization group and link it to the root for dragging
+    boneVisualizationGroup.add(caretMesh);
+    rootMesh.userData.caret = caretMesh;
+    
+    // Add connection to parent if it exists
+    if (bone.parent && (bone.parent.isBone || bone.parent.name.toLowerCase().includes('bone_'))) {
+        const parentPosition = new THREE.Vector3();
+        bone.parent.updateWorldMatrix(true, false);
+        bone.parent.getWorldPosition(parentPosition);
+        
+        // Create a connecting line
+        const connectionGeometry = new THREE.BufferGeometry().setFromPoints([
+            parentPosition,
+            worldPosition
+        ]);
+        
+        const connectionMaterial = new THREE.LineBasicMaterial({
+            color: 0x666666,
+            transparent: false,
+            opacity: 1.0,
+            depthTest: true
+        });
+        
+        const connectionLine = new THREE.Line(connectionGeometry, connectionMaterial);
+        connectionLine.name = `root_connection_${bone.parent.name}_to_${bone.name}`;
+        connectionLine.userData.isVisualization = true;
+        connectionLine.userData.isRootConnection = true;
+        
+        boneVisualizationGroup.add(connectionLine);
+    }
+    
+    // Add connections to children
+    bone.children.forEach(child => {
+        if (child.isBone || child.name.toLowerCase().includes('bone_')) {
+            const childPosition = new THREE.Vector3();
+            child.updateWorldMatrix(true, false);
+            child.getWorldPosition(childPosition);
+            
+            // Create a connecting line
+            const connectionGeometry = new THREE.BufferGeometry().setFromPoints([
+                worldPosition,
+                childPosition
+            ]);
+            
+            const connectionMaterial = new THREE.LineBasicMaterial({
+                color: 0x666666,
+                transparent: false,
+                opacity: 1.0,
+                depthTest: true
+            });
+            
+            const connectionLine = new THREE.Line(connectionGeometry, connectionMaterial);
+            connectionLine.name = `root_connection_${bone.name}_to_${child.name}`;
+            connectionLine.userData.isVisualization = true;
+            connectionLine.userData.isRootConnection = true;
+            
+            boneVisualizationGroup.add(connectionLine);
+        }
+    });
+}
+
+/**
  * Set up hover interaction for bone visualization
  * @param {Object} state - Global state object
  */
@@ -1094,15 +1126,15 @@ function setupBoneInteractions(state) {
             return;
         }
         
-        // Find intersections with handle objects only
-        const handleObjects = [];
+        // Find intersections with handle and root objects
+        const interactiveObjects = [];
         boneVisualizationGroup.traverse(child => {
-            if (child.userData && child.userData.isHandle) {
-                handleObjects.push(child);
+            if (child.userData && (child.userData.isHandle || child.userData.isRoot)) {
+                interactiveObjects.push(child);
             }
         });
         
-        const intersects = raycaster.intersectObjects(handleObjects, false);
+        const intersects = raycaster.intersectObjects(interactiveObjects, false);
         
         // Reset previously hovered object color
         if (hoveredObject && (!intersects.length || intersects[0].object !== hoveredObject)) {
@@ -1123,7 +1155,7 @@ function setupBoneInteractions(state) {
             hoveredObject = intersects[0].object;
             hoveredObject.material.color.copy(hoveredObject.userData.hoverColor);
             
-            // Disable orbit controls when hovering over a handle
+            // Disable orbit controls when hovering over an interactive element
             setOrbitControlsEnabled(false);
             
             // Change cursor to indicate interactivity
@@ -1133,7 +1165,7 @@ function setupBoneInteractions(state) {
     
     // Add mousedown listener for initiating drag
     const onMouseDown = (event) => {
-        // Only process left button clicks on hovered handle
+        // Only process left button clicks on hovered object
         if (event.button !== 0 || !hoveredObject || !boneVisualizationGroup.visible) return;
         
         // Stop event from reaching other handlers
@@ -1179,7 +1211,7 @@ function setupBoneInteractions(state) {
         // Reset cursor
         domElement.style.cursor = hoveredObject ? 'pointer' : 'auto';
         
-        // If still hovering over a handle, keep orbit controls disabled
+        // If still hovering over an interactive object, keep orbit controls disabled
         // Otherwise, restore orbit controls to original state
         if (!hoveredObject) {
             setOrbitControlsEnabled(orbitControlsEnabled);
@@ -1253,69 +1285,309 @@ function handleDragMovement(object, raycaster, plane, camera) {
     // Calculate the movement delta in world space
     const movementDelta = new THREE.Vector3().subVectors(planeIntersection, dragStartPoint);
     
-    // Update the visual handle position
+    // Update the visual representation position
     object.position.copy(dragStartPosition).add(movementDelta);
     
-    // Update the actual bone position
+    // Update the caret position if this is a root
+    if (object.userData.isRoot && object.userData.caret) {
+        const caret = object.userData.caret;
+        const caretOffset = caret.position.clone().sub(dragStartPosition);
+        caret.position.copy(object.position).add(caretOffset);
+    }
+    
+    // Get the bone reference
     const bone = object.userData.boneRef;
     if (!bone) return;
     
-    // Find the root model object to access constraints
-    let rootObject = findRootObject(bone);
-    let constraints = [];
-    
-    if (rootObject && rootObject.userData && rootObject.userData.rigConstraints) {
-        constraints = rootObject.userData.rigConstraints;
-    }
-    
-    // Store original bone matrices if needed for IK solving
-    const originalMatrices = new Map();
-    if (bone.skeleton) {
-        bone.skeleton.bones.forEach(b => {
-            originalMatrices.set(b.uuid, b.matrix.clone());
-        });
-    }
-    
-    // Calculate how to move the bone in its parent's space
-    if (bone.parent) {
-        // Convert world space movement to local space of the bone's parent
-        const parentWorldMatrix = bone.parent.matrixWorld.clone();
-        const worldToLocal = new THREE.Matrix4().copy(parentWorldMatrix).invert();
-        const localDelta = movementDelta.clone().applyMatrix4(worldToLocal);
-        
-        // Apply the movement to the bone's local position
-        bone.position.add(localDelta);
-        bone.updateMatrix();
-        
-        // Force update of world matrix to propagate changes
-        bone.updateWorldMatrix(true, true);
-        
-        // Find and apply any constraints affecting this bone
-        applyBoneConstraints(bone, constraints);
-        
-        // Signal that the skeleton needs to be updated
-        if (bone.skeleton) {
-            bone.skeleton.update();
-            
-            // Apply IK constraints
-            applyIKConstraints(bone, constraints, bone.skeleton);
-        }
+    // Different handling for root bones vs. handle/control bones
+    if (object.userData.isRoot) {
+        // For root bones, just update the connections without modifying the actual bone
+        updateRootConnections(object);
     } else {
-        // For root bones, just apply the world space movement directly
-        bone.position.add(movementDelta);
-        bone.updateMatrix();
-        bone.updateWorldMatrix(true, true);
+        // For handle/control bones, update the actual bone position
+        // Find the root model object to access constraints
+        let rootObject = findRootObject(bone);
+        let constraints = [];
         
-        // Find and apply any constraints affecting this bone
-        applyBoneConstraints(bone, constraints);
+        if (rootObject && rootObject.userData && rootObject.userData.rigConstraints) {
+            constraints = rootObject.userData.rigConstraints;
+        }
+        
+        // Store original bone matrices if needed for IK solving
+        const originalMatrices = new Map();
+        if (bone.skeleton) {
+            bone.skeleton.bones.forEach(b => {
+                originalMatrices.set(b.uuid, b.matrix.clone());
+            });
+        }
+        
+        // Calculate how to move the bone in its parent's space
+        if (bone.parent) {
+            // Convert world space movement to local space of the bone's parent
+            const parentWorldMatrix = bone.parent.matrixWorld.clone();
+            const worldToLocal = new THREE.Matrix4().copy(parentWorldMatrix).invert();
+            const localDelta = movementDelta.clone().applyMatrix4(worldToLocal);
+            
+            // Apply the movement to the bone's local position
+            bone.position.add(localDelta);
+            bone.updateMatrix();
+            
+            // Force update of world matrix to propagate changes
+            bone.updateWorldMatrix(true, true);
+            
+            // Find and apply any constraints affecting this bone
+            applyBoneConstraints(bone, constraints);
+            
+            // Signal that the skeleton needs to be updated
+            if (bone.skeleton) {
+                bone.skeleton.update();
+                
+                // Apply IK constraints
+                applyIKConstraints(bone, constraints, bone.skeleton);
+            }
+        } else {
+            // For root bones, just apply the world space movement directly
+            bone.position.add(movementDelta);
+            bone.updateMatrix();
+            bone.updateWorldMatrix(true, true);
+            
+            // Find and apply any constraints affecting this bone
+            applyBoneConstraints(bone, constraints);
+        }
+        
+        // Update any connecting lines
+        updateHandleConnections(object);
+    }
+}
+
+/**
+ * Update connection lines for a root bone that has moved
+ * @param {THREE.Object3D} rootMesh - The root mesh that moved
+ */
+function updateRootConnections(rootMesh) {
+    if (!rootMesh || !boneVisualizationGroup) return;
+    
+    // Get the bone reference
+    const bone = rootMesh.userData.boneRef;
+    if (!bone) return;
+    
+    // Update parent connection if it exists
+    if (bone.parent) {
+        const parentConnectionLine = boneVisualizationGroup.children.find(child => 
+            child.name === `root_connection_${bone.parent.name}_to_${bone.name}`
+        );
+        
+        if (parentConnectionLine) {
+            // Get parent world position
+            const parentWorldPosition = new THREE.Vector3();
+            bone.parent.updateWorldMatrix(true, false);
+            bone.parent.getWorldPosition(parentWorldPosition);
+            
+            // Update the line geometry
+            const points = [
+                parentWorldPosition,
+                rootMesh.position.clone()
+            ];
+            
+            // Create new geometry with updated points
+            const newGeometry = new THREE.BufferGeometry().setFromPoints(points);
+            
+            // Dispose old geometry and replace
+            parentConnectionLine.geometry.dispose();
+            parentConnectionLine.geometry = newGeometry;
+        }
     }
     
-    // Update any connecting lines
-    updateHandleConnections(object);
+    // Update all child connections
+    bone.children.forEach(child => {
+        if (child.isBone || child.name.toLowerCase().includes('bone_')) {
+            const childConnectionLine = boneVisualizationGroup.children.find(line => 
+                line.name === `root_connection_${bone.name}_to_${child.name}`
+            );
+            
+            if (childConnectionLine) {
+                // Get child world position
+                const childWorldPosition = new THREE.Vector3();
+                child.updateWorldMatrix(true, false);
+                child.getWorldPosition(childWorldPosition);
+                
+                // Update the line geometry
+                const points = [
+                    rootMesh.position.clone(),
+                    childWorldPosition
+                ];
+                
+                // Create new geometry with updated points
+                const newGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                
+                // Dispose old geometry and replace
+                childConnectionLine.geometry.dispose();
+                childConnectionLine.geometry = newGeometry;
+            }
+        }
+    });
+}
+
+/**
+ * Set visualization objects to render on top (Z-override)
+ * @param {THREE.Object3D} group - The visualization group
+ * @param {boolean} override - Whether to enable Z-override
+ */
+function setZOverride(group, override) {
+    if (!group) return;
     
-    // Update the entire model to ensure constraints propagate
-    if (rootObject) {
-        rootObject.updateMatrixWorld(true);
+    group.traverse(object => {
+        if (object.userData && object.userData.isVisualization) {
+            if (override) {
+                // Make object render on top by disabling depth test or using renderOrder
+                if (object.userData.isHandle || object.userData.isRoot) {
+                    // Handles and roots should be at ultimate top Z
+                    object.renderOrder = 2000;
+                } else {
+                    object.renderOrder = 999;
+                }
+                if (object.material) {
+                    object.material.depthTest = false;
+                }
+            } else {
+                // Reset to normal depth behavior but keep handles/roots on top
+                if (object.userData.isHandle || object.userData.isRoot) {
+                    object.renderOrder = 1000; // Keep on top of other visualization
+                } else {
+                    object.renderOrder = 0;
+                }
+                if (object.material) {
+                    object.material.depthTest = true;
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Toggle fill/wireframe mode for visualization meshes
+ * @param {THREE.Object3D} group - The visualization group
+ * @param {boolean} fill - Whether to use fill mode instead of wireframe
+ */
+function setFillMeshes(group, fill) {
+    if (!group) return;
+    
+    group.traverse(object => {
+        if (object.material && (object.userData.isBone || object.userData.isHead)) {
+            object.material.wireframe = !fill;
+        }
+    });
+}
+
+/**
+ * Set visualization color
+ * @param {THREE.Object3D} group - The visualization group
+ * @param {string} colorHex - Hex color string (e.g., '#ff0000')
+ */
+function setVisualizationColor(group, colorHex) {
+    if (!group) return;
+    
+    const color = new THREE.Color(colorHex);
+    
+    group.traverse(object => {
+        if (object.material && object.userData.isVisualization) {
+            // Don't change color of handle objects or root objects which should stay gray
+            if ((!object.name || !object.name.includes('handle_')) && !object.userData.isRoot) {
+                object.material.color.copy(color);
+            }
+        }
+    });
+}
+
+/**
+ * Format constraint data for display
+ * @param {Array} constraints - Array of constraint objects
+ * @returns {string} HTML formatted constraint data
+ */
+function formatConstraintsData(constraints) {
+    if (!constraints || constraints.length === 0) {
+        return 'No constraint data found';
+    }
+    
+    return constraints.map(c => {
+        // Format each constraint based on its type
+        const boneName = c.boneName ? `<span style="color:#f99;">${c.boneName}</span>: ` : '';
+        const type = c.type ? `${c.type}` : 'Unknown';
+        let details = '';
+        
+        if (c.type === 'IK') {
+            details = `Target: ${c.target || 'Unknown'}, Chain: ${c.chainLength || 0}`;
+        } else if (c.type === 'Limit') {
+            details = `Limits applied to ${c.axis || 'unknown axis'}`;
+        } else if (c.type === 'CopyRotation' || c.type === 'CopyLocation') {
+            details = `Source: ${c.source || 'Unknown'}, Influence: ${c.influence || 1.0}`;
+        } else {
+            // Generic object formatting for other constraint types
+            details = Object.entries(c)
+                .filter(([key]) => key !== 'type' && key !== 'boneName')
+                .map(([key, value]) => `${key}: ${typeof value === 'object' ? JSON.stringify(value) : value}`)
+                .join(', ');
+        }
+        
+        return `${boneName}${type} (${details})`;
+    }).join('<br>');
+}
+
+/**
+ * Remove the bone visualization
+ */
+function removeBoneVisualization() {
+    if (boneVisualizationGroup) {
+        // Remove event listeners
+        if (boneVisualizationGroup.userData.listenerTarget) {
+            const target = boneVisualizationGroup.userData.listenerTarget;
+            
+            if (boneVisualizationGroup.userData.mouseListener) {
+                target.removeEventListener('mousemove', boneVisualizationGroup.userData.mouseListener);
+            }
+            
+            if (boneVisualizationGroup.userData.mouseDownListener) {
+                target.removeEventListener('mousedown', boneVisualizationGroup.userData.mouseDownListener);
+            }
+            
+            if (boneVisualizationGroup.userData.mouseUpListener) {
+                target.removeEventListener('mouseup', boneVisualizationGroup.userData.mouseUpListener);
+            }
+            
+            if (boneVisualizationGroup.userData.mouseLeaveListener) {
+                target.removeEventListener('mouseleave', boneVisualizationGroup.userData.mouseLeaveListener);
+            }
+            
+            // Reset cursor
+            target.style.cursor = 'auto';
+            
+            // Re-enable orbit controls (if they exist)
+            if (boneVisualizationGroup.userData.state && 
+                boneVisualizationGroup.userData.state.controls) {
+                boneVisualizationGroup.userData.state.controls.enabled = true;
+            }
+        }
+        
+        // Remove each mesh and geometry
+        boneVisualizationGroup.traverse(child => {
+            if (child.geometry) {
+                child.geometry.dispose();
+            }
+            if (child.material) {
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(material => material.dispose());
+                } else {
+                    child.material.dispose();
+                }
+            }
+        });
+        
+        // Remove from parent
+        if (boneVisualizationGroup.parent) {
+            boneVisualizationGroup.parent.remove(boneVisualizationGroup);
+        }
+        
+        boneVisualizationGroup = null;
     }
 }
 
@@ -1621,201 +1893,165 @@ export function removeRigVisualization() {
 }
 
 /**
- * Set visualization objects to render on top (Z-override)
- * @param {THREE.Object3D} group - The visualization group
- * @param {boolean} override - Whether to enable Z-override
+ * Create a visual representation of a regular bone
+ * @param {Object} bone - The bone object
+ * @param {number} baseSize - Base size for scaling the visualization
  */
-function setZOverride(group, override) {
-    if (!group) return;
+function createBoneVisual(bone, baseSize) {
+    if (!bone || !boneVisualizationGroup) return;
     
-    group.traverse(object => {
-        if (object.userData && object.userData.isVisualization) {
-            if (override) {
-                // Make object render on top by disabling depth test or using renderOrder
-                if (object.userData.isHandle) {
-                    // Handles should be at ultimate top Z
-                    object.renderOrder = 2000;
-                } else {
-                    object.renderOrder = 999;
-                }
-                if (object.material) {
-                    object.material.depthTest = false;
-                }
-            } else {
-                // Reset to normal depth behavior but keep handles on top
-                if (object.userData.isHandle) {
-                    object.renderOrder = 1000; // Keep handles on top of other visualization
-                } else {
-                    object.renderOrder = 0;
-                }
-                if (object.material) {
-                    object.material.depthTest = true;
-                }
+    // Ensure the bone's world matrix is up to date
+    bone.updateWorldMatrix(true, false);
+    
+    // Get bone's world position and world quaternion
+    const boneWorldPosition = new THREE.Vector3();
+    const boneWorldQuaternion = new THREE.Quaternion();
+    const boneWorldScale = new THREE.Vector3();
+    
+    // Extract the bone's world transform components
+    bone.matrixWorld.decompose(boneWorldPosition, boneWorldQuaternion, boneWorldScale);
+    
+    // Find the tail position (end of the bone)
+    // In THREE.js bones, the tail is determined by the position of its child bones
+    let tailWorldPosition = null;
+    let hasChildBone = false;
+    
+    // Check if any children are bones to determine tail position
+    if (bone.children && bone.children.length > 0) {
+        // For simplicity, use the first bone child's position as the tail
+        for (const child of bone.children) {
+            if (child.isBone || child.name.toLowerCase().includes('bone_')) {
+                // Get world position of the child bone
+                const childWorldPosition = new THREE.Vector3();
+                child.updateWorldMatrix(true, false);
+                child.getWorldPosition(childWorldPosition);
+                
+                tailWorldPosition = childWorldPosition;
+                hasChildBone = true;
+                break;
             }
         }
-    });
-}
-
-/**
- * Toggle fill/wireframe mode for visualization meshes
- * @param {THREE.Object3D} group - The visualization group
- * @param {boolean} fill - Whether to use fill mode instead of wireframe
- */
-function setFillMeshes(group, fill) {
-    if (!group) return;
-    
-    group.traverse(object => {
-        if (object.material && (object.userData.isBone || object.userData.isHead)) {
-            object.material.wireframe = !fill;
-        }
-    });
-}
-
-/**
- * Set visualization color
- * @param {THREE.Object3D} group - The visualization group
- * @param {string} colorHex - Hex color string (e.g., '#ff0000')
- */
-function setVisualizationColor(group, colorHex) {
-    if (!group) return;
-    
-    const color = new THREE.Color(colorHex);
-    
-    group.traverse(object => {
-        if (object.material && object.userData.isVisualization) {
-            // Don't change color of handle objects which should stay gray
-            if (!object.name || !object.name.includes('handle_')) {
-                object.material.color.copy(color);
-            }
-        }
-    });
-}
-
-/**
- * Format constraint data for display
- * @param {Array} constraints - Array of constraint objects
- * @returns {string} HTML formatted constraint data
- */
-function formatConstraintsData(constraints) {
-    if (!constraints || constraints.length === 0) {
-        return 'No constraint data found';
     }
     
-    return constraints.map(c => {
-        // Format each constraint based on its type
-        const boneName = c.boneName ? `<span style="color:#f99;">${c.boneName}</span>: ` : '';
-        const type = c.type ? `${c.type}` : 'Unknown';
-        let details = '';
+    // If no bone children, estimate bone length based on model scale
+    if (!hasChildBone) {
+        // Default bone length
+        const defaultLength = baseSize * 4;
         
-        if (c.type === 'IK') {
-            details = `Target: ${c.target || 'Unknown'}, Chain: ${c.chainLength || 0}`;
-        } else if (c.type === 'Limit') {
-            details = `Limits applied to ${c.axis || 'unknown axis'}`;
-        } else if (c.type === 'CopyRotation' || c.type === 'CopyLocation') {
-            details = `Source: ${c.source || 'Unknown'}, Influence: ${c.influence || 1.0}`;
-        } else {
-            // Generic object formatting for other constraint types
-            details = Object.entries(c)
-                .filter(([key]) => key !== 'type' && key !== 'boneName')
-                .map(([key, value]) => `${key}: ${typeof value === 'object' ? JSON.stringify(value) : value}`)
-                .join(', ');
-        }
+        // Create direction based on bone's local transform
+        const boneDirection = new THREE.Vector3(0, 1, 0);
+        boneDirection.applyQuaternion(boneWorldQuaternion);
+        boneDirection.normalize();
         
-        return `${boneName}${type} (${details})`;
-    }).join('<br>');
-}
-
-/**
- * Remove the bone visualization
- */
-function removeBoneVisualization() {
-    if (boneVisualizationGroup) {
-        // Remove event listeners
-        if (boneVisualizationGroup.userData.listenerTarget) {
-            const target = boneVisualizationGroup.userData.listenerTarget;
-            
-            if (boneVisualizationGroup.userData.mouseListener) {
-                target.removeEventListener('mousemove', boneVisualizationGroup.userData.mouseListener);
-            }
-            
-            if (boneVisualizationGroup.userData.mouseDownListener) {
-                target.removeEventListener('mousedown', boneVisualizationGroup.userData.mouseDownListener);
-            }
-            
-            if (boneVisualizationGroup.userData.mouseUpListener) {
-                target.removeEventListener('mouseup', boneVisualizationGroup.userData.mouseUpListener);
-            }
-            
-            if (boneVisualizationGroup.userData.mouseLeaveListener) {
-                target.removeEventListener('mouseleave', boneVisualizationGroup.userData.mouseLeaveListener);
-            }
-            
-            // Reset cursor
-            target.style.cursor = 'auto';
-            
-            // Re-enable orbit controls (if they exist)
-            if (boneVisualizationGroup.userData.state && 
-                boneVisualizationGroup.userData.state.controls) {
-                boneVisualizationGroup.userData.state.controls.enabled = true;
-            }
-        }
-        
-        // Remove each mesh and geometry
-        boneVisualizationGroup.traverse(child => {
-            if (child.geometry) {
-                child.geometry.dispose();
-            }
-            if (child.material) {
-                if (Array.isArray(child.material)) {
-                    child.material.forEach(material => material.dispose());
-                } else {
-                    child.material.dispose();
-                }
-            }
-        });
-        
-        // Remove from parent
-        if (boneVisualizationGroup.parent) {
-            boneVisualizationGroup.parent.remove(boneVisualizationGroup);
-        }
-        
-        boneVisualizationGroup = null;
+        // Create tail position at defaultLength distance in that direction
+        tailWorldPosition = boneWorldPosition.clone().add(
+            boneDirection.multiplyScalar(defaultLength)
+        );
     }
-}
-
-/**
- * Update connection lines for a handle that has moved
- * @param {THREE.Object3D} handleMesh - The handle mesh that moved
- */
-function updateHandleConnections(handleMesh) {
-    if (!handleMesh || !boneVisualizationGroup) return;
     
-    // Get the bone reference and its parent
-    const bone = handleMesh.userData.boneRef;
-    if (!bone || !bone.parent) return;
+    // Calculate bone direction and length
+    const boneDirection = new THREE.Vector3().subVectors(tailWorldPosition, boneWorldPosition);
+    const boneLength = boneDirection.length();
+    boneDirection.normalize();
     
-    // Find the connection line from parent to this handle
-    const connectionLine = boneVisualizationGroup.children.find(child => 
-        child.name === `handle_connection_${bone.parent.name}_to_${bone.name}`
+    // Create a cylinder geometry for the bone
+    // This is simpler than our custom bone shape and easier to align correctly
+    const boneGeometry = new THREE.CylinderGeometry(
+        baseSize * 1.5,  // head radius (wider)
+        baseSize * 0.5,  // tail radius (narrower)
+        boneLength,      // bone length
+        8,               // radial segments
+        1,               // height segments
+        false            // open ended
     );
     
-    if (connectionLine) {
-        // Get parent world position
+    // By default, cylinder geometry is centered on the origin and aligned with Y-axis
+    // Move it so that one end is at the origin, and it extends along positive Y
+    boneGeometry.translate(0, boneLength/2, 0);
+    
+    // Create wireframe material for the bone - use red as default
+    const boneMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff0000, // Red
+        wireframe: true,
+        transparent: false,
+        opacity: 1.0,
+        depthTest: true,
+        depthWrite: true
+    });
+    
+    // Create the bone mesh
+    const boneMesh = new THREE.Mesh(boneGeometry, boneMaterial);
+    boneMesh.name = `bone_visual_${bone.name}`;
+    boneMesh.userData.boneRef = bone;
+    boneMesh.userData.isVisualization = true;
+    boneMesh.userData.isBone = true;
+    
+    // Add to visualization group
+    boneVisualizationGroup.add(boneMesh);
+    
+    // Position the bone mesh
+    boneMesh.position.copy(boneWorldPosition);
+    
+    // Orient the mesh to point from head to tail
+    // We need to create a quaternion that rotates from the cylinder's default orientation (Y-axis)
+    // to the actual bone direction
+    const alignmentQuaternion = new THREE.Quaternion();
+    const upVector = new THREE.Vector3(0, 1, 0);
+    
+    // Handle the case where the bone direction is parallel to the up vector
+    if (Math.abs(upVector.dot(boneDirection)) > 0.999) {
+        // If pointing in the same direction, no rotation needed
+        // If pointing in the opposite direction, rotate 180 degrees around X
+        if (upVector.dot(boneDirection) < 0) {
+            alignmentQuaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
+        }
+    } else {
+        // Calculate the rotation from Y-axis to the bone direction
+        alignmentQuaternion.setFromUnitVectors(upVector, boneDirection);
+    }
+    
+    // Apply the rotation to align with bone direction
+    boneMesh.quaternion.copy(alignmentQuaternion);
+    
+    // Add head point as a small sphere for visual clarity
+    const headGeometry = new THREE.SphereGeometry(baseSize * 0.8, 8, 8);
+    const headMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff3333, // Slightly different red
+        wireframe: true,
+        transparent: false,
+        opacity: 1.0,
+        depthTest: true
+    });
+    const headMesh = new THREE.Mesh(headGeometry, headMaterial);
+    headMesh.position.copy(boneWorldPosition);
+    headMesh.userData.isVisualization = true;
+    headMesh.userData.isHead = true;
+    boneVisualizationGroup.add(headMesh);
+    
+    // Add connection line to parent bone for visualization clarity
+    if (bone.parent && (bone.parent.isBone || bone.parent.name.toLowerCase().includes('bone_'))) {
         const parentWorldPosition = new THREE.Vector3();
         bone.parent.updateWorldMatrix(true, false);
         bone.parent.getWorldPosition(parentWorldPosition);
         
-        // Update the line geometry to connect from parent to new handle position
-        const points = [
+        // Create a connecting line
+        const connectionGeometry = new THREE.BufferGeometry().setFromPoints([
             parentWorldPosition,
-            handleMesh.position.clone()
-        ];
+            boneWorldPosition
+        ]);
         
-        // Create new geometry with updated points
-        const newGeometry = new THREE.BufferGeometry().setFromPoints(points);
+        const connectionMaterial = new THREE.LineBasicMaterial({
+            color: 0xff5555, // Lighter red
+            transparent: false,
+            opacity: 1.0,
+            depthTest: true
+        });
         
-        // Dispose old geometry and replace
-        connectionLine.geometry.dispose();
-        connectionLine.geometry = newGeometry;
+        const connectionLine = new THREE.Line(connectionGeometry, connectionMaterial);
+        connectionLine.name = `connection_${bone.parent.name}_to_${bone.name}`;
+        connectionLine.userData.isVisualization = true;
+        connectionLine.userData.isConnection = true;
+        
+        boneVisualizationGroup.add(connectionLine);
     }
 } 
