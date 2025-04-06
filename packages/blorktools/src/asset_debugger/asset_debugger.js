@@ -12,6 +12,7 @@ import { init, state } from './index.js';
 import { analyzeUvChannels, createDebugPanel } from './ui/debugPanel.js';
 import { createUvChannelPanel, updateUvChannelPanel } from './ui/uvChannelPanel.js';
 import { createAtlasVisualization, updateAtlasVisualization } from './ui/atlasVisualization.js';
+import { createRigVisualization, updateRigVisualization } from './ui/rigVisualization.js';
 
 // Initialize debug logging
 console.log('Asset Debugger entry point loaded, setting up event listeners');
@@ -25,6 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
 	createUvChannelPanel(state);
 	// Create Atlas Visualization panel
 	createAtlasVisualization(state);
+	// Create Rig Visualization panel
+	createRigVisualization(state);
 });
 
 // Listen for texture loaded event
@@ -109,6 +112,10 @@ document.addEventListener('modelLoaded', (event) => {
 	} else {
 		console.log('No texture loaded yet, skipping atlas visualization update');
 	}
+	
+	// Always update rig visualization when a model is loaded
+	console.log('Updating rig visualization with model data');
+	updateRigVisualization(state);
 });
 
 // Helper function to get meshes from model
