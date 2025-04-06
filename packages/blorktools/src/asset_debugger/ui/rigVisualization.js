@@ -270,7 +270,7 @@ function updateRigData(modelObject) {
         return;
     }
     
-    // Display rig summary - reverting to previous format with bullet points
+    // Display rig summary with bullet points and constraint information
     rigInfoContainer.innerHTML = `
         <div style="padding: 3px; border-bottom: 1px solid #444;">
             <strong>Rig Summary:</strong>
@@ -278,7 +278,16 @@ function updateRigData(modelObject) {
                 <li>Total bones: ${rigData.totalBones}</li>
                 <li>Root bones: ${rigData.rootBones.length}</li>
                 <li>Max depth: ${rigData.maxDepth}</li>
+                <li>Constraints: ${rigData.constraints.length}</li>
             </ul>
+            ${rigData.constraints.length > 0 ? 
+                `<div style="margin-top: 4px;">
+                    <strong>Constraint Data:</strong>
+                    <div style="font-size: 10px; max-height: 60px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 3px; margin-top: 2px; border-radius: 2px;">
+                        ${formatConstraintsData(rigData.constraints)}
+                    </div>
+                </div>` 
+                : ''}
         </div>
     `;
     
@@ -289,6 +298,11 @@ function updateRigData(modelObject) {
     if (boneVisualizationGroup && boneVisualizationGroup.visible) {
         // If bone visualization is already visible, update it
         createBoneVisualization(modelObject, rigData);
+    }
+    
+    // Store constraint data in the state for use in manipulation
+    if (modelObject.userData) {
+        modelObject.userData.rigConstraints = rigData.constraints;
     }
 }
 
@@ -305,7 +319,8 @@ function extractRigData(modelObject) {
         rootBones: [],
         boneHierarchy: {},
         maxDepth: 0,
-        allBones: []  // Store all bones for visualization
+        allBones: [],  // Store all bones for visualization
+        constraints: [] // Store bone constraints
     };
     
     // Find all bones in the model
@@ -318,12 +333,20 @@ function extractRigData(modelObject) {
         if (object.isBone || object.name.toLowerCase().includes('bone_') || 
             (object.userData && object.userData.type === 'bone')) {
             bones.push(object);
+            
+            // Extract bone constraints if available
+            extractBoneConstraints(object, rigData.constraints);
         }
         
         // Check if this is a skeleton
         if (object.isSkeletonHelper || object.isSkeleton || 
             (object.userData && object.userData.type === 'skeleton')) {
             skeletons.push(object);
+            
+            // Extract skeleton constraint data if available
+            if (object.userData && object.userData.constraints) {
+                rigData.constraints.push(...object.userData.constraints);
+            }
         }
         
         // Check if this is a SkinnedMesh (will have skeleton)
@@ -332,6 +355,11 @@ function extractRigData(modelObject) {
             // Add all bones from the skeleton
             if (object.skeleton.bones && object.skeleton.bones.length > 0) {
                 bones.push(...object.skeleton.bones);
+                
+                // Check for constraints in the skeleton userData
+                if (object.skeleton.userData && object.skeleton.userData.constraints) {
+                    rigData.constraints.push(...object.skeleton.userData.constraints);
+                }
             }
         }
         
@@ -343,6 +371,23 @@ function extractRigData(modelObject) {
     
     // Traverse the model to find bones
     traverseForBones(modelObject);
+    
+    // Check model's userData for any constraint information
+    if (modelObject.userData) {
+        // Look for constraint data in various possible locations
+        if (modelObject.userData.constraints) {
+            rigData.constraints.push(...modelObject.userData.constraints);
+        }
+        
+        if (modelObject.userData.boneConstraints) {
+            rigData.constraints.push(...modelObject.userData.boneConstraints);
+        }
+        
+        // Some exporters might nest this data deeply
+        if (modelObject.userData.animation && modelObject.userData.animation.constraints) {
+            rigData.constraints.push(...modelObject.userData.animation.constraints);
+        }
+    }
     
     // Deduplicate bones by uuid
     const uniqueBones = {};
@@ -372,7 +417,8 @@ function extractRigData(modelObject) {
                 rotation: [bone.rotation.x, bone.rotation.y, bone.rotation.z],
                 scale: [bone.scale.x, bone.scale.y, bone.scale.z],
                 children: {},
-                object: bone  // Store reference to actual bone object
+                object: bone,  // Store reference to actual bone object
+                constraints: extractBoneConstraintsData(bone)
             };
             
             // Recursively build child hierarchy
@@ -380,7 +426,103 @@ function extractRigData(modelObject) {
         }
     });
     
+    // Search for constraints in userdata of armature (Blender typically exports IK here)
+    if (modelObject.type === "Group" || modelObject.name.toLowerCase().includes("armature")) {
+        if (modelObject.userData) {
+            if (modelObject.userData.constraints) {
+                rigData.constraints.push(...modelObject.userData.constraints);
+            }
+            if (modelObject.userData.iks) {
+                rigData.constraints.push(...modelObject.userData.iks.map(ik => ({
+                    type: "IK",
+                    target: ik.target,
+                    bone: ik.bone,
+                    chainLength: ik.chainLength
+                })));
+            }
+        }
+    }
+    
     return rigData;
+}
+
+/**
+ * Extract constraint data from a bone object
+ * @param {Object} bone - The bone object
+ * @returns {Array} Array of constraint objects
+ */
+function extractBoneConstraintsData(bone) {
+    const constraints = [];
+    
+    // Check for constraint data in userData
+    if (bone.userData) {
+        // Direct constraints array
+        if (bone.userData.constraints) {
+            constraints.push(...bone.userData.constraints);
+        }
+        
+        // IK constraints
+        if (bone.userData.ik) {
+            constraints.push({
+                type: 'IK',
+                ...bone.userData.ik
+            });
+        }
+        
+        // Limit constraints
+        if (bone.userData.limits) {
+            constraints.push({
+                type: 'Limit',
+                ...bone.userData.limits
+            });
+        }
+        
+        // Copy constraints
+        if (bone.userData.copyRotation) {
+            constraints.push({
+                type: 'CopyRotation',
+                ...bone.userData.copyRotation
+            });
+        }
+        
+        if (bone.userData.copyLocation) {
+            constraints.push({
+                type: 'CopyLocation',
+                ...bone.userData.copyLocation
+            });
+        }
+        
+        // Check for THREE.js extensions or GLTF extensions
+        if (bone.userData.gltfExtensions) {
+            if (bone.userData.gltfExtensions.KHR_animation_constraint) {
+                constraints.push({
+                    type: 'GLTF',
+                    ...bone.userData.gltfExtensions.KHR_animation_constraint
+                });
+            }
+        }
+    }
+    
+    return constraints;
+}
+
+/**
+ * Extract constraints from bone and add to constraints array
+ * @param {Object} bone - The bone object
+ * @param {Array} constraintsArray - Array to add constraints to
+ */
+function extractBoneConstraints(bone, constraintsArray) {
+    const boneConstraints = extractBoneConstraintsData(bone);
+    
+    if (boneConstraints.length > 0) {
+        // Add bone name to each constraint and add to array
+        boneConstraints.forEach(constraint => {
+            constraintsArray.push({
+                ...constraint,
+                boneName: bone.name
+            });
+        });
+    }
 }
 
 /**
@@ -405,7 +547,8 @@ function buildBoneChildHierarchy(parentBone, parentEntry, uniqueBones, depth, ri
                 rotation: [child.rotation.x, child.rotation.y, child.rotation.z],
                 scale: [child.scale.x, child.scale.y, child.scale.z],
                 children: {},
-                object: child  // Store reference to actual bone object
+                object: child,  // Store reference to actual bone object
+                constraints: extractBoneConstraintsData(child)
             };
             
             // Recursively process this child's children
@@ -848,9 +991,14 @@ function createHandleBoneVisual(bone, baseSize) {
     handleMesh.userData.boneRef = bone;
     handleMesh.userData.originalColor = new THREE.Color(0x888888);
     handleMesh.userData.hoverColor = new THREE.Color(0x00ff00);
+    handleMesh.userData.isVisualization = true;
+    handleMesh.userData.isHandle = true;
     
     // Position at bone's world position
     handleMesh.position.copy(worldPosition);
+    
+    // Always make handles appear on top of other visualization elements
+    handleMesh.renderOrder = 1000; // Higher than regular bones
     
     // Add to visualization group
     boneVisualizationGroup.add(handleMesh);
@@ -876,6 +1024,8 @@ function createHandleBoneVisual(bone, baseSize) {
         
         const connectionLine = new THREE.Line(connectionGeometry, connectionMaterial);
         connectionLine.name = `handle_connection_${bone.parent.name}_to_${bone.name}`;
+        connectionLine.userData.isVisualization = true;
+        connectionLine.userData.isHandleConnection = true;
         
         boneVisualizationGroup.add(connectionLine);
     }
@@ -895,13 +1045,39 @@ function setupBoneInteractions(state) {
     // Current hovered object
     let hoveredObject = null;
     
+    // Dragging state
+    let isDragging = false;
+    let draggedObject = null;
+    let dragStartPoint = new THREE.Vector3();
+    let dragStartPosition = new THREE.Vector3();
+    let dragPlane = new THREE.Plane();
+    
+    // Store original orbital controls state to restore later
+    let orbitControlsEnabled = true;
+    
+    // Helper function to temporarily disable/enable orbit controls
+    const setOrbitControlsEnabled = (enabled) => {
+        if (state.controls && state.controls.enabled !== enabled) {
+            // Save original state before disabling (only if we're disabling)
+            if (!enabled) {
+                orbitControlsEnabled = state.controls.enabled;
+            }
+            
+            // Update controls state
+            state.controls.enabled = enabled;
+        }
+    };
+    
+    // DOM element that receives events
+    const domElement = state.renderer.domElement;
+    
     // Add mousemove listener to renderer's DOM element
     const onMouseMove = (event) => {
         // Only process if bone visualization is visible
-        if (!boneVisualizationGroup.visible) return;
+        if (!boneVisualizationGroup || !boneVisualizationGroup.visible) return;
         
         // Get canvas-relative mouse position
-        const canvas = state.renderer.domElement;
+        const canvas = domElement;
         const rect = canvas.getBoundingClientRect();
         
         mouse.x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
@@ -910,10 +1086,16 @@ function setupBoneInteractions(state) {
         // Update the raycaster
         raycaster.setFromCamera(mouse, state.camera);
         
+        // If dragging, update the object position
+        if (isDragging && draggedObject) {
+            handleDragMovement(draggedObject, raycaster, dragPlane, state.camera);
+            return;
+        }
+        
         // Find intersections with handle objects only
         const handleObjects = [];
         boneVisualizationGroup.traverse(child => {
-            if (child.name && child.name.includes('handle_visual_')) {
+            if (child.userData && child.userData.isHandle) {
                 handleObjects.push(child);
             }
         });
@@ -924,58 +1106,429 @@ function setupBoneInteractions(state) {
         if (hoveredObject && (!intersects.length || intersects[0].object !== hoveredObject)) {
             hoveredObject.material.color.copy(hoveredObject.userData.originalColor);
             hoveredObject = null;
+            
+            // Re-enable orbit controls if not dragging
+            if (!isDragging) {
+                setOrbitControlsEnabled(true);
+            }
+            
+            // Reset cursor
+            domElement.style.cursor = 'auto';
         }
         
         // Set new hovered object color
         if (intersects.length > 0 && intersects[0].object !== hoveredObject) {
             hoveredObject = intersects[0].object;
             hoveredObject.material.color.copy(hoveredObject.userData.hoverColor);
+            
+            // Disable orbit controls when hovering over a handle
+            setOrbitControlsEnabled(false);
+            
+            // Change cursor to indicate interactivity
+            domElement.style.cursor = 'pointer';
         }
     };
     
-    // Add and store event listener
-    state.renderer.domElement.addEventListener('mousemove', onMouseMove);
+    // Add mousedown listener for initiating drag
+    const onMouseDown = (event) => {
+        // Only process left button clicks on hovered handle
+        if (event.button !== 0 || !hoveredObject || !boneVisualizationGroup.visible) return;
+        
+        // Stop event from reaching other handlers
+        event.stopPropagation();
+        
+        // Ensure orbit controls are disabled during dragging
+        setOrbitControlsEnabled(false);
+        
+        // Start dragging
+        isDragging = true;
+        draggedObject = hoveredObject;
+        
+        // Get the camera's viewing direction
+        const cameraDirection = new THREE.Vector3();
+        state.camera.getWorldDirection(cameraDirection);
+        
+        // Create a plane perpendicular to the camera direction, passing through the object
+        dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+            cameraDirection,
+            draggedObject.position
+        );
+        
+        // Store the starting position of the drag operation
+        dragStartPosition.copy(draggedObject.position);
+        
+        // Find the point on the plane where the ray intersects
+        const planeIntersection = new THREE.Vector3();
+        raycaster.ray.intersectPlane(dragPlane, planeIntersection);
+        dragStartPoint.copy(planeIntersection);
+        
+        // Change cursor to indicate dragging
+        domElement.style.cursor = 'grabbing';
+    };
     
-    // Store event listener reference for cleanup
-    boneVisualizationGroup.userData.mouseListener = onMouseMove;
-    boneVisualizationGroup.userData.listenerTarget = state.renderer.domElement;
+    // Add mouseup listener for ending drag
+    const onMouseUp = (event) => {
+        if (event.button !== 0 || !isDragging) return;
+        
+        // End dragging
+        isDragging = false;
+        draggedObject = null;
+        
+        // Reset cursor
+        domElement.style.cursor = hoveredObject ? 'pointer' : 'auto';
+        
+        // If still hovering over a handle, keep orbit controls disabled
+        // Otherwise, restore orbit controls to original state
+        if (!hoveredObject) {
+            setOrbitControlsEnabled(orbitControlsEnabled);
+        }
+    };
+    
+    // Add mouseleave listener to ensure we clean up properly if mouse leaves canvas
+    const onMouseLeave = (event) => {
+        // Reset hover state
+        if (hoveredObject) {
+            hoveredObject.material.color.copy(hoveredObject.userData.originalColor);
+            hoveredObject = null;
+        }
+        
+        // End any active dragging
+        isDragging = false;
+        draggedObject = null;
+        
+        // Reset cursor
+        domElement.style.cursor = 'auto';
+        
+        // Restore orbit controls
+        setOrbitControlsEnabled(orbitControlsEnabled);
+    };
+    
+    // Properly scope and bind events to prevent interfering with drop zones
+    const attachScopedListener = (element, event, handler) => {
+        // Create a wrapper that checks if we're dealing with the visualization
+        const wrappedHandler = (e) => {
+            // Only handle events if our visualization exists and is visible
+            if (boneVisualizationGroup && boneVisualizationGroup.visible) {
+                // Check if the event target is within our renderer canvas
+                // This prevents our handlers from capturing drop zone events
+                if (element === e.target || element.contains(e.target)) {
+                    handler(e);
+                }
+            }
+        };
+        element.addEventListener(event, wrappedHandler);
+        return wrappedHandler; // Return so we can remove it later
+    };
+    
+    // Add and store event listeners with proper scoping
+    const boundMouseMove = attachScopedListener(domElement, 'mousemove', onMouseMove);
+    const boundMouseDown = attachScopedListener(domElement, 'mousedown', onMouseDown);
+    const boundMouseUp = attachScopedListener(domElement, 'mouseup', onMouseUp);
+    const boundMouseLeave = attachScopedListener(domElement, 'mouseleave', onMouseLeave);
+    
+    // Store event listener references for cleanup
+    boneVisualizationGroup.userData.mouseListener = boundMouseMove;
+    boneVisualizationGroup.userData.mouseDownListener = boundMouseDown;
+    boneVisualizationGroup.userData.mouseUpListener = boundMouseUp;
+    boneVisualizationGroup.userData.mouseLeaveListener = boundMouseLeave;
+    boneVisualizationGroup.userData.listenerTarget = domElement;
 }
 
 /**
- * Remove the bone visualization
+ * Handle movement during drag operations
+ * @param {THREE.Object3D} object - The object being dragged
+ * @param {THREE.Raycaster} raycaster - Current raycaster
+ * @param {THREE.Plane} plane - The drag plane
+ * @param {THREE.Camera} camera - The scene camera
  */
-function removeBoneVisualization() {
-    if (boneVisualizationGroup) {
-        // Remove event listeners
-        if (boneVisualizationGroup.userData.mouseListener && 
-            boneVisualizationGroup.userData.listenerTarget) {
-            boneVisualizationGroup.userData.listenerTarget.removeEventListener(
-                'mousemove', 
-                boneVisualizationGroup.userData.mouseListener
-            );
-        }
-        
-        // Remove each mesh and geometry
-        boneVisualizationGroup.traverse(child => {
-            if (child.geometry) {
-                child.geometry.dispose();
-            }
-            if (child.material) {
-                if (Array.isArray(child.material)) {
-                    child.material.forEach(material => material.dispose());
-                } else {
-                    child.material.dispose();
-                }
-            }
-        });
-        
-        // Remove from parent
-        if (boneVisualizationGroup.parent) {
-            boneVisualizationGroup.parent.remove(boneVisualizationGroup);
-        }
-        
-        boneVisualizationGroup = null;
+function handleDragMovement(object, raycaster, plane, camera) {
+    if (!object || !object.userData || !object.userData.boneRef) return;
+    
+    // Find the new intersection point on the plane
+    const planeIntersection = new THREE.Vector3();
+    if (!raycaster.ray.intersectPlane(plane, planeIntersection)) return;
+    
+    // Calculate the movement delta in world space
+    const movementDelta = new THREE.Vector3().subVectors(planeIntersection, dragStartPoint);
+    
+    // Update the visual handle position
+    object.position.copy(dragStartPosition).add(movementDelta);
+    
+    // Update the actual bone position
+    const bone = object.userData.boneRef;
+    if (!bone) return;
+    
+    // Find the root model object to access constraints
+    let rootObject = findRootObject(bone);
+    let constraints = [];
+    
+    if (rootObject && rootObject.userData && rootObject.userData.rigConstraints) {
+        constraints = rootObject.userData.rigConstraints;
     }
+    
+    // Store original bone matrices if needed for IK solving
+    const originalMatrices = new Map();
+    if (bone.skeleton) {
+        bone.skeleton.bones.forEach(b => {
+            originalMatrices.set(b.uuid, b.matrix.clone());
+        });
+    }
+    
+    // Calculate how to move the bone in its parent's space
+    if (bone.parent) {
+        // Convert world space movement to local space of the bone's parent
+        const parentWorldMatrix = bone.parent.matrixWorld.clone();
+        const worldToLocal = new THREE.Matrix4().copy(parentWorldMatrix).invert();
+        const localDelta = movementDelta.clone().applyMatrix4(worldToLocal);
+        
+        // Apply the movement to the bone's local position
+        bone.position.add(localDelta);
+        bone.updateMatrix();
+        
+        // Force update of world matrix to propagate changes
+        bone.updateWorldMatrix(true, true);
+        
+        // Find and apply any constraints affecting this bone
+        applyBoneConstraints(bone, constraints);
+        
+        // Signal that the skeleton needs to be updated
+        if (bone.skeleton) {
+            bone.skeleton.update();
+            
+            // Apply IK constraints
+            applyIKConstraints(bone, constraints, bone.skeleton);
+        }
+    } else {
+        // For root bones, just apply the world space movement directly
+        bone.position.add(movementDelta);
+        bone.updateMatrix();
+        bone.updateWorldMatrix(true, true);
+        
+        // Find and apply any constraints affecting this bone
+        applyBoneConstraints(bone, constraints);
+    }
+    
+    // Update any connecting lines
+    updateHandleConnections(object);
+    
+    // Update the entire model to ensure constraints propagate
+    if (rootObject) {
+        rootObject.updateMatrixWorld(true);
+    }
+}
+
+/**
+ * Find the root object of a bone's hierarchy
+ * @param {THREE.Object3D} bone - The bone object
+ * @returns {THREE.Object3D} The root object
+ */
+function findRootObject(bone) {
+    let current = bone;
+    let previous = null;
+    
+    while (current) {
+        previous = current;
+        current = current.parent;
+    }
+    
+    return previous;
+}
+
+/**
+ * Apply bone constraints to a bone
+ * @param {THREE.Bone} bone - The bone to apply constraints to
+ * @param {Array} constraints - Array of constraint objects
+ */
+function applyBoneConstraints(bone, constraints) {
+    if (!bone || !constraints || constraints.length === 0) return;
+    
+    // Find constraints affecting this bone
+    const boneConstraints = constraints.filter(c => 
+        (c.boneName && c.boneName === bone.name) || 
+        (c.bone && c.bone === bone.name)
+    );
+    
+    if (boneConstraints.length === 0) return;
+    
+    // Apply each constraint based on type
+    boneConstraints.forEach(constraint => {
+        if (constraint.type === 'Limit') {
+            applyLimitConstraint(bone, constraint);
+        } else if (constraint.type === 'CopyRotation') {
+            applyCopyRotationConstraint(bone, constraint);
+        } else if (constraint.type === 'CopyLocation') {
+            applyCopyLocationConstraint(bone, constraint);
+        }
+    });
+}
+
+/**
+ * Apply IK constraints to a bone
+ * @param {THREE.Bone} bone - The end effector bone
+ * @param {Array} constraints - Array of constraint objects
+ * @param {THREE.Skeleton} skeleton - The skeleton object
+ */
+function applyIKConstraints(bone, constraints, skeleton) {
+    if (!bone || !constraints || !skeleton) return;
+    
+    // Find IK constraints where this bone is the end effector
+    const ikConstraints = constraints.filter(c => 
+        c.type === 'IK' && 
+        ((c.boneName && c.boneName === bone.name) || 
+        (c.bone && c.bone === bone.name) ||
+        (c.target && c.target === bone.name))
+    );
+    
+    if (ikConstraints.length === 0) return;
+    
+    // Simple IK solver for each constraint
+    ikConstraints.forEach(constraint => {
+        // Find the chain length
+        const chainLength = constraint.chainLength || 2;
+        
+        // Collect bones in the chain
+        const boneChain = [];
+        let currentBone = bone;
+        
+        // Collect chain bones, starting with the end effector
+        boneChain.push(currentBone);
+        
+        // Get parent bones up the chain
+        for (let i = 0; i < chainLength - 1; i++) {
+            currentBone = currentBone.parent;
+            if (!currentBone || !currentBone.isBone) break;
+            boneChain.push(currentBone);
+        }
+        
+        // Simple FABRIK IK solving would go here
+        // For now, just log the constraint
+        console.log(`IK constraint found for bone ${bone.name}`, constraint);
+        console.log(`Bone chain:`, boneChain.map(b => b.name));
+    });
+}
+
+/**
+ * Apply limit constraint to a bone
+ * @param {THREE.Bone} bone - The bone to constrain
+ * @param {Object} constraint - The constraint object
+ */
+function applyLimitConstraint(bone, constraint) {
+    if (!bone || !constraint) return;
+    
+    // Apply rotation limits if defined
+    if (constraint.rotationMin && constraint.rotationMax) {
+        // X rotation limits
+        if (constraint.rotationMin.x !== undefined && constraint.rotationMax.x !== undefined) {
+            bone.rotation.x = Math.max(constraint.rotationMin.x, Math.min(constraint.rotationMax.x, bone.rotation.x));
+        }
+        
+        // Y rotation limits
+        if (constraint.rotationMin.y !== undefined && constraint.rotationMax.y !== undefined) {
+            bone.rotation.y = Math.max(constraint.rotationMin.y, Math.min(constraint.rotationMax.y, bone.rotation.y));
+        }
+        
+        // Z rotation limits
+        if (constraint.rotationMin.z !== undefined && constraint.rotationMax.z !== undefined) {
+            bone.rotation.z = Math.max(constraint.rotationMin.z, Math.min(constraint.rotationMax.z, bone.rotation.z));
+        }
+    }
+    
+    // Apply position limits if defined
+    if (constraint.positionMin && constraint.positionMax) {
+        // X position limits
+        if (constraint.positionMin.x !== undefined && constraint.positionMax.x !== undefined) {
+            bone.position.x = Math.max(constraint.positionMin.x, Math.min(constraint.positionMax.x, bone.position.x));
+        }
+        
+        // Y position limits
+        if (constraint.positionMin.y !== undefined && constraint.positionMax.y !== undefined) {
+            bone.position.y = Math.max(constraint.positionMin.y, Math.min(constraint.positionMax.y, bone.position.y));
+        }
+        
+        // Z position limits
+        if (constraint.positionMin.z !== undefined && constraint.positionMax.z !== undefined) {
+            bone.position.z = Math.max(constraint.positionMin.z, Math.min(constraint.positionMax.z, bone.position.z));
+        }
+    }
+}
+
+/**
+ * Apply copy rotation constraint to a bone
+ * @param {THREE.Bone} bone - The bone to apply the constraint to
+ * @param {Object} constraint - The constraint object
+ */
+function applyCopyRotationConstraint(bone, constraint) {
+    if (!bone || !constraint || !constraint.source) return;
+    
+    // Find the source bone
+    const sourceBone = findBoneByName(bone, constraint.source);
+    if (!sourceBone) return;
+    
+    // Calculate influence factor (default to 1.0 if not specified)
+    const influence = constraint.influence !== undefined ? constraint.influence : 1.0;
+    
+    // Apply rotation based on influence
+    if (influence >= 1.0) {
+        // Full influence - direct copy
+        bone.quaternion.copy(sourceBone.quaternion);
+    } else if (influence > 0) {
+        // Partial influence - interpolate
+        const originalQuat = bone.quaternion.clone();
+        bone.quaternion.copy(sourceBone.quaternion);
+        bone.quaternion.slerp(originalQuat, 1.0 - influence);
+    }
+}
+
+/**
+ * Apply copy location constraint to a bone
+ * @param {THREE.Bone} bone - The bone to apply the constraint to
+ * @param {Object} constraint - The constraint object
+ */
+function applyCopyLocationConstraint(bone, constraint) {
+    if (!bone || !constraint || !constraint.source) return;
+    
+    // Find the source bone
+    const sourceBone = findBoneByName(bone, constraint.source);
+    if (!sourceBone) return;
+    
+    // Calculate influence factor (default to 1.0 if not specified)
+    const influence = constraint.influence !== undefined ? constraint.influence : 1.0;
+    
+    // Original position for interpolation
+    const originalPos = bone.position.clone();
+    
+    // Apply position based on influence
+    if (influence >= 1.0) {
+        // Full influence - direct copy
+        bone.position.copy(sourceBone.position);
+    } else if (influence > 0) {
+        // Partial influence - interpolate
+        bone.position.lerpVectors(originalPos, sourceBone.position, influence);
+    }
+}
+
+/**
+ * Find a bone by name in the bone hierarchy
+ * @param {THREE.Object3D} startBone - The bone to start searching from
+ * @param {string} name - The name of the bone to find
+ * @returns {THREE.Object3D|null} The found bone or null
+ */
+function findBoneByName(startBone, name) {
+    if (!startBone || !name) return null;
+    
+    // Start from the root object
+    const rootObject = findRootObject(startBone);
+    if (!rootObject) return null;
+    
+    // Search for the bone by name
+    let foundBone = null;
+    rootObject.traverse(object => {
+        if (object.name === name) {
+            foundBone = object;
+        }
+    });
+    
+    return foundBone;
 }
 
 /**
@@ -1077,13 +1630,22 @@ function setZOverride(group, override) {
         if (object.userData && object.userData.isVisualization) {
             if (override) {
                 // Make object render on top by disabling depth test or using renderOrder
-                object.renderOrder = 999;
+                if (object.userData.isHandle) {
+                    // Handles should be at ultimate top Z
+                    object.renderOrder = 2000;
+                } else {
+                    object.renderOrder = 999;
+                }
                 if (object.material) {
                     object.material.depthTest = false;
                 }
             } else {
-                // Reset to normal depth behavior
-                object.renderOrder = 0;
+                // Reset to normal depth behavior but keep handles on top
+                if (object.userData.isHandle) {
+                    object.renderOrder = 1000; // Keep handles on top of other visualization
+                } else {
+                    object.renderOrder = 0;
+                }
                 if (object.material) {
                     object.material.depthTest = true;
                 }
@@ -1125,4 +1687,133 @@ function setVisualizationColor(group, colorHex) {
             }
         }
     });
+}
+
+/**
+ * Format constraint data for display
+ * @param {Array} constraints - Array of constraint objects
+ * @returns {string} HTML formatted constraint data
+ */
+function formatConstraintsData(constraints) {
+    if (!constraints || constraints.length === 0) {
+        return 'No constraint data found';
+    }
+    
+    return constraints.map(c => {
+        // Format each constraint based on its type
+        const boneName = c.boneName ? `<span style="color:#f99;">${c.boneName}</span>: ` : '';
+        const type = c.type ? `${c.type}` : 'Unknown';
+        let details = '';
+        
+        if (c.type === 'IK') {
+            details = `Target: ${c.target || 'Unknown'}, Chain: ${c.chainLength || 0}`;
+        } else if (c.type === 'Limit') {
+            details = `Limits applied to ${c.axis || 'unknown axis'}`;
+        } else if (c.type === 'CopyRotation' || c.type === 'CopyLocation') {
+            details = `Source: ${c.source || 'Unknown'}, Influence: ${c.influence || 1.0}`;
+        } else {
+            // Generic object formatting for other constraint types
+            details = Object.entries(c)
+                .filter(([key]) => key !== 'type' && key !== 'boneName')
+                .map(([key, value]) => `${key}: ${typeof value === 'object' ? JSON.stringify(value) : value}`)
+                .join(', ');
+        }
+        
+        return `${boneName}${type} (${details})`;
+    }).join('<br>');
+}
+
+/**
+ * Remove the bone visualization
+ */
+function removeBoneVisualization() {
+    if (boneVisualizationGroup) {
+        // Remove event listeners
+        if (boneVisualizationGroup.userData.listenerTarget) {
+            const target = boneVisualizationGroup.userData.listenerTarget;
+            
+            if (boneVisualizationGroup.userData.mouseListener) {
+                target.removeEventListener('mousemove', boneVisualizationGroup.userData.mouseListener);
+            }
+            
+            if (boneVisualizationGroup.userData.mouseDownListener) {
+                target.removeEventListener('mousedown', boneVisualizationGroup.userData.mouseDownListener);
+            }
+            
+            if (boneVisualizationGroup.userData.mouseUpListener) {
+                target.removeEventListener('mouseup', boneVisualizationGroup.userData.mouseUpListener);
+            }
+            
+            if (boneVisualizationGroup.userData.mouseLeaveListener) {
+                target.removeEventListener('mouseleave', boneVisualizationGroup.userData.mouseLeaveListener);
+            }
+            
+            // Reset cursor
+            target.style.cursor = 'auto';
+            
+            // Re-enable orbit controls (if they exist)
+            if (boneVisualizationGroup.userData.state && 
+                boneVisualizationGroup.userData.state.controls) {
+                boneVisualizationGroup.userData.state.controls.enabled = true;
+            }
+        }
+        
+        // Remove each mesh and geometry
+        boneVisualizationGroup.traverse(child => {
+            if (child.geometry) {
+                child.geometry.dispose();
+            }
+            if (child.material) {
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(material => material.dispose());
+                } else {
+                    child.material.dispose();
+                }
+            }
+        });
+        
+        // Remove from parent
+        if (boneVisualizationGroup.parent) {
+            boneVisualizationGroup.parent.remove(boneVisualizationGroup);
+        }
+        
+        boneVisualizationGroup = null;
+    }
+}
+
+/**
+ * Update connection lines for a handle that has moved
+ * @param {THREE.Object3D} handleMesh - The handle mesh that moved
+ */
+function updateHandleConnections(handleMesh) {
+    if (!handleMesh || !boneVisualizationGroup) return;
+    
+    // Get the bone reference and its parent
+    const bone = handleMesh.userData.boneRef;
+    if (!bone || !bone.parent) return;
+    
+    // Find the connection line from parent to this handle
+    const connectionLine = boneVisualizationGroup.children.find(child => 
+        child.name === `handle_connection_${bone.parent.name}_to_${bone.name}`
+    );
+    
+    if (connectionLine) {
+        // Get parent world position
+        const parentWorldPosition = new THREE.Vector3();
+        bone.parent.updateWorldMatrix(true, false);
+        bone.parent.getWorldPosition(parentWorldPosition);
+        
+        // Update the line geometry to connect from parent to new handle position
+        const points = [
+            parentWorldPosition,
+            handleMesh.position.clone()
+        ];
+        
+        // Create new geometry with updated points
+        const newGeometry = new THREE.BufferGeometry().setFromPoints(points);
+        
+        // Dispose old geometry and replace
+        connectionLine.geometry.dispose();
+        connectionLine.geometry = newGeometry;
+    }
 } 
