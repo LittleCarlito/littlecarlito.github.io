@@ -7,6 +7,7 @@ import { initDebugOverlay } from './utils/debugOverlay.js';
 import { createDropPanel } from './ui/dropPanel.js';
 import { createAtlasVisualization } from './ui/atlasVisualization.js';
 import { createUvChannelPanel } from './ui/uvChannelPanel.js';
+import { createRigVisualization } from './ui/rigVisualization.js';
 // Application state - central store
 export const state = {
 	// Scene-related state
@@ -28,7 +29,9 @@ export const state = {
 	// UV data
 	screenMeshes: [],
 	availableUvSets: [],
-	uvSetNames: []
+	uvSetNames: [],
+	// Rig data
+	rigData: null
 };
 
 // Debug state initialization
@@ -49,6 +52,7 @@ export function init(options = {}) {
 	createDropPanel(state);
 	createAtlasVisualization(state);
 	createUvChannelPanel(state);
+	createRigVisualization(state);
 	// Setup drag and drop functionality
 	setupDragDrop(state);
 	// Set up event listeners

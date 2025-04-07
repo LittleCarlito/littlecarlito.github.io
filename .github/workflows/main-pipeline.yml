@@ -139,6 +139,12 @@ jobs:
           pnpm install
           echo "Environment debug complete"
           
+      # Update .npmrc files to not require NODE_AUTH_TOKEN
+      - name: Update .npmrc files
+        run: |
+          chmod +x .github/scripts/maintenance/update-npmrc.js
+          node .github/scripts/maintenance/update-npmrc.js
+          
       - name: Build packages
         uses: ./.github/actions/build-and-test
         with:
@@ -199,7 +205,6 @@ jobs:
           path: packages
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           
       # Validate that artifacts were successfully downloaded
       - name: Validate downloaded artifacts
@@ -230,10 +235,109 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           artifact-name: ${{ needs.build.outputs.build_artifact_name }}
 
+  check-package-releases:
+    name: Check Package Releases
+    needs: [test, build]
+    if: success()
+    runs-on: ubuntu-latest
+    outputs:
+      has_packages_to_publish: ${{ steps.check-releases.outputs.has_packages_to_publish }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+          
+      # Download build artifacts
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.build_artifact_name }}
+          path: packages
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://npm.pkg.github.com'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+          
+      - name: Install dependencies
+        run: pnpm install
+          
+      # Check if packages need to be published
+      - name: Check for missing package releases
+        id: check-releases
+        run: |
+          chmod +x .github/scripts/version/check-package-release.js
+          if node .github/scripts/version/check-package-release.js; then
+            echo "has_packages_to_publish=true" >> $GITHUB_OUTPUT
+            echo "Packages need to be published to GitHub npm"
+          else
+            echo "has_packages_to_publish=false" >> $GITHUB_OUTPUT
+            echo "All packages are up to date on GitHub npm"
+          fi
+
+  publish-packages:
+    name: Publish Packages to GitHub npm
+    needs: [check-package-releases]
+    if: needs.check-package-releases.outputs.has_packages_to_publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+          
+      # Download build artifacts
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.BUILD_ARTIFACT_NAME }}
+          path: packages
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://npm.pkg.github.com'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+          
+      - name: Install dependencies
+        run: pnpm install
+        
+      # Publish packages
+      - name: Publish missing packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+        run: |
+          chmod +x .github/scripts/version/public-publish.js
+          node .github/scripts/version/public-publish.js
+          
+      # Create GitHub releases for tags if needed
+      - name: Create GitHub releases
+        uses: ./.github/actions/create-github-releases
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          package-paths: 'packages/blorkpack,packages/blorktools,packages/blorkboard,apps/portfolio'
+          package-names: '@littlecarlito/blorkpack,@littlecarlito/blorktools,@littlecarlito/blorkboard,@littlecarlito/portfolio'
+          include-changelog: true
+          retry-attempts: 1
+          debug: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   version-and-publish:
     name: Version and Publish to GitHub npm
-    needs: [test, build]
-    if: always() && needs.test.result == 'success'
+    needs: [test, build, check-package-releases]
+    if: always() && needs.test.result == 'success' && needs.check-package-releases.outputs.has_packages_to_publish != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
