@@ -227,11 +227,54 @@ export function applyTextureToModel(state) {
 				} else {
 					// Use basic material for single texture
 					console.log('Creating basic material with single texture');
-					material = new THREE.MeshBasicMaterial({
-						map: state.textureObjects.baseColor || state.textureObject,
-						transparent: true,
-						alphaTest: 0.5,
-					});
+					// For baseColor texture - use basic material
+					if (hasBaseColor) {
+						material = new THREE.MeshBasicMaterial({
+							map: state.textureObjects.baseColor || state.textureObject,
+							transparent: true,
+							alphaTest: 0.5,
+						});
+					}
+					// For ORM only - use standard material (can't use basic with ORM)
+					else if (hasOrm) {
+						console.log('Creating standard material for ORM-only texture');
+						material = new THREE.MeshStandardMaterial({
+							color: 0xcccccc, // Light gray base color when no albedo texture
+							transparent: true,
+							alphaTest: 0.5,
+						});
+						
+						// Apply ORM maps
+						material.aoMap = state.textureObjects.orm;
+						material.roughnessMap = state.textureObjects.orm;
+						material.metalnessMap = state.textureObjects.orm;
+						
+						// Set reasonable default values
+						material.aoMapIntensity = 1.0;
+						material.roughness = 0.7;
+						material.metalness = 0.3;
+					}
+					// For normal only - use standard material
+					else if (hasNormal) {
+						console.log('Creating standard material for normal-only texture');
+						material = new THREE.MeshStandardMaterial({
+							color: 0xcccccc, // Light gray base color when no albedo texture
+							transparent: true,
+							alphaTest: 0.5,
+						});
+						
+						// Apply normal map
+						material.normalMap = state.textureObjects.normal;
+						material.normalScale = new THREE.Vector2(2.0, 2.0);
+					}
+					// Fallback - should never happen but just in case
+					else {
+						console.warn('No recognized textures found - creating default material');
+						material = new THREE.MeshBasicMaterial({
+							color: 0xff00ff, // Magenta to make it obvious something's wrong
+							wireframe: true
+						});
+					}
 				}
 				
 				// Additional material settings for better PBR appearance
@@ -388,15 +431,38 @@ function attemptProgressiveMapping(mesh, material, state) {
 			const rangeV = maxV - minV;
 			
 			if (rangeU > 0 && rangeV > 0) {
-				// Apply scaling to material instead of modifying geometry
-				material.map.repeat.set(1/rangeU, 1/rangeV);
-				material.map.offset.set(-minU/rangeU, -minV/rangeV);
+				// Check if material.map exists before accessing it
+				// This is important when loading only ORM textures without baseColor
+				if (material.map) {
+					material.map.repeat.set(1/rangeU, 1/rangeV);
+					material.map.offset.set(-minU/rangeU, -minV/rangeV);
+				} else {
+					console.log(`Cannot adjust UVs for ${mesh.name}: material.map is null`);
+				}
+				
+				// Apply ORM texture adjustments directly if available
+				if (material.roughnessMap) {
+					material.roughnessMap.repeat.set(1/rangeU, 1/rangeV);
+					material.roughnessMap.offset.set(-minU/rangeU, -minV/rangeV);
+				}
+				
+				if (material.metalnessMap) {
+					material.metalnessMap.repeat.set(1/rangeU, 1/rangeV);
+					material.metalnessMap.offset.set(-minU/rangeU, -minV/rangeV);
+				}
+				
+				if (material.aoMap) {
+					material.aoMap.repeat.set(1/rangeU, 1/rangeV);
+					material.aoMap.offset.set(-minU/rangeU, -minV/rangeV);
+				}
 				
 				// Only set emissiveMap properties if it exists
 				if (material.emissiveMap) {
 					material.emissiveMap.repeat.set(1/rangeU, 1/rangeV);
 					material.emissiveMap.offset.set(-minU/rangeU, -minV/rangeV);
 				}
+				
+				// If we applied any texture adjustments, consider it successful
 				return true;
 			}
 		}
@@ -418,27 +484,48 @@ function attemptProgressiveMapping(mesh, material, state) {
 		
 		console.log(`Trying atlas segmentation for ${mesh.name}`);
 		
-		// Check if map exists before using it
+		// Store segments for potential cycling regardless of map availability
+		mesh.userData.atlasSegments = segments;
+		mesh.userData.currentSegment = 0;
+		
+		// Apply segmentation to any available texture maps
+		const segment = segments[0];
+		let textureApplied = false;
+		
+		// Apply to baseColor/diffuse if available
 		if (material.map) {
-			// Apply first segment (full texture) initially
-			const segment = segments[0];
 			material.map.offset.set(segment.u, segment.v);
 			material.map.repeat.set(segment.w, segment.h);
-			
-			// Only set emissiveMap properties if it exists
-			if (material.emissiveMap) {
-				material.emissiveMap.offset.set(segment.u, segment.v);
-				material.emissiveMap.repeat.set(segment.w, segment.h);
-			}
-			
-			// Store segments for potential cycling
-			mesh.userData.atlasSegments = segments;
-			mesh.userData.currentSegment = 0;
-			
-			return true;
+			textureApplied = true;
 		}
 		
-		return false;
+		// Apply to ORM textures if available
+		if (material.roughnessMap) {
+			material.roughnessMap.offset.set(segment.u, segment.v);
+			material.roughnessMap.repeat.set(segment.w, segment.h);
+			textureApplied = true;
+		}
+		
+		if (material.metalnessMap) {
+			material.metalnessMap.offset.set(segment.u, segment.v);
+			material.metalnessMap.repeat.set(segment.w, segment.h);
+			textureApplied = true;
+		}
+		
+		if (material.aoMap) {
+			material.aoMap.offset.set(segment.u, segment.v);
+			material.aoMap.repeat.set(segment.w, segment.h);
+			textureApplied = true;
+		}
+		
+		// Apply to emissive if available
+		if (material.emissiveMap) {
+			material.emissiveMap.offset.set(segment.u, segment.v);
+			material.emissiveMap.repeat.set(segment.w, segment.h);
+			textureApplied = true;
+		}
+		
+		return textureApplied;
 	};
 	
 	// Try strategies in sequence
