@@ -1484,6 +1484,9 @@ function applyDragToModel(state, rootVisual, dragDelta) {
     // Update connections to reflect the new positions
     updateRootConnections(rootVisual);
     
+    // Update all other bone connections
+    updateAllBoneConnections(state);
+    
     console.log(`Model moved and root visual reset`);
 }
 
@@ -2331,4 +2334,112 @@ function findSceneRoot(object) {
     }
     
     return current.isScene ? current : null;
+}
+
+/**
+ * Update all bone connections after movement
+ * @param {Object} state - Global state object
+ */
+function updateAllBoneConnections(state) {
+    if (!boneVisualizationGroup || !state.modelObject) return;
+    
+    // Ensure all world matrices are up to date
+    state.modelObject.updateWorldMatrix(true, true);
+    
+    // Update all connection lines
+    boneVisualizationGroup.children.forEach(child => {
+        if (child.userData && child.userData.isConnection) {
+            // Find the source and target bones
+            let sourceBone = null;
+            let targetBone = null;
+            
+            // Extract bone names from the connection name
+            if (child.name && child.name.includes('_to_')) {
+                const nameParts = child.name.split('_to_');
+                if (nameParts.length === 2) {
+                    const sourceName = nameParts[0].split('connection_')[1];
+                    const targetName = nameParts[1];
+                    
+                    // Find the bones in the model
+                    state.modelObject.traverse(object => {
+                        if (object.name === sourceName) {
+                            sourceBone = object;
+                        } else if (object.name === targetName) {
+                            targetBone = object;
+                        }
+                    });
+                    
+                    // If we found both bones, update the connection
+                    if (sourceBone && targetBone) {
+                        const sourcePos = new THREE.Vector3();
+                        const targetPos = new THREE.Vector3();
+                        
+                        sourceBone.updateWorldMatrix(true, false);
+                        targetBone.updateWorldMatrix(true, false);
+                        
+                        sourceBone.getWorldPosition(sourcePos);
+                        targetBone.getWorldPosition(targetPos);
+                        
+                        // Update line geometry
+                        const points = [sourcePos, targetPos];
+                        const newGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                        
+                        // Dispose old geometry and replace
+                        child.geometry.dispose();
+                        child.geometry = newGeometry;
+                    }
+                }
+            }
+        } else if (child.userData && child.userData.isRootConnection) {
+            // Handle root connections specially
+            // These are already handled by updateRootConnections
+        } else if (child.userData && child.userData.isHandleConnection) {
+            // Handle handle connections specially
+            // Extract bone names from the connection name
+            if (child.name && child.name.includes('_to_')) {
+                const nameParts = child.name.split('_to_');
+                if (nameParts.length === 2) {
+                    const sourceName = nameParts[0].split('handle_connection_')[1];
+                    const targetName = nameParts[1];
+                    
+                    // Find source and target bones
+                    let sourceBone = null;
+                    let targetBone = null;
+                    
+                    state.modelObject.traverse(object => {
+                        if (object.name === sourceName) {
+                            sourceBone = object;
+                        } else if (object.name === targetName) {
+                            targetBone = object;
+                        }
+                    });
+                    
+                    // Find the handle visual for the target
+                    let handleVisual = null;
+                    boneVisualizationGroup.traverse(visual => {
+                        if (visual.userData && visual.userData.isHandle && 
+                            visual.userData.boneRef && visual.userData.boneRef.name === targetName) {
+                            handleVisual = visual;
+                        }
+                    });
+                    
+                    // If we found the source bone and handle visual, update the connection
+                    if (sourceBone && handleVisual) {
+                        const sourcePos = new THREE.Vector3();
+                        
+                        sourceBone.updateWorldMatrix(true, false);
+                        sourceBone.getWorldPosition(sourcePos);
+                        
+                        // Update line geometry using handle visual position
+                        const points = [sourcePos, handleVisual.position.clone()];
+                        const newGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                        
+                        // Dispose old geometry and replace
+                        child.geometry.dispose();
+                        child.geometry = newGeometry;
+                    }
+                }
+            }
+        }
+    });
 }
