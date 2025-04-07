@@ -8,7 +8,7 @@
     ]
   },
   "scripts": {
-    "dev": "node -e \"try { require('./packages/blorkboard/package.json'); console.log('Running blorkboard dev script...'); require('child_process').execSync('pnpm --filter=\\'@littlecarlito/blorkboard\\' dev', {stdio: 'inherit'}); } catch(e) { console.error('Error: Could not find blorkboard package. Running install first...'); require('child_process').execSync('pnpm install', {stdio: 'inherit'}); console.log('\\nNow trying to run dev script again...'); require('child_process').execSync('pnpm --filter=\\'@littlecarlito/blorkboard\\' dev', {stdio: 'inherit'}); }\"",
+    "dev": "node scripts/run-dev.js",
     "build": "pnpm clean && pnpm -r build",
     "build:libs": "pnpm --filter='@littlecarlito/blorkpack' build && pnpm --filter='@littlecarlito/blorktools' build && pnpm --filter='@littlecarlito/blorkboard' build",
     "build:apps": "pnpm --filter='@littlecarlito/portfolio' build",
