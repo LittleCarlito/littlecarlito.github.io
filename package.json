@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "pnpm --filter='@littlecarlito/blorkboard' dev",
+    "setup": "pnpm install && pnpm -r install",
     "build": "pnpm clean && pnpm -r build",
     "build:libs": "pnpm --filter='@littlecarlito/blorkpack' build && pnpm --filter='@littlecarlito/blorktools' build && pnpm --filter='@littlecarlito/blorkboard' build",
     "build:apps": "pnpm --filter='@littlecarlito/portfolio' build",
