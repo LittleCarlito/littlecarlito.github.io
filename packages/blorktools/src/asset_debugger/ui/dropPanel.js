@@ -17,7 +17,11 @@ export function createDropPanel(state) {
 		modelLoaded: state.modelLoaded,
 		textureLoaded: state.textureLoaded,
 		modelFile: state.modelFile ? 'present' : 'none',
-		textureFile: state.textureFile ? 'present' : 'none',
+		textureFiles: {
+			baseColor: state.textureFiles?.baseColor ? 'present' : 'none',
+			orm: state.textureFiles?.orm ? 'present' : 'none',
+			normal: state.textureFiles?.normal ? 'present' : 'none'
+		}
 	});
 
 	// Clean up any rogue visualization containers
@@ -69,57 +73,89 @@ export function createDropPanel(state) {
 	const modelDropZone = document.createElement('div');
 	modelDropZone.id = 'drop-zone-model';
 	modelDropZone.className = 'drop-zone';
-	modelDropZone.style.margin = '0 auto 15px auto'; // Center horizontally with margin
+	modelDropZone.title = 'Drop GLB or GLTF file here';
     
+	// Add icon for drop zone
 	const modelIcon = document.createElement('div');
 	modelIcon.className = 'drop-zone-icon';
-	modelIcon.textContent = '📦';
+	modelIcon.innerHTML = '📦';
+	modelDropZone.appendChild(modelIcon);
     
-	const modelPrompt = document.createElement('p');
-	modelPrompt.className = 'drop-zone-prompt';
-	modelPrompt.textContent = 'Drop 3D Model Here';
+	// Add drop message
+	const modelText = document.createElement('p');
+	modelText.className = 'drop-zone-prompt';
+	modelText.textContent = 'Drop 3D Model Here';
+	modelDropZone.appendChild(modelText);
     
+	// Add supported formats
 	const modelFormats = document.createElement('p');
 	modelFormats.className = 'drop-zone-formats';
 	modelFormats.textContent = 'Supported format: .glb';
+	modelDropZone.appendChild(modelFormats);
     
-	const modelFileInfo = document.createElement('p');
+	// Add file info element
+	const modelFileInfo = document.createElement('div');
 	modelFileInfo.className = 'file-info';
 	modelFileInfo.id = 'model-file-info';
-    
-	modelDropZone.appendChild(modelIcon);
-	modelDropZone.appendChild(modelPrompt);
-	modelDropZone.appendChild(modelFormats);
+	modelFileInfo.textContent = state.modelFile ? state.modelFile.name : 'No file selected';
 	modelDropZone.appendChild(modelFileInfo);
+    
+	// Add to container
 	contentContainer.appendChild(modelDropZone);
     
-	// Create texture drop zone
-	const textureDropZone = document.createElement('div');
-	textureDropZone.id = 'drop-zone-texture';
-	textureDropZone.className = 'drop-zone';
-	textureDropZone.style.margin = '0 auto 15px auto'; // Center horizontally with margin
+	// Create texture drop zones for different texture types
+    const textureTypes = [
+        { id: 'baseColor', name: 'Base Color', icon: '🎨', description: 'Color + Opacity' },
+        { id: 'orm', name: 'ORM', icon: '✨', description: 'Occlusion, Roughness, Metalness' },
+        { id: 'normal', name: 'Normal Map', icon: '🧩', description: 'Surface Detail' }
+    ];
     
-	const textureIcon = document.createElement('div');
-	textureIcon.className = 'drop-zone-icon';
-	textureIcon.textContent = '🖼️';
+    // Initialize textureFiles object if it doesn't exist
+    if (!state.textureFiles) {
+        state.textureFiles = {};
+    }
     
-	const texturePrompt = document.createElement('p');
-	texturePrompt.className = 'drop-zone-prompt';
-	texturePrompt.textContent = 'Drop Texture Atlas Here';
-    
-	const textureFormats = document.createElement('p');
-	textureFormats.className = 'drop-zone-formats';
-	textureFormats.textContent = 'Supported formats: .jpg, .png';
-    
-	const textureFileInfo = document.createElement('p');
-	textureFileInfo.className = 'file-info';
-	textureFileInfo.id = 'texture-file-info';
-    
-	textureDropZone.appendChild(textureIcon);
-	textureDropZone.appendChild(texturePrompt);
-	textureDropZone.appendChild(textureFormats);
-	textureDropZone.appendChild(textureFileInfo);
-	contentContainer.appendChild(textureDropZone);
+    textureTypes.forEach(type => {
+        const textureDropZone = document.createElement('div');
+        textureDropZone.id = `drop-zone-texture-${type.id}`;
+        textureDropZone.className = 'drop-zone';
+        textureDropZone.dataset.textureType = type.id;
+        textureDropZone.title = `Drop ${type.name} texture here`;
+        
+        // Add icon for drop zone
+        const textureIcon = document.createElement('div');
+        textureIcon.className = 'drop-zone-icon';
+        textureIcon.innerHTML = type.icon;
+        textureDropZone.appendChild(textureIcon);
+        
+        // Add drop message
+        const textureText = document.createElement('p');
+        textureText.className = 'drop-zone-prompt';
+        textureText.textContent = `Drop ${type.name} Texture Here`;
+        textureDropZone.appendChild(textureText);
+        
+        // Add description
+        const textureDesc = document.createElement('p');
+        textureDesc.className = 'drop-zone-formats';
+        textureDesc.textContent = type.description;
+        textureDropZone.appendChild(textureDesc);
+        
+        // Add supported formats
+        const textureFormats = document.createElement('p');
+        textureFormats.className = 'drop-zone-formats';
+        textureFormats.textContent = 'Supported formats: .jpg, .png';
+        textureDropZone.appendChild(textureFormats);
+        
+        // Add file info element
+        const textureFileInfo = document.createElement('div');
+        textureFileInfo.className = 'file-info';
+        textureFileInfo.id = `texture-file-info-${type.id}`;
+        textureFileInfo.textContent = state.textureFiles[type.id] ? state.textureFiles[type.id].name : 'No file selected';
+        textureDropZone.appendChild(textureFileInfo);
+        
+        // Add to container
+        contentContainer.appendChild(textureDropZone);
+    });
     
 	// Create start button
 	const startButton = createButton({
@@ -128,11 +164,15 @@ export function createDropPanel(state) {
 		onClick: () => {
 			console.log('Start debugging button clicked with files:', {
 				modelFile: state.modelFile ? state.modelFile.name : 'none',
-				textureFile: state.textureFile ? state.textureFile.name : 'none'
+				textureFiles: {
+					baseColor: state.textureFiles.baseColor ? state.textureFiles.baseColor.name : 'none',
+					orm: state.textureFiles.orm ? state.textureFiles.orm.name : 'none',
+					normal: state.textureFiles.normal ? state.textureFiles.normal.name : 'none'
+				}
 			});
 			
 			// Check if we have at least one file
-			if (!state.modelFile && !state.textureFile) {
+			if (!state.modelFile && !Object.values(state.textureFiles).every(file => file === undefined)) {
 				console.warn('No files selected for debugging');
 				alert('Please drop at least one model or texture file to begin debugging.');
 				return;
@@ -165,7 +205,7 @@ export function createDropPanel(state) {
 export function updateDropPanel(state) {
 	console.log('Updating drop panel with state:', {
 		modelFile: state.modelFile ? state.modelFile.name : 'none',
-		textureFile: state.textureFile ? state.textureFile.name : 'none'
+		textureFiles: state.textureFiles ? Object.keys(state.textureFiles).filter(key => state.textureFiles[key]).join(', ') : 'none'
 	});
 
 	if (!dropPanelContainer) return;
@@ -182,26 +222,27 @@ export function updateDropPanel(state) {
 		}
 	}
     
-	// Update texture file info if available
-	if (state.textureFile) {
-		const textureInfo = dropPanelContainer.querySelector('#texture-file-info');
-		if (textureInfo) {
-			textureInfo.textContent = state.textureFile.name;
-		}
-		const textureDropZone = dropPanelContainer.querySelector('#drop-zone-texture');
-		if (textureDropZone) {
-			textureDropZone.classList.add('has-file');
-		}
+	// Update texture file info for each texture type
+	if (state.textureFiles) {
+		['baseColor', 'orm', 'normal'].forEach(type => {
+			if (state.textureFiles[type]) {
+				const textureInfo = dropPanelContainer.querySelector(`#texture-file-info-${type}`);
+				if (textureInfo) {
+					textureInfo.textContent = state.textureFiles[type].name;
+				}
+				const textureDropZone = dropPanelContainer.querySelector(`#drop-zone-texture-${type}`);
+				if (textureDropZone) {
+					textureDropZone.classList.add('has-file');
+				}
+			}
+		});
 	}
     
 	// Update start button state
-	const startButton = dropPanelContainer.querySelector('#start-button');
+	const startButton = dropPanelContainer.querySelector('#start-debugging-button');
 	if (startButton) {
-		if (state.modelFile || state.textureFile) {
-			startButton.disabled = false;
-		} else {
-			startButton.disabled = true;
-		}
+		const hasAnyFile = state.modelFile || (state.textureFiles && Object.values(state.textureFiles).some(file => file));
+		startButton.disabled = !hasAnyFile;
 	}
 }
 

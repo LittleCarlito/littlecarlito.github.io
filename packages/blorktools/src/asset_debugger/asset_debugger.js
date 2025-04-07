@@ -8,11 +8,43 @@
  * import { init } from './index.js';
  */
 // Import from index.js
-import { init, state } from './index.js';
+import { init } from './index.js';
 import { analyzeUvChannels, createDebugPanel } from './ui/debugPanel.js';
 import { createUvChannelPanel, updateUvChannelPanel } from './ui/uvChannelPanel.js';
 import { createAtlasVisualization, updateAtlasVisualization } from './ui/atlasVisualization.js';
 import { createRigVisualization, updateRigVisualization } from './ui/rigVisualization.js';
+
+// Initialize or modify global state object
+if (!window.assetDebuggerState) {
+	window.assetDebuggerState = {
+		camera: null,
+		controls: null,
+		renderer: null,
+		scene: null,
+		screenMeshes: [],
+		modelLoaded: false,
+		textureLoaded: false,
+		
+		// New multi-texture support
+		textureFiles: {
+			baseColor: null,
+			orm: null,
+			normal: null
+		},
+		textureObjects: {}, // Will store textures by type: baseColor, orm, normal
+		
+		// For backwards compatibility
+		textureObject: null,
+		textureFile: null,
+		
+		// State tracking
+		currentUvRegion: { min: [0, 0], max: [1, 1] },
+		isDebugMode: false
+	};
+}
+
+// Use the global state
+const state = window.assetDebuggerState;
 
 // Initialize debug logging
 console.log('Asset Debugger entry point loaded, setting up event listeners');
@@ -33,8 +65,10 @@ document.addEventListener('DOMContentLoaded', () => {
 // Listen for texture loaded event
 document.addEventListener('textureLoaded', (event) => {
 	const source = event.detail?.source || 'unknown';
-	console.log(`Texture loaded event received from ${source}`);
+	const textureType = event.detail?.textureType || 'baseColor';
+	console.log(`Texture loaded event received from ${source} for type ${textureType}`);
 	console.log('State when texture loaded:', {
+		textureObjects: state.textureObjects ? Object.keys(state.textureObjects).join(', ') : 'None',
 		textureObject: state.textureObject ? 'Available' : 'Missing',
 		modelObject: state.modelObject ? 'Available' : 'Missing',
 		textureLoaded: state.textureLoaded,
@@ -45,21 +79,39 @@ document.addEventListener('textureLoaded', (event) => {
 	console.log('Updating atlas visualization with texture');
 	updateAtlasVisualization(state);
 	
-	// Update debug panel's texture info via global function if available
-	if (state.updateTextureInfo && state.textureFile) {
-		console.log('Updating texture info in debug panel');
-		state.updateTextureInfo({
-			name: state.textureFile.name,
-			size: state.textureFile.size,
-			dimensions: state.textureObject ? {
-				width: state.textureObject.image.width,
-				height: state.textureObject.image.height
-			} : undefined
+	// If we have a model loaded, reapply all textures
+	if (state.modelObject) {
+		console.log('Model is loaded - applying all available textures');
+		// Import dynamically to avoid circular dependencies
+		import('./materials/textureManager.js').then(module => {
+			module.applyTextureToModel(state);
 		});
+	}
+	
+	// Update debug panel's texture info via global function if available
+	if (state.updateTextureInfo) {
+		// Get the appropriate texture file for the loaded type
+		const textureFile = textureType === 'baseColor' ? 
+			(state.textureFiles.baseColor || state.textureFile) : 
+			state.textureFiles[textureType];
+			
+		if (textureFile) {
+			console.log(`Updating texture info in debug panel for ${textureType}`);
+			state.updateTextureInfo({
+				name: textureFile.name,
+				size: textureFile.size,
+				type: textureType,
+				dimensions: state.textureObjects[textureType] ? {
+					width: state.textureObjects[textureType].image.width,
+					height: state.textureObjects[textureType].image.height
+				} : undefined
+			});
+		} else {
+			console.warn(`Cannot update texture info - missing file for ${textureType}`);
+		}
 	} else {
-		console.warn('Cannot update texture info - missing updateTextureInfo or textureFile', {
-			updateTextureInfo: !!state.updateTextureInfo,
-			textureFile: !!state.textureFile
+		console.warn('Cannot update texture info - missing updateTextureInfo', {
+			updateTextureInfo: !!state.updateTextureInfo
 		});
 	}
 	

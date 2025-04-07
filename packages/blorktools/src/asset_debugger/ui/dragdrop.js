@@ -22,40 +22,46 @@ export function setupDragDrop(state) {
 	
 	// Get the individual drop zones from the new panel
 	const modelDropZone = dropPanelContainer.querySelector('#drop-zone-model');
-	const textureDropZone = dropPanelContainer.querySelector('#drop-zone-texture');
-	if (!modelDropZone || !textureDropZone) {
-		console.error('Drop zones not found in panel');
-		return;
+	
+	// Initialize textureFiles object if it doesn't exist
+	if (!state.textureFiles) {
+		state.textureFiles = {};
 	}
 	
 	// Setup drag and drop events for model zone
-	setupDropZoneEvents(modelDropZone, (file) => {
-		if (file.name.toLowerCase().endsWith('.glb') || file.name.toLowerCase().endsWith('.gltf')) {
-			state.modelFile = file;
-			// Update file info in panel using the updateDropPanel function
-			updateDropPanel(state);
-		} else {
-			alert('Please drop a valid model file (GLB or GLTF)');
+	if (modelDropZone) {
+		setupDropZoneEvents(modelDropZone, (file) => {
+			if (file.name.toLowerCase().endsWith('.glb') || file.name.toLowerCase().endsWith('.gltf')) {
+				state.modelFile = file;
+				// Update file info in panel using the updateDropPanel function
+				updateDropPanel(state);
+			} else {
+				alert('Please drop a valid model file (GLB or GLTF)');
+			}
+		});
+	}
+	
+	// Setup drag and drop events for each texture type
+	const textureTypes = ['baseColor', 'orm', 'normal'];
+	textureTypes.forEach(type => {
+		const textureDropZone = dropPanelContainer.querySelector(`#drop-zone-texture-${type}`);
+		if (textureDropZone) {
+			setupDropZoneEvents(textureDropZone, (file) => {
+				const validExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+				const fileExt = file.name.split('.').pop().toLowerCase();
+				if (validExtensions.includes(fileExt)) {
+					// Store texture file in appropriate property within textureFiles
+					state.textureFiles[type] = file;
+					// Update file info in panel
+					updateDropPanel(state);
+				} else {
+					alert('Please drop a valid image file (JPG, PNG, WEBP)');
+				}
+			});
 		}
 	});
 	
-	// Setup drag and drop events for texture zone
-	setupDropZoneEvents(textureDropZone, (file) => {
-		const validExtensions = ['jpg', 'jpeg', 'png', 'webp'];
-		const fileExt = file.name.split('.').pop().toLowerCase();
-		if (validExtensions.includes(fileExt)) {
-			state.textureFile = file;
-			// Update file info in panel using the updateDropPanel function
-			updateDropPanel(state);
-		} else {
-			alert('Please drop a valid image file (JPG, PNG, WEBP)');
-		}
-	});
-	
-	console.log('Drag and drop initialized with the following elements:');
-	console.log('- dropPanelContainer:', dropPanelContainer);
-	console.log('- modelDropZone:', modelDropZone);
-	console.log('- textureDropZone:', textureDropZone);
+	console.log('Drag and drop initialized with model and texture drop zones');
 }
 
 // Set up events for a drop zone
@@ -90,11 +96,13 @@ function setupDropZoneEvents(dropZone, onFileDrop) {
 	dropZone.addEventListener('click', () => {
 		const input = document.createElement('input');
 		input.type = 'file';
+		
 		if (dropZone.id === 'drop-zone-model') {
 			input.accept = '.glb,.gltf';
-		} else if (dropZone.id === 'drop-zone-texture') {
+		} else if (dropZone.id.startsWith('drop-zone-texture')) {
 			input.accept = '.jpg,.jpeg,.png,.webp';
 		}
+		
 		input.addEventListener('change', (e) => {
 			if (e.target.files.length > 0) {
 				onFileDrop(e.target.files[0]);
@@ -104,7 +112,7 @@ function setupDropZoneEvents(dropZone, onFileDrop) {
 	});
 }
 
-// Prevent default browser behavior for drag events
+// Prevent default drag behaviors
 /**
  *
  */
@@ -132,7 +140,11 @@ export function resetToDropZone(state) {
 	state.modelLoaded = false;
 	state.textureLoaded = false;
 	state.modelFile = null;
-	state.textureFile = null;
+	state.textureFiles = {
+		baseColor: null,
+		orm: null,
+		normal: null
+	};
 	
 	// Reset drop panel with empty state
 	updateDropPanel(state);
@@ -145,7 +157,10 @@ export function resetToDropZone(state) {
 export async function handleFileUploads(state) {
 	console.log('handleFileUploads called with state:', {
 		modelFile: state.modelFile ? state.modelFile.name : 'none',
-		textureFile: state.textureFile ? state.textureFile.name : 'none',
+		textureFiles: state.textureFiles ? Object.fromEntries(
+			Object.entries(state.textureFiles)
+				.map(([key, value]) => [key, value ? value.name : 'none'])
+		) : 'none',
 		modelLoaded: state.modelLoaded,
 		textureLoaded: state.textureLoaded
 	});
@@ -177,49 +192,30 @@ export async function handleFileUploads(state) {
 			document.dispatchEvent(new CustomEvent('modelLoaded'));
 		}
 		
-		// Then, load the texture if provided
-		if (state.textureFile) {
-			console.log('Loading texture:', state.textureFile.name);
-			showLoadingIndicator('Loading texture...');
-			await loadTexture(state, state.textureFile);
-			state.textureLoaded = true;
-			console.log('Texture loaded successfully');
-			
-			// Ensure event is dispatched for texture
-			console.log('Manually dispatching textureLoaded event');
-			document.dispatchEvent(new CustomEvent('textureLoaded'));
-		} else if (state.modelLoaded) {
-			// If model is loaded but no texture is provided, create a sample texture
-			console.log('No texture provided, creating a sample texture.');
-			showLoadingIndicator('Creating sample texture...');
-			// Create a canvas texture
-			const canvas = document.createElement('canvas');
-			canvas.width = 512;
-			canvas.height = 512;
-			const ctx = canvas.getContext('2d');
-			// Create a checkerboard pattern
-			const tileSize = 64;
-			for (let y = 0; y < canvas.height; y += tileSize) {
-				for (let x = 0; x < canvas.width; x += tileSize) {
-					const isEven = ((x / tileSize) + (y / tileSize)) % 2 === 0;
-					ctx.fillStyle = isEven ? '#3498db' : '#2980b9';
-					ctx.fillRect(x, y, tileSize, tileSize);
-					// Add UV coordinate numbers
-					ctx.fillStyle = '#ffffff';
-					ctx.font = '16px Arial';
-					ctx.textAlign = 'center';
-					ctx.textBaseline = 'middle';
-					ctx.fillText(`${(x / canvas.width).toFixed(1)},${(y / canvas.height).toFixed(1)}`, x + tileSize / 2, y + tileSize / 2);
+		// Then load textures if provided
+		const textureTypes = ['baseColor', 'orm', 'normal'];
+		let anyTextureLoaded = false;
+		
+		for (const type of textureTypes) {
+			if (state.textureFiles[type]) {
+				console.log(`Loading ${type} texture:`, state.textureFiles[type].name);
+				showLoadingIndicator(`Loading ${type} texture...`);
+				try {
+					// Pass the texture type to loadTexture function
+					await loadTexture(state, state.textureFiles[type], type);
+					anyTextureLoaded = true;
+					console.log(`${type} texture loaded successfully`);
+				} catch (textureError) {
+					console.error(`Error loading ${type} texture:`, textureError);
+					alert(`Error loading ${type} texture: ${textureError.message}`);
 				}
 			}
-			// Create the texture
-			const texture = new THREE.CanvasTexture(canvas);
-			state.textureObject = texture;
+		}
+		
+		if (anyTextureLoaded) {
 			state.textureLoaded = true;
-			console.log('Sample texture created');
-			
-			// Ensure event is dispatched for the sample texture
-			console.log('Manually dispatching textureLoaded event for sample texture');
+			// Ensure event is dispatched for texture
+			console.log('Manually dispatching textureLoaded event');
 			document.dispatchEvent(new CustomEvent('textureLoaded'));
 		}
 		
@@ -265,18 +261,18 @@ export async function handleFileUploads(state) {
 	}
 }
 
-// Show loading indicator
+// Show loading indicator with message
 /**
  *
  */
-function showLoadingIndicator(message = 'Loading...') {
+function showLoadingIndicator(message) {
 	const loadingScreen = document.getElementById('loading');
 	if (loadingScreen) {
-		const messageElement = loadingScreen.querySelector('div:not(.spinner)');
-		if (messageElement) {
-			messageElement.textContent = message;
-		}
 		loadingScreen.style.display = 'flex';
+		const messageElement = loadingScreen.querySelector('div');
+		if (messageElement) {
+			messageElement.textContent = message || 'Loading...';
+		}
 	}
 }
 
@@ -285,29 +281,10 @@ function showLoadingIndicator(message = 'Loading...') {
  *
  */
 function hideLoadingIndicator() {
-	console.log('Hiding loading indicator');
-	
-	// Find all loading screens and hide them
-	const loadingScreens = document.querySelectorAll('#loading, .loading');
-	loadingScreens.forEach(screen => {
-		screen.style.display = 'none';
-	});
-	
-	// Also check for any elements with loading text
-	const loadingTexts = document.querySelectorAll('.loading-text');
-	loadingTexts.forEach(text => {
-		text.style.display = 'none';
-	});
-	
-	// Remove any inline loaders
-	const spinners = document.querySelectorAll('.spinner');
-	spinners.forEach(spinner => {
-		if (spinner.parentElement && !spinner.parentElement.id.includes('loading')) {
-			spinner.style.display = 'none';
-		}
-	});
-	
-	console.log('All loading indicators hidden');
+	const loadingScreen = document.getElementById('loading');
+	if (loadingScreen) {
+		loadingScreen.style.display = 'none';
+	}
 }
 
 // Add debug logging to the handleFileSelect function to track file processing
@@ -346,9 +323,9 @@ export function handleFileSelect(state, files, dropType) {
 		// For texture files
 		if (isTextureFile) {
 			console.log('Texture file detected:', file.name);
-			state.textureFile = file;
-			loadTexture(state, file).catch(err => {
-				console.error('Error loading texture:', err);
+			state.textureFiles[type] = file;
+			loadTexture(state, file, type).catch(err => {
+				console.error(`Error loading ${type} texture:`, err);
 			});
 		}
 	}

@@ -110,6 +110,50 @@ export function startDebugging(state) {
 		console.log('Analyzing UV channels in startDebugging');
 		analyzeUvChannels(state);
 	}
+	
+	// Import dynamically to avoid circular dependencies
+	import('./atlasVisualization.js').then(module => {
+		// CRITICAL: Force atlas visualization update after debugging starts
+		console.log('FORCE UPDATING atlas visualization after debugging starts');
+		
+		// Ensure we have textures in the state object before updating
+		if (!state.textureObjects) {
+			state.textureObjects = {};
+		}
+		
+		// Ensure backward compatibility with older code
+		if (state.textureObject && !state.textureObjects.baseColor) {
+			state.textureObjects.baseColor = state.textureObject;
+		}
+		
+		// Add any texture files to the appropriate texture objects
+		if (state.textureFiles) {
+			Object.keys(state.textureFiles).forEach(type => {
+				if (state.textureFiles[type] && !state.textureObjects[type]) {
+					console.log(`Loading missing ${type} texture to state`);
+					
+					// Import texture manager to load any missing textures
+					import('../materials/textureManager.js').then(texModule => {
+						texModule.loadTexture(state, state.textureFiles[type], type)
+							.then(() => {
+								console.log(`Successfully loaded ${type} texture after debugging started`);
+								// Update atlas again after texture loaded
+								module.updateAtlasVisualization(state);
+							});
+					});
+				}
+			});
+		}
+		
+		// Force immediate update of the atlas visualizations
+		module.updateAtlasVisualization(state);
+		
+		// Schedule another update after a short delay to ensure all assets are loaded
+		setTimeout(() => {
+			console.log('Scheduled atlas visualization update after short delay');
+			module.updateAtlasVisualization(state);
+		}, 500);
+	});
 }
 
 // Create debug panel

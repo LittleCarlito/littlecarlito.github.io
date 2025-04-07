@@ -10,10 +10,11 @@ import { checkLoadingComplete } from '../core/loader.js';
  * Load a texture from a file or URL
  * @param {Object} state - Global state object
  * @param {File|String} file - File object or URL string
+ * @param {String} textureType - Type of texture (baseColor, orm, normal)
  * @returns {Promise} Promise that resolves to the loaded texture
  */
-export function loadTexture(state, file) {
-	console.log('loadTexture called with file:', file ? file.name : 'unknown');
+export function loadTexture(state, file, textureType = 'baseColor') {
+	console.log(`loadTexture called with file: ${file ? file.name : 'unknown'}, type: ${textureType}`);
 	
 	return new Promise((resolve, reject) => {
 		if (!file) {
@@ -28,58 +29,115 @@ export function loadTexture(state, file) {
 		loader.load(
 			fileUrl,
 			(texture) => {
-				console.log('Texture loaded:', texture);
-				// Store texture in state
-				state.textureObject = texture;
+				console.log(`Texture loaded for ${textureType}:`, texture);
+				
+				// Initialize textureObjects if it doesn't exist
+				if (!state.textureObjects) {
+					state.textureObjects = {};
+				}
+				
+				// Store texture in state based on type
+				state.textureObjects[textureType] = texture;
+				
+				// For backward compatibility, also store baseColor as textureObject
+				if (textureType === 'baseColor') {
+					state.textureObject = texture;
+				}
+				
 				// Configure texture
 				texture.flipY = false; // Changed from true to false - matches the monitor.glb expectations
-				texture.encoding = THREE.sRGBEncoding; // Ensure proper color encoding
+				
+				// Set encoding based on texture type
+				if (textureType === 'baseColor') {
+					texture.encoding = THREE.sRGBEncoding; // Ensure proper color encoding for base color
+				} else if (textureType === 'normal') {
+					texture.encoding = THREE.LinearEncoding; // Use linear encoding for normal maps
+				} else if (textureType === 'orm') {
+					texture.encoding = THREE.LinearEncoding; // Use linear encoding for ORM maps
+				}
+				
 				// Apply to model if model is already loaded
 				if (state.modelLoaded && state.modelObject) {
 					applyTextureToModel(state);
 				}
+				
 				// Create texture info for UI
 				const textureInfo = {
 					name: file.name,
 					size: file.size,
+					type: textureType,
 					dimensions: {
 						width: texture.image.width,
 						height: texture.image.height
 					}
 				};
+				
 				// Update texture info in UI
 				if (updateTextureInfo) {
 					updateTextureInfo(textureInfo);
 				}
+				
 				// Clean up URL
 				URL.revokeObjectURL(fileUrl);
+				
 				// Dispatch event for texture loaded
-				console.log('Dispatching textureLoaded event with texture:', texture);
-				document.dispatchEvent(new CustomEvent('textureLoaded'));
+				console.log(`Dispatching textureLoaded event with ${textureType} texture:`, texture);
+				document.dispatchEvent(new CustomEvent('textureLoaded', { 
+					detail: { 
+						source: 'file',
+						textureType: textureType
+					}
+				}));
+				
 				resolve(texture);
 			},
 			undefined, // Progress callback
 			(error) => {
-				console.error('Error loading texture:', error);
+				console.error(`Error loading ${textureType} texture:`, error);
 				URL.revokeObjectURL(fileUrl);
 				reject(error);
 			}
 		);
 	});
 }
+
 /**
  * Apply loaded texture to all materials in the model
  * @param {Object} state - Global state object
  */
 export function applyTextureToModel(state) {
-	if (!state.modelObject || !state.textureObject) {
-		console.warn('Cannot apply texture: Model or texture not loaded');
+	if (!state.modelObject) {
+		console.warn('Cannot apply texture: Model not loaded');
 		return;
 	}
-	console.log('Applying texture to model...');
+	
+	if (!state.textureObjects && !state.textureObject) {
+		console.warn('Cannot apply texture: No textures loaded');
+		return;
+	}
+	
+	// For backward compatibility
+	if (state.textureObject && !state.textureObjects) {
+		state.textureObjects = {
+			baseColor: state.textureObject
+		};
+	}
+	
+	// Log all available textures
+	console.log('Applying textures to model:', {
+		availableTextures: Object.keys(state.textureObjects),
+		baseColor: state.textureObjects.baseColor ? 'Available' : 'Missing',
+		orm: state.textureObjects.orm ? 'Available' : 'Missing',
+		normal: state.textureObjects.normal ? 'Available' : 'Missing'
+	});
 	
 	// Track if any screen mesh was successfully textured
 	let anyScreenMeshTextured = false;
+	
+	// Initialize screen meshes array if not exists
+	if (!state.screenMeshes) {
+		state.screenMeshes = [];
+	}
 	
 	// Find all screen meshes and store their original materials
 	state.modelObject.traverse((child) => {
@@ -88,69 +146,156 @@ export function applyTextureToModel(state) {
 			if (!child.userData.originalMaterial) {
 				child.userData.originalMaterial = child.material.clone();
 			}
+			
 			// Check if this is a screen/display/monitor mesh
 			const isScreenMesh = child.name.toLowerCase().includes('screen') || 
                          child.name.toLowerCase().includes('display') ||
                          child.name.toLowerCase().includes('monitor');
-			if (isScreenMesh) {
-				console.log(`Setting up screen mesh: ${child.name}`);
-				// Log available UV sets on this mesh
-				if (child.geometry) {
-					let uvSetInfo = 'UV Sets: ';
-					// Check for any UV attributes directly
-					const potentialUvAttributes = [];
-					for (let i = 0; i < 8; i++) {
-						potentialUvAttributes.push(i === 0 ? 'uv' : `uv${i+1}`);
-					}
-					potentialUvAttributes.forEach(attrName => {
-						if (child.geometry.attributes[attrName]) {
-							uvSetInfo += `${attrName}, `;
-						}
-					});
-					console.log(uvSetInfo);
-				}
-				// Create a fresh material to avoid affecting other meshes
-				const material = new THREE.MeshStandardMaterial();
-				// Copy important properties from original material if available
-				if (child.userData.originalMaterial) {
-					material.roughness = child.userData.originalMaterial.roughness || 0.1;
-					material.metalness = child.userData.originalMaterial.metalness || 0.2;
-				} else {
-					material.roughness = 0.1; // Make it slightly glossy
-					material.metalness = 0.2;
-				}
-				// Apply the texture - IMPORTANT: Clone to avoid cross-mesh references
-				material.map = state.textureObject.clone();
-				// Ensure texture properties are correctly set
-				material.map.flipY = false; // Important for proper orientation
-				material.map.encoding = THREE.sRGBEncoding;
-				material.map.wrapS = THREE.ClampToEdgeWrapping;
-				material.map.wrapT = THREE.ClampToEdgeWrapping;
-				material.map.minFilter = THREE.LinearFilter;
-				material.map.magFilter = THREE.LinearFilter;
-				// Make sure screen is visible with emissive
-				material.emissiveMap = material.map;
-				material.emissive.set(1, 1, 1); // Full emissive intensity
+			
+			// For testing, treat all meshes as screens to see texture effects
+			// This forces all textures to be applied to all meshes for visual debugging
+			const applyTextureToAll = true; // Change to false in production
+			
+			if (isScreenMesh || applyTextureToAll) {
+				console.log(`Applying textures to mesh: ${child.name} (${isScreenMesh ? 'is screen' : 'all meshes mode'})`);
 				
-				// NEW: Advanced texture mapping with multiple fallback strategies
-				// Start with no offset/repeat modification
-				material.map.offset.set(0, 0);
-				material.map.repeat.set(1, 1);
-				material.emissiveMap.offset.set(0, 0);
-				material.emissiveMap.repeat.set(1, 1);
+				// Check available textures for debugging
+				const hasBaseColor = !!state.textureObjects.baseColor;
+				const hasOrm = !!state.textureObjects.orm;
+				const hasNormal = !!state.textureObjects.normal;
+				
+				console.log('Available textures for material:', {
+					baseColor: hasBaseColor,
+					orm: hasOrm,
+					normal: hasNormal
+				});
+				
+				// Create the appropriate material based on available textures
+				let material;
+				
+				// If multiple textures are available, create a PBR material
+				if (Object.keys(state.textureObjects).length > 1) {
+					console.log('Creating PBR material with multiple textures');
+					
+					// Create a new MeshStandardMaterial for multiple textures
+					material = new THREE.MeshStandardMaterial({
+						map: state.textureObjects.baseColor,
+						transparent: true,
+						alphaTest: 0.5,
+					});
+					
+					// Configure normal map if available
+					if (hasNormal) {
+						console.log('Applying normal map to material with increased intensity');
+						material.normalMap = state.textureObjects.normal;
+						// Increase normal map intensity to make it more visible
+						material.normalScale = new THREE.Vector2(2.0, 2.0); 
+					}
+					
+					// Configure ORM map if available
+					if (hasOrm) {
+						console.log('Applying ORM map to material with adjusted values');
+						
+						// ORM map: R = Occlusion, G = Roughness, B = Metalness
+						material.aoMap = state.textureObjects.orm;
+						material.roughnessMap = state.textureObjects.orm;
+						material.metalnessMap = state.textureObjects.orm;
+						
+						// Make roughness channel from green, using blue for metalness
+						// Adjust values to make effects more visible for demonstration
+						material.aoMapIntensity = 1.5;   // Boost AO effect
+						material.roughness = 1.0;       // Full roughness effect
+						material.metalness = 1.0;       // Full metalness effect
+						
+						// Store a reference to the ORM map for debugging
+						material.userData.ormMap = state.textureObjects.orm;
+						
+						// Additional debug info about ORM texture
+						console.log('ORM texture details:', {
+							width: state.textureObjects.orm.image.width,
+							height: state.textureObjects.orm.image.height,
+							format: state.textureObjects.orm.format,
+							type: state.textureObjects.orm.type
+						});
+					}
+					
+					// Add emission for light/screen effect
+					if (hasBaseColor) {
+						material.emissiveMap = state.textureObjects.baseColor;
+						material.emissive = new THREE.Color(0.5, 0.5, 0.5);
+					}
+				} else {
+					// Use basic material for single texture
+					console.log('Creating basic material with single texture');
+					material = new THREE.MeshBasicMaterial({
+						map: state.textureObjects.baseColor || state.textureObject,
+						transparent: true,
+						alphaTest: 0.5,
+					});
+				}
+				
+				// Additional material settings for better PBR appearance
+				if (material.type === 'MeshStandardMaterial') {
+					material.envMapIntensity = 1.0;
+					material.needsUpdate = true;
+				}
+				
+				// Ensure all texture settings are correct
+				Object.keys(state.textureObjects).forEach(texType => {
+					const tex = state.textureObjects[texType];
+					if (tex) {
+						tex.flipY = false;
+						tex.needsUpdate = true;
+						
+						// Set different encoding based on texture type
+						if (texType === 'baseColor') {
+							tex.encoding = THREE.sRGBEncoding;
+						} else {
+							tex.encoding = THREE.LinearEncoding;
+						}
+						
+						// Ensure mipmaps are generated
+						tex.generateMipmaps = true;
+						
+						// Use tri-linear filtering for better quality
+						tex.minFilter = THREE.LinearMipmapLinearFilter;
+						tex.magFilter = THREE.LinearFilter;
+						
+						// Set anisotropy for sharper textures at angles
+						if (state.renderer) {
+							const maxAnisotropy = state.renderer.capabilities.getMaxAnisotropy();
+							tex.anisotropy = maxAnisotropy;
+						}
+						
+						// Log texture settings
+						console.log(`Texture ${texType} settings:`, {
+							flipY: tex.flipY,
+							encoding: tex.encoding === THREE.sRGBEncoding ? 'sRGB' : 'Linear',
+							mipmaps: tex.generateMipmaps,
+							anisotropy: tex.anisotropy
+						});
+					}
+				});
+				
+				// Ensure material settings are updated
+				material.needsUpdate = true;
 				
 				// Store original material for future reference
 				child.userData.originalMaterial = child.material;
 				child.material = material;
 				
 				// Add to screen meshes array for UV visualization
-				state.screenMeshes.push(child);
+				if (!state.screenMeshes.includes(child)) {
+					state.screenMeshes.push(child);
+				}
 				
-				// NEW: Attempt progressive texture mapping strategies
+				// Attempt progressive texture mapping strategies
 				attemptProgressiveMapping(child, material, state);
 				
 				// Track successful texturing
 				anyScreenMeshTextured = true;
+				
+				console.log(`Successfully applied textures to mesh: ${child.name}`);
 			}
 		}
 	});
@@ -165,6 +310,13 @@ export function applyTextureToModel(state) {
 		console.log("No meshes were successfully textured with standard approach. Trying fallback strategies...");
 		attemptFallbackStrategies(state);
 	}
+	
+	// Log a summary of what was applied
+	console.log('Texture application summary:', {
+		meshesTextured: state.screenMeshes.length,
+		availableTextures: Object.keys(state.textureObjects).length,
+		success: anyScreenMeshTextured
+	});
 	
 	// Try to hide loading elements now that textures are applied
 	checkLoadingComplete(state);
@@ -239,8 +391,12 @@ function attemptProgressiveMapping(mesh, material, state) {
 				// Apply scaling to material instead of modifying geometry
 				material.map.repeat.set(1/rangeU, 1/rangeV);
 				material.map.offset.set(-minU/rangeU, -minV/rangeV);
-				material.emissiveMap.repeat.set(1/rangeU, 1/rangeV);
-				material.emissiveMap.offset.set(-minU/rangeU, -minV/rangeV);
+				
+				// Only set emissiveMap properties if it exists
+				if (material.emissiveMap) {
+					material.emissiveMap.repeat.set(1/rangeU, 1/rangeV);
+					material.emissiveMap.offset.set(-minU/rangeU, -minV/rangeV);
+				}
 				return true;
 			}
 		}
@@ -261,18 +417,28 @@ function attemptProgressiveMapping(mesh, material, state) {
 		];
 		
 		console.log(`Trying atlas segmentation for ${mesh.name}`);
-		// Apply first segment (full texture) initially
-		const segment = segments[0];
-		material.map.offset.set(segment.u, segment.v);
-		material.map.repeat.set(segment.w, segment.h);
-		material.emissiveMap.offset.set(segment.u, segment.v);
-		material.emissiveMap.repeat.set(segment.w, segment.h);
 		
-		// Store segments for potential cycling
-		mesh.userData.atlasSegments = segments;
-		mesh.userData.currentSegment = 0;
+		// Check if map exists before using it
+		if (material.map) {
+			// Apply first segment (full texture) initially
+			const segment = segments[0];
+			material.map.offset.set(segment.u, segment.v);
+			material.map.repeat.set(segment.w, segment.h);
+			
+			// Only set emissiveMap properties if it exists
+			if (material.emissiveMap) {
+				material.emissiveMap.offset.set(segment.u, segment.v);
+				material.emissiveMap.repeat.set(segment.w, segment.h);
+			}
+			
+			// Store segments for potential cycling
+			mesh.userData.atlasSegments = segments;
+			mesh.userData.currentSegment = 0;
+			
+			return true;
+		}
 		
-		return true;
+		return false;
 	};
 	
 	// Try strategies in sequence
@@ -283,8 +449,10 @@ function attemptProgressiveMapping(mesh, material, state) {
 	if (!success) success = analyzeAndAdjustUVs();
 	if (!success) success = tryAtlasSegmentation();
 	
-	// Always mark texture for update
-	material.map.needsUpdate = true;
+	// Always mark texture for update if it exists
+	if (material.map) {
+		material.map.needsUpdate = true;
+	}
 	material.needsUpdate = true;
 	
 	return success;
@@ -307,8 +475,13 @@ function attemptFallbackStrategies(state) {
 			// Apply segment
 			mesh.material.map.offset.set(segment.u, segment.v);
 			mesh.material.map.repeat.set(segment.w, segment.h);
-			mesh.material.emissiveMap.offset.set(segment.u, segment.v);
-			mesh.material.emissiveMap.repeat.set(segment.w, segment.h);
+			
+			// Only set emissiveMap properties if it exists
+			if (mesh.material.emissiveMap) {
+				mesh.material.emissiveMap.offset.set(segment.u, segment.v);
+				mesh.material.emissiveMap.repeat.set(segment.w, segment.h);
+			}
+			
 			mesh.material.map.needsUpdate = true;
 			mesh.material.needsUpdate = true;
 		}
@@ -325,8 +498,13 @@ function attemptFallbackStrategies(state) {
 				// Apply segment
 				mesh.material.map.offset.set(segment.u, segment.v);
 				mesh.material.map.repeat.set(segment.w, segment.h);
-				mesh.material.emissiveMap.offset.set(segment.u, segment.v);
-				mesh.material.emissiveMap.repeat.set(segment.w, segment.h);
+				
+				// Only set emissiveMap properties if it exists
+				if (mesh.material.emissiveMap) {
+					mesh.material.emissiveMap.offset.set(segment.u, segment.v);
+					mesh.material.emissiveMap.repeat.set(segment.w, segment.h);
+				}
+				
 				mesh.material.map.needsUpdate = true;
 				mesh.material.needsUpdate = true;
 			}

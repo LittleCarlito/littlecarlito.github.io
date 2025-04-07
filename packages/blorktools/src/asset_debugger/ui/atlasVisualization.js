@@ -7,6 +7,9 @@ import { createMovablePanel, createButton, createLabel } from '../utils/uiCompon
 let atlasVisualizationContainer = null;
 // Keep track of 3D visualization object (for cleanup)
 let atlasVisualization3D = null;
+// Track which texture type is currently being visualized
+let currentTextureType = 'baseColor';
+
 /**
  * Create or toggle a visualization of the texture atlas
  * @param {Object} state - Global state object
@@ -28,10 +31,8 @@ export function createAtlasVisualization(state) {
 			atlasVisualizationContainer.style.display = 'block';
 		}
 		// Update visualization with current texture state if available
-		if (state.textureObject) {
-			updateCanvasWithTexture(state.textureObject, state.currentUvRegion || { min: [0, 0], max: [1, 1] });
-		}
-		return;
+		updateVisualizationWithState(state);
+		return atlasVisualizationContainer;
 	}
 
 	// Create panel using the utility function - position at bottom left, not overlapping with UV Channel panel
@@ -44,6 +45,55 @@ export function createAtlasVisualization(state) {
 	
 	// Store the container for future reference
 	atlasVisualizationContainer = container;
+
+	// Create texture type selector
+	const textureTypeSelectorContainer = document.createElement('div');
+	textureTypeSelectorContainer.style.display = 'flex';
+	textureTypeSelectorContainer.style.marginBottom = '10px';
+	textureTypeSelectorContainer.style.justifyContent = 'center';
+	
+	// Create texture type buttons
+	const textureTypes = [
+		{ id: 'baseColor', label: 'Base Color', icon: '🎨' },
+		{ id: 'orm', label: 'ORM', icon: '✨' },
+		{ id: 'normal', label: 'Normal', icon: '🧩' }
+	];
+	
+	textureTypes.forEach(type => {
+		const button = document.createElement('button');
+		button.textContent = `${type.icon} ${type.label}`;
+		button.className = 'texture-type-button';
+		button.dataset.textureType = type.id;
+		button.style.flex = '1';
+		button.style.margin = '0 2px';
+		button.style.padding = '5px';
+		button.style.backgroundColor = type.id === currentTextureType ? '#3498db' : '#2c3e50';
+		button.style.border = 'none';
+		button.style.borderRadius = '3px';
+		button.style.color = 'white';
+		button.style.cursor = 'pointer';
+		button.style.fontSize = '11px';
+		
+		button.addEventListener('click', () => {
+			// Update active button styling
+			document.querySelectorAll('.texture-type-button').forEach(btn => {
+				btn.style.backgroundColor = '#2c3e50';
+			});
+			button.style.backgroundColor = '#3498db';
+			
+			console.log(`Texture type button clicked: ${type.id}`);
+			
+			// Update current texture type
+			currentTextureType = type.id;
+			
+			// Update visualization with the selected texture type
+			updateVisualizationWithState(state);
+		});
+		
+		textureTypeSelectorContainer.appendChild(button);
+	});
+	
+	contentContainer.appendChild(textureTypeSelectorContainer);
 
 	// Create canvas for atlas visualization
 	const atlasCanvas = document.createElement('canvas');
@@ -69,16 +119,128 @@ export function createAtlasVisualization(state) {
 	// Add container to the document
 	document.body.appendChild(container);
 	
-	// Draw the texture onto the canvas if available, otherwise show a "no data" message
-	if (state.textureObject) {
-		updateCanvasWithTexture(state.textureObject, { min: [0, 0], max: [1, 1] });
-	} else {
-		showNoTextureState(atlasCanvas);
-	}
+	// Update the visualization with the current state
+	updateVisualizationWithState(state);
 	
 	console.log('Atlas visualization created with HTML canvas');
 	
 	return container;
+}
+
+/**
+ * Update the visualization with the current state
+ * @param {Object} state - Global state object 
+ */
+function updateVisualizationWithState(state) {
+	console.log(`Updating visualization with texture type: ${currentTextureType}`);
+	
+	// For backward compatibility
+	if (state.textureObject && !state.textureObjects) {
+		state.textureObjects = {
+			baseColor: state.textureObject
+		};
+	}
+	
+	// Get the current texture for the selected type
+	const texture = state.textureObjects ? state.textureObjects[currentTextureType] : null;
+	
+	// Log available textures for debugging
+	if (state.textureObjects) {
+		console.log('Available textures:', Object.keys(state.textureObjects).join(', '));
+	} else {
+		console.log('No textures available in state');
+	}
+	
+	// Log if the texture for current type is available
+	if (texture) {
+		console.log(`${currentTextureType} texture found, updating visualization`);
+	} else {
+		console.log(`No texture found for ${currentTextureType}`);
+	}
+	
+	// Update the texture type buttons
+	const buttons = document.querySelectorAll('.texture-type-button');
+	buttons.forEach(btn => {
+		const textureType = btn.dataset.textureType;
+		
+		// Set active state for current texture type
+		btn.style.backgroundColor = textureType === currentTextureType ? '#3498db' : '#2c3e50';
+		
+		// Indicate which texture types have data available
+		if (state.textureObjects && state.textureObjects[textureType]) {
+			btn.style.opacity = '1.0';
+			btn.style.fontWeight = 'bold';
+		} else {
+			btn.style.opacity = '0.7';
+			btn.style.fontWeight = 'normal';
+		}
+	});
+	
+	// Check if any texture is available and switch to it
+	if (!texture && state.textureObjects) {
+		const availableTextures = Object.keys(state.textureObjects).filter(
+			key => state.textureObjects[key] && state.textureObjects[key].image
+		);
+		
+		console.log(`No texture for ${currentTextureType}, but found ${availableTextures.length} available textures`);
+		
+		if (availableTextures.length > 0) {
+			// Prioritize baseColor if available
+			let newTextureType = availableTextures.includes('baseColor') ? 'baseColor' : availableTextures[0];
+			console.log(`Switching to available texture type: ${newTextureType}`);
+			
+			// Update current texture type
+			currentTextureType = newTextureType;
+			
+			// Update buttons to reflect the new selection
+			buttons.forEach(btn => {
+				btn.style.backgroundColor = btn.dataset.textureType === currentTextureType ? '#3498db' : '#2c3e50';
+			});
+			
+			// Get the new texture
+			const newTexture = state.textureObjects[currentTextureType];
+			if (newTexture && newTexture.image) {
+				console.log(`Using ${currentTextureType} texture instead`);
+				updateCanvasWithTexture(newTexture, state.currentUvRegion || { min: [0, 0], max: [1, 1] });
+				return;
+			}
+		}
+	}
+	
+	// Determine which texture to show based on what's available
+	if (!texture) {
+		// If the selected texture isn't available, try to find an available one
+		if (state.textureObjects) {
+			const availableTypes = Object.keys(state.textureObjects);
+			if (availableTypes.length > 0) {
+				console.log(`Selected texture type ${currentTextureType} not available, switching to ${availableTypes[0]}`);
+				currentTextureType = availableTypes[0];
+				
+				// Update button selection for the newly selected texture type
+				buttons.forEach(btn => {
+					btn.style.backgroundColor = btn.dataset.textureType === currentTextureType ? '#3498db' : '#2c3e50';
+				});
+				
+				// Show the available texture
+				const newTexture = state.textureObjects[currentTextureType];
+				if (newTexture) {
+					updateCanvasWithTexture(newTexture, state.currentUvRegion || { min: [0, 0], max: [1, 1] });
+					return;
+				}
+			}
+		}
+		
+		// If no textures available, show no texture state
+		console.log('No textures available for visualization, showing empty state');
+		const canvas = atlasVisualizationContainer.querySelector('canvas');
+		if (canvas) {
+			showNoTextureState(canvas);
+		}
+	} else {
+		// Show the selected texture
+		console.log(`Displaying ${currentTextureType} texture in visualization`);
+		updateCanvasWithTexture(texture, state.currentUvRegion || { min: [0, 0], max: [1, 1] });
+	}
 }
 
 /**
@@ -106,13 +268,13 @@ function showNoTextureState(canvas) {
 	
 	// Add additional help text
 	ctx.font = '12px monospace';
-	ctx.fillText('Drop and drop a texture to view', canvas.width / 2, canvas.height / 2 + 15);
+	ctx.fillText('Drag and drop a texture to view', canvas.width / 2, canvas.height / 2 + 15);
 	
 	// Update the coordinates text if it exists
 	if (atlasVisualizationContainer) {
 		const coordsText = atlasVisualizationContainer.querySelector('.coords-text');
 		if (coordsText) {
-			coordsText.textContent = 'No texture loaded. Drag and drop a texture file to view.';
+			coordsText.textContent = `No ${currentTextureType} texture loaded. Drag and drop a texture file to view.`;
 		}
 	}
 }
@@ -123,32 +285,171 @@ function showNoTextureState(canvas) {
  */
 export function updateAtlasVisualization(state) {
 	console.log('updateAtlasVisualization called with state:', {
+		textureObjects: state.textureObjects ? Object.keys(state.textureObjects).join(', ') : 'None',
 		textureObject: state.textureObject ? 'Texture loaded' : 'No texture',
 		modelObject: state.modelObject ? 'Model loaded' : 'No model',
 		textureLoaded: state.textureLoaded,
 		modelLoaded: state.modelLoaded
 	});
 	
+	// Force immediate update if no container exists
 	if (!atlasVisualizationContainer) {
 		console.log('No atlas visualization container exists - creating one');
 		createAtlasVisualization(state);
-		return;
-	}
-	
-	// If no texture, show the "no data" state
-	if (!state.textureObject) {
-		console.log('No texture object available - showing no data state');
-		const canvas = atlasVisualizationContainer.querySelector('canvas');
-		if (canvas) {
-			showNoTextureState(canvas);
+		// Force immediate update after creation if textures are available
+		if (atlasVisualizationContainer) {
+			// Check if textures are available right after creation
+			if ((state.textureObjects && Object.keys(state.textureObjects).length > 0) || state.textureObject) {
+				console.log('Textures available after creation - forcing immediate update');
+				// For backward compatibility
+				if (state.textureObject && !state.textureObjects) {
+					state.textureObjects = {
+						baseColor: state.textureObject
+					};
+				}
+				
+				// Find available texture
+				const availableTextureTypes = Object.keys(state.textureObjects);
+				if (availableTextureTypes.includes('baseColor')) {
+					currentTextureType = 'baseColor';
+				} else if (availableTextureTypes.length > 0) {
+					currentTextureType = availableTextureTypes[0];
+				}
+				
+				// Force update with available texture
+				const texture = state.textureObjects[currentTextureType];
+				if (texture && texture.image) {
+					console.log(`Forcing display of ${currentTextureType} texture after container creation`);
+					updateCanvasWithTexture(texture, state.currentUvRegion || { min: [0, 0], max: [1, 1] });
+				}
+			}
 		}
 		return;
 	}
 	
-	// Get the current UV region or use full texture as default
-	const currentRegion = state.currentUvRegion || { min: [0, 0], max: [1, 1] };
+	// Ensure the container is visible
+	atlasVisualizationContainer.style.display = 'block';
 	
-	// NEW: Check if any mesh is using a specific atlas segment
+	// CRITICAL: Check if we need to force-update because canvas shows "No texture loaded" despite having textures
+	const forceUpdateNeeded = shouldForceTextureUpdate(state);
+	if (forceUpdateNeeded) {
+		console.log('Force update needed - empty canvas detected despite having textures');
+		
+		// Find the first available texture
+		let textureToShow = null;
+		let textureType = null;
+		
+		// Backward compatibility
+		if (state.textureObject && state.textureObject.image) {
+			textureToShow = state.textureObject;
+			textureType = 'baseColor';
+		} 
+		// Check texture objects
+		else if (state.textureObjects) {
+			const types = Object.keys(state.textureObjects);
+			// Prioritize baseColor
+			if (types.includes('baseColor') && state.textureObjects.baseColor && state.textureObjects.baseColor.image) {
+				textureToShow = state.textureObjects.baseColor;
+				textureType = 'baseColor';
+			} 
+			// Otherwise use first available
+			else {
+				for (const type of types) {
+					if (state.textureObjects[type] && state.textureObjects[type].image) {
+						textureToShow = state.textureObjects[type];
+						textureType = type;
+						break;
+					}
+				}
+			}
+		}
+		
+		// Force update with available texture
+		if (textureToShow && textureToShow.image) {
+			console.log(`Force updating atlas with ${textureType} texture`);
+			currentTextureType = textureType;
+			
+			// Update buttons to reflect current texture
+			const buttons = document.querySelectorAll('.texture-type-button');
+			buttons.forEach(btn => {
+				btn.style.backgroundColor = btn.dataset.textureType === currentTextureType ? '#3498db' : '#2c3e50';
+			});
+			
+			// Force update canvas
+			updateCanvasWithTexture(textureToShow, state.currentUvRegion || { min: [0, 0], max: [1, 1] });
+			return;
+		}
+	}
+	
+	// Update the visualization with the current state
+	updateVisualizationWithState(state);
+	
+	// Make sure the visualization is visible
+	if (atlasVisualizationContainer.style.display === 'none') {
+		atlasVisualizationContainer.style.display = 'block';
+	}
+	
+	// Get current segment for the current texture type
+	const currentSegment = getCurrentSegment(state);
+	
+	// Update segment info in the visualization
+	updateSegmentInfo(state, currentSegment);
+	
+	console.log('Atlas visualization updated with texture type:', currentTextureType);
+}
+
+/**
+ * Determines if we need to force a texture update
+ * @param {Object} state - Global state object
+ * @returns {boolean} - True if we need to force an update
+ */
+function shouldForceTextureUpdate(state) {
+	// Skip if no container or no textures available
+	if (!atlasVisualizationContainer) return false;
+	
+	// Check if we have any textures
+	const hasTextures = (state.textureObject && state.textureObject.image) || 
+		(state.textureObjects && Object.values(state.textureObjects).some(tex => tex && tex.image));
+	
+	if (!hasTextures) return false;
+	
+	// Check if canvas appears to be showing "No texture loaded"
+	const canvas = atlasVisualizationContainer.querySelector('canvas');
+	if (!canvas || !canvas.getContext) return false;
+	
+	try {
+		// Check if canvas is mostly dark (indicating "No texture loaded" message)
+		const ctx = canvas.getContext('2d');
+		const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+		const pixelData = imageData.data;
+		
+		// Count dark pixels
+		let darkPixelCount = 0;
+		const totalPixels = pixelData.length / 4;
+		
+		// Sample pixels to determine if canvas is mostly dark
+		for (let i = 0; i < pixelData.length; i += 16) { // Sample every 4th pixel for efficiency
+			if (pixelData[i] < 50 && pixelData[i+1] < 50 && pixelData[i+2] < 50) {
+				darkPixelCount++;
+			}
+		}
+		
+		// If more than 80% of sampled pixels are dark, it's likely showing "No texture loaded"
+		const darkRatio = darkPixelCount / (totalPixels / 4);
+		return darkRatio > 0.8;
+	} catch (e) {
+		console.error('Error checking canvas content:', e);
+		return true; // Force update on error to be safe
+	}
+}
+
+/**
+ * Get the current segment for the selected texture type
+ * @param {Object} state - Global state object
+ * @returns {Object|null} - Current segment or null if none
+ */
+function getCurrentSegment(state) {
+	// Check if any mesh is using a specific atlas segment
 	let currentSegment = null;
 	if (state.screenMeshes && state.screenMeshes.length > 0) {
 		// Use the first mesh with a defined segment
@@ -160,25 +461,7 @@ export function updateAtlasVisualization(state) {
 			}
 		}
 	}
-	
-	// If a segment is active, use that instead of the current region
-	if (currentSegment) {
-		currentRegion.min = [currentSegment.u, currentSegment.v];
-		currentRegion.max = [currentSegment.u + currentSegment.w, currentSegment.v + currentSegment.h];
-	}
-	
-	// Update the canvas with the texture and current UV region
-	updateCanvasWithTexture(state.textureObject, currentRegion);
-	
-	// Make sure the visualization is visible
-	if (atlasVisualizationContainer.style.display === 'none') {
-		atlasVisualizationContainer.style.display = 'block';
-	}
-	
-	// NEW: Update segment info in the visualization
-	updateSegmentInfo(state, currentSegment);
-	
-	console.log('Atlas visualization updated with new texture');
+	return currentSegment;
 }
 
 /**
@@ -215,7 +498,7 @@ function updateSegmentInfo(state, segment) {
 		const totalSegments = state.screenMeshes[0]?.userData.atlasSegments?.length || 0;
 		const currentIndex = state.screenMeshes[0]?.userData.currentSegment || 0;
 		
-		segmentInfo.textContent = `Atlas segment: ${currentIndex+1}/${totalSegments} - Offset: (${segment.u.toFixed(2)},${segment.v.toFixed(2)}), Size: ${segment.w.toFixed(2)}x${segment.h.toFixed(2)}`;
+		segmentInfo.textContent = `${currentTextureType} atlas segment: ${currentIndex+1}/${totalSegments} - Offset: (${segment.u.toFixed(2)},${segment.v.toFixed(2)}), Size: ${segment.w.toFixed(2)}x${segment.h.toFixed(2)}`;
 		segmentInfo.style.display = 'block';
 	} else {
 		segmentInfo.style.display = 'none';
@@ -283,9 +566,9 @@ function updateCanvasWithTexture(texture, currentRegion = { min: [0, 0], max: [1
 	const isFullTexture = (currentRegion.min[0] === 0 && currentRegion.min[1] === 0 && 
                           currentRegion.max[0] === 1 && currentRegion.max[1] === 1);
 	if (isFullTexture) {
-		coordsText.textContent = 'Currently using: Full texture (0,0) to (1,1)';
+		coordsText.textContent = `${currentTextureType}: Full texture (0,0) to (1,1)`;
 	} else {
-		coordsText.textContent = `Currently using: (${currentRegion.min[0].toFixed(2)},${currentRegion.min[1].toFixed(2)}) to (${currentRegion.max[0].toFixed(2)},${currentRegion.max[1].toFixed(2)})`;
+		coordsText.textContent = `${currentTextureType}: (${currentRegion.min[0].toFixed(2)},${currentRegion.min[1].toFixed(2)}) to (${currentRegion.max[0].toFixed(2)},${currentRegion.max[1].toFixed(2)})`;
 	}
 }
 
@@ -385,18 +668,32 @@ export function removeAtlasVisualization() {
  * @param {Object} state - Global state object
  */
 export function setCurrentUvRegion(min, max, state) {
-	if (!state.textureObject) return;
+	// For backward compatibility
+	if (state.textureObject && !state.textureObjects) {
+		state.textureObjects = {
+			baseColor: state.textureObject
+		};
+	}
+	
+	// Get current texture for selected type
+	const texture = state.textureObjects ? state.textureObjects[currentTextureType] : null;
+	
+	if (!texture) return;
+	
 	// Store the current UV region in state
 	state.currentUvRegion = { min, max };
+	
 	// Update the visualization if it exists
 	if (atlasVisualizationContainer) {
 		// Update the canvas with the new region
-		updateCanvasWithTexture(state.textureObject, state.currentUvRegion);
+		updateCanvasWithTexture(texture, state.currentUvRegion);
+		
 		// Make sure the visualization is visible
 		if (atlasVisualizationContainer.style.display === 'none') {
 			atlasVisualizationContainer.style.display = 'block';
 		}
 	}
-	console.log(`Updated current UV region to: (${min[0].toFixed(2)},${min[1].toFixed(2)}) - (${max[0].toFixed(2)},${max[1].toFixed(2)})`);
+	
+	console.log(`Updated current UV region for ${currentTextureType}: (${min[0].toFixed(2)},${min[1].toFixed(2)}) - (${max[0].toFixed(2)},${max[1].toFixed(2)})`);
 	return state.currentUvRegion;
 } 
