@@ -1575,13 +1575,8 @@ function init() {
     const restartButton = document.getElementById('restart-debug');
     if (restartButton) {
         restartButton.addEventListener('click', () => {
-            // Clean up previous scene
-            if (state.animationId) {
-                cancelAnimationFrame(state.animationId);
-            }
-            
-            // Restart scene
-            initScene();
+            // Reload the entire page to completely restart the tool
+            window.location.reload();
         });
     }
 }
