@@ -10,6 +10,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // Initialize or modify global state object
 if (!window.textureDebuggerState) {
@@ -19,6 +20,7 @@ if (!window.textureDebuggerState) {
         renderer: null,
         controls: null,
         cube: null,
+        model: null,
         
         // Texture files (File objects)
         textureFiles: {
@@ -34,11 +36,15 @@ if (!window.textureDebuggerState) {
             normal: null
         },
         
+        // Model file (File object)
+        modelFile: null,
+        
         // Animation ID for cancelAnimationFrame
         animationId: null,
         
         // Status flags
-        isDebugStarted: false
+        isDebugStarted: false,
+        useCustomModel: false
     };
 }
 
@@ -49,6 +55,7 @@ const state = window.textureDebuggerState;
 const baseColorDropzone = document.getElementById('basecolor-dropzone');
 const ormDropzone = document.getElementById('orm-dropzone');
 const normalDropzone = document.getElementById('normal-dropzone');
+const modelDropzone = document.getElementById('model-dropzone');
 const startButton = document.getElementById('start-debug');
 const viewport = document.getElementById('viewport');
 
@@ -56,6 +63,7 @@ const viewport = document.getElementById('viewport');
 const baseColorInfo = document.getElementById('basecolor-info');
 const ormInfo = document.getElementById('orm-info');
 const normalInfo = document.getElementById('normal-info');
+const modelInfo = document.getElementById('model-info');
 
 // Preview elements
 const baseColorPreview = document.getElementById('basecolor-preview');
@@ -63,7 +71,7 @@ const ormPreview = document.getElementById('orm-preview');
 const normalPreview = document.getElementById('normal-preview');
 
 // Setup event listeners for drag and drop
-function setupDropzone(dropzone, textureType, infoElement, previewElement) {
+function setupDropzone(dropzone, fileType, infoElement, previewElement) {
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropzone.addEventListener(eventName, preventDefaults, false);
@@ -85,8 +93,16 @@ function setupDropzone(dropzone, textureType, infoElement, previewElement) {
     // Handle dropped files
     dropzone.addEventListener('drop', event => {
         const file = event.dataTransfer.files[0];
-        if (file && file.type.startsWith('image/')) {
-            handleFileUpload(file, textureType, infoElement, previewElement, dropzone);
+        if (fileType === 'model') {
+            if (file && file.name.toLowerCase().endsWith('.glb')) {
+                handleModelUpload(file, infoElement, dropzone);
+            } else {
+                alert('Please upload a GLB file for the model');
+            }
+        } else {
+            if (file && file.type.startsWith('image/')) {
+                handleTextureUpload(file, fileType, infoElement, previewElement, dropzone);
+            }
         }
     }, false);
 
@@ -94,14 +110,28 @@ function setupDropzone(dropzone, textureType, infoElement, previewElement) {
     dropzone.addEventListener('click', () => {
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = 'image/*';
         
-        input.onchange = e => {
-            const file = e.target.files[0];
-            if (file) {
-                handleFileUpload(file, textureType, infoElement, previewElement, dropzone);
-            }
-        };
+        if (fileType === 'model') {
+            input.accept = '.glb';
+            
+            input.onchange = e => {
+                const file = e.target.files[0];
+                if (file && file.name.toLowerCase().endsWith('.glb')) {
+                    handleModelUpload(file, infoElement, dropzone);
+                } else {
+                    alert('Please upload a GLB file for the model');
+                }
+            };
+        } else {
+            input.accept = 'image/*';
+            
+            input.onchange = e => {
+                const file = e.target.files[0];
+                if (file) {
+                    handleTextureUpload(file, fileType, infoElement, previewElement, dropzone);
+                }
+            };
+        }
         
         input.click();
     });
@@ -113,8 +143,8 @@ function preventDefaults(e) {
     e.stopPropagation();
 }
 
-// Handle file upload
-function handleFileUpload(file, textureType, infoElement, previewElement, dropzone) {
+// Handle texture file upload
+function handleTextureUpload(file, textureType, infoElement, previewElement, dropzone) {
     // Store the file in the state
     state.textureFiles[textureType] = file;
     
@@ -151,6 +181,24 @@ function handleFileUpload(file, textureType, infoElement, previewElement, dropzo
     reader.readAsDataURL(file);
 }
 
+// Handle model file upload
+function handleModelUpload(file, infoElement, dropzone) {
+    // Store the file in the state
+    state.modelFile = file;
+    state.useCustomModel = true;
+    
+    // Show file info
+    infoElement.textContent = `${file.name} (${formatFileSize(file.size)})`;
+    
+    // Mark dropzone as having a file
+    dropzone.classList.add('has-file');
+    
+    // No need for a preview for the model file
+    
+    // Check if all required textures are loaded to enable the start button
+    checkStartButton();
+}
+
 // Format file size for display
 function formatFileSize(bytes) {
     if (bytes < 1024) return bytes + ' bytes';
@@ -158,7 +206,7 @@ function formatFileSize(bytes) {
     else return (bytes / 1048576).toFixed(1) + ' MB';
 }
 
-// Check if all textures are loaded and enable start button if they are
+// Check if all required textures are loaded and enable start button if they are
 function checkStartButton() {
     if (state.textureObjects.baseColor && 
         state.textureObjects.orm && 
@@ -169,6 +217,12 @@ function checkStartButton() {
 
 // Initialize Three.js scene
 function initScene() {
+    // Make the viewport visible first, before creating the renderer
+    viewport.style.display = 'block';
+    
+    // Force a reflow to ensure dimensions are calculated correctly
+    void viewport.offsetWidth;
+    
     // Create scene
     state.scene = new THREE.Scene();
     
@@ -189,7 +243,6 @@ function initScene() {
     // Clear viewport and add renderer
     viewport.innerHTML = '';
     viewport.appendChild(state.renderer.domElement);
-    viewport.style.display = 'block';
     
     // Create orbit controls
     state.controls = new OrbitControls(state.camera, state.renderer.domElement);
@@ -203,24 +256,97 @@ function initScene() {
     directionalLight.position.set(5, 5, 5);
     state.scene.add(directionalLight);
     
-    // Create cube with the textures
-    createCube();
+    // Create 3D object based on whether a model was uploaded
+    if (state.useCustomModel && state.modelFile) {
+        loadAndSetupModel();
+    } else {
+        createCube();
+    }
     
     // Start animation loop
     animate();
     
     // Handle window resize
     window.addEventListener('resize', onWindowResize);
+    
+    // Force a resize event to ensure everything renders correctly
+    window.dispatchEvent(new Event('resize'));
+    
+    // Render once immediately to ensure content is visible
+    if (state.renderer && state.scene && state.camera) {
+        state.renderer.render(state.scene, state.camera);
+    }
 }
 
-// Create cube with textures
+// Load and setup the custom model
+function loadAndSetupModel() {
+    // Convert the File to a URL
+    const modelUrl = URL.createObjectURL(state.modelFile);
+    
+    // Create GLTFLoader
+    const loader = new GLTFLoader();
+    
+    // Load the model
+    loader.load(
+        modelUrl,
+        (gltf) => {
+            // Handle successful load
+            state.model = gltf.scene;
+            
+            // Apply textures to the model
+            state.model.traverse((child) => {
+                if (child.isMesh) {
+                    // Apply same material to all meshes in the model
+                    child.material = createMaterial();
+                    
+                    // Create UV2 for aoMap if it doesn't exist
+                    if (!child.geometry.attributes.uv2) {
+                        child.geometry.attributes.uv2 = child.geometry.attributes.uv;
+                    }
+                }
+            });
+            
+            // Add the model to the scene
+            state.scene.add(state.model);
+            
+            // Adjust camera position based on model size
+            fitCameraToObject(state.camera, state.model, state.controls);
+            
+            // Revoke URL to free memory
+            URL.revokeObjectURL(modelUrl);
+        },
+        (xhr) => {
+            // Handle progress
+            console.log(`${(xhr.loaded / xhr.total) * 100}% loaded`);
+        },
+        (error) => {
+            // Handle error
+            console.error('Error loading model:', error);
+            
+            // Fallback to cube if model loading fails
+            console.log('Falling back to cube model');
+            createCube();
+        }
+    );
+}
+
+// Create a cube with textures
 function createCube() {
     // Create cube geometry with UV2 for aoMap
     const geometry = new THREE.BoxGeometry(1, 1, 1);
     geometry.attributes.uv2 = geometry.attributes.uv;
     
-    // Create standard material with the loaded textures
-    const material = new THREE.MeshStandardMaterial({
+    // Create material with the loaded textures
+    const material = createMaterial();
+    
+    // Create mesh and add to scene
+    state.cube = new THREE.Mesh(geometry, material);
+    state.scene.add(state.cube);
+}
+
+// Create a standard material with the loaded textures
+function createMaterial() {
+    return new THREE.MeshStandardMaterial({
         map: state.textureObjects.baseColor,
         normalMap: state.textureObjects.normal,
         aoMap: state.textureObjects.orm,
@@ -229,17 +355,32 @@ function createCube() {
         roughness: 1.0,
         metalness: 1.0
     });
+}
+
+// Fit camera to object
+function fitCameraToObject(camera, object, controls, offset = 1.5) {
+    const boundingBox = new THREE.Box3().setFromObject(object);
+    const center = boundingBox.getCenter(new THREE.Vector3());
+    const size = boundingBox.getSize(new THREE.Vector3());
     
-    // Create mesh and add to scene
-    state.cube = new THREE.Mesh(geometry, material);
-    state.scene.add(state.cube);
+    // Get the max side of the bounding box
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fov = camera.fov * (Math.PI / 180);
+    const cameraZ = Math.abs(maxDim / Math.sin(fov / 2)) * offset;
+    
+    // Update camera position
+    camera.position.z = cameraZ;
+    
+    // Update the target of the controls
+    controls.target = center;
+    controls.update();
 }
 
 // Animation loop
 function animate() {
     state.animationId = requestAnimationFrame(animate);
     
-    // Rotate the cube
+    // Rotate the cube if it exists
     if (state.cube) {
         state.cube.rotation.y += 0.01;
     }
@@ -266,6 +407,7 @@ function init() {
     setupDropzone(baseColorDropzone, 'baseColor', baseColorInfo, baseColorPreview);
     setupDropzone(ormDropzone, 'orm', ormInfo, ormPreview);
     setupDropzone(normalDropzone, 'normal', normalInfo, normalPreview);
+    setupDropzone(modelDropzone, 'model', modelInfo, null);
     
     // Setup start button
     startButton.addEventListener('click', () => {
