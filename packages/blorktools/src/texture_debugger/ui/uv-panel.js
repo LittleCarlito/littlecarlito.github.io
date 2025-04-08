@@ -15,6 +15,7 @@ let uvScaleW = null;
 let uvScaleH = null;
 let uvPredefinedSegments = null;
 let controlsInitialized = false;
+let uvChannelSelectContainer = null;
 
 /**
  * Initialize the UV panel and cache DOM elements
@@ -65,6 +66,9 @@ export function updateUvPanel() {
     // Analyze UV sets in the model
     analyzeUvSets();
     
+    // Identify display/screen meshes
+    identifyScreenMeshes();
+    
     // If we have UV data, show controls and update info
     if (state.availableUvSets.length > 0) {
         if (uvManualControls) uvManualControls.style.display = 'block';
@@ -84,6 +88,9 @@ export function updateUvPanel() {
             `;
         }
     }
+    
+    // Update or create UV channel selector for display meshes if needed
+    updateUvChannelSelector();
 }
 
 /**
@@ -138,6 +145,243 @@ function analyzeUvSets() {
         availableSets.length > 0) {
         updateState('currentUvSet', 0);
     }
+    
+    // Analyze and collect detailed UV mapping info for each channel
+    const uvMappingInfo = {};
+    availableSets.forEach(uvChannel => {
+        const info = {
+            mappingType: 'Standard',
+            textureUsage: 'Full Texture',
+            meshes: [],
+            minU: 1, maxU: 0,
+            minV: 1, maxV: 0,
+            sampleUVs: null,
+            sampleMesh: null
+        };
+        
+        // Find all meshes using this UV channel
+        state.meshes.forEach(mesh => {
+            if (mesh.geometry && mesh.geometry.attributes && mesh.geometry.attributes[uvChannel]) {
+                info.meshes.push(mesh);
+                
+                // Use this as a sample mesh if we don't have one yet
+                if (!info.sampleMesh) {
+                    info.sampleMesh = mesh;
+                    
+                    // Calculate UV min/max range
+                    const uvAttr = mesh.geometry.attributes[uvChannel];
+                    for (let i = 0; i < uvAttr.count; i++) {
+                        const u = uvAttr.getX(i);
+                        const v = uvAttr.getY(i);
+                        info.minU = Math.min(info.minU, u);
+                        info.minV = Math.min(info.minV, v);
+                        info.maxU = Math.max(info.maxU, u);
+                        info.maxV = Math.max(info.maxV, v);
+                    }
+                }
+            }
+        });
+        
+        // Determine mapping type based on UV range
+        if (info.minU < 0 || info.maxU > 1 || info.minV < 0 || info.maxV > 1) {
+            info.mappingType = 'Extended Range';
+        }
+        
+        // If we have a good sample of UVs, calculate texture usage
+        if (info.maxU - info.minU < 0.5 || info.maxV - info.minV < 0.5) {
+            info.textureUsage = 'Partial (Atlas Segment)';
+        }
+        
+        uvMappingInfo[uvChannel] = info;
+    });
+    
+    updateState('uvMappingInfo', uvMappingInfo);
+}
+
+/**
+ * Identify screen/display meshes in the model
+ */
+function identifyScreenMeshes() {
+    const state = getState();
+    
+    // Return if no meshes
+    if (!state.meshes || state.meshes.length === 0) {
+        updateState('screenMeshes', []);
+        return;
+    }
+    
+    // Find meshes with names that look like displays
+    const screenRegex = /display|screen|monitor|lcd|led|panel|tv/i;
+    const screenMeshes = state.meshes.filter(mesh => 
+        mesh.name && screenRegex.test(mesh.name)
+    );
+    
+    // Update state
+    updateState('screenMeshes', screenMeshes);
+    
+    console.log(`Found ${screenMeshes.length} screen/display meshes:`, 
+        screenMeshes.map(m => m.name));
+}
+
+/**
+ * Update the UV channel selector for display meshes
+ */
+function updateUvChannelSelector() {
+    const state = getState();
+    
+    // Don't show selector if no display meshes or no UV channels
+    if (!state.screenMeshes || state.screenMeshes.length === 0 || 
+        !state.availableUvSets || state.availableUvSets.length === 0) {
+        if (uvChannelSelectContainer) {
+            uvChannelSelectContainer.style.display = 'none';
+        }
+        return;
+    }
+    
+    // Create container if it doesn't exist
+    if (!uvChannelSelectContainer) {
+        uvChannelSelectContainer = document.createElement('div');
+        uvChannelSelectContainer.id = 'uv-channel-select-container';
+        uvChannelSelectContainer.className = 'uv-control-group';
+        uvChannelSelectContainer.style.marginBottom = '15px';
+        uvChannelSelectContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
+        uvChannelSelectContainer.style.padding = '10px';
+        uvChannelSelectContainer.style.borderRadius = '5px';
+        
+        const title = document.createElement('label');
+        title.textContent = 'Display Mesh UV Channel:';
+        title.style.display = 'block';
+        title.style.marginBottom = '5px';
+        title.style.fontWeight = 'bold';
+        title.style.color = '#f1c40f';
+        uvChannelSelectContainer.appendChild(title);
+        
+        const description = document.createElement('div');
+        description.textContent = 'Select UV channel for display meshes';
+        description.style.fontSize = '11px';
+        description.style.color = '#bbb';
+        description.style.marginBottom = '10px';
+        uvChannelSelectContainer.appendChild(description);
+        
+        // Create the dropdown
+        const select = document.createElement('select');
+        select.id = 'display-uv-channel-select';
+        select.style.width = '100%';
+        select.style.padding = '5px';
+        select.style.backgroundColor = '#333';
+        select.style.border = '1px solid #555';
+        select.style.borderRadius = '3px';
+        select.style.color = 'white';
+        
+        // Add event listener
+        select.addEventListener('change', function() {
+            switchUvChannelForDisplays(this.value);
+        });
+        
+        uvChannelSelectContainer.appendChild(select);
+        
+        // Show count of display meshes
+        const screenCount = document.createElement('div');
+        screenCount.id = 'screen-mesh-count';
+        screenCount.style.marginTop = '5px';
+        screenCount.style.fontSize = '11px';
+        screenCount.style.color = '#3498db';
+        uvChannelSelectContainer.appendChild(screenCount);
+        
+        // Add to UV panel container
+        if (uvManualControls && uvManualControls.parentNode) {
+            uvManualControls.parentNode.insertBefore(uvChannelSelectContainer, uvManualControls);
+        }
+    }
+    
+    // Update dropdown options
+    const select = document.getElementById('display-uv-channel-select');
+    if (select) {
+        // Clear existing options
+        select.innerHTML = '';
+        
+        // Add options for each UV set
+        state.availableUvSets.forEach((uvSet, index) => {
+            const option = document.createElement('option');
+            option.value = uvSet;
+            option.textContent = state.uvSetNames[index];
+            select.appendChild(option);
+        });
+        
+        // Set default selection to match current UV set
+        if (state.currentUvSet !== undefined && state.availableUvSets[state.currentUvSet]) {
+            select.value = state.availableUvSets[state.currentUvSet];
+        }
+    }
+    
+    // Update screen mesh count
+    const screenCount = document.getElementById('screen-mesh-count');
+    if (screenCount) {
+        screenCount.textContent = `Found ${state.screenMeshes.length} display/screen meshes`;
+    }
+    
+    // Show the container
+    uvChannelSelectContainer.style.display = 'block';
+}
+
+/**
+ * Switch UV channel for all display meshes
+ * @param {string} uvChannel - The UV channel to switch to
+ */
+function switchUvChannelForDisplays(uvChannel) {
+    const state = getState();
+    
+    if (!state.screenMeshes || state.screenMeshes.length === 0) {
+        console.warn('No display meshes to update');
+        return;
+    }
+    
+    console.log(`Switching ${state.screenMeshes.length} display meshes to UV channel: ${uvChannel}`);
+    
+    state.screenMeshes.forEach(mesh => {
+        // Skip if mesh doesn't have this UV channel
+        if (!mesh.geometry || !mesh.geometry.attributes || !mesh.geometry.attributes[uvChannel]) {
+            console.warn(`Mesh ${mesh.name} doesn't have UV channel ${uvChannel}`);
+            return;
+        }
+        
+        // Get the UV attribute
+        const uvAttribute = mesh.geometry.attributes[uvChannel];
+        
+        // Skip if mesh doesn't have a material
+        if (!mesh.material) {
+            console.warn(`Mesh ${mesh.name} doesn't have a material`);
+            return;
+        }
+        
+        // If mesh has material array, update all materials
+        if (Array.isArray(mesh.material)) {
+            mesh.material.forEach(mat => {
+                if (mat.map) {
+                    mat.map.needsUpdate = true;
+                }
+                mat.needsUpdate = true;
+            });
+        } else {
+            // Update textures
+            if (mesh.material.map) {
+                mesh.material.map.needsUpdate = true;
+            }
+            mesh.material.needsUpdate = true;
+        }
+        
+        // Update mesh with new UV channel
+        mesh.geometry.setAttribute('uv', uvAttribute);
+        mesh.geometry.attributes.uv.needsUpdate = true;
+    });
+    
+    // Register the function for switching UV channels
+    if (!state.switchUvChannel) {
+        updateState('switchUvChannel', switchUvChannelForDisplays);
+    }
+    
+    // Update UV info
+    updateUvInfo();
 }
 
 /**
@@ -155,6 +399,15 @@ function updateUvInfo() {
     // Build HTML content
     let content = '<div style="color: #f1c40f; font-weight: bold;">UV Channel Info:</div>';
     content += `<div>Channel Name: <span style="color: #3498db">${currentSetName}</span></div>`;
+    
+    // Add display mesh info if available
+    const displayMeshesWithUv = state.screenMeshes.filter(mesh => 
+        mesh.geometry && mesh.geometry.attributes && 
+        mesh.geometry.attributes[currentSetName]);
+        
+    if (displayMeshesWithUv.length > 0) {
+        content += `<div style="margin-top: 5px; color: #e74c3c;">Display Meshes: <span style="color: white">${displayMeshesWithUv.length}</span></div>`;
+    }
     
     // Get a sample mesh that has this UV set
     const sampleMesh = state.meshes.find(mesh => 
@@ -225,7 +478,8 @@ function setupUvControls() {
         { name: 'Middle-left ninth (1/3×1/3)', u: 0, v: 0.33, w: 0.33, h: 0.33 }
     ];
     
-    // Populate predefined segments dropdown
+    // Clear and populate predefined segments dropdown
+    uvPredefinedSegments.innerHTML = '';
     segments.forEach((segment, index) => {
         const option = document.createElement('option');
         option.value = index;
@@ -251,8 +505,10 @@ function setupUvControls() {
         
         const state = getState();
         
-        // Apply mapping to all meshes
-        state.meshes.forEach(mesh => {
+        // Apply mapping to all meshes (or just display meshes if available)
+        const targetMeshes = state.screenMeshes.length > 0 ? state.screenMeshes : state.meshes;
+        
+        targetMeshes.forEach(mesh => {
             if (mesh.material) {
                 // Apply to all texture maps
                 const textureMaps = ['map', 'normalMap', 'aoMap', 'roughnessMap', 'metalnessMap', 'alphaMap'];
@@ -271,6 +527,13 @@ function setupUvControls() {
         
         // Update the current UV region for visualization
         updateUvRegion([offsetX, offsetY], [offsetX + scaleW, offsetY + scaleH]);
+        
+        // Update our state function
+        if (!state.setCurrentUvRegion) {
+            updateState('setCurrentUvRegion', (min, max) => {
+                updateUvRegion(min, max);
+            });
+        }
     };
     
     // Set up event listeners
@@ -293,11 +556,28 @@ function setupUvControls() {
         applyMapping();
     });
     
-    // Initialize with full texture
+    // Initialize values
     uvOffsetX.value = 0;
     uvOffsetY.value = 0;
     uvScaleW.value = 1;
     uvScaleH.value = 1;
+    
+    // Create atlas segment cycle function
+    const state = getState();
+    const cycleAtlasSegments = () => {
+        // Get the current segment index
+        let currentIndex = parseInt(uvPredefinedSegments.value);
+        // Move to the next segment
+        currentIndex = (currentIndex + 1) % segments.length;
+        // Update the dropdown
+        uvPredefinedSegments.value = currentIndex;
+        // Trigger the change
+        const event = new Event('change');
+        uvPredefinedSegments.dispatchEvent(event);
+    };
+    
+    // Register the function in the state
+    updateState('cycleAtlasSegments', cycleAtlasSegments);
 }
 
 export default {
