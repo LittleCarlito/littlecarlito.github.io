@@ -5,13 +5,27 @@
  * for use in other parts of the application or external imports.
  */
 
-// Import and re-export the init function
-import { init } from './texture_debugger.js';
+// Import and re-export the init function from the main module
+import { init } from './main.js';
 
-// Export the init function as the primary API
-export { init };
+// Prevent default drag-and-drop behavior for the entire document
+function preventDefaultDragBehavior() {
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        document.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
+    });
+}
 
-// Default export for convenience
-export default {
-    init
-}; 
+// Initialize the application
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Texture Debugger: Index loaded');
+    // Prevent browser default drag-and-drop behavior
+    preventDefaultDragBehavior();
+    // Initialize the texture debugger
+    init();
+});
+
+// Export for backward compatibility
+export default init; 
