@@ -79,14 +79,17 @@ document.addEventListener('textureLoaded', (event) => {
 	console.log('Updating atlas visualization with texture');
 	updateAtlasVisualization(state);
 	
+	// REMOVED AUTO-APPLICATION: This was causing textures to be applied automatically
+	// We now only apply textures when "Start debugging" is explicitly pressed
 	// If we have a model loaded, reapply all textures
-	if (state.modelObject) {
-		console.log('Model is loaded - applying all available textures');
-		// Import dynamically to avoid circular dependencies
-		import('./materials/textureManager.js').then(module => {
-			module.applyTextureToModel(state);
-		});
-	}
+	// if (state.modelObject) {
+	//     console.log('Model is loaded - applying all available textures');
+	//     // Import dynamically to avoid circular dependencies
+	//     import('./materials/textureManager.js').then(module => {
+	//         module.applyTextureToModel(state);
+	//     });
+	// }
+	console.log('Texture loaded - WAITING for Start Debugging button to apply textures');
 	
 	// Update debug panel's texture info via global function if available
 	if (state.updateTextureInfo) {

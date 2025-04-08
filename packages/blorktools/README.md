@@ -127,6 +127,26 @@ The Material Workshop aids in creating and optimizing materials:
   - Environment map testing
   - Material performance analysis
 
+### Texture Debugger
+
+<p align="center">
+  <img src="https://via.placeholder.com/600x300?text=Texture+Debugger+Screenshot" alt="Texture Debugger" width="600"/>
+</p>
+
+The Texture Debugger helps test and debug PBR texture sets:
+
+- **Atlas Texture Testing**
+  - Drag and drop interface for quick testing
+  - Support for Base Color, ORM, and Normal map atlases
+  - Real-time rendering on 3D cube for validation
+  - Orbit controls for easy inspection
+
+- **Material Visualization**
+  - PBR material visualization with proper lighting
+  - Individual channel inspection
+  - Texture resolution and quality assessment
+  - Format compatibility testing
+
 ## Usage
 
 ### As a Development Tool

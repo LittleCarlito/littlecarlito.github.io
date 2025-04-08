@@ -53,8 +53,8 @@ export function createTextureEditor(state) {
 					console.log('Restored original UV data for mesh', node.name || 'unnamed');
 				}
 			});
-			// Revert to single texture mode
-			applyTextureToModel(state);
+			// Don't automatically apply textures - wait for Start Debugging button
+			console.log('Switched to single texture mode - waiting for Start Debugging to apply textures');
 		} 
 		// If turning on multi-texture mode and there are additional textures, apply them
 		else if (state.multiTextureMode && state.additionalTextures && state.additionalTextures.length > 0) {

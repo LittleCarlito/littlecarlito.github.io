@@ -63,8 +63,8 @@ export async function loadModel(state, file) {
 				
 				// Set texture if already loaded
 				if (state.textureObject) {
-					console.log('Texture already loaded, applying to model');
-					applyTextureToModel(state);
+					console.log('Texture already loaded, but NOT auto-applying to model');
+					console.log('Textures will be applied only when Start Debugging is pressed');
 				}
 				
 				// Dispatch model loaded event
@@ -197,10 +197,10 @@ export function loadNumberAtlasTexture(state) {
 	
 	// Apply to model if it's loaded
 	if (state.modelObject) {
-		console.log('Model already loaded, applying texture to model');
-		applyTextureToModel(state);
+		console.log('Model already loaded, but NOT auto-applying texture');
+		console.log('Textures will be applied only when Start Debugging is pressed');
 	} else {
-		console.log('No model loaded yet, texture will be applied when model loads');
+		console.log('No model loaded yet, texture will be stored for later application');
 	}
 	
 	console.log('Dispatching textureLoaded event for procedural texture');
