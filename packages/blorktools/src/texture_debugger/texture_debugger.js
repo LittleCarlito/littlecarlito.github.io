@@ -173,10 +173,19 @@ function handleTextureUpload(file, textureType, infoElement, previewElement, dro
         
         // Create a texture object
         const texture = new THREE.TextureLoader().load(e.target.result);
-        texture.encoding = textureType === 'baseColor' 
-            ? THREE.sRGBEncoding 
-            : THREE.LinearEncoding;
-            
+        
+        // Set texture parameters based on type
+        if (textureType === 'baseColor') {
+            texture.encoding = THREE.sRGBEncoding;
+        } else {
+            texture.encoding = THREE.LinearEncoding;
+        }
+        
+        // Common texture settings for all types
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.flipY = false; // Don't flip Y for GLB compatibility
+        
         // Store the texture
         state.textureObjects[textureType] = texture;
         
@@ -311,13 +320,53 @@ function loadAndSetupModel() {
                     // Add to meshes array
                     state.meshes.push(child);
                     
-                    // Apply same material to all meshes in the model
-                    child.material = createMaterial();
+                    // Store original material properties we want to preserve
+                    const originalMaterial = child.material;
+                    
+                    // Create new material instance for this mesh, preserving UV transformations
+                    const newMaterial = createMaterial();
+                    
+                    // Preserve important properties from the original material
+                    if (originalMaterial) {
+                        // Preserve UV transformations
+                        if (originalMaterial.map) {
+                            newMaterial.map.matrix = originalMaterial.map ? originalMaterial.map.matrix.clone() : new THREE.Matrix3();
+                            newMaterial.map.offset.copy(originalMaterial.map.offset || new THREE.Vector2());
+                            newMaterial.map.repeat.copy(originalMaterial.map.repeat || new THREE.Vector2(1, 1));
+                            newMaterial.map.rotation = originalMaterial.map.rotation || 0;
+                            newMaterial.map.center.copy(originalMaterial.map.center || new THREE.Vector2());
+                            newMaterial.map.flipY = originalMaterial.map ? originalMaterial.map.flipY : true;
+                        }
+                        
+                        // Apply same transformations to all texture maps
+                        const applyUVTransform = (targetMap, sourceMap) => {
+                            if (sourceMap && targetMap) {
+                                targetMap.offset.copy(sourceMap.offset || new THREE.Vector2());
+                                targetMap.repeat.copy(sourceMap.repeat || new THREE.Vector2(1, 1));
+                                targetMap.rotation = sourceMap.rotation || 0;
+                                targetMap.center.copy(sourceMap.center || new THREE.Vector2());
+                                targetMap.flipY = sourceMap.flipY;
+                                targetMap.matrix = sourceMap.matrix ? sourceMap.matrix.clone() : new THREE.Matrix3();
+                            }
+                        };
+                        
+                        // Apply transformations to all maps
+                        const sourceMap = originalMaterial.map;
+                        if (sourceMap) {
+                            applyUVTransform(newMaterial.normalMap, sourceMap);
+                            applyUVTransform(newMaterial.aoMap, sourceMap);
+                            applyUVTransform(newMaterial.roughnessMap, sourceMap);
+                            applyUVTransform(newMaterial.metalnessMap, sourceMap);
+                        }
+                    }
                     
                     // Create UV2 for aoMap if it doesn't exist
-                    if (!child.geometry.attributes.uv2) {
-                        child.geometry.attributes.uv2 = child.geometry.attributes.uv;
+                    if (!child.geometry.attributes.uv2 && child.geometry.attributes.uv) {
+                        child.geometry.setAttribute('uv2', child.geometry.attributes.uv.clone());
                     }
+                    
+                    // Apply the new material
+                    child.material = newMaterial;
                 }
             });
             
@@ -377,6 +426,26 @@ function createCube() {
 
 // Create a standard material with the loaded textures
 function createMaterial() {
+    // Set proper texture parameters for all textures
+    if (state.textureObjects.baseColor) {
+        state.textureObjects.baseColor.encoding = THREE.sRGBEncoding;
+        state.textureObjects.baseColor.wrapS = THREE.RepeatWrapping;
+        state.textureObjects.baseColor.wrapT = THREE.RepeatWrapping;
+    }
+    
+    if (state.textureObjects.normal) {
+        state.textureObjects.normal.encoding = THREE.LinearEncoding;
+        state.textureObjects.normal.wrapS = THREE.RepeatWrapping;
+        state.textureObjects.normal.wrapT = THREE.RepeatWrapping;
+    }
+    
+    if (state.textureObjects.orm) {
+        state.textureObjects.orm.encoding = THREE.LinearEncoding;
+        state.textureObjects.orm.wrapS = THREE.RepeatWrapping;
+        state.textureObjects.orm.wrapT = THREE.RepeatWrapping;
+    }
+    
+    // Create material with properly configured textures
     return new THREE.MeshStandardMaterial({
         map: state.textureObjects.baseColor,
         normalMap: state.textureObjects.normal,
@@ -384,7 +453,8 @@ function createMaterial() {
         roughnessMap: state.textureObjects.orm,
         metalnessMap: state.textureObjects.orm,
         roughness: 1.0,
-        metalness: 1.0
+        metalness: 1.0,
+        normalScale: new THREE.Vector2(1, 1)
     });
 }
 
