@@ -149,6 +149,94 @@
             border-radius: 4px;
             overflow: hidden;
         }
+        
+        /* View layout with panel */
+        .view-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .view-panel {
+            flex: 1;
+        }
+        
+        .mesh-panel {
+            flex: 0 0 300px;
+            background-color: var(--panel-bg);
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 15px;
+            max-height: 600px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .mesh-panel h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .mesh-group {
+            margin-bottom: 15px;
+        }
+        
+        .mesh-group-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            cursor: pointer;
+            padding: 5px;
+            background-color: rgba(0,0,0,0.03);
+            border-radius: 3px;
+        }
+        
+        .mesh-group-header:hover {
+            background-color: rgba(0,0,0,0.06);
+        }
+        
+        .mesh-group-toggle {
+            margin-right: 5px;
+        }
+        
+        .mesh-group-name {
+            font-weight: bold;
+            flex-grow: 1;
+        }
+        
+        .mesh-group-count {
+            color: #888;
+            font-size: 12px;
+        }
+        
+        .mesh-items {
+            margin-left: 20px;
+        }
+        
+        .mesh-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 3px;
+            padding: 3px;
+            border-radius: 3px;
+        }
+        
+        .mesh-item:hover {
+            background-color: rgba(0,0,0,0.03);
+        }
+        
+        .mesh-toggle {
+            margin-right: 5px;
+        }
+        
+        .mesh-name {
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
     </style>
 </head>
 <body>
@@ -195,7 +283,15 @@
             <button id="start-debug" class="start-button" disabled>Start Debugging</button>
         </div>
         
-        <div id="viewport"></div>
+        <div class="view-container">
+            <div class="view-panel">
+                <div id="viewport"></div>
+            </div>
+            <div id="mesh-panel" class="mesh-panel">
+                <h3>Mesh Visibility</h3>
+                <div id="mesh-groups"></div>
+            </div>
+        </div>
     </div>
     
     <script type="module" src="texture_debugger.js"></script>

@@ -42,6 +42,10 @@ if (!window.textureDebuggerState) {
         // Animation ID for cancelAnimationFrame
         animationId: null,
         
+        // Mesh management
+        meshes: [],
+        meshGroups: {},
+        
         // Status flags
         isDebugStarted: false,
         useCustomModel: false
@@ -58,6 +62,8 @@ const normalDropzone = document.getElementById('normal-dropzone');
 const modelDropzone = document.getElementById('model-dropzone');
 const startButton = document.getElementById('start-debug');
 const viewport = document.getElementById('viewport');
+const meshPanel = document.getElementById('mesh-panel');
+const meshGroupsContainer = document.getElementById('mesh-groups');
 
 // File info elements
 const baseColorInfo = document.getElementById('basecolor-info');
@@ -220,6 +226,9 @@ function initScene() {
     // Make the viewport visible first, before creating the renderer
     viewport.style.display = 'block';
     
+    // Make mesh panel visible as it will be populated later
+    meshPanel.style.display = 'block';
+    
     // Force a reflow to ensure dimensions are calculated correctly
     void viewport.offsetWidth;
     
@@ -293,9 +302,15 @@ function loadAndSetupModel() {
             // Handle successful load
             state.model = gltf.scene;
             
-            // Apply textures to the model
+            // Clear previous meshes array
+            state.meshes = [];
+            
+            // Apply textures to the model and collect meshes
             state.model.traverse((child) => {
                 if (child.isMesh) {
+                    // Add to meshes array
+                    state.meshes.push(child);
+                    
                     // Apply same material to all meshes in the model
                     child.material = createMaterial();
                     
@@ -314,6 +329,12 @@ function loadAndSetupModel() {
             
             // Revoke URL to free memory
             URL.revokeObjectURL(modelUrl);
+            
+            // Set up mesh visibility panel
+            createMeshVisibilityPanel();
+            
+            // Show the mesh panel
+            meshPanel.style.display = 'block';
         },
         (xhr) => {
             // Handle progress
@@ -341,7 +362,17 @@ function createCube() {
     
     // Create mesh and add to scene
     state.cube = new THREE.Mesh(geometry, material);
+    state.cube.name = "Cube";
     state.scene.add(state.cube);
+    
+    // Add to meshes array for visibility control
+    state.meshes = [state.cube];
+    
+    // Set up mesh visibility panel
+    createMeshVisibilityPanel();
+    
+    // Show the mesh panel
+    meshPanel.style.display = 'block';
 }
 
 // Create a standard material with the loaded textures
@@ -433,4 +464,185 @@ document.addEventListener('DOMContentLoaded', init);
 // Export functions for external use
 export {
     init
-}; 
+};
+
+// Create mesh visibility panel
+function createMeshVisibilityPanel() {
+    // Organize meshes into groups based on name prefixes
+    groupMeshesByName();
+    
+    // Clear previous content
+    meshGroupsContainer.innerHTML = '';
+    
+    // Create elements for each mesh group
+    for (const groupName in state.meshGroups) {
+        const groupMeshes = state.meshGroups[groupName];
+        
+        // Create group container
+        const groupDiv = document.createElement('div');
+        groupDiv.className = 'mesh-group';
+        
+        // Create group header
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'mesh-group-header';
+        
+        // Create group toggle checkbox
+        const groupToggle = document.createElement('input');
+        groupToggle.type = 'checkbox';
+        groupToggle.className = 'mesh-group-toggle';
+        groupToggle.checked = true;
+        groupToggle.dataset.group = groupName;
+        
+        // Add event listener for group toggle
+        groupToggle.addEventListener('change', (e) => {
+            const isVisible = e.target.checked;
+            toggleMeshGroupVisibility(groupName, isVisible);
+            
+            // Update individual mesh checkboxes
+            const meshToggles = groupDiv.querySelectorAll('.mesh-toggle');
+            meshToggles.forEach(toggle => {
+                toggle.checked = isVisible;
+            });
+        });
+        
+        // Create group name element
+        const groupNameSpan = document.createElement('span');
+        groupNameSpan.className = 'mesh-group-name';
+        groupNameSpan.textContent = groupName;
+        
+        // Create group count element
+        const groupCountSpan = document.createElement('span');
+        groupCountSpan.className = 'mesh-group-count';
+        groupCountSpan.textContent = `(${groupMeshes.length})`;
+        
+        // Assemble header
+        headerDiv.appendChild(groupToggle);
+        headerDiv.appendChild(groupNameSpan);
+        headerDiv.appendChild(groupCountSpan);
+        
+        // Create container for mesh items
+        const meshItemsDiv = document.createElement('div');
+        meshItemsDiv.className = 'mesh-items';
+        
+        // Create elements for each mesh in the group
+        groupMeshes.forEach(mesh => {
+            const meshDiv = document.createElement('div');
+            meshDiv.className = 'mesh-item';
+            
+            // Create mesh toggle checkbox
+            const meshToggle = document.createElement('input');
+            meshToggle.type = 'checkbox';
+            meshToggle.className = 'mesh-toggle';
+            meshToggle.checked = mesh.visible;
+            meshToggle.dataset.meshIndex = state.meshes.indexOf(mesh);
+            
+            // Add event listener for mesh toggle
+            meshToggle.addEventListener('change', (e) => {
+                const isVisible = e.target.checked;
+                const meshIndex = parseInt(e.target.dataset.meshIndex);
+                
+                if (!isNaN(meshIndex) && meshIndex >= 0 && meshIndex < state.meshes.length) {
+                    state.meshes[meshIndex].visible = isVisible;
+                    
+                    // Update group checkbox if needed
+                    updateGroupToggleState(groupName);
+                }
+            });
+            
+            // Create mesh name element
+            const meshNameSpan = document.createElement('span');
+            meshNameSpan.className = 'mesh-name';
+            meshNameSpan.textContent = getMeshDisplayName(mesh);
+            meshNameSpan.title = mesh.name || "Unnamed mesh";
+            
+            // Assemble mesh item
+            meshDiv.appendChild(meshToggle);
+            meshDiv.appendChild(meshNameSpan);
+            
+            // Add to mesh items container
+            meshItemsDiv.appendChild(meshDiv);
+        });
+        
+        // Assemble group
+        groupDiv.appendChild(headerDiv);
+        groupDiv.appendChild(meshItemsDiv);
+        
+        // Add to groups container
+        meshGroupsContainer.appendChild(groupDiv);
+    }
+}
+
+// Group meshes by name prefix
+function groupMeshesByName() {
+    state.meshGroups = {};
+    
+    state.meshes.forEach(mesh => {
+        const groupName = getGroupName(mesh);
+        
+        if (!state.meshGroups[groupName]) {
+            state.meshGroups[groupName] = [];
+        }
+        
+        state.meshGroups[groupName].push(mesh);
+    });
+}
+
+// Get group name from mesh based on naming pattern
+function getGroupName(mesh) {
+    const name = mesh.name || 'Unnamed';
+    
+    // Common patterns to detect groups by prefixes
+    // Example patterns: "Body_part", "Head_1", "Head_2" etc.
+    const patterns = [
+        /^([^_]+)_.*$/,  // Anything before first underscore
+        /^([^.]+)\..*$/, // Anything before first period
+        /^([^0-9]+).*$/  // Anything before first number
+    ];
+    
+    for (const pattern of patterns) {
+        const match = name.match(pattern);
+        if (match && match[1]) {
+            return match[1];
+        }
+    }
+    
+    // If no pattern matches or no name, use default group
+    if (name === 'Unnamed' || name === 'Cube') {
+        return 'Default';
+    }
+    
+    // If nothing matches, use first 4 characters as group
+    return name.substring(0, 4);
+}
+
+// Get display name for mesh
+function getMeshDisplayName(mesh) {
+    return mesh.name || "Unnamed mesh";
+}
+
+// Toggle visibility of all meshes in a group
+function toggleMeshGroupVisibility(groupName, isVisible) {
+    if (state.meshGroups[groupName]) {
+        state.meshGroups[groupName].forEach(mesh => {
+            mesh.visible = isVisible;
+        });
+    }
+}
+
+// Update group toggle state based on individual mesh visibility
+function updateGroupToggleState(groupName) {
+    const groupToggle = document.querySelector(`.mesh-group-toggle[data-group="${groupName}"]`);
+    if (!groupToggle || !state.meshGroups[groupName]) return;
+    
+    // Check if all meshes in the group are visible
+    const allVisible = state.meshGroups[groupName].every(mesh => mesh.visible);
+    const anyVisible = state.meshGroups[groupName].some(mesh => mesh.visible);
+    
+    // Set the indeterminate state if some but not all are visible
+    if (anyVisible && !allVisible) {
+        groupToggle.indeterminate = true;
+    } else {
+        groupToggle.indeterminate = false;
+        groupToggle.checked = allVisible;
+    }
+} 
