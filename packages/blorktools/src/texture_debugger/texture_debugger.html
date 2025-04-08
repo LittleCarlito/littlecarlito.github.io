@@ -237,6 +237,88 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
+        
+        /* Tabs styling */
+        .tab-container {
+            flex: 0 0 300px;
+            background-color: var(--panel-bg);
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            max-height: 600px;
+            display: none;
+        }
+        
+        .tab-navigation {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            background-color: var(--panel-bg);
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        
+        .tab-button:first-child {
+            border-top-left-radius: 4px;
+        }
+        
+        .tab-button:last-child {
+            border-top-right-radius: 4px;
+        }
+        
+        .tab-button.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 15px;
+            max-height: 540px;
+            overflow-y: auto;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Atlas visualization styles */
+        .texture-type-button {
+            flex: 1;
+            margin: 0 2px;
+            padding: 5px;
+            background-color: #2c3e50;
+            border: none;
+            border-radius: 3px;
+            color: white;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .texture-type-button.active {
+            background-color: #3498db;
+            font-weight: bold;
+        }
+        
+        .atlas-canvas {
+            width: 100%;
+            border: 1px solid #444;
+            display: block;
+            max-height: 300px;
+            margin-top: 10px;
+        }
+        
+        .coords-text, .segment-info {
+            margin-top: 5px;
+            font-size: 10px;
+            color: #aaa;
+        }
     </style>
 </head>
 <body>
@@ -287,9 +369,26 @@
             <div class="view-panel">
                 <div id="viewport"></div>
             </div>
-            <div id="mesh-panel" class="mesh-panel">
-                <h3>Mesh Visibility</h3>
-                <div id="mesh-groups"></div>
+            <div id="tab-container" class="tab-container">
+                <div class="tab-navigation">
+                    <button id="mesh-tab-button" class="tab-button active">Mesh</button>
+                    <button id="atlas-tab-button" class="tab-button">Atlas</button>
+                </div>
+                <div id="mesh-tab" class="tab-content active">
+                    <h3>Mesh Visibility</h3>
+                    <div id="mesh-groups"></div>
+                </div>
+                <div id="atlas-tab" class="tab-content">
+                    <h3>Atlas Visualization</h3>
+                    <div id="texture-type-selector" class="texture-type-selector">
+                        <button data-texture-type="baseColor" class="texture-type-button active">🎨 Base Color</button>
+                        <button data-texture-type="orm" class="texture-type-button">✨ ORM</button>
+                        <button data-texture-type="normal" class="texture-type-button">🧩 Normal</button>
+                    </div>
+                    <canvas id="atlas-canvas" class="atlas-canvas" width="260" height="260"></canvas>
+                    <div id="coords-text" class="coords-text">UV coordinates: Full texture is shown</div>
+                    <div id="segment-info" class="segment-info" style="display: none;"></div>
+                </div>
             </div>
         </div>
     </div>

@@ -46,6 +46,10 @@ if (!window.textureDebuggerState) {
         meshes: [],
         meshGroups: {},
         
+        // Atlas visualization
+        currentTextureType: 'baseColor',
+        currentUvRegion: { min: [0, 0], max: [1, 1] },
+        
         // Status flags
         isDebugStarted: false,
         useCustomModel: false
@@ -62,8 +66,16 @@ const normalDropzone = document.getElementById('normal-dropzone');
 const modelDropzone = document.getElementById('model-dropzone');
 const startButton = document.getElementById('start-debug');
 const viewport = document.getElementById('viewport');
-const meshPanel = document.getElementById('mesh-panel');
+const tabContainer = document.getElementById('tab-container');
+const meshTabButton = document.getElementById('mesh-tab-button');
+const atlasTabButton = document.getElementById('atlas-tab-button');
+const meshTab = document.getElementById('mesh-tab');
+const atlasTab = document.getElementById('atlas-tab');
 const meshGroupsContainer = document.getElementById('mesh-groups');
+const atlasCanvas = document.getElementById('atlas-canvas');
+const coordsText = document.getElementById('coords-text');
+const segmentInfo = document.getElementById('segment-info');
+const textureTypeButtons = document.querySelectorAll('.texture-type-button');
 
 // File info elements
 const baseColorInfo = document.getElementById('basecolor-info');
@@ -75,6 +87,44 @@ const modelInfo = document.getElementById('model-info');
 const baseColorPreview = document.getElementById('basecolor-preview');
 const ormPreview = document.getElementById('orm-preview');
 const normalPreview = document.getElementById('normal-preview');
+
+// Setup tab switching
+function setupTabs() {
+    // Tab button click handlers
+    meshTabButton.addEventListener('click', () => {
+        // Activate mesh tab
+        meshTabButton.classList.add('active');
+        atlasTabButton.classList.remove('active');
+        meshTab.classList.add('active');
+        atlasTab.classList.remove('active');
+    });
+    
+    atlasTabButton.addEventListener('click', () => {
+        // Activate atlas tab
+        atlasTabButton.classList.add('active');
+        meshTabButton.classList.remove('active');
+        atlasTab.classList.add('active');
+        meshTab.classList.remove('active');
+        
+        // Update atlas visualization when tab is shown
+        updateAtlasVisualization();
+    });
+    
+    // Texture type button click handlers
+    textureTypeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            // Update active state
+            textureTypeButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            // Update current texture type
+            state.currentTextureType = button.dataset.textureType;
+            
+            // Update visualization
+            updateAtlasVisualization();
+        });
+    });
+}
 
 // Setup event listeners for drag and drop
 function setupDropzone(dropzone, fileType, infoElement, previewElement) {
@@ -191,6 +241,11 @@ function handleTextureUpload(file, textureType, infoElement, previewElement, dro
         
         // Check if all textures are loaded to enable the start button
         checkStartButton();
+        
+        // Update atlas visualization if atlas tab is active
+        if (atlasTab.classList.contains('active')) {
+            updateAtlasVisualization();
+        }
     };
     
     reader.readAsDataURL(file);
@@ -235,8 +290,8 @@ function initScene() {
     // Make the viewport visible first, before creating the renderer
     viewport.style.display = 'block';
     
-    // Make mesh panel visible as it will be populated later
-    meshPanel.style.display = 'block';
+    // Make tab container visible as it will be populated later
+    tabContainer.style.display = 'block';
     
     // Force a reflow to ensure dimensions are calculated correctly
     void viewport.offsetWidth;
@@ -293,6 +348,11 @@ function initScene() {
     // Render once immediately to ensure content is visible
     if (state.renderer && state.scene && state.camera) {
         state.renderer.render(state.scene, state.camera);
+    }
+    
+    // Update atlas visualization if showing
+    if (atlasTab.classList.contains('active')) {
+        updateAtlasVisualization();
     }
 }
 
@@ -382,8 +442,10 @@ function loadAndSetupModel() {
             // Set up mesh visibility panel
             createMeshVisibilityPanel();
             
-            // Show the mesh panel
-            meshPanel.style.display = 'block';
+            // Update atlas visualization if showing
+            if (atlasTab.classList.contains('active')) {
+                updateAtlasVisualization();
+            }
         },
         (xhr) => {
             // Handle progress
@@ -420,8 +482,10 @@ function createCube() {
     // Set up mesh visibility panel
     createMeshVisibilityPanel();
     
-    // Show the mesh panel
-    meshPanel.style.display = 'block';
+    // Update atlas visualization if showing
+    if (atlasTab.classList.contains('active')) {
+        updateAtlasVisualization();
+    }
 }
 
 // Create a standard material with the loaded textures
@@ -454,7 +518,8 @@ function createMaterial() {
         metalnessMap: state.textureObjects.orm,
         roughness: 1.0,
         metalness: 1.0,
-        normalScale: new THREE.Vector2(1, 1)
+        normalScale: new THREE.Vector2(1, 1),
+        side: THREE.DoubleSide // Make material double-sided
     });
 }
 
@@ -501,40 +566,6 @@ function onWindowResize() {
         state.renderer.setSize(viewport.clientWidth, viewport.clientHeight);
     }
 }
-
-// Initialize the app
-function init() {
-    // Setup dropzones
-    setupDropzone(baseColorDropzone, 'baseColor', baseColorInfo, baseColorPreview);
-    setupDropzone(ormDropzone, 'orm', ormInfo, ormPreview);
-    setupDropzone(normalDropzone, 'normal', normalInfo, normalPreview);
-    setupDropzone(modelDropzone, 'model', modelInfo, null);
-    
-    // Setup start button
-    startButton.addEventListener('click', () => {
-        if (!state.isDebugStarted) {
-            initScene();
-            state.isDebugStarted = true;
-            startButton.textContent = 'Restart Debugging';
-        } else {
-            // Clean up previous scene
-            if (state.animationId) {
-                cancelAnimationFrame(state.animationId);
-            }
-            
-            // Restart scene
-            initScene();
-        }
-    });
-}
-
-// Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', init);
-
-// Export functions for external use
-export {
-    init
-};
 
 // Create mesh visibility panel
 function createMeshVisibilityPanel() {
@@ -715,4 +746,207 @@ function updateGroupToggleState(groupName) {
         groupToggle.indeterminate = false;
         groupToggle.checked = allVisible;
     }
-} 
+}
+
+// Update the atlas visualization
+function updateAtlasVisualization() {
+    // Get the current texture type
+    const textureType = state.currentTextureType;
+    
+    // Get the texture for the current type
+    const texture = state.textureObjects[textureType];
+    
+    // Update the canvas with the texture
+    if (texture && texture.image) {
+        updateCanvasWithTexture(texture, state.currentUvRegion);
+    } else {
+        showNoTextureState();
+    }
+    
+    // Update active state of texture type buttons
+    textureTypeButtons.forEach(button => {
+        if (button.dataset.textureType === textureType) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+        
+        // Indicate which texture types have data available
+        if (state.textureObjects[button.dataset.textureType]) {
+            button.style.opacity = '1.0';
+            button.style.fontWeight = 'bold';
+        } else {
+            button.style.opacity = '0.7';
+            button.style.fontWeight = 'normal';
+        }
+    });
+}
+
+// Show "No texture loaded" message in the canvas
+function showNoTextureState() {
+    if (!atlasCanvas) return;
+    
+    const ctx = atlasCanvas.getContext('2d');
+    
+    // Clear canvas with dark background
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, 0, atlasCanvas.width, atlasCanvas.height);
+    
+    // Draw a border
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1, 1, atlasCanvas.width - 2, atlasCanvas.height - 2);
+    
+    // Draw "No texture loaded" text
+    ctx.fillStyle = '#aaa';
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('No texture loaded', atlasCanvas.width / 2, atlasCanvas.height / 2 - 15);
+    
+    // Add additional help text
+    ctx.font = '12px monospace';
+    ctx.fillText('Drag and drop a texture to view', atlasCanvas.width / 2, atlasCanvas.height / 2 + 15);
+    
+    // Update the coordinates text
+    if (coordsText) {
+        coordsText.textContent = `No ${state.currentTextureType} texture loaded. Drag and drop a texture file to view.`;
+    }
+}
+
+// Update the canvas with the texture
+function updateCanvasWithTexture(texture, currentRegion = { min: [0, 0], max: [1, 1] }) {
+    if (!atlasCanvas || !texture || !texture.image) return;
+    
+    const ctx = atlasCanvas.getContext('2d');
+    
+    // Set canvas size to match texture, with reasonable limits
+    const maxWidth = 260; // Max width within container
+    const maxHeight = 260; // Max height to prevent overly tall visualizations
+    const ratio = texture.image.height / texture.image.width;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, atlasCanvas.width, atlasCanvas.height);
+    
+    // Draw the texture with proper scaling
+    try {
+        ctx.drawImage(texture.image, 0, 0, atlasCanvas.width, atlasCanvas.height);
+    } catch (error) {
+        console.error('Error drawing texture to canvas:', error);
+    }
+    
+    // Add overlay grid for UV coordinates
+    drawUvGrid(ctx, atlasCanvas.width, atlasCanvas.height);
+    
+    // Draw red highlight to show current region used on the model
+    drawHighlightRegion(ctx, currentRegion, atlasCanvas.width, atlasCanvas.height);
+    
+    // Update coordinates text
+    const isFullTexture = (currentRegion.min[0] === 0 && currentRegion.min[1] === 0 && 
+                          currentRegion.max[0] === 1 && currentRegion.max[1] === 1);
+                          
+    if (isFullTexture) {
+        coordsText.textContent = `${state.currentTextureType}: Full texture (0,0) to (1,1)`;
+    } else {
+        coordsText.textContent = `${state.currentTextureType}: (${currentRegion.min[0].toFixed(2)},${currentRegion.min[1].toFixed(2)}) to (${currentRegion.max[0].toFixed(2)},${currentRegion.max[1].toFixed(2)})`;
+    }
+}
+
+// Draw a UV coordinate grid on the canvas
+function drawUvGrid(ctx, width, height) {
+    // Draw grid lines
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 1;
+    
+    // Draw vertical grid lines
+    for (let i = 1; i < 10; i++) {
+        const x = width * i / 10;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+    }
+    
+    // Draw horizontal grid lines
+    for (let i = 1; i < 10; i++) {
+        const y = height * i / 10;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+    }
+    
+    // Draw coordinate labels
+    ctx.fillStyle = 'white';
+    ctx.font = '10px monospace';
+    
+    // 0,0 at bottom left
+    ctx.fillText('0,0', 2, height - 2);
+    
+    // 1,0 at bottom right
+    ctx.fillText('1,0', width - 20, height - 2);
+    
+    // 0,1 at top left
+    ctx.fillText('0,1', 2, 10);
+    
+    // 1,1 at top right
+    ctx.fillText('1,1', width - 20, 10);
+}
+
+// Draw a highlight region on the canvas
+function drawHighlightRegion(ctx, region, width, height) {
+    // Draw highlight box
+    ctx.strokeStyle = 'red';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    
+    // Calculate rect coordinates (remember Y needs to be flipped)
+    const x = width * region.min[0];
+    const y = height * (1 - region.max[1]); // Flip Y because canvas coordinates are top-down
+    const w = width * (region.max[0] - region.min[0]);
+    const h = height * (region.max[1] - region.min[1]);
+    
+    ctx.rect(x, y, w, h);
+    ctx.stroke();
+    
+    // Add semi-transparent fill
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
+    ctx.fill();
+}
+
+// Initialize the app
+function init() {
+    // Setup tabs
+    setupTabs();
+    
+    // Setup dropzones
+    setupDropzone(baseColorDropzone, 'baseColor', baseColorInfo, baseColorPreview);
+    setupDropzone(ormDropzone, 'orm', ormInfo, ormPreview);
+    setupDropzone(normalDropzone, 'normal', normalInfo, normalPreview);
+    setupDropzone(modelDropzone, 'model', modelInfo, null);
+    
+    // Setup start button
+    startButton.addEventListener('click', () => {
+        if (!state.isDebugStarted) {
+            initScene();
+            state.isDebugStarted = true;
+            startButton.textContent = 'Restart Debugging';
+        } else {
+            // Clean up previous scene
+            if (state.animationId) {
+                cancelAnimationFrame(state.animationId);
+            }
+            
+            // Restart scene
+            initScene();
+        }
+    });
+}
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', init);
+
+// Export functions for external use
+export {
+    init
+}; 
