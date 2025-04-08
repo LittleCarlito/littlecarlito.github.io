@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="light-mode">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Texture Debugger - Blorktools</title>
     <style>
         :root {
+            /* Light theme variables */
             --primary-color: #3498db;
             --secondary-color: #2c3e50;
             --accent-color: #e74c3c;
@@ -13,6 +14,23 @@
             --panel-bg: #ffffff;
             --text-color: #333333;
             --border-color: #dddddd;
+            --input-bg: #ffffff;
+            --input-text: #333333;
+            --label-text: #555555;
+        }
+        
+        /* Dark theme variables */
+        .dark-mode {
+            --primary-color: #2980b9;
+            --secondary-color: #1a252f;
+            --accent-color: #c0392b;
+            --bg-color: #121212;
+            --panel-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --border-color: #444444;
+            --input-bg: #2a2a2a;
+            --input-text: #e0e0e0;
+            --label-text: #cccccc;
         }
         
         body {
@@ -21,6 +39,7 @@
             padding: 0;
             background-color: var(--bg-color);
             color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         
         .container {
@@ -43,12 +62,29 @@
             font-size: 24px;
         }
         
+        .theme-toggle {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 5px 10px;
+            border-radius: 4px;
+            background-color: rgba(255, 255, 255, 0.2);
+            transition: background-color 0.3s ease;
+        }
+        
+        .theme-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+        
         .tool-panel {
             background-color: var(--panel-bg);
             border-radius: 4px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             padding: 20px;
             margin-bottom: 20px;
+            transition: background-color 0.3s ease;
         }
         
         .dropzone-container {
@@ -140,6 +176,24 @@
             background-color: #95a5a6;
             cursor: not-allowed;
         }
+
+        .restart-button {
+            display: block;
+            width: auto;
+            padding: 10px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin: 10px 0;
+        }
+        
+        .restart-button:hover {
+            background-color: #2980b9;
+        }
         
         #viewport {
             width: 100%;
@@ -159,6 +213,7 @@
         
         .view-panel {
             flex: 1;
+            position: relative;
         }
         
         .mesh-panel {
@@ -170,6 +225,7 @@
             max-height: 600px;
             overflow-y: auto;
             display: none;
+            transition: background-color 0.3s ease;
         }
         
         .mesh-panel h3 {
@@ -193,8 +249,16 @@
             border-radius: 3px;
         }
         
+        .dark-mode .mesh-group-header {
+            background-color: rgba(255,255,255,0.05);
+        }
+        
         .mesh-group-header:hover {
             background-color: rgba(0,0,0,0.06);
+        }
+        
+        .dark-mode .mesh-group-header:hover {
+            background-color: rgba(255,255,255,0.08);
         }
         
         .mesh-group-toggle {
@@ -211,6 +275,10 @@
             font-size: 12px;
         }
         
+        .dark-mode .mesh-group-count {
+            color: #aaa;
+        }
+        
         .mesh-items {
             margin-left: 20px;
         }
@@ -225,6 +293,10 @@
         
         .mesh-item:hover {
             background-color: rgba(0,0,0,0.03);
+        }
+        
+        .dark-mode .mesh-item:hover {
+            background-color: rgba(255,255,255,0.05);
         }
         
         .mesh-toggle {
@@ -245,89 +317,253 @@
             border-radius: 4px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             max-height: 600px;
+            height: 600px;
             display: none;
+            transition: background-color 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
         
         .tab-navigation {
             display: flex;
             border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
         }
         
         .tab-button {
             flex: 1;
-            padding: 10px;
-            text-align: center;
-            background-color: var(--panel-bg);
+            background: none;
             border: none;
+            border-bottom: 3px solid transparent;
+            padding: 10px;
             cursor: pointer;
-            font-weight: bold;
-            transition: background-color 0.2s;
+            font-size: 14px;
+            color: var(--text-color);
+            transition: all 0.3s ease;
         }
         
-        .tab-button:first-child {
-            border-top-left-radius: 4px;
+        .tab-button:hover {
+            background-color: rgba(0,0,0,0.03);
         }
         
-        .tab-button:last-child {
-            border-top-right-radius: 4px;
+        .dark-mode .tab-button:hover {
+            background-color: rgba(255,255,255,0.05);
         }
         
         .tab-button.active {
-            background-color: var(--primary-color);
-            color: white;
+            border-bottom-color: var(--primary-color);
+            font-weight: bold;
         }
         
         .tab-content {
             display: none;
             padding: 15px;
-            max-height: 540px;
             overflow-y: auto;
+            flex-grow: 1;
+            max-height: calc(600px - 45px);
         }
         
         .tab-content.active {
             display: block;
         }
         
-        /* Atlas visualization styles */
+        .tab-content h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        /* Atlas Visualization */
+        .texture-type-selector {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            gap: 5px;
+        }
+        
         .texture-type-button {
             flex: 1;
-            margin: 0 2px;
             padding: 5px;
-            background-color: #2c3e50;
-            border: none;
+            background: none;
+            border: 1px solid var(--border-color);
             border-radius: 3px;
-            color: white;
             cursor: pointer;
-            font-size: 11px;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            color: var(--text-color);
+        }
+        
+        .texture-type-button:hover {
+            background-color: rgba(0,0,0,0.03);
+        }
+        
+        .dark-mode .texture-type-button:hover {
+            background-color: rgba(255,255,255,0.05);
         }
         
         .texture-type-button.active {
-            background-color: #3498db;
-            font-weight: bold;
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
         }
         
         .atlas-canvas {
             width: 100%;
-            border: 1px solid #444;
-            display: block;
-            max-height: 300px;
-            margin-top: 10px;
+            height: auto;
+            border: 1px solid var(--border-color);
+            margin-bottom: 10px;
         }
         
-        .coords-text, .segment-info {
+        .coords-text {
+            font-size: 12px;
+            margin-bottom: 10px;
+            font-family: monospace;
+            padding: 5px;
+            background-color: rgba(0,0,0,0.03);
+            border-radius: 3px;
+            color: var(--text-color);
+        }
+        
+        .dark-mode .coords-text {
+            background-color: rgba(255,255,255,0.05);
+        }
+        
+        .segment-info {
+            font-size: 12px;
+            padding: 5px;
+            background-color: rgba(0,0,0,0.03);
+            border-radius: 3px;
+            margin-bottom: 10px;
+            color: var(--text-color);
+        }
+        
+        .dark-mode .segment-info {
+            background-color: rgba(255,255,255,0.05);
+        }
+        
+        /* UV Controls */
+        .uv-info-container {
+            margin-bottom: 15px;
+            font-size: 13px;
+            color: var(--text-color);
+        }
+        
+        .uv-control-group {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: rgba(0,0,0,0.02);
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .dark-mode .uv-control-group {
+            background-color: rgba(255,255,255,0.03);
+        }
+        
+        .uv-control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: var(--label-text);
+        }
+        
+        .uv-control-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .uv-control-row span {
+            width: 20px;
+            text-align: center;
+            color: var(--text-color);
+            font-weight: bold;
+        }
+        
+        .uv-control-row input {
+            flex: 1;
+            padding: 5px;
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            background-color: var(--input-bg);
+            color: var(--input-text);
+        }
+        
+        .uv-note {
+            font-size: 11px;
+            color: #888;
             margin-top: 5px;
-            font-size: 10px;
+            font-style: italic;
+        }
+        
+        .dark-mode .uv-note {
             color: #aaa;
+        }
+        
+        /* Rig Visualization */
+        .rig-button {
+            display: block;
+            width: 100%;
+            padding: 8px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 3px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: background-color 0.3s ease;
+        }
+        
+        .rig-button:hover {
+            background-color: #2980b9;
+        }
+        
+        .bone-hierarchy {
+            margin-top: 10px;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            padding: 5px;
+        }
+        
+        .bone-item {
+            padding: 2px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .bone-children {
+            margin-left: 15px;
+            border-left: 1px dotted var(--border-color);
+            padding-left: 5px;
+        }
+        
+        .bone-toggle {
+            display: inline-block;
+            width: 15px;
+            text-align: center;
+        }
+        
+        /* Hide entire upload section when debugging starts */
+        .hidden-on-debug {
+            display: none;
         }
     </style>
 </head>
 <body>
     <header>
         <h1>Texture Debugger</h1>
+        <button id="theme-toggle" class="theme-toggle">Switch to Light Mode</button>
     </header>
     
     <div class="container">
-        <div class="tool-panel">
+        <div id="upload-section" class="tool-panel">
             <h2>Upload Texture Atlas Files</h2>
             <div class="dropzone-container">
                 <div class="dropzone" id="basecolor-dropzone">
@@ -365,14 +601,23 @@
             <button id="start-debug" class="start-button" disabled>Start Debugging</button>
         </div>
         
+        <div id="restart-container" style="display: none;">
+            <button id="restart-debug" class="restart-button">Restart</button>
+        </div>
+        
         <div class="view-container">
             <div class="view-panel">
                 <div id="viewport"></div>
+                <div id="loading-indicator" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.7); color: white; padding: 15px; border-radius: 5px; z-index: 100; justify-content: center; align-items: center;">
+                    <div>Loading model...</div>
+                </div>
             </div>
-            <div id="tab-container" class="tab-container">
+            <div id="tab-container" class="tab-container" style="display: none;">
                 <div class="tab-navigation">
                     <button id="mesh-tab-button" class="tab-button active">Mesh</button>
                     <button id="atlas-tab-button" class="tab-button">Atlas</button>
+                    <button id="uv-tab-button" class="tab-button">UV</button>
+                    <button id="rig-tab-button" class="tab-button">Rig</button>
                 </div>
                 <div id="mesh-tab" class="tab-content active">
                     <h3>Mesh Visibility</h3>
@@ -389,10 +634,109 @@
                     <div id="coords-text" class="coords-text">UV coordinates: Full texture is shown</div>
                     <div id="segment-info" class="segment-info" style="display: none;"></div>
                 </div>
+                <div id="uv-tab" class="tab-content">
+                    <h3>UV Channel Controls</h3>
+                    <div id="uv-content">
+                        <div id="uv-info-container" class="uv-info-container">
+                            <p>No model loaded or no UV data available.</p>
+                            <p>Load a model to view UV information.</p>
+                        </div>
+                        <div id="uv-manual-controls" style="display: none;">
+                            <h4>Manual UV Mapping Controls</h4>
+                            <div class="uv-control-group">
+                                <label>UV Offset (0-1):</label>
+                                <div class="uv-control-row">
+                                    <span>X:</span>
+                                    <input type="number" id="uv-offset-x" min="0" max="1" step="0.01" value="0">
+                                </div>
+                                <div class="uv-control-row">
+                                    <span>Y:</span>
+                                    <input type="number" id="uv-offset-y" min="0" max="1" step="0.01" value="0">
+                                </div>
+                            </div>
+                            <div class="uv-control-group">
+                                <label>UV Scale (0-1):</label>
+                                <div class="uv-control-row">
+                                    <span>W:</span>
+                                    <input type="number" id="uv-scale-w" min="0.01" max="1" step="0.01" value="1">
+                                </div>
+                                <div class="uv-control-row">
+                                    <span>H:</span>
+                                    <input type="number" id="uv-scale-h" min="0.01" max="1" step="0.01" value="1">
+                                </div>
+                            </div>
+                            <div class="uv-control-group">
+                                <label>Predefined Segments:</label>
+                                <select id="uv-predefined-segments">
+                                    <option value="0">Full texture (1×1)</option>
+                                    <option value="1">Top-left quarter (1/2×1/2)</option>
+                                    <option value="2">Top-right quarter (1/2×1/2)</option>
+                                    <option value="3">Bottom-left quarter (1/2×1/2)</option>
+                                    <option value="4">Bottom-right quarter (1/2×1/2)</option>
+                                    <option value="5">Top-left ninth (1/3×1/3)</option>
+                                    <option value="6">Top-center ninth (1/3×1/3)</option>
+                                    <option value="7">Top-right ninth (1/3×1/3)</option>
+                                    <option value="8">Middle-left ninth (1/3×1/3)</option>
+                                </select>
+                            </div>
+                            <div class="uv-note">Changes auto-apply immediately</div>
+                        </div>
+                    </div>
+                </div>
+                <div id="rig-tab" class="tab-content">
+                    <h3>Rig Visualization</h3>
+                    <div id="rig-content">
+                        <p id="rig-status">No rig data available in the model.</p>
+                        <div id="rig-visualization-controls" style="display: none;">
+                            <button id="toggle-rig-button" class="rig-button">Toggle Rig Visualization</button>
+                            <div id="bone-hierarchy" class="bone-hierarchy"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     
     <script type="module" src="texture_debugger.js"></script>
+    <script>
+        // Theme toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set default to dark mode
+            document.documentElement.classList.add('dark-mode');
+            document.documentElement.classList.remove('light-mode');
+            
+            const themeToggle = document.getElementById('theme-toggle');
+            themeToggle.textContent = 'Switch to Light Mode';
+            
+            themeToggle.addEventListener('click', function() {
+                if (document.documentElement.classList.contains('dark-mode')) {
+                    document.documentElement.classList.remove('dark-mode');
+                    document.documentElement.classList.add('light-mode');
+                    themeToggle.textContent = 'Switch to Dark Mode';
+                } else {
+                    document.documentElement.classList.add('dark-mode');
+                    document.documentElement.classList.remove('light-mode');
+                    themeToggle.textContent = 'Switch to Light Mode';
+                }
+            });
+            
+            // Set up restart button functionality
+            const startDebugBtn = document.getElementById('start-debug');
+            const uploadSection = document.getElementById('upload-section');
+            const restartContainer = document.getElementById('restart-container');
+            const restartDebugBtn = document.getElementById('restart-debug');
+            
+            startDebugBtn.addEventListener('click', function() {
+                // Hide upload section and show restart button
+                uploadSection.style.display = 'none';
+                restartContainer.style.display = 'block';
+            });
+            
+            restartDebugBtn.addEventListener('click', function() {
+                // This will be hooked up to the same functionality as the original start button
+                // but we'll let the JavaScript handle that part
+            });
+        });
+    </script>
 </body>
 </html> 
