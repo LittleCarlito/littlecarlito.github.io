@@ -64,11 +64,9 @@ function setupThemeSwitching() {
             if (html.classList.contains('dark-mode')) {
                 html.classList.remove('dark-mode');
                 html.classList.add('light-mode');
-                themeToggle.textContent = '🌙 Dark Mode';
             } else {
                 html.classList.remove('light-mode');
                 html.classList.add('dark-mode');
-                themeToggle.textContent = '☀️ Light Mode';
             }
         });
     }

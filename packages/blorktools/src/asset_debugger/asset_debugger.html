@@ -559,7 +559,10 @@
 <body>
     <header>
         <h1>Texture Debugger</h1>
-        <button id="theme-toggle" class="theme-toggle">Switch to Light Mode</button>
+        <div style="display: flex; gap: 10px;">
+            <button id="return-to-toolbox" class="theme-toggle">Return to Toolbox</button>
+            <button id="theme-toggle" class="theme-toggle">Switch to Light Mode</button>
+        </div>
     </header>
     
     <div class="container">
@@ -735,6 +738,12 @@
             restartDebugBtn.addEventListener('click', function() {
                 // This will be hooked up to the same functionality as the original start button
                 // but we'll let the JavaScript handle that part
+            });
+            
+            // Return to Toolbox functionality
+            const returnToToolboxBtn = document.getElementById('return-to-toolbox');
+            returnToToolboxBtn.addEventListener('click', function() {
+                window.location.href = '../../';
             });
         });
     </script>
