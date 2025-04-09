@@ -94,21 +94,37 @@ function extractRigData() {
             // Find skeleton
             if (object.isSkinnedMesh && object.skeleton && !skeleton) {
                 skeleton = object.skeleton;
+                
+                // Add all bones from the skeleton if available
+                if (object.skeleton.bones && object.skeleton.bones.length > 0) {
+                    bones.push(...object.skeleton.bones);
+                }
             }
             
-            // Collect bones
-            if (object.isBone) {
+            // Collect bones (using multiple detection methods)
+            if (object.isBone || 
+                object.name.toLowerCase().includes('bone_') ||
+                (object.userData && object.userData.type === 'bone')) {
                 bones.push(object);
             }
         });
     }
     
-    // Update state
-    updateState('bones', bones);
+    // Deduplicate bones by uuid
+    const uniqueBones = {};
+    bones.forEach(bone => {
+        if (!uniqueBones[bone.uuid]) {
+            uniqueBones[bone.uuid] = bone;
+        }
+    });
+    
+    // Convert back to array and update state
+    const uniqueBoneArray = Object.values(uniqueBones);
+    updateState('bones', uniqueBoneArray);
     updateState('skeleton', skeleton);
     
     return {
-        bones,
+        bones: uniqueBoneArray,
         skeleton
     };
 }
@@ -268,13 +284,15 @@ function createBoneVisualization() {
         modelSize = box.getSize(new THREE.Vector3()).length() / 100;
     }
     
+    // Update all world matrices to ensure positions are correct
+    if (state.model) {
+        state.model.updateWorldMatrix(true, true);
+    }
+    
     // Create a visualization for each bone
     state.bones.forEach(bone => {
         // Create a bone representation
-        const boneVisual = createBoneVisual(bone, modelSize);
-        if (boneVisual) {
-            boneGroup.add(boneVisual);
-        }
+        createBoneVisual(bone, modelSize, boneGroup);
     });
     
     // Add the group to the scene
@@ -290,59 +308,156 @@ function createBoneVisualization() {
  * Create a visual representation of a bone
  * @param {THREE.Bone} bone - The bone to visualize
  * @param {number} baseSize - Base size for visualization
- * @returns {THREE.Group} Group containing the bone visualization
+ * @param {THREE.Group} boneGroup - The parent group to add visualizations to
  */
-function createBoneVisual(bone, baseSize) {
-    if (!bone) return null;
+function createBoneVisual(bone, baseSize, boneGroup) {
+    if (!bone || !boneGroup) return;
     
-    // Create a group for this bone
-    const boneGroup = new THREE.Group();
-    boneGroup.name = `BoneVisual_${bone.name || 'unnamed'}`;
-    
-    // Position at the bone's world position
+    // Ensure the bone's world matrix is up to date
     bone.updateWorldMatrix(true, false);
-    const position = new THREE.Vector3();
-    position.setFromMatrixPosition(bone.matrixWorld);
-    boneGroup.position.copy(position);
     
-    // Create a sphere to represent the bone joint
-    const sphereGeometry = new THREE.SphereGeometry(baseSize, 8, 8);
-    const sphereMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0xff9900,
-        wireframe: true,
-        transparent: true,
-        opacity: 0.8
-    });
-    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-    boneGroup.add(sphere);
+    // Get bone's world position and world quaternion
+    const boneWorldPosition = new THREE.Vector3();
+    const boneWorldQuaternion = new THREE.Quaternion();
+    const boneWorldScale = new THREE.Vector3();
     
-    // If bone has a parent, create a line to it
-    if (bone.parent && bone.parent.isBone) {
-        bone.parent.updateWorldMatrix(true, false);
-        const parentPosition = new THREE.Vector3();
-        parentPosition.setFromMatrixPosition(bone.parent.matrixWorld);
-        
-        // Create line geometry
-        const points = [
-            new THREE.Vector3(0, 0, 0), // Local origin
-            new THREE.Vector3().subVectors(parentPosition, position) // Vector to parent
-        ];
-        const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-        
-        // Create line material
-        const lineMaterial = new THREE.LineBasicMaterial({ 
-            color: 0x00ff00,
-            linewidth: 1,
-            transparent: true,
-            opacity: 0.6
-        });
-        
-        // Create line
-        const line = new THREE.Line(lineGeometry, lineMaterial);
-        boneGroup.add(line);
+    // Extract the bone's world transform components
+    bone.matrixWorld.decompose(boneWorldPosition, boneWorldQuaternion, boneWorldScale);
+    
+    // Find the tail position (end of the bone)
+    let tailWorldPosition = null;
+    let hasChildBone = false;
+    
+    // Check if any children are bones to determine tail position
+    if (bone.children && bone.children.length > 0) {
+        // For simplicity, use the first bone child's position as the tail
+        for (const child of bone.children) {
+            if (child.isBone || 
+                (child.name && child.name.toLowerCase().includes('bone_'))) {
+                // Get world position of the child bone
+                const childWorldPosition = new THREE.Vector3();
+                child.updateWorldMatrix(true, false);
+                child.getWorldPosition(childWorldPosition);
+                
+                tailWorldPosition = childWorldPosition;
+                hasChildBone = true;
+                break;
+            }
+        }
     }
     
-    return boneGroup;
+    // If no bone children, estimate bone length based on model scale
+    if (!hasChildBone) {
+        // Default bone length
+        const defaultLength = baseSize * 4;
+        
+        // Create direction based on bone's local transform
+        const boneDirection = new THREE.Vector3(0, 1, 0);
+        boneDirection.applyQuaternion(boneWorldQuaternion);
+        boneDirection.normalize();
+        
+        // Create tail position at defaultLength distance in that direction
+        tailWorldPosition = boneWorldPosition.clone().add(
+            boneDirection.multiplyScalar(defaultLength)
+        );
+    }
+    
+    // Calculate bone direction and length
+    const boneDirection = new THREE.Vector3().subVectors(tailWorldPosition, boneWorldPosition);
+    const boneLength = boneDirection.length();
+    boneDirection.normalize();
+    
+    // Create a cylinder geometry for the bone
+    const boneGeometry = new THREE.CylinderGeometry(
+        baseSize * 1.5,  // head radius (wider)
+        baseSize * 0.5,  // tail radius (narrower)
+        boneLength,      // bone length
+        8,               // radial segments
+        1,               // height segments
+        false            // open ended
+    );
+    
+    // Move it so that one end is at the origin, extending along positive Y
+    boneGeometry.translate(0, boneLength/2, 0);
+    
+    // Create wireframe material for the bone
+    const boneMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff0000,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.8,
+        depthTest: true,
+        depthWrite: true
+    });
+    
+    // Create the bone mesh
+    const boneMesh = new THREE.Mesh(boneGeometry, boneMaterial);
+    boneMesh.name = `bone_visual_${bone.name || 'unnamed'}`;
+    boneMesh.userData.boneRef = bone;
+    
+    // Position the bone mesh
+    boneMesh.position.copy(boneWorldPosition);
+    
+    // Orient the mesh to point from head to tail
+    const alignmentQuaternion = new THREE.Quaternion();
+    const upVector = new THREE.Vector3(0, 1, 0);
+    
+    // Handle the case where the bone direction is parallel to the up vector
+    if (Math.abs(upVector.dot(boneDirection)) > 0.999) {
+        // If pointing in the same direction, no rotation needed
+        // If pointing in the opposite direction, rotate 180 degrees around X
+        if (upVector.dot(boneDirection) < 0) {
+            alignmentQuaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
+        }
+    } else {
+        // Calculate the rotation from Y-axis to the bone direction
+        alignmentQuaternion.setFromUnitVectors(upVector, boneDirection);
+    }
+    
+    // Apply the rotation to align with bone direction
+    boneMesh.quaternion.copy(alignmentQuaternion);
+    
+    // Add to bone group
+    boneGroup.add(boneMesh);
+    
+    // Add joint point as a small sphere
+    const jointGeometry = new THREE.SphereGeometry(baseSize * 0.8, 8, 8);
+    const jointMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff3333,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.8,
+        depthTest: true
+    });
+    const jointMesh = new THREE.Mesh(jointGeometry, jointMaterial);
+    jointMesh.position.copy(boneWorldPosition);
+    boneGroup.add(jointMesh);
+    
+    // Add connection line to parent bone for visualization clarity
+    if (bone.parent && (bone.parent.isBone || 
+        (bone.parent.name && bone.parent.name.toLowerCase().includes('bone_')))) {
+        const parentWorldPosition = new THREE.Vector3();
+        bone.parent.updateWorldMatrix(true, false);
+        bone.parent.getWorldPosition(parentWorldPosition);
+        
+        // Create a connecting line
+        const connectionGeometry = new THREE.BufferGeometry().setFromPoints([
+            parentWorldPosition,
+            boneWorldPosition
+        ]);
+        
+        const connectionMaterial = new THREE.LineBasicMaterial({
+            color: 0x00ff00,
+            transparent: true,
+            opacity: 0.6,
+            depthTest: true
+        });
+        
+        const connectionLine = new THREE.Line(connectionGeometry, connectionMaterial);
+        connectionLine.name = `connection_${bone.parent.name || 'parent'}_to_${bone.name || 'child'}`;
+        
+        boneGroup.add(connectionLine);
+    }
 }
 
 export default {
