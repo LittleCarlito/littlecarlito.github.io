@@ -18,35 +18,6 @@ pnpm install @littlecarlito/blorktools
 
 ## Key Features
 
-### Asset Debugger & Analyzer
-
-<p align="center">
-  <img src="https://via.placeholder.com/600x300?text=Asset+Debugger+Screenshot" alt="Asset Debugger" width="600"/>
-</p>
-
-The Asset Debugger provides powerful tools for inspecting and optimizing 3D models:
-
-- **Advanced Model Analysis**
-  - Geometry statistics and optimization suggestions
-  - Mesh complexity visualization (heatmap mode)
-  - Vertex and triangle count breakdown
-  - Scene graph hierarchy analysis
-  - Draw call visualization
-
-- **UV Mapping Tools**
-  - Multi-channel UV visualization with color coding
-  - UV overlap detection and warnings
-  - Texture atlas utilization analysis
-  - UV density visualization
-  - Channel comparison view
-
-- **Texture Management**
-  - Texture resolution and format optimization
-  - Mipmap chain visualization
-  - Texture memory usage analysis
-  - Format compatibility checker
-  - Compression recommendation engine
-
 ### Performance Monitoring Suite
 
 <p align="center">
@@ -127,13 +98,13 @@ The Material Workshop aids in creating and optimizing materials:
   - Environment map testing
   - Material performance analysis
 
-### Texture Debugger
+### Asset Debugger
 
 <p align="center">
-  <img src="https://via.placeholder.com/600x300?text=Texture+Debugger+Screenshot" alt="Texture Debugger" width="600"/>
+  <img src="https://via.placeholder.com/600x300?text=Asset+Debugger+Screenshot" alt="Asset Debugger" width="600"/>
 </p>
 
-The Texture Debugger helps test and debug PBR texture sets:
+The Asset Debugger helps test and debug PBR texture sets:
 
 - **Atlas Texture Testing**
   - Drag and drop interface for quick testing
@@ -178,7 +149,6 @@ pnpm tools:modular
 
 ```javascript
 import { 
-  AssetDebugger, 
   PerformanceMonitor,
   SceneInspector, 
   MaterialWorkshop 
@@ -190,7 +160,6 @@ const renderer = new THREE.WebGLRenderer();
 const camera = new THREE.PerspectiveCamera();
 
 // Initialize the tools with your Three.js environment
-const debug = new AssetDebugger({ scene, renderer, camera });
 const perfMonitor = new PerformanceMonitor({ renderer });
 const inspector = new SceneInspector({ scene, domElement: document.body });
 const workshop = new MaterialWorkshop();
@@ -212,17 +181,15 @@ function animate() {
   perfMonitor.endFrame();
   
   // Update other tools
-  debug.update();
   inspector.update();
 }
 animate();
 
 // Toggle tools visibility with keyboard shortcuts
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'F1') debug.toggle();
-  if (e.key === 'F2') perfMonitor.toggle();
-  if (e.key === 'F3') inspector.toggle();
-  if (e.key === 'F4') workshop.toggle();
+  if (e.key === 'F1') perfMonitor.toggle();
+  if (e.key === 'F2') inspector.toggle();
+  if (e.key === 'F3') workshop.toggle();
 });
 ```
 

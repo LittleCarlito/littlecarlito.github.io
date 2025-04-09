@@ -73,7 +73,6 @@ async function startTools() {
 		// Print available tools
 		console.log('\nAvailable tools:');
 		console.log('1. Asset Debugger: http://localhost:' + actualPort + '/asset_debugger/asset_debugger.html');
-		console.log('2. Texture Debugger: http://localhost:' + actualPort + '/texture_debugger/texture_debugger.html');
 		
 		server.printUrls();
 	} catch (e) {

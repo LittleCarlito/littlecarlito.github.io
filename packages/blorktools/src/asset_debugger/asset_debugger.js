@@ -1,5 +1,5 @@
 /**
- * Texture Debugger - Main Entry Point
+ * Asset Debugger - Main Entry Point
  * 
  * This file serves as the bridge between the HTML page and the application.
  * It imports and exports all functionality from index.js.
@@ -10,7 +10,7 @@ import init from './index.js';
 
 // Initialize the application when loaded
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Texture Debugger: Application loading...');
+    console.log('Asset Debugger: Application loading...');
     init();
 });
 

@@ -87,14 +87,15 @@ let state = null;
  * @returns {Object} The initialized state object
  */
 export function initState() {
-    // Check if state already exists in window (for persistence between hot reloads)
-    if (window.textureDebuggerState) {
-        state = window.textureDebuggerState;
+    // Check if there's an existing state object in the window and use it
+    if (window.assetDebuggerState) {
+        state = window.assetDebuggerState;
+        state.isInitializing = true;
     } else {
         // Create a new state object
         state = { ...initialState };
         // Store in window for persistence
-        window.textureDebuggerState = state;
+        window.assetDebuggerState = state;
     }
     return state;
 }
@@ -131,7 +132,7 @@ export function updateState(key, value) {
  */
 export function resetState() {
     state = { ...initialState };
-    window.textureDebuggerState = state;
+    window.assetDebuggerState = state;
     return state;
 }
 

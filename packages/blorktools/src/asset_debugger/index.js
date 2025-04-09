@@ -1,7 +1,7 @@
 /**
- * Texture Debugger Tool - Main Entry Point
+ * Asset Debugger Tool - Main Entry Point
  * 
- * This module exports the texture debugger tool functionality
+ * This module exports the asset debugger tool functionality
  * for use in other parts of the application or external imports.
  */
 
@@ -20,10 +20,10 @@ function preventDefaultDragBehavior() {
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Texture Debugger: Index loaded');
+    console.log('Asset Debugger: Index loaded');
     // Prevent browser default drag-and-drop behavior
     preventDefaultDragBehavior();
-    // Initialize the texture debugger
+    // Initialize the asset debugger
     init();
 });
 

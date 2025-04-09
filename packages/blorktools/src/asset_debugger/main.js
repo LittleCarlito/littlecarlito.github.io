@@ -1,7 +1,7 @@
 /**
- * Texture Debugger - Main Module
+ * Asset Debugger - Main Module
  * 
- * The main entry point that initializes all the texture debugger modules.
+ * The main entry point that initializes all the asset debugger modules.
  * 
  * A tool to debug textures by loading three atlas types:
  * - Base Color Atlas
@@ -18,7 +18,7 @@ import { initUvPanel } from './ui/uv-panel.js';
 import { initRigPanel } from './ui/rig-panel.js';
 
 /**
- * Initialize the texture debugger application
+ * Initialize the asset debugger application
  */
 export function init() {
     // Initialize state
@@ -76,8 +76,8 @@ function setupThemeSwitching() {
 
 // For backward compatibility, automatically initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    if (!window.textureDebuggerState || !window.textureDebuggerState.isInitializing) {
-        console.log('Texture Debugger: Auto-initializing for backward compatibility.');
+    if (!window.assetDebuggerState || !window.assetDebuggerState.isInitializing) {
+        console.log('Asset Debugger: Auto-initializing for backward compatibility.');
         init();
     }
 });
