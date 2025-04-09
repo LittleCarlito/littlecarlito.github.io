@@ -24,6 +24,14 @@ let dragStartPoint = new THREE.Vector3();
 let dragStartPosition = new THREE.Vector3();
 let totalDragDelta = new THREE.Vector3();
 let originalRootBoneLocalPosition = new THREE.Vector3(); // Store original local position
+let draggedBoneChain = []; // Store the chain of bones from handle to root
+let originalBonePositions = new Map(); // Store original bone positions
+let originalBoneRotations = new Map(); // Store original bone rotations
+let ikSettings = {
+    damping: 0.5,      // Damping factor for IK calculations
+    iterations: 10,     // Number of iterations for IK solver
+    influenceRadius: 3  // Number of bones up the chain to affect
+};
 
 /**
  * Initialize the rig panel and cache DOM elements
@@ -78,6 +86,169 @@ function setupVisualizationControls() {
         'Makes bone visualization appear on top of the model',
         (checked) => setZOverride(checked)
     );
+    
+    // Add IK Settings container
+    const ikContainer = document.createElement('div');
+    ikContainer.style.marginTop = '10px';
+    ikContainer.style.padding = '8px';
+    ikContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.15)';
+    ikContainer.style.borderRadius = '4px';
+    ikContainer.style.marginBottom = '10px';
+    
+    const ikTitle = document.createElement('div');
+    ikTitle.textContent = 'IK Settings';
+    ikTitle.style.marginBottom = '8px';
+    ikTitle.style.fontWeight = 'bold';
+    ikTitle.style.color = '#ddd';
+    ikContainer.appendChild(ikTitle);
+    
+    // Add Damping slider
+    const dampingContainer = document.createElement('div');
+    dampingContainer.style.marginBottom = '8px';
+    
+    const dampingLabel = document.createElement('label');
+    dampingLabel.htmlFor = 'ik-damping';
+    dampingLabel.textContent = 'Damping: ';
+    dampingLabel.style.fontSize = '12px';
+    dampingLabel.style.color = '#ddd';
+    dampingLabel.style.display = 'block';
+    dampingLabel.style.marginBottom = '2px';
+    
+    const dampingValue = document.createElement('span');
+    dampingValue.id = 'ik-damping-value';
+    dampingValue.textContent = ikSettings.damping.toFixed(2);
+    dampingValue.style.fontSize = '10px';
+    dampingValue.style.color = '#aaa';
+    dampingValue.style.float = 'right';
+    
+    dampingLabel.appendChild(dampingValue);
+    dampingContainer.appendChild(dampingLabel);
+    
+    const dampingSlider = document.createElement('input');
+    dampingSlider.type = 'range';
+    dampingSlider.id = 'ik-damping';
+    dampingSlider.min = '0.1';
+    dampingSlider.max = '1.0';
+    dampingSlider.step = '0.1';
+    dampingSlider.value = ikSettings.damping;
+    dampingSlider.style.width = '100%';
+    dampingSlider.addEventListener('input', (e) => {
+        ikSettings.damping = parseFloat(e.target.value);
+        dampingValue.textContent = ikSettings.damping.toFixed(2);
+    });
+    
+    dampingContainer.appendChild(dampingSlider);
+    ikContainer.appendChild(dampingContainer);
+    
+    // Add Iterations slider
+    const iterationsContainer = document.createElement('div');
+    iterationsContainer.style.marginBottom = '8px';
+    
+    const iterationsLabel = document.createElement('label');
+    iterationsLabel.htmlFor = 'ik-iterations';
+    iterationsLabel.textContent = 'Iterations: ';
+    iterationsLabel.style.fontSize = '12px';
+    iterationsLabel.style.color = '#ddd';
+    iterationsLabel.style.display = 'block';
+    iterationsLabel.style.marginBottom = '2px';
+    
+    const iterationsValue = document.createElement('span');
+    iterationsValue.id = 'ik-iterations-value';
+    iterationsValue.textContent = ikSettings.iterations;
+    iterationsValue.style.fontSize = '10px';
+    iterationsValue.style.color = '#aaa';
+    iterationsValue.style.float = 'right';
+    
+    iterationsLabel.appendChild(iterationsValue);
+    iterationsContainer.appendChild(iterationsLabel);
+    
+    const iterationsSlider = document.createElement('input');
+    iterationsSlider.type = 'range';
+    iterationsSlider.id = 'ik-iterations';
+    iterationsSlider.min = '1';
+    iterationsSlider.max = '20';
+    iterationsSlider.step = '1';
+    iterationsSlider.value = ikSettings.iterations;
+    iterationsSlider.style.width = '100%';
+    iterationsSlider.addEventListener('input', (e) => {
+        ikSettings.iterations = parseInt(e.target.value);
+        iterationsValue.textContent = ikSettings.iterations;
+    });
+    
+    iterationsContainer.appendChild(iterationsSlider);
+    ikContainer.appendChild(iterationsContainer);
+    
+    // Add Influence Radius slider
+    const radiusContainer = document.createElement('div');
+    radiusContainer.style.marginBottom = '8px';
+    
+    const radiusLabel = document.createElement('label');
+    radiusLabel.htmlFor = 'ik-radius';
+    radiusLabel.textContent = 'Bone Influence: ';
+    radiusLabel.style.fontSize = '12px';
+    radiusLabel.style.color = '#ddd';
+    radiusLabel.style.display = 'block';
+    radiusLabel.style.marginBottom = '2px';
+    
+    const radiusValue = document.createElement('span');
+    radiusValue.id = 'ik-radius-value';
+    radiusValue.textContent = ikSettings.influenceRadius;
+    radiusValue.style.fontSize = '10px';
+    radiusValue.style.color = '#aaa';
+    radiusValue.style.float = 'right';
+    
+    radiusLabel.appendChild(radiusValue);
+    radiusContainer.appendChild(radiusLabel);
+    
+    const radiusSlider = document.createElement('input');
+    radiusSlider.type = 'range';
+    radiusSlider.id = 'ik-radius';
+    radiusSlider.min = '1';
+    radiusSlider.max = '10';
+    radiusSlider.step = '1';
+    radiusSlider.value = ikSettings.influenceRadius;
+    radiusSlider.style.width = '100%';
+    radiusSlider.addEventListener('input', (e) => {
+        ikSettings.influenceRadius = parseInt(e.target.value);
+        radiusValue.textContent = ikSettings.influenceRadius;
+    });
+    
+    radiusContainer.appendChild(radiusSlider);
+    ikContainer.appendChild(radiusContainer);
+    
+    // Add Reset button for IK
+    const resetButtonContainer = document.createElement('div');
+    resetButtonContainer.style.textAlign = 'center';
+    resetButtonContainer.style.marginBottom = '8px';
+    
+    const resetButton = document.createElement('button');
+    resetButton.textContent = 'Reset Bone Chain';
+    resetButton.style.padding = '5px 10px';
+    resetButton.style.backgroundColor = '#3f3f3f';
+    resetButton.style.color = '#ddd';
+    resetButton.style.border = 'none';
+    resetButton.style.borderRadius = '3px';
+    resetButton.style.cursor = 'pointer';
+    resetButton.title = 'Reset the bone chain to its original position';
+    
+    resetButton.addEventListener('click', () => {
+        resetBoneChain();
+    });
+    
+    // Add hover effect
+    resetButton.addEventListener('mouseenter', () => {
+        resetButton.style.backgroundColor = '#4f4f4f';
+    });
+    
+    resetButton.addEventListener('mouseleave', () => {
+        resetButton.style.backgroundColor = '#3f3f3f';
+    });
+    
+    resetButtonContainer.appendChild(resetButton);
+    ikContainer.appendChild(resetButtonContainer);
+    
+    // Add IK container to the main controls
+    controlsContainer.appendChild(ikContainer);
     
     // Add Customize Visualizations checkbox and container for its options
     const customizeContainer = document.createElement('div');
@@ -1106,8 +1277,41 @@ function setupBoneInteractions() {
             state.controls.enabled = false;
         }
         
-        // Start dragging if it's a root node
-        if (hoveredObject.userData.isRoot) {
+        // Start dragging based on the type of object
+        if (hoveredObject.userData.isHandle) {
+            isDragging = true;
+            draggedObject = hoveredObject;
+            
+            // Store the original position of the handle
+            dragStartPosition.copy(draggedObject.position);
+            
+            // Get the camera's viewing direction
+            const cameraDirection = new THREE.Vector3();
+            state.camera.getWorldDirection(cameraDirection);
+            
+            // Create a plane perpendicular to the camera direction, passing through the object
+            dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+                cameraDirection,
+                draggedObject.position
+            );
+            
+            // Store the starting position of the drag operation
+            dragStartPosition.copy(draggedObject.position);
+            
+            // Reset total drag delta
+            totalDragDelta.set(0, 0, 0);
+            
+            // Find the point on the plane where the ray intersects
+            const planeIntersection = new THREE.Vector3();
+            raycaster.ray.intersectPlane(dragPlane, planeIntersection);
+            dragStartPoint.copy(planeIntersection);
+            
+            // Find and store the bone chain (from handle to root)
+            storeBoneChain();
+            
+            // Change cursor to indicate dragging
+            domElement.style.cursor = 'grabbing';
+        } else if (hoveredObject.userData.isRoot) {
             isDragging = true;
             draggedObject = hoveredObject;
             
@@ -1178,6 +1382,47 @@ function setupBoneInteractions() {
 }
 
 /**
+ * Store the chain of bones from a handle to the root
+ */
+function storeBoneChain() {
+    if (!draggedObject || !draggedObject.userData.bone) return;
+    
+    // Clear previous chain
+    draggedBoneChain = [];
+    originalBonePositions.clear();
+    originalBoneRotations.clear();
+    
+    // Get the bone associated with the handle
+    const targetBone = draggedObject.userData.bone;
+    
+    // Start with the target bone and traverse up to the root
+    let currentBone = targetBone;
+    
+    while (currentBone) {
+        // Add the bone to the chain
+        draggedBoneChain.push(currentBone);
+        
+        // Store the original position and rotation
+        const worldPos = new THREE.Vector3();
+        const worldQuat = new THREE.Quaternion();
+        
+        currentBone.getWorldPosition(worldPos);
+        currentBone.getWorldQuaternion(worldQuat);
+        
+        originalBonePositions.set(currentBone.uuid, worldPos.clone());
+        originalBoneRotations.set(currentBone.uuid, worldQuat.clone());
+        
+        // Move to the parent bone
+        currentBone = currentBone.parent;
+        
+        // Stop if we've reached the scene or a certain depth
+        if (!currentBone.isBone || draggedBoneChain.length >= ikSettings.influenceRadius) break;
+    }
+    
+    console.log(`Stored bone chain with ${draggedBoneChain.length} bones`);
+}
+
+/**
  * Handle movement during drag operations
  * @param {Event} event - Mouse move event
  */
@@ -1195,34 +1440,286 @@ function handleDragMovement(event) {
     // Update the total drag delta
     totalDragDelta.copy(movementDelta);
     
-    // Move the draggedObject temporarily to show preview
-    draggedObject.position.copy(dragStartPosition).add(movementDelta);
+    if (draggedObject.userData.isHandle) {
+        // If dragging a handle, update position and apply IK
+        const targetPosition = new THREE.Vector3().copy(dragStartPosition).add(movementDelta);
+        
+        // Move the handle temporarily to show preview
+        draggedObject.position.copy(targetPosition);
+        
+        // Apply IK to move the bone chain
+        solveIK(targetPosition);
+    } else if (draggedObject.userData.isRoot) {
+        // If dragging a root, just update its position
+        draggedObject.position.copy(dragStartPosition).add(movementDelta);
+    }
 }
 
 /**
- * Apply the drag movement to the entire assembly container
+ * Apply inverse kinematics to move the bone chain to reach the target position
+ * @param {THREE.Vector3} targetPosition - The target world position for the end effector
+ */
+function solveIK(targetPosition) {
+    if (draggedBoneChain.length === 0) return;
+    
+    // Implement a basic CCD (Cyclic Coordinate Descent) IK solver
+    const endEffector = draggedBoneChain[0]; // The first bone is the end effector
+    const endEffectorVisual = draggedObject;
+    
+    // Skip if we only have one bone
+    if (draggedBoneChain.length === 1) return;
+    
+    // Apply the target position to the end effector visual for immediate feedback
+    endEffectorVisual.position.copy(targetPosition);
+    
+    // Create a world target position
+    const worldTargetPos = new THREE.Vector3();
+    endEffectorVisual.getWorldPosition(worldTargetPos);
+    
+    // Check if the target is too far (more than 2x the chain length)
+    const chainLength = calculateChainLength();
+    const distanceToTarget = calculateDistanceToTarget(worldTargetPos);
+    
+    if (distanceToTarget > chainLength * 2) {
+        console.warn(`Target too far (${distanceToTarget.toFixed(2)} > ${(chainLength * 2).toFixed(2)})`);
+        // Normalize the direction and set a reachable target
+        const rootPos = new THREE.Vector3();
+        draggedBoneChain[draggedBoneChain.length - 1].getWorldPosition(rootPos);
+        
+        const direction = new THREE.Vector3().subVectors(worldTargetPos, rootPos).normalize();
+        worldTargetPos.copy(rootPos).add(direction.multiplyScalar(chainLength * 1.9));
+    }
+    
+    // Apply CCD algorithm for the specified number of iterations
+    for (let iteration = 0; iteration < ikSettings.iterations; iteration++) {
+        // Process each bone in the chain except the end effector
+        for (let i = 1; i < draggedBoneChain.length; i++) {
+            const bone = draggedBoneChain[i];
+            
+            // Skip the root bone as we don't want to rotate it
+            if (i === draggedBoneChain.length - 1) continue;
+            
+            // Get the current position of the bone and end effector in world space
+            const boneWorldPos = new THREE.Vector3();
+            const endEffectorWorldPos = new THREE.Vector3();
+            
+            bone.getWorldPosition(boneWorldPos);
+            endEffector.getWorldPosition(endEffectorWorldPos);
+            
+            // Calculate the direction vectors
+            const currentDir = new THREE.Vector3().subVectors(endEffectorWorldPos, boneWorldPos).normalize();
+            const targetDir = new THREE.Vector3().subVectors(worldTargetPos, boneWorldPos).normalize();
+            
+            // Calculate the rotation axis and angle
+            const rotationAxis = new THREE.Vector3().crossVectors(currentDir, targetDir).normalize();
+            let rotationAngle = Math.acos(Math.clamp(currentDir.dot(targetDir), -1, 1));
+            
+            // Apply damping
+            rotationAngle *= ikSettings.damping;
+            
+            // Apply joint constraints - limit the rotation angle
+            const maxAngle = Math.PI * 0.5; // 90 degrees
+            rotationAngle = Math.min(rotationAngle, maxAngle);
+            
+            // Skip if rotation is too small
+            if (rotationAngle < 0.01 || rotationAxis.length() < 0.01) continue;
+            
+            // Create a quaternion for the rotation
+            const q = new THREE.Quaternion().setFromAxisAngle(rotationAxis, rotationAngle);
+            
+            // Apply the rotation to the bone
+            bone.quaternion.premultiply(q);
+            
+            // Apply quaternion normalization to prevent drift
+            bone.quaternion.normalize();
+            
+            // Update the world matrix to propagate changes
+            bone.updateMatrixWorld();
+        }
+        
+        // Check if we're close enough to the target
+        const currentEndEffectorPos = new THREE.Vector3();
+        endEffector.getWorldPosition(currentEndEffectorPos);
+        
+        if (currentEndEffectorPos.distanceTo(worldTargetPos) < 0.01) {
+            break;
+        }
+    }
+    
+    // Update the visual representation of all bones
+    updateBoneVisualizationPositions();
+}
+
+/**
+ * Calculate the total length of the bone chain
+ * @returns {number} The chain length
+ */
+function calculateChainLength() {
+    let totalLength = 0;
+    
+    for (let i = 0; i < draggedBoneChain.length - 1; i++) {
+        const bone = draggedBoneChain[i];
+        const parentBone = draggedBoneChain[i + 1];
+        
+        // Get world positions
+        const bonePos = new THREE.Vector3();
+        const parentPos = new THREE.Vector3();
+        
+        bone.getWorldPosition(bonePos);
+        parentBone.getWorldPosition(parentPos);
+        
+        // Add the distance to the total
+        totalLength += bonePos.distanceTo(parentPos);
+    }
+    
+    return totalLength;
+}
+
+/**
+ * Calculate the distance from the root bone to the target
+ * @param {THREE.Vector3} targetPos - The target position
+ * @returns {number} The distance
+ */
+function calculateDistanceToTarget(targetPos) {
+    // Get the root bone (last in the chain)
+    const rootBone = draggedBoneChain[draggedBoneChain.length - 1];
+    
+    // Get the root bone position
+    const rootPos = new THREE.Vector3();
+    rootBone.getWorldPosition(rootPos);
+    
+    // Return the distance
+    return rootPos.distanceTo(targetPos);
+}
+
+/**
+ * Reset the bone chain to its original position and rotation
+ */
+function resetBoneChain() {
+    if (draggedBoneChain.length === 0) return;
+    
+    // Restore each bone to its original position and rotation
+    for (const bone of draggedBoneChain) {
+        const originalPos = originalBonePositions.get(bone.uuid);
+        const originalRot = originalBoneRotations.get(bone.uuid);
+        
+        if (originalPos && originalRot) {
+            // Convert world space back to local space
+            if (bone.parent) {
+                // Create a matrix from the world position and rotation
+                const worldMatrix = new THREE.Matrix4().compose(
+                    originalPos,
+                    originalRot,
+                    bone.scale
+                );
+                
+                // Get inverse of parent's world matrix
+                const parentInverse = new THREE.Matrix4().copy(bone.parent.matrixWorld).invert();
+                
+                // Convert to local space
+                const localMatrix = new THREE.Matrix4().multiplyMatrices(parentInverse, worldMatrix);
+                
+                // Extract position and rotation
+                const position = new THREE.Vector3();
+                const quaternion = new THREE.Quaternion();
+                const scale = new THREE.Vector3();
+                
+                localMatrix.decompose(position, quaternion, scale);
+                
+                // Apply the local transformation
+                bone.position.copy(position);
+                bone.quaternion.copy(quaternion);
+            }
+        }
+    }
+    
+    // Update matrices
+    for (const bone of draggedBoneChain) {
+        bone.updateMatrix();
+        bone.updateMatrixWorld();
+    }
+    
+    // Update visualization
+    updateBoneVisualizationPositions();
+}
+
+/**
+ * Update the position and orientation of all bone visualization meshes
+ */
+function updateBoneVisualizationPositions() {
+    const state = getState();
+    if (!state.boneVisualization) return;
+    
+    state.boneVisualization.traverse(child => {
+        if (child.userData && child.userData.bone) {
+            const bone = child.userData.bone;
+            
+            // Update the position of the visualization based on the bone
+            if (child.userData.isHandle || child.userData.isNode) {
+                const worldPos = new THREE.Vector3();
+                bone.getWorldPosition(worldPos);
+                
+                // Set the position relative to the assembly container
+                child.position.copy(worldPos);
+                
+                // If it's a connection between bones, update its orientation too
+                if (child.userData.isConnection && child.userData.targetBone) {
+                    // Get the position of the target bone
+                    const targetWorldPos = new THREE.Vector3();
+                    child.userData.targetBone.getWorldPosition(targetWorldPos);
+                    
+                    // Calculate the direction vector
+                    const direction = new THREE.Vector3().subVectors(targetWorldPos, worldPos);
+                    const distance = direction.length();
+                    
+                    // Update the scale to match the distance
+                    child.scale.set(0.1, 0.1, distance);
+                    
+                    // Calculate the quaternion to orient the bone
+                    child.quaternion.setFromUnitVectors(
+                        new THREE.Vector3(0, 0, 1),
+                        direction.normalize()
+                    );
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Apply the drag movement to the entire model using IK
  */
 function applyDragToModel() {
     const state = getState();
     if (!draggedObject || totalDragDelta.length() === 0) return;
     
-    // Get the assembly container
-    const assemblyContainer = state.assemblyContainer;
-    if (!assemblyContainer) {
-        console.warn('No assembly container found to move');
-        return;
+    if (draggedObject.userData.isRoot) {
+        // If dragging the root, move the entire assembly
+        const assemblyContainer = state.assemblyContainer;
+        if (!assemblyContainer) {
+            console.warn('No assembly container found to move');
+            return;
+        }
+        
+        console.log(`Moving assembly by: ${totalDragDelta.x.toFixed(2)}, ${totalDragDelta.y.toFixed(2)}, ${totalDragDelta.z.toFixed(2)}`);
+        
+        // Move the assembly container by the drag delta
+        assemblyContainer.position.add(totalDragDelta);
+        assemblyContainer.updateMatrix();
+        
+        // Reset root visualization sphere to its original position
+        draggedObject.position.copy(originalRootBoneLocalPosition);
+        
+        console.log(`Assembly moved to position: ${assemblyContainer.position.x.toFixed(2)}, ${assemblyContainer.position.y.toFixed(2)}, ${assemblyContainer.position.z.toFixed(2)}`);
+    } else if (draggedObject.userData.isHandle) {
+        // If dragging a handle, the IK has already been applied during dragging
+        console.log('Finalizing IK pose');
+        
+        // Clear the bone chain and stored positions
+        draggedBoneChain = [];
+        originalBonePositions.clear();
+        originalBoneRotations.clear();
     }
-    
-    console.log(`Moving assembly by: ${totalDragDelta.x.toFixed(2)}, ${totalDragDelta.y.toFixed(2)}, ${totalDragDelta.z.toFixed(2)}`);
-    
-    // Move the assembly container by the drag delta
-    assemblyContainer.position.add(totalDragDelta);
-    assemblyContainer.updateMatrix();
-    
-    // Reset root visualization sphere to its original position
-    draggedObject.position.copy(originalRootBoneLocalPosition);
-    
-    console.log(`Assembly moved to position: ${assemblyContainer.position.x.toFixed(2)}, ${assemblyContainer.position.y.toFixed(2)}, ${assemblyContainer.position.z.toFixed(2)}`);
 }
 
 export default {
