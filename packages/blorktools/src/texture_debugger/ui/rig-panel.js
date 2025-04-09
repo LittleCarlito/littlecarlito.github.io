@@ -17,6 +17,12 @@ let controlsContainer = null;
 let hoveredObject = null;
 let raycaster = null;
 let mouse = new THREE.Vector2();
+let isDragging = false;
+let draggedObject = null;
+let dragPlane = new THREE.Plane();
+let dragStartPoint = new THREE.Vector3();
+let dragStartPosition = new THREE.Vector3();
+let totalDragDelta = new THREE.Vector3();
 
 /**
  * Initialize the rig panel and cache DOM elements
@@ -437,11 +443,7 @@ export function toggleRigVisualization() {
             }
             
             // Hide visualization
-            state.boneVisualization.traverse(obj => {
-                if (obj.visible !== undefined) {
-                    obj.visible = false;
-                }
-            });
+            state.boneVisualization.visible = false;
         }
         updateState('isBoneVisualizationVisible', false);
         
@@ -453,11 +455,7 @@ export function toggleRigVisualization() {
         if (!state.boneVisualization) {
             createBoneVisualization();
         } else {
-            state.boneVisualization.traverse(obj => {
-                if (obj.visible !== undefined) {
-                    obj.visible = true;
-                }
-            });
+            state.boneVisualization.visible = true;
             
             // Re-setup interactions
             setupBoneInteractions();
@@ -605,19 +603,81 @@ function createBoneVisualization() {
         }
     });
     
-    // Add the group to the scene
-    if (state.scene) {
-        state.scene.add(boneGroup);
+    // Create or get the assembly container
+    let assemblyContainer = findOrCreateAssemblyContainer(state.model);
+    
+    // Add the bone visualization group to the assembly container
+    assemblyContainer.add(boneGroup);
+    
+    // If the scene doesn't already contain the assembly container, add it
+    if (!state.scene.children.includes(assemblyContainer)) {
+        state.scene.add(assemblyContainer);
     }
     
-    // Update state
+    // Update state with references
     updateState('boneVisualization', boneGroup);
+    updateState('assemblyContainer', assemblyContainer);
     
     // Set up hover interactions
     setupBoneInteractions();
     
     // Apply visualization settings
     applyVisualizationSettings();
+}
+
+/**
+ * Find or create an assembly container that will hold the model and its visualizations
+ * @param {THREE.Object3D} model - The model object
+ * @returns {THREE.Group} The assembly container
+ */
+function findOrCreateAssemblyContainer(model) {
+    const state = getState();
+    
+    // Check if we already have an assembly container in the state
+    if (state.assemblyContainer) {
+        return state.assemblyContainer;
+    }
+    
+    // Check if model already has a parent that could be our container
+    if (model.parent && model.parent.isGroup && model.parent.name === 'AssemblyContainer') {
+        return model.parent;
+    }
+    
+    // Create a new assembly container
+    const assemblyContainer = new THREE.Group();
+    assemblyContainer.name = 'AssemblyContainer';
+    
+    // If model is already in the scene, we need to reparent it
+    if (model.parent) {
+        // Get model's world position to maintain its position after reparenting
+        const worldPosition = new THREE.Vector3();
+        const worldQuaternion = new THREE.Quaternion();
+        const worldScale = new THREE.Vector3();
+        
+        model.updateWorldMatrix(true, false);
+        model.matrixWorld.decompose(worldPosition, worldQuaternion, worldScale);
+        
+        // Remove from current parent
+        model.parent.remove(model);
+        
+        // Add to our assembly container
+        assemblyContainer.add(model);
+        
+        // Position the assembly container to keep the model in the same world position
+        assemblyContainer.position.copy(worldPosition);
+        assemblyContainer.quaternion.copy(worldQuaternion);
+        assemblyContainer.scale.copy(worldScale);
+        
+        // Reset model's position to be relative to assembly container
+        model.position.set(0, 0, 0);
+        model.quaternion.identity();
+        model.scale.set(1, 1, 1);
+    } else {
+        // If model isn't in the scene yet, just add it to our container
+        assemblyContainer.add(model);
+    }
+    
+    return assemblyContainer;
 }
 
 /**
@@ -991,6 +1051,12 @@ function setupBoneInteractions() {
         // Update the raycaster
         raycaster.setFromCamera(mouse, state.camera);
         
+        // If dragging, update the object position temporarily
+        if (isDragging && draggedObject) {
+            handleDragMovement(event);
+            return;
+        }
+        
         // Find interactive objects (handles and roots)
         const interactiveObjects = [];
         state.boneVisualization.traverse(child => {
@@ -1034,9 +1100,39 @@ function setupBoneInteractions() {
         // Prevent event from being handled by other listeners
         event.stopPropagation();
         
-        // Ensure camera controls remain disabled
+        // Ensure camera controls are disabled during dragging
         if (state.controls && state.controls.enabled !== undefined) {
             state.controls.enabled = false;
+        }
+        
+        // Start dragging if it's a root node
+        if (hoveredObject.userData.isRoot) {
+            isDragging = true;
+            draggedObject = hoveredObject;
+            
+            // Get the camera's viewing direction
+            const cameraDirection = new THREE.Vector3();
+            state.camera.getWorldDirection(cameraDirection);
+            
+            // Create a plane perpendicular to the camera direction, passing through the object
+            dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+                cameraDirection,
+                draggedObject.position
+            );
+            
+            // Store the starting position of the drag operation
+            dragStartPosition.copy(draggedObject.position);
+            
+            // Reset total drag delta
+            totalDragDelta.set(0, 0, 0);
+            
+            // Find the point on the plane where the ray intersects
+            const planeIntersection = new THREE.Vector3();
+            raycaster.ray.intersectPlane(dragPlane, planeIntersection);
+            dragStartPoint.copy(planeIntersection);
+            
+            // Change cursor to indicate dragging
+            domElement.style.cursor = 'grabbing';
         }
     };
     
@@ -1045,7 +1141,20 @@ function setupBoneInteractions() {
         // Only process left button releases
         if (event.button !== 0) return;
         
-        // If not hovering over anything, restore camera controls
+        // If we were dragging a root object, apply the drag delta to the entire model
+        if (isDragging && draggedObject && draggedObject.userData.isRoot) {
+            applyDragToModel();
+        }
+        
+        // End dragging
+        isDragging = false;
+        draggedObject = null;
+        
+        // Reset cursor
+        domElement.style.cursor = hoveredObject ? 'pointer' : 'auto';
+        
+        // If still hovering over an interactive object, keep orbit controls disabled
+        // Otherwise, restore orbit controls to original state
         if (!hoveredObject) {
             if (state.controls && state.controls.enabled !== undefined) {
                 state.controls.enabled = orbitControlsEnabled;
@@ -1062,6 +1171,59 @@ function setupBoneInteractions() {
     domElement.addEventListener('mousemove', onMouseMove);
     domElement.addEventListener('mousedown', onMouseDown);
     domElement.addEventListener('mouseup', onMouseUp);
+}
+
+/**
+ * Handle movement during drag operations
+ * @param {Event} event - Mouse move event
+ */
+function handleDragMovement(event) {
+    const state = getState();
+    if (!isDragging || !draggedObject || !state.camera) return;
+    
+    // Find the new intersection point on the plane
+    const planeIntersection = new THREE.Vector3();
+    if (!raycaster.ray.intersectPlane(dragPlane, planeIntersection)) return;
+    
+    // Calculate the movement delta in world space
+    const movementDelta = new THREE.Vector3().subVectors(planeIntersection, dragStartPoint);
+    
+    // Update the total drag delta
+    totalDragDelta.copy(movementDelta);
+    
+    // Move the draggedObject temporarily to show preview
+    draggedObject.position.copy(dragStartPosition).add(movementDelta);
+}
+
+/**
+ * Apply the drag movement to the entire assembly container
+ */
+function applyDragToModel() {
+    const state = getState();
+    if (!draggedObject || totalDragDelta.length() === 0) return;
+    
+    // Get the bone reference
+    const bone = draggedObject.userData.boneRef;
+    if (!bone) return;
+    
+    // Get the assembly container
+    const assemblyContainer = state.assemblyContainer;
+    if (!assemblyContainer) {
+        console.warn('No assembly container found to move');
+        return;
+    }
+    
+    console.log(`Moving assembly by: ${totalDragDelta.x.toFixed(2)}, ${totalDragDelta.y.toFixed(2)}, ${totalDragDelta.z.toFixed(2)}`);
+    
+    // Move the assembly container by the drag delta
+    assemblyContainer.position.add(totalDragDelta);
+    
+    // Update matrix to propagate changes
+    assemblyContainer.updateMatrix();
+    
+    console.log(`Assembly moved to position: ${assemblyContainer.position.x.toFixed(2)}, ${assemblyContainer.position.y.toFixed(2)}, ${assemblyContainer.position.z.toFixed(2)}`);
+    
+    // No need to manually update any other elements as they're all in the assembly container
 }
 
 export default {
