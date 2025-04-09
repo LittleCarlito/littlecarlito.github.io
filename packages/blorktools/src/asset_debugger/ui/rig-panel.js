@@ -942,6 +942,7 @@ function createBoneVisual(bone, baseSize, boneGroup) {
     const boneMesh = new THREE.Mesh(boneGeometry, boneMaterial);
     boneMesh.name = `bone_visual_${bone.name || 'unnamed'}`;
     boneMesh.userData.boneRef = bone;
+    boneMesh.userData.bone = bone; // Add duplicate reference for compatibility
     
     // Position the bone mesh
     boneMesh.position.copy(boneWorldPosition);
@@ -1030,7 +1031,7 @@ function createHandleBoneVisual(bone, baseSize, boneGroup) {
     // Create material - gray and solid
     const handleMaterial = new THREE.MeshBasicMaterial({
         color: 0x888888,
-        wireframe: false,
+        wireframe: true,
         transparent: true,
         opacity: 0.7,
         depthTest: true,
@@ -1044,6 +1045,7 @@ function createHandleBoneVisual(bone, baseSize, boneGroup) {
     handleMesh.userData.originalColor = new THREE.Color(0x888888);
     handleMesh.userData.hoverColor = new THREE.Color(0x00ff00);
     handleMesh.userData.isHandle = true;
+    handleMesh.userData.bone = bone;  // Add duplicate reference for compatibility
     
     // Position at bone's world position
     handleMesh.position.copy(worldPosition);
@@ -1120,7 +1122,7 @@ function createRootBoneVisual(bone, baseSize, boneGroup) {
     // Create material - darker gray and solid
     const rootMaterial = new THREE.MeshBasicMaterial({
         color: 0x555555,
-        wireframe: false,
+        wireframe: true,
         transparent: true,
         opacity: 0.7,
         depthTest: true
@@ -1133,6 +1135,7 @@ function createRootBoneVisual(bone, baseSize, boneGroup) {
     rootMesh.userData.originalColor = new THREE.Color(0x555555);
     rootMesh.userData.hoverColor = new THREE.Color(0xff0000);
     rootMesh.userData.isRoot = true;
+    rootMesh.userData.bone = bone; // Add duplicate reference for compatibility
     
     // Position at bone's world position
     rootMesh.position.copy(worldPosition);
@@ -1295,9 +1298,6 @@ function setupBoneInteractions() {
                 draggedObject.position
             );
             
-            // Store the starting position of the drag operation
-            dragStartPosition.copy(draggedObject.position);
-            
             // Reset total drag delta
             totalDragDelta.set(0, 0, 0);
             
@@ -1385,7 +1385,8 @@ function setupBoneInteractions() {
  * Store the chain of bones from a handle to the root
  */
 function storeBoneChain() {
-    if (!draggedObject || !draggedObject.userData.bone) return;
+    // Try both bone reference locations
+    if (!draggedObject || (!draggedObject.userData.boneRef && !draggedObject.userData.bone)) return;
     
     // Clear previous chain
     draggedBoneChain = [];
@@ -1393,7 +1394,7 @@ function storeBoneChain() {
     originalBoneRotations.clear();
     
     // Get the bone associated with the handle
-    const targetBone = draggedObject.userData.bone;
+    const targetBone = draggedObject.userData.boneRef || draggedObject.userData.bone;
     
     // Start with the target bone and traverse up to the root
     let currentBone = targetBone;
@@ -1416,7 +1417,7 @@ function storeBoneChain() {
         currentBone = currentBone.parent;
         
         // Stop if we've reached the scene or a certain depth
-        if (!currentBone.isBone || draggedBoneChain.length >= ikSettings.influenceRadius) break;
+        if (!currentBone || !currentBone.isBone || draggedBoneChain.length >= ikSettings.influenceRadius) break;
     }
     
     console.log(`Stored bone chain with ${draggedBoneChain.length} bones`);
@@ -1443,14 +1444,10 @@ function handleDragMovement(event) {
     if (draggedObject.userData.isHandle) {
         // If dragging a handle, update position and apply IK
         const targetPosition = new THREE.Vector3().copy(dragStartPosition).add(movementDelta);
-        
-        // Move the handle temporarily to show preview
         draggedObject.position.copy(targetPosition);
-        
-        // Apply IK to move the bone chain
         solveIK(targetPosition);
     } else if (draggedObject.userData.isRoot) {
-        // If dragging a root, just update its position
+        // When dragging root, just update the visual sphere position
         draggedObject.position.copy(dragStartPosition).add(movementDelta);
     }
 }
@@ -1467,7 +1464,14 @@ function solveIK(targetPosition) {
     const endEffectorVisual = draggedObject;
     
     // Skip if we only have one bone
-    if (draggedBoneChain.length === 1) return;
+    if (draggedBoneChain.length === 1) {
+        // If there's only one bone, just update its position
+        endEffector.position.copy(targetPosition);
+        endEffector.updateMatrix();
+        endEffector.updateMatrixWorld(true);
+        updateBoneVisualizationPositions();
+        return;
+    }
     
     // Apply the target position to the end effector visual for immediate feedback
     endEffectorVisual.position.copy(targetPosition);
@@ -1481,7 +1485,6 @@ function solveIK(targetPosition) {
     const distanceToTarget = calculateDistanceToTarget(worldTargetPos);
     
     if (distanceToTarget > chainLength * 2) {
-        console.warn(`Target too far (${distanceToTarget.toFixed(2)} > ${(chainLength * 2).toFixed(2)})`);
         // Normalize the direction and set a reachable target
         const rootPos = new THREE.Vector3();
         draggedBoneChain[draggedBoneChain.length - 1].getWorldPosition(rootPos);
@@ -1521,7 +1524,7 @@ function solveIK(targetPosition) {
             const maxAngle = Math.PI * 0.5; // 90 degrees
             rotationAngle = Math.min(rotationAngle, maxAngle);
             
-            // Skip if rotation is too small
+            // Skip if rotation is too small or axis is invalid
             if (rotationAngle < 0.01 || rotationAxis.length() < 0.01) continue;
             
             // Create a quaternion for the rotation
@@ -1529,12 +1532,9 @@ function solveIK(targetPosition) {
             
             // Apply the rotation to the bone
             bone.quaternion.premultiply(q);
-            
-            // Apply quaternion normalization to prevent drift
             bone.quaternion.normalize();
-            
-            // Update the world matrix to propagate changes
-            bone.updateMatrixWorld();
+            bone.updateMatrix();
+            bone.updateMatrixWorld(true);
         }
         
         // Check if we're close enough to the target
@@ -1546,7 +1546,20 @@ function solveIK(targetPosition) {
         }
     }
     
-    // Update the visual representation of all bones
+    // Update the position of the end effector bone
+    if (endEffector.parent && endEffector.parent.isBone) {
+        const visualWorldPos = new THREE.Vector3();
+        endEffectorVisual.getWorldPosition(visualWorldPos);
+        
+        const parentInverse = new THREE.Matrix4().copy(endEffector.parent.matrixWorld).invert();
+        const localPos = visualWorldPos.clone().applyMatrix4(parentInverse);
+        
+        endEffector.position.copy(localPos);
+        endEffector.updateMatrix();
+        endEffector.updateMatrixWorld(true);
+    }
+    
+    // Update visualizations
     updateBoneVisualizationPositions();
 }
 
@@ -1651,36 +1664,34 @@ function updateBoneVisualizationPositions() {
     if (!state.boneVisualization) return;
     
     state.boneVisualization.traverse(child => {
-        if (child.userData && child.userData.bone) {
-            const bone = child.userData.bone;
+        if (child.userData && child.userData.boneRef) {
+            const bone = child.userData.boneRef;
             
             // Update the position of the visualization based on the bone
-            if (child.userData.isHandle || child.userData.isNode) {
-                const worldPos = new THREE.Vector3();
-                bone.getWorldPosition(worldPos);
+            const worldPos = new THREE.Vector3();
+            bone.getWorldPosition(worldPos);
+            
+            // Set the position relative to the assembly container
+            child.position.copy(worldPos);
+            
+            // If it's a connection between bones, update its orientation too
+            if (child.userData.isConnection && child.userData.targetBone) {
+                // Get the position of the target bone
+                const targetWorldPos = new THREE.Vector3();
+                child.userData.targetBone.getWorldPosition(targetWorldPos);
                 
-                // Set the position relative to the assembly container
-                child.position.copy(worldPos);
+                // Calculate the direction vector
+                const direction = new THREE.Vector3().subVectors(targetWorldPos, worldPos);
+                const distance = direction.length();
                 
-                // If it's a connection between bones, update its orientation too
-                if (child.userData.isConnection && child.userData.targetBone) {
-                    // Get the position of the target bone
-                    const targetWorldPos = new THREE.Vector3();
-                    child.userData.targetBone.getWorldPosition(targetWorldPos);
-                    
-                    // Calculate the direction vector
-                    const direction = new THREE.Vector3().subVectors(targetWorldPos, worldPos);
-                    const distance = direction.length();
-                    
-                    // Update the scale to match the distance
-                    child.scale.set(0.1, 0.1, distance);
-                    
-                    // Calculate the quaternion to orient the bone
-                    child.quaternion.setFromUnitVectors(
-                        new THREE.Vector3(0, 0, 1),
-                        direction.normalize()
-                    );
-                }
+                // Update the scale to match the distance
+                child.scale.set(0.1, 0.1, distance);
+                
+                // Calculate the quaternion to orient the bone
+                child.quaternion.setFromUnitVectors(
+                    new THREE.Vector3(0, 0, 1),
+                    direction.normalize()
+                );
             }
         }
     });
@@ -1694,28 +1705,20 @@ function applyDragToModel() {
     if (!draggedObject || totalDragDelta.length() === 0) return;
     
     if (draggedObject.userData.isRoot) {
-        // If dragging the root, move the entire assembly
+        // If dragging the root, move the entire assembly and nothing else
         const assemblyContainer = state.assemblyContainer;
-        if (!assemblyContainer) {
-            console.warn('No assembly container found to move');
-            return;
-        }
+        if (!assemblyContainer) return;
         
-        console.log(`Moving assembly by: ${totalDragDelta.x.toFixed(2)}, ${totalDragDelta.y.toFixed(2)}, ${totalDragDelta.z.toFixed(2)}`);
-        
-        // Move the assembly container by the drag delta
+        // Simply move the assembly container - everything inside moves with it
         assemblyContainer.position.add(totalDragDelta);
-        assemblyContainer.updateMatrix();
+        assemblyContainer.updateMatrixWorld(true);
         
-        // Reset root visualization sphere to its original position
+        // Reset root visualization sphere to original position
         draggedObject.position.copy(originalRootBoneLocalPosition);
         
         console.log(`Assembly moved to position: ${assemblyContainer.position.x.toFixed(2)}, ${assemblyContainer.position.y.toFixed(2)}, ${assemblyContainer.position.z.toFixed(2)}`);
     } else if (draggedObject.userData.isHandle) {
         // If dragging a handle, the IK has already been applied during dragging
-        console.log('Finalizing IK pose');
-        
-        // Clear the bone chain and stored positions
         draggedBoneChain = [];
         originalBonePositions.clear();
         originalBoneRotations.clear();
