@@ -23,6 +23,7 @@ let dragPlane = new THREE.Plane();
 let dragStartPoint = new THREE.Vector3();
 let dragStartPosition = new THREE.Vector3();
 let totalDragDelta = new THREE.Vector3();
+let originalRootBoneLocalPosition = new THREE.Vector3(); // Store original local position
 
 /**
  * Initialize the rig panel and cache DOM elements
@@ -1110,6 +1111,9 @@ function setupBoneInteractions() {
             isDragging = true;
             draggedObject = hoveredObject;
             
+            // Store the original local position of the root bone
+            originalRootBoneLocalPosition.copy(draggedObject.position);
+            
             // Get the camera's viewing direction
             const cameraDirection = new THREE.Vector3();
             state.camera.getWorldDirection(cameraDirection);
@@ -1202,10 +1206,6 @@ function applyDragToModel() {
     const state = getState();
     if (!draggedObject || totalDragDelta.length() === 0) return;
     
-    // Get the bone reference
-    const bone = draggedObject.userData.boneRef;
-    if (!bone) return;
-    
     // Get the assembly container
     const assemblyContainer = state.assemblyContainer;
     if (!assemblyContainer) {
@@ -1217,13 +1217,12 @@ function applyDragToModel() {
     
     // Move the assembly container by the drag delta
     assemblyContainer.position.add(totalDragDelta);
-    
-    // Update matrix to propagate changes
     assemblyContainer.updateMatrix();
     
-    console.log(`Assembly moved to position: ${assemblyContainer.position.x.toFixed(2)}, ${assemblyContainer.position.y.toFixed(2)}, ${assemblyContainer.position.z.toFixed(2)}`);
+    // Reset root visualization sphere to its original position
+    draggedObject.position.copy(originalRootBoneLocalPosition);
     
-    // No need to manually update any other elements as they're all in the assembly container
+    console.log(`Assembly moved to position: ${assemblyContainer.position.x.toFixed(2)}, ${assemblyContainer.position.y.toFixed(2)}, ${assemblyContainer.position.z.toFixed(2)}`);
 }
 
 export default {
