@@ -13,6 +13,11 @@ let toggleRigButton = null;
 let boneHierarchy = null;
 let controlsContainer = null;
 
+// Add these variables to the top of the file after the other variable declarations
+let hoveredObject = null;
+let raycaster = null;
+let mouse = new THREE.Vector2();
+
 /**
  * Initialize the rig panel and cache DOM elements
  */
@@ -398,6 +403,40 @@ export function toggleRigVisualization() {
     if (state.isBoneVisualizationVisible) {
         // Hide visualization
         if (state.boneVisualization) {
+            // Remove event listeners
+            if (state.renderer && state.renderer.domElement) {
+                const domElement = state.renderer.domElement;
+                
+                if (state.boneVisualization.userData.mouseListener) {
+                    domElement.removeEventListener('mousemove', state.boneVisualization.userData.mouseListener);
+                }
+                
+                if (state.boneVisualization.userData.mouseDownListener) {
+                    domElement.removeEventListener('mousedown', state.boneVisualization.userData.mouseDownListener);
+                }
+                
+                if (state.boneVisualization.userData.mouseUpListener) {
+                    domElement.removeEventListener('mouseup', state.boneVisualization.userData.mouseUpListener);
+                }
+            }
+            
+            // Reset cursor if needed
+            if (state.renderer) {
+                state.renderer.domElement.style.cursor = 'auto';
+            }
+            
+            // Re-enable camera controls if they were disabled
+            if (state.controls && state.controls.enabled !== undefined) {
+                state.controls.enabled = true;
+            }
+            
+            // Reset hovered object if any
+            if (hoveredObject) {
+                hoveredObject.material.color.copy(hoveredObject.userData.originalColor);
+                hoveredObject = null;
+            }
+            
+            // Hide visualization
             state.boneVisualization.traverse(obj => {
                 if (obj.visible !== undefined) {
                     obj.visible = false;
@@ -419,6 +458,9 @@ export function toggleRigVisualization() {
                     obj.visible = true;
                 }
             });
+            
+            // Re-setup interactions
+            setupBoneInteractions();
         }
         updateState('isBoneVisualizationVisible', true);
         
@@ -501,8 +543,17 @@ function setVisualizationColor(colorHex) {
     const color = new THREE.Color(colorHex);
     
     state.boneVisualization.traverse(object => {
-        if (object.material) {
+        // Only change color for regular bone visualizations, not handles or roots
+        if (object.material && 
+            !object.userData.isHandle && 
+            !object.userData.isRoot) {
             object.material.color.copy(color);
+        } else if (object.material && 
+                  (object.userData.isHandle || object.userData.isRoot)) {
+            // Make sure handles and roots keep their original colors
+            if (object.userData.originalColor) {
+                object.material.color.copy(object.userData.originalColor);
+            }
         }
     });
 }
@@ -534,8 +585,24 @@ function createBoneVisualization() {
     
     // Create a visualization for each bone
     state.bones.forEach(bone => {
-        // Create a bone representation
-        createBoneVisual(bone, modelSize, boneGroup);
+        // Determine bone type by name for special visualization
+        if (bone.name) {
+            const lowercaseName = bone.name.toLowerCase();
+            
+            if (lowercaseName.includes('_handle') || lowercaseName.includes('_control')) {
+                // Create handle visualization for handles and controls
+                createHandleBoneVisual(bone, modelSize, boneGroup);
+            } else if (lowercaseName.includes('_root')) {
+                // Create root visualization for root bones
+                createRootBoneVisual(bone, modelSize, boneGroup);
+            } else {
+                // Create regular bone visualization
+                createBoneVisual(bone, modelSize, boneGroup);
+            }
+        } else {
+            // Create regular bone visualization for unnamed bones
+            createBoneVisual(bone, modelSize, boneGroup);
+        }
     });
     
     // Add the group to the scene
@@ -545,6 +612,9 @@ function createBoneVisualization() {
     
     // Update state
     updateState('boneVisualization', boneGroup);
+    
+    // Set up hover interactions
+    setupBoneInteractions();
     
     // Apply visualization settings
     applyVisualizationSettings();
@@ -704,6 +774,294 @@ function createBoneVisual(bone, baseSize, boneGroup) {
         
         boneGroup.add(connectionLine);
     }
+}
+
+/**
+ * Create a visual representation of a handle bone (as a sphere)
+ * @param {Object} bone - The handle bone object
+ * @param {number} baseSize - Base size for visualization
+ * @param {THREE.Group} boneGroup - Group to add the visualization to
+ */
+function createHandleBoneVisual(bone, baseSize, boneGroup) {
+    if (!bone || !boneGroup) return;
+    
+    // Ensure the bone's world matrix is up to date
+    bone.updateWorldMatrix(true, false);
+    
+    // Get bone's world position
+    const worldPosition = new THREE.Vector3();
+    bone.getWorldPosition(worldPosition);
+    
+    // Create sphere geometry for handle - increased size multiplier from 1.2 to 2.0
+    const sphereGeometry = new THREE.SphereGeometry(baseSize * 2.0, 16, 16);
+    
+    // Create material - gray and solid
+    const handleMaterial = new THREE.MeshBasicMaterial({
+        color: 0x888888,
+        wireframe: false,
+        transparent: true,
+        opacity: 0.7,
+        depthTest: true,
+        depthWrite: true
+    });
+    
+    // Create the sphere mesh
+    const handleMesh = new THREE.Mesh(sphereGeometry, handleMaterial);
+    handleMesh.name = `handle_visual_${bone.name || 'unnamed'}`;
+    handleMesh.userData.boneRef = bone;
+    handleMesh.userData.originalColor = new THREE.Color(0x888888);
+    handleMesh.userData.hoverColor = new THREE.Color(0x00ff00);
+    handleMesh.userData.isHandle = true;
+    
+    // Position at bone's world position
+    handleMesh.position.copy(worldPosition);
+    
+    // Add to group
+    boneGroup.add(handleMesh);
+    
+    // Add connection to parent if it exists
+    if (bone.parent && (bone.parent.isBone || 
+        (bone.parent.name && bone.parent.name.toLowerCase().includes('bone_')))) {
+        const parentPosition = new THREE.Vector3();
+        bone.parent.updateWorldMatrix(true, false);
+        bone.parent.getWorldPosition(parentPosition);
+        
+        // Create a connecting line
+        const connectionGeometry = new THREE.BufferGeometry().setFromPoints([
+            parentPosition,
+            worldPosition
+        ]);
+        
+        const connectionMaterial = new THREE.LineBasicMaterial({
+            color: 0x888888,
+            transparent: true,
+            opacity: 0.6,
+            depthTest: true
+        });
+        
+        const connectionLine = new THREE.Line(connectionGeometry, connectionMaterial);
+        connectionLine.name = `handle_connection_${bone.parent.name || 'parent'}_to_${bone.name || 'child'}`;
+        
+        boneGroup.add(connectionLine);
+    }
+}
+
+/**
+ * Create a visual representation of a root bone (as a sphere with direction caret)
+ * @param {Object} bone - The root bone object
+ * @param {number} baseSize - Base size for visualization
+ * @param {THREE.Group} boneGroup - Group to add the visualization to
+ */
+function createRootBoneVisual(bone, baseSize, boneGroup) {
+    if (!bone || !boneGroup) return;
+    
+    // Ensure the bone's world matrix is up to date
+    bone.updateWorldMatrix(true, false);
+    
+    // Get bone's world position
+    const worldPosition = new THREE.Vector3();
+    bone.getWorldPosition(worldPosition);
+    
+    // Find direction toward child if available
+    let directionVector = new THREE.Vector3(0, 1, 0); // Default direction
+    
+    // Check if any children are bones to determine direction
+    if (bone.children && bone.children.length > 0) {
+        // Find the first bone child for direction vector
+        for (const child of bone.children) {
+            if (child.isBone || 
+                (child.name && child.name.toLowerCase().includes('bone_'))) {
+                const childWorldPosition = new THREE.Vector3();
+                child.updateWorldMatrix(true, false);
+                child.getWorldPosition(childWorldPosition);
+                
+                // Get direction from root to child
+                directionVector = new THREE.Vector3().subVectors(childWorldPosition, worldPosition).normalize();
+                break;
+            }
+        }
+    }
+    
+    // Create sphere for root - increased size multiplier from 1.3 to 2.2
+    const sphereGeometry = new THREE.SphereGeometry(baseSize * 2.2, 16, 16);
+    
+    // Create material - darker gray and solid
+    const rootMaterial = new THREE.MeshBasicMaterial({
+        color: 0x555555,
+        wireframe: false,
+        transparent: true,
+        opacity: 0.7,
+        depthTest: true
+    });
+    
+    // Create the sphere mesh
+    const rootMesh = new THREE.Mesh(sphereGeometry, rootMaterial);
+    rootMesh.name = `root_visual_${bone.name || 'unnamed'}`;
+    rootMesh.userData.boneRef = bone;
+    rootMesh.userData.originalColor = new THREE.Color(0x555555);
+    rootMesh.userData.hoverColor = new THREE.Color(0xff0000);
+    rootMesh.userData.isRoot = true;
+    
+    // Position at bone's world position
+    rootMesh.position.copy(worldPosition);
+    
+    // Add to group
+    boneGroup.add(rootMesh);
+    
+    // Create a directional caret/arrow pointing toward children - increased size multipliers
+    const caretLength = baseSize * 2.5; // Increased from 1.5
+    const caretOffset = baseSize * 2.5; // Increased from 1.5
+    
+    // Create cone for caret - increased width multiplier from 0.6 to 1.0
+    const caretGeometry = new THREE.ConeGeometry(baseSize * 1.0, caretLength, 8);
+    const caretMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff3333, // Red caret
+        wireframe: true
+    });
+    
+    // Rotate cone to point in the direction vector (cones point along +Y by default)
+    caretGeometry.rotateX(Math.PI / 2); // First orient along Z
+    
+    const caretMesh = new THREE.Mesh(caretGeometry, caretMaterial);
+    caretMesh.name = `root_caret_${bone.name || 'unnamed'}`;
+    
+    // Calculate position for caret (offset from sphere in the direction)
+    const caretPosition = worldPosition.clone().add(
+        directionVector.clone().multiplyScalar(caretOffset)
+    );
+    caretMesh.position.copy(caretPosition);
+    
+    // Orient caret to point in the direction
+    const caretQuaternion = new THREE.Quaternion();
+    const upVector = new THREE.Vector3(0, 0, 1); // Cone points along +Z after rotation
+    
+    // Handle special case for parallel direction
+    if (Math.abs(upVector.dot(directionVector)) > 0.999) {
+        if (upVector.dot(directionVector) < 0) {
+            caretQuaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
+        }
+    } else {
+        caretQuaternion.setFromUnitVectors(upVector, directionVector);
+    }
+    
+    caretMesh.quaternion.copy(caretQuaternion);
+    
+    // Add caret to the group
+    boneGroup.add(caretMesh);
+}
+
+/**
+ * Setup mouse hover interaction for bone visualizations
+ */
+function setupBoneInteractions() {
+    const state = getState();
+    if (!state.renderer || !state.camera || !state.boneVisualization) return;
+    
+    // Create raycaster if needed
+    if (!raycaster) {
+        raycaster = new THREE.Raycaster();
+    }
+    
+    // Add mousemove listener to renderer's DOM element
+    const domElement = state.renderer.domElement;
+    
+    // Remove any existing listener to prevent duplicates
+    if (state.boneVisualization.userData.mouseListener) {
+        domElement.removeEventListener('mousemove', state.boneVisualization.userData.mouseListener);
+    }
+    
+    // Store original controls state to restore when not hovering
+    let orbitControlsEnabled = true;
+    if (state.controls && state.controls.enabled !== undefined) {
+        orbitControlsEnabled = state.controls.enabled;
+    }
+    
+    // Create the mouse move handler
+    const onMouseMove = (event) => {
+        // Only process if bone visualization is visible
+        if (!state.boneVisualization || !state.boneVisualization.visible) return;
+        
+        // Get canvas-relative mouse position
+        const canvas = domElement;
+        const rect = canvas.getBoundingClientRect();
+        
+        mouse.x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
+        
+        // Update the raycaster
+        raycaster.setFromCamera(mouse, state.camera);
+        
+        // Find interactive objects (handles and roots)
+        const interactiveObjects = [];
+        state.boneVisualization.traverse(child => {
+            if (child.userData && (child.userData.isHandle || child.userData.isRoot)) {
+                interactiveObjects.push(child);
+            }
+        });
+        
+        const intersects = raycaster.intersectObjects(interactiveObjects, false);
+        
+        // Reset previously hovered object color
+        if (hoveredObject && (!intersects.length || intersects[0].object !== hoveredObject)) {
+            hoveredObject.material.color.copy(hoveredObject.userData.originalColor);
+            hoveredObject = null;
+            domElement.style.cursor = 'auto';
+            
+            // Re-enable orbit controls when not hovering
+            if (state.controls && state.controls.enabled !== undefined) {
+                state.controls.enabled = orbitControlsEnabled;
+            }
+        }
+        
+        // Set new hovered object color
+        if (intersects.length > 0 && intersects[0].object !== hoveredObject) {
+            hoveredObject = intersects[0].object;
+            hoveredObject.material.color.copy(hoveredObject.userData.hoverColor);
+            domElement.style.cursor = 'pointer';
+            
+            // Disable camera controls when hovering over interactive elements
+            if (state.controls && state.controls.enabled !== undefined) {
+                state.controls.enabled = false;
+            }
+        }
+    };
+    
+    // Add mousedown listener to handle clicks on interactive elements
+    const onMouseDown = (event) => {
+        // Only process left button clicks when hovering over an interactive element
+        if (!hoveredObject || event.button !== 0) return;
+        
+        // Prevent event from being handled by other listeners
+        event.stopPropagation();
+        
+        // Ensure camera controls remain disabled
+        if (state.controls && state.controls.enabled !== undefined) {
+            state.controls.enabled = false;
+        }
+    };
+    
+    // Add mouseup listener to handle end of interaction
+    const onMouseUp = (event) => {
+        // Only process left button releases
+        if (event.button !== 0) return;
+        
+        // If not hovering over anything, restore camera controls
+        if (!hoveredObject) {
+            if (state.controls && state.controls.enabled !== undefined) {
+                state.controls.enabled = orbitControlsEnabled;
+            }
+        }
+    };
+    
+    // Store the listener references
+    state.boneVisualization.userData.mouseListener = onMouseMove;
+    state.boneVisualization.userData.mouseDownListener = onMouseDown;
+    state.boneVisualization.userData.mouseUpListener = onMouseUp;
+    
+    // Add the event listeners
+    domElement.addEventListener('mousemove', onMouseMove);
+    domElement.addEventListener('mousedown', onMouseDown);
+    domElement.addEventListener('mouseup', onMouseUp);
 }
 
 export default {
