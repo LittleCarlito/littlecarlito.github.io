@@ -11,6 +11,7 @@ let rigStatus = null;
 let rigVisualizationControls = null;
 let toggleRigButton = null;
 let boneHierarchy = null;
+let controlsContainer = null;
 
 /**
  * Initialize the rig panel and cache DOM elements
@@ -21,14 +22,172 @@ export function initRigPanel() {
     rigVisualizationControls = document.getElementById('rig-visualization-controls');
     toggleRigButton = document.getElementById('toggle-rig-button');
     boneHierarchy = document.getElementById('bone-hierarchy');
+    controlsContainer = document.getElementById('rig-controls-container');
     
     // Set up toggle button handler
     if (toggleRigButton) {
         toggleRigButton.onclick = () => toggleRigVisualization();
     }
     
+    // Set up visualization controls
+    setupVisualizationControls();
+    
     // Initial update
     updateRigVisualization();
+}
+
+/**
+ * Set up the visualization control checkboxes
+ */
+function setupVisualizationControls() {
+    if (!controlsContainer) {
+        controlsContainer = document.getElementById('rig-controls-container');
+        if (!controlsContainer && rigVisualizationControls) {
+            // Create controls container if it doesn't exist
+            controlsContainer = document.createElement('div');
+            controlsContainer.id = 'rig-controls-container';
+            controlsContainer.style.marginTop = '10px';
+            controlsContainer.style.padding = '8px';
+            controlsContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
+            controlsContainer.style.borderRadius = '4px';
+            rigVisualizationControls.appendChild(controlsContainer);
+        }
+    }
+    
+    if (!controlsContainer) return;
+    
+    // Clear existing controls
+    controlsContainer.innerHTML = '';
+    
+    // Add Z Override checkbox
+    addControlCheckbox(
+        'force-z-override', 
+        'Force Z Override', 
+        'Makes bone visualization appear on top of the model',
+        (checked) => setZOverride(checked)
+    );
+    
+    // Add Customize Visualizations checkbox and container for its options
+    const customizeContainer = document.createElement('div');
+    customizeContainer.style.display = 'flex';
+    customizeContainer.style.alignItems = 'center';
+    customizeContainer.style.marginBottom = '8px';
+    
+    const customizeCheckbox = document.createElement('input');
+    customizeCheckbox.type = 'checkbox';
+    customizeCheckbox.id = 'customize-visualizations';
+    customizeCheckbox.style.marginRight = '5px';
+    
+    const customizeLabel = document.createElement('label');
+    customizeLabel.htmlFor = 'customize-visualizations';
+    customizeLabel.textContent = 'Customize Visualizations';
+    customizeLabel.style.fontSize = '13px';
+    customizeLabel.style.color = '#ddd';
+    
+    customizeContainer.appendChild(customizeCheckbox);
+    customizeContainer.appendChild(customizeLabel);
+    controlsContainer.appendChild(customizeContainer);
+    
+    // Create customization options (initially hidden)
+    const customizeOptions = document.createElement('div');
+    customizeOptions.id = 'customize-options';
+    customizeOptions.style.marginLeft = '15px';
+    customizeOptions.style.marginTop = '5px';
+    customizeOptions.style.display = 'none';
+    controlsContainer.appendChild(customizeOptions);
+    
+    // Add Fill Meshes checkbox to customization options
+    const fillContainer = document.createElement('div');
+    fillContainer.style.display = 'flex';
+    fillContainer.style.alignItems = 'center';
+    fillContainer.style.marginBottom = '8px';
+    
+    const fillCheckbox = document.createElement('input');
+    fillCheckbox.type = 'checkbox';
+    fillCheckbox.id = 'fill-visualization-meshes';
+    fillCheckbox.style.marginRight = '5px';
+    fillCheckbox.addEventListener('change', (e) => setFillMeshes(e.target.checked));
+    
+    const fillLabel = document.createElement('label');
+    fillLabel.htmlFor = 'fill-visualization-meshes';
+    fillLabel.textContent = 'Fill Visualization Meshes';
+    fillLabel.style.fontSize = '13px';
+    fillLabel.style.color = '#ddd';
+    
+    fillContainer.appendChild(fillCheckbox);
+    fillContainer.appendChild(fillLabel);
+    customizeOptions.appendChild(fillContainer);
+    
+    // Add Color Picker
+    const colorContainer = document.createElement('div');
+    colorContainer.style.display = 'flex';
+    colorContainer.style.alignItems = 'center';
+    colorContainer.style.marginBottom = '8px';
+    
+    const colorLabel = document.createElement('label');
+    colorLabel.htmlFor = 'visualization-color';
+    colorLabel.textContent = 'Visualization Color: ';
+    colorLabel.style.fontSize = '13px';
+    colorLabel.style.color = '#ddd';
+    colorLabel.style.marginRight = '5px';
+    
+    const colorPicker = document.createElement('input');
+    colorPicker.type = 'color';
+    colorPicker.id = 'visualization-color';
+    colorPicker.value = '#ff0000'; // Default to red
+    colorPicker.style.width = '30px';
+    colorPicker.style.height = '15px';
+    colorPicker.style.padding = '0';
+    colorPicker.style.border = '1px solid #666';
+    colorPicker.addEventListener('change', (e) => setVisualizationColor(e.target.value));
+    
+    colorContainer.appendChild(colorLabel);
+    colorContainer.appendChild(colorPicker);
+    customizeOptions.appendChild(colorContainer);
+    
+    // Toggle display of customization options
+    customizeCheckbox.addEventListener('change', (e) => {
+        customizeOptions.style.display = e.target.checked ? 'block' : 'none';
+    });
+}
+
+/**
+ * Helper function to add a control checkbox
+ * @param {string} id - The checkbox ID
+ * @param {string} label - The checkbox label
+ * @param {string} title - Tooltip text
+ * @param {Function} onChange - Change handler function
+ */
+function addControlCheckbox(id, label, title, onChange) {
+    if (!controlsContainer) return;
+    
+    const container = document.createElement('div');
+    container.style.display = 'flex';
+    container.style.alignItems = 'center';
+    container.style.marginBottom = '8px';
+    
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = id;
+    checkbox.style.marginRight = '5px';
+    if (onChange) {
+        checkbox.addEventListener('change', (e) => onChange(e.target.checked));
+    }
+    
+    const labelElement = document.createElement('label');
+    labelElement.htmlFor = id;
+    labelElement.textContent = label;
+    labelElement.style.fontSize = '13px';
+    labelElement.style.color = '#ddd';
+    if (title) {
+        labelElement.title = title;
+    }
+    
+    container.appendChild(checkbox);
+    container.appendChild(labelElement);
+    controlsContainer.appendChild(container);
+    
+    return checkbox;
 }
 
 /**
@@ -46,6 +205,11 @@ export function updateRigVisualization() {
         
         // Exit if elements still not available
         if (!rigStatus || !rigVisualizationControls || !boneHierarchy) return;
+    }
+    
+    // Setup visualization controls if needed
+    if (!controlsContainer) {
+        setupVisualizationControls();
     }
     
     // Exit if no model
@@ -261,7 +425,86 @@ export function toggleRigVisualization() {
         if (toggleRigButton) {
             toggleRigButton.textContent = 'Hide Rig Visualization';
         }
+        
+        // Apply current visualization settings
+        applyVisualizationSettings();
     }
+}
+
+/**
+ * Apply current visualization settings from checkboxes
+ */
+function applyVisualizationSettings() {
+    const zOverrideCheckbox = document.getElementById('force-z-override');
+    const fillCheckbox = document.getElementById('fill-visualization-meshes');
+    const colorPicker = document.getElementById('visualization-color');
+    
+    if (zOverrideCheckbox && zOverrideCheckbox.checked) {
+        setZOverride(true);
+    }
+    
+    if (fillCheckbox && fillCheckbox.checked) {
+        setFillMeshes(true);
+    }
+    
+    if (colorPicker) {
+        setVisualizationColor(colorPicker.value);
+    }
+}
+
+/**
+ * Set visualization objects to render on top (Z-override)
+ * @param {boolean} override - Whether to enable Z-override
+ */
+function setZOverride(override) {
+    const state = getState();
+    if (!state.boneVisualization) return;
+    
+    state.boneVisualization.traverse(object => {
+        if (object.material) {
+            if (override) {
+                // Make object render on top by disabling depth test
+                object.renderOrder = 999;
+                object.material.depthTest = false;
+            } else {
+                // Reset to normal depth behavior
+                object.renderOrder = 0;
+                object.material.depthTest = true;
+            }
+        }
+    });
+}
+
+/**
+ * Toggle fill/wireframe mode for visualization meshes
+ * @param {boolean} fill - Whether to use fill mode instead of wireframe
+ */
+function setFillMeshes(fill) {
+    const state = getState();
+    if (!state.boneVisualization) return;
+    
+    state.boneVisualization.traverse(object => {
+        if (object.material) {
+            object.material.wireframe = !fill;
+        }
+    });
+}
+
+/**
+ * Set visualization color
+ * @param {string} colorHex - Hex color string (e.g., '#ff0000')
+ */
+function setVisualizationColor(colorHex) {
+    const state = getState();
+    if (!state.boneVisualization) return;
+    
+    const color = new THREE.Color(colorHex);
+    
+    state.boneVisualization.traverse(object => {
+        if (object.material) {
+            object.material.color.copy(color);
+        }
+    });
 }
 
 /**
@@ -302,6 +545,9 @@ function createBoneVisualization() {
     
     // Update state
     updateState('boneVisualization', boneGroup);
+    
+    // Apply visualization settings
+    applyVisualizationSettings();
 }
 
 /**
