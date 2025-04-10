@@ -18,6 +18,10 @@ let dragPoint = new THREE.Vector3();
 let wasLowPosition = false; // Track if we were previously in a low position
 let loadedGlb = null;
 let glbDetails = null;
+let loadedGltf = null; // Store the loaded GLTF model
+let activeControlPoint = null; // The currently active control point for dragging
+let armature = null; // The main armature in the loaded model
+let controlPoints = []; // Array of control points in the model
 
 // Options configuration
 let options = {
@@ -101,6 +105,7 @@ function setupLoadingScreen() {
           fileURL,
           (gltf) => {
             // Parse successful
+            loadedGltf = gltf; // Store the loaded GLTF model
             analyzeGltfModel(gltf);
             dropZone.innerHTML = `<p>File loaded: ${file.name}</p><p>Click "Start Debugging" to continue</p>`;
           },
@@ -118,6 +123,7 @@ function setupLoadingScreen() {
               dropZone.innerHTML = `<p>Drag & drop a GLB file here</p><p>or continue without a model</p>`;
             }, 3000);
             loadedGlb = null;
+            loadedGltf = null;
           }
         );
       } else {
@@ -275,8 +281,13 @@ function init() {
   orbitControls.enableDamping = true;
   orbitControls.dampingFactor = 0.05;
   
-  // Create bone chain
-  createBoneChain();
+  // Create the rig - either from GLB or sample rig
+  if (loadedGltf) {
+    initializeRigFromGLB();
+  } else {
+    // Create the default bone chain if no GLB is loaded
+    createBoneChain();
+  }
   
   // Add event listeners
   window.addEventListener('resize', onWindowResize);
@@ -633,48 +644,6 @@ function addStandardOptions(container) {
   container.appendChild(restartContainer);
 }
 
-function addAxisLabels() {
-  // Function to create an axis marker
-  function createAxisMarker(text, position, color) {
-    // Create large spherical marker
-    const markerGeometry = new THREE.SphereGeometry(3, 16, 16);
-    const markerMaterial = new THREE.MeshBasicMaterial({ color: color });
-    const marker = new THREE.Mesh(markerGeometry, markerMaterial);
-    marker.position.copy(position);
-    scene.add(marker);
-    
-    // Create text label
-    const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 128;
-    const context = canvas.getContext('2d');
-    context.fillStyle = '#ffffff';
-    context.font = 'Bold 80px Arial';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillText(text, 64, 64);
-    
-    const texture = new THREE.CanvasTexture(canvas);
-    const labelMaterial = new THREE.SpriteMaterial({ map: texture });
-    const label = new THREE.Sprite(labelMaterial);
-    label.position.copy(position).add(new THREE.Vector3(0, 7, 0));
-    label.scale.set(10, 10, 1);
-    scene.add(label);
-  }
-  
-  // X axis (red)
-  createAxisMarker('+X', new THREE.Vector3(60, 0, 0), 0xff0000);
-  createAxisMarker('-X', new THREE.Vector3(-60, 0, 0), 0xff0000);
-  
-  // Y axis (yellow instead of green)
-  createAxisMarker('+Y', new THREE.Vector3(0, 60, 0), 0xffff00);
-  createAxisMarker('-Y', new THREE.Vector3(0, -10, 0), 0xffff00);
-  
-  // Z axis (blue)
-  createAxisMarker('+Z', new THREE.Vector3(0, 0, 60), 0x0000ff);
-  createAxisMarker('-Z', new THREE.Vector3(0, 0, -60), 0x0000ff);
-}
-
 function updateBoneMaterial() {
   if (!boneMaterial) return;
   
@@ -846,13 +815,31 @@ function getMouseIntersection(clientX, clientY, plane) {
 function onMouseDown(event) {
   if (event.button !== 0) return; // Only handle left button
   
-  // Check if hovering over the tip ball
-  if (checkTipHover(event.clientX, event.clientY)) {
-    isDragging = true;
-    orbitControls.enabled = false;
-    
-    // Set the drag color
-    tipBall.material.color.setHex(dragColor);
+  if (controlPoints.length > 0) {
+    // GLB rig - check if hovering over any control point
+    const hoveredControl = checkControlPointsHover(event.clientX, event.clientY);
+    if (hoveredControl) {
+      activeControlPoint = hoveredControl;
+      isDragging = true;
+      orbitControls.enabled = false;
+      
+      // Set the drag color
+      hoveredControl.controlBall.material.color.setHex(dragColor);
+      
+      // Setup drag plane
+      const controlPos = new THREE.Vector3();
+      hoveredControl.getWorldPosition(controlPos);
+      setupDragPlane(event.clientX, event.clientY, controlPos);
+    }
+  } else {
+    // Sample rig - check if hovering over the tip ball
+    if (checkTipHover(event.clientX, event.clientY)) {
+      isDragging = true;
+      orbitControls.enabled = false;
+      
+      // Set the drag color
+      tipBall.material.color.setHex(dragColor);
+    }
   }
 }
 
@@ -865,41 +852,79 @@ function onMouseMove(event) {
     // Create ray from camera through mouse position
     raycaster.setFromCamera(mouse, camera);
     
-    // Get the root position
-    const rootPos = new THREE.Vector3();
-    rootBone.getWorldPosition(rootPos);
-    
-    // Calculate total arm length
-    let totalLength = 0;
-    boneLengths.forEach(length => totalLength += length);
-    
-    // Create ray from camera and get the direction vector
-    const rayOrigin = raycaster.ray.origin.clone();
-    const rayDirection = raycaster.ray.direction.clone();
-    
-    // Create a target plane that always faces the camera
-    const targetPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(
-      rayDirection.clone().negate(),
-      rootPos
-    );
-    
-    // Find intersection point with this plane
-    const targetPoint = new THREE.Vector3();
-    raycaster.ray.intersectPlane(targetPlane, targetPoint);
-    
-    // If this fails for some reason, just use a point along the ray
-    if (!targetPoint.x && !targetPoint.y && !targetPoint.z) {
-      targetPoint.copy(rayOrigin).add(rayDirection.multiplyScalar(100));
+    if (controlPoints.length > 0 && activeControlPoint) {
+      // GLB rig - handle control point dragging
+      
+      // Get the root bone position
+      const rootPos = new THREE.Vector3();
+      if (rootBone) {
+        rootBone.getWorldPosition(rootPos);
+      }
+      
+      // Create a target plane that always faces the camera
+      const rayOrigin = raycaster.ray.origin.clone();
+      const rayDirection = raycaster.ray.direction.clone();
+      
+      const targetPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+        rayDirection.clone().negate(),
+        rootPos
+      );
+      
+      // Find intersection point with this plane
+      const targetPoint = new THREE.Vector3();
+      raycaster.ray.intersectPlane(targetPlane, targetPoint);
+      
+      // If this fails for some reason, just use a point along the ray
+      if (!targetPoint.x && !targetPoint.y && !targetPoint.z) {
+        targetPoint.copy(rayOrigin).add(rayDirection.multiplyScalar(100));
+      }
+      
+      // Set the target position
+      const targetPosition = targetPoint.clone();
+      
+      // Now move the target bone using IK
+      const bone = getTargetBoneForControl(activeControlPoint);
+      if (bone) {
+        moveBonesForTarget(bone, targetPosition);
+      }
+    } else {
+      // Sample rig - handle tip ball dragging using existing logic
+      // Get the root position
+      const rootPos = new THREE.Vector3();
+      rootBone.getWorldPosition(rootPos);
+      
+      // Create ray from camera and get the direction vector
+      const rayOrigin = raycaster.ray.origin.clone();
+      const rayDirection = raycaster.ray.direction.clone();
+      
+      // Create a target plane that always faces the camera
+      const targetPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+        rayDirection.clone().negate(),
+        rootPos
+      );
+      
+      // Find intersection point with this plane
+      const targetPoint = new THREE.Vector3();
+      raycaster.ray.intersectPlane(targetPlane, targetPoint);
+      
+      // If this fails for some reason, just use a point along the ray
+      if (!targetPoint.x && !targetPoint.y && !targetPoint.z) {
+        targetPoint.copy(rayOrigin).add(rayDirection.multiplyScalar(100));
+      }
+      
+      // Always use the actual intersection point for better directional accuracy
+      const targetPosition = targetPoint.clone();
+      
+      // Direct position-based IK
+      positionBones(targetPosition);
     }
-    
-    // Always use the actual intersection point for better directional accuracy
-    const targetPosition = targetPoint.clone();
-    
-    // Direct position-based IK
-    positionBones(targetPosition);
   } else {
-    // Just check hover state
-    checkTipHover(event.clientX, event.clientY);
+    // Check hover state
+    if (controlPoints.length > 0) {
+      checkControlPointsHover(event.clientX, event.clientY);
+    } else {
+      checkTipHover(event.clientX, event.clientY);
+    }
   }
 }
 
@@ -907,6 +932,11 @@ function onMouseUp() {
   if (isDragging) {
     isDragging = false;
     orbitControls.enabled = true;
+    
+    if (activeControlPoint) {
+      activeControlPoint.controlBall.material.color.setHex(normalColor);
+      activeControlPoint = null;
+    }
   }
 }
 
@@ -1033,8 +1063,17 @@ function fineAdjustToTarget(targetPosition) {
 }
 
 function updateAllBoneMatrices() {
-  rootBone.updateMatrixWorld(true);
-  bones.forEach(bone => bone.updateMatrixWorld(true));
+  if (armature) {
+    armature.updateMatrixWorld(true);
+  } else if (rootBone) {
+    rootBone.updateMatrixWorld(true);
+  }
+  
+  bones.forEach(bone => {
+    if (bone.updateMatrixWorld) {
+      bone.updateMatrixWorld(true);
+    }
+  });
 }
 
 function onWindowResize() {
@@ -1045,6 +1084,510 @@ function onWindowResize() {
 
 function animate() {
   requestAnimationFrame(animate);
+  
+  // Update bone line visualizations if any exist
+  scene.children.forEach(obj => {
+    if (obj.isLine && obj.userData.parentBone && obj.userData.childBone) {
+      const positions = obj.geometry.attributes.position.array;
+      const parentPos = new THREE.Vector3();
+      const childPos = new THREE.Vector3();
+      
+      obj.userData.parentBone.getWorldPosition(parentPos);
+      obj.userData.childBone.getWorldPosition(childPos);
+      
+      // Update line positions
+      positions[0] = parentPos.x;
+      positions[1] = parentPos.y;
+      positions[2] = parentPos.z;
+      positions[3] = childPos.x;
+      positions[4] = childPos.y;
+      positions[5] = childPos.z;
+      
+      obj.geometry.attributes.position.needsUpdate = true;
+    }
+  });
+  
   orbitControls.update();
   renderer.render(scene, camera);
+}
+
+// Function to initialize a draggable rig from the GLB data
+function initializeRigFromGLB() {
+  if (!loadedGltf) return false;
+  
+  console.log('Initializing rig from GLB data');
+  
+  // Find the armature
+  armature = null;
+  loadedGltf.scene.traverse(node => {
+    if ((node.name.toLowerCase().includes('rig') || 
+         node.name.toLowerCase().includes('armature')) && !armature) {
+      armature = node;
+      console.log('Found armature:', node.name);
+    }
+  });
+  
+  // Add the model to the scene without scaling
+  scene.add(loadedGltf.scene);
+  
+  // Create a bounding box to measure the model
+  const bbox = new THREE.Box3().setFromObject(loadedGltf.scene);
+  const size = new THREE.Vector3();
+  bbox.getSize(size);
+  const center = new THREE.Vector3();
+  bbox.getCenter(center);
+  
+  console.log('Model dimensions:', size);
+  console.log('Model center:', center);
+  
+  // Adjust the environment to fit the model
+  adjustEnvironmentToModel(bbox, size, center);
+  
+  // Calculate appropriate control point size based on model dimensions
+  // Use 2% of the model's diagonal length for control points
+  const modelScale = size.length() * 0.02;
+  const controlPointSize = Math.max(0.1, modelScale); // Minimum size of 0.1
+  console.log('Using control point size:', controlPointSize);
+  
+  // Display a helper box around the model
+  const boxHelper = new THREE.BoxHelper(loadedGltf.scene, 0xffff00);
+  scene.add(boxHelper);
+  
+  // Reset the arrays
+  bones = [];
+  boneLengths = [];
+  controlPoints = [];
+  
+  // Find all bones and calculate their lengths
+  const boneMap = new Map();
+  
+  // First pass: collect all bones
+  if (armature) {
+    armature.traverse(node => {
+      if (node.isBone || node.name.toLowerCase().includes('bone')) {
+        bones.push(node);
+        boneMap.set(node.name, node);
+        console.log('Found bone:', node.name);
+      }
+    });
+  }
+  
+  // If no bones were found in the armature, try to find them in the whole scene
+  if (bones.length === 0) {
+    console.log('No bones found in armature, searching entire scene');
+    loadedGltf.scene.traverse(node => {
+      if (node.isBone || node.name.toLowerCase().includes('bone')) {
+        bones.push(node);
+        boneMap.set(node.name, node);
+        console.log('Found bone in scene:', node.name);
+      }
+    });
+  }
+  
+  // Second pass: calculate bone lengths
+  bones.forEach(bone => {
+    if (bone.children.length > 0) {
+      // Find the first child bone
+      let childBone = null;
+      for (let i = 0; i < bone.children.length; i++) {
+        if (bone.children[i].isBone || bone.children[i].name.toLowerCase().includes('bone')) {
+          childBone = bone.children[i];
+          break;
+        }
+      }
+      
+      if (childBone) {
+        // Calculate the length from this bone to the child
+        const bonePos = new THREE.Vector3();
+        const childPos = new THREE.Vector3();
+        bone.getWorldPosition(bonePos);
+        childBone.getWorldPosition(childPos);
+        const length = bonePos.distanceTo(childPos);
+        boneLengths.push(length);
+        console.log(`Bone length from ${bone.name} to ${childBone.name}: ${length}`);
+      } else {
+        // If no child bone, use a default length
+        boneLengths.push(controlPointSize);
+        console.log(`Using default length ${controlPointSize} for ${bone.name}`);
+      }
+    } else {
+      // End bones get a default length
+      boneLengths.push(controlPointSize);
+      console.log(`Using default length ${controlPointSize} for end bone ${bone.name}`);
+    }
+  });
+  
+  // Find control points (controls/handles)
+  loadedGltf.scene.traverse(node => {
+    if (node.name.toLowerCase().includes('control') || 
+        node.name.toLowerCase().includes('ctrl') || 
+        node.name.toLowerCase().includes('handle')) {
+      
+      // Make the control point visible and interactive, sized appropriately for the model
+      createControlPoint(node, controlPointSize);
+      controlPoints.push(node);
+      console.log('Found control point:', node.name);
+    }
+  });
+  
+  // If no control points were found, create one for the last bone
+  if (controlPoints.length === 0 && bones.length > 0) {
+    console.log('No control points found, creating one for the last bone');
+    const lastBone = bones[bones.length - 1];
+    const controlPoint = new THREE.Group();
+    controlPoint.name = "generated_control";
+    lastBone.add(controlPoint);
+    createControlPoint(controlPoint, controlPointSize);
+    controlPoints.push(controlPoint);
+  }
+  
+  // If we still have no control points, create one for the model itself
+  if (controlPoints.length === 0) {
+    console.log('No bones or controls found, creating a control for the model itself');
+    const modelControl = new THREE.Group();
+    modelControl.name = "model_control";
+    loadedGltf.scene.add(modelControl);
+    createControlPoint(modelControl, controlPointSize * 5); // Make this one larger to be easily visible
+    controlPoints.push(modelControl);
+  }
+  
+  // Store the root bone
+  rootBone = bones.length > 0 ? bones[0] : null;
+  lastBone = bones.length > 0 ? bones[bones.length - 1] : null;
+  
+  // Add visual helpers to make bones visible - sized proportionally to model
+  const jointSize = controlPointSize * 0.4; // Joint markers are smaller than control points
+  const lineWidth = Math.max(1, controlPointSize * 0.2); // Line width proportional but not too thin
+  
+  bones.forEach(bone => {
+    // Create a small sphere to represent each bone joint
+    const jointMarker = new THREE.Mesh(
+      new THREE.SphereGeometry(jointSize, 8, 8),
+      new THREE.MeshBasicMaterial({ color: 0x00ffff })
+    );
+    bone.add(jointMarker);
+    
+    // If this bone has a child bone, create a line connecting them
+    if (bone.children.length > 0) {
+      for (const child of bone.children) {
+        if (child.isBone || child.name.toLowerCase().includes('bone')) {
+          // Create a line geometry connecting this bone to its child
+          const lineGeometry = new THREE.BufferGeometry();
+          const lineMaterial = new THREE.LineBasicMaterial({ 
+            color: 0x00ff00,
+            linewidth: lineWidth // Note: linewidth only works in WebGLRenderer with certain limitations
+          });
+          
+          // We'll update the position in the animate loop
+          const positions = new Float32Array(6); // 2 points x 3 coordinates
+          lineGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+          
+          const line = new THREE.Line(lineGeometry, lineMaterial);
+          line.userData.parentBone = bone;
+          line.userData.childBone = child;
+          scene.add(line);
+        }
+      }
+    }
+  });
+  
+  console.log('Model successfully added to scene at original scale');
+  return true;
+}
+
+// New function to adjust environment to model scale
+function adjustEnvironmentToModel(bbox, size, center) {
+  // Remove existing grid and axes
+  scene.children.forEach(child => {
+    if (child.isGridHelper || child.isAxesHelper) {
+      scene.remove(child);
+    }
+  });
+  
+  // Clear existing axis labels
+  scene.children.forEach(child => {
+    if (child.isSprite || (child.isMesh && child.userData.isAxisMarker)) {
+      scene.remove(child);
+    }
+  });
+  
+  // Calculate the largest dimension of the model
+  const maxDimension = Math.max(size.x, size.y, size.z);
+  console.log('Max model dimension:', maxDimension);
+  
+  // Scale grid size based on model size with no minimum
+  const gridSize = maxDimension * 3;
+  const gridDivisions = 10;
+  
+  // Create new grid scaled to model
+  const gridHelper = new THREE.GridHelper(gridSize, gridDivisions);
+  scene.add(gridHelper);
+  
+  // Create new axes helper scaled to model
+  const axesSize = maxDimension * 1.5;
+  const axesHelper = new THREE.AxesHelper(axesSize);
+  scene.add(axesHelper);
+  
+  // Re-add axis labels with appropriate scale
+  addAxisLabels(axesSize);
+  
+  // Position camera to view the model appropriately
+  const cameraDistance = maxDimension * 3; // Position camera at 3x the model's max dimension
+  
+  // Keep the same camera angle but adjust the distance
+  const cameraDirection = new THREE.Vector3();
+  camera.getWorldDirection(cameraDirection);
+  cameraDirection.normalize();
+  
+  // Calculate new camera position - looking at the center of the model
+  camera.position.copy(center).add(
+    cameraDirection.clone().multiplyScalar(-cameraDistance)
+  );
+  
+  // Adjust camera position to be at an angle
+  camera.position.y += maxDimension * 1.5;
+  
+  // Update camera target to look at model center
+  orbitControls.target.copy(center);
+  
+  // Adjust camera near and far planes to ensure model is visible
+  camera.near = Math.max(0.01, cameraDistance * 0.001);
+  camera.far = cameraDistance * 10;
+  camera.updateProjectionMatrix();
+  
+  // Update orbit controls
+  orbitControls.maxDistance = cameraDistance * 5;
+  orbitControls.update();
+  
+  console.log('Environment adjusted to model scale', {
+    gridSize,
+    axesSize,
+    cameraDistance,
+    modelCenter: center
+  });
+}
+
+// Updated to accept a scale parameter - with better scaling for small models
+function addAxisLabels(scale = 60) {
+  // Function to create an axis marker
+  function createAxisMarker(text, position, color) {
+    // Create spherical marker sized proportionally to the scale
+    const markerSize = scale * 0.02; // Reduced from 0.05 to be smaller
+    const markerGeometry = new THREE.SphereGeometry(markerSize, 16, 16);
+    const markerMaterial = new THREE.MeshBasicMaterial({ color: color });
+    const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+    marker.position.copy(position);
+    marker.userData.isAxisMarker = true; // Mark for easy removal
+    scene.add(marker);
+    
+    // Create text label
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#ffffff';
+    context.font = 'Bold 80px Arial';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(text, 64, 64);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    const labelMaterial = new THREE.SpriteMaterial({ map: texture });
+    const label = new THREE.Sprite(labelMaterial);
+    
+    // Position the label a bit away from the axis end
+    const labelOffset = scale * 0.08; // Reduced from 0.12
+    label.position.copy(position).add(new THREE.Vector3(0, labelOffset, 0));
+    
+    // Scale label based on axis scale - smaller for small models
+    const labelScale = scale * 0.1; // Reduced from 0.17
+    label.scale.set(labelScale, labelScale, 1);
+    
+    scene.add(label);
+  }
+  
+  // X axis (red)
+  createAxisMarker('+X', new THREE.Vector3(scale, 0, 0), 0xff0000);
+  createAxisMarker('-X', new THREE.Vector3(-scale, 0, 0), 0xff0000);
+  
+  // Y axis (yellow instead of green)
+  createAxisMarker('+Y', new THREE.Vector3(0, scale, 0), 0xffff00);
+  createAxisMarker('-Y', new THREE.Vector3(0, -scale * 0.17, 0), 0xffff00);
+  
+  // Z axis (blue)
+  createAxisMarker('+Z', new THREE.Vector3(0, 0, scale), 0x0000ff);
+  createAxisMarker('-Z', new THREE.Vector3(0, 0, -scale), 0x0000ff);
+}
+
+// Create a visual control point with drag capabilities, properly sized
+function createControlPoint(node, size = 0.5) {
+  // Create a visible sphere for the control point
+  const controlBall = new THREE.Mesh(
+    new THREE.SphereGeometry(size, 16, 16),
+    new THREE.MeshPhongMaterial({ color: normalColor })
+  );
+  
+  // Position the ball at the control point
+  controlBall.position.set(0, 0, 0);
+  node.add(controlBall);
+  
+  // Store a reference to the visual representation
+  node.controlBall = controlBall;
+  
+  console.log('Created control point for', node.name, 'with size', size);
+}
+
+// Check if mouse is hovering over any control point
+function checkControlPointsHover(clientX, clientY) {
+  // Normalized device coordinates
+  mouse.x = (clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+  
+  // Update ray
+  raycaster.setFromCamera(mouse, camera);
+  
+  // Check for intersection with all control points
+  let hoveredControl = null;
+  controlPoints.forEach(control => {
+    if (control.controlBall) {
+      const intersects = raycaster.intersectObject(control.controlBall);
+      if (intersects.length > 0) {
+        hoveredControl = control;
+      }
+    }
+  });
+  
+  // Reset all control points to normal color
+  controlPoints.forEach(control => {
+    if (control.controlBall && control !== activeControlPoint) {
+      control.controlBall.material.color.setHex(normalColor);
+    }
+  });
+  
+  // Highlight the hovered control
+  if (hoveredControl && hoveredControl !== activeControlPoint) {
+    hoveredControl.controlBall.material.color.setHex(hoverColor);
+  }
+  
+  return hoveredControl;
+}
+
+// Get the target bone that should be moved when a control point is dragged
+function getTargetBoneForControl(controlPoint) {
+  // In our GLB structure, controls are often directly parented to the bone they affect
+  if (controlPoint.parent && (controlPoint.parent.isBone || controlPoint.parent.name.toLowerCase().includes('bone'))) {
+    return controlPoint.parent;
+  }
+  
+  // If not parented directly, we need to find the bone with a matching name
+  const controlName = controlPoint.name;
+  const boneName = controlName.replace('control', 'bone')
+                              .replace('ctrl', 'bone')
+                              .replace('handle', 'bone');
+  
+  let targetBone = null;
+  bones.forEach(bone => {
+    if (bone.name === boneName || bone.name.includes(boneName)) {
+      targetBone = bone;
+    }
+  });
+  
+  // If we still can't find a matching bone, just use the last bone in the chain
+  if (!targetBone && bones.length > 0) {
+    targetBone = bones[bones.length - 1];
+  }
+  
+  return targetBone;
+}
+
+// Move a chain of bones to reach a target position
+function moveBonesForTarget(targetBone, targetPosition) {
+  // Find the chain of bones from root to the target bone
+  const boneChain = [];
+  let currentBone = targetBone;
+  
+  while (currentBone && bones.includes(currentBone)) {
+    boneChain.unshift(currentBone); // Add to start of array
+    currentBone = currentBone.parent;
+    
+    // Stop when we reach the armature or top level
+    if (!currentBone || currentBone === armature) break;
+  }
+  
+  // If the chain is too short, use all bones
+  if (boneChain.length <= 1 && bones.length > 0) {
+    for (let i = 0; i < bones.length; i++) {
+      boneChain.push(bones[i]);
+    }
+  }
+  
+  // Apply IK to this chain to reach the target
+  applyIKToChain(boneChain, targetPosition);
+}
+
+// Apply inverse kinematics to a chain of bones to reach a target
+function applyIKToChain(boneChain, targetPosition) {
+  if (boneChain.length === 0) return;
+  
+  // Get the root position
+  const rootPos = new THREE.Vector3();
+  boneChain[0].getWorldPosition(rootPos);
+  
+  // Use simple CCD (Cyclic Coordinate Descent)
+  const iterations = 10;
+  
+  for (let iteration = 0; iteration < iterations; iteration++) {
+    // Work backwards from the tip to root
+    for (let i = boneChain.length - 1; i >= 0; i--) {
+      const bone = boneChain[i];
+      
+      // Get current end effector position
+      const endEffector = new THREE.Vector3();
+      boneChain[boneChain.length - 1].getWorldPosition(endEffector);
+      
+      // Get current bone position
+      const bonePos = new THREE.Vector3();
+      bone.getWorldPosition(bonePos);
+      
+      // Direction from bone to end effector
+      const dirToEffector = new THREE.Vector3().subVectors(endEffector, bonePos).normalize();
+      
+      // Direction from bone to target
+      const dirToTarget = new THREE.Vector3().subVectors(targetPosition, bonePos).normalize();
+      
+      // Calculate the angle between these directions
+      let rotAngle = Math.acos(Math.min(1, Math.max(-1, dirToEffector.dot(dirToTarget))));
+      
+      // If the angle is very small, skip this bone
+      if (rotAngle < 0.01) continue;
+      
+      // Limit rotation angle per iteration
+      rotAngle = Math.min(rotAngle, 0.2);
+      
+      // Calculate rotation axis
+      const rotAxis = new THREE.Vector3().crossVectors(dirToEffector, dirToTarget).normalize();
+      
+      // Skip if we can't determine rotation axis
+      if (rotAxis.lengthSq() < 0.01) continue;
+      
+      // Convert world rotation axis to bone local space
+      const boneWorldQuat = new THREE.Quaternion();
+      bone.getWorldQuaternion(boneWorldQuat);
+      const localRotAxis = rotAxis.clone().applyQuaternion(boneWorldQuat.clone().invert()).normalize();
+      
+      // Apply rotation around local axis
+      bone.rotateOnAxis(localRotAxis, rotAngle);
+      
+      // Update matrices
+      updateAllBoneMatrices();
+      
+      // Check if we're close enough to the target
+      const newEffectorPos = new THREE.Vector3();
+      boneChain[boneChain.length - 1].getWorldPosition(newEffectorPos);
+      
+      if (newEffectorPos.distanceTo(targetPosition) < 0.5) {
+        break;
+      }
+    }
+  }
 } 
