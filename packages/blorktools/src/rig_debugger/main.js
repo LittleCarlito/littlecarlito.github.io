@@ -27,6 +27,7 @@ let controlPoints = []; // Array of control points in the model
 let options = {
   wireframe: true,  // Default is wireframe on
   boneColor: 0x156289,
+  boneSideColor: 0x4c90c9, // Secondary color for sides
   segmentCount: 4
 };
 
@@ -37,6 +38,7 @@ const dragColor = 0x00ff00;   // Green
 
 // Material references
 let boneMaterial;
+let boneSideMaterial;
 
 // Setup loading screen handlers
 document.addEventListener('DOMContentLoaded', setupLoadingScreen);
@@ -369,84 +371,84 @@ function createOptionsPanel() {
   title.style.padding = '5px 0';
   panel.appendChild(title);
   
-  // Create tab buttons if we have GLB details
+  // Create tab buttons (for both GLB and sample rig)
+  const tabContainer = document.createElement('div');
+  tabContainer.style.display = 'flex';
+  tabContainer.style.marginBottom = '15px';
+  tabContainer.style.borderBottom = '1px solid #555';
+  tabContainer.style.position = 'sticky';
+  tabContainer.style.top = '40px';
+  tabContainer.style.backgroundColor = 'rgba(0,0,0,0.7)';
+  tabContainer.style.zIndex = '1';
+  tabContainer.style.padding = '5px 0';
+  
+  const optionsTab = document.createElement('button');
+  optionsTab.textContent = 'Options';
+  optionsTab.style.flex = '1';
+  optionsTab.style.padding = '8px';
+  optionsTab.style.backgroundColor = 'rgba(0,0,0,0.3)';
+  optionsTab.style.color = 'white';
+  optionsTab.style.border = 'none';
+  optionsTab.style.borderBottom = '2px solid #4CAF50';
+  optionsTab.style.cursor = 'pointer';
+  
+  const detailsTab = document.createElement('button');
+  detailsTab.textContent = 'Rig Details';
+  detailsTab.style.flex = '1';
+  detailsTab.style.padding = '8px';
+  detailsTab.style.backgroundColor = 'transparent';
+  detailsTab.style.color = '#aaa';
+  detailsTab.style.border = 'none';
+  detailsTab.style.cursor = 'pointer';
+  
+  const optionsContent = document.createElement('div');
+  optionsContent.id = 'optionsContent';
+  
+  const detailsContent = document.createElement('div');
+  detailsContent.id = 'detailsContent';
+  detailsContent.style.display = 'none';
+  detailsContent.style.maxHeight = 'calc(80vh - 100px)'; // Max height minus headers
+  detailsContent.style.overflowY = 'auto';
+  
+  // Add the rig details content
   if (glbDetails) {
-    const tabContainer = document.createElement('div');
-    tabContainer.style.display = 'flex';
-    tabContainer.style.marginBottom = '15px';
-    tabContainer.style.borderBottom = '1px solid #555';
-    tabContainer.style.position = 'sticky';
-    tabContainer.style.top = '40px';
-    tabContainer.style.backgroundColor = 'rgba(0,0,0,0.7)';
-    tabContainer.style.zIndex = '1';
-    tabContainer.style.padding = '5px 0';
-    
-    const optionsTab = document.createElement('button');
-    optionsTab.textContent = 'Options';
-    optionsTab.style.flex = '1';
-    optionsTab.style.padding = '8px';
+    createRigDetailsContent(detailsContent);
+  } else {
+    // For sample rig, create sample rig details
+    createSampleRigDetailsContent(detailsContent);
+  }
+  
+  // Tab switching functionality
+  optionsTab.addEventListener('click', () => {
     optionsTab.style.backgroundColor = 'rgba(0,0,0,0.3)';
     optionsTab.style.color = 'white';
-    optionsTab.style.border = 'none';
     optionsTab.style.borderBottom = '2px solid #4CAF50';
-    optionsTab.style.cursor = 'pointer';
-    
-    const detailsTab = document.createElement('button');
-    detailsTab.textContent = 'Rig Details';
-    detailsTab.style.flex = '1';
-    detailsTab.style.padding = '8px';
     detailsTab.style.backgroundColor = 'transparent';
     detailsTab.style.color = '#aaa';
-    detailsTab.style.border = 'none';
-    detailsTab.style.cursor = 'pointer';
-    
-    const optionsContent = document.createElement('div');
-    optionsContent.id = 'optionsContent';
-    
-    const detailsContent = document.createElement('div');
-    detailsContent.id = 'detailsContent';
+    detailsTab.style.borderBottom = 'none';
+    optionsContent.style.display = 'block';
     detailsContent.style.display = 'none';
-    detailsContent.style.maxHeight = 'calc(80vh - 100px)'; // Max height minus headers
-    detailsContent.style.overflowY = 'auto';
-    
-    // Add the rig details content
-    createRigDetailsContent(detailsContent);
-    
-    // Tab switching functionality
-    optionsTab.addEventListener('click', () => {
-      optionsTab.style.backgroundColor = 'rgba(0,0,0,0.3)';
-      optionsTab.style.color = 'white';
-      optionsTab.style.borderBottom = '2px solid #4CAF50';
-      detailsTab.style.backgroundColor = 'transparent';
-      detailsTab.style.color = '#aaa';
-      detailsTab.style.borderBottom = 'none';
-      optionsContent.style.display = 'block';
-      detailsContent.style.display = 'none';
-    });
-    
-    detailsTab.addEventListener('click', () => {
-      detailsTab.style.backgroundColor = 'rgba(0,0,0,0.3)';
-      detailsTab.style.color = 'white';
-      detailsTab.style.borderBottom = '2px solid #4CAF50';
-      optionsTab.style.backgroundColor = 'transparent';
-      optionsTab.style.color = '#aaa';
-      optionsTab.style.borderBottom = 'none';
-      detailsContent.style.display = 'block';
-      optionsContent.style.display = 'none';
-    });
-    
-    tabContainer.appendChild(optionsTab);
-    tabContainer.appendChild(detailsTab);
-    panel.appendChild(tabContainer);
-    panel.appendChild(optionsContent);
-    panel.appendChild(detailsContent);
-    
-    // Add the standard options to the options content
-    addStandardOptions(optionsContent, true); // true indicates it's a GLB model
-  } else {
-    // No GLB details, just add the standard options directly to the panel
-    addStandardOptions(panel, false); // false indicates it's the sample rig
-  }
+  });
+  
+  detailsTab.addEventListener('click', () => {
+    detailsTab.style.backgroundColor = 'rgba(0,0,0,0.3)';
+    detailsTab.style.color = 'white';
+    detailsTab.style.borderBottom = '2px solid #4CAF50';
+    optionsTab.style.backgroundColor = 'transparent';
+    optionsTab.style.color = '#aaa';
+    optionsTab.style.borderBottom = 'none';
+    detailsContent.style.display = 'block';
+    optionsContent.style.display = 'none';
+  });
+  
+  tabContainer.appendChild(optionsTab);
+  tabContainer.appendChild(detailsTab);
+  panel.appendChild(tabContainer);
+  panel.appendChild(optionsContent);
+  panel.appendChild(detailsContent);
+  
+  // Add the standard options to the options content
+  addStandardOptions(optionsContent, controlPoints.length > 0); // true if GLB loaded
   
   document.body.appendChild(panel);
 }
@@ -642,25 +644,27 @@ function updateBoneMaterial() {
   boneMaterial.wireframe = options.wireframe;
   boneMaterial.color.setHex(options.boneColor);
   
+  if (boneSideMaterial) {
+    boneSideMaterial.wireframe = options.wireframe;
+    boneSideMaterial.color.setHex(options.boneSideColor);
+  }
+  
   // If there are any mesh bones, update them
-  bones.forEach(bone => {
-    if (bone.children && bone.children.length > 0) {
-      bone.children.forEach(child => {
-        if (child.isMesh && child !== tipBall) {
-          child.material = boneMaterial;
+  scene.traverse(object => {
+    if (object.userData && object.userData.bonePart) {
+      if (object.isMesh) {
+        if (object.userData.bonePart === 'cap') {
+          object.material = boneMaterial;
+        } else if (object.userData.bonePart === 'side') {
+          if (object.userData.segmentIndex % 2 === 0) {
+            object.material = boneMaterial;
+          } else {
+            object.material = boneSideMaterial;
+          }
         }
-      });
+      }
     }
   });
-  
-  // Also update the base cylinder if it exists
-  if (rootBone && rootBone.children && rootBone.children.length > 0) {
-    rootBone.children.forEach(child => {
-      if (child.isMesh) {
-        child.material = boneMaterial;
-      }
-    });
-  }
 }
 
 function rebuildBoneChain() {
@@ -686,9 +690,17 @@ function createBoneChain() {
   const segmentCount = options.segmentCount;
   const boneSize = 4;
   
-  // Material
+  // Materials
   boneMaterial = new THREE.MeshPhongMaterial({
     color: options.boneColor,
+    emissive: 0x072534,
+    side: THREE.DoubleSide,
+    flatShading: true,
+    wireframe: options.wireframe
+  });
+  
+  boneSideMaterial = new THREE.MeshPhongMaterial({
+    color: options.boneSideColor,
     emissive: 0x072534,
     side: THREE.DoubleSide,
     flatShading: true,
@@ -704,11 +716,8 @@ function createBoneChain() {
   rootBone.position.set(0, 0, 0);
   scene.add(rootBone);
   
-  // Base cylinder
-  const baseGeometry = new THREE.CylinderGeometry(7, 7, 5, 16);
-  const baseMesh = new THREE.Mesh(baseGeometry, boneMaterial);
-  baseMesh.position.y = 2.5;
-  rootBone.add(baseMesh);
+  // Base cylinder with dual materials
+  createBoneMesh(rootBone, 7, 7, 5, 0, 2.5, true);
   
   // Create chain
   let prevBone = rootBone;
@@ -716,15 +725,14 @@ function createBoneChain() {
     const bone = new THREE.Object3D();
     bone.position.y = i === 0 ? 5 : segmentHeight;
     
-    const segmentGeo = new THREE.CylinderGeometry(
-      boneSize - (i * 0.5),
-      boneSize - ((i + 1) * 0.5),
-      segmentHeight, 8
-    );
-    segmentGeo.translate(0, segmentHeight/2, 0);
-    const segment = new THREE.Mesh(segmentGeo, boneMaterial);
+    // Create bone mesh with different colors for top/bottom and sides
+    createBoneMesh(bone, 
+                   boneSize - (i * 0.5), 
+                   boneSize - ((i + 1) * 0.5), 
+                   segmentHeight, 
+                   0, 
+                   segmentHeight/2);
     
-    bone.add(segment);
     prevBone.add(bone);
     bones.push(bone);
     boneLengths.push(segmentHeight);
@@ -744,6 +752,51 @@ function createBoneChain() {
   
   // Force matrix update
   scene.updateMatrixWorld(true);
+}
+
+// Helper function to create bone mesh with different materials for sides and caps
+function createBoneMesh(parent, radiusTop, radiusBottom, height, posX = 0, posY = 0, isBase = false) {
+  // Number of segments around the cylinder to create alternating colors
+  const segmentCount = 8;
+  
+  // Create caps
+  if (!isBase || radiusTop > 0) {
+    const topGeometry = new THREE.CircleGeometry(radiusTop, 16);
+    const topMesh = new THREE.Mesh(topGeometry, boneMaterial);
+    topMesh.userData.bonePart = 'cap';
+    topMesh.position.set(posX, posY + height/2, 0);
+    topMesh.rotation.x = -Math.PI/2;
+    parent.add(topMesh);
+  }
+  
+  const bottomGeometry = new THREE.CircleGeometry(radiusBottom, 16);
+  const bottomMesh = new THREE.Mesh(bottomGeometry, boneMaterial);
+  bottomMesh.userData.bonePart = 'cap';
+  bottomMesh.position.set(posX, posY - height/2, 0);
+  bottomMesh.rotation.x = Math.PI/2;
+  parent.add(bottomMesh);
+  
+  // Create alternating colored segments around the cylinder
+  for (let i = 0; i < segmentCount; i++) {
+    // Alternate between the two colors
+    const material = i % 2 === 0 ? boneMaterial : boneSideMaterial;
+    
+    // Create a partial cylinder segment
+    const thetaStart = (i / segmentCount) * Math.PI * 2;
+    const thetaLength = (1 / segmentCount) * Math.PI * 2;
+    
+    const segmentGeometry = new THREE.CylinderGeometry(
+      radiusTop, radiusBottom, height, 
+      1, 1, true, // open-ended cylinder
+      thetaStart, thetaLength
+    );
+    
+    const segmentMesh = new THREE.Mesh(segmentGeometry, material);
+    segmentMesh.userData.bonePart = 'side';
+    segmentMesh.userData.segmentIndex = i;
+    segmentMesh.position.set(posX, posY, 0);
+    parent.add(segmentMesh);
+  }
 }
 
 function getTipPosition(outVector) {
@@ -822,6 +875,8 @@ function onMouseDown(event) {
       const controlPos = new THREE.Vector3();
       hoveredControl.getWorldPosition(controlPos);
       setupDragPlane(event.clientX, event.clientY, controlPos);
+      
+      console.log('Control point drag started:', hoveredControl.name);
     }
   } else {
     // Sample rig - check if hovering over the tip ball
@@ -831,6 +886,8 @@ function onMouseDown(event) {
       
       // Set the drag color
       tipBall.material.color.setHex(dragColor);
+      
+      console.log('Sample rig tip drag started');
     }
   }
 }
@@ -874,10 +931,15 @@ function onMouseMove(event) {
       // Set the target position
       const targetPosition = targetPoint.clone();
       
+      console.log('Dragging control to position:', targetPosition);
+      
       // Now move the target bone using IK
       const bone = getTargetBoneForControl(activeControlPoint);
       if (bone) {
+        console.log('Found target bone for control:', bone.name);
         moveBonesForTarget(bone, targetPosition);
+      } else {
+        console.log('No target bone found for control');
       }
     } else {
       // Sample rig - handle tip ball dragging using existing logic
@@ -906,6 +968,8 @@ function onMouseMove(event) {
       
       // Always use the actual intersection point for better directional accuracy
       const targetPosition = targetPoint.clone();
+      
+      console.log('Dragging sample tip to position:', targetPosition);
       
       // Direct position-based IK
       positionBones(targetPosition);
@@ -1078,7 +1142,7 @@ function animate() {
   requestAnimationFrame(animate);
   
   // Update bone line visualizations if any exist
-  scene.children.forEach(obj => {
+  scene.traverse(obj => {
     if (obj.isLine && obj.userData.parentBone && obj.userData.childBone) {
       const positions = obj.geometry.attributes.position.array;
       const parentPos = new THREE.Vector3();
@@ -1096,6 +1160,11 @@ function animate() {
       positions[5] = childPos.z;
       
       obj.geometry.attributes.position.needsUpdate = true;
+    }
+    
+    // Update visual bone positions and orientations
+    if (obj.userData.isVisualBone && obj.userData.updatePosition) {
+      obj.userData.updatePosition();
     }
   });
   
@@ -1176,37 +1245,126 @@ function initializeRigFromGLB() {
     });
   }
   
-  // Second pass: calculate bone lengths
+  // Create materials for GLB bone visualization
+  boneMaterial = new THREE.MeshPhongMaterial({
+    color: options.boneColor,
+    emissive: 0x072534,
+    side: THREE.DoubleSide,
+    flatShading: true,
+    wireframe: options.wireframe
+  });
+  
+  boneSideMaterial = new THREE.MeshPhongMaterial({
+    color: options.boneSideColor,
+    emissive: 0x072534,
+    side: THREE.DoubleSide,
+    flatShading: true,
+    wireframe: options.wireframe
+  });
+  
+  // Second pass: calculate bone lengths and create visual bone meshes
+  const bonesByParent = new Map(); // Map to store child bones by parent
+  
+  // Group bones by parent for easier bone pair creation
   bones.forEach(bone => {
-    if (bone.children.length > 0) {
-      // Find the first child bone
-      let childBone = null;
-      for (let i = 0; i < bone.children.length; i++) {
-        if (bone.children[i].isBone || bone.children[i].name.toLowerCase().includes('bone')) {
-          childBone = bone.children[i];
-          break;
-        }
+    if (bone.parent) {
+      const parentId = bone.parent.uuid;
+      if (!bonesByParent.has(parentId)) {
+        bonesByParent.set(parentId, []);
       }
-      
-      if (childBone) {
-        // Calculate the length from this bone to the child
-        const bonePos = new THREE.Vector3();
-        const childPos = new THREE.Vector3();
-        bone.getWorldPosition(bonePos);
-        childBone.getWorldPosition(childPos);
-        const length = bonePos.distanceTo(childPos);
-        boneLengths.push(length);
-        console.log(`Bone length from ${bone.name} to ${childBone.name}: ${length}`);
-      } else {
-        // If no child bone, use a default length
-        boneLengths.push(controlPointSize);
-        console.log(`Using default length ${controlPointSize} for ${bone.name}`);
-      }
-    } else {
-      // End bones get a default length
-      boneLengths.push(controlPointSize);
-      console.log(`Using default length ${controlPointSize} for end bone ${bone.name}`);
+      bonesByParent.get(parentId).push(bone);
     }
+  });
+  
+  // Create visual bone meshes between parent-child bone pairs
+  bones.forEach(bone => {
+    // Skip if this bone is not in our scene (e.g., if it's part of a different armature)
+    if (!scene.getObjectById(bone.id)) return;
+    
+    // Get current bone position
+    const bonePos = new THREE.Vector3();
+    bone.getWorldPosition(bonePos);
+    
+    // Check if this bone has children in our bone list
+    const childBones = bonesByParent.get(bone.uuid) || [];
+    
+    // If this bone has child bones, create a visual bone for each connection
+    childBones.forEach(childBone => {
+      // Get child bone position
+      const childPos = new THREE.Vector3();
+      childBone.getWorldPosition(childPos);
+      
+      // Calculate distance and direction
+      const distance = bonePos.distanceTo(childPos);
+      boneLengths.push(distance);
+      
+      // Only create visual bone if distance is not zero
+      if (distance > 0.001) {
+        // Create a group for the bone mesh
+        const boneGroup = new THREE.Group();
+        scene.add(boneGroup);
+        
+        // Position bone group at parent bone position
+        boneGroup.position.copy(bonePos);
+        
+        // Make the bone look at the child
+        const direction = new THREE.Vector3().subVectors(childPos, bonePos);
+        boneGroup.lookAt(childPos);
+        
+        // Rotate to align with standard Three.js cylinder orientation
+        boneGroup.rotateX(Math.PI/2);
+        
+        // Create bone mesh with two colors
+        const jointSize = modelScale * 0.5;
+        const boneRadius = modelScale * 0.3;
+        createBoneMesh(boneGroup, boneRadius, boneRadius, distance, 0, 0);
+        
+        // Store reference to the bone connection
+        boneGroup.userData.parentBone = bone;
+        boneGroup.userData.childBone = childBone;
+        
+        // Add to scene for updates in animation loop
+        boneGroup.userData.isVisualBone = true;
+        
+        // Add a debug label
+        const labelCanvas = document.createElement('canvas');
+        labelCanvas.width = 256;
+        labelCanvas.height = 64;
+        const context = labelCanvas.getContext('2d');
+        context.fillStyle = 'rgba(0,0,0,0.5)';
+        context.fillRect(0, 0, 256, 64);
+        context.fillStyle = 'white';
+        context.font = '12px Arial';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText(bone.name + ' → ' + childBone.name, 128, 32);
+        
+        const labelTexture = new THREE.CanvasTexture(labelCanvas);
+        const labelMaterial = new THREE.SpriteMaterial({ map: labelTexture });
+        const label = new THREE.Sprite(labelMaterial);
+        label.scale.set(distance * 0.5, distance * 0.12, 1);
+        label.position.set(0, 0, 0);
+        boneGroup.add(label);
+      }
+    });
+    
+    // If this bone has no children (end bones), create a small marker
+    if (childBones.length === 0) {
+      // Create a small cone to indicate end bones
+      const endBoneMarker = new THREE.Mesh(
+        new THREE.ConeGeometry(modelScale * 0.4, modelScale * 0.8, 8),
+        boneMaterial
+      );
+      endBoneMarker.rotation.x = Math.PI; // Point outward
+      bone.add(endBoneMarker);
+    }
+    
+    // Add joint marker at bone position
+    const jointMarker = new THREE.Mesh(
+      new THREE.SphereGeometry(modelScale * 0.4, 12, 12),
+      new THREE.MeshBasicMaterial({ color: 0x00ffff })
+    );
+    bone.add(jointMarker);
   });
   
   // Find control points (controls/handles)
@@ -1247,39 +1405,38 @@ function initializeRigFromGLB() {
   rootBone = bones.length > 0 ? bones[0] : null;
   lastBone = bones.length > 0 ? bones[bones.length - 1] : null;
   
-  // Add visual helpers to make bones visible - sized proportionally to model
-  const jointSize = controlPointSize * 0.4; // Joint markers are smaller than control points
-  const lineWidth = Math.max(1, controlPointSize * 0.2); // Line width proportional but not too thin
-  
-  bones.forEach(bone => {
-    // Create a small sphere to represent each bone joint
-    const jointMarker = new THREE.Mesh(
-      new THREE.SphereGeometry(jointSize, 8, 8),
-      new THREE.MeshBasicMaterial({ color: 0x00ffff })
-    );
-    bone.add(jointMarker);
-    
-    // If this bone has a child bone, create a line connecting them
-    if (bone.children.length > 0) {
-      for (const child of bone.children) {
-        if (child.isBone || child.name.toLowerCase().includes('bone')) {
-          // Create a line geometry connecting this bone to its child
-          const lineGeometry = new THREE.BufferGeometry();
-          const lineMaterial = new THREE.LineBasicMaterial({ 
-            color: 0x00ff00,
-            linewidth: lineWidth // Note: linewidth only works in WebGLRenderer with certain limitations
-          });
+  // Update bone positions in the animation loop
+  scene.traverse(object => {
+    if (object.userData.isVisualBone) {
+      object.userData.updatePosition = () => {
+        if (object.userData.parentBone && object.userData.childBone) {
+          const parentPos = new THREE.Vector3();
+          const childPos = new THREE.Vector3();
           
-          // We'll update the position in the animate loop
-          const positions = new Float32Array(6); // 2 points x 3 coordinates
-          lineGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+          object.userData.parentBone.getWorldPosition(parentPos);
+          object.userData.childBone.getWorldPosition(childPos);
           
-          const line = new THREE.Line(lineGeometry, lineMaterial);
-          line.userData.parentBone = bone;
-          line.userData.childBone = child;
-          scene.add(line);
+          // Update position and orientation
+          object.position.copy(parentPos);
+          
+          // Make the bone look at the child
+          const direction = new THREE.Vector3().subVectors(childPos, parentPos);
+          if (direction.lengthSq() > 0.001) { // Avoid issues with zero length
+            object.lookAt(childPos);
+            object.rotateX(Math.PI/2); // Adjust rotation to match cylinder orientation
+            
+            // Update scale to match new length
+            const distance = parentPos.distanceTo(childPos);
+            const children = object.children;
+            for (let i = 0; i < children.length; i++) {
+              if (children[i].userData.bonePart === 'side') {
+                children[i].scale.set(1, distance / children[i].geometry.parameters.height, 1);
+                children[i].position.y = distance / 2;
+              }
+            }
+          }
         }
-      }
+      };
     }
   });
   
@@ -1488,20 +1645,20 @@ function checkControlPointsHover(clientX, clientY) {
   controlPoints.forEach(control => {
     if (control.controlBall) {
       const intersects = raycaster.intersectObject(control.controlBall);
+      
+      // Reset this control point's color if not currently being dragged
+      if (control !== activeControlPoint) {
+        control.controlBall.material.color.setHex(normalColor);
+      }
+      
+      // If we have an intersection, this is our hovered control
       if (intersects.length > 0) {
         hoveredControl = control;
       }
     }
   });
   
-  // Reset all control points to normal color
-  controlPoints.forEach(control => {
-    if (control.controlBall && control !== activeControlPoint) {
-      control.controlBall.material.color.setHex(normalColor);
-    }
-  });
-  
-  // Highlight the hovered control
+  // Highlight only the hovered control
   if (hoveredControl && hoveredControl !== activeControlPoint) {
     hoveredControl.controlBall.material.color.setHex(hoverColor);
   }
@@ -1511,33 +1668,107 @@ function checkControlPointsHover(clientX, clientY) {
 
 // Get the target bone that should be moved when a control point is dragged
 function getTargetBoneForControl(controlPoint) {
-  // In our GLB structure, controls are often directly parented to the bone they affect
+  // Try to find the farthest bone (end bone) with a related name first
+  const controlName = controlPoint.name;
+  const namePattern = controlName.replace('control', '')
+                               .replace('ctrl', '')
+                               .replace('handle', '');
+  
+  // If the name pattern is empty (e.g., the control is just named "control"), use a different approach
+  if (!namePattern.trim()) {
+    // Find the farthest bone from the root (likely an end effector)
+    return findFarthestBone();
+  }
+  
+  // Find all bones with matching name pattern
+  const matchingBones = [];
+  bones.forEach(bone => {
+    if (bone.name.includes(namePattern)) {
+      matchingBones.push(bone);
+    }
+  });
+  
+  // If we found matching bones, select the one that's farthest from root
+  if (matchingBones.length > 0) {
+    return findFarthestBoneInChain(matchingBones);
+  }
+  
+  // If no bones match by name, try controlling the direct parent if it's a bone
   if (controlPoint.parent && (controlPoint.parent.isBone || controlPoint.parent.name.toLowerCase().includes('bone'))) {
     return controlPoint.parent;
   }
   
-  // If not parented directly, we need to find the bone with a matching name
-  const controlName = controlPoint.name;
-  const boneName = controlName.replace('control', 'bone')
-                              .replace('ctrl', 'bone')
-                              .replace('handle', 'bone');
+  // Default to farthest bone
+  return findFarthestBone();
+}
+
+// Helper function to find the farthest bone from the root
+function findFarthestBone() {
+  if (bones.length === 0) return null;
   
-  let targetBone = null;
+  // Find bones with no children (end effectors)
+  const endBones = [];
+  
   bones.forEach(bone => {
-    if (bone.name === boneName || bone.name.includes(boneName)) {
-      targetBone = bone;
+    let isEndBone = true;
+    // Check if this bone has any child bones
+    for (let i = 0; i < bone.children.length; i++) {
+      const child = bone.children[i];
+      if (child.isBone || child.name.toLowerCase().includes('bone')) {
+        isEndBone = false;
+        break;
+      }
+    }
+    
+    if (isEndBone) {
+      endBones.push(bone);
     }
   });
   
-  // If we still can't find a matching bone, just use the last bone in the chain
-  if (!targetBone && bones.length > 0) {
-    targetBone = bones[bones.length - 1];
+  // If we found end bones, return the first one
+  if (endBones.length > 0) {
+    console.log('Found end bone:', endBones[0].name);
+    return endBones[0];
   }
   
-  return targetBone;
+  // If we couldn't identify end bones, just return the last bone
+  console.log('No end bones found, using last bone:', bones[bones.length - 1].name);
+  return bones[bones.length - 1];
 }
 
-// Move a chain of bones to reach a target position - improved to prevent wild rotations
+// Helper function to find the farthest bone in a specific chain of bones
+function findFarthestBoneInChain(boneChain) {
+  if (boneChain.length === 0) return null;
+  
+  // Find bones with no bone children within this chain
+  const endBones = [];
+  
+  for (const bone of boneChain) {
+    let hasChildInChain = false;
+    for (const potentialChild of boneChain) {
+      if (potentialChild !== bone && potentialChild.parent === bone) {
+        hasChildInChain = true;
+        break;
+      }
+    }
+    
+    if (!hasChildInChain) {
+      endBones.push(bone);
+    }
+  }
+  
+  // If we found end bones in the chain, return the first one
+  if (endBones.length > 0) {
+    console.log('Found end bone in chain:', endBones[0].name);
+    return endBones[0];
+  }
+  
+  // Otherwise return the last bone in the chain
+  console.log('Using last bone in chain:', boneChain[boneChain.length - 1].name);
+  return boneChain[boneChain.length - 1];
+}
+
+// Function to move a chain of bones to reach a target position
 function moveBonesForTarget(targetBone, targetPosition) {
   // Find the chain of bones from root to the target bone
   const boneChain = [];
@@ -1697,6 +1928,153 @@ function resetSampleRig() {
   console.log('Sample rig reset to initial position');
 }
 
+// Function to create sample rig details similar to GLB details
+function createSampleRigDetailsContent(container) {
+  // Create sample bone details
+  const createSampleSection = (title, items) => {
+    const section = document.createElement('div');
+    section.style.marginBottom = '15px';
+    
+    const sectionTitle = document.createElement('h4');
+    sectionTitle.textContent = title;
+    sectionTitle.style.margin = '5px 0';
+    sectionTitle.style.fontSize = '14px';
+    sectionTitle.style.borderBottom = '1px solid #555';
+    section.appendChild(sectionTitle);
+    
+    if (items.length === 0) {
+      const noItems = document.createElement('p');
+      noItems.textContent = 'None found';
+      noItems.style.fontSize = '12px';
+      noItems.style.color = '#aaa';
+      noItems.style.margin = '5px 0';
+      section.appendChild(noItems);
+    } else {
+      items.forEach(item => {
+        const itemElem = document.createElement('div');
+        itemElem.style.fontSize = '12px';
+        itemElem.style.margin = '5px 0';
+        itemElem.style.padding = '3px';
+        itemElem.style.backgroundColor = 'rgba(255,255,255,0.1)';
+        itemElem.style.borderRadius = '3px';
+        itemElem.style.position = 'relative';
+        
+        // Create name element
+        const nameElem = document.createElement('div');
+        nameElem.textContent = `Name: ${item.name}`;
+        itemElem.appendChild(nameElem);
+        
+        if (item.position) {
+          const posElem = document.createElement('div');
+          posElem.style.fontSize = '10px';
+          posElem.style.color = '#ccc';
+          posElem.textContent = `Pos: [${item.position.join(', ')}]`;
+          itemElem.appendChild(posElem);
+        }
+        
+        if (item.type) {
+          const typeElem = document.createElement('div');
+          typeElem.style.fontSize = '10px';
+          typeElem.style.color = '#ccc';
+          typeElem.textContent = `Type: ${item.type}`;
+          itemElem.appendChild(typeElem);
+        }
+        
+        // Add lock rotation toggle for bones
+        if (title === 'Bones') {
+          const lockContainer = document.createElement('div');
+          lockContainer.style.display = 'flex';
+          lockContainer.style.alignItems = 'center';
+          lockContainer.style.marginTop = '5px';
+          
+          const lockLabel = document.createElement('label');
+          lockLabel.textContent = 'Lock Rotation:';
+          lockLabel.style.fontSize = '10px';
+          lockLabel.style.marginRight = '5px';
+          lockLabel.style.color = '#ccc';
+          
+          const lockCheckbox = document.createElement('input');
+          lockCheckbox.type = 'checkbox';
+          lockCheckbox.style.cursor = 'pointer';
+          
+          // Find the actual bone object
+          const boneName = item.name;
+          const bone = item.ref;
+          
+          if (bone) {
+            // Initialize checkbox state
+            lockCheckbox.checked = lockedBones.has(bone.uuid);
+            
+            lockCheckbox.addEventListener('change', (e) => {
+              if (e.target.checked) {
+                // Store the bone's current rotation
+                const rotationBackup = new THREE.Euler(
+                  bone.rotation.x,
+                  bone.rotation.y,
+                  bone.rotation.z,
+                  bone.rotation.order
+                );
+                lockedBones.set(bone.uuid, {
+                  bone: bone,
+                  rotation: rotationBackup
+                });
+                console.log(`Locked rotation for bone: ${boneName}`);
+              } else {
+                lockedBones.delete(bone.uuid);
+                console.log(`Unlocked rotation for bone: ${boneName}`);
+              }
+            });
+          }
+          
+          lockContainer.appendChild(lockLabel);
+          lockContainer.appendChild(lockCheckbox);
+          itemElem.appendChild(lockContainer);
+        }
+        
+        section.appendChild(itemElem);
+      });
+    }
+    
+    return section;
+  };
+  
+  // Generate sample rig details
+  const sampleBones = [];
+  for (let i = 0; i < bones.length; i++) {
+    const bone = bones[i];
+    const position = [0, i === 0 ? 5 : 15, 0]; // Approximate values
+    sampleBones.push({
+      name: `Bone ${i+1}`,
+      position: position,
+      ref: bone
+    });
+  }
+  
+  const sampleRig = [{
+    name: 'Sample Rig',
+    position: [0, 0, 0],
+    type: 'sample'
+  }];
+  
+  const sampleRoot = [{
+    name: 'Root',
+    position: [0, 0, 0],
+    type: 'root'
+  }];
+  
+  const sampleControls = [{
+    name: 'Tip Control',
+    position: [0, (bones.length * 15), 0],
+    type: 'control'
+  }];
+  
+  // Create sections
+  container.appendChild(createSampleSection('Bones', sampleBones));
+  container.appendChild(createSampleSection('Rigs', sampleRig));
+  container.appendChild(createSampleSection('Roots', sampleRoot));
+  container.appendChild(createSampleSection('Controls/Handles', sampleControls));
+}
+
 // Function to add the standard options to a container
 function addStandardOptions(container, isGlbModel) {
   // Fill rig toggle (inverse of wireframe)
@@ -1715,20 +2093,26 @@ function addStandardOptions(container, isGlbModel) {
   wireframeCheckbox.addEventListener('change', (e) => {
     options.wireframe = !e.target.checked;  // Invert the logic
     updateBoneMaterial();
+    
+    // Toggle visibility of secondary color option
+    if (secondaryColorContainer) {
+      secondaryColorContainer.style.display = e.target.checked ? 'block' : 'none';
+    }
   });
   
   wireframeContainer.appendChild(wireframeLabel);
   wireframeContainer.appendChild(wireframeCheckbox);
   container.appendChild(wireframeContainer);
   
-  // Color picker
+  // Primary Color picker
   const colorContainer = document.createElement('div');
   colorContainer.style.marginBottom = '15px';
   
   const colorLabel = document.createElement('label');
-  colorLabel.textContent = 'Rig Color: ';
+  colorLabel.textContent = 'Primary Color: ';
   colorLabel.style.display = 'inline-block';
   colorLabel.style.width = '60%';
+  colorLabel.title = 'Main color for bones';
   
   const colorPicker = document.createElement('input');
   colorPicker.type = 'color';
@@ -1743,6 +2127,55 @@ function addStandardOptions(container, isGlbModel) {
   colorContainer.appendChild(colorLabel);
   colorContainer.appendChild(colorPicker);
   container.appendChild(colorContainer);
+  
+  // Secondary Color picker (for alternating segments)
+  const secondaryColorContainer = document.createElement('div');
+  secondaryColorContainer.style.marginBottom = '15px';
+  secondaryColorContainer.style.display = !options.wireframe ? 'block' : 'none'; // Only show when not in wireframe mode
+  
+  const secondaryColorLabel = document.createElement('label');
+  secondaryColorLabel.textContent = 'Secondary Color: ';
+  secondaryColorLabel.style.display = 'inline-block';
+  secondaryColorLabel.style.width = '60%';
+  secondaryColorLabel.title = 'Alternating color for bone segments';
+  
+  const secondaryColorPicker = document.createElement('input');
+  secondaryColorPicker.type = 'color';
+  secondaryColorPicker.value = '#' + options.boneSideColor.toString(16).padStart(6, '0');
+  secondaryColorPicker.style.cursor = 'pointer';
+  secondaryColorPicker.addEventListener('input', (e) => {
+    // Convert hex string to integer
+    options.boneSideColor = parseInt(e.target.value.substring(1), 16);
+    updateBoneMaterial();
+  });
+  
+  secondaryColorContainer.appendChild(secondaryColorLabel);
+  secondaryColorContainer.appendChild(secondaryColorPicker);
+  container.appendChild(secondaryColorContainer);
+  
+  // Add Force Z Override checkbox for GLB models
+  if (isGlbModel) {
+    const zOverrideContainer = document.createElement('div');
+    zOverrideContainer.style.marginBottom = '15px';
+    
+    const zOverrideLabel = document.createElement('label');
+    zOverrideLabel.textContent = 'Force Z Override: ';
+    zOverrideLabel.style.display = 'inline-block';
+    zOverrideLabel.style.width = '60%';
+    zOverrideLabel.title = 'Force bones/controls to render on top of the model';
+    
+    const zOverrideCheckbox = document.createElement('input');
+    zOverrideCheckbox.type = 'checkbox';
+    zOverrideCheckbox.checked = false;
+    zOverrideCheckbox.style.cursor = 'pointer';
+    zOverrideCheckbox.addEventListener('change', (e) => {
+      applyZOverride(e.target.checked);
+    });
+    
+    zOverrideContainer.appendChild(zOverrideLabel);
+    zOverrideContainer.appendChild(zOverrideCheckbox);
+    container.appendChild(zOverrideContainer);
+  }
   
   // Only show bone count adjustment for sample rig, not GLB models
   if (!isGlbModel) {
@@ -1844,4 +2277,53 @@ function addStandardOptions(container, isGlbModel) {
   
   resetPhysicsContainer.appendChild(resetPhysicsButton);
   container.appendChild(resetPhysicsContainer);
+}
+
+// Function to apply Z override to make bones/controls render on top of model
+function applyZOverride(enabled) {
+  console.log(`Z Override ${enabled ? 'enabled' : 'disabled'}`);
+  
+  // Set renderOrder for bones and control points
+  const renderOrder = enabled ? 10 : 0;
+  
+  // Apply to all bones
+  bones.forEach(bone => {
+    bone.traverse(node => {
+      if (node.isMesh) {
+        node.renderOrder = renderOrder;
+        if (enabled) {
+          // When enabled, disable depth testing to ensure controls are on top
+          node.material.depthTest = !enabled;
+        } else {
+          // Re-enable depth testing when turning off
+          node.material.depthTest = true;
+        }
+        node.material.needsUpdate = true;
+      }
+    });
+  });
+  
+  // Apply to all control points
+  controlPoints.forEach(control => {
+    if (control.controlBall) {
+      control.controlBall.renderOrder = renderOrder;
+      if (enabled) {
+        control.controlBall.material.depthTest = !enabled;
+      } else {
+        control.controlBall.material.depthTest = true;
+      }
+      control.controlBall.material.needsUpdate = true;
+    }
+  });
+  
+  // For sample rig, apply to tip ball
+  if (tipBall) {
+    tipBall.renderOrder = renderOrder;
+    if (enabled) {
+      tipBall.material.depthTest = !enabled;
+    } else {
+      tipBall.material.depthTest = true;
+    }
+    tipBall.material.needsUpdate = true;
+  }
 } 
