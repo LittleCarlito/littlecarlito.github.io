@@ -47,7 +47,7 @@ function setupLoadingScreen() {
   const startButton = document.getElementById('startButton');
   const returnButton = document.getElementById('returnButton');
   
-  // Return to Toolbox button
+  // Return to Toolbox button - no need to reposition as it's already positioned in HTML
   returnButton.addEventListener('click', () => {
     // Navigate back to the blorktools main page
     window.location.href = '../../index.html';
@@ -295,6 +295,36 @@ function init() {
   window.addEventListener('mousemove', onMouseMove);
   window.addEventListener('mouseup', onMouseUp);
   
+  // Add Restart button in upper left corner
+  const restartButton = document.createElement('button');
+  restartButton.textContent = 'Restart';
+  restartButton.style.position = 'absolute';
+  restartButton.style.top = '10px';
+  restartButton.style.left = '10px';
+  restartButton.style.padding = '8px 16px';
+  restartButton.style.backgroundColor = '#f44336';
+  restartButton.style.color = 'white';
+  restartButton.style.border = 'none';
+  restartButton.style.borderRadius = '4px';
+  restartButton.style.cursor = 'pointer';
+  restartButton.style.transition = 'background-color 0.3s';
+  restartButton.style.fontSize = '14px';
+  restartButton.style.zIndex = '100';
+  
+  restartButton.addEventListener('mouseover', () => {
+    restartButton.style.backgroundColor = '#d32f2f';
+  });
+  
+  restartButton.addEventListener('mouseout', () => {
+    restartButton.style.backgroundColor = '#f44336';
+  });
+  
+  restartButton.addEventListener('click', () => {
+    window.location.reload();
+  });
+  
+  document.body.appendChild(restartButton);
+  
   // Instructions
   const instructions = document.createElement('div');
   instructions.style.position = 'absolute';
@@ -304,6 +334,7 @@ function init() {
   instructions.style.fontSize = '14px';
   instructions.style.background = 'rgba(0,0,0,0.5)';
   instructions.style.padding = '10px';
+  instructions.style.marginTop = '50px'; // Move below restart button
   instructions.innerHTML = 'Hover over the red ball to make it green<br>Click and drag the green ball to move it<br>Right-click and drag to rotate view<br>Red=X, Yellow=Y, Blue=Z axes';
   document.body.appendChild(instructions);
   
@@ -326,9 +357,9 @@ function createOptionsPanel() {
   panel.style.zIndex = '1000';
   panel.style.overflowY = 'auto'; // Enable vertical scrolling when needed
   
-  // Panel title
+  // Panel title - Change to Rig Menu
   const title = document.createElement('h3');
-  title.textContent = 'Rig Options';
+  title.textContent = 'Rig Menu';
   title.style.margin = '0 0 15px 0';
   title.style.textAlign = 'center';
   title.style.position = 'sticky';
@@ -411,10 +442,10 @@ function createOptionsPanel() {
     panel.appendChild(detailsContent);
     
     // Add the standard options to the options content
-    addStandardOptions(optionsContent);
+    addStandardOptions(optionsContent, true); // true indicates it's a GLB model
   } else {
     // No GLB details, just add the standard options directly to the panel
-    addStandardOptions(panel);
+    addStandardOptions(panel, false); // false indicates it's the sample rig
   }
   
   document.body.appendChild(panel);
@@ -506,7 +537,7 @@ function createRigDetailsContent(container) {
 }
 
 // Function to add the standard options to a container
-function addStandardOptions(container) {
+function addStandardOptions(container, isGlbModel) {
   // Fill rig toggle (inverse of wireframe)
   const wireframeContainer = document.createElement('div');
   wireframeContainer.style.marginBottom = '15px';
@@ -552,96 +583,106 @@ function addStandardOptions(container) {
   colorContainer.appendChild(colorPicker);
   container.appendChild(colorContainer);
   
-  // Bone count adjustment - updated to have controls on the same line
-  const boneCountContainer = document.createElement('div');
-  boneCountContainer.style.marginBottom = '15px';
-  boneCountContainer.style.display = 'flex';
-  boneCountContainer.style.alignItems = 'center';
+  // Only show bone count adjustment for sample rig, not GLB models
+  if (!isGlbModel) {
+    // Bone count adjustment - updated to have controls on the same line
+    const boneCountContainer = document.createElement('div');
+    boneCountContainer.style.marginBottom = '15px';
+    boneCountContainer.style.display = 'flex';
+    boneCountContainer.style.alignItems = 'center';
+    
+    const boneCountLabel = document.createElement('label');
+    boneCountLabel.textContent = 'Bone Count: ';
+    boneCountLabel.style.display = 'inline-block';
+    boneCountLabel.style.width = '60%';
+    
+    const controlsContainer = document.createElement('div');
+    controlsContainer.style.display = 'flex';
+    controlsContainer.style.alignItems = 'center';
+    controlsContainer.style.width = '40%';
+    controlsContainer.style.justifyContent = 'space-between';
+    
+    const decreaseButton = document.createElement('button');
+    decreaseButton.textContent = '-';
+    decreaseButton.style.width = '30px';
+    decreaseButton.style.cursor = 'pointer';
+    decreaseButton.style.height = '30px';
+    decreaseButton.style.lineHeight = '1';
+    decreaseButton.addEventListener('click', () => {
+      if (options.segmentCount > 1) {
+        options.segmentCount--;
+        boneCountValue.textContent = options.segmentCount;
+        rebuildBoneChain();
+      }
+    });
+    
+    const boneCountValue = document.createElement('span');
+    boneCountValue.textContent = options.segmentCount;
+    boneCountValue.style.display = 'inline-block';
+    boneCountValue.style.textAlign = 'center';
+    boneCountValue.style.minWidth = '20px';
+    
+    const increaseButton = document.createElement('button');
+    increaseButton.textContent = '+';
+    increaseButton.style.width = '30px';
+    increaseButton.style.cursor = 'pointer';
+    increaseButton.style.height = '30px';
+    increaseButton.style.lineHeight = '1';
+    increaseButton.addEventListener('click', () => {
+      if (options.segmentCount < 8) {
+        options.segmentCount++;
+        boneCountValue.textContent = options.segmentCount;
+        rebuildBoneChain();
+      }
+    });
+    
+    controlsContainer.appendChild(decreaseButton);
+    controlsContainer.appendChild(boneCountValue);
+    controlsContainer.appendChild(increaseButton);
+    
+    boneCountContainer.appendChild(boneCountLabel);
+    boneCountContainer.appendChild(controlsContainer);
+    container.appendChild(boneCountContainer);
+  }
   
-  const boneCountLabel = document.createElement('label');
-  boneCountLabel.textContent = 'Bone Count: ';
-  boneCountLabel.style.display = 'inline-block';
-  boneCountLabel.style.width = '60%';
+  // Add Reset Physics button (replacing the Restart button in the panel)
+  const resetPhysicsContainer = document.createElement('div');
+  resetPhysicsContainer.style.marginTop = '20px';
+  resetPhysicsContainer.style.display = 'flex';
+  resetPhysicsContainer.style.justifyContent = 'center';
   
-  const controlsContainer = document.createElement('div');
-  controlsContainer.style.display = 'flex';
-  controlsContainer.style.alignItems = 'center';
-  controlsContainer.style.width = '40%';
-  controlsContainer.style.justifyContent = 'space-between';
+  const resetPhysicsButton = document.createElement('button');
+  resetPhysicsButton.textContent = 'Reset Physics';
+  resetPhysicsButton.style.padding = '8px 16px';
+  resetPhysicsButton.style.backgroundColor = '#4CAF50'; // Green color for Reset Physics
+  resetPhysicsButton.style.color = 'white';
+  resetPhysicsButton.style.border = 'none';
+  resetPhysicsButton.style.borderRadius = '4px';
+  resetPhysicsButton.style.cursor = 'pointer';
+  resetPhysicsButton.style.transition = 'background-color 0.3s';
+  resetPhysicsButton.style.fontSize = '14px';
   
-  const decreaseButton = document.createElement('button');
-  decreaseButton.textContent = '-';
-  decreaseButton.style.width = '30px';
-  decreaseButton.style.cursor = 'pointer';
-  decreaseButton.style.height = '30px';
-  decreaseButton.style.lineHeight = '1';
-  decreaseButton.addEventListener('click', () => {
-    if (options.segmentCount > 1) {
-      options.segmentCount--;
-      boneCountValue.textContent = options.segmentCount;
-      rebuildBoneChain();
+  resetPhysicsButton.addEventListener('mouseover', () => {
+    resetPhysicsButton.style.backgroundColor = '#3e8e41'; // Darker green on hover
+  });
+  
+  resetPhysicsButton.addEventListener('mouseout', () => {
+    resetPhysicsButton.style.backgroundColor = '#4CAF50';
+  });
+  
+  resetPhysicsButton.addEventListener('click', () => {
+    // Reset the model to its initial state
+    if (isGlbModel) {
+      // Reset GLB model to initial position
+      resetGlbModel();
+    } else {
+      // Reset sample rig
+      resetSampleRig();
     }
   });
   
-  const boneCountValue = document.createElement('span');
-  boneCountValue.textContent = options.segmentCount;
-  boneCountValue.style.display = 'inline-block';
-  boneCountValue.style.textAlign = 'center';
-  boneCountValue.style.minWidth = '20px';
-  
-  const increaseButton = document.createElement('button');
-  increaseButton.textContent = '+';
-  increaseButton.style.width = '30px';
-  increaseButton.style.cursor = 'pointer';
-  increaseButton.style.height = '30px';
-  increaseButton.style.lineHeight = '1';
-  increaseButton.addEventListener('click', () => {
-    if (options.segmentCount < 8) {
-      options.segmentCount++;
-      boneCountValue.textContent = options.segmentCount;
-      rebuildBoneChain();
-    }
-  });
-  
-  controlsContainer.appendChild(decreaseButton);
-  controlsContainer.appendChild(boneCountValue);
-  controlsContainer.appendChild(increaseButton);
-  
-  boneCountContainer.appendChild(boneCountLabel);
-  boneCountContainer.appendChild(controlsContainer);
-  container.appendChild(boneCountContainer);
-  
-  // Add restart button
-  const restartContainer = document.createElement('div');
-  restartContainer.style.marginTop = '20px';
-  restartContainer.style.display = 'flex';
-  restartContainer.style.justifyContent = 'center';
-  
-  const restartButton = document.createElement('button');
-  restartButton.textContent = 'Restart';
-  restartButton.style.padding = '8px 16px';
-  restartButton.style.backgroundColor = '#f44336';
-  restartButton.style.color = 'white';
-  restartButton.style.border = 'none';
-  restartButton.style.borderRadius = '4px';
-  restartButton.style.cursor = 'pointer';
-  restartButton.style.transition = 'background-color 0.3s';
-  restartButton.style.fontSize = '14px';
-  
-  restartButton.addEventListener('mouseover', () => {
-    restartButton.style.backgroundColor = '#d32f2f';
-  });
-  
-  restartButton.addEventListener('mouseout', () => {
-    restartButton.style.backgroundColor = '#f44336';
-  });
-  
-  restartButton.addEventListener('click', () => {
-    window.location.reload();
-  });
-  
-  restartContainer.appendChild(restartButton);
-  container.appendChild(restartContainer);
+  resetPhysicsContainer.appendChild(resetPhysicsButton);
+  container.appendChild(resetPhysicsContainer);
 }
 
 function updateBoneMaterial() {
@@ -1590,4 +1631,35 @@ function applyIKToChain(boneChain, targetPosition) {
       }
     }
   }
+}
+
+// Add function to reset GLB model
+function resetGlbModel() {
+  if (!loadedGltf) return;
+  
+  // Reset all bone rotations to initial state
+  bones.forEach(bone => {
+    // Reset rotation to identity
+    bone.rotation.set(0, 0, 0);
+  });
+  
+  // Update all matrices
+  updateAllBoneMatrices();
+  
+  console.log('GLB model reset to initial position');
+}
+
+// Add function to reset sample rig
+function resetSampleRig() {
+  if (controlPoints.length > 0) return; // Only for sample rig
+  
+  // Reset all bone rotations
+  bones.forEach(bone => {
+    bone.rotation.set(0, 0, 0);
+  });
+  
+  // Update all matrices
+  updateAllBoneMatrices();
+  
+  console.log('Sample rig reset to initial position');
 } 

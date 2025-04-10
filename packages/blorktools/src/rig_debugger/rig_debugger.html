@@ -63,7 +63,6 @@
       font-size: 16px;
       cursor: pointer;
       transition: all 0.3s;
-      margin-right: 10px;
     }
     #startButton:hover {
       background-color: #45a049;
@@ -77,7 +76,10 @@
       font-size: 16px;
       cursor: pointer;
       transition: all 0.3s;
-      margin-left: 10px;
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 100;
     }
     #returnButton:hover {
       background-color: #0b7dda;
@@ -94,13 +96,13 @@
 </head>
 <body>
   <div id="loadingScreen">
+    <button id="returnButton">Return to Toolbox</button>
     <div id="dropZone">
       <p>Drag & drop a GLB file here</p>
       <p>or continue without a model</p>
     </div>
     <div class="buttonContainer">
       <button id="startButton">Start Debugging</button>
-      <button id="returnButton">Return to Toolbox</button>
     </div>
   </div>
   <script type="module" src="./main.js"></script>
