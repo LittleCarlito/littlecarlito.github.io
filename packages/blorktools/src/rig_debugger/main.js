@@ -16,10 +16,20 @@ let dragPlane = new THREE.Plane();
 let dragPoint = new THREE.Vector3();
 let wasLowPosition = false; // Track if we were previously in a low position
 
+// Options configuration
+let options = {
+  wireframe: true,
+  boneColor: 0x156289,
+  segmentCount: 4
+};
+
 // Colors
 const normalColor = 0xff0000; // Red
 const hoverColor = 0x00ff00;  // Green
 const dragColor = 0x00ff00;   // Green
+
+// Material references
+let boneMaterial;
 
 init();
 animate();
@@ -80,8 +90,132 @@ function init() {
   instructions.style.fontSize = '14px';
   instructions.style.background = 'rgba(0,0,0,0.5)';
   instructions.style.padding = '10px';
-  instructions.innerHTML = 'Hover over the red ball to make it green<br>Click and drag the green ball to move it<br>Right-click and drag to rotate view<br>Red=X, Green=Y, Blue=Z axes';
+  instructions.innerHTML = 'Hover over the red ball to make it green<br>Click and drag the green ball to move it<br>Right-click and drag to rotate view<br>Red=X, Yellow=Y, Blue=Z axes';
   document.body.appendChild(instructions);
+  
+  // Create options panel
+  createOptionsPanel();
+}
+
+function createOptionsPanel() {
+  const panel = document.createElement('div');
+  panel.style.position = 'absolute';
+  panel.style.top = '10px';
+  panel.style.right = '10px';
+  panel.style.width = '200px';
+  panel.style.padding = '15px';
+  panel.style.backgroundColor = 'rgba(0,0,0,0.7)';
+  panel.style.color = 'white';
+  panel.style.borderRadius = '5px';
+  panel.style.fontFamily = 'Arial, sans-serif';
+  panel.style.zIndex = '1000';
+  
+  // Panel title
+  const title = document.createElement('h3');
+  title.textContent = 'Rig Options';
+  title.style.margin = '0 0 15px 0';
+  title.style.textAlign = 'center';
+  panel.appendChild(title);
+  
+  // Wireframe toggle
+  const wireframeContainer = document.createElement('div');
+  wireframeContainer.style.marginBottom = '15px';
+  
+  const wireframeLabel = document.createElement('label');
+  wireframeLabel.textContent = 'Wireframe: ';
+  wireframeLabel.style.display = 'inline-block';
+  wireframeLabel.style.width = '60%';
+  
+  const wireframeCheckbox = document.createElement('input');
+  wireframeCheckbox.type = 'checkbox';
+  wireframeCheckbox.checked = options.wireframe;
+  wireframeCheckbox.style.cursor = 'pointer';
+  wireframeCheckbox.addEventListener('change', (e) => {
+    options.wireframe = e.target.checked;
+    updateBoneMaterial();
+  });
+  
+  wireframeContainer.appendChild(wireframeLabel);
+  wireframeContainer.appendChild(wireframeCheckbox);
+  panel.appendChild(wireframeContainer);
+  
+  // Color picker
+  const colorContainer = document.createElement('div');
+  colorContainer.style.marginBottom = '15px';
+  
+  const colorLabel = document.createElement('label');
+  colorLabel.textContent = 'Rig Color: ';
+  colorLabel.style.display = 'inline-block';
+  colorLabel.style.width = '60%';
+  
+  const colorPicker = document.createElement('input');
+  colorPicker.type = 'color';
+  colorPicker.value = '#' + options.boneColor.toString(16).padStart(6, '0');
+  colorPicker.style.cursor = 'pointer';
+  colorPicker.addEventListener('input', (e) => {
+    // Convert hex string to integer
+    options.boneColor = parseInt(e.target.value.substring(1), 16);
+    updateBoneMaterial();
+  });
+  
+  colorContainer.appendChild(colorLabel);
+  colorContainer.appendChild(colorPicker);
+  panel.appendChild(colorContainer);
+  
+  // Bone count adjustment
+  const boneCountContainer = document.createElement('div');
+  boneCountContainer.style.marginBottom = '15px';
+  
+  const boneCountLabel = document.createElement('label');
+  boneCountLabel.textContent = 'Bone Count: ';
+  boneCountLabel.style.display = 'inline-block';
+  boneCountLabel.style.width = '60%';
+  
+  const boneCountValue = document.createElement('span');
+  boneCountValue.textContent = options.segmentCount;
+  boneCountValue.style.marginLeft = '10px';
+  boneCountValue.style.marginRight = '10px';
+  boneCountValue.style.display = 'inline-block';
+  boneCountValue.style.width = '20px';
+  boneCountValue.style.textAlign = 'center';
+  
+  const decreaseButton = document.createElement('button');
+  decreaseButton.textContent = '-';
+  decreaseButton.style.width = '30px';
+  decreaseButton.style.cursor = 'pointer';
+  decreaseButton.addEventListener('click', () => {
+    if (options.segmentCount > 1) {
+      options.segmentCount--;
+      boneCountValue.textContent = options.segmentCount;
+      rebuildBoneChain();
+    }
+  });
+  
+  const increaseButton = document.createElement('button');
+  increaseButton.textContent = '+';
+  increaseButton.style.width = '30px';
+  increaseButton.style.cursor = 'pointer';
+  increaseButton.addEventListener('click', () => {
+    if (options.segmentCount < 8) {
+      options.segmentCount++;
+      boneCountValue.textContent = options.segmentCount;
+      rebuildBoneChain();
+    }
+  });
+  
+  boneCountContainer.appendChild(boneCountLabel);
+  boneCountContainer.appendChild(decreaseButton);
+  boneCountContainer.appendChild(boneCountValue);
+  boneCountContainer.appendChild(increaseButton);
+  panel.appendChild(boneCountContainer);
+  
+  // Apply button for bone count changes
+  const buttonsContainer = document.createElement('div');
+  buttonsContainer.style.display = 'flex';
+  buttonsContainer.style.justifyContent = 'center';
+  buttonsContainer.style.marginTop = '10px';
+  
+  document.body.appendChild(panel);
 }
 
 function addAxisLabels() {
@@ -126,18 +260,63 @@ function addAxisLabels() {
   createAxisMarker('-Z', new THREE.Vector3(0, 0, -60), 0x0000ff);
 }
 
+function updateBoneMaterial() {
+  if (!boneMaterial) return;
+  
+  boneMaterial.wireframe = options.wireframe;
+  boneMaterial.color.setHex(options.boneColor);
+  
+  // If there are any mesh bones, update them
+  bones.forEach(bone => {
+    if (bone.children && bone.children.length > 0) {
+      bone.children.forEach(child => {
+        if (child.isMesh && child !== tipBall) {
+          child.material = boneMaterial;
+        }
+      });
+    }
+  });
+  
+  // Also update the base cylinder if it exists
+  if (rootBone && rootBone.children && rootBone.children.length > 0) {
+    rootBone.children.forEach(child => {
+      if (child.isMesh) {
+        child.material = boneMaterial;
+      }
+    });
+  }
+}
+
+function rebuildBoneChain() {
+  // Remove the old bone chain
+  if (rootBone) {
+    scene.remove(rootBone);
+  }
+  
+  // Clear arrays
+  bones = [];
+  boneLengths = [];
+  
+  // Create a new bone chain
+  createBoneChain();
+  
+  // Update the scene
+  updateAllBoneMatrices();
+}
+
 function createBoneChain() {
   // Constants
   const segmentHeight = 15;
-  const segmentCount = 4;
+  const segmentCount = options.segmentCount;
   const boneSize = 4;
   
   // Material
-  const boneMaterial = new THREE.MeshPhongMaterial({
-    color: 0x156289,
+  boneMaterial = new THREE.MeshPhongMaterial({
+    color: options.boneColor,
     emissive: 0x072534,
     side: THREE.DoubleSide,
-    flatShading: true
+    flatShading: true,
+    wireframe: options.wireframe
   });
   
   // Create arrays
