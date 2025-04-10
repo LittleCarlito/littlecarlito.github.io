@@ -26,8 +26,8 @@ let controlPoints = []; // Array of control points in the model
 // Options configuration
 let options = {
   wireframe: true,  // Default is wireframe on
-  boneColor: 0x156289,
-  boneSideColor: 0x4c90c9, // Secondary color for sides
+  boneColor: 0xFF00FF, // Magenta
+  boneSideColor: 0xFFFF00, // Bright yellow
   segmentCount: 4
 };
 
@@ -639,29 +639,54 @@ function findAssociatedBone(controlName) {
 }
 
 function updateBoneMaterial() {
-  if (!boneMaterial) return;
-  
-  boneMaterial.wireframe = options.wireframe;
-  boneMaterial.color.setHex(options.boneColor);
-  
-  if (boneSideMaterial) {
-    boneSideMaterial.wireframe = options.wireframe;
-    boneSideMaterial.color.setHex(options.boneSideColor);
+  // Update materials based on current options
+  if (boneMaterial) {
+    boneMaterial.color.setHex(options.boneColor);
+    boneMaterial.wireframe = options.wireframe;
+    boneMaterial.needsUpdate = true;
   }
   
-  // If there are any mesh bones, update them
+  if (boneSideMaterial) {
+    boneSideMaterial.color.setHex(options.boneSideColor);
+    boneSideMaterial.wireframe = options.wireframe;
+    boneSideMaterial.needsUpdate = true;
+  }
+  
+  // Force update of the entire scene
   scene.traverse(object => {
-    if (object.userData && object.userData.bonePart) {
-      if (object.isMesh) {
+    if (object.material) {
+      if (Array.isArray(object.material)) {
+        object.material.forEach(mat => {
+          // Set all materials with bone part to update
+          if (object.userData && object.userData.bonePart) {
+            if (object.userData.bonePart === 'cap') {
+              mat.color.setHex(options.boneColor);
+            } else if (object.userData.bonePart === 'side') {
+              // Alternate between primary and secondary colors
+              if (object.userData.segmentIndex !== undefined && object.userData.segmentIndex % 2 === 0) {
+                mat.color.setHex(options.boneColor);
+              } else {
+                mat.color.setHex(options.boneSideColor);
+              }
+            }
+            mat.wireframe = options.wireframe;
+            mat.needsUpdate = true;
+          }
+        });
+      } else if (object.userData && object.userData.bonePart) {
+        // Update single material
         if (object.userData.bonePart === 'cap') {
-          object.material = boneMaterial;
+          object.material.color.setHex(options.boneColor);
         } else if (object.userData.bonePart === 'side') {
-          if (object.userData.segmentIndex % 2 === 0) {
-            object.material = boneMaterial;
+          // Alternate between primary and secondary colors
+          if (object.userData.segmentIndex !== undefined && object.userData.segmentIndex % 2 === 0) {
+            object.material.color.setHex(options.boneColor);
           } else {
-            object.material = boneSideMaterial;
+            object.material.color.setHex(options.boneSideColor);
           }
         }
+        object.material.wireframe = options.wireframe;
+        object.material.needsUpdate = true;
       }
     }
   });
@@ -929,15 +954,85 @@ function onMouseMove(event) {
       }
       
       // Set the target position
-      const targetPosition = targetPoint.clone();
+      const mouseTargetPosition = targetPoint.clone();
       
-      console.log('Dragging control to position:', targetPosition);
-      
-      // Now move the target bone using IK
-      const bone = getTargetBoneForControl(activeControlPoint);
-      if (bone) {
-        console.log('Found target bone for control:', bone.name);
-        moveBonesForTarget(bone, targetPosition);
+      // Calculate the maximum reach of the bone chain
+      const targetBone = getTargetBoneForControl(activeControlPoint);
+      if (targetBone) {
+        // Calculate the bone chain to get total length
+        const boneChain = [];
+        let currentBone = targetBone;
+        let totalLength = 0;
+        
+        // Build the chain from target to root and calculate total length
+        while (currentBone && bones.includes(currentBone)) {
+          if (currentBone !== targetBone) {
+            const childBone = boneChain[0]; // Previously added bone
+            const childPos = new THREE.Vector3();
+            const currentPos = new THREE.Vector3();
+            
+            childBone.getWorldPosition(childPos);
+            currentBone.getWorldPosition(currentPos);
+            
+            // Add the distance between these bones
+            totalLength += childPos.distanceTo(currentPos);
+          }
+          
+          // Add to the start of array to maintain parent->child order
+          boneChain.unshift(currentBone);
+          
+          // Move up to parent
+          currentBone = currentBone.parent;
+          
+          // Stop when we reach the armature or top level
+          if (!currentBone || currentBone === armature) break;
+        }
+        
+        // Get start position (root of chain)
+        const startPos = new THREE.Vector3();
+        if (boneChain.length > 0) {
+          boneChain[0].getWorldPosition(startPos);
+        } else {
+          startPos.copy(rootPos);
+        }
+        
+        // Calculate distance from start to target
+        const targetDistance = startPos.distanceTo(mouseTargetPosition);
+        
+        // If target is beyond maximum reach, clamp to max distance
+        let constrainedTargetPosition = mouseTargetPosition.clone();
+        if (targetDistance > totalLength && totalLength > 0) {
+          // Direction from start to target
+          const direction = mouseTargetPosition.clone().sub(startPos).normalize();
+          
+          // Set constrained position at maximum reach
+          constrainedTargetPosition = startPos.clone().add(direction.multiplyScalar(totalLength * 0.99));
+          
+          console.log('Constraining to max reach:', totalLength);
+        }
+        
+        // Move the active control point to follow the mouse or constrained position
+        if (activeControlPoint.parent) {
+          const parentWorldPos = new THREE.Vector3();
+          const parentWorldQuat = new THREE.Quaternion();
+          activeControlPoint.parent.getWorldPosition(parentWorldPos);
+          activeControlPoint.parent.getWorldQuaternion(parentWorldQuat);
+          
+          // Create world to local transformation
+          const parentWorldMatrix = new THREE.Matrix4();
+          parentWorldMatrix.compose(parentWorldPos, parentWorldQuat, new THREE.Vector3(1, 1, 1));
+          const parentInverseMatrix = parentWorldMatrix.clone().invert();
+          
+          // Transform target position to local space
+          const localTargetPos = constrainedTargetPosition.clone().applyMatrix4(parentInverseMatrix);
+          
+          // Update control's position to follow mouse
+          activeControlPoint.position.copy(localTargetPos);
+        }
+        
+        // Now move the target bone using IK to the constrained position
+        console.log('Found target bone for control:', targetBone.name);
+        moveBonesForTarget(targetBone, constrainedTargetPosition);
       } else {
         console.log('No target bone found for control');
       }
@@ -1141,35 +1236,208 @@ function onWindowResize() {
 function animate() {
   requestAnimationFrame(animate);
   
-  // Update bone line visualizations if any exist
-  scene.traverse(obj => {
-    if (obj.isLine && obj.userData.parentBone && obj.userData.childBone) {
-      const positions = obj.geometry.attributes.position.array;
-      const parentPos = new THREE.Vector3();
-      const childPos = new THREE.Vector3();
-      
-      obj.userData.parentBone.getWorldPosition(parentPos);
-      obj.userData.childBone.getWorldPosition(childPos);
-      
-      // Update line positions
-      positions[0] = parentPos.x;
-      positions[1] = parentPos.y;
-      positions[2] = parentPos.z;
-      positions[3] = childPos.x;
-      positions[4] = childPos.y;
-      positions[5] = childPos.z;
-      
-      obj.geometry.attributes.position.needsUpdate = true;
-    }
-    
-    // Update visual bone positions and orientations
-    if (obj.userData.isVisualBone && obj.userData.updatePosition) {
-      obj.userData.updatePosition();
+  // If we have orbit controls, update them
+  if (orbitControls) {
+    orbitControls.update();
+  }
+  
+  // Update visual bone positions and orientations
+  scene.traverse(object => {
+    if (object.userData.isVisualBone && object.userData.updatePosition) {
+      object.userData.updatePosition();
     }
   });
   
-  orbitControls.update();
+  // If we loaded a glb model with control points, update their positions
+  if (loadedGltf && controlPoints.length > 0) {
+    updateControlPointPositions();
+  }
+  
+  // Render the scene
   renderer.render(scene, camera);
+}
+
+// Function to update control point positions to match bone tips
+function updateControlPointPositions() {
+  controlPoints.forEach(controlPoint => {
+    // Skip if we're currently dragging this control point
+    if (controlPoint === activeControlPoint && isDragging) {
+      return;
+    }
+    
+    // Find the target bone for this control point
+    let targetBone = controlPoint.userData.targetBone;
+    
+    // If no target bone is set in userData, try to determine it
+    if (!targetBone) {
+      // If control is a direct child of a bone, use that bone
+      if (controlPoint.parent && (controlPoint.parent.isBone || 
+                                 controlPoint.parent.name.toLowerCase().includes('bone'))) {
+        targetBone = controlPoint.parent;
+        controlPoint.userData.targetBone = targetBone;
+      } else {
+        // Otherwise try to find a bone with a matching name
+        targetBone = getTargetBoneForControl(controlPoint);
+        controlPoint.userData.targetBone = targetBone;
+      }
+    }
+    
+    if (targetBone) {
+      // If the control is a direct child of the bone, we just need to position it at the tip
+      if (controlPoint.parent === targetBone) {
+        // For end bones, position at the tip (no offset needed since it's already at the bone origin)
+        // But make sure it's visible by adding a small offset if needed
+        if (controlPoint.position.length() < 0.01) {
+          // Determine bone direction and length
+          const endMarkers = [];
+          targetBone.traverse(obj => {
+            if (obj.userData && obj.userData.isEndBoneMarker) {
+              endMarkers.push(obj);
+            }
+          });
+          
+          // If we found end markers, use their position
+          if (endMarkers.length > 0) {
+            controlPoint.position.copy(endMarkers[0].position);
+          } else {
+            // Otherwise use a small default offset in bone's local Y direction
+            controlPoint.position.set(0, 0.2, 0);
+          }
+        }
+        
+        // Update the connection line if it exists
+        if (controlPoint.boneLine) {
+          const worldBonePos = new THREE.Vector3();
+          const worldControlPos = new THREE.Vector3();
+          
+          targetBone.getWorldPosition(worldBonePos);
+          controlPoint.getWorldPosition(worldControlPos);
+          
+          const positions = controlPoint.boneLine.geometry.attributes.position.array;
+          positions[0] = worldBonePos.x;
+          positions[1] = worldBonePos.y;
+          positions[2] = worldBonePos.z;
+          positions[3] = worldControlPos.x;
+          positions[4] = worldControlPos.y;
+          positions[5] = worldControlPos.z;
+          
+          controlPoint.boneLine.geometry.attributes.position.needsUpdate = true;
+        }
+        
+        return;
+      }
+      
+      // Get the world position of the bone
+      const bonePos = new THREE.Vector3();
+      targetBone.getWorldPosition(bonePos);
+      
+      // For bones with children, calculate a proper tip position
+      let tipOffset = new THREE.Vector3(0, 0, 0);
+      let tipDirection = null;
+      
+      // Check if we can find end bone markers
+      let foundEndMarker = false;
+      targetBone.traverse(obj => {
+        if (obj.userData && obj.userData.isEndBoneMarker && !foundEndMarker) {
+          // Get the end marker's world position
+          const markerWorldPos = new THREE.Vector3();
+          obj.getWorldPosition(markerWorldPos);
+          
+          // Calculate direction and distance from bone to marker
+          tipDirection = markerWorldPos.clone().sub(bonePos).normalize();
+          const distance = markerWorldPos.distanceTo(bonePos);
+          
+          // Use this to set the tip position
+          tipOffset.copy(tipDirection).multiplyScalar(distance);
+          foundEndMarker = true;
+        }
+      });
+      
+      // If no end marker, check for child bones
+      if (!foundEndMarker && targetBone.children.length > 0) {
+        let hasChildBone = false;
+        
+        // Try to find a child bone
+        for (let i = 0; i < targetBone.children.length; i++) {
+          const child = targetBone.children[i];
+          if (child.isBone || child.name.toLowerCase().includes('bone')) {
+            const childPos = new THREE.Vector3();
+            child.getWorldPosition(childPos);
+            
+            // Direction from bone to child
+            tipDirection = childPos.clone().sub(bonePos).normalize();
+            tipOffset.copy(tipDirection).multiplyScalar(childPos.distanceTo(bonePos) * 0.5);
+            hasChildBone = true;
+            break;
+          }
+        }
+        
+        // If no child bones, use the bone's orientation
+        if (!hasChildBone) {
+          // Get bone forward direction in world space (assume Y is forward)
+          const forwardDir = new THREE.Vector3(0, 1, 0);
+          const worldQuat = new THREE.Quaternion();
+          targetBone.getWorldQuaternion(worldQuat);
+          forwardDir.applyQuaternion(worldQuat);
+          
+          // Scale based on parent-child distance or model scale
+          let boneLength = 0.2; // Default small value
+          
+          if (targetBone.parent && (targetBone.parent.isBone || targetBone.parent.name.toLowerCase().includes('bone'))) {
+            const parentPos = new THREE.Vector3();
+            targetBone.parent.getWorldPosition(parentPos);
+            boneLength = bonePos.distanceTo(parentPos) * 0.5;
+          }
+          
+          tipOffset.copy(forwardDir).multiplyScalar(boneLength);
+        }
+      }
+      
+      // Calculate the tip position
+      const tipPos = new THREE.Vector3().copy(bonePos).add(tipOffset);
+      
+      // If the control isn't a child of the bone, we need to convert to local space
+      if (controlPoint.parent !== targetBone) {
+        // Get the world position and rotation of the control's parent
+        const parentWorldPos = new THREE.Vector3();
+        const parentWorldQuat = new THREE.Quaternion();
+        
+        if (controlPoint.parent) {
+          controlPoint.parent.getWorldPosition(parentWorldPos);
+          controlPoint.parent.getWorldQuaternion(parentWorldQuat);
+        }
+        
+        // Convert world bone position to local space of control's parent
+        const parentWorldMatrix = new THREE.Matrix4();
+        parentWorldMatrix.compose(parentWorldPos, parentWorldQuat, new THREE.Vector3(1, 1, 1));
+        const parentInverseMatrix = parentWorldMatrix.clone().invert();
+        
+        const localTipPos = tipPos.clone().applyMatrix4(parentInverseMatrix);
+        
+        // Set the control point's position to match
+        controlPoint.position.copy(localTipPos);
+      } else {
+        // For controls that are children of bones, use the tip offset directly
+        controlPoint.position.copy(tipOffset);
+      }
+      
+      // Update the connection line if it exists
+      if (controlPoint.boneLine) {
+        const worldControlPos = new THREE.Vector3();
+        controlPoint.getWorldPosition(worldControlPos);
+        
+        const positions = controlPoint.boneLine.geometry.attributes.position.array;
+        positions[0] = bonePos.x;
+        positions[1] = bonePos.y;
+        positions[2] = bonePos.z;
+        positions[3] = worldControlPos.x;
+        positions[4] = worldControlPos.y;
+        positions[5] = worldControlPos.z;
+        
+        controlPoint.boneLine.geometry.attributes.position.needsUpdate = true;
+      }
+    }
+  });
 }
 
 // Function to initialize a draggable rig from the GLB data
@@ -1251,7 +1519,9 @@ function initializeRigFromGLB() {
     emissive: 0x072534,
     side: THREE.DoubleSide,
     flatShading: true,
-    wireframe: options.wireframe
+    wireframe: options.wireframe,
+    transparent: true,
+    opacity: 0.7 // Make bones semi-transparent to see the model
   });
   
   boneSideMaterial = new THREE.MeshPhongMaterial({
@@ -1259,8 +1529,15 @@ function initializeRigFromGLB() {
     emissive: 0x072534,
     side: THREE.DoubleSide,
     flatShading: true,
-    wireframe: options.wireframe
+    wireframe: options.wireframe,
+    transparent: true,
+    opacity: 0.7 // Make bones semi-transparent to see the model
   });
+  
+  // Create a group to hold all bone visualizations
+  const boneVisualsGroup = new THREE.Group();
+  boneVisualsGroup.name = "BoneVisualizations";
+  scene.add(boneVisualsGroup);
   
   // Second pass: calculate bone lengths and create visual bone meshes
   const bonesByParent = new Map(); // Map to store child bones by parent
@@ -1302,7 +1579,7 @@ function initializeRigFromGLB() {
       if (distance > 0.001) {
         // Create a group for the bone mesh
         const boneGroup = new THREE.Group();
-        scene.add(boneGroup);
+        boneVisualsGroup.add(boneGroup);
         
         // Position bone group at parent bone position
         boneGroup.position.copy(bonePos);
@@ -1353,9 +1630,10 @@ function initializeRigFromGLB() {
       // Create a small cone to indicate end bones
       const endBoneMarker = new THREE.Mesh(
         new THREE.ConeGeometry(modelScale * 0.4, modelScale * 0.8, 8),
-        boneMaterial
+        boneMaterial.clone() // Clone to avoid material sharing issues
       );
       endBoneMarker.rotation.x = Math.PI; // Point outward
+      endBoneMarker.userData.isEndBoneMarker = true;
       bone.add(endBoneMarker);
     }
     
@@ -1364,6 +1642,7 @@ function initializeRigFromGLB() {
       new THREE.SphereGeometry(modelScale * 0.4, 12, 12),
       new THREE.MeshBasicMaterial({ color: 0x00ffff })
     );
+    jointMarker.userData.isJointMarker = true;
     bone.add(jointMarker);
   });
   
@@ -1383,12 +1662,40 @@ function initializeRigFromGLB() {
   // If no control points were found, create one for the last bone
   if (controlPoints.length === 0 && bones.length > 0) {
     console.log('No control points found, creating one for the last bone');
-    const lastBone = bones[bones.length - 1];
-    const controlPoint = new THREE.Group();
-    controlPoint.name = "generated_control";
-    lastBone.add(controlPoint);
-    createControlPoint(controlPoint, controlPointSize);
-    controlPoints.push(controlPoint);
+    
+    // Find the farthest/end bones to add controls to
+    const endBones = [];
+    bones.forEach(bone => {
+      let isEndBone = true;
+      // Check if this bone has any child bones
+      for (let i = 0; i < bone.children.length; i++) {
+        const child = bone.children[i];
+        if (child.isBone || child.name.toLowerCase().includes('bone')) {
+          isEndBone = false;
+          break;
+        }
+      }
+      
+      if (isEndBone) {
+        endBones.push(bone);
+      }
+    });
+    
+    // Create a control for each end bone
+    endBones.forEach(endBone => {
+      const controlPoint = new THREE.Group();
+      controlPoint.name = "control_" + endBone.name;
+      
+      // Position control directly at the bone position - no offset
+      // The updateControlPointPositions function will handle positioning at runtime
+      endBone.add(controlPoint);
+      
+      // Create a smaller control point to match the bone size better
+      createControlPoint(controlPoint, controlPointSize);
+      controlPoints.push(controlPoint);
+      
+      console.log('Created control for end bone:', endBone.name);
+    });
   }
   
   // If we still have no control points, create one for the model itself
@@ -1547,12 +1854,36 @@ function cleanupAxisLabels() {
 
 // New function to adjust environment to model scale
 function adjustEnvironmentToModel(bbox, size, center) {
-  // Remove existing grid and axes
-  scene.children.forEach(child => {
-    if (child.isGridHelper || child.isAxesHelper) {
-      scene.remove(child);
+  // Completely remove any existing grid and axes - more thorough approach
+  const objectsToRemove = [];
+  
+  scene.traverse(object => {
+    // Remove all grid helpers, axes helpers, and anything with a name suggesting it's a grid
+    if (object.isGridHelper || 
+        object.isAxesHelper || 
+        (object.name && (object.name.toLowerCase().includes('grid') || 
+                         object.name.toLowerCase().includes('axes'))) ||
+        (object.type && (object.type === 'GridHelper' || 
+                         object.type === 'AxesHelper'))) {
+      objectsToRemove.push(object);
     }
   });
+  
+  // Remove all identified objects
+  objectsToRemove.forEach(object => {
+    scene.remove(object);
+    // Dispose of materials and geometries to prevent memory leaks
+    if (object.geometry) object.geometry.dispose();
+    if (object.material) {
+      if (Array.isArray(object.material)) {
+        object.material.forEach(mat => mat.dispose());
+      } else {
+        object.material.dispose();
+      }
+    }
+  });
+  
+  console.log(`Removed ${objectsToRemove.length} grid/axes objects from scene`);
   
   // Clean up all axis labels thoroughly
   cleanupAxisLabels();
@@ -1567,11 +1898,13 @@ function adjustEnvironmentToModel(bbox, size, center) {
   
   // Create new grid scaled to model
   const gridHelper = new THREE.GridHelper(gridSize, gridDivisions);
+  gridHelper.name = "ScaledGridHelper";
   scene.add(gridHelper);
   
   // Create new axes helper scaled to model
   const axesSize = maxDimension * 1.5;
   const axesHelper = new THREE.AxesHelper(axesSize);
+  axesHelper.name = "ScaledAxesHelper";
   scene.add(axesHelper);
   
   // Re-add axis labels with appropriate scale
@@ -1627,6 +1960,10 @@ function createControlPoint(node, size = 0.5) {
   
   // Store a reference to the visual representation
   node.controlBall = controlBall;
+  
+  // Store the original position and target bone for re-positioning
+  node.userData.originalPosition = node.position.clone();
+  node.userData.targetBone = getTargetBoneForControl(node);
   
   console.log('Created control point for', node.name, 'with size', size);
 }
@@ -1890,6 +2227,43 @@ function applyIKToChain(boneChain, targetPosition) {
       if (newEffectorPos.distanceTo(targetPosition) < 0.5) {
         break;
       }
+    }
+  }
+  
+  // Special handling for the last bone in the chain to ensure it bends properly
+  if (boneChain.length >= 2) {
+    const lastBone = boneChain[boneChain.length - 1];
+    const secondLastBone = boneChain[boneChain.length - 2];
+    
+    // Skip if the last bone is locked
+    if (!lockedBones.has(lastBone.uuid)) {
+      // Get the positions
+      const secondLastPos = new THREE.Vector3();
+      secondLastBone.getWorldPosition(secondLastPos);
+      
+      // Direction from second-last bone to target
+      const dirToTarget = new THREE.Vector3().subVectors(targetPosition, secondLastPos).normalize();
+      
+      // Current direction of the last bone
+      const lastBoneDir = new THREE.Vector3(0, 1, 0); // Assuming local Y is forward
+      lastBoneDir.applyQuaternion(lastBone.getWorldQuaternion(new THREE.Quaternion()));
+      
+      // Calculate the rotation needed to align with target
+      const alignQuat = new THREE.Quaternion();
+      alignQuat.setFromUnitVectors(lastBoneDir, dirToTarget);
+      
+      // Apply this rotation in world space
+      const worldQuatInverse = new THREE.Quaternion();
+      secondLastBone.getWorldQuaternion(worldQuatInverse).invert();
+      
+      // Convert to local space relative to parent
+      const localQuat = new THREE.Quaternion().multiplyQuaternions(worldQuatInverse, alignQuat);
+      
+      // Apply to the last bone's local rotation
+      lastBone.quaternion.multiply(localQuat);
+      
+      // Update matrices
+      updateAllBoneMatrices();
     }
   }
 }
