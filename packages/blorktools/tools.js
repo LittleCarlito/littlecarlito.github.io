@@ -73,6 +73,7 @@ async function startTools() {
 		// Print available tools
 		console.log('\nAvailable tools:');
 		console.log('1. Asset Debugger: http://localhost:' + actualPort + '/asset_debugger/asset_debugger.html');
+		console.log('2. Rig Debugger: http://localhost:' + actualPort + '/rig_debugger/rig_debugger.html');
 		
 		server.printUrls();
 	} catch (e) {
