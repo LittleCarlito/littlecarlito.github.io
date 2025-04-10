@@ -18,7 +18,7 @@ let wasLowPosition = false; // Track if we were previously in a low position
 
 // Options configuration
 let options = {
-  wireframe: true,
+  wireframe: true,  // Default is wireframe on
   boneColor: 0x156289,
   segmentCount: 4
 };
@@ -117,21 +117,21 @@ function createOptionsPanel() {
   title.style.textAlign = 'center';
   panel.appendChild(title);
   
-  // Wireframe toggle
+  // Fill rig toggle (inverse of wireframe)
   const wireframeContainer = document.createElement('div');
   wireframeContainer.style.marginBottom = '15px';
   
   const wireframeLabel = document.createElement('label');
-  wireframeLabel.textContent = 'Wireframe: ';
+  wireframeLabel.textContent = 'Fill Rig: ';
   wireframeLabel.style.display = 'inline-block';
   wireframeLabel.style.width = '60%';
   
   const wireframeCheckbox = document.createElement('input');
   wireframeCheckbox.type = 'checkbox';
-  wireframeCheckbox.checked = options.wireframe;
+  wireframeCheckbox.checked = !options.wireframe;  // Invert the logic
   wireframeCheckbox.style.cursor = 'pointer';
   wireframeCheckbox.addEventListener('change', (e) => {
-    options.wireframe = e.target.checked;
+    options.wireframe = !e.target.checked;  // Invert the logic
     updateBoneMaterial();
   });
   
@@ -418,7 +418,12 @@ function getMouseIntersection(clientX, clientY, plane) {
   
   // Find intersection with the plane
   const intersection = new THREE.Vector3();
-  raycaster.ray.intersectPlane(plane, intersection);
+  if (!raycaster.ray.intersectPlane(plane, intersection)) {
+    // If no intersection, create a point at a reasonable distance along the ray
+    intersection.copy(raycaster.ray.origin).add(
+      raycaster.ray.direction.clone().multiplyScalar(100)
+    );
+  }
   
   return intersection;
 }
@@ -433,34 +438,50 @@ function onMouseDown(event) {
     
     // Set the drag color
     tipBall.material.color.setHex(dragColor);
-    
-    // Get the current tip position
-    const tipPos = new THREE.Vector3();
-    getTipPosition(tipPos);
-    
-    // Setup drag plane at the tip position
-    setupDragPlane(event.clientX, event.clientY, tipPos);
   }
 }
 
 function onMouseMove(event) {
   if (isDragging) {
-    // Get the new position from mouse
-    const newPosition = getMouseIntersection(event.clientX, event.clientY, dragPlane);
+    // Get normalized device coordinates (NDC)
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
     
-    // We may need to update the drag plane if the height changed significantly
-    // This helps maintain better control when dragging vertically
-    const tipPos = new THREE.Vector3();
-    getTipPosition(tipPos);
-    const heightDiff = Math.abs(tipPos.y - newPosition.y);
+    // Create ray from camera through mouse position
+    raycaster.setFromCamera(mouse, camera);
     
-    if (heightDiff > 10) {
-      // Update the drag plane to align with current height
-      setupDragPlane(event.clientX, event.clientY, tipPos);
+    // Get the root position
+    const rootPos = new THREE.Vector3();
+    rootBone.getWorldPosition(rootPos);
+    
+    // Calculate total arm length
+    let totalLength = 0;
+    boneLengths.forEach(length => totalLength += length);
+    
+    // Create ray from camera and get the direction vector
+    const rayOrigin = raycaster.ray.origin.clone();
+    const rayDirection = raycaster.ray.direction.clone();
+    
+    // Create a target plane that always faces the camera
+    const targetPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+      rayDirection.clone().negate(),
+      rootPos
+    );
+    
+    // Find intersection point with this plane
+    const targetPoint = new THREE.Vector3();
+    raycaster.ray.intersectPlane(targetPlane, targetPoint);
+    
+    // If this fails for some reason, just use a point along the ray
+    if (!targetPoint.x && !targetPoint.y && !targetPoint.z) {
+      targetPoint.copy(rayOrigin).add(rayDirection.multiplyScalar(100));
     }
     
+    // Always use the actual intersection point for better directional accuracy
+    const targetPosition = targetPoint.clone();
+    
     // Direct position-based IK
-    positionBones(newPosition);
+    positionBones(targetPosition);
   } else {
     // Just check hover state
     checkTipHover(event.clientX, event.clientY);
@@ -483,38 +504,16 @@ function positionBones(targetPosition) {
   const rootPos = new THREE.Vector3();
   rootBone.getWorldPosition(rootPos);
   
-  // Direction from root to target
-  const dirToTarget = new THREE.Vector3().subVectors(targetPosition, rootPos);
-  const distanceToTarget = dirToTarget.length();
-  
-  // If target is beyond reach, move it to maximum reachable distance
-  if (distanceToTarget > totalLength) {
-    dirToTarget.normalize().multiplyScalar(totalLength * 0.99);
-    targetPosition.copy(rootPos).add(dirToTarget);
-  }
-  
-  // Reset all bone rotations
+  // Reset all bone rotations first - start from a clear state
   bones.forEach(bone => bone.rotation.set(0, 0, 0));
+  updateAllBoneMatrices();
   
-  // Get yaw angle and rotate the first bone in XZ plane
-  const xzDirection = new THREE.Vector3(
-    targetPosition.x - rootPos.x,
-    0,
-    targetPosition.z - rootPos.z
-  );
-  const horizontalDistance = xzDirection.length();
-  
-  if (horizontalDistance > 0.001) {
-    bones[0].rotation.y = Math.atan2(xzDirection.x, xzDirection.z);
-  }
-  
-  // Use Cyclic Coordinate Descent (CCD) for IK solution
-  // This iteratively rotates each bone to minimize the distance to the target
-  const iterations = 10; // Number of CCD passes
+  // Use simple CCD - no special handling for max extension or vertical cases
+  const iterations = 10;
   
   for (let iteration = 0; iteration < iterations; iteration++) {
-    // Work backwards from the tip (excluding the very last bone with the tip ball)
-    for (let i = bones.length - 2; i >= 0; i--) {
+    // Work backwards from the tip to root
+    for (let i = bones.length - 1; i >= 0; i--) {
       const bone = bones[i];
       
       // Get current tip position
@@ -557,51 +556,25 @@ function positionBones(targetPosition) {
       // Update world matrices
       updateAllBoneMatrices();
       
-      // Get new tip position after this rotation
-      const newTipPos = new THREE.Vector3();
-      getTipPosition(newTipPos);
-      
       // If we're close enough to the target, we can stop
-      if (newTipPos.distanceTo(targetPosition) < 0.5) {
+      if (tipPos.distanceTo(targetPosition) < 0.5) {
         break;
       }
     }
   }
-  
-  // Special case for straight-up extension
-  const verticalDistance = targetPosition.y - rootPos.y;
-  const isAimingUp = verticalDistance > 0 && horizontalDistance < 5;
-  
-  if (isAimingUp && distanceToTarget > totalLength * 0.9) {
-    // Calculate how straight we should be (1.0 = fully straight)
-    const straightness = (distanceToTarget / totalLength);
-    
-    // Point first bone up
-    bones[0].rotation.x = Math.PI/2 * straightness + bones[0].rotation.x * (1 - straightness);
-    
-    // Straighten other bones
-    for (let i = 1; i < bones.length; i++) {
-      bones[i].rotation.x *= (1 - straightness);
-      bones[i].rotation.y *= (1 - straightness);
-      bones[i].rotation.z *= (1 - straightness);
-    }
-    
-    // Update world matrices
-    updateAllBoneMatrices();
-  }
 }
 
 // Unused now but kept for compatibility
-function forceUprightPosition(targetPosition) {
-  positionBones(targetPosition);
+function forceUprightPosition(mousePosition) {
+  positionBones(mousePosition);
 }
 
-function blendedGroundPosition(targetPosition, rootPos, blendFactor) {
-  positionBones(targetPosition);
+function blendedGroundPosition(mousePosition, rootPos, blendFactor) {
+  positionBones(mousePosition);
 }
 
-function handleStandardPosition(targetPosition, rootPos) {
-  positionBones(targetPosition);
+function handleStandardPosition(mousePosition, rootPos) {
+  positionBones(mousePosition);
 }
 
 function fineAdjustToTarget(targetPosition) {
@@ -609,11 +582,8 @@ function fineAdjustToTarget(targetPosition) {
   const tipPos = new THREE.Vector3();
   getTipPosition(tipPos);
   
-  // Direction from the current tip to the target
-  const dirToTarget = new THREE.Vector3().subVectors(targetPosition, tipPos);
-  
   // If we're already close enough, no adjustment needed
-  if (dirToTarget.length() < 0.1) return;
+  if (tipPos.distanceTo(targetPosition) < 0.1) return;
   
   // Otherwise, just make a small adjustment to the last bone
   if (bones.length > 0) {
