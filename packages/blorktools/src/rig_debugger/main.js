@@ -451,7 +451,10 @@ function createOptionsPanel() {
   document.body.appendChild(panel);
 }
 
-// Function to create the rig details content - update the styling of the count indicator
+// Global map to store locked bones
+const lockedBones = new Map();
+
+// Create the rig details content with bone locks
 function createRigDetailsContent(container) {
   if (!glbDetails) return;
   
@@ -522,6 +525,69 @@ function createRigDetailsContent(container) {
           itemElem.appendChild(typeElem);
         }
         
+        // Add bone associations for control points
+        if (title === 'Controls/Handles') {
+          const associatedBone = findAssociatedBone(item.name);
+          if (associatedBone) {
+            const boneElem = document.createElement('div');
+            boneElem.style.fontSize = '10px';
+            boneElem.style.color = '#ffcc00';
+            boneElem.textContent = `Controls bone: ${associatedBone.name}`;
+            itemElem.appendChild(boneElem);
+          }
+        }
+        
+        // Add lock rotation toggle for bones
+        if (title === 'Bones') {
+          const lockContainer = document.createElement('div');
+          lockContainer.style.display = 'flex';
+          lockContainer.style.alignItems = 'center';
+          lockContainer.style.marginTop = '5px';
+          
+          const lockLabel = document.createElement('label');
+          lockLabel.textContent = 'Lock Rotation:';
+          lockLabel.style.fontSize = '10px';
+          lockLabel.style.marginRight = '5px';
+          lockLabel.style.color = '#ccc';
+          
+          const lockCheckbox = document.createElement('input');
+          lockCheckbox.type = 'checkbox';
+          lockCheckbox.style.cursor = 'pointer';
+          
+          // Find the actual bone object by name for locking
+          const boneName = item.name;
+          const bone = findBoneByName(boneName);
+          
+          if (bone) {
+            // Initialize checkbox state
+            lockCheckbox.checked = lockedBones.has(bone.uuid);
+            
+            lockCheckbox.addEventListener('change', (e) => {
+              if (e.target.checked) {
+                // Store the bone's current rotation
+                const rotationBackup = new THREE.Euler(
+                  bone.rotation.x,
+                  bone.rotation.y,
+                  bone.rotation.z,
+                  bone.rotation.order
+                );
+                lockedBones.set(bone.uuid, {
+                  bone: bone,
+                  rotation: rotationBackup
+                });
+                console.log(`Locked rotation for bone: ${bone.name}`);
+              } else {
+                lockedBones.delete(bone.uuid);
+                console.log(`Unlocked rotation for bone: ${bone.name}`);
+              }
+            });
+          }
+          
+          lockContainer.appendChild(lockLabel);
+          lockContainer.appendChild(lockCheckbox);
+          itemElem.appendChild(lockContainer);
+        }
+        
         section.appendChild(itemElem);
       });
     }
@@ -536,153 +602,38 @@ function createRigDetailsContent(container) {
   container.appendChild(createSection('Controls/Handles', glbDetails.controls));
 }
 
-// Function to add the standard options to a container
-function addStandardOptions(container, isGlbModel) {
-  // Fill rig toggle (inverse of wireframe)
-  const wireframeContainer = document.createElement('div');
-  wireframeContainer.style.marginBottom = '15px';
-  
-  const wireframeLabel = document.createElement('label');
-  wireframeLabel.textContent = 'Fill Rig: ';
-  wireframeLabel.style.display = 'inline-block';
-  wireframeLabel.style.width = '60%';
-  
-  const wireframeCheckbox = document.createElement('input');
-  wireframeCheckbox.type = 'checkbox';
-  wireframeCheckbox.checked = !options.wireframe;  // Invert the logic
-  wireframeCheckbox.style.cursor = 'pointer';
-  wireframeCheckbox.addEventListener('change', (e) => {
-    options.wireframe = !e.target.checked;  // Invert the logic
-    updateBoneMaterial();
+// Helper function to find a bone by name
+function findBoneByName(name) {
+  let foundBone = null;
+  bones.forEach(bone => {
+    if (bone.name === name) {
+      foundBone = bone;
+    }
   });
-  
-  wireframeContainer.appendChild(wireframeLabel);
-  wireframeContainer.appendChild(wireframeCheckbox);
-  container.appendChild(wireframeContainer);
-  
-  // Color picker
-  const colorContainer = document.createElement('div');
-  colorContainer.style.marginBottom = '15px';
-  
-  const colorLabel = document.createElement('label');
-  colorLabel.textContent = 'Rig Color: ';
-  colorLabel.style.display = 'inline-block';
-  colorLabel.style.width = '60%';
-  
-  const colorPicker = document.createElement('input');
-  colorPicker.type = 'color';
-  colorPicker.value = '#' + options.boneColor.toString(16).padStart(6, '0');
-  colorPicker.style.cursor = 'pointer';
-  colorPicker.addEventListener('input', (e) => {
-    // Convert hex string to integer
-    options.boneColor = parseInt(e.target.value.substring(1), 16);
-    updateBoneMaterial();
-  });
-  
-  colorContainer.appendChild(colorLabel);
-  colorContainer.appendChild(colorPicker);
-  container.appendChild(colorContainer);
-  
-  // Only show bone count adjustment for sample rig, not GLB models
-  if (!isGlbModel) {
-    // Bone count adjustment - updated to have controls on the same line
-    const boneCountContainer = document.createElement('div');
-    boneCountContainer.style.marginBottom = '15px';
-    boneCountContainer.style.display = 'flex';
-    boneCountContainer.style.alignItems = 'center';
-    
-    const boneCountLabel = document.createElement('label');
-    boneCountLabel.textContent = 'Bone Count: ';
-    boneCountLabel.style.display = 'inline-block';
-    boneCountLabel.style.width = '60%';
-    
-    const controlsContainer = document.createElement('div');
-    controlsContainer.style.display = 'flex';
-    controlsContainer.style.alignItems = 'center';
-    controlsContainer.style.width = '40%';
-    controlsContainer.style.justifyContent = 'space-between';
-    
-    const decreaseButton = document.createElement('button');
-    decreaseButton.textContent = '-';
-    decreaseButton.style.width = '30px';
-    decreaseButton.style.cursor = 'pointer';
-    decreaseButton.style.height = '30px';
-    decreaseButton.style.lineHeight = '1';
-    decreaseButton.addEventListener('click', () => {
-      if (options.segmentCount > 1) {
-        options.segmentCount--;
-        boneCountValue.textContent = options.segmentCount;
-        rebuildBoneChain();
-      }
-    });
-    
-    const boneCountValue = document.createElement('span');
-    boneCountValue.textContent = options.segmentCount;
-    boneCountValue.style.display = 'inline-block';
-    boneCountValue.style.textAlign = 'center';
-    boneCountValue.style.minWidth = '20px';
-    
-    const increaseButton = document.createElement('button');
-    increaseButton.textContent = '+';
-    increaseButton.style.width = '30px';
-    increaseButton.style.cursor = 'pointer';
-    increaseButton.style.height = '30px';
-    increaseButton.style.lineHeight = '1';
-    increaseButton.addEventListener('click', () => {
-      if (options.segmentCount < 8) {
-        options.segmentCount++;
-        boneCountValue.textContent = options.segmentCount;
-        rebuildBoneChain();
-      }
-    });
-    
-    controlsContainer.appendChild(decreaseButton);
-    controlsContainer.appendChild(boneCountValue);
-    controlsContainer.appendChild(increaseButton);
-    
-    boneCountContainer.appendChild(boneCountLabel);
-    boneCountContainer.appendChild(controlsContainer);
-    container.appendChild(boneCountContainer);
+  return foundBone;
+}
+
+// Helper function to find the bone associated with a control
+function findAssociatedBone(controlName) {
+  // Search for direct parent
+  const control = controlPoints.find(cp => cp.name === controlName);
+  if (control && control.parent && (control.parent.isBone || control.parent.name.toLowerCase().includes('bone'))) {
+    return control.parent;
   }
   
-  // Add Reset Physics button (replacing the Restart button in the panel)
-  const resetPhysicsContainer = document.createElement('div');
-  resetPhysicsContainer.style.marginTop = '20px';
-  resetPhysicsContainer.style.display = 'flex';
-  resetPhysicsContainer.style.justifyContent = 'center';
+  // Try matching by name
+  const boneName = controlName.replace('control', 'bone')
+                             .replace('ctrl', 'bone')
+                             .replace('handle', 'bone');
   
-  const resetPhysicsButton = document.createElement('button');
-  resetPhysicsButton.textContent = 'Reset Physics';
-  resetPhysicsButton.style.padding = '8px 16px';
-  resetPhysicsButton.style.backgroundColor = '#4CAF50'; // Green color for Reset Physics
-  resetPhysicsButton.style.color = 'white';
-  resetPhysicsButton.style.border = 'none';
-  resetPhysicsButton.style.borderRadius = '4px';
-  resetPhysicsButton.style.cursor = 'pointer';
-  resetPhysicsButton.style.transition = 'background-color 0.3s';
-  resetPhysicsButton.style.fontSize = '14px';
-  
-  resetPhysicsButton.addEventListener('mouseover', () => {
-    resetPhysicsButton.style.backgroundColor = '#3e8e41'; // Darker green on hover
-  });
-  
-  resetPhysicsButton.addEventListener('mouseout', () => {
-    resetPhysicsButton.style.backgroundColor = '#4CAF50';
-  });
-  
-  resetPhysicsButton.addEventListener('click', () => {
-    // Reset the model to its initial state
-    if (isGlbModel) {
-      // Reset GLB model to initial position
-      resetGlbModel();
-    } else {
-      // Reset sample rig
-      resetSampleRig();
+  let matchedBone = null;
+  bones.forEach(bone => {
+    if (bone.name === boneName || bone.name.includes(boneName) || boneName.includes(bone.name)) {
+      matchedBone = bone;
     }
   });
   
-  resetPhysicsContainer.appendChild(resetPhysicsButton);
-  container.appendChild(resetPhysicsContainer);
+  return matchedBone;
 }
 
 function updateBoneMaterial() {
@@ -1336,6 +1287,107 @@ function initializeRigFromGLB() {
   return true;
 }
 
+// Updated to accept a scale parameter - with better scaling for small models
+function addAxisLabels(scale = 60) {
+  // First do a thorough cleanup of any existing axis labels
+  // This needs to happen before creating new labels
+  cleanupAxisLabels();
+  
+  // Function to create an axis marker
+  function createAxisMarker(text, position, color) {
+    // Create spherical marker sized proportionally to the scale
+    const markerSize = scale * 0.02; // Reduced from 0.05 to be smaller
+    const markerGeometry = new THREE.SphereGeometry(markerSize, 16, 16);
+    const markerMaterial = new THREE.MeshBasicMaterial({ color: color });
+    const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+    marker.position.copy(position);
+    marker.userData.isAxisMarker = true; // Mark for easy removal
+    marker.userData.axisLabel = text; // Tag with the label text for easier debugging
+    scene.add(marker);
+    
+    // Create text label
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#ffffff';
+    context.font = 'Bold 80px Arial';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(text, 64, 64);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    const labelMaterial = new THREE.SpriteMaterial({ map: texture });
+    const label = new THREE.Sprite(labelMaterial);
+    label.userData.isAxisLabel = true; // Mark for easy removal
+    label.userData.axisLabel = text; // Tag with the label text for easier debugging
+    
+    // Position the label a bit away from the axis end
+    const labelOffset = scale * 0.08; // Reduced from 0.12
+    label.position.copy(position).add(new THREE.Vector3(0, labelOffset, 0));
+    
+    // Scale label based on axis scale - smaller for small models
+    const labelScale = scale * 0.1; // Reduced from 0.17
+    label.scale.set(labelScale, labelScale, 1);
+    
+    scene.add(label);
+    
+    console.log(`Created axis label: ${text} with size ${labelScale}`);
+  }
+  
+  // X axis (red)
+  createAxisMarker('+X', new THREE.Vector3(scale, 0, 0), 0xff0000);
+  createAxisMarker('-X', new THREE.Vector3(-scale, 0, 0), 0xff0000);
+  
+  // Y axis (yellow instead of green)
+  createAxisMarker('+Y', new THREE.Vector3(0, scale, 0), 0xffff00);
+  createAxisMarker('-Y', new THREE.Vector3(0, -scale * 0.17, 0), 0xffff00);
+  
+  // Z axis (blue)
+  createAxisMarker('+Z', new THREE.Vector3(0, 0, scale), 0x0000ff);
+  createAxisMarker('-Z', new THREE.Vector3(0, 0, -scale), 0x0000ff);
+}
+
+// Separate function to thoroughly clean up any axis labels
+function cleanupAxisLabels() {
+  // First gather all objects to remove to avoid modifying the array while iterating
+  const objectsToRemove = [];
+  
+  scene.traverse((object) => {
+    // Check for axis labels and markers using userData
+    if ((object.isSprite && object.userData.isAxisLabel) || 
+        (object.isMesh && object.userData.isAxisMarker)) {
+      objectsToRemove.push(object);
+    }
+    
+    // Also look for any objects that might be axis labels but weren't tagged properly
+    if (object.isSprite) {
+      const material = object.material;
+      if (material && material.map && 
+          (material.map.source && material.map.source.data instanceof HTMLCanvasElement)) {
+        // This is likely a canvas sprite used for text labels
+        objectsToRemove.push(object);
+      }
+    }
+  });
+  
+  // Now remove all the gathered objects
+  for (const object of objectsToRemove) {
+    scene.remove(object);
+    if (object.material) {
+      if (object.material.map) {
+        object.material.map.dispose();
+      }
+      object.material.dispose();
+    }
+    if (object.geometry) {
+      object.geometry.dispose();
+    }
+  }
+  
+  console.log(`Cleaned up ${objectsToRemove.length} axis labels/markers`);
+}
+
 // New function to adjust environment to model scale
 function adjustEnvironmentToModel(bbox, size, center) {
   // Remove existing grid and axes
@@ -1345,12 +1397,8 @@ function adjustEnvironmentToModel(bbox, size, center) {
     }
   });
   
-  // Clear existing axis labels
-  scene.children.forEach(child => {
-    if (child.isSprite || (child.isMesh && child.userData.isAxisMarker)) {
-      scene.remove(child);
-    }
-  });
+  // Clean up all axis labels thoroughly
+  cleanupAxisLabels();
   
   // Calculate the largest dimension of the model
   const maxDimension = Math.max(size.x, size.y, size.z);
@@ -1406,58 +1454,6 @@ function adjustEnvironmentToModel(bbox, size, center) {
     cameraDistance,
     modelCenter: center
   });
-}
-
-// Updated to accept a scale parameter - with better scaling for small models
-function addAxisLabels(scale = 60) {
-  // Function to create an axis marker
-  function createAxisMarker(text, position, color) {
-    // Create spherical marker sized proportionally to the scale
-    const markerSize = scale * 0.02; // Reduced from 0.05 to be smaller
-    const markerGeometry = new THREE.SphereGeometry(markerSize, 16, 16);
-    const markerMaterial = new THREE.MeshBasicMaterial({ color: color });
-    const marker = new THREE.Mesh(markerGeometry, markerMaterial);
-    marker.position.copy(position);
-    marker.userData.isAxisMarker = true; // Mark for easy removal
-    scene.add(marker);
-    
-    // Create text label
-    const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 128;
-    const context = canvas.getContext('2d');
-    context.fillStyle = '#ffffff';
-    context.font = 'Bold 80px Arial';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillText(text, 64, 64);
-    
-    const texture = new THREE.CanvasTexture(canvas);
-    const labelMaterial = new THREE.SpriteMaterial({ map: texture });
-    const label = new THREE.Sprite(labelMaterial);
-    
-    // Position the label a bit away from the axis end
-    const labelOffset = scale * 0.08; // Reduced from 0.12
-    label.position.copy(position).add(new THREE.Vector3(0, labelOffset, 0));
-    
-    // Scale label based on axis scale - smaller for small models
-    const labelScale = scale * 0.1; // Reduced from 0.17
-    label.scale.set(labelScale, labelScale, 1);
-    
-    scene.add(label);
-  }
-  
-  // X axis (red)
-  createAxisMarker('+X', new THREE.Vector3(scale, 0, 0), 0xff0000);
-  createAxisMarker('-X', new THREE.Vector3(-scale, 0, 0), 0xff0000);
-  
-  // Y axis (yellow instead of green)
-  createAxisMarker('+Y', new THREE.Vector3(0, scale, 0), 0xffff00);
-  createAxisMarker('-Y', new THREE.Vector3(0, -scale * 0.17, 0), 0xffff00);
-  
-  // Z axis (blue)
-  createAxisMarker('+Z', new THREE.Vector3(0, 0, scale), 0x0000ff);
-  createAxisMarker('-Z', new THREE.Vector3(0, 0, -scale), 0x0000ff);
 }
 
 // Create a visual control point with drag capabilities, properly sized
@@ -1541,14 +1537,15 @@ function getTargetBoneForControl(controlPoint) {
   return targetBone;
 }
 
-// Move a chain of bones to reach a target position
+// Move a chain of bones to reach a target position - improved to prevent wild rotations
 function moveBonesForTarget(targetBone, targetPosition) {
   // Find the chain of bones from root to the target bone
   const boneChain = [];
   let currentBone = targetBone;
   
   while (currentBone && bones.includes(currentBone)) {
-    boneChain.unshift(currentBone); // Add to start of array
+    // Add to the start of array to maintain parent->child order
+    boneChain.unshift(currentBone);
     currentBone = currentBone.parent;
     
     // Stop when we reach the armature or top level
@@ -1557,13 +1554,41 @@ function moveBonesForTarget(targetBone, targetPosition) {
   
   // If the chain is too short, use all bones
   if (boneChain.length <= 1 && bones.length > 0) {
+    // Find where the target bone is in the hierarchy
+    let targetIndex = -1;
     for (let i = 0; i < bones.length; i++) {
-      boneChain.push(bones[i]);
+      if (bones[i] === targetBone) {
+        targetIndex = i;
+        break;
+      }
+    }
+    
+    // Only include bones in the chain up to the target bone
+    // This prevents bones further down the chain from rotating wildly
+    if (targetIndex >= 0) {
+      for (let i = 0; i <= targetIndex; i++) {
+        boneChain.push(bones[i]);
+      }
+    } else {
+      // If target bone not found, just use all bones
+      for (let i = 0; i < bones.length; i++) {
+        boneChain.push(bones[i]);
+      }
     }
   }
   
+  // Restore locked bone rotations before applying IK
+  lockedBones.forEach((data) => {
+    data.bone.rotation.copy(data.rotation);
+  });
+  
   // Apply IK to this chain to reach the target
   applyIKToChain(boneChain, targetPosition);
+  
+  // Restore locked bone rotations after applying IK 
+  lockedBones.forEach((data) => {
+    data.bone.rotation.copy(data.rotation);
+  });
 }
 
 // Apply inverse kinematics to a chain of bones to reach a target
@@ -1581,6 +1606,11 @@ function applyIKToChain(boneChain, targetPosition) {
     // Work backwards from the tip to root
     for (let i = boneChain.length - 1; i >= 0; i--) {
       const bone = boneChain[i];
+      
+      // Skip locked bones
+      if (lockedBones.has(bone.uuid)) {
+        continue;
+      }
       
       // Get current end effector position
       const endEffector = new THREE.Vector3();
@@ -1602,8 +1632,8 @@ function applyIKToChain(boneChain, targetPosition) {
       // If the angle is very small, skip this bone
       if (rotAngle < 0.01) continue;
       
-      // Limit rotation angle per iteration
-      rotAngle = Math.min(rotAngle, 0.2);
+      // Limit rotation angle per iteration for smoother movement
+      rotAngle = Math.min(rotAngle, 0.1);
       
       // Calculate rotation axis
       const rotAxis = new THREE.Vector3().crossVectors(dirToEffector, dirToTarget).normalize();
@@ -1633,12 +1663,15 @@ function applyIKToChain(boneChain, targetPosition) {
   }
 }
 
-// Add function to reset GLB model
+// Rig reset function - respect bone locks
 function resetGlbModel() {
   if (!loadedGltf) return;
   
-  // Reset all bone rotations to initial state
+  // Reset all bone rotations to initial state, except locked bones
   bones.forEach(bone => {
+    // Skip locked bones
+    if (lockedBones.has(bone.uuid)) return;
+    
     // Reset rotation to identity
     bone.rotation.set(0, 0, 0);
   });
@@ -1662,4 +1695,153 @@ function resetSampleRig() {
   updateAllBoneMatrices();
   
   console.log('Sample rig reset to initial position');
+}
+
+// Function to add the standard options to a container
+function addStandardOptions(container, isGlbModel) {
+  // Fill rig toggle (inverse of wireframe)
+  const wireframeContainer = document.createElement('div');
+  wireframeContainer.style.marginBottom = '15px';
+  
+  const wireframeLabel = document.createElement('label');
+  wireframeLabel.textContent = 'Fill Rig: ';
+  wireframeLabel.style.display = 'inline-block';
+  wireframeLabel.style.width = '60%';
+  
+  const wireframeCheckbox = document.createElement('input');
+  wireframeCheckbox.type = 'checkbox';
+  wireframeCheckbox.checked = !options.wireframe;  // Invert the logic
+  wireframeCheckbox.style.cursor = 'pointer';
+  wireframeCheckbox.addEventListener('change', (e) => {
+    options.wireframe = !e.target.checked;  // Invert the logic
+    updateBoneMaterial();
+  });
+  
+  wireframeContainer.appendChild(wireframeLabel);
+  wireframeContainer.appendChild(wireframeCheckbox);
+  container.appendChild(wireframeContainer);
+  
+  // Color picker
+  const colorContainer = document.createElement('div');
+  colorContainer.style.marginBottom = '15px';
+  
+  const colorLabel = document.createElement('label');
+  colorLabel.textContent = 'Rig Color: ';
+  colorLabel.style.display = 'inline-block';
+  colorLabel.style.width = '60%';
+  
+  const colorPicker = document.createElement('input');
+  colorPicker.type = 'color';
+  colorPicker.value = '#' + options.boneColor.toString(16).padStart(6, '0');
+  colorPicker.style.cursor = 'pointer';
+  colorPicker.addEventListener('input', (e) => {
+    // Convert hex string to integer
+    options.boneColor = parseInt(e.target.value.substring(1), 16);
+    updateBoneMaterial();
+  });
+  
+  colorContainer.appendChild(colorLabel);
+  colorContainer.appendChild(colorPicker);
+  container.appendChild(colorContainer);
+  
+  // Only show bone count adjustment for sample rig, not GLB models
+  if (!isGlbModel) {
+    // Bone count adjustment - updated to have controls on the same line
+    const boneCountContainer = document.createElement('div');
+    boneCountContainer.style.marginBottom = '15px';
+    boneCountContainer.style.display = 'flex';
+    boneCountContainer.style.alignItems = 'center';
+    
+    const boneCountLabel = document.createElement('label');
+    boneCountLabel.textContent = 'Bone Count: ';
+    boneCountLabel.style.display = 'inline-block';
+    boneCountLabel.style.width = '60%';
+    
+    const controlsContainer = document.createElement('div');
+    controlsContainer.style.display = 'flex';
+    controlsContainer.style.alignItems = 'center';
+    controlsContainer.style.width = '40%';
+    controlsContainer.style.justifyContent = 'space-between';
+    
+    const decreaseButton = document.createElement('button');
+    decreaseButton.textContent = '-';
+    decreaseButton.style.width = '30px';
+    decreaseButton.style.cursor = 'pointer';
+    decreaseButton.style.height = '30px';
+    decreaseButton.style.lineHeight = '1';
+    decreaseButton.addEventListener('click', () => {
+      if (options.segmentCount > 1) {
+        options.segmentCount--;
+        boneCountValue.textContent = options.segmentCount;
+        rebuildBoneChain();
+      }
+    });
+    
+    const boneCountValue = document.createElement('span');
+    boneCountValue.textContent = options.segmentCount;
+    boneCountValue.style.display = 'inline-block';
+    boneCountValue.style.textAlign = 'center';
+    boneCountValue.style.minWidth = '20px';
+    
+    const increaseButton = document.createElement('button');
+    increaseButton.textContent = '+';
+    increaseButton.style.width = '30px';
+    increaseButton.style.cursor = 'pointer';
+    increaseButton.style.height = '30px';
+    increaseButton.style.lineHeight = '1';
+    increaseButton.addEventListener('click', () => {
+      if (options.segmentCount < 8) {
+        options.segmentCount++;
+        boneCountValue.textContent = options.segmentCount;
+        rebuildBoneChain();
+      }
+    });
+    
+    controlsContainer.appendChild(decreaseButton);
+    controlsContainer.appendChild(boneCountValue);
+    controlsContainer.appendChild(increaseButton);
+    
+    boneCountContainer.appendChild(boneCountLabel);
+    boneCountContainer.appendChild(controlsContainer);
+    container.appendChild(boneCountContainer);
+  }
+  
+  // Add Reset Physics button (replacing the Restart button in the panel)
+  const resetPhysicsContainer = document.createElement('div');
+  resetPhysicsContainer.style.marginTop = '20px';
+  resetPhysicsContainer.style.display = 'flex';
+  resetPhysicsContainer.style.justifyContent = 'center';
+  
+  const resetPhysicsButton = document.createElement('button');
+  resetPhysicsButton.textContent = 'Reset Physics';
+  resetPhysicsButton.style.padding = '8px 16px';
+  resetPhysicsButton.style.backgroundColor = '#4CAF50'; // Green color for Reset Physics
+  resetPhysicsButton.style.color = 'white';
+  resetPhysicsButton.style.border = 'none';
+  resetPhysicsButton.style.borderRadius = '4px';
+  resetPhysicsButton.style.cursor = 'pointer';
+  resetPhysicsButton.style.transition = 'background-color 0.3s';
+  resetPhysicsButton.style.fontSize = '14px';
+  
+  resetPhysicsButton.addEventListener('mouseover', () => {
+    resetPhysicsButton.style.backgroundColor = '#3e8e41'; // Darker green on hover
+  });
+  
+  resetPhysicsButton.addEventListener('mouseout', () => {
+    resetPhysicsButton.style.backgroundColor = '#4CAF50';
+  });
+  
+  resetPhysicsButton.addEventListener('click', () => {
+    // Reset the model to its initial state
+    if (isGlbModel) {
+      // Reset GLB model to initial position
+      resetGlbModel();
+    } else {
+      // Reset sample rig
+      resetSampleRig();
+    }
+  });
+  
+  resetPhysicsContainer.appendChild(resetPhysicsButton);
+  container.appendChild(resetPhysicsContainer);
 } 
