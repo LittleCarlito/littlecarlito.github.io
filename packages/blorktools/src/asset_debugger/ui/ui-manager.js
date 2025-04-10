@@ -1,45 +1,58 @@
 /**
  * Texture Debugger - UI Manager Module
  * 
- * This module handles tab switching and general UI functions.
+ * This module handles the UI interactions and tab switching.
  */
 import { getState } from '../core/state.js';
 import { updateAtlasVisualization } from './atlas-panel.js';
 import { updateUvPanel } from './uv-panel.js';
-import { updateRigVisualization } from './rig-panel.js';
-
-// Tab elements
-let meshTabButton = null;
-let atlasTabButton = null;
-let uvTabButton = null;
-let rigTabButton = null;
-let meshTab = null;
-let atlasTab = null;
-let uvTab = null;
-let rigTab = null;
 
 /**
- * Initialize the UI manager
+ * Initialize the UI manager and set up event listeners
  */
 export function initUiManager() {
-    // Prevent default drag-and-drop behavior for the entire document
-    preventDefaultDragBehavior();
-
-    // Cache tab elements
-    meshTabButton = document.getElementById('mesh-tab-button');
-    atlasTabButton = document.getElementById('atlas-tab-button');
-    uvTabButton = document.getElementById('uv-tab-button');
-    rigTabButton = document.getElementById('rig-tab-button');
-    meshTab = document.getElementById('mesh-tab');
-    atlasTab = document.getElementById('atlas-tab');
-    uvTab = document.getElementById('uv-tab');
-    rigTab = document.getElementById('rig-tab');
-    
-    // Set up tab switching
+    // Set up the tab switching
     setupTabs();
     
-    // Set up start/restart buttons
-    setupButtons();
+    // Set up keyboard shortcuts
+    setupKeyboardShortcuts();
+}
+
+/**
+ * Set up tab switching handlers
+ */
+function setupTabs() {
+    const tabs = document.querySelectorAll('.tab-button');
+    const tabPanels = document.querySelectorAll('.tab-panel');
+    
+    // Add click event for each tab
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Remove active class from all tabs and panels
+            tabs.forEach(t => t.classList.remove('active'));
+            tabPanels.forEach(p => p.classList.remove('active'));
+            
+            // Add active class to current tab
+            tab.classList.add('active');
+            
+            // Show the corresponding panel
+            const panelId = tab.getAttribute('data-tab');
+            const panel = document.getElementById(panelId);
+            if (panel) {
+                panel.classList.add('active');
+                
+                // If switching to atlas tab, update atlas visualization
+                if (panelId === 'atlas-panel') {
+                    updateAtlasVisualization();
+                }
+                
+                // If switching to UV tab, update UV visualization
+                if (panelId === 'uv-panel') {
+                    updateUvPanel();
+                }
+            }
+        });
+    });
 }
 
 /**
@@ -60,138 +73,17 @@ function preventDefaultDragBehavior() {
 }
 
 /**
- * Setup tab switching
+ * Set up keyboard shortcuts
  */
-function setupTabs() {
-    if (!meshTabButton || !atlasTabButton || !uvTabButton || !rigTabButton || 
-        !meshTab || !atlasTab || !uvTab || !rigTab) return;
-    
-    // Create a function to handle tab activation
-    const activateTab = (tabButton, tabContent) => {
-        // Deactivate all tabs
-        [meshTabButton, atlasTabButton, uvTabButton, rigTabButton].forEach(btn => {
-            btn.classList.remove('active');
-        });
-        [meshTab, atlasTab, uvTab, rigTab].forEach(tab => {
-            tab.classList.remove('active');
-        });
-        
-        // Activate the selected tab
-        tabButton.classList.add('active');
-        tabContent.classList.add('active');
-    };
-    
-    // Tab button click handlers
-    meshTabButton.addEventListener('click', () => {
-        activateTab(meshTabButton, meshTab);
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (event) => {
+        // Tab switching with number keys
+        if (event.key === '1') {
+            document.getElementById('atlas-tab')?.click();
+        } else if (event.key === '2') {
+            document.getElementById('uv-tab')?.click();
+        }
     });
-    
-    atlasTabButton.addEventListener('click', () => {
-        activateTab(atlasTabButton, atlasTab);
-        updateAtlasVisualization();
-    });
-    
-    uvTabButton.addEventListener('click', () => {
-        activateTab(uvTabButton, uvTab);
-        updateUvPanel();
-    });
-    
-    rigTabButton.addEventListener('click', () => {
-        activateTab(rigTabButton, rigTab);
-        updateRigVisualization();
-    });
-}
-
-/**
- * Set up start and restart buttons
- */
-function setupButtons() {
-    const startButton = document.getElementById('start-debug');
-    const restartButton = document.getElementById('restart-debug');
-    
-    if (startButton) {
-        startButton.addEventListener('click', handleStartDebugClick);
-    }
-    
-    if (restartButton) {
-        restartButton.addEventListener('click', handleRestartClick);
-    }
-}
-
-/**
- * Handle start debug button click
- */
-function handleStartDebugClick() {
-    const state = getState();
-    
-    // Import modules dynamically to avoid circular dependencies
-    import('../core/scene.js').then(({ initScene, startAnimation }) => {
-        import('../core/models.js').then(({ createCube, loadAndSetupModel }) => {
-            // Get viewport and loading indicator
-            const viewport = document.getElementById('viewport');
-            const tabContainer = document.getElementById('tab-container');
-            const loadingIndicator = document.getElementById('loading-indicator');
-            
-            // Show viewport and tab container
-            if (viewport) viewport.style.display = 'block';
-            if (tabContainer) tabContainer.style.display = 'flex';
-            
-            if (!state.isDebugStarted) {
-                // First time starting
-                // Initialize scene
-                if (viewport) {
-                    initScene(viewport);
-                    
-                    // Create model or cube
-                    if (state.useCustomModel && state.modelFile) {
-                        loadAndSetupModel(loadingIndicator);
-                    } else {
-                        createCube();
-                    }
-                    
-                    // Start animation
-                    startAnimation();
-                    
-                    // Update button text
-                    const startButton = document.getElementById('start-debug');
-                    if (startButton) startButton.textContent = 'Restart';
-                    
-                    // Set debug started flag
-                    state.isDebugStarted = true;
-                }
-            } else {
-                // Subsequent starts (restart)
-                // Clean up previous scene
-                import('../core/scene.js').then(({ stopAnimation, clearScene }) => {
-                    stopAnimation();
-                    clearScene();
-                    
-                    // Initialize new scene
-                    if (viewport) {
-                        initScene(viewport);
-                        
-                        // Create model or cube
-                        if (state.useCustomModel && state.modelFile) {
-                            loadAndSetupModel(loadingIndicator);
-                        } else {
-                            createCube();
-                        }
-                        
-                        // Start animation
-                        startAnimation();
-                    }
-                });
-            }
-        });
-    });
-}
-
-/**
- * Handle restart button click
- */
-function handleRestartClick() {
-    // Reload the entire page to completely restart the tool
-    window.location.reload();
 }
 
 /**

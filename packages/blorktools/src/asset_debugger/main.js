@@ -15,7 +15,6 @@ import { initUiManager } from './ui/ui-manager.js';
 import { setupDropzones } from './ui/file-handler.js';
 import { initAtlasPanel } from './ui/atlas-panel.js';
 import { initUvPanel } from './ui/uv-panel.js';
-import { initRigPanel } from './ui/rig-panel.js';
 
 /**
  * Initialize the asset debugger application
@@ -32,7 +31,6 @@ export function init() {
     setupDropzones();
     initAtlasPanel();
     initUvPanel();
-    initRigPanel();
     
     // Handle theme switching if needed
     setupThemeSwitching();

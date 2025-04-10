@@ -49,22 +49,6 @@ const initialState = {
     screenMeshes: [], // New: display/screen meshes
     uvMappingInfo: {}, // New: detailed mapping info for UV channels
     
-    // Rig data
-    bones: [],
-    skeleton: null,
-    boneVisualization: null,
-    isBoneVisualizationVisible: false,
-    rigData: null, // New: detailed rig data structure
-    selectedBone: null, // New: currently selected bone
-    dragControls: {
-        enabled: false,
-        isDragging: false,
-        targetBone: null,
-        plane: null,
-        offset: null,
-        dragDelta: null
-    }, // New: controls for dragging bones
-    
     // Status flags
     isDebugStarted: false,
     useCustomModel: false,
@@ -73,10 +57,6 @@ const initialState = {
     cycleAtlasSegments: null, // New: function to cycle atlas segments
     setCurrentUvRegion: null, // New: function to set current UV region
     switchUvChannel: null, // New: function to switch UV channel
-    
-    // Rig visualization functions
-    toggleBoneVisualization: null, // New: function to toggle bone visualization
-    updateBoneVisualization: null, // New: function to update bone visualization
 };
 
 // The actual state object

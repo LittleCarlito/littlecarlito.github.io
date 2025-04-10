@@ -11,7 +11,6 @@ import { fitCameraToObject } from './scene.js';
 import { createMeshVisibilityPanel } from '../ui/mesh-panel.js';
 import { updateAtlasVisualization } from '../ui/atlas-panel.js';
 import { updateUvPanel } from '../ui/uv-panel.js';
-import { updateRigVisualization } from '../ui/rig-panel.js';
 
 /**
  * Create a basic cube with the loaded textures
@@ -46,16 +45,12 @@ export function createCube() {
     // Update all panels based on active tab
     const atlasTab = document.getElementById('atlas-tab');
     const uvTab = document.getElementById('uv-tab');
-    const rigTab = document.getElementById('rig-tab');
     
     if (atlasTab.classList.contains('active')) {
         updateAtlasVisualization();
     }
     if (uvTab.classList.contains('active')) {
         updateUvPanel();
-    }
-    if (rigTab.classList.contains('active')) {
-        updateRigVisualization();
     }
 }
 
@@ -208,16 +203,12 @@ function processLoadedModel(gltf) {
         // Update UI panels based on active tab
         const atlasTab = document.getElementById('atlas-tab');
         const uvTab = document.getElementById('uv-tab');
-        const rigTab = document.getElementById('rig-tab');
         
         if (atlasTab.classList.contains('active')) {
             updateAtlasVisualization();
         }
         if (uvTab.classList.contains('active')) {
             updateUvPanel();
-        }
-        if (rigTab.classList.contains('active')) {
-            updateRigVisualization();
         }
     } catch (processError) {
         console.error('Error processing model:', processError);
