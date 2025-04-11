@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Rig Debugger</title>
+  <style>
+    body { 
+      margin: 0; 
+      font-family: Arial, sans-serif;
+    }
+    canvas { 
+      display: block; 
+    }
+    #loadingScreen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #333;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    #dropZone {
+      width: 80%;
+      max-width: 500px;
+      height: 300px;
+      border: 3px dashed #aaa;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 20px;
+      padding: 20px;
+      transition: all 0.3s;
+      background-color: rgba(0, 0, 0, 0.2);
+    }
+    #dropZone.highlight {
+      background-color: rgba(255, 255, 255, 0.1);
+      border-color: #fff;
+      box-shadow: 0 0 20px rgba(76, 175, 80, 0.6);
+    }
+    #dropZone.valid-file {
+      background-color: rgba(76, 175, 80, 0.1);
+      border-color: #4CAF50;
+      box-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
+    }
+    #dropZone p {
+      color: #ccc;
+      font-size: 18px;
+      text-align: center;
+    }
+    #startButton {
+      padding: 12px 24px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    #startButton:hover {
+      background-color: #45a049;
+    }
+    #returnButton {
+      padding: 12px 24px;
+      background-color: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s;
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 100;
+    }
+    #returnButton:hover {
+      background-color: #0b7dda;
+    }
+    .buttonContainer {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="loadingScreen">
+    <button id="returnButton">Return to Toolbox</button>
+    <div id="dropZone">
+      <p>Drag & drop a GLB file here</p>
+      <p>or continue without a model</p>
+    </div>
+    <div class="buttonContainer">
+      <button id="startButton">Start Debugging</button>
+    </div>
+  </div>
+  <script type="module" src="./main.js"></script>
+</body>
+</html> 

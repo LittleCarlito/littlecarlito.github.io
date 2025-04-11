@@ -1,162 +1,182 @@
 /**
- * Asset Debugger Tool - Legacy Entry Point
+ * Asset Debugger - Main Entry Point
  * 
- * This file serves as a backward-compatible entry point for the Asset Debugger tool.
- * It delegates to the modularized implementation for better maintainability.
- * 
- * For new projects, please import directly from the modular structure:
- * import { init } from './index.js';
+ * This file serves as the bridge between the HTML page and the application.
+ * It imports and exports all functionality from index.js.
  */
-// Import from index.js
-import { init, state } from './index.js';
-import { analyzeUvChannels, createDebugPanel } from './ui/debugPanel.js';
-import { createUvChannelPanel, updateUvChannelPanel } from './ui/uvChannelPanel.js';
-import { createAtlasVisualization, updateAtlasVisualization } from './ui/atlasVisualization.js';
-import { createRigVisualization, updateRigVisualization } from './ui/rigVisualization.js';
 
-// Initialize debug logging
-console.log('Asset Debugger entry point loaded, setting up event listeners');
+// Import the initialization function from index.js
+import init from './index.js';
 
-// Initialize all panels at startup - this ensures they're visible immediately
+// Initialize the application when loaded
 document.addEventListener('DOMContentLoaded', () => {
-	console.log('DOM loaded, initializing all panels');
-	// Create Asset Debug Info panel
-	createDebugPanel(state);
-	// Create UV Channel panel
-	createUvChannelPanel(state);
-	// Create Atlas Visualization panel
-	createAtlasVisualization(state);
-	// Create Rig Visualization panel
-	createRigVisualization(state);
+    console.log('Asset Debugger: Application loading...');
+    init();
+    
+    // Once the DOM is loaded, set up the event listeners for debugging
+    setupDebuggerEvents();
 });
 
-// Listen for texture loaded event
-document.addEventListener('textureLoaded', (event) => {
-	const source = event.detail?.source || 'unknown';
-	console.log(`Texture loaded event received from ${source}`);
-	console.log('State when texture loaded:', {
-		textureObject: state.textureObject ? 'Available' : 'Missing',
-		modelObject: state.modelObject ? 'Available' : 'Missing',
-		textureLoaded: state.textureLoaded,
-		modelLoaded: state.modelLoaded
-	});
-	
-	// Always update the texture visualization when a texture is loaded
-	console.log('Updating atlas visualization with texture');
-	updateAtlasVisualization(state);
-	
-	// Update debug panel's texture info via global function if available
-	if (state.updateTextureInfo && state.textureFile) {
-		console.log('Updating texture info in debug panel');
-		state.updateTextureInfo({
-			name: state.textureFile.name,
-			size: state.textureFile.size,
-			dimensions: state.textureObject ? {
-				width: state.textureObject.image.width,
-				height: state.textureObject.image.height
-			} : undefined
-		});
-	} else {
-		console.warn('Cannot update texture info - missing updateTextureInfo or textureFile', {
-			updateTextureInfo: !!state.updateTextureInfo,
-			textureFile: !!state.textureFile
-		});
-	}
-	
-	// If model is already loaded, analyze UV channels
-	if (state.modelObject) {
-		console.log('Model already loaded, analyzing UV channels and updating panels');
-		analyzeUvChannels(state);
-		updateUvChannelPanel(state);
-	} else {
-		console.log('No model loaded yet, skipping UV analysis');
-	}
-});
-
-// Listen for model loaded event
-document.addEventListener('modelLoaded', (event) => {
-	console.log('Model loaded event received');
-	console.log('State when model loaded:', {
-		textureObject: state.textureObject ? 'Available' : 'Missing',
-		modelObject: state.modelObject ? 'Available' : 'Missing',
-		textureLoaded: state.textureLoaded,
-		modelLoaded: state.modelLoaded
-	});
-	
-	// Update model info via global function if available
-	if (state.updateModelInfo && state.modelFile) {
-		console.log('Updating model info in debug panel');
-		state.updateModelInfo({
-			name: state.modelFile.name,
-			size: state.modelFile.size,
-			uvSets: state.availableUvSets || [],
-			meshes: state.modelObject ? getMeshesFromModel(state.modelObject) : []
-		});
-	} else {
-		console.warn('Cannot update model info - missing updateModelInfo or modelFile', {
-			updateModelInfo: !!state.updateModelInfo,
-			modelFile: !!state.modelFile
-		});
-	}
-	
-	// Always analyze UV channels when a model is loaded
-	console.log('Analyzing UV channels for new model');
-	analyzeUvChannels(state);
-	console.log('Updating UV channel panel with analyzed data');
-	updateUvChannelPanel(state);
-	
-	// Update atlas visualization if texture is already loaded
-	if (state.textureObject) {
-		console.log('Texture already loaded, updating atlas visualization');
-		updateAtlasVisualization(state);
-	} else {
-		console.log('No texture loaded yet, skipping atlas visualization update');
-	}
-	
-	// Always update rig visualization when a model is loaded
-	console.log('Updating rig visualization with model data');
-	updateRigVisualization(state);
-});
-
-// Helper function to get meshes from model
 /**
- *
+ * Set up event listeners for the Start Debug and Restart buttons
  */
-function getMeshesFromModel(model) {
-	console.log('Getting meshes from model:', model ? 'Model available' : 'No model');
-	
-	const meshes = [];
-	if (!model) return meshes;
-	
-	try {
-		// Safely traverse the model
-		model.traverse((child) => {
-			if (child.isMesh) {
-				console.log('Found mesh:', child.name || 'Unnamed mesh');
-				meshes.push(child);
-			}
-		});
-		
-		console.log(`Total meshes found: ${meshes.length}`);
-	} catch (error) {
-		console.error('Error traversing model:', error);
-	}
-	
-	return meshes;
+function setupDebuggerEvents() {
+    // Initialize 3D scene when Start Debugging is clicked
+    const startDebugBtn = document.getElementById('start-debug');
+    const restartDebugBtn = document.getElementById('restart-debug');
+    const viewport = document.getElementById('viewport');
+    const tabContainer = document.getElementById('tab-container');
+    
+    if (startDebugBtn) {
+        startDebugBtn.addEventListener('click', startDebugging);
+    }
+    
+    if (restartDebugBtn) {
+        restartDebugBtn.addEventListener('click', restartDebugging);
+    }
 }
 
-// Export state and main functions for backward compatibility
 /**
- *
+ * Set up tab navigation system
  */
-export function getExportedMethods() {
-	return {
-		getState: () => state,
-		getScene: () => state.scene,
-		getRenderer: () => state.renderer,
-		getCamera: () => state.camera,
-		getControls: () => state.controls,
-		getModelObject: () => state.modelObject,
-		getTextureObject: () => state.textureObject,
-	};
+function setupTabNavigation() {
+    console.log('Setting up tab navigation...');
+    
+    // Get tab buttons and tab content elements
+    const meshTabButton = document.getElementById('mesh-tab-button');
+    const atlasTabButton = document.getElementById('atlas-tab-button');
+    const uvTabButton = document.getElementById('uv-tab-button');
+    const rigTabButton = document.getElementById('rig-tab-button');
+    
+    const meshTab = document.getElementById('mesh-tab');
+    const atlasTab = document.getElementById('atlas-tab');
+    const uvTab = document.getElementById('uv-tab');
+    const rigTab = document.getElementById('rig-tab');
+    
+    // Set up click handlers for each tab button
+    if (meshTabButton && meshTab) {
+        meshTabButton.addEventListener('click', () => {
+            // Update active button
+            meshTabButton.classList.add('active');
+            atlasTabButton.classList.remove('active');
+            uvTabButton.classList.remove('active');
+            rigTabButton.classList.remove('active');
+            
+            // Update active content
+            meshTab.classList.add('active');
+            atlasTab.classList.remove('active');
+            uvTab.classList.remove('active');
+            rigTab.classList.remove('active');
+        });
+    }
+    
+    if (atlasTabButton && atlasTab) {
+        atlasTabButton.addEventListener('click', () => {
+            // Update active button
+            meshTabButton.classList.remove('active');
+            atlasTabButton.classList.add('active');
+            uvTabButton.classList.remove('active');
+            rigTabButton.classList.remove('active');
+            
+            // Update active content
+            meshTab.classList.remove('active');
+            atlasTab.classList.add('active');
+            uvTab.classList.remove('active');
+            rigTab.classList.remove('active');
+            
+            // Update atlas visualization
+            import('./ui/atlas-panel.js').then(module => {
+                if (module.updateAtlasVisualization) {
+                    module.updateAtlasVisualization();
+                }
+            });
+        });
+    }
+    
+    if (uvTabButton && uvTab) {
+        uvTabButton.addEventListener('click', () => {
+            // Update active button
+            meshTabButton.classList.remove('active');
+            atlasTabButton.classList.remove('active');
+            uvTabButton.classList.add('active');
+            rigTabButton.classList.remove('active');
+            
+            // Update active content
+            meshTab.classList.remove('active');
+            atlasTab.classList.remove('active');
+            uvTab.classList.add('active');
+            rigTab.classList.remove('active');
+            
+            // Update UV panel
+            import('./ui/uv-panel.js').then(module => {
+                if (module.updateUvPanel) {
+                    module.updateUvPanel();
+                }
+            });
+        });
+    }
+    
+    if (rigTabButton && rigTab) {
+        rigTabButton.addEventListener('click', () => {
+            // Update active button
+            meshTabButton.classList.remove('active');
+            atlasTabButton.classList.remove('active');
+            uvTabButton.classList.remove('active');
+            rigTabButton.classList.add('active');
+            
+            // Update active content
+            meshTab.classList.remove('active');
+            atlasTab.classList.remove('active');
+            uvTab.classList.remove('active');
+            rigTab.classList.add('active');
+        });
+    }
 }
+
+/**
+ * Start the debugging process
+ */
+function startDebugging() {
+    console.log('Starting debugging...');
+    
+    // Get elements
+    const viewport = document.getElementById('viewport');
+    const tabContainer = document.getElementById('tab-container');
+    
+    // Show viewport and tab container
+    if (viewport) {
+        viewport.style.display = 'block';
+    }
+    
+    if (tabContainer) {
+        tabContainer.style.display = 'flex';
+    }
+    
+    // Set up tab navigation
+    setupTabNavigation();
+    
+    // Import and initialize the scene
+    import('./core/scene.js').then(sceneModule => {
+        console.log('Scene module loaded');
+        sceneModule.initScene(viewport);
+        sceneModule.startAnimation();
+        
+        // Import and initialize the model
+        import('./core/models.js').then(modelsModule => {
+            modelsModule.loadDebugModel();
+        });
+    });
+}
+
+/**
+ * Restart the debugging process
+ */
+function restartDebugging() {
+    console.log('Restarting debugging...');
+    
+    // Reload the page to start over
+    window.location.reload();
+}
+
+// Export for external use
+export default init; 
