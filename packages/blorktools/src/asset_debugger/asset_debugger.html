@@ -567,7 +567,7 @@
     
     <div class="container">
         <div id="upload-section" class="tool-panel">
-            <h2>Upload Texture Atlas Files</h2>
+            <h2>Upload Files (Optional)</h2>
             <div class="dropzone-container">
                 <div class="dropzone" id="basecolor-dropzone">
                     <h3>Base Color Atlas</h3>
@@ -588,7 +588,7 @@
                 </div>
                 
                 <div class="dropzone" id="model-dropzone">
-                    <h3>3D Model (Optional)</h3>
+                    <h3>3D Model</h3>
                     <p>Drag & drop a GLB model file here</p>
                     <p>If not provided, a cube will be used</p>
                     <p class="file-info" id="model-info"></p>
@@ -620,6 +620,7 @@
                     <button id="mesh-tab-button" class="tab-button active">Mesh</button>
                     <button id="atlas-tab-button" class="tab-button">Atlas</button>
                     <button id="uv-tab-button" class="tab-button">UV</button>
+                    <button id="rig-tab-button" class="tab-button">Rig</button>
                 </div>
                 <div id="mesh-tab" class="tab-content active">
                     <h3>Mesh Visibility</h3>
@@ -685,6 +686,12 @@
                         </div>
                     </div>
                 </div>
+                <div id="rig-tab" class="tab-content">
+                    <h3>Rig Information</h3>
+                    <div id="rig-content" class="rig-info-container">
+                        <p>No rig data found.</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -718,15 +725,13 @@
             const restartContainer = document.getElementById('restart-container');
             const restartDebugBtn = document.getElementById('restart-debug');
             
+            // Note: The start debug button functionality is now handled by the asset_debugger.js script
+            // This is just making sure the UI elements are updated correctly
             startDebugBtn.addEventListener('click', function() {
                 // Hide upload section and show restart button
                 uploadSection.style.display = 'none';
                 restartContainer.style.display = 'block';
-            });
-            
-            restartDebugBtn.addEventListener('click', function() {
-                // This will be hooked up to the same functionality as the original start button
-                // but we'll let the JavaScript handle that part
+                // The actual debugging initialization happens in the JavaScript module
             });
             
             // Return to Toolbox functionality

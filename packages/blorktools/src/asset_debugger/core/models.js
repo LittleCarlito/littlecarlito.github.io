@@ -216,7 +216,37 @@ function processLoadedModel(gltf) {
     }
 }
 
+/**
+ * Load the appropriate model for debugging
+ * - If a custom model file was uploaded, load that
+ * - Otherwise, create a default cube
+ */
+export function loadDebugModel() {
+    const state = getState();
+    const loadingIndicator = document.getElementById('loading-indicator');
+    
+    // Show loading indicator
+    if (loadingIndicator) {
+        loadingIndicator.style.display = 'flex';
+    }
+    
+    // Check if a custom model was uploaded
+    if (state.useCustomModel && state.modelFile) {
+        console.log('Loading custom model...');
+        loadAndSetupModel(loadingIndicator);
+    } else {
+        console.log('Creating default cube...');
+        createCube();
+        
+        // Hide loading indicator
+        if (loadingIndicator) {
+            loadingIndicator.style.display = 'none';
+        }
+    }
+}
+
 export default {
     createCube,
-    loadAndSetupModel
+    loadAndSetupModel,
+    loadDebugModel
 }; 
