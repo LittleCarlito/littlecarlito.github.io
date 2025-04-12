@@ -47,6 +47,9 @@ jobs:
       trigger_actor: ${{ steps.set-trigger-info.outputs.trigger_actor }}
       trigger_detail: ${{ steps.set-trigger-info.outputs.trigger_detail }}
       source_branch: ${{ steps.set-trigger-info.outputs.source_branch }}
+      is_merge_pr: ${{ steps.check-merge-pr.outputs.is_merge_pr }}
+      pr_number: ${{ steps.check-merge-pr.outputs.pr_number }}
+      source_branch_name: ${{ steps.check-merge-pr.outputs.source_branch_name }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -111,6 +114,34 @@ jobs:
           echo "Actor: ${{ github.actor }}"
           echo "Ref: ${{ github.ref }}"
           echo "SHA: ${{ github.sha }}"
+      
+      - name: Check if this is a PR merge
+        id: check-merge-pr
+        run: |
+          # Get the last commit message
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          
+          # Check if this is a merge commit from a PR
+          if [[ "$COMMIT_MSG" =~ ^Merge\ pull\ request\ #([0-9]+)\ from\ ([^ ]+) ]]; then
+            PR_NUM="${BASH_REMATCH[1]}"
+            SOURCE_BRANCH="${BASH_REMATCH[2]}"
+            echo "This is a PR merge: PR #$PR_NUM from $SOURCE_BRANCH"
+            echo "is_merge_pr=true" >> $GITHUB_OUTPUT
+            echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
+            echo "source_branch_name=$SOURCE_BRANCH" >> $GITHUB_OUTPUT
+            
+            # Get all commits that were in this PR
+            echo "Fetching PR commits..."
+            MERGE_BASE=$(git merge-base HEAD^ HEAD)
+            echo "Merge base: $MERGE_BASE"
+            
+            # Print all commits in this merge for debugging
+            echo "Commits in this PR merge:"
+            git log --pretty=format:"%h %s" $MERGE_BASE..HEAD^ | cat
+          else
+            echo "Not a PR merge"
+            echo "is_merge_pr=false" >> $GITHUB_OUTPUT
+          fi
 
   build:
     name: Build
@@ -336,7 +367,7 @@ jobs:
 
   version-and-publish:
     name: Version and Publish to GitHub npm
-    needs: [test, build, check-package-releases]
+    needs: [test, build, check-package-releases, capture-trigger-info]
     if: always() && needs.test.result == 'success' && needs.check-package-releases.outputs.has_packages_to_publish != 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -405,6 +436,24 @@ jobs:
       - name: Install dependencies
         run: pnpm install
         
+      # Special handling for PR merges to examine all commits
+      - name: Prepare for PR merge versioning
+        if: needs.capture-trigger-info.outputs.is_merge_pr == 'true'
+        run: |
+          echo "This is a PR merge: #${{ needs.capture-trigger-info.outputs.pr_number }} from ${{ needs.capture-trigger-info.outputs.source_branch_name }}"
+          
+          # Find the merge base to get all commits in the PR
+          MERGE_BASE=$(git merge-base HEAD^ HEAD)
+          echo "Merge base: $MERGE_BASE"
+          
+          # Get all commits in the PR and write to a file for debugging
+          git log --pretty=format:"%h %s" $MERGE_BASE..HEAD^ > pr_commits.txt
+          echo "PR commits:"
+          cat pr_commits.txt
+          
+          # Store the merge base for versioning script to use
+          echo "MERGE_BASE=$MERGE_BASE" >> $GITHUB_ENV
+      
       # Check commit message for PR creation request  
       - name: Check for PR creation request in commit message
         id: check-pr-request
@@ -420,13 +469,16 @@ jobs:
             echo "No PR creation request found, will use direct publishing"
             echo "create_pr=false" >> $GITHUB_OUTPUT
           fi
-          
+      
       # Version packages 
       - name: Version Packages
         id: version
         env:
           DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          IS_PR_MERGE: ${{ needs.capture-trigger-info.outputs.is_merge_pr }}
+          PR_NUMBER: ${{ needs.capture-trigger-info.outputs.pr_number }}
+          SOURCE_BRANCH: ${{ needs.capture-trigger-info.outputs.source_branch_name }}
         run: |
           if [ "${{ steps.check-pr-request.outputs.create_pr }}" == "true" ]; then
             echo "Manual PR creation requested in commit footer, using standard publishing"
@@ -454,8 +506,16 @@ jobs:
             # Create .npmrc file with authentication token
             echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
             
-            # Run the script
-            ./.github/scripts/version/direct-publish.sh
+            # Set additional arguments for PR merge versioning if applicable
+            if [ "$IS_PR_MERGE" == "true" ] && [ -n "$MERGE_BASE" ]; then
+              echo "Adding PR merge base for version calculation: $MERGE_BASE"
+              PR_ARGS="--merge-base $MERGE_BASE"
+            else
+              PR_ARGS=""
+            fi
+            
+            # Run the script with possible PR arguments
+            ./.github/scripts/version/direct-publish.sh $PR_ARGS
             echo "versioned=true" >> $GITHUB_OUTPUT
             echo "published=true" >> $GITHUB_OUTPUT
           fi

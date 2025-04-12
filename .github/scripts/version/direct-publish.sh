@@ -9,6 +9,26 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+# Initialize variables with defaults
+MERGE_BASE=""
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  key="$1"
+  case $key in
+    --merge-base)
+      MERGE_BASE="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    *)
+      # Unknown option
+      echo "Unknown option: $key"
+      shift # past argument
+      ;;
+  esac
+done
+
 echo -e "${YELLOW}🔑 Setting up SSH for direct publishing in pipeline...${NC}"
 
 # Create SSH directory if it doesn't exist
@@ -65,9 +85,22 @@ echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
 echo "registry=https://npm.pkg.github.com/" >> ~/.npmrc
 echo -e "${GREEN}✅ npm authentication configured${NC}"
 
-# Run version script
+# Run version script with proper arguments if this is a PR merge
 echo -e "${YELLOW}🔢 Running version script...${NC}"
-node scripts/version-packages.js
+if [ -n "$MERGE_BASE" ]; then
+  echo -e "${YELLOW}📊 Using PR merge base for commit analysis: ${MERGE_BASE}${NC}"
+  # Create temporary config for version script
+  echo "{\"mergeBase\": \"$MERGE_BASE\"}" > .version-config.json
+  
+  # Pass the merge base to the version script as an environment variable
+  VERSION_MERGE_BASE=$MERGE_BASE node scripts/version-packages.js
+  
+  # Clean up config file
+  rm .version-config.json
+else
+  echo -e "${YELLOW}📊 Using standard version calculation${NC}"
+  node scripts/version-packages.js
+fi
 
 # Check if any packages were versioned
 HAS_CHANGES=$(git status --porcelain | grep -E "packages/|apps/" | wc -l)
@@ -76,7 +109,13 @@ if [ "$HAS_CHANGES" -gt 0 ]; then
   git config --global user.name "GitHub Actions"
   git config --global user.email "actions@github.com"
   git add .
-  git commit -m "chore: version packages [skip ci]"
+  
+  # Add more context to the commit message about the source of these changes
+  if [ -n "$MERGE_BASE" ]; then
+    git commit -m "chore: version packages from PR merge [skip ci]" -m "These versions were bumped based on commits in the merged PR."
+  else
+    git commit -m "chore: version packages [skip ci]"
+  fi
   
   echo -e "${YELLOW}📤 Pushing version changes directly to main branch...${NC}"
   git push origin main

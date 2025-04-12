@@ -29,12 +29,35 @@ const BUMP_TYPES = {
 };
 
 /**
- * Determine base commit to check from
+ * Determine base commit to check from, with support for merge base from PR
  * @returns {string} Base commit SHA
  */
 function getBaseCommit() {
+  // Check if we have a merge base from environment or config file
+  const mergeBaseFromEnv = process.env.VERSION_MERGE_BASE;
+  let configMergeBase = null;
+  
+  // Try to read from config file
   try {
-    // Try to get the latest tag
+    if (fs.existsSync('.version-config.json')) {
+      const config = JSON.parse(fs.readFileSync('.version-config.json', 'utf8'));
+      configMergeBase = config.mergeBase;
+    }
+  } catch (error) {
+    console.log('Error reading .version-config.json:', error.message);
+  }
+  
+  // Use merge base from PR if available
+  if (mergeBaseFromEnv) {
+    console.log(`Using merge base from environment: ${mergeBaseFromEnv}`);
+    return mergeBaseFromEnv;
+  } else if (configMergeBase) {
+    console.log(`Using merge base from config file: ${configMergeBase}`);
+    return configMergeBase;
+  }
+  
+  // Default behavior - try to get the latest tag
+  try {
     const tags = execSync('git tag --sort=-v:refname').toString().trim().split('\n');
     if (tags.length > 0) {
       return tags[0];
@@ -80,7 +103,7 @@ function determineBumpType(message) {
 
 /**
  * Get all commits since base commit and determine which packages need to be versioned
- * @param {string} baseCommit Base commit SHA
+ * @param {string} baseCommit Base commit SHA or reference
  * @returns {Object} Map of package paths to version bump types
  */
 function determineVersionBumps(baseCommit) {
@@ -91,32 +114,58 @@ function determineVersionBumps(baseCommit) {
     packageVersions[pkg] = null;
   });
   
+  // Determine if this is a PR merge
+  const mergeBaseFromEnv = process.env.VERSION_MERGE_BASE;
+  const isPrMerge = !!mergeBaseFromEnv;
+  
   // Get commits since base commit
-  const commits = execSync(`git log ${baseCommit}..HEAD --pretty=format:"%s"`).toString().trim().split('\n');
+  let gitLogCommand = `git log ${baseCommit}..HEAD --pretty=format:"%s"`;
+  
+  // For PR merges, we need to adjust the command to get all commits in the PR
+  if (isPrMerge) {
+    console.log(`PR merge detected, using merge base ${baseCommit}`);
+    // For a PR merge, we want commits between the merge base and HEAD^
+    // (HEAD^ excludes the merge commit itself)
+    gitLogCommand = `git log ${baseCommit}..HEAD^ --pretty=format:"%s"`;
+  }
+  
+  console.log(`Running command: ${gitLogCommand}`);
+  const commits = execSync(gitLogCommand).toString().trim().split('\n');
+  
+  console.log(`Found ${commits.length} commits since ${baseCommit}`);
   
   // Process each commit
   commits.forEach(commit => {
-    // Skip merge commits
-    if (commit.startsWith('Merge')) {
+    // Skip merge commits and empty commits
+    if (commit.startsWith('Merge') || commit.trim() === '') {
       return;
     }
+    
+    console.log(`Analyzing commit: ${commit}`);
     
     const scope = extractScope(commit);
     const bumpType = determineBumpType(commit);
     
+    console.log(`  Scope: ${scope || 'none'}, Bump type: ${bumpType}`);
+    
     // If scope is in excluded list, skip this commit
     if (scope && EXCLUDED_SCOPES.includes(scope)) {
-      console.log(`Skipping excluded scope: ${scope}`);
+      console.log(`  Skipping excluded scope: ${scope}`);
       return;
     }
     
-    // If commit has a scope, only bump the package that matches the scope
+    // If commit has a scope, bump the package that matches the scope
     if (scope) {
+      let matchFound = false;
+      
       for (const pkg of PACKAGES) {
         const pkgName = pkg.split('/').pop();
         
         // Check if scope matches package name
         if (pkgName === scope || scope === 'common') {
+          console.log(`  Matched package: ${pkg}`);
+          matchFound = true;
+          
           // Only upgrade the bump type if it's more significant
           if (
             !packageVersions[pkg] || 
@@ -124,43 +173,34 @@ function determineVersionBumps(baseCommit) {
             (bumpType === BUMP_TYPES.MINOR && packageVersions[pkg] === BUMP_TYPES.PATCH)
           ) {
             packageVersions[pkg] = bumpType;
+            console.log(`  Setting ${pkg} to ${bumpType} bump`);
           }
           
-          // Important: Don't break here, allow 'common' scope to affect multiple packages
-          // Only break if it's a package-specific scope
+          // Only break for package-specific scope, not for 'common'
           if (scope !== 'common') {
             break;
           }
         }
       }
-    } else {
-      // No scope in the commit, only bump packages directly affected by the changes
-      // This requires analyzing which files were modified in the commit
-      try {
-        const commitHash = execSync(`git log --format="%H" -1 --grep="${commit.replace(/"/g, '\\"')}"`).toString().trim();
-        if (commitHash) {
-          const changedFiles = execSync(`git show --name-only --pretty=format: ${commitHash}`).toString().trim().split('\n');
-          
-          // Map changed files to affected packages
-          PACKAGES.forEach(pkg => {
-            const pkgPrefix = pkg.replace(/^apps\//, 'apps/').replace(/^packages\//, 'packages/');
-            const isAffected = changedFiles.some(file => file.startsWith(pkgPrefix) || file === 'package.json');
-            
-            if (isAffected) {
-              // Only upgrade the bump type if it's more significant
-              if (
-                !packageVersions[pkg] || 
-                (bumpType === BUMP_TYPES.MAJOR) ||
-                (bumpType === BUMP_TYPES.MINOR && packageVersions[pkg] === BUMP_TYPES.PATCH)
-              ) {
-                packageVersions[pkg] = bumpType;
-              }
-            }
-          });
-        }
-      } catch (error) {
-        console.error(`Error analyzing commit changes: ${error.message}`);
+      
+      if (!matchFound) {
+        console.log(`  No package match found for scope: ${scope}`);
       }
+    } else {
+      // No scope in the commit message - apply to ALL packages
+      console.log(`  No scope - applying to all packages`);
+      
+      PACKAGES.forEach(pkg => {
+        // Only upgrade the bump type if it's more significant
+        if (
+          !packageVersions[pkg] || 
+          (bumpType === BUMP_TYPES.MAJOR) ||
+          (bumpType === BUMP_TYPES.MINOR && packageVersions[pkg] === BUMP_TYPES.PATCH)
+        ) {
+          packageVersions[pkg] = bumpType;
+          console.log(`  Setting ${pkg} to ${bumpType} bump`);
+        }
+      });
     }
   });
   
