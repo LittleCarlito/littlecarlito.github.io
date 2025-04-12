@@ -129,6 +129,13 @@ function setupTabNavigation() {
             atlasTab.classList.remove('active');
             uvTab.classList.remove('active');
             rigTab.classList.add('active');
+            
+            // Update Rig panel
+            import('./ui/rig-panel.js').then(module => {
+                if (module.updateRigPanel) {
+                    module.updateRigPanel();
+                }
+            });
         });
     }
 }

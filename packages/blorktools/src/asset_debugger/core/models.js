@@ -220,12 +220,21 @@ function processLoadedModel(gltf) {
         // Update UI panels based on active tab
         const atlasTab = document.getElementById('atlas-tab');
         const uvTab = document.getElementById('uv-tab');
+        const rigTab = document.getElementById('rig-tab');
         
         if (atlasTab.classList.contains('active')) {
             updateAtlasVisualization();
         }
         if (uvTab.classList.contains('active')) {
             updateUvPanel();
+        }
+        if (rigTab.classList.contains('active')) {
+            // Update Rig panel if it's the active tab
+            import('../ui/rig-panel.js').then(module => {
+                if (module.updateRigPanel) {
+                    module.updateRigPanel();
+                }
+            });
         }
     } catch (processError) {
         console.error('Error processing model:', processError);
