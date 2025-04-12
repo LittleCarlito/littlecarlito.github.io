@@ -28,6 +28,9 @@ export function setupDropzones() {
     const ormPreview = document.getElementById('orm-preview');
     const normalPreview = document.getElementById('normal-preview');
     
+    // Ensure the start button is disabled initially
+    checkStartButton();
+    
     // Set up each dropzone
     if (baseColorDropzone && baseColorInfo && baseColorPreview) {
         setupDropzone(baseColorDropzone, 'baseColor', baseColorInfo, baseColorPreview);
@@ -224,13 +227,17 @@ function checkStartButton() {
     const startButton = document.getElementById('start-debug');
     
     if (startButton) {
-        // Enable button if at least one texture is loaded OR if we have a GLB model
-        if ((state.textureObjects.baseColor || 
-             state.textureObjects.orm || 
-             state.textureObjects.normal) || 
-            (state.useCustomModel && state.modelFile)) {
-            startButton.disabled = false;
-        }
+        // Only enable button if at least one file has been dropped
+        const hasFiles = state.textureObjects && (
+            state.textureObjects.baseColor || 
+            state.textureObjects.orm || 
+            state.textureObjects.normal || 
+            (state.useCustomModel && state.modelFile)
+        );
+        
+        // Explicitly set the disabled state
+        startButton.disabled = !hasFiles;
+        console.log('Start debugging button state updated:', hasFiles ? 'enabled' : 'disabled');
     }
 }
 

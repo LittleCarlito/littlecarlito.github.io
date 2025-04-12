@@ -16,9 +16,26 @@ let raycaster = new THREE.Raycaster();
 let mouse = new THREE.Vector2();
 let hoveredHandle = null;
 
+// Map to track locked bones
+const lockedBones = new Map();
+
 // Material colors
-const normalColor = 0x00ff00; // Green 
-const hoverColor = 0xffff00;  // Yellow
+const normalColor = 0xff0000; // Red
+const hoverColor = 0x00ff00;  // Green
+
+// Rig options
+const rigOptions = {
+    displayRig: false, // Default to not visible
+    forceZ: false,
+    wireframe: true,
+    primaryColor: 0xFF00FF, // Magenta
+    secondaryColor: 0xFFFF00, // Yellow
+    jointColor: 0x00FFFF // Cyan
+};
+
+// Material references
+let boneMaterial = null;
+let boneSideMaterial = null;
 
 /**
  * Analyze the rig data in a GLTF model
@@ -218,29 +235,41 @@ function createRigVisualization(model, scene) {
     }
     
     // Create materials for bone visualization
-    const boneMaterial = new THREE.MeshPhongMaterial({
-        color: 0xFF00FF, // Magenta
+    boneMaterial = new THREE.MeshPhongMaterial({
+        color: rigOptions.primaryColor,
         emissive: 0x072534,
         side: THREE.DoubleSide,
         flatShading: true,
-        wireframe: true,
+        wireframe: rigOptions.wireframe,
         transparent: true,
-        opacity: 0.7
+        opacity: 0.8  // Increased opacity for better visibility
     });
     
-    const boneSideMaterial = new THREE.MeshPhongMaterial({
-        color: 0xFFFF00, // Yellow
+    boneSideMaterial = new THREE.MeshPhongMaterial({
+        color: rigOptions.secondaryColor,
         emissive: 0x072534,
         side: THREE.DoubleSide,
         flatShading: true,
-        wireframe: true,
+        wireframe: rigOptions.wireframe,
         transparent: true,
-        opacity: 0.7
+        opacity: 0.8  // Increased opacity for better visibility
+    });
+    
+    // Joint material (now separate from primary/secondary colors)
+    const jointMaterial = new THREE.MeshPhongMaterial({
+        color: rigOptions.jointColor,
+        emissive: 0x072534,
+        side: THREE.DoubleSide,
+        flatShading: true,
+        wireframe: rigOptions.wireframe,
+        transparent: true,
+        opacity: 0.8  // Slightly more opaque for better visibility
     });
     
     // Create a group to hold all bone visualizations
     boneVisualsGroup = new THREE.Group();
     boneVisualsGroup.name = "BoneVisualizations";
+    boneVisualsGroup.visible = rigOptions.displayRig;
     scene.add(boneVisualsGroup);
     
     // Group bones by parent for easier bone pair creation
@@ -301,8 +330,8 @@ function createRigVisualization(model, scene) {
                 // Rotate to align with standard Three.js cylinder orientation
                 boneGroup.rotateX(Math.PI/2);
                 
-                // Create bone mesh
-                createBoneMesh(boneGroup, boneRadius, boneRadius, distance, boneMaterial, boneSideMaterial);
+                // Pass both materials (primary and secondary) for alternating sides
+                createBoneMesh(boneGroup, boneRadius, boneRadius, distance, jointMaterial, boneMaterial, boneSideMaterial);
                 
                 // Store reference to the bone connection
                 boneGroup.userData.parentBone = bone;
@@ -328,31 +357,75 @@ function createRigVisualization(model, scene) {
 }
 
 /**
- * Create a bone mesh
+ * Create bone mesh
  * @param {Object} parent - Parent THREE.Group to add the bone to
  * @param {Number} radiusTop - Top radius of the bone
  * @param {Number} radiusBottom - Bottom radius of the bone
  * @param {Number} height - Height of the bone
  * @param {Material} capMaterial - Material for bone caps
  * @param {Material} sideMaterial - Material for bone sides
+ * @param {Material} alternateSideMaterial - Material for alternate sides
  */
-function createBoneMesh(parent, radiusTop, radiusBottom, height, capMaterial, sideMaterial) {
-    // Create bone side (cylinder)
+function createBoneMesh(parent, radiusTop, radiusBottom, height, capMaterial, sideMaterial, alternateSideMaterial) {
+    // First create a cylinder with 8 segments
     const cylinderGeometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, 8, 1, false);
-    const boneSide = new THREE.Mesh(cylinderGeometry, sideMaterial);
-    boneSide.position.y = height / 2;
-    boneSide.userData.bonePart = 'side';
-    parent.add(boneSide);
     
-    // Create bone end caps (spheres)
-    const sphereGeometry = new THREE.SphereGeometry(radiusTop, 8, 8);
-    const topSphere = new THREE.Mesh(sphereGeometry, capMaterial);
+    // Create all sides in one group
+    const sidesGroup = new THREE.Group();
+    sidesGroup.position.y = height / 2;
+    parent.add(sidesGroup);
+    
+    // Split the cylinder into 8 segments for alternating colors
+    for (let i = 0; i < 8; i++) {
+        // Create a segment
+        const segmentGeometry = new THREE.CylinderGeometry(
+            radiusTop, radiusBottom, height, 1, 1, false,
+            (Math.PI * 2 * i) / 8,
+            Math.PI * 2 / 8
+        );
+        
+        // Use alternating materials based on segment index
+        const material = (i % 2 === 0) ? sideMaterial.clone() : alternateSideMaterial.clone();
+        
+        // Create the segment mesh
+        const segment = new THREE.Mesh(segmentGeometry, material);
+        segment.userData.bonePart = 'side';
+        segment.userData.sideType = (i % 2 === 0) ? 'primary' : 'secondary';
+        segment.userData.segmentIndex = i;
+        
+        sidesGroup.add(segment);
+    }
+    
+    // Create top joint sphere
+    const sphereGeometry = new THREE.SphereGeometry(radiusTop * 1.2, 8, 8);
+    const topSphere = new THREE.Mesh(sphereGeometry, capMaterial.clone());
     topSphere.position.y = height;
     topSphere.userData.bonePart = 'cap';
+    topSphere.userData.isJoint = true;
+    
+    // Ensure material settings
+    topSphere.material.wireframe = capMaterial.wireframe;
+    topSphere.material.transparent = true;
+    topSphere.material.opacity = 0.9;
+    topSphere.material.color.setHex(rigOptions.jointColor);
+    
+    // Make sure joint spheres render on top of bones
+    topSphere.renderOrder = 10;
     parent.add(topSphere);
     
-    const bottomSphere = new THREE.Mesh(sphereGeometry, capMaterial);
+    // Bottom joint sphere
+    const bottomSphere = new THREE.Mesh(sphereGeometry, capMaterial.clone());
     bottomSphere.userData.bonePart = 'cap';
+    bottomSphere.userData.isJoint = true;
+    
+    // Ensure material settings 
+    bottomSphere.material.wireframe = capMaterial.wireframe;
+    bottomSphere.material.transparent = true;
+    bottomSphere.material.opacity = 0.9;
+    bottomSphere.material.color.setHex(rigOptions.jointColor);
+    
+    // Make sure joint spheres render on top of bones
+    bottomSphere.renderOrder = 10;
     parent.add(bottomSphere);
 }
 
@@ -437,7 +510,7 @@ function findFarthestBone() {
  * @param {Number} modelScale - Scale factor for the handle size
  */
 function addControlHandleToFurthestBone(bone, scene, modelScale) {
-    const handleSize = modelScale * 1.0;
+    const handleSize = modelScale * 2.6; // Double the size (from 1.3 to 2.6)
     const geometry = new THREE.SphereGeometry(handleSize, 16, 16);
     const material = new THREE.MeshPhongMaterial({
         color: normalColor,
@@ -501,6 +574,7 @@ function checkHandleHover() {
     
     const state = getState();
     const camera = state.camera;
+    const controls = state.controls; // Get orbit controls reference
     
     if (!camera) return;
     
@@ -515,10 +589,24 @@ function checkHandleHover() {
         if (hoveredHandle !== furthestBoneHandle) {
             hoveredHandle = furthestBoneHandle;
             furthestBoneHandle.material.color.setHex(hoverColor);
+            
+            // Disable orbit controls when hovering over handle
+            if (controls && controls.enabled) {
+                controls.enabled = false;
+                document.body.style.cursor = 'pointer'; // Change cursor to indicate interactivity
+                console.log('Disabled camera controls for handle interaction');
+            }
         }
     } else if (hoveredHandle === furthestBoneHandle) {
         hoveredHandle = null;
         furthestBoneHandle.material.color.setHex(normalColor);
+        
+        // Re-enable orbit controls when not hovering over handle
+        if (controls && !controls.enabled) {
+            controls.enabled = true;
+            document.body.style.cursor = 'auto'; // Reset cursor
+            console.log('Re-enabled camera controls');
+        }
     }
 }
 
@@ -559,6 +647,187 @@ function updateRigAnimation() {
 }
 
 /**
+ * Update the rig visualization based on option changes
+ */
+function updateRigVisualization() {
+    if (!boneVisualsGroup) return;
+    
+    const state = getState();
+    
+    // Toggle rig visibility
+    if (boneVisualsGroup) {
+        boneVisualsGroup.visible = rigOptions.displayRig;
+    }
+    
+    if (furthestBoneHandle) {
+        furthestBoneHandle.visible = rigOptions.displayRig;
+    }
+    
+    // Update primary and secondary colors and wireframe state
+    if (boneMaterial) {
+        boneMaterial.color.setHex(rigOptions.primaryColor);
+        boneMaterial.wireframe = rigOptions.wireframe;
+        boneMaterial.needsUpdate = true;
+    }
+    
+    if (boneSideMaterial) {
+        boneSideMaterial.color.setHex(rigOptions.secondaryColor);
+        boneSideMaterial.wireframe = rigOptions.wireframe;
+        boneSideMaterial.needsUpdate = true;
+    }
+    
+    // Update all bone meshes
+    boneVisualsGroup.traverse(object => {
+        // Update bone sides
+        if (object.isMesh && object.userData.bonePart === 'side') {
+            // Handle material based on wireframe setting
+            if (rigOptions.wireframe) {
+                // In wireframe mode - ALL sides use primary color
+                object.material.color.setHex(rigOptions.primaryColor);
+            } else {
+                // In filled mode - use alternating colors
+                if (object.userData.sideType === 'primary') {
+                    object.material.color.setHex(rigOptions.primaryColor);
+                } else {
+                    object.material.color.setHex(rigOptions.secondaryColor);
+                }
+            }
+            
+            // Apply wireframe setting to all sides
+            object.material.wireframe = rigOptions.wireframe;
+            object.material.needsUpdate = true;
+        }
+        
+        // Update joint materials
+        if (object.isMesh && object.userData.bonePart === 'cap') {
+            object.material.color.setHex(rigOptions.jointColor);
+            object.material.wireframe = rigOptions.wireframe;
+            object.material.needsUpdate = true;
+        }
+    });
+    
+    // Apply force Z-index to make rig appear on top
+    if (boneVisualsGroup) {
+        if (rigOptions.forceZ) {
+            // Move the rig to render on top by setting renderOrder to a high value
+            // and disabling depth test for materials
+            boneVisualsGroup.renderOrder = 1000; // High value to render after other objects
+            
+            if (boneMaterial) {
+                boneMaterial.depthTest = false;
+                boneMaterial.needsUpdate = true;
+            }
+            
+            if (boneSideMaterial) {
+                boneSideMaterial.depthTest = false;
+                boneSideMaterial.needsUpdate = true;
+            }
+            
+            // Set renderOrder and disable depth test for EVERY mesh in the group
+            boneVisualsGroup.traverse(object => {
+                if (object.isMesh) {
+                    if (object.userData.bonePart === 'cap') {
+                        // Joint spheres get higher renderOrder
+                        object.renderOrder = 1020;
+                    } else if (object.userData.bonePart === 'side') {
+                        // Bone sides get lower renderOrder
+                        object.renderOrder = 1010;
+                    } else {
+                        // Everything else
+                        object.renderOrder = 1000;
+                    }
+                    
+                    if (object.material) {
+                        object.material.depthTest = false;
+                        object.material.needsUpdate = true;
+                    }
+                }
+            });
+            
+            if (furthestBoneHandle && furthestBoneHandle.material) {
+                // Control handle gets highest renderOrder
+                furthestBoneHandle.renderOrder = 1030;
+                furthestBoneHandle.material.depthTest = false;
+                furthestBoneHandle.material.needsUpdate = true;
+            }
+        } else {
+            // Reset normal depth behavior
+            boneVisualsGroup.renderOrder = 0;
+            
+            if (boneMaterial) {
+                boneMaterial.depthTest = true;
+                boneMaterial.needsUpdate = true;
+            }
+            
+            if (boneSideMaterial) {
+                boneSideMaterial.depthTest = true;
+                boneSideMaterial.needsUpdate = true;
+            }
+            
+            // Reset renderOrder and enable depth test for EVERY mesh in the group
+            boneVisualsGroup.traverse(object => {
+                if (object.isMesh) {
+                    if (object.userData.bonePart === 'cap') {
+                        // Even without force-Z, joints should be on top of bones
+                        object.renderOrder = 10;
+                    } else {
+                        object.renderOrder = 0;
+                    }
+                    
+                    if (object.material) {
+                        object.material.depthTest = true;
+                        object.material.needsUpdate = true;
+                    }
+                }
+            });
+            
+            if (furthestBoneHandle && furthestBoneHandle.material) {
+                // Control handle should still be above everything else
+                furthestBoneHandle.renderOrder = 20;
+                furthestBoneHandle.material.depthTest = true;
+                furthestBoneHandle.material.needsUpdate = true;
+            }
+        }
+    }
+}
+
+/**
+ * Find bone by name in the scene
+ * @param {string} name - The name of the bone to find
+ * @returns {Object|null} The bone object or null if not found
+ */
+function findBoneByName(name) {
+    return bones.find(bone => bone.name === name) || null;
+}
+
+/**
+ * Lock or unlock a bone's rotation
+ * @param {Object} bone - The bone to lock/unlock
+ * @param {boolean} locked - Whether to lock (true) or unlock (false)
+ */
+function toggleBoneLock(bone, locked) {
+    if (!bone) return;
+    
+    if (locked) {
+        // Store the bone's current rotation
+        const rotationBackup = new THREE.Euler(
+            bone.rotation.x,
+            bone.rotation.y,
+            bone.rotation.z,
+            bone.rotation.order
+        );
+        lockedBones.set(bone.uuid, {
+            bone: bone,
+            rotation: rotationBackup
+        });
+        console.log(`Locked rotation for bone: ${bone.name}`);
+    } else {
+        lockedBones.delete(bone.uuid);
+        console.log(`Unlocked rotation for bone: ${bone.name}`);
+    }
+}
+
+/**
  * Create the rig details content
  * @param {HTMLElement} container - Container to append rig details to
  * @param {Object} details - Rig details object from analyzeGltfModel
@@ -571,6 +840,133 @@ function createRigDetailsContent(container, details) {
     
     // Clear existing content
     container.innerHTML = '';
+    
+    // Create Rig Options section
+    const optionsSection = document.createElement('div');
+    optionsSection.className = 'rig-options-section';
+    optionsSection.style.marginBottom = '20px';
+    optionsSection.style.padding = '10px';
+    optionsSection.style.backgroundColor = 'rgba(0,0,0,0.03)';
+    optionsSection.style.borderRadius = '5px';
+    
+    const optionsTitle = document.createElement('h3');
+    optionsTitle.textContent = 'Rig Options';
+    optionsTitle.style.margin = '0 0 10px 0';
+    optionsTitle.style.fontSize = '16px';
+    optionsTitle.style.borderBottom = '1px solid var(--border-color)';
+    optionsSection.appendChild(optionsTitle);
+    
+    // Display Rig checkbox
+    const displayRigOption = createOptionToggle(
+        'Display Rig', 
+        rigOptions.displayRig, 
+        (checked) => {
+            rigOptions.displayRig = checked;
+            updateRigVisualization();
+            
+            // Show/hide other options based on the Display Rig setting
+            const optionsToToggle = optionsSection.querySelectorAll('.toggle-with-rig');
+            optionsToToggle.forEach(option => {
+                // Special handling for secondaryColorOption - only show when both displayRig is true AND wireframe is false
+                if (option === secondaryColorOption) {
+                    option.style.display = (checked && !rigOptions.wireframe) ? 'flex' : 'none';
+                } else {
+                    option.style.display = checked ? 'flex' : 'none';
+                }
+            });
+        }
+    );
+    optionsSection.appendChild(displayRigOption);
+    
+    // Force Z checkbox (toggled with rig visibility)
+    const forceZOption = createOptionToggle(
+        'Force Z-index', 
+        rigOptions.forceZ, 
+        (checked) => {
+            rigOptions.forceZ = checked;
+            updateRigVisualization();
+        }
+    );
+    forceZOption.classList.add('toggle-with-rig');
+    forceZOption.style.display = rigOptions.displayRig ? 'flex' : 'none';
+    optionsSection.appendChild(forceZOption);
+    
+    // Fill wireframe checkbox (toggled with rig visibility)
+    const wireframeOption = createOptionToggle(
+        'Fill wireframe', 
+        !rigOptions.wireframe, 
+        (checked) => {
+            rigOptions.wireframe = !checked;
+            updateRigVisualization();
+            
+            // Toggle visibility of secondary color option - MUST be completely gone when wireframe is enabled
+            // The secondaryColorOption is only relevant when we're showing filled cylinders (wireframe=false)
+            if (secondaryColorOption) {
+                secondaryColorOption.style.display = (checked && rigOptions.displayRig) ? 'flex' : 'none';
+            }
+        }
+    );
+    wireframeOption.classList.add('toggle-with-rig');
+    wireframeOption.style.display = rigOptions.displayRig ? 'flex' : 'none';
+    optionsSection.appendChild(wireframeOption);
+    
+    // Primary Color picker (toggled with rig visibility)
+    const primaryColorOption = createColorOption(
+        'Primary Color', 
+        rigOptions.primaryColor, 
+        (colorHex) => {
+            rigOptions.primaryColor = parseInt(colorHex.replace('#', '0x'), 16);
+            updateRigVisualization();
+        }
+    );
+    primaryColorOption.classList.add('toggle-with-rig');
+    primaryColorOption.style.display = rigOptions.displayRig ? 'flex' : 'none';
+    optionsSection.appendChild(primaryColorOption);
+    
+    // Secondary Color picker (only visible if Fill wireframe is checked AND rig is visible)
+    const secondaryColorOption = createColorOption(
+        'Secondary Color', 
+        rigOptions.secondaryColor, 
+        (colorHex) => {
+            rigOptions.secondaryColor = parseInt(colorHex.replace('#', '0x'), 16);
+            updateRigVisualization();
+        }
+    );
+    secondaryColorOption.classList.add('toggle-with-rig');
+    
+    // Explicitly hide Secondary Color when not in filled mode
+    // It should ONLY be visible when wireframe is false (filled) AND rig is visible
+    secondaryColorOption.style.display = 'none'; // Start hidden by default
+    
+    // Only show if wireframe is false AND rig is visible
+    if (!rigOptions.wireframe && rigOptions.displayRig) {
+        secondaryColorOption.style.display = 'flex';
+    }
+    
+    optionsSection.appendChild(secondaryColorOption);
+    
+    // Joint Color picker (toggled with rig visibility)
+    const jointColorOption = createColorOption(
+        'Joint Color', 
+        rigOptions.jointColor, 
+        (colorHex) => {
+            rigOptions.jointColor = parseInt(colorHex.replace('#', '0x'), 16);
+            updateRigVisualization();
+        }
+    );
+    jointColorOption.classList.add('toggle-with-rig');
+    jointColorOption.style.display = rigOptions.displayRig ? 'flex' : 'none';
+    optionsSection.appendChild(jointColorOption);
+    
+    container.appendChild(optionsSection);
+    
+    // Create Rig Details title
+    const detailsTitle = document.createElement('h3');
+    detailsTitle.textContent = 'Rig Details';
+    detailsTitle.style.margin = '20px 0 10px 0';
+    detailsTitle.style.fontSize = '16px';
+    detailsTitle.style.borderBottom = '1px solid var(--border-color)';
+    container.appendChild(detailsTitle);
     
     const createSection = (title, items) => {
         const section = document.createElement('div');
@@ -654,6 +1050,40 @@ function createRigDetailsContent(container, details) {
                     }
                 }
                 
+                // Add Lock Rotation checkbox for bones
+                if (title === 'Bones') {
+                    const boneName = item.name;
+                    const bone = findBoneByName(boneName);
+                    
+                    if (bone) {
+                        const lockContainer = document.createElement('div');
+                        lockContainer.style.display = 'flex';
+                        lockContainer.style.alignItems = 'center';
+                        lockContainer.style.marginTop = '5px';
+                        
+                        const lockLabel = document.createElement('label');
+                        lockLabel.textContent = 'Lock Rotation:';
+                        lockLabel.style.fontSize = '10px';
+                        lockLabel.style.marginRight = '5px';
+                        lockLabel.style.color = '#666';
+                        
+                        const lockCheckbox = document.createElement('input');
+                        lockCheckbox.type = 'checkbox';
+                        lockCheckbox.style.cursor = 'pointer';
+                        
+                        // Initialize checkbox state
+                        lockCheckbox.checked = lockedBones.has(bone.uuid);
+                        
+                        lockCheckbox.addEventListener('change', (e) => {
+                            toggleBoneLock(bone, e.target.checked);
+                        });
+                        
+                        lockContainer.appendChild(lockLabel);
+                        lockContainer.appendChild(lockCheckbox);
+                        itemElem.appendChild(lockContainer);
+                    }
+                }
+                
                 section.appendChild(itemElem);
             });
         }
@@ -666,6 +1096,83 @@ function createRigDetailsContent(container, details) {
     container.appendChild(createSection('Rigs', details.rigs));
     container.appendChild(createSection('Roots', details.roots));
     container.appendChild(createSection('Controls/Handles', details.controls));
+}
+
+/**
+ * Create a toggle option element
+ * @param {String} label - Label for the toggle
+ * @param {Boolean} initialValue - Initial value
+ * @param {Function} onChange - Change handler
+ * @returns {HTMLElement} Toggle option element
+ */
+function createOptionToggle(label, initialValue, onChange) {
+    const container = document.createElement('div');
+    container.style.display = 'flex';
+    container.style.alignItems = 'center';
+    container.style.justifyContent = 'space-between';
+    container.style.marginBottom = '10px';
+    
+    const labelElem = document.createElement('span');
+    labelElem.textContent = label;
+    labelElem.style.fontSize = '13px';
+    
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = initialValue;
+    checkbox.style.width = '18px';
+    checkbox.style.height = '18px';
+    checkbox.style.cursor = 'pointer';
+    
+    checkbox.addEventListener('change', () => {
+        onChange(checkbox.checked);
+    });
+    
+    container.appendChild(labelElem);
+    container.appendChild(checkbox);
+    
+    return container;
+}
+
+/**
+ * Create a color picker option element
+ * @param {String} label - Label for the color picker
+ * @param {Number} initialColor - Initial color as hex number
+ * @param {Function} onChange - Change handler
+ * @returns {HTMLElement} Color option element
+ */
+function createColorOption(label, initialColor, onChange) {
+    const container = document.createElement('div');
+    container.style.display = 'flex';
+    container.style.alignItems = 'center';
+    container.style.justifyContent = 'space-between';
+    container.style.marginBottom = '10px';
+    
+    const labelElem = document.createElement('span');
+    labelElem.textContent = label;
+    labelElem.style.fontSize = '13px';
+    
+    const colorPicker = document.createElement('input');
+    colorPicker.type = 'color';
+    
+    // Convert number to hex string for the color input
+    const hexColor = '#' + initialColor.toString(16).padStart(6, '0');
+    colorPicker.value = hexColor;
+    
+    colorPicker.style.width = '30px';
+    colorPicker.style.height = '30px';
+    colorPicker.style.cursor = 'pointer';
+    colorPicker.style.border = 'none';
+    colorPicker.style.padding = '0';
+    colorPicker.style.backgroundColor = 'transparent';
+    
+    colorPicker.addEventListener('change', () => {
+        onChange(colorPicker.value);
+    });
+    
+    container.appendChild(labelElem);
+    container.appendChild(colorPicker);
+    
+    return container;
 }
 
 /**

@@ -146,33 +146,54 @@ function setupTabNavigation() {
 function startDebugging() {
     console.log('Starting debugging...');
     
-    // Get elements
-    const viewport = document.getElementById('viewport');
-    const tabContainer = document.getElementById('tab-container');
-    
-    // Show viewport and tab container
-    if (viewport) {
-        viewport.style.display = 'block';
-    }
-    
-    if (tabContainer) {
-        tabContainer.style.display = 'flex';
-    }
-    
-    // Set up tab navigation
-    setupTabNavigation();
-    
-    // Import and initialize the scene
-    import('./core/scene.js').then(sceneModule => {
-        console.log('Scene module loaded');
-        sceneModule.initScene(viewport);
-        sceneModule.startAnimation();
+    // Check if any files have been loaded before proceeding
+    const state = import('./core/state.js').then(stateModule => {
+        const currentState = stateModule.getState();
+        const hasTextures = currentState.textureObjects.baseColor || 
+                           currentState.textureObjects.orm || 
+                           currentState.textureObjects.normal;
+        const hasModel = currentState.useCustomModel && currentState.modelFile;
         
-        // Import and initialize the model
-        import('./core/models.js').then(modelsModule => {
-            modelsModule.loadDebugModel();
-        });
+        if (!hasTextures && !hasModel) {
+            console.log('No files loaded. Cannot start debugging.');
+            alert('Please drop at least one texture or model file before starting.');
+            return false;
+        }
+        
+        // Continue with start debugging process
+        initializeDebugger();
+        return true;
     });
+    
+    function initializeDebugger() {
+        // Get elements
+        const viewport = document.getElementById('viewport');
+        const tabContainer = document.getElementById('tab-container');
+        
+        // Show viewport and tab container
+        if (viewport) {
+            viewport.style.display = 'block';
+        }
+        
+        if (tabContainer) {
+            tabContainer.style.display = 'flex';
+        }
+        
+        // Set up tab navigation
+        setupTabNavigation();
+        
+        // Import and initialize the scene
+        import('./core/scene.js').then(sceneModule => {
+            console.log('Scene module loaded');
+            sceneModule.initScene(viewport);
+            sceneModule.startAnimation();
+            
+            // Import and initialize the model
+            import('./core/models.js').then(modelsModule => {
+                modelsModule.loadDebugModel();
+            });
+        });
+    }
 }
 
 /**
