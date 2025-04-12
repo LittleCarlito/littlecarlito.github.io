@@ -222,20 +222,24 @@ function processLoadedModel(gltf) {
         const uvTab = document.getElementById('uv-tab');
         const rigTab = document.getElementById('rig-tab');
         
-        if (atlasTab.classList.contains('active')) {
+        if (atlasTab && atlasTab.classList.contains('active')) {
             updateAtlasVisualization();
         }
-        if (uvTab.classList.contains('active')) {
+        if (uvTab && uvTab.classList.contains('active')) {
             updateUvPanel();
         }
-        if (rigTab.classList.contains('active')) {
-            // Update Rig panel if it's the active tab
-            import('../ui/rig-panel.js').then(module => {
-                if (module.updateRigPanel) {
-                    module.updateRigPanel();
-                }
-            });
-        }
+        
+        // Always update rig panel when a model is loaded, regardless of active tab
+        // This ensures the rig data is parsed immediately
+        import('../ui/rig-panel.js').then(module => {
+            if (module.updateRigPanel) {
+                console.log('Updating rig panel after model load');
+                module.updateRigPanel();
+            }
+        }).catch(err => {
+            console.error('Error importing rig-panel.js:', err);
+        });
+        
     } catch (processError) {
         console.error('Error processing model:', processError);
         alert('Error processing model: ' + processError.message);
