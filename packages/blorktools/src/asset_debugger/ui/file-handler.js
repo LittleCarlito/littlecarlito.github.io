@@ -205,7 +205,14 @@ function handleModelUpload(file, infoElement, dropzone) {
     // Mark dropzone as having a file
     dropzone.classList.add('has-file');
     
-    // Check if all required textures are loaded to enable the start button
+    // Update the texture dropzone hints to show textures are optional with GLB
+    const textureHints = document.querySelectorAll('.texture-hint');
+    textureHints.forEach(hint => {
+        hint.textContent = 'Textures are optional with GLB';
+        hint.style.color = '#88cc88'; // Light green color
+    });
+    
+    // Check if we can enable the start button
     checkStartButton();
 }
 
@@ -216,11 +223,14 @@ function checkStartButton() {
     const state = getState();
     const startButton = document.getElementById('start-debug');
     
-    if (startButton && 
-        state.textureObjects.baseColor && 
-        state.textureObjects.orm && 
-        state.textureObjects.normal) {
-        startButton.disabled = false;
+    if (startButton) {
+        // Enable button if at least one texture is loaded OR if we have a GLB model
+        if ((state.textureObjects.baseColor || 
+             state.textureObjects.orm || 
+             state.textureObjects.normal) || 
+            (state.useCustomModel && state.modelFile)) {
+            startButton.disabled = false;
+        }
     }
 }
 

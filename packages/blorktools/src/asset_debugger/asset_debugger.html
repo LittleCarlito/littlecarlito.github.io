@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="light-mode">
+<html lang="en" class="dark-mode">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -558,7 +558,7 @@
 </head>
 <body>
     <header>
-        <h1>Texture Debugger</h1>
+        <h1>Asset Debugger</h1>
         <div style="display: flex; gap: 10px;">
             <button id="return-to-toolbox" class="theme-toggle">Return to Toolbox</button>
             <button id="theme-toggle" class="theme-toggle">Switch to Light Mode</button>
@@ -572,18 +572,21 @@
                 <div class="dropzone" id="basecolor-dropzone">
                     <h3>Base Color Atlas</h3>
                     <p>Drag & drop your base color texture atlas here</p>
+                    <p class="texture-hint" style="font-size: 0.8em; color: #aaa;">Any combination of texture atlases is supported</p>
                     <p class="file-info" id="basecolor-info"></p>
                 </div>
                 
                 <div class="dropzone" id="orm-dropzone">
                     <h3>ORM Atlas</h3>
                     <p>Drag & drop your ORM (Occlusion, Roughness, Metalness) texture atlas here</p>
+                    <p class="texture-hint" style="font-size: 0.8em; color: #aaa;">Any combination of texture atlases is supported</p>
                     <p class="file-info" id="orm-info"></p>
                 </div>
                 
                 <div class="dropzone" id="normal-dropzone">
                     <h3>Normal Atlas</h3>
                     <p>Drag & drop your normal map texture atlas here</p>
+                    <p class="texture-hint" style="font-size: 0.8em; color: #aaa;">Any combination of texture atlases is supported</p>
                     <p class="file-info" id="normal-info"></p>
                 </div>
                 

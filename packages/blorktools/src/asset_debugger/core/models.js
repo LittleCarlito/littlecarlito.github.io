@@ -18,9 +18,11 @@ import { updateUvPanel } from '../ui/uv-panel.js';
 export function createCube() {
     const state = getState();
     
-    // Create cube geometry with UV2 for aoMap
+    // Create cube geometry with UV2 for aoMap only if ORM texture is available
     const geometry = new THREE.BoxGeometry(1, 1, 1);
-    geometry.attributes.uv2 = geometry.attributes.uv;
+    if (state.textureObjects.orm) {
+        geometry.attributes.uv2 = geometry.attributes.uv;
+    }
     
     // Create material with the loaded textures
     const material = createMaterial();
@@ -145,8 +147,22 @@ function processLoadedModel(gltf) {
         const model = gltf.scene;
         updateState('model', model);
         
-        // Create base material with loaded textures
-        const baseMaterial = createMaterial();
+        // Create material based on whether textures are loaded
+        let baseMaterial;
+        if (state.textureObjects.baseColor && 
+            state.textureObjects.orm && 
+            state.textureObjects.normal) {
+            // Create material with loaded textures
+            baseMaterial = createMaterial();
+        } else {
+            // Create standard gray material when no textures are provided
+            baseMaterial = new THREE.MeshStandardMaterial({
+                color: 0x808080,
+                roughness: 0.7,
+                metalness: 0.2,
+                side: THREE.DoubleSide
+            });
+        }
         
         // Process all meshes in the model
         const meshes = [];
@@ -158,17 +174,18 @@ function processLoadedModel(gltf) {
                 // Create a new material for this mesh
                 const material = baseMaterial.clone();
                 
-                // Apply UV transformations from original material
-                if (originalMaterial.map && material.map) {
+                // Only apply UV transformations if we have textures
+                if (state.textureObjects.baseColor && originalMaterial.map && material.map) {
                     material.map.offset.copy(originalMaterial.map.offset);
                     material.map.repeat.copy(originalMaterial.map.repeat);
                     material.map.rotation = originalMaterial.map.rotation;
                 }
                 
-                // Check if the original material was transparent
-                if (originalMaterial.transparent || 
+                // Apply transparency settings only if we have textures and originalMaterial was transparent
+                if (state.textureObjects.baseColor && 
+                    (originalMaterial.transparent || 
                     (originalMaterial.map && originalMaterial.map.image && 
-                     hasTransparentPixels(originalMaterial.map.image))) {
+                     hasTransparentPixels(originalMaterial.map.image)))) {
                     material.transparent = true;
                     material.alphaTest = 0.1;
                     // Only set alphaMap if we actually need transparency
@@ -178,8 +195,8 @@ function processLoadedModel(gltf) {
                 // Apply new material to mesh
                 node.material = material;
                 
-                // Create UV2 attribute if needed for aoMap
-                if (!node.geometry.attributes.uv2 && node.geometry.attributes.uv) {
+                // Create UV2 attribute if needed for aoMap and if we have an ORM texture
+                if (state.textureObjects.orm && !node.geometry.attributes.uv2 && node.geometry.attributes.uv) {
                     node.geometry.attributes.uv2 = node.geometry.attributes.uv;
                 }
                 
@@ -219,7 +236,7 @@ function processLoadedModel(gltf) {
 /**
  * Load the appropriate model for debugging
  * - If a custom model file was uploaded, load that
- * - Otherwise, create a default cube
+ * - Otherwise, create a default cube if at least one texture is available
  */
 export function loadDebugModel() {
     const state = getState();
@@ -234,7 +251,10 @@ export function loadDebugModel() {
     if (state.useCustomModel && state.modelFile) {
         console.log('Loading custom model...');
         loadAndSetupModel(loadingIndicator);
-    } else {
+    } else if (state.textureObjects.baseColor || 
+               state.textureObjects.orm || 
+               state.textureObjects.normal) {
+        // Create a cube if at least one texture is available
         console.log('Creating default cube...');
         createCube();
         
@@ -242,6 +262,17 @@ export function loadDebugModel() {
         if (loadingIndicator) {
             loadingIndicator.style.display = 'none';
         }
+    } else {
+        // No model and no textures, can't proceed with visualization
+        console.log('Cannot create visualization: No model and no textures');
+        
+        // Hide loading indicator
+        if (loadingIndicator) {
+            loadingIndicator.style.display = 'none';
+        }
+        
+        // Show error message
+        alert('Error: Cannot create visualization. Please upload at least one texture atlas or a GLB model.');
     }
 }
 

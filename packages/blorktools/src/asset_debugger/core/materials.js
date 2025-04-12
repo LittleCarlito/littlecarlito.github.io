@@ -16,18 +16,39 @@ export function createMaterial() {
     // Set proper texture parameters for all textures
     setupTextureParameters();
     
-    // Create material with properly configured textures - without transparency by default
-    return new THREE.MeshStandardMaterial({
-        map: state.textureObjects.baseColor,
-        normalMap: state.textureObjects.normal,
-        aoMap: state.textureObjects.orm,
-        roughnessMap: state.textureObjects.orm,
-        metalnessMap: state.textureObjects.orm,
-        roughness: 1.0,
-        metalness: 1.0,
+    // Create a material configuration with available textures
+    const materialConfig = {
+        roughness: 0.7,
+        metalness: 0.2,
         normalScale: new THREE.Vector2(1, 1),
         side: THREE.DoubleSide // Make material double-sided
-    });
+    };
+    
+    // Only assign textures that are available
+    if (state.textureObjects.baseColor) {
+        materialConfig.map = state.textureObjects.baseColor;
+        // If base color is available, set a reasonable color for areas that might not have texture
+        materialConfig.color = 0xffffff;
+    } else {
+        // If no base color texture, use a light gray color
+        materialConfig.color = 0xcccccc;
+    }
+    
+    if (state.textureObjects.normal) {
+        materialConfig.normalMap = state.textureObjects.normal;
+    }
+    
+    if (state.textureObjects.orm) {
+        materialConfig.aoMap = state.textureObjects.orm;
+        materialConfig.roughnessMap = state.textureObjects.orm;
+        materialConfig.metalnessMap = state.textureObjects.orm;
+        // When ORM is available, use its full range
+        materialConfig.roughness = 1.0;
+        materialConfig.metalness = 1.0;
+    }
+    
+    // Create material with properly configured textures
+    return new THREE.MeshStandardMaterial(materialConfig);
 }
 
 /**
@@ -135,6 +156,7 @@ export function hasTransparentPixels(image) {
 export function applyTransparencySettings(material) {
     const state = getState();
     
+    // Only apply transparency if we have a baseColor texture with transparency
     if (state.textureObjects.baseColor && 
         state.textureObjects.baseColor.image && 
         hasTransparentPixels(state.textureObjects.baseColor.image)) {
