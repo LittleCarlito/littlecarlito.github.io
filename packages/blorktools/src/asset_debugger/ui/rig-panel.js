@@ -2939,7 +2939,7 @@ function createAxisIndicator(scene, camera, renderer) {
             
             const lineMaterial = new THREE.LineBasicMaterial({ 
                 color: color,
-                linewidth: 25, // Much thicker line (increased from 20)
+                linewidth: 45,
                 depthTest: false,
                 transparent: true,
                 opacity: 1.0
@@ -2956,7 +2956,7 @@ function createAxisIndicator(scene, camera, renderer) {
             
             const dashedLineMaterial = new THREE.LineDashedMaterial({
                 color: color,
-                linewidth: 30, // Much thicker dashed line (increased from 25)
+                linewidth: 45,
                 scale: 1,
                 dashSize: 0.2, // Larger dashes
                 gapSize: 0.05, // Smaller gaps
