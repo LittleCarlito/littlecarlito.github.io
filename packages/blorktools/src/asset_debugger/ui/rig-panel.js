@@ -709,6 +709,9 @@ function setupMouseListeners(scene) {
     domElement.addEventListener('mousedown', (event) => {
         if (event.button !== 0) return; // Only handle left mouse button
         
+        // Skip if Display Rig is not enabled
+        if (!rigOptions.displayRig) return;
+        
         const state = getState();
         if (!state.camera) return;
         
@@ -883,7 +886,8 @@ function applyInverseKinematics(targetBone, targetPosition) {
  * Check if mouse is hovering over the control handle
  */
 function checkHandleHover() {
-    if (!furthestBoneHandle || isDragging) return;
+    // Don't check for hover if rig display is disabled or handle doesn't exist
+    if (!rigOptions.displayRig || !furthestBoneHandle || isDragging) return;
     
     const state = getState();
     const camera = state.camera;
@@ -943,9 +947,21 @@ function clearRigVisualization(scene) {
  * Update animation for rig visuals
  */
 function updateRigAnimation() {
-    // Update bone visuals even during drag operations - changed this to update during drags too
+    // Only update rig visuals if Display Rig is enabled
+    if (!rigOptions.displayRig) {
+        // Even when displayRig is off, we should ensure handles are not visible
+        if (furthestBoneHandle) {
+            furthestBoneHandle.visible = false;
+        }
+        if (boneVisualsGroup) {
+            boneVisualsGroup.visible = false;
+        }
+        return;
+    }
+    
     // Update bone visuals
     if (boneVisualsGroup) {
+        boneVisualsGroup.visible = true;
         boneVisualsGroup.children.forEach(boneGroup => {
             if (boneGroup.userData.updatePosition) {
                 boneGroup.userData.updatePosition();
@@ -954,9 +970,12 @@ function updateRigAnimation() {
     }
     
     // Update furthest bone handle
-    if (furthestBoneHandle && furthestBoneHandle.userData.updatePosition && !isDragging) {
-        // Only update handle position when not dragging
-        furthestBoneHandle.userData.updatePosition();
+    if (furthestBoneHandle) {
+        furthestBoneHandle.visible = true;
+        if (furthestBoneHandle.userData.updatePosition && !isDragging) {
+            // Only update handle position when not dragging
+            furthestBoneHandle.userData.updatePosition();
+        }
     }
     
     // Update joint labels

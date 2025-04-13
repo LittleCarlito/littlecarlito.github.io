@@ -137,9 +137,8 @@ export function startAnimation() {
             currentState.controls.update();
         }
         
-        // Update rig animations if the Rig tab is active
-        const rigTab = document.getElementById('rig-tab');
-        if (rigTab && rigTab.classList.contains('active') && updateRigAnimationFn) {
+        // Update rig animations regardless of which tab is active
+        if (updateRigAnimationFn) {
             updateRigAnimationFn();
         }
         
