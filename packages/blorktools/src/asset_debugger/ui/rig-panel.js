@@ -44,7 +44,10 @@ const rigOptions = {
     primaryColor: 0xFF00FF, // Magenta
     secondaryColor: 0xFFFF00, // Yellow
     jointColor: 0x00FFFF, // Cyan
-    showJointLabels: false // Default to hidden
+    showJointLabels: false, // Default to hidden
+    normalColor: 0xFF0000, // Red - for control handles normal state
+    hoverColor: 0x00FF00,  // Green - for control handles hover state
+    activeColor: 0x0000FF  // Blue - for control handles active/dragging state
 };
 
 // Material references
@@ -787,13 +790,16 @@ function setupMouseListeners(scene) {
  * @param {Object} handle - The handle being dragged
  */
 function startDrag(intersection, handle) {
-    const state = getState();
+    if (!handle) return;
     
     isDragging = true;
     dragTarget = handle;
     
-    // Change handle color to active
-    handle.material.color.setHex(activeColor);
+    // Update material to active color
+    if (handle.material) {
+        handle.material.color.setHex(rigOptions.activeColor);
+        handle.material.needsUpdate = true;
+    }
     
     // Store the initial position
     dragTargetPosition.copy(handle.position);
@@ -855,16 +861,15 @@ function handleDrag() {
  * Stop dragging operation
  */
 function stopDrag() {
-    if (!isDragging) return;
-    
-    console.log('Drag ended');
+    if (!isDragging || !dragTarget) return;
     
     isDragging = false;
     
-    // Reset handle color
-    if (dragTarget) {
-        dragTarget.material.color.setHex(normalColor);
-        dragTarget = null;
+    // Reset material to normal or hover color based on current state
+    if (dragTarget.material) {
+        const isHovered = dragTarget === hoveredHandle;
+        dragTarget.material.color.setHex(isHovered ? rigOptions.hoverColor : rigOptions.normalColor);
+        dragTarget.material.needsUpdate = true;
     }
     
     // Re-enable orbit controls
@@ -943,26 +948,28 @@ function checkHandleHover() {
     // Handle hover state
     if (intersects.length > 0) {
         if (hoveredHandle !== furthestBoneHandle) {
-            hoveredHandle = furthestBoneHandle;
-            furthestBoneHandle.material.color.setHex(hoverColor);
+            // Reset old hovered handle color if it exists and isn't the drag target
+            if (hoveredHandle && hoveredHandle.material && hoveredHandle !== dragTarget) {
+                hoveredHandle.material.color.setHex(rigOptions.normalColor);
+                hoveredHandle.material.needsUpdate = true;
+            }
             
-            // Disable orbit controls when hovering over handle
-            if (controls && controls.enabled) {
-                controls.enabled = false;
-                document.body.style.cursor = 'pointer'; // Change cursor to indicate interactivity
-                console.log('Disabled camera controls for handle interaction');
+            // Set new hovered handle and update color
+            hoveredHandle = furthestBoneHandle;
+            
+            // If not currently dragging this handle, highlight it
+            if (!isDragging || hoveredHandle !== dragTarget) {
+                hoveredHandle.material.color.setHex(rigOptions.hoverColor);
+                hoveredHandle.material.needsUpdate = true;
             }
         }
-    } else if (hoveredHandle === furthestBoneHandle) {
-        hoveredHandle = null;
-        furthestBoneHandle.material.color.setHex(normalColor);
-        
-        // Re-enable orbit controls when not hovering over handle
-        if (controls && !controls.enabled && !isDragging) {
-            controls.enabled = true;
-            document.body.style.cursor = 'auto'; // Reset cursor
-            console.log('Re-enabled camera controls');
+    } else if (hoveredHandle && !isDragging) {
+        // No hit and not dragging, reset hovered handle color
+        if (hoveredHandle.material) {
+            hoveredHandle.material.color.setHex(rigOptions.normalColor);
+            hoveredHandle.material.needsUpdate = true;
         }
+        hoveredHandle = null;
     }
 }
 
@@ -1807,7 +1814,7 @@ function addControlHandleToFurthestBone(bone, scene, modelScale) {
     const handleSize = modelScale * 2.6; // Double the size (from 1.3 to 2.6)
     const geometry = new THREE.SphereGeometry(handleSize, 16, 16);
     const material = new THREE.MeshPhongMaterial({
-        color: normalColor,
+        color: rigOptions.normalColor, // Use color from rigOptions
         transparent: true,
         opacity: 0.7,
         wireframe: false
@@ -3238,6 +3245,20 @@ document.addEventListener('rigOptionsChange', function(e) {
         if (e.detail.secondaryColor !== undefined) rigOptions.secondaryColor = e.detail.secondaryColor;
         if (e.detail.jointColor !== undefined) rigOptions.jointColor = e.detail.jointColor;
         if (e.detail.showJointLabels !== undefined) rigOptions.showJointLabels = e.detail.showJointLabels;
+        
+        // Update control handle colors
+        if (e.detail.normalColor !== undefined) rigOptions.normalColor = e.detail.normalColor;
+        if (e.detail.hoverColor !== undefined) rigOptions.hoverColor = e.detail.hoverColor;
+        if (e.detail.activeColor !== undefined) rigOptions.activeColor = e.detail.activeColor;
+        
+        // Update control handle colors if it exists and not in a special state
+        if (furthestBoneHandle && furthestBoneHandle.material) {
+            // Only update color if it's not being hovered or dragged
+            if (furthestBoneHandle !== hoveredHandle && (!isDragging || furthestBoneHandle !== dragTarget)) {
+                furthestBoneHandle.material.color.setHex(rigOptions.normalColor);
+                furthestBoneHandle.material.needsUpdate = true;
+            }
+        }
         
         // Apply changes
         updateRigVisualization();
