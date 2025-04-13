@@ -1289,189 +1289,105 @@ function createRigDetailsContent(container, details) {
     // Clear existing content
     container.innerHTML = '';
     
-    // Create Rig Options section
-    const optionsSection = document.createElement('div');
-    optionsSection.className = 'rig-options-section';
-    optionsSection.style.marginBottom = '20px';
-    optionsSection.style.padding = '10px';
-    optionsSection.style.backgroundColor = 'rgba(0,0,0,0.03)';
-    optionsSection.style.borderRadius = '5px';
+    // Create essential controls section
+    const controlsSection = document.createElement('div');
+    controlsSection.className = 'rig-controls-section';
+    controlsSection.style.marginBottom = '15px';
+    controlsSection.style.padding = '10px';
+    controlsSection.style.backgroundColor = 'rgba(0,0,0,0.03)';
+    controlsSection.style.borderRadius = '5px';
     
-    // Create header with collapse functionality for Rig Options
-    const optionsHeader = document.createElement('div');
-    optionsHeader.style.display = 'flex';
-    optionsHeader.style.alignItems = 'center';
-    optionsHeader.style.cursor = 'pointer';
-    optionsHeader.style.userSelect = 'none';
+    // Create a wrapper for checkboxes
+    const checkboxWrapper = document.createElement('div');
+    checkboxWrapper.style.display = 'flex';
+    checkboxWrapper.style.justifyContent = 'space-between';
+    checkboxWrapper.style.marginBottom = '10px';
+    controlsSection.appendChild(checkboxWrapper);
     
-    // Create collapse indicator
-    const optionsCollapseIndicator = document.createElement('span');
-    optionsCollapseIndicator.textContent = optionsCollapseState ? '▼' : '▶'; // Use stored state
-    optionsCollapseIndicator.style.marginRight = '8px';
-    optionsCollapseIndicator.style.fontSize = '12px';
-    optionsCollapseIndicator.style.transition = 'transform 0.2s';
+    // Create Display Rig checkbox
+    const displayRigContainer = document.createElement('div');
+    displayRigContainer.style.display = 'flex';
+    displayRigContainer.style.alignItems = 'center';
     
-    const optionsTitle = document.createElement('h3');
-    optionsTitle.textContent = 'Rig Options';
-    optionsTitle.style.margin = '0 0 10px 0';
-    optionsTitle.style.fontSize = '16px';
-    optionsTitle.style.flex = '1';
-    optionsTitle.style.borderBottom = '1px solid var(--border-color)';
+    const displayRigLabel = document.createElement('label');
+    displayRigLabel.textContent = 'Display Rig';
+    displayRigLabel.style.fontSize = '14px';
+    displayRigLabel.style.marginRight = '10px';
+    displayRigLabel.style.cursor = 'pointer';
     
-    optionsHeader.appendChild(optionsCollapseIndicator);
-    optionsHeader.appendChild(optionsTitle);
-    optionsSection.appendChild(optionsHeader);
+    const displayRigCheckbox = document.createElement('input');
+    displayRigCheckbox.type = 'checkbox';
+    displayRigCheckbox.id = 'display-rig-tab';
+    displayRigCheckbox.checked = rigOptions.displayRig;
+    displayRigCheckbox.style.width = '18px';
+    displayRigCheckbox.style.height = '18px';
+    displayRigCheckbox.style.cursor = 'pointer';
     
-    // Create content container for options (use stored collapse state)
-    const optionsContent = document.createElement('div');
-    optionsContent.style.display = optionsCollapseState ? 'block' : 'none'; // Use stored state
-    optionsContent.style.transition = 'height 0.2s';
-    optionsContent.style.overflow = 'hidden';
-    optionsSection.appendChild(optionsContent);
-    
-    // Add click handler to toggle collapse
-    optionsHeader.addEventListener('click', () => {
-        optionsCollapseState = !optionsCollapseState; // Toggle stored state
-        if (optionsCollapseState) {
-            optionsContent.style.display = 'block';
-            optionsCollapseIndicator.textContent = '▼'; // Down arrow (expanded)
-        } else {
-            optionsContent.style.display = 'none';
-            optionsCollapseIndicator.textContent = '▶'; // Right arrow (collapsed)
+    displayRigCheckbox.addEventListener('change', (e) => {
+        rigOptions.displayRig = e.target.checked;
+        updateRigVisualization();
+        
+        // Sync with settings modal checkbox
+        const settingsModalCheckbox = document.getElementById('display-rig');
+        if (settingsModalCheckbox && settingsModalCheckbox.checked !== e.target.checked) {
+            settingsModalCheckbox.checked = e.target.checked;
         }
     });
     
-    // Display Rig checkbox
-    const displayRigOption = createOptionToggle(
-        'Display Rig', 
-        rigOptions.displayRig, 
-        (checked) => {
-            rigOptions.displayRig = checked;
-            updateRigVisualization();
-            
-            // Show/hide other options based on the Display Rig setting
-            const optionsToToggle = optionsContent.querySelectorAll('.toggle-with-rig');
-            optionsToToggle.forEach(option => {
-                // Special handling for secondaryColorOption - only show when both displayRig is true AND wireframe is false
-                if (option === secondaryColorOption) {
-                    option.style.display = (checked && !rigOptions.wireframe) ? 'flex' : 'none';
-                } else {
-                    option.style.display = checked ? 'flex' : 'none';
-                }
-            });
+    displayRigLabel.setAttribute('for', 'display-rig-tab');
+    displayRigContainer.appendChild(displayRigLabel);
+    displayRigContainer.appendChild(displayRigCheckbox);
+    
+    // Create Force Z checkbox
+    const forceZContainer = document.createElement('div');
+    forceZContainer.style.display = 'flex';
+    forceZContainer.style.alignItems = 'center';
+    
+    const forceZLabel = document.createElement('label');
+    forceZLabel.textContent = 'Force Z-index';
+    forceZLabel.style.fontSize = '14px';
+    forceZLabel.style.marginRight = '10px';
+    forceZLabel.style.cursor = 'pointer';
+    
+    const forceZCheckbox = document.createElement('input');
+    forceZCheckbox.type = 'checkbox';
+    forceZCheckbox.id = 'force-z-tab';
+    forceZCheckbox.checked = rigOptions.forceZ;
+    forceZCheckbox.style.width = '18px';
+    forceZCheckbox.style.height = '18px';
+    forceZCheckbox.style.cursor = 'pointer';
+    
+    forceZCheckbox.addEventListener('change', (e) => {
+        rigOptions.forceZ = e.target.checked;
+        updateRigVisualization();
+        
+        // Sync with settings modal checkbox
+        const settingsModalCheckbox = document.getElementById('force-z');
+        if (settingsModalCheckbox && settingsModalCheckbox.checked !== e.target.checked) {
+            settingsModalCheckbox.checked = e.target.checked;
         }
-    );
-    optionsContent.appendChild(displayRigOption);
+    });
     
-    // Force Z checkbox (toggled with rig visibility)
-    const forceZOption = createOptionToggle(
-        'Force Z-index', 
-        rigOptions.forceZ, 
-        (checked) => {
-            rigOptions.forceZ = checked;
-            updateRigVisualization();
-        }
-    );
-    forceZOption.classList.add('toggle-with-rig');
-    forceZOption.style.display = rigOptions.displayRig ? 'flex' : 'none';
-    optionsContent.appendChild(forceZOption);
+    forceZLabel.setAttribute('for', 'force-z-tab');
+    forceZContainer.appendChild(forceZLabel);
+    forceZContainer.appendChild(forceZCheckbox);
     
-    // Fill wireframe checkbox (toggled with rig visibility)
-    const wireframeOption = createOptionToggle(
-        'Fill wireframe', 
-        !rigOptions.wireframe, 
-        (checked) => {
-            rigOptions.wireframe = !checked;
-            updateRigVisualization();
-            
-            // Toggle visibility of secondary color option - MUST be completely gone when wireframe is enabled
-            // The secondaryColorOption is only relevant when we're showing filled cylinders (wireframe=false)
-            if (secondaryColorOption) {
-                secondaryColorOption.style.display = (checked && rigOptions.displayRig) ? 'flex' : 'none';
-            }
-        }
-    );
-    wireframeOption.classList.add('toggle-with-rig');
-    wireframeOption.style.display = rigOptions.displayRig ? 'flex' : 'none';
-    optionsContent.appendChild(wireframeOption);
+    // Add both checkboxes to controls section
+    checkboxWrapper.appendChild(displayRigContainer);
+    checkboxWrapper.appendChild(forceZContainer);
     
-    // Primary Color picker (toggled with rig visibility)
-    const primaryColorOption = createColorOption(
-        'Primary Color', 
-        rigOptions.primaryColor, 
-        (colorHex) => {
-            rigOptions.primaryColor = parseInt(colorHex.replace('#', '0x'), 16);
-            updateRigVisualization();
-        }
-    );
-    primaryColorOption.classList.add('toggle-with-rig');
-    primaryColorOption.style.display = rigOptions.displayRig ? 'flex' : 'none';
-    optionsContent.appendChild(primaryColorOption);
-    
-    // Secondary Color picker (only visible if Fill wireframe is checked AND rig is visible)
-    const secondaryColorOption = createColorOption(
-        'Secondary Color', 
-        rigOptions.secondaryColor, 
-        (colorHex) => {
-            rigOptions.secondaryColor = parseInt(colorHex.replace('#', '0x'), 16);
-            updateRigVisualization();
-        }
-    );
-    secondaryColorOption.classList.add('toggle-with-rig');
-    
-    // Explicitly hide Secondary Color when not in filled mode
-    // It should ONLY be visible when wireframe is false (filled) AND rig is visible
-    secondaryColorOption.style.display = 'none'; // Start hidden by default
-    
-    // Only show if wireframe is false AND rig is visible
-    if (!rigOptions.wireframe && rigOptions.displayRig) {
-        secondaryColorOption.style.display = 'flex';
-    }
-    
-    optionsContent.appendChild(secondaryColorOption);
-    
-    // Joint Color picker (toggled with rig visibility)
-    const jointColorOption = createColorOption(
-        'Joint Color', 
-        rigOptions.jointColor, 
-        (colorHex) => {
-            rigOptions.jointColor = parseInt(colorHex.replace('#', '0x'), 16);
-            updateRigVisualization();
-        }
-    );
-    jointColorOption.classList.add('toggle-with-rig');
-    jointColorOption.style.display = rigOptions.displayRig ? 'flex' : 'none';
-    optionsContent.appendChild(jointColorOption);
-    
-    // Add joint labels toggle after joint color picker
-    const jointLabelsOption = createOptionToggle(
-        'Show Joint Labels', 
-        rigOptions.showJointLabels, 
-        (checked) => {
-            rigOptions.showJointLabels = checked;
-            updateRigVisualization();
-        }
-    );
-    jointLabelsOption.classList.add('toggle-with-rig');
-    jointLabelsOption.style.display = rigOptions.displayRig ? 'flex' : 'none';
-    optionsContent.appendChild(jointLabelsOption);
-    
-    // Add Reset Rig button at the bottom of rig options
-    const resetContainer = document.createElement('div');
-    resetContainer.style.marginTop = '15px';
-    resetContainer.style.textAlign = 'center';
-    resetContainer.classList.add('toggle-with-rig');
-    resetContainer.style.display = rigOptions.displayRig ? 'block' : 'none';
-    
+    // Create Reset Physics button
     const resetButton = document.createElement('button');
-    resetButton.textContent = 'Reset Rig';
-    resetButton.style.padding = '6px 12px';
+    resetButton.textContent = 'Reset Physics';
+    resetButton.style.width = '100%';
+    resetButton.style.padding = '8px';
     resetButton.style.backgroundColor = '#4CAF50';
     resetButton.style.color = 'white';
     resetButton.style.border = 'none';
     resetButton.style.borderRadius = '4px';
     resetButton.style.cursor = 'pointer';
     resetButton.style.fontWeight = 'bold';
+    resetButton.style.fontSize = '14px';
     
     // Add hover effect
     resetButton.addEventListener('mouseover', () => {
@@ -1486,12 +1402,12 @@ function createRigDetailsContent(container, details) {
         resetRig();
     });
     
-    resetContainer.appendChild(resetButton);
-    optionsContent.appendChild(resetContainer);
+    controlsSection.appendChild(resetButton);
     
-    container.appendChild(optionsSection);
+    // Add controls section to container
+    container.appendChild(controlsSection);
     
-    // Create Rig Details section (collapsible)
+    // Create Rig Details section (non-collapsible)
     const detailsSection = document.createElement('div');
     detailsSection.className = 'rig-details-section';
     detailsSection.style.marginBottom = '20px';
@@ -1499,61 +1415,27 @@ function createRigDetailsContent(container, details) {
     detailsSection.style.backgroundColor = 'rgba(0,0,0,0.03)';
     detailsSection.style.borderRadius = '5px';
     
-    // Create header with collapse functionality for Rig Details
-    const detailsHeader = document.createElement('div');
-    detailsHeader.style.display = 'flex';
-    detailsHeader.style.alignItems = 'center';
-    detailsHeader.style.cursor = 'pointer';
-    detailsHeader.style.userSelect = 'none';
-    detailsHeader.style.marginBottom = '10px';
-    
-    // Create collapse indicator
-    const detailsCollapseIndicator = document.createElement('span');
-    detailsCollapseIndicator.textContent = detailsCollapseState ? '▼' : '▶'; // Use stored state
-    detailsCollapseIndicator.style.marginRight = '8px';
-    detailsCollapseIndicator.style.fontSize = '12px';
-    detailsCollapseIndicator.style.transition = 'transform 0.2s';
-    
+    // Create header
     const detailsTitle = document.createElement('h3');
     detailsTitle.textContent = 'Rig Details';
-    detailsTitle.style.margin = '0';
+    detailsTitle.style.margin = '0 0 15px 0';
     detailsTitle.style.fontSize = '16px';
-    detailsTitle.style.flex = '1';
     detailsTitle.style.borderBottom = '1px solid var(--border-color)';
+    detailsSection.appendChild(detailsTitle);
     
-    detailsHeader.appendChild(detailsCollapseIndicator);
-    detailsHeader.appendChild(detailsTitle);
-    detailsSection.appendChild(detailsHeader);
-    
-    // Create content container for details (use stored collapse state)
+    // Create content container for details (always visible)
     const detailsContent = document.createElement('div');
-    detailsContent.style.display = detailsCollapseState ? 'block' : 'none'; // Use stored state
-    detailsContent.style.transition = 'height 0.2s';
-    detailsContent.style.overflow = 'hidden';
     detailsSection.appendChild(detailsContent);
     
-    // Add click handler to toggle collapse
-    detailsHeader.addEventListener('click', () => {
-        detailsCollapseState = !detailsCollapseState; // Toggle stored state
-        if (detailsCollapseState) {
-            detailsContent.style.display = 'block';
-            detailsCollapseIndicator.textContent = '▼'; // Down arrow (expanded)
-        } else {
-            detailsContent.style.display = 'none';
-            detailsCollapseIndicator.textContent = '▶'; // Right arrow (collapsed)
-        }
-    });
-    
-    container.appendChild(detailsSection);
-    
+    // Helper function to create a section with items
     const createSection = (title, items) => {
         const section = document.createElement('div');
         section.style.marginBottom = '15px';
         
         const sectionTitle = document.createElement('h4');
         sectionTitle.textContent = title;
-        sectionTitle.style.margin = '5px 0';
         sectionTitle.style.fontSize = '14px';
+        sectionTitle.style.margin = '5px 0';
         sectionTitle.style.borderBottom = '1px solid var(--border-color)';
         section.appendChild(sectionTitle);
         
@@ -1765,6 +1647,8 @@ function createRigDetailsContent(container, details) {
     detailsContent.appendChild(createSection('Rigs', details.rigs));
     detailsContent.appendChild(createSection('Roots', details.roots));
     detailsContent.appendChild(createSection('Controls/Handles', details.controls));
+    
+    container.appendChild(detailsSection);
 }
 
 /**
@@ -3047,12 +2931,12 @@ function createAxisIndicator(scene, camera, renderer) {
         embeddedAxisScene.add(embeddedYAxis);
         embeddedAxisScene.add(embeddedZAxis);
         
-        // Create a smaller center reference point
+        // Create a smaller center reference point (MAKE INVISIBLE)
         const embeddedCenterGeometry = new THREE.SphereGeometry(0.05 * axisScale, 16, 16);
         const embeddedCenterMaterial = new THREE.MeshBasicMaterial({
             color: 0xffffff,
             transparent: true,
-            opacity: 0.9,
+            opacity: 0, // Set opacity to 0 to make it invisible
             depthTest: false
         });
         const embeddedCenterSphere = new THREE.Mesh(embeddedCenterGeometry, embeddedCenterMaterial);
@@ -3321,4 +3205,47 @@ document.addEventListener('axisIndicatorModeChange', function(e) {
             state.embeddedAxisIndicator.active = false;
         }
     }
+});
+
+// Global event listener for rig options changes
+document.addEventListener('rigOptionsChange', function(e) {
+    console.log('Rig options change event received:', e.detail);
+    
+    // Update rig options
+    if (e.detail) {
+        if (e.detail.displayRig !== undefined) {
+            rigOptions.displayRig = e.detail.displayRig;
+            
+            // Sync with rig tab checkbox
+            const rigTabCheckbox = document.getElementById('display-rig-tab');
+            if (rigTabCheckbox && rigTabCheckbox.checked !== e.detail.displayRig) {
+                rigTabCheckbox.checked = e.detail.displayRig;
+            }
+        }
+        
+        if (e.detail.forceZ !== undefined) {
+            rigOptions.forceZ = e.detail.forceZ;
+            
+            // Sync with rig tab checkbox
+            const rigTabCheckbox = document.getElementById('force-z-tab');
+            if (rigTabCheckbox && rigTabCheckbox.checked !== e.detail.forceZ) {
+                rigTabCheckbox.checked = e.detail.forceZ;
+            }
+        }
+        
+        if (e.detail.wireframe !== undefined) rigOptions.wireframe = e.detail.wireframe;
+        if (e.detail.primaryColor !== undefined) rigOptions.primaryColor = e.detail.primaryColor;
+        if (e.detail.secondaryColor !== undefined) rigOptions.secondaryColor = e.detail.secondaryColor;
+        if (e.detail.jointColor !== undefined) rigOptions.jointColor = e.detail.jointColor;
+        if (e.detail.showJointLabels !== undefined) rigOptions.showJointLabels = e.detail.showJointLabels;
+        
+        // Apply changes
+        updateRigVisualization();
+    }
+});
+
+// Event listener for reset rig button
+document.addEventListener('resetRig', function() {
+    console.log('Reset rig event received');
+    resetRig();
 });

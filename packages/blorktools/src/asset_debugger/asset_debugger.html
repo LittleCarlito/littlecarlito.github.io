@@ -701,6 +701,117 @@
             min-width: 30px;
             text-align: center;
         }
+        
+        /* Settings Tab Styles */
+        .settings-tabs {
+            display: flex;
+            border-bottom: 1px solid #444;
+            margin-bottom: 15px;
+        }
+        
+        .settings-tab-button {
+            background: transparent;
+            border: none;
+            color: #aaa;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 14px;
+            border-bottom: 2px solid transparent;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+        
+        .settings-tab-button.active {
+            color: #fff;
+            border-bottom: 2px solid var(--primary-color);
+        }
+        
+        .settings-tab-content {
+            display: none;
+        }
+        
+        .settings-tab-content.active {
+            display: block;
+        }
+        
+        .settings-row {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            justify-content: space-between;
+        }
+        
+        .settings-option {
+            flex: 0 0 48%;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .settings-option label {
+            margin-right: 10px;
+        }
+        
+        .settings-checkbox {
+            margin-left: 10px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .settings-color-picker {
+            margin-left: 10px;
+            width: 40px;
+            height: 25px;
+            padding: 0;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .reset-button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        
+        .reset-button:hover {
+            background-color: #45a049;
+        }
+        
+        .settings-option.full-width {
+            flex: 0 0 100%;
+            justify-content: space-between;
+        }
+        
+        .text-center {
+            text-align: center;
+            justify-content: center;
+        }
+        
+        .text-center button {
+            width: 50%;
+        }
+        
+        .reset-button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        
+        .reset-button:hover {
+            background-color: #45a049;
+        }
     </style>
 </head>
 <body>
@@ -855,21 +966,87 @@
                 <button class="modal-close" id="close-settings-modal">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="settings-group">
-                    <div class="settings-title">Axis Indicator</div>
-                    <div class="settings-option">
-                        <label for="axis-indicator-type">Display Mode</label>
-                        <select id="axis-indicator-type" class="settings-select">
-                            <option value="disabled" selected>Disabled</option>
-                            <option value="windowed">Windowed</option>
-                            <option value="embedded">Embedded</option>
-                        </select>
+                <!-- Settings Tab Navigation -->
+                <div class="settings-tabs">
+                    <button class="settings-tab-button active" data-tab="axis-settings">Axis Indicator</button>
+                    <button class="settings-tab-button" data-tab="rig-settings">Rig Options</button>
+                </div>
+                
+                <!-- Axis Indicator Settings Tab -->
+                <div id="axis-settings" class="settings-tab-content active">
+                    <div class="settings-group">
+                        <div class="settings-option">
+                            <label for="axis-indicator-type">Display Mode</label>
+                            <select id="axis-indicator-type" class="settings-select">
+                                <option value="disabled" selected>Disabled</option>
+                                <option value="windowed">Windowed</option>
+                                <option value="embedded">Embedded</option>
+                            </select>
+                        </div>
+                        <div id="embedded-axis-settings" class="settings-option" style="display: none;">
+                            <label for="axis-intensity">Background Intensity</label>
+                            <div class="slider-container">
+                                <input type="range" id="axis-intensity" min="0.1" max="1.0" step="0.1" value="0.7" class="settings-slider">
+                                <span id="axis-intensity-value">0.7</span>
+                            </div>
+                        </div>
                     </div>
-                    <div id="embedded-axis-settings" class="settings-option" style="display: none;">
-                        <label for="axis-intensity">Axis Intensity</label>
-                        <div class="slider-container">
-                            <input type="range" id="axis-intensity" min="0.1" max="1.0" step="0.1" value="0.7" class="settings-slider">
-                            <span id="axis-intensity-value">0.7</span>
+                </div>
+                
+                <!-- Rig Options Settings Tab -->
+                <div id="rig-settings" class="settings-tab-content">
+                    <div class="settings-group">
+                        <!-- First row - Toggle controls -->
+                        <div class="settings-row">
+                            <div class="settings-option">
+                                <label for="display-rig">Display Rig</label>
+                                <input type="checkbox" id="display-rig" class="settings-checkbox">
+                            </div>
+                            <div class="settings-option">
+                                <label for="force-z">Force Z-index</label>
+                                <input type="checkbox" id="force-z" class="settings-checkbox">
+                            </div>
+                        </div>
+                        
+                        <!-- Second row - Toggle controls -->
+                        <div class="settings-row">
+                            <div class="settings-option">
+                                <label for="fill-wireframe">Fill Wireframe</label>
+                                <input type="checkbox" id="fill-wireframe" class="settings-checkbox">
+                            </div>
+                            <div class="settings-option">
+                                <label for="show-joint-labels">Show Joint Labels</label>
+                                <input type="checkbox" id="show-joint-labels" class="settings-checkbox">
+                            </div>
+                        </div>
+                        
+                        <!-- Color settings - each on its own line -->
+                        <div class="settings-row">
+                            <div class="settings-option full-width">
+                                <label for="primary-color">Primary Color</label>
+                                <input type="color" id="primary-color" class="settings-color-picker">
+                            </div>
+                        </div>
+                        
+                        <div class="settings-row" id="secondary-color-option" style="display: none;">
+                            <div class="settings-option full-width">
+                                <label for="secondary-color">Secondary Color</label>
+                                <input type="color" id="secondary-color" class="settings-color-picker">
+                            </div>
+                        </div>
+                        
+                        <div class="settings-row">
+                            <div class="settings-option full-width">
+                                <label for="joint-color">Joint Color</label>
+                                <input type="color" id="joint-color" class="settings-color-picker">
+                            </div>
+                        </div>
+                        
+                        <!-- Reset Rig button on its own line at the bottom -->
+                        <div class="settings-row" style="margin-top: 20px;">
+                            <div class="settings-option full-width text-center">
+                                <button id="reset-rig" class="reset-button">Reset Rig</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -941,15 +1118,33 @@
             
             // Save settings
             saveSettingsBtn.addEventListener('click', function() {
-                // Get values from settings form
+                // Get values from axis indicator settings
                 const axisIndicatorType = document.getElementById('axis-indicator-type').value;
                 const axisIntensity = parseFloat(document.getElementById('axis-intensity').value);
                 
-                // For future implementation - store settings
+                // Get values from rig options settings
+                const displayRig = document.getElementById('display-rig').checked;
+                const forceZ = document.getElementById('force-z').checked;
+                const fillWireframe = document.getElementById('fill-wireframe').checked;
+                const primaryColor = document.getElementById('primary-color').value;
+                const secondaryColor = document.getElementById('secondary-color').value;
+                const jointColor = document.getElementById('joint-color').value;
+                const showJointLabels = document.getElementById('show-joint-labels').checked;
+                
+                // Store settings
                 const settings = {
                     axisIndicator: {
                         type: axisIndicatorType,
                         intensity: axisIntensity
+                    },
+                    rigOptions: {
+                        displayRig: displayRig,
+                        forceZ: forceZ,
+                        wireframe: !fillWireframe, // Invert logic - wireframe is opposite of fill
+                        primaryColor: parseInt(primaryColor.replace('#', '0x'), 16),
+                        secondaryColor: parseInt(secondaryColor.replace('#', '0x'), 16),
+                        jointColor: parseInt(jointColor.replace('#', '0x'), 16),
+                        showJointLabels: showJointLabels
                     }
                 };
                 
@@ -958,6 +1153,7 @@
                 
                 // Apply settings immediately
                 applyAxisIndicatorSetting(axisIndicatorType, axisIntensity);
+                applyRigOptionsSetting(settings.rigOptions);
                 
                 // Close the modal
                 closeSettingsModal();
@@ -974,6 +1170,15 @@
                         mode: type,
                         intensity: intensity
                     }
+                });
+                document.dispatchEvent(event);
+            }
+            
+            // Function to apply rig options settings
+            function applyRigOptionsSetting(options) {
+                // Trigger event to notify application of setting change
+                const event = new CustomEvent('rigOptionsChange', {
+                    detail: options
                 });
                 document.dispatchEvent(event);
             }
@@ -1013,12 +1218,92 @@
                             // Show/hide embedded settings based on selection
                             toggleEmbeddedSettings(settings.axisIndicator.type);
                         }
+                        
+                        // Apply rig options settings if available
+                        if (settings.rigOptions) {
+                            // Update the form values
+                            const displayRig = document.getElementById('display-rig');
+                            const forceZ = document.getElementById('force-z');
+                            const fillWireframe = document.getElementById('fill-wireframe');
+                            const primaryColor = document.getElementById('primary-color');
+                            const secondaryColor = document.getElementById('secondary-color');
+                            const jointColor = document.getElementById('joint-color');
+                            const showJointLabels = document.getElementById('show-joint-labels');
+                            
+                            if (displayRig && settings.rigOptions.displayRig !== undefined) {
+                                displayRig.checked = settings.rigOptions.displayRig;
+                            }
+                            
+                            if (forceZ && settings.rigOptions.forceZ !== undefined) {
+                                forceZ.checked = settings.rigOptions.forceZ;
+                            }
+                            
+                            if (fillWireframe && settings.rigOptions.wireframe !== undefined) {
+                                fillWireframe.checked = !settings.rigOptions.wireframe; // Invert logic
+                                toggleSecondaryColorVisibility(!settings.rigOptions.wireframe);
+                            }
+                            
+                            if (primaryColor && settings.rigOptions.primaryColor !== undefined) {
+                                primaryColor.value = '#' + settings.rigOptions.primaryColor.toString(16).padStart(6, '0');
+                            }
+                            
+                            if (secondaryColor && settings.rigOptions.secondaryColor !== undefined) {
+                                secondaryColor.value = '#' + settings.rigOptions.secondaryColor.toString(16).padStart(6, '0');
+                            }
+                            
+                            if (jointColor && settings.rigOptions.jointColor !== undefined) {
+                                jointColor.value = '#' + settings.rigOptions.jointColor.toString(16).padStart(6, '0');
+                            }
+                            
+                            if (showJointLabels && settings.rigOptions.showJointLabels !== undefined) {
+                                showJointLabels.checked = settings.rigOptions.showJointLabels;
+                            }
+                            
+                            // Apply the settings
+                            applyRigOptionsSetting(settings.rigOptions);
+                        } else {
+                            // Set default values for rig options
+                            initializeRigOptions();
+                        }
                     } catch (e) {
                         console.error('Error loading saved settings:', e);
+                        initializeRigOptions();
                     }
                 } else {
                     // No saved settings - apply defaults
                     applyAxisIndicatorSetting('disabled');
+                    initializeRigOptions();
+                }
+            }
+            
+            // Initialize default rig options
+            function initializeRigOptions() {
+                const displayRig = document.getElementById('display-rig');
+                const forceZ = document.getElementById('force-z');
+                const fillWireframe = document.getElementById('fill-wireframe');
+                const primaryColor = document.getElementById('primary-color');
+                const secondaryColor = document.getElementById('secondary-color');
+                const jointColor = document.getElementById('joint-color');
+                const showJointLabels = document.getElementById('show-joint-labels');
+                
+                // Set default values
+                if (displayRig) displayRig.checked = false;
+                if (forceZ) forceZ.checked = false;
+                if (fillWireframe) fillWireframe.checked = false;
+                if (primaryColor) primaryColor.value = '#FF00FF'; // Magenta
+                if (secondaryColor) secondaryColor.value = '#FFFF00'; // Yellow
+                if (jointColor) jointColor.value = '#00FFFF'; // Cyan
+                if (showJointLabels) showJointLabels.checked = false;
+                
+                // Hide secondary color option initially
+                toggleSecondaryColorVisibility(false);
+            }
+            
+            // Toggle secondary color visibility based on fill wireframe option
+            function toggleSecondaryColorVisibility(show) {
+                const secondaryColorOption = document.getElementById('secondary-color-option');
+                if (secondaryColorOption) {
+                    secondaryColorOption.style.display = show ? 'flex' : 'none';
                 }
             }
             
@@ -1029,6 +1314,8 @@
                     embeddedSettings.style.display = type === 'embedded' ? 'block' : 'none';
                 }
             }
+            
+            // Add event listeners for settings form controls
             
             // Add intensity slider change event
             const intensitySlider = document.getElementById('axis-intensity');
@@ -1047,6 +1334,35 @@
                 });
             }
             
+            // Add fill wireframe change event
+            const fillWireframe = document.getElementById('fill-wireframe');
+            if (fillWireframe) {
+                fillWireframe.addEventListener('change', function() {
+                    toggleSecondaryColorVisibility(this.checked);
+                });
+            }
+            
+            // Setup tabs in settings modal
+            const settingsTabs = document.querySelectorAll('.settings-tab-button');
+            settingsTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Remove active class from all tabs
+                    settingsTabs.forEach(t => t.classList.remove('active'));
+                    
+                    // Add active class to clicked tab
+                    this.classList.add('active');
+                    
+                    // Hide all tab content
+                    document.querySelectorAll('.settings-tab-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    
+                    // Show the selected tab content
+                    const tabId = this.getAttribute('data-tab');
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+            
             // Call on page load
             loadSavedSettings();
             
@@ -1055,6 +1371,15 @@
             returnToToolboxBtn.addEventListener('click', function() {
                 window.location.href = '../../';
             });
+            
+            // Add reset rig button event
+            const resetRigBtn = document.getElementById('reset-rig');
+            if (resetRigBtn) {
+                resetRigBtn.addEventListener('click', function() {
+                    const event = new CustomEvent('resetRig');
+                    document.dispatchEvent(event);
+                });
+            }
         });
     </script>
 </body>
