@@ -201,8 +201,8 @@
             height: 40px;
             background-color: #777;
             color: white;
-            margin-left: 10px;
             padding: 0;
+            margin-left: 10px;
         }
         
         .restart-button:hover {
@@ -213,7 +213,7 @@
             background-color: #555;
         }
         
-        #restart-container {
+        #debug-button-container {
             display: flex;
             align-items: center;
             flex-direction: row;
@@ -751,7 +751,7 @@
             <button id="start-debug" class="start-button" disabled>Start Debugging</button>
         </div>
         
-        <div id="restart-container" style="display: none;">
+        <div id="debug-button-container" style="display: none;">
             <button id="restart-debug" class="button-base restart-button">Restart</button>
             <button id="settings-button" class="button-base settings-button" aria-label="Settings">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -907,7 +907,7 @@
             // Set up restart button functionality
             const startDebugBtn = document.getElementById('start-debug');
             const uploadSection = document.getElementById('upload-section');
-            const restartContainer = document.getElementById('restart-container');
+            const restartContainer = document.getElementById('debug-button-container');
             const restartDebugBtn = document.getElementById('restart-debug');
             
             // Note: The start debug button functionality is now handled by the asset_debugger.js script
@@ -915,7 +915,7 @@
             startDebugBtn.addEventListener('click', function() {
                 // Hide upload section and show restart button
                 uploadSection.style.display = 'none';
-                restartContainer.style.display = 'block';
+                restartContainer.style.display = 'flex';
                 // The actual debugging initialization happens in the JavaScript module
             });
             
