@@ -18,33 +18,37 @@ export function createMaterial() {
     
     // Create a material configuration with available textures
     const materialConfig = {
-        roughness: 0.7,
-        metalness: 0.2,
-        normalScale: new THREE.Vector2(1, 1),
         side: THREE.DoubleSide // Make material double-sided
     };
     
-    // Only assign textures that are available
+    // Apply baseColor texture if available
     if (state.textureObjects.baseColor) {
         materialConfig.map = state.textureObjects.baseColor;
-        // If base color is available, set a reasonable color for areas that might not have texture
-        materialConfig.color = 0xffffff;
+        materialConfig.color = 0xffffff; // White color to let the texture show properly
     } else {
         // If no base color texture, use a light gray color
         materialConfig.color = 0xcccccc;
     }
     
+    // Apply normal map if available
     if (state.textureObjects.normal) {
         materialConfig.normalMap = state.textureObjects.normal;
+        materialConfig.normalScale = new THREE.Vector2(1, 1);
     }
     
+    // Apply ORM texture if available
     if (state.textureObjects.orm) {
+        // If we have the ORM texture, apply all its channels
         materialConfig.aoMap = state.textureObjects.orm;
         materialConfig.roughnessMap = state.textureObjects.orm;
         materialConfig.metalnessMap = state.textureObjects.orm;
         // When ORM is available, use its full range
         materialConfig.roughness = 1.0;
         materialConfig.metalness = 1.0;
+    } else {
+        // If we don't have ORM, use reasonable defaults
+        materialConfig.roughness = 0.7;
+        materialConfig.metalness = 0.2;
     }
     
     // Create material with properly configured textures

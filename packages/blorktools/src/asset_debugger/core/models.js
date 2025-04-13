@@ -18,17 +18,22 @@ import { updateUvPanel } from '../ui/uv-panel.js';
 export function createCube() {
     const state = getState();
     
-    // Create cube geometry with UV2 for aoMap only if ORM texture is available
+    // Create cube geometry
     const geometry = new THREE.BoxGeometry(1, 1, 1);
-    if (state.textureObjects.orm) {
+    
+    // Add UV2 coordinates for aoMap only if ORM texture is available
+    if (state.textureObjects.orm && state.textureObjects.orm.image) {
         geometry.attributes.uv2 = geometry.attributes.uv;
     }
     
-    // Create material with the loaded textures
+    // Create material with the loaded textures - will use whatever textures are available
     const material = createMaterial();
     
-    // For the default cube, conditionally enable transparency
-    applyTransparencySettings(material);
+    // Apply transparency settings if needed
+    if (state.textureObjects.baseColor && state.textureObjects.baseColor.image && 
+        hasTransparentPixels(state.textureObjects.baseColor.image)) {
+        applyTransparencySettings(material);
+    }
     
     // Create mesh and add to scene
     const cube = new THREE.Mesh(geometry, material);
@@ -48,10 +53,10 @@ export function createCube() {
     const atlasTab = document.getElementById('atlas-tab');
     const uvTab = document.getElementById('uv-tab');
     
-    if (atlasTab.classList.contains('active')) {
+    if (atlasTab && atlasTab.classList.contains('active')) {
         updateAtlasVisualization();
     }
-    if (uvTab.classList.contains('active')) {
+    if (uvTab && uvTab.classList.contains('active')) {
         updateUvPanel();
     }
 }
@@ -147,22 +152,9 @@ function processLoadedModel(gltf) {
         const model = gltf.scene;
         updateState('model', model);
         
-        // Create material based on whether textures are loaded
-        let baseMaterial;
-        if (state.textureObjects.baseColor && 
-            state.textureObjects.orm && 
-            state.textureObjects.normal) {
-            // Create material with loaded textures
-            baseMaterial = createMaterial();
-        } else {
-            // Create standard gray material when no textures are provided
-            baseMaterial = new THREE.MeshStandardMaterial({
-                color: 0x808080,
-                roughness: 0.7,
-                metalness: 0.2,
-                side: THREE.DoubleSide
-            });
-        }
+        // Always create material with the available textures
+        // Rather than requiring all textures to be present
+        const baseMaterial = createMaterial();
         
         // Process all meshes in the model
         const meshes = [];
@@ -174,21 +166,23 @@ function processLoadedModel(gltf) {
                 // Create a new material for this mesh
                 const material = baseMaterial.clone();
                 
-                // Only apply UV transformations if we have textures
+                // Apply UV transformations from the original material if both materials have maps
                 if (state.textureObjects.baseColor && originalMaterial.map && material.map) {
                     material.map.offset.copy(originalMaterial.map.offset);
                     material.map.repeat.copy(originalMaterial.map.repeat);
                     material.map.rotation = originalMaterial.map.rotation;
                 }
                 
-                // Apply transparency settings only if we have textures and originalMaterial was transparent
-                if (state.textureObjects.baseColor && 
-                    (originalMaterial.transparent || 
+                // Apply transparency settings based on both the original material and our base texture
+                const needsTransparency = 
+                    originalMaterial.transparent || 
                     (originalMaterial.map && originalMaterial.map.image && 
-                     hasTransparentPixels(originalMaterial.map.image)))) {
+                     hasTransparentPixels(originalMaterial.map.image)) ||
+                    (state.textureObjects.baseColor && hasTransparentPixels(state.textureObjects.baseColor.image));
+                
+                if (needsTransparency && state.textureObjects.baseColor) {
                     material.transparent = true;
                     material.alphaTest = 0.1;
-                    // Only set alphaMap if we actually need transparency
                     material.alphaMap = state.textureObjects.baseColor;
                 }
                 

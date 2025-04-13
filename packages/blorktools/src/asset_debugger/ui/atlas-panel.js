@@ -28,46 +28,74 @@ export function initAtlasPanel() {
 }
 
 /**
- * Update the atlas visualization
+ * Update the atlas visualization based on the selected texture type
  */
 export function updateAtlasVisualization() {
+    console.log('Updating atlas visualization...');
     const state = getState();
     
-    // Get the current texture type
-    const textureType = state.currentTextureType;
-    
-    // Get the texture for the current type
-    const texture = state.textureObjects[textureType];
-    
-    // Get the canvas element
-    const atlasCanvas = document.getElementById('atlas-canvas');
-    if (!atlasCanvas) return;
-    
-    // Update the canvas with the texture
-    if (texture && texture.image) {
-        updateCanvasWithTexture(texture, state.currentUvRegion);
-    } else {
-        showNoTextureState(atlasCanvas);
+    // Get active texture type from UI
+    const activeButton = document.querySelector('.texture-type-button.active');
+    if (!activeButton) {
+        console.error('No active texture type button found');
+        return;
     }
     
-    // Update active state of texture type buttons
-    const textureTypeButtons = document.querySelectorAll('.texture-type-button');
-    textureTypeButtons.forEach(button => {
-        if (button.dataset.textureType === textureType) {
-            button.classList.add('active');
-        } else {
-            button.classList.remove('active');
+    const selectedType = activeButton.getAttribute('data-texture-type');
+    console.log('Selected texture type:', selectedType);
+    
+    // Get the texture based on selected type
+    const texture = state.textureObjects[selectedType];
+    
+    // Check if we have the selected texture
+    if (!texture || !texture.image) {
+        // Show a message that this texture type is not available
+        const message = document.getElementById('atlas-content');
+        if (message) {
+            message.innerHTML = `<div class="atlas-placeholder">
+                <p>No ${selectedType} texture loaded.</p>
+                <p>Drag and drop a ${selectedType} texture file to visualize it here.</p>
+            </div>`;
         }
-        
-        // Indicate which texture types have data available
-        if (state.textureObjects[button.dataset.textureType]) {
-            button.style.opacity = '1.0';
-            button.style.fontWeight = 'bold';
-        } else {
-            button.style.opacity = '0.7';
-            button.style.fontWeight = 'normal';
+        // Clear the canvas if it exists
+        const canvas = document.getElementById('atlas-canvas');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
-    });
+        return;
+    }
+    
+    // Get the atlas canvas
+    const atlasCanvas = document.getElementById('atlas-canvas');
+    if (!atlasCanvas) {
+        console.error('Atlas canvas not found');
+        return;
+    }
+    
+    // Get 2D context and clear it
+    const ctx = atlasCanvas.getContext('2d');
+    
+    // Set the canvas size to match the texture 
+    atlasCanvas.width = texture.image.width;
+    atlasCanvas.height = texture.image.height;
+    
+    // Clear the canvas
+    ctx.clearRect(0, 0, atlasCanvas.width, atlasCanvas.height);
+    
+    // Draw the texture
+    ctx.drawImage(texture.image, 0, 0);
+    
+    // Update the canvas container size
+    const container = document.getElementById('atlas-canvas-container');
+    if (container) {
+        // Adjust container to fit the canvas with some padding
+        const padding = 20;
+        container.style.width = (atlasCanvas.width + padding) + 'px';
+        container.style.height = (atlasCanvas.height + padding) + 'px';
+    }
+    
+    console.log('Atlas visualization updated');
 }
 
 /**
