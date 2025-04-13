@@ -684,6 +684,23 @@
         .hidden-on-debug {
             display: none;
         }
+        
+        /* Settings styles */
+        .settings-slider {
+            width: 80%;
+            margin-right: 10px;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            margin-top: 5px;
+        }
+        
+        #axis-intensity-value {
+            min-width: 30px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -848,6 +865,13 @@
                             <option value="embedded">Embedded</option>
                         </select>
                     </div>
+                    <div id="embedded-axis-settings" class="settings-option" style="display: none;">
+                        <label for="axis-intensity">Axis Intensity</label>
+                        <div class="slider-container">
+                            <input type="range" id="axis-intensity" min="0.1" max="1.0" step="0.1" value="0.7" class="settings-slider">
+                            <span id="axis-intensity-value">0.7</span>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -919,11 +943,13 @@
             saveSettingsBtn.addEventListener('click', function() {
                 // Get values from settings form
                 const axisIndicatorType = document.getElementById('axis-indicator-type').value;
+                const axisIntensity = parseFloat(document.getElementById('axis-intensity').value);
                 
                 // For future implementation - store settings
                 const settings = {
                     axisIndicator: {
-                        type: axisIndicatorType
+                        type: axisIndicatorType,
+                        intensity: axisIntensity
                     }
                 };
                 
@@ -931,7 +957,7 @@
                 localStorage.setItem('assetDebuggerSettings', JSON.stringify(settings));
                 
                 // Apply settings immediately
-                applyAxisIndicatorSetting(axisIndicatorType);
+                applyAxisIndicatorSetting(axisIndicatorType, axisIntensity);
                 
                 // Close the modal
                 closeSettingsModal();
@@ -941,10 +967,13 @@
             });
             
             // Function to apply axis indicator settings
-            function applyAxisIndicatorSetting(type) {
+            function applyAxisIndicatorSetting(type, intensity = 0.7) {
                 // Trigger event to notify application of setting change
                 const event = new CustomEvent('axisIndicatorModeChange', {
-                    detail: { mode: type }
+                    detail: { 
+                        mode: type,
+                        intensity: intensity
+                    }
                 });
                 document.dispatchEvent(event);
             }
@@ -965,8 +994,24 @@
                                 axisIndicatorSelect.value = settings.axisIndicator.type;
                             }
                             
+                            // Update intensity slider if available
+                            if (settings.axisIndicator.intensity !== undefined) {
+                                const intensitySlider = document.getElementById('axis-intensity');
+                                const intensityValue = document.getElementById('axis-intensity-value');
+                                if (intensitySlider && intensityValue) {
+                                    intensitySlider.value = settings.axisIndicator.intensity;
+                                    intensityValue.textContent = settings.axisIndicator.intensity;
+                                }
+                            }
+                            
                             // Apply the setting
-                            applyAxisIndicatorSetting(settings.axisIndicator.type);
+                            applyAxisIndicatorSetting(
+                                settings.axisIndicator.type, 
+                                settings.axisIndicator.intensity || 0.7
+                            );
+                            
+                            // Show/hide embedded settings based on selection
+                            toggleEmbeddedSettings(settings.axisIndicator.type);
                         }
                     } catch (e) {
                         console.error('Error loading saved settings:', e);
@@ -975,6 +1020,31 @@
                     // No saved settings - apply defaults
                     applyAxisIndicatorSetting('disabled');
                 }
+            }
+            
+            // Toggle embedded settings visibility
+            function toggleEmbeddedSettings(type) {
+                const embeddedSettings = document.getElementById('embedded-axis-settings');
+                if (embeddedSettings) {
+                    embeddedSettings.style.display = type === 'embedded' ? 'block' : 'none';
+                }
+            }
+            
+            // Add intensity slider change event
+            const intensitySlider = document.getElementById('axis-intensity');
+            const intensityValue = document.getElementById('axis-intensity-value');
+            if (intensitySlider && intensityValue) {
+                intensitySlider.addEventListener('input', function() {
+                    intensityValue.textContent = this.value;
+                });
+            }
+            
+            // Add axis indicator type change event
+            const axisTypeSelect = document.getElementById('axis-indicator-type');
+            if (axisTypeSelect) {
+                axisTypeSelect.addEventListener('change', function() {
+                    toggleEmbeddedSettings(this.value);
+                });
             }
             
             // Call on page load

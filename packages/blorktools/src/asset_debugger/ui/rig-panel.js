@@ -2939,7 +2939,7 @@ function createAxisIndicator(scene, camera, renderer) {
             
             const lineMaterial = new THREE.LineBasicMaterial({ 
                 color: color,
-                linewidth: 20, // Much thicker line (increased from 12)
+                linewidth: 25, // Much thicker line (increased from 20)
                 depthTest: false,
                 transparent: true,
                 opacity: 1.0
@@ -2956,7 +2956,7 @@ function createAxisIndicator(scene, camera, renderer) {
             
             const dashedLineMaterial = new THREE.LineDashedMaterial({
                 color: color,
-                linewidth: 25, // Much thicker dashed line (increased from 15)
+                linewidth: 30, // Much thicker dashed line (increased from 25)
                 scale: 1,
                 dashSize: 0.2, // Larger dashes
                 gapSize: 0.05, // Smaller gaps
@@ -3067,7 +3067,8 @@ function createAxisIndicator(scene, camera, renderer) {
             zAxis: embeddedZAxis,
             centerSphere: embeddedCenterSphere,
             scale: axisScale,
-            active: true // Mark as active
+            active: true, // Mark as active
+            intensity: 0.7 // Default intensity
         };
         
         // Create a renderer for the embedded axis indicator
@@ -3106,16 +3107,27 @@ function createAxisIndicator(scene, camera, renderer) {
                 // Adjust opacity for background effect
                 const applyBackgroundOpacity = (obj) => {
                     if (obj.material) {
-                        obj.material.userData.originalOpacity = obj.material.userData.originalOpacity || obj.material.opacity;
-                        obj.material.opacity = obj.material.userData.originalOpacity * 0.3; // More visible
+                        // Use the stored intensity value
+                        const intensity = state.embeddedAxisIndicator.intensity || 0.7;
+                        obj.material.opacity = obj.material.originalOpacity * intensity;
                     }
                     if (obj.children) {
                         obj.children.forEach(child => applyBackgroundOpacity(child));
                     }
                 };
                 
-                // Apply transparency to all axes
-                embeddedAxisScene.children.forEach(obj => applyBackgroundOpacity(obj));
+                // Save original opacity values first time
+                if (!state.embeddedAxisIndicator.opacitySaved) {
+                    state.embeddedAxisIndicator.scene.traverse(obj => {
+                        if (obj.material && obj.material.opacity !== undefined) {
+                            obj.material.originalOpacity = obj.material.opacity;
+                        }
+                    });
+                    state.embeddedAxisIndicator.opacitySaved = true;
+                }
+                
+                // Apply transparency to all objects in embedded axis scene
+                state.embeddedAxisIndicator.scene.traverse(applyBackgroundOpacity);
                 
                 // Special settings for background rendering
                 renderer.autoClear = false;
@@ -3128,15 +3140,15 @@ function createAxisIndicator(scene, camera, renderer) {
                 
                 // Restore original material opacity
                 const restoreOpacity = (obj) => {
-                    if (obj.material && obj.material.userData.originalOpacity) {
-                        obj.material.opacity = obj.material.userData.originalOpacity;
+                    if (obj.material && obj.material.originalOpacity !== undefined) {
+                        obj.material.opacity = obj.material.originalOpacity;
                     }
                     if (obj.children) {
                         obj.children.forEach(child => restoreOpacity(child));
                     }
                 };
                 
-                embeddedAxisScene.children.forEach(obj => restoreOpacity(obj));
+                state.embeddedAxisIndicator.scene.traverse(restoreOpacity);
                 
                 // Reset settings for main scene render
                 renderer.autoClear = false; // Don't clear again
@@ -3243,7 +3255,8 @@ export { analyzeGltfModel, updateRigAnimation, updateAllBoneMatrices, updateRigP
 // Global event listener for axis indicator mode changes
 document.addEventListener('axisIndicatorModeChange', function(e) {
     const mode = e.detail.mode;
-    console.log('Axis indicator mode change event received:', mode);
+    const intensity = e.detail.intensity !== undefined ? e.detail.intensity : 0.7;
+    console.log('Axis indicator mode change event received:', mode, 'intensity:', intensity);
     
     // Get current scene, camera, and renderer from state
     const state = getState();
@@ -3290,6 +3303,11 @@ document.addEventListener('axisIndicatorModeChange', function(e) {
         } else {
             // Just reactivate it
             state.embeddedAxisIndicator.active = true;
+        }
+        
+        // Update intensity if provided
+        if (state.embeddedAxisIndicator && intensity !== undefined) {
+            state.embeddedAxisIndicator.intensity = intensity;
         }
     } else if (mode === 'disabled') {
         // Hide windowed version
