@@ -791,20 +791,20 @@ function handleDrag() {
         if (dragTarget === furthestBoneHandle && dragTarget.userData.controlledBone) {
             const controlledBone = dragTarget.userData.controlledBone;
             
-            // Skip IK if bone is locked
-            if (!lockedBones.has(controlledBone.uuid)) {
-                // Store current locked bone rotations
-                restoreLockedBoneRotations();
-                
-                // Use the moveBonesForTarget function to handle IK chain properly
-                moveBonesForTarget(controlledBone, planeIntersection);
-                
-                // Restore locked bone rotations again
-                restoreLockedBoneRotations();
-                
-                // Force immediate update of visual bone meshes during drag
-                updateBoneVisuals();
-            }
+            // Even if the controlled bone is locked, we still want to move other bones in the chain
+            // This is different from before - we don't check if the target bone is locked here
+            
+            // Store current locked bone rotations
+            restoreLockedBoneRotations();
+            
+            // Use the moveBonesForTarget function to handle IK chain properly
+            moveBonesForTarget(controlledBone, planeIntersection);
+            
+            // Restore locked bone rotations again
+            restoreLockedBoneRotations();
+            
+            // Force immediate update of visual bone meshes during drag
+            updateBoneVisuals();
         }
     }
 }
@@ -1779,7 +1779,7 @@ function applyIKToChain(boneChain, targetPosition) {
         for (let i = boneChain.length - 1; i >= 0; i--) {
             const bone = boneChain[i];
             
-            // Skip locked bones
+            // Skip locked bones during IK computation
             if (lockedBones.has(bone.uuid)) {
                 continue;
             }
@@ -1821,8 +1821,8 @@ function applyIKToChain(boneChain, targetPosition) {
             // Apply rotation around local axis
             bone.rotateOnAxis(localRotAxis, rotAngle);
             
-            // Update matrices
-            updateAllBoneMatrices();
+            // Update matrices for the entire chain
+            updateBoneChainMatrices(boneChain);
             
             // Check if we're close enough to the target
             const newEffectorPos = new THREE.Vector3();
@@ -1866,10 +1866,26 @@ function applyIKToChain(boneChain, targetPosition) {
             // Apply to the last bone's local rotation
             lastBone.quaternion.multiply(localQuat);
             
-            // Update matrices
-            updateAllBoneMatrices();
+            // Update matrices for the chain
+            updateBoneChainMatrices(boneChain);
         }
     }
+}
+
+/**
+ * Update matrices for a specific chain of bones
+ * This helps avoid unnecessary updates to the entire hierarchy
+ * @param {Array} boneChain - The bone chain to update
+ */
+function updateBoneChainMatrices(boneChain) {
+    if (!boneChain || boneChain.length === 0) return;
+    
+    boneChain.forEach(bone => {
+        if (bone.updateMatrix && bone.updateMatrixWorld) {
+            bone.updateMatrix();
+            bone.updateMatrixWorld(true);
+        }
+    });
 }
 
 /**
@@ -1901,14 +1917,36 @@ function moveBonesForTarget(targetBone, targetPosition) {
     
     console.log(`Applying IK to chain of ${boneChain.length} bones`);
     
-    // Restore locked bone rotations before applying IK
-    restoreLockedBoneRotations();
+    // Backup all bone rotations at the start
+    const rotationBackups = new Map();
+    boneChain.forEach(bone => {
+        // Store original rotation for all bones
+        rotationBackups.set(bone.uuid, {
+            bone: bone,
+            rotation: new THREE.Euler(
+                bone.rotation.x,
+                bone.rotation.y,
+                bone.rotation.z,
+                bone.rotation.order
+            )
+        });
+    });
     
-    // Apply IK to this chain
+    // Apply IK to this chain - but we'll modify it to handle locked bones properly
     applyIKToChain(boneChain, targetPosition);
     
-    // Restore locked bone rotations after applying IK
-    restoreLockedBoneRotations();
+    // Now restore only locked bones to their original rotation
+    boneChain.forEach(bone => {
+        if (lockedBones.has(bone.uuid)) {
+            const backup = rotationBackups.get(bone.uuid);
+            if (backup) {
+                bone.rotation.copy(backup.rotation);
+            }
+        }
+    });
+    
+    // Update all matrices to ensure the changes are applied
+    updateAllBoneMatrices();
 }
 
 /**
@@ -2105,6 +2143,31 @@ function clearJointLabels(scene) {
     const existingLabels = scene.getObjectByName("JointLabels");
     if (existingLabels) {
         scene.remove(existingLabels);
+    }
+}
+
+/**
+ * Update the bone visual meshes to match bone positions and rotations
+ */
+function updateBoneVisuals() {
+    // Update bone visuals
+    if (boneVisualsGroup) {
+        boneVisualsGroup.children.forEach(boneGroup => {
+            if (boneGroup.userData.updatePosition) {
+                boneGroup.userData.updatePosition();
+            }
+        });
+    }
+    
+    // Update joint labels if they exist
+    const state = getState();
+    const labelGroup = state.scene ? state.scene.getObjectByName("JointLabels") : null;
+    if (labelGroup) {
+        labelGroup.children.forEach(label => {
+            if (label.userData && label.userData.updatePosition) {
+                label.userData.updatePosition();
+            }
+        });
     }
 }
 
