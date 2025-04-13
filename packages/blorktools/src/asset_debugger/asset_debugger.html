@@ -177,22 +177,152 @@
             cursor: not-allowed;
         }
 
-        .restart-button {
-            display: block;
-            width: auto;
-            padding: 10px 20px;
-            background-color: var(--primary-color);
-            color: white;
+        .button-base {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 40px;
             border: none;
             border-radius: 4px;
-            font-size: 16px;
             cursor: pointer;
             transition: background-color 0.3s ease;
             margin: 10px 0;
         }
         
+        .restart-button {
+            padding: 10px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            font-size: 16px;
+        }
+        
+        .settings-button {
+            width: 40px;
+            height: 40px;
+            background-color: #777;
+            color: white;
+            margin-left: 10px;
+            padding: 0;
+        }
+        
         .restart-button:hover {
             background-color: #2980b9;
+        }
+        
+        .settings-button:hover {
+            background-color: #555;
+        }
+        
+        #restart-container {
+            display: flex;
+            align-items: center;
+            flex-direction: row;
+        }
+        
+        /* Modal styling */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        
+        .modal-container {
+            background-color: var(--panel-bg);
+            width: 400px;
+            max-width: 90%;
+            border-radius: 6px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .modal-title {
+            font-weight: bold;
+            font-size: 18px;
+            margin: 0;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--text-color);
+        }
+        
+        .modal-body {
+            padding: 20px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .modal-footer {
+            padding: 15px 20px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+        }
+        
+        .modal-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        
+        .modal-btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .modal-btn-secondary {
+            background-color: #777;
+            color: white;
+        }
+        
+        /* Settings styles */
+        .settings-group {
+            margin-bottom: 20px;
+        }
+        
+        .settings-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .settings-option {
+            margin-bottom: 10px;
+        }
+        
+        .settings-option label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .settings-select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background-color: var(--input-bg);
+            color: var(--input-text);
         }
         
         #viewport {
@@ -605,7 +735,12 @@
         </div>
         
         <div id="restart-container" style="display: none;">
-            <button id="restart-debug" class="restart-button">Restart</button>
+            <button id="restart-debug" class="button-base restart-button">Restart</button>
+            <button id="settings-button" class="button-base settings-button" aria-label="Settings">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M17.4039 10.9839C17.4373 10.6618 17.4373 10.3382 17.4039 10.0161L19.0039 8.7661C19.1706 8.63275 19.2239 8.41608 19.1373 8.23275L17.3039 5.10775C17.2173 4.92441 17.0039 4.84108 16.8206 4.92441L14.9373 5.69108C14.5039 5.35775 14.0373 5.09108 13.5373 4.89108L13.2706 2.89108C13.2373 2.69108 13.0706 2.55774 12.8706 2.55774H9.20394C9.00394 2.55774 8.83727 2.69108 8.80394 2.89108L8.53727 4.89108C8.03727 5.09108 7.57061 5.35775 7.13727 5.69108L5.25394 4.92441C5.07061 4.84108 4.85727 4.92441 4.77061 5.10775L2.93727 8.23275C2.85061 8.41608 2.90394 8.63275 3.07061 8.7661L4.67061 10.0161C4.63727 10.3382 4.63727 10.6618 4.67061 10.9839L3.07061 12.2339C2.90394 12.3672 2.85061 12.5839 2.93727 12.7672L4.77061 15.8922C4.85727 16.0755 5.07061 16.1589 5.25394 16.0755L7.13727 15.3089C7.57061 15.6422 8.03727 15.9089 8.53727 16.1089L8.80394 18.1089C8.83727 18.3089 9.00394 18.4422 9.20394 18.4422H12.8706C13.0706 18.4422 13.2373 18.3089 13.2706 18.1089L13.5373 16.1089C14.0373 15.9089 14.5039 15.6422 14.9373 15.3089L16.8206 16.0755C17.0039 16.1589 17.2173 16.0755 17.3039 15.8922L19.1373 12.7672C19.2239 12.5839 19.1706 12.3672 19.0039 12.2339L17.4039 10.9839ZM11.0373 13.8089C9.17061 13.8089 7.65394 12.2922 7.65394 10.4255C7.65394 8.55889 9.17061 7.04222 11.0373 7.04222C12.9039 7.04222 14.4206 8.55889 14.4206 10.4255C14.4206 12.2922 12.9039 13.8089 11.0373 13.8089Z" fill="white"/>
+                </svg>
+            </button>
         </div>
         
         <div class="view-container">
@@ -695,6 +830,33 @@
         </div>
     </div>
     
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 class="modal-title">Settings</h3>
+                <button class="modal-close" id="close-settings-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-group">
+                    <div class="settings-title">Axis Indicator</div>
+                    <div class="settings-option">
+                        <label for="axis-indicator-type">Display Mode</label>
+                        <select id="axis-indicator-type" class="settings-select">
+                            <option value="disabled" selected>Disabled</option>
+                            <option value="windowed">Windowed</option>
+                            <option value="embedded">Embedded</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-btn-secondary" id="cancel-settings">Cancel</button>
+                <button class="modal-btn modal-btn-primary" id="save-settings">Save Changes</button>
+            </div>
+        </div>
+    </div>
+    
     <script type="module" src="asset_debugger.js"></script>
     <script>
         // Theme toggle functionality
@@ -732,6 +894,91 @@
                 restartContainer.style.display = 'block';
                 // The actual debugging initialization happens in the JavaScript module
             });
+            
+            // Settings modal functionality
+            const settingsBtn = document.getElementById('settings-button');
+            const settingsModal = document.getElementById('settings-modal');
+            const closeSettingsBtn = document.getElementById('close-settings-modal');
+            const cancelSettingsBtn = document.getElementById('cancel-settings');
+            const saveSettingsBtn = document.getElementById('save-settings');
+            
+            // Open settings modal
+            settingsBtn.addEventListener('click', function() {
+                settingsModal.style.display = 'flex';
+            });
+            
+            // Close modal functions
+            function closeSettingsModal() {
+                settingsModal.style.display = 'none';
+            }
+            
+            closeSettingsBtn.addEventListener('click', closeSettingsModal);
+            cancelSettingsBtn.addEventListener('click', closeSettingsModal);
+            
+            // Save settings
+            saveSettingsBtn.addEventListener('click', function() {
+                // Get values from settings form
+                const axisIndicatorType = document.getElementById('axis-indicator-type').value;
+                
+                // For future implementation - store settings
+                const settings = {
+                    axisIndicator: {
+                        type: axisIndicatorType
+                    }
+                };
+                
+                // Store settings in localStorage
+                localStorage.setItem('assetDebuggerSettings', JSON.stringify(settings));
+                
+                // Apply settings immediately
+                applyAxisIndicatorSetting(axisIndicatorType);
+                
+                // Close the modal
+                closeSettingsModal();
+                
+                // Notify that settings were saved
+                console.log('Settings saved:', settings);
+            });
+            
+            // Function to apply axis indicator settings
+            function applyAxisIndicatorSetting(type) {
+                // Trigger event to notify application of setting change
+                const event = new CustomEvent('axisIndicatorModeChange', {
+                    detail: { mode: type }
+                });
+                document.dispatchEvent(event);
+            }
+            
+            // Load saved settings on startup
+            function loadSavedSettings() {
+                const savedSettings = localStorage.getItem('assetDebuggerSettings');
+                
+                if (savedSettings) {
+                    try {
+                        const settings = JSON.parse(savedSettings);
+                        
+                        // Apply axis indicator settings if available
+                        if (settings.axisIndicator && settings.axisIndicator.type) {
+                            // Update the dropdown to match saved setting
+                            const axisIndicatorSelect = document.getElementById('axis-indicator-type');
+                            if (axisIndicatorSelect) {
+                                axisIndicatorSelect.value = settings.axisIndicator.type;
+                            }
+                            
+                            // Apply the setting
+                            applyAxisIndicatorSetting(settings.axisIndicator.type);
+                        }
+                    } catch (e) {
+                        console.error('Error loading saved settings:', e);
+                    }
+                } else {
+                    // No saved settings - apply defaults
+                    applyAxisIndicatorSetting('disabled');
+                }
+            }
+            
+            // Call on page load
+            loadSavedSettings();
             
             // Return to Toolbox functionality
             const returnToToolboxBtn = document.getElementById('return-to-toolbox');

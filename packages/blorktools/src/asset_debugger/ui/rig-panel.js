@@ -56,6 +56,14 @@ const IK_CHAIN_LENGTH = 3; // Maximum bones in IK chain
 const IK_ITERATIONS = 10; // Number of IK solving iterations
 const IK_WEIGHT = 0.1; // Weight of each iteration adjustment (changed from 0.5 to 0.1 to match rig_debugger)
 
+// Add global variables to track collapse states
+let optionsCollapseState = false; // false = collapsed, true = expanded
+let detailsCollapseState = false; // false = collapsed, true = expanded
+
+// Add variables to track axis indicator state
+let axisIndicatorCollapsed = false;
+let axisIndicatorPosition = { x: null, y: null }; // null means use default position
+
 /**
  * Analyze the rig data in a GLTF model
  * @param {Object} gltf - The loaded GLTF model data
@@ -76,7 +84,8 @@ function analyzeGltfModel(gltf) {
         bones: [],
         rigs: [],
         roots: [],
-        controls: [] // Handles/Controls
+        controls: [], // Handles/Controls
+        joints: []    // Add joints array to store joint data
     };
     
     // Extract scene information
@@ -148,7 +157,8 @@ function analyzeGltfModel(gltf) {
         bones: deduplicateItems(rawDetails.bones),
         rigs: deduplicateItems(rawDetails.rigs),
         roots: deduplicateItems(rawDetails.roots),
-        controls: deduplicateItems(rawDetails.controls)
+        controls: deduplicateItems(rawDetails.controls),
+        joints: deduplicateItems(rawDetails.joints)
     };
     
     console.log('Rig analysis results:', result);
@@ -315,6 +325,12 @@ function createRigVisualization(model, scene) {
     boneVisualsGroup.visible = rigOptions.displayRig;
     scene.add(boneVisualsGroup);
     
+    // Create axis indicator
+    const state = getState();
+    if (state.renderer && state.camera) {
+        createAxisIndicator(scene, state.camera, state.renderer);
+    }
+    
     // Group bones by parent for easier bone pair creation
     const bonesByParent = new Map();
     
@@ -402,6 +418,17 @@ function createRigVisualization(model, scene) {
                 // Add update function
                 boneGroup.userData.isVisualBone = true;
                 boneGroup.userData.updatePosition = createBoneUpdateFunction(boneGroup);
+                
+                // Store the joint data for the rig details panel
+                if (rigDetails && rigDetails.joints) {
+                    rigDetails.joints.push({
+                        name: `Joint_${bone.name}_to_${childBone.name}`,
+                        parentBone: bone.name,
+                        childBone: childBone.name,
+                        position: [bonePos.x, bonePos.y, bonePos.z],
+                        count: 1
+                    });
+                }
             }
         });
     });
@@ -451,6 +478,18 @@ function createRigVisualization(model, scene) {
                 rootGroup.position.copy(pos);
             }
         };
+        
+        // Store the root joint data for the rig details panel
+        if (rigDetails && rigDetails.joints) {
+            rigDetails.joints.push({
+                name: `Root_Joint_${rootBone.name}`,
+                parentBone: "Scene Root",
+                childBone: rootBone.name,
+                position: [rootPos.x, rootPos.y, rootPos.z],
+                count: 1,
+                isRoot: true
+            });
+        }
         
         console.log(`Root visualization created for ${rootBone.name}`);
     });
@@ -1054,6 +1093,9 @@ function updateRigVisualization() {
         createJointLabels(state.scene);
     }
     
+    // Refresh the joints data
+    refreshJointsData();
+    
     // Update primary and secondary colors and wireframe state
     if (boneMaterial) {
         boneMaterial.color.setHex(rigOptions.primaryColor);
@@ -1255,12 +1297,49 @@ function createRigDetailsContent(container, details) {
     optionsSection.style.backgroundColor = 'rgba(0,0,0,0.03)';
     optionsSection.style.borderRadius = '5px';
     
+    // Create header with collapse functionality for Rig Options
+    const optionsHeader = document.createElement('div');
+    optionsHeader.style.display = 'flex';
+    optionsHeader.style.alignItems = 'center';
+    optionsHeader.style.cursor = 'pointer';
+    optionsHeader.style.userSelect = 'none';
+    
+    // Create collapse indicator
+    const optionsCollapseIndicator = document.createElement('span');
+    optionsCollapseIndicator.textContent = optionsCollapseState ? '▼' : '▶'; // Use stored state
+    optionsCollapseIndicator.style.marginRight = '8px';
+    optionsCollapseIndicator.style.fontSize = '12px';
+    optionsCollapseIndicator.style.transition = 'transform 0.2s';
+    
     const optionsTitle = document.createElement('h3');
     optionsTitle.textContent = 'Rig Options';
     optionsTitle.style.margin = '0 0 10px 0';
     optionsTitle.style.fontSize = '16px';
+    optionsTitle.style.flex = '1';
     optionsTitle.style.borderBottom = '1px solid var(--border-color)';
-    optionsSection.appendChild(optionsTitle);
+    
+    optionsHeader.appendChild(optionsCollapseIndicator);
+    optionsHeader.appendChild(optionsTitle);
+    optionsSection.appendChild(optionsHeader);
+    
+    // Create content container for options (use stored collapse state)
+    const optionsContent = document.createElement('div');
+    optionsContent.style.display = optionsCollapseState ? 'block' : 'none'; // Use stored state
+    optionsContent.style.transition = 'height 0.2s';
+    optionsContent.style.overflow = 'hidden';
+    optionsSection.appendChild(optionsContent);
+    
+    // Add click handler to toggle collapse
+    optionsHeader.addEventListener('click', () => {
+        optionsCollapseState = !optionsCollapseState; // Toggle stored state
+        if (optionsCollapseState) {
+            optionsContent.style.display = 'block';
+            optionsCollapseIndicator.textContent = '▼'; // Down arrow (expanded)
+        } else {
+            optionsContent.style.display = 'none';
+            optionsCollapseIndicator.textContent = '▶'; // Right arrow (collapsed)
+        }
+    });
     
     // Display Rig checkbox
     const displayRigOption = createOptionToggle(
@@ -1271,7 +1350,7 @@ function createRigDetailsContent(container, details) {
             updateRigVisualization();
             
             // Show/hide other options based on the Display Rig setting
-            const optionsToToggle = optionsSection.querySelectorAll('.toggle-with-rig');
+            const optionsToToggle = optionsContent.querySelectorAll('.toggle-with-rig');
             optionsToToggle.forEach(option => {
                 // Special handling for secondaryColorOption - only show when both displayRig is true AND wireframe is false
                 if (option === secondaryColorOption) {
@@ -1282,7 +1361,7 @@ function createRigDetailsContent(container, details) {
             });
         }
     );
-    optionsSection.appendChild(displayRigOption);
+    optionsContent.appendChild(displayRigOption);
     
     // Force Z checkbox (toggled with rig visibility)
     const forceZOption = createOptionToggle(
@@ -1295,7 +1374,7 @@ function createRigDetailsContent(container, details) {
     );
     forceZOption.classList.add('toggle-with-rig');
     forceZOption.style.display = rigOptions.displayRig ? 'flex' : 'none';
-    optionsSection.appendChild(forceZOption);
+    optionsContent.appendChild(forceZOption);
     
     // Fill wireframe checkbox (toggled with rig visibility)
     const wireframeOption = createOptionToggle(
@@ -1314,7 +1393,7 @@ function createRigDetailsContent(container, details) {
     );
     wireframeOption.classList.add('toggle-with-rig');
     wireframeOption.style.display = rigOptions.displayRig ? 'flex' : 'none';
-    optionsSection.appendChild(wireframeOption);
+    optionsContent.appendChild(wireframeOption);
     
     // Primary Color picker (toggled with rig visibility)
     const primaryColorOption = createColorOption(
@@ -1327,7 +1406,7 @@ function createRigDetailsContent(container, details) {
     );
     primaryColorOption.classList.add('toggle-with-rig');
     primaryColorOption.style.display = rigOptions.displayRig ? 'flex' : 'none';
-    optionsSection.appendChild(primaryColorOption);
+    optionsContent.appendChild(primaryColorOption);
     
     // Secondary Color picker (only visible if Fill wireframe is checked AND rig is visible)
     const secondaryColorOption = createColorOption(
@@ -1349,7 +1428,7 @@ function createRigDetailsContent(container, details) {
         secondaryColorOption.style.display = 'flex';
     }
     
-    optionsSection.appendChild(secondaryColorOption);
+    optionsContent.appendChild(secondaryColorOption);
     
     // Joint Color picker (toggled with rig visibility)
     const jointColorOption = createColorOption(
@@ -1362,7 +1441,7 @@ function createRigDetailsContent(container, details) {
     );
     jointColorOption.classList.add('toggle-with-rig');
     jointColorOption.style.display = rigOptions.displayRig ? 'flex' : 'none';
-    optionsSection.appendChild(jointColorOption);
+    optionsContent.appendChild(jointColorOption);
     
     // Add joint labels toggle after joint color picker
     const jointLabelsOption = createOptionToggle(
@@ -1375,7 +1454,7 @@ function createRigDetailsContent(container, details) {
     );
     jointLabelsOption.classList.add('toggle-with-rig');
     jointLabelsOption.style.display = rigOptions.displayRig ? 'flex' : 'none';
-    optionsSection.appendChild(jointLabelsOption);
+    optionsContent.appendChild(jointLabelsOption);
     
     // Add Reset Rig button at the bottom of rig options
     const resetContainer = document.createElement('div');
@@ -1408,17 +1487,64 @@ function createRigDetailsContent(container, details) {
     });
     
     resetContainer.appendChild(resetButton);
-    optionsSection.appendChild(resetContainer);
+    optionsContent.appendChild(resetContainer);
     
     container.appendChild(optionsSection);
     
-    // Create Rig Details title
+    // Create Rig Details section (collapsible)
+    const detailsSection = document.createElement('div');
+    detailsSection.className = 'rig-details-section';
+    detailsSection.style.marginBottom = '20px';
+    detailsSection.style.padding = '10px';
+    detailsSection.style.backgroundColor = 'rgba(0,0,0,0.03)';
+    detailsSection.style.borderRadius = '5px';
+    
+    // Create header with collapse functionality for Rig Details
+    const detailsHeader = document.createElement('div');
+    detailsHeader.style.display = 'flex';
+    detailsHeader.style.alignItems = 'center';
+    detailsHeader.style.cursor = 'pointer';
+    detailsHeader.style.userSelect = 'none';
+    detailsHeader.style.marginBottom = '10px';
+    
+    // Create collapse indicator
+    const detailsCollapseIndicator = document.createElement('span');
+    detailsCollapseIndicator.textContent = detailsCollapseState ? '▼' : '▶'; // Use stored state
+    detailsCollapseIndicator.style.marginRight = '8px';
+    detailsCollapseIndicator.style.fontSize = '12px';
+    detailsCollapseIndicator.style.transition = 'transform 0.2s';
+    
     const detailsTitle = document.createElement('h3');
     detailsTitle.textContent = 'Rig Details';
-    detailsTitle.style.margin = '20px 0 10px 0';
+    detailsTitle.style.margin = '0';
     detailsTitle.style.fontSize = '16px';
+    detailsTitle.style.flex = '1';
     detailsTitle.style.borderBottom = '1px solid var(--border-color)';
-    container.appendChild(detailsTitle);
+    
+    detailsHeader.appendChild(detailsCollapseIndicator);
+    detailsHeader.appendChild(detailsTitle);
+    detailsSection.appendChild(detailsHeader);
+    
+    // Create content container for details (use stored collapse state)
+    const detailsContent = document.createElement('div');
+    detailsContent.style.display = detailsCollapseState ? 'block' : 'none'; // Use stored state
+    detailsContent.style.transition = 'height 0.2s';
+    detailsContent.style.overflow = 'hidden';
+    detailsSection.appendChild(detailsContent);
+    
+    // Add click handler to toggle collapse
+    detailsHeader.addEventListener('click', () => {
+        detailsCollapseState = !detailsCollapseState; // Toggle stored state
+        if (detailsCollapseState) {
+            detailsContent.style.display = 'block';
+            detailsCollapseIndicator.textContent = '▼'; // Down arrow (expanded)
+        } else {
+            detailsContent.style.display = 'none';
+            detailsCollapseIndicator.textContent = '▶'; // Right arrow (collapsed)
+        }
+    });
+    
+    container.appendChild(detailsSection);
     
     const createSection = (title, items) => {
         const section = document.createElement('div');
@@ -1490,6 +1616,80 @@ function createRigDetailsContent(container, details) {
                     itemElem.appendChild(typeElem);
                 }
                 
+                // Special handling for Joints section
+                if (title === 'Joints') {
+                    if (item.isRoot) {
+                        const rootElem = document.createElement('div');
+                        rootElem.style.fontSize = '10px';
+                        rootElem.style.color = '#8800cc'; // Purple color for root joint
+                        rootElem.style.fontWeight = 'bold';
+                        rootElem.textContent = 'Root Joint';
+                        rootElem.style.backgroundColor = 'rgba(136, 0, 204, 0.1)';
+                        rootElem.style.padding = '2px 4px';
+                        rootElem.style.borderRadius = '3px';
+                        rootElem.style.display = 'inline-block';
+                        rootElem.style.marginTop = '2px';
+                        itemElem.appendChild(rootElem);
+                    }
+                    
+                    if (item.parentBone) {
+                        const parentElem = document.createElement('div');
+                        parentElem.style.fontSize = '10px';
+                        parentElem.style.color = '#0088cc'; // Blue color for parent bone
+                        parentElem.style.fontWeight = 'bold';
+                        parentElem.textContent = `Parent: ${item.parentBone}`;
+                        itemElem.appendChild(parentElem);
+                    }
+                    
+                    if (item.childBone) {
+                        const childElem = document.createElement('div');
+                        childElem.style.fontSize = '10px';
+                        childElem.style.color = '#cc8800'; // Amber color for child bone
+                        childElem.style.fontWeight = 'bold';
+                        childElem.textContent = `Child: ${item.childBone}`;
+                        itemElem.appendChild(childElem);
+                    }
+                    
+                    // Add joint type dropdown
+                    const jointTypeContainer = document.createElement('div');
+                    jointTypeContainer.style.display = 'flex';
+                    jointTypeContainer.style.alignItems = 'center';
+                    jointTypeContainer.style.marginTop = '5px';
+                    
+                    const jointTypeLabel = document.createElement('label');
+                    jointTypeLabel.textContent = 'Joint Type:';
+                    jointTypeLabel.style.fontSize = '10px';
+                    jointTypeLabel.style.marginRight = '5px';
+                    jointTypeLabel.style.color = '#666';
+                    
+                    const jointTypeSelect = document.createElement('select');
+                    jointTypeSelect.style.fontSize = '10px';
+                    jointTypeSelect.style.backgroundColor = 'rgba(0,0,0,0.05)';
+                    jointTypeSelect.style.border = '1px solid #444';
+                    jointTypeSelect.style.borderRadius = '3px';
+                    jointTypeSelect.style.color = '#ddd';
+                    jointTypeSelect.style.padding = '2px 5px';
+                    
+                    // For now, only one option
+                    const sphericalOption = document.createElement('option');
+                    sphericalOption.value = 'spherical';
+                    sphericalOption.textContent = 'Spherical';
+                    jointTypeSelect.appendChild(sphericalOption);
+                    
+                    // Store the current joint type in the user data
+                    jointTypeSelect.value = item.jointType || 'spherical';
+                    
+                    // Add event listener to update jointType when changed
+                    jointTypeSelect.addEventListener('change', () => {
+                        // Update the joint type in the item data
+                        item.jointType = jointTypeSelect.value;
+                    });
+                    
+                    jointTypeContainer.appendChild(jointTypeLabel);
+                    jointTypeContainer.appendChild(jointTypeSelect);
+                    itemElem.appendChild(jointTypeContainer);
+                }
+                
                 // Add bone associations for control points
                 if (title === 'Controls/Handles') {
                     const associatedBone = findAssociatedBone(item.name, details.bones);
@@ -1556,10 +1756,15 @@ function createRigDetailsContent(container, details) {
     };
     
     // Create sections for each type of element
-    container.appendChild(createSection('Bones', details.bones));
-    container.appendChild(createSection('Rigs', details.rigs));
-    container.appendChild(createSection('Roots', details.roots));
-    container.appendChild(createSection('Controls/Handles', details.controls));
+    detailsContent.appendChild(createSection('Bones', details.bones));
+    
+    // Add Joints section after Bones
+    const jointsData = details.joints || [];
+    detailsContent.appendChild(createSection('Joints', jointsData));
+    
+    detailsContent.appendChild(createSection('Rigs', details.rigs));
+    detailsContent.appendChild(createSection('Roots', details.roots));
+    detailsContent.appendChild(createSection('Controls/Handles', details.controls));
 }
 
 /**
@@ -2190,5 +2395,912 @@ function updateBoneVisuals() {
     }
 }
 
+/**
+ * Refresh the joints data based on the current bone visualizations
+ */
+function refreshJointsData() {
+    // Clear existing joints data
+    if (rigDetails && rigDetails.joints) {
+        // Keep track of joint types from the existing data
+        const jointTypeMap = {};
+        rigDetails.joints.forEach(joint => {
+            if (joint.name && joint.jointType) {
+                jointTypeMap[joint.name] = joint.jointType;
+            }
+        });
+        
+        rigDetails.joints = [];
+        
+        // Collect joint data from all bone visualizations
+        if (boneVisualsGroup) {
+            boneVisualsGroup.traverse(object => {
+                if (object.userData && object.userData.isVisualBone) {
+                    // Get the parent and child bones
+                    const parentBone = object.userData.parentBone;
+                    const childBone = object.userData.childBone;
+                    
+                    if (parentBone && childBone) {
+                        // Regular joint between parent and child
+                        const jointName = `Joint_${parentBone.name}_to_${childBone.name}`;
+                        rigDetails.joints.push({
+                            name: jointName,
+                            parentBone: parentBone.name,
+                            childBone: childBone.name,
+                            position: [object.position.x, object.position.y, object.position.z],
+                            count: 1,
+                            jointType: jointTypeMap[jointName] || 'spherical' // Preserve existing type or use default
+                        });
+                    } else if (object.userData.rootBone) {
+                        // Root joint
+                        const rootBone = object.userData.rootBone;
+                        const jointName = `Root_Joint_${rootBone.name}`;
+                        rigDetails.joints.push({
+                            name: jointName,
+                            parentBone: "Scene Root",
+                            childBone: rootBone.name,
+                            position: [object.position.x, object.position.y, object.position.z],
+                            count: 1,
+                            isRoot: true,
+                            jointType: jointTypeMap[jointName] || 'spherical' // Preserve existing type or use default
+                        });
+                    }
+                }
+            });
+        }
+        
+        // Deduplicate the joints data
+        rigDetails.joints = deduplicateItems(rigDetails.joints);
+    }
+}
+
+/**
+ * Create a coordinate axis indicator that blends into the scene
+ * @param {Object} scene - The Three.js scene
+ * @param {Object} camera - The Three.js camera
+ * @param {Object} renderer - The Three.js renderer
+ */
+function createAxisIndicator(scene, camera, renderer) {
+    console.log('Creating modern axis indicator');
+    
+    // Create a new scene for the axis indicator
+    const axisScene = new THREE.Scene();
+    // Make background transparent to blend with main scene
+    axisScene.background = null;
+    
+    // Create a camera for the axis indicator with wider field of view
+    const axisCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 20);
+    axisCamera.position.set(0, 0, 5); // Position even further back to ensure all axes visible
+    axisCamera.lookAt(0, 0, 0);
+    
+    // Create modern axes
+    const createAxis = (dir, color) => {
+        const group = new THREE.Group();
+        
+        // Create line for positive axis direction
+        const lineGeometry = new THREE.BufferGeometry();
+        // Make line slightly shorter to leave space for arrow
+        const endPoint = new THREE.Vector3(dir.x, dir.y, dir.z).multiplyScalar(0.85);
+        lineGeometry.setAttribute('position', 
+            new THREE.Float32BufferAttribute([0, 0, 0, endPoint.x, endPoint.y, endPoint.z], 3));
+        
+        const lineMaterial = new THREE.LineBasicMaterial({ 
+            color: color,
+            linewidth: 8,  // Increased from 5 to 8
+            depthTest: false,
+            transparent: true,
+            opacity: 1.0
+        });
+        
+        const line = new THREE.Line(lineGeometry, lineMaterial);
+        group.add(line);
+        
+        // Create negative axis direction (thicker, more visible dotted line)
+        const negLineGeometry = new THREE.BufferGeometry();
+        const negDir = new THREE.Vector3(-dir.x, -dir.y, -dir.z).multiplyScalar(0.85); // Increased from 0.7
+        negLineGeometry.setAttribute('position', 
+            new THREE.Float32BufferAttribute([0, 0, 0, negDir.x, negDir.y, negDir.z], 3));
+        
+        const dashedLineMaterial = new THREE.LineDashedMaterial({
+            color: color,
+            linewidth: 10, // Increased from 8
+            scale: 1,
+            dashSize: 0.18, // Increased from 0.15
+            gapSize: 0.07,
+            depthTest: false,
+            transparent: true,
+            opacity: 0.9  // Increased from 0.8
+        });
+        
+        const dashedLine = new THREE.Line(negLineGeometry, dashedLineMaterial);
+        dashedLine.computeLineDistances(); // Required for dashed lines
+        group.add(dashedLine);
+        
+        // Create modern arrow head (smaller)
+        const arrowGeometry = new THREE.CylinderGeometry(0, 0.1, 0.25, 8, 1); // Reduced from 0.15, 0.35
+        const arrowMaterial = new THREE.MeshBasicMaterial({ 
+            color: color,
+            transparent: true,
+            opacity: 1.0,
+            depthTest: false
+        });
+        
+        const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+        
+        // Position at the end of the line
+        arrow.position.copy(dir);
+        
+        // Rotate arrow to point in the right direction
+        if (dir.x === 1) {
+            arrow.rotation.z = -Math.PI / 2;
+        } else if (dir.y === 1) {
+            // Default orientation works for Y
+        } else if (dir.z === 1) {
+            arrow.rotation.x = Math.PI / 2;
+        }
+        
+        group.add(arrow);
+        
+        // Create text label
+        const text = dir.x === 1 ? 'X' : dir.y === 1 ? 'Y' : 'Z';
+        const canvas = document.createElement('canvas');
+        canvas.width = 192;  // Increased from 128 to 192
+        canvas.height = 192; // Increased from 128 to 192
+        const ctx = canvas.getContext('2d');
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw text with a subtle glow effect
+        ctx.font = 'bold 90px Arial'; // Increased from 68px to 90px
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Add a subtle glow effect
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;  // Increased from 8 to 10
+        ctx.fillStyle = color;
+        ctx.fillText(text, canvas.width/2, canvas.height/2);
+        
+        const texture = new THREE.CanvasTexture(canvas);
+        const spriteMaterial = new THREE.SpriteMaterial({
+            map: texture,
+            transparent: true,
+            depthTest: false
+        });
+        
+        const sprite = new THREE.Sprite(spriteMaterial);
+        // Position text beyond the arrow
+        sprite.position.copy(dir).multiplyScalar(1.5); // Increased from 1.4 to 1.5
+        sprite.scale.set(0.6, 0.6, 0.6); // Increased from 0.45 to 0.6
+        
+        group.add(sprite);
+        
+        return group;
+    };
+    
+    // Create the three axes with modern colors
+    const xAxis = createAxis(new THREE.Vector3(1, 0, 0), '#ff4136'); // Vibrant red
+    const yAxis = createAxis(new THREE.Vector3(0, 1, 0), '#2ecc40'); // Vibrant green
+    const zAxis = createAxis(new THREE.Vector3(0, 0, 1), '#0074d9'); // Vibrant blue
+    
+    axisScene.add(xAxis);
+    axisScene.add(yAxis);
+    axisScene.add(zAxis);
+    
+    // Add a subtle center dot
+    const centerGeometry = new THREE.SphereGeometry(0.06, 16, 16); // Increased from 0.04, 12, 12
+    const centerMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.9,  // Increased from 0.8
+        depthTest: false
+    });
+    const centerSphere = new THREE.Mesh(centerGeometry, centerMaterial);
+    axisScene.add(centerSphere);
+    
+    // Store references for cleanup later if needed
+    const state = getState();
+    state.axisScene = axisScene;
+    state.axisCamera = axisCamera;
+    
+    // Find the correct viewport container (using the viewport ID)
+    let viewportContainer = document.getElementById('viewport');
+    
+    // Fallback to direct parent if viewport not found
+    if (!viewportContainer) {
+        console.log('Viewport element not found, using renderer parent');
+        viewportContainer = renderer.domElement.closest('#viewport') || 
+                          renderer.domElement.closest('#view-container') ||
+                          renderer.domElement.closest('.view-panel') ||
+                          renderer.domElement.parentElement;
+    }
+    
+    console.log('Found viewport container:', viewportContainer);
+    
+    // Size for the axis indicator (proportional to viewport size)
+    const size = Math.min(180, viewportContainer.offsetWidth / 4);
+    
+    // Create container for the entire axis indicator (header + display)
+    const axisContainer = document.createElement('div');
+    axisContainer.id = 'axis-indicator-container';
+    axisContainer.style.position = 'absolute';
+    axisContainer.style.width = `${size}px`;
+    axisContainer.style.zIndex = '1000';
+    axisContainer.style.pointerEvents = 'auto';
+    axisContainer.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+    axisContainer.style.border = '1px solid rgba(50, 50, 50, 0.7)';
+    axisContainer.style.borderRadius = '5px';
+    axisContainer.style.overflow = 'hidden';
+    
+    // Initial position (top-right corner of the viewport)
+    const margin = 10;
+    if (axisIndicatorPosition.x === null || axisIndicatorPosition.y === null) {
+        axisIndicatorPosition.x = viewportContainer.offsetWidth - size - margin;
+        axisIndicatorPosition.y = margin;
+    }
+    
+    axisContainer.style.left = `${axisIndicatorPosition.x}px`;
+    axisContainer.style.top = `${axisIndicatorPosition.y}px`;
+    
+    // Create the header
+    const header = document.createElement('div');
+    header.id = 'axis-indicator-header';
+    header.style.backgroundColor = 'rgba(30, 30, 30, 0.7)';
+    header.style.color = 'white';
+    header.style.padding = '5px 10px';
+    header.style.cursor = 'grab';
+    header.style.userSelect = 'none';
+    header.style.display = 'flex';
+    header.style.alignItems = 'center';
+    header.style.justifyContent = 'space-between';
+    header.style.width = '100%'; // Full width
+    header.style.boxSizing = 'border-box'; // Include padding in width calculation
+    
+    // Add title
+    const title = document.createElement('span');
+    title.textContent = 'Axis Indicator';
+    title.style.fontWeight = 'bold';
+    title.style.fontSize = '12px';
+    
+    // Add collapse/expand button
+    const collapseBtn = document.createElement('span');
+    collapseBtn.textContent = axisIndicatorCollapsed ? '▼' : '▲';
+    collapseBtn.style.fontSize = '12px';
+    collapseBtn.style.cursor = 'pointer';
+    collapseBtn.style.marginLeft = '10px';
+    collapseBtn.style.width = '15px';
+    collapseBtn.style.textAlign = 'center';
+    
+    // Add collapse functionality
+    collapseBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent triggering drag
+        axisIndicatorCollapsed = !axisIndicatorCollapsed;
+        collapseBtn.textContent = axisIndicatorCollapsed ? '▼' : '▲';
+        
+        // Toggle display area visibility directly
+        const canvasContainer = document.getElementById('axis-indicator-canvas-container');
+        if (canvasContainer) {
+            canvasContainer.style.display = axisIndicatorCollapsed ? 'none' : 'block';
+            // Update container height when collapsed/expanded
+            updateContainerHeight();
+        }
+    });
+    
+    // Add elements to header
+    header.appendChild(title);
+    header.appendChild(collapseBtn);
+    
+    // Create canvas container for the indicator display
+    const canvasContainer = document.createElement('div');
+    canvasContainer.id = 'axis-indicator-canvas-container';
+    canvasContainer.style.width = `${size}px`;
+    canvasContainer.style.height = `${size}px`;
+    canvasContainer.style.backgroundColor = 'rgba(0, 0, 0, 0)';
+    canvasContainer.style.display = axisIndicatorCollapsed ? 'none' : 'block';
+    
+    // Add both elements to the container
+    axisContainer.appendChild(header);
+    axisContainer.appendChild(canvasContainer);
+    
+    // Add the container to the viewport
+    viewportContainer.appendChild(axisContainer);
+    
+    // Function to update container height based on collapsed state
+    function updateContainerHeight() {
+        if (axisIndicatorCollapsed) {
+            axisContainer.style.height = `${header.offsetHeight}px`;
+        } else {
+            axisContainer.style.height = 'auto';
+        }
+    }
+    
+    // Call once to set initial height
+    updateContainerHeight();
+    
+    // Store scale factor for axis objects
+    let axisScale = 1.0;
+    const scaleMin = 0.5;
+    const scaleMax = 3.0;
+    
+    // Add zoom functionality when hovering over the indicator
+    canvasContainer.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        
+        // Determine zoom direction
+        const delta = Math.sign(-e.deltaY);
+        
+        // Adjust scale factor
+        axisScale += delta * 0.15;
+        axisScale = Math.max(scaleMin, Math.min(scaleMax, axisScale));
+        
+        // Apply scale to all axis objects
+        xAxis.scale.set(axisScale, axisScale, axisScale);
+        yAxis.scale.set(axisScale, axisScale, axisScale);
+        zAxis.scale.set(axisScale, axisScale, axisScale);
+        centerSphere.scale.set(axisScale, axisScale, axisScale);
+        
+        console.log(`Axis scale: ${axisScale.toFixed(2)}`);
+    });
+    
+    // Make the header draggable (moves the entire container)
+    let isDragging = false;
+    let startX, startY;
+    let startLeft, startTop;
+    
+    header.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        startLeft = parseInt(axisContainer.style.left);
+        startTop = parseInt(axisContainer.style.top);
+        header.style.cursor = 'grabbing';
+        
+        e.preventDefault();
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        
+        const newLeft = startLeft + dx;
+        const newTop = startTop + dy;
+        
+        // Get current viewport container dimensions
+        const containerRect = viewportContainer.getBoundingClientRect();
+        const maxLeft = containerRect.width - axisContainer.offsetWidth;
+        const maxTop = containerRect.height - axisContainer.offsetHeight;
+        
+        const constrainedLeft = Math.max(0, Math.min(newLeft, maxLeft));
+        const constrainedTop = Math.max(0, Math.min(newTop, maxTop));
+        
+        axisContainer.style.left = `${constrainedLeft}px`;
+        axisContainer.style.top = `${constrainedTop}px`;
+        
+        // Update stored position
+        axisIndicatorPosition.x = constrainedLeft;
+        axisIndicatorPosition.y = constrainedTop;
+    });
+    
+    document.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            header.style.cursor = 'grab';
+        }
+    });
+    
+    // Create a separate renderer for the axis scene
+    const axisRenderer = new THREE.WebGLRenderer({ 
+        alpha: true, 
+        antialias: true 
+    });
+    axisRenderer.setSize(size, size);
+    axisRenderer.setClearColor(0x000000, 0);
+    
+    // Add the renderer to the container
+    canvasContainer.appendChild(axisRenderer.domElement);
+    
+    // Store renderer reference 
+    axisScene.renderer = axisRenderer;
+    
+    // Add a render callback to draw the axis indicator
+    const originalRender = renderer.render;
+    renderer.render = function(scene, camera) {
+        // Call original render with main scene and camera
+        originalRender.call(this, scene, camera);
+        
+        // Skip rendering if collapsed or container was removed
+        const canvasContainer = document.getElementById('axis-indicator-canvas-container');
+        if (axisIndicatorCollapsed || !canvasContainer) {
+            return;
+        }
+        
+        // Update rotation to match main camera
+        if (state.camera) {
+            const cameraDir = new THREE.Vector3(0, 0, -1).applyQuaternion(state.camera.quaternion);
+            const distance = axisCamera.position.length();
+            axisCamera.position.copy(cameraDir).negate().multiplyScalar(distance);
+            axisCamera.lookAt(0, 0, 0);
+        }
+        
+        // Apply semi-transparency when overlaying content
+        const applyTransparency = (obj, factor) => {
+            if (obj.material) {
+                obj.material.opacity = obj.material.opacity * factor;
+            }
+            if (obj.children) {
+                obj.children.forEach(child => applyTransparency(child, factor));
+            }
+        };
+        
+        // Apply transparency to all objects in axis scene
+        axisScene.children.forEach(obj => applyTransparency(obj, 0.7));
+        
+        // Render axis scene with its own renderer
+        axisRenderer.render(axisScene, axisCamera);
+        
+        // Reset transparency after rendering
+        axisScene.children.forEach(obj => {
+            const resetOpacity = (o) => {
+                if (o.material && o.material.opacity) {
+                    o.material.opacity = o.material.opacity / 0.7;
+                }
+                if (o.children) {
+                    o.children.forEach(child => resetOpacity(child));
+                }
+            };
+            resetOpacity(obj);
+        });
+    };
+    
+    console.log('Modern axis indicator created with draggable header');
+    
+    // Reset transparency after rendering
+    axisScene.children.forEach(obj => {
+        const resetOpacity = (o) => {
+            if (o.material && o.material.opacity) {
+                o.material.opacity = o.material.opacity / 0.7;
+            }
+            if (o.children) {
+                o.children.forEach(child => resetOpacity(child));
+            }
+        };
+        resetOpacity(obj);
+    });
+    
+    // Create axis indicator mode event listener
+    document.addEventListener('axisIndicatorModeChange', function(e) {
+        const mode = e.detail.mode;
+        console.log('Axis indicator mode changed to:', mode);
+        
+        // Toggle between windowed, embedded, and disabled modes
+        if (mode === 'embedded') {
+            // Hide windowed version if it exists
+            const axisContainer = document.getElementById('axis-indicator-container');
+            if (axisContainer) {
+                axisContainer.style.display = 'none';
+            }
+            
+            // Create embedded version
+            createEmbeddedAxisIndicator(scene, camera, renderer);
+        } else if (mode === 'disabled') {
+            // Hide windowed version if it exists
+            const axisContainer = document.getElementById('axis-indicator-container');
+            if (axisContainer) {
+                axisContainer.style.display = 'none';
+            }
+            
+            // Remove embedded version if it exists
+            removeEmbeddedAxisIndicator();
+        } else {
+            // Show windowed version if it exists
+            const axisContainer = document.getElementById('axis-indicator-container');
+            if (axisContainer) {
+                axisContainer.style.display = 'block';
+            }
+            
+            // Remove embedded version if it exists
+            removeEmbeddedAxisIndicator();
+        }
+    });
+    
+    // Function to create embedded axis indicator
+    function createEmbeddedAxisIndicator(scene, camera, renderer) {
+        // Check if we already have an embedded axis indicator
+        const state = getState();
+        if (state.embeddedAxisIndicator) {
+            return;
+        }
+        
+        console.log('Creating embedded axis indicator');
+        
+        // Create a new scene for the embedded axis indicator
+        const embeddedAxisScene = new THREE.Scene();
+        embeddedAxisScene.background = null; // Transparent background
+        
+        // Create a camera for the embedded axis indicator with wide FOV
+        const embeddedAxisCamera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+        embeddedAxisCamera.position.set(0, 0, 15); // Scaled back for better visibility
+        embeddedAxisCamera.lookAt(0, 0, 0);
+        
+        // Create appropriately sized axes for background
+        const axisScale = 6.0; // Reduced scale by 25% (from 8.0 to 6.0)
+        
+        // Create a modified axis creation function with thicker lines and smaller cones
+        const createEmbeddedAxis = (dir, color) => {
+            const group = new THREE.Group();
+            
+            // Create line for positive axis direction - MUCH THICKER
+            const lineGeometry = new THREE.BufferGeometry();
+            const endPoint = new THREE.Vector3(dir.x, dir.y, dir.z).multiplyScalar(0.92); // Longer line
+            lineGeometry.setAttribute('position', 
+                new THREE.Float32BufferAttribute([0, 0, 0, endPoint.x, endPoint.y, endPoint.z], 3));
+            
+            const lineMaterial = new THREE.LineBasicMaterial({ 
+                color: color,
+                linewidth: 20, // Much thicker line (increased from 12)
+                depthTest: false,
+                transparent: true,
+                opacity: 1.0
+            });
+            
+            const line = new THREE.Line(lineGeometry, lineMaterial);
+            group.add(line);
+            
+            // Create negative axis direction with thicker dashed line
+            const negLineGeometry = new THREE.BufferGeometry();
+            const negDir = new THREE.Vector3(-dir.x, -dir.y, -dir.z).multiplyScalar(0.92); // Longer line
+            negLineGeometry.setAttribute('position', 
+                new THREE.Float32BufferAttribute([0, 0, 0, negDir.x, negDir.y, negDir.z], 3));
+            
+            const dashedLineMaterial = new THREE.LineDashedMaterial({
+                color: color,
+                linewidth: 25, // Much thicker dashed line (increased from 15)
+                scale: 1,
+                dashSize: 0.2, // Larger dashes
+                gapSize: 0.05, // Smaller gaps
+                depthTest: false,
+                transparent: true,
+                opacity: 0.9
+            });
+            
+            const dashedLine = new THREE.Line(negLineGeometry, dashedLineMaterial);
+            dashedLine.computeLineDistances(); // Required for dashed lines
+            group.add(dashedLine);
+            
+            // Create very small arrow head (cone)
+            const arrowGeometry = new THREE.CylinderGeometry(0, 0.05, 0.15, 6, 1); // Tiny cone
+            const arrowMaterial = new THREE.MeshBasicMaterial({ 
+                color: color,
+                transparent: true,
+                opacity: 1.0,
+                depthTest: false
+            });
+            
+            const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+            
+            // Position at the end of the line
+            arrow.position.copy(dir);
+            
+            // Rotate arrow to point in the right direction
+            if (dir.x === 1) {
+                arrow.rotation.z = -Math.PI / 2;
+            } else if (dir.y === 1) {
+                // Default orientation works for Y
+            } else if (dir.z === 1) {
+                arrow.rotation.x = Math.PI / 2;
+            }
+            
+            group.add(arrow);
+            
+            // Create larger and more visible text label
+            const text = dir.x === 1 ? 'X' : dir.y === 1 ? 'Y' : 'Z';
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; // Larger canvas for clearer text
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw text with a stronger glow effect
+            ctx.font = 'bold 96px Arial'; // Larger font
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Add a stronger glow effect
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 15;
+            ctx.fillStyle = color;
+            ctx.fillText(text, canvas.width/2, canvas.height/2);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMaterial = new THREE.SpriteMaterial({
+                map: texture,
+                transparent: true,
+                depthTest: false
+            });
+            
+            const sprite = new THREE.Sprite(spriteMaterial);
+            // Position text closer to the arrow tip
+            sprite.position.copy(dir).multiplyScalar(1.2); // Reduced from 1.6 to bring labels closer
+            sprite.scale.set(0.6, 0.6, 0.6); // Reduced label size by 25% (from 0.8 to 0.6)
+            
+            group.add(sprite);
+            
+            return group;
+        };
+        
+        // Create the three axes using our embedded axis creation function
+        const embeddedXAxis = createEmbeddedAxis(new THREE.Vector3(1, 0, 0), '#ff4136'); // Red
+        const embeddedYAxis = createEmbeddedAxis(new THREE.Vector3(0, 1, 0), '#2ecc40'); // Green
+        const embeddedZAxis = createEmbeddedAxis(new THREE.Vector3(0, 0, 1), '#0074d9'); // Blue
+        
+        // Scale up the axes for visibility while keeping proportions reasonable
+        embeddedXAxis.scale.set(axisScale, axisScale, axisScale);
+        embeddedYAxis.scale.set(axisScale, axisScale, axisScale);
+        embeddedZAxis.scale.set(axisScale, axisScale, axisScale);
+        
+        // Add axes to the embedded scene
+        embeddedAxisScene.add(embeddedXAxis);
+        embeddedAxisScene.add(embeddedYAxis);
+        embeddedAxisScene.add(embeddedZAxis);
+        
+        // Create a smaller center reference point
+        const embeddedCenterGeometry = new THREE.SphereGeometry(0.05 * axisScale, 16, 16);
+        const embeddedCenterMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.9,
+            depthTest: false
+        });
+        const embeddedCenterSphere = new THREE.Mesh(embeddedCenterGeometry, embeddedCenterMaterial);
+        embeddedAxisScene.add(embeddedCenterSphere);
+        
+        // Store references
+        state.embeddedAxisIndicator = {
+            scene: embeddedAxisScene,
+            camera: embeddedAxisCamera,
+            xAxis: embeddedXAxis,
+            yAxis: embeddedYAxis,
+            zAxis: embeddedZAxis,
+            centerSphere: embeddedCenterSphere,
+            scale: axisScale,
+            active: true // Mark as active
+        };
+        
+        // Create a renderer for the embedded axis indicator
+        const originalRender = renderer.render;
+        
+        // Replace the renderer.render method
+        renderer.render = function(mainScene, mainCamera) {
+            // Check if embedded axis indicator is active
+            if (state.embeddedAxisIndicator && state.embeddedAxisIndicator.active) {
+                // First clear the renderer with black background
+                const oldClearColor = renderer.getClearColor(new THREE.Color());
+                const oldClearAlpha = renderer.getClearAlpha();
+                
+                // Save auto clear settings
+                const oldAutoClear = renderer.autoClear;
+                const oldAutoClearColor = renderer.autoClearColor;
+                const oldAutoClearDepth = renderer.autoClearDepth;
+                const oldAutoClearStencil = renderer.autoClearStencil;
+                
+                // Clear with black background
+                renderer.setClearColor(0x000000, 1);
+                renderer.clear(); // Clear everything
+                
+                // Update embedded camera to match main camera rotation
+                if (mainCamera) {
+                    const cameraDir = new THREE.Vector3(0, 0, -1).applyQuaternion(mainCamera.quaternion);
+                    const distance = embeddedAxisCamera.position.length();
+                    embeddedAxisCamera.position.copy(cameraDir).negate().multiplyScalar(distance);
+                    embeddedAxisCamera.lookAt(0, 0, 0);
+                    
+                    // Match aspect ratio
+                    embeddedAxisCamera.aspect = mainCamera.aspect;
+                    embeddedAxisCamera.updateProjectionMatrix();
+                }
+                
+                // Adjust opacity for background effect
+                const applyBackgroundOpacity = (obj) => {
+                    if (obj.material) {
+                        obj.material.userData.originalOpacity = obj.material.userData.originalOpacity || obj.material.opacity;
+                        obj.material.opacity = obj.material.userData.originalOpacity * 0.3; // More visible
+                    }
+                    if (obj.children) {
+                        obj.children.forEach(child => applyBackgroundOpacity(child));
+                    }
+                };
+                
+                // Apply transparency to all axes
+                embeddedAxisScene.children.forEach(obj => applyBackgroundOpacity(obj));
+                
+                // Special settings for background rendering
+                renderer.autoClear = false;
+                renderer.autoClearDepth = true;
+                renderer.autoClearColor = false;
+                renderer.autoClearStencil = false;
+                
+                // Render the axis scene first (as background)
+                originalRender.call(this, embeddedAxisScene, embeddedAxisCamera);
+                
+                // Restore original material opacity
+                const restoreOpacity = (obj) => {
+                    if (obj.material && obj.material.userData.originalOpacity) {
+                        obj.material.opacity = obj.material.userData.originalOpacity;
+                    }
+                    if (obj.children) {
+                        obj.children.forEach(child => restoreOpacity(child));
+                    }
+                };
+                
+                embeddedAxisScene.children.forEach(obj => restoreOpacity(obj));
+                
+                // Reset settings for main scene render
+                renderer.autoClear = false; // Don't clear again
+                renderer.setClearColor(oldClearColor, oldClearAlpha);
+                
+                // Now render the main scene on top
+                originalRender.call(this, mainScene, mainCamera);
+                
+                // Restore original settings
+                renderer.autoClear = oldAutoClear;
+                renderer.autoClearColor = oldAutoClearColor;
+                renderer.autoClearDepth = oldAutoClearDepth;
+                renderer.autoClearStencil = oldAutoClearStencil;
+            } else {
+                // If embedded mode not active, just render normally
+                originalRender.call(this, mainScene, mainCamera);
+            }
+        };
+        
+        console.log('Full-screen embedded axis indicator created successfully');
+    }
+    
+    // Function to remove embedded axis indicator
+    function removeEmbeddedAxisIndicator() {
+        const state = getState();
+        
+        if (state.embeddedAxisIndicator) {
+            console.log('Removing embedded axis indicator');
+            
+            // Mark as inactive first (easier than restoring the render function)
+            state.embeddedAxisIndicator.active = false;
+            
+            // Clean up objects
+            state.embeddedAxisIndicator.scene = null;
+            state.embeddedAxisIndicator.camera = null;
+            state.embeddedAxisIndicator = null;
+        }
+    }
+    
+    // Check for saved settings to initialize correct mode
+    const savedSettings = localStorage.getItem('assetDebuggerSettings');
+    if (savedSettings) {
+        try {
+            const settings = JSON.parse(savedSettings);
+            if (settings.axisIndicator && settings.axisIndicator.type) {
+                const mode = settings.axisIndicator.type;
+                
+                // Handle saved setting
+                if (mode === 'disabled') {
+                    // Hide the axis indicator
+                    const axisContainer = document.getElementById('axis-indicator-container');
+                    if (axisContainer) {
+                        axisContainer.style.display = 'none';
+                    }
+                } else if (mode === 'embedded') {
+                    // Create embedded indicator on initialization and make sure the windowed one is hidden
+                    const axisContainer = document.getElementById('axis-indicator-container');
+                    if (axisContainer) {
+                        axisContainer.style.display = 'none';
+                    }
+                    
+                    // Force the creation of the embedded indicator
+                    setTimeout(() => {
+                        createEmbeddedAxisIndicator(scene, camera, renderer);
+                        console.log('Embedded axis indicator created from saved settings');
+                    }, 100);
+                }
+                // Default for 'windowed' is to show the windowed indicator (no action needed)
+            } else {
+                // Default to disabled if no setting is found
+                const axisContainer = document.getElementById('axis-indicator-container');
+                if (axisContainer) {
+                    axisContainer.style.display = 'none';
+                }
+            }
+        } catch (e) {
+            console.error('Error loading saved axis indicator settings:', e);
+            // Default to disabled on error
+            const axisContainer = document.getElementById('axis-indicator-container');
+            if (axisContainer) {
+                axisContainer.style.display = 'none';
+            }
+        }
+    } else {
+        // No saved settings - default to disabled
+        const axisContainer = document.getElementById('axis-indicator-container');
+        if (axisContainer) {
+            axisContainer.style.display = 'none';
+        }
+    }
+    
+    // Draw a debug log to confirm axis indicator creation complete
+    console.log('Modern axis indicator setup complete', {
+        windowed: savedSettings && JSON.parse(savedSettings)?.axisIndicator?.type === 'windowed',
+        embedded: savedSettings && JSON.parse(savedSettings)?.axisIndicator?.type === 'embedded',
+        disabled: !savedSettings || !JSON.parse(savedSettings)?.axisIndicator?.type || 
+                  JSON.parse(savedSettings)?.axisIndicator?.type === 'disabled'
+    });
+}
+
 // Export functions
-export { analyzeGltfModel, updateRigAnimation, updateAllBoneMatrices, updateRigPanel }; 
+export { analyzeGltfModel, updateRigAnimation, updateAllBoneMatrices, updateRigPanel };
+
+// Global event listener for axis indicator mode changes
+document.addEventListener('axisIndicatorModeChange', function(e) {
+    const mode = e.detail.mode;
+    console.log('Axis indicator mode change event received:', mode);
+    
+    // Get current scene, camera, and renderer from state
+    const state = getState();
+    const scene = state.scene;
+    const camera = state.camera;
+    const renderer = state.renderer;
+    
+    if (!scene || !camera || !renderer) {
+        console.error('Cannot change axis indicator mode: scene, camera or renderer not available', {
+            scene: !!scene,
+            camera: !!camera,
+            renderer: !!renderer,
+        });
+        return;
+    }
+    
+    // Apply the mode change
+    if (mode === 'windowed') {
+        // Hide embedded version
+        if (state.embeddedAxisIndicator) {
+            state.embeddedAxisIndicator.active = false;
+        }
+        
+        // Show windowed version if it exists (or create it)
+        if (!state.axisScene) {
+            createAxisIndicator(scene, camera, renderer);
+        }
+        
+        // Show the windowed version
+        const axisContainer = document.getElementById('axis-indicator-container');
+        if (axisContainer) {
+            axisContainer.style.display = 'block';
+        }
+    } else if (mode === 'embedded') {
+        // Hide windowed version
+        const axisContainer = document.getElementById('axis-indicator-container');
+        if (axisContainer) {
+            axisContainer.style.display = 'none';
+        }
+        
+        // Check if we need to create the embedded indicator
+        if (!state.embeddedAxisIndicator) {
+            createEmbeddedAxisIndicator(scene, camera, renderer);
+        } else {
+            // Just reactivate it
+            state.embeddedAxisIndicator.active = true;
+        }
+    } else if (mode === 'disabled') {
+        // Hide windowed version
+        const axisContainer = document.getElementById('axis-indicator-container');
+        if (axisContainer) {
+            axisContainer.style.display = 'none';
+        }
+        
+        // Deactivate embedded version
+        if (state.embeddedAxisIndicator) {
+            state.embeddedAxisIndicator.active = false;
+        }
+    }
+});

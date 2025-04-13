@@ -84,7 +84,7 @@ function setupTabNavigation() {
             uvTab.classList.remove('active');
             rigTab.classList.remove('active');
             
-            // Update atlas visualization
+            // Update atlas visualization without recreating everything
             import('./ui/atlas-panel.js').then(module => {
                 if (module.updateAtlasVisualization) {
                     module.updateAtlasVisualization();
@@ -107,7 +107,7 @@ function setupTabNavigation() {
             uvTab.classList.add('active');
             rigTab.classList.remove('active');
             
-            // Update UV panel
+            // Update UV panel without recreating everything
             import('./ui/uv-panel.js').then(module => {
                 if (module.updateUvPanel) {
                     module.updateUvPanel();
@@ -130,10 +130,14 @@ function setupTabNavigation() {
             uvTab.classList.remove('active');
             rigTab.classList.add('active');
             
-            // Update Rig panel
+            // We don't need to recreate the rig panel each time, just ensure visualization is up to date
             import('./ui/rig-panel.js').then(module => {
-                if (module.updateRigPanel) {
-                    module.updateRigPanel();
+                // Only update the panel if it hasn't been initialized yet
+                if (document.getElementById('rig-content') && 
+                    document.getElementById('rig-content').children.length === 0) {
+                    if (module.updateRigPanel) {
+                        module.updateRigPanel();
+                    }
                 }
             });
         });
