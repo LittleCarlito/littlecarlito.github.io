@@ -67,6 +67,10 @@ let detailsCollapseState = false; // false = collapsed, true = expanded
 let axisIndicatorCollapsed = false;
 let axisIndicatorPosition = { x: null, y: null }; // null means use default position
 
+// Add global variable to track joint changes
+let jointChanges = false;
+let originalJointTypes = new Map(); // Store original joint types
+
 /**
  * Analyze the rig data in a GLTF model
  * @param {Object} gltf - The loaded GLTF model data
@@ -1568,10 +1572,21 @@ function createRigDetailsContent(container, details) {
                     // Store the current joint type in the user data
                     jointTypeSelect.value = item.jointType || 'spherical';
                     
+                    // Store original joint type for change detection
+                    if (!originalJointTypes.has(item.name)) {
+                        originalJointTypes.set(item.name, jointTypeSelect.value);
+                    }
+                    
                     // Add event listener to update jointType when changed
                     jointTypeSelect.addEventListener('change', () => {
                         // Update the joint type in the item data
                         item.jointType = jointTypeSelect.value;
+                        
+                        // Check if this is a change from the original value
+                        const hasChanged = originalJointTypes.get(item.name) !== jointTypeSelect.value;
+                        
+                        // Update the jointChanges flag and the apply button state
+                        updateJointChangesState();
                     });
                     
                     jointTypeContainer.appendChild(jointTypeLabel);
@@ -1639,6 +1654,34 @@ function createRigDetailsContent(container, details) {
                 
                 section.appendChild(itemElem);
             });
+            
+            // Add Apply Changes button at the bottom of the Joints section
+            if (title === 'Joints' && items.length > 0) {
+                const buttonContainer = document.createElement('div');
+                buttonContainer.style.marginTop = '10px';
+                buttonContainer.style.display = 'flex';
+                buttonContainer.style.justifyContent = 'center';
+                
+                const applyButton = document.createElement('button');
+                applyButton.id = 'apply-joint-changes-button';
+                applyButton.textContent = 'Apply Changes';
+                applyButton.style.padding = '6px 12px';
+                applyButton.style.backgroundColor = 'rgba(0,0,0,0.2)';
+                applyButton.style.color = '#ccc';
+                applyButton.style.border = '1px solid #444';
+                applyButton.style.borderRadius = '3px';
+                applyButton.style.fontSize = '12px';
+                applyButton.style.cursor = 'not-allowed';
+                applyButton.style.opacity = '0.5';
+                applyButton.disabled = true;
+                
+                applyButton.addEventListener('click', () => {
+                    applyJointChanges();
+                });
+                
+                buttonContainer.appendChild(applyButton);
+                section.appendChild(buttonContainer);
+            }
         }
         
         return section;
@@ -2341,6 +2384,74 @@ function refreshJointsData() {
         
         // Deduplicate the joints data
         rigDetails.joints = deduplicateItems(rigDetails.joints);
+    }
+    
+    // Update the joint changes state after refreshing
+    updateJointChangesState();
+}
+
+/**
+ * Apply changes made to joint settings
+ */
+function applyJointChanges() {
+    // Reset change tracking
+    jointChanges = false;
+    originalJointTypes = new Map();
+    
+    // Store current joint types as the new originals
+    if (rigDetails && rigDetails.joints) {
+        rigDetails.joints.forEach(joint => {
+            if (joint.name && joint.jointType) {
+                originalJointTypes.set(joint.name, joint.jointType);
+            }
+        });
+    }
+    
+    // Update the Apply button state
+    updateJointChangesState();
+    
+    // Refresh the joints data (and any necessary visualizations)
+    refreshJointsData();
+    
+    // Additional implementation for applying joint type changes would go here
+    // This would depend on how joint types affect the rig's behavior
+    console.log('Joint changes applied');
+}
+
+/**
+ * Check for joint changes and update the apply button state
+ */
+function updateJointChangesState() {
+    // Check if any joint's current type differs from its original type
+    jointChanges = false;
+    
+    if (rigDetails && rigDetails.joints) {
+        for (const joint of rigDetails.joints) {
+            if (joint.name && originalJointTypes.has(joint.name)) {
+                if (joint.jointType !== originalJointTypes.get(joint.name)) {
+                    jointChanges = true;
+                    break;
+                }
+            }
+        }
+    }
+    
+    // Update the apply button state
+    const applyButton = document.getElementById('apply-joint-changes-button');
+    if (applyButton) {
+        if (jointChanges) {
+            applyButton.disabled = false;
+            applyButton.style.backgroundColor = 'rgba(66, 133, 244, 0.8)';
+            applyButton.style.color = 'white';
+            applyButton.style.cursor = 'pointer';
+            applyButton.style.opacity = '1';
+        } else {
+            applyButton.disabled = true;
+            applyButton.style.backgroundColor = 'rgba(0,0,0,0.2)';
+            applyButton.style.color = '#ccc';
+            applyButton.style.cursor = 'not-allowed';
+            applyButton.style.opacity = '0.5';
+        }
     }
 }
 
