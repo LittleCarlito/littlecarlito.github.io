@@ -16,12 +16,25 @@ let raycaster = new THREE.Raycaster();
 let mouse = new THREE.Vector2();
 let hoveredHandle = null;
 
+// Reusable objects for position and rotation operations
+let worldPos = new THREE.Vector3();
+let worldRot = new THREE.Quaternion();
+
+// Drag state tracking
+let isDragging = false;
+let dragStartPosition = new THREE.Vector3();
+let dragPlane = new THREE.Plane();
+let dragOffset = new THREE.Vector3();
+let dragTarget = null;
+let dragTargetPosition = new THREE.Vector3();
+
 // Map to track locked bones
 const lockedBones = new Map();
 
 // Material colors
 const normalColor = 0xff0000; // Red
 const hoverColor = 0x00ff00;  // Green
+const activeColor = 0x0000ff; // Blue - for when dragging
 
 // Rig options
 const rigOptions = {
@@ -30,12 +43,18 @@ const rigOptions = {
     wireframe: true,
     primaryColor: 0xFF00FF, // Magenta
     secondaryColor: 0xFFFF00, // Yellow
-    jointColor: 0x00FFFF // Cyan
+    jointColor: 0x00FFFF, // Cyan
+    showJointLabels: false // Default to hidden
 };
 
 // Material references
 let boneMaterial = null;
 let boneSideMaterial = null;
+
+// IK settings
+const IK_CHAIN_LENGTH = 3; // Maximum bones in IK chain
+const IK_ITERATIONS = 10; // Number of IK solving iterations
+const IK_WEIGHT = 0.1; // Weight of each iteration adjustment (changed from 0.5 to 0.1 to match rig_debugger)
 
 /**
  * Analyze the rig data in a GLTF model
@@ -211,8 +230,20 @@ function createRigVisualization(model, scene) {
     if (armature) {
         armature.traverse(node => {
             if (node.isBone || node.name.toLowerCase().includes('bone')) {
+                // Store initial rotation for reset functionality
+                node.userData.initialRotation = {
+                    x: node.rotation.x,
+                    y: node.rotation.y,
+                    z: node.rotation.z,
+                    order: node.rotation.order
+                };
+                // Log whether this is a root bone
+                if (node.name.toLowerCase().includes('root')) {
+                    console.log('Found ROOT bone:', node.name);
+                } else {
+                    console.log('Found bone:', node.name);
+                }
                 bones.push(node);
-                console.log('Found bone:', node.name);
             }
         });
     }
@@ -222,8 +253,20 @@ function createRigVisualization(model, scene) {
         console.log('No bones found in armature, searching entire model');
         model.traverse(node => {
             if (node.isBone || node.name.toLowerCase().includes('bone')) {
+                // Store initial rotation for reset functionality
+                node.userData.initialRotation = {
+                    x: node.rotation.x,
+                    y: node.rotation.y,
+                    z: node.rotation.z,
+                    order: node.rotation.order
+                };
+                // Log whether this is a root bone
+                if (node.name.toLowerCase().includes('root')) {
+                    console.log('Found ROOT bone in model:', node.name);
+                } else {
+                    console.log('Found bone in model:', node.name);
+                }
                 bones.push(node);
-                console.log('Found bone in model:', node.name);
             }
         });
     }
@@ -275,8 +318,20 @@ function createRigVisualization(model, scene) {
     // Group bones by parent for easier bone pair creation
     const bonesByParent = new Map();
     
+    // Filter out control bones that we don't want to visualize
+    const visualizableBones = bones.filter(bone => 
+        !(bone.name.toLowerCase().includes('control') || 
+          bone.name.toLowerCase().includes('ctrl') || 
+          bone.name.toLowerCase().includes('handle'))
+    );
+    
+    // Identify root bones
+    const rootBones = visualizableBones.filter(bone => 
+        bone.name.toLowerCase().includes('root')
+    );
+    
     // Group bones by parent for easier bone pair creation
-    bones.forEach(bone => {
+    visualizableBones.forEach(bone => {
         if (bone.parent) {
             const parentId = bone.parent.uuid;
             if (!bonesByParent.has(parentId)) {
@@ -294,7 +349,7 @@ function createRigVisualization(model, scene) {
     const boneRadius = Math.max(0.02, modelScale * 0.3);
     
     // Create visual bone meshes between parent-child bone pairs
-    bones.forEach(bone => {
+    visualizableBones.forEach(bone => {
         // Skip if this bone is not in our scene
         if (!scene.getObjectById(bone.id)) return;
         
@@ -307,6 +362,13 @@ function createRigVisualization(model, scene) {
         
         // If this bone has child bones, create a visual bone for each connection
         childBones.forEach(childBone => {
+            // Skip control bones
+            if (childBone.name.toLowerCase().includes('control') || 
+                childBone.name.toLowerCase().includes('ctrl') || 
+                childBone.name.toLowerCase().includes('handle')) {
+                return;
+            }
+            
             // Get child bone position
             const childPos = new THREE.Vector3();
             childBone.getWorldPosition(childPos);
@@ -344,10 +406,65 @@ function createRigVisualization(model, scene) {
         });
     });
     
+    // Create root bone visualization (as a standalone puck)
+    rootBones.forEach(rootBone => {
+        // Get root bone position
+        const rootPos = new THREE.Vector3();
+        rootBone.getWorldPosition(rootPos);
+        
+        console.log(`Creating standalone root visualization for: ${rootBone.name} at position:`, rootPos);
+        
+        // Create a group for the root visualization
+        const rootGroup = new THREE.Group();
+        rootGroup.position.copy(rootPos);
+        boneVisualsGroup.add(rootGroup);
+        
+        // Create a standalone puck for the root
+        const rootPuckSize = boneRadius * 2.5;
+        // Use a disk-like geometry (short, wide cylinder)
+        const puckGeometry = new THREE.CylinderGeometry(rootPuckSize, rootPuckSize, rootPuckSize * 0.2, 32);
+        const puckMaterial = jointMaterial.clone();
+        
+        const rootPuck = new THREE.Mesh(puckGeometry, puckMaterial);
+        // No rotation needed - by default the cylinder is already oriented with Y-axis up
+        // which means the flat sides will be parallel to the ground
+        rootPuck.userData.isRootJoint = true;
+        rootPuck.userData.bonePart = 'cap';
+        rootPuck.userData.isJoint = true;
+        rootPuck.userData.boneName = rootBone.name;
+        
+        // Make root puck render on top
+        rootPuck.renderOrder = 25; // Higher than normal joints (10-15) but lower than handle (30)
+        
+        // Add to root group
+        rootGroup.add(rootPuck);
+        
+        // Store reference to the bone
+        rootGroup.userData.rootBone = rootBone;
+        
+        // Add update function
+        rootGroup.userData.isVisualBone = true;
+        rootGroup.userData.updatePosition = () => {
+            if (rootGroup.userData.rootBone) {
+                const pos = new THREE.Vector3();
+                rootGroup.userData.rootBone.getWorldPosition(pos);
+                rootGroup.position.copy(pos);
+            }
+        };
+        
+        console.log(`Root visualization created for ${rootBone.name}`);
+    });
+    
     // Find the furthest bone from the root and add a control handle
     const furthestBone = findFarthestBone();
     if (furthestBone) {
         addControlHandleToFurthestBone(furthestBone, scene, modelScale);
+    }
+    
+    // Create labels for all joints
+    if (rigOptions.showJointLabels) {
+        console.log('Setting up joint labels');
+        createJointLabels(scene);
     }
     
     // Set up mouse event listeners for hover effect
@@ -357,7 +474,7 @@ function createRigVisualization(model, scene) {
 }
 
 /**
- * Create bone mesh
+ * Create bone mesh with joints
  * @param {Object} parent - Parent THREE.Group to add the bone to
  * @param {Number} radiusTop - Top radius of the bone
  * @param {Number} radiusBottom - Bottom radius of the bone
@@ -396,12 +513,38 @@ function createBoneMesh(parent, radiusTop, radiusBottom, height, capMaterial, si
         sidesGroup.add(segment);
     }
     
-    // Create top joint sphere
-    const sphereGeometry = new THREE.SphereGeometry(radiusTop * 1.2, 8, 8);
-    const topSphere = new THREE.Mesh(sphereGeometry, capMaterial.clone());
+    // Check if this is a root bone - either through parent/child data or name
+    let isRootBone = false;
+    
+    // Check for root in parent data
+    if (parent.userData.childBone && parent.userData.childBone.name.toLowerCase().includes('root')) {
+        isRootBone = true;
+    }
+    
+    // Check for root in parent data (parent bone)
+    if (parent.userData.parentBone && parent.userData.parentBone.name.toLowerCase().includes('root')) {
+        isRootBone = true;
+    }
+    
+    // Create top joint sphere or puck
+    let topSphere;
+    
+    if (isRootBone) {
+        console.log("Creating ROOT PUCK for joint at top of bone connection");
+        // Create a puck for root joints - shorter and wider for a flatter appearance
+        const puckGeometry = new THREE.CylinderGeometry(radiusTop * 2.2, radiusTop * 2.2, radiusTop * 0.2, 32);
+        topSphere = new THREE.Mesh(puckGeometry, capMaterial.clone());
+        // No rotation - default cylinder orientation has the flat sides parallel to the ground
+    } else {
+        // Normal sphere for regular joints
+        const sphereGeometry = new THREE.SphereGeometry(radiusTop * 1.2, 8, 8);
+        topSphere = new THREE.Mesh(sphereGeometry, capMaterial.clone());
+    }
+    
     topSphere.position.y = height;
     topSphere.userData.bonePart = 'cap';
     topSphere.userData.isJoint = true;
+    topSphere.userData.isRootJoint = isRootBone;
     
     // Ensure material settings
     topSphere.material.wireframe = capMaterial.wireframe;
@@ -410,13 +553,32 @@ function createBoneMesh(parent, radiusTop, radiusBottom, height, capMaterial, si
     topSphere.material.color.setHex(rigOptions.jointColor);
     
     // Make sure joint spheres render on top of bones
-    topSphere.renderOrder = 10;
+    topSphere.renderOrder = isRootBone ? 15 : 10; // Higher render order for root pucks
     parent.add(topSphere);
     
-    // Bottom joint sphere
-    const bottomSphere = new THREE.Mesh(sphereGeometry, capMaterial.clone());
+    // Store child bone name for label reference
+    if (parent.userData.childBone) {
+        topSphere.userData.boneName = parent.userData.childBone.name;
+    }
+    
+    // Create bottom joint - sphere or puck based on whether it's a root
+    let bottomSphere;
+    
+    if (isRootBone) {
+        console.log("Creating ROOT PUCK for joint at bottom of bone connection");
+        // Create a puck for root joints - flatter for better horizontal appearance
+        const puckGeometry = new THREE.CylinderGeometry(radiusBottom * 2.2, radiusBottom * 2.2, radiusBottom * 0.2, 32);
+        bottomSphere = new THREE.Mesh(puckGeometry, capMaterial.clone());
+        // No rotation - cylinder's default orientation has flat sides parallel to ground
+    } else {
+        // Normal sphere for regular joints
+        const sphereGeometry = new THREE.SphereGeometry(radiusBottom * 1.2, 8, 8);
+        bottomSphere = new THREE.Mesh(sphereGeometry, capMaterial.clone());
+    }
+    
     bottomSphere.userData.bonePart = 'cap';
     bottomSphere.userData.isJoint = true;
+    bottomSphere.userData.isRootJoint = isRootBone;
     
     // Ensure material settings 
     bottomSphere.material.wireframe = capMaterial.wireframe;
@@ -425,8 +587,13 @@ function createBoneMesh(parent, radiusTop, radiusBottom, height, capMaterial, si
     bottomSphere.material.color.setHex(rigOptions.jointColor);
     
     // Make sure joint spheres render on top of bones
-    bottomSphere.renderOrder = 10;
+    bottomSphere.renderOrder = isRootBone ? 15 : 10; // Higher render order for root pucks
     parent.add(bottomSphere);
+    
+    // Store parent bone name for label reference
+    if (parent.userData.parentBone) {
+        bottomSphere.userData.boneName = parent.userData.parentBone.name;
+    }
 }
 
 /**
@@ -475,75 +642,38 @@ function createBoneUpdateFunction(boneGroup) {
 function findFarthestBone() {
     if (!bones.length) return null;
     
-    // Find potential root bones (no parent or parent not in bones list)
-    const rootBones = bones.filter(bone => {
-        return !bone.parent || !bones.some(b => b.uuid === bone.parent.uuid);
-    });
+    // Find bones with no children (end effectors)
+    const endBones = [];
     
-    if (!rootBones.length) return bones[0]; // Fallback to first bone if no root found
-    
-    let furthestBone = null;
-    let maxDistance = -1;
-    const rootPos = new THREE.Vector3();
-    
-    rootBones[0].getWorldPosition(rootPos);
-    
-    // Find the bone furthest from the root
     bones.forEach(bone => {
-        const bonePos = new THREE.Vector3();
-        bone.getWorldPosition(bonePos);
+        let isEndBone = true;
+        // Check if this bone has any child bones
+        for (let i = 0; i < bone.children.length; i++) {
+            const child = bone.children[i];
+            if (child.isBone || child.name.toLowerCase().includes('bone')) {
+                isEndBone = false;
+                break;
+            }
+        }
         
-        const distance = rootPos.distanceTo(bonePos);
-        if (distance > maxDistance) {
-            maxDistance = distance;
-            furthestBone = bone;
+        if (isEndBone) {
+            endBones.push(bone);
         }
     });
     
-    return furthestBone;
+    // If we found end bones, return the first one
+    if (endBones.length > 0) {
+        console.log('Found end bone:', endBones[0].name);
+        return endBones[0];
+    }
+    
+    // If we couldn't identify end bones, just return the last bone in the array
+    console.log('No end bones found, using last bone:', bones[bones.length - 1].name);
+    return bones[bones.length - 1];
 }
 
 /**
- * Add a control handle to the furthest bone
- * @param {Object} bone - The bone to add the handle to
- * @param {Object} scene - The Three.js scene
- * @param {Number} modelScale - Scale factor for the handle size
- */
-function addControlHandleToFurthestBone(bone, scene, modelScale) {
-    const handleSize = modelScale * 2.6; // Double the size (from 1.3 to 2.6)
-    const geometry = new THREE.SphereGeometry(handleSize, 16, 16);
-    const material = new THREE.MeshPhongMaterial({
-        color: normalColor,
-        transparent: true,
-        opacity: 0.7,
-        wireframe: false
-    });
-    
-    furthestBoneHandle = new THREE.Mesh(geometry, material);
-    furthestBoneHandle.name = "FurthestBoneHandle";
-    scene.add(furthestBoneHandle);
-    
-    // Position at the furthest bone
-    const bonePos = new THREE.Vector3();
-    bone.getWorldPosition(bonePos);
-    furthestBoneHandle.position.copy(bonePos);
-    
-    // Add information about which bone it controls
-    furthestBoneHandle.userData.controlledBone = bone;
-    furthestBoneHandle.userData.isControlHandle = true;
-    furthestBoneHandle.userData.updatePosition = () => {
-        if (furthestBoneHandle.userData.controlledBone) {
-            const controlledBonePos = new THREE.Vector3();
-            furthestBoneHandle.userData.controlledBone.getWorldPosition(controlledBonePos);
-            furthestBoneHandle.position.copy(controlledBonePos);
-        }
-    };
-    
-    console.log('Added control handle to furthest bone:', bone.name);
-}
-
-/**
- * Set up mouse listeners for handle hover effect
+ * Set up mouse listeners for handle interaction
  * @param {Object} scene - The Three.js scene
  */
 function setupMouseListeners(scene) {
@@ -561,16 +691,199 @@ function setupMouseListeners(scene) {
         mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         
+        // Update raycaster with the new mouse position
+        if (state.camera) {
+            raycaster.setFromCamera(mouse, state.camera);
+        }
+        
         // Check for handle hover
         checkHandleHover();
+        
+        // Handle dragging
+        if (isDragging && dragTarget) {
+            handleDrag();
+        }
     });
+    
+    // Mouse down handler
+    domElement.addEventListener('mousedown', (event) => {
+        if (event.button !== 0) return; // Only handle left mouse button
+        
+        const state = getState();
+        if (!state.camera) return;
+        
+        // Check if we're clicking on a handle
+        raycaster.setFromCamera(mouse, state.camera);
+        const intersects = raycaster.intersectObject(furthestBoneHandle);
+        
+        if (intersects.length > 0) {
+            console.log('Starting drag on handle:', furthestBoneHandle.name);
+            startDrag(intersects[0], furthestBoneHandle);
+            event.preventDefault();
+        }
+    });
+    
+    // Mouse up handler
+    domElement.addEventListener('mouseup', (event) => {
+        if (isDragging) {
+            stopDrag();
+            event.preventDefault();
+        }
+    });
+    
+    // Mouse leave handler
+    domElement.addEventListener('mouseleave', (event) => {
+        if (isDragging) {
+            stopDrag();
+        }
+    });
+}
+
+/**
+ * Start dragging a control handle
+ * @param {Object} intersection - The intersection data from raycaster
+ * @param {Object} handle - The handle being dragged
+ */
+function startDrag(intersection, handle) {
+    const state = getState();
+    
+    isDragging = true;
+    dragTarget = handle;
+    
+    // Change handle color to active
+    handle.material.color.setHex(activeColor);
+    
+    // Store the initial position
+    dragTargetPosition.copy(handle.position);
+    
+    // Create a drag plane perpendicular to the camera
+    const planeNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(state.camera.quaternion);
+    dragPlane.setFromNormalAndCoplanarPoint(planeNormal, dragTargetPosition);
+    
+    // Calculate offset for precise dragging
+    const dragIntersectionPoint = new THREE.Vector3();
+    raycaster.ray.intersectPlane(dragPlane, dragIntersectionPoint);
+    dragOffset.subVectors(dragTargetPosition, dragIntersectionPoint);
+    
+    console.log('Drag started at', dragTargetPosition);
+}
+
+/**
+ * Handle dragging logic
+ */
+function handleDrag() {
+    if (!isDragging || !dragTarget) return;
+    
+    const state = getState();
+    
+    // Get current intersection point with drag plane
+    const planeIntersection = new THREE.Vector3();
+    
+    // Check if ray intersects plane
+    if (raycaster.ray.intersectPlane(dragPlane, planeIntersection)) {
+        // Apply the offset to maintain the grab point
+        planeIntersection.add(dragOffset);
+        
+        // Move handle to new position
+        dragTarget.position.copy(planeIntersection);
+        
+        // Apply IK if this is the furthest bone handle
+        if (dragTarget === furthestBoneHandle && dragTarget.userData.controlledBone) {
+            const controlledBone = dragTarget.userData.controlledBone;
+            
+            // Skip IK if bone is locked
+            if (!lockedBones.has(controlledBone.uuid)) {
+                // Store current locked bone rotations
+                restoreLockedBoneRotations();
+                
+                // Use the moveBonesForTarget function to handle IK chain properly
+                moveBonesForTarget(controlledBone, planeIntersection);
+                
+                // Restore locked bone rotations again
+                restoreLockedBoneRotations();
+                
+                // Force immediate update of visual bone meshes during drag
+                updateBoneVisuals();
+            }
+        }
+    }
+}
+
+/**
+ * Stop dragging operation
+ */
+function stopDrag() {
+    if (!isDragging) return;
+    
+    console.log('Drag ended');
+    
+    isDragging = false;
+    
+    // Reset handle color
+    if (dragTarget) {
+        dragTarget.material.color.setHex(normalColor);
+        dragTarget = null;
+    }
+    
+    // Re-enable orbit controls
+    const state = getState();
+    if (state.controls && !state.controls.enabled) {
+        state.controls.enabled = true;
+        document.body.style.cursor = 'auto';
+    }
+}
+
+/**
+ * Apply inverse kinematics to bone chain
+ * @param {Object} targetBone - The bone being controlled
+ * @param {THREE.Vector3} targetPosition - The target world position
+ */
+function applyInverseKinematics(targetBone, targetPosition) {
+    if (!targetBone) return;
+    
+    try {
+        // Get bone positions with fallbacks in case worldPos is not working
+        let bonePosition = worldPos || new THREE.Vector3();
+        targetBone.getWorldPosition(bonePosition);
+        
+        // Direction from current bone to target
+        let targetDir = new THREE.Vector3().subVectors(targetPosition, bonePosition).normalize();
+        
+        // Get rotation with fallback
+        let boneRotation = worldRot || new THREE.Quaternion();
+        targetBone.getWorldQuaternion(boneRotation);
+        
+        // Current bone forward direction (assuming Y)
+        let boneDir = new THREE.Vector3(0, 1, 0).applyQuaternion(boneRotation).normalize();
+        
+        // Cross product to get rotation axis
+        let rotationAxis = new THREE.Vector3().crossVectors(boneDir, targetDir).normalize();
+        
+        // Calculate rotation angle (use MathUtils.clamp to fix the bug)
+        const dotProduct = boneDir.dot(targetDir);
+        const rotationAngle = Math.acos(Math.min(1, Math.max(-1, dotProduct))) * IK_WEIGHT;
+        
+        // Only rotate if we have a valid rotation
+        if (rotationAxis.lengthSq() > 0.0001 && !isNaN(rotationAngle)) {
+            // Create rotation quaternion
+            const q = new THREE.Quaternion().setFromAxisAngle(rotationAxis, rotationAngle);
+            
+            // Apply to bone local rotation
+            targetBone.quaternion.premultiply(q);
+            
+            // Update all bones to ensure proper propagation
+            updateAllBoneMatrices();
+        }
+    } catch (error) {
+        console.error('Error in applyInverseKinematics:', error);
+    }
 }
 
 /**
  * Check if mouse is hovering over the control handle
  */
 function checkHandleHover() {
-    if (!furthestBoneHandle) return;
+    if (!furthestBoneHandle || isDragging) return;
     
     const state = getState();
     const camera = state.camera;
@@ -602,7 +915,7 @@ function checkHandleHover() {
         furthestBoneHandle.material.color.setHex(normalColor);
         
         // Re-enable orbit controls when not hovering over handle
-        if (controls && !controls.enabled) {
+        if (controls && !controls.enabled && !isDragging) {
             controls.enabled = true;
             document.body.style.cursor = 'auto'; // Reset cursor
             console.log('Re-enabled camera controls');
@@ -630,6 +943,8 @@ function clearRigVisualization(scene) {
  * Update animation for rig visuals
  */
 function updateRigAnimation() {
+    // Update bone visuals even during drag operations - changed this to update during drags too
+    // Update bone visuals
     if (boneVisualsGroup) {
         boneVisualsGroup.children.forEach(boneGroup => {
             if (boneGroup.userData.updatePosition) {
@@ -638,12 +953,49 @@ function updateRigAnimation() {
         });
     }
     
-    if (furthestBoneHandle && furthestBoneHandle.userData.updatePosition) {
+    // Update furthest bone handle
+    if (furthestBoneHandle && furthestBoneHandle.userData.updatePosition && !isDragging) {
+        // Only update handle position when not dragging
         furthestBoneHandle.userData.updatePosition();
     }
     
+    // Update joint labels
+    const state = getState();
+    const labelGroup = state.scene ? state.scene.getObjectByName("JointLabels") : null;
+    if (labelGroup) {
+        labelGroup.children.forEach(label => {
+            if (label.userData && label.userData.updatePosition) {
+                label.userData.updatePosition();
+            }
+        });
+    }
+    
+    // Apply locked rotations to bones
+    restoreLockedBoneRotations();
+    
     // Check handle hover on each frame
     checkHandleHover();
+}
+
+/**
+ * Restore locked bone rotations
+ */
+function restoreLockedBoneRotations() {
+    // Iterate through all locked bones and restore their rotations
+    lockedBones.forEach((data, uuid) => {
+        if (data.bone && data.rotation) {
+            // Restore the exact rotation values that were stored
+            data.bone.rotation.x = data.rotation.x;
+            data.bone.rotation.y = data.rotation.y;
+            data.bone.rotation.z = data.rotation.z;
+            
+            // Force update of the bone's matrix
+            data.bone.updateMatrix();
+        }
+    });
+    
+    // Update all bones at once for efficiency
+    updateAllBoneMatrices();
 }
 
 /**
@@ -652,7 +1004,7 @@ function updateRigAnimation() {
 function updateRigVisualization() {
     if (!boneVisualsGroup) return;
     
-    const state = getState();
+    console.log('Updating rig visualization with options:', JSON.stringify(rigOptions));
     
     // Toggle rig visibility
     if (boneVisualsGroup) {
@@ -661,6 +1013,26 @@ function updateRigVisualization() {
     
     if (furthestBoneHandle) {
         furthestBoneHandle.visible = rigOptions.displayRig;
+    }
+    
+    // Update joint labels visibility
+    const state = getState();
+    const labelGroup = state.scene ? state.scene.getObjectByName("JointLabels") : null;
+    
+    if (labelGroup) {
+        console.log('Updating joint labels visibility to:', rigOptions.showJointLabels && rigOptions.displayRig);
+        labelGroup.visible = rigOptions.showJointLabels && rigOptions.displayRig;
+        
+        // Update individual label positions
+        labelGroup.children.forEach(label => {
+            if (label.userData && label.userData.updatePosition) {
+                label.userData.updatePosition();
+            }
+        });
+    } else if (rigOptions.showJointLabels && rigOptions.displayRig && state.scene) {
+        // If we don't have labels but should, create them
+        console.log('No label group found, creating new joint labels');
+        createJointLabels(state.scene);
     }
     
     // Update primary and secondary colors and wireframe state
@@ -703,6 +1075,21 @@ function updateRigVisualization() {
             object.material.color.setHex(rigOptions.jointColor);
             object.material.wireframe = rigOptions.wireframe;
             object.material.needsUpdate = true;
+            
+            // Force update visibility of joint labels
+            if (object.userData.label) {
+                object.userData.label.visible = rigOptions.showJointLabels && rigOptions.displayRig;
+                
+                // Make sure the label appears on top when Force Z is enabled
+                if (rigOptions.forceZ) {
+                    object.userData.label.renderOrder = 1025; // Higher than joint spheres but lower than control handle
+                    object.userData.label.material.depthTest = false;
+                } else {
+                    object.userData.label.renderOrder = 500;
+                    object.userData.label.material.depthTest = false; // Always render on top
+                }
+                object.userData.label.material.needsUpdate = true;
+            }
         }
     });
     
@@ -958,6 +1345,52 @@ function createRigDetailsContent(container, details) {
     jointColorOption.style.display = rigOptions.displayRig ? 'flex' : 'none';
     optionsSection.appendChild(jointColorOption);
     
+    // Add joint labels toggle after joint color picker
+    const jointLabelsOption = createOptionToggle(
+        'Show Joint Labels', 
+        rigOptions.showJointLabels, 
+        (checked) => {
+            rigOptions.showJointLabels = checked;
+            updateRigVisualization();
+        }
+    );
+    jointLabelsOption.classList.add('toggle-with-rig');
+    jointLabelsOption.style.display = rigOptions.displayRig ? 'flex' : 'none';
+    optionsSection.appendChild(jointLabelsOption);
+    
+    // Add Reset Rig button at the bottom of rig options
+    const resetContainer = document.createElement('div');
+    resetContainer.style.marginTop = '15px';
+    resetContainer.style.textAlign = 'center';
+    resetContainer.classList.add('toggle-with-rig');
+    resetContainer.style.display = rigOptions.displayRig ? 'block' : 'none';
+    
+    const resetButton = document.createElement('button');
+    resetButton.textContent = 'Reset Rig';
+    resetButton.style.padding = '6px 12px';
+    resetButton.style.backgroundColor = '#4CAF50';
+    resetButton.style.color = 'white';
+    resetButton.style.border = 'none';
+    resetButton.style.borderRadius = '4px';
+    resetButton.style.cursor = 'pointer';
+    resetButton.style.fontWeight = 'bold';
+    
+    // Add hover effect
+    resetButton.addEventListener('mouseover', () => {
+        resetButton.style.backgroundColor = '#45a049';
+    });
+    
+    resetButton.addEventListener('mouseout', () => {
+        resetButton.style.backgroundColor = '#4CAF50';
+    });
+    
+    resetButton.addEventListener('click', () => {
+        resetRig();
+    });
+    
+    resetContainer.appendChild(resetButton);
+    optionsSection.appendChild(resetContainer);
+    
     container.appendChild(optionsSection);
     
     // Create Rig Details title
@@ -1044,9 +1477,21 @@ function createRigDetailsContent(container, details) {
                     if (associatedBone) {
                         const boneElem = document.createElement('div');
                         boneElem.style.fontSize = '10px';
-                        boneElem.style.color = '#0066cc';
+                        boneElem.style.color = '#ffcc00'; // Yellow color as requested
+                        boneElem.style.fontWeight = 'bold';
                         boneElem.textContent = `Controls bone: ${associatedBone.name}`;
                         itemElem.appendChild(boneElem);
+                    }
+                    
+                    // Add info for furthest bone control
+                    const state = getState();
+                    if (state.model && furthestBoneHandle && furthestBoneHandle.userData.controlledBone) {
+                        const controlElem = document.createElement('div');
+                        controlElem.style.fontSize = '10px';
+                        controlElem.style.color = '#ffcc00'; // Yellow color
+                        controlElem.style.fontWeight = 'bold';
+                        controlElem.textContent = `Connected: ${furthestBoneHandle.userData.controlledBone.name}`;
+                        itemElem.appendChild(controlElem);
                     }
                 }
                 
@@ -1178,7 +1623,7 @@ function createColorOption(label, initialColor, onChange) {
 /**
  * Update the rig panel with current state
  */
-export function updateRigPanel() {
+function updateRigPanel() {
     console.log('updateRigPanel called');
     const state = getState();
     console.log('State in updateRigPanel:', state);
@@ -1244,5 +1689,424 @@ export function updateRigPanel() {
     createRigDetailsContent(rigContent, rigDetails);
 }
 
+/**
+ * Add a control handle to the furthest bone
+ * @param {Object} bone - The bone to add the handle to
+ * @param {Object} scene - The Three.js scene
+ * @param {Number} modelScale - Scale factor for the handle size
+ */
+function addControlHandleToFurthestBone(bone, scene, modelScale) {
+    const handleSize = modelScale * 2.6; // Double the size (from 1.3 to 2.6)
+    const geometry = new THREE.SphereGeometry(handleSize, 16, 16);
+    const material = new THREE.MeshPhongMaterial({
+        color: normalColor,
+        transparent: true,
+        opacity: 0.7,
+        wireframe: false
+    });
+    
+    furthestBoneHandle = new THREE.Mesh(geometry, material);
+    furthestBoneHandle.name = "FurthestBoneHandle";
+    scene.add(furthestBoneHandle);
+    
+    // Position at the furthest bone
+    const bonePos = new THREE.Vector3();
+    bone.getWorldPosition(bonePos);
+    furthestBoneHandle.position.copy(bonePos);
+    
+    // Add information about which bone it controls
+    furthestBoneHandle.userData.controlledBone = bone;
+    furthestBoneHandle.userData.isControlHandle = true;
+    furthestBoneHandle.userData.updatePosition = () => {
+        if (furthestBoneHandle.userData.controlledBone && !isDragging) {
+            const controlledBonePos = new THREE.Vector3();
+            furthestBoneHandle.userData.controlledBone.getWorldPosition(controlledBonePos);
+            furthestBoneHandle.position.copy(controlledBonePos);
+        }
+    };
+    
+    console.log('Added control handle to furthest bone:', bone.name);
+}
+
+/**
+ * Update matrices for all bones in the scene
+ */
+function updateAllBoneMatrices() {
+    if (!bones || bones.length === 0) return;
+    
+    // Find the armature/parent object to start update from
+    let armature = null;
+    
+    // First look for a bone that has no bone parent
+    for (let i = 0; i < bones.length; i++) {
+        const bone = bones[i];
+        if (!bone.parent || !bone.parent.isBone) {
+            if (bone.parent) {
+                // Parent is not a bone, likely armature
+                armature = bone.parent;
+                break;
+            }
+        }
+    }
+    
+    // If no armature found, update each bone individually
+    if (!armature) {
+        bones.forEach(bone => {
+            if (bone && bone.updateMatrixWorld) {
+                bone.updateMatrix();
+                bone.updateMatrixWorld(true);
+            }
+        });
+    } else {
+        // Update from armature to propagate through hierarchy
+        armature.updateMatrixWorld(true);
+    }
+}
+
+/**
+ * Apply inverse kinematics to a chain of bones to reach a target
+ * @param {Array} boneChain - Array of bones from parent to child
+ * @param {THREE.Vector3} targetPosition - The target world position
+ */
+function applyIKToChain(boneChain, targetPosition) {
+    if (boneChain.length === 0) return;
+    
+    // Use Cyclic Coordinate Descent (CCD) algorithm
+    const iterations = 10;
+    
+    for (let iteration = 0; iteration < iterations; iteration++) {
+        // Work backwards from the tip to root
+        for (let i = boneChain.length - 1; i >= 0; i--) {
+            const bone = boneChain[i];
+            
+            // Skip locked bones
+            if (lockedBones.has(bone.uuid)) {
+                continue;
+            }
+            
+            // Get current end effector position (last bone in chain)
+            const endEffector = new THREE.Vector3();
+            boneChain[boneChain.length - 1].getWorldPosition(endEffector);
+            
+            // Get current bone position
+            const bonePos = new THREE.Vector3();
+            bone.getWorldPosition(bonePos);
+            
+            // Direction from bone to end effector
+            const dirToEffector = new THREE.Vector3().subVectors(endEffector, bonePos).normalize();
+            
+            // Direction from bone to target
+            const dirToTarget = new THREE.Vector3().subVectors(targetPosition, bonePos).normalize();
+            
+            // Calculate the angle between these directions
+            let rotAngle = Math.acos(Math.min(1, Math.max(-1, dirToEffector.dot(dirToTarget))));
+            
+            // If the angle is very small, skip this bone
+            if (rotAngle < 0.01) continue;
+            
+            // Limit rotation angle per iteration for smoother movement
+            rotAngle = Math.min(rotAngle, 0.1);
+            
+            // Calculate rotation axis
+            const rotAxis = new THREE.Vector3().crossVectors(dirToEffector, dirToTarget).normalize();
+            
+            // Skip if we can't determine rotation axis
+            if (rotAxis.lengthSq() < 0.01) continue;
+            
+            // Convert world rotation axis to bone local space
+            const boneWorldQuat = new THREE.Quaternion();
+            bone.getWorldQuaternion(boneWorldQuat);
+            const localRotAxis = rotAxis.clone().applyQuaternion(boneWorldQuat.clone().invert()).normalize();
+            
+            // Apply rotation around local axis
+            bone.rotateOnAxis(localRotAxis, rotAngle);
+            
+            // Update matrices
+            updateAllBoneMatrices();
+            
+            // Check if we're close enough to the target
+            const newEffectorPos = new THREE.Vector3();
+            boneChain[boneChain.length - 1].getWorldPosition(newEffectorPos);
+            
+            if (newEffectorPos.distanceTo(targetPosition) < 0.1) {
+                break;
+            }
+        }
+    }
+    
+    // Special handling for the last bone in the chain to ensure it bends properly
+    if (boneChain.length >= 2) {
+        const lastBone = boneChain[boneChain.length - 1];
+        const secondLastBone = boneChain[boneChain.length - 2];
+        
+        // Skip if the last bone is locked
+        if (!lockedBones.has(lastBone.uuid)) {
+            // Get the positions
+            const secondLastPos = new THREE.Vector3();
+            secondLastBone.getWorldPosition(secondLastPos);
+            
+            // Direction from second-last bone to target
+            const dirToTarget = new THREE.Vector3().subVectors(targetPosition, secondLastPos).normalize();
+            
+            // Current direction of the last bone
+            const lastBoneDir = new THREE.Vector3(0, 1, 0); // Assuming local Y is forward
+            lastBoneDir.applyQuaternion(lastBone.getWorldQuaternion(new THREE.Quaternion()));
+            
+            // Calculate the rotation needed to align with target
+            const alignQuat = new THREE.Quaternion();
+            alignQuat.setFromUnitVectors(lastBoneDir, dirToTarget);
+            
+            // Apply this rotation in world space
+            const worldQuatInverse = new THREE.Quaternion();
+            secondLastBone.getWorldQuaternion(worldQuatInverse).invert();
+            
+            // Convert to local space relative to parent
+            const localQuat = new THREE.Quaternion().multiplyQuaternions(worldQuatInverse, alignQuat);
+            
+            // Apply to the last bone's local rotation
+            lastBone.quaternion.multiply(localQuat);
+            
+            // Update matrices
+            updateAllBoneMatrices();
+        }
+    }
+}
+
+/**
+ * Move a chain of bones to reach a target position
+ * @param {Object} targetBone - The target bone being controlled
+ * @param {THREE.Vector3} targetPosition - The target world position
+ */
+function moveBonesForTarget(targetBone, targetPosition) {
+    if (!targetBone) return;
+    
+    // Find the chain of bones from root to the target bone
+    const boneChain = [];
+    let currentBone = targetBone;
+    
+    // Build chain from target to root (will be reversed later)
+    while (currentBone && bones.includes(currentBone)) {
+        // Add to the start of array to maintain parent->child order
+        boneChain.unshift(currentBone);
+        currentBone = currentBone.parent;
+        
+        // Stop when we reach an object that's not a bone
+        if (!currentBone || !currentBone.isBone) break;
+    }
+    
+    // If the chain is too short, use the targetBone
+    if (boneChain.length === 0) {
+        boneChain.push(targetBone);
+    }
+    
+    console.log(`Applying IK to chain of ${boneChain.length} bones`);
+    
+    // Restore locked bone rotations before applying IK
+    restoreLockedBoneRotations();
+    
+    // Apply IK to this chain
+    applyIKToChain(boneChain, targetPosition);
+    
+    // Restore locked bone rotations after applying IK
+    restoreLockedBoneRotations();
+}
+
+/**
+ * Reset the rig to its initial position
+ */
+function resetRig() {
+    if (!bones.length) return;
+    
+    console.log('Resetting rig to initial position from GLB');
+    
+    // Reset all bone rotations to their initial values from when the model was loaded
+    bones.forEach(bone => {
+        // Skip locked bones
+        if (lockedBones.has(bone.uuid)) return;
+        
+        // If we have stored initial rotation, use it
+        if (bone.userData.initialRotation) {
+            bone.rotation.set(
+                bone.userData.initialRotation.x,
+                bone.userData.initialRotation.y,
+                bone.userData.initialRotation.z
+            );
+            bone.rotation.order = bone.userData.initialRotation.order;
+        } else {
+            // Fallback to identity if no initial rotation stored
+            bone.rotation.set(0, 0, 0);
+        }
+    });
+    
+    // Update all matrices
+    updateAllBoneMatrices();
+    
+    // If there's a furthest bone handle, update its position
+    if (furthestBoneHandle && furthestBoneHandle.userData.updatePosition) {
+        furthestBoneHandle.userData.updatePosition();
+    }
+    
+    console.log('Rig reset complete');
+}
+
+/**
+ * Create joint labels for all joints in the scene
+ * @param {Object} scene - The Three.js scene
+ */
+function createJointLabels(scene) {
+    console.log('Creating joint labels...');
+    
+    // Remove any existing labels first
+    clearJointLabels(scene);
+    
+    // Create a group to hold all labels
+    const labelGroup = new THREE.Group();
+    labelGroup.name = "JointLabels";
+    labelGroup.visible = rigOptions.showJointLabels && rigOptions.displayRig;
+    scene.add(labelGroup);
+    
+    // Keep track of the labels created
+    const labelCount = {total: 0, added: 0};
+    
+    // Find all bone meshes
+    boneVisualsGroup.traverse((object) => {
+        if (object.userData && object.userData.bonePart === 'cap') {
+            labelCount.total++;
+            
+            // Determine which bone name to use
+            let boneName = "";
+            if (object.parent && object.parent.userData) {
+                if (object.position.y > 0 && object.parent.userData.childBone) {
+                    // Top sphere - use child bone name
+                    boneName = object.parent.userData.childBone.name;
+                } else if (object.position.y === 0 && object.parent.userData.parentBone) {
+                    // Bottom sphere - use parent bone name
+                    boneName = object.parent.userData.parentBone.name;
+                }
+            }
+            
+            if (boneName) {
+                // Create a label for this joint
+                const label = createSimpleLabel(boneName, object, scene);
+                if (label) {
+                    labelGroup.add(label);
+                    labelCount.added++;
+                }
+            }
+        }
+    });
+    
+    console.log(`Created ${labelCount.added} labels out of ${labelCount.total} joint spheres found`);
+    return labelGroup;
+}
+
+/**
+ * Create a simple text label as a sprite
+ * @param {string} text - Text to display
+ * @param {Object} joint - Joint object to attach to
+ * @param {Object} scene - Three.js scene
+ * @returns {Object} The created label sprite
+ */
+function createSimpleLabel(text, joint, scene) {
+    console.log(`Creating label for joint: ${text}`);
+
+    // Create a canvas for the label
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Set canvas size
+    canvas.width = 256;
+    canvas.height = 64;
+    
+    // Background
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Border
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, 0, canvas.width, canvas.height);
+    
+    // Text
+    ctx.font = 'bold 24px Arial';
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Truncate text if too long
+    const displayText = text.length > 20 ? text.substring(0, 17) + '...' : text;
+    ctx.fillText(displayText, canvas.width / 2, canvas.height / 2);
+    
+    // Create sprite material
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true,
+        depthTest: false,
+        depthWrite: false
+    });
+    
+    // Create sprite
+    const sprite = new THREE.Sprite(material);
+    sprite.userData.isJointLabel = true;
+    sprite.userData.targetJoint = joint;
+    
+    // Set initial position
+    updateLabelPosition(sprite, joint);
+    
+    // Set proper scale (fixed size regardless of distance)
+    const jointRadius = joint.geometry.parameters.radius || 0.1;
+    sprite.scale.set(jointRadius * 8, jointRadius * 2, 1);
+    
+    // Set initial visibility
+    sprite.visible = rigOptions.showJointLabels;
+    
+    // Set up the update function
+    sprite.userData.updatePosition = () => {
+        updateLabelPosition(sprite, joint);
+    };
+    
+    // Make sure the sprite renders on top
+    sprite.renderOrder = 1000;
+    
+    return sprite;
+}
+
+/**
+ * Update the position of a joint label
+ * @param {Object} label - The label sprite
+ * @param {Object} joint - The joint the label is attached to
+ */
+function updateLabelPosition(label, joint) {
+    if (!label || !joint) return;
+    
+    // Get the joint's world position
+    const jointPos = new THREE.Vector3();
+    joint.getWorldPosition(jointPos);
+    
+    // Position the label slightly above the joint
+    label.position.copy(jointPos);
+    
+    // Add offset based on joint position (top or bottom)
+    if (joint.position && joint.position.y > 0) {
+        // Top joint - place above
+        label.position.y += joint.geometry.parameters.radius * 2;
+    } else {
+        // Bottom joint - place to the side
+        label.position.x += joint.geometry.parameters.radius * 2;
+    }
+}
+
+/**
+ * Clear all joint labels from the scene
+ * @param {Object} scene - The Three.js scene
+ */
+function clearJointLabels(scene) {
+    const existingLabels = scene.getObjectByName("JointLabels");
+    if (existingLabels) {
+        scene.remove(existingLabels);
+    }
+}
+
 // Export functions
-export { analyzeGltfModel, updateRigAnimation }; 
+export { analyzeGltfModel, updateRigAnimation, updateAllBoneMatrices, updateRigPanel }; 
