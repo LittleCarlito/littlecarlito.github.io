@@ -47,29 +47,17 @@ export function updateAtlasVisualization() {
     // Get the texture based on selected type
     const texture = state.textureObjects[selectedType];
     
-    // Check if we have the selected texture
-    if (!texture || !texture.image) {
-        // Show a message that this texture type is not available
-        const message = document.getElementById('atlas-content');
-        if (message) {
-            message.innerHTML = `<div class="atlas-placeholder">
-                <p>No ${selectedType} texture loaded.</p>
-                <p>Drag and drop a ${selectedType} texture file to visualize it here.</p>
-            </div>`;
-        }
-        // Clear the canvas if it exists
-        const canvas = document.getElementById('atlas-canvas');
-        if (canvas) {
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-        return;
-    }
-    
     // Get the atlas canvas
     const atlasCanvas = document.getElementById('atlas-canvas');
     if (!atlasCanvas) {
         console.error('Atlas canvas not found');
+        return;
+    }
+    
+    // Check if we have the selected texture
+    if (!texture || !texture.image) {
+        // Show the "No texture loaded" message
+        showNoTextureState(atlasCanvas);
         return;
     }
     
@@ -150,21 +138,28 @@ function showNoTextureState(atlasCanvas) {
     
     const ctx = atlasCanvas.getContext('2d');
     
-    // Clear canvas with dark background
-    ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(0, 0, atlasCanvas.width, atlasCanvas.height);
+    // Make sure canvas has reasonable dimensions
+    if (atlasCanvas.width < 200) atlasCanvas.width = 260;
+    if (atlasCanvas.height < 200) atlasCanvas.height = 260;
     
-    // Draw a border
-    ctx.strokeStyle = '#444';
+    // Clear canvas with transparent background
+    ctx.clearRect(0, 0, atlasCanvas.width, atlasCanvas.height);
+    
+    // Draw a visible border
+    ctx.strokeStyle = '#666';
     ctx.lineWidth = 2;
-    ctx.strokeRect(1, 1, atlasCanvas.width - 2, atlasCanvas.height - 2);
+    ctx.strokeRect(2, 2, atlasCanvas.width - 4, atlasCanvas.height - 4);
     
-    // Draw "No texture loaded" text
+    // Add a subtle background to make text more readable
+    ctx.fillStyle = 'rgba(40, 40, 40, 0.3)';
+    ctx.fillRect(2, 2, atlasCanvas.width - 4, atlasCanvas.height - 4);
+    
+    // Draw "No Atlas Data" text
     ctx.fillStyle = '#aaa';
-    ctx.font = '14px monospace';
+    ctx.font = 'bold 16px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('No texture loaded', atlasCanvas.width / 2, atlasCanvas.height / 2 - 15);
+    ctx.fillText('No Atlas Data', atlasCanvas.width / 2, atlasCanvas.height / 2 - 15);
     
     // Add additional help text
     ctx.font = '12px monospace';
