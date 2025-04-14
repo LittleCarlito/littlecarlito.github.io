@@ -1303,36 +1303,25 @@ function createRigDetailsContent(container, details) {
     // Create essential controls section
     const controlsSection = document.createElement('div');
     controlsSection.className = 'rig-controls-section';
-    controlsSection.style.marginBottom = '15px';
-    controlsSection.style.padding = '10px';
-    controlsSection.style.backgroundColor = 'rgba(0,0,0,0.03)';
-    controlsSection.style.borderRadius = '5px';
     
-    // Create a wrapper for checkboxes
+    // Create checkboxes in a wrapper
     const checkboxWrapper = document.createElement('div');
-    checkboxWrapper.style.display = 'flex';
-    checkboxWrapper.style.justifyContent = 'space-between';
-    checkboxWrapper.style.marginBottom = '10px';
+    checkboxWrapper.className = 'rig-checkbox-wrapper';
     controlsSection.appendChild(checkboxWrapper);
     
     // Create Display Rig checkbox
     const displayRigContainer = document.createElement('div');
-    displayRigContainer.style.display = 'flex';
-    displayRigContainer.style.alignItems = 'center';
+    displayRigContainer.className = 'rig-checkbox-container';
     
     const displayRigLabel = document.createElement('label');
     displayRigLabel.textContent = 'Display Rig';
-    displayRigLabel.style.fontSize = '14px';
-    displayRigLabel.style.marginRight = '10px';
-    displayRigLabel.style.cursor = 'pointer';
+    displayRigLabel.className = 'rig-checkbox-label';
     
     const displayRigCheckbox = document.createElement('input');
     displayRigCheckbox.type = 'checkbox';
     displayRigCheckbox.id = 'display-rig-tab';
     displayRigCheckbox.checked = rigOptions.displayRig;
-    displayRigCheckbox.style.width = '18px';
-    displayRigCheckbox.style.height = '18px';
-    displayRigCheckbox.style.cursor = 'pointer';
+    displayRigCheckbox.className = 'rig-checkbox';
     
     displayRigCheckbox.addEventListener('change', (e) => {
         rigOptions.displayRig = e.target.checked;
@@ -1351,22 +1340,17 @@ function createRigDetailsContent(container, details) {
     
     // Create Force Z checkbox
     const forceZContainer = document.createElement('div');
-    forceZContainer.style.display = 'flex';
-    forceZContainer.style.alignItems = 'center';
+    forceZContainer.className = 'rig-checkbox-container';
     
     const forceZLabel = document.createElement('label');
     forceZLabel.textContent = 'Force Z-index';
-    forceZLabel.style.fontSize = '14px';
-    forceZLabel.style.marginRight = '10px';
-    forceZLabel.style.cursor = 'pointer';
+    forceZLabel.className = 'rig-checkbox-label';
     
     const forceZCheckbox = document.createElement('input');
     forceZCheckbox.type = 'checkbox';
     forceZCheckbox.id = 'force-z-tab';
     forceZCheckbox.checked = rigOptions.forceZ;
-    forceZCheckbox.style.width = '18px';
-    forceZCheckbox.style.height = '18px';
-    forceZCheckbox.style.cursor = 'pointer';
+    forceZCheckbox.className = 'rig-checkbox';
     
     forceZCheckbox.addEventListener('change', (e) => {
         rigOptions.forceZ = e.target.checked;
@@ -1390,24 +1374,7 @@ function createRigDetailsContent(container, details) {
     // Create Reset Physics button
     const resetButton = document.createElement('button');
     resetButton.textContent = 'Reset Physics';
-    resetButton.style.width = '100%';
-    resetButton.style.padding = '8px';
-    resetButton.style.backgroundColor = '#4CAF50';
-    resetButton.style.color = 'white';
-    resetButton.style.border = 'none';
-    resetButton.style.borderRadius = '4px';
-    resetButton.style.cursor = 'pointer';
-    resetButton.style.fontWeight = 'bold';
-    resetButton.style.fontSize = '14px';
-    
-    // Add hover effect
-    resetButton.addEventListener('mouseover', () => {
-        resetButton.style.backgroundColor = '#45a049';
-    });
-    
-    resetButton.addEventListener('mouseout', () => {
-        resetButton.style.backgroundColor = '#4CAF50';
-    });
+    resetButton.className = 'rig-reset-button';
     
     resetButton.addEventListener('click', () => {
         resetRig();
@@ -1421,17 +1388,11 @@ function createRigDetailsContent(container, details) {
     // Create Rig Details section (non-collapsible)
     const detailsSection = document.createElement('div');
     detailsSection.className = 'rig-details-section';
-    detailsSection.style.marginBottom = '20px';
-    detailsSection.style.padding = '10px';
-    detailsSection.style.backgroundColor = 'rgba(0,0,0,0.03)';
-    detailsSection.style.borderRadius = '5px';
     
     // Create header
     const detailsTitle = document.createElement('h3');
     detailsTitle.textContent = 'Rig Details';
-    detailsTitle.style.margin = '0 0 15px 0';
-    detailsTitle.style.fontSize = '16px';
-    detailsTitle.style.borderBottom = '1px solid var(--border-color)';
+    detailsTitle.className = 'rig-details-title';
     detailsSection.appendChild(detailsTitle);
     
     // Create content container for details (always visible)
@@ -1441,60 +1402,44 @@ function createRigDetailsContent(container, details) {
     // Helper function to create a section with items
     const createSection = (title, items) => {
         const section = document.createElement('div');
-        section.style.marginBottom = '15px';
+        section.className = 'rig-section';
         
         const sectionTitle = document.createElement('h4');
         sectionTitle.textContent = title;
-        sectionTitle.style.fontSize = '14px';
-        sectionTitle.style.margin = '5px 0';
-        sectionTitle.style.borderBottom = '1px solid var(--border-color)';
+        sectionTitle.className = 'rig-section-title';
         section.appendChild(sectionTitle);
         
         if (!items || items.length === 0) {
             const noItems = document.createElement('p');
             noItems.textContent = 'None found';
-            noItems.style.fontSize = '12px';
-            noItems.style.color = '#aaa';
-            noItems.style.margin = '5px 0';
+            noItems.className = 'rig-no-items';
             section.appendChild(noItems);
         } else {
             items.forEach(item => {
                 const itemElem = document.createElement('div');
-                itemElem.style.fontSize = '12px';
-                itemElem.style.margin = '5px 0';
-                itemElem.style.padding = '3px';
-                itemElem.style.backgroundColor = 'rgba(0,0,0,0.02)';
-                itemElem.style.borderRadius = '3px';
-                itemElem.style.position = 'relative';
+                itemElem.className = 'rig-item';
                 
                 // Create name element
                 const nameElem = document.createElement('div');
                 nameElem.textContent = `Name: ${item.name}`;
-                nameElem.style.paddingRight = item.count > 1 ? '40px' : '0';
+                nameElem.className = 'rig-item-name';
+                if (!(item.count > 1)) {
+                    nameElem.style.paddingRight = '0';
+                }
                 itemElem.appendChild(nameElem);
                 
                 // Add count as a separate styled element if more than one
                 if (item.count > 1) {
                     const countElem = document.createElement('div');
                     countElem.textContent = `x${item.count}`;
-                    countElem.style.position = 'absolute';
-                    countElem.style.right = '5px';
-                    countElem.style.top = '50%';
-                    countElem.style.transform = 'translateY(-50%)';
-                    countElem.style.fontSize = '14px';
-                    countElem.style.fontWeight = '600';
-                    countElem.style.color = '#4CAF50';
-                    countElem.style.backgroundColor = 'rgba(0,0,0,0.1)';
-                    countElem.style.borderRadius = '3px';
-                    countElem.style.padding = '0 4px';
+                    countElem.className = 'rig-item-count';
                     itemElem.appendChild(countElem);
                 }
                 
                 // Add position info if available
                 if (item.position) {
                     const posElem = document.createElement('div');
-                    posElem.style.fontSize = '10px';
-                    posElem.style.color = '#666';
+                    posElem.className = 'rig-item-position';
                     posElem.textContent = `Pos: [${item.position.map(p => 
                         typeof p === 'number' ? p.toFixed(2) : 'undefined').join(', ')}]`;
                     itemElem.appendChild(posElem);
@@ -1503,8 +1448,7 @@ function createRigDetailsContent(container, details) {
                 // Add type info if available
                 if (item.type) {
                     const typeElem = document.createElement('div');
-                    typeElem.style.fontSize = '10px';
-                    typeElem.style.color = '#666';
+                    typeElem.className = 'rig-item-type';
                     typeElem.textContent = `Type: ${item.type}`;
                     itemElem.appendChild(typeElem);
                 }
@@ -1513,55 +1457,35 @@ function createRigDetailsContent(container, details) {
                 if (title === 'Joints') {
                     if (item.isRoot) {
                         const rootElem = document.createElement('div');
-                        rootElem.style.fontSize = '10px';
-                        rootElem.style.color = '#8800cc'; // Purple color for root joint
-                        rootElem.style.fontWeight = 'bold';
+                        rootElem.className = 'rig-root-joint';
                         rootElem.textContent = 'Root Joint';
-                        rootElem.style.backgroundColor = 'rgba(136, 0, 204, 0.1)';
-                        rootElem.style.padding = '2px 4px';
-                        rootElem.style.borderRadius = '3px';
-                        rootElem.style.display = 'inline-block';
-                        rootElem.style.marginTop = '2px';
                         itemElem.appendChild(rootElem);
                     }
                     
                     if (item.parentBone) {
                         const parentElem = document.createElement('div');
-                        parentElem.style.fontSize = '10px';
-                        parentElem.style.color = '#0088cc'; // Blue color for parent bone
-                        parentElem.style.fontWeight = 'bold';
+                        parentElem.className = 'rig-parent-bone';
                         parentElem.textContent = `Parent: ${item.parentBone}`;
                         itemElem.appendChild(parentElem);
                     }
                     
                     if (item.childBone) {
                         const childElem = document.createElement('div');
-                        childElem.style.fontSize = '10px';
-                        childElem.style.color = '#cc8800'; // Amber color for child bone
-                        childElem.style.fontWeight = 'bold';
+                        childElem.className = 'rig-child-bone';
                         childElem.textContent = `Child: ${item.childBone}`;
                         itemElem.appendChild(childElem);
                     }
                     
                     // Add joint type dropdown
                     const jointTypeContainer = document.createElement('div');
-                    jointTypeContainer.style.display = 'flex';
-                    jointTypeContainer.style.alignItems = 'center';
-                    jointTypeContainer.style.marginTop = '5px';
+                    jointTypeContainer.className = 'rig-joint-type-container';
                     
                     const jointTypeLabel = document.createElement('label');
+                    jointTypeLabel.className = 'rig-joint-type-label';
                     jointTypeLabel.textContent = 'Joint Type:';
-                    jointTypeLabel.style.fontSize = '10px';
-                    jointTypeLabel.style.marginRight = '5px';
-                    jointTypeLabel.style.color = '#666';
                     
                     const jointTypeSelect = document.createElement('select');
-                    jointTypeSelect.style.fontSize = '10px';
-                    jointTypeSelect.style.backgroundColor = 'rgba(0,0,0,0.05)';
-                    jointTypeSelect.style.border = '1px solid #444';
-                    jointTypeSelect.style.borderRadius = '3px';
-                    jointTypeSelect.style.color = '#ddd';
-                    jointTypeSelect.style.padding = '2px 5px';
+                    jointTypeSelect.className = 'rig-joint-type-select';
                     
                     // For now, only one option
                     const sphericalOption = document.createElement('option');
@@ -1599,9 +1523,7 @@ function createRigDetailsContent(container, details) {
                     const associatedBone = findAssociatedBone(item.name, details.bones);
                     if (associatedBone) {
                         const boneElem = document.createElement('div');
-                        boneElem.style.fontSize = '10px';
-                        boneElem.style.color = '#ffcc00'; // Yellow color as requested
-                        boneElem.style.fontWeight = 'bold';
+                        boneElem.className = 'rig-associated-bone';
                         boneElem.textContent = `Controls bone: ${associatedBone.name}`;
                         itemElem.appendChild(boneElem);
                     }
@@ -1610,9 +1532,7 @@ function createRigDetailsContent(container, details) {
                     const state = getState();
                     if (state.model && furthestBoneHandle && furthestBoneHandle.userData.controlledBone) {
                         const controlElem = document.createElement('div');
-                        controlElem.style.fontSize = '10px';
-                        controlElem.style.color = '#ffcc00'; // Yellow color
-                        controlElem.style.fontWeight = 'bold';
+                        controlElem.className = 'rig-connected-bone';
                         controlElem.textContent = `Connected: ${furthestBoneHandle.userData.controlledBone.name}`;
                         itemElem.appendChild(controlElem);
                     }
@@ -1625,19 +1545,15 @@ function createRigDetailsContent(container, details) {
                     
                     if (bone) {
                         const lockContainer = document.createElement('div');
-                        lockContainer.style.display = 'flex';
-                        lockContainer.style.alignItems = 'center';
-                        lockContainer.style.marginTop = '5px';
+                        lockContainer.className = 'rig-lock-container';
                         
                         const lockLabel = document.createElement('label');
+                        lockLabel.className = 'rig-lock-label';
                         lockLabel.textContent = 'Lock Rotation:';
-                        lockLabel.style.fontSize = '10px';
-                        lockLabel.style.marginRight = '5px';
-                        lockLabel.style.color = '#666';
                         
                         const lockCheckbox = document.createElement('input');
                         lockCheckbox.type = 'checkbox';
-                        lockCheckbox.style.cursor = 'pointer';
+                        lockCheckbox.className = 'rig-lock-checkbox';
                         
                         // Initialize checkbox state
                         lockCheckbox.checked = lockedBones.has(bone.uuid);
@@ -1658,22 +1574,12 @@ function createRigDetailsContent(container, details) {
             // Add Apply Changes button at the bottom of the Joints section
             if (title === 'Joints' && items.length > 0) {
                 const buttonContainer = document.createElement('div');
-                buttonContainer.style.marginTop = '10px';
-                buttonContainer.style.display = 'flex';
-                buttonContainer.style.justifyContent = 'center';
+                buttonContainer.className = 'rig-apply-button-container';
                 
                 const applyButton = document.createElement('button');
                 applyButton.id = 'apply-joint-changes-button';
                 applyButton.textContent = 'Apply Changes';
-                applyButton.style.padding = '6px 12px';
-                applyButton.style.backgroundColor = 'rgba(0,0,0,0.2)';
-                applyButton.style.color = '#ccc';
-                applyButton.style.border = '1px solid #444';
-                applyButton.style.borderRadius = '3px';
-                applyButton.style.fontSize = '12px';
-                applyButton.style.cursor = 'not-allowed';
-                applyButton.style.opacity = '0.5';
-                applyButton.disabled = true;
+                applyButton.className = 'rig-apply-button';
                 
                 applyButton.addEventListener('click', () => {
                     applyJointChanges();
