@@ -808,6 +808,9 @@ function startDrag(intersection, handle) {
     // Store the initial position
     dragTargetPosition.copy(handle.position);
     
+    // Get the state
+    const state = getState();
+    
     // Create a drag plane perpendicular to the camera
     const planeNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(state.camera.quaternion);
     dragPlane.setFromNormalAndCoplanarPoint(planeNormal, dragTargetPosition);
