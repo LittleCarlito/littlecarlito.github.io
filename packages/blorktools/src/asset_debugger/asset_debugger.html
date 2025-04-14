@@ -6,35 +6,45 @@
     <title>Asset Debugger - Blorktools</title>
     <style>
         :root {
-            /* Light theme variables */
-            --primary-color: #3498db;
-            --secondary-color: #2c3e50;
-            --accent-color: #e74c3c;
-            --bg-color: #f5f5f5;
-            --panel-bg: #ffffff;
-            --text-color: #333333;
-            --border-color: #dddddd;
-            --input-bg: #ffffff;
-            --input-text: #333333;
-            --label-text: #555555;
+            /* Blorkboard-inspired theme */
+            --primary-color: #4CAF50; /* Terminal green */
+            --tool-color: #F1C40F; /* Blorkboard tool color (yellow) for borders */
+            --button-color: #1E88E5; /* Blorkboard button color (blue) */
+            --secondary-color: #1a1a1a; /* Dark background but not pure black */
+            --bg-color: #121212; /* Dark background */
+            --panel-bg: #1e1e1e; /* Panel background */
+            --panel-bg-lighter: #252525; /* Lighter panel background */
+            --panel-border: #333; /* Panel border */
+            --text-color: #b8b8b8; /* Light gray for regular text */
+            --card-border: #333; /* Card border color */
+            --input-bg: #252525; /* Input background */
+            --input-text: #dadada; /* Input text */
+            --label-text: #959595; /* Label text */
+            --hover-glow: 0 0 5px rgba(241, 196, 15, 0.7); /* Yellow glow for hover */
+            --success-glow: 0 0 5px rgba(76, 175, 80, 0.7); /* Green glow for success */
         }
         
-        /* Dark theme variables */
+        /* Legacy dark theme variables - we'll override these */
         .dark-mode {
-            --primary-color: #2980b9;
-            --secondary-color: #1a252f;
-            --accent-color: #c0392b;
+            --primary-color: #4CAF50;
+            --tool-color: #F1C40F;
+            --button-color: #1E88E5;
+            --secondary-color: #1a1a1a;
             --bg-color: #121212;
             --panel-bg: #1e1e1e;
-            --text-color: #e0e0e0;
-            --border-color: #444444;
-            --input-bg: #2a2a2a;
-            --input-text: #e0e0e0;
-            --label-text: #cccccc;
+            --panel-bg-lighter: #252525;
+            --panel-border: #333;
+            --text-color: #b8b8b8;
+            --card-border: #333;
+            --input-bg: #252525;
+            --input-text: #dadada;
+            --label-text: #959595;
+            --hover-glow: 0 0 5px rgba(241, 196, 15, 0.7);
+            --success-glow: 0 0 5px rgba(76, 175, 80, 0.7);
         }
         
         body {
-            font-family: Arial, sans-serif;
+            font-family: monospace;
             margin: 0;
             padding: 0;
             background-color: var(--bg-color);
@@ -54,34 +64,40 @@
             align-items: center;
             padding: 10px 20px;
             background-color: var(--secondary-color);
-            color: white;
+            color: var(--primary-color);
+            border-bottom: 1px solid var(--panel-border);
         }
         
         h1 {
             margin: 0;
             font-size: 24px;
+            color: var(--primary-color);
         }
         
+        h2, h3 {
+            color: var(--primary-color);
+        }
+        
+        /* Blorkboard-style small button */
         .theme-toggle {
-            background: none;
-            border: none;
-            color: white;
+            background-color: transparent;
+            border: 1px solid var(--button-color);
+            color: var(--button-color);
             cursor: pointer;
-            font-size: 16px;
-            padding: 5px 10px;
-            border-radius: 4px;
-            background-color: rgba(255, 255, 255, 0.2);
-            transition: background-color 0.3s ease;
+            font-size: 14px;
+            padding: 8px 12px;
+            font-family: monospace;
+            transition: all 0.3s ease;
         }
         
         .theme-toggle:hover {
-            background-color: rgba(255, 255, 255, 0.3);
+            background-color: rgba(30, 136, 229, 0.2);
         }
         
+        /* Blorkboard-style card panel */
         .tool-panel {
             background-color: var(--panel-bg);
-            border-radius: 4px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border: 1px solid var(--tool-color);
             padding: 20px;
             margin-bottom: 20px;
             transition: background-color 0.3s ease;
@@ -94,10 +110,10 @@
             margin-bottom: 20px;
         }
         
+        /* Dropzone styling as requested */
         .dropzone {
             flex: 1;
-            border: 2px dashed var(--border-color);
-            border-radius: 4px;
+            border: 1px dashed #555; /* Boring gray dashed border initially */
             padding: 20px;
             text-align: center;
             transition: all 0.3s ease;
@@ -106,16 +122,17 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            background-color: var(--panel-bg-lighter);
         }
         
         .dropzone.active {
-            border-color: var(--primary-color);
-            background-color: rgba(52, 152, 219, 0.1);
+            border: 2px dashed var(--tool-color); /* Yellow when hovering */
+            box-shadow: var(--hover-glow);
         }
         
         .dropzone.has-file {
-            border-color: var(--accent-color);
-            background-color: rgba(231, 76, 60, 0.1);
+            border: 2px solid var(--primary-color); /* Green when file dropped */
+            box-shadow: var(--success-glow);
         }
         
         .dropzone h3 {
@@ -131,6 +148,7 @@
         .file-info {
             font-size: 12px;
             margin-top: 10px;
+            color: var(--label-text);
         }
         
         .preview-container {
@@ -147,6 +165,8 @@
             justify-content: center;
             align-items: center;
             overflow: hidden;
+            border: 1px solid var(--panel-border);
+            background-color: rgba(0,0,0,0.2);
         }
         
         .preview img {
@@ -155,68 +175,64 @@
             object-fit: contain;
         }
         
+        /* Blorkboard-style blue button */
+        .start-button, .button-base {
+            background-color: var(--button-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-family: monospace;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
         .start-button {
             display: block;
             width: 100%;
-            padding: 15px;
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 4px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
         }
         
-        .start-button:hover {
-            background-color: #2980b9;
+        .start-button:hover, .button-base:hover {
+            background-color: #0d74c7;
         }
         
         .start-button:disabled {
-            background-color: #95a5a6;
+            background-color: #555;
+            color: #888;
             cursor: not-allowed;
         }
-
+        
         .button-base {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             height: 40px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
             margin: 10px 0;
         }
         
         .restart-button {
             padding: 10px 20px;
-            background-color: var(--primary-color);
-            color: white;
-            font-size: 16px;
+            font-size: 14px;
         }
         
         .settings-button {
             width: 40px;
             height: 40px;
-            background-color: #777;
-            color: white;
+            background-color: var(--secondary-color);
             padding: 0;
             margin-left: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--button-color);
         }
         
-        .restart-button:hover {
-            background-color: #2980b9;
+        .settings-button svg path {
+            fill: var(--button-color);
         }
         
         .settings-button:hover {
-            background-color: #555;
-        }
-        
-        #debug-button-container {
-            display: flex;
-            align-items: center;
-            flex-direction: row;
+            background-color: rgba(30, 136, 229, 0.2);
         }
         
         /* Modal styling */
@@ -226,7 +242,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: rgba(0, 0, 0, 0.5);
+            background-color: rgba(0, 0, 0, 0.7);
             display: none;
             justify-content: center;
             align-items: center;
@@ -237,8 +253,7 @@
             background-color: var(--panel-bg);
             width: 400px;
             max-width: 90%;
-            border-radius: 6px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--panel-border);
             overflow: hidden;
         }
         
@@ -247,19 +262,20 @@
             justify-content: space-between;
             align-items: center;
             padding: 15px 20px;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--panel-border);
         }
         
         .modal-title {
             font-weight: bold;
             font-size: 18px;
             margin: 0;
+            color: var(--primary-color);
         }
         
         .modal-close {
             background: none;
             border: none;
-            font-size: 20px;
+            font-size: 24px;
             cursor: pointer;
             color: var(--text-color);
         }
@@ -272,7 +288,7 @@
         
         .modal-footer {
             padding: 15px 20px;
-            border-top: 1px solid var(--border-color);
+            border-top: 1px solid var(--panel-border);
             display: flex;
             justify-content: flex-end;
         }
@@ -280,31 +296,40 @@
         .modal-btn {
             padding: 8px 16px;
             border: none;
-            border-radius: 4px;
             cursor: pointer;
             margin-left: 10px;
+            font-family: monospace;
+            transition: all 0.3s ease;
         }
         
         .modal-btn-primary {
-            background-color: var(--primary-color);
+            background-color: var(--button-color);
             color: white;
         }
         
         .modal-btn-secondary {
-            background-color: #777;
+            background-color: #555;
             color: white;
+        }
+        
+        .modal-btn:hover {
+            opacity: 0.9;
         }
         
         /* Settings styles */
         .settings-group {
             margin-bottom: 20px;
+            border: 1px solid var(--panel-border);
+            padding: 15px;
+            background-color: rgba(0,0,0,0.1);
         }
         
         .settings-title {
             font-weight: bold;
             margin-bottom: 10px;
             padding-bottom: 5px;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--panel-border);
+            color: var(--primary-color);
         }
         
         .settings-option {
@@ -314,15 +339,16 @@
         .settings-option label {
             display: block;
             margin-bottom: 5px;
+            color: var(--label-text);
         }
         
         .settings-select {
             width: 100%;
             padding: 8px;
-            border-radius: 4px;
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--panel-border);
             background-color: var(--input-bg);
             color: var(--input-text);
+            font-family: monospace;
         }
         
         #viewport {
@@ -330,7 +356,7 @@
             height: 600px;
             background-color: #000;
             display: none;
-            border-radius: 4px;
+            border: 1px solid var(--panel-border);
             overflow: hidden;
         }
         
@@ -349,8 +375,7 @@
         .mesh-panel {
             flex: 0 0 300px;
             background-color: var(--panel-bg);
-            border-radius: 4px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border: 1px solid var(--panel-border);
             padding: 15px;
             max-height: 600px;
             overflow-y: auto;
@@ -362,7 +387,7 @@
             margin-top: 0;
             margin-bottom: 15px;
             padding-bottom: 10px;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--panel-border);
         }
         
         .mesh-group {
@@ -375,24 +400,17 @@
             margin-bottom: 5px;
             cursor: pointer;
             padding: 5px;
-            background-color: rgba(0,0,0,0.03);
-            border-radius: 3px;
-        }
-        
-        .dark-mode .mesh-group-header {
-            background-color: rgba(255,255,255,0.05);
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--panel-border);
         }
         
         .mesh-group-header:hover {
-            background-color: rgba(0,0,0,0.06);
-        }
-        
-        .dark-mode .mesh-group-header:hover {
-            background-color: rgba(255,255,255,0.08);
+            background-color: rgba(0, 0, 0, 0.3);
         }
         
         .mesh-group-toggle {
             margin-right: 5px;
+            color: var(--primary-color);
         }
         
         .mesh-group-name {
@@ -401,16 +419,14 @@
         }
         
         .mesh-group-count {
-            color: #888;
+            color: var(--label-text);
             font-size: 12px;
-        }
-        
-        .dark-mode .mesh-group-count {
-            color: #aaa;
         }
         
         .mesh-items {
             margin-left: 20px;
+            border-left: 1px solid var(--panel-border);
+            padding-left: 5px;
         }
         
         .mesh-item {
@@ -418,19 +434,15 @@
             align-items: center;
             margin-bottom: 3px;
             padding: 3px;
-            border-radius: 3px;
         }
         
         .mesh-item:hover {
-            background-color: rgba(0,0,0,0.03);
-        }
-        
-        .dark-mode .mesh-item:hover {
-            background-color: rgba(255,255,255,0.05);
+            background-color: rgba(0, 0, 0, 0.2);
         }
         
         .mesh-toggle {
             margin-right: 5px;
+            color: var(--primary-color);
         }
         
         .mesh-name {
@@ -444,8 +456,7 @@
         .tab-container {
             flex: 0 0 300px;
             background-color: var(--panel-bg);
-            border-radius: 4px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border: 1px solid var(--panel-border);
             max-height: 600px;
             height: 600px;
             display: none;
@@ -457,7 +468,7 @@
         
         .tab-navigation {
             display: flex;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--panel-border);
             flex-shrink: 0;
         }
         
@@ -465,25 +476,24 @@
             flex: 1;
             background: none;
             border: none;
-            border-bottom: 3px solid transparent;
+            border-bottom: 2px solid transparent;
             padding: 10px;
             cursor: pointer;
             font-size: 14px;
             color: var(--text-color);
             transition: all 0.3s ease;
+            font-family: monospace;
         }
         
         .tab-button:hover {
-            background-color: rgba(0,0,0,0.03);
-        }
-        
-        .dark-mode .tab-button:hover {
-            background-color: rgba(255,255,255,0.05);
+            background-color: rgba(0, 0, 0, 0.2);
         }
         
         .tab-button.active {
-            border-bottom-color: var(--primary-color);
+            border-bottom-color: var(--button-color);
             font-weight: bold;
+            background-color: rgba(30, 136, 229, 0.1);
+            color: var(--button-color);
         }
         
         .tab-content {
@@ -502,7 +512,7 @@
             margin-top: 0;
             margin-bottom: 15px;
             padding-bottom: 10px;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--panel-border);
         }
         
         /* Atlas Visualization */
@@ -516,34 +526,31 @@
         .texture-type-button {
             flex: 1;
             padding: 5px;
-            background: none;
-            border: 1px solid var(--border-color);
-            border-radius: 3px;
+            background: var(--secondary-color);
+            border: 1px solid var(--panel-border);
             cursor: pointer;
             font-size: 12px;
             transition: all 0.3s ease;
             color: var(--text-color);
+            font-family: monospace;
         }
         
         .texture-type-button:hover {
-            background-color: rgba(0,0,0,0.03);
-        }
-        
-        .dark-mode .texture-type-button:hover {
-            background-color: rgba(255,255,255,0.05);
+            background-color: rgba(0, 0, 0, 0.2);
         }
         
         .texture-type-button.active {
-            background-color: var(--primary-color);
+            background-color: var(--button-color);
             color: white;
-            border-color: var(--primary-color);
+            border-color: var(--button-color);
         }
         
         .atlas-canvas {
             width: 100%;
             height: auto;
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--panel-border);
             margin-bottom: 10px;
+            background-color: #000;
         }
         
         .coords-text {
@@ -551,26 +558,18 @@
             margin-bottom: 10px;
             font-family: monospace;
             padding: 5px;
-            background-color: rgba(0,0,0,0.03);
-            border-radius: 3px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--panel-border);
             color: var(--text-color);
-        }
-        
-        .dark-mode .coords-text {
-            background-color: rgba(255,255,255,0.05);
         }
         
         .segment-info {
             font-size: 12px;
             padding: 5px;
-            background-color: rgba(0,0,0,0.03);
-            border-radius: 3px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--panel-border);
             margin-bottom: 10px;
             color: var(--text-color);
-        }
-        
-        .dark-mode .segment-info {
-            background-color: rgba(255,255,255,0.05);
         }
         
         /* UV Controls */
@@ -583,13 +582,8 @@
         .uv-control-group {
             margin-bottom: 15px;
             padding: 10px;
-            background-color: rgba(0,0,0,0.02);
-            border-radius: 4px;
-            border: 1px solid var(--border-color);
-        }
-        
-        .dark-mode .uv-control-group {
-            background-color: rgba(255,255,255,0.03);
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--panel-border);
         }
         
         .uv-control-group label {
@@ -615,21 +609,17 @@
         .uv-control-row input {
             flex: 1;
             padding: 5px;
-            border: 1px solid var(--border-color);
-            border-radius: 3px;
+            border: 1px solid var(--panel-border);
             background-color: var(--input-bg);
             color: var(--input-text);
+            font-family: monospace;
         }
         
         .uv-note {
             font-size: 11px;
-            color: #888;
+            color: var(--label-text);
             margin-top: 5px;
             font-style: italic;
-        }
-        
-        .dark-mode .uv-note {
-            color: #aaa;
         }
         
         /* Rig Visualization */
@@ -637,18 +627,18 @@
             display: block;
             width: 100%;
             padding: 8px;
-            background-color: var(--primary-color);
+            background-color: var(--button-color);
             color: white;
             border: none;
-            border-radius: 3px;
             font-size: 14px;
             cursor: pointer;
             margin-bottom: 10px;
-            transition: background-color 0.3s ease;
+            transition: all 0.3s ease;
+            font-family: monospace;
         }
         
         .rig-button:hover {
-            background-color: #2980b9;
+            background-color: #0d74c7;
         }
         
         .bone-hierarchy {
@@ -656,9 +646,9 @@
             font-size: 12px;
             max-height: 300px;
             overflow-y: auto;
-            border: 1px solid var(--border-color);
-            border-radius: 3px;
+            border: 1px solid var(--panel-border);
             padding: 5px;
+            background-color: rgba(0,0,0,0.2);
         }
         
         .bone-item {
@@ -670,7 +660,7 @@
         
         .bone-children {
             margin-left: 15px;
-            border-left: 1px dotted var(--border-color);
+            border-left: 1px dotted var(--panel-border);
             padding-left: 5px;
         }
         
@@ -678,6 +668,7 @@
             display: inline-block;
             width: 15px;
             text-align: center;
+            color: var(--primary-color);
         }
         
         /* Hide entire upload section when debugging starts */
@@ -689,6 +680,9 @@
         .settings-slider {
             width: 80%;
             margin-right: 10px;
+            background-color: var(--secondary-color);
+            border: 1px solid var(--panel-border);
+            height: 5px;
         }
         
         .slider-container {
@@ -700,30 +694,33 @@
         #axis-intensity-value {
             min-width: 30px;
             text-align: center;
+            color: var(--text-color);
         }
         
         /* Settings Tab Styles */
         .settings-tabs {
             display: flex;
-            border-bottom: 1px solid #444;
+            border-bottom: 1px solid var(--panel-border);
             margin-bottom: 15px;
         }
         
         .settings-tab-button {
             background: transparent;
             border: none;
-            color: #aaa;
+            color: var(--text-color);
             padding: 10px 15px;
             cursor: pointer;
             font-size: 14px;
             border-bottom: 2px solid transparent;
             outline: none;
             transition: all 0.2s ease;
+            font-family: monospace;
         }
         
         .settings-tab-button.active {
-            color: #fff;
-            border-bottom: 2px solid var(--primary-color);
+            color: var(--button-color);
+            border-bottom: 2px solid var(--button-color);
+            background-color: rgba(30, 136, 229, 0.1);
         }
         
         .settings-tab-content {
@@ -751,6 +748,7 @@
         
         .settings-option label {
             margin-right: 10px;
+            color: var(--label-text);
         }
         
         .settings-checkbox {
@@ -758,6 +756,7 @@
             width: 18px;
             height: 18px;
             cursor: pointer;
+            accent-color: var(--button-color);
         }
         
         .settings-color-picker {
@@ -765,23 +764,24 @@
             width: 40px;
             height: 25px;
             padding: 0;
-            border: none;
+            border: 1px solid var(--panel-border);
             cursor: pointer;
+            background-color: transparent;
         }
         
         .reset-button {
-            background-color: #4CAF50;
+            background-color: var(--button-color);
             color: white;
             border: none;
             padding: 6px 12px;
-            border-radius: 4px;
             cursor: pointer;
             font-weight: bold;
             transition: background-color 0.3s;
+            font-family: monospace;
         }
         
         .reset-button:hover {
-            background-color: #45a049;
+            background-color: #0d74c7;
         }
         
         .settings-option.full-width {
@@ -798,27 +798,13 @@
             width: 50%;
         }
         
-        .reset-button {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background-color 0.3s;
-        }
-        
-        .reset-button:hover {
-            background-color: #45a049;
-        }
-        
         .settings-subheading {
             font-size: 14px;
             margin: 0 0 10px 0;
             padding-bottom: 5px;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--panel-border);
             width: 100%;
+            color: var(--primary-color);
         }
         
         .collapsible-header {
@@ -836,10 +822,53 @@
         .collapse-indicator {
             font-size: 12px;
             transition: none;
+            color: var(--primary-color);
         }
         
         .collapsible-header.expanded .collapse-indicator {
             transform: none;
+        }
+        
+        /* Example Modal Styles */
+        #load-example-modal .modal-container {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            color: var(--text-color);
+            font-family: monospace;
+        }
+        
+        #load-example-modal .modal-header {
+            border-bottom: 1px solid var(--panel-border);
+        }
+        
+        #load-example-modal .modal-title {
+            color: var(--primary-color);
+        }
+        
+        #load-example-modal .modal-close {
+            color: var(--text-color);
+        }
+        
+        #rig-example-button {
+            background-color: var(--button-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-family: monospace;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 80%;
+            margin: 0 auto;
+            display: block;
+        }
+        
+        #rig-example-button:hover {
+            background-color: #0d74c7;
+        }
+        
+        #rig-example-button:active {
+            transform: scale(0.98);
         }
     </style>
 </head>
@@ -847,8 +876,8 @@
     <header>
         <h1>Asset Debugger</h1>
         <div style="display: flex; gap: 10px;">
-            <button id="return-to-toolbox" class="theme-toggle">Return to Toolbox</button>
-            <button id="theme-toggle" class="theme-toggle">Switch to Light Mode</button>
+            <button id="return-to-toolbox" class="theme-toggle">Exit to Toolbox</button>
+            <button id="theme-toggle" class="theme-toggle">System Status</button>
         </div>
     </header>
     
@@ -888,7 +917,7 @@
                 <div class="preview" id="normal-preview"></div>
             </div>
             
-            <button id="start-debug" class="start-button" disabled>Start Debugging</button>
+            <button id="start-debug" class="start-button">Start Debugging</button>
         </div>
         
         <div id="debug-button-container" style="display: none;">
@@ -1127,27 +1156,38 @@
         </div>
     </div>
     
+    <!-- Load Example Modal -->
+    <div id="load-example-modal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 class="modal-title">LOAD EXAMPLE</h3>
+                <button class="modal-close" id="close-example-modal">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 25px 20px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <p style="margin-bottom: 20px; font-size: 16px;">SELECT AN EXAMPLE TO LOAD:</p>
+                    <button id="rig-example-button">RIG EXAMPLE</button>
+                </div>
+                <div style="font-size: 12px; margin-top: 30px; color: #999; text-align: center;">
+                    <p>EXAMPLES WILL LOAD WITHOUT REQUIRING ANY FILE UPLOADS</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <script type="module" src="asset_debugger.js"></script>
     <script>
         // Theme toggle functionality
         document.addEventListener('DOMContentLoaded', function() {
-            // Set default to dark mode
+            // Always use terminal theme (dark mode)
             document.documentElement.classList.add('dark-mode');
             document.documentElement.classList.remove('light-mode');
             
             const themeToggle = document.getElementById('theme-toggle');
-            themeToggle.textContent = 'Switch to Light Mode';
+            themeToggle.textContent = 'System Status';
             
             themeToggle.addEventListener('click', function() {
-                if (document.documentElement.classList.contains('dark-mode')) {
-                    document.documentElement.classList.remove('dark-mode');
-                    document.documentElement.classList.add('light-mode');
-                    themeToggle.textContent = 'Switch to Dark Mode';
-                } else {
-                    document.documentElement.classList.add('dark-mode');
-                    document.documentElement.classList.remove('light-mode');
-                    themeToggle.textContent = 'Switch to Light Mode';
-                }
+                alert('System Status: Online\nAsset Debugger: Ready\nRig Visualizer: Ready');
             });
             
             // Set up restart button functionality
@@ -1184,6 +1224,27 @@
             
             closeSettingsBtn.addEventListener('click', closeSettingsModal);
             cancelSettingsBtn.addEventListener('click', closeSettingsModal);
+            
+            // Load example modal functionality
+            const loadExampleModal = document.getElementById('load-example-modal');
+            const closeExampleBtn = document.getElementById('close-example-modal');
+            
+            // Close modal function
+            function closeExampleModal() {
+                loadExampleModal.style.display = 'none';
+            }
+            
+            // Add event listener for close button
+            if (closeExampleBtn) {
+                closeExampleBtn.addEventListener('click', closeExampleModal);
+            }
+            
+            // When clicking outside the modal, close it
+            loadExampleModal.addEventListener('click', function(event) {
+                if (event.target === loadExampleModal) {
+                    closeExampleModal();
+                }
+            });
             
             // Save settings
             saveSettingsBtn.addEventListener('click', function() {

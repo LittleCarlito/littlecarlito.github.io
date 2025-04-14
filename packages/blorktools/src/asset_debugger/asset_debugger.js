@@ -150,29 +150,61 @@ function setupTabNavigation() {
 function startDebugging() {
     console.log('Starting debugging...');
     
-    // Check if any files have been loaded before proceeding
-    const state = import('./core/state.js').then(stateModule => {
+    // Check if any files have been loaded
+    import('./core/state.js').then(stateModule => {
         const currentState = stateModule.getState();
         const hasTextures = currentState.textureObjects.baseColor || 
-                           currentState.textureObjects.orm || 
-                           currentState.textureObjects.normal;
+                          currentState.textureObjects.orm || 
+                          currentState.textureObjects.normal;
         const hasModel = currentState.useCustomModel && currentState.modelFile;
         
         if (!hasTextures && !hasModel) {
-            console.log('No files loaded. Cannot start debugging.');
-            alert('Please drop at least one texture or model file before starting.');
-            return false;
+            // If no files are loaded, show the load example modal
+            console.log('No files loaded. Showing example modal...');
+            const exampleModal = document.getElementById('load-example-modal');
+            if (exampleModal) {
+                exampleModal.style.display = 'flex';
+                
+                // Set up event listeners for the modal
+                const closeButton = document.getElementById('close-example-modal');
+                const rigExampleButton = document.getElementById('rig-example-button');
+                
+                if (closeButton) {
+                    closeButton.addEventListener('click', () => {
+                        exampleModal.style.display = 'none';
+                    });
+                }
+                
+                if (rigExampleButton) {
+                    rigExampleButton.addEventListener('click', () => {
+                        exampleModal.style.display = 'none';
+                        // Proceed with initializing the debugger
+                        initializeDebugger();
+                    });
+                }
+            }
+        } else {
+            // If files are loaded, proceed with initializing the debugger
+            initializeDebugger();
         }
-        
-        // Continue with start debugging process
-        initializeDebugger();
-        return true;
     });
     
     function initializeDebugger() {
         // Get elements
         const viewport = document.getElementById('viewport');
         const tabContainer = document.getElementById('tab-container');
+        
+        // Hide upload section and show debug controls
+        const uploadSection = document.getElementById('upload-section');
+        const debugButtonContainer = document.getElementById('debug-button-container');
+        
+        if (uploadSection) {
+            uploadSection.style.display = 'none';
+        }
+        
+        if (debugButtonContainer) {
+            debugButtonContainer.style.display = 'flex';
+        }
         
         // Show viewport and tab container
         if (viewport) {

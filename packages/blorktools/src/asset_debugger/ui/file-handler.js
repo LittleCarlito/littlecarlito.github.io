@@ -223,21 +223,12 @@ function handleModelUpload(file, infoElement, dropzone) {
  * Check if all required textures are loaded and enable start button if they are
  */
 function checkStartButton() {
-    const state = getState();
     const startButton = document.getElementById('start-debug');
     
     if (startButton) {
-        // Only enable button if at least one file has been dropped
-        const hasFiles = state.textureObjects && (
-            state.textureObjects.baseColor || 
-            state.textureObjects.orm || 
-            state.textureObjects.normal || 
-            (state.useCustomModel && state.modelFile)
-        );
-        
-        // Explicitly set the disabled state
-        startButton.disabled = !hasFiles;
-        console.log('Start debugging button state updated:', hasFiles ? 'enabled' : 'disabled');
+        // Always enable the button regardless of file status
+        startButton.disabled = false;
+        console.log('Start debugging button is always enabled');
     }
 }
 
