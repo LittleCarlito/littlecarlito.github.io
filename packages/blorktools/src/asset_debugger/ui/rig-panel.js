@@ -57,61 +57,7 @@ let jointSettingsDebug = true;
 let allJointsInPreviousState = true;
 let jointPreviousValues = new Map(); // Map of joint name to previous value
 
-
-
-/**
- * Update animation for rig visuals
- */
-function updateRigAnimation() {
-    // Only update rig visuals if Display Rig is enabled
-    if (!rigOptions.displayRig) {
-        // Even when displayRig is off, we should ensure handles are not visible
-        if (furthestBoneHandle) {
-            furthestBoneHandle.visible = false;
-        }
-        if (boneVisualsGroup) {
-            boneVisualsGroup.visible = false;
-        }
-        return;
-    }
-    
-    // Update bone visuals
-    if (boneVisualsGroup) {
-        boneVisualsGroup.visible = true;
-        boneVisualsGroup.children.forEach(boneGroup => {
-            if (boneGroup.userData.updatePosition) {
-                boneGroup.userData.updatePosition();
-            }
-        });
-    }
-    
-    // Update furthest bone handle
-    if (furthestBoneHandle) {
-        furthestBoneHandle.visible = true;
-        if (furthestBoneHandle.userData.updatePosition && !getIsDragging()) {
-            // Only update handle position when not dragging
-            furthestBoneHandle.userData.updatePosition();
-        }
-    }
-    
-    // Update joint labels
-    const state = getState();
-    const labelGroup = state.scene ? state.scene.getObjectByName("JointLabels") : null;
-    if (labelGroup) {
-        labelGroup.children.forEach(label => {
-            if (label.userData && label.userData.updatePosition) {
-                label.userData.updatePosition();
-            }
-        });
-    }
-    
-    // Apply locked rotations to bones
-    restoreLockedBoneRotations();
-    
-    // Check handle hover on each frame
-    checkHandleHover();
-}
-
+// TODO Move to bone-util.js and a lot of rig manager stuff along with it.
 /**
  * Restore locked bone rotations
  */
@@ -2255,7 +2201,6 @@ document.addEventListener('resetRig', function() {
 // Export functions needed by other modules
 export {
     updateRigPanel,
-    updateRigAnimation,
     updateAllBoneMatrices,
     rigOptions,
     createRigDetailsContent,

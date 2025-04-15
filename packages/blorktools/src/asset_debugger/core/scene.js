@@ -6,9 +6,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { getState, updateState } from './state.js';
-
-// Store the updateRigAnimation function once it's loaded
-let updateRigAnimationFn = null;
+import { updateRigAnimation } from './rig/rig-manager.js';
 
 /**
  * Initialize the Three.js scene, camera, renderer and controls
@@ -56,16 +54,6 @@ export function initScene(container) {
     // Render once immediately
     renderer.render(scene, camera);
     
-    // Preload the rig animation function
-    import('../ui/rig-panel.js').then(module => {
-        if (module.updateRigAnimation) {
-            updateRigAnimationFn = module.updateRigAnimation;
-            console.log('Rig animation function loaded');
-        }
-    }).catch(err => {
-        console.error('Error loading rig-panel.js:', err);
-    });
-    
     return { scene, camera, renderer, controls };
 }
 
@@ -109,18 +97,6 @@ export function startAnimation() {
         cancelAnimationFrame(state.animationId);
     }
     
-    // If rig animation function isn't loaded yet, try to load it
-    if (!updateRigAnimationFn) {
-        import('../ui/rig-panel.js').then(module => {
-            if (module.updateRigAnimation) {
-                updateRigAnimationFn = module.updateRigAnimation;
-                console.log('Rig animation function loaded');
-            }
-        }).catch(err => {
-            console.error('Error loading rig-panel.js:', err);
-        });
-    }
-    
     // Define the animation function
     function animate() {
         const currentState = getState();
@@ -138,9 +114,7 @@ export function startAnimation() {
         }
         
         // Update rig animations regardless of which tab is active
-        if (updateRigAnimationFn) {
-            updateRigAnimationFn();
-        }
+        updateRigAnimation();
         
         // Render the scene
         if (currentState.renderer && currentState.scene && currentState.camera) {
