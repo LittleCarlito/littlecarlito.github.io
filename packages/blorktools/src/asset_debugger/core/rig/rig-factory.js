@@ -12,6 +12,7 @@ import {
     createJointLabels,
     setupMouseListeners 
 } from '../../ui/rig-panel.js';
+import { getIsDragging } from '../drag-util.js';
 
 // These variables need to be exported so they're available to both modules
 export let bones = [];
@@ -20,7 +21,6 @@ export let boneMaterial = null;
 export let boneSideMaterial = null;
 export let furthestBoneHandle = null;
 export let rigDetails = null;
-export let isDragging = false;
 
 /**
  * Update the rig details object with new values
@@ -30,13 +30,7 @@ export function updateRigDetails(newDetails) {
     rigDetails = newDetails;
 }
 
-/**
- * Update the isDragging state
- * @param {Boolean} dragging - The new dragging state
- */
-export function setIsDragging(dragging) {
-    isDragging = dragging;
-}
+
 
 // Variables used for rig visualization 
 export const rigOptions = {
@@ -736,7 +730,7 @@ function addControlHandleToFurthestBone(bone, scene, modelScale) {
     furthestBoneHandle.userData.controlledBone = bone;
     furthestBoneHandle.userData.isControlHandle = true;
     furthestBoneHandle.userData.updatePosition = () => {
-        if (furthestBoneHandle.userData.controlledBone && !isDragging) {
+        if (furthestBoneHandle.userData.controlledBone && !getIsDragging) {
             const controlledBonePos = new THREE.Vector3();
             furthestBoneHandle.userData.controlledBone.getWorldPosition(controlledBonePos);
             furthestBoneHandle.position.copy(controlledBonePos);

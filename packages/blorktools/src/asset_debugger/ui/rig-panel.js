@@ -21,12 +21,10 @@ import {
     boneSideMaterial,
     furthestBoneHandle,
     rigDetails,
-    isDragging,
     rigOptions,
-    updateRigDetails,
-    setIsDragging
+    updateRigDetails
 } from '../core/rig/rig-factory.js';
-import { handleDrag } from '../core/drag-util.js';
+import { handleDrag, setIsDragging, getIsDragging } from '../core/drag-util.js';
 
 // Reusable objects for position and rotation operations
 let worldPos = new THREE.Vector3();
@@ -97,7 +95,7 @@ function setupMouseListeners(scene) {
         checkHandleHover();
         
         // Handle dragging
-        if (isDragging && dragTarget) {
+        if (getIsDragging() && dragTarget) {
             handleDrag();
         }
     });
@@ -125,7 +123,7 @@ function setupMouseListeners(scene) {
     
     // Mouse up handler
     domElement.addEventListener('mouseup', (event) => {
-        if (isDragging) {
+        if (getIsDragging()) {
             stopDrag();
             event.preventDefault();
         }
@@ -133,7 +131,7 @@ function setupMouseListeners(scene) {
     
     // Mouse leave handler
     domElement.addEventListener('mouseleave', (event) => {
-        if (isDragging) {
+        if (getIsDragging()) {
             stopDrag();
         }
     });
@@ -178,7 +176,7 @@ function startDrag(intersection, handle) {
  * Stop dragging operation
  */
 function stopDrag() {
-    if (!isDragging || !dragTarget) return;
+    if (!getIsDragging() || !dragTarget) return;
     
     setIsDragging(false);
     
@@ -248,7 +246,7 @@ function applyInverseKinematics(targetBone, targetPosition) {
  */
 function checkHandleHover() {
     // Don't check for hover if rig display is disabled or handle doesn't exist
-    if (!rigOptions.displayRig || !furthestBoneHandle || isDragging) return;
+    if (!rigOptions.displayRig || !furthestBoneHandle || getIsDragging()) return;
     
     const state = getState();
     const camera = state.camera;
@@ -275,12 +273,12 @@ function checkHandleHover() {
             hoveredHandle = furthestBoneHandle;
             
             // If not currently dragging this handle, highlight it
-            if (!isDragging || hoveredHandle !== dragTarget) {
+            if (!getIsDragging() || hoveredHandle !== dragTarget) {
                 hoveredHandle.material.color.setHex(rigOptions.hoverColor);
                 hoveredHandle.material.needsUpdate = true;
             }
         }
-    } else if (hoveredHandle && !isDragging) {
+    } else if (hoveredHandle && !getIsDragging()) {
         // No hit and not dragging, reset hovered handle color
         if (hoveredHandle.material) {
             hoveredHandle.material.color.setHex(rigOptions.normalColor);
@@ -335,7 +333,7 @@ function updateRigAnimation() {
     // Update furthest bone handle
     if (furthestBoneHandle) {
         furthestBoneHandle.visible = true;
-        if (furthestBoneHandle.userData.updatePosition && !isDragging) {
+        if (furthestBoneHandle.userData.updatePosition && !getIsDragging()) {
             // Only update handle position when not dragging
             furthestBoneHandle.userData.updatePosition();
         }
@@ -1907,12 +1905,12 @@ function createAxisIndicator(scene, camera, renderer) {
     });
     
     // Make the header draggable (moves the entire container)
-    let isDragging = false;
+    let isHeaderDragging = false;
     let startX, startY;
     let startLeft, startTop;
     
     header.addEventListener('mousedown', (e) => {
-        isDragging = true;
+        isHeaderDragging = true;
         startX = e.clientX;
         startY = e.clientY;
         startLeft = parseInt(axisContainer.style.left);
@@ -1923,7 +1921,7 @@ function createAxisIndicator(scene, camera, renderer) {
     });
     
     document.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
+        if (!isHeaderDragging) return;
         
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
@@ -1948,8 +1946,8 @@ function createAxisIndicator(scene, camera, renderer) {
     });
     
     document.addEventListener('mouseup', () => {
-        if (isDragging) {
-            isDragging = false;
+        if (isHeaderDragging) {
+            isHeaderDragging = false;
             header.style.cursor = 'grab';
         }
     });
