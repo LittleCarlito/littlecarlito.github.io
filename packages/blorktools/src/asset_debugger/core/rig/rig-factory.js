@@ -6,13 +6,15 @@
  */
 import * as THREE from 'three';
 import { getState } from '../state.js';
-import { createAxisIndicator } from '../../ui/rig-panel.js';
+import { createAxisIndicator } from '../../ui/axis-indicator.js';
 import { getIsDragging, setupMouseListeners } from '../drag-util.js';
 import { 
     clearRigVisualization,
     rigDetails, 
     updateRigDetails,
-    rigOptions
+    rigOptions,
+    clearJointLabels,
+    updateLabelPosition
  } from './rig-manager.js'
  import { 
     bones,
@@ -27,7 +29,9 @@ import {
     setBoneSideMaterial,
     setBoneJointMaterial,
     resetBoneVisualGroup,
-    resetBones
+    resetBones,
+    setLabelGroup,
+    labelGroup
   } from '../bone-util.js';
 
 
@@ -43,10 +47,7 @@ export function createJointLabels(scene) {
     clearJointLabels(scene);
     
     // Create a group to hold all labels
-    labelGroup = new THREE.Group();
-    labelGroup.name = "JointLabels";
-    labelGroup.visible = rigOptions.showJointLabels && rigOptions.displayRig;
-    scene.add(labelGroup);
+    setLabelGroup("JointLabels", scene);
     
     // Keep track of the labels created
     const labelCount = {total: 0, added: 0};

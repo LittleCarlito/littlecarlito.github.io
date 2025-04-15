@@ -254,7 +254,7 @@ function resetRig() {
  * @param {Object} label - The label sprite
  * @param {Object} joint - The joint the label is attached to
  */
-function updateLabelPosition(label, joint) {
+export function updateLabelPosition(label, joint) {
     if (!label || !joint) return;
     
     // Get the joint's world position
@@ -278,7 +278,7 @@ function updateLabelPosition(label, joint) {
  * Clear all joint labels from the scene
  * @param {Object} scene - The Three.js scene
  */
-function clearJointLabels(scene) {
+export function clearJointLabels(scene) {
     const existingLabels = scene.getObjectByName("JointLabels");
     if (existingLabels) {
         scene.remove(existingLabels);

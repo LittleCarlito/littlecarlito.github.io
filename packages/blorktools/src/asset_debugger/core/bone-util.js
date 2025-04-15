@@ -17,7 +17,7 @@ const IK_WEIGHT = 0.1; // Weight of each iteration adjustment (changed from 0.5 
 
 // Map to track locked bones
 export let lockedBones = new Map(); // Maps bone.uuid to {bone, originalRotation}
-let labelGroup = null;
+export let labelGroup = null;
 
 /**
  * Find bone by name in the scene
@@ -448,4 +448,15 @@ function updateBoneChainMatrices(boneChain) {
             bone.updateMatrixWorld(true);
         }
     });
+}
+
+/**
+ * Set the label group
+ * @param {Object} group - The label group
+ */
+export function setLabelGroup(name, scene) {
+    labelGroup = new THREE.Group();
+    labelGroup.name = name;
+    labelGroup.visible = rigOptions.showJointLabels && rigOptions.displayRig;
+    scene.add(labelGroup);
 }
