@@ -7,43 +7,29 @@
 import * as THREE from 'three';
 import { getState } from '../state.js';
 import { 
-    clearRigVisualization, 
     createAxisIndicator, 
     createJointLabels
 } from '../../ui/rig-panel.js';
 import { getIsDragging, setupMouseListeners } from '../drag-util.js';
-
-// These variables need to be exported so they're available to both modules
-export let bones = [];
-export let boneVisualsGroup = null;
-export let boneMaterial = null;
-export let boneSideMaterial = null;
-export let furthestBoneHandle = null;
-export let rigDetails = null;
-
-/**
- * Update the rig details object with new values
- * @param {Object} newDetails - The new rig details object
- */
-export function updateRigDetails(newDetails) {
-    rigDetails = newDetails;
-}
-
-
-
-// Variables used for rig visualization 
-export const rigOptions = {
-    displayRig: false, // Default to not visible
-    forceZ: false,
-    wireframe: true,
-    primaryColor: 0xFF00FF, // Magenta
-    secondaryColor: 0xFFFF00, // Yellow
-    jointColor: 0x00FFFF, // Cyan
-    showJointLabels: false, // Default to hidden
-    normalColor: 0xFF0000, // Red - for control handles normal state
-    hoverColor: 0x00FF00,  // Green - for control handles hover state
-    activeColor: 0x0000FF  // Blue - for control handles active/dragging state
-};
+import { 
+    clearRigVisualization, 
+    boneVisualsGroup, 
+    findFarthestBone, 
+    rigDetails, 
+    updateRigDetails,
+    bones,
+    resetBones,
+    setBoneMaterial,
+    setBoneSideMaterial,
+    setBoneJointMaterial,
+    resetBoneVisualGroup,
+    rigOptions,
+    boneJointMaterial,
+    boneMaterial,
+    boneSideMaterial,
+    furthestBoneHandle,
+    setFurthestBoneHandle
+ } from './rig-manager.js'
 
 /**
  * Analyze the rig data in a GLTF model
@@ -167,27 +153,7 @@ function deduplicateItems(items) {
     return Array.from(uniqueItems.values());
 }
 
-/**
- * Find associated bone for a control by its name
- * @param {String} controlName - Name of the control
- * @param {Array} bones - Array of bones to search
- * @returns {Object|null} Associated bone or null if not found
- */
-function findAssociatedBone(controlName, bones) {
-    // Try matching by name
-    const boneName = controlName.replace('control', 'bone')
-                                .replace('ctrl', 'bone')
-                                .replace('handle', 'bone');
-    
-    let matchedBone = null;
-    bones.forEach(bone => {
-        if (bone.name === boneName || bone.name.includes(boneName) || boneName.includes(bone.name)) {
-            matchedBone = bone;
-        }
-    });
-    
-    return matchedBone;
-}
+
 
 /**
  * Create a visualization of bones in the 3D scene
@@ -201,9 +167,7 @@ function createRigVisualization(model, scene) {
     
     // Clear any existing rig visualization
     clearRigVisualization(scene);
-    
-    // Reset arrays
-    bones = [];
+    resetBones();
     
     // Initialize rigDetails.joints if needed
     if (!rigDetails) {
@@ -276,7 +240,7 @@ function createRigVisualization(model, scene) {
     }
     
     // Create materials for bone visualization
-    boneMaterial = new THREE.MeshPhongMaterial({
+    setBoneMaterial(new THREE.MeshPhongMaterial({
         color: rigOptions.primaryColor,
         emissive: 0x072534,
         side: THREE.DoubleSide,
@@ -284,9 +248,9 @@ function createRigVisualization(model, scene) {
         wireframe: rigOptions.wireframe,
         transparent: true,
         opacity: 0.8  // Increased opacity for better visibility
-    });
+    }));
     
-    boneSideMaterial = new THREE.MeshPhongMaterial({
+    setBoneSideMaterial( new THREE.MeshPhongMaterial({
         color: rigOptions.secondaryColor,
         emissive: 0x072534,
         side: THREE.DoubleSide,
@@ -294,10 +258,10 @@ function createRigVisualization(model, scene) {
         wireframe: rigOptions.wireframe,
         transparent: true,
         opacity: 0.8  // Increased opacity for better visibility
-    });
+    }));
     
     // Joint material (now separate from primary/secondary colors)
-    const jointMaterial = new THREE.MeshPhongMaterial({
+    setBoneJointMaterial(new THREE.MeshPhongMaterial({
         color: rigOptions.jointColor,
         emissive: 0x072534,
         side: THREE.DoubleSide,
@@ -305,13 +269,10 @@ function createRigVisualization(model, scene) {
         wireframe: rigOptions.wireframe,
         transparent: true,
         opacity: 0.8  // Slightly more opaque for better visibility
-    });
+    }));
     
     // Create a group to hold all bone visualizations
-    boneVisualsGroup = new THREE.Group();
-    boneVisualsGroup.name = "BoneVisualizations";
-    boneVisualsGroup.visible = rigOptions.displayRig;
-    scene.add(boneVisualsGroup);
+    resetBoneVisualGroup(scene);
     
     // Create axis indicator
     const state = getState();
@@ -397,7 +358,7 @@ function createRigVisualization(model, scene) {
                 boneGroup.rotateX(Math.PI/2);
                 
                 // Pass both materials (primary and secondary) for alternating sides
-                createBoneMesh(boneGroup, boneRadius, boneRadius, distance, jointMaterial, boneMaterial, boneSideMaterial);
+                createBoneMesh(boneGroup, boneRadius, boneRadius, distance, boneJointMaterial, boneMaterial, boneSideMaterial);
                 
                 // Store reference to the bone connection
                 boneGroup.userData.parentBone = bone;
@@ -438,7 +399,7 @@ function createRigVisualization(model, scene) {
         const rootPuckSize = boneRadius * 2.5;
         // Use a disk-like geometry (short, wide cylinder)
         const puckGeometry = new THREE.CylinderGeometry(rootPuckSize, rootPuckSize, rootPuckSize * 0.2, 32);
-        const puckMaterial = jointMaterial.clone();
+        const puckMaterial = boneJointMaterial.clone();
         
         const rootPuck = new THREE.Mesh(puckGeometry, puckMaterial);
         // No rotation needed - by default the cylinder is already oriented with Y-axis up
@@ -663,42 +624,6 @@ function createBoneUpdateFunction(boneGroup) {
     };
 }
 
-/**
- * Find the furthest bone from the root
- * @returns {Object} The furthest bone
- */
-function findFarthestBone() {
-    if (!bones.length) return null;
-    
-    // Find bones with no children (end effectors)
-    const endBones = [];
-    
-    bones.forEach(bone => {
-        let isEndBone = true;
-        // Check if this bone has any child bones
-        for (let i = 0; i < bone.children.length; i++) {
-            const child = bone.children[i];
-            if (child.isBone || child.name.toLowerCase().includes('bone')) {
-                isEndBone = false;
-                break;
-            }
-        }
-        
-        if (isEndBone) {
-            endBones.push(bone);
-        }
-    });
-    
-    // If we found end bones, return the first one
-    if (endBones.length > 0) {
-        console.log('Found end bone:', endBones[0].name);
-        return endBones[0];
-    }
-    
-    // If we couldn't identify end bones, just return the last bone in the array
-    console.log('No end bones found, using last bone:', bones[bones.length - 1].name);
-    return bones[bones.length - 1];
-}
 
 /**
  * Add a control handle to the furthest bone
@@ -715,27 +640,8 @@ function addControlHandleToFurthestBone(bone, scene, modelScale) {
         opacity: 0.7,
         wireframe: false
     });
-    
-    furthestBoneHandle = new THREE.Mesh(geometry, material);
-    furthestBoneHandle.name = "FurthestBoneHandle";
-    scene.add(furthestBoneHandle);
-    
-    // Position at the furthest bone
-    const bonePos = new THREE.Vector3();
-    bone.getWorldPosition(bonePos);
-    furthestBoneHandle.position.copy(bonePos);
-    
-    // Add information about which bone it controls
-    furthestBoneHandle.userData.controlledBone = bone;
-    furthestBoneHandle.userData.isControlHandle = true;
-    furthestBoneHandle.userData.updatePosition = () => {
-        if (furthestBoneHandle.userData.controlledBone && !getIsDragging()) {
-            const controlledBonePos = new THREE.Vector3();
-            furthestBoneHandle.userData.controlledBone.getWorldPosition(controlledBonePos);
-            furthestBoneHandle.position.copy(controlledBonePos);
-        }
-    };
-    
+    // Set the furthest bone handle
+    setFurthestBoneHandle(new THREE.Mesh(geometry, material), "FurthestBoneHandle", scene, bone);
     console.log('Added control handle to furthest bone:', bone.name);
 }
 
@@ -743,10 +649,8 @@ function addControlHandleToFurthestBone(bone, scene, modelScale) {
 export {
     analyzeGltfModel,
     deduplicateItems,
-    findAssociatedBone,
     createRigVisualization,
     createBoneMesh,
     createBoneUpdateFunction,
-    findFarthestBone,
     addControlHandleToFurthestBone
 };

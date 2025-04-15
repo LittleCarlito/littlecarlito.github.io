@@ -9,22 +9,25 @@ import { getState } from '../core/state.js';
 import { 
     analyzeGltfModel, 
     deduplicateItems, 
-    findAssociatedBone, 
     createRigVisualization, 
     createBoneMesh, 
     createBoneUpdateFunction, 
-    findFarthestBone, 
-    addControlHandleToFurthestBone,
-    bones,
-    boneVisualsGroup,
-    boneMaterial,
-    boneSideMaterial,
-    furthestBoneHandle,
-    rigDetails,
-    rigOptions,
-    updateRigDetails
+    addControlHandleToFurthestBone
 } from '../core/rig/rig-factory.js';
 import { setIsDragging, getIsDragging, checkHandleHover } from '../core/drag-util.js';
+import { 
+    boneVisualsGroup,
+    findAssociatedBone,
+    findBoneByName, 
+    furthestBoneHandle,
+    findFarthestBone,
+    boneSideMaterial,
+    boneMaterial,
+    rigDetails,
+    updateRigDetails,
+    rigOptions,
+    bones
+ } from '../core/rig/rig-manager.js';
 
 // Reusable objects for position and rotation operations
 let worldPos = new THREE.Vector3();
@@ -54,21 +57,7 @@ let jointSettingsDebug = true;
 let allJointsInPreviousState = true;
 let jointPreviousValues = new Map(); // Map of joint name to previous value
 
-/**
- * Clear existing rig visualization from the scene
- * @param {Object} scene - The Three.js scene
- */
-function clearRigVisualization(scene) {
-    if (boneVisualsGroup) {
-        scene.remove(boneVisualsGroup);
-        boneVisualsGroup = null;
-    }
-    
-    if (furthestBoneHandle) {
-        scene.remove(furthestBoneHandle);
-        furthestBoneHandle = null;
-    }
-}
+
 
 /**
  * Update animation for rig visuals
@@ -327,14 +316,7 @@ function updateRigVisualization() {
     }
 }
 
-/**
- * Find bone by name in the scene
- * @param {string} name - The name of the bone to find
- * @returns {Object|null} The bone object or null if not found
- */
-function findBoneByName(name) {
-    return bones.find(bone => bone.name === name) || null;
-}
+
 
 /**
  * Lock or unlock a bone's rotation
@@ -2277,7 +2259,6 @@ export {
     updateAllBoneMatrices,
     rigOptions,
     createRigDetailsContent,
-    clearRigVisualization,
     createAxisIndicator,
     createJointLabels
 };

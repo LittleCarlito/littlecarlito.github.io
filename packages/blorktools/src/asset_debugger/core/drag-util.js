@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { furthestBoneHandle, rigOptions } from "./rig/rig-factory";
+import { furthestBoneHandle, rigOptions } from './rig/rig-manager';
 import { restoreLockedBoneRotations, moveBonesForTarget, updateBoneVisuals } from "../ui/rig-panel";
 import { getState } from "./state";
 
