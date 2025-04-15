@@ -12,24 +12,26 @@ import {
 } from '../../ui/rig-panel.js';
 import { getIsDragging, setupMouseListeners } from '../drag-util.js';
 import { 
-    clearRigVisualization, 
-    boneVisualsGroup, 
-    findFarthestBone, 
+    clearRigVisualization,
     rigDetails, 
     updateRigDetails,
+    rigOptions
+ } from './rig-manager.js'
+ import { 
     bones,
-    resetBones,
+    boneJointMaterial,
+    boneMaterial,
+    boneSideMaterial,
+    boneVisualsGroup, 
+    furthestBoneHandle,
+    findFarthestBone,
+    setFurthestBoneHandle,
     setBoneMaterial,
     setBoneSideMaterial,
     setBoneJointMaterial,
     resetBoneVisualGroup,
-    rigOptions,
-    boneJointMaterial,
-    boneMaterial,
-    boneSideMaterial,
-    furthestBoneHandle,
-    setFurthestBoneHandle
- } from './rig-manager.js'
+    resetBones
+  } from '../bone-util.js';
 
 /**
  * Analyze the rig data in a GLTF model

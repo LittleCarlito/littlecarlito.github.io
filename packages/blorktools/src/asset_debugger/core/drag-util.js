@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { furthestBoneHandle, rigOptions } from './rig/rig-manager';
-import { restoreLockedBoneRotations, moveBonesForTarget, updateBoneVisuals } from "../ui/rig-panel";
+import { rigOptions } from './rig/rig-manager';
+import { furthestBoneHandle, restoreLockedBoneRotations, updateBoneVisuals, moveBonesForTarget } from './bone-util';
 import { getState } from "./state";
 
 // Raycaster for mouse interaction
