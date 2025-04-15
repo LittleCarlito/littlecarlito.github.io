@@ -9,10 +9,9 @@ import { getState } from '../state.js';
 import { 
     clearRigVisualization, 
     createAxisIndicator, 
-    createJointLabels,
-    setupMouseListeners 
+    createJointLabels
 } from '../../ui/rig-panel.js';
-import { getIsDragging } from '../drag-util.js';
+import { getIsDragging, setupMouseListeners } from '../drag-util.js';
 
 // These variables need to be exported so they're available to both modules
 export let bones = [];
@@ -730,7 +729,7 @@ function addControlHandleToFurthestBone(bone, scene, modelScale) {
     furthestBoneHandle.userData.controlledBone = bone;
     furthestBoneHandle.userData.isControlHandle = true;
     furthestBoneHandle.userData.updatePosition = () => {
-        if (furthestBoneHandle.userData.controlledBone && !getIsDragging) {
+        if (furthestBoneHandle.userData.controlledBone && !getIsDragging()) {
             const controlledBonePos = new THREE.Vector3();
             furthestBoneHandle.userData.controlledBone.getWorldPosition(controlledBonePos);
             furthestBoneHandle.position.copy(controlledBonePos);
