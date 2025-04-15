@@ -1496,6 +1496,12 @@ function createRigDetailsContent(container, details) {
                     sphericalOption.textContent = 'Spherical';
                     jointTypeSelect.appendChild(sphericalOption);
                     
+                    // Add Fixed joint type option
+                    const fixedOption = document.createElement('option');
+                    fixedOption.value = 'fixed';
+                    fixedOption.textContent = 'Fixed';
+                    jointTypeSelect.appendChild(fixedOption);
+                    
                     // Store the current joint type in the user data
                     jointTypeSelect.value = item.jointType || 'spherical';
                     
