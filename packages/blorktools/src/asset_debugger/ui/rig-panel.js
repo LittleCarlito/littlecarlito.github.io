@@ -29,7 +29,9 @@ let dragTarget = null;
 let dragTargetPosition = new THREE.Vector3();
 
 // Map to track locked bones
-const lockedBones = new Map();
+let selectedBones = new Set();
+let lockedBones = new Map(); // Maps bone.uuid to {bone, originalRotation}
+let labelGroup = null;
 
 // Material colors
 const normalColor = 0xff0000; // Red
@@ -67,9 +69,12 @@ let detailsCollapseState = false; // false = collapsed, true = expanded
 let axisIndicatorCollapsed = false;
 let axisIndicatorPosition = { x: null, y: null }; // null means use default position
 
-// Add global variable to track joint changes
-let jointChanges = false;
-let originalJointTypes = new Map(); // Store original joint types
+// Add debug flag
+let jointSettingsDebug = true;
+
+// Add global state tracking for joint settings
+let allJointsInPreviousState = true;
+let jointPreviousValues = new Map(); // Map of joint name to previous value
 
 /**
  * Analyze the rig data in a GLTF model
@@ -1489,6 +1494,8 @@ function createRigDetailsContent(container, details) {
                     
                     const jointTypeSelect = document.createElement('select');
                     jointTypeSelect.className = 'rig-joint-type-select';
+                    jointTypeSelect.setAttribute('data-joint-type', 'true');
+                    jointTypeSelect.setAttribute('data-joint-name', item.name);
                     
                     // For now, only one option
                     const sphericalOption = document.createElement('option');
@@ -1496,30 +1503,33 @@ function createRigDetailsContent(container, details) {
                     sphericalOption.textContent = 'Spherical';
                     jointTypeSelect.appendChild(sphericalOption);
                     
-                    // Add Fixed joint type option
                     const fixedOption = document.createElement('option');
                     fixedOption.value = 'fixed';
                     fixedOption.textContent = 'Fixed';
                     jointTypeSelect.appendChild(fixedOption);
                     
-                    // Store the current joint type in the user data
-                    jointTypeSelect.value = item.jointType || 'spherical';
-                    
-                    // Store original joint type for change detection
-                    if (!originalJointTypes.has(item.name)) {
-                        originalJointTypes.set(item.name, jointTypeSelect.value);
+                    if (!item.jointType) {
+                        item.jointType = 'spherical'; // Default joint type
                     }
+                    
+                    // Set the select value
+                    jointTypeSelect.value = item.jointType;
+                    
+                    // Store initial value in the global map (single source of truth)
+                    jointPreviousValues.set(item.name, item.jointType);
                     
                     // Add event listener to update jointType when changed
                     jointTypeSelect.addEventListener('change', () => {
                         // Update the joint type in the item data
                         item.jointType = jointTypeSelect.value;
                         
-                        // Check if this is a change from the original value
-                        const hasChanged = originalJointTypes.get(item.name) !== jointTypeSelect.value;
+                        // Log with updated format if debug is enabled
+                        if (jointSettingsDebug) {
+                            console.log(`Joint Setting ${item.name} changed to "${jointTypeSelect.value}"`);
+                        }
                         
-                        // Update the jointChanges flag and the apply button state
-                        updateJointChangesState();
+                        // Evaluate overall state instead of individual comparison
+                        updateJointSettingsState();
                     });
                     
                     jointTypeContainer.appendChild(jointTypeLabel);
@@ -1590,8 +1600,11 @@ function createRigDetailsContent(container, details) {
                 applyButton.textContent = 'Apply Changes';
                 applyButton.className = 'rig-apply-button';
                 
+                // Disable the button by default
+                disableApplyButton(applyButton);
+                
                 applyButton.addEventListener('click', () => {
-                    applyJointChanges();
+                    handleApplyChanges(applyButton);
                 });
                 
                 buttonContainer.appendChild(applyButton);
@@ -1614,6 +1627,39 @@ function createRigDetailsContent(container, details) {
     detailsContent.appendChild(createSection('Controls/Handles', details.controls));
     
     container.appendChild(detailsSection);
+}
+
+/**
+ * Handle the Apply Changes button click
+ * @param {HTMLElement} button - The Apply Changes button element
+ */
+function handleApplyChanges(button) {
+    // Update previous values for all joint type dropdowns
+    const jointTypeSelects = document.querySelectorAll('select[data-joint-type]');
+    
+    jointTypeSelects.forEach(select => {
+        const jointName = select.getAttribute('data-joint-name');
+        // Update the previous value in the global map
+        jointPreviousValues.set(jointName, select.value);
+    });
+    
+    // Update overall state
+    updateJointSettingsState();
+    
+    // Disable the button
+    disableApplyButton(button);
+}
+
+/**
+ * Disable the Apply Changes button
+ * @param {HTMLElement} button - The button to disable
+ */
+function disableApplyButton(button) {
+    button.disabled = true;
+    button.style.backgroundColor = 'rgba(0,0,0,0.2)';
+    button.style.color = '#ccc';
+    button.style.cursor = 'not-allowed';
+    button.style.opacity = '0.5';
 }
 
 /**
@@ -2071,7 +2117,7 @@ function createJointLabels(scene) {
     clearJointLabels(scene);
     
     // Create a group to hold all labels
-    const labelGroup = new THREE.Group();
+    labelGroup = new THREE.Group();
     labelGroup.name = "JointLabels";
     labelGroup.visible = rigOptions.showJointLabels && rigOptions.displayRig;
     scene.add(labelGroup);
@@ -2245,7 +2291,7 @@ function updateBoneVisuals() {
 }
 
 /**
- * Refresh the joints data based on the current bone visualizations
+ * Refresh the joints data based on current bone visualizations
  */
 function refreshJointsData() {
     // Clear existing joints data
@@ -2299,74 +2345,6 @@ function refreshJointsData() {
         
         // Deduplicate the joints data
         rigDetails.joints = deduplicateItems(rigDetails.joints);
-    }
-    
-    // Update the joint changes state after refreshing
-    updateJointChangesState();
-}
-
-/**
- * Apply changes made to joint settings
- */
-function applyJointChanges() {
-    // Reset change tracking
-    jointChanges = false;
-    originalJointTypes = new Map();
-    
-    // Store current joint types as the new originals
-    if (rigDetails && rigDetails.joints) {
-        rigDetails.joints.forEach(joint => {
-            if (joint.name && joint.jointType) {
-                originalJointTypes.set(joint.name, joint.jointType);
-            }
-        });
-    }
-    
-    // Update the Apply button state
-    updateJointChangesState();
-    
-    // Refresh the joints data (and any necessary visualizations)
-    refreshJointsData();
-    
-    // Additional implementation for applying joint type changes would go here
-    // This would depend on how joint types affect the rig's behavior
-    console.log('Joint changes applied');
-}
-
-/**
- * Check for joint changes and update the apply button state
- */
-function updateJointChangesState() {
-    // Check if any joint's current type differs from its original type
-    jointChanges = false;
-    
-    if (rigDetails && rigDetails.joints) {
-        for (const joint of rigDetails.joints) {
-            if (joint.name && originalJointTypes.has(joint.name)) {
-                if (joint.jointType !== originalJointTypes.get(joint.name)) {
-                    jointChanges = true;
-                    break;
-                }
-            }
-        }
-    }
-    
-    // Update the apply button state
-    const applyButton = document.getElementById('apply-joint-changes-button');
-    if (applyButton) {
-        if (jointChanges) {
-            applyButton.disabled = false;
-            applyButton.style.backgroundColor = 'rgba(66, 133, 244, 0.8)';
-            applyButton.style.color = 'white';
-            applyButton.style.cursor = 'pointer';
-            applyButton.style.opacity = '1';
-        } else {
-            applyButton.disabled = true;
-            applyButton.style.backgroundColor = 'rgba(0,0,0,0.2)';
-            applyButton.style.color = '#ccc';
-            applyButton.style.cursor = 'not-allowed';
-            applyButton.style.opacity = '0.5';
-        }
     }
 }
 
@@ -3164,6 +3142,52 @@ function createAxisIndicator(scene, camera, renderer) {
         disabled: !savedSettings || !JSON.parse(savedSettings)?.axisIndicator?.type || 
                   JSON.parse(savedSettings)?.axisIndicator?.type === 'disabled'
     });
+}
+
+/**
+ * Update the state of allJointsInPreviousState based on current joint type select values
+ */
+function updateJointSettingsState() {
+    const jointTypeSelects = document.querySelectorAll('select[data-joint-type]');
+    allJointsInPreviousState = true;
+    
+    jointTypeSelects.forEach(select => {
+        const jointName = select.getAttribute('data-joint-name');
+        const previousValue = jointPreviousValues.get(jointName);
+        const currentValue = select.value;
+        
+        if (previousValue !== currentValue) {
+            allJointsInPreviousState = false;
+        }
+    });
+    
+    if (jointSettingsDebug) {
+        console.log(`All Joint Types in previous state: ${allJointsInPreviousState}`);
+    }
+    
+    // Control Apply Changes button state based on allJointsInPreviousState
+    const applyButton = document.getElementById('apply-joint-changes-button');
+    if (applyButton) {
+        if (allJointsInPreviousState) {
+            disableApplyButton(applyButton);
+        } else {
+            enableApplyButton(applyButton);
+        }
+    }
+    
+    return allJointsInPreviousState;
+}
+
+/**
+ * Enable the Apply Changes button
+ * @param {HTMLElement} button - The button to enable
+ */
+function enableApplyButton(button) {
+    button.disabled = false;
+    button.style.backgroundColor = 'rgba(66, 133, 244, 0.8)';
+    button.style.color = 'white';
+    button.style.cursor = 'pointer';
+    button.style.opacity = '1';
 }
 
 // Export functions
