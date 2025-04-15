@@ -6,10 +6,7 @@
  */
 import * as THREE from 'three';
 import { getState } from '../state.js';
-import { 
-    createAxisIndicator, 
-    createJointLabels
-} from '../../ui/rig-panel.js';
+import { createAxisIndicator } from '../../ui/rig-panel.js';
 import { getIsDragging, setupMouseListeners } from '../drag-util.js';
 import { 
     clearRigVisualization,
@@ -32,6 +29,131 @@ import {
     resetBoneVisualGroup,
     resetBones
   } from '../bone-util.js';
+
+
+
+/**
+ * Create joint labels for all joints in the scene
+ * @param {Object} scene - The Three.js scene
+ */
+export function createJointLabels(scene) {
+    console.log('Creating joint labels...');
+    
+    // Remove any existing labels first
+    clearJointLabels(scene);
+    
+    // Create a group to hold all labels
+    labelGroup = new THREE.Group();
+    labelGroup.name = "JointLabels";
+    labelGroup.visible = rigOptions.showJointLabels && rigOptions.displayRig;
+    scene.add(labelGroup);
+    
+    // Keep track of the labels created
+    const labelCount = {total: 0, added: 0};
+    
+    // Find all bone meshes
+    boneVisualsGroup.traverse((object) => {
+        if (object.userData && object.userData.bonePart === 'cap') {
+            labelCount.total++;
+            
+            // Determine which bone name to use
+            let boneName = "";
+            if (object.parent && object.parent.userData) {
+                if (object.position.y > 0 && object.parent.userData.childBone) {
+                    // Top sphere - use child bone name
+                    boneName = object.parent.userData.childBone.name;
+                } else if (object.position.y === 0 && object.parent.userData.parentBone) {
+                    // Bottom sphere - use parent bone name
+                    boneName = object.parent.userData.parentBone.name;
+                }
+            }
+            
+            if (boneName) {
+                // Create a label for this joint
+                const label = createSimpleLabel(boneName, object, scene);
+                if (label) {
+                    labelGroup.add(label);
+                    labelCount.added++;
+                }
+            }
+        }
+    });
+    
+    console.log(`Created ${labelCount.added} labels out of ${labelCount.total} joint spheres found`);
+    return labelGroup;
+}
+
+/**
+ * Create a simple text label as a sprite
+ * @param {string} text - Text to display
+ * @param {Object} joint - Joint object to attach to
+ * @param {Object} scene - Three.js scene
+ * @returns {Object} The created label sprite
+ */
+function createSimpleLabel(text, joint, scene) {
+    console.log(`Creating label for joint: ${text}`);
+
+    // Create a canvas for the label
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Set canvas size
+    canvas.width = 256;
+    canvas.height = 64;
+    
+    // Background
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Border
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, 0, canvas.width, canvas.height);
+    
+    // Text
+    ctx.font = 'bold 24px Arial';
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Truncate text if too long
+    const displayText = text.length > 20 ? text.substring(0, 17) + '...' : text;
+    ctx.fillText(displayText, canvas.width / 2, canvas.height / 2);
+    
+    // Create sprite material
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true,
+        depthTest: false,
+        depthWrite: false
+    });
+    
+    // Create sprite
+    const sprite = new THREE.Sprite(material);
+    sprite.userData.isJointLabel = true;
+    sprite.userData.targetJoint = joint;
+    
+    // Set initial position
+    updateLabelPosition(sprite, joint);
+    
+    // Set proper scale (fixed size regardless of distance)
+    const jointRadius = joint.geometry.parameters.radius || 0.1;
+    sprite.scale.set(jointRadius * 8, jointRadius * 2, 1);
+    
+    // Set initial visibility
+    sprite.visible = rigOptions.showJointLabels;
+    
+    // Set up the update function
+    sprite.userData.updatePosition = () => {
+        updateLabelPosition(sprite, joint);
+    };
+    
+    // Make sure the sprite renders on top
+    sprite.renderOrder = 1000;
+    
+    return sprite;
+}
 
 /**
  * Analyze the rig data in a GLTF model
