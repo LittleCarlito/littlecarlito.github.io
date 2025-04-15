@@ -26,21 +26,22 @@ import {
     updateRigDetails,
     setIsDragging
 } from '../core/rig/rig-factory.js';
+import { handleDrag } from '../core/drag-util.js';
 
 // Reusable objects for position and rotation operations
 let worldPos = new THREE.Vector3();
 let worldRot = new THREE.Quaternion();
 
 // Raycaster for mouse interaction
-let raycaster = new THREE.Raycaster();
+export let raycaster = new THREE.Raycaster();
 let mouse = new THREE.Vector2();
 let hoveredHandle = null;
 
 // Drag state tracking
 let dragStartPosition = new THREE.Vector3();
-let dragPlane = new THREE.Plane();
-let dragOffset = new THREE.Vector3();
-let dragTarget = null;
+export let dragPlane = new THREE.Plane();
+export let dragOffset = new THREE.Vector3();
+export let dragTarget = null;
 let dragTargetPosition = new THREE.Vector3();
 
 // Map to track locked bones
@@ -171,47 +172,6 @@ function startDrag(intersection, handle) {
     dragOffset.subVectors(dragTargetPosition, dragIntersectionPoint);
     
     console.log('Drag started at', dragTargetPosition);
-}
-
-/**
- * Handle dragging logic
- */
-function handleDrag() {
-    if (!isDragging || !dragTarget) return;
-    
-    const state = getState();
-    
-    // Get current intersection point with drag plane
-    const planeIntersection = new THREE.Vector3();
-    
-    // Check if ray intersects plane
-    if (raycaster.ray.intersectPlane(dragPlane, planeIntersection)) {
-        // Apply the offset to maintain the grab point
-        planeIntersection.add(dragOffset);
-        
-        // Move handle to new position
-        dragTarget.position.copy(planeIntersection);
-        
-        // Apply IK if this is the furthest bone handle
-        if (dragTarget === furthestBoneHandle && dragTarget.userData.controlledBone) {
-            const controlledBone = dragTarget.userData.controlledBone;
-            
-            // Even if the controlled bone is locked, we still want to move other bones in the chain
-            // This is different from before - we don't check if the target bone is locked here
-            
-            // Store current locked bone rotations
-            restoreLockedBoneRotations();
-            
-            // Use the moveBonesForTarget function to handle IK chain properly
-            moveBonesForTarget(controlledBone, planeIntersection);
-            
-            // Restore locked bone rotations again
-            restoreLockedBoneRotations();
-            
-            // Force immediate update of visual bone meshes during drag
-            updateBoneVisuals();
-        }
-    }
 }
 
 /**
@@ -402,7 +362,7 @@ function updateRigAnimation() {
 /**
  * Restore locked bone rotations
  */
-function restoreLockedBoneRotations() {
+export function restoreLockedBoneRotations() {
     // Iterate through all locked bones and restore their rotations
     lockedBones.forEach((data, uuid) => {
         if (data.bone && data.rotation) {
@@ -1321,7 +1281,7 @@ function updateBoneChainMatrices(boneChain) {
  * @param {Object} targetBone - The target bone being controlled
  * @param {THREE.Vector3} targetPosition - The target world position
  */
-function moveBonesForTarget(targetBone, targetPosition) {
+export function moveBonesForTarget(targetBone, targetPosition) {
     if (!targetBone) return;
     
     // Find the chain of bones from root to the target bone
@@ -1577,7 +1537,7 @@ function clearJointLabels(scene) {
 /**
  * Update the bone visual meshes to match bone positions and rotations
  */
-function updateBoneVisuals() {
+export function updateBoneVisuals() {
     // Update bone visuals
     if (boneVisualsGroup) {
         boneVisualsGroup.children.forEach(boneGroup => {
