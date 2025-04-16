@@ -14,7 +14,10 @@ import {
     updateRigDetails,
     rigOptions,
     clearJointLabels,
-    updateLabelPosition
+    updateLabelPosition,
+    setLabelGroup,
+    hideRigLabels,
+    labelGroup
  } from './rig-manager.js'
  import { 
     bones,
@@ -29,9 +32,7 @@ import {
     setBoneSideMaterial,
     setBoneJointMaterial,
     resetBoneVisualGroup,
-    resetBones,
-    setLabelGroup,
-    labelGroup
+    resetBones
   } from '../bone-util.js';
 
 
@@ -81,7 +82,7 @@ export function createJointLabels(scene) {
     });
     
     console.log(`Created ${labelCount.added} labels out of ${labelCount.total} joint spheres found`);
-    return labelGroup;
+    return scene.getObjectByName("JointLabels");
 }
 
 /**
@@ -142,8 +143,11 @@ function createSimpleLabel(text, joint, scene) {
     const jointRadius = joint.geometry.parameters.radius || 0.1;
     sprite.scale.set(jointRadius * 8, jointRadius * 2, 1);
     
-    // Set initial visibility
+    // Set initial visibility - explicitly check options
     sprite.visible = rigOptions.showJointLabels;
+    if (!sprite.visible) {
+        console.log(`Label for ${text} is initially hidden`);
+    }
     
     // Set up the update function
     sprite.userData.updatePosition = () => {
@@ -287,7 +291,7 @@ function deduplicateItems(items) {
  * @returns {Object} The created rig
  */
 function createRig(model, scene) {
-    console.log('Creating rig visualization...');
+    console.log('Creating rig...');
     
     // Clear any existing rig visualization
     clearRigVisualization(scene);
@@ -573,10 +577,13 @@ function createRig(model, scene) {
         addControlHandleToFurthestBone(furthestBone, scene, modelScale);
     }
     
-    // Create labels for all joints
-    if (rigOptions.showJointLabels) {
-        console.log('Setting up joint labels');
-        createJointLabels(scene);
+    // Always create labels for all joints
+    console.log('Setting up joint labels');
+    createJointLabels(scene);
+    
+    // Check if joint labels should be visible based on option
+    if (!rigOptions.showJointLabels) {
+        hideRigLabels();
     }
     
     // Set up mouse event listeners for hover effect

@@ -15,6 +15,7 @@ import { createJointLabels } from './rig-factory';
 import { refreshJointsData } from '../../ui/rig-panel';
 
 export let rigDetails = null;
+export let labelGroup = null; // Add export for labelGroup
 
 // Variables used for rig visualization 
 export let rigOptions = {
@@ -61,13 +62,21 @@ export function updateRigVisualization() {
         furthestBoneHandle.visible = rigOptions.displayRig;
     }
     
-    // Update joint labels visibility
+    // Update joint labels visibility using the dedicated functions
+    if (rigOptions.showJointLabels && rigOptions.displayRig) {
+        console.log('Showing joint labels');
+        showRigLabels();
+    } else {
+        console.log('Hiding joint labels');
+        hideRigLabels();
+    }
+    
+    // Create labels if needed but don't exist yet
     const state = getState();
     const labelGroup = state.scene ? state.scene.getObjectByName("JointLabels") : null;
     
     if (labelGroup) {
         console.log('Updating joint labels visibility to:', rigOptions.showJointLabels && rigOptions.displayRig);
-        labelGroup.visible = rigOptions.showJointLabels && rigOptions.displayRig;
         
         // Update individual label positions
         labelGroup.children.forEach(label => {
@@ -75,10 +84,17 @@ export function updateRigVisualization() {
                 label.userData.updatePosition();
             }
         });
-    } else if (rigOptions.showJointLabels && rigOptions.displayRig && state.scene) {
-        // If we don't have labels but should, create them
+    } else if (rigOptions.displayRig && state.scene) {
+        // If we don't have labels but rig is displayed, create them
         console.log('No label group found, creating new joint labels');
         createJointLabels(state.scene);
+        
+        // Set visibility based on showJointLabels option
+        if (rigOptions.showJointLabels) {
+            showRigLabels();
+        } else {
+            hideRigLabels();
+        }
     }
     
     // Refresh the joints data
@@ -373,6 +389,51 @@ export function clearRigVisualization(scene) {
     if (furthestBoneHandle) {
         scene.remove(furthestBoneHandle);
         furthestBoneHandle = null;
+    }
+}
+
+/**
+ * Set the label group
+ * @param {string} name - The name of the label group
+ * @param {Object} scene - The Three.js scene
+ */
+export function setLabelGroup(name, scene) {
+    labelGroup = new THREE.Group();
+    labelGroup.name = name;
+    
+    // Initialize visibility based on current settings
+    labelGroup.visible = rigOptions.showJointLabels && rigOptions.displayRig;
+    console.log('Creating label group with initial visibility:', labelGroup.visible);
+    
+    scene.add(labelGroup);
+}
+
+/**
+ * Show rig labels
+ * Makes the joint labels visible
+ */
+export function showRigLabels() {
+    if (labelGroup) {
+        console.log('Explicitly showing rig labels');
+        labelGroup.visible = true; // Force visibility regardless of other settings
+        
+        // Also ensure each individual label is visible
+        labelGroup.children.forEach(label => {
+            if (label) {
+                label.visible = true;
+            }
+        });
+    }
+}
+
+/**
+ * Hide rig labels
+ * Makes the joint labels invisible
+ */
+export function hideRigLabels() {
+    if (labelGroup) {
+        console.log('Explicitly hiding rig labels');
+        labelGroup.visible = false;
     }
 }
 

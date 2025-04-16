@@ -717,7 +717,18 @@ document.addEventListener('rigOptionsChange', function(e) {
         if (e.detail.primaryColor !== undefined) rigOptions.primaryColor = e.detail.primaryColor;
         if (e.detail.secondaryColor !== undefined) rigOptions.secondaryColor = e.detail.secondaryColor;
         if (e.detail.jointColor !== undefined) rigOptions.jointColor = e.detail.jointColor;
-        if (e.detail.showJointLabels !== undefined) rigOptions.showJointLabels = e.detail.showJointLabels;
+        
+        // Special handling for joint labels
+        if (e.detail.showJointLabels !== undefined) {
+            console.log(`Updating showJointLabels from ${rigOptions.showJointLabels} to ${e.detail.showJointLabels}`);
+            rigOptions.showJointLabels = e.detail.showJointLabels;
+            
+            // Update any checkbox in the UI
+            const jointLabelsCheckbox = document.getElementById('show-joint-labels-tab');
+            if (jointLabelsCheckbox && jointLabelsCheckbox.checked !== e.detail.showJointLabels) {
+                jointLabelsCheckbox.checked = e.detail.showJointLabels;
+            }
+        }
         
         // Update control handle colors
         if (e.detail.normalColor !== undefined) rigOptions.normalColor = e.detail.normalColor;
