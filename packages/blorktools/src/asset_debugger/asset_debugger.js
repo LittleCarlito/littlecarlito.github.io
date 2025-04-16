@@ -157,6 +157,14 @@ function startDebugging() {
     // Load settings from localStorage at the start
     const savedSettings = loadSettings();
     
+    // Apply rig options from saved settings if available
+    if (savedSettings && savedSettings.rigOptions) {
+        import('./core/rig/rig-manager.js').then(rigManagerModule => {
+            console.log('Applying saved rig options:', savedSettings.rigOptions);
+            rigManagerModule.updateRigOptions(savedSettings.rigOptions);
+        });
+    }
+    
     // Check if any files have been loaded
     import('./core/state.js').then(stateModule => {
         const currentState = stateModule.getState();

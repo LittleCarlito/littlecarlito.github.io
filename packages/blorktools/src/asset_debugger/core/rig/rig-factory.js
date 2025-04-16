@@ -438,7 +438,7 @@ function createRigVisualization(model, scene) {
     const modelScale = size.length() * 0.02;
     const boneRadius = Math.max(0.02, modelScale * 0.3);
     
-    // Create visual bone meshes between parent-child bone pairs
+    // Create visual bones between parent-child bone pairs
     visualizableBones.forEach(bone => {
         // Skip if this bone is not in our scene
         if (!scene.getObjectById(bone.id)) return;
@@ -584,6 +584,49 @@ function createRigVisualization(model, scene) {
     setupMouseListeners(scene);
     
     console.log('Rig visualization created with', bones.length, 'bones');
+    
+    // Explicitly check if ForceZ is enabled and apply it
+    // This ensures it gets applied even during initialization to avoid race conditions
+    if (rigOptions.forceZ && boneVisualsGroup) {
+        console.log('Force Z is enabled - applying immediately during rig creation');
+        
+        // Apply ForceZ settings directly to the rig (similar to updateRigVisualization)
+        boneVisualsGroup.renderOrder = 1000;
+        
+        if (boneMaterial) {
+            boneMaterial.depthTest = false;
+            boneMaterial.needsUpdate = true;
+        }
+        
+        if (boneSideMaterial) {
+            boneSideMaterial.depthTest = false;
+            boneSideMaterial.needsUpdate = true;
+        }
+        
+        // Set renderOrder and disable depth test for all meshes
+        boneVisualsGroup.traverse(object => {
+            if (object.isMesh) {
+                if (object.userData.bonePart === 'cap') {
+                    object.renderOrder = 1020;
+                } else if (object.userData.bonePart === 'side') {
+                    object.renderOrder = 1010;
+                } else {
+                    object.renderOrder = 1000;
+                }
+                
+                if (object.material) {
+                    object.material.depthTest = false;
+                    object.material.needsUpdate = true;
+                }
+            }
+        });
+        
+        if (furthestBoneHandle && furthestBoneHandle.material) {
+            furthestBoneHandle.renderOrder = 1030;
+            furthestBoneHandle.material.depthTest = false;
+            furthestBoneHandle.material.needsUpdate = true;
+        }
+    }
 }
 
 /**

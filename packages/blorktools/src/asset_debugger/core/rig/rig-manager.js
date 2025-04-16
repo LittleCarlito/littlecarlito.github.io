@@ -17,7 +17,7 @@ import { refreshJointsData } from '../../ui/rig-panel';
 export let rigDetails = null;
 
 // Variables used for rig visualization 
-export const rigOptions = {
+export let rigOptions = {
     displayRig: false, // Default to not visible
     forceZ: false,
     wireframe: true,
@@ -31,6 +31,20 @@ export const rigOptions = {
 };
 
 /**
+ * Update one or multiple rig options
+ * @param {Object} options - Object containing the options to update
+ */
+export function updateRigOptions(options) {
+    if (!options || typeof options !== 'object') return;
+    // Update provided options
+    Object.keys(options).forEach(key => {
+        if (rigOptions.hasOwnProperty(key)) {
+            rigOptions[key] = options[key];
+        }
+    });
+}
+
+/**
  * Update the rig visualization based on option changes
  */
 export function updateRigVisualization() {
@@ -38,7 +52,7 @@ export function updateRigVisualization() {
     
     console.log('Updating rig visualization with options:', JSON.stringify(rigOptions));
     
-    // Toggle rig visibility
+    // Toggle rig visibility without affecting creation or forceZ
     if (boneVisualsGroup) {
         boneVisualsGroup.visible = rigOptions.displayRig;
     }
@@ -83,24 +97,19 @@ export function updateRigVisualization() {
         boneSideMaterial.needsUpdate = true;
     }
     
-    // Update all bone meshes
     boneVisualsGroup.traverse(object => {
         // Update bone sides
         if (object.isMesh && object.userData.bonePart === 'side') {
-            // Handle material based on wireframe setting
-            if (rigOptions.wireframe) {
-                // In wireframe mode - ALL sides use primary color
+            // Update color of alternating sides
+            if (!object.userData.sideIndex || object.userData.sideIndex % 2 === 0) {
+                // Even sides use primary color
                 object.material.color.setHex(rigOptions.primaryColor);
             } else {
-                // In filled mode - use alternating colors
-                if (object.userData.sideType === 'primary') {
-                    object.material.color.setHex(rigOptions.primaryColor);
-                } else {
-                    object.material.color.setHex(rigOptions.secondaryColor);
-                }
+                // Odd sides use secondary color
+                object.material.color.setHex(rigOptions.secondaryColor);
             }
             
-            // Apply wireframe setting to all sides
+            // Update wireframe setting
             object.material.wireframe = rigOptions.wireframe;
             object.material.needsUpdate = true;
         }
@@ -128,9 +137,10 @@ export function updateRigVisualization() {
         }
     });
     
-    // Apply force Z-index to make rig appear on top
+    // Apply Force Z settings regardless of rig visibility
     if (boneVisualsGroup) {
         if (rigOptions.forceZ) {
+            console.log('Applying Force Z index to rig');
             // Move the rig to render on top by setting renderOrder to a high value
             // and disabling depth test for materials
             boneVisualsGroup.renderOrder = 1000; // High value to render after other objects
@@ -173,6 +183,7 @@ export function updateRigVisualization() {
                 furthestBoneHandle.material.needsUpdate = true;
             }
         } else {
+            console.log('Resetting Force Z index for rig');
             // Reset normal depth behavior
             boneVisualsGroup.renderOrder = 0;
             
@@ -292,19 +303,28 @@ export function clearJointLabels(scene) {
  * Update animation for rig visuals
  */
 export function updateRigAnimation() {
-    // Only update rig visuals if Display Rig is enabled
+    // Set visibility based on displayRig flag
+    // But keep force Z settings applied regardless of visibility
     if (!rigOptions.displayRig) {
-        // Even when displayRig is off, we should ensure handles are not visible
+        // When displayRig is off, hide visuals but maintain ForceZ settings
         if (furthestBoneHandle) {
             furthestBoneHandle.visible = false;
         }
         if (boneVisualsGroup) {
             boneVisualsGroup.visible = false;
+            
+            // Still update positions even when hidden to ensure ForceZ works properly
+            // when the rig becomes visible again
+            boneVisualsGroup.children.forEach(boneGroup => {
+                if (boneGroup.userData.updatePosition) {
+                    boneGroup.userData.updatePosition();
+                }
+            });
         }
         return;
     }
     
-    // Update bone visuals
+    // When displayRig is on, update and show everything
     if (boneVisualsGroup) {
         boneVisualsGroup.visible = true;
         boneVisualsGroup.children.forEach(boneGroup => {

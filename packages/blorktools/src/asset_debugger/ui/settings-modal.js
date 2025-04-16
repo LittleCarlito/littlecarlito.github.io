@@ -2,6 +2,7 @@
  * Settings Modal UI Component for Asset Debugger
  */
 import { saveSettings, loadSettings, getDefaultSettings } from '../data/localstorage-util.js';
+import { updateRigOptions } from '../core/rig/rig-manager.js';
 
 export class SettingsModal {
     constructor(settings = null) {
@@ -208,6 +209,9 @@ export class SettingsModal {
         // Store settings using the utility function
         saveSettings(settings);
         
+        // Update rig options directly
+        updateRigOptions(settings.rigOptions);
+        
         // Apply settings immediately
         this.applyAxisIndicatorSetting(axisIndicatorType, axisIntensity);
         this.applyRigOptionsSetting(settings.rigOptions);
@@ -319,6 +323,9 @@ export class SettingsModal {
         
         // Apply rig options settings if available
         if (settings.rigOptions) {
+            // Update rig options using the dedicated function
+            updateRigOptions(settings.rigOptions);
+            
             // Update the form values
             if (this.displayRig && settings.rigOptions.displayRig !== undefined) {
                 this.displayRig.checked = settings.rigOptions.displayRig;
@@ -362,7 +369,7 @@ export class SettingsModal {
                 this.activeColor.value = '#' + settings.rigOptions.activeColor.toString(16).padStart(6, '0');
             }
             
-            // Apply the settings
+            // Still trigger the event for other components that listen for changes
             this.applyRigOptionsSetting(settings.rigOptions);
         } else {
             // Set default values for rig options

@@ -35,6 +35,7 @@ import {
     toggleBoneLock,
     updateAllBoneMatrices
  } from '../core/bone-util.js';
+ import { saveSettings, loadSettings } from '../data/localstorage-util.js';
 
 // Reusable objects for position and rotation operations
 let worldPos = new THREE.Vector3();
@@ -97,6 +98,9 @@ function createRigDetailsContent(container, details) {
         if (settingsModalCheckbox && settingsModalCheckbox.checked !== e.target.checked) {
             settingsModalCheckbox.checked = e.target.checked;
         }
+        
+        // Save settings to localStorage immediately
+        saveRigOptionToLocalStorage('displayRig', e.target.checked);
     });
     
     displayRigLabel.setAttribute('for', 'display-rig-tab');
@@ -126,6 +130,9 @@ function createRigDetailsContent(container, details) {
         if (settingsModalCheckbox && settingsModalCheckbox.checked !== e.target.checked) {
             settingsModalCheckbox.checked = e.target.checked;
         }
+        
+        // Save settings to localStorage immediately
+        saveRigOptionToLocalStorage('forceZ', e.target.checked);
     });
     
     forceZLabel.setAttribute('for', 'force-z-tab');
@@ -497,13 +504,14 @@ function createColorOption(label, initialColor, onChange) {
 }
 
 /**
- * Update the rig panel with current state
+ * Update the rig panel with the latest model information
  */
 function updateRigPanel() {
     console.log('updateRigPanel called');
     const state = getState();
     console.log('State in updateRigPanel:', state);
     console.log('model in state:', state.model);
+    console.log('Rig options on panel init:', JSON.stringify(rigOptions));
     
     const rigContent = document.getElementById('rig-content');
     
@@ -537,7 +545,9 @@ function updateRigPanel() {
             // Create the rig visualization if we have bones
             if (rigDetails && rigDetails.bones && rigDetails.bones.length > 0) {
                 console.log('Creating rig visualization with', rigDetails.bones.length, 'bones');
+                console.log('Force Z setting before creating rig:', rigOptions.forceZ);
                 createRigVisualization(state.model, state.scene);
+                console.log('Rig visualization created, Force Z is now:', rigOptions.forceZ);
             } else {
                 console.log('No bones found in rigDetails, not creating visualization');
                 // Even if no bones are found, display what we did find
@@ -718,6 +728,28 @@ document.addEventListener('resetRig', function() {
     console.log('Reset rig event received');
     resetRig();
 });
+
+/**
+ * Save a specific rig option to localStorage
+ * @param {string} optionName - The name of the rig option to save
+ * @param {any} value - The value to save
+ */
+function saveRigOptionToLocalStorage(optionName, value) {
+    // Load current settings from localStorage
+    const currentSettings = loadSettings() || {};
+    
+    // Initialize rigOptions if it doesn't exist
+    if (!currentSettings.rigOptions) {
+        currentSettings.rigOptions = {};
+    }
+    
+    // Update the specific option
+    currentSettings.rigOptions[optionName] = value;
+    
+    // Save updated settings back to localStorage
+    console.log(`Saving ${optionName}=${value} to localStorage`);
+    saveSettings(currentSettings);
+}
 
 // Export functions needed by other modules
 export {
