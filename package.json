@@ -33,6 +33,7 @@
     "simulate-deploy": "pnpm --filter=@littlecarlito/blorkpack build && GITHUB_PAGES=true pnpm --filter=@littlecarlito/portfolio build",
     "prepare-artifacts": "node scripts/prepare-artifacts.js",
     "version-check": "node scripts/version-check.js",
+    "test-version": "node scripts/test-version-merge.js",
     "commitlint": "commitlint",
     "version": "node scripts/version-packages.js",
     "release": "node scripts/publish-packages.js",
