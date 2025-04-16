@@ -10,6 +10,9 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
+// Import shared versioning utilities
+const { BUMP_TYPES, incrementVersion, extractScope, extractCommitType, determineBumpType } = require('./version-utils');
+
 // Configuration
 const PACKAGES = [
   'packages/blorkpack',
@@ -20,13 +23,6 @@ const PACKAGES = [
 
 // Special scopes that should NOT trigger version bumps
 const EXCLUDED_SCOPES = ['pipeline', 'ci', 'workflows', 'github', 'actions'];
-
-// Version bump types
-const BUMP_TYPES = {
-  PATCH: 'patch',
-  MINOR: 'minor',
-  MAJOR: 'major'
-};
 
 /**
  * Determine base commit to check from, with support for merge base from PR
@@ -71,80 +67,95 @@ function getBaseCommit() {
 }
 
 /**
- * Extract scope from commit message
- * @param {string} message Commit message
- * @returns {string|null} Scope or null if no scope found
+ * Get detailed commit info
+ * @param {string} commitHash Commit hash
+ * @returns {Object} Commit details including hash, message, author, date
  */
-function extractScope(message) {
-  const match = message.match(/^[a-z]+\(([^)]+)\):/);
-  return match ? match[1] : null;
-}
-
-/**
- * Determine version bump type based on commit message
- * @param {string} message Commit message
- * @returns {string} Version bump type (patch, minor, major)
- */
-function determineBumpType(message) {
-  // Check for breaking changes
-  if (message.includes('BREAKING CHANGE:') || 
-      message.match(/^(feat|fix|refactor)!:/)) {
-    return BUMP_TYPES.MAJOR;
-  }
+function getCommitDetails(commitHash) {
+  const shortHash = commitHash.slice(0, 7);
+  const message = execSync(`git log --format=%s -n 1 ${commitHash}`).toString().trim();
+  const type = extractCommitType(message) || 'unknown';
+  // Determine what bump type this individual commit would contribute
+  const bumpType = determineBumpType(message);
   
-  // Check for features
-  if (message.match(/^feat(\([^)]+\))?:/)) {
-    return BUMP_TYPES.MINOR;
-  }
-  
-  // Default to patch
-  return BUMP_TYPES.PATCH;
+  return {
+    hash: shortHash,
+    message,
+    type,
+    bumpType // Track the individual bump type for this commit
+  };
 }
 
 /**
  * Get all commits since base commit and determine which packages need to be versioned
  * @param {string} baseCommit Base commit SHA or reference
- * @returns {Object} Map of package paths to version bump types
+ * @returns {Object} Map of package paths to version bump types and affected commits
  */
 function determineVersionBumps(baseCommit) {
   const packageVersions = {};
+  const packageCommits = {};
   
-  // Initialize all packages with no bump
+  // Initialize all packages with no bump and empty commits array
   PACKAGES.forEach(pkg => {
     packageVersions[pkg] = null;
+    packageCommits[pkg] = [];
   });
   
   // Determine if this is a PR merge
   const mergeBaseFromEnv = process.env.VERSION_MERGE_BASE;
   const isPrMerge = !!mergeBaseFromEnv;
   
-  // Get commits since base commit
-  let gitLogCommand = `git log ${baseCommit}..HEAD --pretty=format:"%s"`;
+  // Get commits since base commit in chronological order (oldest first)
+  let gitLogCommand = `git log --reverse ${baseCommit}..HEAD --pretty=format:"%H"`;
   
   // For PR merges, we need to adjust the command to get all commits in the PR
   if (isPrMerge) {
     console.log(`PR merge detected, using merge base ${baseCommit}`);
     // For a PR merge, we want commits between the merge base and HEAD^
     // (HEAD^ excludes the merge commit itself)
-    gitLogCommand = `git log ${baseCommit}..HEAD^ --pretty=format:"%s"`;
+    gitLogCommand = `git log --reverse ${baseCommit}..HEAD^ --pretty=format:"%H"`;
   }
   
   console.log(`Running command: ${gitLogCommand}`);
-  const commits = execSync(gitLogCommand).toString().trim().split('\n');
+  const commitHashes = execSync(gitLogCommand).toString().trim().split('\n');
   
-  console.log(`Found ${commits.length} commits since ${baseCommit}`);
+  console.log(`Found ${commitHashes.length} commits since ${baseCommit}`);
   
-  // Process each commit
-  commits.forEach(commit => {
+  // Get current versions for all packages
+  const currentVersions = {};
+  PACKAGES.forEach(pkg => {
+    try {
+      const pkgJsonPath = path.join(process.cwd(), pkg, 'package.json');
+      if (fs.existsSync(pkgJsonPath)) {
+        const pkgData = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+        currentVersions[pkg] = pkgData.version || '0.0.0';
+      } else {
+        currentVersions[pkg] = '0.0.0';
+      }
+    } catch (error) {
+      console.error(`Error reading package.json for ${pkg}:`, error.message);
+      currentVersions[pkg] = '0.0.0';
+    }
+  });
+  
+  // Process each commit in chronological order (oldest first)
+  const sequentialVersions = { ...currentVersions };
+  
+  commitHashes.forEach(commitHash => {
+    if (!commitHash.trim()) return;
+    
+    const commitDetails = getCommitDetails(commitHash);
+    const message = commitDetails.message;
+    
     // Skip merge commits and empty commits
-    if (commit.startsWith('Merge') || commit.trim() === '') {
+    if (message.startsWith('Merge') || message.trim() === '') {
       return;
     }
     
-    console.log(`Analyzing commit: ${commit}`);
+    console.log(`Analyzing commit: ${message}`);
     
-    const scope = extractScope(commit);
-    const bumpType = determineBumpType(commit);
+    const scope = extractScope(message);
+    const bumpType = commitDetails.bumpType;
     
     console.log(`  Scope: ${scope || 'none'}, Bump type: ${bumpType}`);
     
@@ -154,7 +165,7 @@ function determineVersionBumps(baseCommit) {
       return;
     }
     
-    // If commit has a scope, bump the package that matches the scope
+    // If commit has a scope, apply to the matching package
     if (scope) {
       let matchFound = false;
       
@@ -166,15 +177,15 @@ function determineVersionBumps(baseCommit) {
           console.log(`  Matched package: ${pkg}`);
           matchFound = true;
           
-          // Only upgrade the bump type if it's more significant
-          if (
-            !packageVersions[pkg] || 
-            (bumpType === BUMP_TYPES.MAJOR) ||
-            (bumpType === BUMP_TYPES.MINOR && packageVersions[pkg] === BUMP_TYPES.PATCH)
-          ) {
-            packageVersions[pkg] = bumpType;
-            console.log(`  Setting ${pkg} to ${bumpType} bump`);
-          }
+          // Calculate the new sequential version for this package
+          const newVersion = incrementVersion(sequentialVersions[pkg], bumpType);
+          
+          // Store the sequential version that this commit would produce
+          commitDetails.exactVersion = newVersion;
+          sequentialVersions[pkg] = newVersion; // Update for next commit
+          
+          // Track this commit for the package
+          packageCommits[pkg].push(commitDetails);
           
           // Only break for package-specific scope, not for 'common'
           if (scope !== 'common') {
@@ -191,51 +202,39 @@ function determineVersionBumps(baseCommit) {
       console.log(`  No scope - applying to all packages`);
       
       PACKAGES.forEach(pkg => {
-        // Only upgrade the bump type if it's more significant
-        if (
-          !packageVersions[pkg] || 
-          (bumpType === BUMP_TYPES.MAJOR) ||
-          (bumpType === BUMP_TYPES.MINOR && packageVersions[pkg] === BUMP_TYPES.PATCH)
-        ) {
-          packageVersions[pkg] = bumpType;
-          console.log(`  Setting ${pkg} to ${bumpType} bump`);
-        }
+        // Calculate the new sequential version for this package
+        const newVersion = incrementVersion(sequentialVersions[pkg], bumpType);
+        
+        // Clone the commit details to avoid reference issues across packages
+        const pkgCommitDetails = { ...commitDetails };
+        pkgCommitDetails.exactVersion = newVersion;
+        sequentialVersions[pkg] = newVersion; // Update for next commit
+        
+        // Track this commit for all packages
+        packageCommits[pkg].push(pkgCommitDetails);
       });
     }
   });
   
-  return packageVersions;
-}
-
-/**
- * Increment version according to semver rules
- * @param {string} version Current version
- * @param {string} bumpType Bump type (patch, minor, major)
- * @returns {string} New version
- */
-function incrementVersion(version, bumpType) {
-  const [major, minor, patch] = version.split('.').map(Number);
+  // Use the final sequential version as the recommended version bump
+  PACKAGES.forEach(pkg => {
+    if (packageCommits[pkg].length > 0) {
+      // If package has commits, set the packageVersion to the final sequential version
+      packageVersions[pkg] = sequentialVersions[pkg];
+    }
+  });
   
-  switch (bumpType) {
-    case BUMP_TYPES.MAJOR:
-      return `${major + 1}.0.0`;
-    case BUMP_TYPES.MINOR:
-      return `${major}.${minor + 1}.0`;
-    case BUMP_TYPES.PATCH:
-      return `${major}.${minor}.${patch + 1}`;
-    default:
-      return version;
-  }
+  return { packageVersions, packageCommits, currentVersions };
 }
 
 /**
  * Update package.json version
  * @param {string} pkgPath Path to package directory
- * @param {string} bumpType Bump type (patch, minor, major)
- * @returns {string|null} New version or null if no update was made
+ * @param {string} newVersion New version to set
+ * @returns {Object|null} Version info or null if no update was made
  */
-function updatePackageVersion(pkgPath, bumpType) {
-  if (!bumpType) {
+function updatePackageVersion(pkgPath, newVersion) {
+  if (!newVersion) {
     return null;
   }
   
@@ -244,13 +243,116 @@ function updatePackageVersion(pkgPath, bumpType) {
   
   // Default to 0.0.0 if no version exists
   const currentVersion = pkg.version || '0.0.0';
-  const newVersion = incrementVersion(currentVersion, bumpType);
   
   // Update package.json
   pkg.version = newVersion;
   fs.writeFileSync(pkgJsonPath, JSON.stringify(pkg, null, 2) + '\n');
   
-  return newVersion;
+  // Find the highest bump type that led to this version
+  let highestBumpType = BUMP_TYPES.PATCH;
+  for (const commit of packageCommits[pkgPath] || []) {
+    if (commit.bumpType === BUMP_TYPES.MAJOR) {
+      highestBumpType = BUMP_TYPES.MAJOR;
+      break;
+    } else if (commit.bumpType === BUMP_TYPES.MINOR && highestBumpType !== BUMP_TYPES.MAJOR) {
+      highestBumpType = BUMP_TYPES.MINOR;
+    }
+  }
+  
+  return {
+    currentVersion,
+    newVersion,
+    bumpType: highestBumpType
+  };
+}
+
+/**
+ * Generate Markdown content for the current version bump
+ * @param {Object} bumpDetails Object containing version bump details for each package
+ * @returns {string} Markdown content for just this bump
+ */
+function generateCurrentBumpMd(bumpDetails) {
+  const timestamp = new Date().toISOString().replace('T', ' at ').substring(0, 19);
+  let markdown = `## Version Bump on ${timestamp}\n\n`;
+  
+  let anyBumps = false;
+  
+  // Generate section for each package
+  Object.keys(bumpDetails).forEach(pkg => {
+    const details = bumpDetails[pkg];
+    if (!details || !details.versionInfo) return;
+    
+    anyBumps = true;
+    const { currentVersion, newVersion, bumpType } = details.versionInfo;
+    const commits = details.commits || [];
+    
+    // Get unique commit types affecting this package
+    const commitTypes = [...new Set(commits.map(c => c.type))].filter(Boolean).sort();
+    
+    markdown += `### ${pkg} → ${newVersion} (${bumpType})\n\n`;
+    markdown += `- Current version: ${currentVersion}\n`;
+    markdown += `- New version: ${newVersion}\n`;
+    markdown += `- Affected by commit types: ${commitTypes.join(', ') || 'none'}\n\n`;
+    
+    // Track each commit with its individual contribution and exact version
+    if (commits.length > 0) {
+      markdown += '#### Sequential Version Progression\n\n';
+      markdown += '| Commit | Message | Bump Type | Exact Version |\n';
+      markdown += '|--------|---------|-----------|---------------|\n';
+      
+      // Show commits in chronological order
+      commits.forEach(commit => {
+        const exactVersion = commit.exactVersion || '?';
+        markdown += `| \`${commit.hash}\` | ${commit.message} | **${commit.bumpType}** | **${exactVersion}** |\n`;
+      });
+      markdown += '\n';
+    }
+  });
+  
+  if (!anyBumps) {
+    markdown += '***No packages were bumped in this version.***\n\n';
+  }
+  
+  return markdown;
+}
+
+/**
+ * Update or create the version bump analysis file
+ * @param {Object} bumpDetails Object containing version bump details for each package
+ */
+function updateBumpAnalysisFile(bumpDetails) {
+  const filePath = path.join(process.cwd(), 'documentation', 'version-bumps-analysis.md');
+  const docsDir = path.join(process.cwd(), 'documentation');
+  
+  // Make sure the documentation directory exists
+  if (!fs.existsSync(docsDir)) {
+    fs.mkdirSync(docsDir, { recursive: true });
+  }
+  
+  // Generate the new bump content
+  const newBumpContent = generateCurrentBumpMd(bumpDetails);
+  
+  // Check if file exists and read it, or create header if it doesn't
+  let existingContent = '';
+  if (fs.existsSync(filePath)) {
+    existingContent = fs.readFileSync(filePath, 'utf8');
+  } else {
+    existingContent = '# Version Bump Analysis\n\n';
+    existingContent += 'This file tracks all version bumps, what triggered them, and which packages were affected.\n\n\n';
+  }
+  
+  // Find the position after the header to insert the new content
+  const headerEndPos = existingContent.indexOf('\n\n\n');
+  if (headerEndPos !== -1) {
+    // Insert after the header
+    const finalContent = existingContent.substring(0, headerEndPos + 3) + newBumpContent + existingContent.substring(headerEndPos + 3);
+    fs.writeFileSync(filePath, finalContent);
+  } else {
+    // If cannot find proper position, just append
+    fs.writeFileSync(filePath, existingContent + '\n' + newBumpContent);
+  }
+  
+  console.log(`✅ Updated version bump analysis at: ${filePath}`);
 }
 
 /**
@@ -262,16 +364,24 @@ function versionPackages() {
   const baseCommit = getBaseCommit();
   console.log(`Using base commit: ${baseCommit}`);
   
-  const packageBumps = determineVersionBumps(baseCommit);
+  const { packageVersions, packageCommits, currentVersions } = determineVersionBumps(baseCommit);
   
   let updatedCount = 0;
+  const bumpDetails = {};
   
   // Update package versions
-  for (const [pkg, bumpType] of Object.entries(packageBumps)) {
-    if (bumpType) {
-      const newVersion = updatePackageVersion(pkg, bumpType);
-      if (newVersion) {
-        console.log(`📦 Updated ${pkg} to version ${newVersion} (${bumpType})`);
+  for (const [pkg, newVersion] of Object.entries(packageVersions)) {
+    if (newVersion) {
+      const versionInfo = updatePackageVersion(pkg, newVersion);
+      if (versionInfo) {
+        console.log(`📦 Updated ${pkg} to version ${versionInfo.newVersion} (${versionInfo.bumpType})`);
+        
+        // Store details for the bump analysis file
+        bumpDetails[pkg] = {
+          versionInfo,
+          commits: packageCommits[pkg]
+        };
+        
         updatedCount++;
       }
     } else {
@@ -281,6 +391,9 @@ function versionPackages() {
   
   if (updatedCount > 0) {
     console.log(`\n✅ Updated ${updatedCount} package(s)`);
+    
+    // Update the version bump analysis file
+    updateBumpAnalysisFile(bumpDetails);
   } else {
     console.log('\n⚠️ No packages needed versioning');
   }
