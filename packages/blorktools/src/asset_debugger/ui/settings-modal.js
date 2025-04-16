@@ -4,7 +4,7 @@
 import { saveSettings, loadSettings, getDefaultSettings } from '../data/localstorage-util.js';
 
 export class SettingsModal {
-    constructor() {
+    constructor(settings = null) {
         // Modal elements
         this.modal = document.getElementById('settings-modal');
         this.settingsBtn = document.getElementById('settings-button');
@@ -35,8 +35,17 @@ export class SettingsModal {
         // Initialize event listeners
         this.initEventListeners();
         
-        // Load initial settings
-        this.loadSavedSettings();
+
+        // Apply settings
+        if (settings) {
+            // Use provided settings
+            this.applySettings(settings);
+        } else {
+            // No settings provided, use defaults
+            const defaults = getDefaultSettings();
+            this.applyAxisIndicatorSetting(defaults.axisIndicator.type, defaults.axisIndicator.intensity);
+            this.initializeRigOptions();
+        }
     }
     
     /**
@@ -281,90 +290,82 @@ export class SettingsModal {
     }
     
     /**
-     * Load saved settings and apply them to the UI
+     * Apply provided settings to the UI
+     * @param {Object} settings - Settings object to apply
      */
-    loadSavedSettings() {
-        const settings = loadSettings();
-        
-        if (settings) {
-            // Apply axis indicator settings if available
-            if (settings.axisIndicator && settings.axisIndicator.type) {
-                // Update the dropdown to match saved setting
-                if (this.axisIndicatorSelect) {
-                    this.axisIndicatorSelect.value = settings.axisIndicator.type;
-                }
-                
-                // Update intensity slider if available
-                if (settings.axisIndicator.intensity !== undefined && this.intensitySlider && this.intensityValue) {
-                    this.intensitySlider.value = settings.axisIndicator.intensity;
-                    this.intensityValue.textContent = settings.axisIndicator.intensity;
-                }
-                
-                // Apply the setting
-                this.applyAxisIndicatorSetting(
-                    settings.axisIndicator.type, 
-                    settings.axisIndicator.intensity || 0.7
-                );
-                
-                // Show/hide embedded settings based on selection
-                this.toggleEmbeddedSettings(settings.axisIndicator.type);
+    applySettings(settings) {
+        // Apply axis indicator settings if available
+        if (settings.axisIndicator && settings.axisIndicator.type) {
+            // Update the dropdown to match saved setting
+            if (this.axisIndicatorSelect) {
+                this.axisIndicatorSelect.value = settings.axisIndicator.type;
             }
             
-            // Apply rig options settings if available
-            if (settings.rigOptions) {
-                // Update the form values
-                if (this.displayRig && settings.rigOptions.displayRig !== undefined) {
-                    this.displayRig.checked = settings.rigOptions.displayRig;
-                }
-                
-                if (this.forceZ && settings.rigOptions.forceZ !== undefined) {
-                    this.forceZ.checked = settings.rigOptions.forceZ;
-                }
-                
-                if (this.fillWireframe && settings.rigOptions.wireframe !== undefined) {
-                    this.fillWireframe.checked = !settings.rigOptions.wireframe; // Invert logic
-                    this.toggleSecondaryColorVisibility(!settings.rigOptions.wireframe);
-                }
-                
-                if (this.primaryColor && settings.rigOptions.primaryColor !== undefined) {
-                    this.primaryColor.value = '#' + settings.rigOptions.primaryColor.toString(16).padStart(6, '0');
-                }
-                
-                if (this.secondaryColor && settings.rigOptions.secondaryColor !== undefined) {
-                    this.secondaryColor.value = '#' + settings.rigOptions.secondaryColor.toString(16).padStart(6, '0');
-                }
-                
-                if (this.jointColor && settings.rigOptions.jointColor !== undefined) {
-                    this.jointColor.value = '#' + settings.rigOptions.jointColor.toString(16).padStart(6, '0');
-                }
-                
-                if (this.showJointLabels && settings.rigOptions.showJointLabels !== undefined) {
-                    this.showJointLabels.checked = settings.rigOptions.showJointLabels;
-                }
-                
-                // Set control handle colors if available
-                if (this.normalColor && settings.rigOptions.normalColor !== undefined) {
-                    this.normalColor.value = '#' + settings.rigOptions.normalColor.toString(16).padStart(6, '0');
-                }
-                
-                if (this.hoverColor && settings.rigOptions.hoverColor !== undefined) {
-                    this.hoverColor.value = '#' + settings.rigOptions.hoverColor.toString(16).padStart(6, '0');
-                }
-                
-                if (this.activeColor && settings.rigOptions.activeColor !== undefined) {
-                    this.activeColor.value = '#' + settings.rigOptions.activeColor.toString(16).padStart(6, '0');
-                }
-                
-                // Apply the settings
-                this.applyRigOptionsSetting(settings.rigOptions);
-            } else {
-                // Set default values for rig options
-                this.initializeRigOptions();
+            // Update intensity slider if available
+            if (settings.axisIndicator.intensity !== undefined && this.intensitySlider && this.intensityValue) {
+                this.intensitySlider.value = settings.axisIndicator.intensity;
+                this.intensityValue.textContent = settings.axisIndicator.intensity;
             }
+            
+            // Apply the setting
+            this.applyAxisIndicatorSetting(
+                settings.axisIndicator.type, 
+                settings.axisIndicator.intensity || 0.7
+            );
+            
+            // Show/hide embedded settings based on selection
+            this.toggleEmbeddedSettings(settings.axisIndicator.type);
+        }
+        
+        // Apply rig options settings if available
+        if (settings.rigOptions) {
+            // Update the form values
+            if (this.displayRig && settings.rigOptions.displayRig !== undefined) {
+                this.displayRig.checked = settings.rigOptions.displayRig;
+            }
+            
+            if (this.forceZ && settings.rigOptions.forceZ !== undefined) {
+                this.forceZ.checked = settings.rigOptions.forceZ;
+            }
+            
+            if (this.fillWireframe && settings.rigOptions.wireframe !== undefined) {
+                this.fillWireframe.checked = !settings.rigOptions.wireframe; // Invert logic
+                this.toggleSecondaryColorVisibility(!settings.rigOptions.wireframe);
+            }
+            
+            if (this.primaryColor && settings.rigOptions.primaryColor !== undefined) {
+                this.primaryColor.value = '#' + settings.rigOptions.primaryColor.toString(16).padStart(6, '0');
+            }
+            
+            if (this.secondaryColor && settings.rigOptions.secondaryColor !== undefined) {
+                this.secondaryColor.value = '#' + settings.rigOptions.secondaryColor.toString(16).padStart(6, '0');
+            }
+            
+            if (this.jointColor && settings.rigOptions.jointColor !== undefined) {
+                this.jointColor.value = '#' + settings.rigOptions.jointColor.toString(16).padStart(6, '0');
+            }
+            
+            if (this.showJointLabels && settings.rigOptions.showJointLabels !== undefined) {
+                this.showJointLabels.checked = settings.rigOptions.showJointLabels;
+            }
+            
+            // Set control handle colors if available
+            if (this.normalColor && settings.rigOptions.normalColor !== undefined) {
+                this.normalColor.value = '#' + settings.rigOptions.normalColor.toString(16).padStart(6, '0');
+            }
+            
+            if (this.hoverColor && settings.rigOptions.hoverColor !== undefined) {
+                this.hoverColor.value = '#' + settings.rigOptions.hoverColor.toString(16).padStart(6, '0');
+            }
+            
+            if (this.activeColor && settings.rigOptions.activeColor !== undefined) {
+                this.activeColor.value = '#' + settings.rigOptions.activeColor.toString(16).padStart(6, '0');
+            }
+            
+            // Apply the settings
+            this.applyRigOptionsSetting(settings.rigOptions);
         } else {
-            // No saved settings - apply defaults
-            const defaults = getDefaultSettings();
-            this.applyAxisIndicatorSetting(defaults.axisIndicator.type, defaults.axisIndicator.intensity);
+            // Set default values for rig options
             this.initializeRigOptions();
         }
     }

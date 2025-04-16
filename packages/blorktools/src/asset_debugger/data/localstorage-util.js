@@ -19,7 +19,9 @@ export function loadSettings() {
     
     if (savedSettings) {
         try {
-            return JSON.parse(savedSettings);
+            const settings = JSON.parse(savedSettings);
+            console.log('Loaded settings:', settings);
+            return settings;
         } catch (e) {
             console.error('Error loading saved settings:', e);
             return null;

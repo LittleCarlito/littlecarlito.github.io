@@ -7,6 +7,10 @@
 
 // Import the initialization function from index.js
 import init from './index.js';
+// Import loadSettings from localstorage-util.js
+import { loadSettings } from './data/localstorage-util.js';
+// Import SettingsModal 
+import { SettingsModal } from './ui/settings-modal.js';
 
 // Initialize the application when loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -150,6 +154,9 @@ function setupTabNavigation() {
 function startDebugging() {
     console.log('Starting debugging...');
     
+    // Load settings from localStorage at the start
+    const savedSettings = loadSettings();
+    
     // Check if any files have been loaded
     import('./core/state.js').then(stateModule => {
         const currentState = stateModule.getState();
@@ -179,17 +186,17 @@ function startDebugging() {
                     rigExampleButton.addEventListener('click', () => {
                         exampleModal.style.display = 'none';
                         // Proceed with initializing the debugger
-                        initializeDebugger();
+                        initializeDebugger(savedSettings);
                     });
                 }
             }
         } else {
             // If files are loaded, proceed with initializing the debugger
-            initializeDebugger();
+            initializeDebugger(savedSettings);
         }
     });
     
-    function initializeDebugger() {
+    function initializeDebugger(settings) {
         // Get elements
         const viewport = document.getElementById('viewport');
         const tabContainer = document.getElementById('tab-container');
@@ -217,6 +224,9 @@ function startDebugging() {
         
         // Set up tab navigation
         setupTabNavigation();
+        
+        // Initialize settings modal with loaded settings
+        new SettingsModal(settings);
         
         // Import and initialize the scene
         import('./core/scene.js').then(sceneModule => {
