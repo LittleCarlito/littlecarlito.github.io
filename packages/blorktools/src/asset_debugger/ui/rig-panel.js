@@ -678,6 +678,12 @@ function enableApplyButton(button) {
     if (button) {
         button.removeAttribute('disabled');
         button.classList.remove('disabled');
+        
+        // Restore visual appearance to match enabled state
+        button.style.backgroundColor = '#3f51b5'; // Standard blue button color
+        button.style.color = '#ffffff'; // White text
+        button.style.cursor = 'pointer';
+        button.style.opacity = '1.0';
     }
 }
 
