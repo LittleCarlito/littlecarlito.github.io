@@ -279,12 +279,33 @@ function applyJointConstraints(bone, constraints) {
     // Store constraint data in bone userData for reference
     bone.userData.constraints = constraints;
     
+    // Check if we should preserve the current position
+    const preserveCurrentPose = constraints.preservePosition && 
+                               constraints.currentPosition && 
+                               constraints.currentQuaternion;
+    
+    // If we're preserving the current position, store it before applying constraints
+    if (preserveCurrentPose) {
+        console.log(`Preserving current pose for ${bone.name}`);
+        bone.userData.preservedPosition = constraints.currentPosition.clone();
+        bone.userData.preservedQuaternion = constraints.currentQuaternion.clone();
+    }
+    
     // Apply different constraint types
     switch (constraints.type) {
         case 'fixed':
             // Fixed joints don't allow rotation - enforce this by marking as locked
             bone.userData.isLocked = true;
-            console.log(`Applied fixed constraint to ${bone.name} - joint will be locked`);
+            
+            // If we're preserving the current pose, store it as the fixed position
+            if (preserveCurrentPose) {
+                // For fixed constraints, we want to maintain the current world position
+                bone.userData.fixedPosition = constraints.currentPosition.clone();
+                bone.userData.fixedQuaternion = constraints.currentQuaternion.clone();
+                console.log(`Applied fixed constraint to ${bone.name} at current position - joint will be locked`);
+            } else {
+                console.log(`Applied fixed constraint to ${bone.name} - joint will be locked`);
+            }
             break;
             
         case 'hinge':
@@ -294,6 +315,12 @@ function applyJointConstraints(bone, constraints) {
                 min: constraints.min !== undefined ? constraints.min : -Math.PI/2,
                 max: constraints.max !== undefined ? constraints.max : Math.PI/2
             };
+            
+            // If preserving position, store current rotation as the initial state
+            if (preserveCurrentPose) {
+                bone.userData.initialWorldQuaternion = constraints.currentQuaternion.clone();
+            }
+            
             console.log(`Applied hinge constraint to ${bone.name} on ${bone.userData.hinge.axis} axis with limits [${bone.userData.hinge.min}, ${bone.userData.hinge.max}]`);
             break;
             
@@ -304,6 +331,12 @@ function applyJointConstraints(bone, constraints) {
                 y: constraints.limits?.y || { min: -Math.PI/4, max: Math.PI/4 },
                 z: constraints.limits?.z || { min: -Math.PI/4, max: Math.PI/4 }
             };
+            
+            // If preserving position, store current rotation
+            if (preserveCurrentPose) {
+                bone.userData.initialWorldQuaternion = constraints.currentQuaternion.clone();
+            }
+            
             console.log(`Applied rotation limits to ${bone.name}:`, bone.userData.rotationLimits);
             break;
             
@@ -312,13 +345,18 @@ function applyJointConstraints(bone, constraints) {
             bone.userData.spring = {
                 stiffness: constraints.stiffness || 50,
                 damping: constraints.damping || 5,
-                restPosition: new THREE.Vector3().copy(bone.position),
-                restRotation: new THREE.Euler(
-                    bone.rotation.x,
-                    bone.rotation.y,
-                    bone.rotation.z,
-                    bone.rotation.order
-                )
+                // If preserving position, use the current position as rest position
+                restPosition: preserveCurrentPose 
+                    ? new THREE.Vector3().copy(constraints.currentPosition) 
+                    : new THREE.Vector3().copy(bone.position),
+                restRotation: preserveCurrentPose
+                    ? new THREE.Euler().setFromQuaternion(constraints.currentQuaternion)
+                    : new THREE.Euler(
+                        bone.rotation.x,
+                        bone.rotation.y,
+                        bone.rotation.z,
+                        bone.rotation.order
+                    )
             };
             console.log(`Applied spring constraint to ${bone.name} with stiffness ${bone.userData.spring.stiffness}`);
             break;
@@ -326,7 +364,12 @@ function applyJointConstraints(bone, constraints) {
         case 'none':
         default:
             // No constraints (default) - unrestricted rotation
-            console.log(`No constraints applied to ${bone.name} (full rotation allowed)`);
+            // If preserving position, we just keep the current position
+            if (preserveCurrentPose) {
+                console.log(`No constraints applied to ${bone.name}, but preserving current pose`);
+            } else {
+                console.log(`No constraints applied to ${bone.name} (full rotation allowed)`);
+            }
             break;
     }
     
@@ -340,6 +383,30 @@ function applyJointConstraints(bone, constraints) {
         // Call the original update function
         originalUpdateMatrix.call(this);
     };
+    
+    // If we're preserving position, apply it now
+    if (preserveCurrentPose) {
+        // For fixed constraints, directly set the world position and quaternion
+        if (constraints.type === 'fixed' && bone.parent) {
+            // We need to convert world position back to local
+            const worldPos = bone.userData.preservedPosition;
+            const worldQuat = bone.userData.preservedQuaternion;
+            
+            // Convert to parent space
+            const parentWorldInverse = new THREE.Matrix4().invert(bone.parent.matrixWorld);
+            const localPos = worldPos.clone().applyMatrix4(parentWorldInverse);
+            
+            const parentQuatInverse = new THREE.Quaternion().copy(bone.parent.quaternion).invert();
+            const localQuat = worldQuat.clone().multiply(parentQuatInverse);
+            
+            // Apply the local position and rotation
+            bone.position.copy(localPos);
+            bone.quaternion.copy(localQuat);
+        }
+        
+        // Update the bone matrix to reflect these changes
+        bone.updateMatrix();
+    }
 }
 
 /**
@@ -353,8 +420,27 @@ function enforceJointConstraints(bone) {
     
     switch (constraints.type) {
         case 'fixed':
-            // Fixed joints - restore original rotation
-            if (bone.userData.initialRotation) {
+            // Fixed joints - maintain position and orientation
+            if (bone.userData.fixedPosition && bone.userData.fixedQuaternion) {
+                // Use the stored fixed position and orientation (world coordinates)
+                // We need to convert back to local space relative to the parent
+                if (bone.parent) {
+                    // Get parent world inverse
+                    const parentWorldInverse = new THREE.Matrix4().copy(bone.parent.matrixWorld).invert();
+                    const localPos = bone.userData.fixedPosition.clone().applyMatrix4(parentWorldInverse);
+                    
+                    // Get parent quaternion inverse
+                    const parentQuatInverse = new THREE.Quaternion().copy(bone.parent.quaternion).invert();
+                    const localQuat = new THREE.Quaternion().copy(bone.userData.fixedQuaternion)
+                        .premultiply(parentQuatInverse);
+                    
+                    // Set local position and rotation
+                    bone.position.copy(localPos);
+                    bone.quaternion.copy(localQuat);
+                }
+            }
+            // If no fixed position is stored, use initial rotation
+            else if (bone.userData.initialRotation) {
                 bone.rotation.set(
                     bone.userData.initialRotation.x,
                     bone.userData.initialRotation.y,

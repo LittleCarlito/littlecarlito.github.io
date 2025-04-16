@@ -805,6 +805,25 @@ function handleApplyConstraints(button) {
     // Get all bone constraint selections
     const constraintSelects = document.querySelectorAll('select[data-bone-constraint]');
     
+    // Store current bone world positions and rotations before applying constraints
+    const boneCurrentState = new Map();
+    
+    bones.forEach(bone => {
+        if (bone) {
+            // Get current world position and rotation
+            bone.updateWorldMatrix(true, false);
+            const worldPosition = new THREE.Vector3();
+            const worldQuaternion = new THREE.Quaternion();
+            bone.getWorldPosition(worldPosition);
+            bone.getWorldQuaternion(worldQuaternion);
+            
+            boneCurrentState.set(bone.name, {
+                position: worldPosition.clone(),
+                quaternion: worldQuaternion.clone()
+            });
+        }
+    });
+    
     constraintSelects.forEach(select => {
         const boneName = select.getAttribute('data-bone-name');
         const constraintType = select.value;
@@ -824,10 +843,15 @@ function handleApplyConstraints(button) {
                 item = rigDetails.bones.find(b => b.name === boneName);
             }
             
+            // Get current state of this bone (if available)
+            const currentState = boneCurrentState.get(boneName);
+            
             switch (constraintType) {
                 case 'FIXED_POSITION':
                     constraint = {
-                        type: 'fixed'
+                        type: 'fixed',
+                        // Store current position and rotation if available
+                        preservePosition: currentState ? true : false
                     };
                     break;
                     
@@ -836,7 +860,8 @@ function handleApplyConstraints(button) {
                         type: 'hinge',
                         axis: item?.hingeAxis || 'y',
                         min: item?.hingeMin || -Math.PI/2,
-                        max: item?.hingeMax || Math.PI/2
+                        max: item?.hingeMax || Math.PI/2,
+                        preservePosition: currentState ? true : false
                     };
                     break;
                     
@@ -847,7 +872,8 @@ function handleApplyConstraints(button) {
                             x: { min: -Math.PI/4, max: Math.PI/4 },
                             y: { min: -Math.PI/4, max: Math.PI/4 },
                             z: { min: -Math.PI/4, max: Math.PI/4 }
-                        }
+                        },
+                        preservePosition: currentState ? true : false
                     };
                     break;
                     
@@ -855,14 +881,16 @@ function handleApplyConstraints(button) {
                     constraint = {
                         type: 'spring',
                         stiffness: item?.spring?.stiffness || 50,
-                        damping: item?.spring?.damping || 5
+                        damping: item?.spring?.damping || 5,
+                        preservePosition: currentState ? true : false
                     };
                     break;
                     
                 case 'NONE':
                 default:
                     constraint = {
-                        type: 'none'
+                        type: 'none',
+                        preservePosition: currentState ? true : false
                     };
                     break;
             }
@@ -870,6 +898,13 @@ function handleApplyConstraints(button) {
             // Apply the constraint
             if (constraint) {
                 console.log(`Applying ${constraint.type} constraint to ${boneName}`);
+                
+                // Add current state to the constraint if available
+                if (currentState && constraint.preservePosition) {
+                    constraint.currentPosition = currentState.position;
+                    constraint.currentQuaternion = currentState.quaternion;
+                }
+                
                 applyJointConstraints(bone, constraint);
                 
                 // Update constraints list if it exists
@@ -897,6 +932,10 @@ function handleApplyConstraints(button) {
             }
         }
     });
+    
+    // After applying all constraints, make sure bone matrices are updated
+    // but preserve positions based on the constraint settings
+    updateAllBoneMatrices(true);
     
     // Update previous values for all constraint dropdowns
     constraintSelects.forEach(select => {
