@@ -382,12 +382,23 @@ function runTestVersionSimulation() {
     console.log(`${colors.green}Would update ${wouldUpdateCount} package(s)${colors.reset}`);
     
     // Ask if they want to see details about what would be added to the version-bumps-analysis.md file
-    console.log(`\n${colors.bright}${colors.cyan}Would you like to see what will be added to the version-bumps-analysis.md file? (y/n)${colors.reset}`);
+    console.log(`\n${colors.bright}${colors.cyan}Would you like to see what will be added to the version-bumps-analysis.md file? (y/N)${colors.reset}`);
     
-    // Set up standard input for a response
+    // Set up standard input with a timeout
     process.stdin.setEncoding('utf8');
+    
+    // Create a timeout that defaults to N after 4 seconds
+    const timeout = setTimeout(() => {
+      console.log(`\n${colors.yellow}No response received within 4 seconds, defaulting to N${colors.reset}`);
+      process.stdin.pause();
+    }, 4000);
+    
     process.stdin.once('data', function (data) {
+      // Clear the timeout since we received a response
+      clearTimeout(timeout);
+      
       const input = data.toString().trim().toLowerCase();
+      // Treat empty input (just Enter) as 'n', only proceed with 'y' or 'yes'
       if (input === 'y' || input === 'yes') {
         // Generate and display the bump details
         const bumpDetailsMd = generateBumpDetailsMd(bumpDetails);
