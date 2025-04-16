@@ -1,11 +1,14 @@
 import * as THREE from 'three';
 import { checkHandleHover, getIsDragging } from '../drag-util';
 import { getState } from '../state';
-import { 
-    boneMaterial, 
+import {
+    bones,
+    boneMaterial,
+    lockedBones,
     boneSideMaterial, 
     furthestBoneHandle, 
     boneVisualsGroup,
+    updateAllBoneMatrices,
     restoreLockedBoneRotations 
 } from '../bone-util';
 import { createJointLabels } from './rig-factory';
@@ -214,7 +217,7 @@ export function updateRigVisualization() {
 /**
  * Reset the rig to its initial position
  */
-function resetRig() {
+export function resetRig() {
     if (!bones.length) return;
     
     console.log('Resetting rig to initial position from GLB');

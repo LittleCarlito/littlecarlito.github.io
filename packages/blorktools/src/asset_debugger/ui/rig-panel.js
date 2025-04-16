@@ -19,7 +19,8 @@ import {
     rigDetails,
     updateRigDetails,
     rigOptions,
-    updateRigVisualization
+    updateRigVisualization,
+    resetRig
  } from '../core/rig/rig-manager.js';
  import {
     bones,
