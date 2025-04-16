@@ -939,37 +939,48 @@ h2, h3 {
 .rig-item {
     font-size: 12px;
     margin: 5px 0;
-    padding: 3px;
-    background-color: rgba(0,0,0,0.02);
+    padding: 8px;
+    background-color: rgba(0,0,0,0.1);
     border-radius: 3px;
     position: relative;
+    border: 1px solid var(--panel-border);
 }
 
 .rig-item-name {
+    font-weight: bold;
     padding-right: 40px;
+    margin-bottom: 5px;
 }
 
 .rig-item-count {
     position: absolute;
-    right: 5px;
-    top: 50%;
-    transform: translateY(-50%);
+    right: 8px;
+    top: 8px;
     font-size: 14px;
     font-weight: 600;
-    color: #4CAF50;
-    background-color: rgba(0,0,0,0.1);
+    color: var(--primary-color);
+    background-color: rgba(0,0,0,0.2);
     border-radius: 3px;
-    padding: 0 4px;
+    padding: 1px 5px;
+    z-index: 2;
 }
 
 .rig-item-position {
     font-size: 10px;
-    color: #666;
+    color: var(--label-text);
+    margin-bottom: 5px;
 }
 
 .rig-item-type {
     font-size: 10px;
-    color: #666;
+    color: var(--label-text);
+    margin-bottom: 5px;
+}
+
+.rig-constraint-type {
+    font-size: 10px;
+    color: var(--label-text);
+    margin-bottom: 8px;
 }
 
 .rig-root-joint {
@@ -996,68 +1007,257 @@ h2, h3 {
     font-weight: bold;
 }
 
-.rig-joint-type-container {
+/* Bone constraint controls styling */
+.rig-constraint-container {
     display: flex;
     align-items: center;
-    margin-top: 5px;
+    margin-top: 10px;
+    margin-bottom: 8px;
 }
 
-.rig-joint-type-label {
-    font-size: 10px;
-    margin-right: 5px;
-    color: #666;
+.rig-constraint-label {
+    font-size: 11px;
+    margin-right: 8px;
+    color: var(--label-text);
+    min-width: 80px;
 }
 
-.rig-joint-type-select {
-    font-size: 10px;
-    background-color: rgba(0,0,0,0.05);
-    border: 1px solid #444;
+.rig-constraint-select {
+    font-size: 11px;
+    padding: 4px 6px;
     border-radius: 3px;
-    color: #ddd;
-    padding: 2px 5px;
+    background-color: var(--input-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--input-text);
+    flex: 1;
+    max-width: 160px;
 }
 
-.rig-associated-bone {
-    font-size: 10px;
-    color: #ffcc00;
+.rig-constraint-controls {
+    margin-top: 5px;
+    padding-left: 5px;
+}
+
+/* Hinge axis controls */
+.rig-axis-container {
+    display: flex;
+    align-items: center;
+    margin: 8px 0;
+}
+
+.rig-axis-label {
+    font-size: 11px;
+    margin-right: 8px;
+    color: var(--label-text);
+    min-width: 80px;
+}
+
+.rig-axis-select {
+    font-size: 11px;
+    padding: 4px 6px;
+    border-radius: 3px;
+    background-color: var(--input-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--input-text);
+    width: 100px;
+}
+
+/* Hinge limits controls */
+.rig-limits-container {
+    display: flex;
+    gap: 10px;
+    margin: 8px 0;
+}
+
+.rig-min-container,
+.rig-max-container {
+    display: flex;
+    align-items: center;
+    flex: 1;
+}
+
+.rig-min-label,
+.rig-max-label {
+    font-size: 11px;
+    margin-right: 5px;
+    color: var(--label-text);
+    min-width: 65px;
+}
+
+.rig-min-input,
+.rig-max-input {
+    font-size: 11px;
+    padding: 4px 6px;
+    border-radius: 3px;
+    background-color: var(--input-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--input-text);
+    width: 60px;
+}
+
+/* Rotation limits controls */
+.rig-rotation-limits-container {
+    margin: 8px 0;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 8px;
+}
+
+.rig-axis-limits {
+    margin-bottom: 8px;
+}
+
+.rig-axis-limit-label {
+    font-size: 11px;
+    margin-bottom: 5px;
+    color: var(--label-text);
     font-weight: bold;
 }
 
-.rig-connected-bone {
-    font-size: 10px;
-    color: #ffcc00;
-    font-weight: bold;
+.rig-min-limit,
+.rig-max-limit {
+    display: flex;
+    align-items: center;
+    margin-left: 10px;
+    margin-bottom: 5px;
+}
+
+.rig-min-limit label,
+.rig-max-limit label {
+    font-size: 11px;
+    margin-right: 5px;
+    color: var(--label-text);
+    min-width: 30px;
+}
+
+.rig-min-limit input,
+.rig-max-limit input {
+    font-size: 11px;
+    padding: 4px 6px;
+    border-radius: 3px;
+    background-color: var(--input-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--input-text);
+    width: 60px;
+}
+
+/* Spring controls */
+.rig-spring-container {
+    margin: 8px 0;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 8px;
+}
+
+.rig-stiffness-container,
+.rig-damping-container {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.rig-stiffness-label,
+.rig-damping-label {
+    font-size: 11px;
+    margin-right: 8px;
+    color: var(--label-text);
+    min-width: 70px;
+}
+
+.rig-stiffness-input,
+.rig-damping-input {
+    flex: 1;
+    max-width: 150px;
+    height: 6px;
+    margin-right: 8px;
+    -webkit-appearance: none;
+    background-color: var(--panel-bg-lighter);
+    border-radius: 3px;
+    outline: none;
+}
+
+.rig-stiffness-input::-webkit-slider-thumb,
+.rig-damping-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--button-color);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.rig-stiffness-value,
+.rig-damping-value {
+    font-size: 11px;
+    min-width: 25px;
+    text-align: right;
+    color: var(--input-text);
 }
 
 .rig-lock-container {
     display: flex;
     align-items: center;
-    margin-top: 5px;
+    margin-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 8px;
 }
 
 .rig-lock-label {
-    font-size: 10px;
-    margin-right: 5px;
-    color: #666;
+    font-size: 11px;
+    color: var(--label-text);
+    margin-right: 8px;
+    min-width: 80px;
 }
 
 .rig-lock-checkbox {
+    width: 16px;
+    height: 16px;
     cursor: pointer;
 }
 
 .rig-apply-button-container {
-    margin-top: 10px;
+    margin-top: 15px;
     display: flex;
     justify-content: center;
 }
 
 .rig-apply-button {
     padding: 6px 12px;
+    background-color: var(--button-color);
+    color: white;
+    border: none;
+    border-radius: 3px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.rig-apply-button:disabled {
     background-color: rgba(0,0,0,0.2);
     color: #ccc;
     border: 1px solid #444;
-    border-radius: 3px;
-    font-size: 12px;
     cursor: not-allowed;
     opacity: 0.5;
+}
+
+.rig-apply-button:not(:disabled):hover {
+    background-color: #0d74c7;
+}
+
+.rig-constraints-summary {
+    margin-top: 10px;
+    padding: 8px;
+    background-color: rgba(0,0,0,0.1);
+    border-radius: 3px;
+    border: 1px solid var(--panel-border);
+}
+
+.rig-summary-title {
+    font-size: 12px;
+    margin: 0 0 5px 0;
+    color: var(--primary-color);
+}
+
+.rig-constraint-group {
+    font-size: 11px;
+    margin-bottom: 3px;
+    color: var(--text-color);
 } 

@@ -12,7 +12,9 @@ import {
     createRig, 
     createBoneMesh, 
     createBoneUpdateFunction, 
-    addControlHandleToFurthestBone
+    addControlHandleToFurthestBone,
+    parseJointConstraints,
+    applyJointConstraints
 } from '../core/rig/rig-factory.js';
 import { setIsDragging, getIsDragging, checkHandleHover } from '../core/drag-util.js';
 import { 
@@ -225,108 +227,147 @@ function createRigDetailsContent(container, details) {
                     itemElem.appendChild(typeElem);
                 }
                 
-                // Special handling for Joints section
-                if (title === 'Joints') {
-                    if (item.isRoot) {
-                        const rootElem = document.createElement('div');
-                        rootElem.className = 'rig-root-joint';
-                        rootElem.textContent = 'Root Joint';
-                        itemElem.appendChild(rootElem);
-                    }
-                    
-                    if (item.parentBone) {
-                        const parentElem = document.createElement('div');
-                        parentElem.className = 'rig-parent-bone';
-                        parentElem.textContent = `Parent: ${item.parentBone}`;
-                        itemElem.appendChild(parentElem);
-                    }
-                    
-                    if (item.childBone) {
-                        const childElem = document.createElement('div');
-                        childElem.className = 'rig-child-bone';
-                        childElem.textContent = `Child: ${item.childBone}`;
-                        itemElem.appendChild(childElem);
-                    }
-                    
-                    // Add joint type dropdown
-                    const jointTypeContainer = document.createElement('div');
-                    jointTypeContainer.className = 'rig-joint-type-container';
-                    
-                    const jointTypeLabel = document.createElement('label');
-                    jointTypeLabel.className = 'rig-joint-type-label';
-                    jointTypeLabel.textContent = 'Joint Type:';
-                    
-                    const jointTypeSelect = document.createElement('select');
-                    jointTypeSelect.className = 'rig-joint-type-select';
-                    jointTypeSelect.setAttribute('data-joint-type', 'true');
-                    jointTypeSelect.setAttribute('data-joint-name', item.name);
-                    
-                    // For now, only one option
-                    const sphericalOption = document.createElement('option');
-                    sphericalOption.value = 'spherical';
-                    sphericalOption.textContent = 'Spherical';
-                    jointTypeSelect.appendChild(sphericalOption);
-                    
-                    const fixedOption = document.createElement('option');
-                    fixedOption.value = 'fixed';
-                    fixedOption.textContent = 'Fixed';
-                    jointTypeSelect.appendChild(fixedOption);
-                    
-                    if (!item.jointType) {
-                        item.jointType = 'spherical'; // Default joint type
-                    }
-                    
-                    // Set the select value
-                    jointTypeSelect.value = item.jointType;
-                    
-                    // Store initial value in the global map (single source of truth)
-                    jointPreviousValues.set(item.name, item.jointType);
-                    
-                    // Add event listener to update jointType when changed
-                    jointTypeSelect.addEventListener('change', () => {
-                        // Update the joint type in the item data
-                        item.jointType = jointTypeSelect.value;
-                        
-                        // Log with updated format if debug is enabled
-                        if (jointSettingsDebug) {
-                            console.log(`Joint Setting ${item.name} changed to "${jointTypeSelect.value}"`);
-                        }
-                        
-                        // Evaluate overall state instead of individual comparison
-                        updateJointSettingsState();
-                    });
-                    
-                    jointTypeContainer.appendChild(jointTypeLabel);
-                    jointTypeContainer.appendChild(jointTypeSelect);
-                    itemElem.appendChild(jointTypeContainer);
+                // Display constraint type if available
+                if (item.constraintType) {
+                    const constraintElem = document.createElement('div');
+                    constraintElem.className = 'rig-constraint-type';
+                    constraintElem.textContent = `Constraint: ${item.constraintType}`;
+                    itemElem.appendChild(constraintElem);
                 }
                 
-                // Add bone associations for control points
-                if (title === 'Controls/Handles') {
-                    const associatedBone = findAssociatedBone(item.name, details.bones);
-                    if (associatedBone) {
-                        const boneElem = document.createElement('div');
-                        boneElem.className = 'rig-associated-bone';
-                        boneElem.textContent = `Controls bone: ${associatedBone.name}`;
-                        itemElem.appendChild(boneElem);
-                    }
-                    
-                    // Add info for furthest bone control
-                    const state = getState();
-                    if (state.model && furthestBoneHandle && furthestBoneHandle.userData.controlledBone) {
-                        const controlElem = document.createElement('div');
-                        controlElem.className = 'rig-connected-bone';
-                        controlElem.textContent = `Connected: ${furthestBoneHandle.userData.controlledBone.name}`;
-                        itemElem.appendChild(controlElem);
-                    }
-                }
-                
-                // Add Lock Rotation checkbox for bones
+                // Special handling for Bones section - ADD CONSTRAINT UI HERE
                 if (title === 'Bones') {
                     const boneName = item.name;
                     const bone = findBoneByName(boneName);
                     
                     if (bone) {
+                        // Add constraint type dropdown
+                        const constraintContainer = document.createElement('div');
+                        constraintContainer.className = 'rig-constraint-container';
+                        
+                        const constraintLabel = document.createElement('label');
+                        constraintLabel.className = 'rig-constraint-label';
+                        constraintLabel.textContent = 'Constraint:';
+                        
+                        const constraintSelect = document.createElement('select');
+                        constraintSelect.className = 'rig-constraint-select';
+                        constraintSelect.setAttribute('data-bone-constraint', 'true');
+                        constraintSelect.setAttribute('data-bone-name', boneName);
+                        
+                        // Add all available constraint types
+                        const constraintOptions = [
+                            { value: 'none', label: 'None' },
+                            { value: 'fixed', label: 'Fixed' },
+                            { value: 'hinge', label: 'Hinge' },
+                            { value: 'limitRotation', label: 'Limited Rotation' },
+                            { value: 'spring', label: 'Spring' }
+                        ];
+                        
+                        constraintOptions.forEach(option => {
+                            const optionElem = document.createElement('option');
+                            optionElem.value = option.value;
+                            optionElem.textContent = option.label;
+                            constraintSelect.appendChild(optionElem);
+                        });
+                        
+                        // Determine initial constraint type
+                        let initialConstraintType = 'none';
+                        
+                        // Check if bone has constraints in userData
+                        if (bone.userData && bone.userData.constraints) {
+                            initialConstraintType = bone.userData.constraints.type;
+                        } 
+                        // Check if there's a constraint in rigDetails.constraints
+                        else if (details.constraints) {
+                            const existingConstraint = details.constraints.find(c => 
+                                c.boneName === boneName || c.nodeName === boneName);
+                            if (existingConstraint) {
+                                initialConstraintType = existingConstraint.type;
+                            }
+                        }
+                        
+                        // Store constraint data in the bone item for use in UI
+                        item.constraintType = initialConstraintType;
+                        
+                        // Copy constraint data from bone if available
+                        if (bone.userData && bone.userData.constraints) {
+                            if (bone.userData.constraints.type === 'hinge') {
+                                item.hingeAxis = bone.userData.hinge?.axis || 'y';
+                                item.hingeMin = bone.userData.hinge?.min || -Math.PI/2;
+                                item.hingeMax = bone.userData.hinge?.max || Math.PI/2;
+                            } else if (bone.userData.constraints.type === 'limitRotation') {
+                                item.rotationLimits = bone.userData.rotationLimits || {
+                                    x: { min: -Math.PI/4, max: Math.PI/4 },
+                                    y: { min: -Math.PI/4, max: Math.PI/4 },
+                                    z: { min: -Math.PI/4, max: Math.PI/4 }
+                                };
+                            } else if (bone.userData.constraints.type === 'spring') {
+                                item.spring = {
+                                    stiffness: bone.userData.spring?.stiffness || 50,
+                                    damping: bone.userData.spring?.damping || 5
+                                };
+                            }
+                    }
+                    
+                    // Set the select value
+                        constraintSelect.value = initialConstraintType;
+                    
+                    // Store initial value in the global map (single source of truth)
+                        jointPreviousValues.set(boneName, initialConstraintType);
+                        
+                        // Add event listener to update constraintType when changed
+                        constraintSelect.addEventListener('change', () => {
+                            // Update the constraint type in the item data
+                            item.constraintType = constraintSelect.value;
+                        
+                        // Log with updated format if debug is enabled
+                        if (jointSettingsDebug) {
+                                console.log(`Bone constraint ${boneName} changed to "${constraintSelect.value}"`);
+                            }
+                            
+                            // Remove any existing constraint-specific controls
+                            const controlSelectors = [
+                                '.rig-constraint-controls',
+                                '.rig-axis-container',
+                                '.rig-limits-container',
+                                '.rig-rotation-limits-container',
+                                '.rig-spring-container'
+                            ];
+                            
+                            controlSelectors.forEach(selector => {
+                                const existingControls = itemElem.querySelectorAll(selector);
+                                existingControls.forEach(control => {
+                                    itemElem.removeChild(control);
+                                });
+                            });
+                            
+                            // Add appropriate controls based on selected constraint type
+                            if (constraintSelect.value === 'hinge') {
+                                addHingeAxisSelector(itemElem, item);
+                            } else if (constraintSelect.value === 'limitRotation') {
+                                addRotationLimitControls(itemElem, item);
+                            } else if (constraintSelect.value === 'spring') {
+                                addSpringControls(itemElem, item);
+                            }
+                            
+                            // Evaluate overall state to enable/disable Apply button
+                            updateConstraintSettingsState();
+                        });
+                        
+                        constraintContainer.appendChild(constraintLabel);
+                        constraintContainer.appendChild(constraintSelect);
+                        itemElem.appendChild(constraintContainer);
+                        
+                        // Add constraint-specific controls based on initial constraint type
+                        if (initialConstraintType === 'hinge') {
+                            addHingeAxisSelector(itemElem, item);
+                        } else if (initialConstraintType === 'limitRotation') {
+                            addRotationLimitControls(itemElem, item);
+                        } else if (initialConstraintType === 'spring') {
+                            addSpringControls(itemElem, item);
+                        }
+                        
+                        // Add Lock Rotation checkbox
                         const lockContainer = document.createElement('div');
                         lockContainer.className = 'rig-lock-container';
                         
@@ -351,24 +392,98 @@ function createRigDetailsContent(container, details) {
                     }
                 }
                 
+                // Special handling for Joints section - NOW SIMPLER, JUST DISPLAY RELATIONSHIPS
+                if (title === 'Joints') {
+                    if (item.isRoot) {
+                        const rootElem = document.createElement('div');
+                        rootElem.className = 'rig-root-joint';
+                        rootElem.textContent = 'Root Joint';
+                        itemElem.appendChild(rootElem);
+                    }
+                    
+                    if (item.parentBone) {
+                        const parentElem = document.createElement('div');
+                        parentElem.className = 'rig-parent-bone';
+                        parentElem.textContent = `Parent: ${item.parentBone}`;
+                        itemElem.appendChild(parentElem);
+                    }
+                    
+                    if (item.childBone) {
+                        const childElem = document.createElement('div');
+                        childElem.className = 'rig-child-bone';
+                        childElem.textContent = `Child: ${item.childBone}`;
+                        itemElem.appendChild(childElem);
+                    }
+                }
+                
+                // Add bone associations for control points
+                if (title === 'Controls/Handles') {
+                    const associatedBone = findAssociatedBone(item.name, details.bones);
+                    if (associatedBone) {
+                        const boneElem = document.createElement('div');
+                        boneElem.className = 'rig-associated-bone';
+                        boneElem.textContent = `Controls bone: ${associatedBone.name}`;
+                        itemElem.appendChild(boneElem);
+                    }
+                    
+                    // Add info for furthest bone control
+                    const state = getState();
+                    if (state.model && furthestBoneHandle && furthestBoneHandle.userData.controlledBone) {
+                        const controlElem = document.createElement('div');
+                        controlElem.className = 'rig-connected-bone';
+                        controlElem.textContent = `Connected: ${furthestBoneHandle.userData.controlledBone.name}`;
+                        itemElem.appendChild(controlElem);
+                    }
+                }
+                
                 section.appendChild(itemElem);
             });
             
-            // Add Apply Changes button at the bottom of the Joints section
-            if (title === 'Joints' && items.length > 0) {
+            // Add Constraints section if we have constraints data
+            if (title === 'Joints' && details.constraints && details.constraints.length > 0) {
+                const constraintsSummary = document.createElement('div');
+                constraintsSummary.className = 'rig-constraints-summary';
+                
+                const summaryTitle = document.createElement('h5');
+                summaryTitle.textContent = 'Detected Constraints';
+                summaryTitle.className = 'rig-summary-title';
+                constraintsSummary.appendChild(summaryTitle);
+                
+                // Group constraints by type
+                const constraintsByType = {};
+                details.constraints.forEach(constraint => {
+                    if (!constraintsByType[constraint.type]) {
+                        constraintsByType[constraint.type] = [];
+                    }
+                    constraintsByType[constraint.type].push(constraint.boneName || constraint.nodeName);
+                });
+                
+                // Display each type
+                Object.keys(constraintsByType).forEach(type => {
+                    const typeElem = document.createElement('div');
+                    typeElem.className = 'rig-constraint-group';
+                    typeElem.innerHTML = `<strong>${type}</strong>: ${constraintsByType[type].join(', ')}`;
+                    constraintsSummary.appendChild(typeElem);
+                });
+                
+                section.appendChild(constraintsSummary);
+            }
+            
+            // Add Apply Changes button at the bottom of the Bones section
+            if (title === 'Bones' && items.length > 0) {
                 const buttonContainer = document.createElement('div');
                 buttonContainer.className = 'rig-apply-button-container';
                 
                 const applyButton = document.createElement('button');
-                applyButton.id = 'apply-joint-changes-button';
-                applyButton.textContent = 'Apply Changes';
+                applyButton.id = 'apply-bone-constraints-button';
+                applyButton.textContent = 'Apply Constraints';
                 applyButton.className = 'rig-apply-button';
                 
                 // Disable the button by default
                 disableApplyButton(applyButton);
                 
                 applyButton.addEventListener('click', () => {
-                    handleApplyChanges(applyButton);
+                    handleApplyConstraints(applyButton);
                 });
                 
                 buttonContainer.appendChild(applyButton);
@@ -394,24 +509,393 @@ function createRigDetailsContent(container, details) {
 }
 
 /**
- * Handle the Apply Changes button click
- * @param {HTMLElement} button - The Apply Changes button element
+ * Add hinge axis selector to a joint item
+ * @param {HTMLElement} itemElem - The joint item element
+ * @param {Object} item - The joint data
  */
-function handleApplyChanges(button) {
-    // Update previous values for all joint type dropdowns
-    const jointTypeSelects = document.querySelectorAll('select[data-joint-type]');
+function addHingeAxisSelector(itemElem, item) {
+    const axisContainer = document.createElement('div');
+    axisContainer.className = 'rig-axis-container rig-constraint-controls';
     
-    jointTypeSelects.forEach(select => {
-        const jointName = select.getAttribute('data-joint-name');
+    const axisLabel = document.createElement('label');
+    axisLabel.className = 'rig-axis-label';
+    axisLabel.textContent = 'Hinge Axis:';
+    
+    const axisSelect = document.createElement('select');
+    axisSelect.className = 'rig-axis-select';
+    
+    const axes = [
+        { value: 'x', label: 'X Axis' },
+        { value: 'y', label: 'Y Axis' },
+        { value: 'z', label: 'Z Axis' }
+    ];
+    
+    axes.forEach(axis => {
+        const option = document.createElement('option');
+        option.value = axis.value;
+        option.textContent = axis.label;
+        axisSelect.appendChild(option);
+    });
+    
+    // Set initial value or default to Y
+    if (!item.hingeAxis) {
+        item.hingeAxis = 'y';
+    }
+    axisSelect.value = item.hingeAxis;
+    
+    axisSelect.addEventListener('change', () => {
+        item.hingeAxis = axisSelect.value;
+        updateJointSettingsState();
+    });
+    
+    axisContainer.appendChild(axisLabel);
+    axisContainer.appendChild(axisSelect);
+    itemElem.appendChild(axisContainer);
+    
+    // Add min/max angle inputs
+    const limitsContainer = document.createElement('div');
+    limitsContainer.className = 'rig-limits-container';
+    
+    // Min angle
+    const minContainer = document.createElement('div');
+    minContainer.className = 'rig-min-container';
+    
+    const minLabel = document.createElement('label');
+    minLabel.textContent = 'Min Angle:';
+    minLabel.className = 'rig-min-label';
+    
+    const minInput = document.createElement('input');
+    minInput.type = 'number';
+    minInput.className = 'rig-min-input';
+    minInput.min = -180;
+    minInput.max = 180;
+    minInput.step = 5;
+    minInput.value = item.hingeMin ? Math.round(item.hingeMin * 180 / Math.PI) : -90;
+    
+    minInput.addEventListener('change', () => {
+        item.hingeMin = minInput.value * Math.PI / 180;
+        updateJointSettingsState();
+    });
+    
+    minContainer.appendChild(minLabel);
+    minContainer.appendChild(minInput);
+    
+    // Max angle
+    const maxContainer = document.createElement('div');
+    maxContainer.className = 'rig-max-container';
+    
+    const maxLabel = document.createElement('label');
+    maxLabel.textContent = 'Max Angle:';
+    maxLabel.className = 'rig-max-label';
+    
+    const maxInput = document.createElement('input');
+    maxInput.type = 'number';
+    maxInput.className = 'rig-max-input';
+    maxInput.min = -180;
+    maxInput.max = 180;
+    maxInput.step = 5;
+    maxInput.value = item.hingeMax ? Math.round(item.hingeMax * 180 / Math.PI) : 90;
+    
+    maxInput.addEventListener('change', () => {
+        item.hingeMax = maxInput.value * Math.PI / 180;
+        updateJointSettingsState();
+    });
+    
+    maxContainer.appendChild(maxLabel);
+    maxContainer.appendChild(maxInput);
+    
+    limitsContainer.appendChild(minContainer);
+    limitsContainer.appendChild(maxContainer);
+    itemElem.appendChild(limitsContainer);
+}
+
+/**
+ * Add rotation limit controls to a joint item
+ * @param {HTMLElement} itemElem - The joint item element
+ * @param {Object} item - The joint data
+ */
+function addRotationLimitControls(itemElem, item) {
+    // Initialize limits object if not exists
+    if (!item.rotationLimits) {
+        item.rotationLimits = {
+            x: { min: -Math.PI/4, max: Math.PI/4 },
+            y: { min: -Math.PI/4, max: Math.PI/4 },
+            z: { min: -Math.PI/4, max: Math.PI/4 }
+        };
+    }
+    
+    const limitsContainer = document.createElement('div');
+    limitsContainer.className = 'rig-rotation-limits-container rig-constraint-controls';
+    
+    const axisLabels = ['X', 'Y', 'Z'];
+    
+    // Create controls for each axis
+    axisLabels.forEach(axis => {
+        const axisLower = axis.toLowerCase();
+        
+        const axisContainer = document.createElement('div');
+        axisContainer.className = 'rig-axis-limits';
+        
+        const axisLabel = document.createElement('div');
+        axisLabel.className = 'rig-axis-limit-label';
+        axisLabel.textContent = `${axis} Axis:`;
+        axisContainer.appendChild(axisLabel);
+        
+        // Min limit
+        const minContainer = document.createElement('div');
+        minContainer.className = 'rig-min-limit';
+        
+        const minLabel = document.createElement('label');
+        minLabel.textContent = 'Min:';
+        
+        const minInput = document.createElement('input');
+        minInput.type = 'number';
+        minInput.min = -180;
+        minInput.max = 180;
+        minInput.step = 5;
+        minInput.value = Math.round((item.rotationLimits[axisLower]?.min || -45) * 180 / Math.PI);
+        
+        minInput.addEventListener('change', () => {
+            if (!item.rotationLimits[axisLower]) {
+                item.rotationLimits[axisLower] = {};
+            }
+            item.rotationLimits[axisLower].min = minInput.value * Math.PI / 180;
+            updateJointSettingsState();
+        });
+        
+        minContainer.appendChild(minLabel);
+        minContainer.appendChild(minInput);
+        
+        // Max limit
+        const maxContainer = document.createElement('div');
+        maxContainer.className = 'rig-max-limit';
+        
+        const maxLabel = document.createElement('label');
+        maxLabel.textContent = 'Max:';
+        
+        const maxInput = document.createElement('input');
+        maxInput.type = 'number';
+        maxInput.min = -180;
+        maxInput.max = 180;
+        maxInput.step = 5;
+        maxInput.value = Math.round((item.rotationLimits[axisLower]?.max || 45) * 180 / Math.PI);
+        
+        maxInput.addEventListener('change', () => {
+            if (!item.rotationLimits[axisLower]) {
+                item.rotationLimits[axisLower] = {};
+            }
+            item.rotationLimits[axisLower].max = maxInput.value * Math.PI / 180;
+            updateJointSettingsState();
+        });
+        
+        maxContainer.appendChild(maxLabel);
+        maxContainer.appendChild(maxInput);
+        
+        axisContainer.appendChild(minContainer);
+        axisContainer.appendChild(maxContainer);
+        limitsContainer.appendChild(axisContainer);
+    });
+    
+    itemElem.appendChild(limitsContainer);
+}
+
+/**
+ * Add spring controls to a joint item
+ * @param {HTMLElement} itemElem - The joint item element
+ * @param {Object} item - The joint data
+ */
+function addSpringControls(itemElem, item) {
+    // Initialize spring properties if not exists
+    if (!item.spring) {
+        item.spring = {
+            stiffness: 50,
+            damping: 5
+        };
+    }
+    
+    const springContainer = document.createElement('div');
+    springContainer.className = 'rig-spring-container rig-constraint-controls';
+    
+    // Stiffness control
+    const stiffnessContainer = document.createElement('div');
+    stiffnessContainer.className = 'rig-stiffness-container';
+    
+    const stiffnessLabel = document.createElement('label');
+    stiffnessLabel.textContent = 'Stiffness:';
+    stiffnessLabel.className = 'rig-stiffness-label';
+    
+    const stiffnessInput = document.createElement('input');
+    stiffnessInput.type = 'range';
+    stiffnessInput.min = 1;
+    stiffnessInput.max = 100;
+    stiffnessInput.value = item.spring.stiffness || 50;
+    stiffnessInput.className = 'rig-stiffness-input';
+    
+    const stiffnessValue = document.createElement('span');
+    stiffnessValue.textContent = stiffnessInput.value;
+    stiffnessValue.className = 'rig-stiffness-value';
+    
+    stiffnessInput.addEventListener('input', () => {
+        item.spring.stiffness = parseInt(stiffnessInput.value);
+        stiffnessValue.textContent = stiffnessInput.value;
+        updateJointSettingsState();
+    });
+    
+    stiffnessContainer.appendChild(stiffnessLabel);
+    stiffnessContainer.appendChild(stiffnessInput);
+    stiffnessContainer.appendChild(stiffnessValue);
+    
+    // Damping control
+    const dampingContainer = document.createElement('div');
+    dampingContainer.className = 'rig-damping-container';
+    
+    const dampingLabel = document.createElement('label');
+    dampingLabel.textContent = 'Damping:';
+    dampingLabel.className = 'rig-damping-label';
+    
+    const dampingInput = document.createElement('input');
+    dampingInput.type = 'range';
+    dampingInput.min = 0;
+    dampingInput.max = 20;
+    dampingInput.value = item.spring.damping || 5;
+    dampingInput.className = 'rig-damping-input';
+    
+    const dampingValue = document.createElement('span');
+    dampingValue.textContent = dampingInput.value;
+    dampingValue.className = 'rig-damping-value';
+    
+    dampingInput.addEventListener('input', () => {
+        item.spring.damping = parseInt(dampingInput.value);
+        dampingValue.textContent = dampingInput.value;
+        updateJointSettingsState();
+    });
+    
+    dampingContainer.appendChild(dampingLabel);
+    dampingContainer.appendChild(dampingInput);
+    dampingContainer.appendChild(dampingValue);
+    
+    springContainer.appendChild(stiffnessContainer);
+    springContainer.appendChild(dampingContainer);
+    itemElem.appendChild(springContainer);
+}
+
+/**
+ * Handle the Apply Constraints button click
+ * @param {HTMLElement} button - The Apply Constraints button element
+ */
+function handleApplyConstraints(button) {
+    console.log('Applying bone constraint changes...');
+    
+    // Get all bone constraint selections
+    const constraintSelects = document.querySelectorAll('select[data-bone-constraint]');
+    
+    constraintSelects.forEach(select => {
+        const boneName = select.getAttribute('data-bone-name');
+        const constraintType = select.value;
+        
+        console.log(`Processing bone ${boneName}, constraint type: ${constraintType}`);
+        
+        // Find the corresponding bone
+        const bone = findBoneByName(boneName);
+        
+        if (bone) {
+            // Create constraint object based on constraint type
+            let constraint = null;
+            
+            // Find the item data that contains the constraint settings
+            let item = null;
+            if (rigDetails && rigDetails.bones) {
+                item = rigDetails.bones.find(b => b.name === boneName);
+            }
+            
+            switch (constraintType) {
+                case 'fixed':
+                    constraint = {
+                        type: 'fixed'
+                    };
+                    break;
+                    
+                case 'hinge':
+                    constraint = {
+                        type: 'hinge',
+                        axis: item?.hingeAxis || 'y',
+                        min: item?.hingeMin || -Math.PI/2,
+                        max: item?.hingeMax || Math.PI/2
+                    };
+                    break;
+                    
+                case 'limitRotation':
+                    constraint = {
+                        type: 'limitRotation',
+                        limits: item?.rotationLimits || {
+                            x: { min: -Math.PI/4, max: Math.PI/4 },
+                            y: { min: -Math.PI/4, max: Math.PI/4 },
+                            z: { min: -Math.PI/4, max: Math.PI/4 }
+                        }
+                    };
+                    break;
+                    
+                case 'spring':
+                    constraint = {
+                        type: 'spring',
+                        stiffness: item?.spring?.stiffness || 50,
+                        damping: item?.spring?.damping || 5
+                    };
+                    break;
+                    
+                case 'none':
+                default:
+                    constraint = {
+                        type: 'none'
+                    };
+                    break;
+            }
+            
+            // Apply the constraint
+            if (constraint) {
+                console.log(`Applying ${constraint.type} constraint to ${boneName}`);
+                applyJointConstraints(bone, constraint);
+                
+                // Update constraints list if it exists
+                if (rigDetails.constraints) {
+                    // Check if this bone already has a constraint
+                    const existingIndex = rigDetails.constraints.findIndex(c => 
+                        c.boneName === boneName || c.nodeName === boneName);
+                    
+                    if (existingIndex >= 0) {
+                        // Update existing constraint
+                        rigDetails.constraints[existingIndex] = {
+                            boneName: boneName,
+                            type: constraint.type,
+                            data: constraint
+                        };
+                    } else {
+                        // Add new constraint
+                        rigDetails.constraints.push({
+                            boneName: boneName,
+                            type: constraint.type,
+                            data: constraint
+                        });
+                    }
+                }
+            }
+        }
+    });
+    
+    // Update previous values for all constraint dropdowns
+    constraintSelects.forEach(select => {
+        const boneName = select.getAttribute('data-bone-name');
         // Update the previous value in the global map
-        jointPreviousValues.set(jointName, select.value);
+        jointPreviousValues.set(boneName, select.value);
     });
     
     // Update overall state
-    updateJointSettingsState();
+    updateConstraintSettingsState();
     
     // Disable the button
     disableApplyButton(button);
+    
+    console.log('Bone constraints applied successfully');
 }
 
 /**
@@ -584,14 +1068,6 @@ function updateRigPanel() {
 export function refreshJointsData() {
     // Clear existing joints data
     if (rigDetails && rigDetails.joints) {
-        // Keep track of joint types from the existing data
-        const jointTypeMap = {};
-        rigDetails.joints.forEach(joint => {
-            if (joint.name && joint.jointType) {
-                jointTypeMap[joint.name] = joint.jointType;
-            }
-        });
-        
         rigDetails.joints = [];
         
         // Collect joint data from all bone visualizations
@@ -605,27 +1081,33 @@ export function refreshJointsData() {
                     if (parentBone && childBone) {
                         // Regular joint between parent and child
                         const jointName = `Joint_${parentBone.name}_to_${childBone.name}`;
-                        rigDetails.joints.push({
+                        
+                        // Create joint data (without constraint type)
+                        const jointData = {
                             name: jointName,
                             parentBone: parentBone.name,
                             childBone: childBone.name,
                             position: [object.position.x, object.position.y, object.position.z],
-                            count: 1,
-                            jointType: jointTypeMap[jointName] || 'spherical' // Preserve existing type or use default
-                        });
+                            count: 1
+                        };
+                        
+                        rigDetails.joints.push(jointData);
                     } else if (object.userData.rootBone) {
                         // Root joint
                         const rootBone = object.userData.rootBone;
                         const jointName = `Root_Joint_${rootBone.name}`;
-                        rigDetails.joints.push({
+                        
+                        // Create joint data (without constraint type)
+                        const jointData = {
                             name: jointName,
                             parentBone: "Scene Root",
                             childBone: rootBone.name,
                             position: [object.position.x, object.position.y, object.position.z],
                             count: 1,
-                            isRoot: true,
-                            jointType: jointTypeMap[jointName] || 'spherical' // Preserve existing type or use default
-                        });
+                            isRoot: true
+                        };
+                        
+                        rigDetails.joints.push(jointData);
                     }
                 }
             });
@@ -637,37 +1119,37 @@ export function refreshJointsData() {
 }
 
 /**
- * Update the state of allJointsInPreviousState based on current joint type select values
+ * Update the state of all bone constraint settings
  */
-function updateJointSettingsState() {
-    const jointTypeSelects = document.querySelectorAll('select[data-joint-type]');
-    allJointsInPreviousState = true;
+function updateConstraintSettingsState() {
+    const constraintSelects = document.querySelectorAll('select[data-bone-constraint]');
+    let allConstraintsInPreviousState = true;
     
-    jointTypeSelects.forEach(select => {
-        const jointName = select.getAttribute('data-joint-name');
-        const previousValue = jointPreviousValues.get(jointName);
+    constraintSelects.forEach(select => {
+        const boneName = select.getAttribute('data-bone-name');
+        const previousValue = jointPreviousValues.get(boneName);
         const currentValue = select.value;
         
         if (previousValue !== currentValue) {
-            allJointsInPreviousState = false;
+            allConstraintsInPreviousState = false;
         }
     });
     
     if (jointSettingsDebug) {
-        console.log(`All Joint Types in previous state: ${allJointsInPreviousState}`);
+        console.log(`All Bone Constraints in previous state: ${allConstraintsInPreviousState}`);
     }
     
-    // Control Apply Changes button state based on allJointsInPreviousState
-    const applyButton = document.getElementById('apply-joint-changes-button');
+    // Control Apply Changes button state based on changes
+    const applyButton = document.getElementById('apply-bone-constraints-button');
     if (applyButton) {
-        if (allJointsInPreviousState) {
+        if (allConstraintsInPreviousState) {
             disableApplyButton(applyButton);
         } else {
             enableApplyButton(applyButton);
         }
     }
     
-    return allJointsInPreviousState;
+    return allConstraintsInPreviousState;
 }
 
 /**

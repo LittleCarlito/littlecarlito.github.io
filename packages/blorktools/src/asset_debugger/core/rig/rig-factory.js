@@ -35,8 +35,6 @@ import {
     resetBones
   } from '../bone-util.js';
 
-
-
 /**
  * Create joint labels for all joints in the scene
  * @param {Object} scene - The Three.js scene
@@ -161,6 +159,272 @@ function createSimpleLabel(text, joint, scene) {
 }
 
 /**
+ * Parse joint constraint data from node extras or userData
+ * @param {Object} node - Bone/joint node to examine
+ * @returns {Object|null} - Constraint data if found, null otherwise
+ */
+function parseJointConstraints(node) {
+    console.log(`Checking for constraints on joint: ${node.name}`);
+    
+    // Initialize constraint object
+    let constraints = null;
+    
+    // Check for constraints in userData
+    if (node.userData) {
+        // Look for Blender constraint data in userData
+        if (node.userData.constraints || node.userData.boneConstraints) {
+            constraints = node.userData.constraints || node.userData.boneConstraints;
+            console.log(`Found explicit constraints in userData for ${node.name}:`, constraints);
+            return constraints;
+        }
+        
+        // Check for limit_rotation type constraints
+        if (node.userData.limitRotation || node.userData.rotationLimits) {
+            constraints = {
+                type: 'limitRotation',
+                limits: node.userData.limitRotation || node.userData.rotationLimits
+            };
+            console.log(`Found rotation limits for ${node.name}:`, constraints);
+            return constraints;
+        }
+    }
+    
+    // Look for GLTF extras (where custom data is often stored)
+    if (node.extras) {
+        if (node.extras.constraints || node.extras.jointType) {
+            constraints = node.extras.constraints || { type: node.extras.jointType };
+            console.log(`Found constraints in GLTF extras for ${node.name}:`, constraints);
+            return constraints;
+        }
+    }
+    
+    // Infer constraints from bone properties
+    // Check if bone has locked rotation axes
+    if (node.rotation && node.userData.initialRotation) {
+        // Look for zero initial rotations that might indicate locked axes
+        const lockedAxes = [];
+        const epsilon = 0.0001; // Small threshold for floating point comparison
+        
+        if (Math.abs(node.userData.initialRotation.x) < epsilon) lockedAxes.push('x');
+        if (Math.abs(node.userData.initialRotation.y) < epsilon) lockedAxes.push('y');
+        if (Math.abs(node.userData.initialRotation.z) < epsilon) lockedAxes.push('z');
+        
+        // If we have 2+ locked axes, this might be a hinge joint
+        if (lockedAxes.length >= 2) {
+            const freeAxis = ['x', 'y', 'z'].find(axis => !lockedAxes.includes(axis));
+            if (freeAxis) {
+                constraints = {
+                    type: 'hinge',
+                    axis: freeAxis
+                };
+                console.log(`Inferred hinge joint for ${node.name} on ${freeAxis} axis from locked rotations`);
+                return constraints;
+            }
+        }
+        
+        // If all axes are locked, this might be a fixed joint
+        if (lockedAxes.length === 3) {
+            constraints = {
+                type: 'fixed'
+            };
+            console.log(`Inferred fixed joint for ${node.name} from locked rotations on all axes`);
+            return constraints;
+        }
+    }
+    
+    // Check naming conventions that might indicate constraint types
+    const lowerName = node.name.toLowerCase();
+    if (lowerName.includes('fixed') || lowerName.includes('rigid')) {
+        constraints = {
+            type: 'fixed'
+        };
+        console.log(`Inferred fixed joint for ${node.name} from naming convention`);
+        return constraints;
+    }
+    
+    if (lowerName.includes('hinge') || lowerName.includes('elbow') || lowerName.includes('knee')) {
+        // Default to Y axis for hinge if not specified
+        constraints = {
+            type: 'hinge',
+            axis: lowerName.includes('_x') ? 'x' : (lowerName.includes('_z') ? 'z' : 'y')
+        };
+        console.log(`Inferred hinge joint for ${node.name} from naming convention`);
+        return constraints;
+    }
+    
+    if (lowerName.includes('spring') || lowerName.includes('bounce')) {
+        constraints = {
+            type: 'spring',
+            stiffness: 50,  // Default stiffness
+            damping: 5      // Default damping
+        };
+        console.log(`Inferred spring joint for ${node.name} from naming convention`);
+        return constraints;
+    }
+    
+    // No constraints found
+    return null;
+}
+
+/**
+ * Apply joint constraints to a bone
+ * @param {Object} bone - The bone to apply constraints to
+ * @param {Object} constraints - Constraint data
+ */
+function applyJointConstraints(bone, constraints) {
+    if (!bone || !constraints) return;
+    
+    console.log(`Applying ${constraints.type} constraint to ${bone.name}`);
+    
+    // Store constraint data in bone userData for reference
+    bone.userData.constraints = constraints;
+    
+    // Apply different constraint types
+    switch (constraints.type) {
+        case 'fixed':
+            // Fixed joints don't allow rotation - enforce this by marking as locked
+            bone.userData.isLocked = true;
+            console.log(`Applied fixed constraint to ${bone.name} - joint will be locked`);
+            break;
+            
+        case 'hinge':
+            // Hinge joints only allow rotation on one axis
+            bone.userData.hinge = {
+                axis: constraints.axis || 'y',
+                min: constraints.min !== undefined ? constraints.min : -Math.PI/2,
+                max: constraints.max !== undefined ? constraints.max : Math.PI/2
+            };
+            console.log(`Applied hinge constraint to ${bone.name} on ${bone.userData.hinge.axis} axis with limits [${bone.userData.hinge.min}, ${bone.userData.hinge.max}]`);
+            break;
+            
+        case 'limitRotation':
+            // Limit rotation within specific ranges for each axis
+            bone.userData.rotationLimits = {
+                x: constraints.limits?.x || { min: -Math.PI/4, max: Math.PI/4 },
+                y: constraints.limits?.y || { min: -Math.PI/4, max: Math.PI/4 },
+                z: constraints.limits?.z || { min: -Math.PI/4, max: Math.PI/4 }
+            };
+            console.log(`Applied rotation limits to ${bone.name}:`, bone.userData.rotationLimits);
+            break;
+            
+        case 'spring':
+            // Spring joints try to return to their rest position
+            bone.userData.spring = {
+                stiffness: constraints.stiffness || 50,
+                damping: constraints.damping || 5,
+                restPosition: new THREE.Vector3().copy(bone.position),
+                restRotation: new THREE.Euler(
+                    bone.rotation.x,
+                    bone.rotation.y,
+                    bone.rotation.z,
+                    bone.rotation.order
+                )
+            };
+            console.log(`Applied spring constraint to ${bone.name} with stiffness ${bone.userData.spring.stiffness}`);
+            break;
+            
+        case 'none':
+        default:
+            // No constraints (default) - unrestricted rotation
+            console.log(`No constraints applied to ${bone.name} (full rotation allowed)`);
+            break;
+    }
+    
+    // Add a custom update function to enforce constraints during animation
+    const originalUpdateMatrix = bone.updateMatrix;
+    bone.updateMatrix = function() {
+        // Apply constraints to rotation before updating matrix
+        if (this.userData.constraints) {
+            enforceJointConstraints(this);
+        }
+        // Call the original update function
+        originalUpdateMatrix.call(this);
+    };
+}
+
+/**
+ * Enforce joint constraints on a bone
+ * @param {Object} bone - The bone to enforce constraints on
+ */
+function enforceJointConstraints(bone) {
+    if (!bone || !bone.userData.constraints) return;
+    
+    const constraints = bone.userData.constraints;
+    
+    switch (constraints.type) {
+        case 'fixed':
+            // Fixed joints - restore original rotation
+            if (bone.userData.initialRotation) {
+                bone.rotation.set(
+                    bone.userData.initialRotation.x,
+                    bone.userData.initialRotation.y,
+                    bone.userData.initialRotation.z
+                );
+                bone.rotation.order = bone.userData.initialRotation.order;
+            }
+            break;
+            
+        case 'hinge':
+            // Hinge joints - only allow rotation on one axis, reset others
+            if (bone.userData.hinge) {
+                const hinge = bone.userData.hinge;
+                const initial = bone.userData.initialRotation || { x: 0, y: 0, z: 0 };
+                
+                // Reset rotation on locked axes
+                if (hinge.axis !== 'x') bone.rotation.x = initial.x;
+                if (hinge.axis !== 'y') bone.rotation.y = initial.y;
+                if (hinge.axis !== 'z') bone.rotation.z = initial.z;
+                
+                // Clamp rotation on the free axis
+                if (hinge.axis === 'x') {
+                    bone.rotation.x = Math.max(hinge.min, Math.min(hinge.max, bone.rotation.x));
+                } else if (hinge.axis === 'y') {
+                    bone.rotation.y = Math.max(hinge.min, Math.min(hinge.max, bone.rotation.y));
+                } else if (hinge.axis === 'z') {
+                    bone.rotation.z = Math.max(hinge.min, Math.min(hinge.max, bone.rotation.z));
+                }
+            }
+            break;
+            
+        case 'limitRotation':
+            // Apply rotation limits on each axis
+            if (bone.userData.rotationLimits) {
+                const limits = bone.userData.rotationLimits;
+                
+                if (limits.x) {
+                    bone.rotation.x = Math.max(limits.x.min, Math.min(limits.x.max, bone.rotation.x));
+                }
+                if (limits.y) {
+                    bone.rotation.y = Math.max(limits.y.min, Math.min(limits.y.max, bone.rotation.y));
+                }
+                if (limits.z) {
+                    bone.rotation.z = Math.max(limits.z.min, Math.min(limits.z.max, bone.rotation.z));
+                }
+            }
+            break;
+            
+        case 'spring':
+            // Apply spring forces to return toward rest position
+            if (bone.userData.spring) {
+                const spring = bone.userData.spring;
+                
+                // Calculate spring force based on distance from rest
+                const diffX = spring.restRotation.x - bone.rotation.x;
+                const diffY = spring.restRotation.y - bone.rotation.y;
+                const diffZ = spring.restRotation.z - bone.rotation.z;
+                
+                // Very simple spring approximation - move a percentage toward rest position
+                const springFactor = spring.stiffness * 0.01; // Scale down to make it more gradual
+                
+                bone.rotation.x += diffX * springFactor;
+                bone.rotation.y += diffY * springFactor;
+                bone.rotation.z += diffZ * springFactor;
+            }
+            break;
+    }
+}
+
+/**
  * Analyze the rig data in a GLTF model
  * @param {Object} gltf - The loaded GLTF model data
  * @returns {Object} Analyzed rig details
@@ -180,8 +444,9 @@ function analyzeGltfModel(gltf) {
         bones: [],
         rigs: [],
         roots: [],
-        controls: [], // Handles/Controls
-        joints: []    // Add joints array to store joint data
+        controls: [],
+        joints: [],
+        constraints: [] // Add a new array to track constraints
     };
     
     // Extract scene information
@@ -191,6 +456,18 @@ function analyzeGltfModel(gltf) {
     const traverseNode = (node, parentType = null) => {
         console.log('Traversing node:', node.name, 'type:', node.type, 'isBone:', node.isBone);
         
+        // Look for joint constraints in this node
+        const constraints = parseJointConstraints(node);
+        if (constraints) {
+            console.log(`Found constraints for ${node.name}:`, constraints);
+            rawDetails.constraints.push({
+                nodeName: node.name,
+                nodeType: node.type,
+                constraintType: constraints.type,
+                constraintData: constraints
+            });
+        }
+        
         // Check if the node is a bone
         if (node.isBone || node.name.toLowerCase().includes('bone')) {
             console.log('Found bone:', node.name);
@@ -198,7 +475,8 @@ function analyzeGltfModel(gltf) {
                 name: node.name,
                 position: node.position ? [node.position.x, node.position.y, node.position.z] : null,
                 rotation: node.rotation ? [node.rotation.x, node.rotation.y, node.rotation.z] : null,
-                parentName: parentType === 'bone' ? node.parent.name : null
+                parentName: parentType === 'bone' ? node.parent.name : null,
+                constraintType: constraints ? constraints.type : 'none' // Add constraint type
             });
             parentType = 'bone';
         }
@@ -254,7 +532,8 @@ function analyzeGltfModel(gltf) {
         rigs: deduplicateItems(rawDetails.rigs),
         roots: deduplicateItems(rawDetails.roots),
         controls: deduplicateItems(rawDetails.controls),
-        joints: deduplicateItems(rawDetails.joints)
+        joints: deduplicateItems(rawDetails.joints),
+        constraints: rawDetails.constraints // Don't deduplicate constraints
     };
     
     console.log('Rig analysis results:', result);
@@ -281,8 +560,6 @@ function deduplicateItems(items) {
     
     return Array.from(uniqueItems.values());
 }
-
-
 
 /**
  * Create a bone joint with consistent styling and properties
@@ -483,7 +760,6 @@ function createBoneUpdateFunction(boneGroup) {
     };
 }
 
-
 /**
  * Add a control handle to the furthest bone
  * @param {Object} bone - The bone to add the handle to
@@ -519,9 +795,14 @@ function createRig(model, scene) {
     
     // Initialize rigDetails.joints if needed
     if (!rigDetails) {
-        updateRigDetails({ bones: [], rigs: [], roots: [], controls: [], joints: [] });
+        updateRigDetails({ bones: [], rigs: [], roots: [], controls: [], joints: [], constraints: [] });
     } else if (!rigDetails.joints) {
         rigDetails.joints = [];
+    }
+    
+    // Add constraints array if not present
+    if (!rigDetails.constraints) {
+        rigDetails.constraints = [];
     }
     
     // Find all bones
@@ -553,6 +834,24 @@ function createRig(model, scene) {
                 } else {
                     console.log('Found bone:', node.name);
                 }
+                
+                // Look for constraint data
+                const constraints = parseJointConstraints(node);
+                if (constraints) {
+                    console.log(`Found constraints for bone ${node.name}:`, constraints);
+                    // Apply constraints to the bone
+                    applyJointConstraints(node, constraints);
+                    
+                    // Store constraint information
+                    if (rigDetails && rigDetails.constraints) {
+                        rigDetails.constraints.push({
+                            boneName: node.name,
+                            type: constraints.type,
+                            data: constraints
+                        });
+                    }
+                }
+                
                 bones.push(node);
             }
         });
@@ -570,6 +869,24 @@ function createRig(model, scene) {
                     z: node.rotation.z,
                     order: node.rotation.order
                 };
+                
+                // Look for constraint data
+                const constraints = parseJointConstraints(node);
+                if (constraints) {
+                    console.log(`Found constraints for bone ${node.name}:`, constraints);
+                    // Apply constraints to the bone
+                    applyJointConstraints(node, constraints);
+                    
+                    // Store constraint information
+                    if (rigDetails && rigDetails.constraints) {
+                        rigDetails.constraints.push({
+                            boneName: node.name,
+                            type: constraints.type,
+                            data: constraints
+                        });
+                    }
+                }
+                
                 // Log whether this is a root bone
                 if (node.name.toLowerCase().includes('root')) {
                     console.log('Found ROOT bone in model:', node.name);
@@ -847,6 +1164,33 @@ function createRig(model, scene) {
             furthestBoneHandle.material.needsUpdate = true;
         }
     }
+    
+    // At the end of createRig, log summary of constraints found
+    if (rigDetails && rigDetails.constraints && rigDetails.constraints.length > 0) {
+        console.log('=== JOINT CONSTRAINT SUMMARY ===');
+        console.log(`Found ${rigDetails.constraints.length} joint constraints:`);
+        
+        // Group by constraint type
+        const constraintsByType = {};
+        rigDetails.constraints.forEach(constraint => {
+            if (!constraintsByType[constraint.type]) {
+                constraintsByType[constraint.type] = [];
+            }
+            constraintsByType[constraint.type].push(constraint.boneName);
+        });
+        
+        // Log summary by type
+        Object.keys(constraintsByType).forEach(type => {
+            console.log(`  - ${type}: ${constraintsByType[type].length} joints`);
+            constraintsByType[type].forEach(boneName => {
+                console.log(`      - ${boneName}`);
+            });
+        });
+        
+        console.log('================================');
+    } else {
+        console.log('No joint constraints found in model');
+    }
 }
 
 // Export functions
@@ -857,5 +1201,8 @@ export {
     createBoneMesh,
     createBoneUpdateFunction,
     addControlHandleToFurthestBone,
-    createBoneJoint
+    createBoneJoint,
+    parseJointConstraints,
+    applyJointConstraints,
+    enforceJointConstraints
 };
