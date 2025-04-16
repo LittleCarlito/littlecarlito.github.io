@@ -281,13 +281,12 @@ function deduplicateItems(items) {
 
 
 /**
- * Create a visualization of bones in the 3D scene
- * @param {Object} model - The 3D model to visualize
+ * Create a bone rig system with visualization, controls and interactions
+ * @param {Object} model - The model to create a rig for
  * @param {Object} scene - The Three.js scene
+ * @returns {Object} The created rig
  */
-function createRigVisualization(model, scene) {
-    if (!model || !scene) return;
-    
+function createRig(model, scene) {
     console.log('Creating rig visualization...');
     
     // Clear any existing rig visualization
@@ -817,7 +816,7 @@ function addControlHandleToFurthestBone(bone, scene, modelScale) {
 export {
     analyzeGltfModel,
     deduplicateItems,
-    createRigVisualization,
+    createRig,
     createBoneMesh,
     createBoneUpdateFunction,
     addControlHandleToFurthestBone

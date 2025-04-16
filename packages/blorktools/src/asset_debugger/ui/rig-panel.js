@@ -9,7 +9,7 @@ import { getState } from '../core/state.js';
 import { 
     analyzeGltfModel, 
     deduplicateItems, 
-    createRigVisualization, 
+    createRig, 
     createBoneMesh, 
     createBoneUpdateFunction, 
     addControlHandleToFurthestBone
@@ -546,7 +546,7 @@ function updateRigPanel() {
             if (rigDetails && rigDetails.bones && rigDetails.bones.length > 0) {
                 console.log('Creating rig visualization with', rigDetails.bones.length, 'bones');
                 console.log('Force Z setting before creating rig:', rigOptions.forceZ);
-                createRigVisualization(state.model, state.scene);
+                createRig(state.model, state.scene);
                 console.log('Rig visualization created, Force Z is now:', rigOptions.forceZ);
             } else {
                 console.log('No bones found in rigDetails, not creating visualization');
