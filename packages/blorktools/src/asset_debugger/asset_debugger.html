@@ -333,35 +333,10 @@
             const restartContainer = document.getElementById('debug-button-container');
             const restartDebugBtn = document.getElementById('restart-debug');
             
-            // Note: The start debug button functionality is now handled by the asset_debugger.js script
-            // This is just making sure the UI elements are updated correctly
-            startDebugBtn.addEventListener('click', function() {
-                // Hide upload section and show restart button
-                uploadSection.style.display = 'none';
-                restartContainer.style.display = 'flex';
-                // The actual debugging initialization happens in the JavaScript module
-            });
+            // Note: All start debug button functionality is now handled by the asset_debugger.js script
+            // The inline listener has been moved to consolidate all logic in one place
             
-            // Load example modal functionality
-            const loadExampleModal = document.getElementById('load-example-modal');
-            const closeExampleBtn = document.getElementById('close-example-modal');
-            
-            // Close modal function
-            function closeExampleModal() {
-                loadExampleModal.style.display = 'none';
-            }
-            
-            // Add event listener for close button
-            if (closeExampleBtn) {
-                closeExampleBtn.addEventListener('click', closeExampleModal);
-            }
-            
-            // When clicking outside the modal, close it
-            loadExampleModal.addEventListener('click', function(event) {
-                if (event.target === loadExampleModal) {
-                    closeExampleModal();
-                }
-            });
+            // Load example modal functionality is now handled by ExamplesModal class
             
             // Return to Toolbox functionality
             const returnToToolboxBtn = document.getElementById('return-to-toolbox');

@@ -11,6 +11,7 @@ import init from './index.js';
 import { loadSettings } from './data/localstorage-util.js';
 // Import SettingsModal 
 import { SettingsModal } from './ui/settings-modal.js';
+import { ExamplesModal } from './ui/examples-modal.js';
 
 // Initialize the application when loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -32,7 +33,7 @@ function setupDebuggerEvents() {
     const tabContainer = document.getElementById('tab-container');
     
     if (startDebugBtn) {
-        startDebugBtn.addEventListener('click', startDebugging);
+        startDebugBtn.addEventListener('click', verifyFileDrop);
     }
     
     if (restartDebugBtn) {
@@ -149,7 +150,41 @@ function setupTabNavigation() {
 }
 
 /**
- * Start the debugging process
+ * First verifies if any files were dropped before proceeding with debugging
+ */
+function verifyFileDrop() {
+    // First check if any files were dropped
+    import('./core/state.js').then(stateModule => {
+        const currentState = stateModule.getState();
+        const hasTextures = currentState.textureObjects.baseColor || 
+                          currentState.textureObjects.orm || 
+                          currentState.textureObjects.normal;
+        const hasModel = currentState.useCustomModel && currentState.modelFile;
+        const hasFiles = hasTextures || hasModel;
+        
+        // If no files were dropped, show examples modal
+        if (!hasFiles) {
+            // Load settings for use with examples
+            const savedSettings = loadSettings();
+            
+            // Initialize the examples modal with initializeDebugger as the callback
+            // This bypasses startDebugging to avoid circular reference
+            const examplesModal = new ExamplesModal(() => {
+                initializeDebugger(savedSettings);
+            });
+            
+            // Show the examples modal
+            examplesModal.openModal();
+        } else {
+            // Continue with debugging only if user dropped files
+            startDebugging();
+        }
+    });
+}
+
+/**
+ * Main function that handles the debugging process
+ * Only called when we want to proceed with debugging
  */
 function startDebugging() {
     console.log('Starting debugging...');
@@ -165,89 +200,8 @@ function startDebugging() {
         });
     }
     
-    // Check if any files have been loaded
-    import('./core/state.js').then(stateModule => {
-        const currentState = stateModule.getState();
-        const hasTextures = currentState.textureObjects.baseColor || 
-                          currentState.textureObjects.orm || 
-                          currentState.textureObjects.normal;
-        const hasModel = currentState.useCustomModel && currentState.modelFile;
-        
-        if (!hasTextures && !hasModel) {
-            // If no files are loaded, show the load example modal
-            console.log('No files loaded. Showing example modal...');
-            const exampleModal = document.getElementById('load-example-modal');
-            if (exampleModal) {
-                exampleModal.style.display = 'flex';
-                
-                // Set up event listeners for the modal
-                const closeButton = document.getElementById('close-example-modal');
-                const rigExampleButton = document.getElementById('rig-example-button');
-                
-                if (closeButton) {
-                    closeButton.addEventListener('click', () => {
-                        exampleModal.style.display = 'none';
-                    });
-                }
-                
-                if (rigExampleButton) {
-                    rigExampleButton.addEventListener('click', () => {
-                        exampleModal.style.display = 'none';
-                        // Proceed with initializing the debugger
-                        initializeDebugger(savedSettings);
-                    });
-                }
-            }
-        } else {
-            // If files are loaded, proceed with initializing the debugger
-            initializeDebugger(savedSettings);
-        }
-    });
-    
-    function initializeDebugger(settings) {
-        // Get elements
-        const viewport = document.getElementById('viewport');
-        const tabContainer = document.getElementById('tab-container');
-        
-        // Hide upload section and show debug controls
-        const uploadSection = document.getElementById('upload-section');
-        const debugButtonContainer = document.getElementById('debug-button-container');
-        
-        if (uploadSection) {
-            uploadSection.style.display = 'none';
-        }
-        
-        if (debugButtonContainer) {
-            debugButtonContainer.style.display = 'flex';
-        }
-        
-        // Show viewport and tab container
-        if (viewport) {
-            viewport.style.display = 'block';
-        }
-        
-        if (tabContainer) {
-            tabContainer.style.display = 'flex';
-        }
-        
-        // Set up tab navigation
-        setupTabNavigation();
-        
-        // Initialize settings modal with loaded settings
-        new SettingsModal(settings);
-        
-        // Import and initialize the scene
-        import('./core/scene.js').then(sceneModule => {
-            console.log('Scene module loaded');
-            sceneModule.initScene(viewport);
-            sceneModule.startAnimation();
-            
-            // Import and initialize the model
-            import('./core/models.js').then(modelsModule => {
-                modelsModule.loadDebugModel();
-            });
-        });
-    }
+    // Initialize the debugger with the loaded settings
+    initializeDebugger(savedSettings);
 }
 
 /**
@@ -258,6 +212,52 @@ function restartDebugging() {
     
     // Reload the page to start over
     window.location.reload();
+}
+
+/**
+ * Initialize the debugger with the given settings
+ */
+function initializeDebugger(settings) {
+    // HTML UI handling code - hide upload section, show restart button
+    const uploadSection = document.getElementById('upload-section');
+    const restartContainer = document.getElementById('debug-button-container');
+    if (uploadSection) {
+        uploadSection.style.display = 'none';
+    }
+    if (restartContainer) {
+        restartContainer.style.display = 'flex';
+    }
+    
+    // Get elements
+    const viewport = document.getElementById('viewport');
+    const tabContainer = document.getElementById('tab-container');
+    
+    // Show viewport and tab container
+    if (viewport) {
+        viewport.style.display = 'block';
+    }
+    
+    if (tabContainer) {
+        tabContainer.style.display = 'flex';
+    }
+    
+    // Set up tab navigation
+    setupTabNavigation();
+    
+    // Initialize settings modal with loaded settings
+    new SettingsModal(settings);
+    
+    // Import and initialize the scene
+    import('./core/scene.js').then(sceneModule => {
+        console.log('Scene module loaded');
+        sceneModule.initScene(viewport);
+        sceneModule.startAnimation();
+        
+        // Import and initialize the model
+        import('./core/models.js').then(modelsModule => {
+            modelsModule.loadDebugModel();
+        });
+    });
 }
 
 // Export for external use
