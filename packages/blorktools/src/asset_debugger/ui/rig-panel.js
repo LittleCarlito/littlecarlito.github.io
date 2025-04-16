@@ -256,11 +256,11 @@ function createRigDetailsContent(container, details) {
                         
                         // Add all available constraint types
                         const constraintOptions = [
-                            { value: 'none', label: 'None' },
-                            { value: 'fixed', label: 'Fixed' },
-                            { value: 'hinge', label: 'Hinge' },
-                            { value: 'limitRotation', label: 'Limited Rotation' },
-                            { value: 'spring', label: 'Spring' }
+                            { value: 'NONE', label: 'None' },
+                            { value: 'FIXED_POSITION', label: 'Fixed Position' },
+                            { value: 'SINGLE_AXIS_ROTATION', label: 'Single Axis Rotation' },
+                            { value: 'LIMIT_ROTATION_XYZ', label: 'Limit Rotation (XYZ)' },
+                            { value: 'DYNAMIC_SPRING', label: 'Dynamic Spring' }
                         ];
                         
                         constraintOptions.forEach(option => {
@@ -271,18 +271,34 @@ function createRigDetailsContent(container, details) {
                         });
                         
                         // Determine initial constraint type
-                        let initialConstraintType = 'none';
+                        let initialConstraintType = 'NONE';
                         
                         // Check if bone has constraints in userData
                         if (bone.userData && bone.userData.constraints) {
-                            initialConstraintType = bone.userData.constraints.type;
+                            // Map internal constraint types to UI constraint types
+                            const constraintTypeMap = {
+                                'none': 'NONE',
+                                'fixed': 'FIXED_POSITION',
+                                'hinge': 'SINGLE_AXIS_ROTATION',
+                                'limitRotation': 'LIMIT_ROTATION_XYZ',
+                                'spring': 'DYNAMIC_SPRING'
+                            };
+                            initialConstraintType = constraintTypeMap[bone.userData.constraints.type] || 'NONE';
                         } 
                         // Check if there's a constraint in rigDetails.constraints
                         else if (details.constraints) {
                             const existingConstraint = details.constraints.find(c => 
                                 c.boneName === boneName || c.nodeName === boneName);
                             if (existingConstraint) {
-                                initialConstraintType = existingConstraint.type;
+                                // Map internal constraint types to UI constraint types
+                                const constraintTypeMap = {
+                                    'none': 'NONE',
+                                    'fixed': 'FIXED_POSITION',
+                                    'hinge': 'SINGLE_AXIS_ROTATION',
+                                    'limitRotation': 'LIMIT_ROTATION_XYZ',
+                                    'spring': 'DYNAMIC_SPRING'
+                                };
+                                initialConstraintType = constraintTypeMap[existingConstraint.type] || 'NONE';
                             }
                         }
                         
@@ -342,11 +358,11 @@ function createRigDetailsContent(container, details) {
                             });
                             
                             // Add appropriate controls based on selected constraint type
-                            if (constraintSelect.value === 'hinge') {
+                            if (constraintSelect.value === 'SINGLE_AXIS_ROTATION') {
                                 addHingeAxisSelector(itemElem, item);
-                            } else if (constraintSelect.value === 'limitRotation') {
+                            } else if (constraintSelect.value === 'LIMIT_ROTATION_XYZ') {
                                 addRotationLimitControls(itemElem, item);
-                            } else if (constraintSelect.value === 'spring') {
+                            } else if (constraintSelect.value === 'DYNAMIC_SPRING') {
                                 addSpringControls(itemElem, item);
                             }
                             
@@ -359,11 +375,11 @@ function createRigDetailsContent(container, details) {
                         itemElem.appendChild(constraintContainer);
                         
                         // Add constraint-specific controls based on initial constraint type
-                        if (initialConstraintType === 'hinge') {
+                        if (initialConstraintType === 'SINGLE_AXIS_ROTATION') {
                             addHingeAxisSelector(itemElem, item);
-                        } else if (initialConstraintType === 'limitRotation') {
+                        } else if (initialConstraintType === 'LIMIT_ROTATION_XYZ') {
                             addRotationLimitControls(itemElem, item);
-                        } else if (initialConstraintType === 'spring') {
+                        } else if (initialConstraintType === 'DYNAMIC_SPRING') {
                             addSpringControls(itemElem, item);
                         }
                         
@@ -519,7 +535,7 @@ function addHingeAxisSelector(itemElem, item) {
     
     const axisLabel = document.createElement('label');
     axisLabel.className = 'rig-axis-label';
-    axisLabel.textContent = 'Hinge Axis:';
+    axisLabel.textContent = 'Locked Axis:';
     
     const axisSelect = document.createElement('select');
     axisSelect.className = 'rig-axis-select';
@@ -809,13 +825,13 @@ function handleApplyConstraints(button) {
             }
             
             switch (constraintType) {
-                case 'fixed':
+                case 'FIXED_POSITION':
                     constraint = {
                         type: 'fixed'
                     };
                     break;
                     
-                case 'hinge':
+                case 'SINGLE_AXIS_ROTATION':
                     constraint = {
                         type: 'hinge',
                         axis: item?.hingeAxis || 'y',
@@ -824,7 +840,7 @@ function handleApplyConstraints(button) {
                     };
                     break;
                     
-                case 'limitRotation':
+                case 'LIMIT_ROTATION_XYZ':
                     constraint = {
                         type: 'limitRotation',
                         limits: item?.rotationLimits || {
@@ -835,7 +851,7 @@ function handleApplyConstraints(button) {
                     };
                     break;
                     
-                case 'spring':
+                case 'DYNAMIC_SPRING':
                     constraint = {
                         type: 'spring',
                         stiffness: item?.spring?.stiffness || 50,
@@ -843,7 +859,7 @@ function handleApplyConstraints(button) {
                     };
                     break;
                     
-                case 'none':
+                case 'NONE':
                 default:
                     constraint = {
                         type: 'none'
