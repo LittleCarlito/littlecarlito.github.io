@@ -345,6 +345,7 @@ function applyJointConstraints(bone, constraints) {
             bone.userData.spring = {
                 stiffness: constraints.stiffness || 50,
                 damping: constraints.damping || 5,
+                gravity: constraints.gravity || 1.0,
                 // Store the current pose as the rest position without applying immediate forces
                 restPosition: preserveCurrentPose 
                     ? new THREE.Vector3().copy(constraints.currentPosition) 
@@ -368,12 +369,7 @@ function applyJointConstraints(bone, constraints) {
         case 'none':
         default:
             // No constraints (default) - unrestricted rotation
-            // If preserving position, we just keep the current position
-            if (preserveCurrentPose) {
-                console.log(`No constraints applied to ${bone.name}, but preserving current pose`);
-            } else {
-                console.log(`No constraints applied to ${bone.name} (full rotation allowed)`);
-            }
+            // No need to do anything special here, allow free movement
             break;
     }
     
@@ -494,7 +490,7 @@ function enforceJointConstraints(bone) {
             break;
             
         case 'spring':
-            // Apply spring forces to return toward rest position only when external forces move the bone
+            // Ragdoll-like spring implementation that respects hierarchy
             if (bone.userData.spring) {
                 const spring = bone.userData.spring;
                 
@@ -503,48 +499,120 @@ function enforceJointConstraints(bone) {
                 if (!spring.lastPosition) {
                     spring.lastPosition = new THREE.Vector3().copy(bone.position);
                     spring.lastTime = now;
-                    // Don't apply any forces on first update, just initialize
+                    spring.velocityX = 0;
+                    spring.velocityY = 0;
+                    spring.velocityZ = 0;
+                    spring.lastRotation = new THREE.Euler().copy(bone.rotation);
                     break;
                 }
                 
-                // Calculate time delta
-                const deltaTime = Math.min((now - spring.lastTime) / 1000, 0.1); // Cap at 100ms to avoid huge jumps
+                // Calculate time delta with safeguards
+                const deltaTime = Math.min((now - spring.lastTime) / 1000, 0.05); // Cap at 50ms for stability
                 if (deltaTime <= 0) break;
                 
-                // Calculate spring force based on distance from rest
+                // Store hierarchy information
+                if (!spring.hierarchyFactor) {
+                    // Set influence based on depth in hierarchy (1.0 for root, decreases for children)
+                    let hierarchyDepth = 0;
+                    let parent = bone.parent;
+                    while (parent && parent.isBone) {
+                        hierarchyDepth++;
+                        parent = parent.parent;
+                    }
+                    // Deeper bones receive less influence to prevent cascading oscillations
+                    spring.hierarchyFactor = Math.max(0.2, 1.0 / (hierarchyDepth + 1));
+                }
+                
+                // Calculate rotational differences from rest pose
                 const diffX = spring.restRotation.x - bone.rotation.x;
                 const diffY = spring.restRotation.y - bone.rotation.y;
                 const diffZ = spring.restRotation.z - bone.rotation.z;
                 
-                // Proper spring physics with velocity and damping
-                // Calculate acceleration from spring force (F = -kx where k is stiffness)
-                const springForceX = diffX * spring.stiffness;
-                const springForceY = diffY * spring.stiffness;
-                const springForceZ = diffZ * spring.stiffness;
+                // Calculate rotational velocity (change since last frame)
+                const rotVelX = (bone.rotation.x - spring.lastRotation.x) / deltaTime;
+                const rotVelY = (bone.rotation.y - spring.lastRotation.y) / deltaTime;
+                const rotVelZ = (bone.rotation.z - spring.lastRotation.z) / deltaTime;
                 
-                // Add damping force (proportional to velocity in opposite direction)
-                // Using an estimated velocity based on position change
-                if (deltaTime > 0) {
-                    // Update velocity with spring force and damping
-                    spring.velocityX = (spring.velocityX || 0) + springForceX * deltaTime;
-                    spring.velocityY = (spring.velocityY || 0) + springForceY * deltaTime;
-                    spring.velocityZ = (spring.velocityZ || 0) + springForceZ * deltaTime;
+                // Proper spring forces adjusted by hierarchy factor and mass (simulated by bone size)
+                const boneSize = bone.scale.length() || 1;
+                const massInfluence = 1.0 / (boneSize * 0.5 + 0.5); // Larger bones have more mass
+                
+                // Apply hierarchy and mass adjustments to spring calculations
+                const adjustedStiffness = spring.stiffness * spring.hierarchyFactor * massInfluence;
+                const adjustedDamping = spring.damping * (1 + (1 - spring.hierarchyFactor) * 2); // More damping for deeper bones
+                
+                // Calculate spring force with adjusted parameters
+                const springForceX = diffX * adjustedStiffness;
+                const springForceY = diffY * adjustedStiffness;
+                const springForceZ = diffZ * adjustedStiffness;
+                
+                // Apply damping force proportional to current velocity
+                const dampingForceX = -rotVelX * adjustedDamping;
+                const dampingForceY = -rotVelY * adjustedDamping;
+                const dampingForceZ = -rotVelZ * adjustedDamping;
+                
+                // Combine forces
+                const totalForceX = springForceX + dampingForceX;
+                const totalForceY = springForceY + dampingForceY;
+                const totalForceZ = springForceZ + dampingForceZ;
+                
+                // Update velocities with forces
+                spring.velocityX += totalForceX * deltaTime;
+                spring.velocityY += totalForceY * deltaTime;
+                spring.velocityZ += totalForceZ * deltaTime;
+                
+                // Apply velocity limits to prevent extreme oscillations
+                const maxVelocity = 15.0;
+                spring.velocityX = Math.max(-maxVelocity, Math.min(maxVelocity, spring.velocityX));
+                spring.velocityY = Math.max(-maxVelocity, Math.min(maxVelocity, spring.velocityY));
+                spring.velocityZ = Math.max(-maxVelocity, Math.min(maxVelocity, spring.velocityZ));
+                
+                // Apply velocities to rotation
+                bone.rotation.x += spring.velocityX * deltaTime;
+                bone.rotation.y += spring.velocityY * deltaTime;
+                bone.rotation.z += spring.velocityZ * deltaTime;
+                
+                // Apply gravity effect based on hierarchy - deeper bones droop more
+                // Check if the bone should be affected by gravity
+                if (spring.hierarchyFactor < 0.8) { // Only affect non-root bones
+                    // Get global gravity value from rigOptions if available, or use a reasonable default
+                    const worldGravity = (rigOptions && rigOptions.worldGravity !== undefined) ? 
+                        rigOptions.worldGravity : 1.0;
                     
-                    // Apply damping (reduce velocity)
-                    spring.velocityX *= (1 - spring.damping * deltaTime * 0.1);
-                    spring.velocityY *= (1 - spring.damping * deltaTime * 0.1);
-                    spring.velocityZ *= (1 - spring.damping * deltaTime * 0.1);
+                    // Simple gravity effect that pulls parts downward around local X axis
+                    // This creates a more natural ragdoll droop effect
+                    // The gravity influence is scaled by hierarchy and the global gravity value
+                    const gravityInfluence = (1 - spring.hierarchyFactor) * 0.5 * Math.abs(worldGravity);
                     
-                    // Apply velocity to rotation
-                    bone.rotation.x += spring.velocityX * deltaTime;
-                    bone.rotation.y += spring.velocityY * deltaTime;
-                    bone.rotation.z += spring.velocityZ * deltaTime;
+                    // Apply gravity with correct direction (positive or negative based on worldGravity sign)
+                    const gravityDirection = worldGravity >= 0 ? 1 : -1;
+                    bone.rotation.x += gravityInfluence * deltaTime * 2.0 * gravityDirection;
                 }
                 
                 // Store current state for next update
                 spring.lastPosition.copy(bone.position);
                 spring.lastTime = now;
+                spring.lastRotation.copy(bone.rotation);
+                
+                // If this bone has children, ensure the children also update their constraints
+                // This ensures force propagation through the hierarchy
+                if (bone.children && bone.children.length > 0) {
+                    for (let i = 0; i < bone.children.length; i++) {
+                        const child = bone.children[i];
+                        if (child.isBone && child.userData.constraints && 
+                            child.userData.constraints.type === 'spring') {
+                            // Force immediate update of child springs for proper cascade effect
+                            enforceJointConstraints(child);
+                        }
+                    }
+                }
             }
+            break;
+            
+        case 'none':
+        default:
+            // No constraints (default) - unrestricted rotation
+            // No need to do anything special here, allow free movement
             break;
     }
 }

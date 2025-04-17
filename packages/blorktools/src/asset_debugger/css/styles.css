@@ -1062,82 +1062,128 @@ h2, h3 {
     width: 100px;
 }
 
-/* Hinge limits controls */
+/* Rig limits container */
 .rig-limits-container {
     display: flex;
+    flex-direction: column;
     gap: 10px;
-    margin: 8px 0;
+    margin-top: 10px;
 }
 
 .rig-min-container,
 .rig-max-container {
     display: flex;
     align-items: center;
-    flex: 1;
+    gap: 8px;
 }
 
 .rig-min-label,
 .rig-max-label {
-    font-size: 11px;
-    margin-right: 5px;
-    color: var(--label-text);
-    min-width: 65px;
+    min-width: 70px;
 }
 
-.rig-min-input,
-.rig-max-input {
-    font-size: 11px;
-    padding: 4px 6px;
-    border-radius: 3px;
-    background-color: var(--input-bg);
-    border: 1px solid var(--panel-border);
-    color: var(--input-text);
-    width: 60px;
-}
-
-/* Rotation limits controls */
+/* Rotation limits container */
 .rig-rotation-limits-container {
-    margin: 8px 0;
-    border-top: 1px solid rgba(255,255,255,0.1);
-    padding-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 10px;
 }
 
 .rig-axis-limits {
-    margin-bottom: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    padding: 10px;
 }
 
 .rig-axis-limit-label {
-    font-size: 11px;
-    margin-bottom: 5px;
-    color: var(--label-text);
     font-weight: bold;
+    margin-bottom: 5px;
 }
 
 .rig-min-limit,
 .rig-max-limit {
     display: flex;
     align-items: center;
-    margin-left: 10px;
-    margin-bottom: 5px;
+    gap: 8px;
 }
 
 .rig-min-limit label,
 .rig-max-limit label {
-    font-size: 11px;
-    margin-right: 5px;
-    color: var(--label-text);
-    min-width: 30px;
+    min-width: 40px;
 }
 
+/* Angle control elements */
+.rig-angle-control-wrapper {
+    display: flex;
+    align-items: center;
+    height: 30px;
+}
+
+.rig-angle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    user-select: none;
+    padding: 0;
+    margin: 0 4px;
+    transition: background-color 0.2s ease;
+}
+
+.rig-angle-btn:hover {
+    background-color: var(--tertiary-color);
+}
+
+.rig-angle-btn:active {
+    background-color: var(--highlight-color);
+}
+
+/* Angle inputs */
+.rig-min-input,
+.rig-max-input,
 .rig-min-limit input,
 .rig-max-limit input {
-    font-size: 11px;
-    padding: 4px 6px;
-    border-radius: 3px;
-    background-color: var(--input-bg);
-    border: 1px solid var(--panel-border);
-    color: var(--input-text);
     width: 60px;
+    height: 24px;
+    text-align: center;
+    background-color: var(--input-bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    box-sizing: border-box;
+    padding: 4px;
+}
+
+/* Hide spinner buttons in all browsers */
+.rig-min-input::-webkit-outer-spin-button,
+.rig-min-input::-webkit-inner-spin-button,
+.rig-max-input::-webkit-outer-spin-button,
+.rig-max-input::-webkit-inner-spin-button,
+.rig-min-limit input::-webkit-outer-spin-button,
+.rig-min-limit input::-webkit-inner-spin-button,
+.rig-max-limit input::-webkit-outer-spin-button,
+.rig-max-limit input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Firefox */
+.rig-min-input[type=number],
+.rig-max-input[type=number],
+.rig-min-limit input[type=number],
+.rig-max-limit input[type=number] {
+    -moz-appearance: textfield;
 }
 
 /* Spring controls */

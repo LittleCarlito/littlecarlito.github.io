@@ -18,17 +18,18 @@ export let rigDetails = null;
 export let labelGroup = null; // Add export for labelGroup
 
 // Variables used for rig visualization 
-export let rigOptions = {
-    displayRig: false, // Default to not visible
-    forceZ: false,
-    wireframe: true,
-    primaryColor: 0xFF00FF, // Magenta
-    secondaryColor: 0xFFFF00, // Yellow
-    jointColor: 0x00FFFF, // Cyan
-    showJointLabels: false, // Default to hidden
-    normalColor: 0xFF0000, // Red - for control handles normal state
-    hoverColor: 0x00FF00,  // Green - for control handles hover state
-    activeColor: 0x0000FF  // Blue - for control handles active/dragging state
+export const rigOptions = {
+    displayRig: true,
+    forceZ: true,
+    wireframe: false,
+    primaryColor: 0x4CAF50,
+    secondaryColor: 0xFFFF00,
+    jointColor: 0x00FFFF,
+    showJointLabels: false,
+    normalColor: 0xFF0000,
+    hoverColor: 0x00FF00,
+    activeColor: 0x0000FF,
+    worldGravity: 1.0
 };
 
 /**
@@ -36,13 +37,28 @@ export let rigOptions = {
  * @param {Object} options - Object containing the options to update
  */
 export function updateRigOptions(options) {
-    if (!options || typeof options !== 'object') return;
-    // Update provided options
-    Object.keys(options).forEach(key => {
-        if (rigOptions.hasOwnProperty(key)) {
-            rigOptions[key] = options[key];
-        }
+    if (!options) return;
+    
+    // Update each property
+    if (options.displayRig !== undefined) rigOptions.displayRig = options.displayRig;
+    if (options.forceZ !== undefined) rigOptions.forceZ = options.forceZ;
+    if (options.wireframe !== undefined) rigOptions.wireframe = options.wireframe;
+    if (options.primaryColor !== undefined) rigOptions.primaryColor = options.primaryColor;
+    if (options.secondaryColor !== undefined) rigOptions.secondaryColor = options.secondaryColor;
+    if (options.jointColor !== undefined) rigOptions.jointColor = options.jointColor;
+    if (options.showJointLabels !== undefined) rigOptions.showJointLabels = options.showJointLabels;
+    if (options.normalColor !== undefined) rigOptions.normalColor = options.normalColor;
+    if (options.hoverColor !== undefined) rigOptions.hoverColor = options.hoverColor;
+    if (options.activeColor !== undefined) rigOptions.activeColor = options.activeColor;
+    if (options.worldGravity !== undefined) rigOptions.worldGravity = options.worldGravity;
+    
+    console.log('Rig options updated:', rigOptions);
+    
+    // Dispatch an event to notify other components of the change
+    const event = new CustomEvent('rigOptionsChange', {
+        detail: rigOptions
     });
+    document.dispatchEvent(event);
 }
 
 /**

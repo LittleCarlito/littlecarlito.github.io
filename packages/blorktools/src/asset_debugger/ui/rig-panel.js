@@ -561,7 +561,7 @@ function addHingeAxisSelector(itemElem, item) {
     
     axisSelect.addEventListener('change', () => {
         item.hingeAxis = axisSelect.value;
-        updateJointSettingsState();
+        updateConstraintSettingsState();
     });
     
     axisContainer.appendChild(axisLabel);
@@ -580,6 +580,15 @@ function addHingeAxisSelector(itemElem, item) {
     minLabel.textContent = 'Min Angle:';
     minLabel.className = 'rig-min-label';
     
+    const minControlWrapper = document.createElement('div');
+    minControlWrapper.className = 'rig-angle-control-wrapper';
+    
+    // Add decrement button
+    const minDecBtn = document.createElement('button');
+    minDecBtn.className = 'rig-angle-btn';
+    minDecBtn.textContent = '−';
+    minDecBtn.type = 'button';
+    
     const minInput = document.createElement('input');
     minInput.type = 'number';
     minInput.className = 'rig-min-input';
@@ -588,13 +597,41 @@ function addHingeAxisSelector(itemElem, item) {
     minInput.step = 5;
     minInput.value = item.hingeMin ? Math.round(item.hingeMin * 180 / Math.PI) : -90;
     
+    // Add increment button
+    const minIncBtn = document.createElement('button');
+    minIncBtn.className = 'rig-angle-btn';
+    minIncBtn.textContent = '+';
+    minIncBtn.type = 'button';
+    
+    // Update item data when input changes
     minInput.addEventListener('change', () => {
         item.hingeMin = minInput.value * Math.PI / 180;
-        updateJointSettingsState();
+        updateConstraintSettingsState();
     });
     
+    // Button event listeners
+    minDecBtn.addEventListener('click', () => {
+        minInput.value = parseInt(minInput.value) - parseInt(minInput.step);
+        // Trigger the change event manually
+        minInput.dispatchEvent(new Event('change'));
+        // Explicitly update constraint settings state for button click
+        updateConstraintSettingsState();
+    });
+    
+    minIncBtn.addEventListener('click', () => {
+        minInput.value = parseInt(minInput.value) + parseInt(minInput.step);
+        // Trigger the change event manually
+        minInput.dispatchEvent(new Event('change'));
+        // Explicitly update constraint settings state for button click
+        updateConstraintSettingsState();
+    });
+    
+    minControlWrapper.appendChild(minDecBtn);
+    minControlWrapper.appendChild(minInput);
+    minControlWrapper.appendChild(minIncBtn);
+    
     minContainer.appendChild(minLabel);
-    minContainer.appendChild(minInput);
+    minContainer.appendChild(minControlWrapper);
     
     // Max angle
     const maxContainer = document.createElement('div');
@@ -604,6 +641,15 @@ function addHingeAxisSelector(itemElem, item) {
     maxLabel.textContent = 'Max Angle:';
     maxLabel.className = 'rig-max-label';
     
+    const maxControlWrapper = document.createElement('div');
+    maxControlWrapper.className = 'rig-angle-control-wrapper';
+    
+    // Add decrement button
+    const maxDecBtn = document.createElement('button');
+    maxDecBtn.className = 'rig-angle-btn';
+    maxDecBtn.textContent = '−';
+    maxDecBtn.type = 'button';
+    
     const maxInput = document.createElement('input');
     maxInput.type = 'number';
     maxInput.className = 'rig-max-input';
@@ -612,17 +658,58 @@ function addHingeAxisSelector(itemElem, item) {
     maxInput.step = 5;
     maxInput.value = item.hingeMax ? Math.round(item.hingeMax * 180 / Math.PI) : 90;
     
+    // Add increment button
+    const maxIncBtn = document.createElement('button');
+    maxIncBtn.className = 'rig-angle-btn';
+    maxIncBtn.textContent = '+';
+    maxIncBtn.type = 'button';
+    
     maxInput.addEventListener('change', () => {
         item.hingeMax = maxInput.value * Math.PI / 180;
-        updateJointSettingsState();
+        updateConstraintSettingsState();
     });
     
+    // Button event listeners
+    maxDecBtn.addEventListener('click', () => {
+        maxInput.value = parseInt(maxInput.value) - parseInt(maxInput.step);
+        // Trigger the change event manually
+        maxInput.dispatchEvent(new Event('change'));
+        // Explicitly update constraint settings state for button click
+        updateConstraintSettingsState();
+    });
+    
+    maxIncBtn.addEventListener('click', () => {
+        maxInput.value = parseInt(maxInput.value) + parseInt(maxInput.step);
+        // Trigger the change event manually
+        maxInput.dispatchEvent(new Event('change'));
+        // Explicitly update constraint settings state for button click
+        updateConstraintSettingsState();
+    });
+    
+    maxControlWrapper.appendChild(maxDecBtn);
+    maxControlWrapper.appendChild(maxInput);
+    maxControlWrapper.appendChild(maxIncBtn);
+    
     maxContainer.appendChild(maxLabel);
-    maxContainer.appendChild(maxInput);
+    maxContainer.appendChild(maxControlWrapper);
     
     limitsContainer.appendChild(minContainer);
     limitsContainer.appendChild(maxContainer);
     itemElem.appendChild(limitsContainer);
+    
+    // Store original values immediately when control is created
+    const boneName = itemElem.closest('.rig-item')?.querySelector('select[data-bone-constraint]')?.getAttribute('data-bone-name');
+    if (boneName) {
+        jointPreviousValues.set(`${boneName}:hinge-config`, {
+            axis: axisSelect.value,
+            min: parseInt(minInput.value),
+            max: parseInt(maxInput.value)
+        });
+        
+        if (jointSettingsDebug) {
+            console.log(`Stored initial hinge config for ${boneName}:`, jointPreviousValues.get(`${boneName}:hinge-config`));
+        }
+    }
 }
 
 /**
@@ -645,6 +732,9 @@ function addRotationLimitControls(itemElem, item) {
     
     const axisLabels = ['X', 'Y', 'Z'];
     
+    // Create a config object to store initial values
+    const initialConfig = { x: {}, y: {}, z: {} };
+    
     // Create controls for each axis
     axisLabels.forEach(axis => {
         const axisLower = axis.toLowerCase();
@@ -664,6 +754,15 @@ function addRotationLimitControls(itemElem, item) {
         const minLabel = document.createElement('label');
         minLabel.textContent = 'Min:';
         
+        const minControlWrapper = document.createElement('div');
+        minControlWrapper.className = 'rig-angle-control-wrapper';
+        
+        // Add decrement button
+        const minDecBtn = document.createElement('button');
+        minDecBtn.className = 'rig-angle-btn';
+        minDecBtn.textContent = '−';
+        minDecBtn.type = 'button';
+        
         const minInput = document.createElement('input');
         minInput.type = 'number';
         minInput.min = -180;
@@ -671,16 +770,46 @@ function addRotationLimitControls(itemElem, item) {
         minInput.step = 5;
         minInput.value = Math.round((item.rotationLimits[axisLower]?.min || -45) * 180 / Math.PI);
         
+        // Store initial value in config
+        initialConfig[axisLower].min = parseInt(minInput.value);
+        
+        // Add increment button
+        const minIncBtn = document.createElement('button');
+        minIncBtn.className = 'rig-angle-btn';
+        minIncBtn.textContent = '+';
+        minIncBtn.type = 'button';
+        
         minInput.addEventListener('change', () => {
             if (!item.rotationLimits[axisLower]) {
                 item.rotationLimits[axisLower] = {};
             }
             item.rotationLimits[axisLower].min = minInput.value * Math.PI / 180;
-            updateJointSettingsState();
+            updateConstraintSettingsState();
         });
         
+        // Button event listeners
+        minDecBtn.addEventListener('click', () => {
+            minInput.value = parseInt(minInput.value) - parseInt(minInput.step || 5);
+            // Trigger the change event manually
+            minInput.dispatchEvent(new Event('change'));
+            // Explicitly update constraint settings state for button click
+            updateConstraintSettingsState();
+        });
+        
+        minIncBtn.addEventListener('click', () => {
+            minInput.value = parseInt(minInput.value) + parseInt(minInput.step || 5);
+            // Trigger the change event manually
+            minInput.dispatchEvent(new Event('change'));
+            // Explicitly update constraint settings state for button click
+            updateConstraintSettingsState();
+        });
+        
+        minControlWrapper.appendChild(minDecBtn);
+        minControlWrapper.appendChild(minInput);
+        minControlWrapper.appendChild(minIncBtn);
+        
         minContainer.appendChild(minLabel);
-        minContainer.appendChild(minInput);
+        minContainer.appendChild(minControlWrapper);
         
         // Max limit
         const maxContainer = document.createElement('div');
@@ -689,6 +818,15 @@ function addRotationLimitControls(itemElem, item) {
         const maxLabel = document.createElement('label');
         maxLabel.textContent = 'Max:';
         
+        const maxControlWrapper = document.createElement('div');
+        maxControlWrapper.className = 'rig-angle-control-wrapper';
+        
+        // Add decrement button
+        const maxDecBtn = document.createElement('button');
+        maxDecBtn.className = 'rig-angle-btn';
+        maxDecBtn.textContent = '−';
+        maxDecBtn.type = 'button';
+        
         const maxInput = document.createElement('input');
         maxInput.type = 'number';
         maxInput.min = -180;
@@ -696,16 +834,46 @@ function addRotationLimitControls(itemElem, item) {
         maxInput.step = 5;
         maxInput.value = Math.round((item.rotationLimits[axisLower]?.max || 45) * 180 / Math.PI);
         
+        // Store initial value in config
+        initialConfig[axisLower].max = parseInt(maxInput.value);
+        
+        // Add increment button
+        const maxIncBtn = document.createElement('button');
+        maxIncBtn.className = 'rig-angle-btn';
+        maxIncBtn.textContent = '+';
+        maxIncBtn.type = 'button';
+        
         maxInput.addEventListener('change', () => {
             if (!item.rotationLimits[axisLower]) {
                 item.rotationLimits[axisLower] = {};
             }
             item.rotationLimits[axisLower].max = maxInput.value * Math.PI / 180;
-            updateJointSettingsState();
+            updateConstraintSettingsState();
         });
         
+        // Button event listeners
+        maxDecBtn.addEventListener('click', () => {
+            maxInput.value = parseInt(maxInput.value) - parseInt(maxInput.step || 5);
+            // Trigger the change event manually
+            maxInput.dispatchEvent(new Event('change'));
+            // Explicitly update constraint settings state for button click
+            updateConstraintSettingsState();
+        });
+        
+        maxIncBtn.addEventListener('click', () => {
+            maxInput.value = parseInt(maxInput.value) + parseInt(maxInput.step || 5);
+            // Trigger the change event manually
+            maxInput.dispatchEvent(new Event('change'));
+            // Explicitly update constraint settings state for button click
+            updateConstraintSettingsState();
+        });
+        
+        maxControlWrapper.appendChild(maxDecBtn);
+        maxControlWrapper.appendChild(maxInput);
+        maxControlWrapper.appendChild(maxIncBtn);
+        
         maxContainer.appendChild(maxLabel);
-        maxContainer.appendChild(maxInput);
+        maxContainer.appendChild(maxControlWrapper);
         
         axisContainer.appendChild(minContainer);
         axisContainer.appendChild(maxContainer);
@@ -713,6 +881,16 @@ function addRotationLimitControls(itemElem, item) {
     });
     
     itemElem.appendChild(limitsContainer);
+    
+    // Store initial rotation limits immediately when control is created
+    const boneName = itemElem.closest('.rig-item')?.querySelector('select[data-bone-constraint]')?.getAttribute('data-bone-name');
+    if (boneName) {
+        jointPreviousValues.set(`${boneName}:rotation-limits`, JSON.parse(JSON.stringify(initialConfig)));
+        
+        if (jointSettingsDebug) {
+            console.log(`Stored initial rotation limits for ${boneName}:`, jointPreviousValues.get(`${boneName}:rotation-limits`));
+        }
+    }
 }
 
 /**
@@ -725,7 +903,8 @@ function addSpringControls(itemElem, item) {
     if (!item.spring) {
         item.spring = {
             stiffness: 50,
-            damping: 5
+            damping: 5,
+            gravity: 1.0
         };
     }
     
@@ -754,7 +933,7 @@ function addSpringControls(itemElem, item) {
     stiffnessInput.addEventListener('input', () => {
         item.spring.stiffness = parseInt(stiffnessInput.value);
         stiffnessValue.textContent = stiffnessInput.value;
-        updateJointSettingsState();
+        updateConstraintSettingsState();
     });
     
     stiffnessContainer.appendChild(stiffnessLabel);
@@ -783,16 +962,61 @@ function addSpringControls(itemElem, item) {
     dampingInput.addEventListener('input', () => {
         item.spring.damping = parseInt(dampingInput.value);
         dampingValue.textContent = dampingInput.value;
-        updateJointSettingsState();
+        updateConstraintSettingsState();
     });
     
     dampingContainer.appendChild(dampingLabel);
     dampingContainer.appendChild(dampingInput);
     dampingContainer.appendChild(dampingValue);
     
+    // Gravity influence control
+    const gravityContainer = document.createElement('div');
+    gravityContainer.className = 'rig-gravity-container';
+    
+    const gravityLabel = document.createElement('label');
+    gravityLabel.textContent = 'Gravity:';
+    gravityLabel.className = 'rig-gravity-label';
+    
+    const gravityInput = document.createElement('input');
+    gravityInput.type = 'range';
+    gravityInput.min = 0;
+    gravityInput.max = 20;
+    gravityInput.step = 0.1;
+    gravityInput.value = item.spring.gravity || 1.0;
+    gravityInput.className = 'rig-gravity-input';
+    
+    const gravityValue = document.createElement('span');
+    gravityValue.textContent = gravityInput.value;
+    gravityValue.className = 'rig-gravity-value';
+    
+    gravityInput.addEventListener('input', () => {
+        item.spring.gravity = parseFloat(gravityInput.value);
+        gravityValue.textContent = gravityInput.value;
+        updateConstraintSettingsState();
+    });
+    
+    gravityContainer.appendChild(gravityLabel);
+    gravityContainer.appendChild(gravityInput);
+    gravityContainer.appendChild(gravityValue);
+    
     springContainer.appendChild(stiffnessContainer);
     springContainer.appendChild(dampingContainer);
+    springContainer.appendChild(gravityContainer);
     itemElem.appendChild(springContainer);
+    
+    // Store original values immediately when control is created
+    const boneName = itemElem.closest('.rig-item')?.querySelector('select[data-bone-constraint]')?.getAttribute('data-bone-name');
+    if (boneName) {
+        jointPreviousValues.set(`${boneName}:spring-config`, {
+            stiffness: parseInt(stiffnessInput.value),
+            damping: parseInt(dampingInput.value),
+            gravity: parseFloat(gravityInput.value)
+        });
+        
+        if (jointSettingsDebug) {
+            console.log(`Stored initial spring config for ${boneName}:`, jointPreviousValues.get(`${boneName}:spring-config`));
+        }
+    }
 }
 
 /**
@@ -863,6 +1087,22 @@ function handleApplyConstraints(button) {
                         max: item?.hingeMax || Math.PI/2,
                         preservePosition: currentState ? true : false
                     };
+                    
+                    // Save current hinge parameters
+                    const itemElem = select.closest('.rig-item');
+                    if (itemElem) {
+                        const minInput = itemElem.querySelector('.rig-min-input');
+                        const maxInput = itemElem.querySelector('.rig-max-input');
+                        const axisSelect = itemElem.querySelector('.rig-axis-select');
+                        
+                        if (minInput && maxInput && axisSelect) {
+                            jointPreviousValues.set(`${boneName}:hinge-config`, {
+                                axis: axisSelect.value,
+                                min: parseInt(minInput.value),
+                                max: parseInt(maxInput.value)
+                            });
+                        }
+                    }
                     break;
                     
                 case 'LIMIT_ROTATION_XYZ':
@@ -875,6 +1115,26 @@ function handleApplyConstraints(button) {
                         },
                         preservePosition: currentState ? true : false
                     };
+                    
+                    // Save current rotation limits
+                    const rotItemElem = select.closest('.rig-item');
+                    if (rotItemElem) {
+                        const currentConfig = { x: {}, y: {}, z: {} };
+                        const rotLimitContainers = rotItemElem.querySelectorAll('.rig-axis-limits');
+                        
+                        rotLimitContainers.forEach((container, index) => {
+                            const axis = ['x', 'y', 'z'][index];
+                            const minInput = container.querySelector('.rig-min-limit input');
+                            const maxInput = container.querySelector('.rig-max-limit input');
+                            
+                            if (minInput && maxInput) {
+                                currentConfig[axis].min = parseInt(minInput.value);
+                                currentConfig[axis].max = parseInt(maxInput.value);
+                            }
+                        });
+                        
+                        jointPreviousValues.set(`${boneName}:rotation-limits`, JSON.parse(JSON.stringify(currentConfig)));
+                    }
                     break;
                     
                 case 'DYNAMIC_SPRING':
@@ -882,8 +1142,25 @@ function handleApplyConstraints(button) {
                         type: 'spring',
                         stiffness: item?.spring?.stiffness || 50,
                         damping: item?.spring?.damping || 5,
+                        gravity: item?.spring?.gravity || 1.0,
                         preservePosition: currentState ? true : false
                     };
+                    
+                    // Save current spring parameters
+                    const springItemElem = select.closest('.rig-item');
+                    if (springItemElem) {
+                        const stiffnessInput = springItemElem.querySelector('.rig-stiffness-input');
+                        const dampingInput = springItemElem.querySelector('.rig-damping-input');
+                        const gravityInput = springItemElem.querySelector('.rig-gravity-input');
+                        
+                        if (stiffnessInput && dampingInput && gravityInput) {
+                            jointPreviousValues.set(`${boneName}:spring-config`, {
+                                stiffness: parseInt(stiffnessInput.value),
+                                damping: parseInt(dampingInput.value),
+                                gravity: parseFloat(gravityInput.value)
+                            });
+                        }
+                    }
                     break;
                     
                 case 'NONE':
@@ -1187,6 +1464,104 @@ function updateConstraintSettingsState() {
         
         if (previousValue !== currentValue) {
             allConstraintsInPreviousState = false;
+        }
+        
+        // Also check constraint parameters (for advanced constraints)
+        if (currentValue === 'SINGLE_AXIS_ROTATION') {
+            // Check hinge parameters
+            const itemElem = select.closest('.rig-item');
+            if (itemElem) {
+                const minInput = itemElem.querySelector('.rig-min-input');
+                const maxInput = itemElem.querySelector('.rig-max-input');
+                const axisSelect = itemElem.querySelector('.rig-axis-select');
+                
+                if (minInput && maxInput && axisSelect) {
+                    // Get stored values (default if not stored)
+                    const storedConfig = jointPreviousValues.get(`${boneName}:hinge-config`);
+                    
+                    // If no stored config, this is the first time, so store current values
+                    if (!storedConfig) {
+                        jointPreviousValues.set(`${boneName}:hinge-config`, {
+                            axis: axisSelect.value,
+                            min: parseInt(minInput.value),
+                            max: parseInt(maxInput.value)
+                        });
+                    } else {
+                        // Check if current values match stored values
+                        if (storedConfig.axis !== axisSelect.value || 
+                            storedConfig.min !== parseInt(minInput.value) || 
+                            storedConfig.max !== parseInt(maxInput.value)) {
+                            allConstraintsInPreviousState = false;
+                        }
+                    }
+                }
+            }
+        } else if (currentValue === 'LIMIT_ROTATION_XYZ') {
+            // Check rotation limits
+            const itemElem = select.closest('.rig-item');
+            if (itemElem) {
+                const rotLimitContainers = itemElem.querySelectorAll('.rig-axis-limits');
+                const storedConfig = jointPreviousValues.get(`${boneName}:rotation-limits`);
+                
+                // Create a new config object from current values
+                const currentConfig = { x: {}, y: {}, z: {} };
+                let hasChanges = false;
+                
+                rotLimitContainers.forEach((container, index) => {
+                    const axis = ['x', 'y', 'z'][index];
+                    const minInput = container.querySelector('.rig-min-limit input');
+                    const maxInput = container.querySelector('.rig-max-limit input');
+                    
+                    if (minInput && maxInput) {
+                        currentConfig[axis].min = parseInt(minInput.value);
+                        currentConfig[axis].max = parseInt(maxInput.value);
+                    }
+                });
+                
+                // If no stored config, store current values
+                if (!storedConfig) {
+                    jointPreviousValues.set(`${boneName}:rotation-limits`, JSON.parse(JSON.stringify(currentConfig)));
+                } else {
+                    // Check each axis for changes
+                    ['x', 'y', 'z'].forEach(axis => {
+                        if (storedConfig[axis]?.min !== currentConfig[axis]?.min || 
+                            storedConfig[axis]?.max !== currentConfig[axis]?.max) {
+                            hasChanges = true;
+                        }
+                    });
+                    
+                    if (hasChanges) {
+                        allConstraintsInPreviousState = false;
+                    }
+                }
+            }
+        } else if (currentValue === 'DYNAMIC_SPRING') {
+            // Check spring parameters
+            const itemElem = select.closest('.rig-item');
+            if (itemElem) {
+                const stiffnessInput = itemElem.querySelector('.rig-stiffness-input');
+                const dampingInput = itemElem.querySelector('.rig-damping-input');
+                const gravityInput = itemElem.querySelector('.rig-gravity-input');
+                
+                // Get stored values
+                const storedConfig = jointPreviousValues.get(`${boneName}:spring-config`);
+                
+                // If no stored config, store current values
+                if (!storedConfig && stiffnessInput && dampingInput && gravityInput) {
+                    jointPreviousValues.set(`${boneName}:spring-config`, {
+                        stiffness: parseInt(stiffnessInput.value),
+                        damping: parseInt(dampingInput.value),
+                        gravity: parseFloat(gravityInput.value)
+                    });
+                } else if (stiffnessInput && dampingInput && gravityInput) {
+                    // Check if current values match stored values
+                    if (storedConfig.stiffness !== parseInt(stiffnessInput.value) || 
+                        storedConfig.damping !== parseInt(dampingInput.value) || 
+                        storedConfig.gravity !== parseFloat(gravityInput.value)) {
+                        allConstraintsInPreviousState = false;
+                    }
+                }
+            }
         }
     });
     

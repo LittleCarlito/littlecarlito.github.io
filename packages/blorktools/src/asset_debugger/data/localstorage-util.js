@@ -38,20 +38,23 @@ export function loadSettings() {
 export function getDefaultSettings() {
     return {
         axisIndicator: {
-            type: 'disabled',
+            type: 'embedded',
             intensity: 0.7
         },
         rigOptions: {
-            displayRig: false,
-            forceZ: false,
-            wireframe: true, // Opposite of fillWireframe
-            primaryColor: parseInt('FF00FF', 16), // Magenta
-            secondaryColor: parseInt('FFFF00', 16), // Yellow
-            jointColor: parseInt('00FFFF', 16), // Cyan
+            displayRig: true,
+            forceZ: true,
+            wireframe: false,
+            primaryColor: 0x4CAF50,
+            secondaryColor: 0xFFFF00,
+            jointColor: 0x00FFFF,
             showJointLabels: false,
-            normalColor: parseInt('FF0000', 16), // Red
-            hoverColor: parseInt('00FF00', 16), // Green
-            activeColor: parseInt('0000FF', 16) // Blue
+            normalColor: 0xFF0000,
+            hoverColor: 0x00FF00,
+            activeColor: 0x0000FF
+        },
+        worldSettings: {
+            gravity: 1.0
         }
     };
 } 
