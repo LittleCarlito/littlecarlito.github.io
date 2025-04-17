@@ -561,6 +561,19 @@ function enforceJointConstraints(bone) {
                 spring.velocityY += totalForceY * deltaTime;
                 spring.velocityZ += totalForceZ * deltaTime;
                 
+                // Apply absolute velocity decay to ensure the motion eventually stops
+                // This decay factor is separate from the damping which only affects the instantaneous force
+                const velocityDecayFactor = Math.max(0, 1.0 - (spring.damping * 0.01 + 0.05) * deltaTime);
+                spring.velocityX *= velocityDecayFactor;
+                spring.velocityY *= velocityDecayFactor;
+                spring.velocityZ *= velocityDecayFactor;
+                
+                // Apply velocity threshold to stop tiny movements
+                const velocityThreshold = 0.001;
+                if (Math.abs(spring.velocityX) < velocityThreshold) spring.velocityX = 0;
+                if (Math.abs(spring.velocityY) < velocityThreshold) spring.velocityY = 0;
+                if (Math.abs(spring.velocityZ) < velocityThreshold) spring.velocityZ = 0;
+                
                 // Apply velocity limits to prevent extreme oscillations
                 const maxVelocity = 15.0;
                 spring.velocityX = Math.max(-maxVelocity, Math.min(maxVelocity, spring.velocityX));

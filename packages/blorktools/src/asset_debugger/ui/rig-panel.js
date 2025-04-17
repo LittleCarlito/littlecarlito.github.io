@@ -919,6 +919,10 @@ function addSpringControls(itemElem, item) {
     stiffnessLabel.textContent = 'Stiffness:';
     stiffnessLabel.className = 'rig-stiffness-label';
     
+    // Create slider container
+    const stiffnessSliderContainer = document.createElement('div');
+    stiffnessSliderContainer.className = 'rig-slider-container';
+    
     const stiffnessInput = document.createElement('input');
     stiffnessInput.type = 'range';
     stiffnessInput.min = 1;
@@ -936,9 +940,11 @@ function addSpringControls(itemElem, item) {
         updateConstraintSettingsState();
     });
     
+    // Assemble stiffness controls
+    stiffnessSliderContainer.appendChild(stiffnessInput);
+    stiffnessSliderContainer.appendChild(stiffnessValue);
     stiffnessContainer.appendChild(stiffnessLabel);
-    stiffnessContainer.appendChild(stiffnessInput);
-    stiffnessContainer.appendChild(stiffnessValue);
+    stiffnessContainer.appendChild(stiffnessSliderContainer);
     
     // Damping control
     const dampingContainer = document.createElement('div');
@@ -947,6 +953,10 @@ function addSpringControls(itemElem, item) {
     const dampingLabel = document.createElement('label');
     dampingLabel.textContent = 'Damping:';
     dampingLabel.className = 'rig-damping-label';
+    
+    // Create slider container
+    const dampingSliderContainer = document.createElement('div');
+    dampingSliderContainer.className = 'rig-slider-container';
     
     const dampingInput = document.createElement('input');
     dampingInput.type = 'range';
@@ -965,9 +975,11 @@ function addSpringControls(itemElem, item) {
         updateConstraintSettingsState();
     });
     
+    // Assemble damping controls
+    dampingSliderContainer.appendChild(dampingInput);
+    dampingSliderContainer.appendChild(dampingValue);
     dampingContainer.appendChild(dampingLabel);
-    dampingContainer.appendChild(dampingInput);
-    dampingContainer.appendChild(dampingValue);
+    dampingContainer.appendChild(dampingSliderContainer);
     
     // Gravity influence control
     const gravityContainer = document.createElement('div');
@@ -976,6 +988,10 @@ function addSpringControls(itemElem, item) {
     const gravityLabel = document.createElement('label');
     gravityLabel.textContent = 'Gravity:';
     gravityLabel.className = 'rig-gravity-label';
+    
+    // Create slider container
+    const gravitySliderContainer = document.createElement('div');
+    gravitySliderContainer.className = 'rig-slider-container';
     
     const gravityInput = document.createElement('input');
     gravityInput.type = 'range';
@@ -995,9 +1011,11 @@ function addSpringControls(itemElem, item) {
         updateConstraintSettingsState();
     });
     
+    // Assemble gravity controls
+    gravitySliderContainer.appendChild(gravityInput);
+    gravitySliderContainer.appendChild(gravityValue);
     gravityContainer.appendChild(gravityLabel);
-    gravityContainer.appendChild(gravityInput);
-    gravityContainer.appendChild(gravityValue);
+    gravityContainer.appendChild(gravitySliderContainer);
     
     springContainer.appendChild(stiffnessContainer);
     springContainer.appendChild(dampingContainer);

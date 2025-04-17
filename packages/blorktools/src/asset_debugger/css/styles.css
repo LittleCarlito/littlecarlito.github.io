@@ -1030,7 +1030,8 @@ h2, h3 {
     border: 1px solid var(--panel-border);
     color: var(--input-text);
     flex: 1;
-    max-width: 160px;
+    max-width: 140px;
+    width: calc(100% - 90px);
 }
 
 .rig-constraint-controls {
@@ -1191,37 +1192,56 @@ h2, h3 {
     margin: 8px 0;
     border-top: 1px solid rgba(255,255,255,0.1);
     padding-top: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    padding-left: 8px;
+    padding-right: 8px;
 }
 
 .rig-stiffness-container,
-.rig-damping-container {
+.rig-damping-container,
+.rig-gravity-container {
     display: flex;
     align-items: center;
     margin-bottom: 8px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .rig-stiffness-label,
-.rig-damping-label {
+.rig-damping-label,
+.rig-gravity-label {
     font-size: 11px;
     margin-right: 8px;
     color: var(--label-text);
     min-width: 70px;
+    flex-shrink: 0;
+}
+
+.rig-slider-container {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    width: calc(100% - 80px);
+    position: relative;
 }
 
 .rig-stiffness-input,
-.rig-damping-input {
-    flex: 1;
-    max-width: 150px;
+.rig-damping-input,
+.rig-gravity-input {
+    flex-grow: 1;
+    width: calc(100% - 35px);
     height: 6px;
-    margin-right: 8px;
     -webkit-appearance: none;
     background-color: var(--panel-bg-lighter);
     border-radius: 3px;
     outline: none;
+    margin-right: 8px;
 }
 
 .rig-stiffness-input::-webkit-slider-thumb,
-.rig-damping-input::-webkit-slider-thumb {
+.rig-damping-input::-webkit-slider-thumb,
+.rig-gravity-input::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 14px;
     height: 14px;
@@ -1230,12 +1250,35 @@ h2, h3 {
     cursor: pointer;
 }
 
+/* Firefox styles for sliders */
+.rig-stiffness-input::-moz-range-thumb,
+.rig-damping-input::-moz-range-thumb,
+.rig-gravity-input::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: var(--button-color);
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+}
+
+.rig-stiffness-input::-moz-range-track,
+.rig-damping-input::-moz-range-track,
+.rig-gravity-input::-moz-range-track {
+    height: 6px;
+    background-color: var(--panel-bg-lighter);
+    border-radius: 3px;
+}
+
 .rig-stiffness-value,
-.rig-damping-value {
+.rig-damping-value,
+.rig-gravity-value {
     font-size: 11px;
     min-width: 25px;
+    width: 25px;
     text-align: right;
     color: var(--input-text);
+    flex-shrink: 0;
 }
 
 .rig-lock-container {
