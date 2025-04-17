@@ -6,12 +6,12 @@
  */
 
 // Import the initialization function from index.js
-import init from './index.js';
+import init from '../index.js';
 // Import loadSettings from localstorage-util.js
-import { loadSettings } from './data/localstorage-util.js';
+import { loadSettings } from '../data/localstorage-util.js';
 // Import SettingsModal 
-import { SettingsModal } from './ui/settings-modal.js';
-import { ExamplesModal } from './ui/examples-modal.js';
+import { SettingsModal } from './settings-modal.js';
+import { ExamplesModal } from './examples-modal.js';
 
 // Initialize the application when loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -90,7 +90,7 @@ function setupTabNavigation() {
             rigTab.classList.remove('active');
             
             // Update atlas visualization without recreating everything
-            import('./ui/atlas-panel.js').then(module => {
+            import('./atlas-panel.js').then(module => {
                 if (module.updateAtlasVisualization) {
                     module.updateAtlasVisualization();
                 }
@@ -113,7 +113,7 @@ function setupTabNavigation() {
             rigTab.classList.remove('active');
             
             // Update UV panel without recreating everything
-            import('./ui/uv-panel.js').then(module => {
+            import('./uv-panel.js').then(module => {
                 if (module.updateUvPanel) {
                     module.updateUvPanel();
                 }
@@ -136,7 +136,7 @@ function setupTabNavigation() {
             rigTab.classList.add('active');
             
             // We don't need to recreate the rig panel each time, just ensure visualization is up to date
-            import('./ui/rig-panel.js').then(module => {
+            import('./rig-panel.js').then(module => {
                 // Only update the panel if it hasn't been initialized yet
                 if (document.getElementById('rig-content') && 
                     document.getElementById('rig-content').children.length === 0) {
@@ -154,7 +154,7 @@ function setupTabNavigation() {
  */
 function verifyFileDrop() {
     // First check if any files were dropped
-    import('./core/state.js').then(stateModule => {
+    import('../core/state.js').then(stateModule => {
         const currentState = stateModule.getState();
         const hasTextures = currentState.textureObjects.baseColor || 
                           currentState.textureObjects.orm || 
@@ -194,7 +194,7 @@ function startDebugging() {
     
     // Apply rig options from saved settings if available
     if (savedSettings && savedSettings.rigOptions) {
-        import('./core/rig/rig-manager.js').then(rigManagerModule => {
+        import('../core/rig/rig-manager.js').then(rigManagerModule => {
             console.log('Applying saved rig options:', savedSettings.rigOptions);
             rigManagerModule.updateRigOptions(savedSettings.rigOptions);
         });
@@ -248,13 +248,13 @@ function initializeDebugger(settings) {
     new SettingsModal(settings);
     
     // Import and initialize the scene
-    import('./core/scene.js').then(sceneModule => {
+    import('../core/scene.js').then(sceneModule => {
         console.log('Scene module loaded');
         sceneModule.initScene(viewport);
         sceneModule.startAnimation();
         
         // Import and initialize the model
-        import('./core/models.js').then(modelsModule => {
+        import('../core/models.js').then(modelsModule => {
             modelsModule.loadDebugModel();
         });
     });
