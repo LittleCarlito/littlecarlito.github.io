@@ -9,6 +9,23 @@ import { getState, updateState } from '../core/state.js';
  * Initialize the atlas panel and set up event listeners
  */
 export function initAtlasPanel() {
+    console.log('Initializing Atlas Panel...');
+    
+    // Initialize the panel once the atlas-panel-container is found and has content
+    const initCheck = setInterval(() => {
+        const container = document.getElementById('atlas-panel-container');
+        if (container && container.children.length > 0) {
+            clearInterval(initCheck);
+            console.log('Atlas Panel container found, setting up event listeners...');
+            setupAtlasPanelEvents();
+        }
+    }, 100);
+}
+
+/**
+ * Set up event listeners for the atlas panel
+ */
+function setupAtlasPanelEvents() {
     const textureTypeButtons = document.querySelectorAll('.texture-type-button');
     
     // Set up texture type button handlers
@@ -25,6 +42,9 @@ export function initAtlasPanel() {
             updateAtlasVisualization();
         });
     });
+    
+    // Initialize visualization
+    updateAtlasVisualization();
 }
 
 /**
@@ -75,7 +95,7 @@ export function updateAtlasVisualization() {
     ctx.drawImage(texture.image, 0, 0);
     
     // Update the canvas container size
-    const container = document.getElementById('atlas-canvas-container');
+    const container = document.getElementById('atlas-panel-container');
     if (container) {
         // Adjust container to fit the canvas with some padding
         const padding = 20;

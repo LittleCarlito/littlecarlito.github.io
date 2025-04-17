@@ -1,21 +1,21 @@
 /**
- * Asset Debugger - Main Entry Point
+ * Asset Debugger - UI Entry Point
  * 
- * This file serves as the bridge between the HTML page and the application.
- * It imports and exports all functionality from index.js.
+ * This file is the main entry point for the Asset Debugger UI.
+ * It initializes the application and sets up all necessary components.
  */
 
-// Import the initialization function from index.js
-import init from '../index.js';
+// Import the initialization functions
+import { init } from '../main.js';
 // Import loadSettings from localstorage-util.js
 import { loadSettings } from '../data/localstorage-util.js';
 // Import SettingsModal 
 import { SettingsModal } from './settings-modal.js';
 import { ExamplesModal } from './examples-modal.js';
 
-// Initialize the application when loaded
+// Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Asset Debugger: Application loading...');
+    console.log('Asset Debugger UI: Initializing...');
     init();
     
     // Once the DOM is loaded, set up the event listeners for debugging
@@ -261,4 +261,4 @@ function initializeDebugger(settings) {
 }
 
 // Export for external use
-export default init; 
+export default { init }; 
