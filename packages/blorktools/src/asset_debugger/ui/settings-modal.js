@@ -9,6 +9,9 @@ export class SettingsModal {
         // Create the modal HTML structure
         this.createModalHTML();
         
+        // Add CSS styles for modal
+        this.addModalStyles();
+        
         // Modal elements
         this.modal = document.getElementById('settings-modal');
         this.settingsBtn = document.getElementById('settings-button');
@@ -31,6 +34,8 @@ export class SettingsModal {
         this.normalColor = document.getElementById('normal-color');
         this.hoverColor = document.getElementById('hover-color');
         this.activeColor = document.getElementById('active-color');
+        this.placeholderOption1 = document.getElementById('placeholder-option1');
+        this.placeholderOption2 = document.getElementById('placeholder-option2');
         
         // Other UI elements
         this.secondaryColorOption = document.getElementById('secondary-color-option');
@@ -49,6 +54,78 @@ export class SettingsModal {
             this.applyAxisIndicatorSetting(defaults.axisIndicator.type, defaults.axisIndicator.intensity);
             this.initializeRigOptions();
         }
+    }
+    
+    /**
+     * Add CSS styles for the modal
+     */
+    addModalStyles() {
+        // Create a style element
+        const styleElement = document.createElement('style');
+        
+        // Add the CSS rules
+        styleElement.textContent = `
+            /* Modal body with fixed height and scrolling */
+            .modal-body {
+                max-height: 400px;
+                overflow-y: auto;
+                padding-right: 10px; /* Prevent content shift when scrollbar appears */
+            }
+            
+            /* Ensure tab content takes up full width */
+            .settings-tab-content {
+                width: 100%;
+            }
+            
+            /* Fix settings row layout */
+            .settings-row {
+                display: flex;
+                flex-wrap: wrap;
+                width: 100%;
+                margin-bottom: 10px;
+            }
+            
+            /* Settings options (2 per row) */
+            .settings-option {
+                flex: 0 0 50%;
+                box-sizing: border-box;
+            }
+            
+            /* For full width options */
+            .settings-option.full-width {
+                flex: 0 0 100%;
+            }
+            
+            /* Headings take full width */
+            .settings-subheading {
+                flex: 0 0 100%;
+            }
+            
+            /* Fix collapsible content layout */
+            .collapsible-header {
+                display: flex;
+                justify-content: space-between;
+                width: 100%;
+                cursor: pointer;
+            }
+            
+            /* Apply same layout to collapsible content */
+            .collapsible-content {
+                width: 100%;
+                display: flex;
+                flex-wrap: wrap;
+            }
+            
+            /* Inside collapsible content */
+            .collapsible-content .settings-option {
+                flex: 0 0 50%;
+                box-sizing: border-box;
+                padding: 5px;
+            }
+        `;
+        
+        // Add the style element to the document head
+        document.head.appendChild(styleElement);
     }
     
     /**
@@ -146,6 +223,16 @@ export class SettingsModal {
                                 <div class="settings-option">
                                     <label for="show-joint-labels">Show Labels:</label>
                                     <input type="checkbox" id="show-joint-labels" class="settings-checkbox">
+                                </div>
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-option">
+                                    <label for="placeholder-option1">Option 1:</label>
+                                    <input type="checkbox" id="placeholder-option1" class="settings-checkbox">
+                                </div>
+                                <div class="settings-option">
+                                    <label for="placeholder-option2">Option 2:</label>
+                                    <input type="checkbox" id="placeholder-option2" class="settings-checkbox">
                                 </div>
                             </div>
                             
