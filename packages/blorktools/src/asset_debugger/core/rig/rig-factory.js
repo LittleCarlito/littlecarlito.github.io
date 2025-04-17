@@ -345,7 +345,7 @@ function applyJointConstraints(bone, constraints) {
             bone.userData.spring = {
                 stiffness: constraints.stiffness || 50,
                 damping: constraints.damping || 5,
-                // If preserving position, use the current position as rest position
+                // Store the current pose as the rest position without applying immediate forces
                 restPosition: preserveCurrentPose 
                     ? new THREE.Vector3().copy(constraints.currentPosition) 
                     : new THREE.Vector3().copy(bone.position),
@@ -356,9 +356,13 @@ function applyJointConstraints(bone, constraints) {
                         bone.rotation.y,
                         bone.rotation.z,
                         bone.rotation.order
-                    )
+                    ),
+                // Add velocity tracking for proper spring physics
+                velocity: new THREE.Vector3(0, 0, 0),
+                lastPosition: null, // Will be set during first update
+                lastTime: Date.now()
             };
-            console.log(`Applied spring constraint to ${bone.name} with stiffness ${bone.userData.spring.stiffness}`);
+            console.log(`Applied spring constraint to ${bone.name} with stiffness ${bone.userData.spring.stiffness} - rest pose preserved`);
             break;
             
         case 'none':
@@ -490,21 +494,56 @@ function enforceJointConstraints(bone) {
             break;
             
         case 'spring':
-            // Apply spring forces to return toward rest position
+            // Apply spring forces to return toward rest position only when external forces move the bone
             if (bone.userData.spring) {
                 const spring = bone.userData.spring;
+                
+                // Initialize tracking if this is the first update
+                const now = Date.now();
+                if (!spring.lastPosition) {
+                    spring.lastPosition = new THREE.Vector3().copy(bone.position);
+                    spring.lastTime = now;
+                    // Don't apply any forces on first update, just initialize
+                    break;
+                }
+                
+                // Calculate time delta
+                const deltaTime = Math.min((now - spring.lastTime) / 1000, 0.1); // Cap at 100ms to avoid huge jumps
+                if (deltaTime <= 0) break;
                 
                 // Calculate spring force based on distance from rest
                 const diffX = spring.restRotation.x - bone.rotation.x;
                 const diffY = spring.restRotation.y - bone.rotation.y;
                 const diffZ = spring.restRotation.z - bone.rotation.z;
                 
-                // Very simple spring approximation - move a percentage toward rest position
-                const springFactor = spring.stiffness * 0.01; // Scale down to make it more gradual
+                // Proper spring physics with velocity and damping
+                // Calculate acceleration from spring force (F = -kx where k is stiffness)
+                const springForceX = diffX * spring.stiffness;
+                const springForceY = diffY * spring.stiffness;
+                const springForceZ = diffZ * spring.stiffness;
                 
-                bone.rotation.x += diffX * springFactor;
-                bone.rotation.y += diffY * springFactor;
-                bone.rotation.z += diffZ * springFactor;
+                // Add damping force (proportional to velocity in opposite direction)
+                // Using an estimated velocity based on position change
+                if (deltaTime > 0) {
+                    // Update velocity with spring force and damping
+                    spring.velocityX = (spring.velocityX || 0) + springForceX * deltaTime;
+                    spring.velocityY = (spring.velocityY || 0) + springForceY * deltaTime;
+                    spring.velocityZ = (spring.velocityZ || 0) + springForceZ * deltaTime;
+                    
+                    // Apply damping (reduce velocity)
+                    spring.velocityX *= (1 - spring.damping * deltaTime * 0.1);
+                    spring.velocityY *= (1 - spring.damping * deltaTime * 0.1);
+                    spring.velocityZ *= (1 - spring.damping * deltaTime * 0.1);
+                    
+                    // Apply velocity to rotation
+                    bone.rotation.x += spring.velocityX * deltaTime;
+                    bone.rotation.y += spring.velocityY * deltaTime;
+                    bone.rotation.z += spring.velocityZ * deltaTime;
+                }
+                
+                // Store current state for next update
+                spring.lastPosition.copy(bone.position);
+                spring.lastTime = now;
             }
             break;
     }
