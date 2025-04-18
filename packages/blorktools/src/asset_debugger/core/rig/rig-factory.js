@@ -117,32 +117,25 @@ export function createBoneLabels(scene) {
         if (boneGroup.userData.parentBone && boneGroup.userData.childBone) {
             // Create a name that indicates the connection
             boneName = `${boneGroup.userData.parentBone.name} → ${boneGroup.userData.childBone.name}`;
-        }
-        
-        if (boneName) {
-            // Find the middle point of the bone for label placement
-            // This is typically the bone cylinder/sides rather than the caps
-            let targetObject = null;
-            
-            // Find a bone side to attach the label to
-            boneGroup.children.forEach(child => {
-                if (child.userData && child.userData.bonePart === 'side' && 
-                    child.userData.sideType === 'primary') {
-                    targetObject = child;
-                    return;
-                }
-            });
-            
-            // Use the bone group itself if no suitable side found
-            if (!targetObject) {
-                targetObject = boneGroup;
-            }
             
             // Create a label for this bone
-            const label = createSimpleLabel(boneName, targetObject, scene, true); // Pass true to indicate it's a bone label
+            const label = createSimpleLabel(boneName, boneGroup, scene, true); // Pass true to indicate it's a bone label
             if (label) {
                 boneLabelsGroup.add(label);
                 labelCount.added++;
+                
+                // Calculate the midpoint between parent and child bones immediately
+                const parentPos = new THREE.Vector3();
+                const childPos = new THREE.Vector3();
+                
+                boneGroup.userData.parentBone.getWorldPosition(parentPos);
+                boneGroup.userData.childBone.getWorldPosition(childPos);
+                
+                // Calculate the middle point
+                const midPoint = new THREE.Vector3().addVectors(parentPos, childPos).multiplyScalar(0.5);
+                
+                // Position at the middle point immediately
+                label.position.copy(midPoint);
                 
                 // Position the label at the middle of the bone
                 if (label.userData.updatePosition) {
@@ -277,33 +270,31 @@ function createSimpleLabel(text, joint, scene, isBoneLabel = false) {
     sprite.userData.updatePosition = () => {
         // For bone labels, we want to position them in the middle of the bone
         if (isBoneLabel) {
-            const worldPos = new THREE.Vector3();
-            joint.getWorldPosition(worldPos);
+            // Get the bone group which should have parent and child bone references
+            const boneGroup = joint.userData && joint.userData.isVisualBone ? 
+                joint : (joint.parent && joint.parent.userData && joint.parent.userData.isVisualBone ? 
+                    joint.parent : null);
             
-            // Different positioning based on the target joint type
-            sprite.position.copy(worldPos);
-            
-            // Offset to the side for better visibility
-            if (joint.parent && joint.parent.userData && 
-                joint.parent.userData.parentBone && joint.parent.userData.childBone) {
+            if (boneGroup && boneGroup.userData && 
+                boneGroup.userData.parentBone && boneGroup.userData.childBone) {
                 
                 // Get world positions of parent and child bones
                 const parentPos = new THREE.Vector3();
                 const childPos = new THREE.Vector3();
                 
-                joint.parent.userData.parentBone.getWorldPosition(parentPos);
-                joint.parent.userData.childBone.getWorldPosition(childPos);
+                boneGroup.userData.parentBone.getWorldPosition(parentPos);
+                boneGroup.userData.childBone.getWorldPosition(childPos);
                 
                 // Calculate the middle point
                 const midPoint = new THREE.Vector3().addVectors(parentPos, childPos).multiplyScalar(0.5);
                 
-                // Offset to the side
-                const direction = new THREE.Vector3().subVectors(childPos, parentPos).normalize();
-                const perpendicular = new THREE.Vector3(direction.z, 0, -direction.x).normalize();
-                
-                // Apply perpendicular offset
-                const offsetDistance = 0.2; // Adjust as needed
-                sprite.position.copy(midPoint).add(perpendicular.multiplyScalar(offsetDistance));
+                // Position exactly at the midpoint without any offset
+                sprite.position.copy(midPoint);
+            } else {
+                // Fallback for when we can't find the proper bone references
+                const worldPos = new THREE.Vector3();
+                joint.getWorldPosition(worldPos);
+                sprite.position.copy(worldPos);
             }
         } else {
             // For joint labels, use the standard update function
