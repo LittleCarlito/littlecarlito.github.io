@@ -1,0 +1,24 @@
+#!/bin/sh
+
+echo "📊 Running post-commit checks..."
+
+# Find files over 1000 lines
+echo "\n🔍 Checking for large files (over 1000 lines)..."
+find . -type f -not -path "*/node_modules/*" -not -path "*/.git/*" -not -path "*/dist/*" -not -path "*/build/*" | xargs wc -l 2>/dev/null | awk '$1 > 1000 {print "📄 " $1 " lines: " substr($0, index($0, $2))}' | sort -nr
+
+# Get current branch name
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+if [ "$CURRENT_BRANCH" != "main" ]; then
+  echo "\n📈 Checking potential version bumps when merging to main..."
+  
+  # Run the version bump test command
+  if command -v pnpm &> /dev/null; then
+    echo "Running pnpm test-version..."
+    pnpm test-version || echo "❌ Error: pnpm test-version failed or isn't available in this project. Please make sure it's properly configured."
+  else
+    echo "⚠️ pnpm not found. Skipping version bump check."
+  fi
+fi
+
+echo "\n✅ Post-commit checks completed!" 
