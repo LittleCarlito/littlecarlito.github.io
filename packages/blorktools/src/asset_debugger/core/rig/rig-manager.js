@@ -335,8 +335,8 @@ export function resetRig() {
 }
 
 /**
- * Update the position of a joint label
- * @param {Object} label - The label sprite
+ * Update a label's position to follow its joint
+ * @param {Object} label - The label to update
  * @param {Object} joint - The joint the label is attached to
  */
 export function updateLabelPosition(label, joint) {
@@ -349,13 +349,26 @@ export function updateLabelPosition(label, joint) {
     // Position the label slightly above the joint
     label.position.copy(jointPos);
     
-    // Add offset based on joint position (top or bottom)
+    // Get default offset in case geometry is missing
+    let offset = 0.2;
+    
+    // Add offset based on joint position and geometry if available
+    if (joint.geometry && joint.geometry.parameters) {
+        // Use the joint's geometry parameters when available
+        if (joint.geometry.parameters.radius) {
+            offset = joint.geometry.parameters.radius * 2;
+        } else if (joint.geometry.parameters.radiusTop) {
+            offset = joint.geometry.parameters.radiusTop * 2;
+        }
+    }
+    
+    // Apply offset based on joint position (top or bottom)
     if (joint.position && joint.position.y > 0) {
         // Top joint - place above
-        label.position.y += joint.geometry.parameters.radius * 2;
+        label.position.y += offset;
     } else {
         // Bottom joint - place to the side
-        label.position.x += joint.geometry.parameters.radius * 2;
+        label.position.x += offset;
     }
 }
 

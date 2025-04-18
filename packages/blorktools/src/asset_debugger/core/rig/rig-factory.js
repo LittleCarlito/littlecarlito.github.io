@@ -175,25 +175,74 @@ function createSimpleLabel(text, joint, scene, isBoneLabel = false) {
     canvas.width = 256;
     canvas.height = 64;
     
-    // Background - use slightly different color for bone labels vs joint labels
-    const bgColor = isBoneLabel ? 'rgba(40,40,80,0.7)' : 'rgba(0,0,0,0.7)';
-    ctx.fillStyle = bgColor;
+    // Different styling for bone vs joint labels - ONLY VISUAL DIFFERENCES HERE
+    const labelConfig = {
+        bgColor: isBoneLabel ? 'rgba(30, 136, 229, 0.8)' : 'rgba(76, 175, 80, 0.8)',
+        gradientStops: isBoneLabel ? 
+            [{ pos: 0, color: 'rgba(40, 40, 80, 0.4)' }, { pos: 1, color: 'rgba(20, 20, 40, 0.6)' }] : 
+            [{ pos: 0, color: 'rgba(30, 60, 30, 0.4)' }, { pos: 1, color: 'rgba(10, 30, 10, 0.6)' }],
+        borderColor: isBoneLabel ? '#88AAFF' : '#AAFFAA',
+        scrollThumbColor: isBoneLabel ? '#88AAFF' : '#AAFFAA',
+        headerText: isBoneLabel ? 'BONE' : 'JOINT'
+    };
+    
+    // Background fill
+    ctx.fillStyle = labelConfig.bgColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Border - different color for bone vs joint
-    ctx.strokeStyle = isBoneLabel ? '#88AAFF' : 'white';
+    // Add gradient overlay
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    labelConfig.gradientStops.forEach(stop => {
+        gradient.addColorStop(stop.pos, stop.color);
+    });
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Border
+    ctx.strokeStyle = labelConfig.borderColor;
     ctx.lineWidth = 2;
     ctx.strokeRect(0, 0, canvas.width, canvas.height);
     
-    // Text
-    ctx.font = 'bold 24px Arial';
+    // Header line
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.fillRect(0, 0, canvas.width, 18);
+    
+    // Header text
+    ctx.font = 'bold 12px monospace';
+    ctx.fillStyle = '#DDDDDD';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(labelConfig.headerText, 6, 9);
+    
+    // Main text
+    ctx.font = 'bold 16px monospace';
     ctx.fillStyle = 'white';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     
-    // Truncate text if too long
-    const displayText = text.length > 20 ? text.substring(0, 17) + '...' : text;
-    ctx.fillText(displayText, canvas.width / 2, canvas.height / 2);
+    // Calculate text width to check if it needs scrolling
+    const textMetrics = ctx.measureText(text);
+    const textWidth = textMetrics.width;
+    const maxWidth = canvas.width - 20; // 10px padding on each side
+    
+    // If text is too long, implement scrolling behavior
+    if (textWidth > maxWidth) {
+        // Indicate text is scrollable with ellipsis
+        const displayText = text.length > 25 ? text.substring(0, 22) + '...' : text;
+        ctx.fillText(displayText, canvas.width / 2, canvas.height / 2 + 5);
+        
+        // Draw scroll indicator
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.fillRect(10, canvas.height - 8, canvas.width - 20, 4);
+        
+        // Draw scrollbar thumb
+        const thumbWidth = Math.max(30, (maxWidth / textWidth) * (canvas.width - 20));
+        ctx.fillStyle = labelConfig.scrollThumbColor;
+        ctx.fillRect(10, canvas.height - 8, thumbWidth, 4);
+    } else {
+        // Text fits, just display it
+        ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 5);
+    }
     
     // Create sprite material
     const texture = new THREE.CanvasTexture(canvas);
@@ -209,22 +258,14 @@ function createSimpleLabel(text, joint, scene, isBoneLabel = false) {
     sprite.userData.isBoneLabel = isBoneLabel;
     sprite.userData.isJointLabel = !isBoneLabel;
     sprite.userData.targetJoint = joint;
+    sprite.userData.labelText = text; // Store original text
     
-    // Set initial position
+    // Set initial position safely - updateLabelPosition now has defensive coding
     updateLabelPosition(sprite, joint);
     
-    // Set proper scale (fixed size regardless of distance)
-    let scale = 1.0;
-    if (joint.geometry && joint.geometry.parameters) {
-        if (joint.geometry.parameters.radius) {
-            // For spheres (joints)
-            scale = joint.geometry.parameters.radius * 8;
-        } else if (joint.geometry.parameters.radiusTop) {
-            // For cylinders (bones)
-            scale = joint.geometry.parameters.radiusTop * 10;
-        }
-    }
-    sprite.scale.set(scale, scale * 0.25, 1);
+    // FIXED SIZE FOR ALL LABELS - no dependency on underlying object geometry
+    const fixedScale = 0.3;
+    sprite.scale.set(fixedScale, fixedScale * 0.25, 1);
     
     // Set initial visibility based on appropriate option
     sprite.visible = isBoneLabel ? rigOptions.showBoneLabels : rigOptions.showJointLabels;
@@ -1110,6 +1151,30 @@ export function addControlHandleToFurthestBone(bone, scene, modelScale) {
 }
 
 /**
+ * Create both joint and bone labels and set their visibility
+ * @param {Object} scene - The Three.js scene
+ */
+export function createLabels(scene) {
+    // Create joint labels
+    console.log('Setting up joint labels');
+    createJointLabels(scene);
+    
+    // Check if joint labels should be visible based on option
+    if (!rigOptions.showJointLabels) {
+        hideRigLabels();
+    }
+    
+    // Create bone labels
+    console.log('Setting up bone labels');
+    createBoneLabels(scene);
+    
+    // Check if bone labels should be visible based on option
+    if (!rigOptions.showBoneLabels) {
+        hideBoneLabels();
+    }
+}
+
+/**
  * Create a rig system with visualization, controls and interactions
  * @param {Object} model - The model to create a rig for
  * @param {Object} scene - The Three.js scene
@@ -1437,23 +1502,8 @@ export function createRig(model, scene) {
         addControlHandleToFurthestBone(furthestBone, scene, modelScale);
     }
     
-    // Always create labels for all joints
-    console.log('Setting up joint labels');
-    createJointLabels(scene);
-    
-    // Check if joint labels should be visible based on option
-    if (!rigOptions.showJointLabels) {
-        hideRigLabels();
-    }
-    
-    // Always create labels for all bones
-    console.log('Setting up bone labels');
-    createBoneLabels(scene);
-    
-    // Check if bone labels should be visible based on option
-    if (!rigOptions.showBoneLabels) {
-        hideBoneLabels();
-    }
+    // Create labels for joints and bones
+    createLabels(scene);
     
     // Set up mouse event listeners for hover effect
     setupMouseListeners(scene);
