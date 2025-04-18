@@ -260,6 +260,16 @@ export function updateBoneVisuals() {
             }
         });
     }
+    
+    // Update bone labels if they exist
+    const boneLabelsGroup = state.scene ? state.scene.getObjectByName("BoneLabels") : null;
+    if (boneLabelsGroup) {
+        boneLabelsGroup.children.forEach(label => {
+            if (label.userData && label.userData.updatePosition) {
+                label.userData.updatePosition();
+            }
+        });
+    }
 }
 
 /**

@@ -11,11 +11,12 @@ import {
     updateAllBoneMatrices,
     restoreLockedBoneRotations 
 } from '../bone-util';
-import { createJointLabels } from './rig-factory';
+import { createJointLabels, createBoneLabels } from './rig-factory';
 import { refreshJointsData } from '../../ui/scripts/rig-panel';
 
 export let rigDetails = null;
-export let labelGroup = null; // Add export for labelGroup
+export let labelGroup = null;
+export let boneLabelsGroup = null;
 
 // Variables used for rig visualization 
 export const rigOptions = {
@@ -26,6 +27,7 @@ export const rigOptions = {
     secondaryColor: 0xFFFF00,
     jointColor: 0x00FFFF,
     showJointLabels: false,
+    showBoneLabels: false,
     normalColor: 0xFF0000,
     hoverColor: 0x00FF00,
     activeColor: 0x0000FF,
@@ -47,6 +49,7 @@ export function updateRigOptions(options) {
     if (options.secondaryColor !== undefined) rigOptions.secondaryColor = options.secondaryColor;
     if (options.jointColor !== undefined) rigOptions.jointColor = options.jointColor;
     if (options.showJointLabels !== undefined) rigOptions.showJointLabels = options.showJointLabels;
+    if (options.showBoneLabels !== undefined) rigOptions.showBoneLabels = options.showBoneLabels;
     if (options.normalColor !== undefined) rigOptions.normalColor = options.normalColor;
     if (options.hoverColor !== undefined) rigOptions.hoverColor = options.hoverColor;
     if (options.activeColor !== undefined) rigOptions.activeColor = options.activeColor;
@@ -87,8 +90,19 @@ export function updateRigVisualization() {
         hideRigLabels();
     }
     
+    // Update bone labels visibility using the dedicated functions
+    if (rigOptions.showBoneLabels && rigOptions.displayRig) {
+        console.log('Showing bone labels');
+        showBoneLabels();
+    } else {
+        console.log('Hiding bone labels');
+        hideBoneLabels();
+    }
+    
     // Create labels if needed but don't exist yet
     const state = getState();
+    
+    // Joint labels
     const labelGroup = state.scene ? state.scene.getObjectByName("JointLabels") : null;
     
     if (labelGroup) {
@@ -102,7 +116,7 @@ export function updateRigVisualization() {
         });
     } else if (rigOptions.displayRig && state.scene) {
         // If we don't have labels but rig is displayed, create them
-        console.log('No label group found, creating new joint labels');
+        console.log('No joint label group found, creating new joint labels');
         createJointLabels(state.scene);
         
         // Set visibility based on showJointLabels option
@@ -110,6 +124,31 @@ export function updateRigVisualization() {
             showRigLabels();
         } else {
             hideRigLabels();
+        }
+    }
+    
+    // Bone labels
+    const boneLabelsGroup = state.scene ? state.scene.getObjectByName("BoneLabels") : null;
+    
+    if (boneLabelsGroup) {
+        console.log('Updating bone labels visibility to:', rigOptions.showBoneLabels && rigOptions.displayRig);
+        
+        // Update individual label positions
+        boneLabelsGroup.children.forEach(label => {
+            if (label.userData && label.userData.updatePosition) {
+                label.userData.updatePosition();
+            }
+        });
+    } else if (rigOptions.displayRig && state.scene) {
+        // If we don't have bone labels but rig is displayed, create them
+        console.log('No bone label group found, creating new bone labels');
+        createBoneLabels(state.scene);
+        
+        // Set visibility based on showBoneLabels option
+        if (rigOptions.showBoneLabels) {
+            showBoneLabels();
+        } else {
+            hideBoneLabels();
         }
     }
     
@@ -386,6 +425,16 @@ export function updateRigAnimation() {
         });
     }
     
+    // Update bone labels
+    const boneLabelsGroup = state.scene ? state.scene.getObjectByName("BoneLabels") : null;
+    if (boneLabelsGroup) {
+        boneLabelsGroup.children.forEach(label => {
+            if (label.userData && label.userData.updatePosition) {
+                label.userData.updatePosition();
+            }
+        });
+    }
+    
     // Apply locked rotations to bones
     restoreLockedBoneRotations();
     
@@ -459,4 +508,60 @@ export function hideRigLabels() {
  */
 export function updateRigDetails(newDetails) {
     rigDetails = newDetails;
+}
+
+/**
+ * Clear all bone labels from the scene
+ * @param {Object} scene - The Three.js scene
+ */
+export function clearBoneLabels(scene) {
+    const existingLabels = scene.getObjectByName("BoneLabels");
+    if (existingLabels) {
+        scene.remove(existingLabels);
+    }
+}
+
+/**
+ * Set the bone label group
+ * @param {string} name - The name of the bone label group
+ * @param {Object} scene - The Three.js scene
+ */
+export function setBoneLabelsGroup(name, scene) {
+    boneLabelsGroup = new THREE.Group();
+    boneLabelsGroup.name = name;
+    
+    // Initialize visibility based on current settings
+    boneLabelsGroup.visible = rigOptions.showBoneLabels && rigOptions.displayRig;
+    console.log('Creating bone labels group with initial visibility:', boneLabelsGroup.visible);
+    
+    scene.add(boneLabelsGroup);
+}
+
+/**
+ * Show bone labels
+ * Makes the bone labels visible
+ */
+export function showBoneLabels() {
+    if (boneLabelsGroup) {
+        console.log('Explicitly showing bone labels');
+        boneLabelsGroup.visible = true; // Force visibility regardless of other settings
+        
+        // Also ensure each individual label is visible
+        boneLabelsGroup.children.forEach(label => {
+            if (label) {
+                label.visible = true;
+            }
+        });
+    }
+}
+
+/**
+ * Hide bone labels
+ * Makes the bone labels invisible
+ */
+export function hideBoneLabels() {
+    if (boneLabelsGroup) {
+        console.log('Explicitly hiding bone labels');
+        boneLabelsGroup.visible = false;
+    }
 }

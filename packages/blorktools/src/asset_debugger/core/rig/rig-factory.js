@@ -14,10 +14,14 @@ import {
     updateRigDetails,
     rigOptions,
     clearJointLabels,
+    clearBoneLabels,
     updateLabelPosition,
     setLabelGroup,
+    setBoneLabelsGroup,
     hideRigLabels,
-    labelGroup
+    hideBoneLabels,
+    labelGroup,
+    boneLabelsGroup
  } from './rig-manager.js'
  import { 
     bones,
@@ -84,14 +88,84 @@ export function createJointLabels(scene) {
 }
 
 /**
+ * Create bone labels for all bone segments in the scene
+ * @param {Object} scene - The Three.js scene
+ */
+export function createBoneLabels(scene) {
+    console.log('Creating bone labels...');
+    
+    // Remove any existing bone labels
+    clearBoneLabels(scene);
+    
+    // Create a group to hold all bone labels
+    setBoneLabelsGroup("BoneLabels", scene);
+    
+    // Keep track of the labels created
+    const labelCount = {total: 0, added: 0};
+    
+    // Find all bone groups
+    boneVisualsGroup.children.forEach((boneGroup) => {
+        // Skip if not a bone group
+        if (!boneGroup.userData || !boneGroup.userData.isVisualBone) {
+            return;
+        }
+        
+        labelCount.total++;
+        
+        // Get bone name information from the bone group
+        let boneName = "";
+        if (boneGroup.userData.parentBone && boneGroup.userData.childBone) {
+            // Create a name that indicates the connection
+            boneName = `${boneGroup.userData.parentBone.name} → ${boneGroup.userData.childBone.name}`;
+        }
+        
+        if (boneName) {
+            // Find the middle point of the bone for label placement
+            // This is typically the bone cylinder/sides rather than the caps
+            let targetObject = null;
+            
+            // Find a bone side to attach the label to
+            boneGroup.children.forEach(child => {
+                if (child.userData && child.userData.bonePart === 'side' && 
+                    child.userData.sideType === 'primary') {
+                    targetObject = child;
+                    return;
+                }
+            });
+            
+            // Use the bone group itself if no suitable side found
+            if (!targetObject) {
+                targetObject = boneGroup;
+            }
+            
+            // Create a label for this bone
+            const label = createSimpleLabel(boneName, targetObject, scene, true); // Pass true to indicate it's a bone label
+            if (label) {
+                boneLabelsGroup.add(label);
+                labelCount.added++;
+                
+                // Position the label at the middle of the bone
+                if (label.userData.updatePosition) {
+                    label.userData.updatePosition();
+                }
+            }
+        }
+    });
+    
+    console.log(`Created ${labelCount.added} labels out of ${labelCount.total} bone segments found`);
+    return scene.getObjectByName("BoneLabels");
+}
+
+/**
  * Create a simple text label as a sprite
  * @param {string} text - Text to display
  * @param {Object} joint - Joint object to attach to
  * @param {Object} scene - Three.js scene
+ * @param {boolean} isBoneLabel - Whether this is a bone label (true) or joint label (false)
  * @returns {Object} The created label sprite
  */
-function createSimpleLabel(text, joint, scene) {
-    console.log(`Creating label for joint: ${text}`);
+function createSimpleLabel(text, joint, scene, isBoneLabel = false) {
+    console.log(`Creating label for ${isBoneLabel ? 'bone' : 'joint'}: ${text}`);
 
     // Create a canvas for the label
     const canvas = document.createElement('canvas');
@@ -101,12 +175,13 @@ function createSimpleLabel(text, joint, scene) {
     canvas.width = 256;
     canvas.height = 64;
     
-    // Background
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    // Background - use slightly different color for bone labels vs joint labels
+    const bgColor = isBoneLabel ? 'rgba(40,40,80,0.7)' : 'rgba(0,0,0,0.7)';
+    ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Border
-    ctx.strokeStyle = 'white';
+    // Border - different color for bone vs joint
+    ctx.strokeStyle = isBoneLabel ? '#88AAFF' : 'white';
     ctx.lineWidth = 2;
     ctx.strokeRect(0, 0, canvas.width, canvas.height);
     
@@ -131,29 +206,77 @@ function createSimpleLabel(text, joint, scene) {
     
     // Create sprite
     const sprite = new THREE.Sprite(material);
-    sprite.userData.isJointLabel = true;
+    sprite.userData.isBoneLabel = isBoneLabel;
+    sprite.userData.isJointLabel = !isBoneLabel;
     sprite.userData.targetJoint = joint;
     
     // Set initial position
     updateLabelPosition(sprite, joint);
     
     // Set proper scale (fixed size regardless of distance)
-    const jointRadius = joint.geometry.parameters.radius || 0.1;
-    sprite.scale.set(jointRadius * 8, jointRadius * 2, 1);
+    let scale = 1.0;
+    if (joint.geometry && joint.geometry.parameters) {
+        if (joint.geometry.parameters.radius) {
+            // For spheres (joints)
+            scale = joint.geometry.parameters.radius * 8;
+        } else if (joint.geometry.parameters.radiusTop) {
+            // For cylinders (bones)
+            scale = joint.geometry.parameters.radiusTop * 10;
+        }
+    }
+    sprite.scale.set(scale, scale * 0.25, 1);
     
-    // Set initial visibility - explicitly check options
-    sprite.visible = rigOptions.showJointLabels;
+    // Set initial visibility based on appropriate option
+    sprite.visible = isBoneLabel ? rigOptions.showBoneLabels : rigOptions.showJointLabels;
     if (!sprite.visible) {
         console.log(`Label for ${text} is initially hidden`);
     }
     
-    // Set up the update function
+    // Set up the update function - customize for bone labels
     sprite.userData.updatePosition = () => {
-        updateLabelPosition(sprite, joint);
+        // For bone labels, we want to position them in the middle of the bone
+        if (isBoneLabel) {
+            const worldPos = new THREE.Vector3();
+            joint.getWorldPosition(worldPos);
+            
+            // Different positioning based on the target joint type
+            sprite.position.copy(worldPos);
+            
+            // Offset to the side for better visibility
+            if (joint.parent && joint.parent.userData && 
+                joint.parent.userData.parentBone && joint.parent.userData.childBone) {
+                
+                // Get world positions of parent and child bones
+                const parentPos = new THREE.Vector3();
+                const childPos = new THREE.Vector3();
+                
+                joint.parent.userData.parentBone.getWorldPosition(parentPos);
+                joint.parent.userData.childBone.getWorldPosition(childPos);
+                
+                // Calculate the middle point
+                const midPoint = new THREE.Vector3().addVectors(parentPos, childPos).multiplyScalar(0.5);
+                
+                // Offset to the side
+                const direction = new THREE.Vector3().subVectors(childPos, parentPos).normalize();
+                const perpendicular = new THREE.Vector3(direction.z, 0, -direction.x).normalize();
+                
+                // Apply perpendicular offset
+                const offsetDistance = 0.2; // Adjust as needed
+                sprite.position.copy(midPoint).add(perpendicular.multiplyScalar(offsetDistance));
+            }
+        } else {
+            // For joint labels, use the standard update function
+            updateLabelPosition(sprite, joint);
+        }
     };
     
+    // Initialize the position
+    if (sprite.userData.updatePosition) {
+        sprite.userData.updatePosition();
+    }
+    
     // Make sure the sprite renders on top
-    sprite.renderOrder = 1000;
+    sprite.renderOrder = isBoneLabel ? 990 : 1000; // Joint labels show on top of bone labels
     
     return sprite;
 }
@@ -163,7 +286,7 @@ function createSimpleLabel(text, joint, scene) {
  * @param {Object} node - Bone/joint node to examine
  * @returns {Object|null} - Constraint data if found, null otherwise
  */
-function parseJointConstraints(node) {
+export function parseJointConstraints(node) {
     console.log(`Checking for constraints on joint: ${node.name}`);
     
     // Initialize constraint object
@@ -271,7 +394,7 @@ function parseJointConstraints(node) {
  * @param {Object} bone - The bone to apply constraints to
  * @param {Object} constraints - Constraint data
  */
-function applyJointConstraints(bone, constraints) {
+export function applyJointConstraints(bone, constraints) {
     if (!bone || !constraints) return;
     
     console.log(`Applying ${constraints.type} constraint to ${bone.name}`);
@@ -413,7 +536,7 @@ function applyJointConstraints(bone, constraints) {
  * Enforce joint constraints on a bone
  * @param {Object} bone - The bone to enforce constraints on
  */
-function enforceJointConstraints(bone) {
+export function enforceJointConstraints(bone) {
     if (!bone || !bone.userData.constraints) return;
     
     const constraints = bone.userData.constraints;
@@ -635,7 +758,7 @@ function enforceJointConstraints(bone) {
  * @param {Object} gltf - The loaded GLTF model data
  * @returns {Object} Analyzed rig details
  */
-function analyzeGltfModel(gltf) {
+export function analyzeGltfModel(gltf) {
     console.log('analyzeGltfModel called with:', gltf);
     
     if (!gltf || !gltf.scene) {
@@ -751,7 +874,7 @@ function analyzeGltfModel(gltf) {
  * @param {Array} items - Array of items to deduplicate
  * @returns {Array} Deduplicated items with count property
  */
-function deduplicateItems(items) {
+export function deduplicateItems(items) {
     const uniqueItems = new Map();
     
     items.forEach(item => {
@@ -775,7 +898,7 @@ function deduplicateItems(items) {
  * @param {Object} options - Additional options for joint customization
  * @returns {Object} - The created joint mesh
  */
-function createBoneJoint(jointType, boneData, radius, options = {}) {
+export function createBoneJoint(jointType, boneData, radius, options = {}) {
     // Default options
     const defaultOptions = {
         position: new THREE.Vector3(0, 0, 0),
@@ -855,7 +978,7 @@ function createBoneJoint(jointType, boneData, radius, options = {}) {
  * @param {Material} sideMaterial - Material for bone sides
  * @param {Material} alternateSideMaterial - Material for alternate sides
  */
-function createBoneMesh(parent, radiusTop, radiusBottom, height, capMaterial, sideMaterial, alternateSideMaterial) {
+export function createBoneMesh(parent, radiusTop, radiusBottom, height, capMaterial, sideMaterial, alternateSideMaterial) {
     // First create a cylinder with 8 segments
     const cylinderGeometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, 8, 1, false);
     
@@ -931,7 +1054,7 @@ function createBoneMesh(parent, radiusTop, radiusBottom, height, capMaterial, si
  * @param {Object} boneGroup - The visual bone group to update
  * @returns {Function} Update function for the bone
  */
-function createBoneUpdateFunction(boneGroup) {
+export function createBoneUpdateFunction(boneGroup) {
     return () => {
         if (boneGroup.userData.parentBone && boneGroup.userData.childBone) {
             const parentPos = new THREE.Vector3();
@@ -972,7 +1095,7 @@ function createBoneUpdateFunction(boneGroup) {
  * @param {Object} scene - The Three.js scene
  * @param {Number} modelScale - Scale factor for the handle size
  */
-function addControlHandleToFurthestBone(bone, scene, modelScale) {
+export function addControlHandleToFurthestBone(bone, scene, modelScale) {
     const handleSize = modelScale * 2.6; // Double the size (from 1.3 to 2.6)
     const geometry = new THREE.SphereGeometry(handleSize, 16, 16);
     const material = new THREE.MeshPhongMaterial({
@@ -992,7 +1115,7 @@ function addControlHandleToFurthestBone(bone, scene, modelScale) {
  * @param {Object} scene - The Three.js scene
  * @returns {Object} The created rig
  */
-function createRig(model, scene) {
+export function createRig(model, scene) {
     console.log('Creating rig...');
     
     // Clear any existing rig visualization
@@ -1323,6 +1446,15 @@ function createRig(model, scene) {
         hideRigLabels();
     }
     
+    // Always create labels for all bones
+    console.log('Setting up bone labels');
+    createBoneLabels(scene);
+    
+    // Check if bone labels should be visible based on option
+    if (!rigOptions.showBoneLabels) {
+        hideBoneLabels();
+    }
+    
     // Set up mouse event listeners for hover effect
     setupMouseListeners(scene);
     
@@ -1398,17 +1530,3 @@ function createRig(model, scene) {
         console.log('No joint constraints found in model');
     }
 }
-
-// Export functions
-export {
-    analyzeGltfModel,
-    deduplicateItems,
-    createRig,
-    createBoneMesh,
-    createBoneUpdateFunction,
-    addControlHandleToFurthestBone,
-    createBoneJoint,
-    parseJointConstraints,
-    applyJointConstraints,
-    enforceJointConstraints
-};

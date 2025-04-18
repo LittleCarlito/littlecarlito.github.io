@@ -255,6 +255,7 @@ export class SettingsModal {
         const secondaryColor = this.secondaryColor ? this.secondaryColor.value : '#FFFF00';
         const jointColor = this.jointColor ? this.jointColor.value : '#00FFFF';
         const showJointLabels = this.showJointLabels ? this.showJointLabels.checked : false;
+        const showBoneLabels = this.showBoneLabels ? this.showBoneLabels.checked : false;
         
         // Get control handle colors
         const normalColor = this.normalColor ? this.normalColor.value : '#FF0000';
@@ -275,6 +276,7 @@ export class SettingsModal {
                 secondaryColor: parseInt(secondaryColor.replace('#', '0x'), 16),
                 jointColor: parseInt(jointColor.replace('#', '0x'), 16),
                 showJointLabels: showJointLabels,
+                showBoneLabels: showBoneLabels,
                 normalColor: parseInt(normalColor.replace('#', '0x'), 16),
                 hoverColor: parseInt(hoverColor.replace('#', '0x'), 16),
                 activeColor: parseInt(activeColor.replace('#', '0x'), 16)
@@ -429,6 +431,10 @@ export class SettingsModal {
             
             if (this.showJointLabels && settings.rigOptions.showJointLabels !== undefined) {
                 this.showJointLabels.checked = settings.rigOptions.showJointLabels;
+            }
+            
+            if (this.showBoneLabels && settings.rigOptions.showBoneLabels !== undefined) {
+                this.showBoneLabels.checked = settings.rigOptions.showBoneLabels;
             }
             
             // Set control handle colors if available
