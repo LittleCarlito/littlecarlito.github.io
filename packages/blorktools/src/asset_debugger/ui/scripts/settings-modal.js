@@ -31,8 +31,7 @@ export class SettingsModal {
         this.normalColor = document.getElementById('normal-color');
         this.hoverColor = document.getElementById('hover-color');
         this.activeColor = document.getElementById('active-color');
-        this.placeholderOption1 = document.getElementById('placeholder-option1');
-        this.placeholderOption2 = document.getElementById('placeholder-option2');
+        this.showBoneLabels = document.getElementById('show-bone-labels');
         
         // Other UI elements
         this.secondaryColorOption = document.getElementById('secondary-color-option');

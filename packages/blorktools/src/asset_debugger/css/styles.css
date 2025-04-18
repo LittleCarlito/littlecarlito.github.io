@@ -339,7 +339,7 @@ h2, h3 {
 
 .settings-option label {
     width: 120px;
-    margin-right: 10px;
+    margin-left: 10px;
     color: var(--label-text);
 }
 
