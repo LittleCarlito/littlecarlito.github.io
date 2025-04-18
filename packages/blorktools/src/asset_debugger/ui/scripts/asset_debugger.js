@@ -6,12 +6,12 @@
  */
 
 // Import the initialization functions
-import { init } from '../main.js';
+import { init } from '../../main.js';
 // Import loadSettings from localstorage-util.js
-import { loadSettings } from '../data/localstorage-util.js';
+import { loadSettings } from '../../data/localstorage-util.js';
 // Import SettingsModal 
-import { SettingsModal } from './settings-modal.js';
-import { ExamplesModal } from './examples-modal.js';
+import { SettingsModal } from '../settings-modal.js';
+import { ExamplesModal } from '../examples-modal.js';
 
 // Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -61,18 +61,8 @@ function setupThemeAndUI() {
  * Load all component HTML files dynamically
  */
 function loadComponentHtml() {
-    // Load Mesh Panel
-    fetch('./mesh-panel.html')
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById('mesh-tab-container').innerHTML = html;
-        })
-        .catch(error => {
-            console.error('Error loading mesh panel:', error);
-        });
-        
     // Load Atlas Panel
-    fetch('./atlas-panel.html')
+    fetch('../atlas-panel.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('atlas-panel-container').innerHTML = html;
@@ -81,8 +71,18 @@ function loadComponentHtml() {
             console.error('Error loading atlas panel:', error);
         });
         
+    // Load Mesh Panel
+    fetch('../mesh-panel.html')
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('mesh-tab-container').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading mesh panel:', error);
+        });
+        
     // Load UV Panel
-    fetch('./uv-panel.html')
+    fetch('../uv-panel.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('uv-tab-container').innerHTML = html;
@@ -92,7 +92,7 @@ function loadComponentHtml() {
         });
         
     // Load Rig Panel
-    fetch('./rig-panel.html')
+    fetch('../rig-panel.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('rig-tab-container').innerHTML = html;
@@ -101,37 +101,42 @@ function loadComponentHtml() {
             console.error('Error loading rig panel:', error);
         });
         
-    // Load the axis indicator settings component
-    fetch('./axis-indicator.html')
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById('axis-settings-container').innerHTML = html;
-            
-            // Make sure the axis settings tab is active if it's currently selected
-            const axisTabButton = document.querySelector('.settings-tab-button[data-tab="axis-settings"]');
-            if (axisTabButton && axisTabButton.classList.contains('active')) {
-                const axisSettings = document.getElementById('axis-settings');
-                if (axisSettings) {
-                    axisSettings.classList.add('active');
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error loading axis indicator settings:', error);
-        });
-        
-    // Load the settings modal component
-    fetch('./settings-modal.html')
+    // Load the settings modal component FIRST
+    fetch('../settings-modal.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('settings-modal-container').innerHTML = html;
+            
+            // Now that settings modal is loaded, load the axis indicator settings
+            fetch('../axis-indicator.html')
+                .then(response => response.text())
+                .then(html => {
+                    const axisSettingsContainer = document.getElementById('axis-settings-container');
+                    if (axisSettingsContainer) {
+                        axisSettingsContainer.innerHTML = html;
+                        
+                        // Make sure the axis settings tab is active if it's currently selected
+                        const axisTabButton = document.querySelector('.settings-tab-button[data-tab="axis-settings"]');
+                        if (axisTabButton && axisTabButton.classList.contains('active')) {
+                            const axisSettings = document.getElementById('axis-settings');
+                            if (axisSettings) {
+                                axisSettings.classList.add('active');
+                            }
+                        }
+                    } else {
+                        console.warn('Element with ID "axis-settings-container" not found in the DOM after loading settings modal');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading axis indicator settings:', error);
+                });
         })
         .catch(error => {
             console.error('Error loading settings modal:', error);
         });
         
     // Load the examples modal component
-    fetch('./examples-modal.html')
+    fetch('../examples-modal.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('examples-modal-container').innerHTML = html;
@@ -209,7 +214,7 @@ function setupTabNavigation() {
             rigTab.classList.remove('active');
             
             // Update atlas visualization without recreating everything
-            import('./atlas-panel.js').then(module => {
+            import('../../ui/atlas-panel.js').then(module => {
                 if (module.updateAtlasVisualization) {
                     module.updateAtlasVisualization();
                 }
@@ -232,7 +237,7 @@ function setupTabNavigation() {
             rigTab.classList.remove('active');
             
             // Update UV panel without recreating everything
-            import('./uv-panel.js').then(module => {
+            import('../../ui/uv-panel.js').then(module => {
                 if (module.updateUvPanel) {
                     module.updateUvPanel();
                 }
@@ -255,7 +260,7 @@ function setupTabNavigation() {
             rigTab.classList.add('active');
             
             // We don't need to recreate the rig panel each time, just ensure visualization is up to date
-            import('./rig-panel.js').then(module => {
+            import('../../ui/rig-panel.js').then(module => {
                 // Only update the panel if it hasn't been initialized yet
                 if (document.getElementById('rig-content') && 
                     document.getElementById('rig-content').children.length === 0) {
@@ -273,7 +278,7 @@ function setupTabNavigation() {
  */
 function verifyFileDrop() {
     // First check if any files were dropped
-    import('../core/state.js').then(stateModule => {
+    import('../../core/state.js').then(stateModule => {
         const currentState = stateModule.getState();
         const hasTextures = currentState.textureObjects.baseColor || 
                           currentState.textureObjects.orm || 
@@ -313,7 +318,7 @@ function startDebugging() {
     
     // Apply rig options from saved settings if available
     if (savedSettings && savedSettings.rigOptions) {
-        import('../core/rig/rig-manager.js').then(rigManagerModule => {
+        import('../../core/rig/rig-manager.js').then(rigManagerModule => {
             console.log('Applying saved rig options:', savedSettings.rigOptions);
             rigManagerModule.updateRigOptions(savedSettings.rigOptions);
         });
@@ -367,13 +372,13 @@ function initializeDebugger(settings) {
     new SettingsModal(settings);
     
     // Import and initialize the scene
-    import('../core/scene.js').then(sceneModule => {
+    import('../../core/scene.js').then(sceneModule => {
         console.log('Scene module loaded');
         sceneModule.initScene(viewport);
         sceneModule.startAnimation();
         
         // Import and initialize the model
-        import('../core/models.js').then(modelsModule => {
+        import('../../core/models.js').then(modelsModule => {
             modelsModule.loadDebugModel();
         });
     });
