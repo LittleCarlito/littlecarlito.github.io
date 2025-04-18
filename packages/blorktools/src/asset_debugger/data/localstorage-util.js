@@ -52,9 +52,6 @@ export function getDefaultSettings() {
             normalColor: 0xFF0000,
             hoverColor: 0x00FF00,
             activeColor: 0x0000FF
-        },
-        worldSettings: {
-            gravity: 1.0
         }
     };
 } 

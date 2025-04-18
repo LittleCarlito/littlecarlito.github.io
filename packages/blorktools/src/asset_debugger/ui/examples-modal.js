@@ -9,13 +9,40 @@ export class ExamplesModal {
         // Store the callback function to be called when an example is selected
         this.onExampleSelected = onExampleSelected;
         
+        // Wait for HTML to be loaded before initializing elements
+        this.waitForElementsAndInitialize();
+    }
+    
+    /**
+     * Wait for modal elements to be available in DOM before initializing
+     */
+    waitForElementsAndInitialize() {
+        // Check if modal container is loaded
+        if (document.getElementById('examples-modal-container')) {
+            // Check if modal content has been loaded into the container
+            if (document.getElementById('load-example-modal')) {
+                this.initializeElements();
+                this.initEventListeners();
+            } else {
+                // Wait for content to be loaded
+                setTimeout(() => this.waitForElementsAndInitialize(), 100);
+            }
+        } else {
+            // Wait for container to be available
+            setTimeout(() => this.waitForElementsAndInitialize(), 100);
+        }
+    }
+    
+    /**
+     * Initialize modal elements
+     */
+    initializeElements() {
         // Modal elements
         this.modal = document.getElementById('load-example-modal');
         this.closeButton = document.getElementById('close-example-modal');
         this.rigExampleButton = document.getElementById('rig-example-button');
         
-        // Initialize event listeners
-        this.initEventListeners();
+        console.log('Examples modal elements initialized:', !!this.modal, !!this.closeButton, !!this.rigExampleButton);
     }
     
     /**
