@@ -6,7 +6,7 @@
  */
 import * as THREE from 'three';
 import { getState } from '../state.js';
-import { createAxisIndicator } from '../../ui/axis-indicator.js';
+import { createAxisIndicator } from '../../ui/scripts/axis-indicator.js';
 import { getIsDragging, setupMouseListeners } from '../drag-util.js';
 import { 
     clearRigVisualization,

@@ -3,7 +3,7 @@
  * 
  * This module handles mesh visibility panel UI and interaction.
  */
-import { getState, updateState } from '../core/state.js';
+import { getState, updateState } from '../../core/state.js';
 
 /**
  * Create the mesh visibility panel in the UI

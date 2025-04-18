@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { getState } from '../core/state';
+import { getState } from '../../core/state';
 
 // Add variables to track axis indicator state
 let axisIndicatorCollapsed = false;

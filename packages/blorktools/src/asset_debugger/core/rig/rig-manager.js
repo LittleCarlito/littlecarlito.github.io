@@ -12,7 +12,7 @@ import {
     restoreLockedBoneRotations 
 } from '../bone-util';
 import { createJointLabels } from './rig-factory';
-import { refreshJointsData } from '../../ui/rig-panel';
+import { refreshJointsData } from '../../ui/scripts/rig-panel';
 
 export let rigDetails = null;
 export let labelGroup = null; // Add export for labelGroup

@@ -5,7 +5,7 @@
  */
 import { getState } from '../core/state.js';
 import { updateAtlasVisualization } from './scripts/atlas-panel.js';
-import { updateUvPanel } from './uv-panel.js';
+import { updateUvPanel } from './scripts/uv-panel.js';
 
 /**
  * Initialize the UI manager and set up event listeners

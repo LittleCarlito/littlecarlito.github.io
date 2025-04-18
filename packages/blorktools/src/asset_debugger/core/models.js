@@ -8,9 +8,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { getState, updateState } from './state.js';
 import { createMaterial, applyTransparencySettings, hasTransparentPixels } from './materials.js';
 import { fitCameraToObject } from './scene.js';
-import { createMeshVisibilityPanel } from '../ui/mesh-panel.js';
+import { createMeshVisibilityPanel } from '../ui/scripts/mesh-panel.js';
 import { updateAtlasVisualization } from '../ui/scripts/atlas-panel.js';
-import { updateUvPanel } from '../ui/uv-panel.js';
+import { updateUvPanel } from '../ui/scripts/uv-panel.js';
 
 /**
  * Create a basic cube with the loaded textures
@@ -225,7 +225,7 @@ function processLoadedModel(gltf) {
         
         // Always update rig panel when a model is loaded, regardless of active tab
         // This ensures the rig data is parsed immediately
-        import('../ui/rig-panel.js').then(module => {
+        import('../ui/scripts/rig-panel.js').then(module => {
             if (module.updateRigPanel) {
                 console.log('Updating rig panel after model load');
                 module.updateRigPanel();

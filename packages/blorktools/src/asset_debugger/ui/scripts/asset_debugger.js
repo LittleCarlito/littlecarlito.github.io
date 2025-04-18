@@ -10,8 +10,8 @@ import { init } from '../../main.js';
 // Import loadSettings from localstorage-util.js
 import { loadSettings } from '../../data/localstorage-util.js';
 // Import SettingsModal 
-import { SettingsModal } from '../settings-modal.js';
-import { ExamplesModal } from '../examples-modal.js';
+import { SettingsModal } from './settings-modal.js';
+import { ExamplesModal } from './examples-modal.js';
 
 // Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -237,7 +237,7 @@ function setupTabNavigation() {
             rigTab.classList.remove('active');
             
             // Update UV panel without recreating everything
-            import('../uv-panel.js').then(module => {
+            import('./uv-panel.js').then(module => {
                 if (module.updateUvPanel) {
                     module.updateUvPanel();
                 }
@@ -260,7 +260,7 @@ function setupTabNavigation() {
             rigTab.classList.add('active');
             
             // We don't need to recreate the rig panel each time, just ensure visualization is up to date
-            import('../rig-panel.js').then(module => {
+            import('./rig-panel.js').then(module => {
                 // Only update the panel if it hasn't been initialized yet
                 if (document.getElementById('rig-content') && 
                     document.getElementById('rig-content').children.length === 0) {
