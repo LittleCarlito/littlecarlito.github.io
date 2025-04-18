@@ -5,7 +5,7 @@
  */
 import { getState, updateState } from '../core/state.js';
 import { loadTextureFromFile, formatFileSize } from '../core/materials.js';
-import { updateAtlasVisualization } from './atlas-panel.js';
+import { updateAtlasVisualization } from './scripts/atlas-panel.js';
 
 /**
  * Setup dropzones for file input

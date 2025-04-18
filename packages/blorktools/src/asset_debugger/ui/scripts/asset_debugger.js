@@ -62,7 +62,7 @@ function setupThemeAndUI() {
  */
 function loadComponentHtml() {
     // Load Atlas Panel
-    fetch('../atlas-panel.html')
+    fetch('../pages/atlas-panel.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('atlas-panel-container').innerHTML = html;
@@ -72,7 +72,7 @@ function loadComponentHtml() {
         });
         
     // Load Mesh Panel
-    fetch('../mesh-panel.html')
+    fetch('../pages/mesh-panel.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('mesh-tab-container').innerHTML = html;
@@ -82,7 +82,7 @@ function loadComponentHtml() {
         });
         
     // Load UV Panel
-    fetch('../uv-panel.html')
+    fetch('../pages/uv-panel.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('uv-tab-container').innerHTML = html;
@@ -92,7 +92,7 @@ function loadComponentHtml() {
         });
         
     // Load Rig Panel
-    fetch('../rig-panel.html')
+    fetch('../pages/rig-panel.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('rig-tab-container').innerHTML = html;
@@ -102,13 +102,13 @@ function loadComponentHtml() {
         });
         
     // Load the settings modal component FIRST
-    fetch('../settings-modal.html')
+    fetch('../pages/settings-modal.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('settings-modal-container').innerHTML = html;
             
             // Now that settings modal is loaded, load the axis indicator settings
-            fetch('../axis-indicator.html')
+            fetch('../pages/axis-indicator.html')
                 .then(response => response.text())
                 .then(html => {
                     const axisSettingsContainer = document.getElementById('axis-settings-container');
@@ -136,7 +136,7 @@ function loadComponentHtml() {
         });
         
     // Load the examples modal component
-    fetch('../examples-modal.html')
+    fetch('../pages/examples-modal.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('examples-modal-container').innerHTML = html;
@@ -214,7 +214,7 @@ function setupTabNavigation() {
             rigTab.classList.remove('active');
             
             // Update atlas visualization without recreating everything
-            import('../../ui/atlas-panel.js').then(module => {
+            import('./atlas-panel.js').then(module => {
                 if (module.updateAtlasVisualization) {
                     module.updateAtlasVisualization();
                 }
@@ -237,7 +237,7 @@ function setupTabNavigation() {
             rigTab.classList.remove('active');
             
             // Update UV panel without recreating everything
-            import('../../ui/uv-panel.js').then(module => {
+            import('../uv-panel.js').then(module => {
                 if (module.updateUvPanel) {
                     module.updateUvPanel();
                 }
@@ -260,7 +260,7 @@ function setupTabNavigation() {
             rigTab.classList.add('active');
             
             // We don't need to recreate the rig panel each time, just ensure visualization is up to date
-            import('../../ui/rig-panel.js').then(module => {
+            import('../rig-panel.js').then(module => {
                 // Only update the panel if it hasn't been initialized yet
                 if (document.getElementById('rig-content') && 
                     document.getElementById('rig-content').children.length === 0) {

@@ -9,7 +9,7 @@ import { getState, updateState } from './state.js';
 import { createMaterial, applyTransparencySettings, hasTransparentPixels } from './materials.js';
 import { fitCameraToObject } from './scene.js';
 import { createMeshVisibilityPanel } from '../ui/mesh-panel.js';
-import { updateAtlasVisualization } from '../ui/atlas-panel.js';
+import { updateAtlasVisualization } from '../ui/scripts/atlas-panel.js';
 import { updateUvPanel } from '../ui/uv-panel.js';
 
 /**

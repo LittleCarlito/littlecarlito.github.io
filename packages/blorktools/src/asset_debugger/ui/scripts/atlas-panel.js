@@ -3,7 +3,7 @@
  * 
  * This module handles texture atlas visualization in the UI.
  */
-import { getState, updateState } from '../core/state.js';
+import { getState, updateState } from "../../core/state.js";
 
 /**
  * Initialize the atlas panel and set up event listeners
@@ -27,6 +27,21 @@ export function initAtlasPanel() {
  */
 function setupAtlasPanelEvents() {
     const textureTypeButtons = document.querySelectorAll('.texture-type-button');
+    
+    // Check if any button has the active class
+    let hasActiveButton = false;
+    textureTypeButtons.forEach(button => {
+        if (button.classList.contains('active')) {
+            hasActiveButton = true;
+        }
+    });
+    
+    // If no button is active, set the first one as active
+    if (!hasActiveButton && textureTypeButtons.length > 0) {
+        textureTypeButtons[0].classList.add('active');
+        // Update state with the default texture type
+        updateState('currentTextureType', textureTypeButtons[0].dataset.textureType);
+    }
     
     // Set up texture type button handlers
     textureTypeButtons.forEach(button => {

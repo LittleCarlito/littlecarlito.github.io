@@ -4,7 +4,7 @@
  * This module handles the UI interactions and tab switching.
  */
 import { getState } from '../core/state.js';
-import { updateAtlasVisualization } from './atlas-panel.js';
+import { updateAtlasVisualization } from './scripts/atlas-panel.js';
 import { updateUvPanel } from './uv-panel.js';
 
 /**

@@ -13,7 +13,7 @@
 import { initState } from './core/state.js';
 import { initUiManager } from './ui/ui-manager.js';
 import { setupDropzones } from './ui/file-handler.js';
-import { initAtlasPanel } from './ui/atlas-panel.js';
+import { initAtlasPanel } from './ui/scripts/atlas-panel.js';
 import { initUvPanel } from './ui/uv-panel.js';
 
 /**

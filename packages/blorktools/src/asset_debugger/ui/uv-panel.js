@@ -4,7 +4,7 @@
  * This module handles UV mapping visualization and controls.
  */
 import { getState, updateState } from '../core/state.js';
-import { updateUvRegion } from './atlas-panel.js';
+import { updateUvRegion } from './scripts/atlas-panel.js';
 
 // DOM elements
 let uvInfoContainer = null;
