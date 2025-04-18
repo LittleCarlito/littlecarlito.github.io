@@ -2,11 +2,13 @@ import * as THREE from 'three';
 import { rigOptions } from './rig/rig-manager';
 import { furthestBoneHandle, restoreLockedBoneRotations, updateBoneVisuals, moveBonesForTarget } from './bone-util';
 import { getState } from "./state";
+import { labelGroup, boneLabelsGroup } from './rig/rig-manager.js';
 
 // Raycaster for mouse interaction
 let raycaster = new THREE.Raycaster();
 let mouse = new THREE.Vector2();
 let hoveredHandle = null;
+let hoveredLabelHeader = null; // Track which label header is currently hovered
 // Drag state tracking
 let isDragging = false;
 let dragStartPosition = new THREE.Vector3();
@@ -48,7 +50,8 @@ export function setupMouseListeners(scene) {
         if (!rigOptions.displayRig) return;
         const state = getState();
         if (!state.camera) return;
-        // Check if we're clicking on a handle
+        
+        // Since we're removing label header click handling, just check for control handle clicks
         raycaster.setFromCamera(mouse, state.camera);
         const intersects = raycaster.intersectObject(furthestBoneHandle);
         if (intersects.length > 0) {
@@ -69,49 +72,210 @@ export function setupMouseListeners(scene) {
         if (getIsDragging()) {
             stopDrag();
         }
+        
+        // Reset any hover states when mouse leaves the canvas
+        resetHoveredStates();
     });
 }
 
 /**
- * Check if mouse is hovering over the control handle
+ * Reset all hovered states when mouse leaves canvas or on other events
+ */
+function resetHoveredStates() {
+    // Reset control handle hover state
+    if (hoveredHandle && hoveredHandle.material) {
+        hoveredHandle.material.color.setHex(rigOptions.normalColor);
+        hoveredHandle.material.needsUpdate = true;
+        hoveredHandle = null;
+    }
+    
+    // Reset label header hover state
+    if (hoveredLabelHeader && hoveredLabelHeader.material) {
+        hoveredLabelHeader.material.opacity = 0.8; // Default opacity
+        hoveredLabelHeader.material.needsUpdate = true;
+        hoveredLabelHeader = null;
+    }
+    
+    // Reset mouse cursor and controls
+    document.body.style.cursor = 'auto';
+    const state = getState();
+    if (state.controls && !state.controls.enabled && !getIsDragging()) {
+        state.controls.enabled = true;
+    }
+}
+
+/**
+ * Get all label sprites from the scene
+ * @returns {Array} Array of label sprites
+ */
+function getAllLabels() {
+    const labels = [];
+    
+    // Add joint labels if they exist
+    if (labelGroup) {
+        labelGroup.children.forEach(label => {
+            if (label.userData && (label.userData.isJointLabel || label.userData.isBoneLabel)) {
+                labels.push(label);
+            }
+        });
+    }
+    
+    // Add bone labels if they exist
+    if (boneLabelsGroup) {
+        boneLabelsGroup.children.forEach(label => {
+            if (label.userData && label.userData.isBoneLabel) {
+                labels.push(label);
+            }
+        });
+    }
+    
+    return labels;
+}
+
+/**
+ * Check if mouse is hovering over the control handle or any label headers
  */
 export function checkHandleHover() {
-    // Don't check for hover if rig display is disabled or handle doesn't exist
-    if (!rigOptions.displayRig || !furthestBoneHandle || getIsDragging()) return;
+    // Don't check for hover if rig display is disabled
+    if (!rigOptions.displayRig) return;
+    
     const state = getState();
     const camera = state.camera;
     const controls = state.controls; // Get orbit controls reference
     if (!camera) return;
+    
+    // Skip hover processing if we're dragging
+    if (getIsDragging()) return;
+    
     // Update the picking ray with the camera and mouse position
-    raycaster.setFromCamera(mouse, camera);
-    // Calculate objects intersecting the picking ray
-    const intersects = raycaster.intersectObject(furthestBoneHandle);
-    // Handle hover state
-    if (intersects.length > 0) {
-        if (hoveredHandle !== furthestBoneHandle) {
-            // Reset old hovered handle color if it exists and isn't the drag target
-            if (hoveredHandle && hoveredHandle.material && hoveredHandle !== dragTarget) {
-                hoveredHandle.material.color.setHex(rigOptions.normalColor);
-                hoveredHandle.material.needsUpdate = true;
-            }
-            // Set new hovered handle and update color
-            hoveredHandle = furthestBoneHandle;
-            // If not currently dragging this handle, highlight it
-            if (!getIsDragging() || hoveredHandle !== dragTarget) {
+    raycaster.setFromCamera(mouse, state.camera);
+    
+    // Track if any hover was detected in this cycle
+    let hoverDetected = false;
+    
+    // First check the furthest bone handle
+    if (furthestBoneHandle) {
+        const handleIntersects = raycaster.intersectObject(furthestBoneHandle);
+        
+        if (handleIntersects.length > 0) {
+            // We hit the handle
+            hoverDetected = true;
+            
+            // Set or update hover state
+            if (hoveredHandle !== furthestBoneHandle) {
+                // Reset any previously hovered label header
+                if (hoveredLabelHeader) {
+                    hoveredLabelHeader.material.opacity = 0.8; // Default opacity
+                    hoveredLabelHeader.material.needsUpdate = true;
+                    hoveredLabelHeader = null;
+                }
+                
+                // Set the handle as hovered
+                hoveredHandle = furthestBoneHandle;
                 hoveredHandle.material.color.setHex(rigOptions.hoverColor);
                 hoveredHandle.material.needsUpdate = true;
             }
-        }
-    } else if (hoveredHandle && !getIsDragging()) {
-        // No hit and not dragging, reset hovered handle color
-        if (hoveredHandle.material) {
+            
+            // Update cursor and controls
+            document.body.style.cursor = 'pointer';
+            if (controls && controls.enabled) {
+                controls.enabled = false;
+            }
+        } 
+        else if (hoveredHandle === furthestBoneHandle) {
+            // We had the handle hovered but no longer
             hoveredHandle.material.color.setHex(rigOptions.normalColor);
             hoveredHandle.material.needsUpdate = true;
+            hoveredHandle = null;
         }
-        hoveredHandle = null;
+    }
+    
+    // Now check label headers if nothing else is hovered
+    if (!hoverDetected) {
+        const allLabels = getAllLabels();
+        const labelIntersects = raycaster.intersectObjects(allLabels);
+        
+        if (labelIntersects.length > 0) {
+            for (let i = 0; i < labelIntersects.length; i++) {
+                const label = labelIntersects[i].object;
+                
+                // Skip if the label doesn't have header hover checking
+                if (!label.userData || !label.userData.checkHeaderHover) continue;
+                
+                // Convert intersection point to local coordinates
+                const localPoint = label.worldToLocal(labelIntersects[i].point.clone());
+                
+                // Check if over header area
+                if (label.userData.checkHeaderHover(localPoint)) {
+                    // Hovering over a header
+                    hoverDetected = true;
+                    
+                    // Update hover state
+                    if (hoveredLabelHeader !== label) {
+                        // Reset previous hover states
+                        if (hoveredHandle) {
+                            hoveredHandle.material.color.setHex(rigOptions.normalColor);
+                            hoveredHandle.material.needsUpdate = true;
+                            hoveredHandle = null;
+                        }
+                        
+                        if (hoveredLabelHeader) {
+                            hoveredLabelHeader.material.opacity = 0.8; // Default opacity
+                            hoveredLabelHeader.material.needsUpdate = true;
+                        }
+                        
+                        // Set new hover state
+                        hoveredLabelHeader = label;
+                        hoveredLabelHeader.material.opacity = 1.0; // Full opacity on hover
+                        hoveredLabelHeader.material.needsUpdate = true;
+                        
+                        // Store the hover state
+                        label.userData.isMouseOverHeader = true;
+                    }
+                    
+                    // Update cursor and controls
+                    document.body.style.cursor = 'pointer';
+                    if (controls && controls.enabled) {
+                        controls.enabled = false;
+                    }
+                    
+                    break; // Found a header hover, no need to check more
+                }
+                else if (hoveredLabelHeader === label) {
+                    // We were hovering this label but now we're not over the header
+                    hoveredLabelHeader.material.opacity = 0.8; // Reset to default opacity
+                    hoveredLabelHeader.material.needsUpdate = true;
+                    hoveredLabelHeader.userData.isMouseOverHeader = false;
+                    hoveredLabelHeader = null;
+                }
+            }
+        }
+    }
+    
+    // If no hover detected anywhere, reset everything
+    if (!hoverDetected) {
+        // Reset control handle hover
+        if (hoveredHandle) {
+            hoveredHandle.material.color.setHex(rigOptions.normalColor);
+            hoveredHandle.material.needsUpdate = true;
+            hoveredHandle = null;
+        }
+        
+        // Reset label header hover
+        if (hoveredLabelHeader) {
+            hoveredLabelHeader.material.opacity = 0.8; // Reset to default opacity
+            hoveredLabelHeader.material.needsUpdate = true;
+            hoveredLabelHeader.userData.isMouseOverHeader = false;
+            hoveredLabelHeader = null;
+        }
+        
+        // Reset cursor and controls
+        document.body.style.cursor = 'auto';
+        if (controls && !controls.enabled) {
+            controls.enabled = true;
+        }
     }
 }
-
 
 /**
  * Handle dragging logic

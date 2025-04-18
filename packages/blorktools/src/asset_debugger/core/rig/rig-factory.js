@@ -166,7 +166,8 @@ function createSimpleLabel(text, joint, scene, isBoneLabel = false) {
     
     // Set canvas size
     canvas.width = 256;
-    canvas.height = 64;
+    // Increase height for bone labels to accommodate multiple lines
+    canvas.height = isBoneLabel ? 96 : 64;
     
     // Different styling for bone vs joint labels - ONLY VISUAL DIFFERENCES HERE
     const labelConfig = {
@@ -213,28 +214,71 @@ function createSimpleLabel(text, joint, scene, isBoneLabel = false) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     
-    // Calculate text width to check if it needs scrolling
-    const textMetrics = ctx.measureText(text);
-    const textWidth = textMetrics.width;
-    const maxWidth = canvas.width - 20; // 10px padding on each side
-    
-    // If text is too long, implement scrolling behavior
-    if (textWidth > maxWidth) {
-        // Indicate text is scrollable with ellipsis
-        const displayText = text.length > 25 ? text.substring(0, 22) + '...' : text;
-        ctx.fillText(displayText, canvas.width / 2, canvas.height / 2 + 5);
+    // For bone labels, format as multiple lines if it contains an arrow
+    if (isBoneLabel && text.includes('→')) {
+        const parts = text.split('→');
+        const parent = parts[0].trim();
+        const child = parts[1].trim();
         
-        // Draw scroll indicator
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-        ctx.fillRect(10, canvas.height - 8, canvas.width - 20, 4);
+        // Calculate max width to check if parts need scrolling
+        const parentWidth = ctx.measureText(parent).width;
+        const childWidth = ctx.measureText(child).width;
+        const maxWidth = canvas.width - 20; // 10px padding on each side
         
-        // Draw scrollbar thumb
-        const thumbWidth = Math.max(30, (maxWidth / textWidth) * (canvas.width - 20));
-        ctx.fillStyle = labelConfig.scrollThumbColor;
-        ctx.fillRect(10, canvas.height - 8, thumbWidth, 4);
+        // First line: parent
+        let parentText = parent;
+        if (parentWidth > maxWidth) {
+            parentText = parent.length > 25 ? parent.substring(0, 22) + '...' : parent;
+        }
+        ctx.fillText(parentText, canvas.width / 2, 35);
+        
+        // Arrow line
+        ctx.fillText('↓', canvas.width / 2, 55);
+        
+        // Third line: child
+        let childText = child;
+        if (childWidth > maxWidth) {
+            childText = child.length > 25 ? child.substring(0, 22) + '...' : child;
+        }
+        ctx.fillText(childText, canvas.width / 2, 75);
+        
+        // If either part was truncated, add a scroll indicator
+        if (parentWidth > maxWidth || childWidth > maxWidth) {
+            // Draw scroll indicator
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.fillRect(10, canvas.height - 8, canvas.width - 20, 4);
+            
+            // Draw scrollbar thumb
+            const contentWidth = Math.max(parentWidth, childWidth);
+            const thumbWidth = Math.max(30, (maxWidth / contentWidth) * (canvas.width - 20));
+            ctx.fillStyle = labelConfig.scrollThumbColor;
+            ctx.fillRect(10, canvas.height - 8, thumbWidth, 4);
+        }
     } else {
-        // Text fits, just display it
-        ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 5);
+        // Regular single-line text handling (for joint labels or non-arrow bone labels)
+        // Calculate text width to check if it needs scrolling
+        const textMetrics = ctx.measureText(text);
+        const textWidth = textMetrics.width;
+        const maxWidth = canvas.width - 20; // 10px padding on each side
+        
+        // If text is too long, implement scrolling behavior
+        if (textWidth > maxWidth) {
+            // Indicate text is scrollable with ellipsis
+            const displayText = text.length > 25 ? text.substring(0, 22) + '...' : text;
+            ctx.fillText(displayText, canvas.width / 2, canvas.height / 2 + 5);
+            
+            // Draw scroll indicator
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.fillRect(10, canvas.height - 8, canvas.width - 20, 4);
+            
+            // Draw scrollbar thumb
+            const thumbWidth = Math.max(30, (maxWidth / textWidth) * (canvas.width - 20));
+            ctx.fillStyle = labelConfig.scrollThumbColor;
+            ctx.fillRect(10, canvas.height - 8, thumbWidth, 4);
+        } else {
+            // Text fits, just display it
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 5);
+        }
     }
     
     // Create sprite material
@@ -253,12 +297,54 @@ function createSimpleLabel(text, joint, scene, isBoneLabel = false) {
     sprite.userData.targetJoint = joint;
     sprite.userData.labelText = text; // Store original text
     
+    // Add hover handling for label headers
+    sprite.userData.isInteractive = true;
+    sprite.userData.isLabelHeader = true;
+    sprite.userData.headerHeight = 18; // Height of the header section in pixels
+    sprite.userData.canvasHeight = canvas.height;
+    sprite.userData.canvasWidth = canvas.width;
+    
+    // Add mouse event handling to prevent propagation when over the header
+    sprite.userData.onMouseMove = (event) => {
+        // Check if mouse is over the header area
+        if (sprite.userData.isMouseOverHeader) {
+            // Prevent event propagation to stop camera controls
+            event.stopPropagation();
+        }
+    };
+    
+    // This function calculates if mouse is over the header or the content area
+    sprite.userData.checkHeaderHover = (mousePos) => {
+        if (!mousePos) return false;
+        
+        // The sprite's coordinates go from -0.5 to 0.5 in both dimensions
+        // So we need to convert from local sprite coordinates to canvas coordinates
+        
+        // Calculate the overall dimensions in world units
+        const totalHeight = sprite.scale.y;
+        
+        // Convert mousePos.y from local coordinates (-0.5 to 0.5) to normalized height (0 to 1)
+        // In THREE.js, sprite local coords have origin at center, Y+ is up
+        // -0.5 is bottom, 0.5 is top, so we need to flip and shift
+        const normalizedY = 0.5 - mousePos.y; // Convert to 0 at top, 1 at bottom
+        
+        // Now convert to canvas pixel coordinates
+        const canvasY = normalizedY * canvas.height;
+        
+        // Check if we're in the header region (top 18px of the canvas)
+        const isOverHeader = canvasY >= 0 && canvasY <= sprite.userData.headerHeight;
+        
+        return isOverHeader;
+    };
+    
     // Set initial position safely - updateLabelPosition now has defensive coding
     updateLabelPosition(sprite, joint);
     
     // FIXED SIZE FOR ALL LABELS - no dependency on underlying object geometry
     const fixedScale = 0.3;
-    sprite.scale.set(fixedScale, fixedScale * 0.25, 1);
+    // Adjust height for bone labels to accommodate multiple lines
+    const heightFactor = isBoneLabel ? 0.4 : 0.25;
+    sprite.scale.set(fixedScale, fixedScale * heightFactor, 1);
     
     // Set initial visibility based on appropriate option
     sprite.visible = isBoneLabel ? rigOptions.showBoneLabels : rigOptions.showJointLabels;
