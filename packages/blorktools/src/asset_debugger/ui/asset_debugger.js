@@ -16,11 +16,130 @@ import { ExamplesModal } from './examples-modal.js';
 // Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Asset Debugger UI: Initializing...');
+    
+    // Set up theme and UI elements
+    setupThemeAndUI();
+    
+    // Load all component HTML files
+    loadComponentHtml();
+    
+    // Initialize the 3D environment
     init();
     
-    // Once the DOM is loaded, set up the event listeners for debugging
+    // Set up the event listeners for debugging
     setupDebuggerEvents();
 });
+
+/**
+ * Set up theme, UI elements, and basic event listeners
+ */
+function setupThemeAndUI() {
+    // Always use terminal theme (dark mode)
+    document.documentElement.classList.add('dark-mode');
+    document.documentElement.classList.remove('light-mode');
+    
+    // System status button
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        themeToggle.textContent = 'System Status';
+        
+        themeToggle.addEventListener('click', function() {
+            alert('System Status: Online\nAsset Debugger: Ready\nRig Visualizer: Ready');
+        });
+    }
+    
+    // Return to Toolbox functionality
+    const returnToToolboxBtn = document.getElementById('return-to-toolbox');
+    if (returnToToolboxBtn) {
+        returnToToolboxBtn.addEventListener('click', function() {
+            window.location.href = '../../';
+        });
+    }
+}
+
+/**
+ * Load all component HTML files dynamically
+ */
+function loadComponentHtml() {
+    // Load Mesh Panel
+    fetch('./mesh-panel.html')
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('mesh-tab-container').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading mesh panel:', error);
+        });
+        
+    // Load Atlas Panel
+    fetch('./atlas-panel.html')
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('atlas-panel-container').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading atlas panel:', error);
+        });
+        
+    // Load UV Panel
+    fetch('./uv-panel.html')
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('uv-tab-container').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading UV panel:', error);
+        });
+        
+    // Load Rig Panel
+    fetch('./rig-panel.html')
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('rig-tab-container').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading rig panel:', error);
+        });
+        
+    // Load the axis indicator settings component
+    fetch('./axis-indicator.html')
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('axis-settings-container').innerHTML = html;
+            
+            // Make sure the axis settings tab is active if it's currently selected
+            const axisTabButton = document.querySelector('.settings-tab-button[data-tab="axis-settings"]');
+            if (axisTabButton && axisTabButton.classList.contains('active')) {
+                const axisSettings = document.getElementById('axis-settings');
+                if (axisSettings) {
+                    axisSettings.classList.add('active');
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading axis indicator settings:', error);
+        });
+        
+    // Load the settings modal component
+    fetch('./settings-modal.html')
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('settings-modal-container').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading settings modal:', error);
+        });
+        
+    // Load the examples modal component
+    fetch('./examples-modal.html')
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('examples-modal-container').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading examples modal:', error);
+        });
+}
 
 /**
  * Set up event listeners for the Start Debug and Restart buttons
