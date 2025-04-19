@@ -32,6 +32,16 @@ export function createMeshVisibilityPanel() {
         // Create group header
         const headerDiv = document.createElement('div');
         headerDiv.className = 'mesh-group-header';
+        headerDiv.style.display = 'flex';
+        headerDiv.style.alignItems = 'center';
+        headerDiv.style.justifyContent = 'space-between';
+        headerDiv.style.width = '100%';
+        headerDiv.style.cursor = 'pointer'; // Make the header appear clickable
+        
+        // Create left part of header (checkbox + name + count)
+        const headerLeftDiv = document.createElement('div');
+        headerLeftDiv.style.display = 'flex';
+        headerLeftDiv.style.alignItems = 'center';
         
         // Create group toggle checkbox
         const groupToggle = document.createElement('input');
@@ -52,24 +62,64 @@ export function createMeshVisibilityPanel() {
             });
         });
         
+        // Prevent checkbox click from triggering the header click
+        groupToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+        
         // Create group name element
         const groupNameSpan = document.createElement('span');
         groupNameSpan.className = 'mesh-group-name';
-        groupNameSpan.textContent = groupName;
+        groupNameSpan.textContent = groupName + ' ';
         
-        // Create group count element
+        // Create group count element and put it right after the name
         const groupCountSpan = document.createElement('span');
         groupCountSpan.className = 'mesh-group-count';
         groupCountSpan.textContent = `(${groupMeshes.length})`;
         
+        // Create collapse/expand button
+        const collapseBtn = document.createElement('span');
+        collapseBtn.className = 'mesh-group-collapse';
+        collapseBtn.textContent = '+';  // Start with + (collapsed)
+        collapseBtn.style.cursor = 'pointer';
+        collapseBtn.style.marginLeft = 'auto'; // Push to right side
+        
+        // Function to toggle collapse/expand state
+        const toggleCollapse = () => {
+            const meshItemsDiv = groupDiv.querySelector('.mesh-items');
+            const isCollapsed = meshItemsDiv.style.display === 'none';
+            
+            // Toggle visibility
+            meshItemsDiv.style.display = isCollapsed ? 'block' : 'none';
+            
+            // Update icon
+            collapseBtn.textContent = isCollapsed ? '-' : '+';
+        };
+        
+        // Add event listener for collapse/expand to the entire header
+        headerDiv.addEventListener('click', toggleCollapse);
+        
+        // Add event listener for collapse/expand to the button
+        collapseBtn.addEventListener('click', (e) => {
+            // Prevent the event from bubbling to the header
+            e.stopPropagation();
+            toggleCollapse();
+        });
+        
+        // Assemble header left part
+        headerLeftDiv.appendChild(groupToggle);
+        headerLeftDiv.appendChild(groupNameSpan);
+        headerLeftDiv.appendChild(groupCountSpan);
+        
         // Assemble header
-        headerDiv.appendChild(groupToggle);
-        headerDiv.appendChild(groupNameSpan);
-        headerDiv.appendChild(groupCountSpan);
+        headerDiv.appendChild(headerLeftDiv);
+        headerDiv.appendChild(collapseBtn);
         
         // Create container for mesh items
         const meshItemsDiv = document.createElement('div');
         meshItemsDiv.className = 'mesh-items';
+        // Start collapsed
+        meshItemsDiv.style.display = 'none';
         
         // Create elements for each mesh in the group
         groupMeshes.forEach(mesh => {

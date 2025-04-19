@@ -16,9 +16,9 @@ import {
     clearJointLabels,
     clearBoneLabels,
     updateLabelPosition,
-    setLabelGroup,
+    setJointLabelsGroup,
     setBoneLabelsGroup,
-    hideRigLabels,
+    hideJointLabels,
     hideBoneLabels,
     getJointLabelGroup,
     getBoneLabelGroup
@@ -50,7 +50,7 @@ export function createJointLabels(scene) {
     clearJointLabels(scene);
     
     // Create a group to hold all labels
-    setLabelGroup("JointLabels", scene);
+    setJointLabelsGroup("JointLabels", scene);
     
     // Keep track of the labels created
     const labelCount = {total: 0, added: 0};
@@ -1285,7 +1285,7 @@ export function createLabels(scene) {
     
     // Check if joint labels should be visible based on option
     if (!rigOptions.showJointLabels) {
-        hideRigLabels();
+        hideJointLabels();
     }
     
     // Create bone labels

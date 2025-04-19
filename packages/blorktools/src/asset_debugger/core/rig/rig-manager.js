@@ -488,36 +488,7 @@ export function setLabelGroup(typeOrName, nameOrScene, sceneParam) {
     labelGroups.set(type, group);
 }
 
-/**
- * Show labels of a specific type
- * @param {string} type - The type of labels to show ('joint' or 'bone')
- */
-export function showLabels(type) {
-    const group = labelGroups.get(type);
-    if (group) {
-        console.log(`Explicitly showing ${type} labels`);
-        group.visible = true; // Force visibility regardless of other settings
-        
-        // Also ensure each individual label is visible
-        group.children.forEach(label => {
-            if (label) {
-                label.visible = true;
-            }
-        });
-    }
-}
 
-/**
- * Hide labels of a specific type
- * @param {string} type - The type of labels to hide ('joint' or 'bone')
- */
-export function hideLabels(type) {
-    const group = labelGroups.get(type);
-    if (group) {
-        console.log(`Explicitly hiding ${type} labels`);
-        group.visible = false;
-    }
-}
 
 /**
  * Update the rig details object with new values
@@ -554,10 +525,22 @@ export function clearBoneLabels(scene) {
 
 /**
  * Legacy function for backward compatibility
+ * This was the original function before the joint/bone distinction was added.
+ * In legacy code it was simply called 'labels' without distinguishing between types.
  * @param {string} name - The name for the joint label group
  * @param {Object} scene - The Three.js scene
  */
 export function setLabelGroupLegacy(name, scene) {
+    setLabelGroup('joint', name, scene);
+}
+
+/**
+ * Set the joint label group
+ * This is a more descriptive version of setLabelGroupLegacy
+ * @param {string} name - The name of the joint label group
+ * @param {Object} scene - The Three.js scene
+ */
+export function setJointLabelsGroup(name, scene) {
     setLabelGroup('joint', name, scene);
 }
 
@@ -570,12 +553,52 @@ export function setBoneLabelsGroup(name, scene) {
     setLabelGroup('bone', name, scene);
 }
 
-export function showRigLabels() {
+/**
+ * Show labels of a specific type
+ * @param {string} type - The type of labels to show ('joint' or 'bone')
+ */
+export function showLabels(type) {
+    const group = labelGroups.get(type);
+    if (group) {
+        console.log(`Explicitly showing ${type} labels`);
+        group.visible = true; // Force visibility regardless of other settings
+        
+        // Also ensure each individual label is visible
+        group.children.forEach(label => {
+            if (label) {
+                label.visible = true;
+            }
+        });
+    }
+}
+
+/**
+ * Hide labels of a specific type
+ * @param {string} type - The type of labels to hide ('joint' or 'bone')
+ */
+export function hideLabels(type) {
+    const group = labelGroups.get(type);
+    if (group) {
+        console.log(`Explicitly hiding ${type} labels`);
+        group.visible = false;
+    }
+}
+
+export function showJointLabels() {
     showLabels('joint');
 }
 
-export function hideRigLabels() {
+export function hideJointLabels() {
     hideLabels('joint');
+}
+
+// Keep the old function names for backward compatibility
+export function showRigLabels() {
+    showJointLabels();
+}
+
+export function hideRigLabels() {
+    hideJointLabels();
 }
 
 export function showBoneLabels() {
