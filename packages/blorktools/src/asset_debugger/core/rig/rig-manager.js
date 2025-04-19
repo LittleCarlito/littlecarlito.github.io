@@ -15,8 +15,7 @@ import { createJointLabels, createBoneLabels } from './rig-factory';
 import { refreshJointsData } from '../../ui/scripts/rig-panel';
 
 export let rigDetails = null;
-export let labelGroup = null;
-export let boneLabelsGroup = null;
+export const labelGroups = new Map(); // Map to store different types of label groups (joint, bone)
 
 // Variables used for rig visualization 
 export const rigOptions = {
@@ -84,32 +83,32 @@ export function updateRigVisualization() {
     // Update joint labels visibility using the dedicated functions
     if (rigOptions.showJointLabels && rigOptions.displayRig) {
         console.log('Showing joint labels');
-        showRigLabels();
+        showLabels('joint');
     } else {
         console.log('Hiding joint labels');
-        hideRigLabels();
+        hideLabels('joint');
     }
     
     // Update bone labels visibility using the dedicated functions
     if (rigOptions.showBoneLabels && rigOptions.displayRig) {
         console.log('Showing bone labels');
-        showBoneLabels();
+        showLabels('bone');
     } else {
         console.log('Hiding bone labels');
-        hideBoneLabels();
+        hideLabels('bone');
     }
     
     // Create labels if needed but don't exist yet
     const state = getState();
     
     // Joint labels
-    const labelGroup = state.scene ? state.scene.getObjectByName("JointLabels") : null;
+    const jointLabelGroup = state.scene ? state.scene.getObjectByName("JointLabels") : null;
     
-    if (labelGroup) {
+    if (jointLabelGroup) {
         console.log('Updating joint labels visibility to:', rigOptions.showJointLabels && rigOptions.displayRig);
         
         // Update individual label positions
-        labelGroup.children.forEach(label => {
+        jointLabelGroup.children.forEach(label => {
             if (label.userData && label.userData.updatePosition) {
                 label.userData.updatePosition();
             }
@@ -121,20 +120,20 @@ export function updateRigVisualization() {
         
         // Set visibility based on showJointLabels option
         if (rigOptions.showJointLabels) {
-            showRigLabels();
+            showLabels('joint');
         } else {
-            hideRigLabels();
+            hideLabels('joint');
         }
     }
     
     // Bone labels
-    const boneLabelsGroup = state.scene ? state.scene.getObjectByName("BoneLabels") : null;
+    const boneLabelGroup = state.scene ? state.scene.getObjectByName("BoneLabels") : null;
     
-    if (boneLabelsGroup) {
+    if (boneLabelGroup) {
         console.log('Updating bone labels visibility to:', rigOptions.showBoneLabels && rigOptions.displayRig);
         
         // Update individual label positions
-        boneLabelsGroup.children.forEach(label => {
+        boneLabelGroup.children.forEach(label => {
             if (label.userData && label.userData.updatePosition) {
                 label.userData.updatePosition();
             }
@@ -146,9 +145,9 @@ export function updateRigVisualization() {
         
         // Set visibility based on showBoneLabels option
         if (rigOptions.showBoneLabels) {
-            showBoneLabels();
+            showLabels('bone');
         } else {
-            hideBoneLabels();
+            hideLabels('bone');
         }
     }
     
@@ -373,17 +372,6 @@ export function updateLabelPosition(label, joint) {
 }
 
 /**
- * Clear all joint labels from the scene
- * @param {Object} scene - The Three.js scene
- */
-export function clearJointLabels(scene) {
-    const existingLabels = scene.getObjectByName("JointLabels");
-    if (existingLabels) {
-        scene.remove(existingLabels);
-    }
-}
-
-/**
  * Update animation for rig visuals
  */
 export function updateRigAnimation() {
@@ -429,23 +417,16 @@ export function updateRigAnimation() {
     
     // Update joint labels
     const state = getState();
-    const labelGroup = state.scene ? state.scene.getObjectByName("JointLabels") : null;
-    if (labelGroup) {
-        labelGroup.children.forEach(label => {
-            if (label.userData && label.userData.updatePosition) {
-                label.userData.updatePosition();
-            }
-        });
-    }
     
-    // Update bone labels
-    const boneLabelsGroup = state.scene ? state.scene.getObjectByName("BoneLabels") : null;
-    if (boneLabelsGroup) {
-        boneLabelsGroup.children.forEach(label => {
-            if (label.userData && label.userData.updatePosition) {
-                label.userData.updatePosition();
-            }
-        });
+    // Update all label groups
+    for (const [type, group] of labelGroups) {
+        if (group) {
+            group.children.forEach(label => {
+                if (label.userData && label.userData.updatePosition) {
+                    label.userData.updatePosition();
+                }
+            });
+        }
     }
     
     // Apply locked rotations to bones
@@ -471,32 +452,54 @@ export function clearRigVisualization(scene) {
 }
 
 /**
- * Set the label group
- * @param {string} name - The name of the label group
- * @param {Object} scene - The Three.js scene
+ * Set a label group
+ * @param {string|Object} typeOrName - The type of label group ('joint' or 'bone') or the name for backward compatibility
+ * @param {string|Object} nameOrScene - The name of the label group or the scene for backward compatibility
+ * @param {Object} [sceneParam] - The Three.js scene (optional for backward compatibility)
  */
-export function setLabelGroup(name, scene) {
-    labelGroup = new THREE.Group();
-    labelGroup.name = name;
+export function setLabelGroup(typeOrName, nameOrScene, sceneParam) {
+    // Handle backward compatibility with old function signature
+    let type, name, scene;
+    
+    if (typeof typeOrName === 'string' && (typeOrName === 'joint' || typeOrName === 'bone')) {
+        // New signature: (type, name, scene)
+        type = typeOrName;
+        name = nameOrScene;
+        scene = sceneParam;
+    } else {
+        // Old signature: (name, scene)
+        type = 'joint';
+        name = typeOrName;
+        scene = nameOrScene;
+    }
+    
+    const group = new THREE.Group();
+    group.name = name;
     
     // Initialize visibility based on current settings
-    labelGroup.visible = rigOptions.showJointLabels && rigOptions.displayRig;
-    console.log('Creating label group with initial visibility:', labelGroup.visible);
+    const isVisible = type === 'joint' 
+        ? rigOptions.showJointLabels && rigOptions.displayRig
+        : rigOptions.showBoneLabels && rigOptions.displayRig;
+        
+    group.visible = isVisible;
+    console.log(`Creating ${type} label group with initial visibility:`, group.visible);
     
-    scene.add(labelGroup);
+    scene.add(group);
+    labelGroups.set(type, group);
 }
 
 /**
- * Show rig labels
- * Makes the joint labels visible
+ * Show labels of a specific type
+ * @param {string} type - The type of labels to show ('joint' or 'bone')
  */
-export function showRigLabels() {
-    if (labelGroup) {
-        console.log('Explicitly showing rig labels');
-        labelGroup.visible = true; // Force visibility regardless of other settings
+export function showLabels(type) {
+    const group = labelGroups.get(type);
+    if (group) {
+        console.log(`Explicitly showing ${type} labels`);
+        group.visible = true; // Force visibility regardless of other settings
         
         // Also ensure each individual label is visible
-        labelGroup.children.forEach(label => {
+        group.children.forEach(label => {
             if (label) {
                 label.visible = true;
             }
@@ -505,13 +508,14 @@ export function showRigLabels() {
 }
 
 /**
- * Hide rig labels
- * Makes the joint labels invisible
+ * Hide labels of a specific type
+ * @param {string} type - The type of labels to hide ('joint' or 'bone')
  */
-export function hideRigLabels() {
-    if (labelGroup) {
-        console.log('Explicitly hiding rig labels');
-        labelGroup.visible = false;
+export function hideLabels(type) {
+    const group = labelGroups.get(type);
+    if (group) {
+        console.log(`Explicitly hiding ${type} labels`);
+        group.visible = false;
     }
 }
 
@@ -524,14 +528,37 @@ export function updateRigDetails(newDetails) {
 }
 
 /**
- * Clear all bone labels from the scene
+ * Clear all labels of a specific type from the scene
+ * @param {string} type - The type of labels to clear ('joint' or 'bone')
  * @param {Object} scene - The Three.js scene
  */
-export function clearBoneLabels(scene) {
-    const existingLabels = scene.getObjectByName("BoneLabels");
+export function clearLabels(type, scene) {
+    const name = type === 'joint' ? "JointLabels" : "BoneLabels";
+    const existingLabels = scene.getObjectByName(name);
     if (existingLabels) {
         scene.remove(existingLabels);
+        if (labelGroups.has(type)) {
+            labelGroups.delete(type);
+        }
     }
+}
+
+// Legacy function names for backward compatibility
+export function clearJointLabels(scene) {
+    clearLabels('joint', scene);
+}
+
+export function clearBoneLabels(scene) {
+    clearLabels('bone', scene);
+}
+
+/**
+ * Legacy function for backward compatibility
+ * @param {string} name - The name for the joint label group
+ * @param {Object} scene - The Three.js scene
+ */
+export function setLabelGroupLegacy(name, scene) {
+    setLabelGroup('joint', name, scene);
 }
 
 /**
@@ -540,41 +567,46 @@ export function clearBoneLabels(scene) {
  * @param {Object} scene - The Three.js scene
  */
 export function setBoneLabelsGroup(name, scene) {
-    boneLabelsGroup = new THREE.Group();
-    boneLabelsGroup.name = name;
-    
-    // Initialize visibility based on current settings
-    boneLabelsGroup.visible = rigOptions.showBoneLabels && rigOptions.displayRig;
-    console.log('Creating bone labels group with initial visibility:', boneLabelsGroup.visible);
-    
-    scene.add(boneLabelsGroup);
+    setLabelGroup('bone', name, scene);
 }
 
-/**
- * Show bone labels
- * Makes the bone labels visible
- */
+export function showRigLabels() {
+    showLabels('joint');
+}
+
+export function hideRigLabels() {
+    hideLabels('joint');
+}
+
 export function showBoneLabels() {
-    if (boneLabelsGroup) {
-        console.log('Explicitly showing bone labels');
-        boneLabelsGroup.visible = true; // Force visibility regardless of other settings
-        
-        // Also ensure each individual label is visible
-        boneLabelsGroup.children.forEach(label => {
-            if (label) {
-                label.visible = true;
-            }
-        });
-    }
+    showLabels('bone');
+}
+
+export function hideBoneLabels() {
+    hideLabels('bone');
 }
 
 /**
- * Hide bone labels
- * Makes the bone labels invisible
+ * Get a specific label group
+ * @param {string} type - The type of label group to retrieve ('joint' or 'bone')
+ * @returns {Object} The requested label group or null if not found
  */
-export function hideBoneLabels() {
-    if (boneLabelsGroup) {
-        console.log('Explicitly hiding bone labels');
-        boneLabelsGroup.visible = false;
-    }
+export function getLabelGroup(type) {
+    return labelGroups.get(type);
+}
+
+/**
+ * Get the joint label group (for backward compatibility)
+ * @returns {Object} The joint label group or null if not found
+ */
+export function getJointLabelGroup() {
+    return getLabelGroup('joint');
+}
+
+/**
+ * Get the bone label group (for backward compatibility)
+ * @returns {Object} The bone label group or null if not found
+ */
+export function getBoneLabelGroup() {
+    return getLabelGroup('bone');
 }

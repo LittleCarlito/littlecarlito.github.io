@@ -1,8 +1,7 @@
 import * as THREE from 'three';
-import { rigOptions } from './rig/rig-manager';
+import { rigOptions, getJointLabelGroup, getBoneLabelGroup } from './rig/rig-manager';
 import { furthestBoneHandle, restoreLockedBoneRotations, updateBoneVisuals, moveBonesForTarget } from './bone-util';
 import { getState } from "./state";
-import { labelGroup, boneLabelsGroup } from './rig/rig-manager.js';
 
 // Raycaster for mouse interaction
 let raycaster = new THREE.Raycaster();
@@ -112,8 +111,9 @@ function getAllLabels() {
     const labels = [];
     
     // Add joint labels if they exist
-    if (labelGroup) {
-        labelGroup.children.forEach(label => {
+    const jointLabelGroup = getJointLabelGroup();
+    if (jointLabelGroup) {
+        jointLabelGroup.children.forEach(label => {
             if (label.userData && (label.userData.isJointLabel || label.userData.isBoneLabel)) {
                 labels.push(label);
             }
@@ -121,8 +121,9 @@ function getAllLabels() {
     }
     
     // Add bone labels if they exist
-    if (boneLabelsGroup) {
-        boneLabelsGroup.children.forEach(label => {
+    const boneLabelGroup = getBoneLabelGroup();
+    if (boneLabelGroup) {
+        boneLabelGroup.children.forEach(label => {
             if (label.userData && label.userData.isBoneLabel) {
                 labels.push(label);
             }

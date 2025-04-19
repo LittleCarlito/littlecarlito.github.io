@@ -20,8 +20,8 @@ import {
     setBoneLabelsGroup,
     hideRigLabels,
     hideBoneLabels,
-    labelGroup,
-    boneLabelsGroup
+    getJointLabelGroup,
+    getBoneLabelGroup
  } from './rig-manager.js'
  import { 
     bones,
@@ -55,10 +55,29 @@ export function createJointLabels(scene) {
     // Keep track of the labels created
     const labelCount = {total: 0, added: 0};
     
+    // Track positions where we've already created labels to prevent duplicates
+    const labelPositions = [];
+    const positionTolerance = 0.001; // Tolerance for considering positions as identical
+    
+    // Helper function to check if a position already has a label
+    const hasLabelAtPosition = (position) => {
+        return labelPositions.some(pos => position.distanceTo(pos) < positionTolerance);
+    };
+    
     // Find all bone meshes
     boneVisualsGroup.traverse((object) => {
         if (object.userData && object.userData.bonePart === 'cap') {
             labelCount.total++;
+            
+            // Get world position of this joint
+            const worldPos = new THREE.Vector3();
+            object.getWorldPosition(worldPos);
+            
+            // Check if we already have a label at this position
+            if (hasLabelAtPosition(worldPos)) {
+                console.log('Skipping duplicate joint label at position:', worldPos);
+                return;
+            }
             
             // Determine which bone name to use
             let boneName = "";
@@ -76,8 +95,14 @@ export function createJointLabels(scene) {
                 // Create a label for this joint
                 const label = createSimpleLabel(boneName, object, scene);
                 if (label) {
-                    labelGroup.add(label);
-                    labelCount.added++;
+                    const jointLabelGroup = getJointLabelGroup();
+                    if (jointLabelGroup) {
+                        jointLabelGroup.add(label);
+                        labelCount.added++;
+                        
+                        // Record this position as having a label
+                        labelPositions.push(worldPos);
+                    }
                 }
             }
         }
@@ -103,6 +128,9 @@ export function createBoneLabels(scene) {
     // Keep track of the labels created
     const labelCount = {total: 0, added: 0};
     
+    // Track bone connections that already have labels to prevent duplicates
+    const labeledBoneConnections = new Set();
+    
     // Find all bone groups
     boneVisualsGroup.children.forEach((boneGroup) => {
         // Skip if not a bone group
@@ -115,31 +143,50 @@ export function createBoneLabels(scene) {
         // Get bone name information from the bone group
         let boneName = "";
         if (boneGroup.userData.parentBone && boneGroup.userData.childBone) {
+            // Create a connection identifier (both directions to handle differently ordered pairs)
+            const parentID = boneGroup.userData.parentBone.id || boneGroup.userData.parentBone.uuid;
+            const childID = boneGroup.userData.childBone.id || boneGroup.userData.childBone.uuid;
+            const connectionID = `${parentID}_${childID}`;
+            const reverseConnectionID = `${childID}_${parentID}`;
+            
+            // Skip if we already created a label for this connection
+            if (labeledBoneConnections.has(connectionID) || labeledBoneConnections.has(reverseConnectionID)) {
+                console.log('Skipping duplicate bone label for connection:', 
+                           `${boneGroup.userData.parentBone.name} → ${boneGroup.userData.childBone.name}`);
+                return;
+            }
+            
             // Create a name that indicates the connection
             boneName = `${boneGroup.userData.parentBone.name} → ${boneGroup.userData.childBone.name}`;
             
             // Create a label for this bone
             const label = createSimpleLabel(boneName, boneGroup, scene, true); // Pass true to indicate it's a bone label
             if (label) {
-                boneLabelsGroup.add(label);
-                labelCount.added++;
-                
-                // Calculate the midpoint between parent and child bones immediately
-                const parentPos = new THREE.Vector3();
-                const childPos = new THREE.Vector3();
-                
-                boneGroup.userData.parentBone.getWorldPosition(parentPos);
-                boneGroup.userData.childBone.getWorldPosition(childPos);
-                
-                // Calculate the middle point
-                const midPoint = new THREE.Vector3().addVectors(parentPos, childPos).multiplyScalar(0.5);
-                
-                // Position at the middle point immediately
-                label.position.copy(midPoint);
-                
-                // Position the label at the middle of the bone
-                if (label.userData.updatePosition) {
-                    label.userData.updatePosition();
+                const boneLabelGroup = getBoneLabelGroup();
+                if (boneLabelGroup) {
+                    boneLabelGroup.add(label);
+                    labelCount.added++;
+                    
+                    // Mark this connection as labeled
+                    labeledBoneConnections.add(connectionID);
+                    
+                    // Calculate the midpoint between parent and child bones immediately
+                    const parentPos = new THREE.Vector3();
+                    const childPos = new THREE.Vector3();
+                    
+                    boneGroup.userData.parentBone.getWorldPosition(parentPos);
+                    boneGroup.userData.childBone.getWorldPosition(childPos);
+                    
+                    // Calculate the middle point
+                    const midPoint = new THREE.Vector3().addVectors(parentPos, childPos).multiplyScalar(0.5);
+                    
+                    // Position at the middle point immediately
+                    label.position.copy(midPoint);
+                    
+                    // Position the label at the middle of the bone
+                    if (label.userData.updatePosition) {
+                        label.userData.updatePosition();
+                    }
                 }
             }
         }
