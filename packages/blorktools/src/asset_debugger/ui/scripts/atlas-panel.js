@@ -109,14 +109,12 @@ export function updateAtlasVisualization() {
     // Draw the texture
     ctx.drawImage(texture.image, 0, 0);
     
-    // Update the canvas container size
-    const container = document.getElementById('atlas-panel-container');
-    if (container) {
-        // Adjust container to fit the canvas with some padding
-        const padding = 20;
-        container.style.width = (atlasCanvas.width + padding) + 'px';
-        container.style.height = (atlasCanvas.height + padding) + 'px';
-    }
+    // Set proper CSS for the canvas to maintain aspect ratio and fit in container
+    atlasCanvas.style.width = '100%';
+    atlasCanvas.style.height = 'auto';
+    atlasCanvas.style.maxHeight = '100%';
+    atlasCanvas.style.objectFit = 'contain';
+    atlasCanvas.style.display = 'block';
     
     console.log('Atlas visualization updated');
 }
@@ -134,12 +132,16 @@ function updateCanvasWithTexture(texture, currentRegion = { min: [0, 0], max: [1
     
     const ctx = atlasCanvas.getContext('2d');
     
+    // Set canvas dimensions to match texture
+    atlasCanvas.width = texture.image.width;
+    atlasCanvas.height = texture.image.height;
+    
     // Clear canvas
     ctx.clearRect(0, 0, atlasCanvas.width, atlasCanvas.height);
     
     // Draw the texture with proper scaling
     try {
-        ctx.drawImage(texture.image, 0, 0, atlasCanvas.width, atlasCanvas.height);
+        ctx.drawImage(texture.image, 0, 0);
     } catch (error) {
         console.error('Error drawing texture to canvas:', error);
     }
@@ -149,6 +151,13 @@ function updateCanvasWithTexture(texture, currentRegion = { min: [0, 0], max: [1
     
     // Draw red highlight to show current region used on the model
     drawHighlightRegion(ctx, currentRegion, atlasCanvas.width, atlasCanvas.height);
+    
+    // Set proper CSS for the canvas
+    atlasCanvas.style.width = '100%';
+    atlasCanvas.style.height = 'auto';
+    atlasCanvas.style.maxHeight = '100%';
+    atlasCanvas.style.objectFit = 'contain';
+    atlasCanvas.style.display = 'block';
     
     // Update coordinates text
     if (coordsText) {
@@ -173,9 +182,9 @@ function showNoTextureState(atlasCanvas) {
     
     const ctx = atlasCanvas.getContext('2d');
     
-    // Make sure canvas has reasonable dimensions
-    if (atlasCanvas.width < 200) atlasCanvas.width = 260;
-    if (atlasCanvas.height < 200) atlasCanvas.height = 260;
+    // Use a reasonable size for the empty state
+    atlasCanvas.width = 260;
+    atlasCanvas.height = 260;
     
     // Clear canvas with transparent background
     ctx.clearRect(0, 0, atlasCanvas.width, atlasCanvas.height);
@@ -199,6 +208,13 @@ function showNoTextureState(atlasCanvas) {
     // Add additional help text
     ctx.font = '12px monospace';
     ctx.fillText('Drag and drop a texture to view', atlasCanvas.width / 2, atlasCanvas.height / 2 + 15);
+    
+    // Set proper CSS for the canvas to maintain aspect ratio and fit in container
+    atlasCanvas.style.width = '100%';
+    atlasCanvas.style.height = 'auto';
+    atlasCanvas.style.maxHeight = '100%';
+    atlasCanvas.style.objectFit = 'contain';
+    atlasCanvas.style.display = 'block';
     
     // Update the coordinates text
     if (coordsText) {
