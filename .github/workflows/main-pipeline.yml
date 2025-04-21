@@ -376,7 +376,8 @@ jobs:
             console.log(`Checking package: ${packageJson.name} at version ${packageJson.version}`);
             
             // Check if a git tag exists for this version
-            const tagName = `${packageJson.name.replace('@', '').replace('/', '-')}@${packageJson.version}`;
+            // Use the exact package name format with @ and / to match existing tags
+            const tagName = `${packageJson.name}@${packageJson.version}`;
             
             try {
               execSync(`git tag -l "${tagName}"`, { stdio: 'pipe' });
@@ -442,6 +443,9 @@ jobs:
           echo "Existing tags:"
           git tag -l
           
+          # Create directory for release notes
+          mkdir -p tmp_release_notes
+          
           # Function to create and push a tag
           create_tag() {
             local package_name=$1
@@ -450,18 +454,56 @@ jobs:
             
             echo "Creating tag for $package_name@$version: $tag_name"
             
-            # Check if tag already exists
-            if git tag -l "$tag_name" | grep -q "$tag_name"; then
-              echo "Tag $tag_name already exists, skipping creation"
+            # Check both possible tag formats
+            original_format_tag="$tag_name"
+            transformed_format_tag="${tag_name/@/}"
+            transformed_format_tag="${transformed_format_tag//\//-}"
+            
+            echo "Checking for existing tags in either format:"
+            echo " - Original format: $original_format_tag"
+            echo " - Transformed format: $transformed_format_tag"
+            
+            # Check if tag exists in either format
+            if git tag -l "$original_format_tag" | grep -q "$original_format_tag" || \
+               git tag -l "$transformed_format_tag" | grep -q "$transformed_format_tag"; then
+              echo "Tag already exists in one of the formats, skipping creation"
               return 0
             fi
             
-            # Create tag with message
+            # Create tag with message and sign it
             git tag -a "$tag_name" -m "Release $package_name v$version"
             
             # Push tag
             if git push origin "$tag_name"; then
               echo "Successfully pushed tag $tag_name"
+              
+              # Create release notes for this package
+              local pkg_path=${package_name#@littlecarlito/}
+              local changelog_path="packages/$pkg_path/CHANGELOG.md"
+              local release_notes="$package_name v$version"$'\n\n'
+              
+              # Add changelog content if available
+              if [ -f "$changelog_path" ]; then
+                echo "Found changelog at $changelog_path"
+                # Extract the relevant section for this version
+                local version_content=$(sed -n "/## $version/,/## /p" "$changelog_path" | sed '$ d')
+                if [ -n "$version_content" ]; then
+                  release_notes+="$version_content"
+                else
+                  # If no specific version section, add recent commits
+                  release_notes+="Changes in this release:"$'\n'
+                  release_notes+=$(git log -3 --pretty=format:"* %s (%h)" -- "packages/$pkg_path/")
+                fi
+              else
+                # Use recent commit history for the package
+                release_notes+="Changes in this release:"$'\n'
+                release_notes+=$(git log -3 --pretty=format:"* %s (%h)" -- "packages/$pkg_path/")
+              fi
+              
+              # Save release notes to a file for later use
+              echo "$release_notes" > "tmp_release_notes/${tag_name}.md"
+              echo "Created release notes for $tag_name"
+              
               return 0
             else
               echo "Failed to push tag $tag_name"
@@ -472,6 +514,7 @@ jobs:
           # Process each package
           TAGGED=0
           FAILED=0
+          TAGS_CREATED=()
           
           # Parse the JSON and iterate through packages
           echo "$PACKAGES_TO_VERSION" | jq -c '.[]' | while read -r package; do
@@ -481,6 +524,8 @@ jobs:
             
             if create_tag "$name" "$version" "$tag"; then
               TAGGED=$((TAGGED + 1))
+              TAGS_CREATED+=("$tag")
+              echo "$tag" >> tags_created.txt
             else
               FAILED=$((FAILED + 1))
               echo "::error::Failed to create tag for $name@$version"
@@ -504,6 +549,62 @@ jobs:
             echo "skipped=true" >> $GITHUB_OUTPUT
           else
             echo "skipped=false" >> $GITHUB_OUTPUT
+            echo "tags_created=$(cat tags_created.txt | tr '\n' ',' | sed 's/,$//')" >> $GITHUB_OUTPUT
+          fi
+      
+      # Create GitHub Releases for each tag
+      - name: Create GitHub Releases
+        id: create-releases
+        if: steps.create-tags.outputs.tagged > 0
+        env:
+          GITHUB_TOKEN: ${{ secrets.VERSION_TOKEN }}
+        run: |
+          echo "Creating GitHub releases for tags..."
+          
+          # Read tags that were created
+          TAGS_CREATED="${{ steps.create-tags.outputs.tags_created }}"
+          
+          # Check if tags were created
+          if [ -z "$TAGS_CREATED" ]; then
+            echo "No tags were created, skipping release creation"
+            echo "releases_created=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Create releases for each tag
+          RELEASES_CREATED=0
+          RELEASES_FAILED=0
+          
+          # Process each tag
+          for tag in $(echo "$TAGS_CREATED" | tr ',' '\n'); do
+            echo "Creating release for tag: $tag"
+            
+            # Check if release notes exist
+            if [ -f "tmp_release_notes/${tag}.md" ]; then
+              RELEASE_NOTES=$(cat "tmp_release_notes/${tag}.md")
+            else
+              RELEASE_NOTES="Release $tag"
+            fi
+            
+            # Create the release
+            if gh release create "$tag" \
+               --title "Release $tag" \
+               --notes "$RELEASE_NOTES" \
+               --repo "$GITHUB_REPOSITORY"; then
+              echo "Successfully created release for $tag"
+              RELEASES_CREATED=$((RELEASES_CREATED + 1))
+            else
+              echo "::error::Failed to create release for $tag"
+              RELEASES_FAILED=$((RELEASES_FAILED + 1))
+            fi
+          done
+          
+          # Set outputs
+          echo "releases_created=$RELEASES_CREATED" >> $GITHUB_OUTPUT
+          echo "releases_failed=$RELEASES_FAILED" >> $GITHUB_OUTPUT
+          
+          if [ $RELEASES_FAILED -gt 0 ]; then
+            echo "error-message=Failed to create $RELEASES_FAILED releases" >> $GITHUB_OUTPUT
           fi
 
   # Build the site for GitHub Pages
