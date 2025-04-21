@@ -1,6 +1,43 @@
 import { spawn } from 'child_process';
 import treeKill from 'tree-kill';
 import { isPortInUse, startViteServer } from '../server/vite.js';
+import { join } from 'path';
+import fs from 'fs';
+
+/**
+ * Gets the absolute path to the pnpm executable
+ * @returns {string} Path to pnpm executable
+ */
+function getPnpmPath() {
+	// Try common locations for pnpm
+	const possiblePaths = [
+		// Global npm bin directory
+		join(process.env.npm_config_prefix || '', 'pnpm'),
+		join(process.env.npm_config_prefix || '', 'node_modules', '.bin', 'pnpm'),
+		// For Windows
+		join(process.env.APPDATA || '', 'npm', 'pnpm.cmd'),
+		join(process.env.APPDATA || '', 'npm', 'pnpm'),
+		// For Unix-like systems
+		'/usr/local/bin/pnpm',
+		'/usr/bin/pnpm',
+		// NodeJS path
+		process.execPath.replace('node', 'pnpm')
+	];
+
+	// Find the first path that exists
+	for (const path of possiblePaths) {
+		try {
+			if (fs.existsSync(path)) {
+				return path;
+			}
+		} catch (e) {
+			// Ignore errors
+		}
+	}
+
+	// Default to just 'pnpm' and hope it's in PATH
+	return 'pnpm';
+}
 
 /**
  *
@@ -11,6 +48,7 @@ export class ProcessManager {
 	 */
 	constructor() {
 		this.processes = new Map();
+		this.pnpmPath = getPnpmPath();
 	}
 
 	/**
@@ -59,14 +97,21 @@ export class ProcessManager {
 	async startToolsProcess(project) {
 		return new Promise((resolve, reject) => {
 			// For blorktools, we want to run the tools script which uses our modified tools.js
-			const childProcess = spawn('pnpm', ['run', 'tools'], {
+			console.log(`Using pnpm at: ${this.pnpmPath}`);
+			
+			// Use shell option on Windows to ensure pnpm is found
+			const isWindows = process.platform === 'win32';
+			const options = {
 				cwd: project.path,
 				env: {
 					...process.env,
 					PORT: project.port.toString(),
 					NODE_ENV: 'development'
-				}
-			});
+				},
+				shell: isWindows
+			};
+			
+			const childProcess = spawn(this.pnpmPath, ['run', 'tools'], options);
 
 			let isReady = false;
 			let port = project.port;
