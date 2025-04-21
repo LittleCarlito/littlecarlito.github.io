@@ -1,0 +1,96 @@
+<!-- World Panel Component -->
+<div id="world-tab" class="tab-content">
+    <h3>World Properties</h3>
+    <div class="world-section">
+        <h4>Environment</h4>
+        <div class="world-control-group">
+            <label for="environment-intensity">Environment Intensity:</label>
+            <input type="range" id="environment-intensity" min="0" max="5" step="0.1" value="1" class="world-slider">
+            <span id="environment-intensity-value">1.0</span>
+        </div>
+        <div class="world-control-group">
+            <label for="environment-rotation">Environment Rotation:</label>
+            <input type="range" id="environment-rotation" min="0" max="360" step="1" value="0" class="world-slider">
+            <span id="environment-rotation-value">0°</span>
+        </div>
+        <div class="world-control-group">
+            <button id="environment-reset" class="world-button">Reset Environment</button>
+        </div>
+    </div>
+    
+    <div class="world-section">
+        <h4>Lighting</h4>
+        <div class="world-control-group">
+            <label for="light-intensity">Main Light Intensity:</label>
+            <input type="range" id="light-intensity" min="0" max="10" step="0.1" value="1" class="world-slider">
+            <span id="light-intensity-value">1.0</span>
+        </div>
+        <div class="world-control-group">
+            <label for="light-color">Light Color:</label>
+            <input type="color" id="light-color" value="#ffffff" class="world-color-picker">
+        </div>
+        <div class="world-control-group">
+            <label for="light-position">Light Position:</label>
+            <div class="position-controls">
+                <div class="position-row">
+                    <label>X:</label>
+                    <input type="range" id="light-position-x" min="-10" max="10" step="0.1" value="5" class="world-slider">
+                    <span id="light-position-x-value">5.0</span>
+                </div>
+                <div class="position-row">
+                    <label>Y:</label>
+                    <input type="range" id="light-position-y" min="-10" max="10" step="0.1" value="5" class="world-slider">
+                    <span id="light-position-y-value">5.0</span>
+                </div>
+                <div class="position-row">
+                    <label>Z:</label>
+                    <input type="range" id="light-position-z" min="-10" max="10" step="0.1" value="5" class="world-slider">
+                    <span id="light-position-z-value">5.0</span>
+                </div>
+            </div>
+        </div>
+        <div class="world-control-group">
+            <button id="light-reset" class="world-button">Reset Light</button>
+        </div>
+    </div>
+    
+    <div class="world-section">
+        <h4>Background</h4>
+        <div class="world-control-group">
+            <label for="background-mode">Background Mode:</label>
+            <select id="background-mode" class="world-select">
+                <option value="environment">Environment Map</option>
+                <option value="solid">Solid Color</option>
+                <option value="gradient">Gradient</option>
+            </select>
+        </div>
+        <div id="solid-color-controls" class="world-control-group" style="display: none;">
+            <label for="background-color">Background Color:</label>
+            <input type="color" id="background-color" value="#303030" class="world-color-picker">
+        </div>
+        <div id="gradient-controls" class="world-control-group" style="display: none;">
+            <label for="gradient-top-color">Top Color:</label>
+            <input type="color" id="gradient-top-color" value="#103060" class="world-color-picker">
+            <label for="gradient-bottom-color">Bottom Color:</label>
+            <input type="color" id="gradient-bottom-color" value="#000000" class="world-color-picker">
+        </div>
+    </div>
+    
+    <div class="world-section">
+        <h4>Ground & Reflections</h4>
+        <div class="world-control-group">
+            <label for="ground-visible">Show Ground:</label>
+            <input type="checkbox" id="ground-visible" checked class="world-checkbox">
+        </div>
+        <div class="world-control-group">
+            <label for="ground-reflectivity">Ground Reflectivity:</label>
+            <input type="range" id="ground-reflectivity" min="0" max="1" step="0.01" value="0.1" class="world-slider">
+            <span id="ground-reflectivity-value">0.1</span>
+        </div>
+    </div>
+    
+    <div class="world-info" id="world-info">
+        <div class="info-item">Current Environment: <span id="current-environment">Default</span></div>
+        <div class="info-item">Light Type: <span id="light-type">Directional</span></div>
+    </div>
+</div> 

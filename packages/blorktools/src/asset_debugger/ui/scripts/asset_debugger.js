@@ -12,6 +12,8 @@ import { loadSettings } from '../../data/localstorage-util.js';
 // Import SettingsModal 
 import { SettingsModal } from './settings-modal.js';
 import { ExamplesModal } from './examples-modal.js';
+// Import World Panel
+import { initWorldPanel } from './world-panel.js';
 
 // Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -61,6 +63,16 @@ function setupThemeAndUI() {
  * Load all component HTML files dynamically
  */
 function loadComponentHtml() {
+    // Load World Panel (first in the tab order)
+    fetch('../pages/world-panel.html')
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('world-tab-container').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading world panel:', error);
+        });
+    
     // Load Atlas Panel
     fetch('../pages/atlas-panel.html')
         .then(response => response.text())
@@ -171,47 +183,93 @@ function setupDebuggerEvents() {
 function setupTabNavigation() {
     console.log('Setting up tab navigation...');
     
-    // Get tab buttons and tab content elements
+    // Get tab buttons
+    const worldTabButton = document.getElementById('world-tab-button');
     const meshTabButton = document.getElementById('mesh-tab-button');
     const atlasTabButton = document.getElementById('atlas-tab-button');
     const uvTabButton = document.getElementById('uv-tab-button');
     const rigTabButton = document.getElementById('rig-tab-button');
     
-    const meshTab = document.getElementById('mesh-tab');
-    const atlasTab = document.getElementById('atlas-tab');
-    const uvTab = document.getElementById('uv-tab');
-    const rigTab = document.getElementById('rig-tab');
+    // Helper function to get the latest references to tab content elements
+    function getTabElements() {
+        return {
+            worldTab: document.getElementById('world-tab-container'),
+            worldContent: document.getElementById('world-tab'),
+            meshTab: document.getElementById('mesh-tab-container'),
+            meshContent: document.getElementById('mesh-tab'),
+            atlasTab: document.getElementById('atlas-tab'),
+            uvTab: document.getElementById('uv-tab-container'),
+            uvContent: document.getElementById('uv-tab'),
+            rigTab: document.getElementById('rig-tab-container'),
+            rigContent: document.getElementById('rig-tab')
+        };
+    }
+    
+    // Helper function to hide all tabs
+    function hideAllTabs() {
+        const tabs = getTabElements();
+        Object.values(tabs).forEach(tab => {
+            if (tab) tab.classList.remove('active');
+        });
+    }
     
     // Set up click handlers for each tab button
-    if (meshTabButton && meshTab) {
+    if (worldTabButton) {
+        worldTabButton.addEventListener('click', () => {
+            // Update active button
+            worldTabButton.classList.add('active');
+            meshTabButton.classList.remove('active');
+            atlasTabButton.classList.remove('active');
+            uvTabButton.classList.remove('active');
+            rigTabButton.classList.remove('active');
+            
+            // Hide all tabs first
+            hideAllTabs();
+            
+            // Show world tab content
+            const tabs = getTabElements();
+            if (tabs.worldTab) tabs.worldTab.classList.add('active');
+            if (tabs.worldContent) tabs.worldContent.classList.add('active');
+            
+            // Initialize World panel if needed
+            initWorldPanel();
+        });
+    }
+    
+    if (meshTabButton) {
         meshTabButton.addEventListener('click', () => {
             // Update active button
+            worldTabButton.classList.remove('active');
             meshTabButton.classList.add('active');
             atlasTabButton.classList.remove('active');
             uvTabButton.classList.remove('active');
             rigTabButton.classList.remove('active');
             
-            // Update active content
-            meshTab.classList.add('active');
-            atlasTab.classList.remove('active');
-            uvTab.classList.remove('active');
-            rigTab.classList.remove('active');
+            // Hide all tabs first
+            hideAllTabs();
+            
+            // Show mesh tab content
+            const tabs = getTabElements();
+            if (tabs.meshTab) tabs.meshTab.classList.add('active');
+            if (tabs.meshContent) tabs.meshContent.classList.add('active');
         });
     }
     
-    if (atlasTabButton && atlasTab) {
+    if (atlasTabButton) {
         atlasTabButton.addEventListener('click', () => {
             // Update active button
+            worldTabButton.classList.remove('active');
             meshTabButton.classList.remove('active');
             atlasTabButton.classList.add('active');
             uvTabButton.classList.remove('active');
             rigTabButton.classList.remove('active');
             
-            // Update active content
-            meshTab.classList.remove('active');
-            atlasTab.classList.add('active');
-            uvTab.classList.remove('active');
-            rigTab.classList.remove('active');
+            // Hide all tabs first
+            hideAllTabs();
+            
+            // Show atlas tab content
+            const tabs = getTabElements();
+            if (tabs.atlasTab) tabs.atlasTab.classList.add('active');
             
             // Update atlas visualization without recreating everything
             import('./atlas-panel.js').then(module => {
@@ -222,19 +280,22 @@ function setupTabNavigation() {
         });
     }
     
-    if (uvTabButton && uvTab) {
+    if (uvTabButton) {
         uvTabButton.addEventListener('click', () => {
             // Update active button
+            worldTabButton.classList.remove('active');
             meshTabButton.classList.remove('active');
             atlasTabButton.classList.remove('active');
             uvTabButton.classList.add('active');
             rigTabButton.classList.remove('active');
             
-            // Update active content
-            meshTab.classList.remove('active');
-            atlasTab.classList.remove('active');
-            uvTab.classList.add('active');
-            rigTab.classList.remove('active');
+            // Hide all tabs first
+            hideAllTabs();
+            
+            // Show UV tab content
+            const tabs = getTabElements();
+            if (tabs.uvTab) tabs.uvTab.classList.add('active');
+            if (tabs.uvContent) tabs.uvContent.classList.add('active');
             
             // Update UV panel without recreating everything
             import('./uv-panel.js').then(module => {
@@ -245,21 +306,24 @@ function setupTabNavigation() {
         });
     }
     
-    if (rigTabButton && rigTab) {
+    if (rigTabButton) {
         rigTabButton.addEventListener('click', () => {
             // Update active button
+            worldTabButton.classList.remove('active');
             meshTabButton.classList.remove('active');
             atlasTabButton.classList.remove('active');
             uvTabButton.classList.remove('active');
             rigTabButton.classList.add('active');
             
-            // Update active content
-            meshTab.classList.remove('active');
-            atlasTab.classList.remove('active');
-            uvTab.classList.remove('active');
-            rigTab.classList.add('active');
+            // Hide all tabs first
+            hideAllTabs();
             
-            // We don't need to recreate the rig panel each time, just ensure visualization is up to date
+            // Show rig tab content
+            const tabs = getTabElements();
+            if (tabs.rigTab) tabs.rigTab.classList.add('active');
+            if (tabs.rigContent) tabs.rigContent.classList.add('active');
+            
+            // Update rig panel if needed
             import('./rig-panel.js').then(module => {
                 // Only update the panel if it hasn't been initialized yet
                 if (document.getElementById('rig-content') && 
@@ -340,6 +404,7 @@ function restartDebugging() {
 
 /**
  * Initialize the debugger with the given settings
+ * @param {Object} settings - The application settings
  */
 function initializeDebugger(settings) {
     // HTML UI handling code - hide upload section, show restart button
@@ -367,6 +432,54 @@ function initializeDebugger(settings) {
     
     // Set up tab navigation
     setupTabNavigation();
+    
+    // Initialize the World panel first (it's the default active tab)
+    initWorldPanel();
+    
+    // Make sure only the World tab is active
+    // First define the getTabElements function if it's not accessible
+    function getTabElements() {
+        return {
+            worldTab: document.getElementById('world-tab-container'),
+            worldContent: document.getElementById('world-tab'),
+            meshTab: document.getElementById('mesh-tab-container'),
+            meshContent: document.getElementById('mesh-tab'),
+            atlasTab: document.getElementById('atlas-tab'),
+            uvTab: document.getElementById('uv-tab-container'),
+            uvContent: document.getElementById('uv-tab'),
+            rigTab: document.getElementById('rig-tab-container'),
+            rigContent: document.getElementById('rig-tab')
+        };
+    }
+    
+    // Helper function to hide all tabs
+    function hideAllTabs() {
+        const tabs = getTabElements();
+        Object.values(tabs).forEach(tab => {
+            if (tab) tab.classList.remove('active');
+        });
+    }
+    
+    // Hide all tabs first
+    hideAllTabs();
+    
+    // Then activate only the world tab
+    const tabs = getTabElements();
+    if (tabs.worldTab) tabs.worldTab.classList.add('active');
+    if (tabs.worldContent) tabs.worldContent.classList.add('active');
+    
+    // Make sure the World tab button is active and others inactive
+    const worldTabButton = document.getElementById('world-tab-button');
+    const meshTabButton = document.getElementById('mesh-tab-button');
+    const atlasTabButton = document.getElementById('atlas-tab-button');
+    const uvTabButton = document.getElementById('uv-tab-button');
+    const rigTabButton = document.getElementById('rig-tab-button');
+    
+    if (worldTabButton) worldTabButton.classList.add('active');
+    if (meshTabButton) meshTabButton.classList.remove('active');
+    if (atlasTabButton) atlasTabButton.classList.remove('active');
+    if (uvTabButton) uvTabButton.classList.remove('active');
+    if (rigTabButton) rigTabButton.classList.remove('active');
     
     // Initialize settings modal with loaded settings
     new SettingsModal(settings);

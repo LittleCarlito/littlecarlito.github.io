@@ -82,13 +82,15 @@
             </div>
             <div id="tab-container" class="tab-container" style="display: none;">
                 <div class="tab-navigation">
-                    <button id="mesh-tab-button" class="tab-button active">Mesh</button>
+                    <button id="world-tab-button" class="tab-button active">World</button>
+                    <button id="mesh-tab-button" class="tab-button">Mesh</button>
                     <button id="atlas-tab-button" class="tab-button">Atlas</button>
                     <button id="uv-tab-button" class="tab-button">UV</button>
                     <button id="rig-tab-button" class="tab-button">Rig</button>
                 </div>
                 <!-- Tab content containers - will be loaded dynamically -->
-                <div id="mesh-tab-container"></div>
+                <div id="world-tab-container" class="tab-content active"></div>
+                <div id="mesh-tab-container" class="tab-content"></div>
                 <div id="atlas-tab" class="tab-content">
                     <div id="atlas-panel-container"></div>
                 </div>
