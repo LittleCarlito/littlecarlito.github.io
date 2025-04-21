@@ -13,10 +13,10 @@ on:
         required: false
         default: 'manual'
 
-# Add concurrency to ensure only one instance runs at a time
+# Improve concurrency handling to avoid cancelling important runs
 concurrency:
-  group: github-pages-deploy-${{ github.sha }}
-  cancel-in-progress: true
+  group: main-pipeline-${{ github.sha }}
+  cancel-in-progress: false
 
 # Define reusable variables
 env:
@@ -269,7 +269,7 @@ jobs:
   version-and-tag:
     name: Version and Tag Packages
     needs: [test, build, capture-trigger-info]
-    if: success()
+    if: success() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -368,7 +368,12 @@ jobs:
             const packageJsonPath = path.join(packageDir, 'package.json');
             const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
             
-            if (!packageJson.name || !packageJson.version) continue;
+            // Only process packages with @littlecarlito namespace
+            if (!packageJson.name || !packageJson.version || !packageJson.name.startsWith('@littlecarlito/')) {
+              continue;
+            }
+            
+            console.log(`Checking package: ${packageJson.name} at version ${packageJson.version}`);
             
             // Check if a git tag exists for this version
             const tagName = `${packageJson.name.replace('@', '').replace('/', '-')}@${packageJson.version}`;
@@ -385,6 +390,8 @@ jobs:
                   version: packageJson.version,
                   tag: tagName
                 });
+              } else {
+                console.log(`Tag already exists for ${packageJson.name} at version ${packageJson.version}`);
               }
             } catch (error) {
               console.error(`Error checking tag for ${packageJson.name}:`, error.message);
@@ -431,6 +438,10 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           
+          # Print existing tags for debugging
+          echo "Existing tags:"
+          git tag -l
+          
           # Function to create and push a tag
           create_tag() {
             local package_name=$1
@@ -438,6 +449,12 @@ jobs:
             local tag_name=$3
             
             echo "Creating tag for $package_name@$version: $tag_name"
+            
+            # Check if tag already exists
+            if git tag -l "$tag_name" | grep -q "$tag_name"; then
+              echo "Tag $tag_name already exists, skipping creation"
+              return 0
+            fi
             
             # Create tag with message
             git tag -a "$tag_name" -m "Release $package_name v$version"
@@ -474,7 +491,7 @@ jobs:
           echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
           
           # Publish the packages using pnpm
-          pnpm -r publish --no-git-checks --access public
+          pnpm -r publish --filter "@littlecarlito/*" --no-git-checks --access public
           
           # Set outputs
           echo "tagged=$TAGGED" >> $GITHUB_OUTPUT
