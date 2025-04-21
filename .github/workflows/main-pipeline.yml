@@ -266,121 +266,18 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           artifact-name: ${{ needs.build.outputs.build_artifact_name }}
 
-  check-package-releases:
-    name: Check Package Releases
-    needs: [test, build]
+  version-and-tag:
+    name: Version and Tag Packages
+    needs: [test, build, capture-trigger-info]
     if: success()
     runs-on: ubuntu-latest
-    outputs:
-      has_packages_to_publish: ${{ steps.check-releases.outputs.has_packages_to_publish }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-          
-      # Download build artifacts
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ needs.build.outputs.build_artifact_name }}
-          path: packages
-          
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-          registry-url: 'https://npm.pkg.github.com'
-          
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: '8.15.4'
-          
-      - name: Install dependencies
-        run: pnpm install
-          
-      # Check if packages need to be published
-      - name: Check for missing package releases
-        id: check-releases
-        run: |
-          chmod +x .github/scripts/version/check-package-release.js
-          if node .github/scripts/version/check-package-release.js; then
-            echo "has_packages_to_publish=true" >> $GITHUB_OUTPUT
-            echo "Packages need to be published to GitHub npm"
-          else
-            echo "has_packages_to_publish=false" >> $GITHUB_OUTPUT
-            echo "All packages are up to date on GitHub npm"
-          fi
-
-  publish-packages:
-    name: Publish Packages to GitHub npm
-    needs: [check-package-releases]
-    if: needs.check-package-releases.outputs.has_packages_to_publish == 'true'
-    runs-on: ubuntu-latest
     permissions:
       contents: write
       packages: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-          
-      # Download build artifacts
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ env.BUILD_ARTIFACT_NAME }}
-          path: packages
-          
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-          registry-url: 'https://npm.pkg.github.com'
-          
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: '8.15.4'
-          
-      - name: Install dependencies
-        run: pnpm install
-        
-      # Publish packages
-      - name: Publish missing packages
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-        run: |
-          chmod +x .github/scripts/version/public-publish.js
-          node .github/scripts/version/public-publish.js
-          
-      # Create GitHub releases for tags if needed
-      - name: Create GitHub releases
-        uses: ./.github/actions/create-github-releases
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          package-paths: 'packages/blorkpack,packages/blorktools,packages/blorkboard,apps/portfolio'
-          package-names: '@littlecarlito/blorkpack,@littlecarlito/blorktools,@littlecarlito/blorkboard,@littlecarlito/portfolio'
-          include-changelog: true
-          retry-attempts: 1
-          debug: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  version-and-publish:
-    name: Version and Publish to GitHub npm
-    needs: [test, build, check-package-releases, capture-trigger-info]
-    if: always() && needs.test.result == 'success' && needs.check-package-releases.outputs.has_packages_to_publish != 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      packages: write
-      id-token: write
     outputs:
-      published: ${{ steps.version-publish.outputs.published }}
-      error-step: ${{ steps.version-publish.outputs.error-step }}
-      error-message: ${{ steps.version-publish.outputs.error-message }}
-      skipped-steps: ${{ steps.version-publish.outputs.skipped-steps }}
-      releases-failed: ${{ steps.version-publish.outputs.releases-failed }}
+      tagged: ${{ steps.create-tags.outputs.tagged }}
+      skipped: ${{ steps.create-tags.outputs.skipped }}
+      error-message: ${{ steps.create-tags.outputs.error-message }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -390,38 +287,13 @@ jobs:
           
       # Download build artifacts
       - name: Download build artifacts
-        id: download-artifacts
         uses: actions/download-artifact@v4
         with:
           name: ${{ needs.build.outputs.build_artifact_name }}
           path: packages
         env:
           GH_TOKEN: ${{ secrets.VERSION_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.VERSION_TOKEN }}
           
-      # Validate that artifacts were successfully downloaded
-      - name: Validate downloaded artifacts
-        run: |
-          echo "Validating downloaded artifacts for version-and-publish job..."
-          # Check that artifacts were downloaded
-          DIST_DIRS=$(find packages -name "dist" -type d | wc -l)
-          if [ "$DIST_DIRS" -eq 0 ]; then
-            echo "::error::No dist directories found in downloaded artifacts!"
-            exit 1
-          fi
-          
-          # Count files to ensure we have artifacts
-          FILE_COUNT=$(find packages -name "dist" -type d -exec find {} -type f \; | wc -l)
-          echo "Found $FILE_COUNT files in $DIST_DIRS artifact directories"
-          
-          if [ "$FILE_COUNT" -eq 0 ]; then
-            echo "::error::Downloaded artifacts contain no files!"
-            exit 1
-          fi
-          
-          echo "✅ Downloaded artifacts validation successful for version-and-publish job"
-          
-      # Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -453,106 +325,169 @@ jobs:
           
           # Store the merge base for versioning script to use
           echo "MERGE_BASE=$MERGE_BASE" >> $GITHUB_ENV
-      
-      # Check commit message for PR creation request  
-      - name: Check for PR creation request in commit message
-        id: check-pr-request
-        run: |
-          # Get the last commit message
-          COMMIT_MSG=$(git log -1 --pretty=%B)
           
-          # Check if footer contains create-pr: true
-          if echo "$COMMIT_MSG" | grep -q "create-pr: true"; then
-            echo "Manual PR creation requested in commit footer"
-            echo "create_pr=true" >> $GITHUB_OUTPUT
+      # Perform dry run of versioning to check if new tags are needed
+      - name: Dry run versioning
+        id: dry-run
+        run: |
+          echo "Running version dry run..."
+          # Create script to perform dry run versioning
+          cat << 'EOF' > version-dry-run.js
+          // Simple script to determine if versions need updating
+          import { execSync } from 'child_process';
+          import fs from 'fs';
+          import path from 'path';
+          
+          // Find all package.json files
+          const packagesDir = './packages';
+          const packages = [];
+          
+          // Recursive function to find all package.json files
+          function findPackageJson(dir) {
+            const files = fs.readdirSync(dir);
+            
+            for (const file of files) {
+              const fullPath = path.join(dir, file);
+              const stat = fs.statSync(fullPath);
+              
+              if (stat.isDirectory()) {
+                findPackageJson(fullPath);
+              } else if (file === 'package.json') {
+                packages.push(dir);
+              }
+            }
+          }
+          
+          findPackageJson(packagesDir);
+          
+          let needsVersioning = false;
+          const packagesToVersion = [];
+          
+          // Check each package for version updates
+          for (const packageDir of packages) {
+            const packageJsonPath = path.join(packageDir, 'package.json');
+            const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+            
+            if (!packageJson.name || !packageJson.version) continue;
+            
+            // Check if a git tag exists for this version
+            const tagName = `${packageJson.name.replace('@', '').replace('/', '-')}@${packageJson.version}`;
+            
+            try {
+              execSync(`git tag -l "${tagName}"`, { stdio: 'pipe' });
+              const tagExists = execSync(`git tag -l "${tagName}"`).toString().trim() === tagName;
+              
+              if (!tagExists) {
+                console.log(`Package ${packageJson.name} at version ${packageJson.version} has no tag`);
+                needsVersioning = true;
+                packagesToVersion.push({
+                  name: packageJson.name,
+                  version: packageJson.version,
+                  tag: tagName
+                });
+              }
+            } catch (error) {
+              console.error(`Error checking tag for ${packageJson.name}:`, error.message);
+            }
+          }
+          
+          // Output results
+          console.log(`Found ${packagesToVersion.length} packages that need tagging`);
+          
+          if (packagesToVersion.length > 0) {
+            console.log('NEEDS_VERSIONING=true');
+            fs.writeFileSync('packages-to-version.json', JSON.stringify(packagesToVersion, null, 2));
+          } else {
+            console.log('NEEDS_VERSIONING=false');
+          }
+          
+          process.exit(packagesToVersion.length > 0 ? 0 : 1);
+          EOF
+          
+          # Run the dry run script
+          if node version-dry-run.js; then
+            echo "needs_versioning=true" >> $GITHUB_OUTPUT
+            echo "Packages need versioning"
+            cat packages-to-version.json
           else
-            echo "No PR creation request found, will use direct publishing"
-            echo "create_pr=false" >> $GITHUB_OUTPUT
+            echo "needs_versioning=false" >> $GITHUB_OUTPUT
+            echo "All packages are properly tagged"
           fi
-      
-      # Version packages 
-      - name: Version Packages
-        id: version
+          
+      # Create tags and push them to GitHub
+      - name: Create and push tags
+        id: create-tags
+        if: steps.dry-run.outputs.needs_versioning == 'true'
         env:
-          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-          IS_PR_MERGE: ${{ needs.capture-trigger-info.outputs.is_merge_pr }}
-          PR_NUMBER: ${{ needs.capture-trigger-info.outputs.pr_number }}
-          SOURCE_BRANCH: ${{ needs.capture-trigger-info.outputs.source_branch_name }}
+          GITHUB_TOKEN: ${{ secrets.VERSION_TOKEN }}
         run: |
-          if [ "${{ steps.check-pr-request.outputs.create_pr }}" == "true" ]; then
-            echo "Manual PR creation requested in commit footer, using standard publishing"
-            echo "Running version script..."
-            node scripts/version-packages.js
+          echo "Creating and pushing tags..."
+          
+          # Load the packages that need tagging
+          PACKAGES_TO_VERSION=$(cat packages-to-version.json)
+          
+          # Setup git config
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+          # Function to create and push a tag
+          create_tag() {
+            local package_name=$1
+            local version=$2
+            local tag_name=$3
             
-            # Check if any packages were versioned
-            HAS_CHANGES=$(git status --porcelain | grep -E "packages/|apps/" | wc -l)
-            if [ "$HAS_CHANGES" -gt 0 ]; then
-              echo "Changes detected in package versions"
-              git config --global user.name "GitHub Actions"
-              git config --global user.email "actions@github.com"
-              git add .
-              git commit -m "chore: version packages [skip ci]"
-              git push
-              echo "versioned=true" >> $GITHUB_OUTPUT
+            echo "Creating tag for $package_name@$version: $tag_name"
+            
+            # Create tag with message
+            git tag -a "$tag_name" -m "Release $package_name v$version"
+            
+            # Push tag
+            if git push origin "$tag_name"; then
+              echo "Successfully pushed tag $tag_name"
+              return 0
             else
-              echo "No version changes detected"
-              echo "versioned=false" >> $GITHUB_OUTPUT
+              echo "Failed to push tag $tag_name"
+              return 1
             fi
-          else
-            echo "Using direct publishing with deploy key to bypass branch protection"
-            chmod +x .github/scripts/version/direct-publish.sh
+          }
+          
+          # Process each package
+          TAGGED=0
+          FAILED=0
+          
+          # Parse the JSON and iterate through packages
+          echo "$PACKAGES_TO_VERSION" | jq -c '.[]' | while read -r package; do
+            name=$(echo "$package" | jq -r '.name')
+            version=$(echo "$package" | jq -r '.version')
+            tag=$(echo "$package" | jq -r '.tag')
             
-            # Create .npmrc file with authentication token
-            echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
-            
-            # Set additional arguments for PR merge versioning if applicable
-            if [ "$IS_PR_MERGE" == "true" ] && [ -n "$MERGE_BASE" ]; then
-              echo "Adding PR merge base for version calculation: $MERGE_BASE"
-              PR_ARGS="--merge-base $MERGE_BASE"
+            if create_tag "$name" "$version" "$tag"; then
+              TAGGED=$((TAGGED + 1))
             else
-              PR_ARGS=""
+              FAILED=$((FAILED + 1))
+              echo "::error::Failed to create tag for $name@$version"
             fi
-            
-            # Run the script with possible PR arguments
-            ./.github/scripts/version/direct-publish.sh $PR_ARGS
-            echo "versioned=true" >> $GITHUB_OUTPUT
-            echo "published=true" >> $GITHUB_OUTPUT
+          done
+          
+          # Publish packages to npm registry if needed
+          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+          
+          # Publish the packages using pnpm
+          pnpm -r publish --no-git-checks --access public
+          
+          # Set outputs
+          echo "tagged=$TAGGED" >> $GITHUB_OUTPUT
+          
+          if [ $FAILED -gt 0 ]; then
+            echo "error-message=Failed to create $FAILED tags" >> $GITHUB_OUTPUT
           fi
           
-      # Publish packages
-      - name: Publish Packages
-        id: publish
-        if: steps.version.outputs.versioned == 'true' && steps.version.outputs.published != 'true'
-        run: |
-          echo "Publishing packages..."
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.PACKAGE_TOKEN }}" > .npmrc
-          node scripts/publish-packages.js ${{ steps.check-pr-request.outputs.create_pr == 'true' && '--force' || '' }}
-          echo "published=true" >> $GITHUB_OUTPUT
-          
-      # Create GitHub releases for tags
-      - name: Create GitHub releases
-        id: create-releases
-        if: steps.publish.outputs.published == 'true'
-        uses: ./.github/actions/create-github-releases
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          package-paths: 'packages/blorkpack,packages/blorktools,packages/blorkboard,apps/portfolio'
-          package-names: '@littlecarlito/blorkpack,@littlecarlito/blorktools,@littlecarlito/blorkboard,@littlecarlito/portfolio'
-          include-changelog: true
-          retry-attempts: 1
-          debug: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
-      # Set outputs for the job
-      - name: Set outputs
-        id: version-publish
-        run: |
-          echo "published=${{ steps.publish.outputs.published || 'false' }}" >> $GITHUB_OUTPUT
-          echo "error-step=${{ steps.version.outputs.error || steps.publish.outputs.error || '' }}" >> $GITHUB_OUTPUT
-          echo "error-message=${{ steps.version.outputs.error-message || steps.publish.outputs.error-message || '' }}" >> $GITHUB_OUTPUT
-          echo "releases-failed=${{ steps.create-releases.outputs.failed-releases || '0' }}" >> $GITHUB_OUTPUT
+          if [ $TAGGED -eq 0 ]; then
+            echo "skipped=true" >> $GITHUB_OUTPUT
+          else
+            echo "skipped=false" >> $GITHUB_OUTPUT
+          fi
 
   # Build the site for GitHub Pages
   build-site:
@@ -626,7 +561,7 @@ jobs:
   # Report pipeline results (always runs after all jobs)
   report-results:
     name: Report Pipeline Results
-    needs: [capture-trigger-info, build, test, version-and-publish, build-site]
+    needs: [capture-trigger-info, build, test, version-and-tag, build-site]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -634,19 +569,16 @@ jobs:
       - name: Determine workflow result
         id: workflow-result
         run: |
-          # Store the outputs from version-and-publish job in a format that avoids context access issues
-          PUBLISH_OUTPUTS='${{ toJSON(needs.version-and-publish.outputs) }}'
-          RELEASES_FAILED=$(echo "$PUBLISH_OUTPUTS" | jq -r '.["releases-failed"] // "0"')
-          ERROR_STEP=$(echo "$PUBLISH_OUTPUTS" | jq -r '.["error-step"] // ""')
-          ERROR_MSG=$(echo "$PUBLISH_OUTPUTS" | jq -r '.["error-message"] // ""')
-          SKIPPED_STEPS=$(echo "$PUBLISH_OUTPUTS" | jq -r '.["skipped-steps"] // ""')
+          # Store the outputs from version-and-tag job in a format that avoids context access issues
+          TAG_OUTPUTS='${{ toJSON(needs.version-and-tag.outputs) }}'
+          RELEASES_FAILED=$(echo "$TAG_OUTPUTS" | jq -r '.["error-message"] // ""')
           
           # Check results of required jobs
           if [[ "${{ needs.build.result }}" == "success" && "${{ needs.test.result }}" == "success" ]]; then
-            # Check if version and publish had issues with releases
-            if [[ "${{ needs.version-and-publish.result }}" == "success" && -n "$RELEASES_FAILED" && "$RELEASES_FAILED" -gt 0 ]]; then
+            # Check if version and tag had issues
+            if [[ "${{ needs.version-and-tag.result }}" == "success" && -n "$RELEASES_FAILED" && "$RELEASES_FAILED" -gt 0 ]]; then
               echo "result=partial" >> $GITHUB_OUTPUT
-              echo "message=Package publishing succeeded but some releases failed to create" >> $GITHUB_OUTPUT
+              echo "message=Package versioning succeeded but some releases failed to create" >> $GITHUB_OUTPUT
             else
               echo "result=success" >> $GITHUB_OUTPUT
             fi
@@ -660,24 +592,14 @@ jobs:
           echo "trigger_detail=${{ needs.capture-trigger-info.outputs.trigger_detail }}" >> $GITHUB_OUTPUT
           echo "source_branch=${{ needs.capture-trigger-info.outputs.source_branch }}" >> $GITHUB_OUTPUT
           
-          # Get detailed error information if version-and-publish failed or had issues
-          if [[ "${{ needs.version-and-publish.result }}" == "failure" || (-n "$RELEASES_FAILED" && "$RELEASES_FAILED" -gt 0) ]]; then
-            FAILED_STEP="$ERROR_STEP"
-            ERROR_MESSAGE="$ERROR_MSG"
-            
-            # If releases failed but publishing succeeded
-            if [[ "${{ needs.version-and-publish.result }}" == "success" && -n "$RELEASES_FAILED" && "$RELEASES_FAILED" -gt 0 ]]; then
-              FAILED_STEP="Create GitHub releases"
-              ERROR_MESSAGE="Published packages but failed to create $RELEASES_FAILED releases/tags"
-            fi
+          # Get detailed error information if version-and-tag failed or had issues
+          if [[ "${{ needs.version-and-tag.result }}" == "failure" || (-n "$RELEASES_FAILED" && "$RELEASES_FAILED" -gt 0) ]]; then
+            ERROR_MESSAGE="$RELEASES_FAILED"
             
             # Construct detailed error message
             DETAIL_MSG=""
-            if [[ -n "$FAILED_STEP" ]]; then
-              DETAIL_MSG="step:$FAILED_STEP,"
-            fi
             if [[ -n "$ERROR_MESSAGE" ]]; then
-              DETAIL_MSG="${DETAIL_MSG}error:$ERROR_MESSAGE,"
+              DETAIL_MSG="error:$ERROR_MESSAGE,"
             fi
             
             echo "error_details=$DETAIL_MSG" >> $GITHUB_OUTPUT

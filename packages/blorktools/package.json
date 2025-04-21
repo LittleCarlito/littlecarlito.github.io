@@ -14,7 +14,7 @@
     "dev": "vite",
     "test": "cd ../.. && jest packages/blorktools/src/test tests/packages/blorktools --config=tests/config/jest/jest.config.cjs --passWithNoTests",
     "clean": "rimraf dist",
-    "tools": "./tools.js",
+    "tools": "node tools.js",
     "tools:modular": "vite serve src/ --open /asset_debugger/ui/pages/asset_debugger.html"
   },
   "dependencies": {
