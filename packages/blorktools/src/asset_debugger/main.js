@@ -41,6 +41,19 @@ export function init() {
  */
 function preventDefaultDragEvents() {
     const preventDefaults = function(e) {
+        // Skip if the target is one of our dropzones
+        const dropzoneIds = [
+            'basecolor-dropzone', 
+            'orm-dropzone', 
+            'normal-dropzone',
+            'model-dropzone',
+            'lighting-dropzone'
+        ];
+        
+        if (dropzoneIds.some(id => e.target.id === id || e.target.closest(`#${id}`))) {
+            return; // Don't prevent default for dropzones
+        }
+        
         e.preventDefault();
         e.stopPropagation();
     };

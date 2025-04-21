@@ -64,6 +64,11 @@ export function setupDropzones() {
  * @param {HTMLElement} previewElement - Element to display file preview (null for model)
  */
 function setupDropzone(dropzone, fileType, infoElement, previewElement) {
+    // First remove any existing event listeners to prevent duplicates
+    const clone = dropzone.cloneNode(true);
+    dropzone.parentNode.replaceChild(clone, dropzone);
+    dropzone = clone;
+
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropzone.addEventListener(eventName, (e) => {
