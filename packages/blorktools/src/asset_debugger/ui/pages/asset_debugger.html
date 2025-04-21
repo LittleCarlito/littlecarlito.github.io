@@ -17,7 +17,7 @@
     
     <div class="container">
         <div id="upload-section" class="tool-panel">
-            <h2>Upload Files (Optional)</h2>
+            <h2>Asset Files</h2>
             <div class="dropzone-container">
                 <div class="dropzone" id="basecolor-dropzone">
                     <h3>Base Color Atlas</h3>
@@ -45,10 +45,20 @@
                 </div>
             </div>
             
+            <h2>World Files</h2>
+            <div class="dropzone-container">
+                <div class="dropzone" id="lighting-dropzone">
+                    <h3>Lighting File</h3>
+                    <p>Drag & drop your HDR or EXR lighting file here</p>
+                    <p class="file-info" id="lighting-info"></p>
+                </div>
+            </div>
+            
             <div class="preview-container">
                 <div class="preview" id="basecolor-preview"></div>
                 <div class="preview" id="orm-preview"></div>
                 <div class="preview" id="normal-preview"></div>
+                <div class="preview" id="lighting-preview"></div>
             </div>
             
             <button id="start-debug" class="start-button">Start Debugging</button>

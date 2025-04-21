@@ -16,17 +16,20 @@ export function setupDropzones() {
     const ormDropzone = document.getElementById('orm-dropzone');
     const normalDropzone = document.getElementById('normal-dropzone');
     const modelDropzone = document.getElementById('model-dropzone');
+    const lightingDropzone = document.getElementById('lighting-dropzone');
     
     // Get info elements
     const baseColorInfo = document.getElementById('basecolor-info');
     const ormInfo = document.getElementById('orm-info');
     const normalInfo = document.getElementById('normal-info');
     const modelInfo = document.getElementById('model-info');
+    const lightingInfo = document.getElementById('lighting-info');
     
     // Get preview elements
     const baseColorPreview = document.getElementById('basecolor-preview');
     const ormPreview = document.getElementById('orm-preview');
     const normalPreview = document.getElementById('normal-preview');
+    const lightingPreview = document.getElementById('lighting-preview');
     
     // Ensure the start button is disabled initially
     checkStartButton();
@@ -47,12 +50,16 @@ export function setupDropzones() {
     if (modelDropzone && modelInfo) {
         setupDropzone(modelDropzone, 'model', modelInfo, null);
     }
+    
+    if (lightingDropzone && lightingInfo && lightingPreview) {
+        setupDropzone(lightingDropzone, 'lighting', lightingInfo, lightingPreview);
+    }
 }
 
 /**
  * Setup an individual dropzone
  * @param {HTMLElement} dropzone - The dropzone element
- * @param {string} fileType - The type of file ('baseColor', 'orm', 'normal', 'model')
+ * @param {string} fileType - The type of file ('baseColor', 'orm', 'normal', 'model', 'lighting')
  * @param {HTMLElement} infoElement - Element to display file info
  * @param {HTMLElement} previewElement - Element to display file preview (null for model)
  */
@@ -90,10 +97,25 @@ function setupDropzone(dropzone, fileType, infoElement, previewElement) {
                 handleModelUpload(file, infoElement, dropzone);
             } else {
                 alert('Please upload a GLB file for the model');
+                return false;
+            }
+        } else if (fileType === 'lighting') {
+            if (file && (file.name.toLowerCase().endsWith('.hdr') || file.name.toLowerCase().endsWith('.exr'))) {
+                handleLightingUpload(file, infoElement, previewElement, dropzone);
+            } else {
+                alert('Please upload an HDR or EXR file for lighting');
+                return false;
             }
         } else {
-            if (file && file.type.startsWith('image/')) {
+            // Check for valid texture file extensions
+            const validExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp'];
+            const isValidTextureFile = file && validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+            
+            if (isValidTextureFile) {
                 handleTextureUpload(file, fileType, infoElement, previewElement, dropzone);
+            } else if (file) {
+                alert('Please upload a valid texture file (PNG, JPG, WEBP, TIF, BMP)');
+                return false;
             }
         }
         return false;
@@ -111,17 +133,37 @@ function setupDropzone(dropzone, fileType, infoElement, previewElement) {
                 const file = e.target.files[0];
                 if (file && file.name.toLowerCase().endsWith('.glb')) {
                     handleModelUpload(file, infoElement, dropzone);
-                } else {
+                } else if (file) {
                     alert('Please upload a GLB file for the model');
                 }
             };
+        } else if (fileType === 'lighting') {
+            input.accept = '.hdr,.exr';
+            
+            input.onchange = e => {
+                const file = e.target.files[0];
+                if (file && (file.name.toLowerCase().endsWith('.hdr') || file.name.toLowerCase().endsWith('.exr'))) {
+                    handleLightingUpload(file, infoElement, previewElement, dropzone);
+                } else if (file) {
+                    alert('Please upload an HDR or EXR file for lighting');
+                }
+            };
         } else {
-            input.accept = 'image/*';
+            // Set accept attribute to specify valid image formats
+            input.accept = '.png,.jpg,.jpeg,.webp,.tif,.tiff,.bmp';
             
             input.onchange = e => {
                 const file = e.target.files[0];
                 if (file) {
-                    handleTextureUpload(file, fileType, infoElement, previewElement, dropzone);
+                    // Check for valid texture file extensions
+                    const validExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp'];
+                    const isValidTextureFile = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+                    
+                    if (isValidTextureFile) {
+                        handleTextureUpload(file, fileType, infoElement, previewElement, dropzone);
+                    } else {
+                        alert('Please upload a valid texture file (PNG, JPG, WEBP, TIF, BMP)');
+                    }
                 }
             };
         }
@@ -214,6 +256,44 @@ function handleModelUpload(file, infoElement, dropzone) {
         hint.textContent = 'Textures are optional with GLB';
         hint.style.color = '#88cc88'; // Light green color
     });
+    
+    // Check if we can enable the start button
+    checkStartButton();
+}
+
+/**
+ * Handle lighting file upload
+ * @param {File} file - The uploaded file
+ * @param {HTMLElement} infoElement - Element to display file info
+ * @param {HTMLElement} previewElement - Element to display file preview
+ * @param {HTMLElement} dropzone - The dropzone element
+ */
+function handleLightingUpload(file, infoElement, previewElement, dropzone) {
+    // Store the file in the state
+    updateState('lightingFile', file);
+    
+    // Show file info
+    infoElement.textContent = `${file.name} (${formatFileSize(file.size)})`;
+    
+    // Mark dropzone as having a file
+    dropzone.classList.add('has-file');
+    
+    // Create a preview (simple placeholder for HDR/EXR)
+    previewElement.innerHTML = '';
+    
+    // Create a div to show a placeholder for the HDR/EXR file
+    const placeholderDiv = document.createElement('div');
+    placeholderDiv.className = 'hdr-placeholder';
+    placeholderDiv.textContent = 'HDR/EXR';
+    placeholderDiv.style.backgroundColor = '#334455';
+    placeholderDiv.style.color = 'white';
+    placeholderDiv.style.width = '100%';
+    placeholderDiv.style.height = '100%';
+    placeholderDiv.style.display = 'flex';
+    placeholderDiv.style.justifyContent = 'center';
+    placeholderDiv.style.alignItems = 'center';
+    
+    previewElement.appendChild(placeholderDiv);
     
     // Check if we can enable the start button
     checkStartButton();

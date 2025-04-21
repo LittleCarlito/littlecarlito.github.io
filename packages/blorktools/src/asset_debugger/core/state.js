@@ -31,6 +31,9 @@ const initialState = {
     // Model file (File object)
     modelFile: null,
     
+    // Lighting file (File object for HDR/EXR environment map)
+    lightingFile: null,
+    
     // Animation ID for cancelAnimationFrame
     animationId: null,
     
