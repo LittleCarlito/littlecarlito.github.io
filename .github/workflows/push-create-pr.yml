@@ -211,7 +211,7 @@ jobs:
           repository: ${{ github.repository }}
           pr-number: ${{ steps.manage_pr.outputs.pr-number }}
           commit-title: ${{ steps.merge_message.outputs.merge_title }}
-          merge-method: 'squash'
+          merge-method: 'merge'
           delete-branch: 'true'
           commit-message: 'Merge PR #${{ steps.manage_pr.outputs.pr-number }} from ${{ steps.branch_info.outputs.branch }}\n\ncreate-pr: false\ntriggered-by: push-create-pr'
 

@@ -36,10 +36,49 @@ function repairWorkspaceLinks() {
   }
 }
 
+// Build dependency packages first
+function buildDependencyPackages() {
+  console.log('Building dependency packages first...');
+  try {
+    // Build blorkpack
+    console.log('Building blorkpack...');
+    execSync('pnpm --filter="@littlecarlito/blorkpack" build', {
+      stdio: 'inherit',
+      shell: true,
+      env: {
+        ...process.env,
+        PATH: process.env.PATH
+      }
+    });
+    
+    // Build blorktools
+    console.log('Building blorktools...');
+    execSync('pnpm --filter="@littlecarlito/blorktools" build', {
+      stdio: 'inherit',
+      shell: true,
+      env: {
+        ...process.env,
+        PATH: process.env.PATH
+      }
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to build dependency packages:', error.message);
+    return false;
+  }
+}
+
 // Check if blorkboard package exists
 try {
   fs.accessSync(path.join(__dirname, '../packages/blorkboard/package.json'));
   console.log('Running blorkboard dev script...');
+  
+  // Build dependency packages first
+  if (!buildDependencyPackages()) {
+    console.error('Failed to build dependencies. Cannot proceed.');
+    process.exit(1);
+  }
   
   try {
     // Use double quotes for Windows compatibility
@@ -67,6 +106,12 @@ try {
   console.error('Error: Could not find blorkboard package. Running install first...');
   
   if (repairWorkspaceLinks()) {
+    // Build dependency packages before dev
+    if (!buildDependencyPackages()) {
+      console.error('Failed to build dependencies. Cannot proceed.');
+      process.exit(1);
+    }
+    
     console.log('\nNow trying to run dev script...');
     execSync('pnpm --filter="@littlecarlito/blorkboard" dev', { 
       stdio: 'inherit',
