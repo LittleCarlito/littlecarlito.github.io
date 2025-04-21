@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { getState, updateState } from './state.js';
+import { updateRigAnimation } from './rig/rig-manager.js';
 
 /**
  * Initialize the Three.js scene, camera, renderer and controls
@@ -111,6 +112,9 @@ export function startAnimation() {
         if (currentState.controls) {
             currentState.controls.update();
         }
+        
+        // Update rig animations regardless of which tab is active
+        updateRigAnimation();
         
         // Render the scene
         if (currentState.renderer && currentState.scene && currentState.camera) {

@@ -1,0 +1,51 @@
+#!/bin/sh
+
+echo "📊 POST-COMMIT REPORT"
+echo "===================="
+
+# Get current branch name
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+# Start collecting results to a variable for a clean report
+OUTPUT=""
+
+# Use git ls-files to respect .gitignore and only find js/html files over 1000 lines
+OUTPUT="${OUTPUT}\n🔍 LARGE FILES (>1000 lines, JS/HTML only):\n"
+git ls-files "*.js" "*.html" | xargs wc -l 2>/dev/null | awk '$1 > 1000 {print "📄 " $1 " lines: " substr($0, index($0, $2))}' | sort -nr | head -10 > /tmp/large_files.txt
+LARGE_FILES=$(cat /tmp/large_files.txt)
+LARGE_FILES_COUNT=$(wc -l < /tmp/large_files.txt | tr -d ' ')
+
+if [ "$LARGE_FILES_COUNT" -gt 0 ]; then
+  OUTPUT="${OUTPUT}${LARGE_FILES}"
+  if [ "$LARGE_FILES_COUNT" -gt 10 ]; then
+    OUTPUT="${OUTPUT}\n...and $(($LARGE_FILES_COUNT - 10)) more files over 1000 lines"
+  fi
+else
+  OUTPUT="${OUTPUT}✅ No large JS or HTML files found"
+fi
+
+# Version bump check
+if [ "$CURRENT_BRANCH" != "main" ]; then
+  OUTPUT="${OUTPUT}\n\n📈 VERSION BUMP IMPACT (if merged to main):\n"
+  
+  # Capture the output of test-version
+  if command -v pnpm &> /dev/null; then
+    VERSION_OUTPUT=$(pnpm test-version --quiet 2>/dev/null)
+    
+    if [ $? -eq 0 ]; then
+      # Extract just the version changes summary
+      VERSION_CHANGES=$(echo "$VERSION_OUTPUT" | grep -A 20 "Version Changes that would be applied:" | grep -v "Would you like to see" | grep -v "No response received")
+      OUTPUT="${OUTPUT}${VERSION_CHANGES}"
+    else
+      OUTPUT="${OUTPUT}❌ Error running version check command"
+    fi
+  else
+    OUTPUT="${OUTPUT}⚠️ pnpm not found. Skipping version bump check."
+  fi
+else
+  OUTPUT="${OUTPUT}\n\n📌 Currently on main branch - no version bump check needed"
+fi
+
+# Print the collected output
+echo "$OUTPUT"
+echo "\n====================" 

@@ -3,13 +3,45 @@
  * 
  * This module handles texture atlas visualization in the UI.
  */
-import { getState, updateState } from '../core/state.js';
+import { getState, updateState } from "../../core/state.js";
 
 /**
  * Initialize the atlas panel and set up event listeners
  */
 export function initAtlasPanel() {
+    console.log('Initializing Atlas Panel...');
+    
+    // Initialize the panel once the atlas-panel-container is found and has content
+    const initCheck = setInterval(() => {
+        const container = document.getElementById('atlas-panel-container');
+        if (container && container.children.length > 0) {
+            clearInterval(initCheck);
+            console.log('Atlas Panel container found, setting up event listeners...');
+            setupAtlasPanelEvents();
+        }
+    }, 100);
+}
+
+/**
+ * Set up event listeners for the atlas panel
+ */
+function setupAtlasPanelEvents() {
     const textureTypeButtons = document.querySelectorAll('.texture-type-button');
+    
+    // Check if any button has the active class
+    let hasActiveButton = false;
+    textureTypeButtons.forEach(button => {
+        if (button.classList.contains('active')) {
+            hasActiveButton = true;
+        }
+    });
+    
+    // If no button is active, set the first one as active
+    if (!hasActiveButton && textureTypeButtons.length > 0) {
+        textureTypeButtons[0].classList.add('active');
+        // Update state with the default texture type
+        updateState('currentTextureType', textureTypeButtons[0].dataset.textureType);
+    }
     
     // Set up texture type button handlers
     textureTypeButtons.forEach(button => {
@@ -25,49 +57,68 @@ export function initAtlasPanel() {
             updateAtlasVisualization();
         });
     });
+    
+    // Initialize visualization
+    updateAtlasVisualization();
 }
 
 /**
- * Update the atlas visualization
+ * Update the atlas visualization based on the selected texture type
  */
 export function updateAtlasVisualization() {
+    console.log('Updating atlas visualization...');
     const state = getState();
     
-    // Get the current texture type
-    const textureType = state.currentTextureType;
-    
-    // Get the texture for the current type
-    const texture = state.textureObjects[textureType];
-    
-    // Get the canvas element
-    const atlasCanvas = document.getElementById('atlas-canvas');
-    if (!atlasCanvas) return;
-    
-    // Update the canvas with the texture
-    if (texture && texture.image) {
-        updateCanvasWithTexture(texture, state.currentUvRegion);
-    } else {
-        showNoTextureState(atlasCanvas);
+    // Get active texture type from UI
+    const activeButton = document.querySelector('.texture-type-button.active');
+    if (!activeButton) {
+        console.error('No active texture type button found');
+        return;
     }
     
-    // Update active state of texture type buttons
-    const textureTypeButtons = document.querySelectorAll('.texture-type-button');
-    textureTypeButtons.forEach(button => {
-        if (button.dataset.textureType === textureType) {
-            button.classList.add('active');
-        } else {
-            button.classList.remove('active');
-        }
-        
-        // Indicate which texture types have data available
-        if (state.textureObjects[button.dataset.textureType]) {
-            button.style.opacity = '1.0';
-            button.style.fontWeight = 'bold';
-        } else {
-            button.style.opacity = '0.7';
-            button.style.fontWeight = 'normal';
-        }
-    });
+    const selectedType = activeButton.getAttribute('data-texture-type');
+    console.log('Selected texture type:', selectedType);
+    
+    // Get the texture based on selected type
+    const texture = state.textureObjects[selectedType];
+    
+    // Get the atlas canvas
+    const atlasCanvas = document.getElementById('atlas-canvas');
+    if (!atlasCanvas) {
+        console.error('Atlas canvas not found');
+        return;
+    }
+    
+    // Check if we have the selected texture
+    if (!texture || !texture.image) {
+        // Show the "No texture loaded" message
+        showNoTextureState(atlasCanvas);
+        return;
+    }
+    
+    // Get 2D context and clear it
+    const ctx = atlasCanvas.getContext('2d');
+    
+    // Set the canvas size to match the texture 
+    atlasCanvas.width = texture.image.width;
+    atlasCanvas.height = texture.image.height;
+    
+    // Clear the canvas
+    ctx.clearRect(0, 0, atlasCanvas.width, atlasCanvas.height);
+    
+    // Draw the texture
+    ctx.drawImage(texture.image, 0, 0);
+    
+    // Update the canvas container size
+    const container = document.getElementById('atlas-panel-container');
+    if (container) {
+        // Adjust container to fit the canvas with some padding
+        const padding = 20;
+        container.style.width = (atlasCanvas.width + padding) + 'px';
+        container.style.height = (atlasCanvas.height + padding) + 'px';
+    }
+    
+    console.log('Atlas visualization updated');
 }
 
 /**
@@ -122,21 +173,28 @@ function showNoTextureState(atlasCanvas) {
     
     const ctx = atlasCanvas.getContext('2d');
     
-    // Clear canvas with dark background
-    ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(0, 0, atlasCanvas.width, atlasCanvas.height);
+    // Make sure canvas has reasonable dimensions
+    if (atlasCanvas.width < 200) atlasCanvas.width = 260;
+    if (atlasCanvas.height < 200) atlasCanvas.height = 260;
     
-    // Draw a border
-    ctx.strokeStyle = '#444';
+    // Clear canvas with transparent background
+    ctx.clearRect(0, 0, atlasCanvas.width, atlasCanvas.height);
+    
+    // Draw a visible border
+    ctx.strokeStyle = '#666';
     ctx.lineWidth = 2;
-    ctx.strokeRect(1, 1, atlasCanvas.width - 2, atlasCanvas.height - 2);
+    ctx.strokeRect(2, 2, atlasCanvas.width - 4, atlasCanvas.height - 4);
     
-    // Draw "No texture loaded" text
+    // Add a subtle background to make text more readable
+    ctx.fillStyle = 'rgba(40, 40, 40, 0.3)';
+    ctx.fillRect(2, 2, atlasCanvas.width - 4, atlasCanvas.height - 4);
+    
+    // Draw "No Atlas Data" text
     ctx.fillStyle = '#aaa';
-    ctx.font = '14px monospace';
+    ctx.font = 'bold 16px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('No texture loaded', atlasCanvas.width / 2, atlasCanvas.height / 2 - 15);
+    ctx.fillText('No Atlas Data', atlasCanvas.width / 2, atlasCanvas.height / 2 - 15);
     
     // Add additional help text
     ctx.font = '12px monospace';

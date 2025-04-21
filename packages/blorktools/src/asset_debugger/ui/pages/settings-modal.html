@@ -1,0 +1,158 @@
+<!-- Settings Modal Component -->
+<div id="settings-modal" class="modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3 class="modal-title">Settings</h3>
+            <button class="modal-close" id="close-settings-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <!-- Settings Tab Navigation -->
+            <div class="settings-tabs">
+                <button class="settings-tab-button active" data-tab="general-settings">General</button>
+                <button class="settings-tab-button" data-tab="rig-settings">Rig Options</button>
+            </div>
+            
+            <!-- General Settings Tab -->
+            <div id="general-settings" class="settings-tab-content active">
+                <div class="settings-row">
+                    <div class="settings-subheading">Axis Indicator</div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-option">
+                        <label for="axis-indicator-type">Type:</label>
+                        <select id="axis-indicator-type" class="settings-select">
+                            <option value="disabled">Disabled</option>
+                            <option value="corner">Windowed</option>
+                            <option value="embedded">Embedded</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="embedded-axis-settings" class="settings-row" style="display: none;">
+                    <div class="settings-option full-width">
+                        <label for="axis-intensity">Intensity:</label>
+                        <div class="slider-container">
+                            <input type="range" id="axis-intensity" class="settings-slider" min="0.1" max="1" step="0.1" value="0.7">
+                            <span id="axis-intensity-value">0.7</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Axis Indicator Settings Tab - loaded dynamically -->
+            <div id="axis-settings-container"></div>
+            
+            <!-- Rig Options Settings Tab -->
+            <div id="rig-settings" class="settings-tab-content">
+                <div class="settings-group">
+                    <div class="settings-row">
+                        <div class="settings-subheading">Rig Visualization</div>
+                    </div>
+                    <!-- First row - Toggle controls -->
+                    <div class="settings-row">
+                        <div class="settings-option">
+                            <label for="display-rig">Display Rig</label>
+                            <input type="checkbox" id="display-rig" class="settings-checkbox">
+                        </div>
+                        <div class="settings-option">
+                            <label for="force-z">Force Z-index</label>
+                            <input type="checkbox" id="force-z" class="settings-checkbox">
+                        </div>
+                    </div>
+                    
+                    <!-- Second row - Toggle controls -->
+                    <div class="settings-row">
+                        <div class="settings-option">
+                            <label for="fill-wireframe">Fill Wireframe</label>
+                            <input type="checkbox" id="fill-wireframe" class="settings-checkbox">
+                        </div>
+                        <div class="settings-option">
+                            <label for="show-joint-labels">Show Joint Labels</label>
+                            <input type="checkbox" id="show-joint-labels" class="settings-checkbox">
+                        </div>
+                    </div>
+                    
+                    <!-- Additional options -->
+                    <div class="settings-row">
+                        <div class="settings-option">
+                            <label for="show-bone-labels">Show Bone Labels</label>
+                            <input type="checkbox" id="show-bone-labels" class="settings-checkbox">
+                        </div>
+                    </div>
+                    
+                    <!-- Rig Colors Section -->
+                    <div class="settings-row" style="margin-top: 15px;">
+                        <div class="settings-option full-width collapsible-header">
+                            <h4 class="settings-subheading">Rig Colors</h4>
+                            <span class="collapse-indicator">▶</span>
+                        </div>
+                    </div>
+                    
+                    <div class="collapsible-content" style="display: none;">
+                        <div class="settings-row">
+                            <div class="settings-option full-width">
+                                <label for="primary-color">Primary Color</label>
+                                <input type="color" id="primary-color" class="settings-color-picker">
+                            </div>
+                        </div>
+                        
+                        <div class="settings-row" id="secondary-color-option" style="display: none;">
+                            <div class="settings-option full-width">
+                                <label for="secondary-color">Secondary Color</label>
+                                <input type="color" id="secondary-color" class="settings-color-picker">
+                            </div>
+                        </div>
+                        
+                        <div class="settings-row">
+                            <div class="settings-option full-width">
+                                <label for="joint-color">Joint Color</label>
+                                <input type="color" id="joint-color" class="settings-color-picker">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Control Handle Colors Section -->
+                    <div class="settings-row" style="margin-top: 15px;">
+                        <div class="settings-option full-width collapsible-header">
+                            <h4 class="settings-subheading">Control Handle Colors</h4>
+                            <span class="collapse-indicator">▶</span>
+                        </div>
+                    </div>
+                    
+                    <div class="collapsible-content" style="display: none;">
+                        <div class="settings-row">
+                            <div class="settings-option full-width">
+                                <label for="normal-color">Normal State</label>
+                                <input type="color" id="normal-color" class="settings-color-picker" value="#FF0000">
+                            </div>
+                        </div>
+                        
+                        <div class="settings-row">
+                            <div class="settings-option full-width">
+                                <label for="hover-color">Hover State</label>
+                                <input type="color" id="hover-color" class="settings-color-picker" value="#00FF00">
+                            </div>
+                        </div>
+                        
+                        <div class="settings-row">
+                            <div class="settings-option full-width">
+                                <label for="active-color">Active State</label>
+                                <input type="color" id="active-color" class="settings-color-picker" value="#0000FF">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Reset Rig button on its own line at the bottom -->
+                    <div class="settings-row" style="margin-top: 20px;">
+                        <div class="settings-option full-width text-center">
+                            <button id="reset-rig" class="reset-button">Reset Rig</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn modal-btn-secondary" id="cancel-settings">Cancel</button>
+            <button class="modal-btn modal-btn-primary" id="save-settings">Save Changes</button>
+        </div>
+    </div>
+</div> 

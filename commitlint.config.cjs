@@ -69,34 +69,38 @@ module.exports = {
 	plugins: [
 		{
 			rules: {
-				'semantic-versioning-check': (parsed) => {
+				'manual-versioning-check': (parsed) => {
 					const { type, scope } = parsed;
 					
-					// Check if the commit would trigger a release
-					let willTriggerRelease = false;
-					let releaseType = null;
+					// Check if the commit would trigger a version bump
+					let willTriggerBump = false;
+					let bumpType = null;
 					
 					// Do not trigger releases for no-release or pipeline scopes
 					if (scope === 'no-release' || scope === 'pipeline' || scope === 'tests') {
-						return [true, `Commit will not trigger a release (${scope} scope)`];
+						return [true, `Commit will not trigger a version bump (${scope} scope)`];
 					}
 					
-					if (type === 'feat') {
-						willTriggerRelease = true;
-						releaseType = 'minor';
+					// Check for breaking changes
+					if (parsed.header.includes('!')) {
+						willTriggerBump = true;
+						bumpType = 'major';
+					} else if (type === 'feat') {
+						willTriggerBump = true;
+						bumpType = 'minor';
 					} else if (['fix', 'perf'].includes(type)) {
-						willTriggerRelease = true;
-						releaseType = 'patch';
+						willTriggerBump = true;
+						bumpType = 'patch';
 					} else if (['docs', 'style', 'refactor', 'test', 'chore', 'build'].includes(type)) {
 						// These may or may not trigger a release depending on config
-						willTriggerRelease = true;
-						releaseType = 'patch (potentially)';
+						willTriggerBump = true;
+						bumpType = 'patch (potentially)';
 					}
 					
-					if (willTriggerRelease) {
-						return [true, `Commit will trigger a ${releaseType} release`];
+					if (willTriggerBump) {
+						return [true, `Commit will trigger a ${bumpType} version bump`];
 					} else {
-						return [true, 'Commit will not trigger a release'];
+						return [true, 'Commit will not trigger a version bump'];
 					}
 				}
 			}

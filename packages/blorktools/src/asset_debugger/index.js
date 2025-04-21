@@ -26,6 +26,3 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize the asset debugger
     init();
 });
-
-// Export for backward compatibility
-export default init; 

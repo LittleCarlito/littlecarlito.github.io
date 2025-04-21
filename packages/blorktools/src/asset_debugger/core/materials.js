@@ -16,18 +16,43 @@ export function createMaterial() {
     // Set proper texture parameters for all textures
     setupTextureParameters();
     
-    // Create material with properly configured textures - without transparency by default
-    return new THREE.MeshStandardMaterial({
-        map: state.textureObjects.baseColor,
-        normalMap: state.textureObjects.normal,
-        aoMap: state.textureObjects.orm,
-        roughnessMap: state.textureObjects.orm,
-        metalnessMap: state.textureObjects.orm,
-        roughness: 1.0,
-        metalness: 1.0,
-        normalScale: new THREE.Vector2(1, 1),
+    // Create a material configuration with available textures
+    const materialConfig = {
         side: THREE.DoubleSide // Make material double-sided
-    });
+    };
+    
+    // Apply baseColor texture if available
+    if (state.textureObjects.baseColor) {
+        materialConfig.map = state.textureObjects.baseColor;
+        materialConfig.color = 0xffffff; // White color to let the texture show properly
+    } else {
+        // If no base color texture, use a light gray color
+        materialConfig.color = 0xcccccc;
+    }
+    
+    // Apply normal map if available
+    if (state.textureObjects.normal) {
+        materialConfig.normalMap = state.textureObjects.normal;
+        materialConfig.normalScale = new THREE.Vector2(1, 1);
+    }
+    
+    // Apply ORM texture if available
+    if (state.textureObjects.orm) {
+        // If we have the ORM texture, apply all its channels
+        materialConfig.aoMap = state.textureObjects.orm;
+        materialConfig.roughnessMap = state.textureObjects.orm;
+        materialConfig.metalnessMap = state.textureObjects.orm;
+        // When ORM is available, use its full range
+        materialConfig.roughness = 1.0;
+        materialConfig.metalness = 1.0;
+    } else {
+        // If we don't have ORM, use reasonable defaults
+        materialConfig.roughness = 0.7;
+        materialConfig.metalness = 0.2;
+    }
+    
+    // Create material with properly configured textures
+    return new THREE.MeshStandardMaterial(materialConfig);
 }
 
 /**
@@ -135,6 +160,7 @@ export function hasTransparentPixels(image) {
 export function applyTransparencySettings(material) {
     const state = getState();
     
+    // Only apply transparency if we have a baseColor texture with transparency
     if (state.textureObjects.baseColor && 
         state.textureObjects.baseColor.image && 
         hasTransparentPixels(state.textureObjects.baseColor.image)) {

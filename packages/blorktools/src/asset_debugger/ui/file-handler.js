@@ -5,7 +5,7 @@
  */
 import { getState, updateState } from '../core/state.js';
 import { loadTextureFromFile, formatFileSize } from '../core/materials.js';
-import { updateAtlasVisualization } from './atlas-panel.js';
+import { updateAtlasVisualization } from './scripts/atlas-panel.js';
 
 /**
  * Setup dropzones for file input
@@ -27,6 +27,9 @@ export function setupDropzones() {
     const baseColorPreview = document.getElementById('basecolor-preview');
     const ormPreview = document.getElementById('orm-preview');
     const normalPreview = document.getElementById('normal-preview');
+    
+    // Ensure the start button is disabled initially
+    checkStartButton();
     
     // Set up each dropzone
     if (baseColorDropzone && baseColorInfo && baseColorPreview) {
@@ -205,7 +208,14 @@ function handleModelUpload(file, infoElement, dropzone) {
     // Mark dropzone as having a file
     dropzone.classList.add('has-file');
     
-    // Check if all required textures are loaded to enable the start button
+    // Update the texture dropzone hints to show textures are optional with GLB
+    const textureHints = document.querySelectorAll('.texture-hint');
+    textureHints.forEach(hint => {
+        hint.textContent = 'Textures are optional with GLB';
+        hint.style.color = '#88cc88'; // Light green color
+    });
+    
+    // Check if we can enable the start button
     checkStartButton();
 }
 
@@ -213,14 +223,12 @@ function handleModelUpload(file, infoElement, dropzone) {
  * Check if all required textures are loaded and enable start button if they are
  */
 function checkStartButton() {
-    const state = getState();
     const startButton = document.getElementById('start-debug');
     
-    if (startButton && 
-        state.textureObjects.baseColor && 
-        state.textureObjects.orm && 
-        state.textureObjects.normal) {
+    if (startButton) {
+        // Always enable the button regardless of file status
         startButton.disabled = false;
+        console.log('Start debugging button is always enabled');
     }
 }
 

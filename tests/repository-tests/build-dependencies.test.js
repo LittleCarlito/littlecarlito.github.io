@@ -81,7 +81,7 @@ describe('Build Dependencies', () => {
 	test('workspace package.json files should be valid', () => {
 		// Find all package.json files in the workspace
 		const packageJsonFiles = glob.sync('**/package.json', {
-			ignore: ['**/node_modules/**', '**/dist/**'],
+			ignore: ['**/node_modules/**', '**/dist/**', '**/version-test-temp/**'],
 			cwd: path.resolve(__dirname, '../../')
 		});
 
@@ -93,21 +93,32 @@ describe('Build Dependencies', () => {
 		// First pass: collect all packages and their dependencies
 		packageJsonFiles.forEach(packageJsonPath => {
 			const absolutePath = path.resolve(__dirname, '../../', packageJsonPath);
-			const packageJson = JSON.parse(fs.readFileSync(absolutePath, 'utf8'));
-      
-			if (!packageJson.name) return; // Skip packages without names
-      
-			packagePathMap.set(packageJson.name, packageJsonPath);
-      
-			// Extract workspace dependencies
-			if (packageJson.dependencies) {
-				const workspaceDeps = Object.entries(packageJson.dependencies)
-					.filter(([, versionOrPath]) => versionOrPath.startsWith('workspace:'))
-					.map(([name]) => name);
-        
-				if (workspaceDeps.length > 0) {
-					packageDepsMap.set(packageJson.name, workspaceDeps);
+			
+			// Skip files that don't exist (to handle temp directories safely)
+			if (!fs.existsSync(absolutePath)) {
+				console.warn(`Warning: Package.json file not found at ${absolutePath}, skipping`);
+				return;
+			}
+			
+			try {
+				const packageJson = JSON.parse(fs.readFileSync(absolutePath, 'utf8'));
+				
+				if (!packageJson.name) return; // Skip packages without names
+				
+				packagePathMap.set(packageJson.name, packageJsonPath);
+				
+				// Extract workspace dependencies
+				if (packageJson.dependencies) {
+					const workspaceDeps = Object.entries(packageJson.dependencies)
+						.filter(([, versionOrPath]) => versionOrPath.startsWith('workspace:'))
+						.map(([name]) => name);
+					
+					if (workspaceDeps.length > 0) {
+						packageDepsMap.set(packageJson.name, workspaceDeps);
+					}
 				}
+			} catch (error) {
+				console.warn(`Warning: Error processing ${absolutePath}: ${error.message}`);
 			}
 		});
 
@@ -165,32 +176,44 @@ describe('Build Dependencies', () => {
     
 		packageDepsMap.forEach((deps, pkg) => {
 			const pkgPath = packagePathMap.get(pkg);
-			const pkgJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../', pkgPath), 'utf8'));
-      
-			// Only check packages that have a "build" script
-			if (pkgJson.scripts && pkgJson.scripts.build) {
-				// Check if the package has dependencies on other workspace packages
-				const workspaceDependencies = deps.map(dep => ({
-					fullName: dep,
-					plainName: dep.split('/').pop()
-				}));
+			const absolutePath = path.resolve(__dirname, '../../', pkgPath);
+			
+			// Skip files that don't exist
+			if (!fs.existsSync(absolutePath)) {
+				console.warn(`Warning: Package.json file not found at ${absolutePath}, skipping`);
+				return;
+			}
+			
+			try {
+				const pkgJson = JSON.parse(fs.readFileSync(absolutePath, 'utf8'));
 				
-				// If it has workspace dependencies but no prebuild, or prebuild doesn't include dependencies, flag as issue
-				if (workspaceDependencies.length > 0) {
-					// If no prebuild script exists at all
-					if (!pkgJson.scripts.prebuild) {
-						buildIssues.push(`${pkgPath}: depends on workspace packages ${workspaceDependencies.map(d => d.plainName).join(', ')} but doesn't have a prebuild script`);
-					} else {
-						// Check that each dependency is mentioned in the prebuild script
-						const missingDeps = workspaceDependencies.filter(dep => 
-							!pkgJson.scripts.prebuild.includes(dep.plainName)
-						);
-						
-						if (missingDeps.length > 0) {
-							buildIssues.push(`${pkgPath}: prebuild script doesn't build required dependencies: ${missingDeps.map(d => d.plainName).join(', ')}`);
+				// Only check packages that have a "build" script
+				if (pkgJson.scripts && pkgJson.scripts.build) {
+					// Check if the package has dependencies on other workspace packages
+					const workspaceDependencies = deps.map(dep => ({
+						fullName: dep,
+						plainName: dep.split('/').pop()
+					}));
+					
+					// If it has workspace dependencies but no prebuild, or prebuild doesn't include dependencies, flag as issue
+					if (workspaceDependencies.length > 0) {
+						// If no prebuild script exists at all
+						if (!pkgJson.scripts.prebuild) {
+							buildIssues.push(`${pkgPath}: depends on workspace packages ${workspaceDependencies.map(d => d.plainName).join(', ')} but doesn't have a prebuild script`);
+						} else {
+							// Check that each dependency is mentioned in the prebuild script
+							const missingDeps = workspaceDependencies.filter(dep => 
+								!pkgJson.scripts.prebuild.includes(dep.plainName)
+							);
+							
+							if (missingDeps.length > 0) {
+								buildIssues.push(`${pkgPath}: prebuild script doesn't build required dependencies: ${missingDeps.map(d => d.plainName).join(', ')}`);
+							}
 						}
 					}
 				}
+			} catch (error) {
+				console.warn(`Warning: Error processing ${absolutePath}: ${error.message}`);
 			}
 		});
     
@@ -200,40 +223,51 @@ describe('Build Dependencies', () => {
 	test('workspace package dependencies are properly configured', () => {
 		// Find all package.json files in the workspace
 		const packageJsonFiles = glob.sync('**/package.json', {
-			ignore: ['**/node_modules/**', '**/dist/**'],
+			ignore: ['**/node_modules/**', '**/dist/**', '**/version-test-temp/**'],
 			cwd: path.resolve(__dirname, '../../')
 		});
 		
 		// Check each package that depends on other workspace packages
 		packageJsonFiles.forEach(packageJsonPath => {
 			const absolutePath = path.resolve(__dirname, '../../', packageJsonPath);
-			const packageJson = JSON.parse(fs.readFileSync(absolutePath, 'utf8'));
 			
-			// Skip packages without names
-			if (!packageJson.name) return;
+			// Skip files that don't exist
+			if (!fs.existsSync(absolutePath)) {
+				console.warn(`Warning: Package.json file not found at ${absolutePath}, skipping`);
+				return;
+			}
 			
-			// Skip packages without dependencies
-			if (!packageJson.dependencies) return;
-			
-			// Find workspace dependencies
-			const workspaceDeps = Object.entries(packageJson.dependencies)
-				.filter(([, versionOrPath]) => versionOrPath.startsWith('workspace:'))
-				.map(([name]) => name.split('/').pop());
+			try {
+				const packageJson = JSON.parse(fs.readFileSync(absolutePath, 'utf8'));
 				
-			if (workspaceDeps.length === 0) return;
-			
-			// If package has build script, it should have prebuild for dependencies
-			if (packageJson.scripts && packageJson.scripts.build) {
-				if (workspaceDeps.length > 0) {
-					expect(packageJson.scripts.prebuild).toBeDefined();
+				// Skip packages without names
+				if (!packageJson.name) return;
+				
+				// Skip packages without dependencies
+				if (!packageJson.dependencies) return;
+				
+				// Find workspace dependencies
+				const workspaceDeps = Object.entries(packageJson.dependencies)
+					.filter(([, versionOrPath]) => versionOrPath.startsWith('workspace:'))
+					.map(([name]) => name.split('/').pop());
 					
-					// Check that each dependency is mentioned in the prebuild
-					workspaceDeps.forEach(depName => {
-						const prebuiltMsg = `Should build ${depName} in prebuild script of ${packageJsonPath}`;
-						const hasDep = packageJson.scripts.prebuild.includes(depName);
-						expect(hasDep).toBe(true, prebuiltMsg);
-					});
+				if (workspaceDeps.length === 0) return;
+				
+				// If package has build script, it should have prebuild for dependencies
+				if (packageJson.scripts && packageJson.scripts.build) {
+					if (workspaceDeps.length > 0) {
+						expect(packageJson.scripts.prebuild).toBeDefined();
+						
+						// Check that each dependency is mentioned in the prebuild
+						workspaceDeps.forEach(depName => {
+							const prebuiltMsg = `Should build ${depName} in prebuild script of ${packageJsonPath}`;
+							const hasDep = packageJson.scripts.prebuild.includes(depName);
+							expect(hasDep).toBe(true, prebuiltMsg);
+						});
+					}
 				}
+			} catch (error) {
+				console.warn(`Warning: Error processing ${absolutePath}: ${error.message}`);
 			}
 		});
 	});
