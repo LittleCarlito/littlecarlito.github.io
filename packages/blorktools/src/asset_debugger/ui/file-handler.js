@@ -15,12 +15,22 @@ const DEBUG_LIGHTING = false;
  * Setup dropzones for file input
  */
 export function setupDropzones() {
+    console.log('Setting up dropzones for file input...');
+    
     // Get dropzone elements
     const baseColorDropzone = document.getElementById('basecolor-dropzone');
     const ormDropzone = document.getElementById('orm-dropzone');
     const normalDropzone = document.getElementById('normal-dropzone');
     const modelDropzone = document.getElementById('model-dropzone');
     const lightingDropzone = document.getElementById('lighting-dropzone');
+    
+    console.log('Dropzone elements found:', {
+        baseColor: !!baseColorDropzone,
+        orm: !!ormDropzone,
+        normal: !!normalDropzone,
+        model: !!modelDropzone,
+        lighting: !!lightingDropzone
+    });
     
     // Get info elements
     const baseColorInfo = document.getElementById('basecolor-info');
@@ -58,6 +68,8 @@ export function setupDropzones() {
     if (lightingDropzone && lightingInfo && lightingPreview) {
         setupDropzone(lightingDropzone, 'lighting', lightingInfo, lightingPreview);
     }
+    
+    console.log('Dropzones setup complete');
 }
 
 /**

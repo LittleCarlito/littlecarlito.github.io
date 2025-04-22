@@ -5,18 +5,25 @@
  */
 import { getState, updateState } from "../../core/state.js";
 
+// Track initialization state
+let isInitialized = false;
+
 /**
  * Initialize the atlas panel and set up event listeners
  */
 export function initAtlasPanel() {
-    console.log('Initializing Atlas Panel...');
+    // Prevent duplicate logging but allow initialization to continue
+    if (isInitialized) {
+        return;
+    }
+    
+    isInitialized = true;
     
     // Initialize the panel once the atlas-panel-container is found and has content
     const initCheck = setInterval(() => {
         const container = document.getElementById('atlas-panel-container');
         if (container && container.children.length > 0) {
             clearInterval(initCheck);
-            console.log('Atlas Panel container found, setting up event listeners...');
             setupAtlasPanelEvents();
         }
     }, 100);
@@ -66,7 +73,6 @@ function setupAtlasPanelEvents() {
  * Update the atlas visualization based on the selected texture type
  */
 export function updateAtlasVisualization() {
-    console.log('Updating atlas visualization...');
     const state = getState();
     
     // Get active texture type from UI
@@ -77,7 +83,6 @@ export function updateAtlasVisualization() {
     }
     
     const selectedType = activeButton.getAttribute('data-texture-type');
-    console.log('Selected texture type:', selectedType);
     
     // Get the texture based on selected type
     const texture = state.textureObjects[selectedType];
@@ -115,8 +120,6 @@ export function updateAtlasVisualization() {
     atlasCanvas.style.maxHeight = '100%';
     atlasCanvas.style.objectFit = 'contain';
     atlasCanvas.style.display = 'block';
-    
-    console.log('Atlas visualization updated');
 }
 
 /**

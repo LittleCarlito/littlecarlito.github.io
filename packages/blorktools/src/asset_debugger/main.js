@@ -83,13 +83,5 @@ function setupThemeSwitching() {
     }
 }
 
-// For backward compatibility, automatically initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    if (!window.assetDebuggerState || !window.assetDebuggerState.isInitializing) {
-        console.log('Asset Debugger: Auto-initializing for backward compatibility.');
-        init();
-    }
-});
-
 // Export for external use
 export default { init }; 

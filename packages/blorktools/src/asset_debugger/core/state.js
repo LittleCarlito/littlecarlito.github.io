@@ -102,7 +102,6 @@ export function initState() {
     // Check if there's an existing state object in the window and use it
     if (window.assetDebuggerState) {
         state = window.assetDebuggerState;
-        state.isInitializing = true;
     } else {
         // Create a new state object
         state = { ...initialState };
