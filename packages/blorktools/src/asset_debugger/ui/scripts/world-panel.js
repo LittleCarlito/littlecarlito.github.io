@@ -21,42 +21,35 @@ let environmentTexture = null;
 export function initWorldPanel() {
     console.log('Initializing World Panel...');
     
-    // Wait for panel elements to be available, similar to atlas-panel approach
-    const checkElements = setInterval(() => {
-        // Look for world-tab (from world-panel.html) or world-tab-container (from asset_debugger.html)
-        const worldPanel = document.getElementById('world-tab') || document.getElementById('world-tab-container');
-        
-        if (worldPanel) {
-            clearInterval(checkElements);
-            console.log('World panel found, initializing...');
-            
-            // Set up event listeners for lighting controls
-            setupLightingControls();
-            
-            // Mark as initialized
-            controlsInitialized = true;
-            
-            // Update lighting info if we have it already
-            if (currentLightingMetadata) {
-                console.log('We have existing metadata, updating lighting info');
-                updateLightingInfo(currentLightingMetadata);
-                
-                // If we have an environment texture, render the preview
-                if (environmentTexture) {
-                    console.log('We have existing environment texture, rendering preview');
-                    renderEnvironmentPreview(environmentTexture);
-                }
-            } else {
-                console.log('No lighting metadata available yet during initialization');
-            }
-        }
-    }, 100);
+    // Look for world-tab (from world-panel.html) or world-tab-container (from asset_debugger.html)
+    const worldPanel = document.getElementById('world-tab') || document.getElementById('world-tab-container');
     
-    // Set a reasonable timeout (consistent with other panels)
-    setTimeout(() => {
-        clearInterval(checkElements);
-        console.warn('Timed out waiting for World panel elements');
-    }, 5000);
+    if (!worldPanel) {
+        console.error('World panel elements not found. Panel may not be loaded in DOM yet.');
+        return;
+    }
+    
+    console.log('World panel found, initializing...');
+    
+    // Set up event listeners for lighting controls
+    setupLightingControls();
+    
+    // Mark as initialized
+    controlsInitialized = true;
+    
+    // Update lighting info if we have it already
+    if (currentLightingMetadata) {
+        console.log('We have existing metadata, updating lighting info');
+        updateLightingInfo(currentLightingMetadata);
+        
+        // If we have an environment texture, render the preview
+        if (environmentTexture) {
+            console.log('We have existing environment texture, rendering preview');
+            renderEnvironmentPreview(environmentTexture);
+        }
+    } else {
+        console.log('No lighting metadata available yet during initialization');
+    }
 }
 
 /**
@@ -68,6 +61,20 @@ function setupLightingControls() {
     const directionalIntensityControl = document.getElementById('directional-light-intensity');
     const exposureControl = document.getElementById('exposure-value');
     const resetLightingButton = document.getElementById('reset-lighting');
+    
+    // Log if elements are not found
+    if (!ambientIntensityControl) {
+        console.warn('Ambient light intensity control not found');
+    }
+    if (!directionalIntensityControl) {
+        console.warn('Directional light intensity control not found');
+    }
+    if (!exposureControl) {
+        console.warn('Exposure control not found');
+    }
+    if (!resetLightingButton) {
+        console.warn('Reset lighting button not found');
+    }
     
     // Set up ambient light intensity control
     if (ambientIntensityControl) {
@@ -159,14 +166,28 @@ function updateLightingMessage() {
     const noDataMessage = document.querySelector('.no-data-message');
     const lightingDataInfo = document.querySelector('.lighting-data-info');
     
-    if (noDataMessage && lightingDataInfo) {
-        if (state.scene && state.scene.environment) {
-            noDataMessage.style.display = 'none';
-            lightingDataInfo.style.display = 'block';
-        } else {
-            noDataMessage.style.display = 'block';
-            lightingDataInfo.style.display = 'none';
-        }
+    if (!noDataMessage || !lightingDataInfo) {
+        console.warn('Lighting message elements not found');
+        return;
+    }
+    
+    if (state.scene && state.scene.environment) {
+        noDataMessage.style.display = 'none';
+        lightingDataInfo.style.display = 'block';
+    } else {
+        noDataMessage.style.display = 'block';
+        lightingDataInfo.style.display = 'none';
+    }
+}
+
+/**
+ * Attempt to initialize the panel if not already initialized
+ * This can be called when new data becomes available
+ */
+export function tryInitializePanel() {
+    if (!controlsInitialized) {
+        console.log('Attempting to initialize World panel due to new data');
+        initWorldPanel();
     }
 }
 
@@ -180,6 +201,16 @@ export function updateLightingInfo(metadata) {
     // Store the metadata for later use if the panel isn't ready yet
     currentLightingMetadata = metadata;
     
+    // Try to initialize the panel if not already done
+    if (!controlsInitialized) {
+        tryInitializePanel();
+        // If initialization fails, we'll still keep the metadata for later
+        if (!controlsInitialized) {
+            console.warn('Panel not initialized yet, storing metadata for later');
+            return;
+        }
+    }
+    
     // Find the UI elements
     const filenameEl = document.getElementById('lighting-filename');
     const typeEl = document.getElementById('lighting-type');
@@ -191,7 +222,7 @@ export function updateLightingInfo(metadata) {
     
     // Make sure all elements exist
     if (!filenameEl || !typeEl || !resolutionEl || !sizeEl || !rangeEl || !luminanceEl || !softwareEl) {
-        console.warn('Lighting info elements not found, panel may not be initialized yet');
+        console.error('Cannot update lighting info: UI elements not found');
         return;
     }
     
@@ -214,26 +245,29 @@ export function updateLightingInfo(metadata) {
     const noDataMessage = document.querySelector('.no-data-message');
     const lightingDataInfo = document.querySelector('.lighting-data-info');
     
-    if (noDataMessage && lightingDataInfo) {
-        console.log('Showing lighting data info and hiding no data message');
-        noDataMessage.style.display = 'none';
-        lightingDataInfo.style.display = 'block';
+    if (!noDataMessage || !lightingDataInfo) {
+        console.error('Cannot update lighting info display: message elements not found');
+        return;
+    }
+    
+    console.log('Showing lighting data info and hiding no data message');
+    noDataMessage.style.display = 'none';
+    lightingDataInfo.style.display = 'block';
+    
+    // Make sure any collapsible content is still properly collapsed
+    const metadataContents = document.querySelectorAll('.metadata-content');
+    if (metadataContents && metadataContents.length > 0) {
+        console.log('Ensuring collapsible content is collapsed initially');
+        metadataContents.forEach(content => {
+            content.style.display = 'none';
+        });
         
-        // Make sure any collapsible content is still properly collapsed
-        const metadataContents = document.querySelectorAll('.metadata-content');
-        if (metadataContents && metadataContents.length > 0) {
-            console.log('Ensuring collapsible content is collapsed initially');
-            metadataContents.forEach(content => {
-                content.style.display = 'none';
+        // Make sure all indicators show the right symbol
+        const indicators = document.querySelectorAll('.collapse-indicator');
+        if (indicators && indicators.length > 0) {
+            indicators.forEach(indicator => {
+                indicator.textContent = '+';
             });
-            
-            // Make sure all indicators show the right symbol
-            const indicators = document.querySelectorAll('.collapse-indicator');
-            if (indicators && indicators.length > 0) {
-                indicators.forEach(indicator => {
-                    indicator.textContent = '+';
-                });
-            }
         }
     }
     
@@ -261,7 +295,7 @@ function renderEnvironmentPreview(texture) {
     
     // If canvas not found, panel may not be initialized yet
     if (!canvas) {
-        console.warn('HDR preview canvas not found, panel may not be initialized yet');
+        console.error('HDR preview canvas not found, cannot render preview');
         return;
     }
     
@@ -579,6 +613,17 @@ function clearLightingInfo() {
  * Update the World panel with current state
  */
 export function updateWorldPanel() {
+    // Try to initialize if not done yet
+    if (!controlsInitialized) {
+        tryInitializePanel();
+    }
+    
+    // If still not initialized, log error and return
+    if (!controlsInitialized) {
+        console.error('Cannot update World panel: not initialized');
+        return;
+    }
+    
     const state = getState();
     
     // Update lighting controls with current values

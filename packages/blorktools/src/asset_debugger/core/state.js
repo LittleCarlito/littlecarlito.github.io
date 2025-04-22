@@ -60,6 +60,35 @@ const initialState = {
     cycleAtlasSegments: null, // New: function to cycle atlas segments
     setCurrentUvRegion: null, // New: function to set current UV region
     switchUvChannel: null, // New: function to switch UV channel
+    
+    // Environment lighting
+    environmentLightingEnabled: false,
+    ambientLight: null,
+    directionalLight: null,
+    
+    // Material properties
+    materialProperties: {
+        metalness: 0.5,
+        roughness: 0.5,
+        normalScale: 1.0
+    },
+    
+    // UV unwrapping options
+    unwrapOptions: {
+        wireframe: true,
+        displayUVs: true,
+        textureDisplay: 'baseColor'
+    },
+    
+    // Rig related properties
+    rigOptions: {
+        autoRotate: false,
+        showSkeleton: true,
+        enableIK: true,
+        currentAnimation: null,
+        playAnimation: false,
+        animationSpeed: 1.0
+    }
 };
 
 // The actual state object

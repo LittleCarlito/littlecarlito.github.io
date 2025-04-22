@@ -278,8 +278,11 @@ function handleModelUpload(file, infoElement, dropzone) {
  * @param {HTMLElement} dropzone - The dropzone element
  */
 function handleLightingUpload(file, infoElement, previewElement, dropzone) {
-    // Just validate file type (already done in caller) and store in state
+    // Validate file type (already done in caller) and store in state
     updateState('lightingFile', file);
+    
+    // Set the environment lighting enabled flag
+    updateState('environmentLightingEnabled', true);
     
     // Show file info
     infoElement.textContent = `${file.name} (${formatFileSize(file.size)})`;
@@ -304,7 +307,7 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
     
     previewElement.appendChild(placeholderDiv);
     
-    // That's it! Don't parse or process the file until Start Debugging is clicked
+    // Log the update
     console.log(`HDR/EXR file "${file.name}" accepted and stored for later processing`);
     
     // Check if we can enable the start button

@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { getState, updateState } from './state.js';
 import { updateRigAnimation } from './rig/rig-manager.js';
-import { addLighting } from './lighting-util.js';
+import { addLighting, setupEnvironmentLighting } from './lighting-util.js';
 
 /**
  * Initialize the Three.js scene, camera, renderer and controls
@@ -43,8 +43,23 @@ export function initScene(container) {
     controls.enableDamping = true;
     updateState('controls', controls);
     
-    // Add lighting using the lighting-util module
-    addLighting(scene);
+    // Check if we have an HDR/EXR lighting file to use
+    const lightingFile = state.lightingFile;
+    const hasValidLightingFile = lightingFile && 
+        (lightingFile.name.toLowerCase().endsWith('.hdr') || 
+         lightingFile.name.toLowerCase().endsWith('.exr'));
+    
+    if (hasValidLightingFile) {
+        // Set default black background until the HDR/EXR is loaded
+        scene.background = new THREE.Color(0x000000);
+        
+        // We'll set up the environment lighting after the scene is initialized
+        // The lighting setup is handled in the startDebugging function
+        console.log('HDR/EXR lighting file found, will be applied after scene initialization');
+    } else {
+        // No HDR/EXR file, add standard lighting
+        addLighting(scene);
+    }
     
     // Set up window resize handler
     setupResizeHandler(container);
@@ -60,72 +75,65 @@ export function initScene(container) {
 
 /**
  * Set up window resize handler
- * @param {HTMLElement} container - The viewport container
+ * @param {HTMLElement} container - The container element for the renderer
  */
 function setupResizeHandler(container) {
     window.addEventListener('resize', () => {
         const state = getState();
+        
         if (state.camera && state.renderer) {
+            // Update camera aspect ratio
             state.camera.aspect = container.clientWidth / container.clientHeight;
             state.camera.updateProjectionMatrix();
+            
+            // Update renderer size
             state.renderer.setSize(container.clientWidth, container.clientHeight);
         }
     });
 }
 
 /**
- * Start the animation loop
- * @returns {number} The animation frame ID
+ * Start animation loop
  */
 export function startAnimation() {
     const state = getState();
     
-    // Cancel any existing animation
-    if (state.animationId) {
-        cancelAnimationFrame(state.animationId);
+    if (!state.animating) {
+        state.animating = true;
+        animate();
     }
-    
-    // Define the animation function
-    function animate() {
-        const currentState = getState();
-        const animationId = requestAnimationFrame(animate);
-        updateState('animationId', animationId);
-        
-        // Rotate the cube if it exists
-        if (currentState.cube) {
-            currentState.cube.rotation.y += 0.01;
-        }
-        
-        // Update controls
-        if (currentState.controls) {
-            currentState.controls.update();
-        }
-        
-        // Update rig animations regardless of which tab is active
-        updateRigAnimation();
-        
-        // Render the scene
-        if (currentState.renderer && currentState.scene && currentState.camera) {
-            currentState.renderer.render(currentState.scene, currentState.camera);
-        }
-    }
-    
-    // Start the animation loop
-    const animationId = requestAnimationFrame(animate);
-    updateState('animationId', animationId);
-    
-    return animationId;
 }
 
 /**
- * Stop the animation loop
+ * Animation loop
+ */
+function animate() {
+    const state = getState();
+    
+    if (!state.animating) return;
+    
+    requestAnimationFrame(animate);
+    
+    // Update rig animation if available
+    updateRigAnimation();
+    
+    // Update orbit controls
+    if (state.controls) {
+        state.controls.update();
+    }
+    
+    // Render the scene
+    if (state.renderer && state.scene && state.camera) {
+        state.renderer.render(state.scene, state.camera);
+    }
+}
+
+/**
+ * Stop animation loop
  */
 export function stopAnimation() {
     const state = getState();
-    if (state.animationId) {
-        cancelAnimationFrame(state.animationId);
-        updateState('animationId', null);
-    }
+    state.animating = false;
 }
 
 /**
@@ -155,13 +163,15 @@ export function clearScene() {
 
 /**
  * Fit camera to object
- * @param {THREE.Object3D} object - The object to fit camera to
- * @param {number} offset - Offset multiplier for the camera distance
+ * @param {THREE.Object3D} object - The object to fit the camera to
+ * @param {number} offset - Offset factor
  */
-export function fitCameraToObject(object, offset = 1.5) {
+export function fitCameraToObject(object, offset = 1.2) {
     const state = getState();
-    if (!state.camera || !state.controls) return;
     
+    if (!object || !state.camera) return;
+    
+    // Create a bounding box for the object
     const boundingBox = new THREE.Box3().setFromObject(object);
     const center = boundingBox.getCenter(new THREE.Vector3());
     const size = boundingBox.getSize(new THREE.Vector3());
@@ -169,14 +179,19 @@ export function fitCameraToObject(object, offset = 1.5) {
     // Get the max side of the bounding box
     const maxDim = Math.max(size.x, size.y, size.z);
     const fov = state.camera.fov * (Math.PI / 180);
-    const cameraZ = Math.abs(maxDim / Math.sin(fov / 2)) * offset;
+    let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
     
-    // Update camera position
+    // Apply the offset
+    cameraZ *= offset;
+    
+    // Update camera position and target
     state.camera.position.z = cameraZ;
     
-    // Update the target of the controls
-    state.controls.target = center;
-    state.controls.update();
+    // Update orbit controls target
+    if (state.controls) {
+        state.controls.target.copy(center);
+        state.controls.update();
+    }
 }
 
 export default {

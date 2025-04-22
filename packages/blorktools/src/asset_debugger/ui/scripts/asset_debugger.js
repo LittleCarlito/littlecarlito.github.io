@@ -396,45 +396,74 @@ function startDebugging() {
         });
     }
     
-    // Initialize the debugger with the loaded settings first
-    // This ensures scene and renderer are created before loading lighting
+    // Initialize the debugger with the loaded settings
+    // This ensures scene and renderer are created
     initializeDebugger(savedSettings);
+
+    // Get viewport element for scene initialization
+    const viewport = document.getElementById('viewport');
     
-    // Check for HDR or EXR lighting files and handle them
-    // This will run after scene initialization
-    import('../../core/state.js').then(stateModule => {
-        const currentState = stateModule.getState();
-        if (currentState.lightingFile && 
-            (currentState.lightingFile.name.toLowerCase().endsWith('.hdr') || 
-             currentState.lightingFile.name.toLowerCase().endsWith('.exr'))) {
-            
-            // Import lighting utilities and set up environment lighting
-            import('../../core/lighting-util.js').then(lightingModule => {
-                const lightingFile = currentState.lightingFile;
-                console.log('Setting up environment lighting from:', lightingFile.name);
-                
-                // First parse the metadata (this will log all details)
-                lightingModule.parseLightingData(lightingFile).then(metadata => {
-                    // Only log if debugging is enabled
-                    if (DEBUG_LIGHTING) {
-                        console.log('Environment Map Full Analysis:', metadata);
-                    }
+    // Sequence the operations properly:
+    // 1. Create scene (already done in initializeDebugger)
+    // 2. Apply lighting (HDR/EXR if available)
+    // 3. Load model
+    
+    // Create a promise chain to ensure proper sequencing
+    Promise.resolve()
+        .then(() => {
+            // Check for HDR or EXR lighting files
+            return import('../../core/state.js')
+                .then(stateModule => {
+                    const currentState = stateModule.getState();
+                    const lightingFile = currentState.lightingFile;
                     
-                    // Update the World Panel with this metadata
-                    import('./world-panel.js').then(worldPanelModule => {
-                        if (worldPanelModule.updateLightingInfo) {
-                            worldPanelModule.updateLightingInfo(metadata);
-                        }
-                    });
-                }).catch(error => {
-                    console.error('Error analyzing environment map:', error);
+                    if (lightingFile && 
+                        (lightingFile.name.toLowerCase().endsWith('.hdr') || 
+                         lightingFile.name.toLowerCase().endsWith('.exr'))) {
+                        
+                        console.log('Setting up environment lighting from:', lightingFile.name);
+                        
+                        // Import lighting utilities
+                        return import('../../core/lighting-util.js')
+                            .then(lightingModule => {
+                                // First parse the metadata (for info display)
+                                return lightingModule.parseLightingData(lightingFile)
+                                    .then(metadata => {
+                                        // Only log if debugging is enabled
+                                        if (DEBUG_LIGHTING) {
+                                            console.log('Environment Map Full Analysis:', metadata);
+                                        }
+                                        
+                                        // Update the World Panel with this metadata
+                                        return import('./world-panel.js')
+                                            .then(worldPanelModule => {
+                                                if (worldPanelModule.updateLightingInfo) {
+                                                    worldPanelModule.updateLightingInfo(metadata);
+                                                }
+                                                // Apply the lighting to the scene
+                                                return lightingModule.setupEnvironmentLighting(lightingFile);
+                                            });
+                                    })
+                                    .catch(error => {
+                                        console.error('Error analyzing environment map:', error);
+                                    });
+                            });
+                    } else {
+                        // No lighting file, just continue with the chain
+                        return Promise.resolve();
+                    }
                 });
-                
-                // Then apply the lighting to the scene
-                lightingModule.setupEnvironmentLighting(lightingFile);
-            });
-        }
-    });
+        })
+        .then(() => {
+            // Now that lighting is set up, load the model
+            return import('../../core/models.js')
+                .then(modelsModule => {
+                    return modelsModule.loadDebugModel();
+                });
+        })
+        .catch(error => {
+            console.error('Error in debugging sequence:', error);
+        });
 }
 
 /**
@@ -482,6 +511,26 @@ function initializeDebugger(settings) {
     initWorldPanel();
     
     // Make sure only the World tab is active
+    activateWorldTab();
+    
+    // Initialize settings modal with loaded settings
+    new SettingsModal(settings);
+    
+    // Import and initialize the scene
+    import('../../core/scene.js').then(sceneModule => {
+        console.log('Scene module loaded, initializing scene');
+        sceneModule.initScene(viewport);
+        sceneModule.startAnimation();
+        
+        // Note: We do NOT load models here - this will be handled separately
+        // in the startDebugging promise chain to ensure lighting is set up first
+    });
+}
+
+/**
+ * Helper function to activate the World tab
+ */
+function activateWorldTab() {
     // First define the getTabElements function if it's not accessible
     function getTabElements() {
         return {
@@ -526,21 +575,6 @@ function initializeDebugger(settings) {
     if (atlasTabButton) atlasTabButton.classList.remove('active');
     if (uvTabButton) uvTabButton.classList.remove('active');
     if (rigTabButton) rigTabButton.classList.remove('active');
-    
-    // Initialize settings modal with loaded settings
-    new SettingsModal(settings);
-    
-    // Import and initialize the scene
-    import('../../core/scene.js').then(sceneModule => {
-        console.log('Scene module loaded');
-        sceneModule.initScene(viewport);
-        sceneModule.startAnimation();
-        
-        // Import and initialize the model
-        import('../../core/models.js').then(modelsModule => {
-            modelsModule.loadDebugModel();
-        });
-    });
 }
 
 // Export for external use
