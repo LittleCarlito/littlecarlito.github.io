@@ -184,7 +184,7 @@ export function setupEnvironmentLighting(file) {
                     const exposureControl = document.getElementById('exposure-value');
                     if (exposureControl) {
                         exposureControl.value = environmentExposure;
-                        const valueDisplay = exposureControl.previousElementSibling?.querySelector('.value-display');
+                        const valueDisplay = exposureControl.previousElementSibling.querySelector('.value-display');
                         if (valueDisplay) {
                             valueDisplay.textContent = environmentExposure.toFixed(1);
                         }
@@ -266,7 +266,7 @@ export function setupEnvironmentLighting(file) {
                     const exposureControl = document.getElementById('exposure-value');
                     if (exposureControl) {
                         exposureControl.value = environmentExposure;
-                        const valueDisplay = exposureControl.previousElementSibling?.querySelector('.value-display');
+                        const valueDisplay = exposureControl.previousElementSibling.querySelector('.value-display');
                         if (valueDisplay) {
                             valueDisplay.textContent = environmentExposure.toFixed(1);
                         }
@@ -337,19 +337,26 @@ export function resetLighting() {
     const exposureControl = document.getElementById('exposure-value');
     if (exposureControl) {
         exposureControl.value = environmentExposure;
-        exposureControl.nextElementSibling.textContent = environmentExposure.toFixed(1);
+        const valueDisplay = exposureControl.previousElementSibling.querySelector('.value-display');
+        if (valueDisplay) {
+            valueDisplay.textContent = environmentExposure.toFixed(1);
+        }
     }
     
-    // Reset environment lighting
-    if (state.scene) {
+    // Only reset environment lighting if we don't have HDR/EXR data loaded
+    // Check if we have an environment texture loaded
+    const hasEnvironmentTexture = state.scene && state.scene.environment !== null;
+    
+    if (!hasEnvironmentTexture && state.scene) {
+        // Only clear environment if no HDR/EXR is loaded
         state.scene.environment = null;
         state.scene.background = new THREE.Color(0x111111);
-    }
-    
-    // Show no data message
-    const noDataMessage = document.querySelector('.no-data-message');
-    if (noDataMessage) {
-        noDataMessage.style.display = 'block';
+        
+        // Show no data message only if we don't have HDR/EXR data
+        const noDataMessage = document.querySelector('.no-data-message');
+        if (noDataMessage) {
+            noDataMessage.style.display = 'block';
+        }
     }
 }
 

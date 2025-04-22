@@ -150,11 +150,17 @@ function setupLightingControls() {
                 }
             }
             
-            // Clear lighting metadata display
-            clearLightingInfo();
+            // Don't clear lighting info if we have an environment texture
+            const state = getState();
+            const hasEnvironmentTexture = state.scene && state.scene.environment !== null;
             
-            // Update slider visibility
-            updateSliderVisibility(false);
+            if (!hasEnvironmentTexture) {
+                // Only clear lighting info if no environment texture is loaded
+                clearLightingInfo();
+            }
+            
+            // Update slider visibility based on whether environment is loaded
+            updateSliderVisibility(hasEnvironmentTexture);
         });
     }
     

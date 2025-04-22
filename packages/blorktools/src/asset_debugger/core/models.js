@@ -18,6 +18,12 @@ import { updateUvPanel } from '../ui/scripts/uv-panel.js';
 export function createCube() {
     const state = getState();
     
+    // Check if scene is initialized - prevent "state.scene is null" error
+    if (!state.scene) {
+        console.warn("Scene not initialized yet. Cannot create cube.");
+        return Promise.reject(new Error("Scene not initialized. Try again after scene is ready."));
+    }
+    
     // Create cube geometry
     const geometry = new THREE.BoxGeometry(1, 1, 1);
     
@@ -64,6 +70,7 @@ export function createCube() {
 /**
  * Load and setup a custom model from file
  * @param {HTMLElement} loadingIndicator - Loading indicator element to show/hide
+ * @returns {Promise} A promise that resolves when the model is loaded and set up
  */
 export function loadAndSetupModel(loadingIndicator) {
     const state = getState();
@@ -73,56 +80,67 @@ export function loadAndSetupModel(loadingIndicator) {
         loadingIndicator.style.display = 'flex';
     }
     
-    // Load model file with GLTFLoader
-    const loader = new GLTFLoader();
-    
-    // Create a FileReader to read the selected file
-    const reader = new FileReader();
-    reader.onload = function(event) {
-        // Parse the model data after reading
-        const modelData = event.target.result;
+    return new Promise((resolve, reject) => {
+        // Load model file with GLTFLoader
+        const loader = new GLTFLoader();
         
-        try {
-            loader.parse(modelData, '', (gltf) => {
-                // Process the loaded model
-                processLoadedModel(gltf);
-                
-                // Always hide loading indicator when finished
-                if (loadingIndicator) {
-                    loadingIndicator.style.display = 'none';
-                }
-            }, undefined, function(error) {
-                console.error('Error loading model:', error);
-                alert('Error loading model. Please make sure it is a valid glTF/GLB file.');
-                
-                // Hide loading indicator on error
-                if (loadingIndicator) {
-                    loadingIndicator.style.display = 'none';
-                }
-            });
-        } catch (parseError) {
-            console.error('Error parsing model data:', parseError);
-            alert('Error parsing model data: ' + parseError.message);
+        // Create a FileReader to read the selected file
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            // Parse the model data after reading
+            const modelData = event.target.result;
             
-            // Hide loading indicator on catch
+            try {
+                loader.parse(modelData, '', (gltf) => {
+                    try {
+                        // Process the loaded model
+                        processLoadedModel(gltf);
+                        resolve();
+                    } catch (processError) {
+                        console.error('Error processing model:', processError);
+                        reject(processError);
+                    } finally {
+                        // Always hide loading indicator when finished
+                        if (loadingIndicator) {
+                            loadingIndicator.style.display = 'none';
+                        }
+                    }
+                }, undefined, function(error) {
+                    console.error('Error loading model:', error);
+                    alert('Error loading model. Please make sure it is a valid glTF/GLB file.');
+                    reject(error);
+                    
+                    // Hide loading indicator on error
+                    if (loadingIndicator) {
+                        loadingIndicator.style.display = 'none';
+                    }
+                });
+            } catch (parseError) {
+                console.error('Error parsing model data:', parseError);
+                alert('Error parsing model data: ' + parseError.message);
+                reject(parseError);
+                
+                // Hide loading indicator on catch
+                if (loadingIndicator) {
+                    loadingIndicator.style.display = 'none';
+                }
+            }
+        };
+        
+        reader.onerror = function(error) {
+            console.error('Error reading file:', error);
+            alert('Error reading model file: ' + error);
+            reject(error);
+            
+            // Hide loading indicator on read error
             if (loadingIndicator) {
                 loadingIndicator.style.display = 'none';
             }
-        }
-    };
-    
-    reader.onerror = function(error) {
-        console.error('Error reading file:', error);
-        alert('Error reading model file: ' + error);
+        };
         
-        // Hide loading indicator on read error
-        if (loadingIndicator) {
-            loadingIndicator.style.display = 'none';
-        }
-    };
-    
-    // Read the file as ArrayBuffer
-    reader.readAsArrayBuffer(state.modelFile);
+        // Read the file as ArrayBuffer
+        reader.readAsArrayBuffer(state.modelFile);
+    });
 }
 
 /**
@@ -244,6 +262,7 @@ function processLoadedModel(gltf) {
  * Load the appropriate model for debugging
  * - If a custom model file was uploaded, load that
  * - Otherwise, create a default cube if at least one texture is available
+ * @returns {Promise} A promise that resolves when the model is loaded
  */
 export function loadDebugModel() {
     const state = getState();
@@ -254,32 +273,91 @@ export function loadDebugModel() {
         loadingIndicator.style.display = 'flex';
     }
     
-    // Check if a custom model was uploaded
-    if (state.useCustomModel && state.modelFile) {
-        console.log('Loading custom model...');
-        loadAndSetupModel(loadingIndicator);
-    } else if (state.textureObjects.baseColor || 
-               state.textureObjects.orm || 
-               state.textureObjects.normal) {
-        // Create a cube if at least one texture is available
-        console.log('Creating default cube...');
-        createCube();
-        
-        // Hide loading indicator
-        if (loadingIndicator) {
-            loadingIndicator.style.display = 'none';
+    return new Promise((resolve, reject) => {
+        // Make sure scene is initialized before proceeding
+        if (!state.scene) {
+            console.log('Scene not initialized yet, waiting for scene initialization...');
+            
+            // Check periodically for scene initialization
+            let attempts = 0;
+            const maxAttempts = 10;
+            const checkInterval = setInterval(() => {
+                attempts++;
+                if (state.scene) {
+                    clearInterval(checkInterval);
+                    console.log('Scene initialized, proceeding with model loading');
+                    loadModelBasedOnState()
+                        .then(resolve)
+                        .catch(reject);
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(checkInterval);
+                    const error = new Error('Scene initialization timeout');
+                    console.error(error);
+                    reject(error);
+                    
+                    // Hide loading indicator
+                    if (loadingIndicator) {
+                        loadingIndicator.style.display = 'none';
+                    }
+                }
+            }, 300);
+        } else {
+            // Scene is already initialized, proceed with model loading
+            loadModelBasedOnState()
+                .then(resolve)
+                .catch(reject);
         }
-    } else {
-        // No model and no textures, can't proceed with visualization
-        console.log('Cannot create visualization: No model and no textures');
-        
-        // Hide loading indicator
-        if (loadingIndicator) {
-            loadingIndicator.style.display = 'none';
-        }
-        
-        // Show error message
-        alert('Error: Cannot create visualization. Please upload at least one texture atlas or a GLB model.');
+    });
+    
+    function loadModelBasedOnState() {
+        return new Promise((resolve, reject) => {
+            try {
+                // Check if a custom model was uploaded
+                if (state.useCustomModel && state.modelFile) {
+                    console.log('Loading custom model...');
+                    loadAndSetupModel(loadingIndicator)
+                        .then(resolve)
+                        .catch(reject);
+                } else if (state.textureObjects.baseColor || 
+                           state.textureObjects.orm || 
+                           state.textureObjects.normal) {
+                    // Create a cube if at least one texture is available
+                    console.log('Creating default cube...');
+                    try {
+                        createCube();
+                        resolve();
+                    } catch (error) {
+                        reject(error);
+                    } finally {
+                        // Hide loading indicator
+                        if (loadingIndicator) {
+                            loadingIndicator.style.display = 'none';
+                        }
+                    }
+                } else {
+                    // No model and no textures, can't proceed with visualization
+                    console.log('Cannot create visualization: No model and no textures');
+                    
+                    // Hide loading indicator
+                    if (loadingIndicator) {
+                        loadingIndicator.style.display = 'none';
+                    }
+                    
+                    // Show error message
+                    const error = new Error('Cannot create visualization. Please upload at least one texture atlas or a GLB model.');
+                    alert(error.message);
+                    reject(error);
+                }
+            } catch (error) {
+                console.error('Error in loadModelBasedOnState:', error);
+                reject(error);
+                
+                // Hide loading indicator
+                if (loadingIndicator) {
+                    loadingIndicator.style.display = 'none';
+                }
+            }
+        });
     }
 }
 

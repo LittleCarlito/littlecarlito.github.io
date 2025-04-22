@@ -590,14 +590,28 @@ function startDebugging() {
     // Get viewport element for scene initialization
     const viewport = document.getElementById('viewport');
     
-    // Sequence the operations properly:
-    // 1. Create scene (already done in initializeDebugger)
-    // 2. Apply lighting (HDR/EXR if available)
+    // Create a variable to store the scene module for later use
+    let sceneModule;
+    
+    // Sequence the operations properly with better scene initialization handling:
+    // 1. Import and initialize scene
+    // 2. Apply lighting
     // 3. Load model
     
     // Create a promise chain to ensure proper sequencing
-    Promise.resolve()
+    import('../../core/scene.js')
+        .then(module => {
+            sceneModule = module;
+            console.log('Scene module loaded, initializing scene');
+            // Initialize scene and store the result to ensure it's ready
+            return sceneModule.initScene(viewport);
+        })
         .then(() => {
+            // Start animation loop
+            sceneModule.startAnimation();
+            resourcesLoaded.sceneInitialized = true;
+            checkAllResourcesLoaded();
+            
             updateLoadingProgress('Setting up scene and lighting...');
             // Check for HDR or EXR lighting files
             return import('../../core/state.js')
@@ -634,6 +648,7 @@ function startDebugging() {
                                     })
                                     .catch(error => {
                                         console.error('Error analyzing environment map:', error);
+                                        return Promise.resolve(); // Continue chain
                                     });
                             });
                     } else {
@@ -647,11 +662,23 @@ function startDebugging() {
                 });
         })
         .then(() => {
-            // Now that lighting is set up, load the model
+            // Now that scene and lighting are set up, load the model
             updateLoadingProgress('Loading 3D model...');
             return import('../../core/models.js')
                 .then(modelsModule => {
-                    return modelsModule.loadDebugModel();
+                    // Ensure state.scene is available before calling loadDebugModel
+                    return import('../../core/state.js')
+                        .then(stateModule => {
+                            const currentState = stateModule.getState();
+                            if (!currentState.scene) {
+                                console.warn('Scene still not available in state, waiting...');
+                                // Wait a moment for scene to be fully registered in state
+                                return new Promise(resolve => setTimeout(resolve, 500))
+                                    .then(() => modelsModule.loadDebugModel());
+                            } else {
+                                return modelsModule.loadDebugModel();
+                            }
+                        });
                 })
                 .then(() => {
                     resourcesLoaded.modelLoaded = true;
@@ -741,19 +768,8 @@ function initializeDebugger(settings) {
     // Initialize settings modal with loaded settings
     new SettingsModal(settings);
     
-    // Import and initialize the scene
-    updateLoadingProgress('Initializing 3D scene...');
-    import('../../core/scene.js').then(sceneModule => {
-        console.log('Scene module loaded, initializing scene');
-        sceneModule.initScene(viewport);
-        sceneModule.startAnimation();
-        
-        resourcesLoaded.sceneInitialized = true;
-        checkAllResourcesLoaded();
-        
-        // Note: We do NOT load models here - this will be handled separately
-        // in the startDebugging promise chain to ensure lighting is set up first
-    });
+    // Scene initialization is now handled in startDebugging function
+    // to ensure proper sequencing of operations
 }
 
 /**
