@@ -9,6 +9,9 @@ import { getState, updateState } from './state.js';
 // Default exposure value for HDR/EXR environment maps
 let environmentExposure = 1.0;
 
+// Debug flag to control logging - set to false to disable logs
+const DEBUG_LIGHTING = false;
+
 /**
  * Add standard lighting to the scene
  * @param {THREE.Scene} scene - The scene to add lighting to
@@ -79,7 +82,9 @@ export function updateExposure(value) {
     environmentExposure = value;
     state.renderer.toneMappingExposure = value;
     
-    console.log(`Environment exposure updated to ${value}`);
+    if (DEBUG_LIGHTING) {
+        console.log(`Environment exposure updated to ${value}`);
+    }
 }
 
 /**
@@ -95,6 +100,15 @@ export function setupEnvironmentLighting(file) {
     state.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     state.renderer.toneMappingExposure = environmentExposure;
     
+    // First parse and log all lighting data
+    parseLightingData(file).then(metadata => {
+        if (DEBUG_LIGHTING) {
+            console.log('Environment Map Metadata:', JSON.stringify(metadata, null, 2));
+        }
+    }).catch(error => {
+        console.error('Error parsing lighting data:', error);
+    });
+    
     // Require Three.js RGBELoader
     import('three/addons/loaders/RGBELoader.js').then(({ RGBELoader }) => {
         const loader = new RGBELoader();
@@ -108,7 +122,9 @@ export function setupEnvironmentLighting(file) {
         const url = URL.createObjectURL(file);
         
         // Show loading message
-        console.log(`Loading ${file.name.toLowerCase().endsWith('.exr') ? 'EXR' : 'HDR'} environment map...`);
+        if (DEBUG_LIGHTING) {
+            console.log(`Loading ${file.name.toLowerCase().endsWith('.exr') ? 'EXR' : 'HDR'} environment map...`);
+        }
         
         loader.load(url, (texture) => {
             texture.mapping = THREE.EquirectangularReflectionMapping;
@@ -133,16 +149,13 @@ export function setupEnvironmentLighting(file) {
                 noDataMessage.style.display = 'none';
             }
             
-            console.log('Environment lighting loaded successfully');
-            
-            // Parse and display metadata if it's an EXR file
-            if (file.name.toLowerCase().endsWith('.exr')) {
-                console.log('EXR metadata: High dynamic range, ACESFilmic tone mapping applied');
+            if (DEBUG_LIGHTING) {
+                console.log('Environment lighting loaded successfully');
             }
         }, 
         // Progress callback
         (xhr) => {
-            if (xhr.lengthComputable) {
+            if (xhr.lengthComputable && DEBUG_LIGHTING) {
                 const percentComplete = xhr.loaded / xhr.total * 100;
                 console.log(`Environment map loading: ${Math.round(percentComplete)}%`);
             }
@@ -195,4 +208,361 @@ export function resetLighting() {
     if (noDataMessage) {
         noDataMessage.style.display = 'block';
     }
+}
+
+/**
+ * Parse lighting data from an HDR or EXR file without applying it to the scene
+ * @param {File} file - HDR or EXR file object
+ * @returns {Promise<Object>} - Promise resolving to lighting data
+ */
+export function parseLightingData(file) {
+    return new Promise((resolve, reject) => {
+        // Determine file type
+        const isEXR = file.name.toLowerCase().endsWith('.exr');
+        const isHDR = file.name.toLowerCase().endsWith('.hdr');
+        
+        if (!isEXR && !isHDR) {
+            reject(new Error('Unsupported file type. Only HDR and EXR files are supported.'));
+            return;
+        }
+        
+        if (DEBUG_LIGHTING) {
+            console.log(`Parsing ${isEXR ? 'EXR' : 'HDR'} lighting data from ${file.name}`);
+        }
+        
+        // Load appropriate loaders based on file type
+        const loaderPromise = isEXR ? 
+            Promise.all([
+                import('three/addons/loaders/EXRLoader.js'),
+                import('three/addons/loaders/RGBELoader.js')
+            ]) : 
+            import('three/addons/loaders/RGBELoader.js');
+            
+        loaderPromise.then((modules) => {
+            const url = URL.createObjectURL(file);
+            
+            if (isEXR) {
+                const { EXRLoader } = modules[0];
+                const loader = new EXRLoader();
+                loader.setDataType(THREE.FloatType);
+                
+                loader.load(url, (texture) => {
+                    // Basic texture metadata
+                    const basicMetadata = {
+                        type: 'EXR',
+                        fileName: file.name,
+                        fileSizeBytes: file.size,
+                        dimensions: {
+                            width: texture.image.width || null,
+                            height: texture.image.height || null
+                        },
+                        aspectRatio: texture.image.width && texture.image.height ? 
+                            (texture.image.width / texture.image.height).toFixed(2) : null,
+                        format: texture.format || null,
+                        dataType: texture.type || null,
+                        internalFormat: texture.internalFormat || null
+                    };
+                    
+                    // Extract advanced metadata where possible
+                    const advancedMetadata = extractEXRMetadata(texture);
+                    
+                    // Combine metadata
+                    const completeMetadata = {
+                        ...basicMetadata,
+                        ...advancedMetadata,
+                        // Physical properties
+                        maxLuminance: estimateMaxLuminance(texture),
+                        averageLuminance: estimateAverageLuminance(texture),
+                        dynamicRange: estimateDynamicRange(texture),
+                        // Technical details
+                        compression: texture.compressionType || null,
+                        colorSpace: texture.colorSpace || null,
+                        encoding: texture.encoding || null,
+                        isHDR: true
+                    };
+                    
+                    if (DEBUG_LIGHTING) {
+                        console.log('EXR Detailed Metadata:', completeMetadata);
+                    }
+                    URL.revokeObjectURL(url);
+                    resolve(completeMetadata);
+                }, undefined, reject);
+            } else {
+                // HDR file
+                const RGBELoader = isEXR ? modules[1].RGBELoader : modules.RGBELoader;
+                const loader = new RGBELoader();
+                
+                loader.load(url, (texture) => {
+                    // Basic texture metadata
+                    const basicMetadata = {
+                        type: 'HDR',
+                        fileName: file.name,
+                        fileSizeBytes: file.size,
+                        dimensions: {
+                            width: texture.image.width || null,
+                            height: texture.image.height || null
+                        },
+                        aspectRatio: texture.image.width && texture.image.height ? 
+                            (texture.image.width / texture.image.height).toFixed(2) : null,
+                        format: texture.format || null,
+                        mappingType: texture.mapping || null
+                    };
+                    
+                    // Extract advanced metadata where possible
+                    const advancedMetadata = extractHDRMetadata(texture);
+                    
+                    // Combine metadata
+                    const completeMetadata = {
+                        ...basicMetadata,
+                        ...advancedMetadata,
+                        // Physical properties
+                        maxLuminance: estimateMaxLuminance(texture),
+                        averageLuminance: estimateAverageLuminance(texture),
+                        dynamicRange: estimateDynamicRange(texture),
+                        // Technical details
+                        colorSpace: texture.colorSpace || null,
+                        encoding: texture.encoding || null,
+                        isHDR: true
+                    };
+                    
+                    if (DEBUG_LIGHTING) {
+                        console.log('HDR Detailed Metadata:', completeMetadata);
+                    }
+                    URL.revokeObjectURL(url);
+                    resolve(completeMetadata);
+                }, undefined, reject);
+            }
+        }).catch(error => {
+            console.error('Error loading lighting data parser:', error);
+            reject(error);
+        });
+    });
+}
+
+/**
+ * Extract EXR-specific metadata from texture
+ * @private
+ * @param {THREE.Texture} texture - The EXR texture
+ * @returns {Object} EXR metadata
+ */
+function extractEXRMetadata(texture) {
+    const metadata = {
+        // Standard EXR metadata fields
+        version: null,
+        channels: null,
+        compression: null,
+        pixelAspectRatio: null,
+        displayWindow: null,
+        dataWindow: null,
+        lineOrder: null,
+        chromaticities: null,
+        owner: null,
+        comments: null,
+        creationTimestamp: null,
+        creationSoftware: null,
+        exposureValue: null,
+        gamma: null,
+        whitePoint: null
+    };
+    
+    try {
+        // Attempt to extract header data if available
+        if (texture.exrData) {
+            const header = texture.exrData.header || {};
+            
+            metadata.version = header.version || null;
+            metadata.channels = header.channels ? Object.keys(header.channels) : null;
+            metadata.compression = header.compression || null;
+            metadata.pixelAspectRatio = header.pixelAspectRatio || null;
+            metadata.displayWindow = header.displayWindow || null;
+            metadata.dataWindow = header.dataWindow || null;
+            metadata.lineOrder = header.lineOrder || null;
+            metadata.chromaticities = header.chromaticities || null;
+            
+            // Extract any custom attributes
+            if (header.attributes) {
+                metadata.owner = header.attributes.owner || null;
+                metadata.comments = header.attributes.comments || null;
+                metadata.creationTimestamp = header.attributes.creationTime || null;
+                metadata.creationSoftware = header.attributes.software || null;
+                metadata.exposureValue = header.attributes.exposure || null;
+                metadata.gamma = header.attributes.gamma || null;
+                metadata.whitePoint = header.attributes.whitePoint || null;
+            }
+        }
+    } catch (e) {
+        console.warn('Could not extract EXR header data:', e);
+    }
+    
+    return metadata;
+}
+
+/**
+ * Extract HDR-specific metadata from texture
+ * @private
+ * @param {THREE.Texture} texture - The HDR texture
+ * @returns {Object} HDR metadata
+ */
+function extractHDRMetadata(texture) {
+    const metadata = {
+        // Standard HDR metadata fields
+        formatIdentifier: null,
+        exposureValue: null,
+        gamma: null,
+        pixelAspectRatio: null,
+        creationSoftware: null,
+        comments: null,
+        colorSpace: null,
+        whitePoint: null,
+        sceneBrightness: null,
+        creationTimestamp: null
+    };
+    
+    try {
+        // Attempt to extract header data if available
+        if (texture.hdrData) {
+            const header = texture.hdrData || {};
+            
+            metadata.formatIdentifier = header.format || null;
+            metadata.exposureValue = header.exposure || null;
+            metadata.gamma = header.gamma || null;
+            metadata.pixelAspectRatio = header.pixelAspectRatio || null;
+            metadata.creationSoftware = header.software || null;
+            metadata.comments = header.comments || null;
+            metadata.colorSpace = header.colorSpace || null;
+            metadata.whitePoint = header.whitePoint || null;
+            metadata.sceneBrightness = header.sceneBrightness || null;
+            metadata.creationTimestamp = header.creationTime || null;
+        }
+    } catch (e) {
+        console.warn('Could not extract HDR header data:', e);
+    }
+    
+    return metadata;
+}
+
+/**
+ * Estimate the average luminance from a texture
+ * @private
+ * @param {THREE.Texture} texture - The texture to analyze
+ * @returns {number|null} - Estimated average luminance
+ */
+function estimateAverageLuminance(texture) {
+    if (!texture || !texture.image) return null;
+    
+    try {
+        // Check if we can access image data
+        if (texture.image.data) {
+            const data = texture.image.data;
+            let totalLuminance = 0;
+            let samples = 0;
+            
+            // Sample a subset of pixels for performance
+            const step = Math.max(1, Math.floor(data.length / 5000));
+            for (let i = 0; i < data.length; i += step * 4) {
+                if (i + 2 >= data.length) break;
+                
+                // Calculate luminance from RGB
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                
+                totalLuminance += luminance;
+                samples++;
+            }
+            
+            return samples > 0 ? totalLuminance / samples : null;
+        }
+    } catch (e) {
+        console.warn('Could not calculate average luminance:', e);
+    }
+    
+    return null;
+}
+
+/**
+ * Estimate the dynamic range from a texture
+ * @private
+ * @param {THREE.Texture} texture - The texture to analyze
+ * @returns {number|null} - Estimated dynamic range in stops
+ */
+function estimateDynamicRange(texture) {
+    if (!texture || !texture.image) return null;
+    
+    try {
+        // Check if we can access image data
+        if (texture.image.data) {
+            const data = texture.image.data;
+            let minLuminance = Infinity;
+            let maxLuminance = 0;
+            
+            // Sample a subset of pixels for performance
+            const step = Math.max(1, Math.floor(data.length / 5000));
+            for (let i = 0; i < data.length; i += step * 4) {
+                if (i + 2 >= data.length) break;
+                
+                // Calculate luminance from RGB
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                
+                if (luminance > 0) { // Avoid log(0)
+                    minLuminance = Math.min(minLuminance, luminance);
+                    maxLuminance = Math.max(maxLuminance, luminance);
+                }
+            }
+            
+            if (minLuminance < maxLuminance && minLuminance > 0) {
+                // Calculate dynamic range in stops (powers of 2)
+                return Math.log2(maxLuminance / minLuminance);
+            }
+        }
+    } catch (e) {
+        console.warn('Could not calculate dynamic range:', e);
+    }
+    
+    return null;
+}
+
+/**
+ * Estimate the maximum luminance from a texture
+ * @private
+ * @param {THREE.Texture} texture - The texture to analyze
+ * @returns {number} - Estimated maximum luminance
+ */
+function estimateMaxLuminance(texture) {
+    if (!texture || !texture.image) return 0;
+    
+    // For a more accurate implementation, we would need to analyze the texture data
+    // This is a simplified estimation based on texture properties
+    try {
+        // Check if we can access image data
+        if (texture.image.data) {
+            const data = texture.image.data;
+            let maxLuminance = 0;
+            
+            // Sample a subset of pixels for performance
+            const step = Math.max(1, Math.floor(data.length / 1000));
+            for (let i = 0; i < data.length; i += step * 4) {
+                if (i + 2 >= data.length) break;
+                
+                // Calculate rough luminance from RGB
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                
+                maxLuminance = Math.max(maxLuminance, luminance);
+            }
+            
+            return maxLuminance;
+        }
+    } catch (e) {
+        console.warn('Could not analyze texture data:', e);
+    }
+    
+    // Fallback to a nominal value
+    return 1.0;
 }

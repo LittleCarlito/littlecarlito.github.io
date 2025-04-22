@@ -8,6 +8,11 @@ import { updateLighting, resetLighting, updateExposure } from '../../core/lighti
 
 // Track initialization state
 let controlsInitialized = false;
+let initializationAttempts = 0;
+const MAX_INIT_ATTEMPTS = 20;
+
+// Store HDR/EXR metadata for display
+let currentLightingMetadata = null;
 
 /**
  * Initialize the World panel and cache DOM elements
@@ -22,6 +27,7 @@ export function initWorldPanel() {
         
         if (worldPanel) {
             clearInterval(checkElements);
+            clearTimeout(timeoutId); // Clear the timeout too when panel is found
             console.log('World panel found, initializing...');
             
             // Set up event listeners for lighting controls
@@ -29,11 +35,16 @@ export function initWorldPanel() {
             
             // Mark as initialized
             controlsInitialized = true;
+            
+            // Update lighting info if we have it already
+            if (currentLightingMetadata) {
+                updateLightingInfo(currentLightingMetadata);
+            }
         }
     }, 100);
     
-    // Set a timeout to stop checking after 10 seconds to prevent infinite checking
-    setTimeout(() => {
+    // Store the timeout ID so we can clear it if the panel is found
+    const timeoutId = setTimeout(() => {
         clearInterval(checkElements);
         console.warn('Timed out waiting for World panel elements');
     }, 10000);
@@ -121,6 +132,9 @@ function setupLightingControls() {
                     valueDisplay.textContent = '1.0';
                 }
             }
+            
+            // Clear lighting metadata display
+            clearLightingInfo();
         });
     }
     
@@ -134,13 +148,99 @@ function setupLightingControls() {
 function updateLightingMessage() {
     const state = getState();
     const noDataMessage = document.querySelector('.no-data-message');
+    const lightingDataInfo = document.querySelector('.lighting-data-info');
     
-    if (noDataMessage) {
+    if (noDataMessage && lightingDataInfo) {
         if (state.scene && state.scene.environment) {
             noDataMessage.style.display = 'none';
+            lightingDataInfo.style.display = 'block';
         } else {
             noDataMessage.style.display = 'block';
+            lightingDataInfo.style.display = 'none';
         }
+    }
+}
+
+/**
+ * Update the lighting info display with metadata
+ * @param {Object} metadata - The HDR/EXR metadata
+ */
+export function updateLightingInfo(metadata) {
+    // Store the metadata for later use if the panel isn't ready yet
+    currentLightingMetadata = metadata;
+    
+    // Find the UI elements
+    const filenameEl = document.getElementById('lighting-filename');
+    const typeEl = document.getElementById('lighting-type');
+    const resolutionEl = document.getElementById('lighting-resolution');
+    const sizeEl = document.getElementById('lighting-size');
+    const rangeEl = document.getElementById('lighting-range');
+    const luminanceEl = document.getElementById('lighting-luminance');
+    const softwareEl = document.getElementById('lighting-software');
+    
+    // Make sure all elements exist
+    if (!filenameEl || !typeEl || !resolutionEl || !sizeEl || !rangeEl || !luminanceEl || !softwareEl) {
+        console.warn('Lighting info elements not found, panel may not be initialized yet');
+        return;
+    }
+    
+    // Update the UI with metadata
+    filenameEl.textContent = metadata.fileName || '-';
+    typeEl.textContent = metadata.type || '-';
+    
+    const width = metadata.dimensions?.width || 0;
+    const height = metadata.dimensions?.height || 0;
+    resolutionEl.textContent = (width && height) ? `${width} × ${height}` : '-';
+    
+    const fileSizeMB = metadata.fileSizeBytes ? (metadata.fileSizeBytes / 1024 / 1024).toFixed(2) + ' MB' : '-';
+    sizeEl.textContent = fileSizeMB;
+    
+    rangeEl.textContent = metadata.dynamicRange ? metadata.dynamicRange.toFixed(2) + ' stops' : '-';
+    luminanceEl.textContent = metadata.maxLuminance ? metadata.maxLuminance.toFixed(2) : '-';
+    softwareEl.textContent = metadata.creationSoftware || '-';
+    
+    // Show the lighting info section and hide the no data message
+    const noDataMessage = document.querySelector('.no-data-message');
+    const lightingDataInfo = document.querySelector('.lighting-data-info');
+    
+    if (noDataMessage && lightingDataInfo) {
+        noDataMessage.style.display = 'none';
+        lightingDataInfo.style.display = 'block';
+    }
+}
+
+/**
+ * Clear the lighting info display
+ */
+function clearLightingInfo() {
+    // Clear the stored metadata
+    currentLightingMetadata = null;
+    
+    // Find the UI elements
+    const filenameEl = document.getElementById('lighting-filename');
+    const typeEl = document.getElementById('lighting-type');
+    const resolutionEl = document.getElementById('lighting-resolution');
+    const sizeEl = document.getElementById('lighting-size');
+    const rangeEl = document.getElementById('lighting-range');
+    const luminanceEl = document.getElementById('lighting-luminance');
+    const softwareEl = document.getElementById('lighting-software');
+    
+    // Reset all values
+    if (filenameEl) filenameEl.textContent = '-';
+    if (typeEl) typeEl.textContent = '-';
+    if (resolutionEl) resolutionEl.textContent = '-';
+    if (sizeEl) sizeEl.textContent = '-';
+    if (rangeEl) rangeEl.textContent = '-';
+    if (luminanceEl) luminanceEl.textContent = '-';
+    if (softwareEl) softwareEl.textContent = '-';
+    
+    // Hide lighting info and show no data message
+    const noDataMessage = document.querySelector('.no-data-message');
+    const lightingDataInfo = document.querySelector('.lighting-data-info');
+    
+    if (noDataMessage && lightingDataInfo) {
+        noDataMessage.style.display = 'block';
+        lightingDataInfo.style.display = 'none';
     }
 }
 

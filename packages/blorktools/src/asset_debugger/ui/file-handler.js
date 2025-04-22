@@ -8,6 +8,9 @@ import { loadTextureFromFile, formatFileSize } from '../core/materials.js';
 import { updateAtlasVisualization } from './scripts/atlas-panel.js';
 import { setupEnvironmentLighting } from '../core/lighting-util.js';
 
+// Debug flags
+const DEBUG_LIGHTING = false;
+
 /**
  * Setup dropzones for file input
  */
@@ -304,7 +307,24 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
     // Set up environment lighting if scene is already initialized
     const state = getState();
     if (state.scene && state.renderer) {
-        setupEnvironmentLighting(file);
+        // First parse and display the metadata
+        import('../core/lighting-util.js').then(lightingModule => {
+            lightingModule.parseLightingData(file).then(metadata => {
+                if (DEBUG_LIGHTING) {
+                    console.log('Lighting metadata:', metadata);
+                }
+                
+                // Update the World Panel with this metadata
+                import('./scripts/world-panel.js').then(worldPanelModule => {
+                    if (worldPanelModule.updateLightingInfo) {
+                        worldPanelModule.updateLightingInfo(metadata);
+                    }
+                });
+                
+                // Then apply the environment lighting
+                lightingModule.setupEnvironmentLighting(file);
+            });
+        });
     }
     
     // Check if we can enable the start button
@@ -320,7 +340,9 @@ function checkStartButton() {
     if (startButton) {
         // Always enable the button regardless of file status
         startButton.disabled = false;
-        console.log('Start debugging button is always enabled');
+        if (DEBUG_LIGHTING) {
+            console.log('Start debugging button is always enabled');
+        }
     }
 }
 

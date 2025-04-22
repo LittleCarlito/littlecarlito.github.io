@@ -27,8 +27,43 @@
                 <button id="reset-lighting" class="control-button">Reset Lighting</button>
             </div>
             
-            <div class="no-data-message">
-                No Lighting Data; Using Default Lighting
+            <div class="lighting-status">
+                <div class="no-data-message">
+                    No Lighting Data; Using Default Lighting
+                </div>
+                
+                <div class="lighting-data-info" style="display: none;">
+                    <table class="lighting-metadata">
+                        <tr>
+                            <td>File:</td>
+                            <td id="lighting-filename">-</td>
+                        </tr>
+                        <tr>
+                            <td>Type:</td>
+                            <td id="lighting-type">-</td>
+                        </tr>
+                        <tr>
+                            <td>Resolution:</td>
+                            <td id="lighting-resolution">-</td>
+                        </tr>
+                        <tr>
+                            <td>Size:</td>
+                            <td id="lighting-size">-</td>
+                        </tr>
+                        <tr>
+                            <td>Dynamic Range:</td>
+                            <td id="lighting-range">-</td>
+                        </tr>
+                        <tr>
+                            <td>Max Luminance:</td>
+                            <td id="lighting-luminance">-</td>
+                        </tr>
+                        <tr>
+                            <td>Software:</td>
+                            <td id="lighting-software">-</td>
+                        </tr>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -86,12 +121,36 @@
         background-color: #333;
     }
     
-    .no-data-message {
+    .lighting-status {
         margin-top: 12px;
+        border-top: 1px solid #333;
+        padding-top: 12px;
+    }
+    
+    .no-data-message {
         text-align: center;
         color: #777;
         font-size: 0.9em;
         font-style: italic;
+    }
+    
+    .lighting-data-info {
+        margin-top: 8px;
+    }
+    
+    .lighting-metadata {
+        width: 100%;
+        font-size: 0.9em;
+        color: #aaa;
+    }
+    
+    .lighting-metadata td {
+        padding: 3px 0;
+    }
+    
+    .lighting-metadata td:first-child {
+        width: 110px;
+        color: #777;
     }
 </style>
 

@@ -15,6 +15,9 @@ import { ExamplesModal } from './examples-modal.js';
 // Import World Panel
 import { initWorldPanel } from './world-panel.js';
 
+// Debug flags
+const DEBUG_LIGHTING = false;
+
 // Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Asset Debugger UI: Initializing...');
@@ -348,7 +351,10 @@ function verifyFileDrop() {
                           currentState.textureObjects.orm || 
                           currentState.textureObjects.normal;
         const hasModel = currentState.useCustomModel && currentState.modelFile;
-        const hasFiles = hasTextures || hasModel;
+        const hasLightingFile = currentState.lightingFile && 
+                              (currentState.lightingFile.name.toLowerCase().endsWith('.hdr') || 
+                               currentState.lightingFile.name.toLowerCase().endsWith('.exr'));
+        const hasFiles = hasTextures || hasModel || hasLightingFile;
         
         // If no files were dropped, show examples modal
         if (!hasFiles) {
@@ -387,6 +393,62 @@ function startDebugging() {
             rigManagerModule.updateRigOptions(savedSettings.rigOptions);
         });
     }
+    
+    // Check for HDR or EXR lighting files and handle them
+    import('../../core/state.js').then(stateModule => {
+        const currentState = stateModule.getState();
+        if (currentState.lightingFile && 
+            (currentState.lightingFile.name.toLowerCase().endsWith('.hdr') || 
+             currentState.lightingFile.name.toLowerCase().endsWith('.exr'))) {
+            
+            // Import lighting utilities and set up environment lighting
+            import('../../core/lighting-util.js').then(lightingModule => {
+                const lightingFile = currentState.lightingFile;
+                console.log('Setting up environment lighting from:', lightingFile.name);
+                
+                // First parse the metadata (this will log all details)
+                lightingModule.parseLightingData(lightingFile).then(metadata => {
+                    // Only log if debugging is enabled
+                    if (DEBUG_LIGHTING) {
+                        console.log('Environment Map Full Analysis:', metadata);
+                        
+                        // Format file type specific information
+                        if (lightingFile.name.toLowerCase().endsWith('.exr')) {
+                            console.log('EXR File Analysis:');
+                            console.log(`- File size: ${(lightingFile.size / 1024 / 1024).toFixed(2)} MB`);
+                            console.log(`- Resolution: ${metadata.dimensions?.width || 'Unknown'} x ${metadata.dimensions?.height || 'Unknown'}`);
+                            console.log(`- Version: ${metadata.version || 'Unknown'}`);
+                            console.log(`- Channels: ${metadata.channels ? metadata.channels.join(', ') : 'Standard RGB'}`);
+                            console.log(`- Compression: ${metadata.compression || 'Unknown'}`);
+                            console.log(`- Max Luminance: ${metadata.maxLuminance?.toFixed(2) || 'Unknown'}`);
+                            console.log(`- Dynamic Range: ${metadata.dynamicRange?.toFixed(2) || 'Unknown'} stops`);
+                            console.log(`- Created with: ${metadata.creationSoftware || 'Unknown software'}`);
+                        } else {
+                            console.log('HDR File Analysis:');
+                            console.log(`- File size: ${(lightingFile.size / 1024 / 1024).toFixed(2)} MB`);
+                            console.log(`- Resolution: ${metadata.dimensions?.width || 'Unknown'} x ${metadata.dimensions?.height || 'Unknown'}`);
+                            console.log(`- Format: ${metadata.formatIdentifier || 'Radiance RGBE'}`);
+                            console.log(`- Max Luminance: ${metadata.maxLuminance?.toFixed(2) || 'Unknown'}`);
+                            console.log(`- Dynamic Range: ${metadata.dynamicRange?.toFixed(2) || 'Unknown'} stops`);
+                            console.log(`- Gamma: ${metadata.gamma || 'Unknown'}`);
+                        }
+                    }
+                    
+                    // Update the World Panel with this metadata
+                    import('./world-panel.js').then(worldPanelModule => {
+                        if (worldPanelModule.updateLightingInfo) {
+                            worldPanelModule.updateLightingInfo(metadata);
+                        }
+                    });
+                }).catch(error => {
+                    console.error('Error analyzing environment map:', error);
+                });
+                
+                // Then apply the lighting to the scene
+                lightingModule.setupEnvironmentLighting(lightingFile);
+            });
+        }
+    });
     
     // Initialize the debugger with the loaded settings
     initializeDebugger(savedSettings);
