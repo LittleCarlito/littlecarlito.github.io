@@ -68,8 +68,8 @@ function setupLightingControls() {
                 ambient: { intensity: value }
             });
             // Update value display
-            const valueDisplay = e.target.nextElementSibling;
-            if (valueDisplay && valueDisplay.classList.contains('value-display')) {
+            const valueDisplay = e.target.previousElementSibling.querySelector('.value-display');
+            if (valueDisplay) {
                 valueDisplay.textContent = value.toFixed(1);
             }
         });
@@ -83,8 +83,8 @@ function setupLightingControls() {
                 directional: { intensity: value }
             });
             // Update value display
-            const valueDisplay = e.target.nextElementSibling;
-            if (valueDisplay && valueDisplay.classList.contains('value-display')) {
+            const valueDisplay = e.target.previousElementSibling.querySelector('.value-display');
+            if (valueDisplay) {
                 valueDisplay.textContent = value.toFixed(1);
             }
         });
@@ -96,8 +96,8 @@ function setupLightingControls() {
             const value = parseFloat(e.target.value);
             updateExposure(value);
             // Update value display
-            const valueDisplay = e.target.nextElementSibling;
-            if (valueDisplay && valueDisplay.classList.contains('value-display')) {
+            const valueDisplay = e.target.previousElementSibling.querySelector('.value-display');
+            if (valueDisplay) {
                 valueDisplay.textContent = value.toFixed(1);
             }
         });
@@ -111,24 +111,24 @@ function setupLightingControls() {
             // Reset control values if they exist
             if (ambientIntensityControl) {
                 ambientIntensityControl.value = 0.5;
-                const valueDisplay = ambientIntensityControl.nextElementSibling;
-                if (valueDisplay && valueDisplay.classList.contains('value-display')) {
+                const valueDisplay = ambientIntensityControl.previousElementSibling.querySelector('.value-display');
+                if (valueDisplay) {
                     valueDisplay.textContent = '0.5';
                 }
             }
             
             if (directionalIntensityControl) {
                 directionalIntensityControl.value = 1.0;
-                const valueDisplay = directionalIntensityControl.nextElementSibling;
-                if (valueDisplay && valueDisplay.classList.contains('value-display')) {
+                const valueDisplay = directionalIntensityControl.previousElementSibling.querySelector('.value-display');
+                if (valueDisplay) {
                     valueDisplay.textContent = '1.0';
                 }
             }
             
             if (exposureControl) {
                 exposureControl.value = 1.0;
-                const valueDisplay = exposureControl.nextElementSibling;
-                if (valueDisplay && valueDisplay.classList.contains('value-display')) {
+                const valueDisplay = exposureControl.previousElementSibling.querySelector('.value-display');
+                if (valueDisplay) {
                     valueDisplay.textContent = '1.0';
                 }
             }
@@ -206,6 +206,19 @@ export function updateLightingInfo(metadata) {
     if (noDataMessage && lightingDataInfo) {
         noDataMessage.style.display = 'none';
         lightingDataInfo.style.display = 'block';
+        
+        // Make sure the collapsible content is still hidden by default
+        const metadataContent = document.querySelector('.metadata-content');
+        if (metadataContent) {
+            // Keep it collapsed by default
+            metadataContent.style.display = 'none';
+            
+            // Make sure the indicator shows the right symbol
+            const indicator = document.querySelector('.collapse-indicator');
+            if (indicator) {
+                indicator.textContent = '[+]';
+            }
+        }
     }
 }
 
@@ -241,6 +254,17 @@ function clearLightingInfo() {
     if (noDataMessage && lightingDataInfo) {
         noDataMessage.style.display = 'block';
         lightingDataInfo.style.display = 'none';
+        
+        // Reset collapse state
+        const metadataContent = document.querySelector('.metadata-content');
+        if (metadataContent) {
+            metadataContent.style.display = 'none';
+        }
+        
+        const indicator = document.querySelector('.collapse-indicator');
+        if (indicator) {
+            indicator.textContent = '[+]';
+        }
     }
 }
 
@@ -257,24 +281,24 @@ export function updateWorldPanel() {
     
     if (state.ambientLight && ambientIntensityControl) {
         ambientIntensityControl.value = state.ambientLight.intensity;
-        const valueDisplay = ambientIntensityControl.nextElementSibling;
-        if (valueDisplay && valueDisplay.classList.contains('value-display')) {
+        const valueDisplay = ambientIntensityControl.previousElementSibling.querySelector('.value-display');
+        if (valueDisplay) {
             valueDisplay.textContent = state.ambientLight.intensity.toFixed(1);
         }
     }
     
     if (state.directionalLight && directionalIntensityControl) {
         directionalIntensityControl.value = state.directionalLight.intensity;
-        const valueDisplay = directionalIntensityControl.nextElementSibling;
-        if (valueDisplay && valueDisplay.classList.contains('value-display')) {
+        const valueDisplay = directionalIntensityControl.previousElementSibling.querySelector('.value-display');
+        if (valueDisplay) {
             valueDisplay.textContent = state.directionalLight.intensity.toFixed(1);
         }
     }
     
     if (state.renderer && exposureControl) {
         exposureControl.value = state.renderer.toneMappingExposure || 1.0;
-        const valueDisplay = exposureControl.nextElementSibling;
-        if (valueDisplay && valueDisplay.classList.contains('value-display')) {
+        const valueDisplay = exposureControl.previousElementSibling.querySelector('.value-display');
+        if (valueDisplay) {
             valueDisplay.textContent = (state.renderer.toneMappingExposure || 1.0).toFixed(1);
         }
     }

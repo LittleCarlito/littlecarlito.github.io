@@ -6,21 +6,27 @@
         <h4>Lighting</h4>
         <div class="world-info lighting-controls">
             <div class="control-group">
-                <label for="ambient-light-intensity">Ambient:</label>
+                <div class="label-container">
+                    <label for="ambient-light-intensity">Ambient:</label>
+                    <span class="value-display">0.5</span>
+                </div>
                 <input type="range" id="ambient-light-intensity" min="0" max="2" step="0.1" value="0.5" />
-                <span class="value-display">0.5</span>
             </div>
             
             <div class="control-group">
-                <label for="directional-light-intensity">Directional:</label>
+                <div class="label-container">
+                    <label for="directional-light-intensity">Directional:</label>
+                    <span class="value-display">1.0</span>
+                </div>
                 <input type="range" id="directional-light-intensity" min="0" max="2" step="0.1" value="1.0" />
-                <span class="value-display">1.0</span>
             </div>
             
             <div class="control-group">
-                <label for="exposure-value">Exposure:</label>
+                <div class="label-container">
+                    <label for="exposure-value">Exposure:</label>
+                    <span class="value-display">1.0</span>
+                </div>
                 <input type="range" id="exposure-value" min="0" max="2" step="0.1" value="1.0" />
-                <span class="value-display">1.0</span>
             </div>
             
             <div class="control-group buttons">
@@ -33,36 +39,42 @@
                 </div>
                 
                 <div class="lighting-data-info" style="display: none;">
-                    <table class="lighting-metadata">
-                        <tr>
-                            <td>File:</td>
-                            <td id="lighting-filename">-</td>
-                        </tr>
-                        <tr>
-                            <td>Type:</td>
-                            <td id="lighting-type">-</td>
-                        </tr>
-                        <tr>
-                            <td>Resolution:</td>
-                            <td id="lighting-resolution">-</td>
-                        </tr>
-                        <tr>
-                            <td>Size:</td>
-                            <td id="lighting-size">-</td>
-                        </tr>
-                        <tr>
-                            <td>Dynamic Range:</td>
-                            <td id="lighting-range">-</td>
-                        </tr>
-                        <tr>
-                            <td>Max Luminance:</td>
-                            <td id="lighting-luminance">-</td>
-                        </tr>
-                        <tr>
-                            <td>Software:</td>
-                            <td id="lighting-software">-</td>
-                        </tr>
-                    </table>
+                    <div class="collapsible-header">
+                        <h4 class="metadata-header">Lighting File Data</h4>
+                        <span class="collapse-indicator">[+]</span>
+                    </div>
+                    <div class="metadata-content" style="display: none;">
+                        <table class="lighting-metadata">
+                            <tr>
+                                <td>File:</td>
+                                <td id="lighting-filename">-</td>
+                            </tr>
+                            <tr>
+                                <td>Type:</td>
+                                <td id="lighting-type">-</td>
+                            </tr>
+                            <tr>
+                                <td>Resolution:</td>
+                                <td id="lighting-resolution">-</td>
+                            </tr>
+                            <tr>
+                                <td>Size:</td>
+                                <td id="lighting-size">-</td>
+                            </tr>
+                            <tr>
+                                <td>Dynamic Range:</td>
+                                <td id="lighting-range">-</td>
+                            </tr>
+                            <tr>
+                                <td>Max Luminance:</td>
+                                <td id="lighting-luminance">-</td>
+                            </tr>
+                            <tr>
+                                <td>Software:</td>
+                                <td id="lighting-software">-</td>
+                            </tr>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -70,41 +82,90 @@
 </div>
 
 <style>
+    /* Prevent content shifting when scrollbars appear */
+    html {
+        scrollbar-width: thin;
+        overflow-y: scroll;
+    }
+    
+    .tab-content {
+        box-sizing: border-box;
+        overflow-y: auto;
+        padding-right: 10px; /* Space for scrollbar */
+    }
+
     .lighting-controls {
         display: flex;
         flex-direction: column;
         gap: 10px;
         width: 100%;
         max-width: 100%;
+        box-sizing: border-box;
     }
     
     .control-group {
         display: flex;
-        align-items: center;
-        gap: 8px;
+        flex-direction: column;
         width: 100%;
+        gap: 4px;
+    }
+
+    .label-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
     
     .control-group label {
-        min-width: 80px;
-        width: 80px;
-        flex-shrink: 0;
+        color: #aaa;
+        font-size: 0.9em;
     }
     
     .control-group input[type="range"] {
-        flex: 1;
-        min-width: 0;
+        width: 100%;
+        height: 6px;
+    }
+    
+    /* Custom slider styling */
+    input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        background: #333;
+        height: 6px;
+        border-radius: 3px;
+        outline: none;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #0088ff;
+        cursor: pointer;
+        border: none;
+    }
+    
+    input[type="range"]::-moz-range-thumb {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #0088ff;
+        cursor: pointer;
+        border: none;
     }
     
     .value-display {
-        min-width: 30px;
-        width: 30px;
+        min-width: 24px;
         text-align: right;
-        flex-shrink: 0;
+        color: #ddd;
+        font-size: 0.9em;
     }
     
     .buttons {
         margin-top: 10px;
+        flex-direction: row;
         justify-content: center;
     }
     
@@ -125,6 +186,8 @@
         margin-top: 12px;
         border-top: 1px solid #333;
         padding-top: 12px;
+        box-sizing: border-box;
+        width: 100%;
     }
     
     .no-data-message {
@@ -136,12 +199,46 @@
     
     .lighting-data-info {
         margin-top: 8px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .collapsible-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        padding: 4px 0;
+    }
+    
+    .collapse-indicator {
+        font-size: 14px;
+        color: #777;
+        margin-right: 4px;
+    }
+    
+    .metadata-header {
+        font-size: 1em;
+        color: #aaa;
+        margin: 0;
+        font-weight: normal;
+    }
+    
+    .metadata-content {
+        padding-top: 8px;
+        max-height: 200px;
+        overflow-y: auto;
+        box-sizing: border-box;
+        width: 100%;
+        scrollbar-width: thin;
+        overscroll-behavior: contain;
     }
     
     .lighting-metadata {
         width: 100%;
         font-size: 0.9em;
         color: #aaa;
+        table-layout: fixed;
     }
     
     .lighting-metadata td {
@@ -152,21 +249,59 @@
         width: 110px;
         color: #777;
     }
+    
+    /* Custom scrollbar styling */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: #222;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: #444;
+        border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
 </style>
 
 <script>
     // Initialize value displays on page load
     document.querySelectorAll('.control-group input[type="range"]').forEach(slider => {
-        const valueDisplay = slider.nextElementSibling;
-        if (valueDisplay && valueDisplay.classList.contains('value-display')) {
+        const valueDisplay = slider.previousElementSibling.querySelector('.value-display');
+        if (valueDisplay) {
             valueDisplay.textContent = slider.value;
         }
         
         // Add input event listener to update value display when dragging
         slider.addEventListener('input', function() {
-            if (valueDisplay && valueDisplay.classList.contains('value-display')) {
+            const valueDisplay = this.previousElementSibling.querySelector('.value-display');
+            if (valueDisplay) {
                 valueDisplay.textContent = this.value;
             }
         });
+    });
+    
+    // Initialize collapsible functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const collapsibleHeader = document.querySelector('.collapsible-header');
+        if (collapsibleHeader) {
+            collapsibleHeader.addEventListener('click', function() {
+                const content = this.nextElementSibling;
+                const indicator = this.querySelector('.collapse-indicator');
+                
+                if (content.style.display === 'none') {
+                    content.style.display = 'block';
+                    indicator.textContent = '[-]';
+                } else {
+                    content.style.display = 'none';
+                    indicator.textContent = '[+]';
+                }
+            });
+        }
     });
 </script> 
