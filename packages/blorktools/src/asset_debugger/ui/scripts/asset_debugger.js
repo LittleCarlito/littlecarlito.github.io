@@ -80,7 +80,7 @@ function loadComponentHtml() {
     fetch('../pages/atlas-panel.html')
         .then(response => response.text())
         .then(html => {
-            document.getElementById('atlas-panel-container').innerHTML = html;
+            document.getElementById('atlas-tab-container').innerHTML = html;
         })
         .catch(error => {
             console.error('Error loading atlas panel:', error);
@@ -200,7 +200,8 @@ function setupTabNavigation() {
             worldContent: document.getElementById('world-tab'),
             meshTab: document.getElementById('mesh-tab-container'),
             meshContent: document.getElementById('mesh-tab'),
-            atlasTab: document.getElementById('atlas-tab'),
+            atlasTab: document.getElementById('atlas-tab-container'),
+            atlasContent: document.getElementById('atlas-tab-container').querySelector('.tab-content-inner'),
             uvTab: document.getElementById('uv-tab-container'),
             uvContent: document.getElementById('uv-tab'),
             rigTab: document.getElementById('rig-tab-container'),
@@ -273,6 +274,7 @@ function setupTabNavigation() {
             // Show atlas tab content
             const tabs = getTabElements();
             if (tabs.atlasTab) tabs.atlasTab.classList.add('active');
+            if (tabs.atlasContent) tabs.atlasContent.classList.add('active');
             
             // Update atlas visualization without recreating everything
             import('./atlas-panel.js').then(module => {
@@ -506,7 +508,8 @@ function initializeDebugger(settings) {
             worldContent: document.getElementById('world-tab'),
             meshTab: document.getElementById('mesh-tab-container'),
             meshContent: document.getElementById('mesh-tab'),
-            atlasTab: document.getElementById('atlas-tab'),
+            atlasTab: document.getElementById('atlas-tab-container'),
+            atlasContent: document.getElementById('atlas-tab-container').querySelector('.tab-content-inner'),
             uvTab: document.getElementById('uv-tab-container'),
             uvContent: document.getElementById('uv-tab'),
             rigTab: document.getElementById('rig-tab-container'),

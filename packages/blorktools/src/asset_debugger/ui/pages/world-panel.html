@@ -96,14 +96,7 @@
 </div>
 
 <style>
-    /* Use the main styles from styles.css but override specific ones needed */
-    #world-tab.tab-content {
-        /* Override only what we need, keep display rules from main CSS */
-        overflow-y: auto;
-        height: 100%;
-        padding-right: 15px; /* Space for scrollbar */
-    }
-
+    /* Override styles needed for this specific panel */
     .world-section {
         padding-bottom: 20px;
     }
@@ -117,6 +110,16 @@
         box-sizing: border-box;
     }
     
+    /* All content containers should be visible without scrollbars */
+    .lighting-status,
+    .lighting-data-info,
+    .metadata-content,
+    .image-preview-content,
+    .image-container {
+        overflow: visible !important;
+    }
+    
+    /* Control groups and elements */
     .control-group {
         display: flex;
         flex-direction: column;
@@ -244,17 +247,6 @@
         font-weight: normal;
     }
     
-    /* Content areas without their own scrollbars */
-    .metadata-content {
-        padding-top: 8px;
-        width: 100%;
-        box-sizing: border-box;
-    }
-    
-    .image-preview-content {
-        padding: 0;
-    }
-    
     .image-container {
         position: relative;
         width: 100%;
@@ -263,6 +255,7 @@
         justify-content: center;
         align-items: center;
         margin-bottom: 10px;
+        overflow: visible !important;
     }
     
     .hdr-preview-canvas {
@@ -306,24 +299,6 @@
     .lighting-metadata td:first-child {
         width: 110px;
         color: #777;
-    }
-    
-    /* Custom scrollbar styling */
-    ::-webkit-scrollbar {
-        width: 8px;
-    }
-    
-    ::-webkit-scrollbar-track {
-        background: #222;
-    }
-    
-    ::-webkit-scrollbar-thumb {
-        background: #444;
-        border-radius: 4px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-        background: #555;
     }
 </style>
 
