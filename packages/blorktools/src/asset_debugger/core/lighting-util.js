@@ -10,13 +10,17 @@ import { getState, updateState } from './state.js';
 let environmentExposure = 1.0;
 
 // Debug flag to control logging - set to false to disable logs
-const DEBUG_LIGHTING = false;
+const DEBUG_LIGHTING = true;
 
 /**
  * Add standard lighting to the scene
  * @param {THREE.Scene} scene - The scene to add lighting to
  */
 export function addLighting(scene) {
+    if (DEBUG_LIGHTING) {
+        console.log('Adding standard lighting to scene');
+    }
+    
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
     
@@ -30,6 +34,10 @@ export function addLighting(scene) {
     
     // Expose exposure update function globally
     window.updateExposure = updateExposure;
+    
+    if (DEBUG_LIGHTING) {
+        console.log('Standard lighting setup complete');
+    }
 }
 
 /**
@@ -93,12 +101,24 @@ export function updateExposure(value) {
  */
 export function setupEnvironmentLighting(file) {
     const state = getState();
-    if (!state.scene || !state.renderer) return;
+    if (!state.scene || !state.renderer) {
+        console.error('Cannot setup environment lighting: scene or renderer not available');
+        return;
+    }
     
     // Configure renderer for HDR/EXR
     state.renderer.outputEncoding = THREE.sRGBEncoding;
     state.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     state.renderer.toneMappingExposure = environmentExposure;
+    
+    if (DEBUG_LIGHTING) {
+        console.log(`Setting up environment lighting from ${file.name} (${file.size} bytes)`);
+        console.log('Renderer config:', {
+            outputEncoding: state.renderer.outputEncoding,
+            toneMapping: state.renderer.toneMapping,
+            exposure: state.renderer.toneMappingExposure
+        });
+    }
     
     // First parse and log all lighting data
     parseLightingData(file).then(metadata => {
@@ -109,62 +129,185 @@ export function setupEnvironmentLighting(file) {
         console.error('Error parsing lighting data:', error);
     });
     
-    // Require Three.js RGBELoader
-    import('three/addons/loaders/RGBELoader.js').then(({ RGBELoader }) => {
-        const loader = new RGBELoader();
-        
-        // For EXR files, higher quality settings
-        if (file.name.toLowerCase().endsWith('.exr')) {
-            loader.setDataType(THREE.FloatType);
-        }
-        
-        // Create object URL from the file
-        const url = URL.createObjectURL(file);
-        
-        // Show loading message
+    // Determine if this is an EXR file
+    const isEXR = file.name.toLowerCase().endsWith('.exr');
+    
+    // Create object URL from the file
+    const url = URL.createObjectURL(file);
+    
+    if (isEXR) {
+        // Use EXRLoader for EXR files
         if (DEBUG_LIGHTING) {
-            console.log(`Loading ${file.name.toLowerCase().endsWith('.exr') ? 'EXR' : 'HDR'} environment map...`);
+            console.log('Loading EXR file with EXRLoader');
         }
         
-        loader.load(url, (texture) => {
-            texture.mapping = THREE.EquirectangularReflectionMapping;
-            
-            // Set scene environment and background
-            state.scene.environment = texture;
-            state.scene.background = texture;
-            
-            // Clean up object URL
-            URL.revokeObjectURL(url);
-            
-            // Update exposure control if it exists
-            const exposureControl = document.getElementById('exposure-value');
-            if (exposureControl) {
-                exposureControl.value = environmentExposure;
-                exposureControl.nextElementSibling.textContent = environmentExposure.toFixed(1);
-            }
-            
-            // Hide no data message since we now have lighting data
-            const noDataMessage = document.querySelector('.no-data-message');
-            if (noDataMessage) {
-                noDataMessage.style.display = 'none';
-            }
-            
+        import('three/addons/loaders/EXRLoader.js').then(({ EXRLoader }) => {
             if (DEBUG_LIGHTING) {
-                console.log('Environment lighting loaded successfully');
+                console.log('EXRLoader imported successfully');
+                console.log('Created URL for EXR file:', url);
+                console.log('Starting EXR texture loading...');
             }
-        }, 
-        // Progress callback
-        (xhr) => {
-            if (xhr.lengthComputable && DEBUG_LIGHTING) {
-                const percentComplete = xhr.loaded / xhr.total * 100;
-                console.log(`Environment map loading: ${Math.round(percentComplete)}%`);
-            }
-        }, 
-        // Error callback
-        (error) => {
-            console.error('Error loading environment map:', error);
+            
+            const loader = new EXRLoader();
+            loader.setDataType(THREE.FloatType);
+            
+            loader.load(url, 
+                // Success callback
+                (texture) => {
+                    if (DEBUG_LIGHTING) {
+                        console.log('EXR texture loaded successfully:', texture);
+                        console.log('EXR texture image:', texture.image);
+                        console.log('EXR texture properties:', {
+                            format: texture.format,
+                            type: texture.type,
+                            dimensions: texture.image ? `${texture.image.width}x${texture.image.height}` : 'unknown',
+                            dataType: texture.image && texture.image.data ? texture.image.data.constructor.name : 'unknown'
+                        });
+                        
+                        // Log a sample of the data
+                        if (texture.image && texture.image.data) {
+                            const sampleSize = Math.min(20, texture.image.data.length);
+                            console.log('EXR data sample:', Array.from(texture.image.data.slice(0, sampleSize)));
+                        }
+                    }
+                    
+                    texture.mapping = THREE.EquirectangularReflectionMapping;
+                    
+                    // Set scene environment and background
+                    state.scene.environment = texture;
+                    state.scene.background = texture;
+                    
+                    // Clean up object URL
+                    URL.revokeObjectURL(url);
+                    
+                    // Update exposure control if it exists
+                    const exposureControl = document.getElementById('exposure-value');
+                    if (exposureControl) {
+                        exposureControl.value = environmentExposure;
+                        const valueDisplay = exposureControl.previousElementSibling?.querySelector('.value-display');
+                        if (valueDisplay) {
+                            valueDisplay.textContent = environmentExposure.toFixed(1);
+                        }
+                    }
+                    
+                    // Hide no data message since we now have lighting data
+                    const noDataMessage = document.querySelector('.no-data-message');
+                    if (noDataMessage) {
+                        noDataMessage.style.display = 'none';
+                    }
+                    
+                    if (DEBUG_LIGHTING) {
+                        console.log('EXR environment lighting setup complete');
+                        
+                        // Update the world panel to show the preview
+                        import('../ui/scripts/world-panel.js').then(worldPanel => {
+                            if (worldPanel.updateWorldPanel) {
+                                console.log('Triggering world panel update for EXR preview');
+                                worldPanel.updateWorldPanel();
+                            }
+                        });
+                    }
+                },
+                // Progress callback 
+                (xhr) => {
+                    if (xhr.lengthComputable) {
+                        const percentComplete = xhr.loaded / xhr.total * 100;
+                        console.log(`EXR loading: ${Math.round(percentComplete)}%`);
+                    }
+                },
+                // Error callback
+                (error) => {
+                    console.error('Error loading EXR environment map:', error);
+                    URL.revokeObjectURL(url);
+                }
+            );
+        }).catch(err => {
+            console.error('Error importing EXRLoader:', err);
+            URL.revokeObjectURL(url);
         });
-    });
+    } else {
+        // Use RGBELoader for HDR files
+        if (DEBUG_LIGHTING) {
+            console.log('Loading HDR file with RGBELoader');
+        }
+        
+        import('three/addons/loaders/RGBELoader.js').then(({ RGBELoader }) => {
+            if (DEBUG_LIGHTING) {
+                console.log('RGBELoader imported successfully');
+                console.log('Created URL for HDR file:', url);
+                console.log('Starting HDR texture loading...');
+            }
+            
+            const loader = new RGBELoader();
+            
+            loader.load(url, 
+                // Success callback
+                (texture) => {
+                    if (DEBUG_LIGHTING) {
+                        console.log('HDR texture loaded successfully:', texture);
+                        console.log('HDR texture image:', texture.image);
+                        console.log('HDR texture properties:', {
+                            format: texture.format,
+                            type: texture.type,
+                            dimensions: texture.image ? `${texture.image.width}x${texture.image.height}` : 'unknown'
+                        });
+                    }
+                    
+                    texture.mapping = THREE.EquirectangularReflectionMapping;
+                    
+                    // Set scene environment and background
+                    state.scene.environment = texture;
+                    state.scene.background = texture;
+                    
+                    // Clean up object URL
+                    URL.revokeObjectURL(url);
+                    
+                    // Update exposure control if it exists
+                    const exposureControl = document.getElementById('exposure-value');
+                    if (exposureControl) {
+                        exposureControl.value = environmentExposure;
+                        const valueDisplay = exposureControl.previousElementSibling?.querySelector('.value-display');
+                        if (valueDisplay) {
+                            valueDisplay.textContent = environmentExposure.toFixed(1);
+                        }
+                    }
+                    
+                    // Hide no data message since we now have lighting data
+                    const noDataMessage = document.querySelector('.no-data-message');
+                    if (noDataMessage) {
+                        noDataMessage.style.display = 'none';
+                    }
+                    
+                    if (DEBUG_LIGHTING) {
+                        console.log('HDR environment lighting setup complete');
+                        
+                        // Update the world panel to show the preview
+                        import('../ui/scripts/world-panel.js').then(worldPanel => {
+                            if (worldPanel.updateWorldPanel) {
+                                console.log('Triggering world panel update for HDR preview');
+                                worldPanel.updateWorldPanel();
+                            }
+                        });
+                    }
+                },
+                // Progress callback
+                (xhr) => {
+                    if (xhr.lengthComputable) {
+                        const percentComplete = xhr.loaded / xhr.total * 100;
+                        console.log(`HDR loading: ${Math.round(percentComplete)}%`);
+                    }
+                },
+                // Error callback
+                (error) => {
+                    console.error('Error loading HDR environment map:', error);
+                    URL.revokeObjectURL(url);
+                }
+            );
+        }).catch(err => {
+            console.error('Error importing RGBELoader:', err);
+            URL.revokeObjectURL(url);
+        });
+    }
 }
 
 /**

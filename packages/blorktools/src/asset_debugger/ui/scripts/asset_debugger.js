@@ -396,7 +396,12 @@ function startDebugging() {
         });
     }
     
+    // Initialize the debugger with the loaded settings first
+    // This ensures scene and renderer are created before loading lighting
+    initializeDebugger(savedSettings);
+    
     // Check for HDR or EXR lighting files and handle them
+    // This will run after scene initialization
     import('../../core/state.js').then(stateModule => {
         const currentState = stateModule.getState();
         if (currentState.lightingFile && 
@@ -413,27 +418,6 @@ function startDebugging() {
                     // Only log if debugging is enabled
                     if (DEBUG_LIGHTING) {
                         console.log('Environment Map Full Analysis:', metadata);
-                        
-                        // Format file type specific information
-                        if (lightingFile.name.toLowerCase().endsWith('.exr')) {
-                            console.log('EXR File Analysis:');
-                            console.log(`- File size: ${(lightingFile.size / 1024 / 1024).toFixed(2)} MB`);
-                            console.log(`- Resolution: ${metadata.dimensions?.width || 'Unknown'} x ${metadata.dimensions?.height || 'Unknown'}`);
-                            console.log(`- Version: ${metadata.version || 'Unknown'}`);
-                            console.log(`- Channels: ${metadata.channels ? metadata.channels.join(', ') : 'Standard RGB'}`);
-                            console.log(`- Compression: ${metadata.compression || 'Unknown'}`);
-                            console.log(`- Max Luminance: ${metadata.maxLuminance?.toFixed(2) || 'Unknown'}`);
-                            console.log(`- Dynamic Range: ${metadata.dynamicRange?.toFixed(2) || 'Unknown'} stops`);
-                            console.log(`- Created with: ${metadata.creationSoftware || 'Unknown software'}`);
-                        } else {
-                            console.log('HDR File Analysis:');
-                            console.log(`- File size: ${(lightingFile.size / 1024 / 1024).toFixed(2)} MB`);
-                            console.log(`- Resolution: ${metadata.dimensions?.width || 'Unknown'} x ${metadata.dimensions?.height || 'Unknown'}`);
-                            console.log(`- Format: ${metadata.formatIdentifier || 'Radiance RGBE'}`);
-                            console.log(`- Max Luminance: ${metadata.maxLuminance?.toFixed(2) || 'Unknown'}`);
-                            console.log(`- Dynamic Range: ${metadata.dynamicRange?.toFixed(2) || 'Unknown'} stops`);
-                            console.log(`- Gamma: ${metadata.gamma || 'Unknown'}`);
-                        }
                     }
                     
                     // Update the World Panel with this metadata
@@ -451,9 +435,6 @@ function startDebugging() {
             });
         }
     });
-    
-    // Initialize the debugger with the loaded settings
-    initializeDebugger(savedSettings);
 }
 
 /**

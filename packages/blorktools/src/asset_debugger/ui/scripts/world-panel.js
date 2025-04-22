@@ -8,8 +8,6 @@ import { updateLighting, resetLighting, updateExposure } from '../../core/lighti
 
 // Track initialization state
 let controlsInitialized = false;
-let initializationAttempts = 0;
-const MAX_INIT_ATTEMPTS = 20;
 
 // Store HDR/EXR metadata for display
 let currentLightingMetadata = null;
@@ -23,14 +21,13 @@ let environmentTexture = null;
 export function initWorldPanel() {
     console.log('Initializing World Panel...');
     
-    // Wait for panel elements to be available 
+    // Wait for panel elements to be available, similar to atlas-panel approach
     const checkElements = setInterval(() => {
         // Look for world-tab (from world-panel.html) or world-tab-container (from asset_debugger.html)
         const worldPanel = document.getElementById('world-tab') || document.getElementById('world-tab-container');
         
         if (worldPanel) {
             clearInterval(checkElements);
-            clearTimeout(timeoutId); // Clear the timeout too when panel is found
             console.log('World panel found, initializing...');
             
             // Set up event listeners for lighting controls
@@ -41,21 +38,25 @@ export function initWorldPanel() {
             
             // Update lighting info if we have it already
             if (currentLightingMetadata) {
+                console.log('We have existing metadata, updating lighting info');
                 updateLightingInfo(currentLightingMetadata);
                 
                 // If we have an environment texture, render the preview
                 if (environmentTexture) {
+                    console.log('We have existing environment texture, rendering preview');
                     renderEnvironmentPreview(environmentTexture);
                 }
+            } else {
+                console.log('No lighting metadata available yet during initialization');
             }
         }
     }, 100);
     
-    // Store the timeout ID so we can clear it if the panel is found
-    const timeoutId = setTimeout(() => {
+    // Set a reasonable timeout (consistent with other panels)
+    setTimeout(() => {
         clearInterval(checkElements);
         console.warn('Timed out waiting for World panel elements');
-    }, 10000);
+    }, 5000);
 }
 
 /**
@@ -174,6 +175,8 @@ function updateLightingMessage() {
  * @param {Object} metadata - The HDR/EXR metadata
  */
 export function updateLightingInfo(metadata) {
+    console.log('Updating lighting info with metadata:', metadata.fileName, metadata.type);
+    
     // Store the metadata for later use if the panel isn't ready yet
     currentLightingMetadata = metadata;
     
@@ -212,19 +215,21 @@ export function updateLightingInfo(metadata) {
     const lightingDataInfo = document.querySelector('.lighting-data-info');
     
     if (noDataMessage && lightingDataInfo) {
+        console.log('Showing lighting data info and hiding no data message');
         noDataMessage.style.display = 'none';
         lightingDataInfo.style.display = 'block';
         
-        // Make sure the collapsible content is still hidden by default
+        // Make sure any collapsible content is still properly collapsed
         const metadataContents = document.querySelectorAll('.metadata-content');
-        if (metadataContents) {
+        if (metadataContents && metadataContents.length > 0) {
+            console.log('Ensuring collapsible content is collapsed initially');
             metadataContents.forEach(content => {
                 content.style.display = 'none';
             });
             
             // Make sure all indicators show the right symbol
             const indicators = document.querySelectorAll('.collapse-indicator');
-            if (indicators) {
+            if (indicators && indicators.length > 0) {
                 indicators.forEach(indicator => {
                     indicator.textContent = '+';
                 });
@@ -235,10 +240,12 @@ export function updateLightingInfo(metadata) {
     // Try to get environment texture and render it
     const state = getState();
     if (state.scene && state.scene.environment) {
+        console.log('Found environment texture in scene, rendering preview');
+        
         // Store the environment texture for later use
         environmentTexture = state.scene.environment;
         
-        // Try to render the preview if elements exist
+        // Render the preview
         renderEnvironmentPreview(environmentTexture);
     }
 }
@@ -260,9 +267,14 @@ function renderEnvironmentPreview(texture) {
     
     // If texture doesn't have image data, show error message
     if (!texture || !texture.image) {
+        console.warn('No texture or image data found:', texture);
         showNoImageMessage(canvas, noImageMessage, 'No image data available.');
         return;
     }
+    
+    console.log('Rendering environment texture preview, texture type:', 
+        texture.constructor.name,
+        'Image type:', texture.image.constructor.name);
     
     try {
         const ctx = canvas.getContext('2d');
@@ -274,6 +286,9 @@ function renderEnvironmentPreview(texture) {
         
         // If we have an actual HTMLImageElement, we can render it directly
         if (texture.image instanceof HTMLImageElement) {
+            console.log('Processing HTMLImageElement with dimensions:', 
+                texture.image.width, 'x', texture.image.height);
+                
             // Set canvas size based on image dimensions but maintain aspect ratio
             const aspectRatio = texture.image.width / texture.image.height;
             canvas.width = 500; // Fixed width for better quality
@@ -289,11 +304,13 @@ function renderEnvironmentPreview(texture) {
             canvas.style.display = 'block';
             if (noImageMessage) noImageMessage.style.display = 'none';
             
-            console.log('Rendered image from HTMLImageElement');
+            console.log('Successfully rendered image from HTMLImageElement');
         }
         // If texture is a cube texture, draw one of its faces
         else if (Array.isArray(texture.image) && texture.image.length >= 1) {
             const faceImage = texture.image[0];
+            console.log('Processing cubemap face with type:', faceImage?.constructor.name);
+            
             if (faceImage instanceof HTMLImageElement) {
                 // Set canvas size based on face image dimensions
                 const aspectRatio = faceImage.width / faceImage.height;
@@ -318,8 +335,9 @@ function renderEnvironmentPreview(texture) {
                 canvas.style.display = 'block';
                 if (noImageMessage) noImageMessage.style.display = 'none';
                 
-                console.log('Rendered image from cubemap face');
+                console.log('Successfully rendered image from cubemap face');
             } else {
+                console.warn('Cannot display cubemap face, invalid format:', faceImage);
                 showNoImageMessage(canvas, noImageMessage, 'Cannot display cubemap face.');
             }
         }
@@ -327,12 +345,21 @@ function renderEnvironmentPreview(texture) {
         else if (texture.image.data) {
             console.log('Processing data texture with dimensions:', 
                 texture.image.width, 'x', texture.image.height, 
-                'Data length:', texture.image.data.length);
+                'Data length:', texture.image.data.length,
+                'Data type:', texture.image.data.constructor.name);
+            
+            // Get a sample of the data to check if it's valid
+            const data = texture.image.data;
+            const dataType = data.constructor.name;
+            const sampleSize = Math.min(10, data.length);
+            const dataSample = Array.from(data.slice(0, sampleSize));
+            console.log(`Data sample (${dataType}):`, dataSample);
             
             // Create a simple visualization of the HDR data
-            const data = texture.image.data;
             const width = texture.image.width || 256;
             const height = texture.image.height || 128;
+            
+            console.log(`Using dimensions: ${width}x${height} for canvas preview`);
             
             // Set canvas size
             canvas.width = Math.min(500, width); // Cap width at 500px
@@ -352,56 +379,99 @@ function renderEnvironmentPreview(texture) {
             const exposure = 1.0; // Adjust as needed
             const gamma = 2.2;   // Standard gamma correction
 
-            for (let y = 0; y < canvas.height; y++) {
-                for (let x = 0; x < canvas.width; x++) {
-                    // Calculate source position in original data
-                    const srcX = Math.floor(x * scaleX);
-                    const srcY = Math.floor(y * scaleY);
-                    
-                    // Calculate source index in data array (RGBA format)
-                    const srcIndex = (srcY * width + srcX) * 4;
-                    
-                    // Calculate destination index in imageData
-                    const destIndex = (y * canvas.width + x) * 4;
-                    
-                    // Make sure we're within bounds
-                    if (srcIndex < data.length - 3) {
-                        // Apply simple tone mapping (exposure + gamma correction)
-                        // and convert from float HDR values to 8-bit display values
-                        const r = Math.max(0, Math.min(255, Math.pow(data[srcIndex] * exposure, 1/gamma) * 255));
-                        const g = Math.max(0, Math.min(255, Math.pow(data[srcIndex + 1] * exposure, 1/gamma) * 255));
-                        const b = Math.max(0, Math.min(255, Math.pow(data[srcIndex + 2] * exposure, 1/gamma) * 255));
+            try {
+                // Detect if we have a Float32Array (typical for EXR)
+                const isFloatData = data instanceof Float32Array;
+                console.log('Data is Float32Array:', isFloatData);
+                
+                // Check if the data layout is standard RGBA (4 components)
+                const dataComponents = data.length / (width * height);
+                console.log(`Data components per pixel: ${dataComponents}`);
+                
+                // Special case for non-standard data formats
+                const isNonStandardFormat = dataComponents !== 4;
+                
+                for (let y = 0; y < canvas.height; y++) {
+                    for (let x = 0; x < canvas.width; x++) {
+                        // Calculate source position in original data
+                        const srcX = Math.floor(x * scaleX);
+                        const srcY = Math.floor(y * scaleY);
+                        
+                        // Calculate destination index in imageData
+                        const destIndex = (y * canvas.width + x) * 4;
+                        
+                        // Default to black
+                        let r = 0, g = 0, b = 0;
+                        
+                        // Handle different data layouts
+                        if (isNonStandardFormat) {
+                            // Handle non-standard formats (like RGB without alpha)
+                            const srcIndex = (srcY * width + srcX) * dataComponents;
+                            
+                            if (srcIndex < data.length - (dataComponents - 1)) {
+                                // Just take the first 3 components as RGB
+                                r = data[srcIndex];
+                                g = dataComponents > 1 ? data[srcIndex + 1] : r;
+                                b = dataComponents > 2 ? data[srcIndex + 2] : g;
+                            }
+                        } else {
+                            // Standard RGBA format
+                            const srcIndex = (srcY * width + srcX) * 4;
+                            
+                            if (srcIndex < data.length - 3) {
+                                r = data[srcIndex];
+                                g = data[srcIndex + 1];
+                                b = data[srcIndex + 2];
+                            }
+                        }
+                        
+                        // For float data (EXR), we need to apply more aggressive tone mapping
+                        if (isFloatData) {
+                            // Ensure values are positive and not NaN or Infinity
+                            r = isNaN(r) || !isFinite(r) ? 0 : Math.abs(r);
+                            g = isNaN(g) || !isFinite(g) ? 0 : Math.abs(g);
+                            b = isNaN(b) || !isFinite(b) ? 0 : Math.abs(b);
+                            
+                            // Apply simple tone mapping (exposure + gamma correction)
+                            // and convert from float HDR values to 8-bit display values
+                            r = Math.max(0, Math.min(255, Math.pow(r * exposure, 1/gamma) * 255));
+                            g = Math.max(0, Math.min(255, Math.pow(g * exposure, 1/gamma) * 255));
+                            b = Math.max(0, Math.min(255, Math.pow(b * exposure, 1/gamma) * 255));
+                        } else {
+                            // For RGBE (HDR) data, simple scaling might be enough
+                            r = Math.max(0, Math.min(255, r));
+                            g = Math.max(0, Math.min(255, g));
+                            b = Math.max(0, Math.min(255, b));
+                        }
                         
                         imageData.data[destIndex] = r;
                         imageData.data[destIndex + 1] = g;
                         imageData.data[destIndex + 2] = b;
                         imageData.data[destIndex + 3] = 255; // Alpha
-                    } else {
-                        // If we're out of bounds or have missing data, use black
-                        imageData.data[destIndex] = 0;
-                        imageData.data[destIndex + 1] = 0;
-                        imageData.data[destIndex + 2] = 0;
-                        imageData.data[destIndex + 3] = 255; // Alpha
                     }
                 }
+                
+                // Put the ImageData to the canvas
+                ctx.putImageData(imageData, 0, 0);
+                
+                // Add an informative text overlay
+                const textLabel = isFloatData ? 'EXR Data Preview' : 'HDR Data Preview';
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
+                ctx.fillStyle = '#fff';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${textLabel} (Tone Mapped)`, canvas.width / 2, canvas.height - 12);
+                
+                // Make canvas visible
+                canvas.style.display = 'block';
+                if (noImageMessage) noImageMessage.style.display = 'none';
+                
+                console.log('Successfully rendered data texture visualization');
+            } catch (dataError) {
+                console.error('Error processing texture data:', dataError);
+                showNoImageMessage(canvas, noImageMessage, `Error processing data: ${dataError.message}`);
             }
-            
-            // Put the ImageData to the canvas
-            ctx.putImageData(imageData, 0, 0);
-            
-            // Add "HDR Data Preview" text
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-            ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
-            ctx.fillStyle = '#fff';
-            ctx.font = '12px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('HDR Data Preview (Tone Mapped)', canvas.width / 2, canvas.height - 12);
-            
-            // Make canvas visible
-            canvas.style.display = 'block';
-            if (noImageMessage) noImageMessage.style.display = 'none';
-            
-            console.log('Rendered data texture visualization');
         } else {
             console.warn('Unsupported texture format:', texture);
             showNoImageMessage(canvas, noImageMessage, 'Unsupported image format for preview.');
@@ -419,15 +489,31 @@ function renderEnvironmentPreview(texture) {
  * @param {string} message - The error message to display
  */
 function showNoImageMessage(canvas, messageEl, message = 'No image data available.') {
-    console.log('Showing no image message:', message);
+    console.warn('Showing no image message:', message);
     
     // Hide canvas
-    if (canvas) canvas.style.display = 'none';
+    if (canvas) {
+        canvas.style.display = 'none';
+        console.log('Canvas hidden');
+    }
     
     // Show message
     if (messageEl) {
         messageEl.style.display = 'block';
         messageEl.textContent = message;
+        console.log('Message displayed:', message);
+    } else {
+        // Last resort: try to find the parent container and add a message
+        const container = document.querySelector('.lighting-status');
+        if (container) {
+            console.log('Found parent container, adding error message directly');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            errorDiv.style.color = 'red';
+            errorDiv.style.padding = '10px';
+            container.appendChild(errorDiv);
+        }
     }
 }
 
@@ -532,4 +618,64 @@ export function updateWorldPanel() {
         environmentTexture = state.scene.environment;
         renderEnvironmentPreview(environmentTexture);
     }
-} 
+}
+
+/**
+ * Export a debug function to test EXR rendering directly
+ * This can be called from the console for testing
+ */
+export function testRenderExr(file) {
+    console.log('Manual EXR rendering test with file:', file);
+    
+    if (!file) {
+        console.error('No file provided');
+        return;
+    }
+    
+    // First make sure to import Three.js if needed
+    import('three').then((THREE) => {
+        console.log('Three.js imported for manual testing');
+        
+        // Import the EXRLoader
+        import('three/addons/loaders/EXRLoader.js').then(({ EXRLoader }) => {
+            console.log('EXRLoader imported successfully');
+            
+            const loader = new EXRLoader();
+            loader.setDataType(THREE.FloatType);
+            
+            // Create URL
+            const url = URL.createObjectURL(file);
+            console.log('Created URL for manual test:', url);
+            
+            // Load the texture
+            loader.load(url, (texture) => {
+                console.log('EXR loaded for manual test:', texture);
+                console.log('EXR image data:', texture.image);
+                
+                // Render it
+                renderEnvironmentPreview(texture);
+                
+                // Clean up
+                URL.revokeObjectURL(url);
+            }, 
+            // Progress
+            (xhr) => {
+                if (xhr.lengthComputable) {
+                    const percentComplete = xhr.loaded / xhr.total * 100;
+                    console.log(`Manual test loading: ${Math.round(percentComplete)}%`);
+                }
+            },
+            // Error
+            (error) => {
+                console.error('Error in manual test:', error);
+            });
+        }).catch(err => {
+            console.error('Error importing EXRLoader for manual test:', err);
+        });
+    }).catch(err => {
+        console.error('Error importing Three.js for manual test:', err);
+    });
+}
+
+// Make the test function available globally for debugging
+window.testRenderExr = testRenderExr; 

@@ -278,7 +278,7 @@ function handleModelUpload(file, infoElement, dropzone) {
  * @param {HTMLElement} dropzone - The dropzone element
  */
 function handleLightingUpload(file, infoElement, previewElement, dropzone) {
-    // Store the file in the state
+    // Just validate file type (already done in caller) and store in state
     updateState('lightingFile', file);
     
     // Show file info
@@ -287,7 +287,7 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
     // Mark dropzone as having a file
     dropzone.classList.add('has-file');
     
-    // Create a preview (simple placeholder for HDR/EXR)
+    // Create a simple preview placeholder (don't actually process the file yet)
     previewElement.innerHTML = '';
     
     // Create a div to show a placeholder for the HDR/EXR file
@@ -304,28 +304,8 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
     
     previewElement.appendChild(placeholderDiv);
     
-    // Set up environment lighting if scene is already initialized
-    const state = getState();
-    if (state.scene && state.renderer) {
-        // First parse and display the metadata
-        import('../core/lighting-util.js').then(lightingModule => {
-            lightingModule.parseLightingData(file).then(metadata => {
-                if (DEBUG_LIGHTING) {
-                    console.log('Lighting metadata:', metadata);
-                }
-                
-                // Update the World Panel with this metadata
-                import('./scripts/world-panel.js').then(worldPanelModule => {
-                    if (worldPanelModule.updateLightingInfo) {
-                        worldPanelModule.updateLightingInfo(metadata);
-                    }
-                });
-                
-                // Then apply the environment lighting
-                lightingModule.setupEnvironmentLighting(file);
-            });
-        });
-    }
+    // That's it! Don't parse or process the file until Start Debugging is clicked
+    console.log(`HDR/EXR file "${file.name}" accepted and stored for later processing`);
     
     // Check if we can enable the start button
     checkStartButton();
