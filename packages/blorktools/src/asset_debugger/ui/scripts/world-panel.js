@@ -306,213 +306,376 @@ function renderEnvironmentPreview(texture) {
         return;
     }
     
-    console.log('Rendering environment texture preview, texture type:', 
-        texture.constructor.name,
-        'Image type:', texture.image.constructor.name);
+    console.log('Rendering environment texture preview as 3D sphere');
+    
+    // Hide the no image message
+    if (noImageMessage) noImageMessage.style.display = 'none';
+    
+    // Make canvas visible
+    canvas.style.display = 'block';
+    
+    // Set canvas size (always square for the sphere preview)
+    const previewSize = 260;
+    canvas.width = previewSize;
+    canvas.height = previewSize;
     
     try {
-        const ctx = canvas.getContext('2d');
-        
-        // For HDR/EXR textures in Three.js, the image could be:
-        // 1. A DataTexture with a data array
-        // 2. A cube texture with 6 faces
-        // 3. An equirectangular texture with image data
-        
-        // If we have an actual HTMLImageElement, we can render it directly
-        if (texture.image instanceof HTMLImageElement) {
-            console.log('Processing HTMLImageElement with dimensions:', 
-                texture.image.width, 'x', texture.image.height);
-                
-            // Set canvas size based on image dimensions but maintain aspect ratio
-            const aspectRatio = texture.image.width / texture.image.height;
-            canvas.width = 500; // Fixed width for better quality
-            canvas.height = canvas.width / aspectRatio;
-            
-            // Clear canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw the image to the canvas
-            ctx.drawImage(texture.image, 0, 0, canvas.width, canvas.height);
-            
-            // Make canvas visible
-            canvas.style.display = 'block';
-            if (noImageMessage) noImageMessage.style.display = 'none';
-            
-            console.log('Successfully rendered image from HTMLImageElement');
+        // Create a mini Three.js scene for the sphere preview
+        // Only check if THREE is available on the window
+        if (window.THREE) {
+            // If THREE is already available globally, use it directly
+            createSpherePreview(window.THREE, texture, canvas, noImageMessage);
+        } else {
+            // Otherwise, try to import it
+            console.log('THREE not found on window, trying dynamic import');
+            import('three').then((ThreeModule) => {
+                const THREE = ThreeModule.default || ThreeModule;
+                createSpherePreview(THREE, texture, canvas, noImageMessage);
+            }).catch(error => {
+                console.error('Error importing Three.js:', error);
+                fallbackTo2DPreview(texture, canvas);
+            });
         }
-        // If texture is a cube texture, draw one of its faces
-        else if (Array.isArray(texture.image) && texture.image.length >= 1) {
-            const faceImage = texture.image[0];
-            console.log('Processing cubemap face with type:', faceImage?.constructor.name);
-            
-            if (faceImage instanceof HTMLImageElement) {
-                // Set canvas size based on face image dimensions
-                const aspectRatio = faceImage.width / faceImage.height;
-                canvas.width = 500; // Fixed width for better quality
-                canvas.height = canvas.width / aspectRatio;
-                
-                // Clear canvas
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                // Draw the face image
-                ctx.drawImage(faceImage, 0, 0, canvas.width, canvas.height);
-                
-                // Add "Cubemap Preview" text
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-                ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
-                ctx.fillStyle = '#fff';
-                ctx.font = '12px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('Cubemap Preview (Front Face)', canvas.width / 2, canvas.height - 12);
-                
-                // Make canvas visible
-                canvas.style.display = 'block';
-                if (noImageMessage) noImageMessage.style.display = 'none';
-                
-                console.log('Successfully rendered image from cubemap face');
-            } else {
-                console.warn('Cannot display cubemap face, invalid format:', faceImage);
-                showNoImageMessage(canvas, noImageMessage, 'Cannot display cubemap face.');
+    } catch (error) {
+        console.error('Error rendering HDR preview as sphere:', error);
+        
+        // Fallback to 2D preview for errors
+        try {
+            fallbackTo2DPreview(texture, canvas);
+        } catch (fallbackError) {
+            console.error('Error rendering fallback 2D preview:', fallbackError);
+            showNoImageMessage(canvas, noImageMessage, `Error: ${error.message}`);
+        }
+    }
+}
+
+/**
+ * Create a 3D sphere preview with the environment texture
+ * @param {Object} THREE - The Three.js library
+ * @param {THREE.Texture} texture - The environment texture
+ * @param {HTMLCanvasElement} canvas - The canvas element
+ * @param {HTMLElement} noImageMessage - The no image message element
+ */
+function createSpherePreview(THREE, texture, canvas, noImageMessage) {
+    try {
+        // Create a mini renderer
+        const renderer = new THREE.WebGLRenderer({
+            canvas: canvas,
+            alpha: true,
+            antialias: true
+        });
+        renderer.setSize(canvas.width, canvas.height);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        
+        // Critical for HDR/EXR: set proper encoding and tone mapping
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.0;
+        
+        // Create a mini scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x111111); // Dark background
+        
+        // Set the environment texture for the scene - this affects reflective materials
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        scene.environment = texture;
+        
+        // Create a mini camera - move it back a bit more to make the sphere appear smaller
+        const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+        camera.position.z = 3.2; // Increased camera distance to make sphere smaller
+        
+        // Create a 3D sphere with high polygon count for smooth reflections
+        // Make the sphere slightly smaller
+        const sphereGeometry = new THREE.SphereGeometry(0.8, 64, 64);
+        
+        // Create a metallic material
+        const metallicMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            metalness: 1.0,
+            roughness: 0.05,
+            envMapIntensity: 1.0
+        });
+        
+        // Create and add the metallic sphere
+        const sphere = new THREE.Mesh(sphereGeometry, metallicMaterial);
+        scene.add(sphere);
+        
+        // Add some lighting - even with environment lighting, we need some direct light
+        // for better highlights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+        scene.add(ambientLight);
+        
+        // Add a directional light for highlights
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        directionalLight.position.set(1, 1, 1);
+        scene.add(directionalLight);
+        
+        // Add a point light for additional dimension
+        const pointLight = new THREE.PointLight(0xffffff, 0.5);
+        pointLight.position.set(-1, 1, 0.5);
+        scene.add(pointLight);
+        
+        // Add orbit controls for user interaction
+        let controls;
+        let OrbitControls;
+        
+        // Try to load OrbitControls - first check if available via window.THREE
+        if (window.THREE && window.THREE.OrbitControls) {
+            OrbitControls = window.THREE.OrbitControls;
+        } else {
+            // Dynamically import
+            try {
+                // Different ways Three.js might expose OrbitControls
+                if (THREE.OrbitControls) {
+                    OrbitControls = THREE.OrbitControls;
+                } else {
+                    // We need to dynamically import from three/examples
+                    import('three/addons/controls/OrbitControls.js').then(module => {
+                        OrbitControls = module.OrbitControls;
+                        if (OrbitControls) {
+                            setupControls();
+                        }
+                    }).catch(error => {
+                        console.error('Failed to import OrbitControls:', error);
+                    });
+                }
+            } catch (error) {
+                console.error('Error setting up OrbitControls:', error);
             }
         }
-        // If it's a data texture, create a visualization of the data
-        else if (texture.image.data) {
-            console.log('Processing data texture with dimensions:', 
-                texture.image.width, 'x', texture.image.height, 
-                'Data length:', texture.image.data.length,
-                'Data type:', texture.image.data.constructor.name);
+        
+        function setupControls() {
+            if (OrbitControls) {
+                controls = new OrbitControls(camera, canvas);
+                controls.enableDamping = true;
+                controls.dampingFactor = 0.25;
+                controls.rotateSpeed = 1.0;
+                controls.enableZoom = false; // Disable zooming
+                controls.enablePan = false;  // Disable panning
+                controls.update();
+            }
+        }
+        
+        // Setup controls if OrbitControls is already available
+        if (OrbitControls) {
+            setupControls();
+        }
+        
+        // Add a simple message to indicate the sphere is interactive
+        const interactiveHint = document.createElement('div');
+        interactiveHint.textContent = 'Click and drag to rotate';
+        interactiveHint.style.position = 'absolute';
+        interactiveHint.style.bottom = '5px';
+        interactiveHint.style.left = '50%';
+        interactiveHint.style.transform = 'translateX(-50%)';
+        interactiveHint.style.fontSize = '10px';
+        interactiveHint.style.color = 'rgba(255,255,255,0.7)';
+        interactiveHint.style.pointerEvents = 'none';
+        canvas.parentElement.style.position = 'relative';
+        canvas.parentElement.appendChild(interactiveHint);
+        
+        // Initial slight rotation to show it's 3D
+        sphere.rotation.y = Math.PI / 6;
+        sphere.rotation.x = Math.PI / 12;
+        
+        // Render function
+        let animationFrameId;
+        const clock = new THREE.Clock();
+        
+        function renderSphere() {
+            animationFrameId = requestAnimationFrame(renderSphere);
             
-            // Get a sample of the data to check if it's valid
-            const data = texture.image.data;
-            const dataType = data.constructor.name;
-            const sampleSize = Math.min(10, data.length);
-            const dataSample = Array.from(data.slice(0, sampleSize));
-            console.log(`Data sample (${dataType}):`, dataSample);
+            const delta = clock.getDelta();
             
-            // Create a simple visualization of the HDR data
-            const width = texture.image.width || 256;
-            const height = texture.image.height || 128;
+            // Update controls if available
+            if (controls) {
+                controls.update();
+            } else {
+                // If no controls, add a very slow rotation to show it's 3D
+                sphere.rotation.y += delta * 0.1;
+            }
             
-            console.log(`Using dimensions: ${width}x${height} for canvas preview`);
+            renderer.render(scene, camera);
+        }
+        
+        // Start the animation
+        renderSphere();
+        
+        // Store the animation frame ID for cleanup
+        canvas.setAttribute('data-animation-id', animationFrameId);
+        
+        // Add cleanup function when tab changes or element is removed
+        const cleanup = () => {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
             
-            // Set canvas size
-            canvas.width = Math.min(500, width); // Cap width at 500px
-            canvas.height = (canvas.width / width) * height; // Maintain aspect ratio
+            // Remove the interactive hint
+            if (interactiveHint.parentElement) {
+                interactiveHint.parentElement.removeChild(interactiveHint);
+            }
             
-            // Clear canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Dispose of controls if they exist
+            if (controls) {
+                controls.dispose();
+            }
             
-            // Create an ImageData object to display the data
-            const imageData = ctx.createImageData(canvas.width, canvas.height);
+            // Proper disposal of Three.js resources
+            renderer.dispose();
+            sphereGeometry.dispose();
+            metallicMaterial.dispose();
             
-            // Sample the data from the texture
-            const scaleX = width / canvas.width;
-            const scaleY = height / canvas.height;
-            
-            // For EXR/HDR formats, we need to apply tone mapping to make them visible
-            const exposure = 1.0; // Adjust as needed
-            const gamma = 2.2;   // Standard gamma correction
+            // Remove references
+            sphere.geometry = null;
+            sphere.material = null;
+            scene.remove(sphere);
+        };
+        
+        // Store cleanup function for later use
+        canvas.cleanup = cleanup;
+        
+        console.log('Successfully rendered environment map as interactive 3D sphere');
+    } catch (error) {
+        console.error('Error in createSpherePreview:', error);
+        fallbackTo2DPreview(texture, canvas);
+    }
+}
 
-            try {
-                // Detect if we have a Float32Array (typical for EXR)
-                const isFloatData = data instanceof Float32Array;
-                console.log('Data is Float32Array:', isFloatData);
+/**
+ * Fallback to 2D preview if 3D sphere fails
+ * @param {THREE.Texture} texture - The environment texture to render
+ * @param {HTMLCanvasElement} canvas - The canvas element
+ */
+function fallbackTo2DPreview(texture, canvas) {
+    console.log('Falling back to 2D preview');
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // If we have an actual HTMLImageElement, we can render it directly
+    if (texture.image instanceof HTMLImageElement) {
+        console.log('Processing HTMLImageElement');
+        
+        // Draw the image to the canvas
+        ctx.drawImage(texture.image, 0, 0, canvas.width, canvas.height);
+    }
+    // If texture is a cube texture, draw one of its faces
+    else if (Array.isArray(texture.image) && texture.image.length >= 1) {
+        const faceImage = texture.image[0];
+        
+        if (faceImage instanceof HTMLImageElement) {
+            // Draw the face image
+            ctx.drawImage(faceImage, 0, 0, canvas.width, canvas.height);
+            
+            // Add "Cubemap Preview" text
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
+            ctx.fillStyle = '#fff';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Cubemap Preview', canvas.width / 2, canvas.height - 12);
+        }
+    }
+    // If it's a data texture, create a visualization of the data
+    else if (texture.image.data) {
+        const data = texture.image.data;
+        const width = texture.image.width || 256;
+        const height = texture.image.height || 128;
+        
+        // Create an ImageData object to display the data
+        const imageData = ctx.createImageData(canvas.width, canvas.height);
+        
+        // Sample the data from the texture
+        const scaleX = width / canvas.width;
+        const scaleY = height / canvas.height;
+        
+        // For EXR/HDR formats, we need to apply tone mapping to make them visible
+        const exposure = 1.0;
+        const gamma = 2.2;
+        
+        // Detect if we have a Float32Array (typical for EXR)
+        const isFloatData = data instanceof Float32Array;
+        
+        // Check if the data layout is standard RGBA (4 components)
+        const dataComponents = data.length / (width * height);
+        
+        // Special case for non-standard data formats
+        const isNonStandardFormat = dataComponents !== 4;
+        
+        for (let y = 0; y < canvas.height; y++) {
+            for (let x = 0; x < canvas.width; x++) {
+                // Calculate source position in original data
+                const srcX = Math.floor(x * scaleX);
+                const srcY = Math.floor(y * scaleY);
                 
-                // Check if the data layout is standard RGBA (4 components)
-                const dataComponents = data.length / (width * height);
-                console.log(`Data components per pixel: ${dataComponents}`);
+                // Calculate destination index in imageData
+                const destIndex = (y * canvas.width + x) * 4;
                 
-                // Special case for non-standard data formats
-                const isNonStandardFormat = dataComponents !== 4;
+                // Default to black
+                let r = 0, g = 0, b = 0;
                 
-                for (let y = 0; y < canvas.height; y++) {
-                    for (let x = 0; x < canvas.width; x++) {
-                        // Calculate source position in original data
-                        const srcX = Math.floor(x * scaleX);
-                        const srcY = Math.floor(y * scaleY);
-                        
-                        // Calculate destination index in imageData
-                        const destIndex = (y * canvas.width + x) * 4;
-                        
-                        // Default to black
-                        let r = 0, g = 0, b = 0;
-                        
-                        // Handle different data layouts
-                        if (isNonStandardFormat) {
-                            // Handle non-standard formats (like RGB without alpha)
-                            const srcIndex = (srcY * width + srcX) * dataComponents;
-                            
-                            if (srcIndex < data.length - (dataComponents - 1)) {
-                                // Just take the first 3 components as RGB
-                                r = data[srcIndex];
-                                g = dataComponents > 1 ? data[srcIndex + 1] : r;
-                                b = dataComponents > 2 ? data[srcIndex + 2] : g;
-                            }
-                        } else {
-                            // Standard RGBA format
-                            const srcIndex = (srcY * width + srcX) * 4;
-                            
-                            if (srcIndex < data.length - 3) {
-                                r = data[srcIndex];
-                                g = data[srcIndex + 1];
-                                b = data[srcIndex + 2];
-                            }
-                        }
-                        
-                        // For float data (EXR), we need to apply more aggressive tone mapping
-                        if (isFloatData) {
-                            // Ensure values are positive and not NaN or Infinity
-                            r = isNaN(r) || !isFinite(r) ? 0 : Math.abs(r);
-                            g = isNaN(g) || !isFinite(g) ? 0 : Math.abs(g);
-                            b = isNaN(b) || !isFinite(b) ? 0 : Math.abs(b);
-                            
-                            // Apply simple tone mapping (exposure + gamma correction)
-                            // and convert from float HDR values to 8-bit display values
-                            r = Math.max(0, Math.min(255, Math.pow(r * exposure, 1/gamma) * 255));
-                            g = Math.max(0, Math.min(255, Math.pow(g * exposure, 1/gamma) * 255));
-                            b = Math.max(0, Math.min(255, Math.pow(b * exposure, 1/gamma) * 255));
-                        } else {
-                            // For RGBE (HDR) data, simple scaling might be enough
-                            r = Math.max(0, Math.min(255, r));
-                            g = Math.max(0, Math.min(255, g));
-                            b = Math.max(0, Math.min(255, b));
-                        }
-                        
-                        imageData.data[destIndex] = r;
-                        imageData.data[destIndex + 1] = g;
-                        imageData.data[destIndex + 2] = b;
-                        imageData.data[destIndex + 3] = 255; // Alpha
+                // Handle different data layouts
+                if (isNonStandardFormat) {
+                    // Handle non-standard formats (like RGB without alpha)
+                    const srcIndex = (srcY * width + srcX) * dataComponents;
+                    
+                    if (srcIndex < data.length - (dataComponents - 1)) {
+                        // Just take the first 3 components as RGB
+                        r = data[srcIndex];
+                        g = dataComponents > 1 ? data[srcIndex + 1] : r;
+                        b = dataComponents > 2 ? data[srcIndex + 2] : g;
+                    }
+                } else {
+                    // Standard RGBA format
+                    const srcIndex = (srcY * width + srcX) * 4;
+                    
+                    if (srcIndex < data.length - 3) {
+                        r = data[srcIndex];
+                        g = data[srcIndex + 1];
+                        b = data[srcIndex + 2];
                     }
                 }
                 
-                // Put the ImageData to the canvas
-                ctx.putImageData(imageData, 0, 0);
+                // For float data (EXR), we need to apply more aggressive tone mapping
+                if (isFloatData) {
+                    // Ensure values are positive and not NaN or Infinity
+                    r = isNaN(r) || !isFinite(r) ? 0 : Math.abs(r);
+                    g = isNaN(g) || !isFinite(g) ? 0 : Math.abs(g);
+                    b = isNaN(b) || !isFinite(b) ? 0 : Math.abs(b);
+                    
+                    // Apply simple tone mapping (exposure + gamma correction)
+                    // and convert from float HDR values to 8-bit display values
+                    r = Math.max(0, Math.min(255, Math.pow(r * exposure, 1/gamma) * 255));
+                    g = Math.max(0, Math.min(255, Math.pow(g * exposure, 1/gamma) * 255));
+                    b = Math.max(0, Math.min(255, Math.pow(b * exposure, 1/gamma) * 255));
+                } else {
+                    // For RGBE (HDR) data, simple scaling might be enough
+                    r = Math.max(0, Math.min(255, r));
+                    g = Math.max(0, Math.min(255, g));
+                    b = Math.max(0, Math.min(255, b));
+                }
                 
-                // Add an informative text overlay
-                const textLabel = isFloatData ? 'EXR Data Preview' : 'HDR Data Preview';
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-                ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
-                ctx.fillStyle = '#fff';
-                ctx.font = '12px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText(`${textLabel} (Tone Mapped)`, canvas.width / 2, canvas.height - 12);
-                
-                // Make canvas visible
-                canvas.style.display = 'block';
-                if (noImageMessage) noImageMessage.style.display = 'none';
-                
-                console.log('Successfully rendered data texture visualization');
-            } catch (dataError) {
-                console.error('Error processing texture data:', dataError);
-                showNoImageMessage(canvas, noImageMessage, `Error processing data: ${dataError.message}`);
+                imageData.data[destIndex] = r;
+                imageData.data[destIndex + 1] = g;
+                imageData.data[destIndex + 2] = b;
+                imageData.data[destIndex + 3] = 255; // Alpha
             }
-        } else {
-            console.warn('Unsupported texture format:', texture);
-            showNoImageMessage(canvas, noImageMessage, 'Unsupported image format for preview.');
         }
-    } catch (error) {
-        console.error('Error rendering HDR preview:', error);
-        showNoImageMessage(canvas, noImageMessage, `Error: ${error.message}`);
+        
+        // Put the ImageData to the canvas
+        ctx.putImageData(imageData, 0, 0);
+        
+        // Add an informative text overlay
+        const textLabel = isFloatData ? 'EXR Data Preview' : 'HDR Data Preview';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(textLabel, canvas.width / 2, canvas.height - 12);
     }
 }
 
@@ -600,11 +763,26 @@ function clearLightingInfo() {
             });
         }
         
-        // Clear canvas
+        // Clean up any ThreeJS resources
         const canvas = document.getElementById('hdr-preview-canvas');
         if (canvas) {
+            // Execute cleanup function if it exists
+            if (typeof canvas.cleanup === 'function') {
+                canvas.cleanup();
+                canvas.cleanup = null;
+            }
+            
+            // Cancel any animation frame
+            const animationId = canvas.getAttribute('data-animation-id');
+            if (animationId) {
+                cancelAnimationFrame(parseInt(animationId, 10));
+                canvas.removeAttribute('data-animation-id');
+            }
+            
+            // Clear the canvas
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            canvas.style.display = 'none';
         }
     }
 }

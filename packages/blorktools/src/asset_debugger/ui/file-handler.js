@@ -293,19 +293,137 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
     // Create a simple preview placeholder (don't actually process the file yet)
     previewElement.innerHTML = '';
     
-    // Create a div to show a placeholder for the HDR/EXR file
-    const placeholderDiv = document.createElement('div');
-    placeholderDiv.className = 'hdr-placeholder';
-    placeholderDiv.textContent = 'HDR/EXR';
-    placeholderDiv.style.backgroundColor = '#334455';
-    placeholderDiv.style.color = 'white';
-    placeholderDiv.style.width = '100%';
-    placeholderDiv.style.height = '100%';
-    placeholderDiv.style.display = 'flex';
-    placeholderDiv.style.justifyContent = 'center';
-    placeholderDiv.style.alignItems = 'center';
+    // Create a canvas to render a sphere placeholder
+    const canvas = document.createElement('canvas');
+    canvas.className = 'hdr-placeholder-canvas';
+    canvas.width = 100;
+    canvas.height = 100;
     
-    previewElement.appendChild(placeholderDiv);
+    const ctx = canvas.getContext('2d');
+    
+    // Clear canvas with dark background
+    ctx.fillStyle = '#111111';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Create a sphere-like gradient with a more metallic/chrome look
+    const centerX = 50;
+    const centerY = 50;
+    const radius = 40;
+    
+    // Create a metallic-looking sphere with reflective highlights
+    const gradient = ctx.createRadialGradient(
+        centerX - radius * 0.3, // Highlight origin X
+        centerY - radius * 0.3, // Highlight origin Y 
+        radius * 0.1,          // Inner radius for highlight
+        centerX,               // Center X
+        centerY,               // Center Y
+        radius                 // Outer radius
+    );
+    
+    // Metallic silver-blue colors
+    gradient.addColorStop(0, '#ffffff');       // Bright highlight
+    gradient.addColorStop(0.1, '#c0d0f0');     // Near highlight
+    gradient.addColorStop(0.4, '#607090');     // Mid tone
+    gradient.addColorStop(0.7, '#405070');     // Darker tone
+    gradient.addColorStop(0.9, '#203050');     // Edge
+    gradient.addColorStop(1, '#101830');       // Outer edge
+    
+    // Draw the sphere
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.fillStyle = gradient;
+    ctx.fill();
+    
+    // Add a sharper highlight
+    const highlightGradient = ctx.createRadialGradient(
+        centerX - radius * 0.4,  // X
+        centerY - radius * 0.4,  // Y
+        1,                       // Inner radius
+        centerX - radius * 0.4,  // X
+        centerY - radius * 0.4,  // Y
+        radius * 0.3             // Outer radius
+    );
+    highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+    highlightGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
+    highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    
+    ctx.beginPath();
+    ctx.arc(centerX - radius * 0.4, centerY - radius * 0.4, radius * 0.3, 0, Math.PI * 2);
+    ctx.fillStyle = highlightGradient;
+    ctx.fill();
+    
+    // Add a secondary smaller highlight
+    const highlight2Gradient = ctx.createRadialGradient(
+        centerX + radius * 0.2,  // X
+        centerY - radius * 0.5,  // Y
+        1,                       // Inner radius
+        centerX + radius * 0.2,  // X 
+        centerY - radius * 0.5,  // Y
+        radius * 0.15            // Outer radius
+    );
+    highlight2Gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+    highlight2Gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    
+    ctx.beginPath();
+    ctx.arc(centerX + radius * 0.2, centerY - radius * 0.5, radius * 0.15, 0, Math.PI * 2);
+    ctx.fillStyle = highlight2Gradient;
+    ctx.fill();
+    
+    // Add subtle environment reflection suggestion
+    // This creates slightly colored bands to suggest environment reflection
+    const bands = 3;
+    const bandHeight = radius * 2 / bands;
+    
+    for (let i = 0; i < bands; i++) {
+        const y = centerY - radius + i * bandHeight;
+        const opacity = 0.1 - (i * 0.02);  // Decrease opacity for lower bands
+        
+        // Add a subtle color band
+        ctx.beginPath();
+        ctx.ellipse(
+            centerX,                     // X
+            y + bandHeight/2,            // Y
+            radius * 0.9,                // X radius
+            bandHeight/2,                // Y radius
+            0,                           // Rotation
+            0, Math.PI * 2               // Start/end angles
+        );
+        
+        // Different colors for each band
+        let bandColor;
+        if (i === 0) bandColor = 'rgba(100, 150, 255, ' + opacity + ')';  // Blue-ish for top
+        else if (i === 1) bandColor = 'rgba(100, 170, 200, ' + opacity + ')';  // Teal-ish for middle
+        else bandColor = 'rgba(100, 200, 150, ' + opacity + ')';  // Green-ish for bottom
+        
+        ctx.fillStyle = bandColor;
+        ctx.fill();
+    }
+    
+    // Create container for the canvas and label
+    const placeholderContainer = document.createElement('div');
+    placeholderContainer.className = 'hdr-placeholder';
+    placeholderContainer.style.width = '100%';
+    placeholderContainer.style.height = '100%';
+    placeholderContainer.style.display = 'flex';
+    placeholderContainer.style.flexDirection = 'column';
+    placeholderContainer.style.justifyContent = 'center';
+    placeholderContainer.style.alignItems = 'center';
+    placeholderContainer.style.backgroundColor = '#111111';
+    
+    // Add the canvas
+    placeholderContainer.appendChild(canvas);
+    
+    // Add text label below
+    const label = document.createElement('div');
+    label.textContent = 'HDR/EXR Environment';
+    label.style.color = 'white';
+    label.style.marginTop = '10px';
+    label.style.fontSize = '12px';
+    
+    placeholderContainer.appendChild(label);
+    
+    // Add the placeholder to the preview container
+    previewElement.appendChild(placeholderContainer);
     
     // Log the update
     console.log(`HDR/EXR file "${file.name}" accepted and stored for later processing`);
