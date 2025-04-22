@@ -49,6 +49,7 @@ export function initWorldPanel() {
         }
     } else {
         console.log('No lighting metadata available yet during initialization');
+        updateLightingMessage();
     }
 }
 
@@ -151,6 +152,9 @@ function setupLightingControls() {
             
             // Clear lighting metadata display
             clearLightingInfo();
+            
+            // Update slider visibility
+            updateSliderVisibility(false);
         });
     }
     
@@ -171,12 +175,44 @@ function updateLightingMessage() {
         return;
     }
     
-    if (state.scene && state.scene.environment) {
+    const hasEnvironment = state.scene && state.scene.environment;
+    
+    if (hasEnvironment) {
         noDataMessage.style.display = 'none';
         lightingDataInfo.style.display = 'block';
     } else {
         noDataMessage.style.display = 'block';
         lightingDataInfo.style.display = 'none';
+    }
+    
+    // Update slider visibility based on environment presence
+    updateSliderVisibility(hasEnvironment);
+}
+
+/**
+ * Update slider visibility based on whether HDR/EXR is loaded
+ * @param {boolean} hasEnvironment - Whether environment lighting is loaded
+ */
+function updateSliderVisibility(hasEnvironment) {
+    const ambientControl = document.querySelector('.ambient-control');
+    const directionalControl = document.querySelector('.directional-control');
+    const exposureControl = document.querySelector('.exposure-control');
+    
+    if (!ambientControl || !directionalControl || !exposureControl) {
+        console.warn('Could not find slider controls for visibility update');
+        return;
+    }
+    
+    if (hasEnvironment) {
+        // When HDR/EXR is loaded: hide ambient/directional, show exposure
+        ambientControl.style.display = 'none';
+        directionalControl.style.display = 'none';
+        exposureControl.style.display = 'flex';
+    } else {
+        // When no HDR/EXR is loaded: show ambient/directional, hide exposure
+        ambientControl.style.display = 'flex';
+        directionalControl.style.display = 'flex';
+        exposureControl.style.display = 'none';
     }
 }
 
@@ -253,6 +289,9 @@ export function updateLightingInfo(metadata) {
     console.log('Showing lighting data info and hiding no data message');
     noDataMessage.style.display = 'none';
     lightingDataInfo.style.display = 'block';
+    
+    // Update slider visibility - we have HDR/EXR data
+    updateSliderVisibility(true);
     
     // Make sure any collapsible content is still properly collapsed
     const metadataContents = document.querySelectorAll('.metadata-content');
@@ -749,6 +788,9 @@ function clearLightingInfo() {
                 indicator.textContent = '+';
             });
         }
+        
+        // Update slider visibility - we have no HDR/EXR data
+        updateSliderVisibility(false);
         
         // Clean up any ThreeJS resources
         const canvas = document.getElementById('hdr-preview-canvas');

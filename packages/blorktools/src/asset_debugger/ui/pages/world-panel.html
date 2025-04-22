@@ -5,7 +5,7 @@
     <div class="world-section">
         <h4>Lighting</h4>
         <div class="world-info lighting-controls">
-            <div class="control-group">
+            <div class="control-group ambient-control">
                 <div class="label-container">
                     <label for="ambient-light-intensity">Ambient:</label>
                     <span class="value-display">0.5</span>
@@ -13,7 +13,7 @@
                 <input type="range" id="ambient-light-intensity" min="0" max="2" step="0.1" value="0.5" />
             </div>
             
-            <div class="control-group">
+            <div class="control-group directional-control">
                 <div class="label-container">
                     <label for="directional-light-intensity">Directional:</label>
                     <span class="value-display">1.0</span>
@@ -21,7 +21,7 @@
                 <input type="range" id="directional-light-intensity" min="0" max="2" step="0.1" value="1.0" />
             </div>
             
-            <div class="control-group">
+            <div class="control-group exposure-control">
                 <div class="label-container">
                     <label for="exposure-value">Exposure:</label>
                     <span class="value-display">1.0</span>
@@ -125,6 +125,11 @@
         flex-direction: column;
         width: 100%;
         gap: 4px;
+    }
+    
+    /* Default state for different lighting controls */
+    .exposure-control {
+        display: none; /* Hide by default, only shown with HDR/EXR */
     }
 
     .label-container {
