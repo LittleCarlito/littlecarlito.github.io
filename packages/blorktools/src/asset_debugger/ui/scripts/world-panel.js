@@ -14,6 +14,9 @@ const MAX_INIT_ATTEMPTS = 20;
 // Store HDR/EXR metadata for display
 let currentLightingMetadata = null;
 
+// Store the environment texture for preview
+let environmentTexture = null;
+
 /**
  * Initialize the World panel and cache DOM elements
  */
@@ -39,6 +42,11 @@ export function initWorldPanel() {
             // Update lighting info if we have it already
             if (currentLightingMetadata) {
                 updateLightingInfo(currentLightingMetadata);
+                
+                // If we have an environment texture, render the preview
+                if (environmentTexture) {
+                    renderEnvironmentPreview(environmentTexture);
+                }
             }
         }
     }, 100);
@@ -208,17 +216,218 @@ export function updateLightingInfo(metadata) {
         lightingDataInfo.style.display = 'block';
         
         // Make sure the collapsible content is still hidden by default
-        const metadataContent = document.querySelector('.metadata-content');
-        if (metadataContent) {
-            // Keep it collapsed by default
-            metadataContent.style.display = 'none';
+        const metadataContents = document.querySelectorAll('.metadata-content');
+        if (metadataContents) {
+            metadataContents.forEach(content => {
+                content.style.display = 'none';
+            });
             
-            // Make sure the indicator shows the right symbol
-            const indicator = document.querySelector('.collapse-indicator');
-            if (indicator) {
-                indicator.textContent = '[+]';
+            // Make sure all indicators show the right symbol
+            const indicators = document.querySelectorAll('.collapse-indicator');
+            if (indicators) {
+                indicators.forEach(indicator => {
+                    indicator.textContent = '+';
+                });
             }
         }
+    }
+    
+    // Try to get environment texture and render it
+    const state = getState();
+    if (state.scene && state.scene.environment) {
+        // Store the environment texture for later use
+        environmentTexture = state.scene.environment;
+        
+        // Try to render the preview if elements exist
+        renderEnvironmentPreview(environmentTexture);
+    }
+}
+
+/**
+ * Render the HDR/EXR environment texture preview on canvas
+ * @param {THREE.Texture} texture - The environment texture to render
+ */
+function renderEnvironmentPreview(texture) {
+    // Look for the canvas element
+    const canvas = document.getElementById('hdr-preview-canvas');
+    const noImageMessage = document.getElementById('no-image-message');
+    
+    // If canvas not found, panel may not be initialized yet
+    if (!canvas) {
+        console.warn('HDR preview canvas not found, panel may not be initialized yet');
+        return;
+    }
+    
+    // If texture doesn't have image data, show error message
+    if (!texture || !texture.image) {
+        showNoImageMessage(canvas, noImageMessage, 'No image data available.');
+        return;
+    }
+    
+    try {
+        const ctx = canvas.getContext('2d');
+        
+        // For HDR/EXR textures in Three.js, the image could be:
+        // 1. A DataTexture with a data array
+        // 2. A cube texture with 6 faces
+        // 3. An equirectangular texture with image data
+        
+        // If we have an actual HTMLImageElement, we can render it directly
+        if (texture.image instanceof HTMLImageElement) {
+            // Set canvas size based on image dimensions but maintain aspect ratio
+            const aspectRatio = texture.image.width / texture.image.height;
+            canvas.width = 500; // Fixed width for better quality
+            canvas.height = canvas.width / aspectRatio;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw the image to the canvas
+            ctx.drawImage(texture.image, 0, 0, canvas.width, canvas.height);
+            
+            // Make canvas visible
+            canvas.style.display = 'block';
+            if (noImageMessage) noImageMessage.style.display = 'none';
+            
+            console.log('Rendered image from HTMLImageElement');
+        }
+        // If texture is a cube texture, draw one of its faces
+        else if (Array.isArray(texture.image) && texture.image.length >= 1) {
+            const faceImage = texture.image[0];
+            if (faceImage instanceof HTMLImageElement) {
+                // Set canvas size based on face image dimensions
+                const aspectRatio = faceImage.width / faceImage.height;
+                canvas.width = 500; // Fixed width for better quality
+                canvas.height = canvas.width / aspectRatio;
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw the face image
+                ctx.drawImage(faceImage, 0, 0, canvas.width, canvas.height);
+                
+                // Add "Cubemap Preview" text
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
+                ctx.fillStyle = '#fff';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Cubemap Preview (Front Face)', canvas.width / 2, canvas.height - 12);
+                
+                // Make canvas visible
+                canvas.style.display = 'block';
+                if (noImageMessage) noImageMessage.style.display = 'none';
+                
+                console.log('Rendered image from cubemap face');
+            } else {
+                showNoImageMessage(canvas, noImageMessage, 'Cannot display cubemap face.');
+            }
+        }
+        // If it's a data texture, create a visualization of the data
+        else if (texture.image.data) {
+            console.log('Processing data texture with dimensions:', 
+                texture.image.width, 'x', texture.image.height, 
+                'Data length:', texture.image.data.length);
+            
+            // Create a simple visualization of the HDR data
+            const data = texture.image.data;
+            const width = texture.image.width || 256;
+            const height = texture.image.height || 128;
+            
+            // Set canvas size
+            canvas.width = Math.min(500, width); // Cap width at 500px
+            canvas.height = (canvas.width / width) * height; // Maintain aspect ratio
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Create an ImageData object to display the data
+            const imageData = ctx.createImageData(canvas.width, canvas.height);
+            
+            // Sample the data from the texture
+            const scaleX = width / canvas.width;
+            const scaleY = height / canvas.height;
+            
+            // For EXR/HDR formats, we need to apply tone mapping to make them visible
+            const exposure = 1.0; // Adjust as needed
+            const gamma = 2.2;   // Standard gamma correction
+
+            for (let y = 0; y < canvas.height; y++) {
+                for (let x = 0; x < canvas.width; x++) {
+                    // Calculate source position in original data
+                    const srcX = Math.floor(x * scaleX);
+                    const srcY = Math.floor(y * scaleY);
+                    
+                    // Calculate source index in data array (RGBA format)
+                    const srcIndex = (srcY * width + srcX) * 4;
+                    
+                    // Calculate destination index in imageData
+                    const destIndex = (y * canvas.width + x) * 4;
+                    
+                    // Make sure we're within bounds
+                    if (srcIndex < data.length - 3) {
+                        // Apply simple tone mapping (exposure + gamma correction)
+                        // and convert from float HDR values to 8-bit display values
+                        const r = Math.max(0, Math.min(255, Math.pow(data[srcIndex] * exposure, 1/gamma) * 255));
+                        const g = Math.max(0, Math.min(255, Math.pow(data[srcIndex + 1] * exposure, 1/gamma) * 255));
+                        const b = Math.max(0, Math.min(255, Math.pow(data[srcIndex + 2] * exposure, 1/gamma) * 255));
+                        
+                        imageData.data[destIndex] = r;
+                        imageData.data[destIndex + 1] = g;
+                        imageData.data[destIndex + 2] = b;
+                        imageData.data[destIndex + 3] = 255; // Alpha
+                    } else {
+                        // If we're out of bounds or have missing data, use black
+                        imageData.data[destIndex] = 0;
+                        imageData.data[destIndex + 1] = 0;
+                        imageData.data[destIndex + 2] = 0;
+                        imageData.data[destIndex + 3] = 255; // Alpha
+                    }
+                }
+            }
+            
+            // Put the ImageData to the canvas
+            ctx.putImageData(imageData, 0, 0);
+            
+            // Add "HDR Data Preview" text
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
+            ctx.fillStyle = '#fff';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('HDR Data Preview (Tone Mapped)', canvas.width / 2, canvas.height - 12);
+            
+            // Make canvas visible
+            canvas.style.display = 'block';
+            if (noImageMessage) noImageMessage.style.display = 'none';
+            
+            console.log('Rendered data texture visualization');
+        } else {
+            console.warn('Unsupported texture format:', texture);
+            showNoImageMessage(canvas, noImageMessage, 'Unsupported image format for preview.');
+        }
+    } catch (error) {
+        console.error('Error rendering HDR preview:', error);
+        showNoImageMessage(canvas, noImageMessage, `Error: ${error.message}`);
+    }
+}
+
+/**
+ * Show "No image data" message
+ * @param {HTMLCanvasElement} canvas - The canvas element
+ * @param {HTMLElement} messageEl - The message element to show
+ * @param {string} message - The error message to display
+ */
+function showNoImageMessage(canvas, messageEl, message = 'No image data available.') {
+    console.log('Showing no image message:', message);
+    
+    // Hide canvas
+    if (canvas) canvas.style.display = 'none';
+    
+    // Show message
+    if (messageEl) {
+        messageEl.style.display = 'block';
+        messageEl.textContent = message;
     }
 }
 
@@ -228,6 +437,7 @@ export function updateLightingInfo(metadata) {
 function clearLightingInfo() {
     // Clear the stored metadata
     currentLightingMetadata = null;
+    environmentTexture = null;
     
     // Find the UI elements
     const filenameEl = document.getElementById('lighting-filename');
@@ -256,14 +466,25 @@ function clearLightingInfo() {
         lightingDataInfo.style.display = 'none';
         
         // Reset collapse state
-        const metadataContent = document.querySelector('.metadata-content');
-        if (metadataContent) {
-            metadataContent.style.display = 'none';
+        const metadataContents = document.querySelectorAll('.metadata-content');
+        if (metadataContents) {
+            metadataContents.forEach(content => {
+                content.style.display = 'none';
+            });
         }
         
-        const indicator = document.querySelector('.collapse-indicator');
-        if (indicator) {
-            indicator.textContent = '[+]';
+        const indicators = document.querySelectorAll('.collapse-indicator');
+        if (indicators) {
+            indicators.forEach(indicator => {
+                indicator.textContent = '+';
+            });
+        }
+        
+        // Clear canvas
+        const canvas = document.getElementById('hdr-preview-canvas');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
     }
 }
@@ -305,4 +526,10 @@ export function updateWorldPanel() {
     
     // Update lighting message visibility
     updateLightingMessage();
+    
+    // If we have an environment texture, try to render it
+    if (state.scene && state.scene.environment && !environmentTexture) {
+        environmentTexture = state.scene.environment;
+        renderEnvironmentPreview(environmentTexture);
+    }
 } 

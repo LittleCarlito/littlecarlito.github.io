@@ -75,6 +75,20 @@
                             </tr>
                         </table>
                     </div>
+                    
+                    <!-- HDR/EXR Image Preview Section -->
+                    <div class="collapsible-header image-preview-header">
+                        <h4 class="metadata-header">Image Preview</h4>
+                        <span class="collapse-indicator">[+]</span>
+                    </div>
+                    <div class="metadata-content image-preview-content" style="display: none;">
+                        <div class="image-container">
+                            <canvas id="hdr-preview-canvas" class="hdr-preview-canvas" width="260" height="260"></canvas>
+                            <div id="no-image-message" class="no-image-message">
+                                No image data available or could not be processed.
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -82,16 +96,16 @@
 </div>
 
 <style>
-    /* Prevent content shifting when scrollbars appear */
-    html {
-        scrollbar-width: thin;
-        overflow-y: scroll;
-    }
-    
-    .tab-content {
-        box-sizing: border-box;
+    /* Use the main styles from styles.css but override specific ones needed */
+    #world-tab.tab-content {
+        /* Override only what we need, keep display rules from main CSS */
         overflow-y: auto;
-        padding-right: 10px; /* Space for scrollbar */
+        height: 100%;
+        padding-right: 15px; /* Space for scrollbar */
+    }
+
+    .world-section {
+        padding-bottom: 20px;
     }
 
     .lighting-controls {
@@ -211,6 +225,12 @@
         padding: 4px 0;
     }
     
+    .image-preview-header {
+        margin-top: 15px;
+        padding-top: 10px;
+        border-top: 1px solid #333;
+    }
+    
     .collapse-indicator {
         font-size: 14px;
         color: #777;
@@ -224,14 +244,52 @@
         font-weight: normal;
     }
     
+    /* Content areas without their own scrollbars */
     .metadata-content {
         padding-top: 8px;
-        max-height: 200px;
-        overflow-y: auto;
-        box-sizing: border-box;
         width: 100%;
-        scrollbar-width: thin;
-        overscroll-behavior: contain;
+        box-sizing: border-box;
+    }
+    
+    .image-preview-content {
+        padding: 0;
+    }
+    
+    .image-container {
+        position: relative;
+        width: 100%;
+        min-height: 260px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    
+    .hdr-preview-canvas {
+        max-width: 100%;
+        max-height: 260px;
+        width: 100%;
+        height: auto;
+        object-fit: contain;
+        display: block;
+        background-color: #222;
+        border: 1px solid #444;
+    }
+    
+    .no-image-message {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: #777;
+        font-size: 0.9em;
+        font-style: italic;
+        padding: 20px;
+        background-color: rgba(30, 30, 30, 0.7);
+        border-radius: 4px;
+        width: 80%;
+        display: block;
     }
     
     .lighting-metadata {
@@ -288,19 +346,21 @@
     
     // Initialize collapsible functionality
     document.addEventListener('DOMContentLoaded', function() {
-        const collapsibleHeader = document.querySelector('.collapsible-header');
-        if (collapsibleHeader) {
-            collapsibleHeader.addEventListener('click', function() {
-                const content = this.nextElementSibling;
-                const indicator = this.querySelector('.collapse-indicator');
-                
-                if (content.style.display === 'none') {
-                    content.style.display = 'block';
-                    indicator.textContent = '[-]';
-                } else {
-                    content.style.display = 'none';
-                    indicator.textContent = '[+]';
-                }
+        const collapsibleHeaders = document.querySelectorAll('.collapsible-header');
+        if (collapsibleHeaders) {
+            collapsibleHeaders.forEach(header => {
+                header.addEventListener('click', function() {
+                    const content = this.nextElementSibling;
+                    const indicator = this.querySelector('.collapse-indicator');
+                    
+                    if (content.style.display === 'none') {
+                        content.style.display = 'block';
+                        indicator.textContent = '-';
+                    } else {
+                        content.style.display = 'none';
+                        indicator.textContent = '+';
+                    }
+                });
             });
         }
     });
