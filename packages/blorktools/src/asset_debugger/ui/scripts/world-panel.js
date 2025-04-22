@@ -421,7 +421,6 @@ function createSpherePreview(THREE, texture, canvas, noImageMessage) {
         
         // Add a simple message to indicate the sphere is interactive
         const interactiveHint = document.createElement('div');
-        interactiveHint.textContent = 'Click and drag to rotate';
         interactiveHint.style.position = 'absolute';
         interactiveHint.style.bottom = '5px';
         interactiveHint.style.left = '50%';

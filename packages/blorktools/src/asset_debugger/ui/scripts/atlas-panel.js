@@ -84,9 +84,6 @@ export function updateAtlasVisualization() {
     
     const selectedType = activeButton.getAttribute('data-texture-type');
     
-    // Get the texture based on selected type
-    const texture = state.textureObjects[selectedType];
-    
     // Get the atlas canvas
     const atlasCanvas = document.getElementById('atlas-canvas');
     if (!atlasCanvas) {
@@ -94,12 +91,15 @@ export function updateAtlasVisualization() {
         return;
     }
     
-    // Check if we have the selected texture
-    if (!texture || !texture.image) {
+    // Check if we have texture objects and the selected texture
+    if (!state.textureObjects || !state.textureObjects[selectedType] || !state.textureObjects[selectedType].image) {
         // Show the "No texture loaded" message
         showNoTextureState(atlasCanvas);
         return;
     }
+    
+    // Get the texture based on selected type
+    const texture = state.textureObjects[selectedType];
     
     // Get 2D context and clear it
     const ctx = atlasCanvas.getContext('2d');
@@ -201,16 +201,15 @@ function showNoTextureState(atlasCanvas) {
     ctx.fillStyle = 'rgba(40, 40, 40, 0.3)';
     ctx.fillRect(2, 2, atlasCanvas.width - 4, atlasCanvas.height - 4);
     
+    // Get current texture type from state
+    const currentTextureType = getState().currentTextureType || 'texture';
+    
     // Draw "No Atlas Data" text
     ctx.fillStyle = '#aaa';
     ctx.font = 'bold 16px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('No Atlas Data', atlasCanvas.width / 2, atlasCanvas.height / 2 - 15);
-    
-    // Add additional help text
-    ctx.font = '12px monospace';
-    ctx.fillText('Drag and drop a texture to view', atlasCanvas.width / 2, atlasCanvas.height / 2 + 15);
+    ctx.fillText(`No ${currentTextureType} Data`, atlasCanvas.width / 2, atlasCanvas.height / 2 - 15);
     
     // Set proper CSS for the canvas to maintain aspect ratio and fit in container
     atlasCanvas.style.width = '100%';
@@ -218,11 +217,6 @@ function showNoTextureState(atlasCanvas) {
     atlasCanvas.style.maxHeight = '100%';
     atlasCanvas.style.objectFit = 'contain';
     atlasCanvas.style.display = 'block';
-    
-    // Update the coordinates text
-    if (coordsText) {
-        coordsText.textContent = `No ${getState().currentTextureType} texture loaded. Drag and drop a texture file to view.`;
-    }
 }
 
 /**
