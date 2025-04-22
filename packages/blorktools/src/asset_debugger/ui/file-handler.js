@@ -6,6 +6,7 @@
 import { getState, updateState } from '../core/state.js';
 import { loadTextureFromFile, formatFileSize } from '../core/materials.js';
 import { updateAtlasVisualization } from './scripts/atlas-panel.js';
+import { setupEnvironmentLighting } from '../core/lighting-util.js';
 
 /**
  * Setup dropzones for file input
@@ -299,6 +300,12 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
     placeholderDiv.style.alignItems = 'center';
     
     previewElement.appendChild(placeholderDiv);
+    
+    // Set up environment lighting if scene is already initialized
+    const state = getState();
+    if (state.scene && state.renderer) {
+        setupEnvironmentLighting(file);
+    }
     
     // Check if we can enable the start button
     checkStartButton();

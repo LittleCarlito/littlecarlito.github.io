@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { getState, updateState } from './state.js';
 import { updateRigAnimation } from './rig/rig-manager.js';
+import { addLighting } from './lighting-util.js';
 
 /**
  * Initialize the Three.js scene, camera, renderer and controls
@@ -42,7 +43,7 @@ export function initScene(container) {
     controls.enableDamping = true;
     updateState('controls', controls);
     
-    // Add lighting
+    // Add lighting using the lighting-util module
     addLighting(scene);
     
     // Set up window resize handler
@@ -55,19 +56,6 @@ export function initScene(container) {
     renderer.render(scene, camera);
     
     return { scene, camera, renderer, controls };
-}
-
-/**
- * Add standard lighting to the scene
- * @param {THREE.Scene} scene - The scene to add lighting to
- */
-function addLighting(scene) {
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    scene.add(ambientLight);
-    
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(5, 5, 5);
-    scene.add(directionalLight);
 }
 
 /**
