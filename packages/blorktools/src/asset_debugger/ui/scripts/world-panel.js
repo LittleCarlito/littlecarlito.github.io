@@ -368,7 +368,8 @@ function createSpherePreview(THREE, texture, canvas, noImageMessage) {
         renderer.setPixelRatio(window.devicePixelRatio);
         
         // Critical for HDR/EXR: set proper encoding and tone mapping
-        renderer.outputEncoding = THREE.sRGBEncoding;
+        // Update to use modern THREE.js properties
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.0;
         
@@ -415,51 +416,8 @@ function createSpherePreview(THREE, texture, canvas, noImageMessage) {
         pointLight.position.set(-1, 1, 0.5);
         scene.add(pointLight);
         
-        // Add orbit controls for user interaction
-        let controls;
-        let OrbitControls;
-        
-        // Try to load OrbitControls - first check if available via window.THREE
-        if (window.THREE && window.THREE.OrbitControls) {
-            OrbitControls = window.THREE.OrbitControls;
-        } else {
-            // Dynamically import
-            try {
-                // Different ways Three.js might expose OrbitControls
-                if (THREE.OrbitControls) {
-                    OrbitControls = THREE.OrbitControls;
-                } else {
-                    // We need to dynamically import from three/examples
-                    import('three/addons/controls/OrbitControls.js').then(module => {
-                        OrbitControls = module.OrbitControls;
-                        if (OrbitControls) {
-                            setupControls();
-                        }
-                    }).catch(error => {
-                        console.error('Failed to import OrbitControls:', error);
-                    });
-                }
-            } catch (error) {
-                console.error('Error setting up OrbitControls:', error);
-            }
-        }
-        
-        function setupControls() {
-            if (OrbitControls) {
-                controls = new OrbitControls(camera, canvas);
-                controls.enableDamping = true;
-                controls.dampingFactor = 0.25;
-                controls.rotateSpeed = 1.0;
-                controls.enableZoom = false; // Disable zooming
-                controls.enablePan = false;  // Disable panning
-                controls.update();
-            }
-        }
-        
-        // Setup controls if OrbitControls is already available
-        if (OrbitControls) {
-            setupControls();
-        }
+        let animationFrameId;
+        const clock = new THREE.Clock();
         
         // Add a simple message to indicate the sphere is interactive
         const interactiveHint = document.createElement('div');
@@ -478,20 +436,49 @@ function createSpherePreview(THREE, texture, canvas, noImageMessage) {
         sphere.rotation.y = Math.PI / 6;
         sphere.rotation.x = Math.PI / 12;
         
-        // Render function
-        let animationFrameId;
-        const clock = new THREE.Clock();
+        // Create dedicated OrbitControls for the preview sphere
+        // We need to dynamically import it for this specific use case
+        let previewControls = null;
+        let previewControlsReady = false;
+        
+        // Function to dynamically import and create OrbitControls
+        const initPreviewControls = async () => {
+            try {
+                // Use dynamic import to get OrbitControls
+                const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
+                
+                // Create dedicated controls for this preview only
+                previewControls = new OrbitControls(camera, canvas);
+                
+                // Configure the preview controls
+                previewControls.enableDamping = true;
+                previewControls.dampingFactor = 0.05;
+                previewControls.rotateSpeed = 1.0;
+                previewControls.enableZoom = false;
+                previewControls.enablePan = false;
+                
+                // Mark as ready
+                previewControlsReady = true;
+                
+                console.log('Preview controls initialized successfully');
+            } catch (error) {
+                console.error('Failed to initialize preview controls:', error);
+            }
+        };
+        
+        // Initialize the controls
+        initPreviewControls();
         
         function renderSphere() {
             animationFrameId = requestAnimationFrame(renderSphere);
             
             const delta = clock.getDelta();
             
-            // Update controls if available
-            if (controls) {
-                controls.update();
+            // Update preview controls if available
+            if (previewControlsReady && previewControls) {
+                previewControls.update();
             } else {
-                // If no controls, add a very slow rotation to show it's 3D
+                // If no controls yet, add a very slow rotation to show it's 3D
                 sphere.rotation.y += delta * 0.1;
             }
             
@@ -512,13 +499,14 @@ function createSpherePreview(THREE, texture, canvas, noImageMessage) {
             }
             
             // Remove the interactive hint
-            if (interactiveHint.parentElement) {
+            if (interactiveHint && interactiveHint.parentElement) {
                 interactiveHint.parentElement.removeChild(interactiveHint);
             }
             
-            // Dispose of controls if they exist
-            if (controls) {
-                controls.dispose();
+            // Dispose of the preview controls if they exist
+            if (previewControls) {
+                previewControls.dispose();
+                previewControls = null;
             }
             
             // Proper disposal of Three.js resources

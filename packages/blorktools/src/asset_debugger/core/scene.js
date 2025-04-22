@@ -4,10 +4,10 @@
  * This module handles Three.js scene setup, rendering, and animation.
  */
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { getState, updateState } from './state.js';
 import { updateRigAnimation } from './rig/rig-manager.js';
 import { addLighting, setupEnvironmentLighting } from './lighting-util.js';
+import { createControls, updateControls, setControlsTarget } from './controls.js';
 
 /**
  * Initialize the Three.js scene, camera, renderer and controls
@@ -34,14 +34,13 @@ export function initScene(container) {
     // Create renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(renderer.domElement);
     updateState('renderer', renderer);
     
-    // Create orbit controls
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    updateState('controls', controls);
+    // Create orbit controls using our controls module
+    const controls = createControls(camera, renderer.domElement);
+    // No need to update state here as the controls module does it
     
     // Check if we have an HDR/EXR lighting file to use
     const lightingFile = state.lightingFile;
@@ -114,13 +113,16 @@ function animate() {
     
     requestAnimationFrame(animate);
     
+    // Time tracking for smooth animation
+    const now = performance.now();
+    const delta = now - (state.lastFrameTime || now);
+    updateState('lastFrameTime', now);
+    
     // Update rig animation if available
     updateRigAnimation();
     
-    // Update orbit controls
-    if (state.controls) {
-        state.controls.update();
-    }
+    // Always update orbit controls to ensure smooth inertia/damping
+    updateControls();
     
     // Render the scene
     if (state.renderer && state.scene && state.camera) {
@@ -187,11 +189,8 @@ export function fitCameraToObject(object, offset = 1.2) {
     // Update camera position and target
     state.camera.position.z = cameraZ;
     
-    // Update orbit controls target
-    if (state.controls) {
-        state.controls.target.copy(center);
-        state.controls.update();
-    }
+    // Update orbit controls target using our controls module's setControlsTarget
+    setControlsTarget(center);
 }
 
 export default {

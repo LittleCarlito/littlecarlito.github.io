@@ -18,6 +18,20 @@ import { initWorldPanel } from './world-panel.js';
 // Debug flags
 const DEBUG_LIGHTING = false;
 
+// Track loading state
+let loadingComplete = false;
+let resourcesLoaded = {
+    componentsLoaded: false,
+    sceneInitialized: false,
+    lightingLoaded: false,
+    modelLoaded: false,
+    controlsReady: false
+};
+
+// Track mouse follower
+let mouseX = 0;
+let mouseY = 0;
+
 // Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Asset Debugger UI: Initializing...');
@@ -34,6 +48,145 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set up the event listeners for debugging
     setupDebuggerEvents();
 });
+
+/**
+ * Shows the loading splash screen
+ */
+function showLoadingSplash() {
+    // First check if the splash already exists
+    let loadingSplash = document.getElementById('loading-splash');
+    
+    if (!loadingSplash) {
+        // Create and add the loading splash screen from our HTML template
+        fetch('../pages/loading-splash.html')
+            .then(response => response.text())
+            .then(html => {
+                document.body.insertAdjacentHTML('beforeend', html);
+                // Make sure it's visible
+                loadingSplash = document.getElementById('loading-splash');
+                if (loadingSplash) {
+                    loadingSplash.style.display = 'flex';
+                    
+                    // Initialize mouse follower effect
+                    initMouseFollower();
+                }
+            })
+            .catch(error => {
+                console.error('Error loading splash screen:', error);
+            });
+    } else {
+        // If it exists, make sure it's visible
+        loadingSplash.style.display = 'flex';
+        loadingSplash.classList.remove('fade-out');
+        
+        // Re-initialize mouse follower
+        initMouseFollower();
+    }
+}
+
+/**
+ * Initialize mouse follower effect for the loading screen
+ */
+function initMouseFollower() {
+    const mouseFollower = document.getElementById('mouse-follower');
+    const loadingSplash = document.getElementById('loading-splash');
+    
+    if (mouseFollower && loadingSplash) {
+        // Show the mouse follower
+        mouseFollower.style.opacity = '1';
+        
+        // Set initial position
+        mouseFollower.style.left = '50%';
+        mouseFollower.style.top = '50%';
+        
+        // Add mouse move event listener to the loading splash
+        loadingSplash.addEventListener('mousemove', handleMouseMove);
+        
+        // Clean up on mouse leave
+        loadingSplash.addEventListener('mouseleave', () => {
+            mouseFollower.style.opacity = '0';
+        });
+        
+        // Show on mouse enter
+        loadingSplash.addEventListener('mouseenter', () => {
+            mouseFollower.style.opacity = '1';
+        });
+    }
+}
+
+/**
+ * Handle mouse movement for the mouse follower effect
+ * @param {MouseEvent} e - The mouse event
+ */
+function handleMouseMove(e) {
+    const mouseFollower = document.getElementById('mouse-follower');
+    
+    if (mouseFollower) {
+        // Get mouse position
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        
+        // Apply smooth movement using requestAnimationFrame
+        requestAnimationFrame(() => {
+            mouseFollower.style.left = `${mouseX}px`;
+            mouseFollower.style.top = `${mouseY}px`;
+            
+            // Scale effect based on mouse speed
+            const speedFactor = 1.2;
+            mouseFollower.style.transform = `translate(-50%, -50%) scale(${speedFactor})`;
+        });
+    }
+}
+
+/**
+ * Updates the loading progress text on the splash screen
+ * @param {string} text - The progress message to display
+ */
+function updateLoadingProgress(text) {
+    const progressText = document.getElementById('loading-progress-text');
+    if (progressText) {
+        progressText.textContent = text;
+    }
+}
+
+/**
+ * Hides the loading splash screen with a fade-out animation
+ */
+function hideLoadingSplash() {
+    const loadingSplash = document.getElementById('loading-splash');
+    if (loadingSplash) {
+        // Remove event listeners to prevent memory leaks
+        loadingSplash.removeEventListener('mousemove', handleMouseMove);
+        
+        // Add fade-out class for smooth transition
+        loadingSplash.classList.add('fade-out');
+        
+        // Remove the element after the animation completes
+        setTimeout(() => {
+            loadingSplash.remove();
+        }, 600); // Match the transition duration in CSS
+    }
+}
+
+/**
+ * Checks if all resources have loaded and hides the splash screen when done
+ */
+function checkAllResourcesLoaded() {
+    if (resourcesLoaded.componentsLoaded && 
+        resourcesLoaded.sceneInitialized && 
+        resourcesLoaded.lightingLoaded && 
+        resourcesLoaded.modelLoaded &&
+        resourcesLoaded.controlsReady) {
+        
+        loadingComplete = true;
+        console.log('All resources loaded, hiding splash screen');
+        
+        // Give a small delay to ensure everything is rendered properly
+        setTimeout(() => {
+            hideLoadingSplash();
+        }, 500);
+    }
+}
 
 /**
  * Set up theme, UI elements, and basic event listeners
@@ -66,14 +219,31 @@ function setupThemeAndUI() {
  * Load all component HTML files dynamically
  */
 function loadComponentHtml() {
+    // Track loading of components
+    let componentsToLoad = 7; // Total components to load
+    let componentsLoaded = 0;
+
+    // Function to update progress when a component loads
+    const componentLoaded = () => {
+        componentsLoaded++;
+        updateLoadingProgress(`Loading components (${componentsLoaded}/${componentsToLoad})...`);
+        
+        if (componentsLoaded === componentsToLoad) {
+            resourcesLoaded.componentsLoaded = true;
+            checkAllResourcesLoaded();
+        }
+    };
+
     // Load World Panel (first in the tab order)
     fetch('../pages/world-panel.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('world-tab-container').innerHTML = html;
+            componentLoaded();
         })
         .catch(error => {
             console.error('Error loading world panel:', error);
+            componentLoaded();
         });
     
     // Load Atlas Panel
@@ -81,9 +251,11 @@ function loadComponentHtml() {
         .then(response => response.text())
         .then(html => {
             document.getElementById('atlas-tab-container').innerHTML = html;
+            componentLoaded();
         })
         .catch(error => {
             console.error('Error loading atlas panel:', error);
+            componentLoaded();
         });
         
     // Load Mesh Panel
@@ -91,9 +263,11 @@ function loadComponentHtml() {
         .then(response => response.text())
         .then(html => {
             document.getElementById('mesh-tab-container').innerHTML = html;
+            componentLoaded();
         })
         .catch(error => {
             console.error('Error loading mesh panel:', error);
+            componentLoaded();
         });
         
     // Load UV Panel
@@ -101,9 +275,11 @@ function loadComponentHtml() {
         .then(response => response.text())
         .then(html => {
             document.getElementById('uv-tab-container').innerHTML = html;
+            componentLoaded();
         })
         .catch(error => {
             console.error('Error loading UV panel:', error);
+            componentLoaded();
         });
         
     // Load Rig Panel
@@ -111,9 +287,11 @@ function loadComponentHtml() {
         .then(response => response.text())
         .then(html => {
             document.getElementById('rig-tab-container').innerHTML = html;
+            componentLoaded();
         })
         .catch(error => {
             console.error('Error loading rig panel:', error);
+            componentLoaded();
         });
         
     // Load the settings modal component FIRST
@@ -141,13 +319,16 @@ function loadComponentHtml() {
                     } else {
                         console.warn('Element with ID "axis-settings-container" not found in the DOM after loading settings modal');
                     }
+                    componentLoaded();
                 })
                 .catch(error => {
                     console.error('Error loading axis indicator settings:', error);
+                    componentLoaded();
                 });
         })
         .catch(error => {
             console.error('Error loading settings modal:', error);
+            componentLoaded();
         });
         
     // Load the examples modal component
@@ -155,9 +336,11 @@ function loadComponentHtml() {
         .then(response => response.text())
         .then(html => {
             document.getElementById('examples-modal-container').innerHTML = html;
+            componentLoaded();
         })
         .catch(error => {
             console.error('Error loading examples modal:', error);
+            componentLoaded();
         });
 }
 
@@ -385,6 +568,10 @@ function verifyFileDrop() {
 function startDebugging() {
     console.log('Starting debugging...');
     
+    // Show the loading splash screen first
+    showLoadingSplash();
+    updateLoadingProgress('Initializing asset debugger...');
+    
     // Load settings from localStorage at the start
     const savedSettings = loadSettings();
     
@@ -411,6 +598,7 @@ function startDebugging() {
     // Create a promise chain to ensure proper sequencing
     Promise.resolve()
         .then(() => {
+            updateLoadingProgress('Setting up scene and lighting...');
             // Check for HDR or EXR lighting files
             return import('../../core/state.js')
                 .then(stateModule => {
@@ -452,18 +640,55 @@ function startDebugging() {
                         // No lighting file, just continue with the chain
                         return Promise.resolve();
                     }
+                })
+                .then(() => {
+                    resourcesLoaded.lightingLoaded = true;
+                    checkAllResourcesLoaded();
                 });
         })
         .then(() => {
             // Now that lighting is set up, load the model
+            updateLoadingProgress('Loading 3D model...');
             return import('../../core/models.js')
                 .then(modelsModule => {
                     return modelsModule.loadDebugModel();
+                })
+                .then(() => {
+                    resourcesLoaded.modelLoaded = true;
+                    checkAllResourcesLoaded();
                 });
         })
         .catch(error => {
             console.error('Error in debugging sequence:', error);
+            // Even on error, mark as complete to hide splash screen
+            resourcesLoaded.lightingLoaded = true;
+            resourcesLoaded.modelLoaded = true;
+            checkAllResourcesLoaded();
         });
+        
+    // Add a final check that ensures camera controls are ready
+    // This addresses the brief hiccup where the scene is visible but not controllable
+    setTimeout(() => {
+        updateLoadingProgress('Finalizing camera controls...');
+        
+        // Import and ensure camera controls are fully initialized
+        import('../../core/controls.js').then(controlsModule => {
+            // If there's a method to check if controls are ready, use it
+            // Otherwise, use a reasonable timeout to ensure everything is ready
+            setTimeout(() => {
+                updateLoadingProgress('Ready!');
+                resourcesLoaded.controlsReady = true;
+                checkAllResourcesLoaded();
+            }, 300);
+        }).catch(error => {
+            console.error('Error ensuring controls are ready:', error);
+            // Even on error, mark as complete to hide splash screen after a longer timeout
+            setTimeout(() => {
+                resourcesLoaded.controlsReady = true;
+                checkAllResourcesLoaded();
+            }, 1000);
+        });
+    }, 500);
 }
 
 /**
@@ -517,10 +742,14 @@ function initializeDebugger(settings) {
     new SettingsModal(settings);
     
     // Import and initialize the scene
+    updateLoadingProgress('Initializing 3D scene...');
     import('../../core/scene.js').then(sceneModule => {
         console.log('Scene module loaded, initializing scene');
         sceneModule.initScene(viewport);
         sceneModule.startAnimation();
+        
+        resourcesLoaded.sceneInitialized = true;
+        checkAllResourcesLoaded();
         
         // Note: We do NOT load models here - this will be handled separately
         // in the startDebugging promise chain to ensure lighting is set up first
