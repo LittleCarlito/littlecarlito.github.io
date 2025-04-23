@@ -12,7 +12,10 @@
             <div class="background-data-info" style="display: none;">
                 <!-- HDR/EXR Image Preview Section moved here -->
                 <div class="collapsible-header">
-                    <h4 class="metadata-header">EXR/HDR Image</h4>
+                    <div class="hdr-toggle-container">
+                        <input type="checkbox" id="hdr-toggle" class="hdr-toggle-checkbox" checked>
+                        <h4 class="metadata-header">EXR/HDR Image</h4>
+                    </div>
                     <span class="collapse-indicator">[+]</span>
                 </div>
                 <div class="metadata-content image-preview-content" style="display: none;">
@@ -137,6 +140,47 @@
     .background-data-info,
     .image-container {
         overflow: visible !important;
+    }
+    
+    /* HDR toggle styles */
+    .hdr-toggle-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        position: relative;
+        z-index: 2; /* Ensure the container appears above other elements */
+    }
+    
+    .hdr-toggle-checkbox {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        border: 1px solid #444;
+        border-radius: 3px;
+        background-color: #2a2a2a;
+        cursor: pointer;
+        position: relative;
+        margin: 0;
+        z-index: 3; /* Higher z-index for the checkbox */
+    }
+    
+    .hdr-toggle-checkbox:checked {
+        background-color: #0088ff;
+        border-color: #0088ff;
+    }
+    
+    .hdr-toggle-checkbox:checked::after {
+        content: '✓';
+        position: absolute;
+        color: white;
+        font-size: 12px;
+        top: 0;
+        left: 3px;
+    }
+    
+    .hdr-toggle-checkbox:hover {
+        border-color: #0088ff;
     }
     
     /* Control groups and elements */
@@ -267,6 +311,7 @@
         color: #aaa;
         margin: 0;
         font-weight: normal;
+        cursor: pointer; /* Add pointer cursor to make it clear it's clickable */
     }
     
     .image-container {
@@ -373,6 +418,34 @@
                         indicator.textContent = '+';
                     }
                 });
+            });
+        }
+        
+        // Initialize HDR toggle checkbox - direct DOM access for immediate effect
+        const hdrToggle = document.getElementById('hdr-toggle');
+        
+        if (hdrToggle) {
+            // Ensure clicks on the checkbox don't trigger header collapse
+            hdrToggle.addEventListener('click', function(e) {
+                // Stop propagation to prevent collapsible header from toggling
+                e.stopPropagation();
+            });
+            
+            hdrToggle.addEventListener('change', function(e) {
+                // Additional stopPropagation for safety
+                e.stopPropagation();
+                
+                // Toggle canvas opacity to visually show state
+                const canvas = document.getElementById('hdr-preview-canvas');
+                if (canvas) {
+                    canvas.style.opacity = this.checked ? '1' : '0.3';
+                }
+                
+                // Dispatch custom event for the world-panel.js to handle
+                const event = new CustomEvent('hdr-toggle-change', { 
+                    detail: { enabled: this.checked } 
+                });
+                document.dispatchEvent(event);
             });
         }
     });

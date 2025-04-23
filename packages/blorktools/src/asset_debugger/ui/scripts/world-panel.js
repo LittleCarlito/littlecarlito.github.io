@@ -34,6 +34,9 @@ export function initWorldPanel() {
     // Set up event listeners for lighting controls
     setupLightingControls();
     
+    // Set up HDR toggle event listener
+    setupHdrToggleListener();
+    
     // Mark as initialized
     controlsInitialized = true;
     
@@ -168,6 +171,86 @@ function setupLightingControls() {
     // Initialize message visibility
     updateLightingMessage();
     updateBackgroundMessage();
+}
+
+/**
+ * Set up listener for HDR toggle checkbox events
+ */
+function setupHdrToggleListener() {
+    // Get the checkbox element
+    const hdrToggle = document.getElementById('hdr-toggle');
+    
+    if (hdrToggle) {
+        // Prevent any click on the checkbox from propagating to the header
+        hdrToggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+        
+        // Handle the change event separately (when checkbox state changes)
+        hdrToggle.addEventListener('change', function(e) {
+            // Prevent propagation to be extra safe
+            e.stopPropagation();
+            
+            // Get the state
+            const state = getState();
+            
+            // Toggle background visibility based on checkbox
+            if (state.scene && state.scene.environment) {
+                const enabled = this.checked;
+                console.log('HDR toggle changed:', enabled);
+                
+                if (enabled) {
+                    // Show background - restore previous background if any
+                    if (state.scene.userData && state.scene.userData.savedBackground) {
+                        state.scene.background = state.scene.userData.savedBackground;
+                        delete state.scene.userData.savedBackground;
+                    } else {
+                        // If no saved background, use the environment
+                        state.scene.background = state.scene.environment;
+                    }
+                } else {
+                    // Hide background - save current background first
+                    if (!state.scene.userData) state.scene.userData = {};
+                    state.scene.userData.savedBackground = state.scene.background;
+                    state.scene.background = null;
+                }
+                
+                // Toggle canvas opacity if it exists
+                const canvas = document.getElementById('hdr-preview-canvas');
+                if (canvas) {
+                    canvas.style.opacity = enabled ? '1' : '0.3';
+                }
+            }
+        });
+    }
+    
+    // Also listen for the custom event (for backward compatibility)
+    document.addEventListener('hdr-toggle-change', function(e) {
+        const enabled = e.detail.enabled;
+        console.log('HDR toggle event received:', enabled);
+        
+        // Get the state
+        const state = getState();
+        
+        if (state.scene && state.scene.environment) {
+            // Toggle background visibility based on checkbox
+            if (enabled) {
+                // Show background - restore previous background if any
+                if (state.scene.userData && state.scene.userData.savedBackground) {
+                    state.scene.background = state.scene.userData.savedBackground;
+                    delete state.scene.userData.savedBackground;
+                } else {
+                    // If no saved background, use the environment
+                    state.scene.background = state.scene.environment;
+                }
+            } else {
+                // Hide background - save current background first
+                if (!state.scene.userData) state.scene.userData = {};
+                state.scene.userData.savedBackground = state.scene.background;
+                state.scene.background = null;
+            }
+        }
+    });
 }
 
 /**
