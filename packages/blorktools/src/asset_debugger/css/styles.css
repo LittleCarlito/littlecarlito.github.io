@@ -149,9 +149,10 @@ h2, h3 {
 }
 
 .preview-container {
-    display: flex;
+    display: none;
     justify-content: space-between;
     gap: 20px;
+    margin-top: 20px;
     margin-bottom: 20px;
 }
 

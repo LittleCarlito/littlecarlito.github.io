@@ -141,44 +141,9 @@ function createRigDetailsContent(container, details) {
     forceZContainer.appendChild(forceZLabel);
     forceZContainer.appendChild(forceZCheckbox);
     
-    // Create Show Bone Labels checkbox
-    const showBoneLabelsContainer = document.createElement('div');
-    showBoneLabelsContainer.className = 'rig-checkbox-container';
-    
-    const showBoneLabelsLabel = document.createElement('label');
-    showBoneLabelsLabel.textContent = 'Show Bone Labels';
-    showBoneLabelsLabel.className = 'rig-checkbox-label';
-    
-    const showBoneLabelsCheckbox = document.createElement('input');
-    showBoneLabelsCheckbox.type = 'checkbox';
-    showBoneLabelsCheckbox.id = 'show-bone-labels-tab';
-    showBoneLabelsCheckbox.checked = rigOptions.showBoneLabels;
-    showBoneLabelsCheckbox.className = 'rig-checkbox';
-    
-    showBoneLabelsCheckbox.addEventListener('change', (e) => {
-        rigOptions.showBoneLabels = e.target.checked;
-        updateRigVisualization();
-        
-        // Sync with settings modal checkbox
-        const settingsModalCheckbox = document.getElementById('show-bone-labels');
-        if (settingsModalCheckbox && settingsModalCheckbox.checked !== e.target.checked) {
-            settingsModalCheckbox.checked = e.target.checked;
-        }
-        
-        // Save settings to localStorage immediately
-        saveRigOptionToLocalStorage('showBoneLabels', e.target.checked);
-    });
-    
-    showBoneLabelsLabel.setAttribute('for', 'show-bone-labels-tab');
-    showBoneLabelsContainer.appendChild(showBoneLabelsLabel);
-    showBoneLabelsContainer.appendChild(showBoneLabelsCheckbox);
-    
     // Add both checkboxes to controls section
     checkboxWrapper.appendChild(displayRigContainer);
     checkboxWrapper.appendChild(forceZContainer);
-    
-    // Add show bone labels checkbox to controls section
-    checkboxWrapper.appendChild(showBoneLabelsContainer);
     
     // Create Reset Physics button
     const resetButton = document.createElement('button');
@@ -1695,16 +1660,10 @@ document.addEventListener('rigOptionsChange', function(e) {
             }
         }
         
-        // Special handling for bone labels
+        // Special handling for bone labels - handle from settings modal only
         if (e.detail.showBoneLabels !== undefined) {
             console.log(`Updating showBoneLabels from ${rigOptions.showBoneLabels} to ${e.detail.showBoneLabels}`);
             rigOptions.showBoneLabels = e.detail.showBoneLabels;
-            
-            // Update any checkbox in the UI
-            const boneLabelsCheckbox = document.getElementById('show-bone-labels-tab');
-            if (boneLabelsCheckbox && boneLabelsCheckbox.checked !== e.detail.showBoneLabels) {
-                boneLabelsCheckbox.checked = e.detail.showBoneLabels;
-            }
         }
         
         // Update control handle colors

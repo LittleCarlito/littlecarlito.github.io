@@ -49,4 +49,38 @@
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* Preview loading effect */
+.preview-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(18, 18, 18, 0.8);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 5;
+}
+
+.preview-loading-spinner {
+    width: 30px;
+    height: 30px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    border-top: 3px solid var(--tool-color);
+    animation: spin 1s linear infinite;
+}
+
+.preview-loading-text {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-color);
+}
+
+.preview {
+    position: relative;
 } 

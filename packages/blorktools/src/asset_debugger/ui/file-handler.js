@@ -12,6 +12,51 @@ import { setupEnvironmentLighting } from '../core/lighting-util.js';
 const DEBUG_LIGHTING = false;
 
 /**
+ * Shows the preview container when a file is uploaded
+ */
+function showPreviewContainer() {
+    const previewContainer = document.querySelector('.preview-container');
+    if (previewContainer) {
+        previewContainer.style.display = 'flex';
+    }
+}
+
+/**
+ * Shows loading state for a preview element
+ * @param {HTMLElement} previewElement - The preview element to show loading for
+ */
+function showPreviewLoading(previewElement) {
+    // Create loading overlay if it doesn't exist
+    if (!previewElement.querySelector('.preview-loading')) {
+        const loadingElement = document.createElement('div');
+        loadingElement.className = 'preview-loading';
+        
+        const spinner = document.createElement('div');
+        spinner.className = 'preview-loading-spinner';
+        
+        const loadingText = document.createElement('div');
+        loadingText.className = 'preview-loading-text';
+        loadingText.textContent = 'Loading...';
+        
+        loadingElement.appendChild(spinner);
+        loadingElement.appendChild(loadingText);
+        
+        previewElement.appendChild(loadingElement);
+    }
+}
+
+/**
+ * Hides loading state for a preview element
+ * @param {HTMLElement} previewElement - The preview element to hide loading for
+ */
+function hidePreviewLoading(previewElement) {
+    const loadingElement = previewElement.querySelector('.preview-loading');
+    if (loadingElement) {
+        loadingElement.remove();
+    }
+}
+
+/**
  * Setup dropzones for file input
  */
 export function setupDropzones() {
@@ -222,6 +267,12 @@ function handleTextureUpload(file, textureType, infoElement, previewElement, dro
     // Mark dropzone as having a file
     dropzone.classList.add('has-file');
     
+    // Show the preview container
+    showPreviewContainer();
+    
+    // Show loading state
+    showPreviewLoading(previewElement);
+    
     // Create an image preview
     const reader = new FileReader();
     reader.onload = e => {
@@ -229,17 +280,20 @@ function handleTextureUpload(file, textureType, infoElement, previewElement, dro
         const img = document.createElement('img');
         img.src = e.target.result;
         
-        // Clear previous preview
-        previewElement.innerHTML = '';
-        previewElement.appendChild(img);
-        
-        // Load texture
+        // Load texture first, then update the preview
         loadTextureFromFile(file, textureType)
             .then(() => {
+                // Now that texture is loaded, update the preview
+                previewElement.innerHTML = '';
+                previewElement.appendChild(img);
+                
+                // Hide loading indicator now that we've loaded the texture
+                hidePreviewLoading(previewElement);
+                
                 // Check if all textures are loaded to enable the start button
                 checkStartButton();
                 
-                // Update atlas visualization if atlas tab is active
+                // Update atlas visualization if we're on that tab
                 const atlasTab = document.getElementById('atlas-tab');
                 if (atlasTab && atlasTab.classList.contains('active')) {
                     updateAtlasVisualization();
@@ -248,6 +302,9 @@ function handleTextureUpload(file, textureType, infoElement, previewElement, dro
             .catch(error => {
                 console.error(`Error loading ${textureType} texture:`, error);
                 alert(`Error loading ${textureType} texture: ${error.message}`);
+                
+                // Clear loading state on error
+                hidePreviewLoading(previewElement);
             });
     };
     
@@ -302,146 +359,157 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
     // Mark dropzone as having a file
     dropzone.classList.add('has-file');
     
+    // Show the preview container
+    showPreviewContainer();
+    
+    // Show loading state
+    showPreviewLoading(previewElement);
+    
     // Create a simple preview placeholder (don't actually process the file yet)
-    previewElement.innerHTML = '';
-    
-    // Create a canvas to render a sphere placeholder
-    const canvas = document.createElement('canvas');
-    canvas.className = 'hdr-placeholder-canvas';
-    canvas.width = 100;
-    canvas.height = 100;
-    
-    const ctx = canvas.getContext('2d');
-    
-    // Clear canvas with dark background
-    ctx.fillStyle = '#111111';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Create a sphere-like gradient with a more metallic/chrome look
-    const centerX = 50;
-    const centerY = 50;
-    const radius = 40;
-    
-    // Create a metallic-looking sphere with reflective highlights
-    const gradient = ctx.createRadialGradient(
-        centerX - radius * 0.3, // Highlight origin X
-        centerY - radius * 0.3, // Highlight origin Y 
-        radius * 0.1,          // Inner radius for highlight
-        centerX,               // Center X
-        centerY,               // Center Y
-        radius                 // Outer radius
-    );
-    
-    // Metallic silver-blue colors
-    gradient.addColorStop(0, '#ffffff');       // Bright highlight
-    gradient.addColorStop(0.1, '#c0d0f0');     // Near highlight
-    gradient.addColorStop(0.4, '#607090');     // Mid tone
-    gradient.addColorStop(0.7, '#405070');     // Darker tone
-    gradient.addColorStop(0.9, '#203050');     // Edge
-    gradient.addColorStop(1, '#101830');       // Outer edge
-    
-    // Draw the sphere
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.fillStyle = gradient;
-    ctx.fill();
-    
-    // Add a sharper highlight
-    const highlightGradient = ctx.createRadialGradient(
-        centerX - radius * 0.4,  // X
-        centerY - radius * 0.4,  // Y
-        1,                       // Inner radius
-        centerX - radius * 0.4,  // X
-        centerY - radius * 0.4,  // Y
-        radius * 0.3             // Outer radius
-    );
-    highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
-    highlightGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
-    highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    
-    ctx.beginPath();
-    ctx.arc(centerX - radius * 0.4, centerY - radius * 0.4, radius * 0.3, 0, Math.PI * 2);
-    ctx.fillStyle = highlightGradient;
-    ctx.fill();
-    
-    // Add a secondary smaller highlight
-    const highlight2Gradient = ctx.createRadialGradient(
-        centerX + radius * 0.2,  // X
-        centerY - radius * 0.5,  // Y
-        1,                       // Inner radius
-        centerX + radius * 0.2,  // X 
-        centerY - radius * 0.5,  // Y
-        radius * 0.15            // Outer radius
-    );
-    highlight2Gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
-    highlight2Gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    
-    ctx.beginPath();
-    ctx.arc(centerX + radius * 0.2, centerY - radius * 0.5, radius * 0.15, 0, Math.PI * 2);
-    ctx.fillStyle = highlight2Gradient;
-    ctx.fill();
-    
-    // Add subtle environment reflection suggestion
-    // This creates slightly colored bands to suggest environment reflection
-    const bands = 3;
-    const bandHeight = radius * 2 / bands;
-    
-    for (let i = 0; i < bands; i++) {
-        const y = centerY - radius + i * bandHeight;
-        const opacity = 0.1 - (i * 0.02);  // Decrease opacity for lower bands
+    setTimeout(() => {
+        previewElement.innerHTML = '';
         
-        // Add a subtle color band
-        ctx.beginPath();
-        ctx.ellipse(
-            centerX,                     // X
-            y + bandHeight/2,            // Y
-            radius * 0.9,                // X radius
-            bandHeight/2,                // Y radius
-            0,                           // Rotation
-            0, Math.PI * 2               // Start/end angles
+        // Create a canvas to render a sphere placeholder
+        const canvas = document.createElement('canvas');
+        canvas.className = 'hdr-placeholder-canvas';
+        canvas.width = 100;
+        canvas.height = 100;
+        
+        const ctx = canvas.getContext('2d');
+        
+        // Clear canvas with dark background
+        ctx.fillStyle = '#111111';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Create a sphere-like gradient with a more metallic/chrome look
+        const centerX = 50;
+        const centerY = 50;
+        const radius = 40;
+        
+        // Create a metallic-looking sphere with reflective highlights
+        const gradient = ctx.createRadialGradient(
+            centerX - radius * 0.3, // Highlight origin X
+            centerY - radius * 0.3, // Highlight origin Y 
+            radius * 0.1,          // Inner radius for highlight
+            centerX,               // Center X
+            centerY,               // Center Y
+            radius                 // Outer radius
         );
         
-        // Different colors for each band
-        let bandColor;
-        if (i === 0) bandColor = 'rgba(100, 150, 255, ' + opacity + ')';  // Blue-ish for top
-        else if (i === 1) bandColor = 'rgba(100, 170, 200, ' + opacity + ')';  // Teal-ish for middle
-        else bandColor = 'rgba(100, 200, 150, ' + opacity + ')';  // Green-ish for bottom
+        // Metallic silver-blue colors
+        gradient.addColorStop(0, '#ffffff');       // Bright highlight
+        gradient.addColorStop(0.1, '#c0d0f0');     // Near highlight
+        gradient.addColorStop(0.4, '#607090');     // Mid tone
+        gradient.addColorStop(0.7, '#405070');     // Darker tone
+        gradient.addColorStop(0.9, '#203050');     // Edge
+        gradient.addColorStop(1, '#101830');       // Outer edge
         
-        ctx.fillStyle = bandColor;
+        // Draw the sphere
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
         ctx.fill();
-    }
-    
-    // Create container for the canvas and label
-    const placeholderContainer = document.createElement('div');
-    placeholderContainer.className = 'hdr-placeholder';
-    placeholderContainer.style.width = '100%';
-    placeholderContainer.style.height = '100%';
-    placeholderContainer.style.display = 'flex';
-    placeholderContainer.style.flexDirection = 'column';
-    placeholderContainer.style.justifyContent = 'center';
-    placeholderContainer.style.alignItems = 'center';
-    placeholderContainer.style.backgroundColor = '#111111';
-    
-    // Add the canvas
-    placeholderContainer.appendChild(canvas);
-    
-    // Add text label below
-    const label = document.createElement('div');
-    label.textContent = 'HDR/EXR Environment';
-    label.style.color = 'white';
-    label.style.marginTop = '10px';
-    label.style.fontSize = '12px';
-    
-    placeholderContainer.appendChild(label);
-    
-    // Add the placeholder to the preview container
-    previewElement.appendChild(placeholderContainer);
-    
-    // Log the update
-    console.log(`HDR/EXR file "${file.name}" accepted and stored for later processing`);
-    
-    // Check if we can enable the start button
-    checkStartButton();
+        
+        // Add a sharper highlight
+        const highlightGradient = ctx.createRadialGradient(
+            centerX - radius * 0.4,  // X
+            centerY - radius * 0.4,  // Y
+            1,                       // Inner radius
+            centerX - radius * 0.4,  // X
+            centerY - radius * 0.4,  // Y
+            radius * 0.3             // Outer radius
+        );
+        highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+        highlightGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
+        highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        
+        ctx.beginPath();
+        ctx.arc(centerX - radius * 0.4, centerY - radius * 0.4, radius * 0.3, 0, Math.PI * 2);
+        ctx.fillStyle = highlightGradient;
+        ctx.fill();
+        
+        // Add a secondary smaller highlight
+        const highlight2Gradient = ctx.createRadialGradient(
+            centerX + radius * 0.2,  // X
+            centerY - radius * 0.5,  // Y
+            1,                       // Inner radius
+            centerX + radius * 0.2,  // X 
+            centerY - radius * 0.5,  // Y
+            radius * 0.15            // Outer radius
+        );
+        highlight2Gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+        highlight2Gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        
+        ctx.beginPath();
+        ctx.arc(centerX + radius * 0.2, centerY - radius * 0.5, radius * 0.15, 0, Math.PI * 2);
+        ctx.fillStyle = highlight2Gradient;
+        ctx.fill();
+        
+        // Add subtle environment reflection suggestion
+        // This creates slightly colored bands to suggest environment reflection
+        const bands = 3;
+        const bandHeight = radius * 2 / bands;
+        
+        for (let i = 0; i < bands; i++) {
+            const y = centerY - radius + i * bandHeight;
+            const opacity = 0.1 - (i * 0.02);  // Decrease opacity for lower bands
+            
+            // Add a subtle color band
+            ctx.beginPath();
+            ctx.ellipse(
+                centerX,                     // X
+                y + bandHeight/2,            // Y
+                radius * 0.9,                // X radius
+                bandHeight/2,                // Y radius
+                0,                           // Rotation
+                0, Math.PI * 2               // Start/end angles
+            );
+            
+            // Different colors for each band
+            let bandColor;
+            if (i === 0) bandColor = 'rgba(100, 150, 255, ' + opacity + ')';  // Blue-ish for top
+            else if (i === 1) bandColor = 'rgba(100, 170, 200, ' + opacity + ')';  // Teal-ish for middle
+            else bandColor = 'rgba(100, 200, 150, ' + opacity + ')';  // Green-ish for bottom
+            
+            ctx.fillStyle = bandColor;
+            ctx.fill();
+        }
+        
+        // Create container for the canvas and label
+        const placeholderContainer = document.createElement('div');
+        placeholderContainer.className = 'hdr-placeholder';
+        placeholderContainer.style.width = '100%';
+        placeholderContainer.style.height = '100%';
+        placeholderContainer.style.display = 'flex';
+        placeholderContainer.style.flexDirection = 'column';
+        placeholderContainer.style.justifyContent = 'center';
+        placeholderContainer.style.alignItems = 'center';
+        placeholderContainer.style.backgroundColor = '#111111';
+        
+        // Add the canvas
+        placeholderContainer.appendChild(canvas);
+        
+        // Add text label below
+        const label = document.createElement('div');
+        label.textContent = 'HDR/EXR Environment';
+        label.style.color = 'white';
+        label.style.marginTop = '10px';
+        label.style.fontSize = '12px';
+        
+        placeholderContainer.appendChild(label);
+        
+        // Add the placeholder to the preview container
+        previewElement.appendChild(placeholderContainer);
+        
+        // Log the update
+        console.log(`HDR/EXR file "${file.name}" accepted and stored for later processing`);
+        
+        // Check if we can enable the start button
+        checkStartButton();
+        
+        // Hide loading indicator now that we've created the preview
+        hidePreviewLoading(previewElement);
+    }, 800); // Add a slight delay for a better loading effect
 }
 
 /**
