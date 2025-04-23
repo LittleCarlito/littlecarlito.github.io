@@ -9,6 +9,8 @@ import { updateAtlasVisualization } from './scripts/atlas-panel.js';
 import { setupEnvironmentLighting, parseLightingData } from '../core/lighting-util.js';
 // Import for HDR/EXR preview rendering
 import * as worldPanelModule from './scripts/world-panel.js';
+// Import for GLB model preview
+import { createModelPreview } from './scripts/model-preview.js';
 
 // Debug flags
 const DEBUG_LIGHTING = false;
@@ -281,6 +283,17 @@ function preventDefaults(e) {
 function clearDropzone(dropzone, fileType, title) {
     // Clear the state based on file type
     if (fileType === 'model') {
+        // Clean up any model preview resources
+        const modelPreview = document.getElementById('model-preview');
+        if (modelPreview) {
+            // We'll import and call the cleanup function to ensure all WebGL resources are freed
+            import('./scripts/model-preview.js').then(module => {
+                if (module.cleanupPreview) {
+                    module.cleanupPreview();
+                }
+            }).catch(err => console.error('Error cleaning up model preview:', err));
+        }
+        
         updateState('modelFile', null);
         updateState('useCustomModel', false);
     } else if (fileType === 'lighting') {
@@ -459,36 +472,21 @@ function handleModelUpload(file, infoElement, dropzone) {
     titleElement.textContent = originalTitle;
     dropzone.appendChild(titleElement);
     
-    // Add a clear button
-    const clearButton = document.createElement('button');
-    clearButton.className = 'clear-preview-button';
-    clearButton.innerHTML = '&times;';
-    clearButton.title = 'Clear file';
-    clearButton.addEventListener('click', (e) => {
-        e.stopPropagation(); // Prevent dropzone click event
-        clearDropzone(dropzone, 'model', originalTitle);
-        
-        // Reattach the dropzone event handlers
-        setupDropzone(dropzone, 'model', document.getElementById('model-info'));
-    });
-    dropzone.appendChild(clearButton);
-    
     // Add file info
     infoElement = document.createElement('p');
     infoElement.className = 'file-info';
+    infoElement.id = 'model-info';
     infoElement.textContent = `${file.name} (${formatFileSize(file.size)})`;
     dropzone.appendChild(infoElement);
     
-    // Add a model loaded indicator
-    const modelIndicator = document.createElement('div');
-    modelIndicator.className = 'model-indicator';
-    modelIndicator.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="#4CAF50">
-            <path d="M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L5,8.09V15.91L12,19.85L19,15.91V8.09L12,4.15Z" />
-        </svg>
-        <div class="model-loaded-text">3D Model Loaded</div>
-    `;
-    dropzone.appendChild(modelIndicator);
+    // Create a preview container
+    const previewDiv = document.createElement('div');
+    previewDiv.className = 'preview';
+    previewDiv.id = 'model-preview';
+    dropzone.appendChild(previewDiv);
+    
+    // Create the 3D preview with the model-preview module
+    createModelPreview(file);
     
     // Update the texture dropzone hints to show textures are optional with GLB
     const textureHints = document.querySelectorAll('.texture-hint');
