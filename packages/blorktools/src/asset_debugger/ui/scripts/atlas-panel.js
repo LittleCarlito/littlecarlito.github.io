@@ -91,6 +91,25 @@ export function updateAtlasVisualization() {
         return;
     }
     
+    // Update the texture container label
+    const labelElement = document.getElementById('atlas-label');
+    if (labelElement) {
+        // Set label based on selected type
+        switch(selectedType) {
+            case 'baseColor':
+                labelElement.textContent = 'Base Color Atlas';
+                break;
+            case 'orm':
+                labelElement.textContent = 'ORM Atlas';
+                break;
+            case 'normal':
+                labelElement.textContent = 'Normal Map Atlas';
+                break;
+            default:
+                labelElement.textContent = 'Texture Atlas';
+        }
+    }
+    
     // Check if we have texture objects and the selected texture
     if (!state.textureObjects || !state.textureObjects[selectedType] || !state.textureObjects[selectedType].image) {
         // Show the "No texture loaded" message

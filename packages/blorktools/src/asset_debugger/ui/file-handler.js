@@ -6,7 +6,9 @@
 import { getState, updateState } from '../core/state.js';
 import { loadTextureFromFile, formatFileSize } from '../core/materials.js';
 import { updateAtlasVisualization } from './scripts/atlas-panel.js';
-import { setupEnvironmentLighting } from '../core/lighting-util.js';
+import { setupEnvironmentLighting, parseLightingData } from '../core/lighting-util.js';
+// Import for HDR/EXR preview rendering
+import * as worldPanelModule from './scripts/world-panel.js';
 
 // Debug flags
 const DEBUG_LIGHTING = false;
@@ -270,25 +272,61 @@ function handleTextureUpload(file, textureType, infoElement, previewElement, dro
     // Show the preview container
     showPreviewContainer();
     
-    // Show loading state
-    showPreviewLoading(previewElement);
+    // Clear any existing preview
+    previewElement.innerHTML = '';
+    
+    // Create a container for the preview that will hold both the image and the loading indicator
+    const containerDiv = document.createElement('div');
+    containerDiv.className = 'texture-preview-container';
+    
+    // Add the container to the preview area
+    previewElement.appendChild(containerDiv);
+    
+    // Show loading state directly on the container
+    showPreviewLoading(containerDiv);
+    
+    // Determine the label text based on texture type
+    let labelText = '';
+    switch(textureType) {
+        case 'baseColor':
+            labelText = 'Base Color Atlas';
+            break;
+        case 'orm':
+            labelText = 'ORM Atlas';
+            break;
+        case 'normal':
+            labelText = 'Normal Map Atlas';
+            break;
+        default:
+            labelText = 'Texture Atlas';
+    }
+    
+    // Create label element but don't add it yet - we'll add it after loading
+    const labelDiv = document.createElement('div');
+    labelDiv.textContent = labelText;
+    labelDiv.className = 'texture-label';
     
     // Create an image preview
     const reader = new FileReader();
     reader.onload = e => {
-        // Create preview image
+        // Create preview image but keep it hidden until processed
         const img = document.createElement('img');
         img.src = e.target.result;
+        img.className = 'texture-preview-img hidden';
+        containerDiv.appendChild(img);
         
         // Load texture first, then update the preview
         loadTextureFromFile(file, textureType)
             .then(() => {
-                // Now that texture is loaded, update the preview
-                previewElement.innerHTML = '';
-                previewElement.appendChild(img);
+                // Now that texture is loaded, show the image
+                img.classList.remove('hidden');
+                img.classList.add('visible');
                 
-                // Hide loading indicator now that we've loaded the texture
-                hidePreviewLoading(previewElement);
+                // Hide loading indicator
+                hidePreviewLoading(containerDiv);
+                
+                // Now add the label since loading is complete
+                previewElement.appendChild(labelDiv);
                 
                 // Check if all textures are loaded to enable the start button
                 checkStartButton();
@@ -303,8 +341,15 @@ function handleTextureUpload(file, textureType, infoElement, previewElement, dro
                 console.error(`Error loading ${textureType} texture:`, error);
                 alert(`Error loading ${textureType} texture: ${error.message}`);
                 
-                // Clear loading state on error
-                hidePreviewLoading(previewElement);
+                // Show the image anyway in case of error
+                img.classList.remove('hidden');
+                img.classList.add('visible');
+                
+                // Hide loading indicator
+                hidePreviewLoading(containerDiv);
+                
+                // Add the label even on error
+                previewElement.appendChild(labelDiv);
             });
     };
     
@@ -332,7 +377,7 @@ function handleModelUpload(file, infoElement, dropzone) {
     const textureHints = document.querySelectorAll('.texture-hint');
     textureHints.forEach(hint => {
         hint.textContent = 'Textures are optional with GLB';
-        hint.style.color = '#88cc88'; // Light green color
+        hint.classList.add('optional');
     });
     
     // Check if we can enable the start button
@@ -362,154 +407,293 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
     // Show the preview container
     showPreviewContainer();
     
-    // Show loading state
-    showPreviewLoading(previewElement);
+    // Clear any existing preview
+    previewElement.innerHTML = '';
     
-    // Create a simple preview placeholder (don't actually process the file yet)
+    // Create a container for the preview that will hold both the canvas and the loading indicator
+    const containerDiv = document.createElement('div');
+    containerDiv.className = 'hdr-preview-container';
+    
+    // Add the container to the preview area
+    previewElement.appendChild(containerDiv);
+    
+    // Show loading state directly on the container
+    showPreviewLoading(containerDiv);
+    
+    // Create canvas for the preview with appropriate size but keep it hidden initially
+    const canvas = document.createElement('canvas');
+    canvas.className = 'hdr-preview-canvas';
+    canvas.width = 200;
+    canvas.height = 200;
+    canvas.classList.add('hidden'); // Initially hidden until loaded
+    
+    // Create a message element for errors/status
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'no-image-message hidden';
+    
+    // Add elements to the container
+    containerDiv.appendChild(canvas);
+    containerDiv.appendChild(messageDiv);
+    
+    // Create label element but don't add it yet - we'll add it after loading
+    const labelDiv = document.createElement('div');
+    labelDiv.textContent = 'HDR/EXR Environment';
+    labelDiv.className = 'texture-label';
+    
+    // Try to load the HDR/EXR file
+    // We'll use a slight delay to ensure the loading indicator is visible first
     setTimeout(() => {
-        previewElement.innerHTML = '';
+        // First, try to parse the file metadata
+        parseLightingData(file)
+            .then(metadata => {
+                // Now try to load the texture for preview
+                try {
+                    // For EXR files
+                    if (file.name.toLowerCase().endsWith('.exr')) {
+                        import('three').then(THREE => {
+                            import('three/addons/loaders/EXRLoader.js').then(({ EXRLoader }) => {
+                                const loader = new EXRLoader();
+                                loader.setDataType(THREE.FloatType);
+                                const url = URL.createObjectURL(file);
+                                
+                                loader.load(url, texture => {
+                                    // Show the canvas
+                                    canvas.classList.add('visible');
+                                    canvas.classList.remove('hidden');
+                                    
+                                    // Use the world panel's renderEnvironmentPreview function
+                                    if (worldPanelModule.renderEnvironmentPreview) {
+                                        worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
+                                    } else {
+                                        // Fallback to simple sphere if function not available
+                                        createFallbackSphere(canvas);
+                                    }
+                                    
+                                    // Clean up URL after loading
+                                    URL.revokeObjectURL(url);
+                                    
+                                    // Hide loading indicator
+                                    hidePreviewLoading(containerDiv);
+                                    
+                                    // Now add the label since loading is complete
+                                    previewElement.appendChild(labelDiv);
+                                    
+                                    // Check if start button should be enabled
+                                    checkStartButton();
+                                }, undefined, error => {
+                                    console.error('Error loading EXR texture:', error);
+                                    createFallbackSphere(canvas);
+                                    canvas.classList.add('visible');
+                                    canvas.classList.remove('hidden');
+                                    hidePreviewLoading(containerDiv);
+                                    previewElement.appendChild(labelDiv);
+                                    checkStartButton();
+                                    if (messageDiv) {
+                                        messageDiv.classList.remove('hidden');
+                                        messageDiv.classList.add('visible');
+                                        messageDiv.textContent = 'Error loading EXR file';
+                                    }
+                                });
+                            }).catch(error => {
+                                console.error('Error loading EXRLoader:', error);
+                                createFallbackSphere(canvas);
+                                canvas.classList.add('visible');
+                                canvas.classList.remove('hidden');
+                                hidePreviewLoading(containerDiv);
+                                previewElement.appendChild(labelDiv);
+                                checkStartButton();
+                            });
+                        }).catch(error => {
+                            console.error('Error loading Three.js:', error);
+                            createFallbackSphere(canvas);
+                            canvas.classList.add('visible');
+                            canvas.classList.remove('hidden');
+                            hidePreviewLoading(containerDiv);
+                            previewElement.appendChild(labelDiv);
+                            checkStartButton();
+                        });
+                    } 
+                    // For HDR files
+                    else if (file.name.toLowerCase().endsWith('.hdr')) {
+                        import('three').then(THREE => {
+                            import('three/addons/loaders/RGBELoader.js').then(({ RGBELoader }) => {
+                                const loader = new RGBELoader();
+                                const url = URL.createObjectURL(file);
+                                
+                                loader.load(url, texture => {
+                                    // Show the canvas
+                                    canvas.classList.add('visible');
+                                    canvas.classList.remove('hidden');
+                                    
+                                    // Use the world panel's renderEnvironmentPreview function
+                                    if (worldPanelModule.renderEnvironmentPreview) {
+                                        worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
+                                    } else {
+                                        // Fallback to simple sphere if function not available
+                                        createFallbackSphere(canvas);
+                                    }
+                                    
+                                    // Clean up URL after loading
+                                    URL.revokeObjectURL(url);
+                                    
+                                    // Hide loading indicator
+                                    hidePreviewLoading(containerDiv);
+                                    
+                                    // Now add the label since loading is complete
+                                    previewElement.appendChild(labelDiv);
+                                    
+                                    // Check if start button should be enabled
+                                    checkStartButton();
+                                }, undefined, error => {
+                                    console.error('Error loading HDR texture:', error);
+                                    createFallbackSphere(canvas);
+                                    canvas.classList.add('visible');
+                                    canvas.classList.remove('hidden');
+                                    hidePreviewLoading(containerDiv);
+                                    previewElement.appendChild(labelDiv);
+                                    checkStartButton();
+                                    if (messageDiv) {
+                                        messageDiv.classList.remove('hidden');
+                                        messageDiv.classList.add('visible');
+                                        messageDiv.textContent = 'Error loading HDR file';
+                                    }
+                                });
+                            }).catch(error => {
+                                console.error('Error loading RGBELoader:', error);
+                                createFallbackSphere(canvas);
+                                canvas.classList.add('visible');
+                                canvas.classList.remove('hidden');
+                                hidePreviewLoading(containerDiv);
+                                previewElement.appendChild(labelDiv);
+                                checkStartButton();
+                            });
+                        }).catch(error => {
+                            console.error('Error loading Three.js:', error);
+                            createFallbackSphere(canvas);
+                            canvas.classList.add('visible');
+                            canvas.classList.remove('hidden');
+                            hidePreviewLoading(containerDiv);
+                            previewElement.appendChild(labelDiv);
+                            checkStartButton();
+                        });
+                    } 
+                    // Fallback if type not recognized (shouldn't happen due to earlier checks)
+                    else {
+                        createFallbackSphere(canvas);
+                        canvas.classList.add('visible');
+                        canvas.classList.remove('hidden');
+                        hidePreviewLoading(containerDiv);
+                        previewElement.appendChild(labelDiv);
+                        checkStartButton();
+                    }
+                } catch (error) {
+                    console.error('Error loading HDR/EXR preview:', error);
+                    createFallbackSphere(canvas);
+                    canvas.classList.add('visible');
+                    canvas.classList.remove('hidden');
+                    hidePreviewLoading(containerDiv);
+                    previewElement.appendChild(labelDiv);
+                    checkStartButton();
+                }
+            })
+            .catch(error => {
+                console.error('Error parsing lighting data:', error);
+                createFallbackSphere(canvas);
+                canvas.classList.add('visible');
+                canvas.classList.remove('hidden');
+                hidePreviewLoading(containerDiv);
+                previewElement.appendChild(labelDiv);
+                checkStartButton();
+            });
+    }, 300);
+}
+
+/**
+ * Create a fallback sphere preview for HDR/EXR when actual preview fails
+ * @param {HTMLCanvasElement} canvas - The canvas to draw on
+ */
+function createFallbackSphere(canvas) {
+    const ctx = canvas.getContext('2d');
+    
+    // Clear canvas with dark background
+    ctx.fillStyle = '#111111';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Create a sphere-like gradient with a more metallic/chrome look
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = Math.min(canvas.width, canvas.height) * 0.4;
+    
+    // Create a metallic-looking sphere with reflective highlights
+    const gradient = ctx.createRadialGradient(
+        centerX - radius * 0.3, // Highlight origin X
+        centerY - radius * 0.3, // Highlight origin Y 
+        radius * 0.1,           // Inner radius for highlight
+        centerX,                // Center X
+        centerY,                // Center Y
+        radius                  // Outer radius
+    );
+    
+    // Metallic silver-blue colors
+    gradient.addColorStop(0, '#ffffff');       // Bright highlight
+    gradient.addColorStop(0.1, '#c0d0f0');     // Near highlight
+    gradient.addColorStop(0.4, '#607090');     // Mid tone
+    gradient.addColorStop(0.7, '#405070');     // Darker tone
+    gradient.addColorStop(0.9, '#203050');     // Edge
+    gradient.addColorStop(1, '#101830');       // Outer edge
+    
+    // Draw the sphere
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.fillStyle = gradient;
+    ctx.fill();
+    
+    // Add a sharper highlight
+    const highlightGradient = ctx.createRadialGradient(
+        centerX - radius * 0.4,  // X
+        centerY - radius * 0.4,  // Y
+        1,                       // Inner radius
+        centerX - radius * 0.4,  // X
+        centerY - radius * 0.4,  // Y
+        radius * 0.3             // Outer radius
+    );
+    highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+    highlightGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
+    highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    
+    ctx.beginPath();
+    ctx.arc(centerX - radius * 0.4, centerY - radius * 0.4, radius * 0.3, 0, Math.PI * 2);
+    ctx.fillStyle = highlightGradient;
+    ctx.fill();
+    
+    // Add subtle environment reflection suggestion
+    const bands = 3;
+    const bandHeight = radius * 2 / bands;
+    
+    for (let i = 0; i < bands; i++) {
+        const y = centerY - radius + i * bandHeight;
+        const opacity = 0.1 - (i * 0.02);  // Decrease opacity for lower bands
         
-        // Create a canvas to render a sphere placeholder
-        const canvas = document.createElement('canvas');
-        canvas.className = 'hdr-placeholder-canvas';
-        canvas.width = 100;
-        canvas.height = 100;
-        
-        const ctx = canvas.getContext('2d');
-        
-        // Clear canvas with dark background
-        ctx.fillStyle = '#111111';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Create a sphere-like gradient with a more metallic/chrome look
-        const centerX = 50;
-        const centerY = 50;
-        const radius = 40;
-        
-        // Create a metallic-looking sphere with reflective highlights
-        const gradient = ctx.createRadialGradient(
-            centerX - radius * 0.3, // Highlight origin X
-            centerY - radius * 0.3, // Highlight origin Y 
-            radius * 0.1,          // Inner radius for highlight
-            centerX,               // Center X
-            centerY,               // Center Y
-            radius                 // Outer radius
+        // Add a subtle color band
+        ctx.beginPath();
+        ctx.ellipse(
+            centerX,                     // X
+            y + bandHeight/2,            // Y
+            radius * 0.9,                // X radius
+            bandHeight/2,                // Y radius
+            0,                           // Rotation
+            0, Math.PI * 2               // Start/end angles
         );
         
-        // Metallic silver-blue colors
-        gradient.addColorStop(0, '#ffffff');       // Bright highlight
-        gradient.addColorStop(0.1, '#c0d0f0');     // Near highlight
-        gradient.addColorStop(0.4, '#607090');     // Mid tone
-        gradient.addColorStop(0.7, '#405070');     // Darker tone
-        gradient.addColorStop(0.9, '#203050');     // Edge
-        gradient.addColorStop(1, '#101830');       // Outer edge
+        // Different colors for each band
+        let bandColor;
+        if (i === 0) bandColor = 'rgba(100, 150, 255, ' + opacity + ')';  // Blue-ish for top
+        else if (i === 1) bandColor = 'rgba(100, 170, 200, ' + opacity + ')';  // Teal-ish for middle
+        else bandColor = 'rgba(100, 200, 150, ' + opacity + ')';  // Green-ish for bottom
         
-        // Draw the sphere
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = bandColor;
         ctx.fill();
-        
-        // Add a sharper highlight
-        const highlightGradient = ctx.createRadialGradient(
-            centerX - radius * 0.4,  // X
-            centerY - radius * 0.4,  // Y
-            1,                       // Inner radius
-            centerX - radius * 0.4,  // X
-            centerY - radius * 0.4,  // Y
-            radius * 0.3             // Outer radius
-        );
-        highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
-        highlightGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
-        highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        
-        ctx.beginPath();
-        ctx.arc(centerX - radius * 0.4, centerY - radius * 0.4, radius * 0.3, 0, Math.PI * 2);
-        ctx.fillStyle = highlightGradient;
-        ctx.fill();
-        
-        // Add a secondary smaller highlight
-        const highlight2Gradient = ctx.createRadialGradient(
-            centerX + radius * 0.2,  // X
-            centerY - radius * 0.5,  // Y
-            1,                       // Inner radius
-            centerX + radius * 0.2,  // X 
-            centerY - radius * 0.5,  // Y
-            radius * 0.15            // Outer radius
-        );
-        highlight2Gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
-        highlight2Gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        
-        ctx.beginPath();
-        ctx.arc(centerX + radius * 0.2, centerY - radius * 0.5, radius * 0.15, 0, Math.PI * 2);
-        ctx.fillStyle = highlight2Gradient;
-        ctx.fill();
-        
-        // Add subtle environment reflection suggestion
-        // This creates slightly colored bands to suggest environment reflection
-        const bands = 3;
-        const bandHeight = radius * 2 / bands;
-        
-        for (let i = 0; i < bands; i++) {
-            const y = centerY - radius + i * bandHeight;
-            const opacity = 0.1 - (i * 0.02);  // Decrease opacity for lower bands
-            
-            // Add a subtle color band
-            ctx.beginPath();
-            ctx.ellipse(
-                centerX,                     // X
-                y + bandHeight/2,            // Y
-                radius * 0.9,                // X radius
-                bandHeight/2,                // Y radius
-                0,                           // Rotation
-                0, Math.PI * 2               // Start/end angles
-            );
-            
-            // Different colors for each band
-            let bandColor;
-            if (i === 0) bandColor = 'rgba(100, 150, 255, ' + opacity + ')';  // Blue-ish for top
-            else if (i === 1) bandColor = 'rgba(100, 170, 200, ' + opacity + ')';  // Teal-ish for middle
-            else bandColor = 'rgba(100, 200, 150, ' + opacity + ')';  // Green-ish for bottom
-            
-            ctx.fillStyle = bandColor;
-            ctx.fill();
-        }
-        
-        // Create container for the canvas and label
-        const placeholderContainer = document.createElement('div');
-        placeholderContainer.className = 'hdr-placeholder';
-        placeholderContainer.style.width = '100%';
-        placeholderContainer.style.height = '100%';
-        placeholderContainer.style.display = 'flex';
-        placeholderContainer.style.flexDirection = 'column';
-        placeholderContainer.style.justifyContent = 'center';
-        placeholderContainer.style.alignItems = 'center';
-        placeholderContainer.style.backgroundColor = '#111111';
-        
-        // Add the canvas
-        placeholderContainer.appendChild(canvas);
-        
-        // Add text label below
-        const label = document.createElement('div');
-        label.textContent = 'HDR/EXR Environment';
-        label.style.color = 'white';
-        label.style.marginTop = '10px';
-        label.style.fontSize = '12px';
-        
-        placeholderContainer.appendChild(label);
-        
-        // Add the placeholder to the preview container
-        previewElement.appendChild(placeholderContainer);
-        
-        // Log the update
-        console.log(`HDR/EXR file "${file.name}" accepted and stored for later processing`);
-        
-        // Check if we can enable the start button
-        checkStartButton();
-        
-        // Hide loading indicator now that we've created the preview
-        hidePreviewLoading(previewElement);
-    }, 800); // Add a slight delay for a better loading effect
+    }
 }
 
 /**

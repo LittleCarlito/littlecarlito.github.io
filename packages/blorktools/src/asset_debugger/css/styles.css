@@ -374,6 +374,49 @@ h2, h3 {
     position: relative;
 }
 
+/* Container for atlas textures, styled like the HDR/EXR preview */
+.texture-container {
+    position: relative;
+    width: 100%;
+    display: flex;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+/* Atlas texture container components */
+.texture-container .texture-label {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: #aaa;
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+    z-index: 2;
+}
+
+.texture-preview {
+    width: 100%;
+    height: 260px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #222;
+    border: 1px solid #444;
+    position: relative;
+}
+
+.texture-preview img,
+.texture-preview canvas {
+    max-width: 100%;
+    max-height: 100%;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    display: block;
+}
+
 .mesh-panel {
     flex: 0 0 300px;
     background-color: var(--panel-bg);
@@ -579,11 +622,11 @@ h2, h3 {
 .atlas-canvas {
     width: 100%;
     height: auto;
-    border: 1px solid var(--panel-border);
-    margin-bottom: 10px;
+    border: none;
+    margin: 0;
     background-color: #000;
     max-width: 100%;
-    max-height: 500px;
+    max-height: 100%;
     object-fit: contain;
     display: block;
 }
@@ -1383,4 +1426,122 @@ h2, h3 {
     font-size: 11px;
     margin-bottom: 3px;
     color: var(--text-color);
+}
+
+/* File Handler Styles */
+.texture-preview-container {
+  position: relative;
+  width: 100%;
+  height: 150px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #222;
+  border-radius: 3px;
+  border: 1px solid #444;
+  overflow: hidden;
+}
+
+.hdr-preview-container {
+  position: relative;
+  width: 100%;
+  height: 150px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #222;
+  border-radius: 3px;
+  border: 1px solid #444;
+}
+
+.hdr-preview-canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+.texture-label {
+  color: white;
+  min-width: 110px;
+  margin-top: 10px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.no-image-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: #777;
+  font-size: 0.9em;
+  padding: 10px;
+  background-color: rgba(30, 30, 30, 0.7);
+  border-radius: 4px;
+  width: 80%;
+}
+
+.preview-loading {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 10;
+}
+
+.preview-loading-spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top: 3px solid #fff;
+  border-radius: 50%;
+  animation: loading-spin 1s linear infinite;
+}
+
+.preview-loading-text {
+  color: white;
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+@keyframes loading-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.texture-preview-img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.texture-preview-img.hidden {
+  display: none;
+}
+
+.texture-preview-img.visible {
+  display: block;
+}
+
+.hdr-preview-canvas.hidden {
+  display: none;
+}
+
+.hdr-preview-canvas.visible {
+  display: block;
+}
+
+.no-image-message.visible {
+  display: block;
+}
+
+.no-image-message.hidden {
+  display: none;
+}
+
+.texture-hint.optional {
+  color: #88cc88;
 } 

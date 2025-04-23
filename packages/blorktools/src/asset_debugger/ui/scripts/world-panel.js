@@ -332,23 +332,26 @@ export function updateLightingInfo(metadata) {
 /**
  * Render the HDR/EXR environment texture preview on canvas
  * @param {THREE.Texture} texture - The environment texture to render
+ * @param {HTMLCanvasElement} [externalCanvas] - Optional external canvas to render on
+ * @param {HTMLElement} [externalNoImageMessage] - Optional external message element
+ * @returns {boolean} - Whether preview was rendered successfully
  */
-function renderEnvironmentPreview(texture) {
-    // Look for the canvas element
-    const canvas = document.getElementById('hdr-preview-canvas');
-    const noImageMessage = document.getElementById('no-image-message');
+export function renderEnvironmentPreview(texture, externalCanvas, externalNoImageMessage) {
+    // Look for the canvas element - either use provided external one or find in DOM
+    const canvas = externalCanvas || document.getElementById('hdr-preview-canvas');
+    const noImageMessage = externalNoImageMessage || document.getElementById('no-image-message');
     
     // If canvas not found, panel may not be initialized yet
     if (!canvas) {
         console.error('HDR preview canvas not found, cannot render preview');
-        return;
+        return false;
     }
     
     // If texture doesn't have image data, show error message
     if (!texture || !texture.image) {
         console.warn('No texture or image data found:', texture);
         showNoImageMessage(canvas, noImageMessage, 'No image data available.');
-        return;
+        return false;
     }
     
     console.log('Rendering environment texture preview as 3D sphere');
@@ -360,9 +363,11 @@ function renderEnvironmentPreview(texture) {
     canvas.style.display = 'block';
     
     // Set canvas size (always square for the sphere preview)
-    const previewSize = 260;
-    canvas.width = previewSize;
-    canvas.height = previewSize;
+    const previewSize = externalCanvas ? Math.min(canvas.width, canvas.height) : 260;
+    if (!externalCanvas) {
+        canvas.width = previewSize;
+        canvas.height = previewSize;
+    }
     
     try {
         // Create a mini Three.js scene for the sphere preview
@@ -370,15 +375,18 @@ function renderEnvironmentPreview(texture) {
         if (window.THREE) {
             // If THREE is already available globally, use it directly
             createSpherePreview(window.THREE, texture, canvas, noImageMessage);
+            return true;
         } else {
             // Otherwise, try to import it
             console.log('THREE not found on window, trying dynamic import');
             import('three').then((ThreeModule) => {
                 const THREE = ThreeModule.default || ThreeModule;
                 createSpherePreview(THREE, texture, canvas, noImageMessage);
+                return true;
             }).catch(error => {
                 console.error('Error importing Three.js:', error);
                 fallbackTo2DPreview(texture, canvas);
+                return false;
             });
         }
     } catch (error) {
@@ -387,11 +395,15 @@ function renderEnvironmentPreview(texture) {
         // Fallback to 2D preview for errors
         try {
             fallbackTo2DPreview(texture, canvas);
+            return true;
         } catch (fallbackError) {
             console.error('Error rendering fallback 2D preview:', fallbackError);
             showNoImageMessage(canvas, noImageMessage, `Error: ${error.message}`);
+            return false;
         }
     }
+    
+    return true;
 }
 
 /**
@@ -401,7 +413,7 @@ function renderEnvironmentPreview(texture) {
  * @param {HTMLCanvasElement} canvas - The canvas element
  * @param {HTMLElement} noImageMessage - The no image message element
  */
-function createSpherePreview(THREE, texture, canvas, noImageMessage) {
+export function createSpherePreview(THREE, texture, canvas, noImageMessage) {
     try {
         // Create a mini renderer
         const renderer = new THREE.WebGLRenderer({
@@ -579,135 +591,129 @@ function createSpherePreview(THREE, texture, canvas, noImageMessage) {
  * @param {THREE.Texture} texture - The environment texture to render
  * @param {HTMLCanvasElement} canvas - The canvas element
  */
-function fallbackTo2DPreview(texture, canvas) {
-    console.log('Falling back to 2D preview');
+export function fallbackTo2DPreview(texture, canvas) {
+    if (!canvas || !texture || !texture.image) {
+        console.error('Cannot render fallback preview, missing canvas or texture');
+        return false;
+    }
     
+    console.log('Falling back to 2D texture preview');
+    
+    // Get the 2D context and clear it
     const ctx = canvas.getContext('2d');
     
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // If we have an actual HTMLImageElement, we can render it directly
-    if (texture.image instanceof HTMLImageElement) {
-        console.log('Processing HTMLImageElement');
+    try {
+        // Ensure the canvas is visible
+        canvas.style.display = 'block';
         
-        // Draw the image to the canvas
-        ctx.drawImage(texture.image, 0, 0, canvas.width, canvas.height);
-    }
-    // If texture is a cube texture, draw one of its faces
-    else if (Array.isArray(texture.image) && texture.image.length >= 1) {
-        const faceImage = texture.image[0];
-        
-        if (faceImage instanceof HTMLImageElement) {
-            // Draw the face image
-            ctx.drawImage(faceImage, 0, 0, canvas.width, canvas.height);
-            
-            // Add "Cubemap Preview" text
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-            ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
-            ctx.fillStyle = '#fff';
-            ctx.font = '12px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('Cubemap Preview', canvas.width / 2, canvas.height - 12);
-        }
-    }
-    // If it's a data texture, create a visualization of the data
-    else if (texture.image.data) {
-        const data = texture.image.data;
-        const width = texture.image.width || 256;
-        const height = texture.image.height || 128;
-        
-        // Create an ImageData object to display the data
-        const imageData = ctx.createImageData(canvas.width, canvas.height);
-        
-        // Sample the data from the texture
-        const scaleX = width / canvas.width;
-        const scaleY = height / canvas.height;
-        
-        // For EXR/HDR formats, we need to apply tone mapping to make them visible
-        const exposure = 1.0;
-        const gamma = 2.2;
-        
-        // Detect if we have a Float32Array (typical for EXR)
-        const isFloatData = data instanceof Float32Array;
-        
-        // Check if the data layout is standard RGBA (4 components)
-        const dataComponents = data.length / (width * height);
-        
-        // Special case for non-standard data formats
-        const isNonStandardFormat = dataComponents !== 4;
-        
-        for (let y = 0; y < canvas.height; y++) {
-            for (let x = 0; x < canvas.width; x++) {
-                // Calculate source position in original data
-                const srcX = Math.floor(x * scaleX);
-                const srcY = Math.floor(y * scaleY);
-                
-                // Calculate destination index in imageData
-                const destIndex = (y * canvas.width + x) * 4;
-                
-                // Default to black
-                let r = 0, g = 0, b = 0;
-                
-                // Handle different data layouts
-                if (isNonStandardFormat) {
-                    // Handle non-standard formats (like RGB without alpha)
-                    const srcIndex = (srcY * width + srcX) * dataComponents;
-                    
-                    if (srcIndex < data.length - (dataComponents - 1)) {
-                        // Just take the first 3 components as RGB
-                        r = data[srcIndex];
-                        g = dataComponents > 1 ? data[srcIndex + 1] : r;
-                        b = dataComponents > 2 ? data[srcIndex + 2] : g;
-                    }
-                } else {
-                    // Standard RGBA format
-                    const srcIndex = (srcY * width + srcX) * 4;
-                    
-                    if (srcIndex < data.length - 3) {
-                        r = data[srcIndex];
-                        g = data[srcIndex + 1];
-                        b = data[srcIndex + 2];
-                    }
-                }
-                
-                // For float data (EXR), we need to apply more aggressive tone mapping
-                if (isFloatData) {
-                    // Ensure values are positive and not NaN or Infinity
-                    r = isNaN(r) || !isFinite(r) ? 0 : Math.abs(r);
-                    g = isNaN(g) || !isFinite(g) ? 0 : Math.abs(g);
-                    b = isNaN(b) || !isFinite(b) ? 0 : Math.abs(b);
-                    
-                    // Apply simple tone mapping (exposure + gamma correction)
-                    // and convert from float HDR values to 8-bit display values
-                    r = Math.max(0, Math.min(255, Math.pow(r * exposure, 1/gamma) * 255));
-                    g = Math.max(0, Math.min(255, Math.pow(g * exposure, 1/gamma) * 255));
-                    b = Math.max(0, Math.min(255, Math.pow(b * exposure, 1/gamma) * 255));
-                } else {
-                    // For RGBE (HDR) data, simple scaling might be enough
-                    r = Math.max(0, Math.min(255, r));
-                    g = Math.max(0, Math.min(255, g));
-                    b = Math.max(0, Math.min(255, b));
-                }
-                
-                imageData.data[destIndex] = r;
-                imageData.data[destIndex + 1] = g;
-                imageData.data[destIndex + 2] = b;
-                imageData.data[destIndex + 3] = 255; // Alpha
+        // Set canvas dimensions to match aspect ratio or be square if no texture
+        if (texture.image) {
+            if (texture.image.width && texture.image.height) {
+                const aspectRatio = texture.image.width / texture.image.height;
+                canvas.width = 260;
+                canvas.height = Math.round(canvas.width / aspectRatio);
+            } else {
+                canvas.width = 260;
+                canvas.height = 260;
             }
+        } else {
+            canvas.width = 260;
+            canvas.height = 260;
         }
         
-        // Put the ImageData to the canvas
-        ctx.putImageData(imageData, 0, 0);
+        // Clear any previous content
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Add an informative text overlay
-        const textLabel = isFloatData ? 'EXR Data Preview' : 'HDR Data Preview';
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
-        ctx.fillStyle = '#fff';
-        ctx.font = '12px Arial';
+        // Draw the texture
+        if (texture.image) {
+            // If we have a direct image reference, just draw it
+            if (texture.image instanceof HTMLImageElement ||
+                texture.image instanceof HTMLCanvasElement ||
+                texture.image instanceof ImageBitmap) {
+                
+                try {
+                    ctx.drawImage(texture.image, 0, 0, canvas.width, canvas.height);
+                } catch (e) {
+                    console.error('Error drawing texture image:', e);
+                    
+                    // If drawing failed, try to extract raw pixel data
+                    try {
+                        // Create a temporary canvas to read pixel data
+                        const tempCanvas = document.createElement('canvas');
+                        tempCanvas.width = texture.image.width || 260;
+                        tempCanvas.height = texture.image.height || 260;
+                        const tempCtx = tempCanvas.getContext('2d');
+                        
+                        // Draw to temp canvas first
+                        tempCtx.drawImage(texture.image, 0, 0);
+                        
+                        // Get the pixel data
+                        const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+                        
+                        // Put the image data into our display canvas
+                        ctx.putImageData(imageData, 0, 0);
+                    } catch (extractError) {
+                        console.error('Failed to extract pixel data:', extractError);
+                        
+                        // If all else fails, draw a placeholder gradient
+                        drawPlaceholderGradient(ctx, canvas.width, canvas.height);
+                    }
+                }
+            } 
+            // For HDRi data, try to treat it as a normal image for preview
+            else if (texture.image.data && texture.image.width && texture.image.height) {
+                try {
+                    // For raw data, try to create an ImageData object and draw that
+                    const imageData = new ImageData(
+                        new Uint8ClampedArray(texture.image.data),
+                        texture.image.width,
+                        texture.image.height
+                    );
+                    ctx.putImageData(imageData, 0, 0);
+                } catch (dataError) {
+                    console.error('Error creating ImageData from texture:', dataError);
+                    drawPlaceholderGradient(ctx, canvas.width, canvas.height);
+                }
+            } else {
+                console.warn('Unknown texture image format, falling back to placeholder');
+                drawPlaceholderGradient(ctx, canvas.width, canvas.height);
+            }
+        } else {
+            // If no image data at all, draw a placeholder gradient
+            drawPlaceholderGradient(ctx, canvas.width, canvas.height);
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Error in fallback 2D preview:', error);
+        return false;
+    }
+    
+    /**
+     * Draw a colorful placeholder gradient when we can't render the real texture
+     * @param {CanvasRenderingContext2D} ctx - Canvas context
+     * @param {number} width - Width 
+     * @param {number} height - Height
+     */
+    function drawPlaceholderGradient(ctx, width, height) {
+        // Create a gradient
+        const gradient = ctx.createLinearGradient(0, 0, width, height);
+        gradient.addColorStop(0, '#3498db');
+        gradient.addColorStop(0.5, '#9b59b6');
+        gradient.addColorStop(1, '#f39c12');
+        
+        // Fill with gradient
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Add some text
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.font = 'bold 18px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(textLabel, canvas.width / 2, canvas.height - 12);
+        ctx.textBaseline = 'middle';
+        ctx.fillText('HDR/EXR Preview', width/2, height/2 - 15);
+        ctx.font = '14px monospace';
+        ctx.fillText('(Unable to render image data)', width/2, height/2 + 15);
     }
 }
 
@@ -717,25 +723,20 @@ function fallbackTo2DPreview(texture, canvas) {
  * @param {HTMLElement} messageEl - The message element to show
  * @param {string} message - The error message to display
  */
-function showNoImageMessage(canvas, messageEl, message = 'No image data available.') {
-    console.warn('Showing no image message:', message);
-    
+export function showNoImageMessage(canvas, messageEl, message = 'No image data available.') {
     // Hide canvas
     if (canvas) {
         canvas.style.display = 'none';
-        console.log('Canvas hidden');
     }
     
     // Show message
     if (messageEl) {
         messageEl.style.display = 'block';
         messageEl.textContent = message;
-        console.log('Message displayed:', message);
     } else {
         // Last resort: try to find the parent container and add a message
-        const container = document.querySelector('.lighting-status');
+        const container = canvas && canvas.parentElement;
         if (container) {
-            console.log('Found parent container, adding error message directly');
             const errorDiv = document.createElement('div');
             errorDiv.className = 'error-message';
             errorDiv.textContent = message;
