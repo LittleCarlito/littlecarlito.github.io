@@ -113,6 +113,8 @@ h2, h3 {
     height: 200px;
     min-height: 200px;
     max-height: 200px;
+    min-width: 275px;
+    max-width: 275px;
     display: flex;
     flex-direction: column;
     justify-content: center;
