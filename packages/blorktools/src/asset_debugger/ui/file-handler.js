@@ -14,16 +14,6 @@ import * as worldPanelModule from './scripts/world-panel.js';
 const DEBUG_LIGHTING = false;
 
 /**
- * Shows the preview container when a file is uploaded
- */
-function showPreviewContainer() {
-    const previewContainer = document.querySelector('.preview-container');
-    if (previewContainer) {
-        previewContainer.style.display = 'flex';
-    }
-}
-
-/**
  * Shows loading state for a preview element
  * @param {HTMLElement} previewElement - The preview element to show loading for
  */
@@ -118,34 +108,28 @@ export function setupDropzones() {
     const modelInfo = document.getElementById('model-info');
     const lightingInfo = document.getElementById('lighting-info');
     
-    // Get preview elements
-    const baseColorPreview = document.getElementById('basecolor-preview');
-    const ormPreview = document.getElementById('orm-preview');
-    const normalPreview = document.getElementById('normal-preview');
-    const lightingPreview = document.getElementById('lighting-preview');
-    
     // Ensure the start button is disabled initially
     checkStartButton();
     
     // Set up each dropzone
-    if (baseColorDropzone && baseColorInfo && baseColorPreview) {
-        setupDropzone(baseColorDropzone, 'baseColor', baseColorInfo, baseColorPreview);
+    if (baseColorDropzone && baseColorInfo) {
+        setupDropzone(baseColorDropzone, 'baseColor', baseColorInfo);
     }
     
-    if (ormDropzone && ormInfo && ormPreview) {
-        setupDropzone(ormDropzone, 'orm', ormInfo, ormPreview);
+    if (ormDropzone && ormInfo) {
+        setupDropzone(ormDropzone, 'orm', ormInfo);
     }
     
-    if (normalDropzone && normalInfo && normalPreview) {
-        setupDropzone(normalDropzone, 'normal', normalInfo, normalPreview);
+    if (normalDropzone && normalInfo) {
+        setupDropzone(normalDropzone, 'normal', normalInfo);
     }
     
     if (modelDropzone && modelInfo) {
-        setupDropzone(modelDropzone, 'model', modelInfo, null);
+        setupDropzone(modelDropzone, 'model', modelInfo);
     }
     
-    if (lightingDropzone && lightingInfo && lightingPreview) {
-        setupDropzone(lightingDropzone, 'lighting', lightingInfo, lightingPreview);
+    if (lightingDropzone && lightingInfo) {
+        setupDropzone(lightingDropzone, 'lighting', lightingInfo);
     }
     
     console.log('Dropzones setup complete');
@@ -156,9 +140,8 @@ export function setupDropzones() {
  * @param {HTMLElement} dropzone - The dropzone element
  * @param {string} fileType - The type of file ('baseColor', 'orm', 'normal', 'model', 'lighting')
  * @param {HTMLElement} infoElement - Element to display file info
- * @param {HTMLElement} previewElement - Element to display file preview (null for model)
  */
-function setupDropzone(dropzone, fileType, infoElement, previewElement) {
+function setupDropzone(dropzone, fileType, infoElement) {
     // First remove any existing event listeners to prevent duplicates
     const clone = dropzone.cloneNode(true);
     dropzone.parentNode.replaceChild(clone, dropzone);
@@ -201,7 +184,7 @@ function setupDropzone(dropzone, fileType, infoElement, previewElement) {
             }
         } else if (fileType === 'lighting') {
             if (file && (file.name.toLowerCase().endsWith('.hdr') || file.name.toLowerCase().endsWith('.exr'))) {
-                handleLightingUpload(file, infoElement, previewElement, dropzone);
+                handleLightingUpload(file, infoElement, null, dropzone);
             } else {
                 alert('Please upload an HDR or EXR file for lighting');
                 return false;
@@ -212,7 +195,7 @@ function setupDropzone(dropzone, fileType, infoElement, previewElement) {
             const isValidTextureFile = file && validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
             
             if (isValidTextureFile) {
-                handleTextureUpload(file, fileType, infoElement, previewElement, dropzone);
+                handleTextureUpload(file, fileType, infoElement, null, dropzone);
             } else if (file) {
                 alert('Please upload a valid texture file (PNG, JPG, WEBP, TIF, BMP)');
                 return false;
@@ -221,54 +204,62 @@ function setupDropzone(dropzone, fileType, infoElement, previewElement) {
         return false;
     }, false);
 
-    // Handle file upload via click
-    dropzone.addEventListener('click', () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        
-        if (fileType === 'model') {
-            input.accept = '.glb';
-            
-            input.onchange = e => {
-                const file = e.target.files[0];
-                if (file && file.name.toLowerCase().endsWith('.glb')) {
-                    handleModelUpload(file, infoElement, dropzone);
-                } else if (file) {
-                    alert('Please upload a GLB file for the model');
-                }
-            };
-        } else if (fileType === 'lighting') {
-            input.accept = '.hdr,.exr';
-            
-            input.onchange = e => {
-                const file = e.target.files[0];
-                if (file && (file.name.toLowerCase().endsWith('.hdr') || file.name.toLowerCase().endsWith('.exr'))) {
-                    handleLightingUpload(file, infoElement, previewElement, dropzone);
-                } else if (file) {
-                    alert('Please upload an HDR or EXR file for lighting');
-                }
-            };
-        } else {
-            // Set accept attribute to specify valid image formats
-            input.accept = '.png,.jpg,.jpeg,.webp,.tif,.tiff,.bmp';
-            
-            input.onchange = e => {
-                const file = e.target.files[0];
-                if (file) {
-                    // Check for valid texture file extensions
-                    const validExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp'];
-                    const isValidTextureFile = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
-                    
-                    if (isValidTextureFile) {
-                        handleTextureUpload(file, fileType, infoElement, previewElement, dropzone);
-                    } else {
-                        alert('Please upload a valid texture file (PNG, JPG, WEBP, TIF, BMP)');
-                    }
-                }
-            };
+    // Handle file upload via click - ONLY if no file is already loaded
+    dropzone.addEventListener('click', (event) => {
+        // If the click was on a clear button, don't do anything
+        if (event.target.closest('.clear-preview-button')) {
+            return;
         }
         
-        input.click();
+        // Only open file dialog if no file is loaded yet
+        if (!dropzone.classList.contains('has-file')) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            
+            if (fileType === 'model') {
+                input.accept = '.glb';
+                
+                input.onchange = e => {
+                    const file = e.target.files[0];
+                    if (file && file.name.toLowerCase().endsWith('.glb')) {
+                        handleModelUpload(file, infoElement, dropzone);
+                    } else if (file) {
+                        alert('Please upload a GLB file for the model');
+                    }
+                };
+            } else if (fileType === 'lighting') {
+                input.accept = '.hdr,.exr';
+                
+                input.onchange = e => {
+                    const file = e.target.files[0];
+                    if (file && (file.name.toLowerCase().endsWith('.hdr') || file.name.toLowerCase().endsWith('.exr'))) {
+                        handleLightingUpload(file, infoElement, null, dropzone);
+                    } else if (file) {
+                        alert('Please upload an HDR or EXR file for lighting');
+                    }
+                };
+            } else {
+                // Set accept attribute to specify valid image formats
+                input.accept = '.png,.jpg,.jpeg,.webp,.tif,.tiff,.bmp';
+                
+                input.onchange = e => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        // Check for valid texture file extensions
+                        const validExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp'];
+                        const isValidTextureFile = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+                        
+                        if (isValidTextureFile) {
+                            handleTextureUpload(file, fileType, infoElement, null, dropzone);
+                        } else {
+                            alert('Please upload a valid texture file (PNG, JPG, WEBP, TIF, BMP)');
+                        }
+                    }
+                };
+            }
+            
+            input.click();
+        }
     });
 }
 
@@ -279,6 +270,66 @@ function setupDropzone(dropzone, fileType, infoElement, previewElement) {
 function preventDefaults(e) {
     e.preventDefault();
     e.stopPropagation();
+}
+
+/**
+ * Clear a dropzone and reset it to its original state
+ * @param {HTMLElement} dropzone - The dropzone element to clear
+ * @param {string} fileType - The type of file ('baseColor', 'orm', 'normal', 'model', 'lighting')
+ * @param {string} title - The original title of the dropzone
+ */
+function clearDropzone(dropzone, fileType, title) {
+    // Clear the state based on file type
+    if (fileType === 'model') {
+        updateState('modelFile', null);
+        updateState('useCustomModel', false);
+    } else if (fileType === 'lighting') {
+        updateState('lightingFile', null);
+        updateState('environmentLightingEnabled', false);
+    } else {
+        const state = getState();
+        state.textureFiles[fileType] = null;
+        updateState('textureFiles', state.textureFiles);
+    }
+    
+    // Clear the dropzone classes and content
+    dropzone.classList.remove('has-file');
+    dropzone.innerHTML = '';
+    
+    // Recreate the original dropzone content
+    const titleElement = document.createElement('h3');
+    titleElement.textContent = title;
+    dropzone.appendChild(titleElement);
+    
+    // Add appropriate instruction text based on file type
+    const instructionText = document.createElement('p');
+    
+    if (fileType === 'model') {
+        instructionText.textContent = 'Drag & drop a GLB model file here';
+        dropzone.appendChild(instructionText);
+        
+        const optionalText = document.createElement('p');
+        optionalText.textContent = 'If not provided, a cube will be used';
+        dropzone.appendChild(optionalText);
+    } else if (fileType === 'lighting') {
+        instructionText.textContent = 'Drag & drop your HDR or EXR lighting file here';
+        dropzone.appendChild(instructionText);
+    } else if (fileType === 'baseColor') {
+        instructionText.textContent = 'Drag & drop your base color texture atlas here';
+        dropzone.appendChild(instructionText);
+    } else if (fileType === 'orm') {
+        instructionText.textContent = 'Drag & drop your ORM (Occlusion, Roughness, Metalness) texture atlas here';
+        dropzone.appendChild(instructionText);
+    } else if (fileType === 'normal') {
+        instructionText.textContent = 'Drag & drop your normal map texture atlas here';
+        dropzone.appendChild(instructionText);
+    }
+    
+    // Add an empty file info element
+    const infoElement = document.createElement('p');
+    infoElement.className = 'file-info';
+    infoElement.id = fileType.toLowerCase() + '-info';
+    dropzone.appendChild(infoElement);
 }
 
 /**
@@ -295,50 +346,51 @@ function handleTextureUpload(file, textureType, infoElement, previewElement, dro
     state.textureFiles[textureType] = file;
     updateState('textureFiles', state.textureFiles);
     
-    // Show file info
-    infoElement.textContent = `${file.name} (${formatFileSize(file.size)})`;
+    // Store original h3 title
+    const originalTitle = dropzone.querySelector('h3').textContent;
     
     // Mark dropzone as having a file
     dropzone.classList.add('has-file');
     
-    // Show the preview container
-    showPreviewContainer();
+    // Clear the entire dropzone content
+    dropzone.innerHTML = '';
     
-    // Clear any existing preview
-    previewElement.innerHTML = '';
+    // Add back just the title as a header
+    const titleElement = document.createElement('h3');
+    titleElement.textContent = originalTitle;
+    dropzone.appendChild(titleElement);
+    
+    // Add a clear button
+    const clearButton = document.createElement('button');
+    clearButton.className = 'clear-preview-button';
+    clearButton.innerHTML = '&times;';
+    clearButton.title = 'Clear file';
+    clearButton.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent dropzone click event
+        clearDropzone(dropzone, textureType, originalTitle);
+        
+        // Reattach the dropzone event handlers
+        setupDropzone(dropzone, textureType, document.getElementById(textureType.toLowerCase() + '-info'));
+    });
+    dropzone.appendChild(clearButton);
+    
+    // Add file info
+    infoElement = document.createElement('p');
+    infoElement.className = 'file-info';
+    infoElement.textContent = `${file.name} (${formatFileSize(file.size)})`;
+    dropzone.appendChild(infoElement);
     
     // Create a container for the preview that will hold both the image and the loading indicator
     const containerDiv = document.createElement('div');
     containerDiv.className = 'texture-preview-container';
     
-    // Add the container to the preview area
-    previewElement.appendChild(containerDiv);
+    // Add the container directly to the dropzone
+    dropzone.appendChild(containerDiv);
     
     // Show loading state directly on the container
     showPreviewLoading(containerDiv);
     
-    // Determine the label text based on texture type
-    let labelText = '';
-    switch(textureType) {
-        case 'baseColor':
-            labelText = 'Base Color Atlas';
-            break;
-        case 'orm':
-            labelText = 'ORM Atlas';
-            break;
-        case 'normal':
-            labelText = 'Normal Map Atlas';
-            break;
-        default:
-            labelText = 'Texture Atlas';
-    }
-    
-    // Create label element but don't add it yet - we'll add it after loading
-    const labelDiv = document.createElement('div');
-    labelDiv.textContent = labelText;
-    labelDiv.className = 'texture-label';
-    
-    // Create an image preview
+    // Create an image preview using FileReader
     const reader = new FileReader();
     reader.onload = e => {
         // Create preview image but keep it hidden until processed
@@ -356,9 +408,6 @@ function handleTextureUpload(file, textureType, infoElement, previewElement, dro
                 
                 // Hide loading indicator
                 hidePreviewLoading(containerDiv);
-                
-                // Now add the label since loading is complete
-                previewElement.appendChild(labelDiv);
                 
                 // Check if all textures are loaded to enable the start button
                 checkStartButton();
@@ -379,9 +428,6 @@ function handleTextureUpload(file, textureType, infoElement, previewElement, dro
                 
                 // Hide loading indicator
                 hidePreviewLoading(containerDiv);
-                
-                // Add the label even on error
-                previewElement.appendChild(labelDiv);
             });
     };
     
@@ -399,11 +445,50 @@ function handleModelUpload(file, infoElement, dropzone) {
     updateState('modelFile', file);
     updateState('useCustomModel', true);
     
-    // Show file info
-    infoElement.textContent = `${file.name} (${formatFileSize(file.size)})`;
+    // Store original h3 title
+    const originalTitle = dropzone.querySelector('h3').textContent;
     
     // Mark dropzone as having a file
     dropzone.classList.add('has-file');
+    
+    // Clear the entire dropzone content
+    dropzone.innerHTML = '';
+    
+    // Add back just the title as a header
+    const titleElement = document.createElement('h3');
+    titleElement.textContent = originalTitle;
+    dropzone.appendChild(titleElement);
+    
+    // Add a clear button
+    const clearButton = document.createElement('button');
+    clearButton.className = 'clear-preview-button';
+    clearButton.innerHTML = '&times;';
+    clearButton.title = 'Clear file';
+    clearButton.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent dropzone click event
+        clearDropzone(dropzone, 'model', originalTitle);
+        
+        // Reattach the dropzone event handlers
+        setupDropzone(dropzone, 'model', document.getElementById('model-info'));
+    });
+    dropzone.appendChild(clearButton);
+    
+    // Add file info
+    infoElement = document.createElement('p');
+    infoElement.className = 'file-info';
+    infoElement.textContent = `${file.name} (${formatFileSize(file.size)})`;
+    dropzone.appendChild(infoElement);
+    
+    // Add a model loaded indicator
+    const modelIndicator = document.createElement('div');
+    modelIndicator.className = 'model-indicator';
+    modelIndicator.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="#4CAF50">
+            <path d="M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L5,8.09V15.91L12,19.85L19,15.91V8.09L12,4.15Z" />
+        </svg>
+        <div class="model-loaded-text">3D Model Loaded</div>
+    `;
+    dropzone.appendChild(modelIndicator);
     
     // Update the texture dropzone hints to show textures are optional with GLB
     const textureHints = document.querySelectorAll('.texture-hint');
@@ -430,24 +515,48 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
     // Set the environment lighting enabled flag
     updateState('environmentLightingEnabled', true);
     
-    // Show file info
-    infoElement.textContent = `${file.name} (${formatFileSize(file.size)})`;
+    // Store original h3 title
+    const originalTitle = dropzone.querySelector('h3').textContent;
     
     // Mark dropzone as having a file
     dropzone.classList.add('has-file');
     
-    // Show the preview container
-    showPreviewContainer();
+    // Clear the entire dropzone content
+    dropzone.innerHTML = '';
     
-    // Clear any existing preview
-    previewElement.innerHTML = '';
+    // Add back just the title as a header
+    const titleElement = document.createElement('h3');
+    titleElement.textContent = originalTitle;
+    dropzone.appendChild(titleElement);
+    
+    // Add a clear button
+    const clearButton = document.createElement('button');
+    clearButton.className = 'clear-preview-button';
+    clearButton.innerHTML = '&times;';
+    clearButton.title = 'Clear file';
+    clearButton.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent dropzone click event
+        clearDropzone(dropzone, 'lighting', originalTitle);
+        
+        // Reattach the dropzone event handlers
+        setupDropzone(dropzone, 'lighting', document.getElementById('lighting-info'));
+    });
+    dropzone.appendChild(clearButton);
+    
+    // Add file info
+    infoElement = document.createElement('p');
+    infoElement.className = 'file-info';
+    infoElement.textContent = `${file.name} (${formatFileSize(file.size)})`;
+    dropzone.appendChild(infoElement);
     
     // Create a container for the preview that will hold both the canvas and the loading indicator
+    const previewDiv = document.createElement('div');
+    previewDiv.className = 'preview';
+    dropzone.appendChild(previewDiv);
+    
     const containerDiv = document.createElement('div');
     containerDiv.className = 'hdr-preview-container';
-    
-    // Add the container to the preview area
-    previewElement.appendChild(containerDiv);
+    previewDiv.appendChild(containerDiv);
     
     // Show loading state directly on the container
     showPreviewLoading(containerDiv);
@@ -455,8 +564,12 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
     // Create canvas for the preview with appropriate size but keep it hidden initially
     const canvas = document.createElement('canvas');
     canvas.className = 'hdr-preview-canvas';
-    canvas.width = 200;
-    canvas.height = 200;
+    
+    // Make canvas dimensions equal for a square aspect ratio
+    const previewSize = 256;
+    canvas.width = previewSize;
+    canvas.height = previewSize;
+    
     canvas.classList.add('hidden'); // Initially hidden until loaded
     
     // Create a message element for errors/status
@@ -466,11 +579,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
     // Add elements to the container
     containerDiv.appendChild(canvas);
     containerDiv.appendChild(messageDiv);
-    
-    // Create label element but don't add it yet - we'll add it after loading
-    const labelDiv = document.createElement('div');
-    labelDiv.textContent = 'HDR/EXR Environment';
-    labelDiv.className = 'texture-label';
     
     // Try to load the HDR/EXR file
     // We'll use a slight delay to ensure the loading indicator is visible first
@@ -507,9 +615,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                                     // Hide loading indicator
                                     hidePreviewLoading(containerDiv);
                                     
-                                    // Now add the label since loading is complete
-                                    previewElement.appendChild(labelDiv);
-                                    
                                     // Check if start button should be enabled
                                     checkStartButton();
                                 }, undefined, error => {
@@ -518,7 +623,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                                     canvas.classList.add('visible');
                                     canvas.classList.remove('hidden');
                                     hidePreviewLoading(containerDiv);
-                                    previewElement.appendChild(labelDiv);
                                     checkStartButton();
                                     if (messageDiv) {
                                         messageDiv.classList.remove('hidden');
@@ -532,7 +636,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                                 canvas.classList.add('visible');
                                 canvas.classList.remove('hidden');
                                 hidePreviewLoading(containerDiv);
-                                previewElement.appendChild(labelDiv);
                                 checkStartButton();
                             });
                         }).catch(error => {
@@ -541,7 +644,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             canvas.classList.add('visible');
                             canvas.classList.remove('hidden');
                             hidePreviewLoading(containerDiv);
-                            previewElement.appendChild(labelDiv);
                             checkStartButton();
                         });
                     } 
@@ -571,9 +673,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                                     // Hide loading indicator
                                     hidePreviewLoading(containerDiv);
                                     
-                                    // Now add the label since loading is complete
-                                    previewElement.appendChild(labelDiv);
-                                    
                                     // Check if start button should be enabled
                                     checkStartButton();
                                 }, undefined, error => {
@@ -582,7 +681,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                                     canvas.classList.add('visible');
                                     canvas.classList.remove('hidden');
                                     hidePreviewLoading(containerDiv);
-                                    previewElement.appendChild(labelDiv);
                                     checkStartButton();
                                     if (messageDiv) {
                                         messageDiv.classList.remove('hidden');
@@ -596,7 +694,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                                 canvas.classList.add('visible');
                                 canvas.classList.remove('hidden');
                                 hidePreviewLoading(containerDiv);
-                                previewElement.appendChild(labelDiv);
                                 checkStartButton();
                             });
                         }).catch(error => {
@@ -605,7 +702,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             canvas.classList.add('visible');
                             canvas.classList.remove('hidden');
                             hidePreviewLoading(containerDiv);
-                            previewElement.appendChild(labelDiv);
                             checkStartButton();
                         });
                     } 
@@ -615,7 +711,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                         canvas.classList.add('visible');
                         canvas.classList.remove('hidden');
                         hidePreviewLoading(containerDiv);
-                        previewElement.appendChild(labelDiv);
                         checkStartButton();
                     }
                 } catch (error) {
@@ -624,7 +719,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                     canvas.classList.add('visible');
                     canvas.classList.remove('hidden');
                     hidePreviewLoading(containerDiv);
-                    previewElement.appendChild(labelDiv);
                     checkStartButton();
                 }
             })
@@ -634,7 +728,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                 canvas.classList.add('visible');
                 canvas.classList.remove('hidden');
                 hidePreviewLoading(containerDiv);
-                previewElement.appendChild(labelDiv);
                 checkStartButton();
             });
     }, 300);

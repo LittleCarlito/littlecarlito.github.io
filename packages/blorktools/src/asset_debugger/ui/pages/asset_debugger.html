@@ -18,51 +18,58 @@
     
     <div class="container">
         <div id="upload-section" class="tool-panel">
-            <h2>Asset Files</h2>
-            <div class="dropzone-container">
-                <div class="dropzone" id="basecolor-dropzone">
-                    <h3>Base Color Atlas</h3>
-                    <p>Drag & drop your base color texture atlas here</p>
-                    <p class="file-info" id="basecolor-info"></p>
-                </div>
-                
-                <div class="dropzone" id="orm-dropzone">
-                    <h3>ORM Atlas</h3>
-                    <p>Drag & drop your ORM (Occlusion, Roughness, Metalness) texture atlas here</p>
-                    <p class="file-info" id="orm-info"></p>
-                </div>
-                
-                <div class="dropzone" id="normal-dropzone">
-                    <h3>Normal Atlas</h3>
-                    <p>Drag & drop your normal map texture atlas here</p>
-                    <p class="file-info" id="normal-info"></p>
-                </div>
-                
-                <div class="dropzone" id="model-dropzone">
-                    <h3>3D Model</h3>
-                    <p>Drag & drop a GLB model file here</p>
-                    <p>If not provided, a cube will be used</p>
-                    <p class="file-info" id="model-info"></p>
+            <h2 class="section-heading">Asset Files</h2>
+            <div class="dropzone-row">
+                <div class="dropzone-container">
+                    <div class="dropzone" id="basecolor-dropzone">
+                        <h3>Base Color Atlas</h3>
+                        <p>Drag & drop your base color texture atlas here</p>
+                        <p class="file-info" id="basecolor-info"></p>
+                        <div class="preview" id="basecolor-preview"></div>
+                        <div class="preview-placeholder"></div>
+                    </div>
+                    
+                    <div class="dropzone" id="orm-dropzone">
+                        <h3>ORM Atlas</h3>
+                        <p>Drag & drop your ORM (Occlusion, Roughness, Metalness) texture atlas here</p>
+                        <p class="file-info" id="orm-info"></p>
+                        <div class="preview" id="orm-preview"></div>
+                        <div class="preview-placeholder"></div>
+                    </div>
+                    
+                    <div class="dropzone" id="normal-dropzone">
+                        <h3>Normal Atlas</h3>
+                        <p>Drag & drop your normal map texture atlas here</p>
+                        <p class="file-info" id="normal-info"></p>
+                        <div class="preview" id="normal-preview"></div>
+                        <div class="preview-placeholder"></div>
+                    </div>
+                    
+                    <div class="dropzone" id="model-dropzone">
+                        <h3>3D Model</h3>
+                        <p>Drag & drop a GLB model file here</p>
+                        <p>If not provided, a cube will be used</p>
+                        <p class="file-info" id="model-info"></p>
+                        <div class="preview-placeholder"></div>
+                    </div>
                 </div>
             </div>
             
-            <h2>World Files</h2>
-            <div class="dropzone-container">
-                <div class="dropzone" id="lighting-dropzone">
-                    <h3>Lighting File</h3>
-                    <p>Drag & drop your HDR or EXR lighting file here</p>
-                    <p class="file-info" id="lighting-info"></p>
+            <h2 class="section-heading">World Files</h2>
+            <div class="dropzone-row">
+                <div class="dropzone-container">
+                    <div class="dropzone" id="lighting-dropzone">
+                        <h3>Lighting File</h3>
+                        <p>Drag & drop your HDR or EXR lighting file here</p>
+                        <p class="file-info" id="lighting-info"></p>
+                        <div class="preview" id="lighting-preview"></div>
+                        <div class="preview-placeholder"></div>
+                    </div>
                 </div>
             </div>
             
             <button id="start-debug" class="start-button">Start Debugging</button>
             
-            <div class="preview-container" style="display: none;">
-                <div class="preview" id="basecolor-preview"></div>
-                <div class="preview" id="orm-preview"></div>
-                <div class="preview" id="normal-preview"></div>
-                <div class="preview" id="lighting-preview"></div>
-            </div>
         </div>
         
         <div id="debug-button-container" style="display: none;">

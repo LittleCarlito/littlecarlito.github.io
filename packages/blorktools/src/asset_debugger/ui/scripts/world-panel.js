@@ -363,11 +363,14 @@ export function renderEnvironmentPreview(texture, externalCanvas, externalNoImag
     canvas.style.display = 'block';
     
     // Set canvas size (always square for the sphere preview)
-    const previewSize = externalCanvas ? Math.min(canvas.width, canvas.height) : 260;
-    if (!externalCanvas) {
-        canvas.width = previewSize;
-        canvas.height = previewSize;
-    }
+    const previewSize = externalCanvas ? Math.max(canvas.width, canvas.height) : 260;
+    
+    // Always enforce a square aspect ratio regardless of container dimensions
+    canvas.width = previewSize;
+    canvas.height = previewSize;
+    
+    // Apply class to ensure proper scaling with CSS
+    canvas.classList.add('square-preview');
     
     try {
         // Create a mini Three.js scene for the sphere preview
