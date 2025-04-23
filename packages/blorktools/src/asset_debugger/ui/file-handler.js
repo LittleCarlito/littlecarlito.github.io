@@ -11,9 +11,28 @@ import { setupEnvironmentLighting, parseLightingData } from '../core/lighting-ut
 import * as worldPanelModule from './scripts/world-panel.js';
 // Import for GLB model preview
 import { createModelPreview } from './scripts/model-preview.js';
+// Import the worker manager
+import { 
+  processTextureFile, 
+  processModelFile, 
+  processLightingFile, 
+  terminateAllWorkers 
+} from '../core/worker-manager.js';
 
 // Debug flags
 const DEBUG_LIGHTING = false;
+
+// Keep track of worker tasks by type
+const workerTasks = {
+  texture: new Map(),
+  model: new Map(),
+  lighting: new Map()
+};
+
+// Add event listener to terminate all workers when the page is unloaded
+window.addEventListener('beforeunload', () => {
+  terminateAllWorkers();
+});
 
 /**
  * Shows loading state for a preview element
@@ -403,48 +422,52 @@ function handleTextureUpload(file, textureType, infoElement, previewElement, dro
     // Show loading state directly on the container
     showPreviewLoading(containerDiv);
     
-    // Create an image preview using FileReader
-    const reader = new FileReader();
-    reader.onload = e => {
-        // Create preview image but keep it hidden until processed
-        const img = document.createElement('img');
-        img.src = e.target.result;
-        img.className = 'texture-preview-img hidden';
-        containerDiv.appendChild(img);
-        
-        // Load texture first, then update the preview
-        loadTextureFromFile(file, textureType)
-            .then(() => {
-                // Now that texture is loaded, show the image
-                img.classList.remove('hidden');
-                img.classList.add('visible');
+    // Process the texture file in a web worker
+    processTextureFile(file, textureType)
+        .then(result => {
+            // Create preview image using the data URL returned by the worker
+            const img = document.createElement('img');
+            img.src = result.previewDataUrl;
+            img.className = 'texture-preview-img hidden';
+            containerDiv.appendChild(img);
+            
+            // Load texture first, then update the preview
+            return loadTextureFromFile(file, textureType)
+                .then(() => {
+                    // Now that texture is loaded, show the image
+                    img.classList.remove('hidden');
+                    img.classList.add('visible');
+                    
+                    // Hide loading indicator
+                    hidePreviewLoading(containerDiv);
+                    
+                    // Check if all textures are loaded to enable the start button
+                    checkStartButton();
+                    
+                    // Update atlas visualization if we're on that tab
+                    const atlasTab = document.getElementById('atlas-tab');
+                    if (atlasTab && atlasTab.classList.contains('active')) {
+                        updateAtlasVisualization();
+                    }
+                });
+        })
+        .catch(error => {
+            console.error(`Error processing ${textureType} texture:`, error);
+            alert(`Error processing ${textureType} texture: ${error.message}`);
+            
+            // Fall back to direct loading if worker fails
+            const reader = new FileReader();
+            reader.onload = e => {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.className = 'texture-preview-img visible';
+                containerDiv.appendChild(img);
                 
                 // Hide loading indicator
                 hidePreviewLoading(containerDiv);
-                
-                // Check if all textures are loaded to enable the start button
-                checkStartButton();
-                
-                // Update atlas visualization if we're on that tab
-                const atlasTab = document.getElementById('atlas-tab');
-                if (atlasTab && atlasTab.classList.contains('active')) {
-                    updateAtlasVisualization();
-                }
-            })
-            .catch(error => {
-                console.error(`Error loading ${textureType} texture:`, error);
-                alert(`Error loading ${textureType} texture: ${error.message}`);
-                
-                // Show the image anyway in case of error
-                img.classList.remove('hidden');
-                img.classList.add('visible');
-                
-                // Hide loading indicator
-                hidePreviewLoading(containerDiv);
-            });
-    };
-    
-    reader.readAsDataURL(file);
+            };
+            reader.readAsDataURL(file);
+        });
 }
 
 /**
@@ -485,18 +508,47 @@ function handleModelUpload(file, infoElement, dropzone) {
     previewDiv.id = 'model-preview';
     dropzone.appendChild(previewDiv);
     
-    // Create the 3D preview with the model-preview module
-    createModelPreview(file);
+    // Show loading state
+    showPreviewLoading(previewDiv);
     
-    // Update the texture dropzone hints to show textures are optional with GLB
-    const textureHints = document.querySelectorAll('.texture-hint');
-    textureHints.forEach(hint => {
-        hint.textContent = 'Textures are optional with GLB';
-        hint.classList.add('optional');
-    });
-    
-    // Check if we can enable the start button
-    checkStartButton();
+    // Process the model file in a web worker
+    processModelFile(file)
+        .then(result => {
+            // Create the 3D preview with the model-preview module after worker has processed it
+            createModelPreview(file);
+            
+            // Hide loading indicator
+            hidePreviewLoading(previewDiv);
+            
+            // Update the texture dropzone hints to show textures are optional with GLB
+            const textureHints = document.querySelectorAll('.texture-hint');
+            textureHints.forEach(hint => {
+                hint.textContent = 'Textures are optional with GLB';
+                hint.classList.add('optional');
+            });
+            
+            // Check if we can enable the start button
+            checkStartButton();
+        })
+        .catch(error => {
+            console.error('Error processing model file:', error);
+            
+            // Fall back to direct loading if worker fails
+            createModelPreview(file);
+            
+            // Hide loading indicator
+            hidePreviewLoading(previewDiv);
+            
+            // Update the texture dropzone hints
+            const textureHints = document.querySelectorAll('.texture-hint');
+            textureHints.forEach(hint => {
+                hint.textContent = 'Textures are optional with GLB';
+                hint.classList.add('optional');
+            });
+            
+            // Check if we can enable the start button
+            checkStartButton();
+        });
 }
 
 /**
@@ -578,157 +630,132 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
     containerDiv.appendChild(canvas);
     containerDiv.appendChild(messageDiv);
     
-    // Try to load the HDR/EXR file
-    // We'll use a slight delay to ensure the loading indicator is visible first
-    setTimeout(() => {
-        // First, try to parse the file metadata
-        parseLightingData(file)
-            .then(metadata => {
-                // Now try to load the texture for preview
-                try {
-                    // For EXR files
-                    if (file.name.toLowerCase().endsWith('.exr')) {
-                        import('three').then(THREE => {
-                            import('three/addons/loaders/EXRLoader.js').then(({ EXRLoader }) => {
-                                const loader = new EXRLoader();
-                                loader.setDataType(THREE.FloatType);
-                                const url = URL.createObjectURL(file);
-                                
-                                loader.load(url, texture => {
-                                    // Show the canvas
-                                    canvas.classList.add('visible');
-                                    canvas.classList.remove('hidden');
-                                    
-                                    // Use the world panel's renderEnvironmentPreview function
-                                    if (worldPanelModule.renderEnvironmentPreview) {
-                                        worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
-                                    } else {
-                                        // Fallback to simple sphere if function not available
-                                        createFallbackSphere(canvas);
-                                    }
-                                    
-                                    // Clean up URL after loading
-                                    URL.revokeObjectURL(url);
-                                    
-                                    // Hide loading indicator
-                                    hidePreviewLoading(containerDiv);
-                                    
-                                    // Check if start button should be enabled
-                                    checkStartButton();
-                                }, undefined, error => {
-                                    console.error('Error loading EXR texture:', error);
-                                    createFallbackSphere(canvas);
-                                    canvas.classList.add('visible');
-                                    canvas.classList.remove('hidden');
-                                    hidePreviewLoading(containerDiv);
-                                    checkStartButton();
-                                    if (messageDiv) {
-                                        messageDiv.classList.remove('hidden');
-                                        messageDiv.classList.add('visible');
-                                        messageDiv.textContent = 'Error loading EXR file';
-                                    }
-                                });
-                            }).catch(error => {
-                                console.error('Error loading EXRLoader:', error);
+    // Process the lighting file in a web worker
+    processLightingFile(file)
+        .then(result => {
+            // Use the worker result to process the lighting file
+            const fileType = result.fileType;
+            const arrayBuffer = result.arrayBuffer;
+            
+            // For EXR files
+            if (fileType === 'exr') {
+                import('three').then(THREE => {
+                    import('three/addons/loaders/EXRLoader.js').then(({ EXRLoader }) => {
+                        const loader = new EXRLoader();
+                        loader.setDataType(THREE.FloatType);
+                        
+                        // Create a Blob from the array buffer
+                        const blob = new Blob([arrayBuffer], { type: 'application/octet-stream' });
+                        const url = URL.createObjectURL(blob);
+                        
+                        loader.load(url, texture => {
+                            // Show the canvas
+                            canvas.classList.add('visible');
+                            canvas.classList.remove('hidden');
+                            
+                            // Use the world panel's renderEnvironmentPreview function
+                            if (worldPanelModule.renderEnvironmentPreview) {
+                                worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
+                            } else {
+                                // Fallback to simple sphere if function not available
                                 createFallbackSphere(canvas);
-                                canvas.classList.add('visible');
-                                canvas.classList.remove('hidden');
-                                hidePreviewLoading(containerDiv);
-                                checkStartButton();
-                            });
-                        }).catch(error => {
-                            console.error('Error loading Three.js:', error);
+                            }
+                            
+                            // Clean up URL after loading
+                            URL.revokeObjectURL(url);
+                            
+                            // Hide loading indicator
+                            hidePreviewLoading(containerDiv);
+                            
+                            // Check if start button should be enabled
+                            checkStartButton();
+                        }, undefined, error => {
+                            console.error('Error loading EXR texture:', error);
                             createFallbackSphere(canvas);
                             canvas.classList.add('visible');
                             canvas.classList.remove('hidden');
                             hidePreviewLoading(containerDiv);
                             checkStartButton();
+                            if (messageDiv) {
+                                messageDiv.classList.remove('hidden');
+                                messageDiv.classList.add('visible');
+                                messageDiv.textContent = 'Error loading EXR file';
+                            }
                         });
-                    } 
-                    // For HDR files
-                    else if (file.name.toLowerCase().endsWith('.hdr')) {
-                        import('three').then(THREE => {
-                            import('three/addons/loaders/RGBELoader.js').then(({ RGBELoader }) => {
-                                const loader = new RGBELoader();
-                                const url = URL.createObjectURL(file);
-                                
-                                loader.load(url, texture => {
-                                    // Show the canvas
-                                    canvas.classList.add('visible');
-                                    canvas.classList.remove('hidden');
-                                    
-                                    // Use the world panel's renderEnvironmentPreview function
-                                    if (worldPanelModule.renderEnvironmentPreview) {
-                                        worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
-                                    } else {
-                                        // Fallback to simple sphere if function not available
-                                        createFallbackSphere(canvas);
-                                    }
-                                    
-                                    // Clean up URL after loading
-                                    URL.revokeObjectURL(url);
-                                    
-                                    // Hide loading indicator
-                                    hidePreviewLoading(containerDiv);
-                                    
-                                    // Check if start button should be enabled
-                                    checkStartButton();
-                                }, undefined, error => {
-                                    console.error('Error loading HDR texture:', error);
-                                    createFallbackSphere(canvas);
-                                    canvas.classList.add('visible');
-                                    canvas.classList.remove('hidden');
-                                    hidePreviewLoading(containerDiv);
-                                    checkStartButton();
-                                    if (messageDiv) {
-                                        messageDiv.classList.remove('hidden');
-                                        messageDiv.classList.add('visible');
-                                        messageDiv.textContent = 'Error loading HDR file';
-                                    }
-                                });
-                            }).catch(error => {
-                                console.error('Error loading RGBELoader:', error);
+                    }).catch(handleLightingError);
+                }).catch(handleLightingError);
+            } 
+            // For HDR files
+            else if (fileType === 'hdr') {
+                import('three').then(THREE => {
+                    import('three/addons/loaders/RGBELoader.js').then(({ RGBELoader }) => {
+                        const loader = new RGBELoader();
+                        
+                        // Create a Blob from the array buffer
+                        const blob = new Blob([arrayBuffer], { type: 'application/octet-stream' });
+                        const url = URL.createObjectURL(blob);
+                        
+                        loader.load(url, texture => {
+                            // Show the canvas
+                            canvas.classList.add('visible');
+                            canvas.classList.remove('hidden');
+                            
+                            // Use the world panel's renderEnvironmentPreview function
+                            if (worldPanelModule.renderEnvironmentPreview) {
+                                worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
+                            } else {
+                                // Fallback to simple sphere if function not available
                                 createFallbackSphere(canvas);
-                                canvas.classList.add('visible');
-                                canvas.classList.remove('hidden');
-                                hidePreviewLoading(containerDiv);
-                                checkStartButton();
-                            });
-                        }).catch(error => {
-                            console.error('Error loading Three.js:', error);
+                            }
+                            
+                            // Clean up URL after loading
+                            URL.revokeObjectURL(url);
+                            
+                            // Hide loading indicator
+                            hidePreviewLoading(containerDiv);
+                            
+                            // Check if start button should be enabled
+                            checkStartButton();
+                        }, undefined, error => {
+                            console.error('Error loading HDR texture:', error);
                             createFallbackSphere(canvas);
                             canvas.classList.add('visible');
                             canvas.classList.remove('hidden');
                             hidePreviewLoading(containerDiv);
                             checkStartButton();
+                            if (messageDiv) {
+                                messageDiv.classList.remove('hidden');
+                                messageDiv.classList.add('visible');
+                                messageDiv.textContent = 'Error loading HDR file';
+                            }
                         });
-                    } 
-                    // Fallback if type not recognized (shouldn't happen due to earlier checks)
-                    else {
-                        createFallbackSphere(canvas);
-                        canvas.classList.add('visible');
-                        canvas.classList.remove('hidden');
-                        hidePreviewLoading(containerDiv);
-                        checkStartButton();
-                    }
-                } catch (error) {
-                    console.error('Error loading HDR/EXR preview:', error);
-                    createFallbackSphere(canvas);
-                    canvas.classList.add('visible');
-                    canvas.classList.remove('hidden');
-                    hidePreviewLoading(containerDiv);
-                    checkStartButton();
-                }
-            })
-            .catch(error => {
-                console.error('Error parsing lighting data:', error);
-                createFallbackSphere(canvas);
-                canvas.classList.add('visible');
-                canvas.classList.remove('hidden');
-                hidePreviewLoading(containerDiv);
-                checkStartButton();
-            });
-    }, 300);
+                    }).catch(handleLightingError);
+                }).catch(handleLightingError);
+            }
+            // Fallback if type not recognized
+            else {
+                handleLightingError(new Error('Unsupported file type: ' + fileType));
+            }
+        })
+        .catch(error => {
+            console.error('Error processing lighting file:', error);
+            handleLightingError(error);
+        });
+        
+    // Helper function to handle lighting errors
+    function handleLightingError(error) {
+        console.error('Lighting error:', error);
+        createFallbackSphere(canvas);
+        canvas.classList.add('visible');
+        canvas.classList.remove('hidden');
+        hidePreviewLoading(containerDiv);
+        checkStartButton();
+        if (messageDiv) {
+            messageDiv.classList.remove('hidden');
+            messageDiv.classList.add('visible');
+            messageDiv.textContent = 'Error loading lighting file';
+        }
+    }
 }
 
 /**
