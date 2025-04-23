@@ -50,6 +50,7 @@ export function initWorldPanel() {
     } else {
         console.log('No lighting metadata available yet during initialization');
         updateLightingMessage();
+        updateBackgroundMessage();
     }
 }
 
@@ -166,6 +167,31 @@ function setupLightingControls() {
     
     // Initialize message visibility
     updateLightingMessage();
+    updateBackgroundMessage();
+}
+
+/**
+ * Update background message visibility based on whether environment texture is loaded
+ */
+function updateBackgroundMessage() {
+    const state = getState();
+    const noBackgroundMessage = document.querySelector('.no-background-message');
+    const backgroundDataInfo = document.querySelector('.background-data-info');
+    
+    if (!noBackgroundMessage || !backgroundDataInfo) {
+        console.warn('Background message elements not found');
+        return;
+    }
+    
+    const hasEnvironment = state.scene && state.scene.environment;
+    
+    if (hasEnvironment) {
+        noBackgroundMessage.style.display = 'none';
+        backgroundDataInfo.style.display = 'block';
+    } else {
+        noBackgroundMessage.style.display = 'block';
+        backgroundDataInfo.style.display = 'none';
+    }
 }
 
 /**
@@ -296,6 +322,9 @@ export function updateLightingInfo(metadata) {
     noDataMessage.style.display = 'none';
     lightingDataInfo.style.display = 'block';
     
+    // Update background message visibility
+    updateBackgroundMessage();
+    
     // Update slider visibility - we have HDR/EXR data
     updateSliderVisibility(true);
     
@@ -361,6 +390,15 @@ export function renderEnvironmentPreview(texture, externalCanvas, externalNoImag
     
     // Make canvas visible
     canvas.style.display = 'block';
+    
+    // Show background data info and hide no background message
+    const noBackgroundMessage = document.querySelector('.no-background-message');
+    const backgroundDataInfo = document.querySelector('.background-data-info');
+    
+    if (noBackgroundMessage && backgroundDataInfo) {
+        noBackgroundMessage.style.display = 'none';
+        backgroundDataInfo.style.display = 'block';
+    }
     
     // Set canvas size (always square for the sphere preview)
     const previewSize = externalCanvas ? Math.max(canvas.width, canvas.height) : 260;
@@ -783,46 +821,55 @@ function clearLightingInfo() {
     if (noDataMessage && lightingDataInfo) {
         noDataMessage.style.display = 'block';
         lightingDataInfo.style.display = 'none';
-        
-        // Reset collapse state
-        const metadataContents = document.querySelectorAll('.metadata-content');
-        if (metadataContents) {
-            metadataContents.forEach(content => {
-                content.style.display = 'none';
-            });
+    }
+    
+    // Hide background info and show no background message
+    const noBackgroundMessage = document.querySelector('.no-background-message');
+    const backgroundDataInfo = document.querySelector('.background-data-info');
+    
+    if (noBackgroundMessage && backgroundDataInfo) {
+        noBackgroundMessage.style.display = 'block';
+        backgroundDataInfo.style.display = 'none';
+    }
+    
+    // Reset collapse state
+    const metadataContents = document.querySelectorAll('.metadata-content');
+    if (metadataContents) {
+        metadataContents.forEach(content => {
+            content.style.display = 'none';
+        });
+    }
+    
+    const indicators = document.querySelectorAll('.collapse-indicator');
+    if (indicators) {
+        indicators.forEach(indicator => {
+            indicator.textContent = '+';
+        });
+    }
+    
+    // Update slider visibility - we have no HDR/EXR data
+    updateSliderVisibility(false);
+    
+    // Clean up any ThreeJS resources
+    const canvas = document.getElementById('hdr-preview-canvas');
+    if (canvas) {
+        // Execute cleanup function if it exists
+        if (typeof canvas.cleanup === 'function') {
+            canvas.cleanup();
+            canvas.cleanup = null;
         }
         
-        const indicators = document.querySelectorAll('.collapse-indicator');
-        if (indicators) {
-            indicators.forEach(indicator => {
-                indicator.textContent = '+';
-            });
+        // Cancel any animation frame
+        const animationId = canvas.getAttribute('data-animation-id');
+        if (animationId) {
+            cancelAnimationFrame(parseInt(animationId, 10));
+            canvas.removeAttribute('data-animation-id');
         }
         
-        // Update slider visibility - we have no HDR/EXR data
-        updateSliderVisibility(false);
-        
-        // Clean up any ThreeJS resources
-        const canvas = document.getElementById('hdr-preview-canvas');
-        if (canvas) {
-            // Execute cleanup function if it exists
-            if (typeof canvas.cleanup === 'function') {
-                canvas.cleanup();
-                canvas.cleanup = null;
-            }
-            
-            // Cancel any animation frame
-            const animationId = canvas.getAttribute('data-animation-id');
-            if (animationId) {
-                cancelAnimationFrame(parseInt(animationId, 10));
-                canvas.removeAttribute('data-animation-id');
-            }
-            
-            // Clear the canvas
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            canvas.style.display = 'none';
-        }
+        // Clear the canvas
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.style.display = 'none';
     }
 }
 
@@ -872,8 +919,9 @@ export function updateWorldPanel() {
         }
     }
     
-    // Update lighting message visibility
+    // Update lighting and background message visibility
     updateLightingMessage();
+    updateBackgroundMessage();
     
     // If we have an environment texture, try to render it
     if (state.scene && state.scene.environment && !environmentTexture) {

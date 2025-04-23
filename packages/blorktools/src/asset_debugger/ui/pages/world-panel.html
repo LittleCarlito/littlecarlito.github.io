@@ -3,34 +3,67 @@
     <h3>World Properties</h3>
     
     <div class="world-section">
+        <h4>Background</h4>
+        <div class="background-status">
+            <div class="no-background-message">
+                No Background Data Found
+            </div>
+            
+            <div class="background-data-info" style="display: none;">
+                <!-- HDR/EXR Image Preview Section moved here -->
+                <div class="collapsible-header">
+                    <h4 class="metadata-header">EXR/HDR Image</h4>
+                    <span class="collapse-indicator">[+]</span>
+                </div>
+                <div class="metadata-content image-preview-content" style="display: none;">
+                    <div class="image-container">
+                        <canvas id="hdr-preview-canvas" class="hdr-preview-canvas" width="260" height="260"></canvas>
+                        <div id="no-image-message" class="no-image-message">
+                            No image data available or could not be processed.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section-divider"></div>
+    
+    <div class="world-section">
         <h4>Lighting</h4>
         <div class="world-info lighting-controls">
-            <div class="control-group ambient-control">
-                <div class="label-container">
-                    <label for="ambient-light-intensity">Ambient:</label>
-                    <span class="value-display">0.5</span>
-                </div>
-                <input type="range" id="ambient-light-intensity" min="0" max="2" step="0.1" value="0.5" />
+            <div class="collapsible-header lighting-options-header">
+                <h4 class="metadata-header">Lighting Options</h4>
+                <span class="collapse-indicator">[+]</span>
             </div>
-            
-            <div class="control-group directional-control">
-                <div class="label-container">
-                    <label for="directional-light-intensity">Directional:</label>
-                    <span class="value-display">1.0</span>
+            <div class="metadata-content lighting-options-content" style="display: none;">
+                <div class="control-group ambient-control">
+                    <div class="label-container">
+                        <label for="ambient-light-intensity">Ambient:</label>
+                        <span class="value-display">0.5</span>
+                    </div>
+                    <input type="range" id="ambient-light-intensity" min="0" max="2" step="0.1" value="0.5" />
                 </div>
-                <input type="range" id="directional-light-intensity" min="0" max="2" step="0.1" value="1.0" />
-            </div>
-            
-            <div class="control-group exposure-control">
-                <div class="label-container">
-                    <label for="exposure-value">Exposure:</label>
-                    <span class="value-display">1.0</span>
+                
+                <div class="control-group directional-control">
+                    <div class="label-container">
+                        <label for="directional-light-intensity">Directional:</label>
+                        <span class="value-display">1.0</span>
+                    </div>
+                    <input type="range" id="directional-light-intensity" min="0" max="2" step="0.1" value="1.0" />
                 </div>
-                <input type="range" id="exposure-value" min="0" max="2" step="0.1" value="1.0" />
-            </div>
-            
-            <div class="control-group buttons">
-                <button id="reset-lighting" class="control-button">Reset Lighting</button>
+                
+                <div class="control-group exposure-control">
+                    <div class="label-container">
+                        <label for="exposure-value">Exposure:</label>
+                        <span class="value-display">1.0</span>
+                    </div>
+                    <input type="range" id="exposure-value" min="0" max="2" step="0.1" value="1.0" />
+                </div>
+                
+                <div class="control-group buttons">
+                    <button id="reset-lighting" class="control-button">Reset Lighting</button>
+                </div>
             </div>
             
             <div class="lighting-status">
@@ -75,20 +108,6 @@
                             </tr>
                         </table>
                     </div>
-                    
-                    <!-- HDR/EXR Image Preview Section -->
-                    <div class="collapsible-header image-preview-header">
-                        <h4 class="metadata-header">Image Preview</h4>
-                        <span class="collapse-indicator">[+]</span>
-                    </div>
-                    <div class="metadata-content image-preview-content" style="display: none;">
-                        <div class="image-container">
-                            <canvas id="hdr-preview-canvas" class="hdr-preview-canvas" width="260" height="260"></canvas>
-                            <div id="no-image-message" class="no-image-message">
-                                No image data available or could not be processed.
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -114,7 +133,8 @@
     .lighting-status,
     .lighting-data-info,
     .metadata-content,
-    .image-preview-content,
+    .background-status,
+    .background-data-info,
     .image-container {
         overflow: visible !important;
     }
@@ -204,7 +224,8 @@
         background-color: #333;
     }
     
-    .lighting-status {
+    .lighting-status,
+    .background-status {
         margin-top: 12px;
         border-top: 1px solid #333;
         padding-top: 12px;
@@ -212,14 +233,16 @@
         width: 100%;
     }
     
-    .no-data-message {
+    .no-data-message,
+    .no-background-message {
         text-align: center;
         color: #777;
         font-size: 0.9em;
         font-style: italic;
     }
     
-    .lighting-data-info {
+    .lighting-data-info,
+    .background-data-info {
         margin-top: 8px;
         width: 100%;
         box-sizing: border-box;
@@ -231,12 +254,6 @@
         align-items: center;
         cursor: pointer;
         padding: 4px 0;
-    }
-    
-    .image-preview-header {
-        margin-top: 15px;
-        padding-top: 10px;
-        border-top: 1px solid #333;
     }
     
     .collapse-indicator {
@@ -304,6 +321,21 @@
     .lighting-metadata td:first-child {
         width: 110px;
         color: #777;
+    }
+    
+    .image-preview-content {
+        margin-top: 5px;
+    }
+    
+    .section-divider {
+        height: 1px;
+        background-color: #333;
+        margin: 20px 0;
+        width: 100%;
+    }
+    
+    .lighting-options-content {
+        padding-top: 10px;
     }
 </style>
 
