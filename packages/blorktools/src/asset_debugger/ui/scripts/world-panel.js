@@ -12,8 +12,17 @@ let controlsInitialized = false;
 // Store HDR/EXR metadata for display
 let currentLightingMetadata = null;
 
+// Store background image metadata for display
+let currentBackgroundMetadata = null;
+
 // Store the environment texture for preview
 let environmentTexture = null;
+
+// Store the background texture for preview
+let backgroundTexture = null;
+
+// Store the currently selected background option
+let currentBackgroundOption = 'none';
 
 /**
  * Initialize the World panel and cache DOM elements
@@ -37,6 +46,12 @@ export function initWorldPanel() {
     // Set up HDR toggle event listener
     setupHdrToggleListener();
     
+    // Set up Background toggle event listener
+    setupBgToggleListener();
+    
+    // Set initial background option based on scene state
+    setInitialBackgroundSelection();
+    
     // Mark as initialized
     controlsInitialized = true;
     
@@ -52,8 +67,19 @@ export function initWorldPanel() {
         }
     } else {
         console.log('No lighting metadata available yet during initialization');
-        updateLightingMessage();
         updateBackgroundMessage();
+    }
+    
+    // Update background image info if we have it already
+    if (currentBackgroundMetadata) {
+        console.log('We have existing background metadata, updating background info');
+        updateBackgroundInfo(currentBackgroundMetadata);
+        
+        // If we have a background texture, render the preview
+        if (backgroundTexture) {
+            console.log('We have existing background texture, rendering preview');
+            renderBackgroundPreview(backgroundTexture);
+        }
     }
 }
 
@@ -254,6 +280,152 @@ function setupHdrToggleListener() {
 }
 
 /**
+ * Set up listener for Background radio button selection
+ */
+function setupBgToggleListener() {
+    // Get all radio buttons with name="bg-option"
+    const bgRadioButtons = document.querySelectorAll('input[name="bg-option"]');
+    
+    if (bgRadioButtons && bgRadioButtons.length > 0) {
+        // Listen for changes on any radio button
+        bgRadioButtons.forEach(radio => {
+            radio.addEventListener('change', function(e) {
+                // Prevent event propagation
+                e.stopPropagation();
+                
+                // Only process if it's a radio input
+                if (e.target.type === 'radio') {
+                    // Get the selected option value
+                    const selectedValue = e.target.value;
+                    currentBackgroundOption = selectedValue;
+                    
+                    console.log('Background option changed to:', selectedValue);
+                    
+                    // Get the state
+                    const state = getState();
+                    
+                    // Handle based on selection
+                    if (state.scene) {
+                        if (selectedValue === 'none') {
+                            // Disable all backgrounds
+                            if (state.scene.background) {
+                                if (!state.scene.userData) state.scene.userData = {};
+                                state.scene.userData.savedBackground = state.scene.background;
+                                state.scene.background = null;
+                            }
+                            
+                            // Tell background-util.js to disable any background images
+                            import('../../core/background-util.js').then(backgroundModule => {
+                                if (backgroundModule.toggleBackgroundVisibility) {
+                                    backgroundModule.toggleBackgroundVisibility(false);
+                                }
+                            });
+                        } 
+                        else if (selectedValue === 'background') {
+                            // Enable background image, disable HDR
+                            import('../../core/background-util.js').then(backgroundModule => {
+                                if (backgroundModule.toggleBackgroundVisibility) {
+                                    backgroundModule.toggleBackgroundVisibility(true);
+                                }
+                            });
+                            
+                            // Disable HDR/EXR as background if it was previously set
+                            if (state.scene.background === state.scene.environment) {
+                                state.scene.background = null;
+                            }
+                        }
+                        else if (selectedValue === 'hdr') {
+                            // Enable HDR/EXR as background
+                            if (state.scene.environment) {
+                                state.scene.background = state.scene.environment;
+                            }
+                            
+                            // Disable regular background image
+                            import('../../core/background-util.js').then(backgroundModule => {
+                                if (backgroundModule.toggleBackgroundVisibility) {
+                                    backgroundModule.toggleBackgroundVisibility(false);
+                                }
+                            });
+                        }
+                    }
+                }
+            });
+            
+            // Also ensure clicks don't propagate
+            radio.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+        });
+    } else {
+        console.warn('Background radio buttons not found');
+    }
+}
+
+/**
+ * Set the initial background radio selection based on scene state
+ */
+function setInitialBackgroundSelection() {
+    const state = getState();
+    
+    // Get all radio buttons
+    const noneRadio = document.querySelector('input[name="bg-option"][value="none"]');
+    const backgroundRadio = document.querySelector('input[name="bg-option"][value="background"]');
+    const hdrRadio = document.querySelector('input[name="bg-option"][value="hdr"]');
+    
+    if (!noneRadio || !backgroundRadio || !hdrRadio) {
+        console.warn('Could not find all radio buttons for initial selection');
+        return;
+    }
+    
+    // Determine which option should be active
+    let selectedOption = 'none'; // Default
+    
+    if (state.scene) {
+        // Check if HDR/EXR is being used as background
+        if (state.scene.environment && state.scene.background === state.scene.environment) {
+            selectedOption = 'hdr';
+            console.log('Detected HDR/EXR as active background');
+        } 
+        // Check if a regular background image is active
+        else if (state.backgroundFile && state.scene.background && state.scene.background !== state.scene.environment) {
+            selectedOption = 'background';
+            console.log('Detected regular background image as active');
+        }
+        // Check just for the presence of environment texture (common when loading a scene)
+        else if (state.scene.environment) {
+            selectedOption = 'hdr';
+            console.log('Detected environment texture, defaulting to HDR option');
+        }
+    }
+    
+    // Set the appropriate radio button as checked
+    if (selectedOption === 'hdr' && hdrRadio) {
+        hdrRadio.checked = true;
+        currentBackgroundOption = 'hdr';
+    } else if (selectedOption === 'background' && backgroundRadio) {
+        backgroundRadio.checked = true;
+        currentBackgroundOption = 'background';
+    } else if (noneRadio) {
+        noneRadio.checked = true;
+        currentBackgroundOption = 'none';
+    }
+    
+    console.log('Initial background selection set to:', currentBackgroundOption);
+    
+    // Update canvas opacity based on selection
+    const bgPreviewCanvas = document.getElementById('bg-preview-canvas');
+    const hdrPreviewCanvas = document.getElementById('hdr-preview-canvas');
+    
+    if (bgPreviewCanvas) {
+        bgPreviewCanvas.style.opacity = (selectedOption === 'background') ? '1' : '0.3';
+    }
+    
+    if (hdrPreviewCanvas) {
+        hdrPreviewCanvas.style.opacity = (selectedOption === 'hdr') ? '1' : '0.3';
+    }
+}
+
+/**
  * Update background message visibility based on whether environment texture is loaded
  */
 function updateBackgroundMessage() {
@@ -267,8 +439,9 @@ function updateBackgroundMessage() {
     }
     
     const hasEnvironment = state.scene && state.scene.environment;
+    const hasBackgroundFile = state.backgroundFile;
     
-    if (hasEnvironment) {
+    if (hasEnvironment || hasBackgroundFile) {
         noBackgroundMessage.style.display = 'none';
         backgroundDataInfo.style.display = 'block';
     } else {
@@ -411,6 +584,15 @@ export function updateLightingInfo(metadata) {
     // Update slider visibility - we have HDR/EXR data
     updateSliderVisibility(true);
     
+    // Select the HDR/EXR radio button unless user has explicitly chosen a different option
+    if (currentBackgroundOption !== 'none' && currentBackgroundOption !== 'background') {
+        const hdrRadio = document.querySelector('input[name="bg-option"][value="hdr"]');
+        if (hdrRadio) {
+            hdrRadio.checked = true;
+            currentBackgroundOption = 'hdr';
+        }
+    }
+    
     // Make sure any collapsible content is still properly collapsed
     const metadataContents = document.querySelectorAll('.metadata-content');
     if (metadataContents && metadataContents.length > 0) {
@@ -423,6 +605,7 @@ export function updateLightingInfo(metadata) {
         const indicators = document.querySelectorAll('.collapse-indicator');
         if (indicators && indicators.length > 0) {
             indicators.forEach(indicator => {
+                // Always set to '+' to indicate collapsed state
                 indicator.textContent = '+';
             });
         }
@@ -957,6 +1140,307 @@ function clearLightingInfo() {
 }
 
 /**
+ * Update the background info display with metadata
+ * @param {Object} metadata - The background image metadata
+ */
+export function updateBackgroundInfo(metadata) {
+    console.log('Updating background info with metadata:', metadata.fileName, metadata.type);
+    
+    // Store the metadata for later use if the panel isn't ready yet
+    currentBackgroundMetadata = metadata;
+    
+    // Try to initialize the panel if not already done
+    if (!controlsInitialized) {
+        tryInitializePanel();
+        // If initialization fails, we'll still keep the metadata for later
+        if (!controlsInitialized) {
+            console.warn('Panel not initialized yet, storing metadata for later');
+            return;
+        }
+    }
+    
+    // Find the UI elements
+    const filenameEl = document.getElementById('bg-filename');
+    const typeEl = document.getElementById('bg-type');
+    const resolutionEl = document.getElementById('bg-resolution');
+    const sizeEl = document.getElementById('bg-size');
+    
+    // Make sure all elements exist
+    if (!filenameEl || !typeEl || !resolutionEl || !sizeEl) {
+        console.error('Cannot update background info: UI elements not found');
+        return;
+    }
+    
+    // Update the UI with metadata
+    filenameEl.textContent = metadata.fileName || '-';
+    typeEl.textContent = metadata.type || '-';
+    
+    const width = metadata.dimensions?.width || 0;
+    const height = metadata.dimensions?.height || 0;
+    resolutionEl.textContent = (width && height) ? `${width} × ${height}` : '-';
+    
+    const fileSizeMB = metadata.fileSizeBytes ? (metadata.fileSizeBytes / 1024 / 1024).toFixed(2) + ' MB' : '-';
+    sizeEl.textContent = fileSizeMB;
+    
+    // Show the background info section and hide the no background message
+    const noBackgroundMessage = document.querySelector('.no-background-message');
+    const backgroundDataInfo = document.querySelector('.background-data-info');
+    
+    if (!noBackgroundMessage || !backgroundDataInfo) {
+        console.error('Cannot update background info display: message elements not found');
+        return;
+    }
+    
+    console.log('Showing background data info and hiding no background message');
+    noBackgroundMessage.style.display = 'none';
+    backgroundDataInfo.style.display = 'block';
+    
+    // If we have a background file, select the background option in radio buttons
+    // unless user has explicitly selected a different option
+    if (currentBackgroundOption === 'none') {
+        // User has explicitly chosen "None", don't change it
+        const noneRadio = document.querySelector('input[name="bg-option"][value="none"]');
+        if (noneRadio) {
+            noneRadio.checked = true;
+        }
+    } else {
+        // Select the appropriate option based on file type or default to background image
+        const backgroundRadio = document.querySelector('input[name="bg-option"][value="background"]');
+        if (backgroundRadio) {
+            backgroundRadio.checked = true;
+            currentBackgroundOption = 'background';
+        }
+    }
+    
+    // Make sure any collapsible content is still properly collapsed
+    const metadataContents = document.querySelectorAll('.metadata-content');
+    if (metadataContents && metadataContents.length > 0) {
+        console.log('Ensuring collapsible content is collapsed initially');
+        metadataContents.forEach(content => {
+            if (!content.classList.contains('active')) {
+                content.style.display = 'none';
+            }
+        });
+        
+        // Make sure all indicators show the right symbol
+        const indicators = document.querySelectorAll('.collapse-indicator');
+        if (indicators && indicators.length > 0) {
+            indicators.forEach(indicator => {
+                // Always set to '+' to indicate collapsed state
+                indicator.textContent = '+';
+            });
+        }
+    }
+    
+    // Try to get background texture and render it
+    const state = getState();
+    if (state.backgroundFile) {
+        console.log('Found background file in state, rendering preview');
+        
+        // Create a preview of the background image
+        renderBackgroundPreview(state.backgroundFile);
+    }
+}
+
+/**
+ * Render the background image preview on canvas
+ * @param {File|Blob|THREE.Texture} fileOrTexture - The background file or texture to render
+ * @returns {boolean} - Whether preview was rendered successfully
+ */
+export function renderBackgroundPreview(fileOrTexture) {
+    // Look for the canvas element
+    const canvas = document.getElementById('bg-preview-canvas');
+    const noImageMessage = document.getElementById('no-bg-image-message');
+    
+    // If canvas not found, panel may not be initialized yet
+    if (!canvas) {
+        console.error('Background preview canvas not found, cannot render preview');
+        return false;
+    }
+    
+    // Store the texture for later use
+    backgroundTexture = fileOrTexture;
+    
+    // If there's no file or texture, show error message
+    if (!fileOrTexture) {
+        console.warn('No background file or texture provided');
+        showNoBackgroundImageMessage(canvas, noImageMessage, 'No image data available.');
+        return false;
+    }
+    
+    console.log('Rendering background image preview');
+    
+    // Hide the no image message
+    if (noImageMessage) noImageMessage.style.display = 'none';
+    
+    // Make canvas visible
+    canvas.style.display = 'block';
+    
+    try {
+        // Different handling based on what type of data we have
+        if (fileOrTexture instanceof File || fileOrTexture instanceof Blob) {
+            // For File or Blob objects, create an image element and draw to canvas
+            const url = URL.createObjectURL(fileOrTexture);
+            const img = new Image();
+            
+            img.onload = function() {
+                // Get file dimensions
+                const width = img.width;
+                const height = img.height;
+                
+                // Update metadata if needed
+                if (!currentBackgroundMetadata) {
+                    currentBackgroundMetadata = {
+                        fileName: fileOrTexture.name,
+                        type: fileOrTexture.type,
+                        dimensions: { width, height },
+                        fileSizeBytes: fileOrTexture.size
+                    };
+                    updateBackgroundInfo(currentBackgroundMetadata);
+                }
+                
+                // Draw to canvas
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Clean up URL object
+                URL.revokeObjectURL(url);
+            };
+            
+            img.onerror = function() {
+                console.error('Error loading background image');
+                showNoBackgroundImageMessage(canvas, noImageMessage, 'Error loading image');
+                URL.revokeObjectURL(url);
+            };
+            
+            img.src = url;
+            return true;
+        } else if (typeof fileOrTexture === 'object' && fileOrTexture.isTexture) {
+            // For THREE.Texture objects, try to access the image data
+            if (fileOrTexture.image) {
+                const ctx = canvas.getContext('2d');
+                canvas.width = fileOrTexture.image.width || 260;
+                canvas.height = fileOrTexture.image.height || 260;
+                
+                try {
+                    ctx.drawImage(fileOrTexture.image, 0, 0, canvas.width, canvas.height);
+                    return true;
+                } catch (e) {
+                    console.error('Error drawing texture to canvas:', e);
+                    showNoBackgroundImageMessage(canvas, noImageMessage, 'Error rendering texture');
+                    return false;
+                }
+            } else {
+                console.warn('Texture has no image data');
+                showNoBackgroundImageMessage(canvas, noImageMessage, 'No image data in texture');
+                return false;
+            }
+        } else {
+            console.warn('Unknown background data type:', typeof fileOrTexture);
+            showNoBackgroundImageMessage(canvas, noImageMessage, 'Unsupported data format');
+            return false;
+        }
+    } catch (error) {
+        console.error('Error rendering background preview:', error);
+        showNoBackgroundImageMessage(canvas, noImageMessage, `Error: ${error.message}`);
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * Show "No background image data" message
+ * @param {HTMLCanvasElement} canvas - The canvas element
+ * @param {HTMLElement} messageEl - The message element to show
+ * @param {string} message - The error message to display
+ */
+export function showNoBackgroundImageMessage(canvas, messageEl, message = 'No image data available.') {
+    // Hide canvas
+    if (canvas) {
+        canvas.style.display = 'none';
+    }
+    
+    // Show message
+    if (messageEl) {
+        messageEl.style.display = 'block';
+        messageEl.textContent = message;
+    } else {
+        // Last resort: try to find the parent container and add a message
+        const container = canvas && canvas.parentElement;
+        if (container) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            errorDiv.style.color = 'red';
+            errorDiv.style.padding = '10px';
+            container.appendChild(errorDiv);
+        }
+    }
+}
+
+/**
+ * Clear the background info display
+ */
+function clearBackgroundInfo() {
+    // Clear the stored metadata
+    currentBackgroundMetadata = null;
+    backgroundTexture = null;
+    
+    // Find the UI elements
+    const filenameEl = document.getElementById('bg-filename');
+    const typeEl = document.getElementById('bg-type');
+    const resolutionEl = document.getElementById('bg-resolution');
+    const sizeEl = document.getElementById('bg-size');
+    
+    // Reset all values
+    if (filenameEl) filenameEl.textContent = '-';
+    if (typeEl) typeEl.textContent = '-';
+    if (resolutionEl) resolutionEl.textContent = '-';
+    if (sizeEl) sizeEl.textContent = '-';
+    
+    // Select the "None" radio button
+    const noneRadio = document.querySelector('input[name="bg-option"][value="none"]');
+    const backgroundRadio = document.querySelector('input[name="bg-option"][value="background"]');
+    const hdrRadio = document.querySelector('input[name="bg-option"][value="hdr"]');
+    
+    // Make sure all radio buttons are unchecked first
+    if (backgroundRadio) backgroundRadio.checked = false;
+    if (hdrRadio) hdrRadio.checked = false;
+    
+    // Set "None" as checked
+    if (noneRadio) {
+        noneRadio.checked = true;
+        currentBackgroundOption = 'none';
+    }
+    
+    // Clean up any canvas resources
+    const canvas = document.getElementById('bg-preview-canvas');
+    if (canvas) {
+        // Clear the canvas
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.style.display = 'none';
+    }
+    
+    // Show no background message if there's also no HDR/EXR environment
+    const state = getState();
+    const hasEnvironment = state.scene && state.scene.environment;
+    
+    if (!hasEnvironment) {
+        const noBackgroundMessage = document.querySelector('.no-background-message');
+        const backgroundDataInfo = document.querySelector('.background-data-info');
+        
+        if (noBackgroundMessage && backgroundDataInfo) {
+            noBackgroundMessage.style.display = 'block';
+            backgroundDataInfo.style.display = 'none';
+        }
+    }
+}
+
+/**
  * Update the World panel with current state
  */
 export function updateWorldPanel() {
@@ -1010,6 +1494,77 @@ export function updateWorldPanel() {
     if (state.scene && state.scene.environment && !environmentTexture) {
         environmentTexture = state.scene.environment;
         renderEnvironmentPreview(environmentTexture);
+    }
+    
+    // If we have a background file, try to render it
+    if (state.backgroundFile && !backgroundTexture) {
+        backgroundTexture = state.backgroundFile;
+        renderBackgroundPreview(backgroundTexture);
+    }
+    
+    // Update radio button selection to match current scene state
+    updateBackgroundSelection();
+}
+
+/**
+ * Update the background radio selection based on current scene state
+ * This is like setInitialBackgroundSelection but doesn't log as much
+ */
+function updateBackgroundSelection() {
+    const state = getState();
+    
+    // Get all radio buttons
+    const noneRadio = document.querySelector('input[name="bg-option"][value="none"]');
+    const backgroundRadio = document.querySelector('input[name="bg-option"][value="background"]');
+    const hdrRadio = document.querySelector('input[name="bg-option"][value="hdr"]');
+    
+    if (!noneRadio || !backgroundRadio || !hdrRadio) {
+        return; // Silently exit if buttons aren't found
+    }
+    
+    // Determine which option should be active based on scene state
+    let newSelection = 'none'; // Default
+    
+    if (state.scene) {
+        // Check if HDR/EXR is being used as background
+        if (state.scene.environment && state.scene.background === state.scene.environment) {
+            newSelection = 'hdr';
+        } 
+        // Check if a regular background image is active
+        else if (state.backgroundFile && state.scene.background && state.scene.background !== state.scene.environment) {
+            newSelection = 'background';
+        }
+        // Check just for the presence of environment texture
+        else if (state.scene.environment) {
+            newSelection = 'hdr';
+        }
+    }
+    
+    // Only update if the selection has changed and isn't being manually controlled
+    if (newSelection !== currentBackgroundOption) {
+        // Set the appropriate radio button as checked
+        if (newSelection === 'hdr' && hdrRadio) {
+            hdrRadio.checked = true;
+            currentBackgroundOption = 'hdr';
+        } else if (newSelection === 'background' && backgroundRadio) {
+            backgroundRadio.checked = true;
+            currentBackgroundOption = 'background';
+        } else if (noneRadio) {
+            noneRadio.checked = true;
+            currentBackgroundOption = 'none';
+        }
+        
+        // Update canvas opacity based on selection
+        const bgPreviewCanvas = document.getElementById('bg-preview-canvas');
+        const hdrPreviewCanvas = document.getElementById('hdr-preview-canvas');
+        
+        if (bgPreviewCanvas) {
+            bgPreviewCanvas.style.opacity = (newSelection === 'background') ? '1' : '0.3';
+        }
+        
+        if (hdrPreviewCanvas) {
+            hdrPreviewCanvas.style.opacity = (newSelection === 'hdr') ? '1' : '0.3';
+        }
     }
 }
 

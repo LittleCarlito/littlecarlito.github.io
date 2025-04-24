@@ -10,15 +10,56 @@
             </div>
             
             <div class="background-data-info" style="display: none;">
-                <!-- HDR/EXR Image Preview Section moved here -->
+                <!-- None option -->
+                <div class="bg-option">
+                    <input type="radio" id="bg-none" name="bg-option" value="none" checked>
+                    <label for="bg-none">None</label>
+                </div>
+
+                <!-- Background Image Section -->
                 <div class="collapsible-header">
-                    <div class="hdr-toggle-container">
-                        <input type="checkbox" id="hdr-toggle" class="hdr-toggle-checkbox" checked>
+                    <div class="bg-radio-container">
+                        <input type="radio" id="bg-background" name="bg-option" value="background">
+                        <h4 class="metadata-header">Background Image</h4>
+                    </div>
+                    <span class="collapse-indicator">[+]</span>
+                </div>
+                <div class="metadata-content" style="display: none;">
+                    <div class="image-container">
+                        <canvas id="bg-preview-canvas" class="bg-preview-canvas" width="260" height="260"></canvas>
+                        <div id="no-bg-image-message" class="no-image-message">
+                            No background image data available.
+                        </div>
+                    </div>
+                    <table class="lighting-metadata">
+                        <tr>
+                            <td>File:</td>
+                            <td id="bg-filename">-</td>
+                        </tr>
+                        <tr>
+                            <td>Type:</td>
+                            <td id="bg-type">-</td>
+                        </tr>
+                        <tr>
+                            <td>Resolution:</td>
+                            <td id="bg-resolution">-</td>
+                        </tr>
+                        <tr>
+                            <td>Size:</td>
+                            <td id="bg-size">-</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- HDR/EXR Image Section -->
+                <div class="collapsible-header">
+                    <div class="bg-radio-container">
+                        <input type="radio" id="bg-hdr" name="bg-option" value="hdr">
                         <h4 class="metadata-header">EXR/HDR Image</h4>
                     </div>
                     <span class="collapse-indicator">[+]</span>
                 </div>
-                <div class="metadata-content image-preview-content" style="display: none;">
+                <div class="metadata-content" style="display: none;">
                     <div class="image-container">
                         <canvas id="hdr-preview-canvas" class="hdr-preview-canvas" width="260" height="260"></canvas>
                         <div id="no-image-message" class="no-image-message">
@@ -382,6 +423,78 @@
     .lighting-options-content {
         padding-top: 10px;
     }
+    
+    /* Background radio buttons styles */
+    .bg-radio-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        position: relative;
+        z-index: 2; /* Ensure the container appears above other elements */
+    }
+    
+    .bg-option {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 12px;
+    }
+    
+    .bg-option input[type="radio"],
+    .bg-radio-container input[type="radio"] {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        border: 1px solid #444;
+        border-radius: 50%;
+        background-color: #2a2a2a;
+        cursor: pointer;
+        position: relative;
+        margin: 0;
+        z-index: 3; /* Higher z-index for the radio button */
+    }
+    
+    .bg-option input[type="radio"]:checked,
+    .bg-radio-container input[type="radio"]:checked {
+        border-color: #0088ff;
+    }
+    
+    .bg-option input[type="radio"]:checked::after,
+    .bg-radio-container input[type="radio"]:checked::after {
+        content: '';
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background-color: #0088ff;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+    
+    .bg-option input[type="radio"]:hover,
+    .bg-radio-container input[type="radio"]:hover {
+        border-color: #0088ff;
+    }
+    
+    .bg-option label {
+        color: #aaa;
+        font-size: 0.9em;
+        cursor: pointer;
+    }
+    
+    /* Preview canvases */
+    .bg-preview-canvas {
+        max-width: 100%;
+        max-height: 260px;
+        width: 100%;
+        height: auto;
+        object-fit: contain;
+        display: block;
+        background-color: #222;
+        border: 1px solid #444;
+    }
 </style>
 
 <script>
@@ -421,31 +534,78 @@
             });
         }
         
-        // Initialize HDR toggle checkbox - direct DOM access for immediate effect
-        const hdrToggle = document.getElementById('hdr-toggle');
-        
-        if (hdrToggle) {
-            // Ensure clicks on the checkbox don't trigger header collapse
-            hdrToggle.addEventListener('click', function(e) {
-                // Stop propagation to prevent collapsible header from toggling
-                e.stopPropagation();
+        // Initialize Background radio buttons
+        const bgRadioButtons = document.querySelectorAll('input[name="bg-option"]');
+        if (bgRadioButtons && bgRadioButtons.length > 0) {
+            bgRadioButtons.forEach(radio => {
+                radio.addEventListener('change', function(e) {
+                    // Stop propagation for safety
+                    e.stopPropagation();
+                    
+                    const selectedValue = this.value;
+                    console.log('Background option changed to:', selectedValue);
+                    
+                    // Get the content sections
+                    const bgImageContent = document.getElementById('bg-preview-canvas').closest('.metadata-content');
+                    const hdrImageContent = document.getElementById('hdr-preview-canvas').closest('.metadata-content');
+                    const bgPreviewCanvas = document.getElementById('bg-preview-canvas');
+                    const hdrPreviewCanvas = document.getElementById('hdr-preview-canvas');
+                    
+                    // Set both canvases to semi-transparent
+                    if (bgPreviewCanvas) bgPreviewCanvas.style.opacity = '0.3';
+                    if (hdrPreviewCanvas) hdrPreviewCanvas.style.opacity = '0.3';
+                    
+                    // Fire custom events based on selection
+                    if (selectedValue === 'background') {
+                        // Enable background, disable HDR
+                        if (bgPreviewCanvas) bgPreviewCanvas.style.opacity = '1';
+                        
+                        document.dispatchEvent(new CustomEvent('bg-toggle-change', { 
+                            detail: { enabled: true }
+                        }));
+                        document.dispatchEvent(new CustomEvent('hdr-toggle-change', { 
+                            detail: { enabled: false }
+                        }));
+                    } else if (selectedValue === 'hdr') {
+                        // Enable HDR, disable background
+                        if (hdrPreviewCanvas) hdrPreviewCanvas.style.opacity = '1';
+                        
+                        document.dispatchEvent(new CustomEvent('hdr-toggle-change', { 
+                            detail: { enabled: true }
+                        }));
+                        document.dispatchEvent(new CustomEvent('bg-toggle-change', { 
+                            detail: { enabled: false }
+                        }));
+                    } else {
+                        // Disable both
+                        document.dispatchEvent(new CustomEvent('bg-toggle-change', { 
+                            detail: { enabled: false }
+                        }));
+                        document.dispatchEvent(new CustomEvent('hdr-toggle-change', { 
+                            detail: { enabled: false }
+                        }));
+                    }
+                });
+                
+                // Prevent clicks on the radio buttons from toggling the sections
+                radio.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                });
+                
+                // Trigger the change event for the checked radio to initialize state
+                if (radio.checked) {
+                    radio.dispatchEvent(new Event('change'));
+                }
             });
             
-            hdrToggle.addEventListener('change', function(e) {
-                // Additional stopPropagation for safety
-                e.stopPropagation();
-                
-                // Toggle canvas opacity to visually show state
-                const canvas = document.getElementById('hdr-preview-canvas');
-                if (canvas) {
-                    canvas.style.opacity = this.checked ? '1' : '0.3';
+            // Make radio buttons in headers work with the collapsible function
+            document.querySelectorAll('.bg-radio-container').forEach(container => {
+                const radio = container.querySelector('input[type="radio"]');
+                if (radio) {
+                    radio.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                    });
                 }
-                
-                // Dispatch custom event for the world-panel.js to handle
-                const event = new CustomEvent('hdr-toggle-change', { 
-                    detail: { enabled: this.checked } 
-                });
-                document.dispatchEvent(event);
             });
         }
     });
