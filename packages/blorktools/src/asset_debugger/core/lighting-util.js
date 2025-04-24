@@ -173,9 +173,11 @@ export function setupEnvironmentLighting(file) {
                     
                     texture.mapping = THREE.EquirectangularReflectionMapping;
                     
-                    // Set scene environment and background
+                    // Set scene environment but NOT background (fixes conflict with background images)
                     state.scene.environment = texture;
-                    state.scene.background = texture;
+                    
+                    // Store the texture in state for later reference if needed
+                    updateState('environmentTexture', texture);
                     
                     // Clean up object URL
                     URL.revokeObjectURL(url);
@@ -255,9 +257,11 @@ export function setupEnvironmentLighting(file) {
                     
                     texture.mapping = THREE.EquirectangularReflectionMapping;
                     
-                    // Set scene environment and background
+                    // Set only scene environment, NOT background (fixes conflict with background images)
                     state.scene.environment = texture;
-                    state.scene.background = texture;
+                    
+                    // Store the texture in state for later reference
+                    updateState('environmentTexture', texture);
                     
                     // Clean up object URL
                     URL.revokeObjectURL(url);

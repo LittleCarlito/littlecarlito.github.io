@@ -164,66 +164,37 @@ function loadStandardBackground(file, resolve, reject) {
 }
 
 /**
- * Applies the loaded texture as scene background
- * @param {THREE.Texture} texture - The loaded texture
- * @param {File} originalFile - The original file that was loaded
+ * Applies the background texture to the scene
+ * @param {THREE.Texture} texture - The texture to apply as background
+ * @param {File} file - The original file
  */
-function applyBackgroundTexture(texture, originalFile) {
-    console.log('[DEBUG] Applying background texture with original file:', 
-        originalFile ? originalFile.name : 'no original file provided');
-    
+function applyBackgroundTexture(texture, file) {
     const state = getState();
+    
     if (!state.scene) {
-        console.error('Scene not available for background application');
+        console.error('Scene not available for background texture application');
         return;
     }
-
-    // Remove any existing background mesh if present
-    if (state.scene.userData.backgroundMesh) {
-        state.scene.remove(state.scene.userData.backgroundMesh);
-        state.scene.userData.backgroundMesh = null;
-    }
-
-    // Store original file name in texture for reference
-    if (originalFile && originalFile.name) {
-        if (!texture.userData) texture.userData = {};
-        texture.userData.fileName = originalFile.name;
-        console.log('[DEBUG] Added original filename to texture userData:', originalFile.name);
-    }
-
-    // Check if this is an HDR/EXR or a standard image
-    const isHDR = texture.isHDRTexture || 
-        (originalFile && (
-            originalFile.name.toLowerCase().endsWith('.hdr') || 
-            originalFile.name.toLowerCase().endsWith('.exr')
-        ));
-
-    // Apply all textures directly to scene.background with equirectangular mapping
-    texture.mapping = THREE.EquirectangularReflectionMapping;
-    state.scene.background = texture;
-    console.log('[DEBUG] Applied texture directly to scene.background');
-
-    // Update the state with the current background texture AND preserve the original file
+    
+    console.log('[DEBUG] Applying background texture to scene');
+    
+    // Store the file and texture in state for reference
     updateState({
-        backgroundTexture: texture,
-        backgroundFile: originalFile || state.backgroundFile // Preserve the original file
+        backgroundFile: file,
+        backgroundTexture: texture
     });
     
-    console.log('[DEBUG] Updated state with texture and preserved backgroundFile:', 
-        originalFile ? originalFile.name : (state.backgroundFile ? state.backgroundFile.name : 'none'));
+    // Set the scene background directly - this takes precedence over any environment map
+    state.scene.background = texture;
     
-    // Check if the backgroundFile was actually preserved
-    const updatedState = getState();
-    console.log('[DEBUG] State verification after update:', {
-        hasBackgroundFile: updatedState.backgroundFile ? true : false,
-        backgroundFileName: updatedState.backgroundFile ? updatedState.backgroundFile.name : 'none',
-        hasBackgroundTexture: updatedState.backgroundTexture ? true : false
+    // Dispatch an event to notify UI components
+    const event = new CustomEvent('background-updated', { 
+        detail: { texture, file }
     });
-
-    // Notify any UI components that need to update
-    const event = new CustomEvent('background-updated', { detail: { texture } });
     document.dispatchEvent(event);
-} 
+    
+    console.log('[DEBUG] Background texture applied successfully');
+}
 
 /**
  * Toggles the visibility of the background image 

@@ -657,8 +657,12 @@ function startDebugging() {
                     
                     const lightingFile = currentState.lightingFile;
                     const backgroundFile = currentState.backgroundFile;
-                    let lightingPromise = Promise.resolve();
-                    let backgroundPromise = Promise.resolve();
+                    
+                    // Process lighting and background as separate, sequential operations
+                    // This ensures they don't interfere with each other
+                    
+                    // First, handle lighting if available
+                    let setupPromise = Promise.resolve();
                     
                     if (lightingFile && 
                         (lightingFile.name.toLowerCase().endsWith('.hdr') || 
@@ -667,7 +671,7 @@ function startDebugging() {
                         console.log('Setting up environment lighting from:', lightingFile.name);
                         
                         // Import lighting utilities
-                        lightingPromise = import('../../core/lighting-util.js')
+                        setupPromise = import('../../core/lighting-util.js')
                             .then(lightingModule => {
                                 // First parse the metadata (for info display)
                                 return lightingModule.parseLightingData(lightingFile)
@@ -691,64 +695,73 @@ function startDebugging() {
                                         console.error('Error analyzing environment map:', error);
                                         return Promise.resolve(); // Continue chain
                                     });
-                            });
-                    }
-                    
-                    if (backgroundFile) {
-                        console.log('[DEBUG] Setting up background image from:', backgroundFile.name, 'type:', backgroundFile.type);
-                        
-                        // Import background image utilities (this would need to be implemented)
-                        backgroundPromise = import('../../core/background-util.js')
-                            .then(backgroundModule => {
-                                return backgroundModule.setupBackgroundImage(backgroundFile)
-                                    .then(texture => {
-                                        // After background is set up, explicitly trigger a UI update event
-                                        // using the background texture
-                                        if (texture) {
-                                            console.log('[DEBUG] Background image loaded successfully, texture:', 
-                                                texture.isTexture ? 'valid texture' : 'invalid texture');
-                                            
-                                            // Check state after background texture is loaded
-                                            import('../../core/state.js').then(stateModule => {
-                                                const updatedState = stateModule.getState();
-                                                console.log('[DEBUG] State after background texture loaded:', {
-                                                    backgroundFile: updatedState.backgroundFile ? 
-                                                        `${updatedState.backgroundFile.name} (${updatedState.backgroundFile.type})` : 'null',
-                                                    backgroundTexture: updatedState.backgroundTexture ? 'Texture present' : 'null'
-                                                });
-                                            });
-                                            
-                                            // Manually dispatch the background-updated event
-                                            const event = new CustomEvent('background-updated', { 
-                                                detail: { texture }
-                                            });
-                                            document.dispatchEvent(event);
-                                        } else {
-                                            console.log('[DEBUG] Background image loading failed - no texture returned');
-                                        }
-                                        return texture;
-                                    })
-                                    .catch(error => {
-                                        console.error('[DEBUG] Error setting up background image:', error);
-                                        return Promise.resolve(); // Continue chain
-                                    });
                             })
-                            .catch(error => {
-                                console.error('[DEBUG] Error importing background utilities:', error);
-                                return Promise.resolve(); // Continue chain
+                            .then(() => {
+                                resourcesLoaded.lightingLoaded = true;
+                                checkAllResourcesLoaded();
                             });
                     } else {
-                        console.log('[DEBUG] No background file found in state');
+                        resourcesLoaded.lightingLoaded = true;
+                        checkAllResourcesLoaded();
                     }
                     
-                    // Return a promise that resolves when both operations are complete
-                    return Promise.all([lightingPromise, backgroundPromise]);
+                    // Then, handle background (after lighting is complete)
+                    return setupPromise.then(() => {
+                        if (backgroundFile) {
+                            console.log('[DEBUG] Setting up background image from:', backgroundFile.name, 'type:', backgroundFile.type);
+                            
+                            // Import background image utilities
+                            return import('../../core/background-util.js')
+                                .then(backgroundModule => {
+                                    return backgroundModule.setupBackgroundImage(backgroundFile)
+                                        .then(texture => {
+                                            // After background is set up, explicitly trigger a UI update event
+                                            // using the background texture
+                                            if (texture) {
+                                                console.log('[DEBUG] Background image loaded successfully, texture:', 
+                                                    texture.isTexture ? 'valid texture' : 'invalid texture');
+                                                
+                                                // Check state after background texture is loaded
+                                                import('../../core/state.js').then(stateModule => {
+                                                    const updatedState = stateModule.getState();
+                                                    console.log('[DEBUG] State after background texture loaded:', {
+                                                        backgroundFile: updatedState.backgroundFile ? 
+                                                            `${updatedState.backgroundFile.name} (${updatedState.backgroundFile.type})` : 'null',
+                                                        backgroundTexture: updatedState.backgroundTexture ? 'Texture present' : 'null'
+                                                    });
+                                                });
+                                                
+                                                // Manually dispatch the background-updated event
+                                                const event = new CustomEvent('background-updated', { 
+                                                    detail: { texture }
+                                                });
+                                                document.dispatchEvent(event);
+                                            } else {
+                                                console.log('[DEBUG] Background image loading failed - no texture returned');
+                                            }
+                                            return texture;
+                                        })
+                                        .catch(error => {
+                                            console.error('[DEBUG] Error setting up background image:', error);
+                                            return Promise.resolve(); // Continue chain
+                                        });
+                                })
+                                .catch(error => {
+                                    console.error('[DEBUG] Error importing background utilities:', error);
+                                    return Promise.resolve(); // Continue chain
+                                })
+                                .then(() => {
+                                    resourcesLoaded.backgroundLoaded = true;
+                                    checkAllResourcesLoaded();
+                                });
+                        } else {
+                            console.log('[DEBUG] No background file found in state');
+                            resourcesLoaded.backgroundLoaded = true;
+                            checkAllResourcesLoaded();
+                        }
+                    });
                 })
                 .then(() => {
-                    resourcesLoaded.lightingLoaded = true;
-                    resourcesLoaded.backgroundLoaded = true;
-                    checkAllResourcesLoaded();
-                    
                     // Double check state after all resources are loaded
                     import('../../core/state.js').then(stateModule => {
                         const finalState = stateModule.getState();

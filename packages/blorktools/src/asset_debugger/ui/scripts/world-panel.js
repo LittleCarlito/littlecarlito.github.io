@@ -1845,69 +1845,6 @@ window.testRenderExr = testRenderExr;
  */
 function applyBackgroundBasedOnPriority() {
     const state = getState();
-    const hasBackground = state.backgroundFile || state.backgroundTexture;
-    
-    // Control visibility of background image option based on whether there's a background file
-    const bgImageRadio = document.getElementById('bg-background');
-    
-    if (bgImageRadio) {
-        // Find the parent container by navigating up the DOM
-        const bgImageOption = bgImageRadio.closest('.collapsible-header');
-        
-        if (bgImageOption) {
-            // Show/hide based on whether we have a background file or texture
-            if (hasBackground) {
-                bgImageOption.style.display = 'flex';
-            } else {
-                bgImageOption.style.display = 'none';
-                
-                // If background was previously selected but is now gone, 
-                // select something else
-                if (currentBackgroundOption === 'background') {
-                    if (state.scene && state.scene.environment) {
-                        // Select HDR if available
-                        const hdrRadio = document.getElementById('bg-hdr');
-                        if (hdrRadio) {
-                            hdrRadio.checked = true;
-                            currentBackgroundOption = 'hdr';
-                        }
-                    } else {
-                        // Otherwise select none
-                        const noneRadio = document.getElementById('bg-none');
-                        if (noneRadio) {
-                            noneRadio.checked = true;
-                            currentBackgroundOption = 'none';
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    // Always ensure all available previews are rendered first
-    if (state.backgroundFile && !backgroundTexture) {
-        // Create preview of background file if not already done
-        console.log('Rendering preview for background file');
-        renderBackgroundPreview(state.backgroundFile);
-    }
-    
-    if (state.scene && state.scene.environment && !environmentTexture) {
-        // Create preview of environment if not already done
-        console.log('Rendering preview for environment texture');
-        environmentTexture = state.scene.environment;
-        renderEnvironmentPreview(state.scene.environment);
-    }
-    
-    // Get current scene background texture (if any)
-    if (state.scene && state.scene.background && state.scene.background.isTexture) {
-        // If we have a scene background texture but no background texture variable,
-        // capture it for preview
-        if (!backgroundTexture && state.scene.background !== state.scene.environment) {
-            console.log('Capturing scene background texture for preview');
-            backgroundTexture = state.scene.background;
-            renderBackgroundPreview(backgroundTexture);
-        }
-    }
     
     // Apply background based on priority
     
@@ -1929,14 +1866,14 @@ function applyBackgroundBasedOnPriority() {
             currentBackgroundOption = 'background';
         }
         
-        // Make sure HDR/EXR is not used as background
+        // Make sure lighting environment is not used as background
         if (state.scene && state.scene.background === state.scene.environment) {
             state.scene.background = null;
         }
     } 
-    // If no background file but we have HDR/EXR environment
+    // If no background file but we have environment lighting
     else if (state.scene && state.scene.environment) {
-        console.log('Applying HDR/EXR as background (second priority)');
+        console.log('Applying environment lighting as background (second priority)');
         
         // Set environment as background
         state.scene.background = state.scene.environment;

@@ -692,10 +692,24 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             // Check if start button should be enabled
                             checkStartButton();
                             
-                            // Update state with the background texture
-                            updateState({ 
-                                backgroundTexture: texture,
-                                backgroundFile: file  // Preserve the file reference
+                            // Only update background state if no background file exists already
+                            const currentState = getState();
+                            if (!currentState.backgroundFile) {
+                                // Update state with the background texture only if no background exists
+                                updateState({ 
+                                    backgroundTexture: texture,
+                                    backgroundFile: file  // Preserve the file reference
+                                });
+                            }
+                            
+                            // Always store the lighting texture for use in previews
+                            updateState('environmentTexture', texture);
+                            
+                            // Trigger an update in world panel to show the environment preview
+                            import('../ui/scripts/world-panel.js').then(worldPanel => {
+                                if (worldPanel.updateWorldPanel) {
+                                    worldPanel.updateWorldPanel();
+                                }
                             });
                         }, undefined, error => {
                             console.error('Error loading EXR texture:', error);
@@ -745,10 +759,24 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             // Check if start button should be enabled
                             checkStartButton();
                             
-                            // Update state with the background texture
-                            updateState({ 
-                                backgroundTexture: texture,
-                                backgroundFile: file  // Preserve the file reference
+                            // Only update background state if no background file exists already
+                            const currentState = getState();
+                            if (!currentState.backgroundFile) {
+                                // Update state with the background texture only if no background exists
+                                updateState({ 
+                                    backgroundTexture: texture,
+                                    backgroundFile: file  // Preserve the file reference
+                                });
+                            }
+                            
+                            // Always store the lighting texture for use in previews
+                            updateState('environmentTexture', texture);
+                            
+                            // Trigger an update in world panel to show the environment preview
+                            import('../ui/scripts/world-panel.js').then(worldPanel => {
+                                if (worldPanel.updateWorldPanel) {
+                                    worldPanel.updateWorldPanel();
+                                }
                             });
                         }, undefined, error => {
                             console.error('Error loading HDR texture:', error);
@@ -1023,6 +1051,13 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                         
                         // Re-check if start button should be enabled
                         checkStartButton();
+                        
+                        // Trigger an update in world panel to show the environment preview
+                        import('../ui/scripts/world-panel.js').then(worldPanel => {
+                            if (worldPanel.updateWorldPanel) {
+                                worldPanel.updateWorldPanel();
+                            }
+                        });
                     }, undefined, error => {
                         console.error('Error loading EXR background texture:', error);
                         createFallbackSphere(canvas);
@@ -1099,14 +1134,28 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                         // Hide loading indicator
                         hidePreviewLoading(containerDiv);
                         
-                        // Update state with the background texture
-                        updateState({ 
-                            backgroundTexture: texture,
-                            backgroundFile: file  // Preserve the file reference
-                        });
-                        
-                        // Re-check if start button should be enabled
+                        // Check if start button should be enabled
                         checkStartButton();
+                        
+                        // Only update background state if no background file exists already
+                        const currentState = getState();
+                        if (!currentState.backgroundFile) {
+                            // Update state with the background texture only if no background exists
+                            updateState({ 
+                                backgroundTexture: texture,
+                                backgroundFile: file  // Preserve the file reference
+                            });
+                        }
+                        
+                        // Always store the lighting texture for use in previews
+                        updateState('environmentTexture', texture);
+                        
+                        // Trigger an update in world panel to show the environment preview
+                        import('../ui/scripts/world-panel.js').then(worldPanel => {
+                            if (worldPanel.updateWorldPanel) {
+                                worldPanel.updateWorldPanel();
+                            }
+                        });
                     }, undefined, error => {
                         console.error('Error loading HDR background texture:', error);
                         createFallbackSphere(canvas);
@@ -1184,6 +1233,13 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                     
                     // Re-check if start button should be enabled
                     checkStartButton();
+                    
+                    // Trigger an update in world panel to show the environment preview
+                    import('../ui/scripts/world-panel.js').then(worldPanel => {
+                        if (worldPanel.updateWorldPanel) {
+                            worldPanel.updateWorldPanel();
+                        }
+                    });
                 }, undefined, error => {
                     console.error('Error loading image texture:', error);
                     createFallbackSphere(canvas);
