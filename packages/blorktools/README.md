@@ -423,4 +423,4 @@ This package is part of the [threejs_site](https://github.com/littlecarlito/thre
 
 ## License
 
-MIT 
+GNU General Public License v3.0 (GPL-3.0) 

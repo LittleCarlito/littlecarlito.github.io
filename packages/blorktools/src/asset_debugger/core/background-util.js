@@ -15,13 +15,13 @@ const textureCache = new Map();
 /**
  * Sets up a background image in the scene
  * @param {File} backgroundFile - The background image file (HDR, EXR, JPEG, PNG, WebP, or TIFF)
- * @returns {Promise} - Resolves when the background is set up
+ * @returns {Promise<THREE.Texture|null>} - Resolves with the texture when the background is set up
  */
 export function setupBackgroundImage(backgroundFile) {
     return new Promise((resolve, reject) => {
         if (!backgroundFile) {
             console.warn('No background file provided');
-            resolve();
+            resolve(null);
             return;
         }
 
@@ -38,7 +38,7 @@ export function setupBackgroundImage(backgroundFile) {
         const cachedTexture = textureCache.get(backgroundFile.name);
         if (cachedTexture) {
             applyBackgroundTexture(cachedTexture);
-            resolve();
+            resolve(cachedTexture);
             return;
         }
 
@@ -79,7 +79,7 @@ function loadHDRBackground(file, resolve, reject) {
                 texture.mapping = THREE.EquirectangularReflectionMapping;
                 applyBackgroundTexture(texture);
                 textureCache.set(file.name, texture);
-                resolve();
+                resolve(texture);
             },
             undefined,
             (error) => {
@@ -111,7 +111,7 @@ function loadEXRBackground(file, resolve, reject) {
                 texture.mapping = THREE.EquirectangularReflectionMapping;
                 applyBackgroundTexture(texture);
                 textureCache.set(file.name, texture);
-                resolve();
+                resolve(texture);
             },
             undefined,
             (error) => {
@@ -143,7 +143,7 @@ function loadStandardBackground(file, resolve, reject) {
                 texture.mapping = THREE.EquirectangularReflectionMapping;
                 applyBackgroundTexture(texture);
                 textureCache.set(file.name, texture);
-                resolve();
+                resolve(texture);
             },
             undefined,
             (error) => {

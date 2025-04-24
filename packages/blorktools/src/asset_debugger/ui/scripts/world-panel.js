@@ -49,8 +49,64 @@ export function initWorldPanel() {
     // Set up Background toggle event listener
     setupBgToggleListener();
     
-    // Set initial background option based on scene state
-    setInitialBackgroundSelection();
+    // Add event listener for background updates from background-util.js
+    document.addEventListener('background-updated', function(e) {
+        const texture = e.detail.texture;
+        if (texture) {
+            console.log('Background texture updated event received');
+            
+            // Extract metadata from the texture
+            let width = 0;
+            let height = 0;
+            let type = 'Unknown Texture';
+            let fileName = 'Background Texture';
+            
+            // Get dimensions
+            if (texture.image) {
+                width = texture.image.width || 0;
+                height = texture.image.height || 0;
+            }
+            
+            // Determine type
+            if (texture.isHDRTexture) {
+                type = 'HDR Texture';
+            } else if (texture.isCompressedTexture) {
+                type = 'Compressed Texture';
+            } else if (texture.isDataTexture) {
+                type = 'Data Texture';
+            } else if (texture.isTexture) {
+                type = 'Standard Texture';
+            }
+            
+            // Try to get filename from userData if available
+            if (texture.userData && texture.userData.fileName) {
+                fileName = texture.userData.fileName;
+            }
+            
+            // Create metadata
+            const metadata = {
+                fileName: fileName,
+                type: type,
+                dimensions: { width, height },
+                // Estimate file size based on dimensions and encoding
+                fileSizeBytes: (width * height * 4) // Rough estimate: pixels * 4 bytes per pixel
+            };
+            
+            // Update the UI with the texture metadata
+            updateBackgroundInfo(metadata);
+            
+            // Store the texture for preview rendering
+            backgroundTexture = texture;
+            
+            // Render the preview using the texture
+            renderBackgroundPreview(texture);
+            
+            // After preview is rendered, apply priority-based background
+            setTimeout(() => {
+                applyBackgroundBasedOnPriority();
+            }, 0);
+        }
+    });
     
     // Mark as initialized
     controlsInitialized = true;
@@ -81,6 +137,9 @@ export function initWorldPanel() {
             renderBackgroundPreview(backgroundTexture);
         }
     }
+    
+    // Apply background based on priority order
+    applyBackgroundBasedOnPriority();
 }
 
 /**
@@ -297,9 +356,11 @@ function setupBgToggleListener() {
                 if (e.target.type === 'radio') {
                     // Get the selected option value
                     const selectedValue = e.target.value;
+                    
+                    // Store the user's explicit choice
                     currentBackgroundOption = selectedValue;
                     
-                    console.log('Background option changed to:', selectedValue);
+                    console.log('Background option manually changed to:', selectedValue);
                     
                     // Get the state
                     const state = getState();
@@ -320,6 +381,9 @@ function setupBgToggleListener() {
                                     backgroundModule.toggleBackgroundVisibility(false);
                                 }
                             });
+                            
+                            // Update canvas opacity
+                            updateCanvasOpacity('none');
                         } 
                         else if (selectedValue === 'background') {
                             // Enable background image, disable HDR
@@ -333,6 +397,9 @@ function setupBgToggleListener() {
                             if (state.scene.background === state.scene.environment) {
                                 state.scene.background = null;
                             }
+                            
+                            // Update canvas opacity
+                            updateCanvasOpacity('background');
                         }
                         else if (selectedValue === 'hdr') {
                             // Enable HDR/EXR as background
@@ -346,6 +413,9 @@ function setupBgToggleListener() {
                                     backgroundModule.toggleBackgroundVisibility(false);
                                 }
                             });
+                            
+                            // Update canvas opacity
+                            updateCanvasOpacity('hdr');
                         }
                     }
                 }
@@ -359,69 +429,19 @@ function setupBgToggleListener() {
     } else {
         console.warn('Background radio buttons not found');
     }
-}
-
-/**
- * Set the initial background radio selection based on scene state
- */
-function setInitialBackgroundSelection() {
-    const state = getState();
     
-    // Get all radio buttons
-    const noneRadio = document.querySelector('input[name="bg-option"][value="none"]');
-    const backgroundRadio = document.querySelector('input[name="bg-option"][value="background"]');
-    const hdrRadio = document.querySelector('input[name="bg-option"][value="hdr"]');
-    
-    if (!noneRadio || !backgroundRadio || !hdrRadio) {
-        console.warn('Could not find all radio buttons for initial selection');
-        return;
-    }
-    
-    // Determine which option should be active
-    let selectedOption = 'none'; // Default
-    
-    if (state.scene) {
-        // Check if HDR/EXR is being used as background
-        if (state.scene.environment && state.scene.background === state.scene.environment) {
-            selectedOption = 'hdr';
-            console.log('Detected HDR/EXR as active background');
-        } 
-        // Check if a regular background image is active
-        else if (state.backgroundFile && state.scene.background && state.scene.background !== state.scene.environment) {
-            selectedOption = 'background';
-            console.log('Detected regular background image as active');
+    // Helper function to update canvas opacity based on selection
+    function updateCanvasOpacity(selectedValue) {
+        const bgPreviewCanvas = document.getElementById('bg-preview-canvas');
+        const hdrPreviewCanvas = document.getElementById('hdr-preview-canvas');
+        
+        if (bgPreviewCanvas) {
+            bgPreviewCanvas.style.opacity = (selectedValue === 'background') ? '1' : '0.3';
         }
-        // Check just for the presence of environment texture (common when loading a scene)
-        else if (state.scene.environment) {
-            selectedOption = 'hdr';
-            console.log('Detected environment texture, defaulting to HDR option');
+        
+        if (hdrPreviewCanvas) {
+            hdrPreviewCanvas.style.opacity = (selectedValue === 'hdr') ? '1' : '0.3';
         }
-    }
-    
-    // Set the appropriate radio button as checked
-    if (selectedOption === 'hdr' && hdrRadio) {
-        hdrRadio.checked = true;
-        currentBackgroundOption = 'hdr';
-    } else if (selectedOption === 'background' && backgroundRadio) {
-        backgroundRadio.checked = true;
-        currentBackgroundOption = 'background';
-    } else if (noneRadio) {
-        noneRadio.checked = true;
-        currentBackgroundOption = 'none';
-    }
-    
-    console.log('Initial background selection set to:', currentBackgroundOption);
-    
-    // Update canvas opacity based on selection
-    const bgPreviewCanvas = document.getElementById('bg-preview-canvas');
-    const hdrPreviewCanvas = document.getElementById('hdr-preview-canvas');
-    
-    if (bgPreviewCanvas) {
-        bgPreviewCanvas.style.opacity = (selectedOption === 'background') ? '1' : '0.3';
-    }
-    
-    if (hdrPreviewCanvas) {
-        hdrPreviewCanvas.style.opacity = (selectedOption === 'hdr') ? '1' : '0.3';
     }
 }
 
@@ -1268,7 +1288,10 @@ export function renderBackgroundPreview(fileOrTexture) {
         return false;
     }
     
-    console.log('Rendering background image preview');
+    console.log('Rendering background image preview for:', 
+                typeof fileOrTexture === 'object' && fileOrTexture.isTexture 
+                    ? 'Texture object' 
+                    : (fileOrTexture.name || 'Unknown file'));
     
     // Hide the no image message
     if (noImageMessage) noImageMessage.style.display = 'none';
@@ -1318,25 +1341,151 @@ export function renderBackgroundPreview(fileOrTexture) {
             img.src = url;
             return true;
         } else if (typeof fileOrTexture === 'object' && fileOrTexture.isTexture) {
-            // For THREE.Texture objects, try to access the image data
-            if (fileOrTexture.image) {
-                const ctx = canvas.getContext('2d');
-                canvas.width = fileOrTexture.image.width || 260;
-                canvas.height = fileOrTexture.image.height || 260;
+            // For THREE.Texture objects
+            
+            // Try multiple approaches to render the texture
+            let rendered = false;
+            
+            // Method 1: If texture has an HTMLImageElement or HTMLCanvasElement
+            if (fileOrTexture.image && 
+                (fileOrTexture.image instanceof HTMLImageElement || 
+                 fileOrTexture.image instanceof HTMLCanvasElement ||
+                 fileOrTexture.image instanceof ImageBitmap)) {
                 
                 try {
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = fileOrTexture.image.width || 260;
+                    canvas.height = fileOrTexture.image.height || 260;
+                    
                     ctx.drawImage(fileOrTexture.image, 0, 0, canvas.width, canvas.height);
-                    return true;
+                    rendered = true;
+                    
+                    // Create metadata if not present
+                    if (!currentBackgroundMetadata) {
+                        currentBackgroundMetadata = {
+                            fileName: fileOrTexture.userData?.fileName || 'Background Texture',
+                            type: fileOrTexture.isHDRTexture ? 'HDR Texture' : 'Standard Texture',
+                            dimensions: { 
+                                width: fileOrTexture.image.width, 
+                                height: fileOrTexture.image.height 
+                            },
+                            fileSizeBytes: 0 // Unknown size
+                        };
+                        updateBackgroundInfo(currentBackgroundMetadata);
+                    }
                 } catch (e) {
                     console.error('Error drawing texture to canvas:', e);
-                    showNoBackgroundImageMessage(canvas, noImageMessage, 'Error rendering texture');
-                    return false;
+                    rendered = false;
                 }
-            } else {
-                console.warn('Texture has no image data');
-                showNoBackgroundImageMessage(canvas, noImageMessage, 'No image data in texture');
-                return false;
             }
+            
+            // Method 2: If texture has raw data array
+            if (!rendered && fileOrTexture.image && fileOrTexture.image.data) {
+                try {
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = fileOrTexture.image.width || 260;
+                    canvas.height = fileOrTexture.image.height || 260;
+                    
+                    // If it's Float32Array, we need to normalize to 0-255 range for display
+                    if (fileOrTexture.image.data instanceof Float32Array) {
+                        const imageData = ctx.createImageData(canvas.width, canvas.height);
+                        const data = fileOrTexture.image.data;
+                        
+                        // Simplified HDR to LDR conversion for preview
+                        for (let i = 0; i < data.length; i += 4) {
+                            const r = Math.min(255, Math.max(0, Math.round(data[i] * 255)));
+                            const g = Math.min(255, Math.max(0, Math.round(data[i+1] * 255)));
+                            const b = Math.min(255, Math.max(0, Math.round(data[i+2] * 255)));
+                            const a = Math.min(255, Math.max(0, Math.round(data[i+3] * 255)));
+                            
+                            imageData.data[i] = r;
+                            imageData.data[i+1] = g;
+                            imageData.data[i+2] = b;
+                            imageData.data[i+3] = a;
+                        }
+                        
+                        ctx.putImageData(imageData, 0, 0);
+                        rendered = true;
+                    } 
+                    // If it's already Uint8ClampedArray or similar, we can use it directly
+                    else {
+                        const imageData = new ImageData(
+                            new Uint8ClampedArray(fileOrTexture.image.data),
+                            fileOrTexture.image.width,
+                            fileOrTexture.image.height
+                        );
+                        ctx.putImageData(imageData, 0, 0);
+                        rendered = true;
+                    }
+                    
+                    // Create metadata if not present
+                    if (!currentBackgroundMetadata) {
+                        currentBackgroundMetadata = {
+                            fileName: fileOrTexture.userData?.fileName || 'Background Texture',
+                            type: fileOrTexture.isHDRTexture ? 'HDR Texture' : 'Data Texture',
+                            dimensions: { 
+                                width: fileOrTexture.image.width, 
+                                height: fileOrTexture.image.height 
+                            },
+                            fileSizeBytes: fileOrTexture.image.data.length * 4 // Approximate size
+                        };
+                        updateBackgroundInfo(currentBackgroundMetadata);
+                    }
+                } catch (e) {
+                    console.error('Error creating ImageData from texture:', e);
+                    rendered = false;
+                }
+            }
+            
+            // Method 3: Create a simple fallback if all else fails
+            if (!rendered) {
+                const ctx = canvas.getContext('2d');
+                canvas.width = 260;
+                canvas.height = 260;
+                
+                // Draw a gradient with the texture type as label
+                const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+                gradient.addColorStop(0, '#2a9d8f');
+                gradient.addColorStop(1, '#264653');
+                
+                // Fill with gradient
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Add texture info as text
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('Texture Preview', canvas.width/2, canvas.height/2 - 15);
+                ctx.font = '12px sans-serif';
+                
+                const textureType = fileOrTexture.isHDRTexture 
+                    ? 'HDR Texture' 
+                    : fileOrTexture.isDataTexture 
+                        ? 'Data Texture' 
+                        : 'Standard Texture';
+                
+                ctx.fillText(textureType, canvas.width/2, canvas.height/2 + 15);
+                
+                // Create metadata if not present
+                if (!currentBackgroundMetadata) {
+                    currentBackgroundMetadata = {
+                        fileName: fileOrTexture.userData?.fileName || 'Background Texture',
+                        type: textureType,
+                        dimensions: { 
+                            width: fileOrTexture.image?.width || 0, 
+                            height: fileOrTexture.image?.height || 0 
+                        },
+                        fileSizeBytes: 0 // Unknown size
+                    };
+                    updateBackgroundInfo(currentBackgroundMetadata);
+                }
+                
+                rendered = true;
+            }
+            
+            return rendered;
         } else {
             console.warn('Unknown background data type:', typeof fileOrTexture);
             showNoBackgroundImageMessage(canvas, noImageMessage, 'Unsupported data format');
@@ -1490,82 +1639,22 @@ export function updateWorldPanel() {
     updateLightingMessage();
     updateBackgroundMessage();
     
-    // If we have an environment texture, try to render it
+    // First make sure to render all available previews
+    
+    // If we have an environment texture, render its preview
     if (state.scene && state.scene.environment && !environmentTexture) {
         environmentTexture = state.scene.environment;
         renderEnvironmentPreview(environmentTexture);
     }
     
-    // If we have a background file, try to render it
+    // If we have a background file, render its preview
     if (state.backgroundFile && !backgroundTexture) {
         backgroundTexture = state.backgroundFile;
         renderBackgroundPreview(backgroundTexture);
     }
     
-    // Update radio button selection to match current scene state
-    updateBackgroundSelection();
-}
-
-/**
- * Update the background radio selection based on current scene state
- * This is like setInitialBackgroundSelection but doesn't log as much
- */
-function updateBackgroundSelection() {
-    const state = getState();
-    
-    // Get all radio buttons
-    const noneRadio = document.querySelector('input[name="bg-option"][value="none"]');
-    const backgroundRadio = document.querySelector('input[name="bg-option"][value="background"]');
-    const hdrRadio = document.querySelector('input[name="bg-option"][value="hdr"]');
-    
-    if (!noneRadio || !backgroundRadio || !hdrRadio) {
-        return; // Silently exit if buttons aren't found
-    }
-    
-    // Determine which option should be active based on scene state
-    let newSelection = 'none'; // Default
-    
-    if (state.scene) {
-        // Check if HDR/EXR is being used as background
-        if (state.scene.environment && state.scene.background === state.scene.environment) {
-            newSelection = 'hdr';
-        } 
-        // Check if a regular background image is active
-        else if (state.backgroundFile && state.scene.background && state.scene.background !== state.scene.environment) {
-            newSelection = 'background';
-        }
-        // Check just for the presence of environment texture
-        else if (state.scene.environment) {
-            newSelection = 'hdr';
-        }
-    }
-    
-    // Only update if the selection has changed and isn't being manually controlled
-    if (newSelection !== currentBackgroundOption) {
-        // Set the appropriate radio button as checked
-        if (newSelection === 'hdr' && hdrRadio) {
-            hdrRadio.checked = true;
-            currentBackgroundOption = 'hdr';
-        } else if (newSelection === 'background' && backgroundRadio) {
-            backgroundRadio.checked = true;
-            currentBackgroundOption = 'background';
-        } else if (noneRadio) {
-            noneRadio.checked = true;
-            currentBackgroundOption = 'none';
-        }
-        
-        // Update canvas opacity based on selection
-        const bgPreviewCanvas = document.getElementById('bg-preview-canvas');
-        const hdrPreviewCanvas = document.getElementById('hdr-preview-canvas');
-        
-        if (bgPreviewCanvas) {
-            bgPreviewCanvas.style.opacity = (newSelection === 'background') ? '1' : '0.3';
-        }
-        
-        if (hdrPreviewCanvas) {
-            hdrPreviewCanvas.style.opacity = (newSelection === 'hdr') ? '1' : '0.3';
-        }
-    }
+    // After all previews are rendered, apply background based on priority
+    applyBackgroundBasedOnPriority();
 }
 
 /**
@@ -1626,4 +1715,110 @@ export function testRenderExr(file) {
 }
 
 // Make the test function available globally for debugging
-window.testRenderExr = testRenderExr; 
+window.testRenderExr = testRenderExr;
+
+/**
+ * Apply background based on priority order:
+ * 1. Background image (if provided)
+ * 2. HDR/EXR image (if provided)
+ * 3. None
+ */
+function applyBackgroundBasedOnPriority() {
+    const state = getState();
+    
+    // Always ensure all available previews are rendered first
+    if (state.backgroundFile && !backgroundTexture) {
+        // Create preview of background file if not already done
+        console.log('Rendering preview for background file');
+        renderBackgroundPreview(state.backgroundFile);
+    }
+    
+    if (state.scene && state.scene.environment && !environmentTexture) {
+        // Create preview of environment if not already done
+        console.log('Rendering preview for environment texture');
+        environmentTexture = state.scene.environment;
+        renderEnvironmentPreview(state.scene.environment);
+    }
+    
+    // Get current scene background texture (if any)
+    if (state.scene && state.scene.background && state.scene.background.isTexture) {
+        // If we have a scene background texture but no background texture variable,
+        // capture it for preview
+        if (!backgroundTexture && state.scene.background !== state.scene.environment) {
+            console.log('Capturing scene background texture for preview');
+            backgroundTexture = state.scene.background;
+            renderBackgroundPreview(backgroundTexture);
+        }
+    }
+    
+    // Apply background based on priority
+    
+    // Check if we have a background file first
+    if (state.backgroundFile) {
+        console.log('Applying background image as first priority');
+        
+        // Enable background image
+        import('../../core/background-util.js').then(backgroundModule => {
+            if (backgroundModule.toggleBackgroundVisibility) {
+                backgroundModule.toggleBackgroundVisibility(true);
+            }
+        });
+        
+        // Update radio button selection
+        const backgroundRadio = document.querySelector('input[name="bg-option"][value="background"]');
+        if (backgroundRadio) {
+            backgroundRadio.checked = true;
+            currentBackgroundOption = 'background';
+        }
+        
+        // Make sure HDR/EXR is not used as background
+        if (state.scene && state.scene.background === state.scene.environment) {
+            state.scene.background = null;
+        }
+    } 
+    // If no background file but we have HDR/EXR environment
+    else if (state.scene && state.scene.environment) {
+        console.log('Applying HDR/EXR as background (second priority)');
+        
+        // Set environment as background
+        state.scene.background = state.scene.environment;
+        
+        // Update radio button selection
+        const hdrRadio = document.querySelector('input[name="bg-option"][value="hdr"]');
+        if (hdrRadio) {
+            hdrRadio.checked = true;
+            currentBackgroundOption = 'hdr';
+        }
+    } 
+    // If neither are available
+    else {
+        console.log('No background files available, setting to none');
+        
+        // Ensure background is null
+        if (state.scene) {
+            state.scene.background = null;
+        }
+        
+        // Update radio button selection
+        const noneRadio = document.querySelector('input[name="bg-option"][value="none"]');
+        if (noneRadio) {
+            noneRadio.checked = true;
+            currentBackgroundOption = 'none';
+        }
+    }
+    
+    // Update preview canvas opacity
+    const bgPreviewCanvas = document.getElementById('bg-preview-canvas');
+    const hdrPreviewCanvas = document.getElementById('hdr-preview-canvas');
+    
+    if (bgPreviewCanvas) {
+        bgPreviewCanvas.style.opacity = (currentBackgroundOption === 'background') ? '1' : '0.3';
+    }
+    
+    if (hdrPreviewCanvas) {
+        hdrPreviewCanvas.style.opacity = (currentBackgroundOption === 'hdr') ? '1' : '0.3';
+    }
+    
+    // Update the UI info panels
+    updateBackgroundMessage();
+} 

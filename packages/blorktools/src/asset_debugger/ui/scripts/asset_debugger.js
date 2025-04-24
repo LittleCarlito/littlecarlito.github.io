@@ -673,6 +673,20 @@ function startDebugging() {
                         backgroundPromise = import('../../core/background-util.js')
                             .then(backgroundModule => {
                                 return backgroundModule.setupBackgroundImage(backgroundFile)
+                                    .then(texture => {
+                                        // After background is set up, explicitly trigger a UI update event
+                                        // using the background texture
+                                        if (texture) {
+                                            console.log('Background image loaded, synchronizing with World panel');
+                                            
+                                            // Manually dispatch the background-updated event
+                                            const event = new CustomEvent('background-updated', { 
+                                                detail: { texture }
+                                            });
+                                            document.dispatchEvent(event);
+                                        }
+                                        return texture;
+                                    })
                                     .catch(error => {
                                         console.error('Error setting up background image:', error);
                                         return Promise.resolve(); // Continue chain
