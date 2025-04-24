@@ -273,40 +273,46 @@ export function createModelPreview(modelFile) {
  * @param {File} file - The model file
  */
 function addClearButton(container, file) {
-    // Create clear button
-    const clearButton = document.createElement('button');
-    clearButton.className = 'clear-preview-button';
-    clearButton.innerHTML = '×';
-    clearButton.title = 'Clear preview';
-    container.appendChild(clearButton);
+    // Find the parent dropzone element
+    const dropzone = document.getElementById('model-dropzone');
     
-    // Add click event
-    clearButton.addEventListener('click', (event) => {
-        event.stopPropagation();
+    if (dropzone) {
+        // Create clear button
+        const clearButton = document.createElement('button');
+        clearButton.className = 'clear-preview-button';
+        clearButton.innerHTML = '×';
+        clearButton.title = 'Clear preview';
         
-        // Clean up preview
-        cleanupPreview();
+        // Add to the dropzone instead of the preview container to match other previews
+        dropzone.appendChild(clearButton);
         
-        // Clean up the dropzone
-        const dropzone = document.getElementById('model-dropzone');
-        if (dropzone) {
-            dropzone.classList.remove('has-file');
-            const infoElement = document.getElementById('model-info');
-            if (infoElement) {
-                infoElement.textContent = '';
+        // Add click event
+        clearButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            
+            // Clean up preview
+            cleanupPreview();
+            
+            // Clean up the dropzone
+            if (dropzone) {
+                dropzone.classList.remove('has-file');
+                const infoElement = document.getElementById('model-info');
+                if (infoElement) {
+                    infoElement.textContent = '';
+                }
             }
-        }
-        
-        // Reset state model file
-        import('../../core/state.js').then(stateModule => {
-            const state = stateModule.getState();
-            state.modelFile = null;
-            state.useCustomModel = false;
+            
+            // Reset state model file
+            import('../../core/state.js').then(stateModule => {
+                const state = stateModule.getState();
+                state.modelFile = null;
+                state.useCustomModel = false;
+            });
+            
+            // Clear preview container
+            container.innerHTML = '';
         });
-        
-        // Clear preview container
-        container.innerHTML = '';
-    });
+    }
 }
 
 /**
