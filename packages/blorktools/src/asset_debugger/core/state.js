@@ -55,6 +55,7 @@ const initialState = {
     // Status flags
     isDebugStarted: false,
     useCustomModel: false,
+    useLightingTestCube: false, // Flag to indicate we should use the special lighting test cube
     
     // Helper functions
     cycleAtlasSegments: null, // New: function to cycle atlas segments
@@ -138,6 +139,20 @@ export function updateState(key, value) {
     }
     
     state[key] = value;
+    return state;
+}
+
+/**
+ * Update multiple parts of the state at once
+ * @param {Object} updates - An object with keys and values to update
+ * @returns {Object} The updated state
+ */
+export function setState(updates) {
+    if (!state) {
+        initState();
+    }
+    
+    Object.assign(state, updates);
     return state;
 }
 
@@ -245,5 +260,6 @@ export default {
     initState,
     getState,
     updateState,
+    setState,
     resetState
 }; 

@@ -40,6 +40,20 @@ export function initWorldPanel() {
     
     console.log('World panel found, initializing...');
     
+    // Check background image option visibility at startup
+    const state = getState();
+    const bgImageRadio = document.getElementById('bg-background');
+    
+    if (bgImageRadio) {
+        const bgImageOption = bgImageRadio.closest('.collapsible-header');
+        if (bgImageOption) {
+            // Initially hide the background image option if we don't have a background file
+            if (!state.backgroundFile) {
+                bgImageOption.style.display = 'none';
+            }
+        }
+    }
+    
     // Set up event listeners for lighting controls
     setupLightingControls();
     
@@ -464,6 +478,60 @@ function updateBackgroundMessage() {
     if (hasEnvironment || hasBackgroundFile) {
         noBackgroundMessage.style.display = 'none';
         backgroundDataInfo.style.display = 'block';
+        
+        // Control visibility of background image option based on whether there's a background file
+        const bgImageRadio = document.getElementById('bg-background');
+        
+        if (bgImageRadio) {
+            // Find the parent container by navigating up the DOM
+            const bgImageOption = bgImageRadio.closest('.collapsible-header');
+            
+            if (bgImageOption) {
+                if (hasBackgroundFile) {
+                    // Show the background image option if we have a background file
+                    bgImageOption.style.display = 'flex';
+                    // If background was previously selected but file is gone, select HDR instead
+                    if (currentBackgroundOption === 'background' && !hasBackgroundFile) {
+                        const hdrRadio = document.getElementById('bg-hdr');
+                        if (hdrRadio && hasEnvironment) {
+                            hdrRadio.checked = true;
+                            currentBackgroundOption = 'hdr';
+                            // Trigger change event to apply the selection
+                            hdrRadio.dispatchEvent(new Event('change'));
+                        } else {
+                            const noneRadio = document.getElementById('bg-none');
+                            if (noneRadio) {
+                                noneRadio.checked = true;
+                                currentBackgroundOption = 'none';
+                                // Trigger change event to apply the selection
+                                noneRadio.dispatchEvent(new Event('change'));
+                            }
+                        }
+                    }
+                } else {
+                    // Hide the background image option if we don't have a background file
+                    bgImageOption.style.display = 'none';
+                    // If background was previously selected but file is gone, select HDR instead
+                    if (currentBackgroundOption === 'background') {
+                        const hdrRadio = document.getElementById('bg-hdr');
+                        if (hdrRadio && hasEnvironment) {
+                            hdrRadio.checked = true;
+                            currentBackgroundOption = 'hdr';
+                            // Trigger change event to apply the selection
+                            hdrRadio.dispatchEvent(new Event('change'));
+                        } else {
+                            const noneRadio = document.getElementById('bg-none');
+                            if (noneRadio) {
+                                noneRadio.checked = true;
+                                currentBackgroundOption = 'none';
+                                // Trigger change event to apply the selection
+                                noneRadio.dispatchEvent(new Event('change'));
+                            }
+                        }
+                    }
+                }
+            }
+        }
     } else {
         noBackgroundMessage.style.display = 'block';
         backgroundDataInfo.style.display = 'none';
@@ -1725,6 +1793,43 @@ window.testRenderExr = testRenderExr;
  */
 function applyBackgroundBasedOnPriority() {
     const state = getState();
+    
+    // Control visibility of background image option based on whether there's a background file
+    const bgImageRadio = document.getElementById('bg-background');
+    
+    if (bgImageRadio) {
+        // Find the parent container by navigating up the DOM
+        const bgImageOption = bgImageRadio.closest('.collapsible-header');
+        
+        if (bgImageOption) {
+            // Show/hide based on whether we have a background file
+            if (state.backgroundFile) {
+                bgImageOption.style.display = 'flex';
+            } else {
+                bgImageOption.style.display = 'none';
+                
+                // If background was previously selected but is now gone, 
+                // select something else
+                if (currentBackgroundOption === 'background') {
+                    if (state.scene && state.scene.environment) {
+                        // Select HDR if available
+                        const hdrRadio = document.getElementById('bg-hdr');
+                        if (hdrRadio) {
+                            hdrRadio.checked = true;
+                            currentBackgroundOption = 'hdr';
+                        }
+                    } else {
+                        // Otherwise select none
+                        const noneRadio = document.getElementById('bg-none');
+                        if (noneRadio) {
+                            noneRadio.checked = true;
+                            currentBackgroundOption = 'none';
+                        }
+                    }
+                }
+            }
+        }
+    }
     
     // Always ensure all available previews are rendered first
     if (state.backgroundFile && !backgroundTexture) {

@@ -549,7 +549,19 @@ function verifyFileDrop() {
                                 currentState.backgroundFile.name.toLowerCase().endsWith('.png') ||
                                 currentState.backgroundFile.name.toLowerCase().endsWith('.webp') ||
                                 currentState.backgroundFile.name.toLowerCase().endsWith('.tiff'));
+        
+        // Special case: If only lighting file is provided, we'll use a test cube with multiple materials
+        const onlyLightingProvided = hasLightingFile && !hasTextures && !hasModel;
+        
+        // Update hasFiles check to include the special lighting-only case
         const hasFiles = hasTextures || hasModel || hasLightingFile || hasBackgroundFile;
+        
+        // If only lighting file is provided, set a flag in state to use multi-material test cube
+        if (onlyLightingProvided) {
+            stateModule.setState({
+                useLightingTestCube: true
+            });
+        }
         
         // If no files were dropped, show examples modal
         if (!hasFiles) {

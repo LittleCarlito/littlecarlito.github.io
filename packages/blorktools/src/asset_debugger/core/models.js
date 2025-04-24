@@ -68,6 +68,99 @@ export function createCube() {
 }
 
 /**
+ * Create a multi-material test cube for lighting showcase
+ * Each face will have a different material to show different lighting properties
+ */
+export function createLightingTestCube() {
+    const state = getState();
+    
+    // Check if scene is initialized
+    if (!state.scene) {
+        console.warn("Scene not initialized yet. Cannot create lighting test cube.");
+        return Promise.reject(new Error("Scene not initialized. Try again after scene is ready."));
+    }
+    
+    // Create cube geometry
+    const geometry = new THREE.BoxGeometry(1, 1, 1);
+    
+    // Create an array to hold the 6 different materials
+    const materials = [];
+    
+    // 1. Reflective metal material (high metalness, low roughness)
+    const metalMaterial = new THREE.MeshStandardMaterial({
+        color: 0x8888ff,
+        metalness: 1.0,
+        roughness: 0.1,
+        name: 'Metal'
+    });
+    materials.push(metalMaterial);
+    
+    // 2. Matte material (low metalness, high roughness)
+    const matteMaterial = new THREE.MeshStandardMaterial({
+        color: 0xcc3333,
+        metalness: 0.0,
+        roughness: 0.9,
+        name: 'Matte'
+    });
+    materials.push(matteMaterial);
+    
+    // 3. Wooden material (medium roughness, no metalness)
+    const woodMaterial = new THREE.MeshStandardMaterial({
+        color: 0x8B4513, // Saddle brown
+        metalness: 0.0,
+        roughness: 0.7,
+        name: 'Wood'
+    });
+    materials.push(woodMaterial);
+    
+    // 4. Plastic material (low metalness, medium roughness)
+    const plasticMaterial = new THREE.MeshStandardMaterial({
+        color: 0x22cc22,
+        metalness: 0.1,
+        roughness: 0.5,
+        name: 'Plastic'
+    });
+    materials.push(plasticMaterial);
+    
+    // 5. Ceramic material (no metalness, low-medium roughness)
+    const ceramicMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        metalness: 0.0,
+        roughness: 0.3,
+        name: 'Ceramic'
+    });
+    materials.push(ceramicMaterial);
+    
+    // 6. Glass-like material (slightly transparent)
+    const glassMaterial = new THREE.MeshStandardMaterial({
+        color: 0xaaccff,
+        metalness: 0.2,
+        roughness: 0.1,
+        transparent: true,
+        opacity: 0.7,
+        name: 'Glass'
+    });
+    materials.push(glassMaterial);
+    
+    // Create mesh with all materials
+    const cube = new THREE.Mesh(geometry, materials);
+    cube.name = "LightingTestCube";
+    state.scene.add(cube);
+    
+    // Store in state
+    updateState('cube', cube);
+    
+    // Add to meshes array for visibility control
+    updateState('meshes', [cube]);
+    
+    // Set up mesh visibility panel
+    createMeshVisibilityPanel();
+    
+    console.log('Created lighting test cube with multiple materials');
+    return cube;
+}
+
+/**
  * Load and setup a custom model from file
  * @param {HTMLElement} loadingIndicator - Loading indicator element to show/hide
  * @returns {Promise} A promise that resolves when the model is loaded and set up
@@ -262,6 +355,7 @@ function processLoadedModel(gltf) {
  * Load the appropriate model for debugging
  * - If a custom model file was uploaded, load that
  * - Otherwise, create a default cube if at least one texture is available
+ * - Or create a lighting test cube if only a lighting file is provided
  * @returns {Promise} A promise that resolves when the model is loaded
  */
 export function loadDebugModel() {
@@ -334,9 +428,23 @@ export function loadDebugModel() {
                             loadingIndicator.style.display = 'none';
                         }
                     }
+                } else if (state.useLightingTestCube) {
+                    // Special case: Create a multi-material test cube for lighting showcase
+                    console.log('Creating lighting test cube...');
+                    try {
+                        createLightingTestCube();
+                        resolve();
+                    } catch (error) {
+                        reject(error);
+                    } finally {
+                        // Hide loading indicator
+                        if (loadingIndicator) {
+                            loadingIndicator.style.display = 'none';
+                        }
+                    }
                 } else {
-                    // No model and no textures, can't proceed with visualization
-                    console.log('Cannot create visualization: No model and no textures');
+                    // No model, no textures, and not a lighting test - can't proceed with visualization
+                    console.log('Cannot create visualization: No model, textures, or lighting file');
                     
                     // Hide loading indicator
                     if (loadingIndicator) {
@@ -363,6 +471,7 @@ export function loadDebugModel() {
 
 export default {
     createCube,
+    createLightingTestCube,
     loadAndSetupModel,
     loadDebugModel
 }; 
