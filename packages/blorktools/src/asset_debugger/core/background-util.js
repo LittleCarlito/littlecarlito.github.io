@@ -140,7 +140,11 @@ function loadStandardBackground(file, resolve, reject) {
         loader.load(
             event.target.result,
             (texture) => {
+                // For standard images, we'll now use equirectangular mapping
+                // to create a 360° background, just like HDR/EXR files
                 texture.mapping = THREE.EquirectangularReflectionMapping;
+                
+                // Apply the texture to the background
                 applyBackgroundTexture(texture, file);
                 textureCache.set(file.name, texture);
                 resolve(texture);
@@ -174,8 +178,11 @@ function applyBackgroundTexture(texture, originalFile) {
         return;
     }
 
-    // Set the background texture
-    state.scene.background = texture;
+    // Remove any existing background mesh if present
+    if (state.scene.userData.backgroundMesh) {
+        state.scene.remove(state.scene.userData.backgroundMesh);
+        state.scene.userData.backgroundMesh = null;
+    }
 
     // Store original file name in texture for reference
     if (originalFile && originalFile.name) {
@@ -183,6 +190,18 @@ function applyBackgroundTexture(texture, originalFile) {
         texture.userData.fileName = originalFile.name;
         console.log('[DEBUG] Added original filename to texture userData:', originalFile.name);
     }
+
+    // Check if this is an HDR/EXR or a standard image
+    const isHDR = texture.isHDRTexture || 
+        (originalFile && (
+            originalFile.name.toLowerCase().endsWith('.hdr') || 
+            originalFile.name.toLowerCase().endsWith('.exr')
+        ));
+
+    // Apply all textures directly to scene.background with equirectangular mapping
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    state.scene.background = texture;
+    console.log('[DEBUG] Applied texture directly to scene.background');
 
     // Update the state with the current background texture AND preserve the original file
     updateState({
@@ -204,4 +223,59 @@ function applyBackgroundTexture(texture, originalFile) {
     // Notify any UI components that need to update
     const event = new CustomEvent('background-updated', { detail: { texture } });
     document.dispatchEvent(event);
+} 
+
+/**
+ * Toggles the visibility of the background image 
+ * @param {boolean} visible - Whether the background should be visible
+ */
+export function toggleBackgroundVisibility(visible) {
+    const state = getState();
+    
+    if (!state.scene) {
+        console.error('Scene not available for background visibility toggle');
+        return;
+    }
+    
+    // Get the current background texture from state
+    const backgroundTexture = state.backgroundTexture;
+    const scene = state.scene;
+    
+    if (visible) {
+        // Show the background - apply the texture if available
+        if (backgroundTexture) {
+            console.log('[DEBUG] Showing background texture');
+            
+            // For all textures, set the scene background directly
+            scene.background = backgroundTexture;
+            console.log('[DEBUG] Restored background texture');
+            
+            // Dispatch event to notify UI components
+            const event = new CustomEvent('background-visibility-changed', { 
+                detail: { visible: true, texture: backgroundTexture } 
+            });
+            document.dispatchEvent(event);
+        } else if (state.backgroundFile) {
+            // If we have a background file but no texture, try to load it
+            console.log('[DEBUG] No texture but have file, reloading background:', 
+                state.backgroundFile.name);
+            setupBackgroundImage(state.backgroundFile);
+        }
+    } else {
+        // Hide the background
+        
+        // Save and hide any background
+        if (scene.background) {
+            if (!scene.userData) scene.userData = {};
+            scene.userData.savedBackground = scene.background;
+            scene.background = null;
+            console.log('[DEBUG] Background hidden');
+        }
+        
+        // Dispatch event to notify UI components
+        const event = new CustomEvent('background-visibility-changed', { 
+            detail: { visible: false } 
+        });
+        document.dispatchEvent(event);
+    }
 } 

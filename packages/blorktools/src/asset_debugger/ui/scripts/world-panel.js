@@ -410,7 +410,7 @@ function setupBgToggleListener() {
                             
                             // Update canvas opacity
                             updateCanvasOpacity('none');
-                        } 
+                        }
                         else if (selectedValue === 'background') {
                             // Enable background image, disable HDR
                             import('../../core/background-util.js').then(backgroundModule => {
@@ -430,15 +430,20 @@ function setupBgToggleListener() {
                         else if (selectedValue === 'hdr') {
                             // Enable HDR/EXR as background
                             if (state.scene.environment) {
-                                state.scene.background = state.scene.environment;
+                                // First disable the regular background texture if any
+                                import('../../core/background-util.js').then(backgroundModule => {
+                                    if (backgroundModule.toggleBackgroundVisibility) {
+                                        backgroundModule.toggleBackgroundVisibility(false);
+                                    }
+                                    
+                                    // Then set the environment as the background
+                                    // Important: Do this AFTER hiding the regular background to avoid conflicts
+                                    console.log('[DEBUG] Setting environment as background texture');
+                                    state.scene.background = state.scene.environment;
+                                });
+                            } else {
+                                console.warn('No environment texture available for background');
                             }
-                            
-                            // Disable regular background image
-                            import('../../core/background-util.js').then(backgroundModule => {
-                                if (backgroundModule.toggleBackgroundVisibility) {
-                                    backgroundModule.toggleBackgroundVisibility(false);
-                                }
-                            });
                             
                             // Update canvas opacity
                             updateCanvasOpacity('hdr');
