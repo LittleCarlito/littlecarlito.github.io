@@ -1394,7 +1394,92 @@ export function renderBackgroundPreview(fileOrTexture) {
     try {
         // Different handling based on what type of data we have
         if (fileOrTexture instanceof File || fileOrTexture instanceof Blob) {
-            // For File or Blob objects, create an image element and draw to canvas
+            const fileName = fileOrTexture.name ? fileOrTexture.name.toLowerCase() : '';
+            const isEXR = fileName.endsWith('.exr');
+            const isHDR = fileName.endsWith('.hdr');
+            
+            // Special handling for EXR/HDR files
+            if (isEXR || isHDR) {
+                console.log(`Handling ${isEXR ? 'EXR' : 'HDR'} file with special loader`);
+                
+                // Create metadata early for better UX
+                if (!currentBackgroundMetadata) {
+                    currentBackgroundMetadata = {
+                        fileName: fileOrTexture.name,
+                        type: isEXR ? 'EXR' : 'HDR',
+                        dimensions: { width: 0, height: 0 }, // Will be updated when loaded
+                        fileSizeBytes: fileOrTexture.size
+                    };
+                    updateBackgroundInfo(currentBackgroundMetadata);
+                }
+                
+                // Set canvas to square for sphere preview
+                const previewSize = 260;
+                canvas.width = previewSize;
+                canvas.height = previewSize;
+                
+                // Load the file with the appropriate loader
+                const loadHDRorEXR = async () => {
+                    try {
+                        // Import THREE dynamically if needed
+                        const THREE = window.THREE || await import('three');
+                        
+                        // Choose the right loader based on file type
+                        let loader;
+                        if (isEXR) {
+                            const { EXRLoader } = await import('three/addons/loaders/EXRLoader.js');
+                            loader = new EXRLoader();
+                        } else {
+                            const { RGBELoader } = await import('three/addons/loaders/RGBELoader.js');
+                            loader = new RGBELoader();
+                        }
+                        
+                        // Create a file URL
+                        const url = URL.createObjectURL(fileOrTexture);
+                        
+                        // Load the texture
+                        loader.load(url, 
+                            // onLoad callback
+                            (texture) => {
+                                // Update metadata with actual dimensions
+                                if (currentBackgroundMetadata) {
+                                    currentBackgroundMetadata.dimensions = {
+                                        width: texture.image.width,
+                                        height: texture.image.height
+                                    };
+                                    updateBackgroundInfo(currentBackgroundMetadata);
+                                }
+                                
+                                // Create sphere preview with the texture
+                                createSpherePreview(THREE, texture, canvas, noImageMessage);
+                                
+                                // Clean up URL object
+                                URL.revokeObjectURL(url);
+                            },
+                            // onProgress callback
+                            (xhr) => {
+                                const percentComplete = xhr.loaded / xhr.total * 100;
+                                console.log(`${isEXR ? 'EXR' : 'HDR'} loading: ${Math.round(percentComplete)}%`);
+                            },
+                            // onError callback
+                            (error) => {
+                                console.error(`Error loading ${isEXR ? 'EXR' : 'HDR'} file:`, error);
+                                showNoBackgroundImageMessage(canvas, noImageMessage, `Error loading ${isEXR ? 'EXR' : 'HDR'} file`);
+                                URL.revokeObjectURL(url);
+                            }
+                        );
+                    } catch (error) {
+                        console.error(`Error in ${isEXR ? 'EXR' : 'HDR'} loading:`, error);
+                        showNoBackgroundImageMessage(canvas, noImageMessage, `Error: Could not load ${isEXR ? 'EXR' : 'HDR'} file`);
+                    }
+                };
+                
+                // Start loading
+                loadHDRorEXR();
+                return true;
+            }
+            
+            // For standard image files, create a texture and use 3D sphere preview
             const url = URL.createObjectURL(fileOrTexture);
             const img = new Image();
             
@@ -1407,21 +1492,62 @@ export function renderBackgroundPreview(fileOrTexture) {
                 if (!currentBackgroundMetadata) {
                     currentBackgroundMetadata = {
                         fileName: fileOrTexture.name,
-                        type: fileOrTexture.type,
+                        type: fileOrTexture.type || 'Image',
                         dimensions: { width, height },
                         fileSizeBytes: fileOrTexture.size
                     };
                     updateBackgroundInfo(currentBackgroundMetadata);
                 }
                 
-                // Draw to canvas
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
+                // Set canvas size (square for the sphere preview)
+                const previewSize = 260;
+                canvas.width = previewSize;
+                canvas.height = previewSize;
                 
-                // Clean up URL object
-                URL.revokeObjectURL(url);
+                // Create texture from loaded image and create sphere preview
+                try {
+                    // Import THREE.js dynamically if needed
+                    if (window.THREE) {
+                        const textureLoader = new window.THREE.TextureLoader();
+                        const texture = textureLoader.load(url);
+                        
+                        // Use the same sphere preview as for environment maps
+                        createSpherePreview(window.THREE, texture, canvas, noImageMessage);
+                        
+                        // Clean up URL object after texture is loaded
+                        URL.revokeObjectURL(url);
+                    } else {
+                        // If THREE is not available globally, try to import it
+                        import('three').then((ThreeModule) => {
+                            const THREE = ThreeModule.default || ThreeModule;
+                            const textureLoader = new THREE.TextureLoader();
+                            const texture = textureLoader.load(url, () => {
+                                // Clean up URL object after texture is loaded
+                                URL.revokeObjectURL(url);
+                            });
+                            
+                            createSpherePreview(THREE, texture, canvas, noImageMessage);
+                        }).catch(error => {
+                            console.error('Error importing Three.js:', error);
+                            
+                            // Fall back to 2D canvas if THREE.js import fails
+                            const ctx = canvas.getContext('2d');
+                            canvas.width = width;
+                            canvas.height = height;
+                            ctx.drawImage(img, 0, 0, width, height);
+                            URL.revokeObjectURL(url);
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error creating sphere preview:', error);
+                    
+                    // Fall back to 2D canvas if sphere preview fails
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
+                    URL.revokeObjectURL(url);
+                }
             };
             
             img.onerror = function() {
@@ -1433,163 +1559,60 @@ export function renderBackgroundPreview(fileOrTexture) {
             img.src = url;
             return true;
         } else if (typeof fileOrTexture === 'object' && fileOrTexture.isTexture) {
-            // For THREE.Texture objects
+            // For THREE.Texture objects, use sphere preview directly
             
-            // Try multiple approaches to render the texture
-            let rendered = false;
-            
-            // Method 1: If texture has an HTMLImageElement or HTMLCanvasElement
-            if (fileOrTexture.image && 
-                (fileOrTexture.image instanceof HTMLImageElement || 
-                 fileOrTexture.image instanceof HTMLCanvasElement ||
-                 fileOrTexture.image instanceof ImageBitmap)) {
-                
-                try {
-                    const ctx = canvas.getContext('2d');
-                    canvas.width = fileOrTexture.image.width || 260;
-                    canvas.height = fileOrTexture.image.height || 260;
-                    
-                    ctx.drawImage(fileOrTexture.image, 0, 0, canvas.width, canvas.height);
-                    rendered = true;
-                    
-                    // Create metadata if not present
-                    if (!currentBackgroundMetadata) {
-                        currentBackgroundMetadata = {
-                            fileName: fileOrTexture.userData?.fileName || 'Background Texture',
-                            type: fileOrTexture.isHDRTexture ? 'HDR Texture' : 'Standard Texture',
-                            dimensions: { 
-                                width: fileOrTexture.image.width, 
-                                height: fileOrTexture.image.height 
-                            },
-                            fileSizeBytes: 0 // Unknown size
-                        };
-                        updateBackgroundInfo(currentBackgroundMetadata);
-                    }
-                } catch (e) {
-                    console.error('Error drawing texture to canvas:', e);
-                    rendered = false;
-                }
+            // Create metadata if not present
+            if (!currentBackgroundMetadata) {
+                currentBackgroundMetadata = {
+                    fileName: fileOrTexture.userData?.fileName || 'Background Texture',
+                    type: fileOrTexture.isHDRTexture ? 'HDR Texture' : 'Standard Texture',
+                    dimensions: { 
+                        width: fileOrTexture.image ? fileOrTexture.image.width : 0, 
+                        height: fileOrTexture.image ? fileOrTexture.image.height : 0 
+                    },
+                    fileSizeBytes: 0 // Unknown size
+                };
+                updateBackgroundInfo(currentBackgroundMetadata);
             }
             
-            // Method 2: If texture has raw data array
-            if (!rendered && fileOrTexture.image && fileOrTexture.image.data) {
-                try {
-                    const ctx = canvas.getContext('2d');
-                    canvas.width = fileOrTexture.image.width || 260;
-                    canvas.height = fileOrTexture.image.height || 260;
-                    
-                    // If it's Float32Array, we need to normalize to 0-255 range for display
-                    if (fileOrTexture.image.data instanceof Float32Array) {
-                        const imageData = ctx.createImageData(canvas.width, canvas.height);
-                        const data = fileOrTexture.image.data;
-                        
-                        // Simplified HDR to LDR conversion for preview
-                        for (let i = 0; i < data.length; i += 4) {
-                            const r = Math.min(255, Math.max(0, Math.round(data[i] * 255)));
-                            const g = Math.min(255, Math.max(0, Math.round(data[i+1] * 255)));
-                            const b = Math.min(255, Math.max(0, Math.round(data[i+2] * 255)));
-                            const a = Math.min(255, Math.max(0, Math.round(data[i+3] * 255)));
-                            
-                            imageData.data[i] = r;
-                            imageData.data[i+1] = g;
-                            imageData.data[i+2] = b;
-                            imageData.data[i+3] = a;
-                        }
-                        
-                        ctx.putImageData(imageData, 0, 0);
-                        rendered = true;
-                    } 
-                    // If it's already Uint8ClampedArray or similar, we can use it directly
-                    else {
-                        const imageData = new ImageData(
-                            new Uint8ClampedArray(fileOrTexture.image.data),
-                            fileOrTexture.image.width,
-                            fileOrTexture.image.height
-                        );
-                        ctx.putImageData(imageData, 0, 0);
-                        rendered = true;
-                    }
-                    
-                    // Create metadata if not present
-                    if (!currentBackgroundMetadata) {
-                        currentBackgroundMetadata = {
-                            fileName: fileOrTexture.userData?.fileName || 'Background Texture',
-                            type: fileOrTexture.isHDRTexture ? 'HDR Texture' : 'Data Texture',
-                            dimensions: { 
-                                width: fileOrTexture.image.width, 
-                                height: fileOrTexture.image.height 
-                            },
-                            fileSizeBytes: fileOrTexture.image.data.length * 4 // Approximate size
-                        };
-                        updateBackgroundInfo(currentBackgroundMetadata);
-                    }
-                } catch (e) {
-                    console.error('Error creating ImageData from texture:', e);
-                    rendered = false;
+            // Set canvas size (square for the sphere preview)
+            const previewSize = 260;
+            canvas.width = previewSize;
+            canvas.height = previewSize;
+            
+            try {
+                // Use the same sphere preview as for environment maps
+                if (window.THREE) {
+                    createSpherePreview(window.THREE, fileOrTexture, canvas, noImageMessage);
+                    return true;
+                } else {
+                    // If THREE is not available globally, try to import it
+                    import('three').then((ThreeModule) => {
+                        const THREE = ThreeModule.default || ThreeModule;
+                        createSpherePreview(THREE, fileOrTexture, canvas, noImageMessage);
+                        return true;
+                    }).catch(error => {
+                        console.error('Error importing Three.js:', error);
+                        fallbackTo2DPreview(fileOrTexture, canvas);
+                        return false;
+                    });
                 }
+            } catch (error) {
+                console.error('Error creating sphere preview for texture:', error);
+                fallbackTo2DPreview(fileOrTexture, canvas);
             }
             
-            // Method 3: Create a simple fallback if all else fails
-            if (!rendered) {
-                const ctx = canvas.getContext('2d');
-                canvas.width = 260;
-                canvas.height = 260;
-                
-                // Draw a gradient with the texture type as label
-                const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-                gradient.addColorStop(0, '#2a9d8f');
-                gradient.addColorStop(1, '#264653');
-                
-                // Fill with gradient
-                ctx.fillStyle = gradient;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                // Add texture info as text
-                ctx.fillStyle = 'white';
-                ctx.font = 'bold 16px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('Texture Preview', canvas.width/2, canvas.height/2 - 15);
-                ctx.font = '12px sans-serif';
-                
-                const textureType = fileOrTexture.isHDRTexture 
-                    ? 'HDR Texture' 
-                    : fileOrTexture.isDataTexture 
-                        ? 'Data Texture' 
-                        : 'Standard Texture';
-                
-                ctx.fillText(textureType, canvas.width/2, canvas.height/2 + 15);
-                
-                // Create metadata if not present
-                if (!currentBackgroundMetadata) {
-                    currentBackgroundMetadata = {
-                        fileName: fileOrTexture.userData?.fileName || 'Background Texture',
-                        type: textureType,
-                        dimensions: { 
-                            width: fileOrTexture.image?.width || 0, 
-                            height: fileOrTexture.image?.height || 0 
-                        },
-                        fileSizeBytes: 0 // Unknown size
-                    };
-                    updateBackgroundInfo(currentBackgroundMetadata);
-                }
-                
-                rendered = true;
-            }
-            
-            return rendered;
+            return true;
         } else {
-            console.warn('Unknown background data type:', typeof fileOrTexture);
-            showNoBackgroundImageMessage(canvas, noImageMessage, 'Unsupported data format');
+            console.error('Unknown fileOrTexture type:', fileOrTexture);
+            showNoBackgroundImageMessage(canvas, noImageMessage, 'Unsupported background format.');
             return false;
         }
     } catch (error) {
-        console.error('Error rendering background preview:', error);
+        console.error('Error in renderBackgroundPreview:', error);
         showNoBackgroundImageMessage(canvas, noImageMessage, `Error: ${error.message}`);
         return false;
     }
-    
-    return true;
 }
 
 /**
