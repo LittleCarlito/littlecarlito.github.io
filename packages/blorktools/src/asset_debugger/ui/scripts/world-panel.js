@@ -28,7 +28,7 @@ let currentBackgroundOption = 'none';
  * Initialize the World panel and cache DOM elements
  */
 export function initWorldPanel() {
-    console.log('Initializing World Panel...');
+    console.log('[DEBUG] Initializing World Panel...');
     
     // Look for world-tab (from world-panel.html) or world-tab-container (from asset_debugger.html)
     const worldPanel = document.getElementById('world-tab') || document.getElementById('world-tab-container');
@@ -38,18 +38,30 @@ export function initWorldPanel() {
         return;
     }
     
-    console.log('World panel found, initializing...');
+    console.log('[DEBUG] World panel found, initializing...');
     
     // Check background image option visibility at startup
     const state = getState();
+    console.log('[DEBUG] Current state at panel init:', {
+        backgroundFile: state.backgroundFile ? `${state.backgroundFile.name} (${state.backgroundFile.type})` : 'null',
+        backgroundTexture: state.backgroundTexture ? 'Texture present' : 'null',
+        scene: state.scene ? 'Scene present' : 'null'
+    });
+    
     const bgImageRadio = document.getElementById('bg-background');
     
     if (bgImageRadio) {
         const bgImageOption = bgImageRadio.closest('.collapsible-header');
         if (bgImageOption) {
-            // Initially hide the background image option if we don't have a background file
-            if (!state.backgroundFile) {
+            // Initially hide the background image option if we don't have a background file or texture
+            const hasBackground = state.backgroundFile || state.backgroundTexture;
+            console.log('[DEBUG] Has background at init:', hasBackground);
+            if (!hasBackground) {
                 bgImageOption.style.display = 'none';
+                console.log('[DEBUG] Hiding background image option at init');
+            } else {
+                console.log('[DEBUG] Showing background image option at init');
+                bgImageOption.style.display = 'flex';
             }
         }
     }
@@ -468,14 +480,24 @@ function updateBackgroundMessage() {
     const backgroundDataInfo = document.querySelector('.background-data-info');
     
     if (!noBackgroundMessage || !backgroundDataInfo) {
-        console.warn('Background message elements not found');
+        console.warn('[DEBUG] Background message elements not found');
         return;
     }
     
     const hasEnvironment = state.scene && state.scene.environment;
     const hasBackgroundFile = state.backgroundFile;
+    const hasBackgroundTexture = state.backgroundTexture;
+    const hasBackground = hasBackgroundFile || hasBackgroundTexture;
     
-    if (hasEnvironment || hasBackgroundFile) {
+    console.log('[DEBUG] In updateBackgroundMessage:', {
+        hasEnvironment, 
+        hasBackgroundFile: hasBackgroundFile ? `${hasBackgroundFile.name} (${hasBackgroundFile.type})` : false,
+        hasBackgroundTexture: hasBackgroundTexture ? 'present' : false,
+        hasBackground,
+        currentBackgroundOption
+    });
+    
+    if (hasEnvironment || hasBackground) {
         noBackgroundMessage.style.display = 'none';
         backgroundDataInfo.style.display = 'block';
         
@@ -487,11 +509,12 @@ function updateBackgroundMessage() {
             const bgImageOption = bgImageRadio.closest('.collapsible-header');
             
             if (bgImageOption) {
-                if (hasBackgroundFile) {
-                    // Show the background image option if we have a background file
+                if (hasBackground) {
+                    // Show the background image option if we have a background file or texture
+                    console.log('[DEBUG] Showing background image option in updateBackgroundMessage');
                     bgImageOption.style.display = 'flex';
                     // If background was previously selected but file is gone, select HDR instead
-                    if (currentBackgroundOption === 'background' && !hasBackgroundFile) {
+                    if (currentBackgroundOption === 'background' && !hasBackground) {
                         const hdrRadio = document.getElementById('bg-hdr');
                         if (hdrRadio && hasEnvironment) {
                             hdrRadio.checked = true;
@@ -509,7 +532,8 @@ function updateBackgroundMessage() {
                         }
                     }
                 } else {
-                    // Hide the background image option if we don't have a background file
+                    // Hide the background image option if we don't have a background file or texture
+                    console.log('[DEBUG] Hiding background image option in updateBackgroundMessage');
                     bgImageOption.style.display = 'none';
                     // If background was previously selected but file is gone, select HDR instead
                     if (currentBackgroundOption === 'background') {
@@ -1793,6 +1817,7 @@ window.testRenderExr = testRenderExr;
  */
 function applyBackgroundBasedOnPriority() {
     const state = getState();
+    const hasBackground = state.backgroundFile || state.backgroundTexture;
     
     // Control visibility of background image option based on whether there's a background file
     const bgImageRadio = document.getElementById('bg-background');
@@ -1802,8 +1827,8 @@ function applyBackgroundBasedOnPriority() {
         const bgImageOption = bgImageRadio.closest('.collapsible-header');
         
         if (bgImageOption) {
-            // Show/hide based on whether we have a background file
-            if (state.backgroundFile) {
+            // Show/hide based on whether we have a background file or texture
+            if (hasBackground) {
                 bgImageOption.style.display = 'flex';
             } else {
                 bgImageOption.style.display = 'none';

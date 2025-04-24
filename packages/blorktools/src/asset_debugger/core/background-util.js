@@ -37,7 +37,7 @@ export function setupBackgroundImage(backgroundFile) {
         // Check if we've already loaded this texture
         const cachedTexture = textureCache.get(backgroundFile.name);
         if (cachedTexture) {
-            applyBackgroundTexture(cachedTexture);
+            applyBackgroundTexture(cachedTexture, backgroundFile);
             resolve(cachedTexture);
             return;
         }
@@ -77,7 +77,7 @@ function loadHDRBackground(file, resolve, reject) {
             event.target.result,
             (texture) => {
                 texture.mapping = THREE.EquirectangularReflectionMapping;
-                applyBackgroundTexture(texture);
+                applyBackgroundTexture(texture, file);
                 textureCache.set(file.name, texture);
                 resolve(texture);
             },
@@ -109,7 +109,7 @@ function loadEXRBackground(file, resolve, reject) {
             event.target.result,
             (texture) => {
                 texture.mapping = THREE.EquirectangularReflectionMapping;
-                applyBackgroundTexture(texture);
+                applyBackgroundTexture(texture, file);
                 textureCache.set(file.name, texture);
                 resolve(texture);
             },
@@ -141,7 +141,7 @@ function loadStandardBackground(file, resolve, reject) {
             event.target.result,
             (texture) => {
                 texture.mapping = THREE.EquirectangularReflectionMapping;
-                applyBackgroundTexture(texture);
+                applyBackgroundTexture(texture, file);
                 textureCache.set(file.name, texture);
                 resolve(texture);
             },
@@ -162,8 +162,12 @@ function loadStandardBackground(file, resolve, reject) {
 /**
  * Applies the loaded texture as scene background
  * @param {THREE.Texture} texture - The loaded texture
+ * @param {File} originalFile - The original file that was loaded
  */
-function applyBackgroundTexture(texture) {
+function applyBackgroundTexture(texture, originalFile) {
+    console.log('[DEBUG] Applying background texture with original file:', 
+        originalFile ? originalFile.name : 'no original file provided');
+    
     const state = getState();
     if (!state.scene) {
         console.error('Scene not available for background application');
@@ -173,9 +177,28 @@ function applyBackgroundTexture(texture) {
     // Set the background texture
     state.scene.background = texture;
 
-    // Update the state with the current background texture
+    // Store original file name in texture for reference
+    if (originalFile && originalFile.name) {
+        if (!texture.userData) texture.userData = {};
+        texture.userData.fileName = originalFile.name;
+        console.log('[DEBUG] Added original filename to texture userData:', originalFile.name);
+    }
+
+    // Update the state with the current background texture AND preserve the original file
     updateState({
-        backgroundTexture: texture
+        backgroundTexture: texture,
+        backgroundFile: originalFile || state.backgroundFile // Preserve the original file
+    });
+    
+    console.log('[DEBUG] Updated state with texture and preserved backgroundFile:', 
+        originalFile ? originalFile.name : (state.backgroundFile ? state.backgroundFile.name : 'none'));
+    
+    // Check if the backgroundFile was actually preserved
+    const updatedState = getState();
+    console.log('[DEBUG] State verification after update:', {
+        hasBackgroundFile: updatedState.backgroundFile ? true : false,
+        backgroundFileName: updatedState.backgroundFile ? updatedState.backgroundFile.name : 'none',
+        hasBackgroundTexture: updatedState.backgroundTexture ? true : false
     });
 
     // Notify any UI components that need to update

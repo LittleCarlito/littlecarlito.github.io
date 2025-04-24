@@ -138,7 +138,16 @@ export function updateState(key, value) {
         initState();
     }
     
-    state[key] = value;
+    if (typeof key === 'object') {
+        // If key is an object, use it directly as updates
+        Object.assign(state, key);
+    } else {
+        state[key] = value;
+    }
+    
+    // Ensure window.assetDebuggerState is always updated
+    window.assetDebuggerState = state;
+    
     return state;
 }
 
@@ -153,6 +162,10 @@ export function setState(updates) {
     }
     
     Object.assign(state, updates);
+    
+    // Ensure window.assetDebuggerState is always updated
+    window.assetDebuggerState = state;
+    
     return state;
 }
 
@@ -214,6 +227,8 @@ export function setupBackgroundDropzone() {
         const validExtensions = ['hdr', 'exr', 'jpg', 'jpeg', 'png', 'webp', 'tiff'];
         const extension = file.name.split('.').pop().toLowerCase();
         
+        console.log('[DEBUG] Background file processing:', file.name, 'type:', file.type, 'size:', file.size);
+        
         if (!validExtensions.includes(extension)) {
             alert(`Unsupported file format. Please upload an HDR, EXR, JPEG, PNG, WebP, or TIFF file.`);
             return;
@@ -242,6 +257,15 @@ export function setupBackgroundDropzone() {
         // Update state with the background file
         updateState({
             backgroundFile: file
+        });
+        
+        console.log('[DEBUG] Updated state with background file:', file.name);
+        
+        // Verify the state was actually updated
+        const currentState = getState();
+        console.log('[DEBUG] State after background update:', {
+            hasBackgroundFile: currentState.backgroundFile ? true : false,
+            backgroundFileName: currentState.backgroundFile ? currentState.backgroundFile.name : 'none'
         });
     }
 }

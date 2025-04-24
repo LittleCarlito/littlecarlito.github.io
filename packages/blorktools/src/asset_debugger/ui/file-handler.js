@@ -691,6 +691,12 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             
                             // Check if start button should be enabled
                             checkStartButton();
+                            
+                            // Update state with the background texture
+                            updateState({ 
+                                backgroundTexture: texture,
+                                backgroundFile: file  // Preserve the file reference
+                            });
                         }, undefined, error => {
                             console.error('Error loading EXR texture:', error);
                             createFallbackSphere(canvas);
@@ -738,6 +744,12 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             
                             // Check if start button should be enabled
                             checkStartButton();
+                            
+                            // Update state with the background texture
+                            updateState({ 
+                                backgroundTexture: texture,
+                                backgroundFile: file  // Preserve the file reference
+                            });
                         }, undefined, error => {
                             console.error('Error loading HDR texture:', error);
                             createFallbackSphere(canvas);
@@ -1004,7 +1016,10 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                         hidePreviewLoading(containerDiv);
                         
                         // Update state with the background texture
-                        updateState({ backgroundTexture: texture });
+                        updateState({ 
+                            backgroundTexture: texture,
+                            backgroundFile: file  // Preserve the file reference
+                        });
                         
                         // Re-check if start button should be enabled
                         checkStartButton();
@@ -1085,7 +1100,10 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                         hidePreviewLoading(containerDiv);
                         
                         // Update state with the background texture
-                        updateState({ backgroundTexture: texture });
+                        updateState({ 
+                            backgroundTexture: texture,
+                            backgroundFile: file  // Preserve the file reference
+                        });
                         
                         // Re-check if start button should be enabled
                         checkStartButton();
@@ -1159,7 +1177,10 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                     hidePreviewLoading(containerDiv);
                     
                     // Update state with the background texture
-                    updateState({ backgroundTexture: texture });
+                    updateState({ 
+                        backgroundTexture: texture,
+                        backgroundFile: file  // Preserve the file reference
+                    });
                     
                     // Re-check if start button should be enabled
                     checkStartButton();
