@@ -47,7 +47,8 @@ function preventDefaultDragEvents() {
             'orm-dropzone', 
             'normal-dropzone',
             'model-dropzone',
-            'lighting-dropzone'
+            'lighting-dropzone',
+            'background-dropzone'
         ];
         
         if (dropzoneIds.some(id => e.target.id === id || e.target.closest(`#${id}`))) {

@@ -88,7 +88,11 @@ const initialState = {
         currentAnimation: null,
         playAnimation: false,
         animationSpeed: 1.0
-    }
+    },
+    
+    // Background file
+    backgroundFile: null,
+    backgroundTexture: null,
 };
 
 // The actual state object
@@ -145,6 +149,96 @@ export function resetState() {
     state = { ...initialState };
     window.assetDebuggerState = state;
     return state;
+}
+
+/**
+ * Setup a file drop handler for the background image dropzone
+ */
+export function setupBackgroundDropzone() {
+    const dropzone = document.getElementById('background-dropzone');
+    const info = document.getElementById('background-info');
+    const preview = document.getElementById('background-preview');
+    
+    if (!dropzone) return;
+    
+    // Prevent default drag behaviors
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    // Highlight drop area when item is dragged over it
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, unhighlight, false);
+    });
+    
+    // Handle dropped files
+    dropzone.addEventListener('drop', handleBackgroundDrop, false);
+    
+    // Handle file input changes (if there's a file input)
+    const fileInput = dropzone.querySelector('input[type="file"]');
+    if (fileInput) {
+        fileInput.addEventListener('change', (e) => {
+            handleBackgroundFiles(e.target.files);
+        });
+    }
+    
+    function handleBackgroundDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        handleBackgroundFiles(files);
+    }
+    
+    function handleBackgroundFiles(files) {
+        if (files.length === 0) return;
+        
+        const file = files[0]; // Use only the first file
+        const validExtensions = ['hdr', 'exr', 'jpg', 'jpeg', 'png', 'webp', 'tiff'];
+        const extension = file.name.split('.').pop().toLowerCase();
+        
+        if (!validExtensions.includes(extension)) {
+            alert(`Unsupported file format. Please upload an HDR, EXR, JPEG, PNG, WebP, or TIFF file.`);
+            return;
+        }
+        
+        // Update the information display
+        info.textContent = `${file.name} (${formatFileSize(file.size)})`;
+        
+        // Generate a preview if possible
+        if (['jpg', 'jpeg', 'png', 'webp'].includes(extension)) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.style.backgroundImage = `url(${e.target.result})`;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        } else {
+            // For HDR/EXR, show a placeholder or icon
+            preview.style.backgroundImage = '';
+            preview.textContent = 'HDR/EXR Preview Not Available';
+            preview.style.display = 'flex';
+            preview.style.alignItems = 'center';
+            preview.style.justifyContent = 'center';
+        }
+        
+        // Update state with the background file
+        updateState({
+            backgroundFile: file
+        });
+    }
+}
+
+// Make sure to call setupBackgroundDropzone in the initDropzones function or wherever appropriate
+export function initDropzones() {
+    // ... existing dropzone setup code ...
+    
+    // Set up the background dropzone
+    setupBackgroundDropzone();
+    
+    // ... more existing code ...
 }
 
 export default {

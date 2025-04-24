@@ -24,6 +24,7 @@ let resourcesLoaded = {
     componentsLoaded: false,
     sceneInitialized: false,
     lightingLoaded: false,
+    backgroundLoaded: false,
     modelLoaded: false,
     controlsReady: false
 };
@@ -175,6 +176,7 @@ function checkAllResourcesLoaded() {
     if (resourcesLoaded.componentsLoaded && 
         resourcesLoaded.sceneInitialized && 
         resourcesLoaded.lightingLoaded && 
+        resourcesLoaded.backgroundLoaded && 
         resourcesLoaded.modelLoaded &&
         resourcesLoaded.controlsReady) {
         
@@ -539,7 +541,15 @@ function verifyFileDrop() {
         const hasLightingFile = currentState.lightingFile && 
                               (currentState.lightingFile.name.toLowerCase().endsWith('.hdr') || 
                                currentState.lightingFile.name.toLowerCase().endsWith('.exr'));
-        const hasFiles = hasTextures || hasModel || hasLightingFile;
+        const hasBackgroundFile = currentState.backgroundFile && 
+                               (currentState.backgroundFile.name.toLowerCase().endsWith('.hdr') || 
+                                currentState.backgroundFile.name.toLowerCase().endsWith('.exr') ||
+                                currentState.backgroundFile.name.toLowerCase().endsWith('.jpg') ||
+                                currentState.backgroundFile.name.toLowerCase().endsWith('.jpeg') ||
+                                currentState.backgroundFile.name.toLowerCase().endsWith('.png') ||
+                                currentState.backgroundFile.name.toLowerCase().endsWith('.webp') ||
+                                currentState.backgroundFile.name.toLowerCase().endsWith('.tiff'));
+        const hasFiles = hasTextures || hasModel || hasLightingFile || hasBackgroundFile;
         
         // If no files were dropped, show examples modal
         if (!hasFiles) {
@@ -618,6 +628,9 @@ function startDebugging() {
                 .then(stateModule => {
                     const currentState = stateModule.getState();
                     const lightingFile = currentState.lightingFile;
+                    const backgroundFile = currentState.backgroundFile;
+                    let lightingPromise = Promise.resolve();
+                    let backgroundPromise = Promise.resolve();
                     
                     if (lightingFile && 
                         (lightingFile.name.toLowerCase().endsWith('.hdr') || 
@@ -626,7 +639,7 @@ function startDebugging() {
                         console.log('Setting up environment lighting from:', lightingFile.name);
                         
                         // Import lighting utilities
-                        return import('../../core/lighting-util.js')
+                        lightingPromise = import('../../core/lighting-util.js')
                             .then(lightingModule => {
                                 // First parse the metadata (for info display)
                                 return lightingModule.parseLightingData(lightingFile)
@@ -651,13 +664,32 @@ function startDebugging() {
                                         return Promise.resolve(); // Continue chain
                                     });
                             });
-                    } else {
-                        // No lighting file, just continue with the chain
-                        return Promise.resolve();
                     }
+                    
+                    if (backgroundFile) {
+                        console.log('Setting up background image from:', backgroundFile.name);
+                        
+                        // Import background image utilities (this would need to be implemented)
+                        backgroundPromise = import('../../core/background-util.js')
+                            .then(backgroundModule => {
+                                return backgroundModule.setupBackgroundImage(backgroundFile)
+                                    .catch(error => {
+                                        console.error('Error setting up background image:', error);
+                                        return Promise.resolve(); // Continue chain
+                                    });
+                            })
+                            .catch(error => {
+                                console.error('Error importing background utilities:', error);
+                                return Promise.resolve(); // Continue chain
+                            });
+                    }
+                    
+                    // Return a promise that resolves when both operations are complete
+                    return Promise.all([lightingPromise, backgroundPromise]);
                 })
                 .then(() => {
                     resourcesLoaded.lightingLoaded = true;
+                    resourcesLoaded.backgroundLoaded = true;
                     checkAllResourcesLoaded();
                 });
         })

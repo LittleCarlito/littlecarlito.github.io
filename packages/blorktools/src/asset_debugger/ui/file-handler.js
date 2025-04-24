@@ -113,13 +113,15 @@ export function setupDropzones() {
     const normalDropzone = document.getElementById('normal-dropzone');
     const modelDropzone = document.getElementById('model-dropzone');
     const lightingDropzone = document.getElementById('lighting-dropzone');
+    const backgroundDropzone = document.getElementById('background-dropzone');
     
     console.log('Dropzone elements found:', {
         baseColor: !!baseColorDropzone,
         orm: !!ormDropzone,
         normal: !!normalDropzone,
         model: !!modelDropzone,
-        lighting: !!lightingDropzone
+        lighting: !!lightingDropzone,
+        background: !!backgroundDropzone
     });
     
     // Get info elements
@@ -128,6 +130,7 @@ export function setupDropzones() {
     const normalInfo = document.getElementById('normal-info');
     const modelInfo = document.getElementById('model-info');
     const lightingInfo = document.getElementById('lighting-info');
+    const backgroundInfo = document.getElementById('background-info');
     
     // Ensure the start button is disabled initially
     checkStartButton();
@@ -151,6 +154,10 @@ export function setupDropzones() {
     
     if (lightingDropzone && lightingInfo) {
         setupDropzone(lightingDropzone, 'lighting', lightingInfo);
+    }
+    
+    if (backgroundDropzone && backgroundInfo) {
+        setupDropzone(backgroundDropzone, 'background', backgroundInfo);
     }
     
     console.log('Dropzones setup complete');
@@ -210,6 +217,16 @@ function setupDropzone(dropzone, fileType, infoElement) {
                 alert('Please upload an HDR or EXR file for lighting');
                 return false;
             }
+        } else if (fileType === 'background') {
+            const validExtensions = ['.hdr', '.exr', '.jpg', '.jpeg', '.png', '.webp', '.tiff', '.tif'];
+            const isValidFile = file && validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+            
+            if (isValidFile) {
+                handleBackgroundUpload(file, infoElement, null, dropzone);
+            } else {
+                alert('Please upload a valid background image file (HDR, EXR, JPG, PNG, WebP, or TIFF)');
+                return false;
+            }
         } else {
             // Check for valid texture file extensions
             const validExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp'];
@@ -259,22 +276,27 @@ function setupDropzone(dropzone, fileType, infoElement) {
                         alert('Please upload an HDR or EXR file for lighting');
                     }
                 };
+            } else if (fileType === 'background') {
+                input.accept = '.hdr,.exr,.jpg,.jpeg,.png,.webp,.tiff,.tif';
+                
+                input.onchange = e => {
+                    const file = e.target.files[0];
+                    const validExtensions = ['.hdr', '.exr', '.jpg', '.jpeg', '.png', '.webp', '.tiff', '.tif'];
+                    const isValidFile = file && validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+                    
+                    if (isValidFile) {
+                        handleBackgroundUpload(file, infoElement, null, dropzone);
+                    } else if (file) {
+                        alert('Please upload a valid background image file (HDR, EXR, JPG, PNG, WebP, or TIFF)');
+                    }
+                };
             } else {
-                // Set accept attribute to specify valid image formats
                 input.accept = '.png,.jpg,.jpeg,.webp,.tif,.tiff,.bmp';
                 
                 input.onchange = e => {
                     const file = e.target.files[0];
                     if (file) {
-                        // Check for valid texture file extensions
-                        const validExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp'];
-                        const isValidTextureFile = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
-                        
-                        if (isValidTextureFile) {
-                            handleTextureUpload(file, fileType, infoElement, null, dropzone);
-                        } else {
-                            alert('Please upload a valid texture file (PNG, JPG, WEBP, TIF, BMP)');
-                        }
+                        handleTextureUpload(file, fileType, infoElement, null, dropzone);
                     }
                 };
             }
@@ -859,6 +881,91 @@ function checkStartButton() {
             console.log('Start debugging button is always enabled');
         }
     }
+}
+
+/**
+ * Handle background image file upload
+ * @param {File} file - The background image file
+ * @param {HTMLElement} infoElement - Element to display file info
+ * @param {HTMLElement} previewElement - Element to show preview (optional)
+ * @param {HTMLElement} dropzone - The dropzone element
+ */
+function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
+    if (!file) return;
+    
+    // Reference the preview container if not provided
+    if (!previewElement && dropzone) {
+        previewElement = dropzone.querySelector('.preview');
+    }
+    
+    // Show file info
+    if (infoElement) {
+        infoElement.textContent = `${file.name} (${formatFileSize(file.size)})`;
+    }
+    
+    // Show loading indicator
+    if (previewElement) {
+        showPreviewLoading(previewElement);
+    }
+    
+    // Mark the dropzone as having a file
+    if (dropzone) {
+        dropzone.classList.add('has-file');
+        
+        // Add clear button if not already there
+        if (!dropzone.querySelector('.clear-preview-button')) {
+            const clearButton = document.createElement('button');
+            clearButton.className = 'clear-preview-button';
+            clearButton.innerHTML = '×';
+            clearButton.title = 'Clear background image';
+            clearButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                clearDropzone(dropzone, 'background', 'Background Image');
+                
+                // Update state to remove the background image
+                updateState({ backgroundFile: null, backgroundTexture: null });
+                
+                // Re-check if start button should be enabled
+                checkStartButton();
+            });
+            dropzone.appendChild(clearButton);
+        }
+    }
+    
+    // Preview generation based on file type
+    if (previewElement) {
+        const fileExtension = file.name.split('.').pop().toLowerCase();
+        
+        if (['jpg', 'jpeg', 'png', 'webp'].includes(fileExtension)) {
+            // For standard image formats, show a direct preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                if (previewElement) {
+                    previewElement.style.backgroundImage = `url(${e.target.result})`;
+                    previewElement.style.backgroundSize = 'contain';
+                    previewElement.textContent = '';
+                    hidePreviewLoading(previewElement);
+                }
+            };
+            reader.readAsDataURL(file);
+        } else if (['hdr', 'exr'].includes(fileExtension)) {
+            // For HDR/EXR files, show a placeholder or icon
+            previewElement.style.backgroundImage = '';
+            previewElement.textContent = `${fileExtension.toUpperCase()} Preview`;
+            previewElement.style.display = 'flex';
+            previewElement.style.alignItems = 'center';
+            previewElement.style.justifyContent = 'center';
+            hidePreviewLoading(previewElement);
+        }
+    }
+    
+    // Update state with the background file
+    updateState({
+        backgroundFile: file
+    });
+    
+    // Re-check if start button should be enabled
+    checkStartButton();
 }
 
 export default {
