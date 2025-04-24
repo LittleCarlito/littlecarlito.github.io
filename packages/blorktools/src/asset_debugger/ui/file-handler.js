@@ -893,256 +893,101 @@ function checkStartButton() {
 function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
     if (!file) return;
     
-    // Reference the preview container if not provided
-    if (!previewElement && dropzone) {
-        previewElement = dropzone.querySelector('.preview');
-    }
+    // Store original h3 title
+    const originalTitle = dropzone.querySelector('h3').textContent;
     
-    // Show file info
-    if (infoElement) {
-        infoElement.textContent = `${file.name} (${formatFileSize(file.size)})`;
-    }
+    // Mark dropzone as having a file
+    dropzone.classList.add('has-file');
     
-    // Show loading indicator
-    if (previewElement) {
-        showPreviewLoading(previewElement);
-    }
+    // Clear the entire dropzone content
+    dropzone.innerHTML = '';
     
-    // Mark the dropzone as having a file
-    if (dropzone) {
-        dropzone.classList.add('has-file');
+    // Add back just the title as a header
+    const titleElement = document.createElement('h3');
+    titleElement.textContent = originalTitle;
+    dropzone.appendChild(titleElement);
+    
+    // Add a clear button
+    const clearButton = document.createElement('button');
+    clearButton.className = 'clear-preview-button';
+    clearButton.innerHTML = '&times;';
+    clearButton.title = 'Clear background image';
+    clearButton.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent dropzone click event
+        clearDropzone(dropzone, 'background', originalTitle);
         
-        // Add clear button if not already there
-        if (!dropzone.querySelector('.clear-preview-button')) {
-            const clearButton = document.createElement('button');
-            clearButton.className = 'clear-preview-button';
-            clearButton.innerHTML = '×';
-            clearButton.title = 'Clear background image';
-            clearButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-                clearDropzone(dropzone, 'background', 'Background Image');
+        // Reattach the dropzone event handlers
+        setupDropzone(dropzone, 'background', document.getElementById('background-info'));
+        
+        // Update state to remove the background image
+        updateState({ backgroundFile: null, backgroundTexture: null });
+        
+        // Re-check if start button should be enabled
+        checkStartButton();
+    });
+    dropzone.appendChild(clearButton);
+    
+    // Add file info
+    infoElement = document.createElement('p');
+    infoElement.className = 'file-info';
+    infoElement.id = 'background-info';
+    infoElement.textContent = `${file.name} (${formatFileSize(file.size)})`;
+    dropzone.appendChild(infoElement);
+    
+    // Create a container for the preview that will hold both the canvas and the loading indicator
+    const previewDiv = document.createElement('div');
+    previewDiv.className = 'preview';
+    dropzone.appendChild(previewDiv);
+    
+    const containerDiv = document.createElement('div');
+    containerDiv.className = 'hdr-preview-container';
+    previewDiv.appendChild(containerDiv);
+    
+    // Show loading state directly on the container
+    showPreviewLoading(containerDiv);
+    
+    // Create canvas for the preview with appropriate size
+    const canvas = document.createElement('canvas');
+    canvas.className = 'hdr-preview-canvas';
+    
+    // Make canvas dimensions equal for a square aspect ratio
+    const previewSize = 256;
+    canvas.width = previewSize;
+    canvas.height = previewSize;
+    
+    canvas.classList.add('hidden'); // Initially hidden until loaded
+    
+    // Create a message element for errors/status
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'no-image-message hidden';
+    
+    // Add elements to the container
+    containerDiv.appendChild(canvas);
+    containerDiv.appendChild(messageDiv);
+    
+    const fileExtension = file.name.split('.').pop().toLowerCase();
+    
+    // Process the file based on its type
+    if (['exr'].includes(fileExtension)) {
+        // EXR needs special loader
+        import('three').then(THREE => {
+            import('three/addons/loaders/EXRLoader.js').then(({ EXRLoader }) => {
+                const loader = new EXRLoader();
+                loader.setDataType(THREE.FloatType);
                 
-                // Update state to remove the background image
-                updateState({ backgroundFile: null, backgroundTexture: null });
-                
-                // Re-check if start button should be enabled
-                checkStartButton();
-            });
-            dropzone.appendChild(clearButton);
-        }
-    }
-    
-    // Preview generation for all image types
-    if (previewElement) {
-        const fileExtension = file.name.split('.').pop().toLowerCase();
-        
-        // Clear any existing content in the preview element
-        previewElement.innerHTML = '';
-        previewElement.style.backgroundImage = '';
-        
-        // Create a container for the preview
-        const containerDiv = document.createElement('div');
-        containerDiv.className = 'hdr-preview-container';
-        previewElement.appendChild(containerDiv);
-        
-        // Create canvas for the preview with appropriate size
-        const canvas = document.createElement('canvas');
-        canvas.className = 'hdr-preview-canvas';
-        
-        // Make canvas dimensions equal for a square aspect ratio
-        const previewSize = 256;
-        canvas.width = previewSize;
-        canvas.height = previewSize;
-        
-        canvas.classList.add('hidden'); // Initially hidden until loaded
-        
-        // Create a message element for errors/status
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'no-image-message hidden';
-        
-        // Add elements to the container
-        containerDiv.appendChild(canvas);
-        containerDiv.appendChild(messageDiv);
-        
-        // Process the file based on its type
-        if (['exr'].includes(fileExtension)) {
-            // EXR needs special loader
-            import('three').then(THREE => {
-                import('three/addons/loaders/EXRLoader.js').then(({ EXRLoader }) => {
-                    const loader = new EXRLoader();
-                    loader.setDataType(THREE.FloatType);
-                    
-                    // Create reader for the file
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const arrayBuffer = e.target.result;
-                        
-                        // Create a Blob and URL from the array buffer
-                        const blob = new Blob([arrayBuffer], { type: 'application/octet-stream' });
-                        const url = URL.createObjectURL(blob);
-                        
-                        loader.load(url, texture => {
-                            // Show the canvas
-                            canvas.classList.add('visible');
-                            canvas.classList.remove('hidden');
-                            
-                            // Use the world panel's renderEnvironmentPreview function
-                            if (worldPanelModule.renderEnvironmentPreview) {
-                                worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
-                            } else {
-                                // Fallback to simple sphere if function not available
-                                createFallbackSphere(canvas);
-                            }
-                            
-                            // Clean up URL after loading
-                            URL.revokeObjectURL(url);
-                            
-                            // Hide loading indicator
-                            hidePreviewLoading(previewElement);
-                            
-                            // Update state with the background texture
-                            updateState({ backgroundTexture: texture });
-                            
-                            // Re-check if start button should be enabled
-                            checkStartButton();
-                        }, undefined, error => {
-                            console.error('Error loading EXR background texture:', error);
-                            createFallbackSphere(canvas);
-                            canvas.classList.add('visible');
-                            canvas.classList.remove('hidden');
-                            hidePreviewLoading(previewElement);
-                            
-                            if (messageDiv) {
-                                messageDiv.classList.remove('hidden');
-                                messageDiv.classList.add('visible');
-                                messageDiv.textContent = 'Error loading EXR file';
-                            }
-                        });
-                    };
-                    
-                    reader.onerror = function() {
-                        console.error('Error reading file');
-                        hidePreviewLoading(previewElement);
-                        if (messageDiv) {
-                            messageDiv.classList.remove('hidden');
-                            messageDiv.classList.add('visible');
-                            messageDiv.textContent = 'Error reading file';
-                        }
-                    };
-                    
-                    reader.readAsArrayBuffer(file);
-                }).catch(error => {
-                    console.error('Error loading EXRLoader:', error);
-                    hidePreviewLoading(previewElement);
-                    createFallbackSphere(canvas);
-                    canvas.classList.add('visible');
-                    canvas.classList.remove('hidden');
-                });
-            }).catch(error => {
-                console.error('Error loading Three.js:', error);
-                hidePreviewLoading(previewElement);
-                if (messageDiv) {
-                    messageDiv.classList.remove('hidden');
-                    messageDiv.classList.add('visible');
-                    messageDiv.textContent = 'Error loading Three.js';
-                }
-            });
-        } else if (['hdr'].includes(fileExtension)) {
-            // HDR needs special loader
-            import('three').then(THREE => {
-                import('three/addons/loaders/RGBELoader.js').then(({ RGBELoader }) => {
-                    const loader = new RGBELoader();
-                    
-                    // Create reader for the file
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const arrayBuffer = e.target.result;
-                        
-                        // Create a Blob and URL from the array buffer
-                        const blob = new Blob([arrayBuffer], { type: 'application/octet-stream' });
-                        const url = URL.createObjectURL(blob);
-                        
-                        loader.load(url, texture => {
-                            // Show the canvas
-                            canvas.classList.add('visible');
-                            canvas.classList.remove('hidden');
-                            
-                            // Use the world panel's renderEnvironmentPreview function
-                            if (worldPanelModule.renderEnvironmentPreview) {
-                                worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
-                            } else {
-                                // Fallback to simple sphere if function not available
-                                createFallbackSphere(canvas);
-                            }
-                            
-                            // Clean up URL after loading
-                            URL.revokeObjectURL(url);
-                            
-                            // Hide loading indicator
-                            hidePreviewLoading(previewElement);
-                            
-                            // Update state with the background texture
-                            updateState({ backgroundTexture: texture });
-                            
-                            // Re-check if start button should be enabled
-                            checkStartButton();
-                        }, undefined, error => {
-                            console.error('Error loading HDR background texture:', error);
-                            createFallbackSphere(canvas);
-                            canvas.classList.add('visible');
-                            canvas.classList.remove('hidden');
-                            hidePreviewLoading(previewElement);
-                            
-                            if (messageDiv) {
-                                messageDiv.classList.remove('hidden');
-                                messageDiv.classList.add('visible');
-                                messageDiv.textContent = 'Error loading HDR file';
-                            }
-                        });
-                    };
-                    
-                    reader.onerror = function() {
-                        console.error('Error reading file');
-                        hidePreviewLoading(previewElement);
-                        if (messageDiv) {
-                            messageDiv.classList.remove('hidden');
-                            messageDiv.classList.add('visible');
-                            messageDiv.textContent = 'Error reading file';
-                        }
-                    };
-                    
-                    reader.readAsArrayBuffer(file);
-                }).catch(error => {
-                    console.error('Error loading RGBELoader:', error);
-                    hidePreviewLoading(previewElement);
-                    createFallbackSphere(canvas);
-                    canvas.classList.add('visible');
-                    canvas.classList.remove('hidden');
-                });
-            }).catch(error => {
-                console.error('Error loading Three.js:', error);
-                hidePreviewLoading(previewElement);
-                if (messageDiv) {
-                    messageDiv.classList.remove('hidden');
-                    messageDiv.classList.add('visible');
-                    messageDiv.textContent = 'Error loading Three.js';
-                }
-            });
-        } else if (['jpg', 'jpeg', 'png', 'webp', 'tiff', 'tif'].includes(fileExtension)) {
-            // Standard image formats - load with regular THREE.TextureLoader
-            import('three').then(THREE => {
-                // Create a reader to get the data URL
+                // Create reader for the file
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    // Create a texture from the data URL using THREE.TextureLoader
-                    const textureLoader = new THREE.TextureLoader();
-                    textureLoader.load(e.target.result, texture => {
+                    const arrayBuffer = e.target.result;
+                    
+                    // Create a Blob and URL from the array buffer
+                    const blob = new Blob([arrayBuffer], { type: 'application/octet-stream' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    loader.load(url, texture => {
                         // Show the canvas
                         canvas.classList.add('visible');
                         canvas.classList.remove('hidden');
-                        
-                        // Make sure to set proper texture parameters
-                        texture.mapping = THREE.EquirectangularReflectionMapping;
                         
                         // Use the world panel's renderEnvironmentPreview function
                         if (worldPanelModule.renderEnvironmentPreview) {
@@ -1152,8 +997,11 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                             createFallbackSphere(canvas);
                         }
                         
+                        // Clean up URL after loading
+                        URL.revokeObjectURL(url);
+                        
                         // Hide loading indicator
-                        hidePreviewLoading(previewElement);
+                        hidePreviewLoading(containerDiv);
                         
                         // Update state with the background texture
                         updateState({ backgroundTexture: texture });
@@ -1161,41 +1009,195 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                         // Re-check if start button should be enabled
                         checkStartButton();
                     }, undefined, error => {
-                        console.error('Error loading image texture:', error);
+                        console.error('Error loading EXR background texture:', error);
                         createFallbackSphere(canvas);
                         canvas.classList.add('visible');
                         canvas.classList.remove('hidden');
-                        hidePreviewLoading(previewElement);
+                        hidePreviewLoading(containerDiv);
                         
                         if (messageDiv) {
                             messageDiv.classList.remove('hidden');
                             messageDiv.classList.add('visible');
-                            messageDiv.textContent = 'Error loading image file';
+                            messageDiv.textContent = 'Error loading EXR file';
                         }
                     });
                 };
                 
                 reader.onerror = function() {
-                    console.error('Error reading image file');
-                    hidePreviewLoading(previewElement);
+                    console.error('Error reading file');
+                    hidePreviewLoading(containerDiv);
                     if (messageDiv) {
                         messageDiv.classList.remove('hidden');
                         messageDiv.classList.add('visible');
-                        messageDiv.textContent = 'Error reading image file';
+                        messageDiv.textContent = 'Error reading file';
                     }
                 };
                 
-                reader.readAsDataURL(file);
+                reader.readAsArrayBuffer(file);
             }).catch(error => {
-                console.error('Error loading Three.js:', error);
-                hidePreviewLoading(previewElement);
+                console.error('Error loading EXRLoader:', error);
+                hidePreviewLoading(containerDiv);
+                createFallbackSphere(canvas);
+                canvas.classList.add('visible');
+                canvas.classList.remove('hidden');
+            });
+        }).catch(error => {
+            console.error('Error loading Three.js:', error);
+            hidePreviewLoading(containerDiv);
+            if (messageDiv) {
+                messageDiv.classList.remove('hidden');
+                messageDiv.classList.add('visible');
+                messageDiv.textContent = 'Error loading Three.js';
+            }
+        });
+    } else if (['hdr'].includes(fileExtension)) {
+        // HDR needs special loader
+        import('three').then(THREE => {
+            import('three/addons/loaders/RGBELoader.js').then(({ RGBELoader }) => {
+                const loader = new RGBELoader();
+                
+                // Create reader for the file
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const arrayBuffer = e.target.result;
+                    
+                    // Create a Blob and URL from the array buffer
+                    const blob = new Blob([arrayBuffer], { type: 'application/octet-stream' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    loader.load(url, texture => {
+                        // Show the canvas
+                        canvas.classList.add('visible');
+                        canvas.classList.remove('hidden');
+                        
+                        // Use the world panel's renderEnvironmentPreview function
+                        if (worldPanelModule.renderEnvironmentPreview) {
+                            worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
+                        } else {
+                            // Fallback to simple sphere if function not available
+                            createFallbackSphere(canvas);
+                        }
+                        
+                        // Clean up URL after loading
+                        URL.revokeObjectURL(url);
+                        
+                        // Hide loading indicator
+                        hidePreviewLoading(containerDiv);
+                        
+                        // Update state with the background texture
+                        updateState({ backgroundTexture: texture });
+                        
+                        // Re-check if start button should be enabled
+                        checkStartButton();
+                    }, undefined, error => {
+                        console.error('Error loading HDR background texture:', error);
+                        createFallbackSphere(canvas);
+                        canvas.classList.add('visible');
+                        canvas.classList.remove('hidden');
+                        hidePreviewLoading(containerDiv);
+                        
+                        if (messageDiv) {
+                            messageDiv.classList.remove('hidden');
+                            messageDiv.classList.add('visible');
+                            messageDiv.textContent = 'Error loading HDR file';
+                        }
+                    });
+                };
+                
+                reader.onerror = function() {
+                    console.error('Error reading file');
+                    hidePreviewLoading(containerDiv);
+                    if (messageDiv) {
+                        messageDiv.classList.remove('hidden');
+                        messageDiv.classList.add('visible');
+                        messageDiv.textContent = 'Error reading file';
+                    }
+                };
+                
+                reader.readAsArrayBuffer(file);
+            }).catch(error => {
+                console.error('Error loading RGBELoader:', error);
+                hidePreviewLoading(containerDiv);
+                createFallbackSphere(canvas);
+                canvas.classList.add('visible');
+                canvas.classList.remove('hidden');
+            });
+        }).catch(error => {
+            console.error('Error loading Three.js:', error);
+            hidePreviewLoading(containerDiv);
+            if (messageDiv) {
+                messageDiv.classList.remove('hidden');
+                messageDiv.classList.add('visible');
+                messageDiv.textContent = 'Error loading Three.js';
+            }
+        });
+    } else if (['jpg', 'jpeg', 'png', 'webp', 'tiff', 'tif'].includes(fileExtension)) {
+        // Standard image formats - load with regular THREE.TextureLoader
+        import('three').then(THREE => {
+            // Create a reader to get the data URL
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // Create a texture from the data URL using THREE.TextureLoader
+                const textureLoader = new THREE.TextureLoader();
+                textureLoader.load(e.target.result, texture => {
+                    // Show the canvas
+                    canvas.classList.add('visible');
+                    canvas.classList.remove('hidden');
+                    
+                    // Make sure to set proper texture parameters
+                    texture.mapping = THREE.EquirectangularReflectionMapping;
+                    
+                    // Use the world panel's renderEnvironmentPreview function
+                    if (worldPanelModule.renderEnvironmentPreview) {
+                        worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
+                    } else {
+                        // Fallback to simple sphere if function not available
+                        createFallbackSphere(canvas);
+                    }
+                    
+                    // Hide loading indicator
+                    hidePreviewLoading(containerDiv);
+                    
+                    // Update state with the background texture
+                    updateState({ backgroundTexture: texture });
+                    
+                    // Re-check if start button should be enabled
+                    checkStartButton();
+                }, undefined, error => {
+                    console.error('Error loading image texture:', error);
+                    createFallbackSphere(canvas);
+                    canvas.classList.add('visible');
+                    canvas.classList.remove('hidden');
+                    hidePreviewLoading(containerDiv);
+                    
+                    if (messageDiv) {
+                        messageDiv.classList.remove('hidden');
+                        messageDiv.classList.add('visible');
+                        messageDiv.textContent = 'Error loading image file';
+                    }
+                });
+            };
+            
+            reader.onerror = function() {
+                console.error('Error reading image file');
+                hidePreviewLoading(containerDiv);
                 if (messageDiv) {
                     messageDiv.classList.remove('hidden');
                     messageDiv.classList.add('visible');
-                    messageDiv.textContent = 'Error loading Three.js';
+                    messageDiv.textContent = 'Error reading image file';
                 }
-            });
-        }
+            };
+            
+            reader.readAsDataURL(file);
+        }).catch(error => {
+            console.error('Error loading Three.js:', error);
+            hidePreviewLoading(containerDiv);
+            if (messageDiv) {
+                messageDiv.classList.remove('hidden');
+                messageDiv.classList.add('visible');
+                messageDiv.textContent = 'Error loading Three.js';
+            }
+        });
     }
     
     // Update state with the background file
