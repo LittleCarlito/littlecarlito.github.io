@@ -2,6 +2,7 @@
 :root {
     --primary-color: #4CAF50; /* Terminal green */
     --tool-color: #F1C40F; /* Blorkboard tool color (yellow) for borders */
+    --fallout-yellow: #f8d73e; /* Adjusted to be more yellow and less orange */
     --button-color: #1E88E5; /* Blorkboard button color (blue) */
     --secondary-color: #1a1a1a; /* Dark background but not pure black */
     --bg-color: #121212; /* Dark background */
@@ -71,6 +72,24 @@ h2, h3 {
     color: var(--primary-color);
 }
 
+/* Section heading style for Asset Files and World Files */
+.section-heading {
+    font-size: 22px;
+    color: var(--primary-color);
+    text-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+    margin-top: 15px;
+    margin-bottom: 15px;
+    padding-bottom: 5px;
+    font-weight: normal;
+    letter-spacing: 1px;
+}
+
+h3 {
+    margin: 0;
+    font-size: 16px;
+    color: var(--primary-color);
+}
+
 /* Blorkboard-style small button */
 .theme-toggle {
     background-color: transparent;
@@ -90,56 +109,88 @@ h2, h3 {
 /* Blorkboard-style card panel */
 .tool-panel {
     background-color: var(--panel-bg);
-    border: 1px solid var(--tool-color);
-    padding: 20px;
+    border: 3px solid var(--fallout-yellow); /* Golden yellow border */
+    padding: 10px;
     margin-bottom: 20px;
     transition: background-color 0.3s ease;
+    border-radius: 4px; /* Slightly rounded corners */
+    max-height: 100%;
+    overflow-y: auto;
 }
 
+/* Adjust dropzone container to distribute items evenly */
 .dropzone-container {
     display: flex;
-    justify-content: space-between;
-    gap: 20px;
-    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+    width: 100%;
+    margin-bottom: 15px;
+    justify-content: flex-start;
+}
+
+/* New wrapper for centering dropzone containers */
+.dropzone-row {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 15px;
+}
+
+/* Inside dropzone-row, adjust container to center its content */
+.dropzone-row .dropzone-container {
+    justify-content: center;
+    margin-bottom: 0;
 }
 
 /* Dropzone styling as requested */
 .dropzone {
-    flex: 1;
-    border: 1px dashed #555;
-    padding: 20px;
+    position: relative;
+    border: 2px dashed #4a4a4a; /* More visible gray dashed border */
+    border-radius: 4px;
+    padding: 15px; /* Consistent padding regardless of state */
+    height: 200px; /* Fixed height */
+    background-color: rgba(0,0,0,0.1);
     text-align: center;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    height: 200px;
-    min-height: 200px;
-    max-height: 200px;
+    transition: all 0.3s ease;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: space-between; /* Changed to space-between to accommodate preview */
     align-items: center;
-    background-color: var(--panel-bg-lighter);
-    box-sizing: border-box;
+    cursor: pointer;
     overflow: hidden;
+    max-width: 100%; /* Ensure no clipping */
+    min-width: unset; /* Remove fixed width */
+    width: 275px; /* Fixed width for all dropzones */
+    flex: 0 0 auto; /* Prevent flex growing/shrinking */
+    box-sizing: border-box; /* Include padding in the height calculation */
 }
 
 .dropzone.active {
-    border: 2px dashed var(--tool-color); /* Yellow when hovering */
-    box-shadow: var(--hover-glow);
+    border: 2px dashed var(--fallout-yellow); /* Use fallout yellow for hover state */
+    box-shadow: 0 0 8px rgba(248, 183, 62, 0.5); /* Subtle glow with fallout yellow */
 }
 
 .dropzone.has-file {
     border: 2px solid var(--primary-color); /* Green when file dropped */
     box-shadow: var(--success-glow);
+    cursor: default;
+}
+
+.dropzone:not(.has-file):hover {
+    background-color: rgba(50, 50, 50, 0.4);
 }
 
 .dropzone h3 {
+    font-size: 16px;
     margin-top: 0;
-    margin-bottom: 10px;
+    margin-bottom: 5px;
 }
 
 .dropzone p {
-    margin: 5px 0;
-    font-size: 14px;
+    margin: 3px 0;
+    font-size: 12px;
+    color: var(--text-color);
+    max-width: 100%;
 }
 
 .file-info {
@@ -148,28 +199,54 @@ h2, h3 {
     color: var(--label-text);
 }
 
-.preview-container {
-    display: flex;
-    justify-content: space-between;
-    gap: 20px;
-    margin-bottom: 20px;
-}
-
+/* Updated preview styles */
 .preview {
-    flex: 1;
-    max-height: 150px;
-    display: flex;
+    width: 100%;
+    max-width: 140px;
+    aspect-ratio: 1/1;
+    height: auto;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     overflow: hidden;
     border: 1px solid var(--panel-border);
     background-color: rgba(0,0,0,0.2);
+    position: relative; /* Ensure proper positioning of children */
+}
+
+/* Use a hidden class for the preview instead of display: none */
+.dropzone:not(.has-file) .preview {
+    visibility: hidden;
+    height: 0;
+    margin: 0;
+    border: none;
+    position: absolute;
+}
+
+.dropzone.has-file .preview {
+    visibility: visible;
+    height: auto;
+    margin-top: 10px;
+    display: flex;
+}
+
+/* Create placeholder space for the preview to maintain consistent height */
+.preview-placeholder {
+    height: 140px;
+    width: 100%;
+    max-width: 140px;
+    visibility: hidden;
+}
+
+/* Hide the placeholder when we have a file (since the real preview will be shown) */
+.dropzone.has-file .preview-placeholder {
+    display: none;
 }
 
 .preview img {
     max-width: 100%;
     max-height: 100%;
-    object-fit: contain;
+    object-fit: contain; /* Preserve aspect ratio while fitting in square */
 }
 
 /* Blorkboard-style blue button */
@@ -187,6 +264,15 @@ h2, h3 {
 .start-button {
     display: block;
     width: 100%;
+    margin-top: 8px;
+    padding: 8px 0;
+    font-size: 14px;
+    background-color: var(--button-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    transition: background-color 0.2s;
 }
 
 .start-button:hover, .button-base:hover {
@@ -373,6 +459,48 @@ h2, h3 {
     position: relative;
 }
 
+/* Container for atlas textures, styled like the HDR/EXR preview */
+.texture-container {
+    position: relative;
+    width: 100%;
+    display: flex;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+/* Atlas texture container components */
+.texture-container .texture-label {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: #aaa;
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+    z-index: 2;
+}
+
+.texture-preview {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1/1; /* Make it a perfect square */
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0,0,0,0.2);
+    border: 1px solid var(--panel-border);
+    overflow: hidden;
+}
+
+.texture-preview img,
+.texture-preview canvas {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain; /* Ensure content fits without distortion */
+}
+
 .mesh-panel {
     flex: 0 0 300px;
     background-color: var(--panel-bg);
@@ -460,11 +588,10 @@ h2, h3 {
     border: 1px solid var(--panel-border);
     max-height: 600px;
     height: 600px;
-    display: none;
     transition: background-color 0.3s ease;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: hidden !important; /* Ensure the container itself NEVER scrolls */
 }
 
 .tab-navigation {
@@ -500,13 +627,43 @@ h2, h3 {
 .tab-content {
     display: none;
     padding: 15px;
-    overflow-y: auto;
+    overflow-y: auto !important; /* ONLY the main tab content should scroll */
+    overflow-x: hidden !important; /* Prevent horizontal scrolling */
     flex-grow: 1;
     max-height: calc(600px - 45px);
+    box-sizing: border-box;
 }
 
 .tab-content.active {
     display: block;
+}
+
+/* Nested content should not have scrollbars to avoid duplicate scrolling */
+.tab-content .tab-content-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    height: 100%;
+    overflow: visible; /* Prevent nested scrollbars */
+}
+
+/* Prevent nested scrollbars in any panel content */
+.tab-content > div > div {
+    overflow: visible !important;
+}
+
+/* More aggressive rules to ensure no nested scrollbars */
+.tab-content * {
+    overflow: visible !important;
+}
+
+/* Only exception is for specific elements that need horizontal scrolling */
+.tab-content pre, 
+.tab-content code,
+.tab-content .code-block {
+    overflow-x: auto !important;
+    overflow-y: visible !important;
 }
 
 .tab-content h3 {
@@ -549,9 +706,13 @@ h2, h3 {
 .atlas-canvas {
     width: 100%;
     height: auto;
-    border: 1px solid var(--panel-border);
-    margin-bottom: 10px;
+    border: none;
+    margin: 0;
     background-color: #000;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: block;
 }
 
 .coords-text {
@@ -1349,4 +1510,494 @@ h2, h3 {
     font-size: 11px;
     margin-bottom: 3px;
     color: var(--text-color);
+}
+
+/* File Handler Styles */
+.texture-preview-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* Update the HDR preview container for better fit */
+.hdr-preview-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.hdr-preview-canvas {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain; /* Ensure the canvas fits without distortion */
+}
+
+.texture-label {
+    font-size: 12px;
+    padding: 5px 10px;
+    background-color: rgba(0, 0, 0, 0.6);
+    border-radius: 3px;
+    margin-top: 5px;
+    color: var(--text-color);
+    display: inline-block;
+}
+
+.no-image-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: #777;
+    font-size: 0.9em;
+    padding: 10px;
+    background-color: rgba(30, 30, 30, 0.7);
+    border-radius: 4px;
+    width: 80%;
+}
+
+.preview-loading {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 10;
+}
+
+.preview-loading-spinner {
+    width: 30px;
+    height: 30px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top: 3px solid #fff;
+    border-radius: 50%;
+    animation: loading-spin 1s linear infinite;
+}
+
+.preview-loading-text {
+    color: white;
+    margin-top: 10px;
+    font-size: 12px;
+}
+
+@keyframes loading-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.texture-preview-img {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.texture-preview-img.hidden {
+    display: none;
+}
+
+.texture-preview-img.visible {
+    display: block;
+}
+
+.hdr-preview-canvas.hidden {
+    display: none;
+}
+
+.hdr-preview-canvas.visible {
+    display: block;
+}
+
+.no-image-message.visible {
+    display: block;
+}
+
+.no-image-message.hidden {
+    display: none;
+}
+
+.texture-hint.optional {
+    color: #88cc88;
+}
+
+.model-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 70%;
+    max-width: 140px;
+    height: 140px;
+    background-color: rgba(0,0,0,0.3);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    margin: 5px auto 0;
+}
+
+.model-loaded-text {
+    margin-top: 10px;
+    color: var(--primary-color);
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.clear-preview-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 24px;
+    height: 24px;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.2s ease;
+}
+
+.clear-preview-button:hover {
+    background-color: rgba(255, 0, 0, 0.6);
+    transform: scale(1.1);
+}
+
+/* Add relative positioning to dropzone to position the clear button properly */
+.dropzone {
+    position: relative;
+    min-width: unset; /* Remove the fixed minimum width */
+    max-width: 275px;
+    flex: 1 1 0;
+}
+
+/* Add this to hide file info in lighting dropzone when a file is loaded */
+.dropzone.has-file .file-info {
+    display: none;
+}
+
+/* Update lighting preview container sizing */
+#lighting-dropzone .preview {
+    display: flex;
+    margin-top: 10px;
+    width: 100%;
+    max-width: 140px;
+    aspect-ratio: 1/1;
+    height: auto;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    border: 1px solid var(--panel-border);
+    background-color: rgba(0,0,0,0.2);
+}
+
+/* When in has-file state, give more space to the preview */
+#lighting-dropzone.has-file {
+    display: flex;
+    flex-direction: column;
+}
+
+#lighting-dropzone.has-file h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+/* Ensure the lighting preview image fits nicely */
+#lighting-preview img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain; /* Ensure content fits without distortion */
+}
+
+/* Make sure the preview image fits within the container */
+#lighting-dropzone .preview img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain; /* Ensure content fits without distortion */
+}
+
+/* Hide file info in all dropzones with files */
+.dropzone.has-file .file-info {
+    display: none;
+}
+
+/* Hide any texture labels in the lighting dropzone */
+#lighting-dropzone.has-file .texture-label {
+    display: none;
+}
+
+/* Hide all texture labels in dropzones that have files */
+.dropzone.has-file .texture-label {
+    display: none;
+}
+
+/* Make dropzone dimensions more appropriate for square previews */
+#lighting-dropzone {
+    height: 200px; /* Fixed height */
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+}
+
+#lighting-dropzone.has-file {
+    padding: 15px; /* Keep padding consistent */
+}
+
+#lighting-dropzone .preview {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 10px;
+    width: 100%;
+    aspect-ratio: 1/1; /* Make it a perfect square */
+    border: none;
+    overflow: hidden;
+}
+
+/* Style the canvas to ensure it displays properly */
+.hdr-preview-canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Ensure content fits without distortion */
+}
+
+/* New class for enforcing square aspect ratio with proper scaling */
+.square-preview {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain;
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: 1/1;
+}
+
+/* Adjustments for container layout */
+.container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 60px); /* Subtract header height */
+    overflow: hidden;
+    padding: 10px;
+    gap: 10px;
+}
+
+/* Compact header */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 10px;
+    background-color: var(--header-bg);
+    height: 50px;
+}
+
+/* More compact h2, h3 */
+h2, h3 {
+    margin: 5px 0;
+    color: var(--heading-color);
+    font-weight: normal;
+}
+
+/* More compact headings */
+h2 {
+    font-size: 18px;
+    margin: 5px 0;
+}
+
+/* More compact dropzone headers */
+.dropzone h3 {
+    font-size: 16px;
+    margin-top: 0;
+    margin-bottom: 5px;
+}
+
+/* More compact paragraphs in dropzones */
+.dropzone p {
+    margin: 3px 0;
+    font-size: 12px;
+    color: var(--text-color);
+    max-width: 100%;
+}
+
+/* More compact tool panel */
+.tool-panel {
+    padding: 10px;
+    background-color: var(--panel-bg);
+    border: 3px solid var(--fallout-yellow); /* Golden yellow border */
+    border-radius: 4px;
+    max-height: 100%;
+    overflow-y: auto;
+}
+
+/* Start button at the bottom */
+.start-button {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    padding: 8px;
+}
+
+/* Adjust for lighting dropzone to fit better */
+#lighting-dropzone {
+    height: 200px; /* Fixed height */
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+}
+
+/* Make preview containers more compact but maintain square aspect */
+.preview {
+    margin-top: 10px;
+    width: 100%;
+    max-width: 140px;
+    aspect-ratio: 1/1;
+    height: auto;
+}
+
+/* Ensure entire upload section fits */
+#upload-section {
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    overflow: hidden;
+}
+
+/* Make asset files and world files sections more compact */
+#upload-section > h2 {
+    margin-top: 8px;
+    margin-bottom: 5px;
+}
+
+/* Adjust model indicator to be more compact */
+.model-indicator {
+    width: 70%;
+    max-width: 140px;
+    height: 140px;
+    margin: 5px auto 0;
+}
+
+/* Make preview scaling better for varied screen sizes */
+@media (max-height: 768px) {
+    .dropzone {
+        height: 180px;
+    }
+    
+    .preview, .model-indicator {
+        max-width: 120px;
+        height: 120px;
+    }
+    
+    #lighting-dropzone {
+        height: 180px;
+    }
+    
+    .preview-placeholder {
+        height: 120px;
+    }
+}
+
+@media (max-height: 650px) {
+    .dropzone {
+        height: 160px;
+    }
+    
+    .preview, .model-indicator {
+        max-width: 100px;
+        height: 100px;
+    }
+    
+    #lighting-dropzone {
+        height: 160px;
+    }
+    
+    .dropzone p {
+        font-size: 11px;
+        line-height: 1.2;
+    }
+    
+    .preview-placeholder {
+        height: 100px;
+    }
+}
+
+/* Add stronger responsive adjustments for small screens */
+@media (max-height: 700px) {
+    .dropzone {
+        height: 170px;
+        padding: 12px;
+    }
+    
+    .preview, .model-indicator {
+        max-width: 110px;
+        height: 110px;
+    }
+    
+    #lighting-dropzone {
+        height: 170px;
+        padding: 12px;
+    }
+    
+    #lighting-dropzone.has-file {
+        padding: 12px;
+    }
+    
+    .dropzone h3 {
+        font-size: 14px;
+    }
+    
+    .dropzone p {
+        font-size: 11px;
+        line-height: 1.1;
+        margin: 2px 0;
+    }
+    
+    .preview-placeholder {
+        height: 110px;
+    }
+}
+
+/* Extremely small screens */
+@media (max-height: 600px) {
+    .dropzone {
+        height: 140px;
+        padding: 10px;
+    }
+    
+    .preview, .model-indicator {
+        max-width: 90px;
+        height: 90px;
+    }
+    
+    #lighting-dropzone {
+        height: 140px;
+        padding: 10px;
+    }
+    
+    #lighting-dropzone.has-file {
+        padding: 10px;
+    }
+    
+    .preview-placeholder {
+        height: 90px;
+    }
+}
+
+/* World files section - keep the lighting dropzone a consistent size */
+#lighting-dropzone {
+    width: 275px; /* Fixed width */
+    max-width: 275px;
+    margin: 0 auto; /* Center it in its row */
 } 

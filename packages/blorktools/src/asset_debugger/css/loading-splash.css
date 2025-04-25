@@ -1,0 +1,197 @@
+.loading-splash {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #0a0a0a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    opacity: 1;
+    transition: opacity 0.5s ease-in-out;
+    overflow: hidden;
+    font-family: monospace;
+}
+
+.loading-splash.fade-out {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.loading-content {
+    text-align: center;
+    color: #2ecc71;
+    font-family: 'Courier New', monospace;
+    position: relative;
+    width: 100%;
+    max-width: 600px;
+    padding: 2rem;
+    border: 1px solid #2ecc71;
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+}
+
+.loading-title {
+    margin-bottom: 30px;
+    letter-spacing: 3px;
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #2ecc71;
+    text-transform: uppercase;
+    text-shadow: 0 0 10px rgba(46, 204, 113, 0.7);
+}
+
+.loading-spinner-container {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 30px auto;
+}
+
+/* Atomic spinner styles */
+.atomic-spinner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.nucleus {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    background-color: #2ecc71;
+    border-radius: 50%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 15px #2ecc71;
+}
+
+.electron-orbit {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 1px dashed rgba(46, 204, 113, 0.3);
+    border-radius: 50%;
+    animation: rotate 4s linear infinite;
+}
+
+.electron-orbit:nth-child(2) {
+    width: 90%;
+    height: 90%;
+    top: 5%;
+    left: 5%;
+    animation-duration: 3s;
+    transform: rotate(60deg);
+}
+
+.electron-orbit:nth-child(3) {
+    width: 80%;
+    height: 80%;
+    top: 10%;
+    left: 10%;
+    animation-duration: 5s;
+    transform: rotate(120deg);
+}
+
+.electron {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background-color: #2ecc71;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #2ecc71;
+}
+
+.electron-orbit:nth-child(1) .electron {
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.electron-orbit:nth-child(2) .electron {
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+}
+
+.electron-orbit:nth-child(3) .electron {
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.loading-progress-text {
+    margin-top: 20px;
+    font-size: 16px;
+    color: #2ecc71;
+    letter-spacing: 1px;
+    font-family: 'Courier New', monospace;
+    position: relative;
+}
+
+.loading-progress-text::after {
+    content: "_";
+    animation: blink 1s step-end infinite;
+}
+
+/* Animations */
+@keyframes rotate {
+    0% { transform: rotateZ(0deg); }
+    100% { transform: rotateZ(360deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+/* Preview loading effect */
+.preview-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(10, 10, 10, 0.8);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 5;
+}
+
+.preview-loading-spinner {
+    width: 40px;
+    height: 40px;
+    position: relative;
+}
+
+.preview-loading-spinner .nucleus {
+    width: 10px;
+    height: 10px;
+}
+
+.preview-loading-spinner .electron {
+    width: 5px;
+    height: 5px;
+}
+
+.preview-loading-text {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #2ecc71;
+    font-family: 'Courier New', monospace;
+}
+
+.preview {
+    position: relative;
+} 

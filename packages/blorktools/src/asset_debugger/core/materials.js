@@ -52,6 +52,10 @@ export function createMaterial() {
     }
     
     // Create material with properly configured textures
+    // Explicitly ensure transparency is disabled
+    materialConfig.transparent = false;
+    materialConfig.alphaTest = 0;
+    
     return new THREE.MeshStandardMaterial(materialConfig);
 }
 
@@ -126,47 +130,27 @@ export function loadTextureFromFile(file, textureType) {
 }
 
 /**
- * Check if a texture has transparent pixels
- * @param {HTMLImageElement} image - The image to check for transparency
- * @returns {boolean} True if the image has transparent pixels
+ * Placeholder function to maintain compatibility with existing code
+ * This function no longer does anything transparency-related
+ * @param {HTMLImageElement} image - The image to check
+ * @returns {boolean} Always returns false
  */
 export function hasTransparentPixels(image) {
-    // Create a canvas to analyze the image
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = image.width;
-    canvas.height = image.height;
-    
-    // Draw the image on the canvas
-    ctx.drawImage(image, 0, 0);
-    
-    // Get the image data to check for transparency
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-    
-    // Check if any pixel has alpha < 1.0
-    for (let i = 3; i < imageData.length; i += 4) {
-        if (imageData[i] < 255) {
-            return true;
-        }
-    }
-    
+    // Always return false to disable transparency
     return false;
 }
 
 /**
- * Apply transparency settings to material based on texture
- * @param {THREE.Material} material - The material to modify
+ * Placeholder function to maintain compatibility with existing code
+ * This function no longer does anything transparency-related
+ * @param {THREE.Material} material - The material
+ * @param {THREE.Mesh} mesh - The mesh
  */
-export function applyTransparencySettings(material) {
-    const state = getState();
-    
-    // Only apply transparency if we have a baseColor texture with transparency
-    if (state.textureObjects.baseColor && 
-        state.textureObjects.baseColor.image && 
-        hasTransparentPixels(state.textureObjects.baseColor.image)) {
-        material.transparent = true;
-        material.alphaTest = 0.1;
-        material.alphaMap = state.textureObjects.baseColor;
+export function applyTransparencySettings(material, mesh) {
+    // Explicitly disable transparency
+    if (material) {
+        material.transparent = false;
+        material.alphaTest = 0;
     }
 }
 

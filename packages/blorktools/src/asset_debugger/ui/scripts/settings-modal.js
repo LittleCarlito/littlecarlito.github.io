@@ -206,16 +206,31 @@ export class SettingsModal {
                 
                 // Update the collapse indicator with proper symbol
                 const indicator = header.querySelector('.collapse-indicator');
-                if (header.classList.contains('expanded')) {
-                    indicator.textContent = '▼'; // Down arrow when expanded
-                } else {
-                    indicator.textContent = '▶'; // Right arrow when collapsed
+                if (indicator) {
+                    if (header.classList.contains('expanded')) {
+                        indicator.textContent = '-'; // Minus sign when expanded
+                    } else {
+                        indicator.textContent = '+'; // Plus sign when collapsed
+                    }
                 }
                 
                 // Toggle the visibility of the next sibling (collapsible content)
-                const content = header.closest('.settings-row').nextElementSibling;
-                if (content && content.classList.contains('collapsible-content')) {
-                    content.style.display = header.classList.contains('expanded') ? 'block' : 'none';
+                // Find parent settings row if it exists
+                const parentRow = header.closest('.settings-row');
+                
+                // If we have a parent row, get its next sibling, otherwise look for the next sibling of the header itself
+                let content;
+                if (parentRow) {
+                    content = parentRow.nextElementSibling;
+                    if (content && content.classList.contains('collapsible-content')) {
+                        content.style.display = header.classList.contains('expanded') ? 'block' : 'none';
+                    }
+                } else {
+                    // If no parent row found, try to find sibling content directly
+                    content = header.nextElementSibling;
+                    if (content && (content.classList.contains('collapsible-content') || content.classList.contains('metadata-content'))) {
+                        content.style.display = header.classList.contains('expanded') ? 'block' : 'none';
+                    }
                 }
             });
         });

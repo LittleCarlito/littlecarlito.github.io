@@ -5,18 +5,25 @@
  */
 import { getState, updateState } from "../../core/state.js";
 
+// Track initialization state
+let isInitialized = false;
+
 /**
  * Initialize the atlas panel and set up event listeners
  */
 export function initAtlasPanel() {
-    console.log('Initializing Atlas Panel...');
+    // Prevent duplicate logging but allow initialization to continue
+    if (isInitialized) {
+        return;
+    }
+    
+    isInitialized = true;
     
     // Initialize the panel once the atlas-panel-container is found and has content
     const initCheck = setInterval(() => {
         const container = document.getElementById('atlas-panel-container');
         if (container && container.children.length > 0) {
             clearInterval(initCheck);
-            console.log('Atlas Panel container found, setting up event listeners...');
             setupAtlasPanelEvents();
         }
     }, 100);
@@ -66,7 +73,6 @@ function setupAtlasPanelEvents() {
  * Update the atlas visualization based on the selected texture type
  */
 export function updateAtlasVisualization() {
-    console.log('Updating atlas visualization...');
     const state = getState();
     
     // Get active texture type from UI
@@ -77,10 +83,6 @@ export function updateAtlasVisualization() {
     }
     
     const selectedType = activeButton.getAttribute('data-texture-type');
-    console.log('Selected texture type:', selectedType);
-    
-    // Get the texture based on selected type
-    const texture = state.textureObjects[selectedType];
     
     // Get the atlas canvas
     const atlasCanvas = document.getElementById('atlas-canvas');
@@ -89,12 +91,34 @@ export function updateAtlasVisualization() {
         return;
     }
     
-    // Check if we have the selected texture
-    if (!texture || !texture.image) {
+    // Update the texture container label
+    const labelElement = document.getElementById('atlas-label');
+    if (labelElement) {
+        // Set label based on selected type
+        switch(selectedType) {
+            case 'baseColor':
+                labelElement.textContent = 'Base Color Atlas';
+                break;
+            case 'orm':
+                labelElement.textContent = 'ORM Atlas';
+                break;
+            case 'normal':
+                labelElement.textContent = 'Normal Map Atlas';
+                break;
+            default:
+                labelElement.textContent = 'Texture Atlas';
+        }
+    }
+    
+    // Check if we have texture objects and the selected texture
+    if (!state.textureObjects || !state.textureObjects[selectedType] || !state.textureObjects[selectedType].image) {
         // Show the "No texture loaded" message
         showNoTextureState(atlasCanvas);
         return;
     }
+    
+    // Get the texture based on selected type
+    const texture = state.textureObjects[selectedType];
     
     // Get 2D context and clear it
     const ctx = atlasCanvas.getContext('2d');
@@ -109,16 +133,12 @@ export function updateAtlasVisualization() {
     // Draw the texture
     ctx.drawImage(texture.image, 0, 0);
     
-    // Update the canvas container size
-    const container = document.getElementById('atlas-panel-container');
-    if (container) {
-        // Adjust container to fit the canvas with some padding
-        const padding = 20;
-        container.style.width = (atlasCanvas.width + padding) + 'px';
-        container.style.height = (atlasCanvas.height + padding) + 'px';
-    }
-    
-    console.log('Atlas visualization updated');
+    // Set proper CSS for the canvas to maintain aspect ratio and fit in container
+    atlasCanvas.style.width = '100%';
+    atlasCanvas.style.height = 'auto';
+    atlasCanvas.style.maxHeight = '100%';
+    atlasCanvas.style.objectFit = 'contain';
+    atlasCanvas.style.display = 'block';
 }
 
 /**
@@ -134,12 +154,16 @@ function updateCanvasWithTexture(texture, currentRegion = { min: [0, 0], max: [1
     
     const ctx = atlasCanvas.getContext('2d');
     
+    // Set canvas dimensions to match texture
+    atlasCanvas.width = texture.image.width;
+    atlasCanvas.height = texture.image.height;
+    
     // Clear canvas
     ctx.clearRect(0, 0, atlasCanvas.width, atlasCanvas.height);
     
     // Draw the texture with proper scaling
     try {
-        ctx.drawImage(texture.image, 0, 0, atlasCanvas.width, atlasCanvas.height);
+        ctx.drawImage(texture.image, 0, 0);
     } catch (error) {
         console.error('Error drawing texture to canvas:', error);
     }
@@ -149,6 +173,13 @@ function updateCanvasWithTexture(texture, currentRegion = { min: [0, 0], max: [1
     
     // Draw red highlight to show current region used on the model
     drawHighlightRegion(ctx, currentRegion, atlasCanvas.width, atlasCanvas.height);
+    
+    // Set proper CSS for the canvas
+    atlasCanvas.style.width = '100%';
+    atlasCanvas.style.height = 'auto';
+    atlasCanvas.style.maxHeight = '100%';
+    atlasCanvas.style.objectFit = 'contain';
+    atlasCanvas.style.display = 'block';
     
     // Update coordinates text
     if (coordsText) {
@@ -173,9 +204,9 @@ function showNoTextureState(atlasCanvas) {
     
     const ctx = atlasCanvas.getContext('2d');
     
-    // Make sure canvas has reasonable dimensions
-    if (atlasCanvas.width < 200) atlasCanvas.width = 260;
-    if (atlasCanvas.height < 200) atlasCanvas.height = 260;
+    // Use a reasonable size for the empty state
+    atlasCanvas.width = 260;
+    atlasCanvas.height = 260;
     
     // Clear canvas with transparent background
     ctx.clearRect(0, 0, atlasCanvas.width, atlasCanvas.height);
@@ -189,21 +220,22 @@ function showNoTextureState(atlasCanvas) {
     ctx.fillStyle = 'rgba(40, 40, 40, 0.3)';
     ctx.fillRect(2, 2, atlasCanvas.width - 4, atlasCanvas.height - 4);
     
+    // Get current texture type from state
+    const currentTextureType = getState().currentTextureType || 'texture';
+    
     // Draw "No Atlas Data" text
     ctx.fillStyle = '#aaa';
     ctx.font = 'bold 16px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('No Atlas Data', atlasCanvas.width / 2, atlasCanvas.height / 2 - 15);
+    ctx.fillText(`No ${currentTextureType} Data`, atlasCanvas.width / 2, atlasCanvas.height / 2 - 15);
     
-    // Add additional help text
-    ctx.font = '12px monospace';
-    ctx.fillText('Drag and drop a texture to view', atlasCanvas.width / 2, atlasCanvas.height / 2 + 15);
-    
-    // Update the coordinates text
-    if (coordsText) {
-        coordsText.textContent = `No ${getState().currentTextureType} texture loaded. Drag and drop a texture file to view.`;
-    }
+    // Set proper CSS for the canvas to maintain aspect ratio and fit in container
+    atlasCanvas.style.width = '100%';
+    atlasCanvas.style.height = 'auto';
+    atlasCanvas.style.maxHeight = '100%';
+    atlasCanvas.style.objectFit = 'contain';
+    atlasCanvas.style.display = 'block';
 }
 
 /**

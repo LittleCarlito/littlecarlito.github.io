@@ -1064,73 +1064,67 @@ export function deduplicateItems(items) {
  * @returns {Object} - The created joint mesh
  */
 export function createBoneJoint(jointType, boneData, radius, options = {}) {
-    // Default options
-    const defaultOptions = {
-        position: new THREE.Vector3(0, 0, 0),
-        renderOrder: 10,
-        opacity: 0.9,
-        color: rigOptions.jointColor,
-        wireframe: rigOptions.wireframe,
-        boneName: '',
-        isTop: false  // Whether this is the top or bottom joint of a bone
-    };
+    console.log(`Creating ${jointType} joint`);
     
-    // Merge with provided options
-    const jointOptions = { ...defaultOptions, ...options };
+    // Create joint based on joint type
+    let geometry, material, joint, jointColor, opacity;
     
-    // Create joint geometry based on type
-    let jointMesh;
+    // Set default radius if not provided
+    radius = radius || 1.0;
     
-    if (jointType === 'root') {
-        // Root joints use flat puck geometry (cylinder)
-        const puckGeometry = new THREE.CylinderGeometry(
-            radius * 2.2,             // Wider for better visibility
-            radius * 2.2,
-            radius * 0.2,             // Short height for flatness
-            32                        // More segments for smoother appearance
-        );
-        jointMesh = new THREE.Mesh(puckGeometry, boneJointMaterial.clone());
-        jointOptions.renderOrder = 15; // Higher render order for root pucks
-        
-        console.log(`Creating ROOT PUCK joint${jointOptions.boneName ? ' for ' + jointOptions.boneName : ''}`);
-    } else {
-        // Regular joints use spheres
-        const sphereGeometry = new THREE.SphereGeometry(radius * 1.2, 8, 8);
-        jointMesh = new THREE.Mesh(sphereGeometry, boneJointMaterial.clone());
-        
-        console.log(`Creating regular joint${jointOptions.boneName ? ' for ' + jointOptions.boneName : ''}`);
+    // Prepare for a top-of-bone or bottom-of-bone joint
+    switch (jointType) {
+        case 'top':
+            // For top of bone (connects to child bone)
+            jointColor = options.jointColor || rigOptions.jointColor;
+            geometry = new THREE.SphereGeometry(radius, 16, 16);
+            opacity = 0.8;
+            break;
+        case 'bottom':
+            // For bottom of bone (connects to parent bone)
+            jointColor = options.jointColor || rigOptions.jointColor;
+            geometry = new THREE.SphereGeometry(radius, 16, 16);
+            opacity = 0.8;
+            break;
+        case 'root':
+            // Root bone puck
+            jointColor = 0xFF0000; // Red for root
+            geometry = new THREE.CylinderGeometry(radius * 1.2, radius * 1.2, radius * 0.5, 32);
+            opacity = 0.9;
+            break;
+        default:
+            // Default to a sphere
+            jointColor = options.jointColor || rigOptions.jointColor;
+            geometry = new THREE.SphereGeometry(radius, 16, 16);
+            opacity = 0.8;
     }
     
-    // Set position
-    jointMesh.position.copy(jointOptions.position);
+    // Create the material - make sure it matches our bone material settings
+    material = new THREE.MeshBasicMaterial({
+        color: jointColor,
+        side: THREE.DoubleSide,
+        wireframe: options.wireframe || rigOptions.wireframe,
+        transparent: true,
+        opacity: opacity
+    });
     
-    // Set common properties
-    jointMesh.userData.bonePart = 'cap';
-    jointMesh.userData.isJoint = true;
-    jointMesh.userData.isRootJoint = (jointType === 'root');
+    // Create the mesh
+    joint = new THREE.Mesh(geometry, material);
+    joint.userData.bonePart = 'cap';
+    joint.userData.jointType = jointType;
     
-    // Set bone name for label reference if provided
-    if (jointOptions.boneName) {
-        jointMesh.userData.boneName = jointOptions.boneName;
-    } else if (boneData) {
-        // Set appropriate bone reference based on top/bottom
-        if (jointOptions.isTop && boneData.childBone) {
-            jointMesh.userData.boneName = boneData.childBone.name;
-        } else if (!jointOptions.isTop && boneData.parentBone) {
-            jointMesh.userData.boneName = boneData.parentBone.name;
+    // For top/bottom joints, add bone reference
+    if (boneData) {
+        if (jointType === 'top') {
+            joint.userData.childBone = boneData.childBone;
+        } else if (jointType === 'bottom') {
+            joint.userData.parentBone = boneData.parentBone;
+        } else if (jointType === 'root') {
+            joint.userData.rootBone = boneData.parentBone;
         }
     }
     
-    // Configure material settings
-    jointMesh.material.wireframe = jointOptions.wireframe;
-    jointMesh.material.transparent = true;
-    jointMesh.material.opacity = jointOptions.opacity;
-    jointMesh.material.color.setHex(jointOptions.color);
-    
-    // Set render order to ensure joints render on top of bones
-    jointMesh.renderOrder = jointOptions.renderOrder;
-    
-    return jointMesh;
+    return joint;
 }
 
 /**
@@ -1263,7 +1257,7 @@ export function createBoneUpdateFunction(boneGroup) {
 export function addControlHandleToFurthestBone(bone, scene, modelScale) {
     const handleSize = modelScale * 2.6; // Double the size (from 1.3 to 2.6)
     const geometry = new THREE.SphereGeometry(handleSize, 16, 16);
-    const material = new THREE.MeshPhongMaterial({
+    const material = new THREE.MeshBasicMaterial({
         color: rigOptions.normalColor, // Use color from rigOptions
         transparent: true,
         opacity: 0.7,
@@ -1423,32 +1417,26 @@ export function createRig(model, scene) {
     }
     
     // Create materials for bone visualization
-    setBoneMaterial(new THREE.MeshPhongMaterial({
+    setBoneMaterial(new THREE.MeshBasicMaterial({
         color: rigOptions.primaryColor,
-        emissive: 0x072534,
         side: THREE.DoubleSide,
-        flatShading: true,
         wireframe: rigOptions.wireframe,
         transparent: true,
         opacity: 0.8  // Increased opacity for better visibility
     }));
     
-    setBoneSideMaterial( new THREE.MeshPhongMaterial({
+    setBoneSideMaterial(new THREE.MeshBasicMaterial({
         color: rigOptions.secondaryColor,
-        emissive: 0x072534,
         side: THREE.DoubleSide,
-        flatShading: true,
         wireframe: rigOptions.wireframe,
         transparent: true,
         opacity: 0.8  // Increased opacity for better visibility
     }));
     
     // Joint material (now separate from primary/secondary colors)
-    setBoneJointMaterial(new THREE.MeshPhongMaterial({
+    setBoneJointMaterial(new THREE.MeshBasicMaterial({
         color: rigOptions.jointColor,
-        emissive: 0x072534,
         side: THREE.DoubleSide,
-        flatShading: true,
         wireframe: rigOptions.wireframe,
         transparent: true,
         opacity: 0.8  // Slightly more opaque for better visibility

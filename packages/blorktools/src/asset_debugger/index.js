@@ -18,11 +18,27 @@ function preventDefaultDragBehavior() {
     });
 }
 
-// Initialize the application
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('Asset Debugger: Index loaded');
-    // Prevent browser default drag-and-drop behavior
-    preventDefaultDragBehavior();
-    // Initialize the asset debugger
-    init();
-});
+// Check if the DOM is already loaded before calling init
+function initializeDebugger() {
+    console.log('Asset Debugger: Initializing from index.js');
+    
+    if (document.readyState === 'loading') {
+        // Document still loading, add event listener
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Asset Debugger: DOM now loaded, initializing...');
+            preventDefaultDragBehavior();
+            init();
+        });
+    } else {
+        // Document already loaded, call directly
+        console.log('Asset Debugger: DOM already loaded, initializing immediately...');
+        preventDefaultDragBehavior();
+        init();
+    }
+}
+
+// Initialize on script load
+initializeDebugger();
+
+// Export the init function for external use
+export { init };

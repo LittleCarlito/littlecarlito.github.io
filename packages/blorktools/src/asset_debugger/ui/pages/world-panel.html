@@ -1,0 +1,177 @@
+<!-- World Panel Component -->
+<link rel="stylesheet" href="../../css/world-panel.css">
+<div id="world-tab" class="tab-content">
+    <div class="world-section">
+        <div class="collapsible-header section-header">
+            <h3 class="metadata-header">Background</h3>
+            <span class="collapse-indicator">[+]</span>
+        </div>
+        <div class="metadata-content section-content" style="display: none;">
+            <div class="background-status">
+                <div class="no-background-message">
+                    No Background Data Found
+                </div>
+                
+                <div class="background-data-info" style="display: none;">
+                    <!-- Radio options container -->
+                    <div class="bg-options-container">
+                        <!-- None option -->
+                        <div class="bg-option">
+                            <input type="radio" id="bg-none" name="bg-option" value="none" checked>
+                            <label for="bg-none">None</label>
+                        </div>
+
+                        <!-- Background Image Section -->
+                        <div class="bg-option">
+                            <input type="radio" id="bg-background" name="bg-option" value="background">
+                            <label for="bg-background">Background Image</label>
+                        </div>
+                        
+                        <!-- HDR/EXR Image Section -->
+                        <div class="bg-option">
+                            <input type="radio" id="bg-hdr" name="bg-option" value="hdr">
+                            <label for="bg-hdr">EXR/HDR Image</label>
+                        </div>
+                    </div>
+
+                    <!-- Background Image Content -->
+                    <div class="collapsible-header bg-content-header" id="bg-image-section">
+                        <h4 class="metadata-header">Background Image</h4>
+                        <span class="collapse-indicator">[+]</span>
+                    </div>
+                    <div class="metadata-content" style="display: none;">
+                        <div class="image-container">
+                            <canvas id="bg-preview-canvas" class="bg-preview-canvas" width="260" height="260"></canvas>
+                            <div id="no-bg-image-message" class="no-image-message">
+                                No background image data available.
+                            </div>
+                        </div>
+                        <table class="lighting-metadata">
+                            <tr>
+                                <td>File:</td>
+                                <td id="bg-filename">-</td>
+                            </tr>
+                            <tr>
+                                <td>Type:</td>
+                                <td id="bg-type">-</td>
+                            </tr>
+                            <tr>
+                                <td>Resolution:</td>
+                                <td id="bg-resolution">-</td>
+                            </tr>
+                            <tr>
+                                <td>Size:</td>
+                                <td id="bg-size">-</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- HDR/EXR Image Content -->
+                    <div class="collapsible-header bg-content-header" id="hdr-image-section">
+                        <h4 class="metadata-header">EXR/HDR Image</h4>
+                        <span class="collapse-indicator">[+]</span>
+                    </div>
+                    <div class="metadata-content" style="display: none;">
+                        <div class="image-container">
+                            <canvas id="hdr-preview-canvas" class="hdr-preview-canvas" width="260" height="260"></canvas>
+                            <div id="no-image-message" class="no-image-message">
+                                No image data available or could not be processed.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section-divider"></div>
+    
+    <div class="world-section">
+        <div class="collapsible-header section-header">
+            <h3 class="metadata-header">Lighting</h3>
+            <span class="collapse-indicator">[+]</span>
+        </div>
+        <div class="metadata-content section-content" style="display: none;">
+            <div class="world-info lighting-controls">
+                <div class="collapsible-header lighting-options-header">
+                    <h4 class="metadata-header">Lighting Options</h4>
+                    <span class="collapse-indicator">[+]</span>
+                </div>
+                <div class="metadata-content lighting-options-content" style="display: none;">
+                    <div class="control-group ambient-control">
+                        <div class="label-container">
+                            <label for="ambient-light-intensity">Ambient:</label>
+                            <span class="value-display">0.5</span>
+                        </div>
+                        <input type="range" id="ambient-light-intensity" min="0" max="2" step="0.1" value="0.5" />
+                    </div>
+                    
+                    <div class="control-group directional-control">
+                        <div class="label-container">
+                            <label for="directional-light-intensity">Directional:</label>
+                            <span class="value-display">1.0</span>
+                        </div>
+                        <input type="range" id="directional-light-intensity" min="0" max="2" step="0.1" value="1.0" />
+                    </div>
+                    
+                    <div class="control-group exposure-control">
+                        <div class="label-container">
+                            <label for="exposure-value">Exposure:</label>
+                            <span class="value-display">1.0</span>
+                        </div>
+                        <input type="range" id="exposure-value" min="0" max="2" step="0.1" value="1.0" />
+                    </div>
+                    
+                    <div class="control-group buttons">
+                        <button id="reset-lighting" class="control-button">Reset Lighting</button>
+                    </div>
+                </div>
+                
+                <div class="lighting-status">
+                    <div class="no-data-message">
+                        No Lighting Data; Using Default Lighting
+                    </div>
+                    
+                    <div class="lighting-data-info" style="display: none;">
+                        <div class="collapsible-header">
+                            <h4 class="metadata-header">Lighting File Data</h4>
+                            <span class="collapse-indicator">[+]</span>
+                        </div>
+                        <div class="metadata-content" style="display: none;">
+                            <table class="lighting-metadata">
+                                <tr>
+                                    <td>File:</td>
+                                    <td id="lighting-filename">-</td>
+                                </tr>
+                                <tr>
+                                    <td>Type:</td>
+                                    <td id="lighting-type">-</td>
+                                </tr>
+                                <tr>
+                                    <td>Resolution:</td>
+                                    <td id="lighting-resolution">-</td>
+                                </tr>
+                                <tr>
+                                    <td>Size:</td>
+                                    <td id="lighting-size">-</td>
+                                </tr>
+                                <tr>
+                                    <td>Dynamic Range:</td>
+                                    <td id="lighting-range">-</td>
+                                </tr>
+                                <tr>
+                                    <td>Max Luminance:</td>
+                                    <td id="lighting-luminance">-</td>
+                                </tr>
+                                <tr>
+                                    <td>Software:</td>
+                                    <td id="lighting-software">-</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div> 

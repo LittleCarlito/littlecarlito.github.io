@@ -424,20 +424,6 @@ This package is part of the [threejs_site](https://github.com/littlecarlito/thre
 
 ## License
 
-This package is part of the ThreeJS Site Monorepo and is licensed under a custom dual-license:
-
-### Non-Commercial License
-- Free for non-commercial use
-- Allows modification, distribution, and use in non-commercial projects
-- Must maintain these same license terms in derivative works
-
-### Commercial License
-Commercial use requires explicit written permission from the copyright holder (Steven Meier). This includes:
-- Using the software to generate revenue
-- Including in commercial products
-- Using in for-profit businesses
-- Creating derivative works for commercial purposes
-
-For commercial licensing inquiries, contact: steven.meier77@gmail.com
+This package is licensed under the GNU General Public License v3.0 (GPL-3.0).
 
 See the root [LICENSE](../../LICENSE) file for full terms and conditions. 

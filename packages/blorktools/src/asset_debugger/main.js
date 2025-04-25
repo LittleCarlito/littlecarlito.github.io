@@ -41,6 +41,20 @@ export function init() {
  */
 function preventDefaultDragEvents() {
     const preventDefaults = function(e) {
+        // Skip if the target is one of our dropzones
+        const dropzoneIds = [
+            'basecolor-dropzone', 
+            'orm-dropzone', 
+            'normal-dropzone',
+            'model-dropzone',
+            'lighting-dropzone',
+            'background-dropzone'
+        ];
+        
+        if (dropzoneIds.some(id => e.target.id === id || e.target.closest(`#${id}`))) {
+            return; // Don't prevent default for dropzones
+        }
+        
         e.preventDefault();
         e.stopPropagation();
     };
@@ -69,14 +83,6 @@ function setupThemeSwitching() {
         });
     }
 }
-
-// For backward compatibility, automatically initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    if (!window.assetDebuggerState || !window.assetDebuggerState.isInitializing) {
-        console.log('Asset Debugger: Auto-initializing for backward compatibility.');
-        init();
-    }
-});
 
 // Export for external use
 export default { init }; 

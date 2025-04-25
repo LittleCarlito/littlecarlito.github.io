@@ -11,17 +11,16 @@ export default defineConfig({
 				addBanner: true,
 				renderBanner: (filename, pkg) => {
 					return `/**
- * Copyright (C) 2024 Steven Meier
- * 
+ * Copyright (C) 2024 Blorkfield LLC
+ *
  * This file is part of ${pkg.name}
- * 
- * NON-COMMERCIAL LICENSE
- * This software is free for non-commercial use. See LICENSE file in the project root
- * for full license information and terms of use.
- * 
- * COMMERCIAL LICENSE
- * Commercial use requires explicit written permission from the copyright holder.
- * Contact: steven.meier77@gmail.com
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * See the LICENSE file in the project root for full license information.
  */
 `;
 				}

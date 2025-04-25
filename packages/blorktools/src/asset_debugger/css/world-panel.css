@@ -1,0 +1,392 @@
+/* World Panel Styles */
+
+.lighting-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+/* All content containers should be visible without scrollbars */
+.lighting-status,
+.lighting-data-info,
+.metadata-content,
+.background-status,
+.background-data-info,
+.image-container {
+    overflow: visible !important;
+}
+
+/* Section header styles */
+.section-header {
+    padding: 4px 0;
+    margin-bottom: 6px;
+}
+
+/* Main section headers (Background and Lighting) */
+.world-section > .section-header h3.metadata-header {
+    margin: 0;
+    font-size: 1.1em;
+    color: #4CAF50; /* Terminal green from theme */
+    font-weight: 500;
+    text-shadow: 0 0 5px rgba(76, 175, 80, 0.3);
+}
+
+/* Main section collapse indicators */
+.world-section > .section-header .collapse-indicator {
+    color: #4CAF50; /* Match header color */
+    font-weight: 500;
+}
+
+/* Subheaders remain gray for contrast */
+.section-content .metadata-header {
+    color: #aaa;
+}
+
+.section-content {
+    padding: 0 2px;
+}
+
+/* Section divider styles - reduce margins to fix spacing */
+.section-divider {
+    height: 1px;
+    background-color: #333;
+    margin: 4px 0; /* Reduced from 8px */
+    width: 100%;
+}
+
+/* First section (Background) should have less bottom padding */
+.world-section:first-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+/* Remove extra margin on second section */
+.world-section:last-child {
+    margin-top: 0;
+}
+
+/* Remove any underlines that might be appearing */
+.world-section .section-header,
+.world-section .metadata-header,
+.world-section h3 {
+    border-bottom: none;
+    text-decoration: none;
+    box-shadow: none;
+}
+
+/* HDR toggle styles */
+.hdr-toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    z-index: 2; /* Ensure the container appears above other elements */
+}
+
+.hdr-toggle-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 1px solid #444;
+    border-radius: 3px;
+    background-color: #2a2a2a;
+    cursor: pointer;
+    position: relative;
+    margin: 0;
+    z-index: 3; /* Higher z-index for the checkbox */
+}
+
+.hdr-toggle-checkbox:checked {
+    background-color: #0088ff;
+    border-color: #0088ff;
+}
+
+.hdr-toggle-checkbox:checked::after {
+    content: '✓';
+    position: absolute;
+    color: white;
+    font-size: 12px;
+    top: 0;
+    left: 3px;
+}
+
+.hdr-toggle-checkbox:hover {
+    border-color: #0088ff;
+}
+
+/* Control groups and elements */
+.control-group {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 4px;
+}
+
+/* Default state for different lighting controls */
+.exposure-control {
+    display: none; /* Hide by default, only shown with HDR/EXR */
+}
+
+.label-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.control-group label {
+    color: #aaa;
+    font-size: 0.9em;
+}
+
+.control-group input[type="range"] {
+    width: 100%;
+    height: 6px;
+}
+
+/* Custom slider styling */
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: #333;
+    height: 6px;
+    border-radius: 3px;
+    outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #0088ff;
+    cursor: pointer;
+    border: none;
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #0088ff;
+    cursor: pointer;
+    border: none;
+}
+
+.value-display {
+    min-width: 24px;
+    text-align: right;
+    color: #ddd;
+    font-size: 0.9em;
+}
+
+.buttons {
+    margin-top: 10px;
+    flex-direction: row;
+    justify-content: center;
+}
+
+.control-button {
+    padding: 6px 12px;
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    color: #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.control-button:hover {
+    background-color: #333;
+}
+
+.lighting-status,
+.background-status {
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.no-data-message,
+.no-background-message {
+    text-align: center;
+    color: #777;
+    font-size: 0.9em;
+    font-style: italic;
+}
+
+.lighting-data-info,
+.background-data-info {
+    margin-top: 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 4px 0;
+}
+
+.collapse-indicator {
+    font-size: 14px;
+    color: #777;
+    margin-right: 4px;
+}
+
+.metadata-header {
+    font-size: 1em;
+    color: #aaa;
+    margin: 0;
+    font-weight: normal;
+    cursor: pointer; /* Add pointer cursor to make it clear it's clickable */
+}
+
+.image-container {
+    position: relative;
+    width: 100%;
+    min-height: 260px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 10px;
+    overflow: visible !important;
+}
+
+.hdr-preview-canvas {
+    max-width: 100%;
+    max-height: 260px;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    background-color: #222;
+    border: 1px solid #444;
+}
+
+.no-image-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: #777;
+    font-size: 0.9em;
+    font-style: italic;
+    padding: 20px;
+    background-color: rgba(30, 30, 30, 0.7);
+    border-radius: 4px;
+    width: 80%;
+    display: block;
+}
+
+.lighting-metadata {
+    width: 100%;
+    font-size: 0.9em;
+    color: #aaa;
+    table-layout: fixed;
+}
+
+.lighting-metadata td {
+    padding: 3px 0;
+}
+
+.lighting-metadata td:first-child {
+    width: 110px;
+    color: #777;
+}
+
+.image-preview-content {
+    margin-top: 5px;
+}
+
+.lighting-options-content {
+    padding-top: 10px;
+}
+
+/* Background radio buttons styles */
+.bg-options-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.bg-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.bg-radio-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    z-index: 2; /* Ensure the container appears above other elements */
+}
+
+.bg-option input[type="radio"],
+.bg-radio-container input[type="radio"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 1px solid #444;
+    border-radius: 50%;
+    background-color: #2a2a2a;
+    cursor: pointer;
+    position: relative;
+    margin: 0;
+    z-index: 3; /* Higher z-index for the radio button */
+}
+
+.bg-option input[type="radio"]:checked,
+.bg-radio-container input[type="radio"]:checked {
+    border-color: #0088ff;
+}
+
+.bg-option input[type="radio"]:checked::after,
+.bg-radio-container input[type="radio"]:checked::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #0088ff;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.bg-option input[type="radio"]:hover,
+.bg-radio-container input[type="radio"]:hover {
+    border-color: #0088ff;
+}
+
+.bg-option label {
+    color: #aaa;
+    font-size: 1em;
+    cursor: pointer;
+}
+
+/* Preview canvases */
+.bg-preview-canvas {
+    max-width: 100%;
+    max-height: 260px;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    background-color: #222;
+    border: 1px solid #444;
+}
+
+/* Update content section headers to have some top margin */
+.bg-content-header {
+    margin-top: 10px;
+} 

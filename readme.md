@@ -254,27 +254,18 @@ This project welcomes contributions. See our [contributing guide](CONTRIBUTING.m
 
 ## 📝 License
 
-This project is licensed under a custom dual-license:
+This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
 
-### Non-Commercial License
-- Free for non-commercial use
-- Allows modification, distribution, and use in non-commercial projects
-- Must maintain these same license terms in derivative works
+- You are free to use, modify, and distribute this software.
+- If you modify the software, you must distribute your modifications under the same license.
+- You must disclose the source code when distributing the software.
+- There is no warranty for this software.
 
-### Commercial License
-Commercial use requires explicit written permission from the copyright holder (Steven Meier). This includes:
-- Using the software to generate revenue
-- Including in commercial products
-- Using in for-profit businesses
-- Creating derivative works for commercial purposes
-
-For commercial licensing inquiries, contact: steven.meier77@gmail.com
-
-See the [LICENSE](LICENSE) file for full terms and conditions.
+For the full license text, see the [LICENSE](LICENSE) file.
 
 ## 📧 Contact
 
-- Email: steven.meier77@gmail.com
+- Email: info@blorkfield.com
 - Discord: "Blooooork"
 
 ## Versioning
@@ -308,4 +299,4 @@ This repository uses several GitHub Actions workflows:
 
 ---
 
-Built with passion and precision by Steven & Bennett Meier
+Built by Blorkfield LLC
