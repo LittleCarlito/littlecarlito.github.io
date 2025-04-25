@@ -24,6 +24,15 @@ let backgroundTexture = null;
 // Store the currently selected background option
 let currentBackgroundOption = 'none';
 
+// When DOM is ready, initialize the panel
+document.addEventListener('DOMContentLoaded', function() {
+    // Try to initialize if DOM is ready and panel wasn't initialized yet
+    if (!controlsInitialized) {
+        console.log('[DEBUG] DOM ready, attempting to initialize World Panel');
+        initWorldPanel();
+    }
+});
+
 /**
  * Initialize the World panel and cache DOM elements
  */
@@ -39,6 +48,116 @@ export function initWorldPanel() {
     }
     
     console.log('[DEBUG] World panel found, initializing...');
+    
+    // Initialize value displays on sliders and set up event listeners
+    document.querySelectorAll('.control-group input[type="range"]').forEach(slider => {
+        const valueDisplay = slider.previousElementSibling.querySelector('.value-display');
+        if (valueDisplay) {
+            valueDisplay.textContent = slider.value;
+        }
+        
+        // Add input event listener to update value display when dragging
+        slider.addEventListener('input', function() {
+            const valueDisplay = this.previousElementSibling.querySelector('.value-display');
+            if (valueDisplay) {
+                valueDisplay.textContent = this.value;
+            }
+        });
+    });
+    
+    // Initialize collapsible functionality
+    const collapsibleHeaders = document.querySelectorAll('.collapsible-header');
+    if (collapsibleHeaders) {
+        collapsibleHeaders.forEach(header => {
+            header.addEventListener('click', function() {
+                const content = this.nextElementSibling;
+                const indicator = this.querySelector('.collapse-indicator');
+                
+                if (content.style.display === 'none') {
+                    content.style.display = 'block';
+                    indicator.textContent = '[-]';
+                } else {
+                    content.style.display = 'none';
+                    indicator.textContent = '[+]';
+                }
+            });
+        });
+    }
+    
+    // Initialize Background radio buttons
+    const bgRadioButtons = document.querySelectorAll('input[name="bg-option"]');
+    if (bgRadioButtons && bgRadioButtons.length > 0) {
+        bgRadioButtons.forEach(radio => {
+            radio.addEventListener('change', function(e) {
+                // Stop propagation for safety
+                e.stopPropagation();
+                
+                const selectedValue = this.value;
+                console.log('Background option changed to:', selectedValue);
+                
+                // Get the content sections
+                const bgImageContent = document.getElementById('bg-preview-canvas').closest('.metadata-content');
+                const hdrImageContent = document.getElementById('hdr-preview-canvas').closest('.metadata-content');
+                const bgPreviewCanvas = document.getElementById('bg-preview-canvas');
+                const hdrPreviewCanvas = document.getElementById('hdr-preview-canvas');
+                
+                // Set both canvases to semi-transparent
+                if (bgPreviewCanvas) bgPreviewCanvas.style.opacity = '0.3';
+                if (hdrPreviewCanvas) hdrPreviewCanvas.style.opacity = '0.3';
+                
+                // Fire custom events based on selection
+                if (selectedValue === 'background') {
+                    // Enable background, disable HDR
+                    if (bgPreviewCanvas) bgPreviewCanvas.style.opacity = '1';
+                    
+                    document.dispatchEvent(new CustomEvent('bg-toggle-change', { 
+                        detail: { enabled: true }
+                    }));
+                    document.dispatchEvent(new CustomEvent('hdr-toggle-change', { 
+                        detail: { enabled: false }
+                    }));
+                } else if (selectedValue === 'hdr') {
+                    // Enable HDR, disable background
+                    if (hdrPreviewCanvas) hdrPreviewCanvas.style.opacity = '1';
+                    
+                    document.dispatchEvent(new CustomEvent('hdr-toggle-change', { 
+                        detail: { enabled: true }
+                    }));
+                    document.dispatchEvent(new CustomEvent('bg-toggle-change', { 
+                        detail: { enabled: false }
+                    }));
+                } else {
+                    // Disable both
+                    document.dispatchEvent(new CustomEvent('bg-toggle-change', { 
+                        detail: { enabled: false }
+                    }));
+                    document.dispatchEvent(new CustomEvent('hdr-toggle-change', { 
+                        detail: { enabled: false }
+                    }));
+                }
+            });
+            
+            // Prevent clicks on the radio buttons from toggling the sections
+            radio.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+            
+            // Trigger the change event for the checked radio to initialize state
+            if (radio.checked) {
+                radio.dispatchEvent(new Event('change'));
+            }
+        });
+        
+        // Make radio buttons in headers work with the collapsible function
+        document.querySelectorAll('.bg-radio-container').forEach(container => {
+            const radio = container.querySelector('input[type="radio"]');
+            if (radio) {
+                radio.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                });
+            }
+        });
+    }
     
     // Check background image option visibility at startup
     const state = getState();
