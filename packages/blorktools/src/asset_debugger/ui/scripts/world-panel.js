@@ -21,8 +21,27 @@ let environmentTexture = null;
 // Store the background texture for preview
 let backgroundTexture = null;
 
-// Store the currently selected background option
-let currentBackgroundOption = 'none';
+// Track the currently selected background option
+let currentBackgroundOption = 'none'; // Default to 'none' to prevent automatic background changes
+
+// Track if an EXR/HDR file is currently being loaded
+let exrLoadInProgress = false;
+
+// Add a single flag to track when an EXR/HDR file is being loaded
+let isLoadingHdrFile = false;
+
+// Listen for lighting file loading to ensure background option stays consistent
+document.addEventListener('lighting-loaded', function(e) {
+    // When a lighting file is loaded, don't automatically change the background
+    // unless the user has explicitly chosen the HDR option
+    if (currentBackgroundOption !== 'hdr') {
+        // Keep current choice or default to 'none'
+        const noneRadio = document.querySelector('input[name="bg-option"][value="none"]');
+        if (noneRadio) {
+            noneRadio.checked = true;
+        }
+    }
+});
 
 /**
  * Initialize the World panel and cache DOM elements
@@ -1376,8 +1395,9 @@ function clearLightingInfo() {
 /**
  * Update the background info display with metadata
  * @param {Object} metadata - The background image metadata
+ * @param {boolean} [skipRendering=false] - Whether to skip rendering the preview
  */
-export function updateBackgroundInfo(metadata) {
+export function updateBackgroundInfo(metadata, skipRendering = false) {
     console.log('Updating background info with metadata:', metadata.fileName, metadata.type);
     
     // Store the metadata for later use if the panel isn't ready yet
@@ -1466,13 +1486,14 @@ export function updateBackgroundInfo(metadata) {
         }
     }
     
-    // Try to get background texture and render it
-    const state = getState();
-    if (state.backgroundFile) {
-        console.log('Found background file in state, rendering preview');
-        
-        // Create a preview of the background image
-        renderBackgroundPreview(state.backgroundFile);
+    // Only render preview if not skipped and we have a file in state
+    if (!skipRendering) {
+        const state = getState();
+        if (state.backgroundFile && !backgroundTexture) {
+            console.log('Found background file in state, rendering preview');
+            // Create a preview of the background image
+            renderBackgroundPreview(state.backgroundFile);
+        }
     }
 }
 
@@ -1482,6 +1503,12 @@ export function updateBackgroundInfo(metadata) {
  * @returns {boolean} - Whether preview was rendered successfully
  */
 export function renderBackgroundPreview(fileOrTexture) {
+    // Simple prevention of recursive calls
+    if (isLoadingHdrFile) {
+        console.log('Already loading an HDR/EXR file, preventing recursive calls');
+        return true;
+    }
+    
     // Look for the canvas element
     const canvas = document.getElementById('bg-preview-canvas');
     const noImageMessage = document.getElementById('no-bg-image-message');
@@ -1523,6 +1550,9 @@ export function renderBackgroundPreview(fileOrTexture) {
             // Special handling for EXR/HDR files
             if (isEXR || isHDR) {
                 console.log(`Handling ${isEXR ? 'EXR' : 'HDR'} file with special loader`);
+                
+                // Set loading flag to prevent recursion
+                isLoadingHdrFile = true;
                 
                 // Create metadata early for better UX
                 if (!currentBackgroundMetadata) {
@@ -1569,7 +1599,14 @@ export function renderBackgroundPreview(fileOrTexture) {
                                         width: texture.image.width,
                                         height: texture.image.height
                                     };
-                                    updateBackgroundInfo(currentBackgroundMetadata);
+                                    // Important: skip updateBackgroundInfo's render step
+                                    // to prevent recursive loading
+                                    // Just update UI fields directly
+                                    const widthHeight = `${texture.image.width} × ${texture.image.height}`;
+                                    const resolutionEl = document.getElementById('bg-resolution');
+                                    if (resolutionEl) {
+                                        resolutionEl.textContent = widthHeight;
+                                    }
                                 }
                                 
                                 // Create sphere preview with the texture
@@ -1577,6 +1614,9 @@ export function renderBackgroundPreview(fileOrTexture) {
                                 
                                 // Clean up URL object
                                 URL.revokeObjectURL(url);
+                                
+                                // Clear the loading flag
+                                isLoadingHdrFile = false;
                             },
                             // onProgress callback
                             (xhr) => {
@@ -1588,11 +1628,17 @@ export function renderBackgroundPreview(fileOrTexture) {
                                 console.error(`Error loading ${isEXR ? 'EXR' : 'HDR'} file:`, error);
                                 showNoBackgroundImageMessage(canvas, noImageMessage, `Error loading ${isEXR ? 'EXR' : 'HDR'} file`);
                                 URL.revokeObjectURL(url);
+                                
+                                // Clear the loading flag on error
+                                isLoadingHdrFile = false;
                             }
                         );
                     } catch (error) {
                         console.error(`Error in ${isEXR ? 'EXR' : 'HDR'} loading:`, error);
                         showNoBackgroundImageMessage(canvas, noImageMessage, `Error: Could not load ${isEXR ? 'EXR' : 'HDR'} file`);
+                        
+                        // Clear the loading flag on error
+                        isLoadingHdrFile = false;
                     }
                 };
                 
@@ -1963,59 +2009,128 @@ window.testRenderExr = testRenderExr;
 function applyBackgroundBasedOnPriority() {
     const state = getState();
     
-    // Apply background based on priority
-    
-    // Check if we have a background file first
-    if (state.backgroundFile) {
-        console.log('Applying background image as first priority');
-        
-        // Enable background image
-        import('../../core/background-util.js').then(backgroundModule => {
-            if (backgroundModule.toggleBackgroundVisibility) {
-                backgroundModule.toggleBackgroundVisibility(true);
+    // If a user has explicitly set a background option, respect that choice first
+    if (currentBackgroundOption) {
+        // User has selected a specific background option
+        if (currentBackgroundOption === 'background') {
+            // User wants to use the background image
+            if (state.backgroundFile) {
+                console.log('Applying explicitly selected background image');
+                
+                // Enable background image
+                import('../../core/background-util.js').then(backgroundModule => {
+                    if (backgroundModule.toggleBackgroundVisibility) {
+                        backgroundModule.toggleBackgroundVisibility(true);
+                    }
+                });
+                
+                // Make sure lighting environment is not used as background
+                if (state.scene && state.scene.background === state.scene.environment) {
+                    state.scene.background = null;
+                }
+            } else {
+                console.log('Background image selected but no file available, falling back to none');
+                // Fall back to none since the file isn't available
+                currentBackgroundOption = 'none';
+                
+                // Ensure background is null
+                if (state.scene) {
+                    state.scene.background = null;
+                }
+                
+                // Update radio button selection
+                const noneRadio = document.querySelector('input[name="bg-option"][value="none"]');
+                if (noneRadio) {
+                    noneRadio.checked = true;
+                }
             }
-        });
-        
-        // Update radio button selection
-        const backgroundRadio = document.querySelector('input[name="bg-option"][value="background"]');
-        if (backgroundRadio) {
-            backgroundRadio.checked = true;
-            currentBackgroundOption = 'background';
+        } else if (currentBackgroundOption === 'hdr') {
+            // User wants to use the HDR/EXR environment as background
+            if (state.scene && state.scene.environment) {
+                console.log('Applying explicitly selected environment as background');
+                
+                // Set environment as background
+                state.scene.background = state.scene.environment;
+            } else {
+                console.log('HDR background selected but no environment available, falling back to none');
+                // Fall back to none since the environment isn't available
+                currentBackgroundOption = 'none';
+                
+                // Ensure background is null
+                if (state.scene) {
+                    state.scene.background = null;
+                }
+                
+                // Update radio button selection
+                const noneRadio = document.querySelector('input[name="bg-option"][value="none"]');
+                if (noneRadio) {
+                    noneRadio.checked = true;
+                }
+            }
+        } else if (currentBackgroundOption === 'none') {
+            // User wants no background
+            console.log('Applying explicitly selected none background');
+            
+            // Ensure background is null
+            if (state.scene) {
+                state.scene.background = null;
+            }
         }
+    } else {
+        // No explicit user selection, apply background based on priority
         
-        // Make sure lighting environment is not used as background
-        if (state.scene && state.scene.background === state.scene.environment) {
-            state.scene.background = null;
+        // Check if we have a background file first
+        if (state.backgroundFile) {
+            console.log('Applying background image as first priority');
+            
+            // Enable background image
+            import('../../core/background-util.js').then(backgroundModule => {
+                if (backgroundModule.toggleBackgroundVisibility) {
+                    backgroundModule.toggleBackgroundVisibility(true);
+                }
+            });
+            
+            // Update radio button selection and current option
+            const backgroundRadio = document.querySelector('input[name="bg-option"][value="background"]');
+            if (backgroundRadio) {
+                backgroundRadio.checked = true;
+                currentBackgroundOption = 'background';
+            }
+            
+            // Make sure lighting environment is not used as background
+            if (state.scene && state.scene.background === state.scene.environment) {
+                state.scene.background = null;
+            }
         }
-    } 
-    // If no background file but we have environment lighting
-    else if (state.scene && state.scene.environment) {
-        console.log('Applying environment lighting as background (second priority)');
-        
-        // Set environment as background
-        state.scene.background = state.scene.environment;
-        
-        // Update radio button selection
-        const hdrRadio = document.querySelector('input[name="bg-option"][value="hdr"]');
-        if (hdrRadio) {
-            hdrRadio.checked = true;
-            currentBackgroundOption = 'hdr';
-        }
-    } 
-    // If neither are available
-    else {
-        console.log('No background files available, setting to none');
-        
-        // Ensure background is null
-        if (state.scene) {
-            state.scene.background = null;
-        }
-        
-        // Update radio button selection
-        const noneRadio = document.querySelector('input[name="bg-option"][value="none"]');
-        if (noneRadio) {
-            noneRadio.checked = true;
-            currentBackgroundOption = 'none';
+        // If no background file but we have environment lighting
+        else if (state.scene && state.scene.environment) {
+            console.log('Applying environment lighting as background (second priority)');
+            
+            // Set environment as background
+            state.scene.background = state.scene.environment;
+            
+            // Update radio button selection and current option
+            const hdrRadio = document.querySelector('input[name="bg-option"][value="hdr"]');
+            if (hdrRadio) {
+                hdrRadio.checked = true;
+                currentBackgroundOption = 'hdr';
+            }
+        } 
+        // If neither are available
+        else {
+            console.log('No background files available, setting to none');
+            
+            // Ensure background is null
+            if (state.scene) {
+                state.scene.background = null;
+            }
+            
+            // Update radio button selection and current option
+            const noneRadio = document.querySelector('input[name="bg-option"][value="none"]');
+            if (noneRadio) {
+                noneRadio.checked = true;
+                currentBackgroundOption = 'none';
+            }
         }
     }
     
@@ -2033,4 +2148,204 @@ function applyBackgroundBasedOnPriority() {
     
     // Update the UI info panels
     updateBackgroundMessage();
+}
+
+/**
+ * Generate a preview for HDR/EXR files without affecting the world panel
+ * This is specifically for the drop zone preview
+ * @param {File} file - The HDR/EXR file
+ * @param {HTMLElement} previewElement - The element to show the preview in
+ */
+export function generatePreviewOnly(file, previewElement) {
+    if (!file || !previewElement) return;
+    
+    // Check if we've already generated a texture for this file
+    const cachedTexture = backgroundTextureCache.get(file.name);
+    if (cachedTexture) {
+        console.log('Using cached texture for preview:', file.name);
+        displayCachedPreview(cachedTexture, previewElement);
+        return;
+    }
+    
+    console.log('Generating standalone preview for:', file.name);
+    
+    // Create a canvas for the preview
+    const canvas = document.createElement('canvas');
+    canvas.width = 100;  // Small size for the dropzone preview
+    canvas.height = 100;
+    
+    // Use appropriate loader based on file extension
+    const extension = file.name.split('.').pop().toLowerCase();
+    const isEXR = extension === 'exr';
+    const isHDR = extension === 'hdr';
+    
+    // Load and display the preview
+    Promise.resolve().then(async () => {
+        try {
+            // Import THREE.js dynamically
+            const THREE = window.THREE || await import('three');
+            
+            // Create a URL for the file
+            const url = URL.createObjectURL(file);
+            
+            // Select the appropriate loader
+            let loader;
+            if (isEXR) {
+                const { EXRLoader } = await import('three/addons/loaders/EXRLoader.js');
+                loader = new EXRLoader();
+            } else {
+                const { RGBELoader } = await import('three/addons/loaders/RGBELoader.js');
+                loader = new RGBELoader();
+            }
+            
+            // Load the texture
+            loader.load(
+                url,
+                (texture) => {
+                    // Store texture in the cache for future use
+                    texture.userData = { fileName: file.name };
+                    backgroundTextureCache.set(file.name, texture);
+                    
+                    // Also store in state for use with debugging
+                    import('../../core/state.js').then(stateModule => {
+                        stateModule.updateState({
+                            backgroundTexture: texture
+                        });
+                    });
+                    
+                    // Clear the preview element and display the preview
+                    while (previewElement.firstChild) {
+                        previewElement.removeChild(previewElement.firstChild);
+                    }
+                    previewElement.textContent = '';
+                    previewElement.appendChild(canvas);
+                    
+                    // Create a mini 3D preview
+                    createSimplePreview(THREE, texture, canvas);
+                    
+                    // Clean up
+                    URL.revokeObjectURL(url);
+                },
+                (xhr) => {
+                    // Update progress
+                    if (xhr.lengthComputable) {
+                        const percentComplete = xhr.loaded / xhr.total * 100;
+                        previewElement.textContent = `Loading: ${Math.round(percentComplete)}%`;
+                    }
+                },
+                (error) => {
+                    console.error('Error loading preview:', error);
+                    previewElement.textContent = 'Error loading preview';
+                    URL.revokeObjectURL(url);
+                }
+            );
+        } catch (error) {
+            console.error('Error generating preview:', error);
+            previewElement.textContent = 'Preview unavailable';
+        }
+    });
+}
+
+/**
+ * Display a cached texture in the preview element
+ * @param {THREE.Texture} texture - The cached texture
+ * @param {HTMLElement} previewElement - The element to display in
+ */
+function displayCachedPreview(texture, previewElement) {
+    // Clear the preview element
+    while (previewElement.firstChild) {
+        previewElement.removeChild(previewElement.firstChild);
+    }
+    previewElement.textContent = '';
+    
+    // Create a canvas for the preview
+    const canvas = document.createElement('canvas');
+    canvas.width = 100;  // Small size for the dropzone preview
+    canvas.height = 100;
+    previewElement.appendChild(canvas);
+    
+    // Create a mini 3D preview
+    Promise.resolve().then(async () => {
+        const THREE = window.THREE || await import('three');
+        createSimplePreview(THREE, texture, canvas);
+    });
+}
+
+/**
+ * Create a simple 3D preview using Three.js
+ * @param {Object} THREE - The Three.js library
+ * @param {THREE.Texture} texture - The texture to display
+ * @param {HTMLCanvasElement} canvas - The canvas to render on
+ */
+function createSimplePreview(THREE, texture, canvas) {
+    // Create renderer
+    const renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        alpha: true,
+        antialias: true
+    });
+    renderer.setSize(canvas.width, canvas.height);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    
+    // Create scene
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x111111);
+    
+    // Create camera
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+    camera.position.z = 3;
+    
+    // Create sphere with material
+    const geometry = new THREE.SphereGeometry(0.8, 32, 32);
+    const material = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        metalness: 1.0,
+        roughness: 0.05,
+        envMapIntensity: 1.0
+    });
+    
+    // Set the texture as environment map
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    scene.environment = texture;
+    
+    // Create mesh
+    const sphere = new THREE.Mesh(geometry, material);
+    scene.add(sphere);
+    
+    // Add lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+    scene.add(ambientLight);
+    
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    directionalLight.position.set(1, 1, 1);
+    scene.add(directionalLight);
+    
+    // Auto rotate the sphere
+    let animationId;
+    function animate() {
+        animationId = requestAnimationFrame(animate);
+        sphere.rotation.y += 0.01;
+        renderer.render(scene, camera);
+    }
+    
+    // Start animation
+    animate();
+    
+    // Add cleanup on canvas removal
+    const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+            if (mutation.type === 'childList' && !document.contains(canvas)) {
+                cancelAnimationFrame(animationId);
+                renderer.dispose();
+                geometry.dispose();
+                material.dispose();
+                observer.disconnect();
+                break;
+            }
+        }
+    });
+    
+    observer.observe(document.body, { childList: true, subtree: true });
 } 

@@ -657,6 +657,7 @@ function startDebugging() {
                     
                     const lightingFile = currentState.lightingFile;
                     const backgroundFile = currentState.backgroundFile;
+                    const backgroundTexture = currentState.backgroundTexture;
                     
                     // Process lighting and background as separate, sequential operations
                     // This ensures they don't interfere with each other
@@ -707,7 +708,26 @@ function startDebugging() {
                     
                     // Then, handle background (after lighting is complete)
                     return setupPromise.then(() => {
-                        if (backgroundFile) {
+                        // If we have a texture already loaded from the dropzone preview,
+                        // use that directly instead of reloading the file
+                        if (backgroundTexture) {
+                            console.log('[DEBUG] Using already loaded background texture');
+                            
+                            // Apply the texture to the scene
+                            if (currentState.scene) {
+                                currentState.scene.background = backgroundTexture;
+                                
+                                // Dispatch an event to notify UI components
+                                const event = new CustomEvent('background-updated', { 
+                                    detail: { texture: backgroundTexture, file: backgroundFile }
+                                });
+                                document.dispatchEvent(event);
+                                
+                                resourcesLoaded.backgroundLoaded = true;
+                                checkAllResourcesLoaded();
+                            }
+                        }
+                        else if (backgroundFile) {
                             console.log('[DEBUG] Setting up background image from:', backgroundFile.name, 'type:', backgroundFile.type);
                             
                             // Import background image utilities
