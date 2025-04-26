@@ -553,11 +553,14 @@ function verifyFileDrop() {
         // Special case: If only lighting file is provided, we'll use a test cube with multiple materials
         const onlyLightingProvided = hasLightingFile && !hasTextures && !hasModel;
         
+        // Special case: If only background file is provided, we'll also use a test cube with multiple materials
+        const onlyBackgroundProvided = hasBackgroundFile && !hasTextures && !hasModel && !hasLightingFile;
+        
         // Update hasFiles check to include the special lighting-only case
         const hasFiles = hasTextures || hasModel || hasLightingFile || hasBackgroundFile;
         
-        // If only lighting file is provided, set a flag in state to use multi-material test cube
-        if (onlyLightingProvided) {
+        // If only lighting file or only background file is provided, set a flag in state to use multi-material test cube
+        if (onlyLightingProvided || onlyBackgroundProvided) {
             stateModule.setState({
                 useLightingTestCube: true
             });
