@@ -59,16 +59,33 @@ body {
     overflow: visible;
     padding: 10px;
     gap: 10px;
+    margin-top: 60px; /* Match header height */
 }
 
 header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 20px;
+    padding: 5px 20px; /* Increased right padding to match left padding */
     background-color: var(--secondary-color);
     color: var(--primary-color);
     border-bottom: 1px solid var(--panel-border);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    box-sizing: border-box; /* Ensure padding is included in width calculation */
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    height: 50px;
+}
+
+/* Ensure right-side buttons are properly aligned */
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-right: 0; /* Remove any potential margin */
 }
 
 h1 {
@@ -78,7 +95,9 @@ h1 {
 }
 
 h2, h3 {
+    margin: 5px 0;
     color: var(--primary-color);
+    font-weight: normal;
 }
 
 /* Section heading style for Asset Files and World Files */
@@ -1816,34 +1835,6 @@ h3 {
     max-width: 100%;
     max-height: 100%;
     aspect-ratio: 1/1;
-}
-
-/* Adjustments for container layout */
-.container {
-    display: flex;
-    flex-direction: column;
-    height: auto;
-    max-height: calc(100% - 60px); /* Use max-height instead of min-height */
-    overflow: visible;
-    padding: 10px;
-    gap: 10px;
-}
-
-/* Compact header */
-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 5px 10px;
-    background-color: var(--header-bg);
-    height: 50px;
-}
-
-/* More compact h2, h3 */
-h2, h3 {
-    margin: 5px 0;
-    color: var(--heading-color);
-    font-weight: normal;
 }
 
 /* More compact headings */

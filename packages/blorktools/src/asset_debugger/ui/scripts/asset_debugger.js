@@ -18,6 +18,12 @@ import { initWorldPanel } from './world-panel.js';
 // Debug flags
 const DEBUG_LIGHTING = false;
 
+// Mac dock behavior settings
+const HEADER_SHOW_DISTANCE = 20; // px from top to show header
+const HEADER_HIDE_DISTANCE = 60; // px from top to hide header
+const HEADER_HIDE_DELAY = 1000; // ms to wait before hiding header
+let headerHideTimer = null;
+
 // Track loading state
 let loadingComplete = false;
 let resourcesLoaded = {
@@ -162,8 +168,81 @@ function setupThemeAndUI() {
             const currentSettings = loadSettings() || {};
             currentSettings.pinned = isPinned;
             saveSettings(currentSettings);
+            
+            // If pinned, ensure header is visible
+            const header = document.querySelector('header');
+            if (isPinned) {
+                header.style.transform = 'translateY(0)';
+                header.style.opacity = '1';
+            } else {
+                // If not pinned, apply the dock behavior
+                setupHeaderDockBehavior(header);
+            }
         });
     }
+    
+    // Set up Mac-like dock behavior for header
+    setupHeaderDockBehavior();
+}
+
+/**
+ * Sets up the Mac-like dock behavior for the header
+ */
+function setupHeaderDockBehavior() {
+    const header = document.querySelector('header');
+    const pinButton = document.getElementById('pin-button');
+    
+    if (!header || !pinButton) return;
+    
+    // Add CSS transitions for smooth show/hide
+    header.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+    
+    // Initial state
+    const isPinned = pinButton.classList.contains('pinned');
+    if (!isPinned) {
+        // Start with header hidden if not pinned
+        header.style.transform = 'translateY(-100%)';
+        header.style.opacity = '0';
+    }
+    
+    // Add mouse movement listener to show/hide header
+    document.addEventListener('mousemove', (e) => {
+        // Get latest pin state
+        const isPinned = pinButton.classList.contains('pinned');
+        
+        // If pinned, keep header visible at all times
+        if (isPinned) {
+            header.style.transform = 'translateY(0)';
+            header.style.opacity = '1';
+            
+            // Clear any pending hide timer
+            if (headerHideTimer) {
+                clearTimeout(headerHideTimer);
+                headerHideTimer = null;
+            }
+            return;
+        }
+        
+        // When mouse is near the top, show the header
+        if (e.clientY <= HEADER_SHOW_DISTANCE) {
+            header.style.transform = 'translateY(0)';
+            header.style.opacity = '1';
+            
+            // Clear any pending hide timer
+            if (headerHideTimer) {
+                clearTimeout(headerHideTimer);
+                headerHideTimer = null;
+            }
+        } 
+        // When mouse moves away, start timer to hide header
+        else if (e.clientY > HEADER_HIDE_DISTANCE && !headerHideTimer) {
+            headerHideTimer = setTimeout(() => {
+                header.style.transform = 'translateY(-100%)';
+                header.style.opacity = '0';
+                headerHideTimer = null;
+            }, HEADER_HIDE_DELAY);
+        }
+    });
 }
 
 /**
