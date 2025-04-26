@@ -175,20 +175,23 @@ function setupThemeAndUI() {
                 header.style.transform = 'translateY(0)';
                 header.style.opacity = '1';
             } else {
-                // If not pinned, apply the dock behavior
-                setupHeaderDockBehavior(header);
+                // If not pinned, just register the dock behavior
+                // but don't hide the header immediately - keep it visible
+                // and let the mouse movement behavior handle when to hide it
+                setupHeaderDockBehavior(false);
             }
         });
     }
     
     // Set up Mac-like dock behavior for header
-    setupHeaderDockBehavior();
+    setupHeaderDockBehavior(true);
 }
 
 /**
  * Sets up the Mac-like dock behavior for the header
+ * @param {boolean} hideInitially - Whether to hide the header initially if unpinned
  */
-function setupHeaderDockBehavior() {
+function setupHeaderDockBehavior(hideInitially = true) {
     const header = document.querySelector('header');
     const pinButton = document.getElementById('pin-button');
     
@@ -199,8 +202,8 @@ function setupHeaderDockBehavior() {
     
     // Initial state
     const isPinned = pinButton.classList.contains('pinned');
-    if (!isPinned) {
-        // Start with header hidden if not pinned
+    if (!isPinned && hideInitially) {
+        // Start with header hidden if not pinned and hideInitially is true
         header.style.transform = 'translateY(-100%)';
         header.style.opacity = '0';
     }
