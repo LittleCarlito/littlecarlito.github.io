@@ -215,6 +215,16 @@ function setupThemeAndUI() {
             window.location.href = '../../';
         });
     }
+    
+    // Pin button functionality
+    const pinButton = document.getElementById('pin-button');
+    if (pinButton) {
+        // The pinned class is now set in HTML by default
+        
+        pinButton.addEventListener('click', function() {
+            this.classList.toggle('pinned');
+        });
+    }
 }
 
 /**

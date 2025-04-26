@@ -115,6 +115,33 @@ h3 {
     background-color: rgba(30, 136, 229, 0.2);
 }
 
+/* Pin button styles */
+.pin-button {
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pin-button svg {
+    transform: rotate(-90deg); /* Default state - horizontal */
+    transition: transform 0.3s ease, fill 0.3s ease;
+}
+
+.pin-button.pinned svg {
+    transform: rotate(0deg); /* Pinned state - vertical */
+}
+
+.pin-button.pinned svg path {
+    fill: var(--button-color);
+}
+
+.pin-button:not(.pinned) svg path {
+    fill: none;
+    stroke: var(--button-color);
+    stroke-width: 1.5px;
+}
+
 /* Blorkboard-style card panel */
 .tool-panel {
     padding: 10px;
