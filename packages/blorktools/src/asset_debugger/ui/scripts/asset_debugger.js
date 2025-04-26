@@ -871,10 +871,32 @@ function initializeDebugger(settings) {
     // Set up tab navigation
     setupTabNavigation();
     
+    // Now that the user has clicked "Start Debugging", we can initialize all the panels
+    console.log('Start debugging clicked - initializing panels...');
+    
     // Initialize the World panel first (it's the default active tab)
     initWorldPanel();
     
-    // Make sure only the World tab is active
+    // Initialize other panels that might be needed
+    import('./atlas-panel.js').then(module => {
+        if (module.initAtlasPanel) {
+            module.initAtlasPanel();
+        }
+    });
+    
+    import('./uv-panel.js').then(module => {
+        if (module.initUvPanel) {
+            module.initUvPanel();
+        }
+    });
+    
+    import('./mesh-panel.js').then(module => {
+        if (module.initMeshPanel) {
+            module.initMeshPanel();
+        }
+    });
+    
+    // Make sure only the World tab is active initially
     activateWorldTab();
     
     // Initialize settings modal with loaded settings

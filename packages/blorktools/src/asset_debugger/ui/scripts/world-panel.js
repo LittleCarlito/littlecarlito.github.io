@@ -24,19 +24,17 @@ let backgroundTexture = null;
 // Store the currently selected background option
 let currentBackgroundOption = 'none';
 
-// When DOM is ready, initialize the panel
-document.addEventListener('DOMContentLoaded', function() {
-    // Try to initialize if DOM is ready and panel wasn't initialized yet
-    if (!controlsInitialized) {
-        console.log('[DEBUG] DOM ready, attempting to initialize World Panel');
-        initWorldPanel();
-    }
-});
-
 /**
  * Initialize the World panel and cache DOM elements
  */
 export function initWorldPanel() {
+    // Only initialize if not already done, and only if we're in the debug phase
+    // where the panel was explicitly requested to be initialized
+    if (controlsInitialized) {
+        console.log('World Panel already initialized, skipping');
+        return;
+    }
+    
     console.log('[DEBUG] Initializing World Panel...');
     
     // Look for world-tab (from world-panel.html) or world-tab-container (from asset_debugger.html)

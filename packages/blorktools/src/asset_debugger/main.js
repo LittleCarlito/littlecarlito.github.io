@@ -13,6 +13,7 @@
 import { initState } from './core/state.js';
 import { initUiManager } from './ui/ui-manager.js';
 import { setupDropzones } from './ui/file-handler.js';
+// Import panel initialization functions but don't call them here
 import { initAtlasPanel } from './ui/scripts/atlas-panel.js';
 import { initUvPanel } from './ui/scripts/uv-panel.js';
 
@@ -29,8 +30,11 @@ export function init() {
     // Initialize UI components
     initUiManager();
     setupDropzones();
-    initAtlasPanel();
-    initUvPanel();
+    
+    // REMOVED: Calls to initialize panels
+    // Panels should only be initialized when the app is in debug mode (after "Start Debugging" is clicked)
+    // initAtlasPanel();
+    // initUvPanel();
     
     // Handle theme switching if needed
     setupThemeSwitching();
