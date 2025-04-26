@@ -1154,21 +1154,25 @@ jobs:
       - name: Determine workflow result
         id: workflow-result
         run: |
-          # Store the outputs from version-and-tag job in a format that avoids context access issues
-          TAG_OUTPUTS='${{ toJSON(needs.version-and-tag.outputs) }}'
-          RELEASES_FAILED=$(echo "$TAG_OUTPUTS" | jq -r '.["error-message"] // ""')
-          
-          # Check results of required jobs
-          if [[ "${{ needs.build.result }}" == "success" && "${{ needs.test.result }}" == "success" ]]; then
-            # Check if version and tag had issues
-            if [[ "${{ needs.version-and-tag.result }}" == "success" && -n "$RELEASES_FAILED" && "$RELEASES_FAILED" -gt 0 ]]; then
-              echo "result=partial" >> $GITHUB_OUTPUT
-              echo "message=Package versioning succeeded but some releases failed to create" >> $GITHUB_OUTPUT
-            else
-              echo "result=success" >> $GITHUB_OUTPUT
-            fi
-          else
+          # Check if any job failed
+          if [[ "${{ needs.build.result }}" != "success" || 
+                "${{ needs.test.result }}" != "success" || 
+                ("${{ needs.version-and-tag.result }}" != "success" && "${{ needs.version-and-tag.result }}" != "skipped") || 
+                ("${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped") ]]; then
             echo "result=failure" >> $GITHUB_OUTPUT
+            
+            # Collect what failed for detailed reporting
+            FAILED_JOBS=""
+            [[ "${{ needs.build.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Build, "
+            [[ "${{ needs.test.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Test, "
+            [[ "${{ needs.version-and-tag.result }}" != "success" && "${{ needs.version-and-tag.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Versioning, "
+            [[ "${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Site Deployment, "
+            
+            # Remove trailing comma and space
+            FAILED_JOBS="${FAILED_JOBS%, }"
+            echo "error_details=Jobs failed: ${FAILED_JOBS}" >> $GITHUB_OUTPUT
+          else
+            echo "result=success" >> $GITHUB_OUTPUT
           fi
           
           # Get trigger info
@@ -1176,19 +1180,6 @@ jobs:
           echo "trigger_workflow=${{ needs.capture-trigger-info.outputs.trigger_workflow }}" >> $GITHUB_OUTPUT
           echo "trigger_detail=${{ needs.capture-trigger-info.outputs.trigger_detail }}" >> $GITHUB_OUTPUT
           echo "source_branch=${{ needs.capture-trigger-info.outputs.source_branch }}" >> $GITHUB_OUTPUT
-          
-          # Get detailed error information if version-and-tag failed or had issues
-          if [[ "${{ needs.version-and-tag.result }}" == "failure" || (-n "$RELEASES_FAILED" && "$RELEASES_FAILED" -gt 0) ]]; then
-            ERROR_MESSAGE="$RELEASES_FAILED"
-            
-            # Construct detailed error message
-            DETAIL_MSG=""
-            if [[ -n "$ERROR_MESSAGE" ]]; then
-              DETAIL_MSG="error:$ERROR_MESSAGE,"
-            fi
-            
-            echo "error_details=$DETAIL_MSG" >> $GITHUB_OUTPUT
-          fi
           
       # Use the new action to report results
       - name: Checkout repository
