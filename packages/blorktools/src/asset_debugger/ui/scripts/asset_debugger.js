@@ -7,8 +7,8 @@
 
 // Import the initialization functions
 import { init } from '../../main.js';
-// Import loadSettings from localstorage-util.js
-import { loadSettings } from '../../data/localstorage-util.js';
+// Import loadSettings and saveSettings from localstorage-util.js
+import { loadSettings, saveSettings } from '../../data/localstorage-util.js';
 // Import SettingsModal 
 import { SettingsModal } from './settings-modal.js';
 import { ExamplesModal } from './examples-modal.js';
@@ -216,13 +216,19 @@ function setupThemeAndUI() {
         });
     }
     
-    // Pin button functionality
+    // Pin button functionality with localStorage persistence
     const pinButton = document.getElementById('pin-button');
     if (pinButton) {
-        // The pinned class is now set in HTML by default
-        
+        // No need to initialize state here as it's now done in the HTML
+        // Just set up event listener to toggle and save pin state
         pinButton.addEventListener('click', function() {
             this.classList.toggle('pinned');
+            
+            // Save the new state to settings
+            const isPinned = this.classList.contains('pinned');
+            const currentSettings = loadSettings() || {};
+            currentSettings.pinned = isPinned;
+            saveSettings(currentSettings);
         });
     }
 }

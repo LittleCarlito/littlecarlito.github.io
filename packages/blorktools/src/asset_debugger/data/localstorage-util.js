@@ -37,6 +37,7 @@ export function loadSettings() {
  */
 export function getDefaultSettings() {
     return {
+        pinned: true, // Default pin state is enabled/pinned
         axisIndicator: {
             type: 'embedded',
             intensity: 0.7
