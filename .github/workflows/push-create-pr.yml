@@ -29,6 +29,22 @@ on:
         options:
           - 'true'
           - 'false'
+      calculate_versions:
+        description: 'Calculate and apply version bumps in PR'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      process_versions_on_merge:
+        description: 'Process version tagging/publishing after merge'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
 
 permissions:
   contents: write
@@ -40,6 +56,10 @@ jobs:
   push-and-create-pr:
     name: Push changes and create PR
     runs-on: ubuntu-latest
+    outputs:
+      pr-number: ${{ steps.manage_pr.outputs.pr-number }}
+      version-changes: ${{ steps.calculate_versions.outputs.version_changes || 'false' }}
+      pr-merged: ${{ steps.merge_pr.outputs.merged || 'false' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -76,6 +96,12 @@ jobs:
             
             # Default auto_merge to true
             echo "auto_merge=true" >> $GITHUB_OUTPUT
+            
+            # Default calculate_versions to true
+            echo "calculate_versions=true" >> $GITHUB_OUTPUT
+            
+            # Default process_versions_on_merge to true
+            echo "process_versions_on_merge=true" >> $GITHUB_OUTPUT
           else
             # For manual workflow dispatch, use inputs
             if [ -n "${{ github.event.inputs.branch_name }}" ]; then
@@ -89,6 +115,8 @@ jobs:
             echo "body=${{ github.event.inputs.body }}" >> $GITHUB_OUTPUT
             echo "target_branch=${{ github.event.inputs.target_branch }}" >> $GITHUB_OUTPUT
             echo "auto_merge=${{ github.event.inputs.auto_merge }}" >> $GITHUB_OUTPUT
+            echo "calculate_versions=${{ github.event.inputs.calculate_versions }}" >> $GITHUB_OUTPUT
+            echo "process_versions_on_merge=${{ github.event.inputs.process_versions_on_merge }}" >> $GITHUB_OUTPUT
           fi
       
       # Setup environment and tools
@@ -124,16 +152,77 @@ jobs:
           echo "Title: ${{ steps.branch_info.outputs.title }}" >> change.md
           echo "Generated: $(date)" >> change.md
       
+      # Install Node and PNPM for version calculation
+      - name: Setup Node.js for version calculation
+        if: steps.branch_info.outputs.calculate_versions == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          
+      - name: Setup pnpm for version calculation
+        if: steps.branch_info.outputs.calculate_versions == 'true'
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+          
+      - name: Install dependencies for version calculation
+        if: steps.branch_info.outputs.calculate_versions == 'true'
+        run: pnpm install
+      
+      # Calculate version changes based on commits in this branch
+      - name: Calculate version changes
+        id: calculate_versions
+        if: steps.branch_info.outputs.calculate_versions == 'true'
+        run: |
+          # Get the merge base with the target branch
+          git fetch origin ${{ steps.branch_info.outputs.target_branch }}
+          MERGE_BASE=$(git merge-base origin/${{ steps.branch_info.outputs.target_branch }} HEAD)
+          echo "Merge base with ${{ steps.branch_info.outputs.target_branch }}: $MERGE_BASE"
+          
+          # Run version calculation against the merge base
+          echo "Calculating version changes from $MERGE_BASE to HEAD..."
+          MERGE_BASE=$MERGE_BASE node scripts/version-runner.js --apply --output-json
+          
+          # Check if versions were updated
+          if [ -f "version-output.json" ]; then
+            UPDATED_COUNT=$(jq '.updatedPackages | length' version-output.json)
+            echo "packages_updated=$UPDATED_COUNT" >> $GITHUB_OUTPUT
+            
+            if [ "$UPDATED_COUNT" -gt "0" ]; then
+              echo "Version changes were applied to $UPDATED_COUNT packages"
+              jq -r '.updatedPackages[] | .name + ": " + .previousVersion + " → " + .version' version-output.json
+              
+              # Create version summary
+              if [ ! -f "version-summary.md" ]; then
+                echo "# Version Updates" > version-summary.md
+                jq -r '.updatedPackages[] | "- " + .name + ": " + .previousVersion + " → " + .version' version-output.json >> version-summary.md
+              fi
+              
+              # Stage the changed package.json files
+              git add "**/package.json"
+              
+              # Create version bump commit
+              git commit -m "chore: bump versions [auto]" -m "$(cat version-summary.md || echo 'Version updates')"
+              echo "version_commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+              echo "version_changes=true" >> $GITHUB_OUTPUT
+            else
+              echo "No version changes needed"
+              echo "version_changes=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "No version-output.json found"
+            echo "version_changes=false" >> $GITHUB_OUTPUT
+          fi
+      
       # Commit changes (only for workflow_dispatch)
       - name: Commit changes (for workflow_dispatch)
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && steps.calculate_versions.outputs.version_changes != 'true'
         run: |
           git add .
           git commit -m "${{ steps.branch_info.outputs.title }}"
       
-      # Push branch (only for workflow_dispatch)
-      - name: Push changes (for workflow_dispatch)
-        if: github.event_name == 'workflow_dispatch'
+      # Push branch 
+      - name: Push changes
         id: push_changes
         run: |
           git push origin ${{ steps.branch_info.outputs.branch }}
@@ -157,6 +246,26 @@ jobs:
           MERGE_TITLE="${{ steps.branch_info.outputs.title }}"
           echo "merge_title=$MERGE_TITLE" >> $GITHUB_OUTPUT
       
+      # Update PR body if versions were calculated
+      - name: Update PR body with version changes
+        id: update_pr_body
+        if: steps.calculate_versions.outputs.version_changes == 'true'
+        run: |
+          # Create updated PR body with version information
+          ORIGINAL_BODY="${{ steps.branch_info.outputs.body }}"
+          VERSION_INFO=$(cat version-summary.md)
+          
+          # Create new PR body
+          PR_BODY="$ORIGINAL_BODY"$'\n\n'
+          PR_BODY+="## Version Changes"$'\n\n'
+          PR_BODY+="$VERSION_INFO"$'\n\n'
+          PR_BODY+="*Version changes will be tagged and published after merging*"
+          
+          # Output the updated PR body
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$PR_BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        
       # Create PR
       - name: Create PR
         id: manage_pr
@@ -167,7 +276,7 @@ jobs:
           base-branch: ${{ steps.branch_info.outputs.target_branch }}
           head-branch: ${{ steps.branch_info.outputs.branch }}
           title: ${{ steps.branch_info.outputs.title }}
-          body: ${{ steps.branch_info.outputs.body }}
+          body: ${{ steps.update_pr_body.outputs.body || steps.branch_info.outputs.body }}
       
       # Wait for GitHub checks to complete
       - name: Wait for checks
@@ -204,6 +313,7 @@ jobs:
 
       # Use the merge-pr action directly instead of calling the workflow
       - name: Merge PR
+        id: merge_pr
         if: steps.branch_info.outputs.auto_merge == 'true' && steps.verify_checks.outcome == 'success'
         uses: ./.github/actions/merge-pull-request
         with:
@@ -213,7 +323,12 @@ jobs:
           commit-title: ${{ steps.merge_message.outputs.merge_title }}
           merge-method: 'merge'
           delete-branch: 'true'
-          commit-message: 'Merge PR #${{ steps.manage_pr.outputs.pr-number }} from ${{ steps.branch_info.outputs.branch }}\n\ncreate-pr: false\ntriggered-by: push-create-pr'
+          commit-message: >-
+            Merge PR #${{ steps.manage_pr.outputs.pr-number }} from ${{ steps.branch_info.outputs.branch }}
+            
+            create-pr: false
+            triggered-by: push-create-pr
+            version-changes: ${{ steps.calculate_versions.outputs.version_changes || 'false' }}
 
       # Cleanup if no auto-merge
       - name: Status update
@@ -249,4 +364,32 @@ jobs:
           summary: 'PR creation failed for branch ${{ steps.branch_info.outputs.branch || github.ref_name }} (reported from ${{ github.ref_name }})'
           source: 'webhook'
           discord-webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          github-token: ${{ secrets.PR_CREATION_TOKEN }} 
+          github-token: ${{ secrets.PR_CREATION_TOKEN }}
+
+  # Process version changes after PR is merged
+  process-versions:
+    name: Process Version Changes
+    needs: push-and-create-pr
+    if: >-
+      needs.push-and-create-pr.outputs.pr-merged == 'true' && 
+      needs.push-and-create-pr.outputs.version-changes == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.DEPLOY_TOKEN }}
+          ref: main
+          
+      - name: Process version changes
+        uses: ./.github/actions/process-version-changes
+        with:
+          github-token: ${{ secrets.DEPLOY_TOKEN }}
+      
+      - name: Report results
+        run: |
+          echo "Version processing complete!" 
