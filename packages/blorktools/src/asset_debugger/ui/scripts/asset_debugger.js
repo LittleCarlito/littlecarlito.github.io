@@ -29,10 +29,6 @@ let resourcesLoaded = {
     controlsReady: false
 };
 
-// Track mouse follower
-let mouseX = 0;
-let mouseY = 0;
-
 // Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Asset Debugger UI: Initializing...');
@@ -67,9 +63,6 @@ function showLoadingSplash() {
                 loadingSplash = document.getElementById('loading-splash');
                 if (loadingSplash) {
                     loadingSplash.style.display = 'flex';
-                    
-                    // Initialize mouse follower effect
-                    initMouseFollower();
                 }
             })
             .catch(error => {
@@ -79,63 +72,6 @@ function showLoadingSplash() {
         // If it exists, make sure it's visible
         loadingSplash.style.display = 'flex';
         loadingSplash.classList.remove('fade-out');
-        
-        // Re-initialize mouse follower
-        initMouseFollower();
-    }
-}
-
-/**
- * Initialize mouse follower effect for the loading screen
- */
-function initMouseFollower() {
-    const mouseFollower = document.getElementById('mouse-follower');
-    const loadingSplash = document.getElementById('loading-splash');
-    
-    if (mouseFollower && loadingSplash) {
-        // Show the mouse follower
-        mouseFollower.style.opacity = '1';
-        
-        // Set initial position
-        mouseFollower.style.left = '50%';
-        mouseFollower.style.top = '50%';
-        
-        // Add mouse move event listener to the loading splash
-        loadingSplash.addEventListener('mousemove', handleMouseMove);
-        
-        // Clean up on mouse leave
-        loadingSplash.addEventListener('mouseleave', () => {
-            mouseFollower.style.opacity = '0';
-        });
-        
-        // Show on mouse enter
-        loadingSplash.addEventListener('mouseenter', () => {
-            mouseFollower.style.opacity = '1';
-        });
-    }
-}
-
-/**
- * Handle mouse movement for the mouse follower effect
- * @param {MouseEvent} e - The mouse event
- */
-function handleMouseMove(e) {
-    const mouseFollower = document.getElementById('mouse-follower');
-    
-    if (mouseFollower) {
-        // Get mouse position
-        mouseX = e.clientX;
-        mouseY = e.clientY;
-        
-        // Apply smooth movement using requestAnimationFrame
-        requestAnimationFrame(() => {
-            mouseFollower.style.left = `${mouseX}px`;
-            mouseFollower.style.top = `${mouseY}px`;
-            
-            // Scale effect based on mouse speed
-            const speedFactor = 1.2;
-            mouseFollower.style.transform = `translate(-50%, -50%) scale(${speedFactor})`;
-        });
     }
 }
 
@@ -156,9 +92,6 @@ function updateLoadingProgress(text) {
 function hideLoadingSplash() {
     const loadingSplash = document.getElementById('loading-splash');
     if (loadingSplash) {
-        // Remove event listeners to prevent memory leaks
-        loadingSplash.removeEventListener('mousemove', handleMouseMove);
-        
         // Add fade-out class for smooth transition
         loadingSplash.classList.add('fade-out');
         

@@ -70,75 +70,33 @@ function setupAtlasPanelEvents() {
 }
 
 /**
- * Update the atlas visualization based on the selected texture type
+ * Update the atlas visualization based on current texture state
  */
 export function updateAtlasVisualization() {
-    const state = getState();
-    
-    // Get active texture type from UI
-    const activeButton = document.querySelector('.texture-type-button.active');
-    if (!activeButton) {
-        console.error('No active texture type button found');
-        return;
-    }
-    
-    const selectedType = activeButton.getAttribute('data-texture-type');
-    
-    // Get the atlas canvas
-    const atlasCanvas = document.getElementById('atlas-canvas');
-    if (!atlasCanvas) {
-        console.error('Atlas canvas not found');
-        return;
-    }
-    
-    // Update the texture container label
-    const labelElement = document.getElementById('atlas-label');
-    if (labelElement) {
-        // Set label based on selected type
-        switch(selectedType) {
-            case 'baseColor':
-                labelElement.textContent = 'Base Color Atlas';
-                break;
-            case 'orm':
-                labelElement.textContent = 'ORM Atlas';
-                break;
-            case 'normal':
-                labelElement.textContent = 'Normal Map Atlas';
-                break;
-            default:
-                labelElement.textContent = 'Texture Atlas';
+    // Get state to retrieve texture objects
+    import('../../core/state.js').then(stateModule => {
+        const state = stateModule.getState();
+        
+        // Check if we have texture objects
+        if (!state.textureObjects) {
+            console.warn('No texture objects available for atlas visualization');
+            return;
         }
-    }
-    
-    // Check if we have texture objects and the selected texture
-    if (!state.textureObjects || !state.textureObjects[selectedType] || !state.textureObjects[selectedType].image) {
-        // Show the "No texture loaded" message
-        showNoTextureState(atlasCanvas);
-        return;
-    }
-    
-    // Get the texture based on selected type
-    const texture = state.textureObjects[selectedType];
-    
-    // Get 2D context and clear it
-    const ctx = atlasCanvas.getContext('2d');
-    
-    // Set the canvas size to match the texture 
-    atlasCanvas.width = texture.image.width;
-    atlasCanvas.height = texture.image.height;
-    
-    // Clear the canvas
-    ctx.clearRect(0, 0, atlasCanvas.width, atlasCanvas.height);
-    
-    // Draw the texture
-    ctx.drawImage(texture.image, 0, 0);
-    
-    // Set proper CSS for the canvas to maintain aspect ratio and fit in container
-    atlasCanvas.style.width = '100%';
-    atlasCanvas.style.height = 'auto';
-    atlasCanvas.style.maxHeight = '100%';
-    atlasCanvas.style.objectFit = 'contain';
-    atlasCanvas.style.display = 'block';
+        
+        // Get the current atlas textures
+        const baseColorTexture = state.textureObjects.baseColor;
+        const ormTexture = state.textureObjects.orm;
+        const normalTexture = state.textureObjects.normal;
+        
+        // Initialize the visualization if we have any textures
+        if (baseColorTexture || ormTexture || normalTexture) {
+            initializeAtlasPanel(baseColorTexture, ormTexture, normalTexture);
+        } else {
+            console.warn('No atlas textures available to visualize');
+        }
+    }).catch(error => {
+        console.error('Error updating atlas visualization:', error);
+    });
 }
 
 /**

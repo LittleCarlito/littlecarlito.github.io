@@ -34,6 +34,65 @@ window.addEventListener('beforeunload', () => {
   terminateAllWorkers();
 });
 
+// File type configuration object - a centralized definition of properties for each file type
+const FILE_TYPE_CONFIG = {
+    baseColor: {
+        title: 'Base Color Atlas',
+        instruction: 'Drag & drop your base color texture atlas here',
+        acceptedFileTypes: ['.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp'],
+        stateKey: 'textureFiles',
+        handler: handleTextureUpload
+    },
+    orm: {
+        title: 'ORM Atlas',
+        instruction: 'Drag & drop your ORM (Occlusion, Roughness, Metalness) texture atlas here',
+        acceptedFileTypes: ['.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp'],
+        stateKey: 'textureFiles',
+        handler: handleTextureUpload
+    },
+    normal: {
+        title: 'Normal Atlas',
+        instruction: 'Drag & drop your normal map texture atlas here',
+        acceptedFileTypes: ['.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp'], 
+        stateKey: 'textureFiles',
+        handler: handleTextureUpload
+    },
+    model: {
+        title: '3D Model',
+        instruction: 'Drag & drop a GLB model file here',
+        optionalText: 'If not provided, a cube will be used',
+        acceptedFileTypes: ['.glb'],
+        stateKey: 'modelFile',
+        resetState: () => {
+            updateState('modelFile', null);
+            updateState('useCustomModel', false);
+        },
+        handler: handleModelUpload
+    },
+    lighting: {
+        title: 'Lighting File',
+        instruction: 'Drag & drop your HDR or EXR lighting file here',
+        acceptedFileTypes: ['.hdr', '.exr'],
+        stateKey: 'lightingFile',
+        resetState: () => {
+            updateState('lightingFile', null);
+            updateState('environmentLightingEnabled', false);
+        },
+        handler: handleLightingUpload
+    },
+    background: {
+        title: 'Background Image',
+        instruction: 'Drag & drop your HDR, EXR, JPEG, PNG, WebP, or TIFF background image here',
+        acceptedFileTypes: ['.hdr', '.exr', '.jpg', '.jpeg', '.png', '.webp', '.tiff', '.tif'],
+        stateKey: 'backgroundFile',
+        resetState: () => {
+            updateState({ backgroundFile: null, backgroundTexture: null });
+            checkStartButton();
+        },
+        handler: handleBackgroundUpload
+    }
+};
+
 /**
  * Shows loading state for a preview element
  * @param {HTMLElement} previewElement - The preview element to show loading for
@@ -102,248 +161,31 @@ function hidePreviewLoading(previewElement) {
 }
 
 /**
- * Setup dropzones for file input
- */
-export function setupDropzones() {
-    console.log('Setting up dropzones for file input...');
-    
-    // Get dropzone elements
-    const baseColorDropzone = document.getElementById('basecolor-dropzone');
-    const ormDropzone = document.getElementById('orm-dropzone');
-    const normalDropzone = document.getElementById('normal-dropzone');
-    const modelDropzone = document.getElementById('model-dropzone');
-    const lightingDropzone = document.getElementById('lighting-dropzone');
-    const backgroundDropzone = document.getElementById('background-dropzone');
-    
-    console.log('Dropzone elements found:', {
-        baseColor: !!baseColorDropzone,
-        orm: !!ormDropzone,
-        normal: !!normalDropzone,
-        model: !!modelDropzone,
-        lighting: !!lightingDropzone,
-        background: !!backgroundDropzone
-    });
-    
-    // Get info elements
-    const baseColorInfo = document.getElementById('basecolor-info');
-    const ormInfo = document.getElementById('orm-info');
-    const normalInfo = document.getElementById('normal-info');
-    const modelInfo = document.getElementById('model-info');
-    const lightingInfo = document.getElementById('lighting-info');
-    const backgroundInfo = document.getElementById('background-info');
-    
-    // Ensure the start button is disabled initially
-    checkStartButton();
-    
-    // Set up each dropzone
-    if (baseColorDropzone && baseColorInfo) {
-        setupDropzone(baseColorDropzone, 'baseColor', baseColorInfo);
-    }
-    
-    if (ormDropzone && ormInfo) {
-        setupDropzone(ormDropzone, 'orm', ormInfo);
-    }
-    
-    if (normalDropzone && normalInfo) {
-        setupDropzone(normalDropzone, 'normal', normalInfo);
-    }
-    
-    if (modelDropzone && modelInfo) {
-        setupDropzone(modelDropzone, 'model', modelInfo);
-    }
-    
-    if (lightingDropzone && lightingInfo) {
-        setupDropzone(lightingDropzone, 'lighting', lightingInfo);
-    }
-    
-    if (backgroundDropzone && backgroundInfo) {
-        setupDropzone(backgroundDropzone, 'background', backgroundInfo);
-    }
-    
-    console.log('Dropzones setup complete');
-}
-
-/**
- * Setup an individual dropzone
- * @param {HTMLElement} dropzone - The dropzone element
- * @param {string} fileType - The type of file ('baseColor', 'orm', 'normal', 'model', 'lighting')
- * @param {HTMLElement} infoElement - Element to display file info
- */
-function setupDropzone(dropzone, fileType, infoElement) {
-    // First remove any existing event listeners to prevent duplicates
-    const clone = dropzone.cloneNode(true);
-    dropzone.parentNode.replaceChild(clone, dropzone);
-    dropzone = clone;
-
-    // Prevent default drag behaviors
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropzone.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-        }, false);
-    });
-
-    // Highlight dropzone when item is dragged over it
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropzone.addEventListener(eventName, () => {
-            dropzone.classList.add('active');
-        }, false);
-    });
-
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropzone.addEventListener(eventName, () => {
-            dropzone.classList.remove('active');
-        }, false);
-    });
-
-    // Handle dropped files
-    dropzone.addEventListener('drop', event => {
-        event.preventDefault();
-        event.stopPropagation();
-        
-        const file = event.dataTransfer.files[0];
-        if (fileType === 'model') {
-            if (file && file.name.toLowerCase().endsWith('.glb')) {
-                handleModelUpload(file, infoElement, dropzone);
-            } else {
-                alert('Please upload a GLB file for the model');
-                return false;
-            }
-        } else if (fileType === 'lighting') {
-            if (file && (file.name.toLowerCase().endsWith('.hdr') || file.name.toLowerCase().endsWith('.exr'))) {
-                handleLightingUpload(file, infoElement, null, dropzone);
-            } else {
-                alert('Please upload an HDR or EXR file for lighting');
-                return false;
-            }
-        } else if (fileType === 'background') {
-            const validExtensions = ['.hdr', '.exr', '.jpg', '.jpeg', '.png', '.webp', '.tiff', '.tif'];
-            const isValidFile = file && validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
-            
-            if (isValidFile) {
-                handleBackgroundUpload(file, infoElement, null, dropzone);
-            } else {
-                alert('Please upload a valid background image file (HDR, EXR, JPG, PNG, WebP, or TIFF)');
-                return false;
-            }
-        } else {
-            // Check for valid texture file extensions
-            const validExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp'];
-            const isValidTextureFile = file && validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
-            
-            if (isValidTextureFile) {
-                handleTextureUpload(file, fileType, infoElement, null, dropzone);
-            } else if (file) {
-                alert('Please upload a valid texture file (PNG, JPG, WEBP, TIF, BMP)');
-                return false;
-            }
-        }
-        return false;
-    }, false);
-
-    // Handle file upload via click - ONLY if no file is already loaded
-    dropzone.addEventListener('click', (event) => {
-        // If the click was on a clear button, don't do anything
-        if (event.target.closest('.clear-preview-button')) {
-            return;
-        }
-        
-        // Only open file dialog if no file is loaded yet
-        if (!dropzone.classList.contains('has-file')) {
-            const input = document.createElement('input');
-            input.type = 'file';
-            
-            if (fileType === 'model') {
-                input.accept = '.glb';
-                
-                input.onchange = e => {
-                    const file = e.target.files[0];
-                    if (file && file.name.toLowerCase().endsWith('.glb')) {
-                        handleModelUpload(file, infoElement, dropzone);
-                    } else if (file) {
-                        alert('Please upload a GLB file for the model');
-                    }
-                };
-            } else if (fileType === 'lighting') {
-                input.accept = '.hdr,.exr';
-                
-                input.onchange = e => {
-                    const file = e.target.files[0];
-                    if (file && (file.name.toLowerCase().endsWith('.hdr') || file.name.toLowerCase().endsWith('.exr'))) {
-                        handleLightingUpload(file, infoElement, null, dropzone);
-                    } else if (file) {
-                        alert('Please upload an HDR or EXR file for lighting');
-                    }
-                };
-            } else if (fileType === 'background') {
-                input.accept = '.hdr,.exr,.jpg,.jpeg,.png,.webp,.tiff,.tif';
-                
-                input.onchange = e => {
-                    const file = e.target.files[0];
-                    const validExtensions = ['.hdr', '.exr', '.jpg', '.jpeg', '.png', '.webp', '.tiff', '.tif'];
-                    const isValidFile = file && validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
-                    
-                    if (isValidFile) {
-                        handleBackgroundUpload(file, infoElement, null, dropzone);
-                    } else if (file) {
-                        alert('Please upload a valid background image file (HDR, EXR, JPG, PNG, WebP, or TIFF)');
-                    }
-                };
-            } else {
-                input.accept = '.png,.jpg,.jpeg,.webp,.tif,.tiff,.bmp';
-                
-                input.onchange = e => {
-                    const file = e.target.files[0];
-                    if (file) {
-                        handleTextureUpload(file, fileType, infoElement, null, dropzone);
-                    }
-                };
-            }
-            
-            input.click();
-        }
-    });
-}
-
-/**
- * Prevent default drag behaviors
- * @param {Event} e - The event object
- */
-function preventDefaults(e) {
-    e.preventDefault();
-    e.stopPropagation();
-}
-
-/**
  * Clear a dropzone and reset it to its original state
  * @param {HTMLElement} dropzone - The dropzone element to clear
- * @param {string} fileType - The type of file ('baseColor', 'orm', 'normal', 'model', 'lighting')
+ * @param {string} fileType - The type of file ('baseColor', 'orm', 'normal', 'model', 'lighting', 'background')
  * @param {string} title - The original title of the dropzone
  */
 function clearDropzone(dropzone, fileType, title) {
-    // Clear the state based on file type
-    if (fileType === 'model') {
-        // Clean up any model preview resources
-        const modelPreview = document.getElementById('model-preview');
-        if (modelPreview) {
-            // We'll import and call the cleanup function to ensure all WebGL resources are freed
-            import('./scripts/model-preview.js').then(module => {
-                if (module.cleanupPreview) {
-                    module.cleanupPreview();
-                }
-            }).catch(err => console.error('Error cleaning up model preview:', err));
-        }
-        
-        updateState('modelFile', null);
-        updateState('useCustomModel', false);
-    } else if (fileType === 'lighting') {
-        updateState('lightingFile', null);
-        updateState('environmentLightingEnabled', false);
-    } else {
+    const config = FILE_TYPE_CONFIG[fileType];
+    
+    if (!config) {
+        console.error(`No configuration found for file type: ${fileType}`);
+        return;
+    }
+    
+    // Reset state based on file type configuration
+    if (config.resetState) {
+        // Use custom reset function if defined
+        config.resetState();
+    } else if (config.stateKey === 'textureFiles') {
+        // Handle texture file state
         const state = getState();
         state.textureFiles[fileType] = null;
         updateState('textureFiles', state.textureFiles);
+    } else if (config.stateKey) {
+        // Handle other state keys
+        updateState(config.stateKey, null);
     }
     
     // Clear the dropzone classes and content
@@ -352,31 +194,21 @@ function clearDropzone(dropzone, fileType, title) {
     
     // Recreate the original dropzone content
     const titleElement = document.createElement('h3');
-    titleElement.textContent = title;
+    titleElement.textContent = config.title || title;
     dropzone.appendChild(titleElement);
     
-    // Add appropriate instruction text based on file type
-    const instructionText = document.createElement('p');
+    // Add instruction text
+    if (config.instruction) {
+        const instructionText = document.createElement('p');
+        instructionText.textContent = config.instruction;
+        dropzone.appendChild(instructionText);
+    }
     
-    if (fileType === 'model') {
-        instructionText.textContent = 'Drag & drop a GLB model file here';
-        dropzone.appendChild(instructionText);
-        
+    // Add optional text if present
+    if (config.optionalText) {
         const optionalText = document.createElement('p');
-        optionalText.textContent = 'If not provided, a cube will be used';
+        optionalText.textContent = config.optionalText;
         dropzone.appendChild(optionalText);
-    } else if (fileType === 'lighting') {
-        instructionText.textContent = 'Drag & drop your HDR or EXR lighting file here';
-        dropzone.appendChild(instructionText);
-    } else if (fileType === 'baseColor') {
-        instructionText.textContent = 'Drag & drop your base color texture atlas here';
-        dropzone.appendChild(instructionText);
-    } else if (fileType === 'orm') {
-        instructionText.textContent = 'Drag & drop your ORM (Occlusion, Roughness, Metalness) texture atlas here';
-        dropzone.appendChild(instructionText);
-    } else if (fileType === 'normal') {
-        instructionText.textContent = 'Drag & drop your normal map texture atlas here';
-        dropzone.appendChild(instructionText);
     }
     
     // Add an empty file info element
@@ -399,6 +231,12 @@ function handleTextureUpload(file, textureType, infoElement, previewElement, dro
     const state = getState();
     state.textureFiles[textureType] = file;
     updateState('textureFiles', state.textureFiles);
+    
+    // Check if dropzone is defined before using it
+    if (!dropzone) {
+        console.error(`Error: dropzone is undefined in handleTextureUpload for ${textureType}`);
+        return;
+    }
     
     // Store original h3 title
     const originalTitle = dropzone.querySelector('h3').textContent;
@@ -1284,6 +1122,180 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
     
     // Re-check if start button should be enabled
     checkStartButton();
+}
+
+/**
+ * Setup dropzones for file input
+ */
+export function setupDropzones() {
+    console.log('Setting up dropzones for file input...');
+    
+    // Get dropzone elements
+    const baseColorDropzone = document.getElementById('basecolor-dropzone');
+    const ormDropzone = document.getElementById('orm-dropzone');
+    const normalDropzone = document.getElementById('normal-dropzone');
+    const modelDropzone = document.getElementById('model-dropzone');
+    const lightingDropzone = document.getElementById('lighting-dropzone');
+    const backgroundDropzone = document.getElementById('background-dropzone');
+    
+    console.log('Dropzone elements found:', {
+        baseColor: !!baseColorDropzone,
+        orm: !!ormDropzone,
+        normal: !!normalDropzone,
+        model: !!modelDropzone,
+        lighting: !!lightingDropzone,
+        background: !!backgroundDropzone
+    });
+    
+    // Get info elements
+    const baseColorInfo = document.getElementById('basecolor-info');
+    const ormInfo = document.getElementById('orm-info');
+    const normalInfo = document.getElementById('normal-info');
+    const modelInfo = document.getElementById('model-info');
+    const lightingInfo = document.getElementById('lighting-info');
+    const backgroundInfo = document.getElementById('background-info');
+    
+    // Ensure the start button is disabled initially
+    checkStartButton();
+    
+    // Set up each dropzone using the configuration
+    const dropzones = [
+        { element: baseColorDropzone, type: 'baseColor', info: baseColorInfo },
+        { element: ormDropzone, type: 'orm', info: ormInfo },
+        { element: normalDropzone, type: 'normal', info: normalInfo },
+        { element: modelDropzone, type: 'model', info: modelInfo },
+        { element: lightingDropzone, type: 'lighting', info: lightingInfo },
+        { element: backgroundDropzone, type: 'background', info: backgroundInfo }
+    ];
+    
+    dropzones.forEach(dz => {
+        if (dz.element && dz.info) {
+            setupDropzone(dz.element, dz.type, dz.info);
+        }
+    });
+    
+    console.log('Dropzones setup complete');
+}
+
+/**
+ * Set up a single dropzone with event handlers
+ * @param {HTMLElement} dropzone - The dropzone element
+ * @param {string} fileType - The type of file this dropzone accepts
+ * @param {HTMLElement} infoElement - Element to display file info
+ */
+function setupDropzone(dropzone, fileType, infoElement) {
+    // First remove any existing event listeners to prevent duplicates
+    const clone = dropzone.cloneNode(true);
+    dropzone.parentNode.replaceChild(clone, dropzone);
+    dropzone = clone;
+    
+    const config = FILE_TYPE_CONFIG[fileType];
+    
+    if (!config) {
+        console.error(`No configuration found for file type: ${fileType}`);
+        return;
+    }
+    
+    // Set up the drop event for this dropzone
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    // Highlight drop area when item is dragged over it
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, unhighlight, false);
+    });
+    
+    function highlight(e) {
+        dropzone.classList.add('active');
+    }
+    
+    function unhighlight(e) {
+        dropzone.classList.remove('active');
+    }
+    
+    // Handle file drop
+    dropzone.addEventListener('drop', event => {
+        event.preventDefault();
+        
+        const dt = event.dataTransfer;
+        const files = dt.files;
+        
+        if (files.length === 0) {
+            return false;
+        }
+        
+        const file = files[0]; // Use only the first file
+        
+        // Check if file extension is valid for this dropzone
+        const validExtensions = config.acceptedFileTypes;
+        const isValidFile = file && validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+        
+        if (isValidFile) {
+            // Use the handler function from the configuration
+            // For texture uploads, we need to pass the actual texture type string
+            if (['baseColor', 'orm', 'normal'].includes(fileType)) {
+                config.handler(file, fileType, infoElement, null, dropzone);
+            } else {
+                config.handler(file, infoElement, null, dropzone);
+            }
+        } else if (file) {
+            alert(`Please upload a valid file format: ${validExtensions.join(', ')}`);
+            return false;
+        }
+        
+        return false;
+    }, false);
+    
+    // Handle click to select file using file input
+    dropzone.addEventListener('click', (event) => {
+        // If the click was on a clear button, don't do anything
+        if (event.target.classList.contains('clear-preview-button')) {
+            return;
+        }
+        
+        // Create a file input element
+        const input = document.createElement('input');
+        input.type = 'file';
+        
+        // Set accept attribute based on file type
+        input.accept = config.acceptedFileTypes.join(',');
+        
+        // Handle file selection
+        input.onchange = e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const isValidFile = config.acceptedFileTypes.some(ext => file.name.toLowerCase().endsWith(ext));
+            
+            if (isValidFile) {
+                // Pass the dropzone element to the handler
+                // For texture uploads, we need to pass the actual texture type string
+                if (['baseColor', 'orm', 'normal'].includes(fileType)) {
+                    config.handler(file, fileType, infoElement, null, dropzone);
+                } else {
+                    config.handler(file, infoElement, null, dropzone);
+                }
+            } else {
+                alert(`Please upload a valid file format: ${config.acceptedFileTypes.join(', ')}`);
+            }
+        };
+        
+        input.click();
+    });
+}
+
+/**
+ * Prevent default drag behaviors
+ * @param {Event} e - The event object
+ */
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
 }
 
 export default {
