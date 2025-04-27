@@ -231,9 +231,10 @@ function determineVersionBumps(baseCommit) {
  * Update package.json version
  * @param {string} pkgPath Path to package directory
  * @param {string} newVersion New version to set
+ * @param {Object} packageCommits Map of package paths to array of commits
  * @returns {Object|null} Version info or null if no update was made
  */
-function updatePackageVersion(pkgPath, newVersion) {
+function updatePackageVersion(pkgPath, newVersion, packageCommits) {
   if (!newVersion) {
     return null;
   }
@@ -377,7 +378,7 @@ function versionPackages(options = {}) {
   for (const [pkg, newVersion] of Object.entries(packageVersions)) {
     if (newVersion && currentVersions[pkg] !== newVersion) {
       if (shouldApply) {
-        const versionInfo = updatePackageVersion(pkg, newVersion);
+        const versionInfo = updatePackageVersion(pkg, newVersion, packageCommits);
         if (versionInfo) {
           console.log(`📦 Updated ${pkg} to version ${versionInfo.newVersion} (${versionInfo.bumpType})`);
           
@@ -461,7 +462,7 @@ module.exports = {
     for (const [pkg, newVersion] of Object.entries(packageVersions)) {
       if (newVersion && currentVersions[pkg] !== newVersion) {
         if (shouldApply) {
-          const versionInfo = updatePackageVersion(pkg, newVersion);
+          const versionInfo = updatePackageVersion(pkg, newVersion, packageCommits);
           if (versionInfo) {
             console.log(`📦 Updated ${pkg} to version ${versionInfo.newVersion} (${versionInfo.bumpType})`);
             
@@ -530,4 +531,4 @@ module.exports = {
   updatePackageVersion,
   generateCurrentBumpMd,
   updateBumpAnalysisFile
-}; 
+};
