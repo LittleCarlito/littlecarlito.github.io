@@ -358,7 +358,7 @@ function updateBumpAnalysisFile(bumpDetails) {
 /**
  * Main function to version packages
  */
-function versionPackages() {
+function versionPackages(options = {}) {
   console.log('🔍 Determining packages to version...');
   
   const baseCommit = getBaseCommit();
@@ -368,19 +368,47 @@ function versionPackages() {
   
   let updatedCount = 0;
   const bumpDetails = {};
+  const updatedPackages = [];
+  
+  // Don't apply changes in dry-run mode
+  const shouldApply = !options.dryRun && options.apply;
   
   // Update package versions
   for (const [pkg, newVersion] of Object.entries(packageVersions)) {
-    if (newVersion) {
-      const versionInfo = updatePackageVersion(pkg, newVersion);
-      if (versionInfo) {
-        console.log(`📦 Updated ${pkg} to version ${versionInfo.newVersion} (${versionInfo.bumpType})`);
+    if (newVersion && currentVersions[pkg] !== newVersion) {
+      if (shouldApply) {
+        const versionInfo = updatePackageVersion(pkg, newVersion);
+        if (versionInfo) {
+          console.log(`📦 Updated ${pkg} to version ${versionInfo.newVersion} (${versionInfo.bumpType})`);
+          
+          // Store details for the bump analysis file
+          bumpDetails[pkg] = {
+            versionInfo,
+            commits: packageCommits[pkg]
+          };
+          
+          // Add to updatedPackages array
+          updatedPackages.push({
+            name: pkg.split('/').pop(),
+            path: pkg,
+            version: versionInfo.newVersion,
+            previousVersion: versionInfo.currentVersion,
+            bumpType: versionInfo.bumpType
+          });
+          
+          updatedCount++;
+        }
+      } else {
+        console.log(`📦 Would update ${pkg} from ${currentVersions[pkg]} to ${newVersion} (dry run)`);
         
-        // Store details for the bump analysis file
-        bumpDetails[pkg] = {
-          versionInfo,
-          commits: packageCommits[pkg]
-        };
+        // Add to potential updates array even in dry-run mode
+        updatedPackages.push({
+          name: pkg.split('/').pop(),
+          path: pkg,
+          version: newVersion,
+          previousVersion: currentVersions[pkg],
+          bumpType: determineBumpType(packageCommits[pkg][0]?.message || '')
+        });
         
         updatedCount++;
       }
@@ -390,14 +418,116 @@ function versionPackages() {
   }
   
   if (updatedCount > 0) {
-    console.log(`\n✅ Updated ${updatedCount} package(s)`);
+    console.log(`\n✅ ${shouldApply ? 'Updated' : 'Would update'} ${updatedCount} package(s)`);
     
-    // Update the version bump analysis file
-    updateBumpAnalysisFile(bumpDetails);
+    // Update the version bump analysis file if applying changes
+    if (shouldApply) {
+      updateBumpAnalysisFile(bumpDetails);
+    }
   } else {
     console.log('\n⚠️ No packages needed versioning');
   }
+  
+  return {
+    packageVersions,
+    packageCommits,
+    currentVersions,
+    updatedPackages,
+    bumpDetails
+  };
 }
 
 // Run the versioning
-versionPackages(); 
+versionPackages({ apply: true });
+
+// Export the functions for use in other scripts
+module.exports = {
+  versionPackages: function(options = {}) {
+    console.log('🔍 Determining packages to version...');
+    
+    const baseCommit = getBaseCommit();
+    console.log(`Using base commit: ${baseCommit}`);
+    
+    const { packageVersions, packageCommits, currentVersions } = determineVersionBumps(baseCommit);
+    
+    let updatedCount = 0;
+    const bumpDetails = {};
+    const updatedPackages = [];
+    
+    // Don't apply changes in dry-run mode
+    const shouldApply = !options.dryRun && options.apply;
+    
+    // Update package versions
+    for (const [pkg, newVersion] of Object.entries(packageVersions)) {
+      if (newVersion && currentVersions[pkg] !== newVersion) {
+        if (shouldApply) {
+          const versionInfo = updatePackageVersion(pkg, newVersion);
+          if (versionInfo) {
+            console.log(`📦 Updated ${pkg} to version ${versionInfo.newVersion} (${versionInfo.bumpType})`);
+            
+            // Store details for the bump analysis file
+            bumpDetails[pkg] = {
+              versionInfo,
+              commits: packageCommits[pkg]
+            };
+            
+            // Add to updatedPackages array
+            updatedPackages.push({
+              name: pkg.split('/').pop(),
+              path: pkg,
+              version: versionInfo.newVersion,
+              previousVersion: versionInfo.currentVersion,
+              bumpType: versionInfo.bumpType
+            });
+            
+            updatedCount++;
+          }
+        } else {
+          console.log(`📦 Would update ${pkg} from ${currentVersions[pkg]} to ${newVersion} (dry run)`);
+          
+          // Add to potential updates array even in dry-run mode
+          updatedPackages.push({
+            name: pkg.split('/').pop(),
+            path: pkg,
+            version: newVersion,
+            previousVersion: currentVersions[pkg],
+            bumpType: determineBumpType(packageCommits[pkg][0]?.message || '')
+          });
+          
+          updatedCount++;
+        }
+      } else {
+        console.log(`📦 No changes for ${pkg}`);
+      }
+    }
+    
+    if (updatedCount > 0) {
+      console.log(`\n✅ ${shouldApply ? 'Updated' : 'Would update'} ${updatedCount} package(s)`);
+      
+      // Update the version bump analysis file if applying changes
+      if (shouldApply) {
+        updateBumpAnalysisFile(bumpDetails);
+      }
+    } else {
+      console.log('\n⚠️ No packages needed versioning');
+    }
+    
+    return {
+      packageVersions,
+      packageCommits,
+      currentVersions,
+      updatedPackages,
+      bumpDetails
+    };
+  },
+  // Export constants needed by tests
+  PACKAGES,
+  EXCLUDED_SCOPES,
+  // Export helper functions needed by tests
+  getBaseCommit,
+  getCommitDetails,
+  determineVersionBumps,
+  updatePackageVersion,
+  generateCurrentBumpMd,
+  updateBumpAnalysisFile
+}; 
