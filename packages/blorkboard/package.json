@@ -1,6 +1,6 @@
 {
   "name": "@littlecarlito/blorkboard",
-  "version": "0.0.88",
+  "version": "0.0.107",
   "description": "A beautiful dashboard for managing and launching Blork projects",
   "type": "module",
   "main": "dist/index.js",
