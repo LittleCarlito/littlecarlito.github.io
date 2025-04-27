@@ -1,6 +1,6 @@
 {
   "name": "@littlecarlito/blorktools",
-  "version": "1.18.3",
+  "version": "1.24.4",
   "description": "Development tools for 3D assets and debugging",
   "main": "dist/index.js",
   "module": "dist/index.js",
