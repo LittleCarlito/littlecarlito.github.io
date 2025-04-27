@@ -1,0 +1,164 @@
+name: 'Version from Commits'
+description: 'Analyzes commit messages between the latest tagged release and current branch to determine version changes'
+
+inputs:
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+  from-ref:
+    description: 'Starting git ref to analyze commits from'
+    required: false
+    default: ''
+  to-ref:
+    description: 'Ending git ref to analyze commits to'
+    required: false
+    default: 'HEAD'
+  dry-run:
+    description: 'Run in dry-run mode (no actual changes)'
+    required: false
+    default: 'false'
+  pr-number:
+    description: 'PR number to analyze (if applicable)'
+    required: false
+    default: ''
+
+outputs:
+  has-changes:
+    description: 'Whether version changes were detected'
+    value: ${{ steps.set-outputs.outputs.has_changes }}
+  version-tag:
+    description: 'The version tag that was created (if any)'
+    value: ${{ steps.set-outputs.outputs.version_tag }}
+  version-details:
+    description: 'Details about package versions that were bumped'
+    value: ${{ steps.set-outputs.outputs.version_details }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 'lts/*'
+        
+    - name: Ensure .changeset directory exists
+      shell: bash
+      run: |
+        if [ ! -d ".changeset" ]; then
+          mkdir -p .changeset
+        fi
+    
+    # Analyze commits to determine version changes
+    - name: Analyze commits
+      id: analyze-commits
+      shell: bash
+      run: |
+        # If PR number is provided, use it to determine from/to refs
+        if [ -n "${{ inputs.pr-number }}" ]; then
+          echo "Analyzing PR #${{ inputs.pr-number }}"
+          
+          # Extract the PR details
+          PR_BASE=$(gh pr view ${{ inputs.pr-number }} --json baseRefName -q '.baseRefName')
+          PR_HEAD=$(gh pr view ${{ inputs.pr-number }} --json headRefName -q '.headRefName')
+          
+          echo "PR is from $PR_HEAD to $PR_BASE"
+          
+          # Use the PR base as from-ref and PR head as to-ref
+          FROM_REF="${{ inputs.from-ref || PR_BASE }}"
+          TO_REF="${{ inputs.to-ref || PR_HEAD }}"
+        else
+          # Use provided refs or defaults
+          FROM_REF="${{ inputs.from-ref }}"
+          TO_REF="${{ inputs.to-ref }}"
+        fi
+        
+        echo "Analyzing commits from $FROM_REF to $TO_REF"
+        
+        # Make script executable
+        chmod +x .github/scripts/versioning/version-from-commits.js
+        
+        # Run the version analysis
+        node .github/scripts/versioning/version-from-commits.js \
+          ${{ inputs.dry-run == 'true' && '--dry-run' || '' }} \
+          ${FROM_REF:+--from=$FROM_REF} \
+          ${TO_REF:+--to=$TO_REF}
+        
+        # Check if any changesets were created
+        if [ -d ".changeset" ] && [ "$(ls -A .changeset | grep -v config.json)" ]; then
+          echo "Changesets were created, proceeding with versioning"
+          echo "HAS_CHANGES=true" >> $GITHUB_OUTPUT
+        else
+          echo "No changesets were created, skipping versioning"
+          echo "HAS_CHANGES=false" >> $GITHUB_OUTPUT
+        fi
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+    
+    # Apply version changes if not in dry-run mode
+    - name: Apply version changes
+      if: steps.analyze-commits.outputs.HAS_CHANGES == 'true' && inputs.dry-run == 'false'
+      shell: bash
+      run: |
+        echo "Applying version changes with changesets"
+        pnpm changeset version
+    
+    # Capture version information
+    - name: Capture version information
+      id: versions
+      if: steps.analyze-commits.outputs.HAS_CHANGES == 'true'
+      shell: bash
+      run: |
+        # Get root package version
+        ROOT_VERSION=$(node -p "require('./package.json').version")
+        echo "ROOT_VERSION=$ROOT_VERSION" >> $GITHUB_OUTPUT
+        
+        # Get a list of all package versions
+        echo "PACKAGES_VERSIONS<<EOF" >> $GITHUB_OUTPUT
+        pnpm -r exec -- node -p "require('./package.json').name + '@' + require('./package.json').version" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+    
+    # Commit changes and create tag
+    - name: Commit changes and create tag
+      id: commit-changes
+      if: steps.analyze-commits.outputs.HAS_CHANGES == 'true' && inputs.dry-run == 'false'
+      shell: bash
+      run: |
+        git config --global user.name 'GitHub Actions Bot'
+        git config --global user.email 'actions@github.com'
+        
+        git add .
+        git commit -m "chore(release): version packages
+
+        This commit updates the versions based on the commit history.
+        Versioning is automated by the GitHub Actions workflow."
+        
+        # Create a version tag
+        ROOT_VERSION="${{ steps.versions.outputs.ROOT_VERSION }}"
+        VERSION_TAG="v${ROOT_VERSION}"
+        git tag -a "${VERSION_TAG}" -m "Release ${VERSION_TAG}"
+        
+        # Push changes and tag
+        git push origin HEAD
+        git push origin "${VERSION_TAG}"
+        
+        echo "Created and pushed tag: ${VERSION_TAG}"
+        echo "VERSION_TAG=${VERSION_TAG}" >> $GITHUB_OUTPUT
+    
+    # Generate output data
+    - name: Set outputs
+      id: set-outputs
+      shell: bash
+      run: |
+        HAS_CHANGES="${{ steps.analyze-commits.outputs.HAS_CHANGES }}"
+        echo "has_changes=${HAS_CHANGES}" >> $GITHUB_OUTPUT
+        
+        if [ -n "${{ steps.commit-changes.outputs.VERSION_TAG }}" ]; then
+          echo "version_tag=${{ steps.commit-changes.outputs.VERSION_TAG }}" >> $GITHUB_OUTPUT
+        fi
+        
+        # Generate version details JSON
+        if [ "$HAS_CHANGES" == "true" ]; then
+          echo 'version_details<<EOF' >> $GITHUB_OUTPUT
+          echo "${{ steps.versions.outputs.PACKAGES_VERSIONS }}" >> $GITHUB_OUTPUT
+          echo 'EOF' >> $GITHUB_OUTPUT
+        fi 

@@ -192,10 +192,71 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           artifact-name: ${{ needs.build.outputs.build_artifact_name }}
 
+  # Create GitHub Release if needed
+  create-release:
+    name: Create GitHub Release
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      created_release: ${{ steps.check_and_create.outputs.created_release }}
+      tag_name: ${{ steps.check_and_create.outputs.tag_name }}
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+          
+      - name: Check for version commit and create release
+        id: check_and_create
+        run: |
+          # Check if the latest commit is a version bump
+          LATEST_COMMIT_MSG=$(git log -1 --pretty=%B)
+          if [[ "$LATEST_COMMIT_MSG" == *"chore(release)"* || "$LATEST_COMMIT_MSG" == *"version"* ]]; then
+            echo "Found version commit: $LATEST_COMMIT_MSG"
+            
+            # Get version from package.json
+            VERSION=$(node -p "require('./package.json').version")
+            if [[ -z "$VERSION" || "$VERSION" == "0.0.0" ]]; then
+              echo "No valid version found in package.json, skipping release"
+              echo "created_release=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            
+            # Check if there's already a tag for this version
+            TAG_NAME="v$VERSION"
+            if git tag -l | grep -q "^$TAG_NAME$"; then
+              echo "Tag $TAG_NAME already exists, skipping release"
+              echo "created_release=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            
+            echo "Creating release for version $VERSION"
+            echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+            
+            # Create tag if it doesn't exist
+            git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
+            git push origin "$TAG_NAME"
+            
+            # Create GitHub release
+            gh release create "$TAG_NAME" \
+              --title "Release $TAG_NAME" \
+              --generate-notes
+            
+            echo "created_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "Latest commit is not a version bump, skipping release"
+            echo "created_release=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   # Build the site for GitHub Pages
   build-site:
     name: Build Site for GitHub Pages
-    needs: test
+    needs: [test, create-release]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -264,7 +325,7 @@ jobs:
   # Report pipeline results (always runs after all jobs)
   report-results:
     name: Report Pipeline Results
-    needs: [capture-trigger-info, build, test, build-site]
+    needs: [capture-trigger-info, build, test, create-release, build-site]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -275,6 +336,7 @@ jobs:
           # Check if any job failed
           if [[ "${{ needs.build.result }}" != "success" || 
                 "${{ needs.test.result }}" != "success" || 
+                "${{ needs.create-release.result }}" != "success" ||
                 ("${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped") ]]; then
             echo "result=failure" >> $GITHUB_OUTPUT
             
@@ -282,6 +344,7 @@ jobs:
             FAILED_JOBS=""
             [[ "${{ needs.build.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Build, "
             [[ "${{ needs.test.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Test, "
+            [[ "${{ needs.create-release.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Release Creation, "
             [[ "${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Site Deployment, "
             
             # Remove trailing comma and space

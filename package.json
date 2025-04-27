@@ -22,6 +22,8 @@
     "test:e2e:portfolio": "pnpm --filter='@littlecarlito/portfolio' test:e2e",
     "test:e2e:blorkboard": "pnpm --filter='@littlecarlito/blorkboard' test:e2e",
     "test:e2e:blorktools": "pnpm --filter='@littlecarlito/blorktools' test:e2e",
+    "test:version": "node scripts/test-version.js",
+    "test-version": "node scripts/test-version.js",
     "check": "pnpm -r check",
     "fmt": "pnpm -r fmt",
     "fmt:check": "pnpm -r fmt:check",
@@ -36,15 +38,21 @@
     "gh-pages:server": "node tests/apps/portfolio/gh-pages-simulator.js",
     "gh-pages:test": "node tests/apps/portfolio/environment/gh-pages-texture-test.js --keep-open",
     "gh-pages:debug": "chmod +x .husky/gh-pages-test && .husky/gh-pages-test",
-    "gh-pages:check": "node tests/apps/portfolio/environment/gh-pages-texture-test.js --headless"
+    "gh-pages:check": "node tests/apps/portfolio/environment/gh-pages-texture-test.js --headless",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "version:ci": "node .github/scripts/versioning/version-from-commits.js",
+    "release": "changeset publish"
   },
   "dependencies": {
+    "chalk": "^4.1.2",
     "express": "^4.18.3",
     "open": "^10.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.23.0",
     "@babel/preset-env": "^7.23.0",
+    "@changesets/cli": "^2.26.2",
     "@commitlint/cli": "^19.8.0",
     "@commitlint/config-conventional": "^19.8.0",
     "@eslint/js": "^9.22.0",

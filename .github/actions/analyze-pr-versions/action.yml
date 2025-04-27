@@ -1,0 +1,78 @@
+name: 'Analyze PR Versions'
+description: 'Analyzes PR commit messages for version changes and updates PR description'
+
+inputs:
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+  pr-number:
+    description: 'PR number to analyze'
+    required: true
+  update-pr:
+    description: 'Whether to update the PR description with version changes'
+    required: false
+    default: 'true'
+
+outputs:
+  has-changes:
+    description: 'Whether version changes were detected'
+    value: ${{ steps.version-analysis.outputs.has_changes }}
+  changes-details:
+    description: 'Human-readable details about what version changes were detected'
+    value: ${{ steps.version-analysis.outputs.HUMAN_OUTPUT }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 'lts/*'
+    
+    # Analyze version changes
+    - name: Analyze version changes
+      id: version-analysis
+      shell: bash
+      run: |
+        # Make the script executable
+        chmod +x .github/scripts/pr/check-version-changes.js
+        
+        # Run the analysis
+        OUTPUT=$(.github/scripts/pr/check-version-changes.js ${{ inputs.pr-number }})
+        
+        # Extract the human-readable part
+        HUMAN_OUTPUT=$(echo "$OUTPUT" | sed -n '1,/---/p' | head -n -2)
+        
+        # Extract the JSON part
+        JSON_OUTPUT=$(echo "$OUTPUT" | sed -n '/---/,$ p' | tail -n +3)
+        
+        # Save outputs
+        echo "HUMAN_OUTPUT<<EOF" >> $GITHUB_OUTPUT
+        echo "$HUMAN_OUTPUT" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+        # Parse JSON to get the hasChanges value
+        HAS_CHANGES=$(echo "$JSON_OUTPUT" | jq -r '.hasChanges')
+        echo "has_changes=$HAS_CHANGES" >> $GITHUB_OUTPUT
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+    
+    # Update PR description (if enabled)
+    - name: Update PR description with version changes
+      if: inputs.update-pr == 'true' && steps.version-analysis.outputs.has_changes == 'true'
+      shell: bash
+      run: |
+        PR_BODY=$(gh pr view ${{ inputs.pr-number }} --json body -q '.body')
+        
+        # Remove existing version changes section if it exists
+        PR_BODY=$(echo "$PR_BODY" | sed -E '/## Version Changes/,/NO CHANGE: .*/d')
+        
+        # Add version changes section
+        NEW_PR_BODY="${PR_BODY}
+
+${{ steps.version-analysis.outputs.HUMAN_OUTPUT }}"
+        
+        # Update PR description
+        gh pr edit ${{ inputs.pr-number }} --body "${NEW_PR_BODY}"
+      env:
+        GH_TOKEN: ${{ inputs.github-token }} 
