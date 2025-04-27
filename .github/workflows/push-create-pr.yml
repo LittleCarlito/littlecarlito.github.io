@@ -201,21 +201,28 @@ jobs:
       - name: Prepare PR body
         id: prepare_pr_body
         run: |
-          # Start with the original body
-          ORIGINAL_BODY="${{ steps.branch_info.outputs.body }}"
-          FINAL_BODY="$ORIGINAL_BODY"
+          # Start with the original body - use cat to prevent shell interpretation
+          ORIGINAL_BODY='${{ steps.branch_info.outputs.body }}'
+          # Initialize FINAL_BODY with the raw content using a heredoc
+          cat > body_content.txt << 'EOL'
+          ${{ steps.branch_info.outputs.body }}
+          EOL
           
           # Add version changes if they exist
           if [ "${{ steps.apply_versions.outputs.version_changes }}" == "true" ]; then
-            FINAL_BODY+=$'\n\n'
-            FINAL_BODY+="## Version Changes"$'\n\n'
-            FINAL_BODY+="${{ steps.apply_versions.outputs.version_summary }}"$'\n\n'
-            FINAL_BODY+="*These version changes will be tagged and published when merged to main*"
+            cat >> body_content.txt << 'EOL'
+            
+            ## Version Changes
+            
+            ${{ steps.apply_versions.outputs.version_summary }}
+            
+            *These version changes will be tagged and published when merged to main*
+          EOL
           fi
           
-          # Output the PR body
+          # Output the PR body without shell interpretation
           echo "body<<EOF" >> $GITHUB_OUTPUT
-          echo "$FINAL_BODY" >> $GITHUB_OUTPUT
+          cat body_content.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
       
       # Create PR
