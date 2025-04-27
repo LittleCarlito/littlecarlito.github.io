@@ -1,4 +1,5 @@
 #!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
 
 echo "📊 POST-COMMIT REPORT"
 echo "===================="
@@ -24,6 +25,23 @@ else
   OUTPUT="${OUTPUT}✅ No large JS or HTML files found"
 fi
 
-# Print the collected output
-echo "$OUTPUT"
-echo "\n====================" 
+# Print the output collected so far
+echo -e "$OUTPUT"
+
+# Check version impact of this commit - printed directly to preserve color codes
+echo -e "\n📦 VERSION IMPACT:"
+
+# Run the test-version script to get version changes
+VERSION_OUTPUT=$(pnpm test-version 2>&1)
+
+# Check if version changes are detected
+if echo "$VERSION_OUTPUT" | grep -q "Version Changes:"; then
+  # Use awk to extract the section between "Version Changes:" and the next empty line
+  # Then display it directly to preserve colors
+  echo "$VERSION_OUTPUT" | awk '/Version Changes:/,/^$/ {if (!/Version Changes:/ && !/^$/) print}'
+  echo -e "✅ This commit will trigger these version changes when merged to main."
+else
+  echo -e "ℹ️ No version changes detected from this commit."
+fi
+
+echo -e "\n====================" 
