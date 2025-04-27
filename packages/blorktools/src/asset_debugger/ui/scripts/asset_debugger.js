@@ -7,8 +7,8 @@
 
 // Import the initialization functions
 import { init } from '../../main.js';
-// Import loadSettings from localstorage-util.js
-import { loadSettings } from '../../data/localstorage-util.js';
+// Import loadSettings and saveSettings from localstorage-util.js
+import { loadSettings, saveSettings } from '../../data/localstorage-util.js';
 // Import SettingsModal 
 import { SettingsModal } from './settings-modal.js';
 import { ExamplesModal } from './examples-modal.js';
@@ -17,6 +17,12 @@ import { initWorldPanel } from './world-panel.js';
 
 // Debug flags
 const DEBUG_LIGHTING = false;
+
+// Mac dock behavior settings
+const HEADER_SHOW_DISTANCE = 20; // px from top to show header
+const HEADER_HIDE_DISTANCE = 60; // px from top to hide header
+const HEADER_HIDE_DELAY = 1000; // ms to wait before hiding header
+let headerHideTimer = null;
 
 // Track loading state
 let loadingComplete = false;
@@ -28,10 +34,6 @@ let resourcesLoaded = {
     modelLoaded: false,
     controlsReady: false
 };
-
-// Track mouse follower
-let mouseX = 0;
-let mouseY = 0;
 
 // Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -67,9 +69,6 @@ function showLoadingSplash() {
                 loadingSplash = document.getElementById('loading-splash');
                 if (loadingSplash) {
                     loadingSplash.style.display = 'flex';
-                    
-                    // Initialize mouse follower effect
-                    initMouseFollower();
                 }
             })
             .catch(error => {
@@ -79,63 +78,6 @@ function showLoadingSplash() {
         // If it exists, make sure it's visible
         loadingSplash.style.display = 'flex';
         loadingSplash.classList.remove('fade-out');
-        
-        // Re-initialize mouse follower
-        initMouseFollower();
-    }
-}
-
-/**
- * Initialize mouse follower effect for the loading screen
- */
-function initMouseFollower() {
-    const mouseFollower = document.getElementById('mouse-follower');
-    const loadingSplash = document.getElementById('loading-splash');
-    
-    if (mouseFollower && loadingSplash) {
-        // Show the mouse follower
-        mouseFollower.style.opacity = '1';
-        
-        // Set initial position
-        mouseFollower.style.left = '50%';
-        mouseFollower.style.top = '50%';
-        
-        // Add mouse move event listener to the loading splash
-        loadingSplash.addEventListener('mousemove', handleMouseMove);
-        
-        // Clean up on mouse leave
-        loadingSplash.addEventListener('mouseleave', () => {
-            mouseFollower.style.opacity = '0';
-        });
-        
-        // Show on mouse enter
-        loadingSplash.addEventListener('mouseenter', () => {
-            mouseFollower.style.opacity = '1';
-        });
-    }
-}
-
-/**
- * Handle mouse movement for the mouse follower effect
- * @param {MouseEvent} e - The mouse event
- */
-function handleMouseMove(e) {
-    const mouseFollower = document.getElementById('mouse-follower');
-    
-    if (mouseFollower) {
-        // Get mouse position
-        mouseX = e.clientX;
-        mouseY = e.clientY;
-        
-        // Apply smooth movement using requestAnimationFrame
-        requestAnimationFrame(() => {
-            mouseFollower.style.left = `${mouseX}px`;
-            mouseFollower.style.top = `${mouseY}px`;
-            
-            // Scale effect based on mouse speed
-            const speedFactor = 1.2;
-            mouseFollower.style.transform = `translate(-50%, -50%) scale(${speedFactor})`;
-        });
     }
 }
 
@@ -156,9 +98,6 @@ function updateLoadingProgress(text) {
 function hideLoadingSplash() {
     const loadingSplash = document.getElementById('loading-splash');
     if (loadingSplash) {
-        // Remove event listeners to prevent memory leaks
-        loadingSplash.removeEventListener('mousemove', handleMouseMove);
-        
         // Add fade-out class for smooth transition
         loadingSplash.classList.add('fade-out');
         
@@ -215,6 +154,98 @@ function setupThemeAndUI() {
             window.location.href = '../../';
         });
     }
+    
+    // Pin button functionality with localStorage persistence
+    const pinButton = document.getElementById('pin-button');
+    if (pinButton) {
+        // No need to initialize state here as it's now done in the HTML
+        // Just set up event listener to toggle and save pin state
+        pinButton.addEventListener('click', function() {
+            this.classList.toggle('pinned');
+            
+            // Save the new state to settings
+            const isPinned = this.classList.contains('pinned');
+            const currentSettings = loadSettings() || {};
+            currentSettings.pinned = isPinned;
+            saveSettings(currentSettings);
+            
+            // If pinned, ensure header is visible
+            const header = document.querySelector('header');
+            if (isPinned) {
+                header.style.transform = 'translateY(0)';
+                header.style.opacity = '1';
+            } else {
+                // If not pinned, just register the dock behavior
+                // but don't hide the header immediately - keep it visible
+                // and let the mouse movement behavior handle when to hide it
+                setupHeaderDockBehavior(false);
+            }
+        });
+    }
+    
+    // Set up Mac-like dock behavior for header
+    setupHeaderDockBehavior(true);
+}
+
+/**
+ * Sets up the Mac-like dock behavior for the header
+ * @param {boolean} hideInitially - Whether to hide the header initially if unpinned
+ */
+function setupHeaderDockBehavior(hideInitially = true) {
+    const header = document.querySelector('header');
+    const pinButton = document.getElementById('pin-button');
+    
+    if (!header || !pinButton) return;
+    
+    // Add CSS transitions for smooth show/hide
+    header.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+    
+    // Initial state
+    const isPinned = pinButton.classList.contains('pinned');
+    if (!isPinned && hideInitially) {
+        // Start with header hidden if not pinned and hideInitially is true
+        header.style.transform = 'translateY(-100%)';
+        header.style.opacity = '0';
+    }
+    
+    // Add mouse movement listener to show/hide header
+    document.addEventListener('mousemove', (e) => {
+        // Get latest pin state
+        const isPinned = pinButton.classList.contains('pinned');
+        
+        // If pinned, keep header visible at all times
+        if (isPinned) {
+            header.style.transform = 'translateY(0)';
+            header.style.opacity = '1';
+            
+            // Clear any pending hide timer
+            if (headerHideTimer) {
+                clearTimeout(headerHideTimer);
+                headerHideTimer = null;
+            }
+            return;
+        }
+        
+        // When mouse is near the top, show the header
+        if (e.clientY <= HEADER_SHOW_DISTANCE) {
+            header.style.transform = 'translateY(0)';
+            header.style.opacity = '1';
+            
+            // Clear any pending hide timer
+            if (headerHideTimer) {
+                clearTimeout(headerHideTimer);
+                headerHideTimer = null;
+            }
+        } 
+        // When mouse moves away, start timer to hide header
+        else if (e.clientY > HEADER_HIDE_DISTANCE && !headerHideTimer) {
+            headerHideTimer = setTimeout(() => {
+                header.style.transform = 'translateY(-100%)';
+                header.style.opacity = '0';
+                headerHideTimer = null;
+            }, HEADER_HIDE_DELAY);
+        }
+    });
 }
 
 /**
@@ -553,11 +584,14 @@ function verifyFileDrop() {
         // Special case: If only lighting file is provided, we'll use a test cube with multiple materials
         const onlyLightingProvided = hasLightingFile && !hasTextures && !hasModel;
         
+        // Special case: If only background file is provided, we'll also use a test cube with multiple materials
+        const onlyBackgroundProvided = hasBackgroundFile && !hasTextures && !hasModel && !hasLightingFile;
+        
         // Update hasFiles check to include the special lighting-only case
         const hasFiles = hasTextures || hasModel || hasLightingFile || hasBackgroundFile;
         
-        // If only lighting file is provided, set a flag in state to use multi-material test cube
-        if (onlyLightingProvided) {
+        // If only lighting file or only background file is provided, set a flag in state to use multi-material test cube
+        if (onlyLightingProvided || onlyBackgroundProvided) {
             stateModule.setState({
                 useLightingTestCube: true
             });
@@ -657,6 +691,7 @@ function startDebugging() {
                     
                     const lightingFile = currentState.lightingFile;
                     const backgroundFile = currentState.backgroundFile;
+                    const backgroundTexture = currentState.backgroundTexture;
                     
                     // Process lighting and background as separate, sequential operations
                     // This ensures they don't interfere with each other
@@ -707,7 +742,26 @@ function startDebugging() {
                     
                     // Then, handle background (after lighting is complete)
                     return setupPromise.then(() => {
-                        if (backgroundFile) {
+                        // If we have a texture already loaded from the dropzone preview,
+                        // use that directly instead of reloading the file
+                        if (backgroundTexture) {
+                            console.log('[DEBUG] Using already loaded background texture');
+                            
+                            // Apply the texture to the scene
+                            if (currentState.scene) {
+                                currentState.scene.background = backgroundTexture;
+                                
+                                // Dispatch an event to notify UI components
+                                const event = new CustomEvent('background-updated', { 
+                                    detail: { texture: backgroundTexture, file: backgroundFile }
+                                });
+                                document.dispatchEvent(event);
+                                
+                                resourcesLoaded.backgroundLoaded = true;
+                                checkAllResourcesLoaded();
+                            }
+                        }
+                        else if (backgroundFile) {
                             console.log('[DEBUG] Setting up background image from:', backgroundFile.name, 'type:', backgroundFile.type);
                             
                             // Import background image utilities

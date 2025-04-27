@@ -92,21 +92,18 @@ jobs:
           fi
       
       # Setup environment and tools
-      - name: Setup tools
-        id: setup
-        uses: ./.github/actions/build-and-test
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          build-command: 'echo "Skipping build for PR creation"'
-          test-command: 'echo "Skipping tests for PR creation"'
-      
-      # Only upload artifacts if we're not skipping the build
-      - name: Upload build artifacts
-        if: ${{ !contains(steps.setup.outputs.build-result, 'Skipping') }}
-        uses: actions/upload-artifact@v4
+          node-version: 'lts/*'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
         with:
-          name: package-builds
-          path: packages/*/dist
+          version: '8.15.4'
+          
+      - name: Install dependencies
+        run: pnpm install
       
       # Create and switch to new branch (only for workflow_dispatch)
       - name: Create branch (for workflow_dispatch)
@@ -131,31 +128,12 @@ jobs:
           git add .
           git commit -m "${{ steps.branch_info.outputs.title }}"
       
-      # Push branch (only for workflow_dispatch)
-      - name: Push changes (for workflow_dispatch)
-        if: github.event_name == 'workflow_dispatch'
+      # Push branch
+      - name: Push changes
         id: push_changes
         run: |
           git push origin ${{ steps.branch_info.outputs.branch }}
           echo "commit_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
-      
-      # Extract SHA for push event
-      - name: Get commit SHA
-        id: get_sha
-        run: |
-          if [ "${{ github.event_name }}" == "push" ]; then
-            echo "commit_sha=${{ github.sha }}" >> $GITHUB_OUTPUT
-          else
-            echo "commit_sha=${{ steps.push_changes.outputs.commit_sha }}" >> $GITHUB_OUTPUT
-          fi
-      
-      # Setup PR message
-      - name: Setup PR commit message
-        id: merge_message
-        run: |
-          # Create consistent PR title/message
-          MERGE_TITLE="${{ steps.branch_info.outputs.title }}"
-          echo "merge_title=$MERGE_TITLE" >> $GITHUB_OUTPUT
       
       # Create PR
       - name: Create PR
@@ -178,7 +156,7 @@ jobs:
           echo "Waiting for checks to complete on PR #${{ steps.manage_pr.outputs.pr-number }}..."
           
           # We need to get the SHA from the PR
-          SHA=${{ steps.get_sha.outputs.commit_sha }}
+          SHA=${{ steps.push_changes.outputs.commit_sha }}
           
           bash .github/scripts/branch/wait-checks.sh \
             --repo "${{ github.repository }}" \
@@ -191,29 +169,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
-      # Trigger the PR merge workflow but as a separate workflow run
-      - name: Trigger PR Merge
-        id: trigger_merge
-        if: success() && steps.branch_info.outputs.auto_merge == 'true'
-        continue-on-error: true
-        run: |
-          echo "All checks passed! Merging PR directly using action..."
-          echo "workflow_triggered=true" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }}
-
-      # Use the merge-pr action directly instead of calling the workflow
+      # Merge PR if auto-merge is enabled
       - name: Merge PR
+        id: merge_pr
         if: steps.branch_info.outputs.auto_merge == 'true' && steps.verify_checks.outcome == 'success'
         uses: ./.github/actions/merge-pull-request
         with:
           github-token: ${{ secrets.PR_CREATION_TOKEN }}
           repository: ${{ github.repository }}
           pr-number: ${{ steps.manage_pr.outputs.pr-number }}
-          commit-title: ${{ steps.merge_message.outputs.merge_title }}
+          commit-title: ${{ steps.branch_info.outputs.title }}
           merge-method: 'merge'
           delete-branch: 'true'
-          commit-message: 'Merge PR #${{ steps.manage_pr.outputs.pr-number }} from ${{ steps.branch_info.outputs.branch }}\n\ncreate-pr: false\ntriggered-by: push-create-pr'
+          commit-message: >-
+            Merge PR #${{ steps.manage_pr.outputs.pr-number }} from ${{ steps.branch_info.outputs.branch }}
 
       # Cleanup if no auto-merge
       - name: Status update
@@ -222,23 +191,7 @@ jobs:
           echo "PR created but not auto-merging as requested"
           echo "PR: ${{ steps.manage_pr.outputs.pr-url }}"
           
-      # Check if report should be sent for failures
-      - name: Check if report should be sent
-        if: failure()
-        id: should_report
-        run: |
-          OUTPUT=$(bash .github/scripts/reporting/filter-workflow-reports.sh \
-            --workflow-name "Push and Create PR" \
-            --branch "${{ steps.branch_info.outputs.branch || github.ref_name }}" \
-            --source "webhook" \
-            --summary "PR creation failed for branch ${{ steps.branch_info.outputs.branch || github.ref_name }}")
-          
-          echo "$OUTPUT"
-          # Extract the should_report value
-          SHOULD_REPORT=$(echo "$OUTPUT" | grep "^should_report=" | cut -d= -f2)
-          echo "should_report=$SHOULD_REPORT" >> $GITHUB_OUTPUT
-          
-      # Report failure using the new action
+      # Report failure using the action
       - name: Report failure
         if: failure()
         uses: ./.github/actions/report-workflow-results

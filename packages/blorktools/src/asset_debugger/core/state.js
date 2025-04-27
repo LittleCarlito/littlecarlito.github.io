@@ -237,27 +237,39 @@ export function setupBackgroundDropzone() {
         // Update the information display
         info.textContent = `${file.name} (${formatFileSize(file.size)})`;
         
-        // Generate a preview if possible
+        // Store the file in state without triggering a scene update
+        updateState({
+            backgroundFile: file
+        });
+        
+        // Generate preview for standard image formats
         if (['jpg', 'jpeg', 'png', 'webp'].includes(extension)) {
+            // For standard images, create a simple preview in the dropzone
             const reader = new FileReader();
             reader.onload = function(e) {
                 preview.style.backgroundImage = `url(${e.target.result})`;
                 preview.style.display = 'block';
             };
             reader.readAsDataURL(file);
-        } else {
-            // For HDR/EXR, show a placeholder or icon
+        } else if (['hdr', 'exr'].includes(extension)) {
+            // For HDR/EXR, show a loading indicator first
             preview.style.backgroundImage = '';
-            preview.textContent = 'HDR/EXR Preview Not Available';
+            preview.textContent = 'Loading HDR/EXR preview...';
             preview.style.display = 'flex';
             preview.style.alignItems = 'center';
             preview.style.justifyContent = 'center';
+            
+            // Import the world-panel to generate the proper preview once
+            import('../ui/scripts/world-panel.js').then(module => {
+                if (module.generatePreviewOnly) {
+                    // Call the dedicated preview function that doesn't update the world panel
+                    module.generatePreviewOnly(file, preview);
+                } else {
+                    // Fallback message if function not available
+                    preview.textContent = 'HDR/EXR Preview';
+                }
+            });
         }
-        
-        // Update state with the background file
-        updateState({
-            backgroundFile: file
-        });
         
         console.log('[DEBUG] Updated state with background file:', file.name);
         

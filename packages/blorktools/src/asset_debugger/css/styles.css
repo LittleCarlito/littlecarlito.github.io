@@ -59,16 +59,33 @@ body {
     overflow: visible;
     padding: 10px;
     gap: 10px;
+    margin-top: 60px; /* Match header height */
 }
 
 header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 20px;
+    padding: 5px 20px; /* Increased right padding to match left padding */
     background-color: var(--secondary-color);
     color: var(--primary-color);
     border-bottom: 1px solid var(--panel-border);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    box-sizing: border-box; /* Ensure padding is included in width calculation */
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    height: 50px;
+}
+
+/* Ensure right-side buttons are properly aligned */
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-right: 0; /* Remove any potential margin */
 }
 
 h1 {
@@ -78,7 +95,9 @@ h1 {
 }
 
 h2, h3 {
+    margin: 5px 0;
     color: var(--primary-color);
+    font-weight: normal;
 }
 
 /* Section heading style for Asset Files and World Files */
@@ -113,6 +132,33 @@ h3 {
 
 .theme-toggle:hover {
     background-color: rgba(30, 136, 229, 0.2);
+}
+
+/* Pin button styles */
+.pin-button {
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pin-button svg {
+    transform: rotate(-90deg); /* Default state - horizontal */
+    transition: transform 0.3s ease, fill 0.3s ease;
+}
+
+.pin-button.pinned svg {
+    transform: rotate(0deg); /* Pinned state - vertical */
+}
+
+.pin-button.pinned svg path {
+    fill: var(--button-color);
+}
+
+.pin-button:not(.pinned) svg path {
+    fill: none;
+    stroke: var(--button-color);
+    stroke-width: 1.5px;
 }
 
 /* Blorkboard-style card panel */
@@ -1791,34 +1837,6 @@ h3 {
     aspect-ratio: 1/1;
 }
 
-/* Adjustments for container layout */
-.container {
-    display: flex;
-    flex-direction: column;
-    height: auto;
-    max-height: calc(100% - 60px); /* Use max-height instead of min-height */
-    overflow: visible;
-    padding: 10px;
-    gap: 10px;
-}
-
-/* Compact header */
-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 5px 10px;
-    background-color: var(--header-bg);
-    height: 50px;
-}
-
-/* More compact h2, h3 */
-h2, h3 {
-    margin: 5px 0;
-    color: var(--heading-color);
-    font-weight: normal;
-}
-
 /* More compact headings */
 h2 {
     font-size: 18px;
@@ -2008,4 +2026,44 @@ h2 {
     width: 275px; /* Fixed width */
     max-width: 275px;
     margin: 0 auto; /* Center it in its row */
+}
+
+/* UI Specific Tab Styles (moved from ui/styles.css) */
+/* Parent container - disable scrolling */
+.tab-container {
+    overflow: hidden;
+    position: relative;
+    height: 100%;
+}
+
+/* Tab content panels - enable scrolling */
+.tab-content {
+    overflow-y: auto;
+    height: 100%;
+    padding-right: 15px; /* Space for scrollbar */
+    box-sizing: border-box;
+}
+
+/* Ensure consistent scrollbar styling across all panels */
+.tab-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.tab-content::-webkit-scrollbar-track {
+    background: #222;
+}
+
+.tab-content::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 4px;
+}
+
+.tab-content::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Remove duplicate scrollbar from world-tab since it's now inherited from tab-content */
+#world-tab.tab-content {
+    /* Keep other styles but remove specific overflow and scrollbar settings */
+    padding-right: 15px;
 } 
