@@ -276,8 +276,8 @@ jobs:
       packages: write
     outputs:
       packages_updated: ${{ steps.bump-versions.outputs.packages_updated }}
-      packages_tagged: ${{ steps.create-tags.outputs.packages_tagged }}
-      error-message: ${{ steps.create-tags.outputs.error-message }}
+      packages_tagged: ${{ steps.handle-version-changes.outputs.packages-tagged || steps.create-tags.outputs.packages_tagged }}
+      error-message: ${{ steps.handle-version-changes.outputs.error-message || steps.create-tags.outputs.error-message }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -328,29 +328,51 @@ jobs:
         if: steps.check-version-pr.outputs.is_version_pr != 'true'
         run: |
           echo "Version bumping is now handled in the PR process"
-            echo "packages_updated=0" >> $GITHUB_OUTPUT
+          echo "packages_updated=0" >> $GITHUB_OUTPUT
           
-      # Create and push tags for the new versions
+      # Process version changes from PR
+      - name: Process version changes from PR
+        id: handle-version-changes
+        if: steps.check-version-pr.outputs.is_version_pr == 'true' && github.ref == 'refs/heads/main'
+        uses: ./.github/actions/process-version-changes
+        with:
+          github-token: ${{ secrets.VERSION_TOKEN }}
+          publish-packages: "true"
+          create-releases: "true"
+          
+      # Create and push tags for the new versions (fallback for non-version PRs)
       - name: Create and push tags
         id: create-tags
-        if: (steps.bump-versions.outputs.packages_updated > 0 || steps.check-version-pr.outputs.is_version_pr == 'true') && github.ref == 'refs/heads/main'
+        if: steps.bump-versions.outputs.packages_updated > 0 && steps.check-version-pr.outputs.is_version_pr != 'true' && github.ref == 'refs/heads/main'
         run: |
-          echo "Tags are now created in the handle-version-pr workflow"
-            echo "packages_tagged=0" >> $GITHUB_OUTPUT
+          echo "No tags to create - version bumping is handled in PRs"
+          echo "packages_tagged=0" >> $GITHUB_OUTPUT
           
-      # Publish packages to npm registry
+      # Publish packages to npm registry (fallback for non-version PRs)
       - name: Publish packages to npm registry
-        if: (steps.bump-versions.outputs.packages_updated > 0 || steps.check-version-pr.outputs.is_version_pr == 'true') && github.ref == 'refs/heads/main'
+        if: steps.bump-versions.outputs.packages_updated > 0 && steps.check-version-pr.outputs.is_version_pr != 'true' && github.ref == 'refs/heads/main'
         run: |
-          echo "Package publishing is now handled in the handle-version-pr workflow"
+          echo "Package publishing is handled by the process-version-changes action"
           
-      # Create GitHub Releases for each tag
+      # Create GitHub Releases for each tag (fallback for non-version PRs)
       - name: Create GitHub Releases
         id: create-releases
-        if: steps.create-tags.outputs.packages_tagged > 0
+        if: steps.create-tags.outputs.packages_tagged > 0 && steps.check-version-pr.outputs.is_version_pr != 'true'
         run: |
-          echo "GitHub Releases are now created in the handle-version-pr workflow"
-            echo "releases_created=0" >> $GITHUB_OUTPUT
+          echo "GitHub Releases are created by the process-version-changes action"
+          echo "releases_created=0" >> $GITHUB_OUTPUT
+          
+      # Report version processing results
+      - name: Report version processing results
+        if: steps.check-version-pr.outputs.is_version_pr == 'true' && github.ref == 'refs/heads/main'
+        run: |
+          echo "Version changes processed from PR"
+          echo "Tags created: ${{ steps.handle-version-changes.outputs.packages-tagged }}"
+          echo "Tags: ${{ steps.handle-version-changes.outputs.tags-created }}"
+          echo "Releases created: ${{ steps.handle-version-changes.outputs.releases-created }}"
+          if [ -n "${{ steps.handle-version-changes.outputs.error-message }}" ]; then
+            echo "Errors: ${{ steps.handle-version-changes.outputs.error-message }}"
+          fi
 
   # Build the site for GitHub Pages
   build-site:

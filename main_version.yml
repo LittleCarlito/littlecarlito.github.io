@@ -124,65 +124,6 @@ jobs:
           echo "Title: ${{ steps.branch_info.outputs.title }}" >> change.md
           echo "Generated: $(date)" >> change.md
       
-      # Setup for version calculation
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-          
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: '8.15.4'
-          
-      - name: Install dependencies
-        run: pnpm install
-      
-      # Run version calculation with --apply for all PRs
-      - name: Apply version changes
-        id: apply_versions
-        run: |
-          git config --global user.name "Github Actions"
-          git config --global user.email "actions@github.com"
-          
-          # Get the merge base with the target branch
-          git fetch origin ${{ steps.branch_info.outputs.target_branch }}
-          MERGE_BASE=$(git merge-base origin/${{ steps.branch_info.outputs.target_branch }} HEAD)
-          echo "Merge base with ${{ steps.branch_info.outputs.target_branch }}: $MERGE_BASE"
-          
-          # Run version calculation with --apply
-          echo "Calculating and applying version changes from $MERGE_BASE to HEAD..."
-          MERGE_BASE=$MERGE_BASE node scripts/version-runner.js --apply --output-json
-          
-          # Check if versions were updated
-          if [ -f "version-output.json" ]; then
-            UPDATED_COUNT=$(jq '.updatedPackages | length' version-output.json)
-            
-            if [ "$UPDATED_COUNT" -gt "0" ]; then
-              echo "Version changes were applied to $UPDATED_COUNT packages"
-              jq -r '.updatedPackages[] | .name + ": " + .previousVersion + " → " + .version' version-output.json
-              
-              # Create version summary for PR body
-              echo "# Version Updates" > version-summary.md
-              jq -r '.updatedPackages[] | "- " + .name + ": " + .previousVersion + " → " + .version' version-output.json >> version-summary.md
-              
-              # Stage and commit the changes
-              git add "**/package.json"
-              git commit -m "chore: bump versions [auto]" -m "$(cat version-summary.md)"
-              
-              echo "version_changes=true" >> $GITHUB_OUTPUT
-              echo "version_summary<<EOF" >> $GITHUB_OUTPUT
-              cat version-summary.md >> $GITHUB_OUTPUT
-              echo "EOF" >> $GITHUB_OUTPUT
-            else
-              echo "No version changes needed"
-              echo "version_changes=false" >> $GITHUB_OUTPUT
-            fi
-          else
-            echo "No version-output.json found"
-            echo "version_changes=false" >> $GITHUB_OUTPUT
-          fi
-      
       # Commit changes (only for workflow_dispatch)
       - name: Commit changes (for workflow_dispatch)
         if: github.event_name == 'workflow_dispatch'
@@ -190,33 +131,31 @@ jobs:
           git add .
           git commit -m "${{ steps.branch_info.outputs.title }}"
       
-      # Push branch
-      - name: Push changes
+      # Push branch (only for workflow_dispatch)
+      - name: Push changes (for workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
         id: push_changes
         run: |
           git push origin ${{ steps.branch_info.outputs.branch }}
           echo "commit_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
       
-      # Create PR body with version info if applicable
-      - name: Prepare PR body
-        id: prepare_pr_body
+      # Extract SHA for push event
+      - name: Get commit SHA
+        id: get_sha
         run: |
-          # Start with the original body
-          ORIGINAL_BODY="${{ steps.branch_info.outputs.body }}"
-          FINAL_BODY="$ORIGINAL_BODY"
-          
-          # Add version changes if they exist
-          if [ "${{ steps.apply_versions.outputs.version_changes }}" == "true" ]; then
-            FINAL_BODY+=$'\n\n'
-            FINAL_BODY+="## Version Changes"$'\n\n'
-            FINAL_BODY+="${{ steps.apply_versions.outputs.version_summary }}"$'\n\n'
-            FINAL_BODY+="*These version changes will be tagged and published when merged to main*"
+          if [ "${{ github.event_name }}" == "push" ]; then
+            echo "commit_sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+          else
+            echo "commit_sha=${{ steps.push_changes.outputs.commit_sha }}" >> $GITHUB_OUTPUT
           fi
-          
-          # Output the PR body
-          echo "body<<EOF" >> $GITHUB_OUTPUT
-          echo "$FINAL_BODY" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+      
+      # Setup PR message
+      - name: Setup PR commit message
+        id: merge_message
+        run: |
+          # Create consistent PR title/message
+          MERGE_TITLE="${{ steps.branch_info.outputs.title }}"
+          echo "merge_title=$MERGE_TITLE" >> $GITHUB_OUTPUT
       
       # Create PR
       - name: Create PR
@@ -228,7 +167,7 @@ jobs:
           base-branch: ${{ steps.branch_info.outputs.target_branch }}
           head-branch: ${{ steps.branch_info.outputs.branch }}
           title: ${{ steps.branch_info.outputs.title }}
-          body: ${{ steps.prepare_pr_body.outputs.body }}
+          body: ${{ steps.branch_info.outputs.body }}
       
       # Wait for GitHub checks to complete
       - name: Wait for checks
@@ -239,7 +178,7 @@ jobs:
           echo "Waiting for checks to complete on PR #${{ steps.manage_pr.outputs.pr-number }}..."
           
           # We need to get the SHA from the PR
-          SHA=${{ steps.push_changes.outputs.commit_sha }}
+          SHA=${{ steps.get_sha.outputs.commit_sha }}
           
           bash .github/scripts/branch/wait-checks.sh \
             --repo "${{ github.repository }}" \
@@ -252,24 +191,29 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
-      # Merge PR if auto-merge is enabled
+      # Trigger the PR merge workflow but as a separate workflow run
+      - name: Trigger PR Merge
+        id: trigger_merge
+        if: success() && steps.branch_info.outputs.auto_merge == 'true'
+        continue-on-error: true
+        run: |
+          echo "All checks passed! Merging PR directly using action..."
+          echo "workflow_triggered=true" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN }}
+
+      # Use the merge-pr action directly instead of calling the workflow
       - name: Merge PR
-        id: merge_pr
         if: steps.branch_info.outputs.auto_merge == 'true' && steps.verify_checks.outcome == 'success'
         uses: ./.github/actions/merge-pull-request
         with:
           github-token: ${{ secrets.PR_CREATION_TOKEN }}
           repository: ${{ github.repository }}
           pr-number: ${{ steps.manage_pr.outputs.pr-number }}
-          commit-title: ${{ steps.branch_info.outputs.title }}
+          commit-title: ${{ steps.merge_message.outputs.merge_title }}
           merge-method: 'merge'
           delete-branch: 'true'
-          commit-message: >-
-            Merge PR #${{ steps.manage_pr.outputs.pr-number }} from ${{ steps.branch_info.outputs.branch }}
-            
-            create-pr: false
-            triggered-by: push-create-pr
-            version-changes: ${{ steps.apply_versions.outputs.version_changes || 'false' }}
+          commit-message: 'Merge PR #${{ steps.manage_pr.outputs.pr-number }} from ${{ steps.branch_info.outputs.branch }}\n\ncreate-pr: false\ntriggered-by: push-create-pr'
 
       # Cleanup if no auto-merge
       - name: Status update
@@ -278,7 +222,23 @@ jobs:
           echo "PR created but not auto-merging as requested"
           echo "PR: ${{ steps.manage_pr.outputs.pr-url }}"
           
-      # Report failure using the action
+      # Check if report should be sent for failures
+      - name: Check if report should be sent
+        if: failure()
+        id: should_report
+        run: |
+          OUTPUT=$(bash .github/scripts/reporting/filter-workflow-reports.sh \
+            --workflow-name "Push and Create PR" \
+            --branch "${{ steps.branch_info.outputs.branch || github.ref_name }}" \
+            --source "webhook" \
+            --summary "PR creation failed for branch ${{ steps.branch_info.outputs.branch || github.ref_name }}")
+          
+          echo "$OUTPUT"
+          # Extract the should_report value
+          SHOULD_REPORT=$(echo "$OUTPUT" | grep "^should_report=" | cut -d= -f2)
+          echo "should_report=$SHOULD_REPORT" >> $GITHUB_OUTPUT
+          
+      # Report failure using the new action
       - name: Report failure
         if: failure()
         uses: ./.github/actions/report-workflow-results
