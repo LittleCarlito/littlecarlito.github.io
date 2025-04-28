@@ -14,9 +14,9 @@ inputs:
     default: 'true'
 
 outputs:
-  has-changes:
+  hasChanges:
     description: 'Whether version changes were detected'
-    value: ${{ steps.version-analysis.outputs.has_changes }}
+    value: ${{ steps.version-analysis.outputs.hasChanges }}
   changes-details:
     description: 'Human-readable details about what version changes were detected'
     value: ${{ steps.version-analysis.outputs.HUMAN_OUTPUT }}
@@ -84,13 +84,13 @@ runs:
         
         # Parse JSON to get the hasChanges value
         HAS_CHANGES=$(echo "$JSON_OUTPUT" | jq -r '.hasChanges')
-        echo "has_changes=$HAS_CHANGES" >> $GITHUB_OUTPUT
+        echo "hasChanges=$HAS_CHANGES" >> $GITHUB_OUTPUT
       env:
         GH_TOKEN: ${{ inputs.github-token }}
     
     # Update PR description (if enabled)
     - name: Update PR description with version changes
-      if: inputs.update-pr == 'true' && steps.version-analysis.outputs.has_changes == 'true'
+      if: inputs.update-pr == 'true' && steps.version-analysis.outputs.hasChanges == 'true'
       shell: bash
       run: |
         PR_BODY=$(gh pr view ${{ inputs.pr-number }} --json body -q '.body')

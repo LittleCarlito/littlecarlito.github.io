@@ -23,7 +23,7 @@ inputs:
     default: ''
 
 outputs:
-  has-changes:
+  hasChanges:
     description: 'Whether version changes were detected'
     value: ${{ steps.set-outputs.outputs.has_changes }}
   version-tag:
@@ -192,7 +192,7 @@ runs:
       shell: bash
       run: |
         HAS_CHANGES="${{ steps.analyze-commits.outputs.HAS_CHANGES }}"
-        echo "has_changes=${HAS_CHANGES}" >> $GITHUB_OUTPUT
+        echo "hasChanges=${HAS_CHANGES}" >> $GITHUB_OUTPUT
         
         if [ -n "${{ steps.commit-changes.outputs.VERSION_TAG }}" ]; then
           echo "version_tag=${{ steps.commit-changes.outputs.VERSION_TAG }}" >> $GITHUB_OUTPUT

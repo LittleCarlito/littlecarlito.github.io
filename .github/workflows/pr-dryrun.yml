@@ -93,7 +93,7 @@ jobs:
       
       # If changes are detected, apply them in the PR
       - name: Apply Version Changes
-        if: steps.analyze-versions.outputs.has-changes == 'true'
+        if: steps.analyze-versions.outputs.hasChanges == 'true'
         id: version-from-commits
         uses: ./.github/actions/version-from-commits
         with:
@@ -103,7 +103,7 @@ jobs:
       
       # Push changes back to the PR branch
       - name: Push Version Changes
-        if: steps.analyze-versions.outputs.has-changes == 'true'
+        if: steps.analyze-versions.outputs.hasChanges == 'true'
         run: |
           git config --global user.name 'GitHub Actions Bot'
           git config --global user.email 'actions@github.com'
