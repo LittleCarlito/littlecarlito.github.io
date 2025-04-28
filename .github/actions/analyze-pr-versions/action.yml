@@ -68,9 +68,10 @@ runs:
         PR_BODY=$(echo "$PR_BODY" | sed -E '/## Version Changes/,/NO CHANGE: .*/d')
         
         # Add version changes section
+        CHANGES="${{ steps.version-analysis.outputs.HUMAN_OUTPUT }}"
         NEW_PR_BODY="${PR_BODY}
 
-${{ steps.version-analysis.outputs.HUMAN_OUTPUT }}"
+${CHANGES}"
         
         # Update PR description
         gh pr edit ${{ inputs.pr-number }} --body "${NEW_PR_BODY}"
