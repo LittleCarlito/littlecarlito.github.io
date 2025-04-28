@@ -225,6 +225,10 @@ jobs:
       - name: Check for version commits and create releases
         id: check_and_create
         run: |
+          # Set git identity for creating tags
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          
           # Check if the latest commit is a version bump
           LATEST_COMMIT_MSG=$(git log -1 --pretty=%B)
           if [[ "${LATEST_COMMIT_MSG}" == *"chore(release)"* || "${LATEST_COMMIT_MSG}" == *"version"* ]]; then
