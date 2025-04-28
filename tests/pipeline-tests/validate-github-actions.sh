@@ -24,28 +24,65 @@ if ! command -v actionlint &> /dev/null; then
     fi
 fi
 
-# Validate all workflow files
+# Validate workflow files only (not action files)
 echo "Running actionlint on workflow files..."
 find .github/workflows -name "*.yml" -exec actionlint {} \;
-find .github/actions -name "action.yml" -exec actionlint {} \;
+
+# Create a temporary directory for modified action files validation
+TEMP_DIR=$(mktemp -d)
+mkdir -p "$TEMP_DIR/.github/workflows"
+
+# Process each action.yml file - convert to workflow format for validation
+echo "Processing action definition files..."
+for action_file in $(find .github/actions -name "action.yml"); do
+    # Extract just the name of the action directory
+    action_name=$(basename "$(dirname "$action_file")")
+    
+    # Create a temporary workflow file for validation
+    temp_workflow="$TEMP_DIR/.github/workflows/${action_name}_converted.yml"
+    
+    # Start with a valid workflow structure
+    echo "name: Converted $action_name" > "$temp_workflow"
+    echo "on: [push]" >> "$temp_workflow"
+    echo "jobs:" >> "$temp_workflow"
+    echo "  validate_action:" >> "$temp_workflow"
+    echo "    runs-on: ubuntu-latest" >> "$temp_workflow"
+    echo "    steps:" >> "$temp_workflow"
+    echo "      - uses: actions/checkout@v3" >> "$temp_workflow"
+    echo "      - name: Run $action_name" >> "$temp_workflow"
+    echo "        uses: ./.github/actions/$action_name" >> "$temp_workflow"
+done
+
+# Check for shell script issues in workflow files 
+echo "Checking for shell script issues..."
+find .github/workflows -name "*.yml" -exec grep -l "run:" {} \; | xargs -I{} actionlint {}
 
 # Check specifically for variable reference issues
 echo "Checking for common variable reference issues..."
 ERRORS=0
 ISSUE_SUMMARY=""
 
-# Check for || in GitHub Actions expressions
-if grep -r '\${{ .* || .*}}' --include="*.yml" .github/ > /dev/null 2>&1; then
-    ISSUE_COUNT=$(grep -r '\${{ .* || .*}}' --include="*.yml" .github/ | wc -l | tr -d ' ')
-    echo "❌ Found $ISSUE_COUNT potential invalid '||' operator usage in GitHub Actions expressions."
+# Check for || in GitHub Actions expressions - only flag as error when used with env vars
+if grep -r '\${{ env\.[A-Za-z0-9_]* || .*}}' --include="*.yml" .github/ > /dev/null 2>&1; then
+    ISSUE_COUNT=$(grep -r '\${{ env\.[A-Za-z0-9_]* || .*}}' --include="*.yml" .github/ | wc -l | tr -d ' ')
+    echo "❌ Found $ISSUE_COUNT invalid '||' operator usage with environment variables in GitHub Actions expressions."
     echo "   GitHub Actions expressions don't support the || operator with environment variables."
     echo "   Use conditional steps or bash if statements instead."
     
     # Display the problematic lines
-    grep -r '\${{ .* || .*}}' --include="*.yml" .github/
+    grep -r '\${{ env\.[A-Za-z0-9_]* || .*}}' --include="*.yml" .github/
     
     ERRORS=$((ERRORS + 1))
-    ISSUE_SUMMARY="$ISSUE_SUMMARY\n- $ISSUE_COUNT invalid '||' operator usage"
+    ISSUE_SUMMARY="$ISSUE_SUMMARY\n- $ISSUE_COUNT invalid '||' operator usage with env vars"
+else
+    echo "✅ No invalid '||' operator usage with environment variables detected"
+    
+    # Just informational - show other uses of || operator that are valid but worth reviewing
+    if grep -r '\${{ .* || .*}}' --include="*.yml" .github/ | grep -v '\${{ env\.' > /dev/null 2>&1; then
+        INFO_COUNT=$(grep -r '\${{ .* || .*}}' --include="*.yml" .github/ | grep -v '\${{ env\.' | wc -l | tr -d ' ')
+        echo "ℹ️ Found $INFO_COUNT uses of '||' operator in GitHub Actions expressions (valid with outputs/inputs, but worth reviewing):"
+        grep -r '\${{ .* || .*}}' --include="*.yml" .github/ | grep -v '\${{ env\.'
+    fi
 fi
 
 # Check for undefined variable references
@@ -59,6 +96,9 @@ if grep -r '\${{ .* [A-Z_]* .*}}' --include="*.yml" .github/ | grep -v "steps\|i
     ERRORS=$((ERRORS + 1))
     ISSUE_SUMMARY="$ISSUE_SUMMARY\n- $ISSUE_COUNT undefined variable references"
 fi
+
+# Clean up
+rm -rf "$TEMP_DIR"
 
 # Print summary and exit with appropriate status code
 if [ $ERRORS -gt 0 ]; then

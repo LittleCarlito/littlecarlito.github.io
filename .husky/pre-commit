@@ -129,12 +129,9 @@ if [ "$GITHUB_FILES_CHANGED" = true ]; then
     if [ -f "tests/pipeline-tests/validate-github-actions.sh" ]; then
         echo "Running GitHub Actions validator..."
         
-        # Run validator with output captured
-        VALIDATION_OUTPUT=$(./tests/pipeline-tests/validate-github-actions.sh 2>&1)
+        # Run validator with output directly displayed, not captured
+        ./tests/pipeline-tests/validate-github-actions.sh
         VALIDATION_STATUS=$?
-        
-        # Always show the output
-        echo "$VALIDATION_OUTPUT"
         
         # Check status and fail if needed
         if [ $VALIDATION_STATUS -ne 0 ]; then
