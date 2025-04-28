@@ -76,16 +76,29 @@ if [ "$RUN_TESTS" = true ]; then
     
     # Only run workflow validation if .github directory has changes
     if [ "$GITHUB_DIR_CHANGES" -gt 0 ]; then
-        echo "🔍 Changes detected in .github directory, validating workflow alignment..."
+        echo "🔍 Changes detected in .github directory, validating workflows..."
+        
+        # Run the new validation script
+        if [ -f "tests/pipeline-tests/validate-github-actions.sh" ]; then
+            echo "Running GitHub Actions validator..."
+            ./tests/pipeline-tests/validate-github-actions.sh || {
+                echo "❌ GitHub Actions validation failed."
+                echo "Please fix workflow syntax issues before pushing."
+                exit 1
+            }
+        fi
+        
+        # Also run existing workflow alignment validator if available
         if [ -f ".github/scripts/pr/validate-workflow-alignment.sh" ]; then
+            echo "Running workflow alignment validation..."
             ./.github/scripts/pr/validate-workflow-alignment.sh || {
                 echo "❌ Workflow alignment validation failed."
                 echo "Please fix workflow alignment issues before pushing."
                 exit 1
             }
         else
-            echo "⚠️ Workflow validation script not found at .github/scripts/pr/validate-workflow-alignment.sh"
-            echo "Skipping workflow validation."
+            echo "⚠️ Workflow alignment script not found at .github/scripts/pr/validate-workflow-alignment.sh"
+            echo "Skipping workflow alignment validation."
         fi
     else
         echo "✅ No changes in .github directory, skipping workflow validation."

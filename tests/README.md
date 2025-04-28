@@ -10,6 +10,51 @@ This directory contains tests for the threejs_site project, organized by categor
 - `apps` - Tests for applications
 - `packages` - Tests for individual packages
 
+## GitHub Actions Workflow Validation
+
+To catch GitHub Actions workflow syntax errors before pushing to GitHub, we've added special validation tools:
+
+### Using the Validator Manually
+
+Run the workflow validator directly:
+```bash
+./tests/test-workflows.sh
+```
+
+This script:
+1. Validates all workflow files using `actionlint`
+2. Checks for common GitHub Actions syntax errors (like invalid operators)
+3. Simulates workflow runs locally if you have `act` installed
+
+### Automatic Pre-Commit Validation
+
+The `.husky/pre-commit` hook automatically runs GitHub Actions validation when changes are detected in the `.github` directory. It specifically catches:
+
+- Invalid `||` operator usage in expressions (which was causing the `PR_BASE` error)
+- References to undefined variables
+- Other common GitHub Actions syntax issues
+
+This prevents problematic code from even being committed, catching issues at the earliest possible stage.
+
+### Installing Required Tools
+
+For the best validation experience, install these tools:
+
+1. **actionlint** - For static checking of workflow files:
+   ```bash
+   # Using Go
+   go install github.com/rhysd/actionlint/cmd/actionlint@latest
+   
+   # Using Homebrew
+   brew install actionlint
+   ```
+
+2. **act** - For local simulation of GitHub Actions:
+   ```bash
+   # Using Homebrew
+   brew install act
+   ```
+
 ## Testing Best Practices
 
 ### Write Isolated Unit Tests
