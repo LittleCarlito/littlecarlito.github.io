@@ -21,7 +21,7 @@
  * This script ACCUMULATES version changes across all commits chronologically.
  * 
  * Usage:
- * node version-from-commits.js [--dry-run] [--from=<ref>] [--to=<ref>]
+ * node version-from-commits.js [--dry-run] [--from=<ref>] [--to=<ref>] [--format=pr]
  */
 
 const { execSync } = require('child_process');
@@ -38,10 +38,12 @@ const IGNORE_SCOPES = ['pipeline'];
 const DRY_RUN = process.argv.includes('--dry-run');
 const fromArg = process.argv.find(arg => arg.startsWith('--from='));
 const toArg = process.argv.find(arg => arg.startsWith('--to='));
+const formatArg = process.argv.find(arg => arg.startsWith('--format='));
 
 // Get from and to refs
 let fromRef = fromArg ? fromArg.split('=')[1] : null;
 let toRef = toArg ? toArg.split('=')[1] : 'HEAD';
+const outputFormat = formatArg ? formatArg.split('=')[1] : 'default';
 
 console.log(`Analyzing commits from ${fromRef || 'beginning'} to ${toRef}`);
 
@@ -313,7 +315,7 @@ ALL_PROJECTS.forEach(project => {
 });
 
 // Output final accumulated version changes
-let hasChanges = false;
+hasChanges = false;
 ALL_PROJECTS.forEach(project => {
   const initialVersion = initialVersions[project];
   const finalVersion = accumulatedVersions[project];
@@ -495,4 +497,104 @@ ${content.body}`;
 });
 
 console.log(`\nCreated ${changesets.length} changesets based on accumulated version changes`);
-console.log('Run "pnpm changeset version" to apply these changes to package.json files'); 
+console.log('Run "pnpm changeset version" to apply these changes to package.json files');
+
+// Format human-readable output based on format type
+let output = '';
+// Define hasChanges here to be used by all output formats
+hasChanges = false;
+
+// Format output for the specified output format
+const packageNames = {
+  blorkpack: '@littlecarlito/blorkpack',
+  blorktools: '@littlecarlito/blorktools',
+  blorkboard: '@littlecarlito/blorkboard',
+  portfolio: '@littlecarlito/portfolio'
+};
+
+// Check if any changes were detected
+ALL_PROJECTS.forEach(project => {
+  const initialVersion = versionProgressions[project][0].version;
+  const finalVersion = versionProgressions[project][versionProgressions[project].length - 1].version;
+  
+  if (initialVersion !== finalVersion) {
+    hasChanges = true;
+  }
+});
+
+// Generate appropriate output based on format
+if (outputFormat === 'pr') {
+  // Output format specifically for PRs, similar to check-version-changes.js
+  if (!hasChanges) {
+    output = 'No version changes detected from commit messages';
+  } else {
+    output = '## Version Changes\n\nThis PR will trigger the following version changes when merged:\n\n';
+    
+    ALL_PROJECTS.forEach(project => {
+      const initialVersion = versionProgressions[project][0].version;
+      const finalVersion = versionProgressions[project][versionProgressions[project].length - 1].version;
+      
+      if (initialVersion !== finalVersion) {
+        const incrementCount = versionProgressions[project].length - 1; // Subtract 1 for the initial entry
+        const packageName = packageNames[project];
+        let bumpType = '';
+        
+        if (finalVersion.split('.')[0] > initialVersion.split('.')[0]) {
+          bumpType = '🚨 MAJOR';
+        } else if (finalVersion.split('.')[1] > initialVersion.split('.')[1]) {
+          bumpType = '✨ MINOR';
+        } else {
+          bumpType = '🐛 PATCH';
+        }
+        
+        output += `${bumpType}: ${packageName}: ${initialVersion} → ${finalVersion} (${incrementCount} increments)\n`;
+      }
+    });
+    
+    // Show packages with no changes
+    const unchangedPackages = ALL_PROJECTS
+      .filter(project => {
+        const initialVersion = versionProgressions[project][0].version;
+        const finalVersion = versionProgressions[project][versionProgressions[project].length - 1].version;
+        return initialVersion === finalVersion;
+      })
+      .map(project => packageNames[project]);
+    
+    if (unchangedPackages.length > 0) {
+      output += `\n⏹️ NO CHANGE: ${unchangedPackages.join(', ')}\n`;
+    }
+    
+    // Output structured data for GitHub Actions
+    const structuredOutput = {
+      hasChanges: hasChanges,
+      changes: ALL_PROJECTS.reduce((acc, project) => {
+        const initialVersion = versionProgressions[project][0].version;
+        const finalVersion = versionProgressions[project][versionProgressions[project].length - 1].version;
+        
+        if (initialVersion !== finalVersion) {
+          acc[project] = {
+            initialVersion,
+            finalVersion,
+            incrementCount: versionProgressions[project].length - 1
+          };
+        } else {
+          acc[project] = null;
+        }
+        
+        return acc;
+      }, {})
+    };
+    
+    // Output both the human-readable and structured formats
+    console.log(output);
+    console.log('---');
+    console.log(JSON.stringify(structuredOutput));
+    
+    // Exit early since we've handled the output format differently
+    process.exit(0);
+  }
+}
+
+// Default output format continues here with the original behavior
+// For the default output format, reset hasChanges flag
+hasChanges = false; 

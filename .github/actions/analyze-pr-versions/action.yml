@@ -66,19 +66,25 @@ runs:
       shell: bash
       run: |
         # Make the script executable
-        chmod +x .github/scripts/pr/check-version-changes.js
+        chmod +x .github/scripts/versioning/version-from-commits.js
         
-        # Run the analysis - FIX: Use node to execute the JavaScript file
-        OUTPUT=$(node .github/scripts/pr/check-version-changes.js ${{ inputs.pr-number }})
+        # Get PR details for analysis
+        PR_DATA=$(gh pr view ${{ inputs.pr-number }} --json baseRefName,headRefName)
+        BASE_REF=$(echo "$PR_DATA" | jq -r '.baseRefName')
+        HEAD_REF=$(echo "$PR_DATA" | jq -r '.headRefName')
+        
+        # Run the version-from-commits.js script in dry-run mode 
+        # and capture the output for PR description
+        OUTPUT=$(node .github/scripts/versioning/version-from-commits.js --dry-run --from=$BASE_REF --to=$HEAD_REF --format=pr 2>&1)
         
         # Print the complete output for debugging
         echo "Complete script output:"
         echo "$OUTPUT"
         
-        # Extract the human-readable part more reliably
+        # Extract the human-readable part 
         HUMAN_OUTPUT=$(echo "$OUTPUT" | sed -n '1,/---/p' | sed '$d')
         
-        # Extract the JSON part more reliably
+        # Extract the JSON part 
         JSON_OUTPUT=$(echo "$OUTPUT" | sed -n '/---/,$p' | sed '1d')
         
         echo "Extracted JSON:"
