@@ -101,15 +101,15 @@ jobs:
         run: |
           # Fetch the target branch (usually main)
           TARGET_BRANCH="${{ steps.branch_info.outputs.target_branch || 'main' }}"
-          echo "Fetching target branch: $TARGET_BRANCH"
-          git fetch origin $TARGET_BRANCH:refs/remotes/origin/$TARGET_BRANCH
+          echo "Fetching target branch: ${TARGET_BRANCH}"
+          git fetch origin "${TARGET_BRANCH}":refs/remotes/origin/"${TARGET_BRANCH}"
           
           # Verify branches exist
           echo "Available branches:"
           git branch -a
           
           # Ensure the target branch is properly tracked locally
-          git branch --track $TARGET_BRANCH origin/$TARGET_BRANCH || echo "Branch already exists"
+          git branch --track "${TARGET_BRANCH}" origin/"${TARGET_BRANCH}" || echo "Branch already exists"
       
       # Setup environment and tools
       - name: Setup Node.js
@@ -148,12 +148,53 @@ jobs:
           git add .
           git commit -m "${{ steps.branch_info.outputs.title }}"
       
+      # NEW: Analyze version changes before PR creation
+      - name: Analyze version changes
+        id: analyze-versions
+        uses: ./.github/actions/analyze-pr-versions
+        with:
+          github-token: ${{ secrets.PR_CREATION_TOKEN }}
+          base-ref: ${{ steps.branch_info.outputs.target_branch || 'main' }}
+          head-ref: ${{ steps.branch_info.outputs.branch }}
+          update-pr: 'false'  # Don't need to update PR as it doesn't exist yet
+
+      # Update PR body with version changes
+      - name: Update PR body with version changes
+        id: update_body
+        if: steps.analyze-versions.outputs.hasChanges == 'true'
+        run: |
+          # Add version changes to the PR body
+          if [ -n "${{ steps.branch_info.outputs.body }}" ]; then
+            NEW_BODY="${{ steps.branch_info.outputs.body }}"$'\n\n'"${{ steps.analyze-versions.outputs.changes-details }}"
+          else
+            NEW_BODY="${{ steps.analyze-versions.outputs.changes-details }}"
+          fi
+          
+          # Output the updated PR body using grouped redirects
+          {
+            echo "body<<EOF"
+            echo "${NEW_BODY}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+      
+      # NEW: Apply version changes if found
+      - name: Apply version changes
+        if: steps.analyze-versions.outputs.hasChanges == 'true'
+        uses: ./.github/actions/version-from-commits
+        with:
+          github-token: ${{ secrets.PR_CREATION_TOKEN }}
+          base-ref: ${{ steps.branch_info.outputs.target_branch || 'main' }}
+          head-ref: ${{ steps.branch_info.outputs.branch }}
+          dry-run: 'false'
+      
       # Push branch
       - name: Push changes
         id: push_changes
         run: |
           git push origin "${{ steps.branch_info.outputs.branch }}"
-          echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          {
+            echo "commit_sha=$(git rev-parse HEAD)"
+          } >> "${GITHUB_OUTPUT}"
       
       # Create PR
       - name: Create PR
@@ -165,7 +206,7 @@ jobs:
           base-branch: ${{ steps.branch_info.outputs.target_branch }}
           head-branch: ${{ steps.branch_info.outputs.branch }}
           title: ${{ steps.branch_info.outputs.title }}
-          body: ${{ steps.branch_info.outputs.body }}
+          body: ${{ steps.update_body.outputs.body || steps.branch_info.outputs.body }}
       
       # Wait for GitHub checks to complete
       - name: Wait for checks
@@ -215,9 +256,13 @@ jobs:
         id: branch_for_report
         run: |
           if [ -n "${{ steps.branch_info.outputs.branch }}" ]; then
-            echo "branch_name=${{ steps.branch_info.outputs.branch }}" >> "$GITHUB_OUTPUT"
+            {
+              echo "branch_name=${{ steps.branch_info.outputs.branch }}"
+            } >> "${GITHUB_OUTPUT}"
           else
-            echo "branch_name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            {
+              echo "branch_name=${github.ref_name}"
+            } >> "${GITHUB_OUTPUT}"
           fi
 
       # Report failure using the action
