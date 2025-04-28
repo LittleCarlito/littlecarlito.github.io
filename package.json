@@ -30,6 +30,7 @@
     "fmt:check": "pnpm -r fmt:check",
     "lint": "pnpm -r lint",
     "lint:fix": "pnpm -r lint:fix",
+    "lint-github": "node scripts/lint-github.js",
     "ci": "pnpm lint && pnpm test",
     "validate": "pnpm fmt:check && pnpm lint && pnpm build && pnpm test",
     "update-lockfile": "pnpm install --no-frozen-lockfile",

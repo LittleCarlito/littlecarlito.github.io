@@ -21,10 +21,21 @@ Run the workflow validator directly:
 ./tests/test-workflows.sh
 ```
 
-This script:
-1. Validates all workflow files using `actionlint`
-2. Checks for common GitHub Actions syntax errors (like invalid operators)
-3. Simulates workflow runs locally if you have `act` installed
+Or use the convenient pnpm script:
+```bash
+pnpm lint-github
+```
+
+The `lint-github` command provides a detailed report with:
+- All workflow syntax validation results
+- Detailed checks for common issues like invalid operators
+- Information about missing dependencies or tools
+- Colorized output for better readability
+
+These tools:
+1. Validate all workflow files using `actionlint`
+2. Check for common GitHub Actions syntax errors (like invalid operators)
+3. Simulate workflow runs locally if you have `act` installed
 
 ### Automatic Pre-Commit Validation
 

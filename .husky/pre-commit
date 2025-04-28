@@ -118,6 +118,9 @@ for file in $STAGED_FILES; do
     fi
 done
 
+# Add this line to debug the GitHub files detection
+echo "GitHub files changed: $GITHUB_FILES_CHANGED"
+
 # Run GitHub workflow validation if GitHub files were changed
 if [ "$GITHUB_FILES_CHANGED" = true ]; then
     echo "🔄 Testing GitHub workflow files..."
@@ -125,11 +128,22 @@ if [ "$GITHUB_FILES_CHANGED" = true ]; then
     # Run the new validation script if available
     if [ -f "tests/pipeline-tests/validate-github-actions.sh" ]; then
         echo "Running GitHub Actions validator..."
-        ./tests/pipeline-tests/validate-github-actions.sh || {
-            echo "❌ GitHub Actions validation failed."
-            echo "Please fix workflow syntax issues before committing."
+        
+        # Run validator with output captured
+        VALIDATION_OUTPUT=$(./tests/pipeline-tests/validate-github-actions.sh 2>&1)
+        VALIDATION_STATUS=$?
+        
+        # Always show the output
+        echo "$VALIDATION_OUTPUT"
+        
+        # Check status and fail if needed
+        if [ $VALIDATION_STATUS -ne 0 ]; then
+            echo "❌ GitHub Actions validation failed with code $VALIDATION_STATUS."
+            echo "Please fix the workflow syntax issues before committing."
             exit 1
-        }
+        else
+            echo "✅ GitHub Actions validation passed!"
+        fi
     fi
     
     # Validate script parameter usage in workflow files
