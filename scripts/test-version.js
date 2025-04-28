@@ -10,7 +10,7 @@
  * 
  * This mimics exactly how versions will be bumped in the PR workflow.
  * 
- * Usage: pnpm test-version [--branch=<branch>]
+ * Usage: pnpm test-version [--branch=<branch>] [--from=<commit>]
  */
 
 const { execSync, spawnSync } = require('child_process');
@@ -19,6 +19,7 @@ const chalk = require('chalk');
 
 // Parse arguments
 const branchArg = process.argv.find(arg => arg.startsWith('--branch='));
+const fromArg = process.argv.find(arg => arg.startsWith('--from='));
 let currentBranch;
 
 if (branchArg) {
@@ -66,6 +67,11 @@ try {
   
   // Use the current branch as the target
   args.push(`--to=${currentBranch}`);
+  
+  // Add from parameter if specified
+  if (fromArg) {
+    args.push(fromArg);
+  }
   
   console.log(chalk.dim(`> node ${versionScriptPath} ${args.join(' ')}\n`));
   

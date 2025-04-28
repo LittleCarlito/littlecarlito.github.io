@@ -11,11 +11,14 @@
  * - feat: minor bump
  * - fix: patch bump
  * - perf: patch bump
+ * - slice: patch bump
  * - feat!: or any type with "BREAKING CHANGE:" in the body: major bump
  * 
  * If no scope is specified, all packages are bumped.
  * If a scope is specified, only that package is bumped.
  * A scope of "pipeline" is ignored.
+ * 
+ * This script ACCUMULATES version changes across all commits chronologically.
  * 
  * Usage:
  * node version-from-commits.js [--dry-run] [--from=<ref>] [--to=<ref>]
@@ -43,7 +46,7 @@ let toRef = toArg ? toArg.split('=')[1] : 'HEAD';
 console.log(`Analyzing commits from ${fromRef || 'beginning'} to ${toRef}`);
 
 // Get all commits between the refs
-const gitLogCommand = `git log ${fromRef ? `${fromRef}..` : ''}${toRef} --pretty=format:"%H|||%s|||%b" --no-merges`;
+const gitLogCommand = `git log ${fromRef ? `${fromRef}..` : ''}${toRef} --pretty=format:"%H|||%s|||%b|||%at" --no-merges`;
 let commitsOutput;
 try {
   commitsOutput = execSync(gitLogCommand).toString().trim();
@@ -63,20 +66,76 @@ const commits = commitsOutput.split('\n').map(line => {
   const hash = parts[0] || '';
   const subject = parts[1] || '';
   const body = parts[2] || '';
-  return { hash, subject, body };
+  const timestamp = parseInt(parts[3] || '0', 10);
+  return { hash, subject, body, timestamp };
 });
 
-console.log(`Found ${commits.length} commits to analyze`);
+// Sort commits by timestamp (oldest first to process chronologically)
+commits.sort((a, b) => a.timestamp - b.timestamp);
 
-// Parse commits to determine version bumps
-const versionBumps = {};
+console.log(`Found ${commits.length} commits to analyze (ordered chronologically)`);
 
+// Get initial versions for each project
+const accumulatedVersions = {};
+
+// Function to get the current version of a package
+function getCurrentVersion(project) {
+  try {
+    const packageJsonPath = path.join(
+      process.cwd(), 
+      project === 'portfolio' ? 'apps/portfolio' : `packages/${project}`,
+      'package.json'
+    );
+    
+    if (!fs.existsSync(packageJsonPath)) {
+      console.error(`Package.json not found for ${project} at ${packageJsonPath}`);
+      return '0.0.0';
+    }
+    
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+    return packageJson.version || '0.0.0';
+  } catch (error) {
+    console.error(`Error reading version for ${project}:`, error.message);
+    return '0.0.0';
+  }
+}
+
+// Initialize accumulated versions with current versions
 ALL_PROJECTS.forEach(project => {
-  versionBumps[project] = { major: 0, minor: 0, patch: 0 };
+  accumulatedVersions[project] = getCurrentVersion(project);
 });
 
-const commitRegex = /^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\(([^)]+)\))?(!)?:\s(.+)$/;
+// For logging the version progression
+const versionProgressions = {};
+ALL_PROJECTS.forEach(project => {
+  versionProgressions[project] = [{
+    version: accumulatedVersions[project],
+    commit: 'Initial',
+    message: 'Starting version'
+  }];
+});
 
+const commitRegex = /^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert|slice)(\(([^)]+)\))?(!)?:\s(.+)$/;
+
+// Function to calculate the new version based on the current version and bump type
+function calculateNewVersion(currentVersion, bumpType) {
+  if (!bumpType) return currentVersion;
+  
+  const [major, minor, patch] = currentVersion.split('.').map(Number);
+  
+  switch (bumpType) {
+    case 'major':
+      return `${major + 1}.0.0`;
+    case 'minor':
+      return `${major}.${minor + 1}.0`;
+    case 'patch':
+      return `${major}.${minor}.${patch + 1}`;
+    default:
+      return currentVersion;
+  }
+}
+
+// Process each commit sequentially and accumulate versions
 commits.forEach(commit => {
   const { hash, subject, body } = commit;
   
@@ -104,7 +163,7 @@ commits.forEach(commit => {
     bumpType = 'major';
   } else if (type === 'feat') {
     bumpType = 'minor';
-  } else if (type === 'fix' || type === 'perf') {
+  } else if (type === 'fix' || type === 'perf' || type === 'slice') {
     bumpType = 'patch';
   }
   
@@ -137,96 +196,71 @@ commits.forEach(commit => {
     affectedProjects = ALL_PROJECTS;
   }
   
-  // Record the bump for each affected project
+  // Apply the version bump to each affected project
   affectedProjects.forEach(project => {
-    versionBumps[project][bumpType]++;
-    console.log(`Project ${project}: ${bumpType} bump due to commit: ${subject}`);
+    const currentVersion = accumulatedVersions[project];
+    const newVersion = calculateNewVersion(currentVersion, bumpType);
+    
+    // Update the accumulated version
+    accumulatedVersions[project] = newVersion;
+    
+    console.log(`Project ${project}: ${currentVersion} → ${newVersion} (${bumpType} bump) due to commit: ${subject}`);
+    
+    // Record for version progression tracking
+    versionProgressions[project].push({
+      version: newVersion,
+      commit: hash.substring(0, 8),
+      message: subject,
+      bumpType: bumpType
+    });
   });
 });
-
-// Determine the highest bump type for each project
-const finalBumps = {};
-
-ALL_PROJECTS.forEach(project => {
-  const { major, minor, patch } = versionBumps[project];
-  
-  if (major > 0) {
-    finalBumps[project] = 'major';
-  } else if (minor > 0) {
-    finalBumps[project] = 'minor';
-  } else if (patch > 0) {
-    finalBumps[project] = 'patch';
-  } else {
-    // No changes for this project
-    finalBumps[project] = null;
-  }
-});
-
-// Function to get the current version of a package
-function getCurrentVersion(project) {
-  try {
-    const packageJsonPath = path.join(
-      process.cwd(), 
-      project === 'portfolio' ? 'apps/portfolio' : `packages/${project}`,
-      'package.json'
-    );
-    
-    if (!fs.existsSync(packageJsonPath)) {
-      console.error(`Package.json not found for ${project} at ${packageJsonPath}`);
-      return '0.0.0';
-    }
-    
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-    return packageJson.version || '0.0.0';
-  } catch (error) {
-    console.error(`Error reading version for ${project}:`, error.message);
-    return '0.0.0';
-  }
-}
-
-// Function to calculate the new version based on the current version and bump type
-function calculateNewVersion(currentVersion, bumpType) {
-  if (!bumpType) return currentVersion;
-  
-  const [major, minor, patch] = currentVersion.split('.').map(Number);
-  
-  switch (bumpType) {
-    case 'major':
-      return `${major + 1}.0.0`;
-    case 'minor':
-      return `${major}.${minor + 1}.0`;
-    case 'patch':
-      return `${major}.${minor}.${patch + 1}`;
-    default:
-      return currentVersion;
-  }
-}
 
 // ANSI color codes
 const BLUE = '\u001b[34m';
 const GREEN = '\u001b[32m';
 const RESET = '\u001b[0m';
 
-// Generate changesets
-if (Object.values(finalBumps).every(bump => bump === null)) {
+// Show final version changes
+const initialVersions = {};
+ALL_PROJECTS.forEach(project => {
+  initialVersions[project] = getCurrentVersion(project);
+});
+
+// Output final accumulated version changes
+let hasChanges = false;
+ALL_PROJECTS.forEach(project => {
+  const initialVersion = initialVersions[project];
+  const finalVersion = accumulatedVersions[project];
+  
+  if (initialVersion !== finalVersion) {
+    hasChanges = true;
+    const incrementCount = versionProgressions[project].length - 1; // Subtract 1 for the initial entry
+    const emphasisMark = incrementCount > 30 ? '!' : ''; // Add emphasis for large increment counts
+    console.error(`${project}: ${BLUE}${initialVersion}${RESET} → ${GREEN}${finalVersion}${RESET} (${incrementCount} increments${emphasisMark})`);
+  }
+});
+
+if (!hasChanges) {
   console.log('No version changes detected');
   process.exit(0);
 }
 
-// Remove the raw bump display and only show formatted version changes
-// Output version changes to stderr so husky can capture them
-Object.entries(finalBumps).forEach(([project, bump]) => {
-  if (bump) {
-    const currentVersion = getCurrentVersion(project);
-    const newVersion = calculateNewVersion(currentVersion, bump);
-    
-    // Use stderr for husky to capture, with cleaner formatting
-    console.error(`${project}: ${BLUE}${currentVersion}${RESET} → ${GREEN}${newVersion}${RESET}`);
-  }
-});
-
-// In dry run mode, just print the notice and exit
+// In dry run mode, print detailed version progression and exit
 if (DRY_RUN) {
+  console.log('\nDetailed Version Progression:');
+  ALL_PROJECTS.forEach(project => {
+    if (versionProgressions[project].length > 1) { // Only show projects with changes
+      console.log(`\n${project}:`);
+      versionProgressions[project].forEach((entry, index) => {
+        const prefix = index === 0 ? 'Initial:' : `Step ${index}:`;
+        const commitInfo = entry.commit === 'Initial' ? '' : ` [${entry.commit}: ${entry.message}]`;
+        const bumpInfo = entry.bumpType ? ` (${entry.bumpType})` : '';
+        console.log(`${prefix} ${entry.version}${bumpInfo}${commitInfo}`);
+      });
+    }
+  });
+  
   console.log('\nDRY RUN: No changesets were created');
   process.exit(0);
 }
@@ -242,19 +276,46 @@ function getPackageName(project) {
   return `@littlecarlito/${project}`;
 }
 
-// Group bumps by type for creating changesets
+// Create changesets for the final accumulated versions
 const changesets = [];
 
-// For each project that needs a bump, create a changeset
-Object.entries(finalBumps).forEach(([project, bump]) => {
-  if (!bump) return;
+// Determine the bump type based on version difference
+function determineBumpType(initialVersion, finalVersion) {
+  const [initialMajor, initialMinor, initialPatch] = initialVersion.split('.').map(Number);
+  const [finalMajor, finalMinor, finalPatch] = finalVersion.split('.').map(Number);
   
-  const changesetId = `version-${project}-${bump}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  if (finalMajor > initialMajor) {
+    return 'major';
+  } else if (finalMinor > initialMinor) {
+    return 'minor';
+  } else if (finalPatch > initialPatch) {
+    return 'patch';
+  }
+  return null;
+}
+
+// For each project that has a version change, create a changeset
+ALL_PROJECTS.forEach(project => {
+  const initialVersion = initialVersions[project];
+  const finalVersion = accumulatedVersions[project];
+  
+  if (initialVersion === finalVersion) {
+    return; // No change for this project
+  }
+  
+  const bumpType = determineBumpType(initialVersion, finalVersion);
+  if (!bumpType) {
+    return; // Should not happen, but just in case
+  }
+  
+  const changesetId = `version-${project}-${bumpType}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   const packageName = getPackageName(project);
   
   const changesetContent = {
     packageName,
-    type: bump
+    type: bumpType,
+    initialVersion,
+    finalVersion
   };
   
   changesets.push({ id: changesetId, content: changesetContent });
@@ -268,6 +329,7 @@ changesets.forEach(({ id, content }) => {
 "${content.packageName}": ${content.type}
 ---
 
+Accumulated changes from ${content.initialVersion} to ${content.finalVersion}
 Generated from commit history between ${fromRef || 'beginning'} and ${toRef}
 `;
   
@@ -275,5 +337,5 @@ Generated from commit history between ${fromRef || 'beginning'} and ${toRef}
   console.log(`Created changeset: ${id}`);
 });
 
-console.log(`\nCreated ${changesets.length} changesets based on commit history`);
+console.log(`\nCreated ${changesets.length} changesets based on accumulated version changes`);
 console.log('Run "pnpm changeset version" to apply these changes to package.json files'); 
