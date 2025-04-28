@@ -294,6 +294,43 @@ function determineBumpType(initialVersion, finalVersion) {
   return null;
 }
 
+// Collect commits by project and type for change logs
+function organizeCommitsByType(projectVersionProgressions) {
+  // Skip the first entry which is the initial version
+  const entries = projectVersionProgressions.slice(1);
+  
+  // Group by commit type
+  const commitsByType = {
+    features: [],
+    fixes: [],
+    performance: [],
+    slices: [],
+    other: []
+  };
+  
+  entries.forEach(entry => {
+    const commitMessage = entry.message;
+    const commitHash = entry.commit;
+    
+    // Format as "- message (hash)"
+    const formattedMessage = `- ${commitMessage} (${commitHash})`;
+    
+    if (entry.bumpType === 'minor') {
+      commitsByType.features.push(formattedMessage);
+    } else if (entry.message.startsWith('fix')) {
+      commitsByType.fixes.push(formattedMessage);
+    } else if (entry.message.startsWith('perf')) {
+      commitsByType.performance.push(formattedMessage);
+    } else if (entry.message.startsWith('slice')) {
+      commitsByType.slices.push(formattedMessage);
+    } else {
+      commitsByType.other.push(formattedMessage);
+    }
+  });
+  
+  return commitsByType;
+}
+
 // For each project that has a version change, create a changeset
 ALL_PROJECTS.forEach(project => {
   const initialVersion = initialVersions[project];
@@ -311,11 +348,48 @@ ALL_PROJECTS.forEach(project => {
   const changesetId = `version-${project}-${bumpType}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   const packageName = getPackageName(project);
   
+  // Organize commits by type for better documentation
+  const commitsByType = organizeCommitsByType(versionProgressions[project]);
+  
+  // Build the changeset content with all commits
+  let changesetBody = `Accumulated changes from ${initialVersion} to ${finalVersion}\n`;
+  changesetBody += `Generated from commit history between ${fromRef || 'beginning'} and ${toRef}\n\n`;
+  
+  // Add commit counts
+  const incrementCount = versionProgressions[project].length - 1;
+  changesetBody += `Total increments: ${incrementCount}\n\n`;
+  
+  // Add feature commits
+  if (commitsByType.features.length > 0) {
+    changesetBody += `### Features\n\n${commitsByType.features.join('\n')}\n\n`;
+  }
+  
+  // Add fix commits
+  if (commitsByType.fixes.length > 0) {
+    changesetBody += `### Fixes\n\n${commitsByType.fixes.join('\n')}\n\n`;
+  }
+  
+  // Add performance commits
+  if (commitsByType.performance.length > 0) {
+    changesetBody += `### Performance Improvements\n\n${commitsByType.performance.join('\n')}\n\n`;
+  }
+  
+  // Add slice commits
+  if (commitsByType.slices.length > 0) {
+    changesetBody += `### Implementation Slices\n\n${commitsByType.slices.join('\n')}\n\n`;
+  }
+  
+  // Add other commits
+  if (commitsByType.other.length > 0) {
+    changesetBody += `### Other Changes\n\n${commitsByType.other.join('\n')}\n\n`;
+  }
+  
   const changesetContent = {
     packageName,
     type: bumpType,
     initialVersion,
-    finalVersion
+    finalVersion,
+    body: changesetBody
   };
   
   changesets.push({ id: changesetId, content: changesetContent });
@@ -329,9 +403,7 @@ changesets.forEach(({ id, content }) => {
 "${content.packageName}": ${content.type}
 ---
 
-Accumulated changes from ${content.initialVersion} to ${content.finalVersion}
-Generated from commit history between ${fromRef || 'beginning'} and ${toRef}
-`;
+${content.body}`;
   
   fs.writeFileSync(changesetPath, changesetContent);
   console.log(`Created changeset: ${id}`);
