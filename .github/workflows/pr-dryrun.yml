@@ -47,6 +47,32 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+          
+      # Explicitly fetch the target branch (main) as well
+      - name: Fetch target branches
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_EVENT_NAME: ${{ github.event_name }}
+        run: |
+          # Fetch main branch explicitly
+          git fetch origin main:refs/remotes/origin/main
+          
+          # Try to create local tracking branch (will fail if already exists)
+          git branch --track main origin/main || echo "Branch main already exists"
+          
+          # If this is a PR, also fetch the PR head branch
+          if [ "$PR_EVENT_NAME" == "pull_request" ]; then
+            # Get PR head ref (branch name)
+            echo "PR is from branch: $PR_HEAD_REF"
+            
+            # Fetch the PR branch
+            git fetch origin "$PR_HEAD_REF":refs/remotes/origin/"$PR_HEAD_REF"
+            git branch --track "$PR_HEAD_REF" origin/"$PR_HEAD_REF" || echo "Branch $PR_HEAD_REF already exists"
+          fi
+          
+          # Show all branches for debugging
+          echo "Available branches:"
+          git branch -a
       
       - name: Setup pnpm
         uses: pnpm/action-setup@v3

@@ -30,19 +30,86 @@ if (!prNumber) {
 
 // Get the base and head references for the PR
 let prDetails;
+let baseRef, headRef, commits = [];
+
 try {
+  console.log(`Fetching PR #${prNumber} details using GitHub CLI...`);
   const prOutput = execSync(`gh pr view ${prNumber} --json baseRefName,headRefName,commits`).toString();
   prDetails = JSON.parse(prOutput);
+  
+  baseRef = prDetails.baseRefName;
+  headRef = prDetails.headRefName;
+  commits = prDetails.commits || [];
+  
+  console.log(`PR #${prNumber} is from ${headRef} to ${baseRef} with ${commits.length} commits.`);
+  
+  // If no commits were returned by GitHub CLI, fall back to git
+  if (commits.length === 0) {
+    console.log('No commits returned by GitHub CLI. Falling back to git...');
+    throw new Error('No commits in GitHub CLI response');
+  }
 } catch (error) {
-  console.error(`Error fetching PR details: ${error.message}`);
-  process.exit(1);
+  console.error(`Error or incomplete data from GitHub CLI: ${error.message}`);
+  console.log('Falling back to git commands to get commit information...');
+  
+  try {
+    // Get base and head refs from git if not already set
+    if (!baseRef || !headRef) {
+      console.log('Getting PR base and head refs...');
+      // Try to get PR details with just the basic info (no commits)
+      const basicPrOutput = execSync(`gh pr view ${prNumber} --json baseRefName,headRefName`).toString();
+      const basicPrDetails = JSON.parse(basicPrOutput);
+      
+      baseRef = basicPrDetails.baseRefName;
+      headRef = basicPrDetails.headRefName;
+    }
+    
+    console.log(`Using git to get commits between ${baseRef} and ${headRef}...`);
+    
+    // Ensure we have both branches
+    execSync(`git fetch origin ${baseRef}:refs/remotes/origin/${baseRef}`);
+    execSync(`git fetch origin ${headRef}:refs/remotes/origin/${headRef}`);
+    
+    // Get commit info using git log
+    const commitShas = execSync(`git log origin/${baseRef}..origin/${headRef} --no-merges --format=%H`).toString().trim().split('\n');
+    console.log(`Found ${commitShas.length} commits using git log.`);
+    
+    // Build the commits array in the same format as GitHub CLI would provide
+    commits = [];
+    
+    for (const sha of commitShas) {
+      if (!sha) continue;
+      
+      // Get the commit details
+      const commitInfo = execSync(`git show --no-patch --format="%s%n%b" ${sha}`).toString().trim();
+      const firstNewline = commitInfo.indexOf('\n');
+      
+      if (firstNewline === -1) {
+        // Just a subject line, no body
+        commits.push({
+          oid: sha,
+          messageHeadline: commitInfo,
+          messageBody: ''
+        });
+      } else {
+        // Extract subject and body
+        commits.push({
+          oid: sha,
+          messageHeadline: commitInfo.substring(0, firstNewline),
+          messageBody: commitInfo.substring(firstNewline + 1)
+        });
+      }
+    }
+    
+    console.log(`Successfully processed ${commits.length} commits using git.`);
+  } catch (gitError) {
+    console.error(`Error using git fallback: ${gitError.message}`);
+    console.error('Could not get commit information. Exiting.');
+    process.exit(1);
+  }
 }
 
-const baseRef = prDetails.baseRefName;
-const headRef = prDetails.headRefName;
-const commits = prDetails.commits || [];
-
-console.log(`Analyzing commits between ${baseRef} and ${headRef} for PR #${prNumber}`);
+console.log(`Analyzing ${commits.length} commits between ${baseRef} and ${headRef} for PR #${prNumber}`);
 
 // Extract commit messages with proper error handling
 const commitMessages = commits.map(commit => {

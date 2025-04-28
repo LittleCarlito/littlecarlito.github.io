@@ -46,6 +46,8 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.PR_CREATION_TOKEN }}
+          # Ensure we fetch the head branch
+          ref: ${{ github.head_ref || github.ref_name }}
           
       # Extract branch name based on trigger context
       - name: Extract branch info
@@ -93,6 +95,21 @@ jobs:
               echo "auto_merge=${{ github.event.inputs.auto_merge }}"
             } >> "$GITHUB_OUTPUT"
           fi
+      
+      # Explicitly fetch the target branch to compare against
+      - name: Fetch target branch
+        run: |
+          # Fetch the target branch (usually main)
+          TARGET_BRANCH="${{ steps.branch_info.outputs.target_branch || 'main' }}"
+          echo "Fetching target branch: $TARGET_BRANCH"
+          git fetch origin $TARGET_BRANCH:refs/remotes/origin/$TARGET_BRANCH
+          
+          # Verify branches exist
+          echo "Available branches:"
+          git branch -a
+          
+          # Ensure the target branch is properly tracked locally
+          git branch --track $TARGET_BRANCH origin/$TARGET_BRANCH || echo "Branch already exists"
       
       # Setup environment and tools
       - name: Setup Node.js

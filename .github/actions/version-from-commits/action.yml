@@ -83,6 +83,28 @@ runs:
         
         echo "Analyzing commits from $FROM_REF to $TO_REF"
         
+        # Ensure we have the FROM_REF branch by fetching it explicitly
+        if [ -n "$FROM_REF" ] && [ "$FROM_REF" != "HEAD" ]; then
+          echo "Fetching $FROM_REF branch..."
+          git fetch origin $FROM_REF:refs/remotes/origin/$FROM_REF || echo "Warning: Failed to fetch $FROM_REF"
+          
+          # Try to create a local branch for comparison
+          git branch --track $FROM_REF origin/$FROM_REF 2>/dev/null || echo "Branch $FROM_REF already exists or couldn't be created"
+        fi
+        
+        # For TO_REF as well if it's not HEAD
+        if [ -n "$TO_REF" ] && [ "$TO_REF" != "HEAD" ]; then
+          echo "Fetching $TO_REF branch..."
+          git fetch origin $TO_REF:refs/remotes/origin/$TO_REF || echo "Warning: Failed to fetch $TO_REF"
+          
+          # Try to create a local branch for comparison
+          git branch --track $TO_REF origin/$TO_REF 2>/dev/null || echo "Branch $TO_REF already exists or couldn't be created"
+        fi
+        
+        # List all branches for debugging
+        echo "Available branches:"
+        git branch -a
+        
         # Make script executable
         chmod +x .github/scripts/versioning/version-from-commits.js
         

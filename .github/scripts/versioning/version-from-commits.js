@@ -45,14 +45,99 @@ let toRef = toArg ? toArg.split('=')[1] : 'HEAD';
 
 console.log(`Analyzing commits from ${fromRef || 'beginning'} to ${toRef}`);
 
+// First verify the refs exist
+function refExists(ref) {
+  try {
+    execSync(`git rev-parse --verify ${ref}`);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+// Properly escape the refs for shell command
+function escapeRef(ref) {
+  if (!ref) return '';
+  return ref.replace(/'/g, "'\\''");
+}
+
+// Verify the refs
+let fromRefValid = fromRef ? refExists(fromRef) : true;
+let toRefValid = refExists(toRef);
+
+if (!fromRefValid) {
+  console.error(`Error: From ref '${fromRef}' does not exist. Trying origin/${fromRef}`);
+  
+  // Try with origin/ prefix
+  const originRef = `origin/${fromRef}`;
+  if (refExists(originRef)) {
+    console.log(`Using ${originRef} instead`);
+    fromRef = originRef;
+    fromRefValid = true;
+  }
+}
+
+if (!toRefValid) {
+  console.error(`Error: To ref '${toRef}' does not exist. Trying origin/${toRef}`);
+  
+  // Try with origin/ prefix
+  const originRef = `origin/${toRef}`;
+  if (refExists(originRef)) {
+    console.log(`Using ${originRef} instead`);
+    toRef = originRef;
+    toRefValid = true;
+  }
+}
+
+if (!fromRefValid || !toRefValid) {
+  console.error('Error: Cannot continue with invalid refs');
+  process.exit(1);
+}
+
 // Get all commits between the refs
-const gitLogCommand = `git log ${fromRef ? `${fromRef}..` : ''}${toRef} --pretty=format:"%H|||%s|||%b|||%at" --no-merges`;
+let gitLogCommand;
+
+if (fromRef) {
+  // Use a range between the two refs
+  gitLogCommand = `git log '${escapeRef(fromRef)}'..'${escapeRef(toRef)}' --pretty=format:"%H|||%s|||%b|||%at" --no-merges`;
+} else {
+  // Just get commits up to toRef
+  gitLogCommand = `git log '${escapeRef(toRef)}' --pretty=format:"%H|||%s|||%b|||%at" --no-merges`;
+}
+
+console.log(`Executing: ${gitLogCommand}`);
+
 let commitsOutput;
 try {
   commitsOutput = execSync(gitLogCommand).toString().trim();
 } catch (error) {
   console.error(`Error executing git log command: ${error.message}`);
-  process.exit(1);
+  
+  // Try alternatives
+  console.log('Attempting to use git directly to list commits');
+  try {
+    if (fromRef) {
+      // Try listing the SHAs only and then get details in a second pass
+      const shaCommand = `git log --format="%H" ${escapeRef(fromRef)}..${escapeRef(toRef)} --no-merges`;
+      console.log(`Executing: ${shaCommand}`);
+      const shas = execSync(shaCommand).toString().trim().split('\n');
+      
+      commitsOutput = '';
+      for (const sha of shas) {
+        if (!sha) continue;
+        const details = execSync(`git show --no-patch --format="%H|||%s|||%b|||%at" ${sha}`).toString().trim();
+        commitsOutput += details + '\n';
+      }
+      commitsOutput = commitsOutput.trim();
+    } else {
+      console.error('Cannot recover from error without a valid starting reference');
+      process.exit(1);
+    }
+  } catch (secondError) {
+    console.error(`Failed recovery attempt: ${secondError.message}`);
+    console.error('Please ensure both branches exist and have been properly fetched');
+    process.exit(1);
+  }
 }
 
 if (!commitsOutput) {

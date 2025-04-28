@@ -28,6 +28,37 @@ runs:
       uses: actions/setup-node@v4
       with:
         node-version: 'lts/*'
+        
+    # Ensure branches are properly fetched before analysis
+    - name: Fetch PR branches
+      shell: bash
+      run: |
+        # Get PR details
+        PR_DATA=$(gh pr view ${{ inputs.pr-number }} --json baseRefName,headRefName)
+        BASE_REF=$(echo "$PR_DATA" | jq -r '.baseRefName')
+        HEAD_REF=$(echo "$PR_DATA" | jq -r '.headRefName')
+        
+        echo "Fetching branches for PR #${{ inputs.pr-number }}: $HEAD_REF → $BASE_REF"
+        
+        # Ensure we have the BASE_REF branch
+        echo "Fetching base branch: $BASE_REF"
+        git fetch origin $BASE_REF:refs/remotes/origin/$BASE_REF || echo "Warning: Could not fetch $BASE_REF"
+        
+        # Create local tracking branch
+        git branch --track $BASE_REF origin/$BASE_REF 2>/dev/null || echo "Branch $BASE_REF already exists"
+        
+        # Ensure we have the HEAD_REF branch 
+        echo "Fetching head branch: $HEAD_REF"
+        git fetch origin $HEAD_REF:refs/remotes/origin/$HEAD_REF || echo "Warning: Could not fetch $HEAD_REF"
+        
+        # Create local tracking branch
+        git branch --track $HEAD_REF origin/$HEAD_REF 2>/dev/null || echo "Branch $HEAD_REF already exists"
+        
+        # Show all branches for debugging
+        echo "Available branches:"
+        git branch -a
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
     
     # Analyze version changes
     - name: Analyze version changes
