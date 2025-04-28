@@ -7,6 +7,9 @@ echo "===================="
 # Get current branch name
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
+# Get the last commit message
+COMMIT_MSG=$(git log -1 --pretty=%B)
+
 # Start collecting results to a variable for a clean report
 OUTPUT=""
 
@@ -25,23 +28,26 @@ else
   OUTPUT="${OUTPUT}✅ No large JS or HTML files found"
 fi
 
-# Print the output collected so far
-echo -e "$OUTPUT"
-
-# Check version impact of this commit - printed directly to preserve color codes
-echo -e "\n📦 VERSION IMPACT:"
+# Print the output collected so far - use printf instead of echo -e
+printf "%b\n" "$OUTPUT"
 
 # Run the test-version script to get version changes
 VERSION_OUTPUT=$(pnpm test-version 2>&1)
+
+# Check if version changes are detected and add to the end of the report
+printf "\n====================\n"
+
+echo "📦 VERSION IMPACT:"
+echo "✅ Accepted commit message: \"${COMMIT_MSG}\""
 
 # Check if version changes are detected
 if echo "$VERSION_OUTPUT" | grep -q "Version Changes:"; then
   # Use awk to extract the section between "Version Changes:" and the next empty line
   # Then display it directly to preserve colors
   echo "$VERSION_OUTPUT" | awk '/Version Changes:/,/^$/ {if (!/Version Changes:/ && !/^$/) print}'
-  echo -e "✅ This commit will trigger these version changes when merged to main."
+  echo "✅ This commit will trigger these version changes when merged to main."
 else
-  echo -e "ℹ️ No version changes detected from this commit."
+  echo "ℹ️ No version changes detected from this commit."
 fi
 
-echo -e "\n====================" 
+echo "====================" 
