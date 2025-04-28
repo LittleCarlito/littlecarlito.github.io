@@ -13,6 +13,8 @@
  */
 
 const { execSync } = require('child_process');
+const path = require('path');
+const fs = require('fs');
 
 // Configuration
 const PACKAGES = ['blorkpack', 'blorktools', 'blorkboard'];
@@ -120,21 +122,81 @@ const commitMessages = commits.map(commit => {
   return { hash, subject, body };
 });
 
-// Parse commits to determine version bumps
-const versionBumps = {};
+// Function to get the current version of a package
+function getCurrentVersion(project) {
+  try {
+    const packageJsonPath = path.join(
+      process.cwd(), 
+      project === 'portfolio' ? 'apps/portfolio' : `packages/${project}`,
+      'package.json'
+    );
+    
+    if (!fs.existsSync(packageJsonPath)) {
+      console.error(`Package.json not found for ${project} at ${packageJsonPath}`);
+      return '0.0.0';
+    }
+    
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+    return packageJson.version || '0.0.0';
+  } catch (error) {
+    console.error(`Error reading version for ${project}:`, error.message);
+    return '0.0.0';
+  }
+}
 
+// Initialize accumulated versions with current versions
+const accumulatedVersions = {};
+const initialVersions = {};
 ALL_PROJECTS.forEach(project => {
-  versionBumps[project] = { major: 0, minor: 0, patch: 0 };
+  const currentVersion = getCurrentVersion(project);
+  accumulatedVersions[project] = currentVersion;
+  initialVersions[project] = currentVersion;
 });
 
-const commitRegex = /^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\(([^)]+)\))?(!)?:\s(.+)$/;
+// For logging the version progression
+const versionProgressions = {};
+ALL_PROJECTS.forEach(project => {
+  versionProgressions[project] = [{
+    version: accumulatedVersions[project],
+    commit: 'Initial',
+    message: 'Starting version'
+  }];
+});
 
+const commitRegex = /^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert|slice)(\(([^)]+)\))?(!)?:\s(.+)$/;
+
+// Function to calculate the new version based on the current version and bump type
+function calculateNewVersion(currentVersion, bumpType) {
+  if (!bumpType) return currentVersion;
+  
+  const [major, minor, patch] = currentVersion.split('.').map(Number);
+  
+  switch (bumpType) {
+    case 'major':
+      return `${major + 1}.0.0`;
+    case 'minor':
+      return `${major}.${minor + 1}.0`;
+    case 'patch':
+      return `${major}.${minor}.${patch + 1}`;
+    default:
+      return currentVersion;
+  }
+}
+
+// Process each commit sequentially and accumulate versions
 commitMessages.forEach(commit => {
-  const { subject, body } = commit;
+  const { hash, subject, body } = commit;
+  
+  // Skip if subject is undefined or empty
+  if (!subject) {
+    console.log(`Skipping commit ${hash.substring(0, 8)}: Invalid/empty commit message`);
+    return;
+  }
+  
   const match = subject.match(commitRegex);
   
   if (!match) {
-    console.log(`Skipping commit with non-conventional format: ${subject}`);
+    console.log(`Skipping commit ${hash.substring(0, 8)} with non-conventional format: ${subject}`);
     return;
   }
   
@@ -149,11 +211,12 @@ commitMessages.forEach(commit => {
     bumpType = 'major';
   } else if (type === 'feat') {
     bumpType = 'minor';
-  } else if (type === 'fix' || type === 'perf') {
+  } else if (type === 'fix' || type === 'perf' || type === 'slice') {
     bumpType = 'patch';
   }
   
   if (bumpType === 'none') {
+    console.log(`Skipping commit with type ${type} (no version bump): ${subject}`);
     return;
   }
   
@@ -165,6 +228,7 @@ commitMessages.forEach(commit => {
     
     // Skip ignored scopes
     if (IGNORE_SCOPES.includes(scope)) {
+      console.log(`Ignoring commit with scope "${scope}": ${subject}`);
       return;
     }
     
@@ -172,6 +236,7 @@ commitMessages.forEach(commit => {
     if (ALL_PROJECTS.includes(scope)) {
       affectedProjects = [scope];
     } else {
+      console.log(`Warning: Unknown scope "${scope}" in commit: ${subject}. Skipping.`);
       return;
     }
   } else {
@@ -179,27 +244,24 @@ commitMessages.forEach(commit => {
     affectedProjects = ALL_PROJECTS;
   }
   
-  // Record the bump for each affected project
+  // Apply the version bump to each affected project
   affectedProjects.forEach(project => {
-    versionBumps[project][bumpType]++;
+    const currentVersion = accumulatedVersions[project];
+    const newVersion = calculateNewVersion(currentVersion, bumpType);
+    
+    // Update the accumulated version
+    accumulatedVersions[project] = newVersion;
+    
+    console.log(`Project ${project}: ${currentVersion} → ${newVersion} (${bumpType} bump) due to commit: ${subject}`);
+    
+    // Record for version progression tracking
+    versionProgressions[project].push({
+      version: newVersion,
+      commit: hash.substring(0, 8),
+      message: subject,
+      bumpType: bumpType
+    });
   });
-});
-
-// Determine the highest bump type for each project
-const finalBumps = {};
-
-ALL_PROJECTS.forEach(project => {
-  const { major, minor, patch } = versionBumps[project];
-  
-  if (major > 0) {
-    finalBumps[project] = 'major';
-  } else if (minor > 0) {
-    finalBumps[project] = 'minor';
-  } else if (patch > 0) {
-    finalBumps[project] = 'patch';
-  } else {
-    finalBumps[project] = null;
-  }
 });
 
 // Format output for PR description
@@ -210,34 +272,49 @@ const packageNames = {
   portfolio: '@littlecarlito/portfolio'
 };
 
-const bumpEmojis = {
-  major: '🚨 MAJOR',
-  minor: '✨ MINOR',
-  patch: '🐛 PATCH'
-};
-
 let output = '';
+let hasChanges = false;
 
-if (Object.values(finalBumps).every(bump => bump === null)) {
+// Output final accumulated version changes
+ALL_PROJECTS.forEach(project => {
+  const initialVersion = initialVersions[project];
+  const finalVersion = accumulatedVersions[project];
+  
+  if (initialVersion !== finalVersion) {
+    hasChanges = true;
+  }
+});
+
+if (!hasChanges) {
   output = 'No version changes detected from commit messages';
 } else {
-  output = '## Version Changes\n\nThis PR will trigger the following version bumps when merged:\n\n';
+  output = '## Version Changes\n\nThis PR will trigger the following version changes when merged:\n\n';
   
-  // Show packages with changes first, grouped by bump type
-  ['major', 'minor', 'patch'].forEach(bumpType => {
-    const packagesWithBump = Object.entries(finalBumps)
-      .filter(([, bump]) => bump === bumpType)
-      .map(([project]) => packageNames[project]);
+  ALL_PROJECTS.forEach(project => {
+    const initialVersion = initialVersions[project];
+    const finalVersion = accumulatedVersions[project];
     
-    if (packagesWithBump.length > 0) {
-      output += `${bumpEmojis[bumpType]}: ${packagesWithBump.join(', ')}\n`;
+    if (initialVersion !== finalVersion) {
+      const incrementCount = versionProgressions[project].length - 1; // Subtract 1 for the initial entry
+      const packageName = packageNames[project];
+      let bumpType = '';
+      
+      if (finalVersion.split('.')[0] > initialVersion.split('.')[0]) {
+        bumpType = '🚨 MAJOR';
+      } else if (finalVersion.split('.')[1] > initialVersion.split('.')[1]) {
+        bumpType = '✨ MINOR';
+      } else {
+        bumpType = '🐛 PATCH';
+      }
+      
+      output += `${bumpType}: ${packageName}: ${initialVersion} → ${finalVersion} (${incrementCount} increments)\n`;
     }
   });
   
   // Show packages with no changes
-  const unchangedPackages = Object.entries(finalBumps)
-    .filter(([, bump]) => bump === null)
-    .map(([project]) => packageNames[project]);
+  const unchangedPackages = ALL_PROJECTS
+    .filter(project => initialVersions[project] === accumulatedVersions[project])
+    .map(project => packageNames[project]);
   
   if (unchangedPackages.length > 0) {
     output += `\n⏹️ NO CHANGE: ${unchangedPackages.join(', ')}\n`;
@@ -246,16 +323,26 @@ if (Object.values(finalBumps).every(bump => bump === null)) {
 
 // Also output structured data for GitHub Actions
 const structuredOutput = {
-  hasChanges: !Object.values(finalBumps).every(bump => bump === null),
-  changes: Object.entries(finalBumps)
-    .filter(([, bump]) => bump !== null)
-    .reduce((acc, [project, bump]) => {
-      acc[packageNames[project]] = bump;
-      return acc;
-    }, {})
+  hasChanges: hasChanges,
+  changes: ALL_PROJECTS.reduce((acc, project) => {
+    const initialVersion = initialVersions[project];
+    const finalVersion = accumulatedVersions[project];
+    
+    if (initialVersion !== finalVersion) {
+      acc[project] = {
+        initialVersion,
+        finalVersion,
+        incrementCount: versionProgressions[project].length - 1
+      };
+    } else {
+      acc[project] = null;
+    }
+    
+    return acc;
+  }, {})
 };
 
-// Write both formats
+// Output both the human-readable and structured formats
 console.log(output);
-console.log('\n---\n');
+console.log('---');
 console.log(JSON.stringify(structuredOutput, null, 2)); 

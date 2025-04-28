@@ -168,8 +168,19 @@ runs:
         VERSION_TAG="v${ROOT_VERSION}"
         git tag -a "${VERSION_TAG}" -m "Release ${VERSION_TAG}"
         
-        # Push changes and tag
-        git push origin HEAD
+        # Get the current branch name or determine PR branch
+        if [ -n "${{ inputs.pr-number }}" ]; then
+          # We're in a PR - get the head branch name
+          PR_HEAD_REF=$(gh pr view ${{ inputs.pr-number }} --json headRefName -q '.headRefName')
+          echo "Detected PR head branch: $PR_HEAD_REF"
+          git push origin HEAD:refs/heads/$PR_HEAD_REF
+        else
+          # Get current branch or use GitHub ref
+          CURRENT_REF="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          echo "Using ref: $CURRENT_REF"
+          git push origin HEAD:refs/heads/$CURRENT_REF
+        fi
+        
         git push origin "${VERSION_TAG}"
         
         echo "Created and pushed tag: ${VERSION_TAG}"
