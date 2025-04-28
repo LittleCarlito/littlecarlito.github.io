@@ -38,7 +38,28 @@ VERSION_OUTPUT=$(pnpm test-version 2>&1)
 printf "\n====================\n"
 
 echo "📦 VERSION IMPACT:"
-echo "✅ Accepted commit message: \"${COMMIT_MSG}\""
+
+# Determine version bump based on commit type
+COMMIT_TYPE=$(echo "$COMMIT_MSG" | grep -oE "^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert|slice)(\([^)]+\))?!?:" | grep -oE "^[^(:!]+")
+BREAKING=$(echo "$COMMIT_MSG" | grep -E "^[^:]+!:" -c)
+BREAKING_BODY=$(echo "$COMMIT_MSG" | grep -E "BREAKING CHANGE:" -c)
+
+if [ "$BREAKING" -gt 0 ] || [ "$BREAKING_BODY" -gt 0 ]; then
+  BUMP="+1.0.0"
+  BUMP_COLOR="\033[31m" # Red
+  BUMP_TYPE="major"
+elif [ "$COMMIT_TYPE" = "feat" ]; then
+  BUMP="+0.1.0"
+  BUMP_COLOR="\033[33m" # Yellow
+  BUMP_TYPE="minor"
+else
+  BUMP="+0.0.1"
+  BUMP_COLOR="\033[36m" # Cyan
+  BUMP_TYPE="patch"
+fi
+
+# Use magenta for commit message (not blue or green)
+echo -e "✅ Accepted commit message: \033[35m\"${COMMIT_MSG}\"\033[0m ${BUMP_COLOR}${BUMP}\033[0m (${BUMP_TYPE})"
 
 # Check if version changes are detected
 if echo "$VERSION_OUTPUT" | grep -q "Version Changes:"; then
