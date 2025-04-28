@@ -45,7 +45,6 @@ if echo "$VERSION_OUTPUT" | grep -q "Version Changes:"; then
   # Use awk to extract the section between "Version Changes:" and the next empty line
   # Then display it directly to preserve colors
   echo "$VERSION_OUTPUT" | awk '/Version Changes:/,/^$/ {if (!/Version Changes:/ && !/^$/) print}'
-  echo "✅ This commit will trigger these version changes when merged to main."
 else
   echo "ℹ️ No version changes detected from this commit."
 fi
