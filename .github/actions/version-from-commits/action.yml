@@ -1,0 +1,97 @@
+name: 'Apply Version Changes from Commits'
+description: 'Applies version changes to packages based on commit history'
+
+inputs:
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+  base-ref:
+    description: 'Base branch name (typically main)'
+    required: true
+    default: 'main'
+  head-ref:
+    description: 'Head branch name (source branch)'
+    required: true
+  dry-run:
+    description: 'Run in dry-run mode without creating changesets'
+    required: false
+    default: 'false'
+
+outputs:
+  hasChanges:
+    description: 'Whether version changes were detected and applied'
+    value: ${{ steps.apply-versions.outputs.hasChanges }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 'lts/*'
+    
+    - name: Apply version changes
+      id: apply-versions
+      shell: bash
+      run: |
+        # Make the script executable
+        chmod +x .github/scripts/versioning/version-from-commits.js
+        
+        # Set up git config
+        git config --global user.name "GitHub Actions Bot"
+        git config --global user.email "actions@github.com"
+        
+        # Determine if this is a dry run
+        DRY_RUN="${{ inputs.dry-run }}"
+        DRY_RUN_ARG=""
+        if [ "${DRY_RUN}" == "true" ]; then
+          DRY_RUN_ARG="--dry-run"
+          echo "Running in dry-run mode"
+        fi
+        
+        # Run the version-from-commits.js script to create changesets
+        node .github/scripts/versioning/version-from-commits.js ${DRY_RUN_ARG} --from="${{ inputs.base-ref }}" --to="${{ inputs.head-ref }}"
+        
+        # Apply changesets if not in dry run mode
+        if [ "${DRY_RUN}" != "true" ]; then
+          # Check if any changesets were created
+          if [ -d ".changeset" ] && [ "$(ls -A .changeset/*.md 2>/dev/null)" ]; then
+            echo "Applying changesets to update package.json files"
+            
+            # Apply the changesets to update package.json files
+            pnpm changeset version
+            
+            # Check if any files were changed
+            if [ -n "$(git status --porcelain)" ]; then
+              {
+                echo "hasChanges=true"
+              } >> "${GITHUB_OUTPUT}"
+              
+              # Commit the version changes
+              git add .
+              git commit -m "chore(release): update versions based on conventional commits
+
+              Applied version changes automatically based on commit history."
+              
+              echo "Version changes committed"
+            else
+              echo "No changes to package.json files"
+              {
+                echo "hasChanges=false"
+              } >> "${GITHUB_OUTPUT}"
+            fi
+          else
+            echo "No changesets were created"
+            {
+              echo "hasChanges=false"
+            } >> "${GITHUB_OUTPUT}"
+          fi
+        else
+          # For dry run, we just set hasChanges based on exit code
+          echo "Finished dry run"
+          {
+            echo "hasChanges=false"
+          } >> "${GITHUB_OUTPUT}"
+        fi
+      env:
+        GH_TOKEN: ${{ inputs.github-token }} 

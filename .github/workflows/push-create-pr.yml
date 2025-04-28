@@ -46,6 +46,8 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.PR_CREATION_TOKEN }}
+          # Ensure we fetch the head branch
+          ref: ${{ github.head_ref || github.ref_name }}
           
       # Extract branch name based on trigger context
       - name: Extract branch info
@@ -54,28 +56,28 @@ jobs:
           if [ "${{ github.event_name }}" == "push" ]; then
             # For push event, extract from github context
             BRANCH_NAME="${GITHUB_REF#refs/heads/}"
-            echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
             
             # Get the commit message for PR title
             COMMIT_MSG=$(git log -1 --pretty=%B)
-            PR_TITLE=$(echo "$COMMIT_MSG" | head -n 1)
-            echo "title=$PR_TITLE" >> $GITHUB_OUTPUT
+            PR_TITLE=$(echo "${COMMIT_MSG}" | head -n 1)
             
             # Create PR body from full commit message
-            echo "body<<EOF" >> $GITHUB_OUTPUT
-            echo "Automated PR created from push to branch \`$BRANCH_NAME\`." >> $GITHUB_OUTPUT
-            echo "" >> $GITHUB_OUTPUT
-            echo "**Original commit message:**" >> $GITHUB_OUTPUT
-            echo '```' >> $GITHUB_OUTPUT
-            echo "$COMMIT_MSG" >> $GITHUB_OUTPUT
-            echo '```' >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-            
-            # Default target branch to main
-            echo "target_branch=main" >> $GITHUB_OUTPUT
-            
-            # Default auto_merge to true
-            echo "auto_merge=true" >> $GITHUB_OUTPUT
+            {
+              echo "branch=${BRANCH_NAME}"
+              echo "title=${PR_TITLE}"
+              echo "body<<EOF" 
+              echo "Automated PR created from push to branch \`${BRANCH_NAME}\`." 
+              echo "" 
+              echo "**Original commit message:**" 
+              echo '```' 
+              echo "${COMMIT_MSG}" 
+              echo '```' 
+              echo "EOF"
+              # Default target branch to main
+              echo "target_branch=main"
+              # Default auto_merge to true
+              echo "auto_merge=true"
+            } >> "$GITHUB_OUTPUT"
           else
             # For manual workflow dispatch, use inputs
             if [ -n "${{ github.event.inputs.branch_name }}" ]; then
@@ -84,12 +86,30 @@ jobs:
               TIMESTAMP=$(date +%Y%m%d%H%M%S)
               BRANCH="auto-pr-${TIMESTAMP}"
             fi
-            echo "branch=$BRANCH" >> $GITHUB_OUTPUT
-            echo "title=${{ github.event.inputs.title }}" >> $GITHUB_OUTPUT
-            echo "body=${{ github.event.inputs.body }}" >> $GITHUB_OUTPUT
-            echo "target_branch=${{ github.event.inputs.target_branch }}" >> $GITHUB_OUTPUT
-            echo "auto_merge=${{ github.event.inputs.auto_merge }}" >> $GITHUB_OUTPUT
+            
+            {
+              echo "branch=${BRANCH}"
+              echo "title=${{ github.event.inputs.title }}"
+              echo "body=${{ github.event.inputs.body }}"
+              echo "target_branch=${{ github.event.inputs.target_branch }}"
+              echo "auto_merge=${{ github.event.inputs.auto_merge }}"
+            } >> "$GITHUB_OUTPUT"
           fi
+      
+      # Explicitly fetch the target branch to compare against
+      - name: Fetch target branch
+        run: |
+          # Fetch the target branch (usually main)
+          TARGET_BRANCH="${{ steps.branch_info.outputs.target_branch || 'main' }}"
+          echo "Fetching target branch: ${TARGET_BRANCH}"
+          git fetch origin "${TARGET_BRANCH}":refs/remotes/origin/"${TARGET_BRANCH}"
+          
+          # Verify branches exist
+          echo "Available branches:"
+          git branch -a
+          
+          # Ensure the target branch is properly tracked locally
+          git branch --track "${TARGET_BRANCH}" origin/"${TARGET_BRANCH}" || echo "Branch already exists"
       
       # Setup environment and tools
       - name: Setup Node.js
@@ -109,7 +129,7 @@ jobs:
       - name: Create branch (for workflow_dispatch)
         if: github.event_name == 'workflow_dispatch'
         run: |
-          git checkout -b ${{ steps.branch_info.outputs.branch }}
+          git checkout -b "${{ steps.branch_info.outputs.branch }}"
           git config --global user.name "Github Actions"
           git config --global user.email "actions@github.com"
       
@@ -128,12 +148,53 @@ jobs:
           git add .
           git commit -m "${{ steps.branch_info.outputs.title }}"
       
+      # NEW: Analyze version changes before PR creation
+      - name: Analyze version changes
+        id: analyze-versions
+        uses: ./.github/actions/analyze-pr-versions
+        with:
+          github-token: ${{ secrets.PR_CREATION_TOKEN }}
+          base-ref: ${{ steps.branch_info.outputs.target_branch || 'main' }}
+          head-ref: ${{ steps.branch_info.outputs.branch }}
+          update-pr: 'false'  # Don't need to update PR as it doesn't exist yet
+
+      # Update PR body with version changes
+      - name: Update PR body with version changes
+        id: update_body
+        if: steps.analyze-versions.outputs.hasChanges == 'true'
+        run: |
+          # Add version changes to the PR body
+          if [ -n "${{ steps.branch_info.outputs.body }}" ]; then
+            NEW_BODY="${{ steps.branch_info.outputs.body }}"$'\n\n'"${{ steps.analyze-versions.outputs.changes-details }}"
+          else
+            NEW_BODY="${{ steps.analyze-versions.outputs.changes-details }}"
+          fi
+          
+          # Output the updated PR body using grouped redirects
+          {
+            echo "body<<EOF"
+            echo "${NEW_BODY}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+      
+      # NEW: Apply version changes if found
+      - name: Apply version changes
+        if: steps.analyze-versions.outputs.hasChanges == 'true'
+        uses: ./.github/actions/version-from-commits
+        with:
+          github-token: ${{ secrets.PR_CREATION_TOKEN }}
+          base-ref: ${{ steps.branch_info.outputs.target_branch || 'main' }}
+          head-ref: ${{ steps.branch_info.outputs.branch }}
+          dry-run: 'false'
+      
       # Push branch
       - name: Push changes
         id: push_changes
         run: |
-          git push origin ${{ steps.branch_info.outputs.branch }}
-          echo "commit_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          git push origin "${{ steps.branch_info.outputs.branch }}"
+          {
+            echo "commit_sha=$(git rev-parse HEAD)"
+          } >> "${GITHUB_OUTPUT}"
       
       # Create PR
       - name: Create PR
@@ -145,7 +206,7 @@ jobs:
           base-branch: ${{ steps.branch_info.outputs.target_branch }}
           head-branch: ${{ steps.branch_info.outputs.branch }}
           title: ${{ steps.branch_info.outputs.title }}
-          body: ${{ steps.branch_info.outputs.body }}
+          body: ${{ steps.update_body.outputs.body || steps.branch_info.outputs.body }}
       
       # Wait for GitHub checks to complete
       - name: Wait for checks
@@ -156,11 +217,11 @@ jobs:
           echo "Waiting for checks to complete on PR #${{ steps.manage_pr.outputs.pr-number }}..."
           
           # We need to get the SHA from the PR
-          SHA=${{ steps.push_changes.outputs.commit_sha }}
+          SHA="${{ steps.push_changes.outputs.commit_sha }}"
           
           bash .github/scripts/branch/wait-checks.sh \
             --repo "${{ github.repository }}" \
-            --sha "$SHA" \
+            --sha "${SHA}" \
             --workflow "Push and Create PR" \
             --timeout "300" \
             --min-checks "2"  # Adjust based on expected number of checks
@@ -181,9 +242,7 @@ jobs:
           commit-title: ${{ steps.branch_info.outputs.title }}
           merge-method: 'merge'
           delete-branch: 'true'
-          commit-message: >-
-            Merge PR #${{ steps.manage_pr.outputs.pr-number }} from ${{ steps.branch_info.outputs.branch }}
-
+      
       # Cleanup if no auto-merge
       - name: Status update
         if: steps.branch_info.outputs.auto_merge != 'true'
@@ -191,6 +250,21 @@ jobs:
           echo "PR created but not auto-merging as requested"
           echo "PR: ${{ steps.manage_pr.outputs.pr-url }}"
           
+      # Set branch name for reporting
+      - name: Set branch name for reporting
+        if: always()
+        id: branch_for_report
+        run: |
+          if [ -n "${{ steps.branch_info.outputs.branch }}" ]; then
+            {
+              echo "branch_name=${{ steps.branch_info.outputs.branch }}"
+            } >> "${GITHUB_OUTPUT}"
+          else
+            {
+              echo "branch_name=${github.ref_name}"
+            } >> "${GITHUB_OUTPUT}"
+          fi
+
       # Report failure using the action
       - name: Report failure
         if: failure()
@@ -198,8 +272,8 @@ jobs:
         with:
           workflow-name: 'Push and Create PR'
           result: 'failure'
-          branch: ${{ steps.branch_info.outputs.branch || github.ref_name }}
-          summary: 'PR creation failed for branch ${{ steps.branch_info.outputs.branch || github.ref_name }} (reported from ${{ github.ref_name }})'
+          branch: ${{ steps.branch_for_report.outputs.branch_name }}
+          summary: 'PR creation failed for branch ${{ steps.branch_for_report.outputs.branch_name }} (reported from ${{ github.ref_name }})'
           source: 'webhook'
           discord-webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
           github-token: ${{ secrets.PR_CREATION_TOKEN }} 

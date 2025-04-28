@@ -63,6 +63,39 @@ runs:
       shell: bash
       run: mkdir -p ./report-artifacts
     
+    - name: Extract summary details
+      if: steps.filter_report.outputs.should_report == 'true'
+      id: extract_details
+      shell: bash
+      run: |
+        if [[ "${{ inputs.summary }}" == *"Details:"* ]]; then
+          echo "trigger_details=${{ inputs.summary }}" >> $GITHUB_OUTPUT
+        else
+          echo "trigger_details=" >> $GITHUB_OUTPUT
+        fi
+      
+    - name: Extract branch information
+      if: steps.filter_report.outputs.should_report == 'true'
+      id: extract_source
+      shell: bash
+      run: |
+        if [[ "${{ inputs.summary }}" == *"Branch:"* ]]; then
+          echo "trigger_source=${{ inputs.summary }}" >> $GITHUB_OUTPUT
+        else
+          echo "trigger_source=" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Extract trigger information
+      if: steps.filter_report.outputs.should_report == 'true'
+      id: extract_info
+      shell: bash
+      run: |
+        if [[ "${{ inputs.summary }}" == *"Triggered by"* ]]; then
+          echo "trigger_info=${{ inputs.summary }}" >> $GITHUB_OUTPUT
+        else
+          echo "trigger_info=" >> $GITHUB_OUTPUT
+        fi
+    
     - name: Generate workflow summary
       if: steps.filter_report.outputs.should_report == 'true'
       id: generate_summary
@@ -76,9 +109,9 @@ runs:
         repository: ${{ github.repository }}
         trigger-sha: ${{ github.sha }}
         trigger-branch: ${{ inputs.branch }}
-        trigger-details: ${{ contains(inputs.summary, 'Details:') && inputs.summary || '' }}
-        trigger-source: ${{ contains(inputs.summary, 'Branch:') && inputs.summary || '' }}
-        trigger-info: ${{ contains(inputs.summary, 'Triggered by') && inputs.summary || '' }}
+        trigger-details: ${{ steps.extract_details.outputs.trigger_details }}
+        trigger-source: ${{ steps.extract_source.outputs.trigger_source }}
+        trigger-info: ${{ steps.extract_info.outputs.trigger_info }}
         output-path: './report-artifacts/summary.json'
     
     - name: Debug Discord webhook

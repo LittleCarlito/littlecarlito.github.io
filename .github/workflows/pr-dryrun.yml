@@ -33,11 +33,11 @@ jobs:
           echo "🔍 Validating workflow alignment between PR workflow and main pipeline..."
           chmod +x .github/scripts/pr/validate-workflow-alignment.sh
           ./.github/scripts/pr/validate-workflow-alignment.sh
-
+          
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: validate-workflow
+    needs: [validate-workflow]
     outputs:
       build_artifact_name: ${{ env.BUILD_ARTIFACT_NAME }}
     steps:

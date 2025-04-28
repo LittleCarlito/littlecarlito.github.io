@@ -20,7 +20,6 @@ concurrency:
 env:
   BUILD_ARTIFACT_NAME: build-artifacts-${{ github.run_id }}
   PACKAGES_ARTIFACT_NAME: package-builds-${{ github.run_id }}
-  TRIGGERING_WORKFLOW: ${{ github.event.inputs.triggered_by || 'direct' }}
   
 # Note: This workflow handles GitHub Pages deployment directly.
 # The separate deploy-pages.yml workflow should be disabled or deleted.
@@ -40,6 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       trigger_actor: ${{ steps.set-trigger-info.outputs.trigger_actor }}
+      triggering_workflow: ${{ steps.set-trigger-info.outputs.triggering_workflow }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -52,20 +52,20 @@ jobs:
           # Determine what triggered this workflow
           if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ "${{ github.event.inputs.triggered_by }}" != "" ]; then
             # Triggered by another workflow
-            echo "trigger_workflow=${{ github.event.inputs.triggered_by }}" >> $GITHUB_OUTPUT
-            
+            echo "trigger_workflow=${{ github.event.inputs.triggered_by }}" >> "$GITHUB_OUTPUT"
+            echo "triggering_workflow=${{ github.event.inputs.triggered_by }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             # Manual trigger
-            echo "trigger_workflow=manual" >> $GITHUB_OUTPUT
-            
+            echo "trigger_workflow=manual" >> "$GITHUB_OUTPUT"
+            echo "triggering_workflow=manual" >> "$GITHUB_OUTPUT"
           else
             # Direct push to main
-            echo "trigger_workflow=direct_push" >> $GITHUB_OUTPUT
-            
+            echo "trigger_workflow=direct_push" >> "$GITHUB_OUTPUT"
+            echo "triggering_workflow=direct" >> "$GITHUB_OUTPUT"
           fi
           
           # Set actor info
-          echo "trigger_actor=${{ github.actor }}" >> $GITHUB_OUTPUT
+          echo "trigger_actor=${{ github.actor }}" >> "$GITHUB_OUTPUT"
           
           # Print debug info
           echo "Workflow triggered by: ${{ github.event_name }}"
@@ -93,7 +93,7 @@ jobs:
           echo "Directory contents:"
           ls -la
           echo "Checking for package.json:"
-          cat package.json | grep -E 'name|scripts|build'
+          grep -E 'name|scripts|build' package.json
           echo "Installing dependencies explicitly:"
           npm install -g pnpm
           pnpm install
@@ -125,25 +125,25 @@ jobs:
           echo "Validating build artifacts..."
           # Check for dist directories
           DIST_DIRS=$(find packages -name "dist" -type d | wc -l)
-          if [ "$DIST_DIRS" -eq 0 ]; then
+          if [ "${DIST_DIRS}" -eq 0 ]; then
             echo "::error::No dist directories found in packages!"
             exit 1
           fi
-          echo "Found $DIST_DIRS dist directories"
+          echo "Found ${DIST_DIRS} dist directories"
           
           # List all dist directories to verify they exist and contain files
           find packages -name "dist" -type d -exec ls -la {} \;
           
           # Count files to ensure we have artifacts
           FILE_COUNT=$(find packages -name "dist" -type d -exec find {} -type f \; | wc -l)
-          echo "Found $FILE_COUNT files in artifact directories"
+          echo "Found ${FILE_COUNT} files in artifact directories"
           
-          if [ "$FILE_COUNT" -eq 0 ]; then
+          if [ "${FILE_COUNT}" -eq 0 ]; then
             echo "::error::No build artifacts found in packages/dist directories!"
             exit 1
           fi
           
-          echo "✅ Artifact validation successful - $FILE_COUNT files in $DIST_DIRS directories"
+          echo "✅ Artifact validation successful - ${FILE_COUNT} files in ${DIST_DIRS} directories"
 
   test:
     name: Test
@@ -169,16 +169,16 @@ jobs:
           echo "Validating downloaded artifacts..."
           # Check that artifacts were downloaded
           DIST_DIRS=$(find packages -name "dist" -type d | wc -l)
-          if [ "$DIST_DIRS" -eq 0 ]; then
+          if [ "${DIST_DIRS}" -eq 0 ]; then
             echo "::error::No dist directories found in downloaded artifacts!"
             exit 1
           fi
           
           # Count files to ensure we have artifacts
           FILE_COUNT=$(find packages -name "dist" -type d -exec find {} -type f \; | wc -l)
-          echo "Found $FILE_COUNT files in $DIST_DIRS artifact directories"
+          echo "Found ${FILE_COUNT} files in ${DIST_DIRS} artifact directories"
           
-          if [ "$FILE_COUNT" -eq 0 ]; then
+          if [ "${FILE_COUNT}" -eq 0 ]; then
             echo "::error::Downloaded artifacts contain no files!"
             exit 1
           fi
@@ -192,10 +192,127 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           artifact-name: ${{ needs.build.outputs.build_artifact_name }}
 
+  # Create GitHub Release if needed
+  create-release:
+    name: Create GitHub Release
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      created_releases: ${{ steps.check_and_create.outputs.created_releases }}
+      tags_created: ${{ steps.check_and_create.outputs.tags_created }}
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+          
+      - name: Install dependencies
+        run: pnpm install
+          
+      - name: Check for version commits and create releases
+        id: check_and_create
+        run: |
+          # Check if the latest commit is a version bump
+          LATEST_COMMIT_MSG=$(git log -1 --pretty=%B)
+          if [[ "${LATEST_COMMIT_MSG}" == *"chore(release)"* || "${LATEST_COMMIT_MSG}" == *"version"* ]]; then
+            echo "Found version commit: ${LATEST_COMMIT_MSG}"
+            
+            # Find all package.json files in apps and packages
+            PACKAGE_JSONS=$(find apps packages -name "package.json" -not -path "*/node_modules/*")
+            
+            # Variables to track results
+            CREATED_RELEASES="false"
+            TAGS_CREATED=""
+            
+            # Process each package
+            for PKG_JSON in ${PACKAGE_JSONS}; do
+              # Get package info
+              PKG_NAME=$(node -p "require('./${PKG_JSON}').name")
+              PKG_VERSION=$(node -p "require('./${PKG_JSON}').version")
+              PKG_DIR=$(dirname "${PKG_JSON}")
+              
+              # Skip packages without proper version or name
+              if [[ -z "${PKG_VERSION}" || "${PKG_VERSION}" == "0.0.0" || -z "${PKG_NAME}" ]]; then
+                echo "Skipping ${PKG_JSON} - invalid name or version"
+                continue
+              fi
+              
+              # Check for version in git history
+              TAG_NAME="${PKG_NAME}@${PKG_VERSION}"
+              CLEAN_TAG_NAME=$(echo "${TAG_NAME}" | sed 's/\//--/g') # Replace / with -- for tag names
+              
+              echo "Checking tag: ${CLEAN_TAG_NAME}"
+              
+              # Check if tag already exists
+              if git tag -l | grep -q "^${CLEAN_TAG_NAME}$"; then
+                echo "Tag ${CLEAN_TAG_NAME} already exists, skipping release"
+                continue
+              fi
+              
+              # Look for changelog
+              CHANGELOG_PATH="${PKG_DIR}/CHANGELOG.md"
+              RELEASE_NOTES=""
+              
+              if [[ -f "${CHANGELOG_PATH}" ]]; then
+                # Extract the most recent changelog entry (between the first and second ## headings)
+                RELEASE_NOTES=$(awk 'BEGIN{flag=0} /^## / {if (flag==1) {exit} flag=1; print; next} flag==1 {print}' "${CHANGELOG_PATH}")
+              fi
+              
+              if [[ -z "${RELEASE_NOTES}" ]]; then
+                # If no changelog, create a basic note
+                RELEASE_NOTES="Release ${PKG_NAME}@${PKG_VERSION}"
+              fi
+              
+              echo "Creating tag and release for ${PKG_NAME} version ${PKG_VERSION}"
+              
+              # Create the tag
+              git tag -a "${CLEAN_TAG_NAME}" -m "Release ${CLEAN_TAG_NAME}"
+              git push origin "${CLEAN_TAG_NAME}"
+              
+              # Create GitHub release with extracted notes
+              echo "${RELEASE_NOTES}" > release_notes.md
+              gh release create "${CLEAN_TAG_NAME}" \
+                --title "Release ${CLEAN_TAG_NAME}" \
+                --notes-file release_notes.md
+              
+              # Update tracking variables
+              CREATED_RELEASES="true"
+              TAGS_CREATED="${TAGS_CREATED}${CLEAN_TAG_NAME}, "
+              
+              echo "Created release for ${PKG_NAME} version ${PKG_VERSION}"
+            done
+            
+            # Trim trailing comma and space from tags list
+            TAGS_CREATED="${TAGS_CREATED%, }"
+            
+            # Set outputs
+            echo "created_releases=${CREATED_RELEASES}" >> "$GITHUB_OUTPUT"
+            echo "tags_created=${TAGS_CREATED}" >> "$GITHUB_OUTPUT"
+          else
+            echo "Latest commit is not a version bump, skipping release"
+            echo "created_releases=false" >> "$GITHUB_OUTPUT"
+            echo "tags_created=" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   # Build the site for GitHub Pages
   build-site:
     name: Build Site for GitHub Pages
-    needs: test
+    needs: [test, create-release]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -264,7 +381,7 @@ jobs:
   # Report pipeline results (always runs after all jobs)
   report-results:
     name: Report Pipeline Results
-    needs: [capture-trigger-info, build, test, build-site]
+    needs: [capture-trigger-info, build, test, create-release, build-site]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -275,28 +392,40 @@ jobs:
           # Check if any job failed
           if [[ "${{ needs.build.result }}" != "success" || 
                 "${{ needs.test.result }}" != "success" || 
+                "${{ needs.create-release.result }}" != "success" ||
                 ("${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped") ]]; then
-            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "result=failure" >> "$GITHUB_OUTPUT"
             
             # Collect what failed for detailed reporting
             FAILED_JOBS=""
             [[ "${{ needs.build.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Build, "
             [[ "${{ needs.test.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Test, "
+            [[ "${{ needs.create-release.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Release Creation, "
             [[ "${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Site Deployment, "
             
             # Remove trailing comma and space
             FAILED_JOBS="${FAILED_JOBS%, }"
-            echo "error_details=Jobs failed: ${FAILED_JOBS}" >> $GITHUB_OUTPUT
+            echo "error_details=Jobs failed: ${FAILED_JOBS}" >> "$GITHUB_OUTPUT"
           else
-            echo "result=success" >> $GITHUB_OUTPUT
+            echo "result=success" >> "$GITHUB_OUTPUT"
           fi
           
           # Get trigger info from actor only
-          echo "trigger_actor=${{ needs.capture-trigger-info.outputs.trigger_actor }}" >> $GITHUB_OUTPUT
+          echo "trigger_actor=${{ needs.capture-trigger-info.outputs.trigger_actor }}" >> "$GITHUB_OUTPUT"
           
       # Use the new action to report results
       - name: Checkout repository
         uses: actions/checkout@v4
+        
+      # Set details text based on result
+      - name: Set details text
+        id: details_text
+        run: |
+          if [[ -n "${{ steps.workflow-result.outputs.error_details }}" ]]; then
+            echo "content=${{ steps.workflow-result.outputs.error_details }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "content=Successful run" >> "$GITHUB_OUTPUT"
+          fi
         
       - name: Report pipeline results
         uses: ./.github/actions/report-workflow-results
@@ -307,7 +436,7 @@ jobs:
           summary: >-
             Main Pipeline ${{ steps.workflow-result.outputs.result }}. 
             Triggered by ${{ needs.capture-trigger-info.outputs.trigger_actor }}. 
-            Details ${{ steps.workflow-result.outputs.error_details || 'Successful run' }}.
+            Details ${{ steps.details_text.outputs.content }}.
           source: 'dispatch'
           discord-webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
           github-token: ${{ secrets.PR_CREATION_TOKEN }} 

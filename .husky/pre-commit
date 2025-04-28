@@ -70,8 +70,8 @@ STAGED_FILES=$(git diff --cached --name-only)
 # Flag to indicate if any files outside development/ or public/ are being committed
 RUN_CHECKS=false
 
-# Flag to check if GitHub workflow files were modified
-GITHUB_WORKFLOWS_CHANGED=false
+# Flag to check if GitHub files were modified
+GITHUB_FILES_CHANGED=false
 
 # Flags to check if specific packages were modified
 BLORKPACK_CHANGED=false
@@ -84,10 +84,10 @@ for file in $STAGED_FILES; do
     # Skip empty lines
     [ -z "$file" ] && continue
     
-    # Check if file is in .github/workflows directory
-    if [[ "$file" =~ ^\.github/workflows/ ]]; then
-        echo "🔍 Found change in GitHub workflow file: $file"
-        GITHUB_WORKFLOWS_CHANGED=true
+    # Check if file is in .github directory
+    if [[ "$file" =~ ^\.github/ ]]; then
+        echo "🔍 Found change in GitHub file: $file"
+        GITHUB_FILES_CHANGED=true
     fi
     
     # Check if specific packages were modified
@@ -118,9 +118,30 @@ for file in $STAGED_FILES; do
     fi
 done
 
-# Run GitHub workflow validation if workflow files were changed
-if [ "$GITHUB_WORKFLOWS_CHANGED" = true ]; then
+# Add this line to debug the GitHub files detection
+echo "GitHub files changed: $GITHUB_FILES_CHANGED"
+
+# Run GitHub workflow validation if GitHub files were changed
+if [ "$GITHUB_FILES_CHANGED" = true ]; then
     echo "🔄 Testing GitHub workflow files..."
+    
+    # Run the new validation script if available
+    if [ -f "tests/pipeline-tests/validate-github-actions.sh" ]; then
+        echo "Running GitHub Actions validator..."
+        
+        # Run validator with output directly displayed, not captured
+        ./tests/pipeline-tests/validate-github-actions.sh
+        VALIDATION_STATUS=$?
+        
+        # Check status and fail if needed
+        if [ $VALIDATION_STATUS -ne 0 ]; then
+            echo "❌ GitHub Actions validation failed with code $VALIDATION_STATUS."
+            echo "Please fix the workflow syntax issues before committing."
+            exit 1
+        else
+            echo "✅ GitHub Actions validation passed!"
+        fi
+    fi
     
     # Validate script parameter usage in workflow files
     echo "🔍 Checking for common script parameter issues..."
