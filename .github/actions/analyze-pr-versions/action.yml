@@ -71,19 +71,33 @@ runs:
         # Run the analysis - FIX: Use node to execute the JavaScript file
         OUTPUT=$(node .github/scripts/pr/check-version-changes.js ${{ inputs.pr-number }})
         
-        # Extract the human-readable part
-        HUMAN_OUTPUT=$(echo "$OUTPUT" | sed -n '1,/---/p' | head -n -2)
+        # Print the complete output for debugging
+        echo "Complete script output:"
+        echo "$OUTPUT"
         
-        # Extract the JSON part
-        JSON_OUTPUT=$(echo "$OUTPUT" | sed -n '/---/,$ p' | tail -n +3)
+        # Extract the human-readable part more reliably
+        HUMAN_OUTPUT=$(echo "$OUTPUT" | sed -n '1,/---/p' | sed '$d')
+        
+        # Extract the JSON part more reliably
+        JSON_OUTPUT=$(echo "$OUTPUT" | sed -n '/---/,$p' | sed '1d')
+        
+        echo "Extracted JSON:"
+        echo "$JSON_OUTPUT"
         
         # Save outputs
         echo "HUMAN_OUTPUT<<EOF" >> $GITHUB_OUTPUT
         echo "$HUMAN_OUTPUT" >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
         
-        # Parse JSON to get the hasChanges value
-        HAS_CHANGES=$(echo "$JSON_OUTPUT" | jq -r '.hasChanges')
+        # Parse JSON to get the hasChanges value - add fallback
+        if echo "$JSON_OUTPUT" | jq -e . > /dev/null 2>&1; then
+          echo "JSON is valid, extracting hasChanges"
+          HAS_CHANGES=$(echo "$JSON_OUTPUT" | jq -r '.hasChanges')
+        else
+          echo "Invalid JSON, defaulting to false"
+          HAS_CHANGES="false"
+        fi
+        
         echo "hasChanges=$HAS_CHANGES" >> $GITHUB_OUTPUT
       env:
         GH_TOKEN: ${{ inputs.github-token }}

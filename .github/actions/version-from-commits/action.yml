@@ -25,7 +25,7 @@ inputs:
 outputs:
   hasChanges:
     description: 'Whether version changes were detected'
-    value: ${{ steps.set-outputs.outputs.has_changes }}
+    value: ${{ steps.set-outputs.outputs.hasChanges }}
   version-tag:
     description: 'The version tag that was created (if any)'
     value: ${{ steps.set-outputs.outputs.version_tag }}

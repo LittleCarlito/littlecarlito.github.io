@@ -345,4 +345,5 @@ const structuredOutput = {
 // Output both the human-readable and structured formats
 console.log(output);
 console.log('---');
-console.log(JSON.stringify(structuredOutput, null, 2)); 
+// Make sure the JSON is on a single line with no other content to ensure clean extraction
+console.log(JSON.stringify(structuredOutput)); 
