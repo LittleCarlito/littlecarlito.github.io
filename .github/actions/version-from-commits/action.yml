@@ -64,8 +64,17 @@ runs:
           echo "PR is from $PR_HEAD to $PR_BASE"
           
           # Use the PR base as from-ref and PR head as to-ref
-          FROM_REF="${{ inputs.from-ref || PR_BASE }}"
-          TO_REF="${{ inputs.to-ref || PR_HEAD }}"
+          if [ -n "${{ inputs.from-ref }}" ]; then
+            FROM_REF="${{ inputs.from-ref }}"
+          else
+            FROM_REF="$PR_BASE"
+          fi
+          
+          if [ -n "${{ inputs.to-ref }}" ]; then
+            TO_REF="${{ inputs.to-ref }}"
+          else
+            TO_REF="$PR_HEAD"
+          fi
         else
           # Use provided refs or defaults
           FROM_REF="${{ inputs.from-ref }}"
