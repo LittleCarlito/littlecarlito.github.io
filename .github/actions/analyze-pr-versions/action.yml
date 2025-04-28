@@ -68,8 +68,8 @@ runs:
         # Make the script executable
         chmod +x .github/scripts/pr/check-version-changes.js
         
-        # Run the analysis
-        OUTPUT=$(.github/scripts/pr/check-version-changes.js ${{ inputs.pr-number }})
+        # Run the analysis - FIX: Use node to execute the JavaScript file
+        OUTPUT=$(node .github/scripts/pr/check-version-changes.js ${{ inputs.pr-number }})
         
         # Extract the human-readable part
         HUMAN_OUTPUT=$(echo "$OUTPUT" | sed -n '1,/---/p' | head -n -2)
