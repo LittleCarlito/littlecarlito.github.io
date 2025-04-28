@@ -75,4 +75,4 @@ ${{ steps.version-analysis.outputs.HUMAN_OUTPUT }}"
         # Update PR description
         gh pr edit ${{ inputs.pr-number }} --body "${NEW_PR_BODY}"
       env:
-        GH_TOKEN: ${{ inputs.github-token }} 
+        GH_TOKEN: ${{ inputs.github-token }}
