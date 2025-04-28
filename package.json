@@ -24,6 +24,7 @@
     "test:e2e:blorktools": "pnpm --filter='@littlecarlito/blorktools' test:e2e",
     "test:version": "node scripts/test-version.js",
     "test-version": "node scripts/test-version.js",
+    "test-commit": ".husky/post-commit",
     "check": "pnpm -r check",
     "fmt": "pnpm -r fmt",
     "fmt:check": "pnpm -r fmt:check",

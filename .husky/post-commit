@@ -51,6 +51,9 @@ COMMIT_TYPE=$(echo "$COMMIT_MSG" | grep -oE "^(${TYPES_PATTERN})(\([^)]+\))?!?:"
 BREAKING=$(echo "$COMMIT_MSG" | grep -E "^[^:]+!:" -c)
 BREAKING_BODY=$(echo "$COMMIT_MSG" | grep -E "BREAKING CHANGE:" -c)
 
+# Extract the scope from the commit message if it exists
+COMMIT_SCOPE=$(echo "$COMMIT_MSG" | grep -oE "^[^(]+\(([^)]+)\)" | sed -E 's/^[^(]+\(([^)]+)\)/\1/' || echo "")
+
 if [ "$BREAKING" -gt 0 ] || [ "$BREAKING_BODY" -gt 0 ]; then
   BUMP="+1.0.0"
   BUMP_COLOR="\033[31m" # Red
@@ -65,15 +68,80 @@ else
   BUMP_TYPE="patch"
 fi
 
-# Use magenta for commit message (not blue or green)
-echo -e "✅ Accepted commit message: \033[35m\"${COMMIT_MSG}\"\033[0m ${BUMP_COLOR}${BUMP}\033[0m (${BUMP_TYPE})"
+# Define the magenta color for the version bump display
+MAGENTA="\033[35m"
+RESET="\033[0m"
 
 # Check if version changes are detected
 if echo "$VERSION_OUTPUT" | grep -q "Version Changes:"; then
-  # Use awk to extract the section between "Version Changes:" and the next empty line
-  # Then display it directly to preserve colors
-  echo "$VERSION_OUTPUT" | awk '/Version Changes:/,/^$/ {if (!/Version Changes:/ && !/^$/) print}'
+  # Extract package names to check if scope is valid
+  PACKAGE_NAMES=$(echo "$VERSION_OUTPUT" | awk '/Version Changes:/,/^$/ {if (!/Version Changes:/ && !/^$/ && NF > 0) print $1}' | sed 's/://')
+  
+  # Flag to determine if scope is valid
+  SCOPE_IS_VALID=0
+  
+  # If no scope is provided, it applies to all packages
+  if [ -z "$COMMIT_SCOPE" ]; then
+    SCOPE_IS_VALID=1
+  else
+    # Check if scope matches any package name
+    for pkg in $PACKAGE_NAMES; do
+      if echo "$pkg" | grep -q "$COMMIT_SCOPE" || echo "$COMMIT_SCOPE" | grep -q "$pkg"; then
+        SCOPE_IS_VALID=1
+        break
+      fi
+    done
+  fi
+  
+  # Only show the version bump if the scope is valid or there's no scope
+  if [ "$SCOPE_IS_VALID" -eq 1 ]; then
+    # Use magenta for commit message (not blue or green) and show the bump
+    echo -e "✅ Accepted commit message: \033[35m\"${COMMIT_MSG}\"\033[0m ${BUMP_COLOR}${BUMP}\033[0m (${BUMP_TYPE})"
+  else
+    # Show the commit message but no bump since the scope doesn't affect any package
+    echo -e "✅ Accepted commit message: \033[35m\"${COMMIT_MSG}\"\033[0m (no version impact)"
+  fi
+  
+  # Create a temporary file to store the modified version output
+  TMP_VERSION_OUTPUT="/tmp/version_output.txt"
+  
+  # If we have a scope, prepare to highlight it in the output
+  if [ -n "$COMMIT_SCOPE" ]; then
+    # Process the version output and add the version bump to the matching package
+    echo "$VERSION_OUTPUT" | awk -v scope="$COMMIT_SCOPE" -v bump="$BUMP" -v magenta="$MAGENTA" -v reset="$RESET" '
+    /Version Changes:/,/^$/ {
+      if (!/Version Changes:/ && !/^$/) {
+        if ($1 ~ scope || scope ~ $1) {
+          print $0 " " magenta bump reset
+        } else {
+          print $0
+        }
+      } else {
+        print $0
+      }
+    }' > "$TMP_VERSION_OUTPUT"
+  else
+    # No scope found, apply bump to all packages
+    echo "$VERSION_OUTPUT" | awk -v bump="$BUMP" -v magenta="$MAGENTA" -v reset="$RESET" '
+    /Version Changes:/,/^$/ {
+      if (!/Version Changes:/ && !/^$/ && NF > 0) {
+        print $0 " " magenta bump reset
+      } else {
+        print $0
+      }
+    }' > "$TMP_VERSION_OUTPUT"
+  fi
+    
+  # Display the modified output
+  cat "$TMP_VERSION_OUTPUT"
 else
+  # Still show the commit message even if there are no version changes
+  if [ -n "$COMMIT_TYPE" ]; then
+    echo -e "✅ Accepted commit message: \033[35m\"${COMMIT_MSG}\"\033[0m ${BUMP_COLOR}${BUMP}\033[0m (${BUMP_TYPE})"
+  else
+    echo -e "✅ Accepted commit message: \033[35m\"${COMMIT_MSG}\"\033[0m"
+  fi
+  
   echo "ℹ️ No version changes detected from this commit."
 fi
 
