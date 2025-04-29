@@ -207,7 +207,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 20
+          fetch-depth: 0
           
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -221,6 +221,37 @@ jobs:
           
       - name: Install dependencies
         run: pnpm install
+      
+      # First, run custom versioning logic to ensure we have the correct versions
+      - name: Run custom version determination
+        id: custom_versions
+        run: |
+          echo "Running custom version determination..."
+          
+          # Make our scripts executable
+          chmod +x .github/scripts/versioning/version-from-commits.js
+          chmod +x .github/scripts/versioning/apply-custom-versions.js
+          chmod +x .github/scripts/ci/debug-version-numbers.sh
+          
+          # Run diagnostics BEFORE version changes
+          echo "=== VERSION DIAGNOSTICS BEFORE CHANGES ==="
+          bash ".github/scripts/ci/debug-version-numbers.sh"
+          
+          # Get the first commit of the repository for comprehensive version generation
+          FIRST_COMMIT="$(git rev-list --max-parents=0 HEAD)"
+          echo "Using first commit as starting reference: ${FIRST_COMMIT}"
+          
+          # Generate changesets based on our custom logic
+          node .github/scripts/versioning/version-from-commits.js --to=main --from="${FIRST_COMMIT}"
+          
+          # Apply our custom versions
+          node .github/scripts/versioning/apply-custom-versions.js --branch=main
+          
+          # Run diagnostics AFTER version changes
+          echo "=== VERSION DIAGNOSTICS AFTER CHANGES ==="
+          bash ".github/scripts/ci/debug-version-numbers.sh"
+          
+          echo "Custom versioning completed"
           
       - name: Create releases for packages
         id: check_and_create
@@ -232,8 +263,8 @@ jobs:
           # Always process releases on merge to main
           echo "Processing releases for packages"
           
-          # Find all package.json files in apps and packages
-          PACKAGE_JSONS=$(find apps packages -name "package.json" -not -path "*/node_modules/*")
+          # Find all package.json files in apps and packages - now with our custom versions
+          PACKAGE_JSONS="$(find apps packages -name "package.json" -not -path "*/node_modules/*")"
           
           # Variables to track results
           CREATED_RELEASES="false"
@@ -242,9 +273,9 @@ jobs:
           # Process each package
           for PKG_JSON in ${PACKAGE_JSONS}; do
             # Get package info
-            PKG_NAME=$(node -p "require('./${PKG_JSON}').name")
-            PKG_VERSION=$(node -p "require('./${PKG_JSON}').version")
-            PKG_DIR=$(dirname "${PKG_JSON}")
+            PKG_NAME="$(node -p "require('./${PKG_JSON}').name")"
+            PKG_VERSION="$(node -p "require('./${PKG_JSON}').version")"
+            PKG_DIR="$(dirname "${PKG_JSON}")"
             
             # Skip packages without proper version or name
             if [[ -z "${PKG_VERSION}" || "${PKG_VERSION}" == "0.0.0" || -z "${PKG_NAME}" ]]; then
@@ -271,12 +302,19 @@ jobs:
             
             if [[ -f "${CHANGELOG_PATH}" ]]; then
               # Extract the most recent changelog entry (between the first and second ## headings)
-              RELEASE_NOTES=$(awk 'BEGIN{flag=0} /^## / {if (flag==1) {exit} flag=1; print; next} flag==1 {print}' "${CHANGELOG_PATH}")
+              RELEASE_NOTES="$(awk 'BEGIN{flag=0} /^## / {if (flag==1) {exit} flag=1; print; next} flag==1 {print}' "${CHANGELOG_PATH}")"
             fi
             
             if [[ -z "${RELEASE_NOTES}" ]]; then
-              # If no changelog, create a basic note
-              RELEASE_NOTES="Release ${PKG_NAME}@${PKG_VERSION}"
+              # If no changelog, generate one using our version info
+              VERSION_OUTPUT="$(pnpm test-version --branch=main)"
+              VERSION_INFO="$(echo "${VERSION_OUTPUT}" | grep "${PKG_NAME}:" | head -1)"
+              
+              if [[ -n "${VERSION_INFO}" ]]; then
+                RELEASE_NOTES="Release ${PKG_NAME}@${PKG_VERSION}\n\n${VERSION_INFO}\n\nGenerated using custom versioning from commit history."
+              else
+                RELEASE_NOTES="Release ${PKG_NAME}@${PKG_VERSION}"
+              fi
             fi
             
             echo "Creating tag and release for ${PKG_NAME} version ${PKG_VERSION}"
@@ -286,7 +324,7 @@ jobs:
             git push origin "${CLEAN_TAG_NAME}"
             
             # Create GitHub release with extracted notes
-            echo "${RELEASE_NOTES}" > release_notes.md
+            echo -e "${RELEASE_NOTES}" > release_notes.md
             gh release create "${CLEAN_TAG_NAME}" \
               --title "Release ${CLEAN_TAG_NAME}" \
               --notes-file release_notes.md
