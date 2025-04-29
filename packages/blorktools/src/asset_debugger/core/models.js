@@ -356,6 +356,7 @@ function processLoadedModel(gltf) {
  * - If a custom model file was uploaded, load that
  * - Otherwise, create a default cube if at least one texture is available
  * - Or create a lighting test cube if only a lighting file is provided
+ * - Or load an example if one was selected from the examples modal
  * @returns {Promise} A promise that resolves when the model is loaded
  */
 export function loadDebugModel() {
@@ -406,16 +407,72 @@ export function loadDebugModel() {
     function loadModelBasedOnState() {
         return new Promise((resolve, reject) => {
             try {
+                // Check if an example was selected
+                if (state.selectedExample) {
+                    console.log(`Loading selected example: ${state.selectedExample}`);
+                    
+                    // Handle the rig example by loading a wireframe cube first
+                    if (state.selectedExample === 'rig') {
+                        import('../core/examples.js').then(examplesModule => {
+                            examplesModule.loadExample('wireframe-cube')
+                                .then(() => {
+                                    if (loadingIndicator) {
+                                        loadingIndicator.style.display = 'none';
+                                    }
+                                    console.log('Loaded wireframe cube for rig example');
+                                    resolve();
+                                })
+                                .catch(error => {
+                                    console.error('Error loading wireframe cube for rig example:', error);
+                                    // Even if there's an error, continue with the rig setup
+                                    if (loadingIndicator) {
+                                        loadingIndicator.style.display = 'none';
+                                    }
+                                    resolve();
+                                });
+                        }).catch(error => {
+                            console.error('Error importing examples module:', error);
+                            // Continue with rig setup even if there's an error
+                            if (loadingIndicator) {
+                                loadingIndicator.style.display = 'none';
+                            }
+                            resolve();
+                        });
+                    }
+                    // Handle future examples here
+                    else {
+                        console.warn(`Unknown example type: ${state.selectedExample}`);
+                        if (loadingIndicator) {
+                            loadingIndicator.style.display = 'none';
+                        }
+                        resolve();
+                    }
+                }
                 // Check if a custom model was uploaded
-                if (state.useCustomModel && state.modelFile) {
+                else if (state.useCustomModel && state.modelFile) {
                     console.log('Loading custom model...');
                     loadAndSetupModel(loadingIndicator)
                         .then(resolve)
                         .catch(reject);
-                } else if (state.textureObjects.baseColor || 
+                } 
+                // Check if we should create a test cube for lighting
+                else if (state.useLightingTestCube) {
+                    console.log('Creating lighting test cube...');
+                    try {
+                        createLightingTestCube();
+                        resolve();
+                    } catch (error) {
+                        reject(error);
+                    } finally {
+                        if (loadingIndicator) {
+                            loadingIndicator.style.display = 'none';
+                        }
+                    }
+                }
+                // Create a cube if at least one texture is available
+                else if (state.textureObjects.baseColor || 
                            state.textureObjects.orm || 
                            state.textureObjects.normal) {
-                    // Create a cube if at least one texture is available
                     console.log('Creating default cube...');
                     try {
                         createCube();
@@ -428,42 +485,21 @@ export function loadDebugModel() {
                             loadingIndicator.style.display = 'none';
                         }
                     }
-                } else if (state.useLightingTestCube) {
-                    // Special case: Create a multi-material test cube for lighting showcase
-                    console.log('Creating lighting test cube...');
-                    try {
-                        createLightingTestCube();
-                        resolve();
-                    } catch (error) {
-                        reject(error);
-                    } finally {
-                        // Hide loading indicator
-                        if (loadingIndicator) {
-                            loadingIndicator.style.display = 'none';
-                        }
-                    }
-                } else {
-                    // No model, no textures, and not a lighting test - can't proceed with visualization
-                    console.log('Cannot create visualization: No model, textures, or lighting file');
-                    
-                    // Hide loading indicator
+                }
+                // No options available, just resolve
+                else {
+                    console.log('No model, textures, or examples selected.');
                     if (loadingIndicator) {
                         loadingIndicator.style.display = 'none';
                     }
-                    
-                    // Show error message
-                    const error = new Error('Cannot create visualization. Please upload at least one texture atlas or a GLB model.');
-                    alert(error.message);
-                    reject(error);
+                    resolve();
                 }
             } catch (error) {
                 console.error('Error in loadModelBasedOnState:', error);
-                reject(error);
-                
-                // Hide loading indicator
                 if (loadingIndicator) {
                     loadingIndicator.style.display = 'none';
                 }
+                reject(error);
             }
         });
     }

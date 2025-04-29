@@ -229,87 +229,103 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           
-          # Check if the latest commit is a version bump
+          # Check if we need to create tags (from flag file or commit message)
+          NEEDS_TAG_CREATION="false"
           LATEST_COMMIT_MSG=$(git log -1 --pretty=%B)
-          if [[ "${LATEST_COMMIT_MSG}" == *"chore(release)"* || "${LATEST_COMMIT_MSG}" == *"version"* ]]; then
+          
+          # Check for tag creation flag file
+          if [ -f ".tag-creation-flag" ]; then
+            echo "Found .tag-creation-flag file, tags need creation"
+            NEEDS_TAG_CREATION="true"
+          # Check for special marker in commit message
+          elif [[ "${LATEST_COMMIT_MSG}" == *"[ci create-tags]"* ]]; then
+            echo "Found [ci create-tags] marker in commit message"
+            NEEDS_TAG_CREATION="true"
+          # Check if the latest commit is a version bump (original condition)
+          elif [[ "${LATEST_COMMIT_MSG}" == *"chore(release)"* || "${LATEST_COMMIT_MSG}" == *"version"* ]]; then
             echo "Found version commit: ${LATEST_COMMIT_MSG}"
-            
-            # Find all package.json files in apps and packages
-            PACKAGE_JSONS=$(find apps packages -name "package.json" -not -path "*/node_modules/*")
-            
-            # Variables to track results
-            CREATED_RELEASES="false"
-            TAGS_CREATED=""
-            
-            # Process each package
-            for PKG_JSON in ${PACKAGE_JSONS}; do
-              # Get package info
-              PKG_NAME=$(node -p "require('./${PKG_JSON}').name")
-              PKG_VERSION=$(node -p "require('./${PKG_JSON}').version")
-              PKG_DIR=$(dirname "${PKG_JSON}")
-              
-              # Skip packages without proper version or name
-              if [[ -z "${PKG_VERSION}" || "${PKG_VERSION}" == "0.0.0" || -z "${PKG_NAME}" ]]; then
-                echo "Skipping ${PKG_JSON} - invalid name or version"
-                continue
-              fi
-              
-              # Check for version in git history
-              TAG_NAME="${PKG_NAME}@${PKG_VERSION}"
-              CLEAN_TAG_NAME=$(echo "${TAG_NAME}" | sed 's/\//--/g') # Replace / with -- for tag names
-              
-              echo "Checking tag: ${CLEAN_TAG_NAME}"
-              
-              # Check if tag already exists
-              if git tag -l | grep -q "^${CLEAN_TAG_NAME}$"; then
-                echo "Tag ${CLEAN_TAG_NAME} already exists, skipping release"
-                continue
-              fi
-              
-              # Look for changelog
-              CHANGELOG_PATH="${PKG_DIR}/CHANGELOG.md"
-              RELEASE_NOTES=""
-              
-              if [[ -f "${CHANGELOG_PATH}" ]]; then
-                # Extract the most recent changelog entry (between the first and second ## headings)
-                RELEASE_NOTES=$(awk 'BEGIN{flag=0} /^## / {if (flag==1) {exit} flag=1; print; next} flag==1 {print}' "${CHANGELOG_PATH}")
-              fi
-              
-              if [[ -z "${RELEASE_NOTES}" ]]; then
-                # If no changelog, create a basic note
-                RELEASE_NOTES="Release ${PKG_NAME}@${PKG_VERSION}"
-              fi
-              
-              echo "Creating tag and release for ${PKG_NAME} version ${PKG_VERSION}"
-              
-              # Create the tag
-              git tag -a "${CLEAN_TAG_NAME}" -m "Release ${CLEAN_TAG_NAME}"
-              git push origin "${CLEAN_TAG_NAME}"
-              
-              # Create GitHub release with extracted notes
-              echo "${RELEASE_NOTES}" > release_notes.md
-              gh release create "${CLEAN_TAG_NAME}" \
-                --title "Release ${CLEAN_TAG_NAME}" \
-                --notes-file release_notes.md
-              
-              # Update tracking variables
-              CREATED_RELEASES="true"
-              TAGS_CREATED="${TAGS_CREATED}${CLEAN_TAG_NAME}, "
-              
-              echo "Created release for ${PKG_NAME} version ${PKG_VERSION}"
-            done
-            
-            # Trim trailing comma and space from tags list
-            TAGS_CREATED="${TAGS_CREATED%, }"
-            
-            # Set outputs
-            echo "created_releases=${CREATED_RELEASES}" >> "$GITHUB_OUTPUT"
-            echo "tags_created=${TAGS_CREATED}" >> "$GITHUB_OUTPUT"
-          else
-            echo "Latest commit is not a version bump, skipping release"
+            NEEDS_TAG_CREATION="true"
+          fi
+          
+          # If we don't need to create tags, exit early
+          if [[ "${NEEDS_TAG_CREATION}" != "true" ]]; then
+            echo "No need to create tags, skipping release"
             echo "created_releases=false" >> "$GITHUB_OUTPUT"
             echo "tags_created=" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          
+          # Find all package.json files in apps and packages
+          PACKAGE_JSONS=$(find apps packages -name "package.json" -not -path "*/node_modules/*")
+          
+          # Variables to track results
+          CREATED_RELEASES="false"
+          TAGS_CREATED=""
+          
+          # Process each package
+          for PKG_JSON in ${PACKAGE_JSONS}; do
+            # Get package info
+            PKG_NAME=$(node -p "require('./${PKG_JSON}').name")
+            PKG_VERSION=$(node -p "require('./${PKG_JSON}').version")
+            PKG_DIR=$(dirname "${PKG_JSON}")
+            
+            # Skip packages without proper version or name
+            if [[ -z "${PKG_VERSION}" || "${PKG_VERSION}" == "0.0.0" || -z "${PKG_NAME}" ]]; then
+              echo "Skipping ${PKG_JSON} - invalid name or version"
+              continue
+            fi
+            
+            # Check for version in git history
+            TAG_NAME="${PKG_NAME}@${PKG_VERSION}"
+            CLEAN_TAG_NAME=$(echo "${TAG_NAME}" | sed 's/\//--/g') # Replace / with -- for tag names
+            
+            echo "Checking tag: ${CLEAN_TAG_NAME}"
+            
+            # Check if tag already exists
+            if git tag -l | grep -q "^${CLEAN_TAG_NAME}$"; then
+              echo "Tag ${CLEAN_TAG_NAME} already exists, skipping release"
+              continue
+            fi
+            
+            # Look for changelog
+            CHANGELOG_PATH="${PKG_DIR}/CHANGELOG.md"
+            RELEASE_NOTES=""
+            
+            if [[ -f "${CHANGELOG_PATH}" ]]; then
+              # Extract the most recent changelog entry (between the first and second ## headings)
+              RELEASE_NOTES=$(awk 'BEGIN{flag=0} /^## / {if (flag==1) {exit} flag=1; print; next} flag==1 {print}' "${CHANGELOG_PATH}")
+            fi
+            
+            if [[ -z "${RELEASE_NOTES}" ]]; then
+              # If no changelog, create a basic note
+              RELEASE_NOTES="Release ${PKG_NAME}@${PKG_VERSION}"
+            fi
+            
+            echo "Creating tag and release for ${PKG_NAME} version ${PKG_VERSION}"
+            
+            # Create the tag
+            git tag -a "${CLEAN_TAG_NAME}" -m "Release ${CLEAN_TAG_NAME}"
+            git push origin "${CLEAN_TAG_NAME}"
+            
+            # Create GitHub release with extracted notes
+            echo "${RELEASE_NOTES}" > release_notes.md
+            gh release create "${CLEAN_TAG_NAME}" \
+              --title "Release ${CLEAN_TAG_NAME}" \
+              --notes-file release_notes.md
+            
+            # Update tracking variables
+            CREATED_RELEASES="true"
+            TAGS_CREATED="${TAGS_CREATED}${CLEAN_TAG_NAME}, "
+            
+            echo "Created release for ${PKG_NAME} version ${PKG_VERSION}"
+          done
+          
+          # Trim trailing comma and space from tags list
+          TAGS_CREATED="${TAGS_CREATED%, }"
+          
+          # Set outputs
+          echo "created_releases=${CREATED_RELEASES}" >> "$GITHUB_OUTPUT"
+          echo "tags_created=${TAGS_CREATED}" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

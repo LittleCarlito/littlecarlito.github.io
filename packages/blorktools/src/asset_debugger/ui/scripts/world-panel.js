@@ -2348,4 +2348,45 @@ function createSimplePreview(THREE, texture, canvas) {
     });
     
     observer.observe(document.body, { childList: true, subtree: true });
-} 
+}
+
+// Add event listener for lighting-updated custom event
+document.addEventListener('lighting-updated', function(e) {
+    console.log('Received lighting-updated event:', e.detail);
+    
+    // Show the lighting info section and hide the no data message
+    const noDataMessage = document.querySelector('.no-data-message');
+    const lightingDataInfo = document.querySelector('.lighting-data-info');
+    
+    if (noDataMessage && lightingDataInfo) {
+        console.log('Updating UI for example lighting');
+        noDataMessage.style.display = 'none';
+        lightingDataInfo.style.display = 'block';
+        
+        // Update the lighting info with example data
+        const metadata = {
+            fileName: e.detail.description || 'Example Lighting',
+            type: e.detail.type || 'default',
+            description: e.detail.description || 'Default Example Lighting',
+            dimensions: { width: 0, height: 0 },
+            fileSizeBytes: 0
+        };
+        
+        // Update UI with simplified metadata
+        const filenameEl = document.getElementById('lighting-filename');
+        const typeEl = document.getElementById('lighting-type');
+        
+        if (filenameEl) filenameEl.textContent = metadata.fileName;
+        if (typeEl) typeEl.textContent = metadata.type;
+        
+        // Update lighting controls visibility
+        updateSliderVisibility(true);
+        
+        // Update lighting message to show information
+        updateLightingMessage();
+        
+        console.log('Updated lighting info UI with example lighting data');
+    } else {
+        console.warn('Could not find lighting UI elements to update');
+    }
+});

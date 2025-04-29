@@ -22,9 +22,9 @@ wait_for_checks() {
     local interval=10
     local elapsed=0
     
-    while [ $elapsed -lt $timeout ]; do
-        # Get all check runs for this commit
-        CHECK_RUNS=$(gh api /repos/$repo/commits/$sha/check-runs)
+    while [ $elapsed -lt "$timeout" ]; do
+        # Get all check runs for this commit using properly quoted paths
+        CHECK_RUNS=$(gh api "/repos/${repo}/commits/${sha}/check-runs" || echo '{"check_runs":[], "total_count":0}')
         
         # Validate the response structure
         if ! echo "$CHECK_RUNS" | jq -e '.check_runs' > /dev/null 2>&1; then
@@ -63,9 +63,13 @@ wait_for_checks() {
             # Check if input is an --arg parameter or a regular query
             if [[ "$query" == "--arg"* ]]; then
                 # If it contains --arg, split it and run jq properly with arguments
-                local arg_name=$(echo "$query" | awk '{print $2}')
-                local arg_value=$(echo "$query" | awk '{print $3}')
-                local actual_query=$(echo "$query" | awk '{$1=$2=$3=""; print $0}' | sed 's/^[ \t]*//')
+                local arg_name
+                local arg_value
+                local actual_query
+                
+                arg_name=$(echo "$query" | awk '{print $2}')
+                arg_value=$(echo "$query" | awk '{print $3}')
+                actual_query=$(echo "$query" | awk '{$1=$2=$3=""; print $0}' | sed 's/^[ \t]*//')
                 
                 result=$(echo "$CHECK_RUNS" | jq --arg "$arg_name" "$arg_value" "$actual_query" 2>"$ERROR_LOG" || echo "$default")
             else
@@ -149,7 +153,10 @@ $check_name"
         
         echo "Identified as our workflow checks:" >&2
         if [[ -n "$workflow_check_names" ]]; then
-            echo "$workflow_check_names" | sed 's/^/  - /' >&2
+            # Use parameter expansion with a loop instead of sed
+            while IFS= read -r line; do
+                echo "  - $line" >&2
+            done <<< "$workflow_check_names"
         else
             echo "  (none)" >&2
         fi
@@ -205,7 +212,7 @@ $check_name"
         # If any checks failed, exit
         if [ "$FAILED_CHECKS" != "0" ]; then
             echo "Some checks failed. Aborting." >&2
-            printf "checks_status=failed\n"
+            printf "%s\n" "checks_status=failed"
             return 1
         fi
         
@@ -223,17 +230,17 @@ $check_name"
         # 2. All non-workflow checks are complete (don't require the workflow itself to complete)
         if [ "$COMPLETED_CHECKS" = "$TOTAL_CHECKS" ] || [ "$NON_WORKFLOW_COMPLETED" = "$NON_WORKFLOW_TOTAL" ]; then
             echo "All required checks completed successfully (except possibly our own workflow)!" >&2
-            printf "checks_status=success\n"
-            printf "completed_checks=$COMPLETED_CHECKS\n"
-            printf "total_checks=$TOTAL_CHECKS\n"
-            printf "successful_checks=$SUCCESSFUL_CHECKS\n"
+            printf "%s\n" "checks_status=success"
+            printf "%s\n" "completed_checks=${COMPLETED_CHECKS}"
+            printf "%s\n" "total_checks=${TOTAL_CHECKS}"
+            printf "%s\n" "successful_checks=${SUCCESSFUL_CHECKS}"
             return 0
         fi
         
         # Check if we're out of time
-        if [ $elapsed -ge $timeout ]; then
+        if [ $elapsed -ge "$timeout" ]; then
             echo "Timeout waiting for checks to complete." >&2
-            printf "checks_status=timeout\n"
+            printf "%s\n" "checks_status=timeout"
             return 1
         fi
         
@@ -246,7 +253,7 @@ $check_name"
     [ -f "$ERROR_LOG" ] && rm -f "$ERROR_LOG"
     
     echo "Timeout waiting for checks to complete." >&2
-    printf "checks_status=timeout\n"
+    printf "%s\n" "checks_status=timeout"
     return 1
 }
 

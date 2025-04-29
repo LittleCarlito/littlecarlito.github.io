@@ -80,12 +80,64 @@ header {
     height: 50px;
 }
 
+/* Title area with debug controls */
+.title-area {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
 /* Ensure right-side buttons are properly aligned */
 .header-controls {
     display: flex;
     align-items: center;
     gap: 10px;
     margin-right: 0; /* Remove any potential margin */
+}
+
+/* Debug controls in the header */
+.debug-controls {
+    display: none; /* Hidden by default, shown when debugging starts */
+    align-items: center;
+    gap: 10px;
+}
+
+/* Style for the restart button in the header */
+.restart-button {
+    background-color: var(--button-color);
+    color: white;
+    border: none;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 13px;
+    border-radius: 4px;
+    font-family: monospace;
+    transition: all 0.3s ease;
+    height: 28px;
+}
+
+.restart-button:hover {
+    background-color: #0d74c7;
+}
+
+/* Style for the settings button in the header */
+.settings-button {
+    background-color: transparent;
+    border: 1px solid var(--button-color);
+    color: var(--button-color);
+    cursor: pointer;
+    padding: 3px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    height: 28px;
+    width: 28px;
+}
+
+.settings-button:hover {
+    background-color: rgba(30, 136, 229, 0.2);
 }
 
 h1 {
@@ -226,11 +278,40 @@ h3 {
 .dropzone.has-file {
     border: 2px solid var(--primary-color); /* Green when file dropped */
     box-shadow: var(--success-glow);
-    cursor: default;
+    cursor: default; /* Change cursor to default for filled dropzones */
 }
 
 .dropzone:not(.has-file):hover {
     background-color: rgba(50, 50, 50, 0.4);
+}
+
+/* Preview styling to indicate it's interactive */
+.dropzone.has-file .preview,
+.dropzone.has-file .texture-preview-container,
+.dropzone.has-file .hdr-preview-container,
+.dropzone.has-file .model-preview-container {
+    cursor: grab; /* Show grab cursor to indicate the preview can be interacted with */
+    border: 1px solid var(--panel-border);
+    background-color: rgba(0,0,0,0.2);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+/* When actively dragging/interacting */
+.dropzone.has-file .preview:active,
+.dropzone.has-file .texture-preview-container:active,
+.dropzone.has-file .hdr-preview-container:active,
+.dropzone.has-file .model-preview-container:active {
+    cursor: grabbing; /* Change to grabbing cursor when being moved */
+}
+
+/* Hover effect for previews */
+.dropzone.has-file .preview:hover,
+.dropzone.has-file .texture-preview-container:hover,
+.dropzone.has-file .hdr-preview-container:hover,
+.dropzone.has-file .model-preview-container:hover {
+    border-color: var(--button-color);
+    box-shadow: 0 0 5px rgba(30, 136, 229, 0.5);
 }
 
 .dropzone h3 {

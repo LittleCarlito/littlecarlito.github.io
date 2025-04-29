@@ -602,9 +602,12 @@ function verifyFileDrop() {
             // Load settings for use with examples
             const savedSettings = loadSettings();
             
-            // Initialize the examples modal with initializeDebugger as the callback
-            // This bypasses startDebugging to avoid circular reference
-            const examplesModal = new ExamplesModal(() => {
+            // Initialize the examples modal with a callback that can handle different examples
+            const examplesModal = new ExamplesModal((exampleType) => {
+                // Set flag in state to track which example was selected
+                stateModule.setState({ selectedExample: exampleType });
+                
+                // Initialize the debugger with the loaded settings
                 initializeDebugger(savedSettings);
             });
             
@@ -899,14 +902,15 @@ function restartDebugging() {
  * @param {Object} settings - The application settings
  */
 function initializeDebugger(settings) {
-    // HTML UI handling code - hide upload section, show restart button
+    // HTML UI handling code - hide upload section, show debug controls in header
     const uploadSection = document.getElementById('upload-section');
-    const restartContainer = document.getElementById('debug-button-container');
+    const debugControls = document.querySelector('.debug-controls');
+    
     if (uploadSection) {
         uploadSection.style.display = 'none';
     }
-    if (restartContainer) {
-        restartContainer.style.display = 'flex';
+    if (debugControls) {
+        debugControls.style.display = 'flex';
     }
     
     // Get elements

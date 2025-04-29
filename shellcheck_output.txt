@@ -1,0 +1,141 @@
+
+In .github/workflows/push-create-pr.yml line 1:
+name: Push and Create PR
+^-- SC2148 (error): Tips depend on target shell and yours is unknown. Add a shebang or a 'shell' directive.
+
+
+In .github/workflows/push-create-pr.yml line 6:
+      - main
+      ^-- SC2215 (warning): This flag is used as a command name. Bad line break or missing [ .. ]?
+
+
+In .github/workflows/push-create-pr.yml line 30:
+          - 'true'
+          ^-- SC2215 (warning): This flag is used as a command name. Bad line break or missing [ .. ]?
+
+
+In .github/workflows/push-create-pr.yml line 31:
+          - 'false'
+          ^-- SC2215 (warning): This flag is used as a command name. Bad line break or missing [ .. ]?
+
+
+In .github/workflows/push-create-pr.yml line 44:
+      - name: Checkout repository
+      ^-- SC2215 (warning): This flag is used as a command name. Bad line break or missing [ .. ]?
+
+
+In .github/workflows/push-create-pr.yml line 48:
+          token: ${{ secrets.PR_CREATION_TOKEN }}
+                 ^-----------------------------^ SC2086 (info): Double quote to prevent globbing and word splitting.
+                   ^--------------------------^ SC2296 (error): Parameter expansions can't start with {. Double check syntax.
+                                                ^-- SC1083 (warning): This } is literal. Check expression (missing ;/\n?) or quote it.
+
+Did you mean: 
+          token: "${{ secrets.PR_CREATION_TOKEN }"}
+
+
+In .github/workflows/push-create-pr.yml line 50:
+          ref: ${{ github.head_ref || github.ref_name }}
+               ^-- SC2086 (info): Double quote to prevent globbing and word splitting.
+                 ^-- SC2296 (error): Parameter expansions can't start with {. Double check syntax.
+                                                       ^-- SC1083 (warning): This } is literal. Check expression (missing ;/\n?) or quote it.
+
+Did you mean: 
+          ref: "${{ github.head_ref || github.ref_name }"}
+
+
+In .github/workflows/push-create-pr.yml line 53:
+      - name: Extract branch info
+      ^-- SC2215 (warning): This flag is used as a command name. Bad line break or missing [ .. ]?
+
+
+In .github/workflows/push-create-pr.yml line 56:
+          if [ "${{ github.event_name }}" == "push" ]; then
+                  ^------------------^ SC2296 (error): Parameter expansions can't start with {. Double check syntax.
+                                          ^-- SC2193 (warning): The arguments to this comparison can never be equal. Make sure your syntax is correct.
+
+
+In .github/workflows/push-create-pr.yml line 83:
+            if [ -n "${{ github.event.inputs.branch_name }}" ]; then
+                       ^-- SC2296 (error): Parameter expansions can't start with {. Double check syntax.
+                                                          ^-- SC2157 (error): Argument to -n is always true due to literal strings.
+
+
+In .github/workflows/push-create-pr.yml line 84:
+              BRANCH="${{ github.event.inputs.branch_name }}"
+                        ^-- SC2296 (error): Parameter expansions can't start with {. Double check syntax.
+
+
+In .github/workflows/push-create-pr.yml line 92:
+              echo "title=${{ github.event.inputs.title }}"
+                            ^--------------------------^ SC2296 (error): Parameter expansions can't start with {. Double check syntax.
+
+
+In .github/workflows/push-create-pr.yml line 93:
+              echo "body=${{ github.event.inputs.body }}"
+                           ^-------------------------^ SC2296 (error): Parameter expansions can't start with {. Double check syntax.
+
+
+In .github/workflows/push-create-pr.yml line 94:
+              echo "target_branch=${{ github.event.inputs.target_branch }}"
+                                    ^-- SC2296 (error): Parameter expansions can't start with {. Double check syntax.
+
+
+In .github/workflows/push-create-pr.yml line 95:
+              echo "auto_merge=${{ github.event.inputs.auto_merge }}"
+                                 ^-- SC2296 (error): Parameter expansions can't start with {. Double check syntax.
+
+
+In .github/workflows/push-create-pr.yml line 100:
+      - name: Fetch target branch
+      ^-- SC2215 (warning): This flag is used as a command name. Bad line break or missing [ .. ]?
+
+
+In .github/workflows/push-create-pr.yml line 103:
+          TARGET_BRANCH="${{ steps.branch_info.outputs.target_branch || 'main' }}"
+          ^-----------^ SC2030 (info): Modification of TARGET_BRANCH is local (to subshell caused by pipeline).
+                           ^-- SC2296 (error): Parameter expansions can't start with {. Double check syntax.
+
+
+In .github/workflows/push-create-pr.yml line 104:
+          echo "Fetching target branch: ${TARGET_BRANCH}"
+                                        ^--------------^ SC2031 (info): TARGET_BRANCH was modified in a subshell. That change might be lost.
+
+
+In .github/workflows/push-create-pr.yml line 105:
+          git fetch origin "${TARGET_BRANCH}":refs/remotes/origin/"${TARGET_BRANCH}"
+                            ^--------------^ SC2031 (info): TARGET_BRANCH was modified in a subshell. That change might be lost.
+                                                                   ^--------------^ SC2031 (info): TARGET_BRANCH was modified in a subshell. That change might be lost.
+
+
+In .github/workflows/push-create-pr.yml line 112:
+          git branch --track "${TARGET_BRANCH}" origin/"${TARGET_BRANCH}" || echo "Branch already exists"
+                              ^--------------^ SC2031 (info): TARGET_BRANCH was modified in a subshell. That change might be lost.
+                                                        ^--------------^ SC2031 (info): TARGET_BRANCH was modified in a subshell. That change might be lost.
+
+
+In .github/workflows/push-create-pr.yml line 115:
+      - name: Setup Node.js
+      ^-- SC2215 (warning): This flag is used as a command name. Bad line break or missing [ .. ]?
+
+
+In .github/workflows/push-create-pr.yml line 120:
+      - name: Setup pnpm
+      ^-- SC2215 (warning): This flag is used as a command name. Bad line break or missing [ .. ]?
+
+
+In .github/workflows/push-create-pr.yml line 125:
+      - name: Install dependencies
+      ^-- SC2215 (warning): This flag is used as a command name. Bad line break or missing [ .. ]?
+
+
+In .github/workflows/push-create-pr.yml line 129:
+      - name: Create branch (for workflow_dispatch)
+      ^-- SC2215 (warning): This flag is used as a command name. Bad line break or missing [ .. ]?
+                            ^-- SC1036 (error): '(' is invalid here. Did you forget to escape it?
+                            ^-- SC1088 (error): Parsing stopped here. Invalid use of parentheses?
+
+For more information:
+  https://www.shellcheck.net/wiki/SC2148 -- Tips depend on target shell and y...
+  https://www.shellcheck.net/wiki/SC2157 -- Argument to -n is always true due...
+  https://www.shellcheck.net/wiki/SC2296 -- Parameter expansions can't start ...
