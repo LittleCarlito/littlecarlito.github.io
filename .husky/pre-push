@@ -1,8 +1,8 @@
 #!/bin/bash
 # Running pre-push checks directly without husky sourcing
 
-# Don't exit on error to allow debug logging
-set +e
+# Exit on error to fail immediately when versioning issues occur
+set -e
 
 # Change to repository root directory to ensure commands work correctly
 cd "$(git rev-parse --show-toplevel)" || exit 1
@@ -60,8 +60,20 @@ else
         # Make the script executable
         chmod +x "$VERSIONING_SCRIPT"
         
+        # Get the first commit of the repository
+        FIRST_COMMIT=$(git rev-list --max-parents=0 HEAD)
+        echo "Using first commit as starting reference: $FIRST_COMMIT"
+        
         # Run the version script without the dry-run flag to actually apply changes
-        node "$VERSIONING_SCRIPT" --to=$BRANCH --from=beginning
+        node "$VERSIONING_SCRIPT" --to=$BRANCH --from=$FIRST_COMMIT
+        VERSION_SCRIPT_STATUS=$?
+        
+        # Check if version script failed
+        if [ $VERSION_SCRIPT_STATUS -ne 0 ]; then
+            echo "❌ Error: Version script failed with exit code $VERSION_SCRIPT_STATUS"
+            echo "Push aborted to prevent inconsistent versioning"
+            exit 1
+        fi
         
         # Check if changesets were created
         if [ -d ".changeset" ] && [ "$(ls -A .changeset/*.md 2>/dev/null)" ]; then
@@ -73,6 +85,14 @@ else
             
             # Apply the changesets to update package.json files
             pnpm changeset version
+            CHANGESET_STATUS=$?
+            
+            # Check if changeset version command failed
+            if [ $CHANGESET_STATUS -ne 0 ]; then
+                echo "❌ Error: Changeset version command failed with exit code $CHANGESET_STATUS"
+                echo "Push aborted to prevent inconsistent versioning"
+                exit 1
+            fi
             
             # Check if any files were changed
             if [ -n "$(git status --porcelain)" ]; then
@@ -91,16 +111,24 @@ Applied version changes automatically."
                 
                 echo "✅ Version changes committed! Continuing with push..."
             else
-                echo "No changes to package.json files"
+                echo "No changes to package.json files - this shouldn't happen with detected version changes"
+                echo "Push aborted to investigate versioning discrepancy"
+                exit 1
             fi
         else
-            echo "No changesets were created - no version changes needed"
+            echo "❌ Error: No changesets were created despite detecting version changes"
+            echo "Push aborted to prevent inconsistent versioning"
+            exit 1
         fi
     else
         echo "⚠️ Versioning script not found at $VERSIONING_SCRIPT"
-        echo "Skipping version analysis"
+        echo "Push aborted - versioning script is required"
+        exit 1
     fi
 fi
+
+# Don't exit on error for the remainder of the script to allow debug logging
+set +e
 
 # Check for changes outside development/ and public/ directories
 echo "Checking for relevant file changes..."
