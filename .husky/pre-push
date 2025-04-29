@@ -77,19 +77,19 @@ else
         
         # Check if changesets were created
         if [ -d ".changeset" ] && [ "$(ls -A .changeset/*.md 2>/dev/null)" ]; then
-            echo "Applying changesets to update package.json files"
+            echo "Applying custom version updates based on test-version output"
             
             # Show changeset content before applying
             echo "Changeset content:"
             cat .changeset/*.md
             
-            # Apply the changesets to update package.json files
-            pnpm changeset version
-            CHANGESET_STATUS=$?
+            # Apply versions using our custom script instead of changeset version
+            node .github/scripts/versioning/apply-custom-versions.js --branch=$BRANCH
+            CUSTOM_VERSION_STATUS=$?
             
-            # Check if changeset version command failed
-            if [ $CHANGESET_STATUS -ne 0 ]; then
-                echo "❌ Error: Changeset version command failed with exit code $CHANGESET_STATUS"
+            # Check if our custom version script failed
+            if [ $CUSTOM_VERSION_STATUS -ne 0 ]; then
+                echo "❌ Error: Custom version application failed with exit code $CUSTOM_VERSION_STATUS"
                 echo "Push aborted to prevent inconsistent versioning"
                 exit 1
             fi
@@ -107,7 +107,7 @@ else
 
 $VERSION_SUMMARY
 
-Applied version changes automatically."
+Applied custom version changes automatically."
                 
                 echo "✅ Version changes committed! Continuing with push..."
             else
