@@ -254,7 +254,8 @@ jobs:
             
             # Check for version in git history
             TAG_NAME="${PKG_NAME}@${PKG_VERSION}"
-            CLEAN_TAG_NAME=$(echo "${TAG_NAME}" | sed 's/\//--/g') # Replace / with -- for tag names
+            # Use the TAG_NAME directly without modification
+            CLEAN_TAG_NAME="${TAG_NAME}"
             
             echo "Checking tag: ${CLEAN_TAG_NAME}"
             

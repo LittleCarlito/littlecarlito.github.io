@@ -61,7 +61,7 @@ else
         chmod +x "$VERSIONING_SCRIPT"
         
         # Run the version script without the dry-run flag to actually apply changes
-        node "$VERSIONING_SCRIPT" --to=$BRANCH
+        node "$VERSIONING_SCRIPT" --to=$BRANCH --from=beginning
         
         # Check if changesets were created
         if [ -d ".changeset" ] && [ "$(ls -A .changeset/*.md 2>/dev/null)" ]; then
