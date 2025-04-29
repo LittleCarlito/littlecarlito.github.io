@@ -6,7 +6,6 @@
 import { getState, updateState } from '../core/state.js';
 import { loadTextureFromFile, formatFileSize } from '../core/materials.js';
 import { updateAtlasVisualization } from './scripts/atlas-panel.js';
-import { setupEnvironmentLighting, parseLightingData } from '../core/lighting-util.js';
 // Import for HDR/EXR preview rendering
 import * as worldPanelModule from './scripts/world-panel.js';
 // Import for GLB model preview
