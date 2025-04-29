@@ -177,7 +177,7 @@ jobs:
             echo "EOF"
           } >> "${GITHUB_OUTPUT}"
       
-      # Apply version changes if found
+      # NEW: Apply version changes if found
       - name: Apply version changes
         if: steps.analyze-versions.outputs.hasChanges == 'true'
         uses: ./.github/actions/version-from-commits
@@ -186,63 +186,6 @@ jobs:
           base-ref: ${{ steps.branch_info.outputs.target_branch || 'main' }}
           head-ref: ${{ steps.branch_info.outputs.branch }}
           dry-run: 'false'
-      
-      # Check if version tags exist on GitHub - run regardless of hasChanges
-      - name: Check for unpublished version tags
-        id: check_unpublished_tags
-        shell: bash
-        run: |
-          # Configure Git user information
-          git config --global user.name "Github Actions"
-          git config --global user.email "actions@github.com"
-          
-          # Use process substitution to avoid subshell variable scope issues
-          NEED_TAG_CREATION="false"
-          
-          # Process each package using a safer while read loop with process substitution
-          while IFS= read -r -d '' PKG_JSON; do
-            if [ -f "${PKG_JSON}" ]; then
-              # Get package info with proper quoting
-              PKG_NAME=$(node -p "require('${PKG_JSON}').name" || echo "")
-              PKG_VERSION=$(node -p "require('${PKG_JSON}').version" || echo "")
-              
-              # Skip packages without proper version or name
-              if [[ -z "${PKG_VERSION}" || "${PKG_VERSION}" == "0.0.0" || -z "${PKG_NAME}" ]]; then
-                echo "Skipping ${PKG_JSON} - invalid name or version"
-                continue
-              fi
-              
-              # Format tag name with proper quoting
-              TAG_NAME="${PKG_NAME}@${PKG_VERSION}"
-              CLEAN_TAG_NAME=$(echo "${TAG_NAME}" | sed 's/\//--/g') # Replace / with -- for tag names
-              
-              echo "Checking if tag exists remotely: ${CLEAN_TAG_NAME}"
-              
-              # Check if tag exists remotely (on GitHub) with safe quoting
-              if ! git ls-remote --tags origin | grep -q "refs/tags/${CLEAN_TAG_NAME}$"; then
-                echo "Tag ${CLEAN_TAG_NAME} does not exist on GitHub"
-                NEED_TAG_CREATION="true"
-                break  # One missing tag is enough to set the flag
-              fi
-            fi
-          done < <(find . -name "package.json" -not -path "*/node_modules/*" -print0)
-          
-          # Output result for use in main-pipeline workflow
-          echo "need_tag_creation=${NEED_TAG_CREATION}" >> "$GITHUB_OUTPUT"
-          echo "Tags check complete. Need to create tags: ${NEED_TAG_CREATION}"
-          
-          # Create a commit with this information if tags need creation
-          if [[ "${NEED_TAG_CREATION}" == "true" ]]; then
-            echo "Adding tag creation flag to commit message"
-            # Add a special marker to the commit that the main pipeline can detect
-            echo "NEEDS_TAG_CREATION=true" > .tag-creation-flag
-            
-            # Try to add the file to git
-            git add .tag-creation-flag || echo "Could not add .tag-creation-flag, continuing anyway"
-            
-            # Use --allow-empty to create a commit even if there are no changes
-            git commit --allow-empty -m "chore: flag commit for tag creation [ci create-tags]"
-          fi
       
       # Push branch
       - name: Push changes
@@ -276,13 +219,12 @@ jobs:
           # We need to get the SHA from the PR
           SHA="${{ steps.push_changes.outputs.commit_sha }}"
           
-          # Execute with proper quoting for all arguments
-          bash ".github/scripts/branch/wait-checks.sh" \
-            --repo="${{ github.repository }}" \
-            --sha="${SHA}" \
-            --workflow="Push and Create PR" \
-            --timeout="300" \
-            --min-checks="2"  # Adjust based on expected number of checks
+          bash .github/scripts/branch/wait-checks.sh \
+            --repo "${{ github.repository }}" \
+            --sha "${SHA}" \
+            --workflow "Push and Create PR" \
+            --timeout "300" \
+            --min-checks "2"  # Adjust based on expected number of checks
             
           echo "All required checks have completed successfully!"
         env:
