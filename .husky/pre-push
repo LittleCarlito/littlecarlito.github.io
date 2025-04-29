@@ -34,6 +34,70 @@ fi
 # Get the current branch name
 BRANCH=$(git symbolic-ref --short HEAD)
 
+# Check for version changes using test-version script
+echo "📦 Checking for version changes..."
+
+# Run test-version to check if versions need to be bumped
+echo "Running pnpm test-version..."
+VERSION_OUTPUT=$(pnpm test-version --branch=$BRANCH 2>&1)
+VERSION_STATUS=$?
+
+echo "$VERSION_OUTPUT"
+
+# Check if version changes were detected (this depends on how test-version reports changes)
+if echo "$VERSION_OUTPUT" | grep -q "No version changes detected"; then
+    echo "✅ No version changes needed"
+else
+    echo "🔄 Version changes detected - applying changes..."
+    
+    # Set up git config for the potential commit
+    git config user.name "$(git config user.name)" # Use current git config
+    git config user.email "$(git config user.email)" # Use current git config
+    
+    # Run the version script without dry-run to apply changes
+    VERSIONING_SCRIPT=".github/scripts/versioning/version-from-commits.js"
+    if [ -f "$VERSIONING_SCRIPT" ]; then
+        # Make the script executable
+        chmod +x "$VERSIONING_SCRIPT"
+        
+        # Run the version script without the dry-run flag to actually apply changes
+        node "$VERSIONING_SCRIPT" --to=$BRANCH
+        
+        # Check if changesets were created
+        if [ -d ".changeset" ] && [ "$(ls -A .changeset/*.md 2>/dev/null)" ]; then
+            echo "Applying changesets to update package.json files"
+            
+            # Apply the changesets to update package.json files
+            pnpm changeset version
+            
+            # Check if any files were changed
+            if [ -n "$(git status --porcelain)" ]; then
+                echo "✅ Version changes detected and applied"
+                
+                # Get summary of version changes for commit message
+                VERSION_SUMMARY=$(pnpm test-version --branch=$BRANCH 2>&1 | grep -A 10 "Version Changes:" | grep -v "This is a dry run")
+                
+                # Commit the version changes
+                git add .
+                git commit -m "chore(release): update versions based on branch analysis
+
+$VERSION_SUMMARY
+
+Applied version changes automatically."
+                
+                echo "✅ Version changes committed! Continuing with push..."
+            else
+                echo "No changes to package.json files"
+            fi
+        else
+            echo "No changesets were created - no version changes needed"
+        fi
+    else
+        echo "⚠️ Versioning script not found at $VERSIONING_SCRIPT"
+        echo "Skipping version analysis"
+    fi
+fi
+
 # Check for changes outside development/ and public/ directories
 echo "Checking for relevant file changes..."
 

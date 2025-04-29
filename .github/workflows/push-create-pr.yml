@@ -148,45 +148,6 @@ jobs:
           git add .
           git commit -m "${{ steps.branch_info.outputs.title }}"
       
-      # NEW: Analyze version changes before PR creation
-      - name: Analyze version changes
-        id: analyze-versions
-        uses: ./.github/actions/analyze-pr-versions
-        with:
-          github-token: ${{ secrets.PR_CREATION_TOKEN }}
-          base-ref: ${{ steps.branch_info.outputs.target_branch || 'main' }}
-          head-ref: ${{ steps.branch_info.outputs.branch }}
-          update-pr: 'false'  # Don't need to update PR as it doesn't exist yet
-
-      # Update PR body with version changes
-      - name: Update PR body with version changes
-        id: update_body
-        if: steps.analyze-versions.outputs.hasChanges == 'true'
-        run: |
-          # Add version changes to the PR body
-          if [ -n "${{ steps.branch_info.outputs.body }}" ]; then
-            NEW_BODY="${{ steps.branch_info.outputs.body }}"$'\n\n'"${{ steps.analyze-versions.outputs.changes-details }}"
-          else
-            NEW_BODY="${{ steps.analyze-versions.outputs.changes-details }}"
-          fi
-          
-          # Output the updated PR body using grouped redirects
-          {
-            echo "body<<EOF"
-            echo "${NEW_BODY}"
-            echo "EOF"
-          } >> "${GITHUB_OUTPUT}"
-      
-      # NEW: Apply version changes if found
-      - name: Apply version changes
-        if: steps.analyze-versions.outputs.hasChanges == 'true'
-        uses: ./.github/actions/version-from-commits
-        with:
-          github-token: ${{ secrets.PR_CREATION_TOKEN }}
-          base-ref: ${{ steps.branch_info.outputs.target_branch || 'main' }}
-          head-ref: ${{ steps.branch_info.outputs.branch }}
-          dry-run: 'false'
-      
       # Push branch
       - name: Push changes
         id: push_changes
@@ -206,7 +167,7 @@ jobs:
           base-branch: ${{ steps.branch_info.outputs.target_branch }}
           head-branch: ${{ steps.branch_info.outputs.branch }}
           title: ${{ steps.branch_info.outputs.title }}
-          body: ${{ steps.update_body.outputs.body || steps.branch_info.outputs.body }}
+          body: ${{ steps.branch_info.outputs.body }}
       
       # Wait for GitHub checks to complete
       - name: Wait for checks
