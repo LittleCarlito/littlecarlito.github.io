@@ -602,9 +602,12 @@ function verifyFileDrop() {
             // Load settings for use with examples
             const savedSettings = loadSettings();
             
-            // Initialize the examples modal with initializeDebugger as the callback
-            // This bypasses startDebugging to avoid circular reference
-            const examplesModal = new ExamplesModal(() => {
+            // Initialize the examples modal with a callback that can handle different examples
+            const examplesModal = new ExamplesModal((exampleType) => {
+                // Set flag in state to track which example was selected
+                stateModule.setState({ selectedExample: exampleType });
+                
+                // Initialize the debugger with the loaded settings
                 initializeDebugger(savedSettings);
             });
             
@@ -899,31 +902,43 @@ function restartDebugging() {
  * @param {Object} settings - The application settings
  */
 function initializeDebugger(settings) {
-    // HTML UI handling code - hide upload section, show restart button
+    // HTML UI handling code - hide upload section, show debug controls in header
     const uploadSection = document.getElementById('upload-section');
-    const restartContainer = document.getElementById('debug-button-container');
-    if (uploadSection) {
-        uploadSection.style.display = 'none';
-    }
-    if (restartContainer) {
-        restartContainer.style.display = 'flex';
-    }
-    
-    // Get elements
+    const debugControls = document.querySelector('.debug-controls');
     const viewport = document.getElementById('viewport');
     const tabContainer = document.getElementById('tab-container');
     
-    // Show viewport and tab container
+    if (uploadSection) {
+        uploadSection.style.display = 'none';
+    }
+    
+    if (debugControls) {
+        debugControls.style.display = 'flex';
+    }
+    
+    // Show viewport
     if (viewport) {
         viewport.style.display = 'block';
     }
     
+    // Make the tab container visible once debugging starts, respecting saved hidden state
     if (tabContainer) {
-        tabContainer.style.display = 'flex';
+        const isPanelHidden = settings && settings.tabPanelHidden;
+        
+        if (isPanelHidden) {
+            // Keep panel hidden if that was the saved state
+            tabContainer.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+        } else {
+            // Otherwise make it visible
+            tabContainer.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important;';
+        }
     }
     
     // Set up tab navigation
     setupTabNavigation();
+    
+    // Set up toggle panel button
+    setupTogglePanelButton();
     
     // Now that the user has clicked "Start Debugging", we can initialize all the panels
     console.log('Start debugging clicked - initializing panels...');
@@ -1008,6 +1023,113 @@ function activateWorldTab() {
     if (atlasTabButton) atlasTabButton.classList.remove('active');
     if (uvTabButton) uvTabButton.classList.remove('active');
     if (rigTabButton) rigTabButton.classList.remove('active');
+}
+
+/**
+ * Sets up the toggle panel button to show/hide the panels
+ */
+function setupTogglePanelButton() {
+    // Debug flag - set to false to disable logging
+    const DEBUG_TOGGLE_PANEL = false;
+    
+    const toggleButton = document.getElementById('toggle-panel');
+    const tabContainer = document.getElementById('tab-container');
+    
+    if (!toggleButton || !tabContainer) {
+        if (DEBUG_TOGGLE_PANEL) {
+            console.error('Toggle panel setup failed: button or tab container not found', {
+                toggleButton: toggleButton ? 'found' : 'missing', 
+                tabContainer: tabContainer ? 'found' : 'missing'
+            });
+        }
+        return;
+    }
+    
+    if (DEBUG_TOGGLE_PANEL) {
+        console.log('Setting up toggle panel button', {
+            buttonEl: toggleButton,
+            tabContainerEl: tabContainer,
+            initialTabDisplay: tabContainer.style.display,
+            initialTabVisibility: tabContainer.style.visibility,
+            tabClassList: Array.from(tabContainer.classList)
+        });
+    }
+    
+    // Load the panel state from localStorage
+    import('../../data/localstorage-util.js').then(({ loadSettings, saveSettings }) => {
+        const settings = loadSettings() || {};
+        
+        // Initialize panel hidden state from settings (default to false if not set)
+        let isPanelHidden = settings.tabPanelHidden || false;
+        
+        // Apply the initial state based on loaded settings
+        if (isPanelHidden) {
+            // Hide the panel initially
+            tabContainer.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+            toggleButton.classList.add('active');
+            toggleButton.setAttribute('title', 'Show Side Panel');
+        } else {
+            // Show the panel initially
+            tabContainer.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important;';
+            toggleButton.classList.remove('active');
+            toggleButton.setAttribute('title', 'Hide Side Panel');
+        }
+        
+        // Set up click event
+        toggleButton.addEventListener('click', function() {
+            isPanelHidden = !isPanelHidden;
+            
+            if (DEBUG_TOGGLE_PANEL) {
+                console.log('Toggle panel clicked, new state:', {
+                    isPanelHidden: isPanelHidden,
+                    currentDisplayStyle: tabContainer.style.display,
+                    currentVisibilityStyle: tabContainer.style.visibility
+                });
+            }
+            
+            if (isPanelHidden) {
+                // Hide the panel
+                if (DEBUG_TOGGLE_PANEL) console.log('Hiding panel...');
+                tabContainer.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+                
+                // Add "active" style when panel is hidden
+                toggleButton.classList.add('active');
+                
+                // Update tooltip to reflect current state
+                toggleButton.setAttribute('title', 'Show Side Panel');
+                
+                if (DEBUG_TOGGLE_PANEL) {
+                    console.log('Panel hidden, new styles:', {
+                        display: tabContainer.style.display,
+                        visibility: tabContainer.style.visibility,
+                        opacity: tabContainer.style.opacity
+                    });
+                }
+            } else {
+                // Show the panel
+                if (DEBUG_TOGGLE_PANEL) console.log('Showing panel...');
+                tabContainer.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important;';
+                
+                // Remove "active" style when panel is visible
+                toggleButton.classList.remove('active');
+                
+                // Update tooltip to reflect current state
+                toggleButton.setAttribute('title', 'Hide Side Panel');
+                
+                if (DEBUG_TOGGLE_PANEL) {
+                    console.log('Panel shown, new styles:', {
+                        display: tabContainer.style.display,
+                        visibility: tabContainer.style.visibility,
+                        opacity: tabContainer.style.opacity
+                    });
+                }
+            }
+            
+            // Save the new state to localStorage
+            settings.tabPanelHidden = isPanelHidden;
+            saveSettings(settings);
+        });
+    });
 }
 
 // Export for external use

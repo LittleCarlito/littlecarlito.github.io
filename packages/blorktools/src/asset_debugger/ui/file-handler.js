@@ -216,6 +216,12 @@ function clearDropzone(dropzone, fileType, title) {
     infoElement.className = 'file-info';
     infoElement.id = fileType.toLowerCase() + '-info';
     dropzone.appendChild(infoElement);
+    
+    // Get the newly created info element to pass to setupDropzone
+    const newInfoElement = document.getElementById(fileType.toLowerCase() + '-info');
+    
+    // Reattach the dropzone event handlers
+    setupDropzone(dropzone, fileType, newInfoElement || infoElement);
 }
 
 /**
@@ -275,6 +281,16 @@ function handleTextureUpload(file, textureType, infoElement, previewElement, dro
     // Create a container for the preview that will hold both the image and the loading indicator
     const containerDiv = document.createElement('div');
     containerDiv.className = 'texture-preview-container';
+    
+    // Add event listener to prevent click events from reaching the dropzone
+    containerDiv.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+    
+    // Add event listener to prevent mousedown events to avoid accidental drag interactions
+    containerDiv.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+    });
     
     // Add the container directly to the dropzone
     dropzone.appendChild(containerDiv);
@@ -341,6 +357,19 @@ function handleModelUpload(file, infoElement, dropzone) {
     updateState('modelFile', file);
     updateState('useCustomModel', true);
     
+    // If dropzone is null, find it by ID
+    if (!dropzone) {
+        console.log("Dropzone parameter is null, attempting to find model dropzone by ID");
+        dropzone = document.getElementById('model-dropzone');
+        
+        // If still null, just update state and return early
+        if (!dropzone) {
+            console.error("Could not find model-dropzone element, skipping UI update");
+            checkStartButton();
+            return;
+        }
+    }
+    
     // Store original h3 title
     const originalTitle = dropzone.querySelector('h3').textContent;
     
@@ -355,6 +384,17 @@ function handleModelUpload(file, infoElement, dropzone) {
     titleElement.textContent = originalTitle;
     dropzone.appendChild(titleElement);
     
+    // Add a clear button for the model dropzone
+    const clearButton = document.createElement('button');
+    clearButton.className = 'clear-preview-button';
+    clearButton.innerHTML = '&times;';
+    clearButton.title = 'Clear file';
+    clearButton.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent dropzone click event
+        clearDropzone(dropzone, 'model', originalTitle);
+    });
+    dropzone.appendChild(clearButton);
+    
     // Add file info
     infoElement = document.createElement('p');
     infoElement.className = 'file-info';
@@ -364,8 +404,19 @@ function handleModelUpload(file, infoElement, dropzone) {
     
     // Create a preview container
     const previewDiv = document.createElement('div');
-    previewDiv.className = 'preview';
+    previewDiv.className = 'preview model-preview-container';
     previewDiv.id = 'model-preview';
+    
+    // Add event listener to prevent click events from reaching the dropzone
+    previewDiv.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+    
+    // Add event listener to prevent mousedown events to avoid accidental drag interactions
+    previewDiv.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+    });
+    
     dropzone.appendChild(previewDiv);
     
     // Show loading state
@@ -466,6 +517,17 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
     
     const containerDiv = document.createElement('div');
     containerDiv.className = 'hdr-preview-container';
+    
+    // Add event listener to prevent click events from reaching the dropzone
+    containerDiv.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+    
+    // Add event listener to prevent mousedown events to avoid accidental drag interactions
+    containerDiv.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+    });
+    
     previewDiv.appendChild(containerDiv);
     
     // Show loading state directly on the container
@@ -819,6 +881,17 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
     
     const containerDiv = document.createElement('div');
     containerDiv.className = 'hdr-preview-container';
+    
+    // Add event listener to prevent click events from reaching the dropzone
+    containerDiv.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+    
+    // Add event listener to prevent mousedown events to avoid accidental drag interactions
+    containerDiv.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+    });
+    
     previewDiv.appendChild(containerDiv);
     
     // Show loading state directly on the container
@@ -1171,6 +1244,10 @@ export function setupDropzones() {
     dropzones.forEach(dz => {
         if (dz.element && dz.info) {
             setupDropzone(dz.element, dz.type, dz.info);
+        } else if (dz.element) {
+            // If info element not found, still set up the dropzone
+            console.warn(`Info element for ${dz.type} not found, setting up with null infoElement`);
+            setupDropzone(dz.element, dz.type, null);
         }
     });
     
@@ -1184,16 +1261,26 @@ export function setupDropzones() {
  * @param {HTMLElement} infoElement - Element to display file info
  */
 function setupDropzone(dropzone, fileType, infoElement) {
+    if (!dropzone) {
+        console.error(`Error: dropzone is null or undefined for type ${fileType}`);
+        return;
+    }
+    
     // First remove any existing event listeners to prevent duplicates
     const clone = dropzone.cloneNode(true);
     dropzone.parentNode.replaceChild(clone, dropzone);
     dropzone = clone;
-    
+
     const config = FILE_TYPE_CONFIG[fileType];
     
     if (!config) {
         console.error(`No configuration found for file type: ${fileType}`);
         return;
+    }
+    
+    // Refresh infoElement reference if it's null (likely after clearing)
+    if (!infoElement) {
+        infoElement = document.getElementById(fileType.toLowerCase() + '-info');
     }
     
     // Set up the drop event for this dropzone
@@ -1241,6 +1328,7 @@ function setupDropzone(dropzone, fileType, infoElement) {
             if (['baseColor', 'orm', 'normal'].includes(fileType)) {
                 config.handler(file, fileType, infoElement, null, dropzone);
             } else {
+                // Ensure we pass the current dropzone element to the handler
                 config.handler(file, infoElement, null, dropzone);
             }
         } else if (file) {
@@ -1258,7 +1346,27 @@ function setupDropzone(dropzone, fileType, infoElement) {
             return;
         }
         
-        // Create a file input element
+        // If the dropzone has a file (has-file class), only allow drag and drop to replace or clear button
+        if (dropzone.classList.contains('has-file')) {
+            // Check if the click was on a preview element (for example, the 3D model preview or image)
+            // Don't open file dialog if click is on any preview element or inside a preview container
+            const isOnPreview = event.target.closest('.preview') || 
+                               event.target.classList.contains('texture-preview-img') || 
+                               event.target.classList.contains('hdr-preview-canvas') ||
+                               event.target.classList.contains('texture-preview-container') ||
+                               event.target.classList.contains('hdr-preview-container');
+            
+            if (isOnPreview) {
+                // If this is a click on a preview element, just return without opening the file picker
+                return;
+            }
+            
+            // If we get here, this is a click on the dropzone but not on a preview element
+            // Since the dropzone already has a file, do nothing (don't open file dialog)
+            return;
+        }
+        
+        // Create a file input element - only for empty dropzones
         const input = document.createElement('input');
         input.type = 'file';
         
@@ -1278,6 +1386,7 @@ function setupDropzone(dropzone, fileType, infoElement) {
                 if (['baseColor', 'orm', 'normal'].includes(fileType)) {
                     config.handler(file, fileType, infoElement, null, dropzone);
                 } else {
+                    // Make sure to pass the dropzone parameter for all handlers
                     config.handler(file, infoElement, null, dropzone);
                 }
             } else {
