@@ -44,6 +44,7 @@
     "changeset": "changeset",
     "version": "changeset version",
     "version:ci": "node .github/scripts/versioning/version-from-commits.js",
+    "dry-run-changeset": "node scripts/dry-run-changeset.js",
     "release": "changeset publish"
   },
   "dependencies": {

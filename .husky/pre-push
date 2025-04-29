@@ -67,6 +67,10 @@ else
         if [ -d ".changeset" ] && [ "$(ls -A .changeset/*.md 2>/dev/null)" ]; then
             echo "Applying changesets to update package.json files"
             
+            # Show changeset content before applying
+            echo "Changeset content:"
+            cat .changeset/*.md
+            
             # Apply the changesets to update package.json files
             pnpm changeset version
             

@@ -28,11 +28,18 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-// Configuration
-const PACKAGES = ['blorkpack', 'blorktools', 'blorkboard'];
-const APPS = ['portfolio'];
-const ALL_PROJECTS = [...PACKAGES, ...APPS];
-const IGNORE_SCOPES = ['pipeline'];
+// Import shared utilities
+const { 
+  ALL_PROJECTS, 
+  IGNORE_SCOPES, 
+  getCurrentVersion, 
+  calculateNewVersion, 
+  determineBumpType, 
+  getPackageName, 
+  refExists, 
+  escapeRef,
+  createCustomChangeset
+} = require('./version-utils');
 
 // CLI arguments
 const DRY_RUN = process.argv.includes('--dry-run');
@@ -46,22 +53,6 @@ let toRef = toArg ? toArg.split('=')[1] : 'HEAD';
 const outputFormat = formatArg ? formatArg.split('=')[1] : 'default';
 
 console.log(`Analyzing commits from ${fromRef || 'beginning'} to ${toRef}`);
-
-// First verify the refs exist
-function refExists(ref) {
-  try {
-    execSync(`git rev-parse --verify ${ref}`);
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-
-// Properly escape the refs for shell command
-function escapeRef(ref) {
-  if (!ref) return '';
-  return ref.replace(/'/g, "'\\''");
-}
 
 // Verify the refs
 let fromRefValid = fromRef ? refExists(fromRef) : true;
@@ -165,28 +156,6 @@ console.log(`Found ${commits.length} commits to analyze (ordered chronologically
 // Get initial versions for each project
 const accumulatedVersions = {};
 
-// Function to get the current version of a package
-function getCurrentVersion(project) {
-  try {
-    const packageJsonPath = path.join(
-      process.cwd(), 
-      project === 'portfolio' ? 'apps/portfolio' : `packages/${project}`,
-      'package.json'
-    );
-    
-    if (!fs.existsSync(packageJsonPath)) {
-      console.error(`Package.json not found for ${project} at ${packageJsonPath}`);
-      return '0.0.0';
-    }
-    
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-    return packageJson.version || '0.0.0';
-  } catch (error) {
-    console.error(`Error reading version for ${project}:`, error.message);
-    return '0.0.0';
-  }
-}
-
 // Initialize accumulated versions with current versions
 ALL_PROJECTS.forEach(project => {
   accumulatedVersions[project] = getCurrentVersion(project);
@@ -203,24 +172,6 @@ ALL_PROJECTS.forEach(project => {
 });
 
 const commitRegex = /^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert|slice)(\(([^)]+)\))?(!)?:\s(.+)$/;
-
-// Function to calculate the new version based on the current version and bump type
-function calculateNewVersion(currentVersion, bumpType) {
-  if (!bumpType) return currentVersion;
-  
-  const [major, minor, patch] = currentVersion.split('.').map(Number);
-  
-  switch (bumpType) {
-    case 'major':
-      return `${major + 1}.0.0`;
-    case 'minor':
-      return `${major}.${minor + 1}.0`;
-    case 'patch':
-      return `${major}.${minor}.${patch + 1}`;
-    default:
-      return currentVersion;
-  }
-}
 
 // Process each commit sequentially and accumulate versions
 commits.forEach(commit => {
@@ -315,7 +266,7 @@ ALL_PROJECTS.forEach(project => {
 });
 
 // Output final accumulated version changes
-hasChanges = false;
+let hasChanges = false;
 ALL_PROJECTS.forEach(project => {
   const initialVersion = initialVersions[project];
   const finalVersion = accumulatedVersions[project];
@@ -352,36 +303,9 @@ if (DRY_RUN) {
   process.exit(0);
 }
 
-// Create the .changeset directory if it doesn't exist
-const changesetDir = path.join(process.cwd(), '.changeset');
-if (!fs.existsSync(changesetDir)) {
-  fs.mkdirSync(changesetDir, { recursive: true });
-}
-
-// Helper function to get package names from project keys
-function getPackageName(project) {
-  return `@littlecarlito/${project}`;
-}
-
-// Create changesets for the final accumulated versions
-const changesets = [];
-
-// Determine the bump type based on version difference
-function determineBumpType(initialVersion, finalVersion) {
-  const [initialMajor, initialMinor, initialPatch] = initialVersion.split('.').map(Number);
-  const [finalMajor, finalMinor, finalPatch] = finalVersion.split('.').map(Number);
-  
-  if (finalMajor > initialMajor) {
-    return 'major';
-  } else if (finalMinor > initialMinor) {
-    return 'minor';
-  } else if (finalPatch > initialPatch) {
-    return 'patch';
-  }
-  return null;
-}
-
-// Collect commits by project and type for change logs
+/**
+ * Collect commits by project and type for change logs
+ */
 function organizeCommitsByType(projectVersionProgressions) {
   // Skip the first entry which is the initial version
   const entries = projectVersionProgressions.slice(1);
@@ -418,7 +342,10 @@ function organizeCommitsByType(projectVersionProgressions) {
   return commitsByType;
 }
 
-// For each project that has a version change, create a changeset
+// Create a single changeset that instructs changeset to apply our exact version bumps
+// Prepare package version data for the changeset creator
+const packageVersionData = {};
+
 ALL_PROJECTS.forEach(project => {
   const initialVersion = initialVersions[project];
   const finalVersion = accumulatedVersions[project];
@@ -427,24 +354,36 @@ ALL_PROJECTS.forEach(project => {
     return; // No change for this project
   }
   
-  const bumpType = determineBumpType(initialVersion, finalVersion);
-  if (!bumpType) {
-    return; // Should not happen, but just in case
-  }
-  
-  const changesetId = `version-${project}-${bumpType}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   const packageName = getPackageName(project);
+  const bumpType = determineBumpType(initialVersion, finalVersion);
   
-  // Organize commits by type for better documentation
-  const commitsByType = organizeCommitsByType(versionProgressions[project]);
+  // Store both the version info and bump type
+  packageVersionData[packageName] = {
+    initialVersion,
+    finalVersion,
+    bumpType,
+    project
+  };
+});
+
+// Build a summary of all changes for the changeset body
+let changesetBody = '';
+
+// Add a header summarizing all version changes
+changesetBody += 'Version Changes Summary:\n\n';
+Object.entries(packageVersionData).forEach(([packageName, info]) => {
+  const incrementCount = versionProgressions[info.project].length - 1;
+  changesetBody += `${packageName}: ${info.initialVersion} → ${info.finalVersion} (${incrementCount} increments)\n`;
+});
+
+changesetBody += `\nGenerated from commit history between ${fromRef || 'beginning'} and ${toRef}\n\n`;
+
+// Add detailed changelogs per package
+Object.entries(packageVersionData).forEach(([packageName, info]) => {
+  changesetBody += `\n## ${packageName}\n\n`;
   
-  // Build the changeset content with all commits
-  let changesetBody = `Accumulated changes from ${initialVersion} to ${finalVersion}\n`;
-  changesetBody += `Generated from commit history between ${fromRef || 'beginning'} and ${toRef}\n\n`;
-  
-  // Add commit counts
-  const incrementCount = versionProgressions[project].length - 1;
-  changesetBody += `Total increments: ${incrementCount}\n\n`;
+  // Organize commits by type
+  const commitsByType = organizeCommitsByType(versionProgressions[info.project]);
   
   // Add feature commits
   if (commitsByType.features.length > 0) {
@@ -470,131 +409,53 @@ ALL_PROJECTS.forEach(project => {
   if (commitsByType.other.length > 0) {
     changesetBody += `### Other Changes\n\n${commitsByType.other.join('\n')}\n\n`;
   }
-  
-  const changesetContent = {
-    packageName,
-    type: bumpType,
-    initialVersion,
-    finalVersion,
-    body: changesetBody
-  };
-  
-  changesets.push({ id: changesetId, content: changesetContent });
 });
 
-// Create changeset files
-changesets.forEach(({ id, content }) => {
-  const changesetPath = path.join(changesetDir, `${id}.md`);
-  
-  const changesetContent = `---
-"${content.packageName}": ${content.type}
----
+// Create the changeset
+const changeset = createCustomChangeset(packageVersionData, changesetBody, DRY_RUN);
 
-${content.body}`;
-  
-  fs.writeFileSync(changesetPath, changesetContent);
-  console.log(`Created changeset: ${id}`);
-});
+if (!DRY_RUN && changeset) {
+  console.log(`\nCreated changeset with custom versioning instructions at ${changeset.path}`);
+  console.log('Run "pnpm changeset version" to apply these changes to package.json files');
+}
 
-console.log(`\nCreated ${changesets.length} changesets based on accumulated version changes`);
-console.log('Run "pnpm changeset version" to apply these changes to package.json files');
-
-// Format human-readable output based on format type
-let output = '';
-// Define hasChanges here to be used by all output formats
-hasChanges = false;
-
-// Format output for the specified output format
-const packageNames = {
-  blorkpack: '@littlecarlito/blorkpack',
-  blorktools: '@littlecarlito/blorktools',
-  blorkboard: '@littlecarlito/blorkboard',
-  portfolio: '@littlecarlito/portfolio'
-};
-
-// Check if any changes were detected
-ALL_PROJECTS.forEach(project => {
-  const initialVersion = versionProgressions[project][0].version;
-  const finalVersion = versionProgressions[project][versionProgressions[project].length - 1].version;
-  
-  if (initialVersion !== finalVersion) {
-    hasChanges = true;
-  }
-});
-
-// Generate appropriate output based on format
+// Format human-readable output for specific formats
 if (outputFormat === 'pr') {
-  // Output format specifically for PRs, similar to check-version-changes.js
+  // Output format specifically for PRs
   if (!hasChanges) {
-    output = 'No version changes detected from commit messages';
+    console.log('No version changes detected from commit messages');
   } else {
-    output = '## Version Changes\n\nThis PR will trigger the following version changes when merged:\n\n';
+    console.log('## Version Changes\n\nThis PR will trigger the following version changes when merged:\n');
     
-    ALL_PROJECTS.forEach(project => {
-      const initialVersion = versionProgressions[project][0].version;
-      const finalVersion = versionProgressions[project][versionProgressions[project].length - 1].version;
+    Object.entries(packageVersionData).forEach(([packageName, info]) => {
+      const incrementCount = versionProgressions[info.project].length - 1;
+      let bumpTypeSymbol = '';
       
-      if (initialVersion !== finalVersion) {
-        const incrementCount = versionProgressions[project].length - 1; // Subtract 1 for the initial entry
-        const packageName = packageNames[project];
-        let bumpType = '';
-        
-        if (finalVersion.split('.')[0] > initialVersion.split('.')[0]) {
-          bumpType = '🚨 MAJOR';
-        } else if (finalVersion.split('.')[1] > initialVersion.split('.')[1]) {
-          bumpType = '✨ MINOR';
-        } else {
-          bumpType = '🐛 PATCH';
-        }
-        
-        output += `${bumpType}: ${packageName}: ${initialVersion} → ${finalVersion} (${incrementCount} increments)\n`;
+      if (info.bumpType === 'major') {
+        bumpTypeSymbol = '🚨 MAJOR';
+      } else if (info.bumpType === 'minor') {
+        bumpTypeSymbol = '✨ MINOR';
+      } else {
+        bumpTypeSymbol = '🐛 PATCH';
       }
+      
+      console.log(`${bumpTypeSymbol}: ${packageName}: ${info.initialVersion} → ${info.finalVersion} (${incrementCount} increments)`);
     });
     
     // Show packages with no changes
     const unchangedPackages = ALL_PROJECTS
       .filter(project => {
-        const initialVersion = versionProgressions[project][0].version;
-        const finalVersion = versionProgressions[project][versionProgressions[project].length - 1].version;
+        const initialVersion = initialVersions[project];
+        const finalVersion = accumulatedVersions[project];
         return initialVersion === finalVersion;
       })
-      .map(project => packageNames[project]);
+      .map(getPackageName);
     
     if (unchangedPackages.length > 0) {
-      output += `\n⏹️ NO CHANGE: ${unchangedPackages.join(', ')}\n`;
+      console.log(`\n⏹️ NO CHANGE: ${unchangedPackages.join(', ')}`);
     }
-    
-    // Output structured data for GitHub Actions
-    const structuredOutput = {
-      hasChanges: hasChanges,
-      changes: ALL_PROJECTS.reduce((acc, project) => {
-        const initialVersion = versionProgressions[project][0].version;
-        const finalVersion = versionProgressions[project][versionProgressions[project].length - 1].version;
-        
-        if (initialVersion !== finalVersion) {
-          acc[project] = {
-            initialVersion,
-            finalVersion,
-            incrementCount: versionProgressions[project].length - 1
-          };
-        } else {
-          acc[project] = null;
-        }
-        
-        return acc;
-      }, {})
-    };
-    
-    // Output both the human-readable and structured formats
-    console.log(output);
-    console.log('---');
-    console.log(JSON.stringify(structuredOutput));
-    
-    // Exit early since we've handled the output format differently
-    process.exit(0);
   }
 }
 
-// Default output format continues here with the original behavior
-// For the default output format, reset hasChanges flag
-hasChanges = false; 
+// Exit successfully
+process.exit(0); 
