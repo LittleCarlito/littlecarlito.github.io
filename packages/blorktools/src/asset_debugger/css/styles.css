@@ -54,30 +54,30 @@ body {
 .container {
     display: flex;
     flex-direction: column;
-    height: auto;
-    max-height: calc(100% - 60px); /* Use max-height instead of min-height */
-    overflow: visible;
-    padding: 10px;
-    gap: 10px;
-    margin-top: 60px; /* Match header height */
+    height: 100vh;
+    overflow: hidden;
+    padding: 0;
+    gap: 0;
+    margin: 0;
 }
 
 header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 5px 20px; /* Increased right padding to match left padding */
-    background-color: var(--secondary-color);
+    padding: 5px 20px;
+    background-color: rgba(26, 26, 26, 0.85);
     color: var(--primary-color);
     border-bottom: 1px solid var(--panel-border);
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
-    box-sizing: border-box; /* Ensure padding is included in width calculation */
+    box-sizing: border-box;
     z-index: 1000;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     height: 50px;
+    backdrop-filter: blur(5px);
 }
 
 /* Title area with debug controls */
@@ -186,6 +186,12 @@ h3 {
     background-color: rgba(30, 136, 229, 0.2);
 }
 
+.theme-toggle.active {
+    background-color: rgba(30, 136, 229, 0.3);
+    color: white;
+    border-color: var(--button-color);
+}
+
 /* Pin button styles */
 .pin-button {
     padding: 8px;
@@ -215,12 +221,13 @@ h3 {
 
 /* Blorkboard-style card panel */
 .tool-panel {
-    padding: 10px;
-    background-color: var(--panel-bg);
-    border: 3px solid var(--fallout-yellow); /* Golden yellow border */
+    padding: 20px;
+    background-color: rgba(30, 30, 30, 0.9);
+    border: 3px solid var(--fallout-yellow);
     border-radius: 4px;
     max-height: unset;
     overflow-y: visible;
+    backdrop-filter: blur(10px);
 }
 
 /* Adjust dropzone container to distribute items evenly */
@@ -574,23 +581,29 @@ h3 {
 
 #viewport {
     width: 100%;
-    height: 600px;
+    height: 100vh;
     background-color: #000;
     display: none;
-    border: 1px solid var(--panel-border);
+    border: none;
     overflow: hidden;
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
 /* View layout with panel */
 .view-container {
     display: flex;
-    gap: 20px;
-    margin-bottom: 20px;
+    gap: 0;
+    height: 100vh;
+    position: relative;
+    margin: 0;
 }
 
 .view-panel {
     flex: 1;
     position: relative;
+    height: 100vh;
 }
 
 /* Container for atlas textures, styled like the HDR/EXR preview */
@@ -717,15 +730,23 @@ h3 {
 
 /* Tabs styling */
 .tab-container {
-    flex: 0 0 300px;
-    background-color: var(--panel-bg);
-    border: 1px solid var(--panel-border);
-    max-height: 600px;
-    height: 600px;
-    transition: background-color 0.3s ease;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden !important; /* Ensure the container itself NEVER scrolls */
+    position: fixed !important;
+    right: 20px !important;
+    top: 70px !important;  /* Position below header */
+    background-color: rgba(30, 30, 30, 0.95) !important;
+    border: 1px solid var(--panel-border) !important;
+    max-height: calc(100vh - 100px) !important;  /* Allow some bottom margin */
+    height: auto !important;
+    transition: background-color 0.3s ease !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    backdrop-filter: blur(5px) !important;
+    z-index: 2000 !important; /* Very high z-index to ensure it's above everything */
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5) !important;
+    width: 320px !important;  /* Fixed width instead of flex */
+    visibility: visible !important; /* Ensure tab container is always visible */
+    opacity: 1 !important;
 }
 
 .tab-navigation {
@@ -761,10 +782,10 @@ h3 {
 .tab-content {
     display: none;
     padding: 15px;
-    overflow-y: auto !important; /* ONLY the main tab content should scroll */
-    overflow-x: hidden !important; /* Prevent horizontal scrolling */
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
     flex-grow: 1;
-    max-height: calc(600px - 45px);
+    max-height: calc(100vh - 150px); /* Adjust for header height + nav tabs */
     box-sizing: border-box;
 }
 
@@ -1941,12 +1962,13 @@ h2 {
 
 /* More compact tool panel */
 .tool-panel {
-    padding: 10px;
-    background-color: var(--panel-bg);
-    border: 3px solid var(--fallout-yellow); /* Golden yellow border */
+    padding: 20px;
+    background-color: rgba(30, 30, 30, 0.9);
+    border: 3px solid var(--fallout-yellow);
     border-radius: 4px;
     max-height: unset;
     overflow-y: visible;
+    backdrop-filter: blur(10px);
 }
 
 /* Start button at the bottom */
@@ -1976,10 +1998,16 @@ h2 {
 
 /* Ensure entire upload section fits */
 #upload-section {
-    display: flex;
-    flex-direction: column;
-    max-height: 100%;
-    overflow: visible;
+    position: fixed;
+    top: 70px;  /* Below header */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 1200px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    z-index: 900;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
 }
 
 /* Make asset files and world files sections more compact */
@@ -2147,4 +2175,56 @@ h2 {
 #world-tab.tab-content {
     /* Keep other styles but remove specific overflow and scrollbar settings */
     padding-right: 15px;
+}
+
+/* Media query for smaller screens */
+@media (max-width: 768px) {
+    #upload-section {
+        width: 95%;
+        top: 60px;
+        max-height: calc(100vh - 80px);
+    }
+    
+    .tab-container {
+        width: 280px;
+        right: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    #upload-section {
+        width: 100%;
+        top: 50px;
+        left: 0;
+        transform: none;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+    }
+    
+    .tab-container {
+        width: 100%;
+        right: 0;
+        border-radius: 0;
+    }
+}
+
+/* Tooltip styling */
+[title]:hover {
+    position: relative;
+}
+
+[title]:hover:after {
+    content: attr(title);
+    position: absolute;
+    bottom: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1100;
 } 

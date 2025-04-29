@@ -38,6 +38,7 @@ export function loadSettings() {
 export function getDefaultSettings() {
     return {
         pinned: true, // Default pin state is enabled/pinned
+        tabPanelHidden: false, // Default tab panel state is visible
         axisIndicator: {
             type: 'embedded',
             intensity: 0.7
