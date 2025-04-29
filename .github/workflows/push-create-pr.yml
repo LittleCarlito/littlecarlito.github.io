@@ -236,8 +236,12 @@ jobs:
             echo "Adding tag creation flag to commit message"
             # Add a special marker to the commit that the main pipeline can detect
             echo "NEEDS_TAG_CREATION=true" > .tag-creation-flag
-            git add .tag-creation-flag
-            git commit -m "chore: flag commit for tag creation [ci create-tags]"
+            
+            # Try to add the file to git
+            git add .tag-creation-flag || echo "Could not add .tag-creation-flag, continuing anyway"
+            
+            # Use --allow-empty to create a commit even if there are no changes
+            git commit --allow-empty -m "chore: flag commit for tag creation [ci create-tags]"
           fi
       
       # Push branch
