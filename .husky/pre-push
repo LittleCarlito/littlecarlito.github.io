@@ -44,6 +44,10 @@ VERSION_STATUS=$?
 
 echo "$VERSION_OUTPUT"
 
+# Print current versions before any changes
+echo "📋 Current package versions before changes:"
+find apps packages -name "package.json" -not -path "*/node_modules/*" -exec sh -c 'echo "$(basename $(dirname {})) version: $(node -p "require(\"{}\").version")"' \; 2>/dev/null || echo "No packages found"
+
 # Check if version changes were detected (this depends on how test-version reports changes)
 if echo "$VERSION_OUTPUT" | grep -q "No version changes detected"; then
     echo "✅ No version changes needed"
@@ -97,6 +101,10 @@ else
             # Check if any files were changed
             if [ -n "$(git status --porcelain)" ]; then
                 echo "✅ Version changes detected and applied"
+                
+                # Show what versions were actually applied
+                echo "📋 Updated package versions:"
+                find apps packages -name "package.json" -not -path "*/node_modules/*" -exec sh -c 'echo "$(basename $(dirname {})) version: $(node -p "require(\"{}\").version")"' \; 2>/dev/null || echo "No packages found"
                 
                 # Get summary of version changes for commit message
                 VERSION_SUMMARY=$(pnpm test-version --branch=$BRANCH 2>&1 | grep -A 10 "Version Changes:" | grep -v "This is a dry run")

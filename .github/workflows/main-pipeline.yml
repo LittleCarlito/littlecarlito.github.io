@@ -222,36 +222,27 @@ jobs:
       - name: Install dependencies
         run: pnpm install
       
-      # First, run custom versioning logic to ensure we have the correct versions
-      - name: Run custom version determination
-        id: custom_versions
+      # Debug current package versions
+      - name: Debug package versions
+        id: debug_versions
         run: |
-          echo "Running custom version determination..."
+          echo "Reading current package versions from package.json files..."
           
-          # Make our scripts executable
-          chmod +x .github/scripts/versioning/version-from-commits.js
-          chmod +x .github/scripts/versioning/apply-custom-versions.js
-          chmod +x .github/scripts/ci/debug-version-numbers.sh
+          # Make debug script executable if it exists
+          if [ -f ".github/scripts/ci/debug-version-numbers.sh" ]; then
+            chmod +x .github/scripts/ci/debug-version-numbers.sh
+            echo "=== CURRENT PACKAGE VERSIONS ==="
+            bash ".github/scripts/ci/debug-version-numbers.sh"
+          else
+            echo "Debug script not found, using direct inspection:"
+            while IFS= read -r pkg_file; do
+              dir_name=$(dirname "$pkg_file")
+              version=$(node -p "require('./$pkg_file').version")
+              echo "$dir_name version: $version"
+            done < <(find apps packages -name "package.json" -not -path "*/node_modules/*")
+          fi
           
-          # Run diagnostics BEFORE version changes
-          echo "=== VERSION DIAGNOSTICS BEFORE CHANGES ==="
-          bash ".github/scripts/ci/debug-version-numbers.sh"
-          
-          # Get the first commit of the repository for comprehensive version generation
-          FIRST_COMMIT="$(git rev-list --max-parents=0 HEAD)"
-          echo "Using first commit as starting reference: ${FIRST_COMMIT}"
-          
-          # Generate changesets based on our custom logic
-          node .github/scripts/versioning/version-from-commits.js --to=main --from="${FIRST_COMMIT}"
-          
-          # Apply our custom versions
-          node .github/scripts/versioning/apply-custom-versions.js --branch=main
-          
-          # Run diagnostics AFTER version changes
-          echo "=== VERSION DIAGNOSTICS AFTER CHANGES ==="
-          bash ".github/scripts/ci/debug-version-numbers.sh"
-          
-          echo "Custom versioning completed"
+          echo "Using existing package.json versions for release"
           
       - name: Create releases for packages
         id: check_and_create
@@ -263,19 +254,22 @@ jobs:
           # Always process releases on merge to main
           echo "Processing releases for packages"
           
-          # Find all package.json files in apps and packages - now with our custom versions
-          PACKAGE_JSONS="$(find apps packages -name "package.json" -not -path "*/node_modules/*")"
+          # Find all package.json files in apps and packages
+          PACKAGE_JSONS=()
+          while IFS= read -r pkg_file; do
+            PACKAGE_JSONS+=("$pkg_file")
+          done < <(find apps packages -name "package.json" -not -path "*/node_modules/*")
           
           # Variables to track results
           CREATED_RELEASES="false"
           TAGS_CREATED=""
           
           # Process each package
-          for PKG_JSON in ${PACKAGE_JSONS}; do
+          for PKG_JSON in "${PACKAGE_JSONS[@]}"; do
             # Get package info
-            PKG_NAME="$(node -p "require('./${PKG_JSON}').name")"
-            PKG_VERSION="$(node -p "require('./${PKG_JSON}').version")"
-            PKG_DIR="$(dirname "${PKG_JSON}")"
+            PKG_NAME=$(node -p "require('./${PKG_JSON}').name")
+            PKG_VERSION=$(node -p "require('./${PKG_JSON}').version")
+            PKG_DIR=$(dirname "${PKG_JSON}")
             
             # Skip packages without proper version or name
             if [[ -z "${PKG_VERSION}" || "${PKG_VERSION}" == "0.0.0" || -z "${PKG_NAME}" ]]; then
@@ -306,15 +300,8 @@ jobs:
             fi
             
             if [[ -z "${RELEASE_NOTES}" ]]; then
-              # If no changelog, generate one using our version info
-              VERSION_OUTPUT="$(pnpm test-version --branch=main)"
-              VERSION_INFO="$(echo "${VERSION_OUTPUT}" | grep "${PKG_NAME}:" | head -1)"
-              
-              if [[ -n "${VERSION_INFO}" ]]; then
-                RELEASE_NOTES="Release ${PKG_NAME}@${PKG_VERSION}\n\n${VERSION_INFO}\n\nGenerated using custom versioning from commit history."
-              else
-                RELEASE_NOTES="Release ${PKG_NAME}@${PKG_VERSION}"
-              fi
+              # If no changelog, create a simple release note
+              RELEASE_NOTES="Release ${PKG_NAME}@${PKG_VERSION}"
             fi
             
             echo "Creating tag and release for ${PKG_NAME} version ${PKG_VERSION}"

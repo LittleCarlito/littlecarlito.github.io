@@ -36,6 +36,13 @@ outputs:
 runs:
   using: "composite"
   steps:
+    # Debug package versions before merging
+    - name: Debug package versions
+      shell: bash
+      run: |
+        echo "Package versions before merging PR #${{ inputs.pr-number }}:"
+        find . -name "package.json" -not -path "*/node_modules/*" -exec sh -c 'echo "$(dirname {}) version: $(node -p "require(\"{}\").version")"' \; || echo "No packages found"
+    
     # Merge PR using our script
     - name: Merge Pull Request
       id: merge-pr
