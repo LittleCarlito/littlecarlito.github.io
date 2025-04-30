@@ -32,53 +32,39 @@ fi
 echo "🔢 Checking package versions..."
 CURRENT_BRANCH=$(git branch --show-current)
 
-# Determine base reference for versioning: use most recent tag or first commit
-echo "Finding base reference for version comparison..."
+# Use pnpm test-version to detect version changes
+echo "Running version test to detect required changes..."
+pnpm test-version > version_output.tmp
+VERSION_TEST_STATUS=$?
 
-# Try to find most recent tag
-LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-
-if [ -n "$LATEST_TAG" ]; then
-  # Use the most recent tag as base reference
-  FROM_REF="$LATEST_TAG"
-  echo "Using most recent tag as base reference: ${FROM_REF}"
-else
-  # If no tags found, use the first commit in the repository
-  FROM_REF=$(git rev-list --max-parents=0 HEAD)
-  echo "No tags found. Using first commit as base reference: ${FROM_REF}"
-fi
-
-# Run in dry-run mode first to preview changes
-echo "Performing version analysis (dry run)..."
-node .github/scripts/versioning/version-from-commits.js --dry-run --from=${FROM_REF} --to=HEAD
-VERSION_CHANGES=$?
-echo "Version detection exit code: $VERSION_CHANGES (0=changes detected, 1=no changes)"
-
-if [ $VERSION_CHANGES -eq 0 ]; then
-    # If version changes detected, apply them
-    echo "📦 Version changes needed. Updating package versions..."
+# Check if version increments were found by looking for "increments" in the output
+if grep -q "increments" version_output.tmp; then
+    echo "📦 Version changes needed based on pnpm test-version results."
     
-    # Use the exact same reference for actual run
-    echo "Applying version changes using: --from=${FROM_REF} --to=HEAD"
-    node .github/scripts/versioning/version-from-commits.js --from=${FROM_REF} --to=HEAD --create-tags
+    # Apply the version changes
+    echo "Updating package versions..."
+    pnpm version-packages
     VERSION_UPDATE_STATUS=$?
     
     if [ $VERSION_UPDATE_STATUS -ne 0 ]; then
         echo "❌ Failed to update package versions (exit code: $VERSION_UPDATE_STATUS). Push will continue, but versions may be out of sync."
     else
-        echo "✅ Package versions updated successfully based on commit history."
+        echo "✅ Package versions updated successfully."
         
         # Commit the version changes
         if [ -n "$(git status --porcelain)" ]; then
             echo "📦 Committing version changes..."
             git add .
-            git commit -m "chore(release): update package versions based on commit history"
+            git commit -m "chore(release): update package versions based on version test"
             echo "✅ Version changes committed! Continuing with push..."
         fi
     fi
 else
-    echo "✅ No version changes needed (exit code: $VERSION_CHANGES)."
+    echo "✅ No version changes needed according to pnpm test-version."
 fi
+
+# Remove temporary file
+rm -f version_output.tmp
 
 # Don't exit on error for the remainder of the script to allow debug logging
 set +e
