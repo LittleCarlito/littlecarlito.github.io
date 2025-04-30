@@ -1,6 +1,6 @@
 const fs = require('fs');
 
-// Define allowed types in a single place
+// Define allowed types
 const allowedTypes = [
   'build', 'chore', 'ci', 'docs', 'feat', 'fix', 
   'perf', 'refactor', 'revert', 'style', 'test', 'slice'
@@ -19,9 +19,14 @@ fs.writeFileSync('.husky/.ignore-scopes', ignoredScopes.join(' '));
 
 module.exports = {
   extends: ['@commitlint/config-conventional'],
-  // Removed all custom version/release rules
   rules: {
-    'type-enum': [2, 'always', allowedTypes]
+    'type-enum': [2, 'always', allowedTypes],
+    'type-case': [2, 'always', 'lowercase'],
+    'type-empty': [2, 'never'],
+    'scope-case': [2, 'always', 'lowercase'],
+    'subject-empty': [2, 'never'],
+    'subject-full-stop': [2, 'never', '.'],
+    'header-max-length': [2, 'always', 72]
   },
   ignorePatterns: [
     // List of patterns to ignore (if needed)

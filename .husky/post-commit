@@ -1,4 +1,5 @@
 #!/bin/sh
+<<<<<<< Updated upstream
 # Exit on error
 set -e
 
@@ -189,4 +190,7 @@ fi
 echo "===================="
 
 # Always exit with success to avoid breaking the commit process
+=======
+# This hook is intentionally left empty after removing version bumping logic
+>>>>>>> Stashed changes
 exit 0 
