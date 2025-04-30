@@ -22,8 +22,8 @@
     "test:e2e:portfolio": "pnpm --filter='@littlecarlito/portfolio' test:e2e",
     "test:e2e:blorkvisor": "pnpm --filter='@littlecarlito/blorkvisor' test:e2e",
     "test:e2e:blorktools": "pnpm --filter='@littlecarlito/blorktools' test:e2e",
-    "test:version": "node scripts/test-version.js",
-    "test-version": "node scripts/test-version.js",
+    "version:check": "node scripts/version-check.js",
+    "version:dry-run": "node scripts/version-check.js",
     "test-commit": ".husky/post-commit",
     "test-push": "tests/test-push.sh",
     "check": "pnpm -r check",
@@ -43,6 +43,7 @@
     "gh-pages:debug": "chmod +x .husky/gh-pages-test && .husky/gh-pages-test",
     "gh-pages:check": "node tests/apps/portfolio/environment/gh-pages-texture-test.js --headless",
     "version:ci": "node .github/scripts/versioning/version-from-commits.js",
+    "version:apply": "node .github/scripts/versioning/version-from-commits.js",
     "set-version": "node .github/scripts/versioning/set-package-version.js"
   },
   "dependencies": {
