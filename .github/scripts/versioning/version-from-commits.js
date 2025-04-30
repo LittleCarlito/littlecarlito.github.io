@@ -77,6 +77,23 @@ ALL_PROJECTS.forEach(project => {
   }
 });
 
+// Get the commit hash of the latest version tag for each project
+const latestTagCommits = {};
+ALL_PROJECTS.forEach(project => {
+  const packageName = getPackageName(project);
+  try {
+    const cmd = `git tag -l "${packageName}@*" --sort=-v:refname | head -n1`;
+    const tagResult = execSync(cmd, { stdio: ['pipe', 'pipe', 'ignore'] }).toString().trim();
+    if (tagResult) {
+      const commitCmd = `git rev-list -n 1 ${tagResult}`;
+      const commitHash = execSync(commitCmd, { stdio: ['pipe', 'pipe', 'ignore'] }).toString().trim();
+      latestTagCommits[project] = commitHash;
+    }
+  } catch (error) {
+    console.error(`Error getting latest tag commit for ${packageName}:`, error.message);
+  }
+});
+
 // If any package needs to start from first commit, adjust the fromRef
 if (shouldUseFirstCommit && fromRef) {
   console.log("One or more packages has no version tags. Will analyze entire commit history.");
@@ -302,6 +319,15 @@ commits.forEach(commit => {
   
   // Apply the version bump to each affected project
   affectedProjects.forEach(project => {
+    // Skip if this commit is before the latest version tag
+    if (latestTagCommits[project]) {
+      const isBeforeTag = execSync(`git merge-base --is-ancestor ${hash} ${latestTagCommits[project]}`, { stdio: ['pipe', 'pipe', 'ignore'] }).status === 0;
+      if (isBeforeTag) {
+        console.log(`Skipping commit ${hash.substring(0, 8)} for ${project} as it's before the latest version tag`);
+        return;
+      }
+    }
+    
     const currentVersion = accumulatedVersions[project];
     const newVersion = calculateNewVersion(currentVersion, bumpType);
     
