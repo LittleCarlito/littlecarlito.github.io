@@ -32,20 +32,40 @@ fi
 echo "🔢 Checking package versions..."
 CURRENT_BRANCH=$(git branch --show-current)
 
-# Run version-from-commits.js to determine version changes
-echo "Running version analysis..."
-# First in dry-run mode to see what changes would be made
-node .github/scripts/versioning/version-from-commits.js --dry-run --from=origin/${CURRENT_BRANCH} --to=HEAD 2>/dev/null
-VERSION_CHANGES=$?
+# Check if branch exists on remote
+if git ls-remote --heads origin "$CURRENT_BRANCH" | grep -q "$CURRENT_BRANCH"; then
+  # First in dry-run mode to see what changes would be made
+  echo "Running version analysis against remote branch origin/${CURRENT_BRANCH}..."
+  node .github/scripts/versioning/version-from-commits.js --dry-run --from=origin/${CURRENT_BRANCH} --to=HEAD
+  VERSION_CHANGES=$?
+  echo "Version detection exit code: $VERSION_CHANGES (0=changes detected, 1=no changes)"
+else
+  # For new branches, compare against the merge base with main
+  MERGE_BASE=$(git merge-base origin/main HEAD)
+  echo "New branch detected. Running version analysis against merge base with main..."
+  echo "Merge base: ${MERGE_BASE}"
+  node .github/scripts/versioning/version-from-commits.js --dry-run --from=${MERGE_BASE} --to=HEAD
+  VERSION_CHANGES=$?
+  echo "Version detection exit code: $VERSION_CHANGES (0=changes detected, 1=no changes)"
+fi
 
 if [ $VERSION_CHANGES -eq 0 ]; then
     # If version changes detected, apply them
     echo "📦 Version changes needed. Updating package versions..."
-    node .github/scripts/versioning/version-from-commits.js --from=origin/${CURRENT_BRANCH} --to=HEAD --create-tags
+    
+    # Use the same base reference as we did for detection
+    if git ls-remote --heads origin "$CURRENT_BRANCH" | grep -q "$CURRENT_BRANCH"; then
+      FROM_REF="origin/${CURRENT_BRANCH}"
+    else
+      FROM_REF="${MERGE_BASE}"
+    fi
+    
+    echo "Applying version changes using: --from=${FROM_REF} --to=HEAD"
+    node .github/scripts/versioning/version-from-commits.js --from=${FROM_REF} --to=HEAD --create-tags
     VERSION_UPDATE_STATUS=$?
     
     if [ $VERSION_UPDATE_STATUS -ne 0 ]; then
-        echo "❌ Failed to update package versions. Push will continue, but versions may be out of sync."
+        echo "❌ Failed to update package versions (exit code: $VERSION_UPDATE_STATUS). Push will continue, but versions may be out of sync."
     else
         echo "✅ Package versions updated successfully based on commit history."
         
@@ -58,7 +78,7 @@ if [ $VERSION_CHANGES -eq 0 ]; then
         fi
     fi
 else
-    echo "✅ No version changes needed."
+    echo "✅ No version changes needed (exit code: $VERSION_CHANGES)."
 fi
 
 # Don't exit on error for the remainder of the script to allow debug logging

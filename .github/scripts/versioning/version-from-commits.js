@@ -136,19 +136,30 @@ try {
 }
 
 if (!commitsOutput) {
-  console.log('No commits found to analyze');
-  process.exit(0);
+  console.log('No commits found to analyze. Try fetching the latest changes or using a different base reference.');
+  process.exit(1);
 }
 
-const commits = commitsOutput.split('\n').map(line => {
-  // Handle potential malformed commit messages with a more robust separator
+// Split the output by newline to get individual commits
+// Handle the case where a single string is returned with no newlines
+const commits = commitsOutput.includes('\n') 
+  ? commitsOutput.split('\n').map(parseSingleCommit)
+  : commitsOutput.trim() ? [parseSingleCommit(commitsOutput)] : [];
+
+if (commits.length === 0) {
+  console.log('No valid commits found to analyze.');
+  process.exit(1);
+}
+
+// Function to parse a single commit line into an object
+function parseSingleCommit(line) {
   const parts = line.split('|||');
   const hash = parts[0] || '';
   const subject = parts[1] || '';
   const body = parts[2] || '';
   const timestamp = parseInt(parts[3] || '0', 10);
   return { hash, subject, body, timestamp };
-});
+}
 
 // Sort commits by timestamp (oldest first to process chronologically)
 commits.sort((a, b) => a.timestamp - b.timestamp);
