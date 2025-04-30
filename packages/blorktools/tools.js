@@ -66,7 +66,7 @@ async function startTools() {
 		// Get the actual port that Vite is using
 		const actualPort = server.config.server.port;
 		
-		// Send the signal that blorkboard is expecting
+		// Send the signal that blorkvisor is expecting
 		console.log(`Server running on port ${actualPort}`);
 		console.log(`VITE_READY:${actualPort}`);
 		

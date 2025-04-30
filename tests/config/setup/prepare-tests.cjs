@@ -21,15 +21,15 @@ function getModifiedPackages() {
 		const modifiedPackages = {
 			blorkpack: false,
 			blorktools: false,
-			blorkboard: false,
+			blorkvisor: false,
 			portfolio: false
 		};
 		
 		stagedFiles.forEach(file => {
 			if (file.startsWith('packages/blorkpack/')) {
 				modifiedPackages.blorkpack = true;
-			} else if (file.startsWith('packages/blorkboard/')) {
-				modifiedPackages.blorkboard = true;
+			} else if (file.startsWith('packages/blorkvisor/')) {
+				modifiedPackages.blorkvisor = true;
 			} else if (file.startsWith('packages/blorktools/')) {
 				modifiedPackages.blorktools = true;
 			} else if (file.startsWith('apps/portfolio/')) {
@@ -43,7 +43,7 @@ function getModifiedPackages() {
 		return {
 			blorkpack: true,
 			blorktools: true,
-			blorkboard: true,
+			blorkvisor: true,
 			portfolio: true
 		};
 	}

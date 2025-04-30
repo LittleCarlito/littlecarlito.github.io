@@ -8,7 +8,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 // Configuration
-const PACKAGES = ['blorkpack', 'blorktools', 'blorkboard'];
+const PACKAGES = ['blorkpack', 'blorktools', 'blorkvisor'];
 const APPS = ['portfolio'];
 const ALL_PROJECTS = [...PACKAGES, ...APPS];
 const IGNORE_SCOPES = ['pipeline'];

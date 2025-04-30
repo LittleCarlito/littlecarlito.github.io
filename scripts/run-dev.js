@@ -1,5 +1,5 @@
 /**
- * Script to run the blorkboard dev command
+ * Script to run the blorkvisor dev command
  * Ensures proper workspace linking before running
  */
 
@@ -69,10 +69,10 @@ function buildDependencyPackages() {
   }
 }
 
-// Check if blorkboard package exists
+// Check if blorkvisor package exists
 try {
-  fs.accessSync(path.join(__dirname, '../packages/blorkboard/package.json'));
-  console.log('Running blorkboard dev script...');
+  fs.accessSync(path.join(__dirname, '../packages/blorkvisor/package.json'));
+  console.log('Running blorkvisor dev script...');
   
   // Build dependency packages first
   if (!buildDependencyPackages()) {
@@ -82,28 +82,28 @@ try {
   
   try {
     // Use double quotes for Windows compatibility
-    execSync('pnpm --filter="@littlecarlito/blorkboard" dev', { 
+    execSync('pnpm --filter="@littlecarlito/blorkvisor" dev', { 
       stdio: 'inherit',
       shell: true
     });
   } catch (cmdError) {
-    console.error('Error running blorkboard dev script. This is a workspace resolution issue.');
+    console.error('Error running blorkvisor dev script. This is a workspace resolution issue.');
     console.log('Attempting to repair workspace links...');
     
     // Attempt to repair links and try again
     if (repairWorkspaceLinks()) {
       console.log('Workspace links repaired. Trying again...');
-      execSync('pnpm --filter="@littlecarlito/blorkboard" dev', {
+      execSync('pnpm --filter="@littlecarlito/blorkvisor" dev', {
         stdio: 'inherit',
         shell: true
       });
     } else {
-      console.error('Failed to run blorkboard. Please check your pnpm configuration.');
+      console.error('Failed to run blorkvisor. Please check your pnpm configuration.');
       process.exit(1);
     }
   }
 } catch (e) {
-  console.error('Error: Could not find blorkboard package. Running install first...');
+  console.error('Error: Could not find blorkvisor package. Running install first...');
   
   if (repairWorkspaceLinks()) {
     // Build dependency packages before dev
@@ -113,7 +113,7 @@ try {
     }
     
     console.log('\nNow trying to run dev script...');
-    execSync('pnpm --filter="@littlecarlito/blorkboard" dev', { 
+    execSync('pnpm --filter="@littlecarlito/blorkvisor" dev', { 
       stdio: 'inherit',
       shell: true
     });

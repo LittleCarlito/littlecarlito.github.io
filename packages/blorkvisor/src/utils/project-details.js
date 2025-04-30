@@ -79,7 +79,7 @@ export class ProjectDetailFactory {
 		const typeLabel = this.getTypeLabel(project.type);
 		const simpleName = this.getSimpleName(project.name);
         
-		// For BlorkBoard itself, just link to the current dashboard
+		// For BlorkVisor itself, just link to the current dashboard
 		let openButton = '';
 		if (project.isSelf) {
 			openButton = `<a href="/" class="open-button">Open ${simpleName.toLowerCase()}</a>`;

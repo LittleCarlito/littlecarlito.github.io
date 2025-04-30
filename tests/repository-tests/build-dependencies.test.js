@@ -24,8 +24,8 @@ function getModifiedPackages() {
 		stagedFiles.forEach(file => {
 			if (file.startsWith('packages/blorkpack/')) {
 				modifiedPackages.add('blorkpack');
-			} else if (file.startsWith('packages/blorkboard/')) {
-				modifiedPackages.add('blorkboard');
+			} else if (file.startsWith('packages/blorkvisor/')) {
+				modifiedPackages.add('blorkvisor');
 			} else if (file.startsWith('packages/blorktools/')) {
 				modifiedPackages.add('blorktools');
 			} else if (file.startsWith('apps/portfolio/')) {
@@ -71,8 +71,8 @@ describe('Build Dependencies', () => {
 					expect(verifyPackageIsBuilt('blorkpack')).toBe(true);
 				} else if (packageName === 'blorktools') {
 					expect(verifyPackageIsBuilt('blorktools')).toBe(true);
-				} else if (packageName === 'blorkboard') {
-					expect(verifyPackageIsBuilt('blorkboard')).toBe(true);
+				} else if (packageName === 'blorkvisor') {
+					expect(verifyPackageIsBuilt('blorkvisor')).toBe(true);
 				}
 			});
 		});

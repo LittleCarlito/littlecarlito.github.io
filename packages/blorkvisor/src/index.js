@@ -15,7 +15,7 @@ const rootDir = join(__dirname, '..', '..', '..');
 /**
  *
  */
-class BlorkBoard {
+class BlorkVisor {
 	/**
 	 *
 	 */
@@ -28,7 +28,7 @@ class BlorkBoard {
 	}
 
 	/**
-	 * Initializes and starts the BlorkBoard
+	 * Initializes and starts the BlorkVisor
 	 */
 	async run() {
 		try {
@@ -59,7 +59,7 @@ class BlorkBoard {
 			// Set up graceful shutdown
 			this.setupShutdownHandlers();
 		} catch (error) {
-			console.error('Error starting BlorkBoard:', error);
+			console.error('Error starting BlorkVisor:', error);
 			await this.shutdownGracefully();
 			process.exit(1);
 		}
@@ -69,17 +69,17 @@ class BlorkBoard {
 	 * Starts all projects that should be served
 	 */
 	async startProjects() {
-		// Get the path to this application (BlorkBoard)
-		const blorkboardPath = join(__dirname, '..');
-		const thisAppPath = blorkboardPath.replace(/\\/g, '/');
+		// Get the path to this application (BlorkVisor)
+		const blorkvisorPath = join(__dirname, '..');
+		const thisAppPath = blorkvisorPath.replace(/\\/g, '/');
 		
-		// Flag any projects that are the BlorkBoard itself
+		// Flag any projects that are the BlorkVisor itself
 		this.projects = this.projects.map(project => {
 			const projectPath = project.path.replace(/\\/g, '/');
 			
-			// Check if this project is BlorkBoard itself
+			// Check if this project is BlorkVisor itself
 			if (projectPath === thisAppPath) {
-				console.log(`Detected self-reference: ${project.name} is the BlorkBoard itself`);
+				console.log(`Detected self-reference: ${project.name} is the BlorkVisor itself`);
 				return {
 					...project,
 					isSelf: true,
@@ -183,6 +183,6 @@ class BlorkBoard {
 	}
 }
 
-// Start BlorkBoard
-const blorkBoard = new BlorkBoard();
-blorkBoard.run(); 
+// Start BlorkVisor
+const blorkVisor = new BlorkVisor();
+blorkVisor.run(); 

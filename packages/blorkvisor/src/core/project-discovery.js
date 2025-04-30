@@ -142,7 +142,7 @@ export class ProjectInvestigator {
 		if (packageData.blorkType) return packageData.blorkType;
 
 		if (packageData.name === '@littlecarlito/blorktools') return 'tool';
-		if (packageData.name === '@littlecarlito/blorkboard') return 'tool';
+		if (packageData.name === '@littlecarlito/blorkvisor') return 'tool';
 		if (packageData.name.includes('blorkpack')) return 'package';
 		
 		if (packageData.name.includes('web') || packageData.name.includes('portfolio') || packageData.name.includes('site')) {

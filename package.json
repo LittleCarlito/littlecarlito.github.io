@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "node scripts/run-dev.js",
     "build": "pnpm clean && pnpm -r build",
-    "build:libs": "pnpm --filter='@littlecarlito/blorkpack' build && pnpm --filter='@littlecarlito/blorktools' build && pnpm --filter='@littlecarlito/blorkboard' build",
+    "build:libs": "pnpm --filter='@littlecarlito/blorkpack' build && pnpm --filter='@littlecarlito/blorktools' build && pnpm --filter='@littlecarlito/blorkvisor' build",
     "build:apps": "pnpm --filter='@littlecarlito/portfolio' build",
     "clean": "pnpm -r clean",
     "test": "jest tests --config=tests/config/jest/jest.config.cjs --passWithNoTests && pnpm -r test",
@@ -20,7 +20,7 @@
     "test:watch": "pnpm -r test:watch",
     "test:e2e": "CI=true pnpm run-p test:e2e:*",
     "test:e2e:portfolio": "pnpm --filter='@littlecarlito/portfolio' test:e2e",
-    "test:e2e:blorkboard": "pnpm --filter='@littlecarlito/blorkboard' test:e2e",
+    "test:e2e:blorkvisor": "pnpm --filter='@littlecarlito/blorkvisor' test:e2e",
     "test:e2e:blorktools": "pnpm --filter='@littlecarlito/blorktools' test:e2e",
     "test:version": "node scripts/test-version.js",
     "test-version": "node scripts/test-version.js",

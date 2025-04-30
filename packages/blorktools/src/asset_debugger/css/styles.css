@@ -1,9 +1,9 @@
-/* Blorkboard-inspired theme */
+/* Blorkvisor-inspired theme */
 :root {
     --primary-color: #4CAF50; /* Terminal green */
-    --tool-color: #F1C40F; /* Blorkboard tool color (yellow) for borders */
+    --tool-color: #F1C40F; /* Blorkvisor tool color (yellow) for borders */
     --fallout-yellow: #f8d73e; /* Adjusted to be more yellow and less orange */
-    --button-color: #1E88E5; /* Blorkboard button color (blue) */
+    --button-color: #1E88E5; /* Blorkvisor button color (blue) */
     --secondary-color: #1a1a1a; /* Dark background but not pure black */
     --bg-color: #121212; /* Dark background */
     --panel-bg: #1e1e1e; /* Panel background */
@@ -170,7 +170,7 @@ h3 {
     color: var(--primary-color);
 }
 
-/* Blorkboard-style small button */
+/* Blorkvisor-style small button */
 .theme-toggle {
     background-color: transparent;
     border: 1px solid var(--button-color);
@@ -219,7 +219,7 @@ h3 {
     stroke-width: 1.5px;
 }
 
-/* Blorkboard-style card panel */
+/* Blorkvisor-style card panel */
 .tool-panel {
     padding: 20px;
     background-color: rgba(30, 30, 30, 0.9);
@@ -390,7 +390,7 @@ h3 {
     object-fit: contain; /* Preserve aspect ratio while fitting in square */
 }
 
-/* Blorkboard-style blue button */
+/* Blorkvisor-style blue button */
 .start-button, .button-base {
     background-color: var(--button-color);
     color: white;

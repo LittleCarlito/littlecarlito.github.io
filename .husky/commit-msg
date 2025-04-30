@@ -29,8 +29,8 @@ if echo "$COMMIT_MSG" | grep -qE "^(${VERSIONING_REGEX})(\([a-zA-Z0-9_-]+\))?!?:
     SCOPE=$(echo "$COMMIT_MSG" | sed -E "s/^(${VERSIONING_REGEX})\(([a-zA-Z0-9_-]+)\).*/\2/")
     
     # Validate scope is a valid project
-    if ! echo "$SCOPE" | grep -qE '^(blorkpack|blorktools|blorkboard|portfolio|pipeline)$'; then
-      echo "⚠️ Warning: Scope '$SCOPE' is not a recognized project. Valid scopes are: blorkpack, blorktools, blorkboard, portfolio, pipeline"
+    if ! echo "$SCOPE" | grep -qE '^(blorkpack|blorktools|blorkvisor|portfolio|pipeline)$'; then
+      echo "⚠️ Warning: Scope '$SCOPE' is not a recognized project. Valid scopes are: blorkpack, blorktools, blorkvisor, portfolio, pipeline"
       echo "   The commit will affect ALL projects instead of just '$SCOPE'"
     else
       if [ "$SCOPE" = "pipeline" ]; then
