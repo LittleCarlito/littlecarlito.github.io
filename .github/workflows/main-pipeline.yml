@@ -192,128 +192,6 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           artifact-name: ${{ needs.build.outputs.build_artifact_name }}
 
-  # Add a new job for checking and creating releases
-  create-releases:
-    name: Create Package Releases
-    needs: [build, test]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-          
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: '8.15.4'
-          
-      - name: Check and create releases
-        id: check_releases
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Create a function to check if a release exists
-          check_release_exists() {
-            local tag="$1"
-            local status_code
-            status_code=$(curl -s -o /dev/null -w "%{http_code}" \
-              -H "Authorization: Bearer $GITHUB_TOKEN" \
-              "https://api.github.com/repos/${{ github.repository }}/releases/tags/${tag}")
-            
-            if [[ "$status_code" == "200" ]]; then
-              return 0  # Release exists
-            else
-              return 1  # Release does not exist
-            fi
-          }
-          
-          # Get all package names and their versions
-          echo "Checking for packages that need releases..."
-          PACKAGES=()
-          
-          for pkg_dir in packages/* apps/*; do
-            if [ -f "$pkg_dir/package.json" ]; then
-              name=$(node -e "console.log(require('./$pkg_dir/package.json').name || '')")
-              version=$(node -e "console.log(require('./$pkg_dir/package.json').version || '')")
-              
-              if [[ -n "$name" && -n "$version" ]]; then
-                # Check if tag exists
-                tag_name="${name}@${version}"
-                
-                # Check if tag exists locally or remotely
-                if git rev-parse -q --verify "refs/tags/${tag_name}" >/dev/null || \
-                   git ls-remote --tags origin "refs/tags/${tag_name}" | grep -q "${tag_name}"; then
-                  
-                  # Tag exists, now check if release exists
-                  if ! check_release_exists "${tag_name}"; then
-                    echo "Found tag ${tag_name} without a release. Adding to list."
-                    PACKAGES+=("${name}:${version}:${pkg_dir}")
-                  else
-                    echo "Release already exists for ${tag_name}. Skipping."
-                  fi
-                else
-                  echo "Tag ${tag_name} does not exist. Creating tag and adding to release list."
-                  git tag "${tag_name}"
-                  PACKAGES+=("${name}:${version}:${pkg_dir}")
-                fi
-              fi
-            fi
-          done
-          
-          # Push any new tags
-          if git tag -l | grep -c '@' | grep -q '[1-9]'; then
-            echo "Pushing new tags to origin..."
-            git push --tags
-          fi
-          
-          # Create releases for packages that need them
-          for package_info in "${PACKAGES[@]}"; do
-            IFS=':' read -r name version pkg_dir <<< "$package_info"
-            tag_name="${name}@${version}"
-            
-            # Generate changelog from git commits
-            echo "Generating changelog for ${name} ${version}..."
-            
-            # Find the previous tag for this package
-            prev_tag=$(git tag -l "${name}@*" | sort -V | grep -B1 "${tag_name}" | head -n1)
-            
-            if [[ -n "$prev_tag" && "$prev_tag" != "$tag_name" ]]; then
-              echo "Found previous tag: ${prev_tag}"
-              range="${prev_tag}..${tag_name}"
-            else
-              echo "No previous tag found, using all commits"
-              range=""
-            fi
-            
-            # Generate changelog
-            changelog=$(git log "${range}" --pretty=format:"* %s (%h)" -- "${pkg_dir}")
-            
-            if [[ -z "$changelog" ]]; then
-              changelog="* Initial release"
-            fi
-            
-            # Create the release
-            echo "Creating release for ${tag_name}..."
-            release_note="## Changelog\n\n${changelog}"
-            
-            curl -s -X POST \
-              -H "Authorization: Bearer $GITHUB_TOKEN" \
-              -H "Accept: application/vnd.github.v3+json" \
-              -d "{\"tag_name\":\"${tag_name}\",\"name\":\"${name} ${version}\",\"body\":\"${release_note}\",\"draft\":false,\"prerelease\":false}" \
-              "https://api.github.com/repos/${{ github.repository }}/releases"
-              
-            echo "Created release for ${tag_name}"
-          done
-          
-          echo "Release check and creation complete!"
-
   # Build the site for GitHub Pages
   build-site:
     name: Build Site for GitHub Pages
@@ -386,7 +264,7 @@ jobs:
   # Report pipeline results (always runs after all jobs)
   report-results:
     name: Report Pipeline Results
-    needs: [capture-trigger-info, build, test, build-site, create-releases]
+    needs: [capture-trigger-info, build, test, build-site]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -397,7 +275,6 @@ jobs:
           # Check if any job failed
           if [[ "${{ needs.build.result }}" != "success" || 
                 "${{ needs.test.result }}" != "success" || 
-                "${{ needs.create-releases.result }}" != "success" && "${{ needs.create-releases.result }}" != "skipped" ||
                 ("${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped") ]]; then
             echo "result=failure" >> "$GITHUB_OUTPUT"
             
@@ -405,7 +282,6 @@ jobs:
             FAILED_JOBS=""
             [[ "${{ needs.build.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Build, "
             [[ "${{ needs.test.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Test, "
-            [[ "${{ needs.create-releases.result }}" != "success" && "${{ needs.create-releases.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Releases, "
             [[ "${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Site Deployment, "
             
             # Remove trailing comma and space
