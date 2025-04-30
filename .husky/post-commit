@@ -33,7 +33,7 @@ fi
 printf "%b\n" "$OUTPUT"
 
 # Run the test-version script to get version changes
-VERSION_OUTPUT=$(pnpm test-version 2>&1 || echo "No version data available")
+VERSION_OUTPUT=$(pnpm version:check 2>&1 || echo "No version data available")
 
 # Check if version changes are detected and add to the end of the report
 printf "\n====================\n"
@@ -44,6 +44,8 @@ echo "📦 VERSION IMPACT:"
 HUSKY_DIR=$(dirname "$0")
 ALLOWED_TYPES=$(cat "$HUSKY_DIR/.commit-types" 2>/dev/null || echo "build chore ci docs feat fix perf refactor revert style test slice")
 VERSIONING_TYPES=$(cat "$HUSKY_DIR/.versioning-types" 2>/dev/null || echo "feat fix perf slice")
+# Load ignored scopes
+IGNORED_SCOPES=$(cat "$HUSKY_DIR/.ignore-scopes" 2>/dev/null || echo "pipeline")
 
 # Build regex pattern for extracting type
 TYPES_PATTERN=$(echo "$ALLOWED_TYPES" | sed 's/ /|/g')
@@ -56,18 +58,42 @@ BREAKING_BODY=$(echo "$COMMIT_MSG" | grep -E "BREAKING CHANGE:" -c 2>/dev/null |
 # Extract the scope from the commit message if it exists
 COMMIT_SCOPE=$(echo "$COMMIT_MSG" | grep -oE "^[^(]+\(([^)]+)\)" 2>/dev/null | sed -E 's/^[^(]+\(([^)]+)\)/\1/' 2>/dev/null || echo "")
 
-if [ "$BREAKING" -gt 0 ] || [ "$BREAKING_BODY" -gt 0 ]; then
-  BUMP="+1.0.0"
-  BUMP_COLOR="\033[31m" # Red
-  BUMP_TYPE="major"
-elif [ "$COMMIT_TYPE" = "feat" ]; then
-  BUMP="+0.1.0"
-  BUMP_COLOR="\033[33m" # Yellow
-  BUMP_TYPE="minor"
+# Check if the scope is in the ignored scopes list
+SCOPE_IGNORED=0
+if [ -n "$COMMIT_SCOPE" ]; then
+  for ignored_scope in $IGNORED_SCOPES; do
+    if [ "$COMMIT_SCOPE" = "$ignored_scope" ]; then
+      SCOPE_IGNORED=1
+      break
+    fi
+  done
+fi
+
+# Only calculate version impact if scope is not ignored
+if [ "$SCOPE_IGNORED" -eq 0 ]; then
+  if [ "$BREAKING" -gt 0 ] || [ "$BREAKING_BODY" -gt 0 ]; then
+    BUMP="+1.0.0"
+    BUMP_COLOR="\033[31m" # Red
+    BUMP_TYPE="major"
+  elif [ "$COMMIT_TYPE" = "feat" ]; then
+    BUMP="+0.1.0"
+    BUMP_COLOR="\033[33m" # Yellow
+    BUMP_TYPE="minor"
+  elif echo "$VERSIONING_TYPES" | grep -q "\b$COMMIT_TYPE\b"; then
+    BUMP="+0.0.1"
+    BUMP_COLOR="\033[36m" # Cyan
+    BUMP_TYPE="patch"
+  else
+    # Non-versioning commit type
+    BUMP=""
+    BUMP_COLOR=""
+    BUMP_TYPE="none"
+  fi
 else
-  BUMP="+0.0.1"
-  BUMP_COLOR="\033[36m" # Cyan
-  BUMP_TYPE="patch"
+  # Scope is ignored
+  BUMP=""
+  BUMP_COLOR=""
+  BUMP_TYPE="none"
 fi
 
 # Define the magenta color for the version bump display
@@ -95,8 +121,8 @@ if echo "$VERSION_OUTPUT" | grep -q "Version Changes:" 2>/dev/null; then
     done
   fi
   
-  # Only show the version bump if the scope is valid or there's no scope
-  if [ "$SCOPE_IS_VALID" -eq 1 ]; then
+  # Only show the version bump if the scope is valid, not ignored, and there's a bump to show
+  if [ "$SCOPE_IS_VALID" -eq 1 ] && [ "$SCOPE_IGNORED" -eq 0 ] && [ -n "$BUMP" ]; then
     # Use magenta for commit message (not blue or green) and show the bump
     echo -e "✅ Accepted commit message: \033[35m\"${COMMIT_MSG}\"\033[0m ${BUMP_COLOR}${BUMP}\033[0m (${BUMP_TYPE})"
   else
@@ -108,8 +134,8 @@ if echo "$VERSION_OUTPUT" | grep -q "Version Changes:" 2>/dev/null; then
   TMP_VERSION_OUTPUT="/tmp/version_output.txt"
   touch "$TMP_VERSION_OUTPUT" 2>/dev/null
   
-  # If we have a valid scope that matches a package, add the bump to that package
-  if [ -n "$COMMIT_SCOPE" ] && [ "$SCOPE_IS_VALID" -eq 1 ]; then
+  # If we have a valid scope that matches a package and it's not ignored
+  if [ -n "$COMMIT_SCOPE" ] && [ "$SCOPE_IS_VALID" -eq 1 ] && [ "$SCOPE_IGNORED" -eq 0 ] && [ -n "$BUMP" ]; then
     # Process the version output and add the version bump to the matching package
     echo "$VERSION_OUTPUT" | awk -v scope="$COMMIT_SCOPE" -v bump="$BUMP" -v magenta="$MAGENTA" -v reset="$RESET" '
     /Version Changes:/,/^$/ {
@@ -123,8 +149,8 @@ if echo "$VERSION_OUTPUT" | grep -q "Version Changes:" 2>/dev/null; then
         print $0
       }
     }' > "$TMP_VERSION_OUTPUT" 2>/dev/null || echo "$VERSION_OUTPUT" > "$TMP_VERSION_OUTPUT"
-  # If we have no scope, apply bump to all packages
-  elif [ -z "$COMMIT_SCOPE" ]; then
+  # If we have no scope and it's a versioning commit type
+  elif [ -z "$COMMIT_SCOPE" ] && [ -n "$BUMP" ]; then
     # No scope found, apply bump to all packages
     echo "$VERSION_OUTPUT" | awk -v bump="$BUMP" -v magenta="$MAGENTA" -v reset="$RESET" '
     /Version Changes:/,/^$/ {
@@ -147,10 +173,14 @@ if echo "$VERSION_OUTPUT" | grep -q "Version Changes:" 2>/dev/null; then
   fi
 else
   # Still show the commit message even if there are no version changes
-  if [ -n "$COMMIT_TYPE" ] && [ "$COMMIT_TYPE" != "unknown" ]; then
+  if [ -n "$COMMIT_TYPE" ] && [ "$COMMIT_TYPE" != "unknown" ] && [ "$SCOPE_IGNORED" -eq 0 ] && [ -n "$BUMP" ]; then
     echo -e "✅ Accepted commit message: \033[35m\"${COMMIT_MSG}\"\033[0m ${BUMP_COLOR}${BUMP}\033[0m (${BUMP_TYPE})"
   else
-    echo -e "✅ Accepted commit message: \033[35m\"${COMMIT_MSG}\"\033[0m"
+    if [ "$SCOPE_IGNORED" -eq 1 ]; then
+      echo -e "✅ Accepted commit message: \033[35m\"${COMMIT_MSG}\"\033[0m (scope 'pipeline' ignored for versioning)"
+    else
+      echo -e "✅ Accepted commit message: \033[35m\"${COMMIT_MSG}\"\033[0m (no version impact)"
+    fi
   fi
   
   echo "ℹ️ No version changes detected from this commit."

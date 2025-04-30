@@ -32,9 +32,9 @@ fi
 echo "🔢 Checking package versions..."
 CURRENT_BRANCH=$(git branch --show-current)
 
-# Use pnpm test-version to detect version changes
-echo "Running version test to detect required changes..."
-pnpm test-version > version_output.tmp
+# Use pnpm version:check to detect version changes
+echo "Running version check to detect required changes..."
+pnpm version:check > version_output.tmp
 VERSION_TEST_STATUS=$?
 
 # Store if version changes are needed for later
@@ -43,7 +43,7 @@ if grep -q "increments" version_output.tmp; then
     echo "📦 Version changes will be applied after all checks pass."
 else
     NEEDS_VERSION_UPDATE=false
-    echo "✅ No version changes needed according to pnpm test-version."
+    echo "✅ No version changes needed according to version check."
 fi
 
 # Keep the version output for reference
@@ -147,12 +147,14 @@ fi
 if [ "$NEEDS_VERSION_UPDATE" = true ]; then
     echo "📦 All checks passed. Now applying version changes..."
     
-    # Apply the version changes
-    pnpm version-packages
+    # Apply the version changes - use version:apply instead of version:ci
+    pnpm version:apply
     VERSION_UPDATE_STATUS=$?
     
     if [ $VERSION_UPDATE_STATUS -ne 0 ]; then
-        echo "❌ Failed to update package versions (exit code: $VERSION_UPDATE_STATUS). Push will continue, but versions may be out of sync."
+        echo "❌ Failed to update package versions (exit code: $VERSION_UPDATE_STATUS)."
+        echo "Push prevented - please fix version update issues before pushing."
+        exit 1
     else
         echo "✅ Package versions updated successfully."
         
@@ -160,12 +162,12 @@ if [ "$NEEDS_VERSION_UPDATE" = true ]; then
         if [ -n "$(git status --porcelain)" ]; then
             echo "📦 Committing version changes..."
             git add .
-            git commit -m "chore(release): update package versions based on version test"
+            git commit -m "chore(release): update package versions based on version check"
             echo "✅ Version changes committed! Continuing with push..."
         fi
     fi
 fi
 
-echo "🎉 Pre-push script reached the end! Exiting with success."
-# Force success to allow the push to proceed
-exit 0 
+echo "🎉 Pre-push checks completed successfully!"
+# Exit with the appropriate status - no forced success
+exit $VERSION_UPDATE_STATUS 
