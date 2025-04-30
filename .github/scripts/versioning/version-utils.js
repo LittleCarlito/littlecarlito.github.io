@@ -102,47 +102,79 @@ function escapeRef(ref) {
 }
 
 /**
- * Create a changeset file with explicit version instructions
+ * Update package version directly in package.json
  */
-function createCustomChangeset(packageVersions, body, dryRun = false) {
+function updatePackageVersions(packageVersions, dryRun = false) {
   if (dryRun) {
-    console.log('DRY RUN: Would create changeset with:');
-    console.log('Package versions:', packageVersions);
-    console.log('Body:', body);
+    console.log('DRY RUN: Would update package versions:');
+    console.log(packageVersions);
     return null;
   }
 
-  // Create the .changeset directory if it doesn't exist
-  const changesetDir = path.join(process.cwd(), '.changeset');
-  if (!fs.existsSync(changesetDir)) {
-    fs.mkdirSync(changesetDir, { recursive: true });
-  }
+  const results = [];
 
-  // Create a unique changeset ID
-  const changesetId = `version-custom-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-  const changesetPath = path.join(changesetDir, `${changesetId}.md`);
-  
-  // Generate the changeset header with EXPLICIT VERSIONS
-  let content = '---\n';
-  
-  // For each package, include its name and EXACT bump type
-  Object.entries(packageVersions).forEach(([packageName, versionInfo]) => {
-    // Use the most specific bump type possible
-    const bumpType = versionInfo.bumpType;
-    content += `"${packageName}": ${bumpType}\n`;
+  Object.entries(packageVersions).forEach(([packageName, info]) => {
+    const project = info.project;
+    const newVersion = info.finalVersion;
+    
+    // Get package.json path
+    const packageJsonPath = path.join(
+      process.cwd(), 
+      project === 'portfolio' ? 'apps/portfolio' : `packages/${project}`,
+      'package.json'
+    );
+    
+    try {
+      // Read package.json
+      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+      
+      // Update version
+      packageJson.version = newVersion;
+      
+      // Write back to file
+      fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
+      
+      console.log(`Updated ${packageName} to version ${newVersion}`);
+      
+      results.push({
+        packageName,
+        path: packageJsonPath,
+        version: newVersion,
+        success: true
+      });
+    } catch (error) {
+      console.error(`Error updating ${packageName}:`, error.message);
+      results.push({
+        packageName,
+        path: packageJsonPath,
+        error: error.message,
+        success: false
+      });
+    }
   });
   
-  content += '---\n\n';
-  content += body;
+  return results;
+}
+
+/**
+ * Create git tag for package version
+ */
+function createVersionTag(packageName, version, dryRun = false) {
+  const tag = `${packageName}@${version}`;
   
-  // Write the changeset file
-  fs.writeFileSync(changesetPath, content);
-  console.log(`Created changeset at ${changesetPath}`);
+  if (dryRun) {
+    console.log(`DRY RUN: Would create git tag: ${tag}`);
+    return { success: true, tag };
+  }
   
-  return {
-    id: changesetId,
-    path: changesetPath
-  };
+  try {
+    execSync(`git tag ${tag}`);
+    console.log(`Created git tag: ${tag}`);
+    return { success: true, tag };
+  } catch (error) {
+    console.error(`Error creating git tag ${tag}:`, error.message);
+    return { success: false, tag, error: error.message };
+  }
 }
 
 module.exports = {
@@ -156,5 +188,6 @@ module.exports = {
   getPackageName,
   refExists,
   escapeRef,
-  createCustomChangeset
+  updatePackageVersions,
+  createVersionTag
 }; 

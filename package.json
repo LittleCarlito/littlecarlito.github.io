@@ -41,11 +41,8 @@
     "gh-pages:test": "node tests/apps/portfolio/environment/gh-pages-texture-test.js --keep-open",
     "gh-pages:debug": "chmod +x .husky/gh-pages-test && .husky/gh-pages-test",
     "gh-pages:check": "node tests/apps/portfolio/environment/gh-pages-texture-test.js --headless",
-    "changeset": "changeset",
-    "version": "changeset version",
     "version:ci": "node .github/scripts/versioning/version-from-commits.js",
-    "dry-run-changeset": "node scripts/dry-run-changeset.js",
-    "release": "changeset publish"
+    "set-version": "node .github/scripts/versioning/set-package-version.js"
   },
   "dependencies": {
     "chalk": "^4.1.2",
@@ -55,7 +52,6 @@
   "devDependencies": {
     "@babel/core": "^7.23.0",
     "@babel/preset-env": "^7.23.0",
-    "@changesets/cli": "^2.26.2",
     "@commitlint/cli": "^19.8.0",
     "@commitlint/config-conventional": "^19.8.0",
     "@eslint/js": "^9.22.0",

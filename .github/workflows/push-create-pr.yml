@@ -124,16 +124,6 @@ jobs:
           
       - name: Install dependencies
         run: pnpm install
-        
-      # Debug package versions to ensure we're preserving what pre-push set
-      - name: Debug package versions
-        run: |
-          echo "Current package versions (set by pre-push hook):"
-          while IFS= read -r pkg_file; do
-            dir_name=$(dirname "$pkg_file")
-            version=$(node -p "require('./$pkg_file').version")
-            echo "$dir_name version: $version"
-          done < <(find apps packages -name "package.json" -not -path "*/node_modules/*") || echo "No packages found"
       
       # Create and switch to new branch (only for workflow_dispatch)
       - name: Create branch (for workflow_dispatch)

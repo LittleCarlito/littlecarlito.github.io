@@ -192,23 +192,18 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           artifact-name: ${{ needs.build.outputs.build_artifact_name }}
 
-  # Create GitHub Release if needed
-  create-release:
-    name: Create GitHub Release
-    needs: test
-    if: github.ref == 'refs/heads/main'
+  # Add a new job for checking and creating releases
+  create-releases:
+    name: Create Package Releases
+    needs: [build, test]
     runs-on: ubuntu-latest
-    outputs:
-      created_releases: ${{ steps.check_and_create.outputs.created_releases }}
-      tags_created: ${{ steps.check_and_create.outputs.tags_created }}
-    permissions:
-      contents: write
+    if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -219,123 +214,110 @@ jobs:
         with:
           version: '8.15.4'
           
-      - name: Install dependencies
-        run: pnpm install
-      
-      # Debug current package versions
-      - name: Debug package versions
-        id: debug_versions
+      - name: Check and create releases
+        id: check_releases
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Reading current package versions from package.json files..."
-          
-          # Make debug script executable if it exists
-          if [ -f ".github/scripts/ci/debug-version-numbers.sh" ]; then
-            chmod +x .github/scripts/ci/debug-version-numbers.sh
-            echo "=== CURRENT PACKAGE VERSIONS ==="
-            bash ".github/scripts/ci/debug-version-numbers.sh"
-          else
-            echo "Debug script not found, using direct inspection:"
-            while IFS= read -r pkg_file; do
-              dir_name=$(dirname "$pkg_file")
-              version=$(node -p "require('./$pkg_file').version")
-              echo "$dir_name version: $version"
-            done < <(find apps packages -name "package.json" -not -path "*/node_modules/*")
-          fi
-          
-          echo "Using existing package.json versions for release"
-          
-      - name: Create releases for packages
-        id: check_and_create
-        run: |
-          # Set git identity for creating tags
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          
-          # Always process releases on merge to main
-          echo "Processing releases for packages"
-          
-          # Find all package.json files in apps and packages
-          PACKAGE_JSONS=()
-          while IFS= read -r pkg_file; do
-            PACKAGE_JSONS+=("$pkg_file")
-          done < <(find apps packages -name "package.json" -not -path "*/node_modules/*")
-          
-          # Variables to track results
-          CREATED_RELEASES="false"
-          TAGS_CREATED=""
-          
-          # Process each package
-          for PKG_JSON in "${PACKAGE_JSONS[@]}"; do
-            # Get package info
-            PKG_NAME=$(node -p "require('./${PKG_JSON}').name")
-            PKG_VERSION=$(node -p "require('./${PKG_JSON}').version")
-            PKG_DIR=$(dirname "${PKG_JSON}")
+          # Create a function to check if a release exists
+          check_release_exists() {
+            local tag="$1"
+            local status_code
+            status_code=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/tags/${tag}")
             
-            # Skip packages without proper version or name
-            if [[ -z "${PKG_VERSION}" || "${PKG_VERSION}" == "0.0.0" || -z "${PKG_NAME}" ]]; then
-              echo "Skipping ${PKG_JSON} - invalid name or version"
-              continue
+            if [[ "$status_code" == "200" ]]; then
+              return 0  # Release exists
+            else
+              return 1  # Release does not exist
             fi
-            
-            # Check for version in git history
-            TAG_NAME="${PKG_NAME}@${PKG_VERSION}"
-            # Use the TAG_NAME directly without modification
-            CLEAN_TAG_NAME="${TAG_NAME}"
-            
-            echo "Checking tag: ${CLEAN_TAG_NAME}"
-            
-            # Check if tag already exists
-            if git tag -l | grep -q "^${CLEAN_TAG_NAME}$"; then
-              echo "Tag ${CLEAN_TAG_NAME} already exists, skipping release"
-              continue
+          }
+          
+          # Get all package names and their versions
+          echo "Checking for packages that need releases..."
+          PACKAGES=()
+          
+          for pkg_dir in packages/* apps/*; do
+            if [ -f "$pkg_dir/package.json" ]; then
+              name=$(node -e "console.log(require('./$pkg_dir/package.json').name || '')")
+              version=$(node -e "console.log(require('./$pkg_dir/package.json').version || '')")
+              
+              if [[ -n "$name" && -n "$version" ]]; then
+                # Check if tag exists
+                tag_name="${name}@${version}"
+                
+                # Check if tag exists locally or remotely
+                if git rev-parse -q --verify "refs/tags/${tag_name}" >/dev/null || \
+                   git ls-remote --tags origin "refs/tags/${tag_name}" | grep -q "${tag_name}"; then
+                  
+                  # Tag exists, now check if release exists
+                  if ! check_release_exists "${tag_name}"; then
+                    echo "Found tag ${tag_name} without a release. Adding to list."
+                    PACKAGES+=("${name}:${version}:${pkg_dir}")
+                  else
+                    echo "Release already exists for ${tag_name}. Skipping."
+                  fi
+                else
+                  echo "Tag ${tag_name} does not exist. Creating tag and adding to release list."
+                  git tag "${tag_name}"
+                  PACKAGES+=("${name}:${version}:${pkg_dir}")
+                fi
+              fi
             fi
-            
-            # Look for changelog
-            CHANGELOG_PATH="${PKG_DIR}/CHANGELOG.md"
-            RELEASE_NOTES=""
-            
-            if [[ -f "${CHANGELOG_PATH}" ]]; then
-              # Extract the most recent changelog entry (between the first and second ## headings)
-              RELEASE_NOTES="$(awk 'BEGIN{flag=0} /^## / {if (flag==1) {exit} flag=1; print; next} flag==1 {print}' "${CHANGELOG_PATH}")"
-            fi
-            
-            if [[ -z "${RELEASE_NOTES}" ]]; then
-              # If no changelog, create a simple release note
-              RELEASE_NOTES="Release ${PKG_NAME}@${PKG_VERSION}"
-            fi
-            
-            echo "Creating tag and release for ${PKG_NAME} version ${PKG_VERSION}"
-            
-            # Create the tag
-            git tag -a "${CLEAN_TAG_NAME}" -m "Release ${CLEAN_TAG_NAME}"
-            git push origin "${CLEAN_TAG_NAME}"
-            
-            # Create GitHub release with extracted notes
-            echo -e "${RELEASE_NOTES}" > release_notes.md
-            gh release create "${CLEAN_TAG_NAME}" \
-              --title "Release ${CLEAN_TAG_NAME}" \
-              --notes-file release_notes.md
-            
-            # Update tracking variables
-            CREATED_RELEASES="true"
-            TAGS_CREATED="${TAGS_CREATED}${CLEAN_TAG_NAME}, "
-            
-            echo "Created release for ${PKG_NAME} version ${PKG_VERSION}"
           done
           
-          # Trim trailing comma and space from tags list
-          TAGS_CREATED="${TAGS_CREATED%, }"
+          # Push any new tags
+          if git tag -l | grep -c '@' | grep -q '[1-9]'; then
+            echo "Pushing new tags to origin..."
+            git push --tags
+          fi
           
-          # Set outputs
-          echo "created_releases=${CREATED_RELEASES}" >> "$GITHUB_OUTPUT"
-          echo "tags_created=${TAGS_CREATED}" >> "$GITHUB_OUTPUT"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Create releases for packages that need them
+          for package_info in "${PACKAGES[@]}"; do
+            IFS=':' read -r name version pkg_dir <<< "$package_info"
+            tag_name="${name}@${version}"
+            
+            # Generate changelog from git commits
+            echo "Generating changelog for ${name} ${version}..."
+            
+            # Find the previous tag for this package
+            prev_tag=$(git tag -l "${name}@*" | sort -V | grep -B1 "${tag_name}" | head -n1)
+            
+            if [[ -n "$prev_tag" && "$prev_tag" != "$tag_name" ]]; then
+              echo "Found previous tag: ${prev_tag}"
+              range="${prev_tag}..${tag_name}"
+            else
+              echo "No previous tag found, using all commits"
+              range=""
+            fi
+            
+            # Generate changelog
+            changelog=$(git log "${range}" --pretty=format:"* %s (%h)" -- "${pkg_dir}")
+            
+            if [[ -z "$changelog" ]]; then
+              changelog="* Initial release"
+            fi
+            
+            # Create the release
+            echo "Creating release for ${tag_name}..."
+            release_note="## Changelog\n\n${changelog}"
+            
+            curl -s -X POST \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              -d "{\"tag_name\":\"${tag_name}\",\"name\":\"${name} ${version}\",\"body\":\"${release_note}\",\"draft\":false,\"prerelease\":false}" \
+              "https://api.github.com/repos/${{ github.repository }}/releases"
+              
+            echo "Created release for ${tag_name}"
+          done
+          
+          echo "Release check and creation complete!"
 
   # Build the site for GitHub Pages
   build-site:
     name: Build Site for GitHub Pages
-    needs: [test, create-release]
+    needs: test
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -404,7 +386,7 @@ jobs:
   # Report pipeline results (always runs after all jobs)
   report-results:
     name: Report Pipeline Results
-    needs: [capture-trigger-info, build, test, create-release, build-site]
+    needs: [capture-trigger-info, build, test, build-site, create-releases]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -415,7 +397,7 @@ jobs:
           # Check if any job failed
           if [[ "${{ needs.build.result }}" != "success" || 
                 "${{ needs.test.result }}" != "success" || 
-                "${{ needs.create-release.result }}" != "success" ||
+                "${{ needs.create-releases.result }}" != "success" && "${{ needs.create-releases.result }}" != "skipped" ||
                 ("${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped") ]]; then
             echo "result=failure" >> "$GITHUB_OUTPUT"
             
@@ -423,7 +405,7 @@ jobs:
             FAILED_JOBS=""
             [[ "${{ needs.build.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Build, "
             [[ "${{ needs.test.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Test, "
-            [[ "${{ needs.create-release.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Release Creation, "
+            [[ "${{ needs.create-releases.result }}" != "success" && "${{ needs.create-releases.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Releases, "
             [[ "${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Site Deployment, "
             
             # Remove trailing comma and space
