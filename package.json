@@ -25,6 +25,7 @@
     "test:version": "node scripts/test-version.js",
     "test-version": "node scripts/test-version.js",
     "test-commit": ".husky/post-commit",
+    "test-push": "tests/test-push.sh",
     "check": "pnpm -r check",
     "fmt": "pnpm -r fmt",
     "fmt:check": "pnpm -r fmt:check",
