@@ -18,6 +18,4 @@ export const tools = {
 	}
 };
 // Export utility functions that might be useful for consumers
-export { formatFileSize } from './asset_debugger/core/materials.js';
-// Version information
-export const VERSION = '1.0.0'; 
+export { formatFileSize } from './asset_debugger/core/materials.js'; 

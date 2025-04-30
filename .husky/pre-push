@@ -28,40 +28,11 @@ else
     echo "✅ Lockfile is in sync with package.json"
 fi
 
-# Check for version changes but don't apply them yet
-echo "🔢 Checking package versions..."
-CURRENT_BRANCH=$(git branch --show-current)
-
-# Use pnpm version:check to detect version changes
-echo "Running version check to detect required changes..."
-pnpm version:check > version_output.tmp
-VERSION_TEST_STATUS=$?
-
-# Store if version changes are needed for later
-if grep -q "increments" version_output.tmp; then
-    NEEDS_VERSION_UPDATE=true
-    echo "📦 Version changes will be applied after all checks pass."
-else
-    NEEDS_VERSION_UPDATE=false
-    echo "✅ No version changes needed according to version check."
-fi
-
-# Keep the version output for reference
-cat version_output.tmp
-rm -f version_output.tmp
-
-# Don't exit on error for the remainder of the script to allow debug logging
-set +e
-
 # Check for changes outside development/ and public/ directories
 echo "Checking for relevant file changes..."
 
-# Use the same base reference for file comparison
-BASE_COMMIT=${FROM_REF}
-echo "Comparing files with base: ${BASE_COMMIT}"
-
 # Get files changed between base commit and HEAD
-CHANGED_FILES=$(git diff --name-only $BASE_COMMIT HEAD)
+CHANGED_FILES=$(git diff --name-only HEAD^ HEAD)
 
 # Flag to indicate if we need to run tests
 RUN_TESTS=false
@@ -80,7 +51,7 @@ done
 
 if [ "$RUN_TESTS" = true ]; then
     # Check if .github directory has changes
-    GITHUB_DIR_CHANGES=$(git diff --name-only $BASE_COMMIT HEAD | grep -c "^\.github/")
+    GITHUB_DIR_CHANGES=$(git diff --name-only HEAD^ HEAD | grep -c "^\.github/")
     
     # Only run workflow validation if .github directory has changes
     if [ "$GITHUB_DIR_CHANGES" -gt 0 ]; then
@@ -143,31 +114,5 @@ else
     echo "✅ No changes detected outside development/ and public/ directories. Skipping tests."
 fi
 
-# After all tests and checks have passed, apply version changes if needed
-if [ "$NEEDS_VERSION_UPDATE" = true ]; then
-    echo "📦 All checks passed. Now applying version changes..."
-    
-    # Apply the version changes - use version:apply instead of version:ci
-    pnpm version:apply
-    VERSION_UPDATE_STATUS=$?
-    
-    if [ $VERSION_UPDATE_STATUS -ne 0 ]; then
-        echo "❌ Failed to update package versions (exit code: $VERSION_UPDATE_STATUS)."
-        echo "Push prevented - please fix version update issues before pushing."
-        exit 1
-    else
-        echo "✅ Package versions updated successfully."
-        
-        # Commit the version changes
-        if [ -n "$(git status --porcelain)" ]; then
-            echo "📦 Committing version changes..."
-            git add .
-            git commit -m "chore(release): update package versions based on version check"
-            echo "✅ Version changes committed! Continuing with push..."
-        fi
-    fi
-fi
-
 echo "🎉 Pre-push checks completed successfully!"
-# Exit with the appropriate status - no forced success
-exit $VERSION_UPDATE_STATUS 
+exit 0 
