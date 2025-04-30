@@ -458,3 +458,17 @@ function updateBoneChainMatrices(boneChain) {
         }
     });
 }
+
+/**
+ * Clear the bone visuals group reference
+ */
+export function clearBoneVisualsGroup() {
+    boneVisualsGroup = null;
+}
+
+/**
+ * Clear the furthest bone handle reference
+ */
+export function clearFurthestBoneHandle() {
+    furthestBoneHandle = null;
+}

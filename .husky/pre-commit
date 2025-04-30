@@ -76,7 +76,7 @@ GITHUB_FILES_CHANGED=false
 # Flags to check if specific packages were modified
 BLORKPACK_CHANGED=false
 BLORKTOOLS_CHANGED=false
-BLORKBOARD_CHANGED=false
+BLORKVISOR_CHANGED=false
 PORTFOLIO_CHANGED=false
 
 # Check staged files to determine which checks to run
@@ -101,9 +101,9 @@ for file in $STAGED_FILES; do
         BLORKTOOLS_CHANGED=true
     fi
     
-    if [[ "$file" =~ ^packages/blorkboard/ ]]; then
-        echo "🔍 Found change in blorkboard package: $file"
-        BLORKBOARD_CHANGED=true
+    if [[ "$file" =~ ^packages/blorkvisor/ ]]; then
+        echo "🔍 Found change in blorkvisor package: $file"
+        BLORKVISOR_CHANGED=true
     fi
     
     if [[ "$file" =~ ^apps/portfolio/ ]]; then
@@ -260,7 +260,7 @@ if [ "$RUN_CHECKS" = true ]; then
     )
 
     # Run build dependency tests only if relevant packages were modified
-    if [ "$BLORKPACK_CHANGED" = true ] || [ "$BLORKTOOLS_CHANGED" = true ] || [ "$BLORKBOARD_CHANGED" = true ] || [ "$PORTFOLIO_CHANGED" = true ]; then
+    if [ "$BLORKPACK_CHANGED" = true ] || [ "$BLORKTOOLS_CHANGED" = true ] || [ "$BLORKVISOR_CHANGED" = true ] || [ "$PORTFOLIO_CHANGED" = true ]; then
         echo "🚀 Running build dependency tests for modified packages..."
         run_with_timeout "pnpm test:build-deps" 120
         PIPELINE_STATUS=$?

@@ -1,19 +1,19 @@
-# Blorkboard
+# Blorkvisor
 
 A beautiful dashboard for managing and launching Blork projects.
 
 ## Installation
 
 ```bash
-npm install @littlecarlito/blorkboard
+npm install @littlecarlito/blorkvisor
 ```
 
 ## Usage
 
 ```javascript
-import { startBlorkboard } from '@littlecarlito/blorkboard';
+import { startBlorkvisor } from '@littlecarlito/blorkvisor';
 
-startBlorkboard({
+startBlorkvisor({
   port: 3000,
   projects: [
     // Your projects configuration
@@ -24,7 +24,7 @@ startBlorkboard({
 ## CLI Usage
 
 ```bash
-pnpm dlx blorkboard --port 3000
+pnpm dlx blorkvisor --port 3000
 ```
 
 ## License

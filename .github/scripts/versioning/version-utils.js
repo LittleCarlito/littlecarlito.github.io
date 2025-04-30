@@ -8,7 +8,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 // Configuration
-const PACKAGES = ['blorkpack', 'blorktools', 'blorkboard'];
+const PACKAGES = ['blorkpack', 'blorktools', 'blorkvisor'];
 const APPS = ['portfolio'];
 const ALL_PROJECTS = [...PACKAGES, ...APPS];
 const IGNORE_SCOPES = ['pipeline'];
@@ -102,47 +102,119 @@ function escapeRef(ref) {
 }
 
 /**
- * Create a changeset file with explicit version instructions
+ * Update package version directly in package.json
  */
-function createCustomChangeset(packageVersions, body, dryRun = false) {
+function updatePackageVersions(packageVersions, dryRun = false) {
   if (dryRun) {
-    console.log('DRY RUN: Would create changeset with:');
-    console.log('Package versions:', packageVersions);
-    console.log('Body:', body);
+    console.log('DRY RUN: Would update package versions:');
+    console.log(packageVersions);
     return null;
   }
 
-  // Create the .changeset directory if it doesn't exist
-  const changesetDir = path.join(process.cwd(), '.changeset');
-  if (!fs.existsSync(changesetDir)) {
-    fs.mkdirSync(changesetDir, { recursive: true });
-  }
+  const results = [];
 
-  // Create a unique changeset ID
-  const changesetId = `version-custom-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-  const changesetPath = path.join(changesetDir, `${changesetId}.md`);
-  
-  // Generate the changeset header with EXPLICIT VERSIONS
-  let content = '---\n';
-  
-  // For each package, include its name and EXACT bump type
-  Object.entries(packageVersions).forEach(([packageName, versionInfo]) => {
-    // Use the most specific bump type possible
-    const bumpType = versionInfo.bumpType;
-    content += `"${packageName}": ${bumpType}\n`;
+  Object.entries(packageVersions).forEach(([packageName, info]) => {
+    const project = info.project;
+    const newVersion = info.finalVersion;
+    
+    // Get package.json path
+    const packageJsonPath = path.join(
+      process.cwd(), 
+      project === 'portfolio' ? 'apps/portfolio' : `packages/${project}`,
+      'package.json'
+    );
+    
+    try {
+      // Read package.json
+      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+      
+      // Update version
+      packageJson.version = newVersion;
+      
+      // Write back to file
+      fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
+      
+      console.log(`Updated ${packageName} to version ${newVersion}`);
+      
+      results.push({
+        packageName,
+        path: packageJsonPath,
+        version: newVersion,
+        success: true
+      });
+    } catch (error) {
+      console.error(`Error updating ${packageName}:`, error.message);
+      results.push({
+        packageName,
+        path: packageJsonPath,
+        error: error.message,
+        success: false
+      });
+    }
   });
   
-  content += '---\n\n';
-  content += body;
+  return results;
+}
+
+/**
+ * Create git tag for package version
+ */
+function createVersionTag(packageName, version, dryRun = false) {
+  const tag = `${packageName}@${version}`;
   
-  // Write the changeset file
-  fs.writeFileSync(changesetPath, content);
-  console.log(`Created changeset at ${changesetPath}`);
+  if (dryRun) {
+    console.log(`DRY RUN: Would create git tag: ${tag}`);
+    return { success: true, tag };
+  }
   
-  return {
-    id: changesetId,
-    path: changesetPath
-  };
+  try {
+    execSync(`git tag ${tag}`);
+    console.log(`Created git tag: ${tag}`);
+    return { success: true, tag };
+  } catch (error) {
+    console.error(`Error creating git tag ${tag}:`, error.message);
+    return { success: false, tag, error: error.message };
+  }
+}
+
+/**
+ * Get the latest version tag for a package
+ * This helps prevent reaccumulating increments when tags exist
+ */
+function getLatestVersionTag(project) {
+  const packageName = getPackageName(project);
+  try {
+    // Try to find the most recent tag for this package
+    const cmd = `git tag -l "${packageName}@*" --sort=-v:refname | head -n1`;
+    const tagResult = execSync(cmd, { stdio: ['pipe', 'pipe', 'ignore'] }).toString().trim();
+    
+    if (tagResult) {
+      // Extract version from tag (format: @packageName/project@1.2.3)
+      const versionMatch = tagResult.match(/@(\d+\.\d+\.\d+)$/);
+      if (versionMatch && versionMatch[1]) {
+        return versionMatch[1];
+      }
+    }
+    
+    // If no tag found, check if this is the first run by checking if we have any commits
+    // Get the current version from package.json as a fallback
+    const currentVersion = getCurrentVersion(project);
+    
+    // If the current version is already above 0.0.0, use it
+    if (currentVersion !== '0.0.0') {
+      return currentVersion;
+    }
+    
+    // If the version is 0.0.0 and no tags exist, 
+    // we should process from the beginning of repository history
+    // Set a special indicator to let the calling function know it should 
+    // process from the first commit
+    return '__FIRST_COMMIT__';
+  } catch (error) {
+    // On error, fall back to the current version from package.json
+    console.error(`Error getting latest tag for ${packageName}: ${error.message}`);
+    return getCurrentVersion(project);
+  }
 }
 
 module.exports = {
@@ -156,5 +228,7 @@ module.exports = {
   getPackageName,
   refExists,
   escapeRef,
-  createCustomChangeset
+  updatePackageVersions,
+  createVersionTag,
+  getLatestVersionTag
 }; 

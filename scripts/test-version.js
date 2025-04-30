@@ -5,12 +5,12 @@
  * if the current branch were merged into main.
  * 
  * The comparison is made between:
- * - The last commit you specify or all commits if you don't specify
+ * - The latest version tag for each package (or package.json if no tag exists)
  * - The current branch
  * 
  * This mimics exactly how versions will be bumped in the PR workflow.
  * 
- * Usage: pnpm test-version [--branch=<branch>] [--from=<commit>]
+ * Usage: pnpm test-version [--branch=<branch>] [--from=<commit>] [--verbose]
  */
 
 const { execSync, spawnSync } = require('child_process');
@@ -20,6 +20,7 @@ const chalk = require('chalk');
 // Parse arguments
 const branchArg = process.argv.find(arg => arg.startsWith('--branch='));
 const fromArg = process.argv.find(arg => arg.startsWith('--from='));
+const verbose = process.argv.includes('--verbose');
 let currentBranch;
 
 if (branchArg) {
@@ -71,6 +72,11 @@ try {
   // Add from parameter if specified
   if (fromArg) {
     args.push(fromArg);
+  }
+  
+  // Add verbose flag if specified
+  if (verbose) {
+    args.push('--verbose');
   }
   
   console.log(chalk.dim(`> node ${versionScriptPath} ${args.join(' ')}\n`));

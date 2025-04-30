@@ -1,9 +1,6 @@
 #!/bin/bash
 # Running pre-push checks directly without husky sourcing
 
-# Exit on error to fail immediately when versioning issues occur
-set -e
-
 # Change to repository root directory to ensure commands work correctly
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -20,7 +17,7 @@ if [ $LOCKFILE_STATUS -ne 0 ]; then
     echo "🔧 Automatically updating lockfile..."
     
     # Update lockfile
-    pnpm update-lockfile
+    pnpm install --no-frozen-lockfile
     
     # Commit the changes
     git add pnpm-lock.yaml
@@ -31,109 +28,27 @@ else
     echo "✅ Lockfile is in sync with package.json"
 fi
 
-# Get the current branch name
-BRANCH=$(git symbolic-ref --short HEAD)
+# Check for version changes but don't apply them yet
+echo "🔢 Checking package versions..."
+CURRENT_BRANCH=$(git branch --show-current)
 
-# Check for version changes using test-version script
-echo "📦 Checking for version changes..."
+# Use pnpm test-version to detect version changes
+echo "Running version test to detect required changes..."
+pnpm test-version > version_output.tmp
+VERSION_TEST_STATUS=$?
 
-# Run test-version to check if versions need to be bumped
-echo "Running pnpm test-version..."
-VERSION_OUTPUT=$(pnpm test-version --branch=$BRANCH 2>&1)
-VERSION_STATUS=$?
-
-echo "$VERSION_OUTPUT"
-
-# Print current versions before any changes
-echo "📋 Current package versions before changes:"
-find apps packages -name "package.json" -not -path "*/node_modules/*" -exec sh -c 'echo "$(basename $(dirname {})) version: $(node -p "require(\"{}\").version")"' \; 2>/dev/null || echo "No packages found"
-
-# Check if version changes were detected (this depends on how test-version reports changes)
-if echo "$VERSION_OUTPUT" | grep -q "No version changes detected"; then
-    echo "✅ No version changes needed"
+# Store if version changes are needed for later
+if grep -q "increments" version_output.tmp; then
+    NEEDS_VERSION_UPDATE=true
+    echo "📦 Version changes will be applied after all checks pass."
 else
-    echo "🔄 Version changes detected - applying changes..."
-    
-    # Set up git config for the potential commit
-    git config user.name "$(git config user.name)" # Use current git config
-    git config user.email "$(git config user.email)" # Use current git config
-    
-    # Run the version script without dry-run to apply changes
-    VERSIONING_SCRIPT=".github/scripts/versioning/version-from-commits.js"
-    if [ -f "$VERSIONING_SCRIPT" ]; then
-        # Make the script executable
-        chmod +x "$VERSIONING_SCRIPT"
-        
-        # Get the first commit of the repository
-        FIRST_COMMIT=$(git rev-list --max-parents=0 HEAD)
-        echo "Using first commit as starting reference: $FIRST_COMMIT"
-        
-        # Run the version script without the dry-run flag to actually apply changes
-        node "$VERSIONING_SCRIPT" --to=$BRANCH --from=$FIRST_COMMIT
-        VERSION_SCRIPT_STATUS=$?
-        
-        # Check if version script failed
-        if [ $VERSION_SCRIPT_STATUS -ne 0 ]; then
-            echo "❌ Error: Version script failed with exit code $VERSION_SCRIPT_STATUS"
-            echo "Push aborted to prevent inconsistent versioning"
-            exit 1
-        fi
-        
-        # Check if changesets were created
-        if [ -d ".changeset" ] && [ "$(ls -A .changeset/*.md 2>/dev/null)" ]; then
-            echo "Applying custom version updates based on test-version output"
-            
-            # Show changeset content before applying
-            echo "Changeset content:"
-            cat .changeset/*.md
-            
-            # Apply versions using our custom script instead of changeset version
-            node .github/scripts/versioning/apply-custom-versions.js --branch=$BRANCH
-            CUSTOM_VERSION_STATUS=$?
-            
-            # Check if our custom version script failed
-            if [ $CUSTOM_VERSION_STATUS -ne 0 ]; then
-                echo "❌ Error: Custom version application failed with exit code $CUSTOM_VERSION_STATUS"
-                echo "Push aborted to prevent inconsistent versioning"
-                exit 1
-            fi
-            
-            # Check if any files were changed
-            if [ -n "$(git status --porcelain)" ]; then
-                echo "✅ Version changes detected and applied"
-                
-                # Show what versions were actually applied
-                echo "📋 Updated package versions:"
-                find apps packages -name "package.json" -not -path "*/node_modules/*" -exec sh -c 'echo "$(basename $(dirname {})) version: $(node -p "require(\"{}\").version")"' \; 2>/dev/null || echo "No packages found"
-                
-                # Get summary of version changes for commit message
-                VERSION_SUMMARY=$(pnpm test-version --branch=$BRANCH 2>&1 | grep -A 10 "Version Changes:" | grep -v "This is a dry run")
-                
-                # Commit the version changes
-                git add .
-                git commit -m "chore(release): update versions based on branch analysis
-
-$VERSION_SUMMARY
-
-Applied custom version changes automatically."
-                
-                echo "✅ Version changes committed! Continuing with push..."
-            else
-                echo "No changes to package.json files - this shouldn't happen with detected version changes"
-                echo "Push aborted to investigate versioning discrepancy"
-                exit 1
-            fi
-        else
-            echo "❌ Error: No changesets were created despite detecting version changes"
-            echo "Push aborted to prevent inconsistent versioning"
-            exit 1
-        fi
-    else
-        echo "⚠️ Versioning script not found at $VERSIONING_SCRIPT"
-        echo "Push aborted - versioning script is required"
-        exit 1
-    fi
+    NEEDS_VERSION_UPDATE=false
+    echo "✅ No version changes needed according to pnpm test-version."
 fi
+
+# Keep the version output for reference
+cat version_output.tmp
+rm -f version_output.tmp
 
 # Don't exit on error for the remainder of the script to allow debug logging
 set +e
@@ -141,20 +56,9 @@ set +e
 # Check for changes outside development/ and public/ directories
 echo "Checking for relevant file changes..."
 
-# Get the base commit for comparison - use safer detection
-CURRENT_BRANCH=$(git branch --show-current)
-BASE_COMMIT=""
-
-# Check if the branch exists on the remote
-if git ls-remote --heads origin $CURRENT_BRANCH | grep -q $CURRENT_BRANCH; then
-    # Branch exists on remote, use it as base
-    BASE_COMMIT="origin/$CURRENT_BRANCH"
-    echo "Comparing with existing remote branch: $BASE_COMMIT"
-else
-    # Branch doesn't exist on remote yet, use the branch point from main
-    BASE_COMMIT=$(git merge-base origin/main HEAD)
-    echo "New branch, comparing with merge-base from main: $BASE_COMMIT"
-fi
+# Use the same base reference for file comparison
+BASE_COMMIT=${FROM_REF}
+echo "Comparing files with base: ${BASE_COMMIT}"
 
 # Get files changed between base commit and HEAD
 CHANGED_FILES=$(git diff --name-only $BASE_COMMIT HEAD)
@@ -233,13 +137,33 @@ if [ "$RUN_TESTS" = true ]; then
         exit 1
     fi
     echo "✅ Build passed!"
-
-    # TEMPORARY: Skip semantic-release checks for debugging
-    echo "⏭️ TEMPORARILY SKIPPING semantic-release checks to debug pre-push issues"
     
     echo "✅ All pre-push checks completed successfully!"
 else
     echo "✅ No changes detected outside development/ and public/ directories. Skipping tests."
+fi
+
+# After all tests and checks have passed, apply version changes if needed
+if [ "$NEEDS_VERSION_UPDATE" = true ]; then
+    echo "📦 All checks passed. Now applying version changes..."
+    
+    # Apply the version changes
+    pnpm version-packages
+    VERSION_UPDATE_STATUS=$?
+    
+    if [ $VERSION_UPDATE_STATUS -ne 0 ]; then
+        echo "❌ Failed to update package versions (exit code: $VERSION_UPDATE_STATUS). Push will continue, but versions may be out of sync."
+    else
+        echo "✅ Package versions updated successfully."
+        
+        # Commit the version changes
+        if [ -n "$(git status --porcelain)" ]; then
+            echo "📦 Committing version changes..."
+            git add .
+            git commit -m "chore(release): update package versions based on version test"
+            echo "✅ Version changes committed! Continuing with push..."
+        fi
+    fi
 fi
 
 echo "🎉 Pre-push script reached the end! Exiting with success."

@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "node scripts/run-dev.js",
     "build": "pnpm clean && pnpm -r build",
-    "build:libs": "pnpm --filter='@littlecarlito/blorkpack' build && pnpm --filter='@littlecarlito/blorktools' build && pnpm --filter='@littlecarlito/blorkboard' build",
+    "build:libs": "pnpm --filter='@littlecarlito/blorkpack' build && pnpm --filter='@littlecarlito/blorktools' build && pnpm --filter='@littlecarlito/blorkvisor' build",
     "build:apps": "pnpm --filter='@littlecarlito/portfolio' build",
     "clean": "pnpm -r clean",
     "test": "jest tests --config=tests/config/jest/jest.config.cjs --passWithNoTests && pnpm -r test",
@@ -20,11 +20,12 @@
     "test:watch": "pnpm -r test:watch",
     "test:e2e": "CI=true pnpm run-p test:e2e:*",
     "test:e2e:portfolio": "pnpm --filter='@littlecarlito/portfolio' test:e2e",
-    "test:e2e:blorkboard": "pnpm --filter='@littlecarlito/blorkboard' test:e2e",
+    "test:e2e:blorkvisor": "pnpm --filter='@littlecarlito/blorkvisor' test:e2e",
     "test:e2e:blorktools": "pnpm --filter='@littlecarlito/blorktools' test:e2e",
     "test:version": "node scripts/test-version.js",
     "test-version": "node scripts/test-version.js",
     "test-commit": ".husky/post-commit",
+    "test-push": "tests/test-push.sh",
     "check": "pnpm -r check",
     "fmt": "pnpm -r fmt",
     "fmt:check": "pnpm -r fmt:check",
@@ -41,11 +42,8 @@
     "gh-pages:test": "node tests/apps/portfolio/environment/gh-pages-texture-test.js --keep-open",
     "gh-pages:debug": "chmod +x .husky/gh-pages-test && .husky/gh-pages-test",
     "gh-pages:check": "node tests/apps/portfolio/environment/gh-pages-texture-test.js --headless",
-    "changeset": "changeset",
-    "version": "changeset version",
     "version:ci": "node .github/scripts/versioning/version-from-commits.js",
-    "dry-run-changeset": "node scripts/dry-run-changeset.js",
-    "release": "changeset publish"
+    "set-version": "node .github/scripts/versioning/set-package-version.js"
   },
   "dependencies": {
     "chalk": "^4.1.2",
@@ -55,7 +53,6 @@
   "devDependencies": {
     "@babel/core": "^7.23.0",
     "@babel/preset-env": "^7.23.0",
-    "@changesets/cli": "^2.26.2",
     "@commitlint/cli": "^19.8.0",
     "@commitlint/config-conventional": "^19.8.0",
     "@eslint/js": "^9.22.0",

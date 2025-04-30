@@ -13,7 +13,11 @@ inputs:
     description: 'Head branch name (source branch)'
     required: true
   dry-run:
-    description: 'Run in dry-run mode without creating changesets'
+    description: 'Run in dry-run mode without applying changes'
+    required: false
+    default: 'false'
+  create-tags:
+    description: 'Create git tags for the new versions'
     required: false
     default: 'false'
 
@@ -49,39 +53,39 @@ runs:
           echo "Running in dry-run mode"
         fi
         
-        # Run the version-from-commits.js script to create changesets
-        node .github/scripts/versioning/version-from-commits.js ${DRY_RUN_ARG} --from="${{ inputs.base-ref }}" --to="${{ inputs.head-ref }}"
+        # Determine if we should create tags
+        CREATE_TAGS="${{ inputs.create-tags }}"
+        CREATE_TAGS_ARG=""
+        if [ "${CREATE_TAGS}" == "true" ]; then
+          CREATE_TAGS_ARG="--create-tags"
+          echo "Will create git tags for new versions"
+        fi
         
-        # Apply changesets if not in dry run mode
+        # Run the version-from-commits.js script to update package.json files directly
+        node .github/scripts/versioning/version-from-commits.js ${DRY_RUN_ARG} ${CREATE_TAGS_ARG} --from="${{ inputs.base-ref }}" --to="${{ inputs.head-ref }}"
+        
+        # Check if any files were changed (if not in dry run mode)
         if [ "${DRY_RUN}" != "true" ]; then
-          # Check if any changesets were created
-          if [ -d ".changeset" ] && [ "$(ls -A .changeset/*.md 2>/dev/null)" ]; then
-            echo "Applying changesets to update package.json files"
+          if [ -n "$(git status --porcelain)" ]; then
+            {
+              echo "hasChanges=true"
+            } >> "${GITHUB_OUTPUT}"
             
-            # Apply the changesets to update package.json files
-            pnpm changeset version
-            
-            # Check if any files were changed
-            if [ -n "$(git status --porcelain)" ]; then
-              {
-                echo "hasChanges=true"
-              } >> "${GITHUB_OUTPUT}"
-              
-              # Commit the version changes
-              git add .
-              git commit -m "chore(release): update versions based on conventional commits
+            # Commit the version changes
+            git add .
+            git commit -m "chore(release): update versions based on conventional commits
 
-              Applied version changes automatically based on commit history."
-              
-              echo "Version changes committed"
-            else
-              echo "No changes to package.json files"
-              {
-                echo "hasChanges=false"
-              } >> "${GITHUB_OUTPUT}"
+            Applied version changes automatically based on commit history."
+            
+            echo "Version changes committed"
+            
+            # Push tags if they were created
+            if [ "${CREATE_TAGS}" == "true" ]; then
+              echo "Pushing tags to remote"
+              git push --tags
             fi
           else
-            echo "No changesets were created"
+            echo "No changes to package.json files"
             {
               echo "hasChanges=false"
             } >> "${GITHUB_OUTPUT}"

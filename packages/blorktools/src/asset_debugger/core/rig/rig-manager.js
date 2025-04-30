@@ -9,7 +9,9 @@ import {
     furthestBoneHandle, 
     boneVisualsGroup,
     updateAllBoneMatrices,
-    restoreLockedBoneRotations 
+    restoreLockedBoneRotations,
+    clearBoneVisualsGroup,
+    clearFurthestBoneHandle
 } from '../bone-util';
 import { createJointLabels, createBoneLabels } from './rig-factory';
 import { refreshJointsData } from '../../ui/scripts/rig-panel';
@@ -443,11 +445,11 @@ export function updateRigAnimation() {
 export function clearRigVisualization(scene) {
     if (boneVisualsGroup) {
         scene.remove(boneVisualsGroup);
-        boneVisualsGroup = null;
+        clearBoneVisualsGroup();
     }
     if (furthestBoneHandle) {
         scene.remove(furthestBoneHandle);
-        furthestBoneHandle = null;
+        clearFurthestBoneHandle();
     }
 }
 

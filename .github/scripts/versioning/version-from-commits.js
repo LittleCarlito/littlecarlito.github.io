@@ -2,7 +2,7 @@
 
 /**
  * This script parses commit messages between the latest version tag and current HEAD
- * to automatically generate changesets for versioning packages based on conventional commits.
+ * to automatically generate version updates for packages based on conventional commits.
  * 
  * Commit format: 
  * <type>[(scope)]: <message>
@@ -21,7 +21,7 @@
  * This script ACCUMULATES version changes across all commits chronologically.
  * 
  * Usage:
- * node version-from-commits.js [--dry-run] [--from=<ref>] [--to=<ref>] [--format=pr]
+ * node version-from-commits.js [--dry-run] [--from=<ref>] [--to=<ref>] [--format=pr] [--create-tags]
  */
 
 const { execSync } = require('child_process');
@@ -38,11 +38,15 @@ const {
   getPackageName, 
   refExists, 
   escapeRef,
-  createCustomChangeset
+  updatePackageVersions,
+  createVersionTag,
+  getLatestVersionTag
 } = require('./version-utils');
 
 // CLI arguments
 const DRY_RUN = process.argv.includes('--dry-run');
+const CREATE_TAGS = process.argv.includes('--create-tags');
+const VERBOSE = process.argv.includes('--verbose');
 const fromArg = process.argv.find(arg => arg.startsWith('--from='));
 const toArg = process.argv.find(arg => arg.startsWith('--to='));
 const formatArg = process.argv.find(arg => arg.startsWith('--format='));
@@ -51,6 +55,33 @@ const formatArg = process.argv.find(arg => arg.startsWith('--format='));
 let fromRef = fromArg ? fromArg.split('=')[1] : null;
 let toRef = toArg ? toArg.split('=')[1] : 'HEAD';
 const outputFormat = formatArg ? formatArg.split('=')[1] : 'default';
+
+// Initialize version tracking
+const initialVersions = {};
+const accumulatedVersions = {};
+let shouldUseFirstCommit = false;
+
+// First pass to check if any package needs to start from first commit
+ALL_PROJECTS.forEach(project => {
+  // Try to get version from the latest tag first, fall back to package.json
+  const version = getLatestVersionTag(project);
+  
+  // Check if we need to use the first commit
+  if (version === '__FIRST_COMMIT__') {
+    shouldUseFirstCommit = true;
+    initialVersions[project] = '0.0.0';
+    accumulatedVersions[project] = '0.0.0';
+  } else {
+    initialVersions[project] = version;
+    accumulatedVersions[project] = version;
+  }
+});
+
+// If any package needs to start from first commit, adjust the fromRef
+if (shouldUseFirstCommit && fromRef) {
+  console.log("One or more packages has no version tags. Will analyze entire commit history.");
+  fromRef = null;
+}
 
 console.log(`Analyzing commits from ${fromRef || 'beginning'} to ${toRef}`);
 
@@ -94,7 +125,7 @@ if (fromRef) {
   // Use a range between the two refs
   gitLogCommand = `git log '${escapeRef(fromRef)}'..'${escapeRef(toRef)}' --pretty=format:"%H|||%s|||%b|||%at" --no-merges`;
 } else {
-  // Just get commits up to toRef
+  // Just get commits up to toRef (from beginning of repository)
   gitLogCommand = `git log '${escapeRef(toRef)}' --pretty=format:"%H|||%s|||%b|||%at" --no-merges`;
 }
 
@@ -134,31 +165,66 @@ try {
 }
 
 if (!commitsOutput) {
-  console.log('No commits found to analyze');
-  process.exit(0);
+  console.log('No commits found to analyze. Try fetching the latest changes or using a different base reference.');
+  process.exit(1);
 }
 
-const commits = commitsOutput.split('\n').map(line => {
-  // Handle potential malformed commit messages with a more robust separator
+// Split the output by newline to get individual commits
+// Handle the case where a single string is returned with no newlines
+const commits = commitsOutput.includes('\n') 
+  ? commitsOutput.split('\n').map(parseSingleCommit)
+  : commitsOutput.trim() ? [parseSingleCommit(commitsOutput)] : [];
+
+if (commits.length === 0) {
+  console.log('No valid commits found to analyze.');
+  process.exit(1);
+}
+
+// Function to parse a single commit line into an object
+function parseSingleCommit(line) {
   const parts = line.split('|||');
   const hash = parts[0] || '';
   const subject = parts[1] || '';
   const body = parts[2] || '';
   const timestamp = parseInt(parts[3] || '0', 10);
   return { hash, subject, body, timestamp };
-});
+}
 
 // Sort commits by timestamp (oldest first to process chronologically)
 commits.sort((a, b) => a.timestamp - b.timestamp);
 
 console.log(`Found ${commits.length} commits to analyze (ordered chronologically)`);
 
-// Get initial versions for each project
-const accumulatedVersions = {};
-
-// Initialize accumulated versions with current versions
+// Output version details 
 ALL_PROJECTS.forEach(project => {
-  accumulatedVersions[project] = getCurrentVersion(project);
+  const version = initialVersions[project];
+  
+  if (VERBOSE) {
+    // Check if the version came from a tag or package.json
+    try {
+      if (version === '0.0.0' && shouldUseFirstCommit) {
+        console.log(`Initial version for ${project}: ${version} (from first commit in repository)`);
+      } else {
+        const packageName = getPackageName(project);
+        const cmd = `git tag -l "${packageName}@${version}"`;
+        const tagExists = execSync(cmd, { stdio: ['pipe', 'pipe', 'ignore'] }).toString().trim() !== '';
+        
+        if (tagExists) {
+          console.log(`Initial version for ${project}: ${version} (from tag ${packageName}@${version})`);
+        } else {
+          console.log(`Initial version for ${project}: ${version} (from package.json, no tag found)`);
+        }
+      }
+    } catch (error) {
+      console.log(`Initial version for ${project}: ${version} (from package.json)`);
+    }
+  } else {
+    if (version === '0.0.0' && shouldUseFirstCommit) {
+      console.log(`Initial version for ${project}: ${version} (from first commit in repository)`);
+    } else {
+      console.log(`Initial version for ${project}: ${version}`);
+    }
+  }
 });
 
 // For logging the version progression
@@ -260,12 +326,6 @@ const GREEN = '\u001b[32m';
 const RESET = '\u001b[0m';
 
 // Show final version changes
-const initialVersions = {};
-ALL_PROJECTS.forEach(project => {
-  initialVersions[project] = getCurrentVersion(project);
-});
-
-// Output final accumulated version changes
 let hasChanges = false;
 ALL_PROJECTS.forEach(project => {
   const initialVersion = initialVersions[project];
@@ -281,7 +341,7 @@ ALL_PROJECTS.forEach(project => {
 
 if (!hasChanges) {
   console.log('No version changes detected');
-  process.exit(0);
+  process.exit(1); // Exit with code 1 to indicate no changes were needed
 }
 
 // In dry run mode, print detailed version progression and exit
@@ -299,7 +359,7 @@ if (DRY_RUN) {
     }
   });
   
-  console.log('\nDRY RUN: No changesets were created');
+  console.log('\nDRY RUN: No changes were applied to package.json files or git tags');
   process.exit(0);
 }
 
@@ -342,8 +402,7 @@ function organizeCommitsByType(projectVersionProgressions) {
   return commitsByType;
 }
 
-// Create a single changeset that instructs changeset to apply our exact version bumps
-// Prepare package version data for the changeset creator
+// Create package version data for updating package.json files
 const packageVersionData = {};
 
 ALL_PROJECTS.forEach(project => {
@@ -357,7 +416,7 @@ ALL_PROJECTS.forEach(project => {
   const packageName = getPackageName(project);
   const bumpType = determineBumpType(initialVersion, finalVersion);
   
-  // Store both the version info and bump type
+  // Store version info and bump type
   packageVersionData[packageName] = {
     initialVersion,
     finalVersion,
@@ -366,57 +425,81 @@ ALL_PROJECTS.forEach(project => {
   };
 });
 
-// Build a summary of all changes for the changeset body
-let changesetBody = '';
+// Generate changelog content (useful for future reference or if you want to create CHANGELOG.md files)
+let changelogContent = '';
 
-// Add a header summarizing all version changes
-changesetBody += 'Version Changes Summary:\n\n';
+// Add header summarizing all version changes
+changelogContent += 'Version Changes Summary:\n\n';
 Object.entries(packageVersionData).forEach(([packageName, info]) => {
   const incrementCount = versionProgressions[info.project].length - 1;
-  changesetBody += `${packageName}: ${info.initialVersion} → ${info.finalVersion} (${incrementCount} increments)\n`;
+  changelogContent += `${packageName}: ${info.initialVersion} → ${info.finalVersion} (${incrementCount} increments)\n`;
 });
 
-changesetBody += `\nGenerated from commit history between ${fromRef || 'beginning'} and ${toRef}\n\n`;
+changelogContent += `\nGenerated from commit history between ${fromRef || 'beginning'} and ${toRef}\n\n`;
 
 // Add detailed changelogs per package
 Object.entries(packageVersionData).forEach(([packageName, info]) => {
-  changesetBody += `\n## ${packageName}\n\n`;
+  changelogContent += `\n## ${packageName}\n\n`;
   
   // Organize commits by type
   const commitsByType = organizeCommitsByType(versionProgressions[info.project]);
   
   // Add feature commits
   if (commitsByType.features.length > 0) {
-    changesetBody += `### Features\n\n${commitsByType.features.join('\n')}\n\n`;
+    changelogContent += `### Features\n\n${commitsByType.features.join('\n')}\n\n`;
   }
   
   // Add fix commits
   if (commitsByType.fixes.length > 0) {
-    changesetBody += `### Fixes\n\n${commitsByType.fixes.join('\n')}\n\n`;
+    changelogContent += `### Fixes\n\n${commitsByType.fixes.join('\n')}\n\n`;
   }
   
   // Add performance commits
   if (commitsByType.performance.length > 0) {
-    changesetBody += `### Performance Improvements\n\n${commitsByType.performance.join('\n')}\n\n`;
+    changelogContent += `### Performance Improvements\n\n${commitsByType.performance.join('\n')}\n\n`;
   }
   
   // Add slice commits
   if (commitsByType.slices.length > 0) {
-    changesetBody += `### Implementation Slices\n\n${commitsByType.slices.join('\n')}\n\n`;
+    changelogContent += `### Implementation Slices\n\n${commitsByType.slices.join('\n')}\n\n`;
   }
   
   // Add other commits
   if (commitsByType.other.length > 0) {
-    changesetBody += `### Other Changes\n\n${commitsByType.other.join('\n')}\n\n`;
+    changelogContent += `### Other Changes\n\n${commitsByType.other.join('\n')}\n\n`;
   }
 });
 
-// Create the changeset
-const changeset = createCustomChangeset(packageVersionData, changesetBody, DRY_RUN);
+// Apply version updates to package.json files
+const versionUpdateResults = updatePackageVersions(packageVersionData, DRY_RUN);
 
-if (!DRY_RUN && changeset) {
-  console.log(`\nCreated changeset with custom versioning instructions at ${changeset.path}`);
-  console.log('Run "pnpm changeset version" to apply these changes to package.json files');
+console.log('\nPackage version updates:');
+versionUpdateResults.forEach(result => {
+  if (result.success) {
+    console.log(`✅ ${result.packageName}: ${result.version}`);
+  } else {
+    console.error(`❌ ${result.packageName}: ${result.error}`);
+  }
+});
+
+// Create git tags if requested
+if (CREATE_TAGS) {
+  console.log('\nCreating git tags for updated packages:');
+  
+  Object.entries(packageVersionData).forEach(([packageName, info]) => {
+    const tagResult = createVersionTag(packageName, info.finalVersion, DRY_RUN);
+    
+    if (tagResult.success) {
+      console.log(`✅ Created tag: ${tagResult.tag}`);
+    } else {
+      console.error(`❌ Failed to create tag ${tagResult.tag}: ${tagResult.error}`);
+    }
+  });
+  
+  if (!DRY_RUN) {
+    console.log('\nTo push tags to remote, run:');
+    console.log('git push --tags');
+  }
 }
 
 // Format human-readable output for specific formats
@@ -457,5 +540,5 @@ if (outputFormat === 'pr') {
   }
 }
 
-// Exit successfully
+// Exit successfully with code 0 to indicate changes were detected/applied
 process.exit(0); 

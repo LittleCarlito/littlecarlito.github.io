@@ -1,62 +1,67 @@
 #!/bin/bash
-# Debugging script for versioning in CI
-# This script helps identify discrepancies between expected version numbers
-# and what's actually in package.json files
+# Debug script to view all relevant version numbers in the CI environment
 
-set -e
-
-echo "=== VERSION DIAGNOSTIC TOOL ==="
-echo "This script helps debug versioning issues in CI pipelines"
-echo ""
-
-# Check if we're running in a GitHub Actions environment
-if [[ -n "${GITHUB_ACTIONS}" ]]; then
-  echo "Running in GitHub Actions"
-  echo "Workflow: ${GITHUB_WORKFLOW}"
-  echo "Event: ${GITHUB_EVENT_NAME}"
-  echo "Ref: ${GITHUB_REF}"
-  echo "SHA: ${GITHUB_SHA}"
+# Print versions of Node.js and package managers
+echo "=== ENVIRONMENT INFO ==="
+echo "Node version: $(node -v)"
+echo "NPM version: $(npm -v)"
+if command -v pnpm &> /dev/null; then
+  echo "PNPM version: $(pnpm -v)"
+else
+  echo "PNPM not installed"
 fi
 
+# Print repository information
 echo ""
-echo "=== CURRENT BRANCH INFO ==="
-git branch
-CURRENT_BRANCH="$(git branch --show-current || echo "detached HEAD")"
-echo "Current branch: ${CURRENT_BRANCH}"
+echo "=== REPOSITORY INFO ==="
+echo "Current directory: $(pwd)"
+echo "Git branch: $(git rev-parse --abbrev-ref HEAD)"
+echo "Git commit: $(git rev-parse HEAD)"
+echo "Git tags on current commit:"
+git tag --points-at HEAD | xargs echo
 
+# Print package versions from package.json files
 echo ""
 echo "=== PACKAGE VERSIONS ==="
-# Find all package.json files in apps and packages
-PACKAGE_JSONS="$(find apps packages -name "package.json" -not -path "*/node_modules/*" 2>/dev/null || echo "No packages found")"
 
-for PKG_JSON in ${PACKAGE_JSONS}; do
-  PKG_NAME="$(node -p "try { require('./${PKG_JSON}').name } catch(e) { 'ERROR' }")"
-  PKG_VERSION="$(node -p "try { require('./${PKG_JSON}').version } catch(e) { 'ERROR' }")"
-  echo "${PKG_NAME}: ${PKG_VERSION} (from ${PKG_JSON})"
+for pkg_dir in packages/* apps/*; do
+  if [ -f "$pkg_dir/package.json" ]; then
+    name=$(node -e "console.log(require('./$pkg_dir/package.json').name || 'Unknown')")
+    version=$(node -e "console.log(require('./$pkg_dir/package.json').version || 'Unknown')")
+    echo "$name: $version (from $pkg_dir/package.json)"
+  fi
 done
 
-echo ""
-echo "=== CUSTOM VERSIONING OUTPUT ==="
-echo "Running test-version to see what versions SHOULD be..."
-pnpm test-version --branch="${CURRENT_BRANCH}" || echo "test-version command failed"
-
+# List all git tags for version reference
 echo ""
 echo "=== GIT TAGS ==="
-echo "Existing version tags:"
-git tag -l | grep -E '@[0-9]+\.[0-9]+\.[0-9]+' | sort
+git tag -l | grep -E '@littlecarlito|v[0-9]' | sort -V | tail -n 10
 
+# Print most recent commits
 echo ""
-echo "=== VERSION SCRIPTS ==="
-echo "version-from-commits.js exists: $(test -f .github/scripts/versioning/version-from-commits.js && echo 'YES' || echo 'NO')"
-echo "apply-custom-versions.js exists: $(test -f .github/scripts/versioning/apply-custom-versions.js && echo 'YES' || echo 'NO')"
+echo "=== RECENT COMMITS ==="
+git log -5 --oneline
 
+# Check if we're in a CI environment and print variables
 echo ""
-echo "=== CHANGESETS INFO ==="
-echo "Changesets exist: $(test -d .changeset && echo 'YES' || echo 'NO')"
-if [[ -d ".changeset" ]]; then
-  echo "Changeset files:"
-  ls -la .changeset
+echo "=== CI VARIABLES ==="
+if [ -n "$GITHUB_ACTIONS" ]; then
+  echo "Running in GitHub Actions"
+  echo "GITHUB_REF: $GITHUB_REF"
+  echo "GITHUB_SHA: $GITHUB_SHA"
+  echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
+  echo "GITHUB_WORKFLOW: $GITHUB_WORKFLOW"
+  echo "GITHUB_EVENT_NAME: $GITHUB_EVENT_NAME"
+else
+  echo "Not running in a recognized CI environment"
 fi
 
+# Check if there are uncommitted changes
 echo ""
-echo "=== VERSION DIAGNOSTIC COMPLETE ===" 
+echo "=== GIT STATUS ==="
+if [ -z "$(git status --porcelain)" ]; then
+  echo "Working directory clean"
+else
+  echo "Uncommitted changes:"
+  git status --porcelain
+fi 
