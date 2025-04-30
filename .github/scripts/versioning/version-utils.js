@@ -177,6 +177,46 @@ function createVersionTag(packageName, version, dryRun = false) {
   }
 }
 
+/**
+ * Get the latest version tag for a package
+ * This helps prevent reaccumulating increments when tags exist
+ */
+function getLatestVersionTag(project) {
+  const packageName = getPackageName(project);
+  try {
+    // Try to find the most recent tag for this package
+    const cmd = `git tag -l "${packageName}@*" --sort=-v:refname | head -n1`;
+    const tagResult = execSync(cmd, { stdio: ['pipe', 'pipe', 'ignore'] }).toString().trim();
+    
+    if (tagResult) {
+      // Extract version from tag (format: @packageName/project@1.2.3)
+      const versionMatch = tagResult.match(/@(\d+\.\d+\.\d+)$/);
+      if (versionMatch && versionMatch[1]) {
+        return versionMatch[1];
+      }
+    }
+    
+    // If no tag found, check if this is the first run by checking if we have any commits
+    // Get the current version from package.json as a fallback
+    const currentVersion = getCurrentVersion(project);
+    
+    // If the current version is already above 0.0.0, use it
+    if (currentVersion !== '0.0.0') {
+      return currentVersion;
+    }
+    
+    // If the version is 0.0.0 and no tags exist, 
+    // we should process from the beginning of repository history
+    // Set a special indicator to let the calling function know it should 
+    // process from the first commit
+    return '__FIRST_COMMIT__';
+  } catch (error) {
+    // On error, fall back to the current version from package.json
+    console.error(`Error getting latest tag for ${packageName}: ${error.message}`);
+    return getCurrentVersion(project);
+  }
+}
+
 module.exports = {
   PACKAGES,
   APPS,
@@ -189,5 +229,6 @@ module.exports = {
   refExists,
   escapeRef,
   updatePackageVersions,
-  createVersionTag
+  createVersionTag,
+  getLatestVersionTag
 }; 

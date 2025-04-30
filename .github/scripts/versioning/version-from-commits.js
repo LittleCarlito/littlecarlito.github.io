@@ -39,12 +39,14 @@ const {
   refExists, 
   escapeRef,
   updatePackageVersions,
-  createVersionTag
+  createVersionTag,
+  getLatestVersionTag
 } = require('./version-utils');
 
 // CLI arguments
 const DRY_RUN = process.argv.includes('--dry-run');
 const CREATE_TAGS = process.argv.includes('--create-tags');
+const VERBOSE = process.argv.includes('--verbose');
 const fromArg = process.argv.find(arg => arg.startsWith('--from='));
 const toArg = process.argv.find(arg => arg.startsWith('--to='));
 const formatArg = process.argv.find(arg => arg.startsWith('--format='));
@@ -53,6 +55,33 @@ const formatArg = process.argv.find(arg => arg.startsWith('--format='));
 let fromRef = fromArg ? fromArg.split('=')[1] : null;
 let toRef = toArg ? toArg.split('=')[1] : 'HEAD';
 const outputFormat = formatArg ? formatArg.split('=')[1] : 'default';
+
+// Initialize version tracking
+const initialVersions = {};
+const accumulatedVersions = {};
+let shouldUseFirstCommit = false;
+
+// First pass to check if any package needs to start from first commit
+ALL_PROJECTS.forEach(project => {
+  // Try to get version from the latest tag first, fall back to package.json
+  const version = getLatestVersionTag(project);
+  
+  // Check if we need to use the first commit
+  if (version === '__FIRST_COMMIT__') {
+    shouldUseFirstCommit = true;
+    initialVersions[project] = '0.0.0';
+    accumulatedVersions[project] = '0.0.0';
+  } else {
+    initialVersions[project] = version;
+    accumulatedVersions[project] = version;
+  }
+});
+
+// If any package needs to start from first commit, adjust the fromRef
+if (shouldUseFirstCommit && fromRef) {
+  console.log("One or more packages has no version tags. Will analyze entire commit history.");
+  fromRef = null;
+}
 
 console.log(`Analyzing commits from ${fromRef || 'beginning'} to ${toRef}`);
 
@@ -96,7 +125,7 @@ if (fromRef) {
   // Use a range between the two refs
   gitLogCommand = `git log '${escapeRef(fromRef)}'..'${escapeRef(toRef)}' --pretty=format:"%H|||%s|||%b|||%at" --no-merges`;
 } else {
-  // Just get commits up to toRef
+  // Just get commits up to toRef (from beginning of repository)
   gitLogCommand = `git log '${escapeRef(toRef)}' --pretty=format:"%H|||%s|||%b|||%at" --no-merges`;
 }
 
@@ -166,12 +195,36 @@ commits.sort((a, b) => a.timestamp - b.timestamp);
 
 console.log(`Found ${commits.length} commits to analyze (ordered chronologically)`);
 
-// Get initial versions for each project
-const accumulatedVersions = {};
-
-// Initialize accumulated versions with current versions
+// Output version details 
 ALL_PROJECTS.forEach(project => {
-  accumulatedVersions[project] = getCurrentVersion(project);
+  const version = initialVersions[project];
+  
+  if (VERBOSE) {
+    // Check if the version came from a tag or package.json
+    try {
+      if (version === '0.0.0' && shouldUseFirstCommit) {
+        console.log(`Initial version for ${project}: ${version} (from first commit in repository)`);
+      } else {
+        const packageName = getPackageName(project);
+        const cmd = `git tag -l "${packageName}@${version}"`;
+        const tagExists = execSync(cmd, { stdio: ['pipe', 'pipe', 'ignore'] }).toString().trim() !== '';
+        
+        if (tagExists) {
+          console.log(`Initial version for ${project}: ${version} (from tag ${packageName}@${version})`);
+        } else {
+          console.log(`Initial version for ${project}: ${version} (from package.json, no tag found)`);
+        }
+      }
+    } catch (error) {
+      console.log(`Initial version for ${project}: ${version} (from package.json)`);
+    }
+  } else {
+    if (version === '0.0.0' && shouldUseFirstCommit) {
+      console.log(`Initial version for ${project}: ${version} (from first commit in repository)`);
+    } else {
+      console.log(`Initial version for ${project}: ${version}`);
+    }
+  }
 });
 
 // For logging the version progression
@@ -273,12 +326,6 @@ const GREEN = '\u001b[32m';
 const RESET = '\u001b[0m';
 
 // Show final version changes
-const initialVersions = {};
-ALL_PROJECTS.forEach(project => {
-  initialVersions[project] = getCurrentVersion(project);
-});
-
-// Output final accumulated version changes
 let hasChanges = false;
 ALL_PROJECTS.forEach(project => {
   const initialVersion = initialVersions[project];

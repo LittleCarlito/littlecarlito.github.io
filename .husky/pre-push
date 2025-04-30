@@ -28,7 +28,7 @@ else
     echo "✅ Lockfile is in sync with package.json"
 fi
 
-# Run versioning checks and updates
+# Check for version changes but don't apply them yet
 echo "🔢 Checking package versions..."
 CURRENT_BRANCH=$(git branch --show-current)
 
@@ -37,33 +37,17 @@ echo "Running version test to detect required changes..."
 pnpm test-version > version_output.tmp
 VERSION_TEST_STATUS=$?
 
-# Check if version increments were found by looking for "increments" in the output
+# Store if version changes are needed for later
 if grep -q "increments" version_output.tmp; then
-    echo "📦 Version changes needed based on pnpm test-version results."
-    
-    # Apply the version changes
-    echo "Updating package versions..."
-    pnpm version-packages
-    VERSION_UPDATE_STATUS=$?
-    
-    if [ $VERSION_UPDATE_STATUS -ne 0 ]; then
-        echo "❌ Failed to update package versions (exit code: $VERSION_UPDATE_STATUS). Push will continue, but versions may be out of sync."
-    else
-        echo "✅ Package versions updated successfully."
-        
-        # Commit the version changes
-        if [ -n "$(git status --porcelain)" ]; then
-            echo "📦 Committing version changes..."
-            git add .
-            git commit -m "chore(release): update package versions based on version test"
-            echo "✅ Version changes committed! Continuing with push..."
-        fi
-    fi
+    NEEDS_VERSION_UPDATE=true
+    echo "📦 Version changes will be applied after all checks pass."
 else
+    NEEDS_VERSION_UPDATE=false
     echo "✅ No version changes needed according to pnpm test-version."
 fi
 
-# Remove temporary file
+# Keep the version output for reference
+cat version_output.tmp
 rm -f version_output.tmp
 
 # Don't exit on error for the remainder of the script to allow debug logging
@@ -157,6 +141,29 @@ if [ "$RUN_TESTS" = true ]; then
     echo "✅ All pre-push checks completed successfully!"
 else
     echo "✅ No changes detected outside development/ and public/ directories. Skipping tests."
+fi
+
+# After all tests and checks have passed, apply version changes if needed
+if [ "$NEEDS_VERSION_UPDATE" = true ]; then
+    echo "📦 All checks passed. Now applying version changes..."
+    
+    # Apply the version changes
+    pnpm version-packages
+    VERSION_UPDATE_STATUS=$?
+    
+    if [ $VERSION_UPDATE_STATUS -ne 0 ]; then
+        echo "❌ Failed to update package versions (exit code: $VERSION_UPDATE_STATUS). Push will continue, but versions may be out of sync."
+    else
+        echo "✅ Package versions updated successfully."
+        
+        # Commit the version changes
+        if [ -n "$(git status --porcelain)" ]; then
+            echo "📦 Committing version changes..."
+            git add .
+            git commit -m "chore(release): update package versions based on version test"
+            echo "✅ Version changes committed! Continuing with push..."
+        fi
+    fi
 fi
 
 echo "🎉 Pre-push script reached the end! Exiting with success."
