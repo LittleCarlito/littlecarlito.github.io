@@ -577,9 +577,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             // Use the world panel's renderEnvironmentPreview function
                             if (worldPanelModule.renderEnvironmentPreview) {
                                 worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
-                            } else {
-                                // Fallback to simple sphere if function not available
-                                createFallbackSphere(canvas);
                             }
                             
                             // Clean up URL after loading
@@ -612,7 +609,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             });
                         }, undefined, error => {
                             console.error('Error loading EXR texture:', error);
-                            createFallbackSphere(canvas);
                             canvas.classList.add('visible');
                             canvas.classList.remove('hidden');
                             hidePreviewLoading(containerDiv);
@@ -644,9 +640,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             // Use the world panel's renderEnvironmentPreview function
                             if (worldPanelModule.renderEnvironmentPreview) {
                                 worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
-                            } else {
-                                // Fallback to simple sphere if function not available
-                                createFallbackSphere(canvas);
                             }
                             
                             // Clean up URL after loading
@@ -679,7 +672,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             });
                         }, undefined, error => {
                             console.error('Error loading HDR texture:', error);
-                            createFallbackSphere(canvas);
                             canvas.classList.add('visible');
                             canvas.classList.remove('hidden');
                             hidePreviewLoading(containerDiv);
@@ -706,7 +698,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
     // Helper function to handle lighting errors
     function handleLightingError(error) {
         console.error('Lighting error:', error);
-        createFallbackSphere(canvas);
         canvas.classList.add('visible');
         canvas.classList.remove('hidden');
         hidePreviewLoading(containerDiv);
@@ -717,42 +708,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
             messageDiv.textContent = 'Error loading lighting file';
         }
     }
-}
-
-/**
- * Instead of creating a fallback sphere, log the error properly
- * @param {HTMLCanvasElement} canvas - The canvas that would have shown a preview
- */
-function createFallbackSphere(canvas) {
-    console.error('ERROR: Failed to create environment preview');
-    
-    // Add error message to canvas context
-    const ctx = canvas.getContext('2d');
-    
-    // Clear canvas with dark background
-    ctx.fillStyle = '#111111';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Add error text
-    ctx.fillStyle = '#ff3333';
-    ctx.font = 'bold 16px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('ERROR: Preview Failed', canvas.width / 2, canvas.height / 2 - 10);
-    
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '12px sans-serif';
-    ctx.fillText('See console for details', canvas.width / 2, canvas.height / 2 + 15);
-    
-    // Log additional information about the issue in the console
-    console.error({
-        message: 'Environment texture preview failed',
-        timestamp: new Date().toISOString(),
-        elementInfo: {
-            canvasWidth: canvas.width,
-            canvasHeight: canvas.height,
-            canvasId: canvas.id || 'unknown'
-        }
-    });
 }
 
 /**
@@ -890,9 +845,6 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                         // Use the world panel's renderEnvironmentPreview function
                         if (worldPanelModule.renderEnvironmentPreview) {
                             worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
-                        } else {
-                            // Fallback to simple sphere if function not available
-                            createFallbackSphere(canvas);
                         }
                         
                         // Clean up URL after loading
@@ -918,7 +870,6 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                         });
                     }, undefined, error => {
                         console.error('Error loading EXR background texture:', error);
-                        createFallbackSphere(canvas);
                         canvas.classList.add('visible');
                         canvas.classList.remove('hidden');
                         hidePreviewLoading(containerDiv);
@@ -945,7 +896,6 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
             }).catch(error => {
                 console.error('Error loading EXRLoader:', error);
                 hidePreviewLoading(containerDiv);
-                createFallbackSphere(canvas);
                 canvas.classList.add('visible');
                 canvas.classList.remove('hidden');
             });
@@ -981,9 +931,6 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                         // Use the world panel's renderEnvironmentPreview function
                         if (worldPanelModule.renderEnvironmentPreview) {
                             worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
-                        } else {
-                            // Fallback to simple sphere if function not available
-                            createFallbackSphere(canvas);
                         }
                         
                         // Clean up URL after loading
@@ -1016,7 +963,6 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                         });
                     }, undefined, error => {
                         console.error('Error loading HDR background texture:', error);
-                        createFallbackSphere(canvas);
                         canvas.classList.add('visible');
                         canvas.classList.remove('hidden');
                         hidePreviewLoading(containerDiv);
@@ -1043,7 +989,6 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
             }).catch(error => {
                 console.error('Error loading RGBELoader:', error);
                 hidePreviewLoading(containerDiv);
-                createFallbackSphere(canvas);
                 canvas.classList.add('visible');
                 canvas.classList.remove('hidden');
             });
@@ -1075,9 +1020,6 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                     // Use the world panel's renderEnvironmentPreview function
                     if (worldPanelModule.renderEnvironmentPreview) {
                         worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
-                    } else {
-                        // Fallback to simple sphere if function not available
-                        createFallbackSphere(canvas);
                     }
                     
                     // Hide loading indicator
@@ -1100,7 +1042,6 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                     });
                 }, undefined, error => {
                     console.error('Error loading image texture:', error);
-                    createFallbackSphere(canvas);
                     canvas.classList.add('visible');
                     canvas.classList.remove('hidden');
                     hidePreviewLoading(containerDiv);
