@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.46.2 (2025-05-01)</small>
+
+- feat(pipeline): add CI/CD integration section to BlorkVisor README ([ff88d70](https://github.com/LittleCarlito/threejs_site/commit/ff88d70))
+
 ## <small>0.46.1 (2025-05-01)</small>
 
 - slice(docs): simplify BlorkTools README ([3967739](https://github.com/LittleCarlito/threejs_site/commit/3967739))
