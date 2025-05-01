@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    tags:
-      - '*@*'  # Match package name@version format tags
   workflow_dispatch:
     inputs:
       triggered_by:
@@ -42,8 +40,6 @@ jobs:
     outputs:
       trigger_actor: ${{ steps.set-trigger-info.outputs.trigger_actor }}
       triggering_workflow: ${{ steps.set-trigger-info.outputs.triggering_workflow }}
-      is_tag_push: ${{ steps.set-trigger-info.outputs.is_tag_push }}
-      version_tag: ${{ steps.set-trigger-info.outputs.version_tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -59,29 +55,18 @@ jobs:
             {
               echo "trigger_workflow=${{ github.event.inputs.triggered_by }}"
               echo "triggering_workflow=${{ github.event.inputs.triggered_by }}"
-              echo "is_tag_push=false"
             } >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             # Manual trigger
             {
               echo "trigger_workflow=manual"
               echo "triggering_workflow=manual"
-              echo "is_tag_push=false"
-            } >> "$GITHUB_OUTPUT"
-          elif [[ "${{ github.ref }}" =~ ^refs/tags/ ]]; then
-            # Tag push
-            {
-              echo "trigger_workflow=tag_push"
-              echo "triggering_workflow=tag_push"
-              echo "is_tag_push=true"
-              echo "version_tag=${GITHUB_REF#refs/tags/}"
             } >> "$GITHUB_OUTPUT"
           else
             # Direct push to main
             {
               echo "trigger_workflow=direct_push"
               echo "triggering_workflow=direct"
-              echo "is_tag_push=false"
             } >> "$GITHUB_OUTPUT"
           fi
           
@@ -213,77 +198,6 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           artifact-name: ${{ needs.build.outputs.build_artifact_name }}
 
-  # Publish packages when a version tag is pushed
-  publish:
-    name: Publish Packages
-    needs: [capture-trigger-info, test]
-    if: needs.capture-trigger-info.outputs.is_tag_push == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@littlecarlito'
-          
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: '8.15.4'
-          
-      - name: Install dependencies
-        run: pnpm install
-        
-      - name: Set npm authentication
-        run: |
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
-          echo "@littlecarlito:registry=https://npm.pkg.github.com" >> .npmrc
-          
-      - name: Build packages
-        run: pnpm build
-        
-      - name: Extract package info from tag
-        id: extract-info
-        run: |
-          # Extract package name and version from the tag
-          TAG_NAME="${{ needs.capture-trigger-info.outputs.version_tag }}"
-          if [[ "$TAG_NAME" =~ ^(.+)@(.+)$ ]]; then
-            PACKAGE_NAME="${BASH_REMATCH[1]}"
-            PACKAGE_VERSION="${BASH_REMATCH[2]}"
-            {
-              echo "package_name=$PACKAGE_NAME"
-              echo "package_version=$PACKAGE_VERSION"
-            } >> "$GITHUB_OUTPUT"
-            echo "📦 Publishing $PACKAGE_NAME at version $PACKAGE_VERSION"
-          else
-            echo "❌ Invalid tag format: $TAG_NAME"
-            echo "Expected format: package-name@version"
-            exit 1
-          fi
-        
-      - name: Publish package with Changeset
-        run: |
-          # Use changeset publish to release the package
-          pnpm changeset publish --tag latest
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: "${{ steps.extract-info.outputs.package_name }} v${{ steps.extract-info.outputs.package_version }}"
-          tag_name: ${{ needs.capture-trigger-info.outputs.version_tag }}
-          generate_release_notes: true
-          token: ${{ secrets.GITHUB_TOKEN }}
-
   # Build the site for GitHub Pages
   build-site:
     name: Build Site for GitHub Pages
@@ -356,7 +270,7 @@ jobs:
   # Report pipeline results (always runs after all jobs)
   report-results:
     name: Report Pipeline Results
-    needs: [capture-trigger-info, build, test, publish, build-site]
+    needs: [capture-trigger-info, build, test, build-site]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -367,7 +281,6 @@ jobs:
           # Check if any job failed
           if [[ "${{ needs.build.result }}" != "success" || 
                 "${{ needs.test.result }}" != "success" || 
-                ("${{ needs.publish.result }}" != "success" && "${{ needs.publish.result }}" != "skipped") ||
                 ("${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped") ]]; then
             echo "result=failure" >> "$GITHUB_OUTPUT"
             
@@ -375,7 +288,6 @@ jobs:
             FAILED_JOBS=""
             [[ "${{ needs.build.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Build, "
             [[ "${{ needs.test.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Test, "
-            [[ "${{ needs.publish.result }}" != "success" && "${{ needs.publish.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Publish, "
             [[ "${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Site Deployment, "
             
             # Remove trailing comma and space

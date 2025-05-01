@@ -18,6 +18,12 @@ import { initWorldPanel } from './world-panel.js';
 // Debug flags
 const DEBUG_LIGHTING = false;
 
+// Track if World Panel has been initialized
+let worldPanelInitialized = false;
+
+// Track loading completion state
+let loadingComplete = false;
+
 // Mac dock behavior settings
 const HEADER_SHOW_DISTANCE = 20; // px from top to show header
 const HEADER_HIDE_DISTANCE = 60; // px from top to hide header
@@ -25,7 +31,6 @@ const HEADER_HIDE_DELAY = 1000; // ms to wait before hiding header
 let headerHideTimer = null;
 
 // Track loading state
-let loadingComplete = false;
 let resourcesLoaded = {
     componentsLoaded: false,
     sceneInitialized: false,
@@ -35,218 +40,7 @@ let resourcesLoaded = {
     controlsReady: false
 };
 
-// Initialize the application when the DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('Asset Debugger UI: Initializing...');
-    
-    // Set up theme and UI elements
-    setupThemeAndUI();
-    
-    // Load all component HTML files
-    loadComponentHtml();
-    
-    // Initialize the 3D environment
-    init();
-    
-    // Set up the event listeners for debugging
-    setupDebuggerEvents();
-});
-
-/**
- * Shows the loading splash screen
- */
-function showLoadingSplash() {
-    // First check if the splash already exists
-    let loadingSplash = document.getElementById('loading-splash');
-    
-    if (!loadingSplash) {
-        // Create and add the loading splash screen from our HTML template
-        fetch('../pages/loading-splash.html')
-            .then(response => response.text())
-            .then(html => {
-                document.body.insertAdjacentHTML('beforeend', html);
-                // Make sure it's visible
-                loadingSplash = document.getElementById('loading-splash');
-                if (loadingSplash) {
-                    loadingSplash.style.display = 'flex';
-                }
-            })
-            .catch(error => {
-                console.error('Error loading splash screen:', error);
-            });
-    } else {
-        // If it exists, make sure it's visible
-        loadingSplash.style.display = 'flex';
-        loadingSplash.classList.remove('fade-out');
-    }
-}
-
-/**
- * Updates the loading progress text on the splash screen
- * @param {string} text - The progress message to display
- */
-function updateLoadingProgress(text) {
-    const progressText = document.getElementById('loading-progress-text');
-    if (progressText) {
-        progressText.textContent = text;
-    }
-}
-
-/**
- * Hides the loading splash screen with a fade-out animation
- */
-function hideLoadingSplash() {
-    const loadingSplash = document.getElementById('loading-splash');
-    if (loadingSplash) {
-        // Add fade-out class for smooth transition
-        loadingSplash.classList.add('fade-out');
-        
-        // Remove the element after the animation completes
-        setTimeout(() => {
-            loadingSplash.remove();
-        }, 600); // Match the transition duration in CSS
-    }
-}
-
-/**
- * Checks if all resources have loaded and hides the splash screen when done
- */
-function checkAllResourcesLoaded() {
-    if (resourcesLoaded.componentsLoaded && 
-        resourcesLoaded.sceneInitialized && 
-        resourcesLoaded.lightingLoaded && 
-        resourcesLoaded.backgroundLoaded && 
-        resourcesLoaded.modelLoaded &&
-        resourcesLoaded.controlsReady) {
-        
-        loadingComplete = true;
-        console.log('All resources loaded, hiding splash screen');
-        
-        // Give a small delay to ensure everything is rendered properly
-        setTimeout(() => {
-            hideLoadingSplash();
-        }, 500);
-    }
-}
-
-/**
- * Set up theme, UI elements, and basic event listeners
- */
-function setupThemeAndUI() {
-    // Always use terminal theme (dark mode)
-    document.documentElement.classList.add('dark-mode');
-    document.documentElement.classList.remove('light-mode');
-    
-    // System status button
-    const themeToggle = document.getElementById('theme-toggle');
-    if (themeToggle) {
-        themeToggle.textContent = 'System Status';
-        
-        themeToggle.addEventListener('click', function() {
-            alert('System Status: Online\nAsset Debugger: Ready\nRig Visualizer: Ready');
-        });
-    }
-    
-    // Return to Toolbox functionality
-    const returnToToolboxBtn = document.getElementById('return-to-toolbox');
-    if (returnToToolboxBtn) {
-        returnToToolboxBtn.addEventListener('click', function() {
-            window.location.href = '../../';
-        });
-    }
-    
-    // Pin button functionality with localStorage persistence
-    const pinButton = document.getElementById('pin-button');
-    if (pinButton) {
-        // No need to initialize state here as it's now done in the HTML
-        // Just set up event listener to toggle and save pin state
-        pinButton.addEventListener('click', function() {
-            this.classList.toggle('pinned');
-            
-            // Save the new state to settings
-            const isPinned = this.classList.contains('pinned');
-            const currentSettings = loadSettings() || {};
-            currentSettings.pinned = isPinned;
-            saveSettings(currentSettings);
-            
-            // If pinned, ensure header is visible
-            const header = document.querySelector('header');
-            if (isPinned) {
-                header.style.transform = 'translateY(0)';
-                header.style.opacity = '1';
-            } else {
-                // If not pinned, just register the dock behavior
-                // but don't hide the header immediately - keep it visible
-                // and let the mouse movement behavior handle when to hide it
-                setupHeaderDockBehavior(false);
-            }
-        });
-    }
-    
-    // Set up Mac-like dock behavior for header
-    setupHeaderDockBehavior(true);
-}
-
-/**
- * Sets up the Mac-like dock behavior for the header
- * @param {boolean} hideInitially - Whether to hide the header initially if unpinned
- */
-function setupHeaderDockBehavior(hideInitially = true) {
-    const header = document.querySelector('header');
-    const pinButton = document.getElementById('pin-button');
-    
-    if (!header || !pinButton) return;
-    
-    // Add CSS transitions for smooth show/hide
-    header.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
-    
-    // Initial state
-    const isPinned = pinButton.classList.contains('pinned');
-    if (!isPinned && hideInitially) {
-        // Start with header hidden if not pinned and hideInitially is true
-        header.style.transform = 'translateY(-100%)';
-        header.style.opacity = '0';
-    }
-    
-    // Add mouse movement listener to show/hide header
-    document.addEventListener('mousemove', (e) => {
-        // Get latest pin state
-        const isPinned = pinButton.classList.contains('pinned');
-        
-        // If pinned, keep header visible at all times
-        if (isPinned) {
-            header.style.transform = 'translateY(0)';
-            header.style.opacity = '1';
-            
-            // Clear any pending hide timer
-            if (headerHideTimer) {
-                clearTimeout(headerHideTimer);
-                headerHideTimer = null;
-            }
-            return;
-        }
-        
-        // When mouse is near the top, show the header
-        if (e.clientY <= HEADER_SHOW_DISTANCE) {
-            header.style.transform = 'translateY(0)';
-            header.style.opacity = '1';
-            
-            // Clear any pending hide timer
-            if (headerHideTimer) {
-                clearTimeout(headerHideTimer);
-                headerHideTimer = null;
-            }
-        } 
-        // When mouse moves away, start timer to hide header
-        else if (e.clientY > HEADER_HIDE_DISTANCE && !headerHideTimer) {
-            headerHideTimer = setTimeout(() => {
-                header.style.transform = 'translateY(-100%)';
-                header.style.opacity = '0';
-                headerHideTimer = null;
-            }, HEADER_HIDE_DELAY);
-        }
-    });
-}
+// ASSET DEBUGGER CODE
 
 /**
  * Load all component HTML files dynamically
@@ -272,6 +66,14 @@ function loadComponentHtml() {
         .then(response => response.text())
         .then(html => {
             document.getElementById('world-tab-container').innerHTML = html;
+            
+            // Initialize World Panel once its HTML is loaded
+            console.log('World Panel HTML loaded, initializing panel...');
+            if (!worldPanelInitialized) {
+                initWorldPanel();
+                worldPanelInitialized = true;
+            }
+            
             componentLoaded();
         })
         .catch(error => {
@@ -378,184 +180,136 @@ function loadComponentHtml() {
 }
 
 /**
- * Set up event listeners for the Start Debug and Restart buttons
+ * Initialize the debugger with the given settings
+ * @param {Object} settings - The application settings
  */
-function setupDebuggerEvents() {
-    // Initialize 3D scene when Start Debugging is clicked
-    const startDebugBtn = document.getElementById('start-debug');
-    const restartDebugBtn = document.getElementById('restart-debug');
+function initializeDebugger(settings) {
+    // HTML UI handling code - hide upload section, show debug controls in header
+    const uploadSection = document.getElementById('upload-section');
+    const debugControls = document.querySelector('.debug-controls');
     const viewport = document.getElementById('viewport');
     const tabContainer = document.getElementById('tab-container');
     
-    if (startDebugBtn) {
-        startDebugBtn.addEventListener('click', verifyFileDrop);
+    if (uploadSection) {
+        uploadSection.style.display = 'none';
     }
     
-    if (restartDebugBtn) {
-        restartDebugBtn.addEventListener('click', restartDebugging);
+    if (debugControls) {
+        debugControls.style.display = 'flex';
     }
+    
+    // Show viewport
+    if (viewport) {
+        viewport.style.display = 'block';
+    }
+    
+    // Make the tab container visible once debugging starts, respecting saved hidden state
+    if (tabContainer) {
+        const isPanelHidden = settings && settings.tabPanelHidden;
+        
+        if (isPanelHidden) {
+            // Keep panel hidden if that was the saved state
+            tabContainer.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+        } else {
+            // Otherwise make it visible
+            tabContainer.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important;';
+        }
+    }
+    
+    // Set up tab navigation
+    setupTabNavigation();
+    
+    // Set up toggle panel button
+    setupTogglePanelButton();
+    
+    // Now that the user has clicked "Start Debugging", we can initialize all the panels
+    console.log('Start debugging clicked - initializing panels...');
+    
+    // World panel is already initialized during component HTML loading
+    // Do not initialize again: initWorldPanel();
+    
+    // Initialize other panels that might be needed
+    import('./atlas-panel.js').then(module => {
+        if (module.initAtlasPanel) {
+            module.initAtlasPanel();
+        }
+    });
+    
+    import('./uv-panel.js').then(module => {
+        if (module.initUvPanel) {
+            module.initUvPanel();
+        }
+    });
+    
+    import('./mesh-panel.js').then(module => {
+        if (module.initMeshPanel) {
+            module.initMeshPanel();
+        }
+    });
+    
+    // Initialize settings modal with loaded settings
+    new SettingsModal(settings);
+    
+    // Scene initialization is now handled in startDebugging function
+    // to ensure proper sequencing of operations
 }
 
 /**
- * Set up tab navigation system
+ * Set up theme, UI elements, and basic event listeners
  */
-function setupTabNavigation() {
-    console.log('Setting up tab navigation...');
+function setupThemeAndUI() {
+    // Always use terminal theme (dark mode)
+    document.documentElement.classList.add('dark-mode');
+    document.documentElement.classList.remove('light-mode');
     
-    // Get tab buttons
-    const worldTabButton = document.getElementById('world-tab-button');
-    const meshTabButton = document.getElementById('mesh-tab-button');
-    const atlasTabButton = document.getElementById('atlas-tab-button');
-    const uvTabButton = document.getElementById('uv-tab-button');
-    const rigTabButton = document.getElementById('rig-tab-button');
-    
-    // Helper function to get the latest references to tab content elements
-    function getTabElements() {
-        return {
-            worldTab: document.getElementById('world-tab-container'),
-            worldContent: document.getElementById('world-tab'),
-            meshTab: document.getElementById('mesh-tab-container'),
-            meshContent: document.getElementById('mesh-tab'),
-            atlasTab: document.getElementById('atlas-tab-container'),
-            atlasContent: document.getElementById('atlas-tab-container').querySelector('.tab-content-inner'),
-            uvTab: document.getElementById('uv-tab-container'),
-            uvContent: document.getElementById('uv-tab'),
-            rigTab: document.getElementById('rig-tab-container'),
-            rigContent: document.getElementById('rig-tab')
-        };
-    }
-    
-    // Helper function to hide all tabs
-    function hideAllTabs() {
-        const tabs = getTabElements();
-        Object.values(tabs).forEach(tab => {
-            if (tab) tab.classList.remove('active');
+    // System status button
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        themeToggle.textContent = 'System Status';
+        
+        themeToggle.addEventListener('click', function() {
+            alert('System Status: Online\nAsset Debugger: Ready\nRig Visualizer: Ready');
         });
     }
     
-    // Set up click handlers for each tab button
-    if (worldTabButton) {
-        worldTabButton.addEventListener('click', () => {
-            // Update active button
-            worldTabButton.classList.add('active');
-            meshTabButton.classList.remove('active');
-            atlasTabButton.classList.remove('active');
-            uvTabButton.classList.remove('active');
-            rigTabButton.classList.remove('active');
-            
-            // Hide all tabs first
-            hideAllTabs();
-            
-            // Show world tab content
-            const tabs = getTabElements();
-            if (tabs.worldTab) tabs.worldTab.classList.add('active');
-            if (tabs.worldContent) tabs.worldContent.classList.add('active');
-            
-            // Initialize World panel if needed
-            initWorldPanel();
+    // Return to Toolbox functionality
+    const returnToToolboxBtn = document.getElementById('return-to-toolbox');
+    if (returnToToolboxBtn) {
+        returnToToolboxBtn.addEventListener('click', function() {
+            window.location.href = '../../';
         });
     }
     
-    if (meshTabButton) {
-        meshTabButton.addEventListener('click', () => {
-            // Update active button
-            worldTabButton.classList.remove('active');
-            meshTabButton.classList.add('active');
-            atlasTabButton.classList.remove('active');
-            uvTabButton.classList.remove('active');
-            rigTabButton.classList.remove('active');
+    // Pin button functionality with localStorage persistence
+    const pinButton = document.getElementById('pin-button');
+    if (pinButton) {
+        // No need to initialize state here as it's now done in the HTML
+        // Just set up event listener to toggle and save pin state
+        pinButton.addEventListener('click', function() {
+            this.classList.toggle('pinned');
             
-            // Hide all tabs first
-            hideAllTabs();
+            // Save the new state to settings
+            const isPinned = this.classList.contains('pinned');
+            const currentSettings = loadSettings() || {};
+            currentSettings.pinned = isPinned;
+            saveSettings(currentSettings);
             
-            // Show mesh tab content
-            const tabs = getTabElements();
-            if (tabs.meshTab) tabs.meshTab.classList.add('active');
-            if (tabs.meshContent) tabs.meshContent.classList.add('active');
+            // If pinned, ensure header is visible
+            const header = document.querySelector('header');
+            if (isPinned) {
+                header.style.transform = 'translateY(0)';
+                header.style.opacity = '1';
+            } else {
+                // If not pinned, just register the dock behavior
+                // but don't hide the header immediately - keep it visible
+                // and let the mouse movement behavior handle when to hide it
+                setupHeaderDockBehavior(false);
+            }
         });
     }
     
-    if (atlasTabButton) {
-        atlasTabButton.addEventListener('click', () => {
-            // Update active button
-            worldTabButton.classList.remove('active');
-            meshTabButton.classList.remove('active');
-            atlasTabButton.classList.add('active');
-            uvTabButton.classList.remove('active');
-            rigTabButton.classList.remove('active');
-            
-            // Hide all tabs first
-            hideAllTabs();
-            
-            // Show atlas tab content
-            const tabs = getTabElements();
-            if (tabs.atlasTab) tabs.atlasTab.classList.add('active');
-            if (tabs.atlasContent) tabs.atlasContent.classList.add('active');
-            
-            // Update atlas visualization without recreating everything
-            import('./atlas-panel.js').then(module => {
-                if (module.updateAtlasVisualization) {
-                    module.updateAtlasVisualization();
-                }
-            });
-        });
-    }
-    
-    if (uvTabButton) {
-        uvTabButton.addEventListener('click', () => {
-            // Update active button
-            worldTabButton.classList.remove('active');
-            meshTabButton.classList.remove('active');
-            atlasTabButton.classList.remove('active');
-            uvTabButton.classList.add('active');
-            rigTabButton.classList.remove('active');
-            
-            // Hide all tabs first
-            hideAllTabs();
-            
-            // Show UV tab content
-            const tabs = getTabElements();
-            if (tabs.uvTab) tabs.uvTab.classList.add('active');
-            if (tabs.uvContent) tabs.uvContent.classList.add('active');
-            
-            // Update UV panel without recreating everything
-            import('./uv-panel.js').then(module => {
-                if (module.updateUvPanel) {
-                    module.updateUvPanel();
-                }
-            });
-        });
-    }
-    
-    if (rigTabButton) {
-        rigTabButton.addEventListener('click', () => {
-            // Update active button
-            worldTabButton.classList.remove('active');
-            meshTabButton.classList.remove('active');
-            atlasTabButton.classList.remove('active');
-            uvTabButton.classList.remove('active');
-            rigTabButton.classList.add('active');
-            
-            // Hide all tabs first
-            hideAllTabs();
-            
-            // Show rig tab content
-            const tabs = getTabElements();
-            if (tabs.rigTab) tabs.rigTab.classList.add('active');
-            if (tabs.rigContent) tabs.rigContent.classList.add('active');
-            
-            // Update rig panel if needed
-            import('./rig-panel.js').then(module => {
-                // Only update the panel if it hasn't been initialized yet
-                if (document.getElementById('rig-content') && 
-                    document.getElementById('rig-content').children.length === 0) {
-                    if (module.updateRigPanel) {
-                        module.updateRigPanel();
-                    }
-                }
-            });
-        });
-    }
+    // Set up Mac-like dock behavior for header
+    setupHeaderDockBehavior(true);
 }
 
 /**
@@ -702,12 +456,8 @@ function startDebugging() {
                     // First, handle lighting if available
                     let setupPromise = Promise.resolve();
                     
-                    if (lightingFile && 
-                        (lightingFile.name.toLowerCase().endsWith('.hdr') || 
-                         lightingFile.name.toLowerCase().endsWith('.exr'))) {
-                        
+                    if (lightingFile) {
                         console.log('Setting up environment lighting from:', lightingFile.name);
-                        
                         // Import lighting utilities
                         setupPromise = import('../../core/lighting-util.js')
                             .then(lightingModule => {
@@ -725,8 +475,45 @@ function startDebugging() {
                                                 if (worldPanelModule.updateLightingInfo) {
                                                     worldPanelModule.updateLightingInfo(metadata);
                                                 }
+                                                
+                                                // If there's no background file, make sure to show the "No Background" message
+                                                if (!backgroundFile && !backgroundTexture) {
+                                                    if (worldPanelModule.toggleBackgroundMessages) {
+                                                        worldPanelModule.toggleBackgroundMessages(false, true);
+                                                    }
+                                                    
+                                                    // Update background info with empty data
+                                                    if (worldPanelModule.updateBackgroundInfo) {
+                                                        worldPanelModule.updateBackgroundInfo({
+                                                            fileName: null,
+                                                            type: null,
+                                                            dimensions: { width: 0, height: 0 },
+                                                            fileSizeBytes: 0
+                                                        }, true);
+                                                    }
+                                                }
+                                                
                                                 // Apply the lighting to the scene
-                                                return lightingModule.setupEnvironmentLighting(lightingFile);
+                                                return lightingModule.setupEnvironmentLighting(lightingFile)
+                                                    .then(texture => {
+                                                        // Ensure the lighting preview is rendered in world panel
+                                                        if (texture && worldPanelModule.renderEnvironmentPreview) {
+                                                            console.log('Rendering environment preview in world panel');
+                                                            // Find the canvas in the world panel
+                                                            const hdrCanvas = document.getElementById('hdr-preview-canvas');
+                                                            const noImageMessage = document.getElementById('no-image-message');
+                                                            
+                                                            // Render the preview if canvas exists
+                                                            if (hdrCanvas) {
+                                                                worldPanelModule.renderEnvironmentPreview(texture, hdrCanvas, noImageMessage);
+                                                            } else {
+                                                                console.warn('HDR preview canvas not found, will be rendered when panel is ready');
+                                                                // Store the texture in state for later use
+                                                                updateState('environmentTexture', texture);
+                                                            }
+                                                        }
+                                                        return texture;
+                                                    });
                                             });
                                     })
                                     .catch(error => {
@@ -750,19 +537,44 @@ function startDebugging() {
                         if (backgroundTexture) {
                             console.log('[DEBUG] Using already loaded background texture');
                             
-                            // Apply the texture to the scene
-                            if (currentState.scene) {
-                                currentState.scene.background = backgroundTexture;
-                                
-                                // Dispatch an event to notify UI components
-                                const event = new CustomEvent('background-updated', { 
-                                    detail: { texture: backgroundTexture, file: backgroundFile }
-                                });
-                                document.dispatchEvent(event);
-                                
-                                resourcesLoaded.backgroundLoaded = true;
-                                checkAllResourcesLoaded();
-                            }
+                            // Don't automatically apply the texture to the scene background
+                            // Instead, just update the state and dispatch the event
+                            
+                            // Dispatch an event to notify UI components
+                            const event = new CustomEvent('background-updated', { 
+                                detail: { texture: backgroundTexture, file: backgroundFile }
+                            });
+                            document.dispatchEvent(event);
+                            
+                            // When the background texture is ready, inform the world panel
+                            // so it can update the UI to show the Background Image radio option
+                            // but NOT automatically select it
+                            import('./world-panel.js').then(worldPanelModule => {
+                                if (worldPanelModule.updateBackgroundInfo && backgroundFile) {
+                                    // Get metadata to display in the UI
+                                    const metadata = {
+                                        fileName: backgroundFile.name,
+                                        type: backgroundFile.type || backgroundFile.name.split('.').pop().toUpperCase(),
+                                        dimensions: { 
+                                            width: backgroundTexture.image?.width || 0, 
+                                            height: backgroundTexture.image?.height || 0 
+                                        },
+                                        fileSizeBytes: backgroundFile.size
+                                    };
+                                    
+                                    // Update the background info panel with this data
+                                    worldPanelModule.updateBackgroundInfo(metadata, false);
+                                    
+                                    // Make sure the "None" radio is still selected
+                                    const noneRadio = document.querySelector('input[name="bg-option"][value="none"]');
+                                    if (noneRadio) {
+                                        noneRadio.checked = true;
+                                    }
+                                }
+                            });
+                            
+                            resourcesLoaded.backgroundLoaded = true;
+                            checkAllResourcesLoaded();
                         }
                         else if (backgroundFile) {
                             console.log('[DEBUG] Setting up background image from:', backgroundFile.name, 'type:', backgroundFile.type);
@@ -788,6 +600,10 @@ function startDebugging() {
                                                     });
                                                 });
                                                 
+                                                // TODO OOOOO
+                                                // TODO Need to add a call to update world panel's background information with the background file
+
+                                                // TODO I think this function needs to be reworked to something less hidden and mysterious
                                                 // Manually dispatch the background-updated event
                                                 const event = new CustomEvent('background-updated', { 
                                                     detail: { texture }
@@ -897,82 +713,326 @@ function restartDebugging() {
     window.location.reload();
 }
 
+// LISTNER SETUP CODE
+
+// Initialize the application when the DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Asset Debugger UI: Initializing...');
+    // Set up theme and UI elements
+    setupThemeAndUI();
+    // Load all component HTML files
+    loadComponentHtml();
+    // Initialize the 3D environment
+    init();
+    // Set up the event listeners for debugging
+    // Initialize 3D scene when Start Debugging is clicked
+    const startDebugBtn = document.getElementById('start-debug');
+    const restartDebugBtn = document.getElementById('restart-debug');
+    if (startDebugBtn) {
+        startDebugBtn.addEventListener('click', verifyFileDrop);
+    }
+    if (restartDebugBtn) {
+        restartDebugBtn.addEventListener('click', restartDebugging);
+    }
+});
+
+// LOADING FUNCTIONS
+
 /**
- * Initialize the debugger with the given settings
- * @param {Object} settings - The application settings
+ * Shows the loading splash screen
  */
-function initializeDebugger(settings) {
-    // HTML UI handling code - hide upload section, show debug controls in header
-    const uploadSection = document.getElementById('upload-section');
-    const debugControls = document.querySelector('.debug-controls');
-    const viewport = document.getElementById('viewport');
-    const tabContainer = document.getElementById('tab-container');
+function showLoadingSplash() {
+    // First check if the splash already exists
+    let loadingSplash = document.getElementById('loading-splash');
     
-    if (uploadSection) {
-        uploadSection.style.display = 'none';
+    if (!loadingSplash) {
+        // Create and add the loading splash screen from our HTML template
+        fetch('../pages/loading-splash.html')
+            .then(response => response.text())
+            .then(html => {
+                document.body.insertAdjacentHTML('beforeend', html);
+                // Make sure it's visible
+                loadingSplash = document.getElementById('loading-splash');
+                if (loadingSplash) {
+                    loadingSplash.style.display = 'flex';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading splash screen:', error);
+            });
+    } else {
+        // If it exists, make sure it's visible
+        loadingSplash.style.display = 'flex';
+        loadingSplash.classList.remove('fade-out');
     }
-    
-    if (debugControls) {
-        debugControls.style.display = 'flex';
+}
+
+/**
+ * Updates the loading progress text on the splash screen
+ * @param {string} text - The progress message to display
+ */
+function updateLoadingProgress(text) {
+    const progressText = document.getElementById('loading-progress-text');
+    if (progressText) {
+        progressText.textContent = text;
     }
-    
-    // Show viewport
-    if (viewport) {
-        viewport.style.display = 'block';
-    }
-    
-    // Make the tab container visible once debugging starts, respecting saved hidden state
-    if (tabContainer) {
-        const isPanelHidden = settings && settings.tabPanelHidden;
+}
+
+/**
+ * Hides the loading splash screen with a fade-out animation
+ */
+function hideLoadingSplash() {
+    const loadingSplash = document.getElementById('loading-splash');
+    if (loadingSplash) {
+        // Add fade-out class for smooth transition
+        loadingSplash.classList.add('fade-out');
         
-        if (isPanelHidden) {
-            // Keep panel hidden if that was the saved state
-            tabContainer.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
-        } else {
-            // Otherwise make it visible
-            tabContainer.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important;';
-        }
+        // Remove the element after the animation completes
+        setTimeout(() => {
+            loadingSplash.remove();
+        }, 600); // Match the transition duration in CSS
+    }
+}
+
+/**
+ * Checks if all resources have loaded and hides the splash screen when done
+ */
+function checkAllResourcesLoaded() {
+    if (resourcesLoaded.componentsLoaded && 
+        resourcesLoaded.sceneInitialized && 
+        resourcesLoaded.lightingLoaded && 
+        resourcesLoaded.backgroundLoaded && 
+        resourcesLoaded.modelLoaded &&
+        resourcesLoaded.controlsReady) {
+        
+        loadingComplete = true;
+        console.log('All resources loaded, hiding splash screen');
+        
+        // Give a small delay to ensure everything is rendered properly
+        setTimeout(() => {
+            hideLoadingSplash();
+        }, 500);
+    }
+}
+
+/**
+ * Sets up the Mac-like dock behavior for the header
+ * @param {boolean} hideInitially - Whether to hide the header initially if unpinned
+ */
+function setupHeaderDockBehavior(hideInitially = true) {
+    const header = document.querySelector('header');
+    const pinButton = document.getElementById('pin-button');
+    
+    if (!header || !pinButton) return;
+    
+    // Add CSS transitions for smooth show/hide
+    header.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+    
+    // Initial state
+    const isPinned = pinButton.classList.contains('pinned');
+    if (!isPinned && hideInitially) {
+        // Start with header hidden if not pinned and hideInitially is true
+        header.style.transform = 'translateY(-100%)';
+        header.style.opacity = '0';
     }
     
-    // Set up tab navigation
-    setupTabNavigation();
-    
-    // Set up toggle panel button
-    setupTogglePanelButton();
-    
-    // Now that the user has clicked "Start Debugging", we can initialize all the panels
-    console.log('Start debugging clicked - initializing panels...');
-    
-    // Initialize the World panel first (it's the default active tab)
-    initWorldPanel();
-    
-    // Initialize other panels that might be needed
-    import('./atlas-panel.js').then(module => {
-        if (module.initAtlasPanel) {
-            module.initAtlasPanel();
+    // Add mouse movement listener to show/hide header
+    document.addEventListener('mousemove', (e) => {
+        // Get latest pin state
+        const isPinned = pinButton.classList.contains('pinned');
+        
+        // If pinned, keep header visible at all times
+        if (isPinned) {
+            header.style.transform = 'translateY(0)';
+            header.style.opacity = '1';
+            
+            // Clear any pending hide timer
+            if (headerHideTimer) {
+                clearTimeout(headerHideTimer);
+                headerHideTimer = null;
+            }
+            return;
+        }
+        
+        // When mouse is near the top, show the header
+        if (e.clientY <= HEADER_SHOW_DISTANCE) {
+            header.style.transform = 'translateY(0)';
+            header.style.opacity = '1';
+            
+            // Clear any pending hide timer
+            if (headerHideTimer) {
+                clearTimeout(headerHideTimer);
+                headerHideTimer = null;
+            }
+        } 
+        // When mouse moves away, start timer to hide header
+        else if (e.clientY > HEADER_HIDE_DISTANCE && !headerHideTimer) {
+            headerHideTimer = setTimeout(() => {
+                header.style.transform = 'translateY(-100%)';
+                header.style.opacity = '0';
+                headerHideTimer = null;
+            }, HEADER_HIDE_DELAY);
         }
     });
+}
+
+/**
+ * Set up tab navigation system
+ */
+function setupTabNavigation() {
+    console.log('Setting up tab navigation...');
     
-    import('./uv-panel.js').then(module => {
-        if (module.initUvPanel) {
-            module.initUvPanel();
-        }
-    });
+    // Get tab buttons
+    const worldTabButton = document.getElementById('world-tab-button');
+    const meshTabButton = document.getElementById('mesh-tab-button');
+    const atlasTabButton = document.getElementById('atlas-tab-button');
+    const uvTabButton = document.getElementById('uv-tab-button');
+    const rigTabButton = document.getElementById('rig-tab-button');
     
-    import('./mesh-panel.js').then(module => {
-        if (module.initMeshPanel) {
-            module.initMeshPanel();
-        }
-    });
+    // Helper function to get the latest references to tab content elements
+    function getTabElements() {
+        return {
+            worldTab: document.getElementById('world-tab-container'),
+            worldContent: document.getElementById('world-tab'),
+            meshTab: document.getElementById('mesh-tab-container'),
+            meshContent: document.getElementById('mesh-tab'),
+            atlasTab: document.getElementById('atlas-tab-container'),
+            atlasContent: document.getElementById('atlas-tab-container').querySelector('.tab-content-inner'),
+            uvTab: document.getElementById('uv-tab-container'),
+            uvContent: document.getElementById('uv-tab'),
+            rigTab: document.getElementById('rig-tab-container'),
+            rigContent: document.getElementById('rig-tab')
+        };
+    }
     
-    // Make sure only the World tab is active initially
-    activateWorldTab();
+    // Helper function to hide all tabs
+    function hideAllTabs() {
+        const tabs = getTabElements();
+        Object.values(tabs).forEach(tab => {
+            if (tab) tab.classList.remove('active');
+        });
+    }
     
-    // Initialize settings modal with loaded settings
-    new SettingsModal(settings);
+    // Set up click handlers for each tab button
+    if (worldTabButton) {
+        worldTabButton.addEventListener('click', () => {
+            // Update active button
+            worldTabButton.classList.add('active');
+            meshTabButton.classList.remove('active');
+            atlasTabButton.classList.remove('active');
+            uvTabButton.classList.remove('active');
+            rigTabButton.classList.remove('active');
+            
+            // Hide all tabs first
+            hideAllTabs();
+            
+            // Show world tab content
+            const tabs = getTabElements();
+            if (tabs.worldTab) tabs.worldTab.classList.add('active');
+            if (tabs.worldContent) tabs.worldContent.classList.add('active');
+        });
+    }
     
-    // Scene initialization is now handled in startDebugging function
-    // to ensure proper sequencing of operations
+    if (meshTabButton) {
+        meshTabButton.addEventListener('click', () => {
+            // Update active button
+            worldTabButton.classList.remove('active');
+            meshTabButton.classList.add('active');
+            atlasTabButton.classList.remove('active');
+            uvTabButton.classList.remove('active');
+            rigTabButton.classList.remove('active');
+            
+            // Hide all tabs first
+            hideAllTabs();
+            
+            // Show mesh tab content
+            const tabs = getTabElements();
+            if (tabs.meshTab) tabs.meshTab.classList.add('active');
+            if (tabs.meshContent) tabs.meshContent.classList.add('active');
+        });
+    }
+    
+    if (atlasTabButton) {
+        atlasTabButton.addEventListener('click', () => {
+            // Update active button
+            worldTabButton.classList.remove('active');
+            meshTabButton.classList.remove('active');
+            atlasTabButton.classList.add('active');
+            uvTabButton.classList.remove('active');
+            rigTabButton.classList.remove('active');
+            
+            // Hide all tabs first
+            hideAllTabs();
+            
+            // Show atlas tab content
+            const tabs = getTabElements();
+            if (tabs.atlasTab) tabs.atlasTab.classList.add('active');
+            if (tabs.atlasContent) tabs.atlasContent.classList.add('active');
+            
+            // Update atlas visualization without recreating everything
+            import('./atlas-panel.js').then(module => {
+                if (module.updateAtlasVisualization) {
+                    module.updateAtlasVisualization();
+                }
+            });
+        });
+    }
+    
+    if (uvTabButton) {
+        uvTabButton.addEventListener('click', () => {
+            // Update active button
+            worldTabButton.classList.remove('active');
+            meshTabButton.classList.remove('active');
+            atlasTabButton.classList.remove('active');
+            uvTabButton.classList.add('active');
+            rigTabButton.classList.remove('active');
+            
+            // Hide all tabs first
+            hideAllTabs();
+            
+            // Show UV tab content
+            const tabs = getTabElements();
+            if (tabs.uvTab) tabs.uvTab.classList.add('active');
+            if (tabs.uvContent) tabs.uvContent.classList.add('active');
+            
+            // Update UV panel without recreating everything
+            import('./uv-panel.js').then(module => {
+                if (module.updateUvPanel) {
+                    module.updateUvPanel();
+                }
+            });
+        });
+    }
+    
+    if (rigTabButton) {
+        rigTabButton.addEventListener('click', () => {
+            // Update active button
+            worldTabButton.classList.remove('active');
+            meshTabButton.classList.remove('active');
+            atlasTabButton.classList.remove('active');
+            uvTabButton.classList.remove('active');
+            rigTabButton.classList.add('active');
+            
+            // Hide all tabs first
+            hideAllTabs();
+            
+            // Show rig tab content
+            const tabs = getTabElements();
+            if (tabs.rigTab) tabs.rigTab.classList.add('active');
+            if (tabs.rigContent) tabs.rigContent.classList.add('active');
+            
+            // Update rig panel if needed
+            import('./rig-panel.js').then(module => {
+                // Only update the panel if it hasn't been initialized yet
+                if (document.getElementById('rig-content') && 
+                    document.getElementById('rig-content').children.length === 0) {
+                    if (module.updateRigPanel) {
+                        module.updateRigPanel();
+                    }
+                }
+            });
+        });
+    }
 }
 
 /**
@@ -1129,6 +1189,8 @@ function setupTogglePanelButton() {
             settings.tabPanelHidden = isPanelHidden;
             saveSettings(settings);
         });
+        // Make sure only the World tab is active initially
+        activateWorldTab();
     });
 }
 

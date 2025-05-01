@@ -22,6 +22,7 @@
     "test:e2e:portfolio": "pnpm --filter='@littlecarlito/portfolio' test:e2e",
     "test:e2e:blorkvisor": "pnpm --filter='@littlecarlito/blorkvisor' test:e2e",
     "test:e2e:blorktools": "pnpm --filter='@littlecarlito/blorktools' test:e2e",
+    "test:push": "chmod +x .husky/pre-push && .husky/pre-push --dry-run",
     "check": "pnpm -r check",
     "fmt": "pnpm -r fmt",
     "fmt:check": "pnpm -r fmt:check",
@@ -37,7 +38,11 @@
     "gh-pages:server": "node tests/apps/portfolio/gh-pages-simulator.js",
     "gh-pages:test": "node tests/apps/portfolio/environment/gh-pages-texture-test.js --keep-open",
     "gh-pages:debug": "chmod +x .husky/gh-pages-test && .husky/gh-pages-test",
-    "gh-pages:check": "node tests/apps/portfolio/environment/gh-pages-texture-test.js --headless"
+    "gh-pages:check": "node tests/apps/portfolio/environment/gh-pages-texture-test.js --headless",
+    "lerna:version": "lerna version --conventional-commits --yes",
+    "lerna:publish": "lerna publish from-package --yes",
+    "lerna:changed": "lerna changed",
+    "lerna:diff": "lerna diff"
   },
   "dependencies": {
     "chalk": "^4.1.2",
@@ -47,12 +52,12 @@
   "devDependencies": {
     "@babel/core": "^7.23.0",
     "@babel/preset-env": "^7.23.0",
-    "@changesets/cli": "^2.29.2",
     "@commitlint/cli": "^19.8.0",
     "@commitlint/config-conventional": "^19.8.0",
     "@eslint/js": "^9.22.0",
     "@types/jest": "^29.5.14",
     "babel-jest": "^29.7.0",
+    "conventional-changelog-conventionalcommits": "^8.0.0",
     "eslint": "^9.22.0",
     "eslint-plugin-jsdoc": "^50.6.8",
     "glob": "^10.3.10",
@@ -62,6 +67,7 @@
     "jest-junit": "^16.0.0",
     "js-yaml": "^4.1.0",
     "jsdom": "^24.0.0",
+    "lerna": "^8.2.2",
     "license-webpack-plugin": "^4.0.2",
     "prettier": "^3.2.5",
     "puppeteer": "^22.15.0",

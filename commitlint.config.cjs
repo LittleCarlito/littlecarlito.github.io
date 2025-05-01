@@ -1,13 +1,17 @@
 const fs = require('fs');
 
-// Define allowed types
+// Define allowed types (matching those in conventional-changelog-config.js)
 const allowedTypes = [
   'build', 'chore', 'ci', 'docs', 'feat', 'fix', 
   'perf', 'refactor', 'revert', 'style', 'test', 'slice'
 ];
 
+// Define scopes to be ignored by versioning (must match those in lerna.json)
+const ignoredScopes = ['pipeline'];
+
 // Write types to files that shell scripts can read
 fs.writeFileSync('.husky/.commit-types', allowedTypes.join(' '));
+fs.writeFileSync('.husky/.ignored-scopes', ignoredScopes.join(' '));
 
 module.exports = {
   extends: ['@commitlint/config-conventional'],
@@ -18,6 +22,7 @@ module.exports = {
     'scope-case': [2, 'always', 'lowercase'],
     'subject-empty': [2, 'never'],
     'subject-full-stop': [2, 'never', '.'],
+    'subject-case': [2, 'never', ['sentence-case', 'pascal-case', 'upper-case']],
     'header-max-length': [2, 'always', 72]
   },
   ignorePatterns: [

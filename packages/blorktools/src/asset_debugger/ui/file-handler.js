@@ -17,6 +17,7 @@ import {
   processLightingFile, 
   terminateAllWorkers 
 } from '../core/worker-manager.js';
+import { parseLightingData } from '../core/lighting-util.js';
 
 // Add event listener to terminate all workers when the page is unloaded
 window.addEventListener('beforeunload', () => {
@@ -564,16 +565,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             // Hide loading indicator
                             hidePreviewLoading(containerDiv);
                             
-                            // Only update background state if no background file exists already
-                            const currentState = getState();
-                            if (!currentState.backgroundFile) {
-                                // Update state with the background texture only if no background exists
-                                updateState({ 
-                                    backgroundTexture: texture,
-                                    backgroundFile: file  // Preserve the file reference
-                                });
-                            }
-                            
                             // Always store the lighting texture for use in previews
                             updateState('environmentTexture', texture);
                         }, undefined, error => {
@@ -616,16 +607,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             // Hide loading indicator
                             hidePreviewLoading(containerDiv);
                             
-                            // Only update background state if no background file exists already
-                            const currentState = getState();
-                            if (!currentState.backgroundFile) {
-                                // Update state with the background texture only if no background exists
-                                updateState({ 
-                                    backgroundTexture: texture,
-                                    backgroundFile: file  // Preserve the file reference
-                                });
-                            }
-                            
                             // Always store the lighting texture for use in previews
                             updateState('environmentTexture', texture);
                         }, undefined, error => {
@@ -642,10 +623,39 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                     }).catch(handleLightingError);
                 }).catch(handleLightingError);
             }
-            // Fallback if type not recognized
             else {
                 handleLightingError(new Error('Unsupported file type: ' + fileType));
+                return -1;
             }
+
+            // Handle lighting metadata for world panel
+            import('../core/lighting-util.js').then(lightingUtil => {
+                lightingUtil.parseLightingData(file).then(metadata => {
+                    worldPanelModule.updateLightingInfo(metadata);
+                    
+                    // Explicitly mark that there's no background image but lighting is available
+                    const currentState = getState();
+                    if (!currentState.backgroundFile) {
+                        // Make sure world panel shows "No Background Image" message
+                        import('./scripts/world-panel.js').then(worldPanel => {
+                            if (worldPanel.updateBackgroundInfo) {
+                                // Pass empty metadata to show no background available
+                                worldPanel.updateBackgroundInfo({
+                                    fileName: null,
+                                    type: null,
+                                    dimensions: { width: 0, height: 0 },
+                                    fileSizeBytes: 0
+                                }, true); // skipRendering=true to prevent trying to render a non-existent background
+                                
+                                // Make sure UI shows no background but lighting available
+                                if (worldPanel.toggleBackgroundMessages) {
+                                    worldPanel.toggleBackgroundMessages(false, true);
+                                }
+                            }
+                        });
+                    }
+                });
+            });
         })
         .catch(error => {
             console.error('Error processing lighting file:', error);
@@ -690,7 +700,6 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
     titleElement.textContent = originalTitle;
     dropzone.appendChild(titleElement);
     
-    // TODO make into shared function
     // Add a clear button
     const clearButton = document.createElement('button');
     clearButton.className = 'clear-preview-button';

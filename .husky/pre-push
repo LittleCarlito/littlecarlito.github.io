@@ -7,6 +7,24 @@
 # Add debugging
 # set -x
 
+# Parse command-line arguments
+DRY_RUN=false
+
+# Check if --dry-run flag is provided
+for arg in "$@"; do
+  if [ "$arg" = "--dry-run" ]; then
+    DRY_RUN=true
+    echo "🔬 DRY RUN MODE ENABLED - No changes will be committed or pushed"
+    break
+  fi
+done
+
+# Check if we should skip tests
+SKIP_TESTS=${SKIP_TESTS:-false}
+if [ "$SKIP_TESTS" = "true" ]; then
+  echo "⏩ SKIPPING TESTS"
+fi
+
 # Change to repository root directory to ensure commands work correctly
 cd "$(git rev-parse --show-toplevel)" || {
     echo "❌ Failed to change to repository root directory"
@@ -23,16 +41,20 @@ LOCKFILE_STATUS=$?
 
 if [ $LOCKFILE_STATUS -ne 0 ]; then
     echo "⚠️ Lockfile is out of sync with package.json."
-    echo "🔧 Automatically updating lockfile..."
-    
-    # Update lockfile
-    pnpm install --no-frozen-lockfile
-    
-    # Commit the changes
-    git add pnpm-lock.yaml
-    git commit -m "chore: update lockfile to match package.json"
-    
-    echo "✅ Lockfile updated and changes committed! Continuing with push..."
+    if [ "$DRY_RUN" = true ]; then
+        echo "🔬 [DRY RUN] Would update lockfile and commit changes"
+    else
+        echo "🔧 Automatically updating lockfile..."
+        
+        # Update lockfile
+        pnpm install --no-frozen-lockfile
+        
+        # Commit the changes
+        git add pnpm-lock.yaml
+        git commit -m "chore: update lockfile to match package.json"
+        
+        echo "✅ Lockfile updated and changes committed! Continuing with push..."
+    fi
 else
     echo "✅ Lockfile is in sync with package.json"
 fi
@@ -61,6 +83,12 @@ else
             RUN_TESTS=true
         fi
     done
+fi
+
+# Set RUN_TESTS to false if SKIP_TESTS is true
+if [ "$SKIP_TESTS" = "true" ]; then
+    RUN_TESTS=false
+    echo "⏩ Test execution has been skipped due to SKIP_TESTS=true flag"
 fi
 
 if [ "$RUN_TESTS" = true ]; then
@@ -122,158 +150,18 @@ if [ "$RUN_TESTS" = true ]; then
         exit 1
     fi
     echo "✅ Build passed!"
-    
-    # Check if there are any changeset files to consume
-    CHANGESET_COUNT=$(find .changeset -name "*.md" -not -name "README.md" -not -name "config.json" | wc -l | tr -d ' ')
-    
-    if [ "$CHANGESET_COUNT" -gt 0 ]; then
-        echo "📦 Found $CHANGESET_COUNT changesets to consume."
-        
-        # Create a temporary branch to work on in case we need to abort
-        CURRENT_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD)
-        TEMP_BRANCH="temp-changeset-version-$(date +%s)"
-        
-        echo "Creating temporary branch $TEMP_BRANCH to safely process changesets..."
-        git checkout -b "$TEMP_BRANCH" || {
-            echo "❌ Failed to create temporary branch. Aborting push."
-            exit 1
-        }
-        
-        # Run changeset version to consume changesets and bump versions
-        echo "📈 Running changeset version to bump package versions..."
-        pnpm changeset version
-        VERSION_STATUS=$?
-        
-        if [ $VERSION_STATUS -ne 0 ]; then
-            echo "❌ Changeset version failed with status $VERSION_STATUS. Reverting changes and aborting push."
-            git checkout "$CURRENT_BRANCH"
-            git branch -D "$TEMP_BRANCH"
-            exit 1
-        fi
-        
-        # Collect updated package information for tags
-        echo "📋 Collecting updated package information for tags..."
-        # Store package paths and new versions in arrays
-        PACKAGE_PATHS=()
-        PACKAGE_NAMES=()
-        PACKAGE_VERSIONS=()
-        CREATED_TAGS=()
-        
-        # Collect packages from packages/ directory
-        for PKG_DIR in packages/*; do
-            if [ -d "$PKG_DIR" ] && [ -f "$PKG_DIR/package.json" ]; then
-                PKG_PATH="$PKG_DIR"
-                PKG_NAME=$(grep -m 1 '"name":' "$PKG_DIR/package.json" | sed 's/.*"name": "\(.*\)".*/\1/')
-                PKG_VERSION=$(grep -m 1 '"version":' "$PKG_DIR/package.json" | sed 's/.*"version": "\(.*\)".*/\1/')
-                
-                PACKAGE_PATHS+=("$PKG_PATH")
-                PACKAGE_NAMES+=("$PKG_NAME")
-                PACKAGE_VERSIONS+=("$PKG_VERSION")
-            fi
-        done
-        
-        # Collect packages from apps/ directory
-        for APP_DIR in apps/*; do
-            if [ -d "$APP_DIR" ] && [ -f "$APP_DIR/package.json" ]; then
-                APP_PATH="$APP_DIR"
-                APP_NAME=$(grep -m 1 '"name":' "$APP_DIR/package.json" | sed 's/.*"name": "\(.*\)".*/\1/')
-                APP_VERSION=$(grep -m 1 '"version":' "$APP_DIR/package.json" | sed 's/.*"version": "\(.*\)".*/\1/')
-                
-                PACKAGE_PATHS+=("$APP_PATH")
-                PACKAGE_NAMES+=("$APP_NAME")
-                PACKAGE_VERSIONS+=("$APP_VERSION")
-            fi
-        done
-        
-        # Commit the version changes
-        echo "💾 Committing version changes..."
-        git add .
-        git commit -m "chore(pipeline): version packages"
-        COMMIT_STATUS=$?
-        
-        if [ $COMMIT_STATUS -ne 0 ]; then
-            echo "❌ Failed to commit version changes with status $COMMIT_STATUS. Reverting changes and aborting push."
-            git checkout "$CURRENT_BRANCH"
-            git branch -D "$TEMP_BRANCH"
-            exit 1
-        fi
-        
-        # Create tags for each updated package
-        echo "🏷️ Creating tags for updated packages..."
-        for i in "${!PACKAGE_NAMES[@]}"; do
-            TAG_NAME="${PACKAGE_NAMES[$i]}@${PACKAGE_VERSIONS[$i]}"
-            echo "Creating tag $TAG_NAME"
-            git tag -a "$TAG_NAME" -m "Release ${PACKAGE_NAMES[$i]} version ${PACKAGE_VERSIONS[$i]}"
-            CREATED_TAGS+=("$TAG_NAME")
-        done
-        
-        # Everything looks good, merge back to the original branch
-        echo "🔄 Merging changes back to $CURRENT_BRANCH..."
-        git checkout "$CURRENT_BRANCH" || {
-            echo "❌ Failed to checkout original branch. You may need to manually clean up temporary branch $TEMP_BRANCH."
-            exit 1
-        }
-        
-        git merge --no-ff "$TEMP_BRANCH" -m "chore(pipeline): merge version changes"
-        MERGE_STATUS=$?
-        
-        # Clean up temp branch regardless of merge status
-        git branch -D "$TEMP_BRANCH" || echo "⚠️ Warning: Could not delete temporary branch $TEMP_BRANCH"
-        
-        if [ $MERGE_STATUS -ne 0 ]; then
-            echo "❌ Failed to merge version changes with status $MERGE_STATUS. Aborting push."
-            echo "Please resolve any merge conflicts and try again."
-            exit 1
-        fi
-        
-        echo "✅ Successfully versioned packages, created tags, and committed changes!"
-        
-        # Get the remote name and branch being pushed to from the pre-push arguments
-        # Format: local_ref local_sha remote_ref remote_sha
-        read -r _ _ remote_ref _ < "/dev/stdin"
-        
-        if [ -n "$remote_ref" ]; then
-            # Extract remote name and branch from remote ref (refs/heads/main -> origin main)
-            REMOTE=$(git remote | head -n 1) # Default to first remote if we can't extract it
-            REMOTE_BRANCH=${remote_ref#refs/heads/}
-            
-            # Push the created tags to trigger package publishing
-            if [ ${#CREATED_TAGS[@]} -gt 0 ]; then
-                echo "🚀 Pushing version tags to trigger publishing..."
-                TAG_PUSH_FAILED=false
-                
-                for TAG in "${CREATED_TAGS[@]}"; do
-                    echo "Pushing tag: $TAG"
-                    git push "$REMOTE" "$TAG"
-                    TAG_PUSH_STATUS=$?
-                    if [ $TAG_PUSH_STATUS -ne 0 ]; then
-                        echo "❌ Failed to push tag $TAG with status $TAG_PUSH_STATUS."
-                        TAG_PUSH_FAILED=true
-                    fi
-                done
-                
-                if [ "$TAG_PUSH_FAILED" = true ]; then
-                    echo "❌ One or more tags failed to push. Aborting branch push to ensure consistency."
-                    echo "Fix the tag push issues and try again."
-                    exit 1
-                fi
-            fi
-        else
-            echo "⚠️ Could not determine remote details. Aborting push."
-            echo "Failed to push tags which are required for publishing."
-            exit 1
-        fi
-    else
-        echo "ℹ️ No changesets found to consume. Skipping version bump."
-    fi
-    
-    echo "✅ All pre-push checks completed successfully!"
-else
-    echo "✅ No changes detected outside development/ and public/ directories. Skipping tests."
 fi
 
-# Disable debugging before exiting
-# set +x
+if [ "$DRY_RUN" = true ]; then
+    echo "🔬 DRY RUN COMPLETED - No actual changes were made"
+    echo "Run without the --dry-run flag to apply these changes when pushing"
+else
+    echo "🎉 Pre-push checks completed successfully!"
+fi
 
-echo "🎉 Pre-push checks completed successfully!"
+# Exit with success in dry run mode
+if [ "$DRY_RUN" = true ]; then
+    exit 0
+fi
+
 exit 0 

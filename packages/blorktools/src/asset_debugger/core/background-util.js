@@ -176,7 +176,7 @@ function applyBackgroundTexture(texture, file) {
         return;
     }
     
-    console.log('[DEBUG] Applying background texture to scene');
+    console.log('[DEBUG] Adding background texture to state');
     
     // Store the file and texture in state for reference
     updateState({
@@ -184,8 +184,8 @@ function applyBackgroundTexture(texture, file) {
         backgroundTexture: texture
     });
     
-    // Set the scene background directly - this takes precedence over any environment map
-    state.scene.background = texture;
+    // DO NOT automatically set the scene background
+    // This allows the UI radio button selection to control visibility instead
     
     // Dispatch an event to notify UI components
     const event = new CustomEvent('background-updated', { 
@@ -193,7 +193,39 @@ function applyBackgroundTexture(texture, file) {
     });
     document.dispatchEvent(event);
     
-    console.log('[DEBUG] Background texture applied successfully');
+    // Call into world panel to update metadata, but don't change the radio selection
+    import('../ui/scripts/world-panel.js').then(worldPanelModule => {
+        if (worldPanelModule.updateBackgroundInfo) {
+            // Get metadata to display in the UI
+            const metadata = {
+                fileName: file.name,
+                type: file.type || file.name.split('.').pop().toUpperCase(),
+                dimensions: { 
+                    width: texture.image?.width || 0, 
+                    height: texture.image?.height || 0 
+                },
+                fileSizeBytes: file.size
+            };
+            
+            // Update the background info panel with this data
+            worldPanelModule.updateBackgroundInfo(metadata, false);
+            
+            // Make sure the "None" radio is still selected
+            const noneRadio = document.querySelector('input[name="bg-option"][value="none"]');
+            if (noneRadio) {
+                noneRadio.checked = true;
+                
+                // If there's a current option in world panel, also update it
+                if (typeof worldPanelModule.setCurrentBackgroundOption === 'function') {
+                    worldPanelModule.setCurrentBackgroundOption('none');
+                }
+            }
+        }
+    }).catch(error => {
+        console.warn('Could not update world panel with background info:', error);
+    });
+    
+    console.log('[DEBUG] Background texture added to state successfully');
 }
 
 /**
