@@ -10,6 +10,7 @@ Advanced asset management and physics integration system for Three.js applicatio
 
 - **Performance Optimized**: Built with performance as a priority for complex 3D scenes
 - **Memory Efficient**: Smart resource management to minimize memory footprint
+- **WebGPU Ready**: Enhanced performance with WebGPU API when available
 - **Developer Friendly**: Intuitive APIs that simplify complex 3D workflows
 - **Highly Extensible**: Modular architecture allowing for easy customization
 

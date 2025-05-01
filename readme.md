@@ -239,6 +239,16 @@ We support the following commit types:
 - **Minor (0.x.0)**: `feat` type commits
 - **Patch (0.0.x)**: `fix`, `refactor`, `perf`, and `slice` type commits
 
+### Versioning Mode
+
+This project uses **independent versioning** mode in Lerna, which means:
+
+- Each package maintains its own version number
+- Only packages explicitly mentioned in commit scopes or those that depend on changed packages get bumped
+- Different packages can have different version numbers
+
+To change to fixed/lockstep versioning (where all packages share the same version), you would change `"version": "independent"` to a specific version number in lerna.json.
+
 ### Lerna Commands
 
 ```bash
