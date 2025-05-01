@@ -1,3 +1,149 @@
 #!/bin/sh
-# This hook is intentionally left empty after removing version bumping logic
-exit 0 
+. "$(dirname "$0")/_/husky.sh"
+
+# Get the last commit message
+COMMIT_MSG=$(git log -1 --pretty=%B)
+
+# Extract type and scope using regex
+if [[ $COMMIT_MSG =~ ^([a-z]+)(\(([a-z,-]+)\))?:(.+)$ ]]; then
+  TYPE="${BASH_REMATCH[1]}"
+  SCOPE="${BASH_REMATCH[3]}"
+  MESSAGE="${BASH_REMATCH[4]}"
+  
+  echo "Detected commit type: $TYPE"
+  echo "Detected scope: $SCOPE"
+  echo "Detected message: $MESSAGE"
+  
+  # Ignore pipeline scope
+  if [[ "$SCOPE" == "pipeline" ]]; then
+    echo "Detected pipeline scope - skipping changeset creation."
+    exit 0
+  fi
+  
+  # Determine the bump type based on commit type
+  BUMP_TYPE="patch"  # Default to patch
+  if [[ "$TYPE" == "feat" ]]; then
+    BUMP_TYPE="minor"
+  elif [[ "$TYPE" == "fix" ]] || [[ "$TYPE" == "slice" ]] || [[ "$TYPE" == "perf" ]] || [[ "$TYPE" == "refactor" ]]; then
+    BUMP_TYPE="patch"
+  elif [[ "$TYPE" == "build" ]] || [[ "$TYPE" == "chore" ]] || [[ "$TYPE" == "ci" ]] || [[ "$TYPE" == "docs" ]] || [[ "$TYPE" == "style" ]] || [[ "$TYPE" == "test" ]]; then
+    # These types typically don't need version bumps
+    echo "Commit type $TYPE doesn't require a version bump. Skipping changeset creation."
+    exit 0
+  fi
+  
+  # If a breaking change is mentioned in the commit message
+  if [[ "$COMMIT_MSG" =~ BREAKING\ CHANGE ]]; then
+    BUMP_TYPE="major"
+    echo "Detected BREAKING CHANGE - using major bump"
+  fi
+  
+  # Clean the message
+  CLEAN_MESSAGE="${MESSAGE# }"  # Remove leading space if any
+  
+  # Determine which packages to include based on scope
+  if [[ -z "$SCOPE" ]]; then
+    # No scope - apply to all packages/apps
+    echo "Creating changeset for all packages with bump type: $BUMP_TYPE"
+    
+    # Collect all package names
+    PACKAGES=()
+    
+    # Add all packages from packages/ directory
+    for PKG_DIR in packages/*; do
+      if [ -d "$PKG_DIR" ] && [ -f "$PKG_DIR/package.json" ]; then
+        PKG_NAME=$(grep -m 1 '"name":' "$PKG_DIR/package.json" | sed 's/.*"name": "\(.*\)".*/\1/')
+        PACKAGES+=("$PKG_NAME")
+      fi
+    done
+    
+    # Add all packages from apps/ directory
+    for APP_DIR in apps/*; do
+      if [ -d "$APP_DIR" ] && [ -f "$APP_DIR/package.json" ]; then
+        APP_NAME=$(grep -m 1 '"name":' "$APP_DIR/package.json" | sed 's/.*"name": "\(.*\)".*/\1/')
+        PACKAGES+=("$APP_NAME")
+      fi
+    done
+    
+    # If we found packages, create a changeset
+    if [ ${#PACKAGES[@]} -gt 0 ]; then
+      # Create changeset command
+      CHANGESET_CMD="pnpm changeset"
+      CHANGESET_CMD="$CHANGESET_CMD --$BUMP_TYPE"
+      
+      # Add each package to the command
+      for PKG in "${PACKAGES[@]}"; do
+        CHANGESET_CMD="$CHANGESET_CMD $PKG"
+      done
+      
+      # Add the message
+      CHANGESET_CMD="$CHANGESET_CMD -m \"$CLEAN_MESSAGE\""
+      
+      # Run the changeset command
+      echo "Running: $CHANGESET_CMD"
+      eval $CHANGESET_CMD
+    else
+      echo "No packages found to create changesets for."
+    fi
+  else
+    # Specific scope - only apply to matching packages/apps
+    echo "Creating changeset for scope '$SCOPE' with bump type: $BUMP_TYPE"
+    
+    # Handle comma-separated scopes
+    IFS=',' read -ra SCOPE_ARRAY <<< "$SCOPE"
+    
+    # Collect matching package names
+    PACKAGES=()
+    
+    for SINGLE_SCOPE in "${SCOPE_ARRAY[@]}"; do
+      FOUND=false
+      
+      # Check packages directory
+      for PKG_DIR in packages/*; do
+        if [ -d "$PKG_DIR" ] && [ "$(basename "$PKG_DIR")" = "$SINGLE_SCOPE" ] && [ -f "$PKG_DIR/package.json" ]; then
+          PKG_NAME=$(grep -m 1 '"name":' "$PKG_DIR/package.json" | sed 's/.*"name": "\(.*\)".*/\1/')
+          PACKAGES+=("$PKG_NAME")
+          FOUND=true
+        fi
+      done
+      
+      # Check apps directory
+      for APP_DIR in apps/*; do
+        if [ -d "$APP_DIR" ] && [ "$(basename "$APP_DIR")" = "$SINGLE_SCOPE" ] && [ -f "$APP_DIR/package.json" ]; then
+          APP_NAME=$(grep -m 1 '"name":' "$APP_DIR/package.json" | sed 's/.*"name": "\(.*\)".*/\1/')
+          PACKAGES+=("$APP_NAME")
+          FOUND=true
+        fi
+      done
+      
+      if [ "$FOUND" = false ]; then
+        echo "Warning: No package/app found for scope '$SINGLE_SCOPE'"
+      fi
+    done
+    
+    # If we found packages, create a changeset
+    if [ ${#PACKAGES[@]} -gt 0 ]; then
+      # Create changeset command
+      CHANGESET_CMD="pnpm changeset"
+      CHANGESET_CMD="$CHANGESET_CMD --$BUMP_TYPE"
+      
+      # Add each package to the command
+      for PKG in "${PACKAGES[@]}"; do
+        CHANGESET_CMD="$CHANGESET_CMD $PKG"
+      done
+      
+      # Add the message
+      CHANGESET_CMD="$CHANGESET_CMD -m \"$CLEAN_MESSAGE\""
+      
+      # Run the changeset command
+      echo "Running: $CHANGESET_CMD"
+      eval $CHANGESET_CMD
+    else
+      echo "No packages found to create changesets for."
+    fi
+  fi
+else
+  echo "Commit message doesn't match the expected format: <type>(<scope>):<message>"
+  echo "Skipping changeset creation."
+  exit 0
+fi 
