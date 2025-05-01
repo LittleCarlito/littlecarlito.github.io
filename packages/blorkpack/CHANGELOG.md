@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 0.48.0 (2025-05-01)
+
+- feat(blorkpack): add WebGPU support indication ([6ae5e39](https://github.com/littlecarlito/threejs_site/commit/6ae5e39))
+
+## 0.47.0 (2025-05-01)
+
+- chore(release): publish v0.47.0 ([2651f61](https://github.com/littlecarlito/threejs_site/commit/2651f61))
+- feat(blorkpack): add new feature documentation ([8b928e0](https://github.com/littlecarlito/threejs_site/commit/8b928e0))
+
+## 0.46.0 (2025-05-01)
+
+- chore(release): publish v0.46.0 ([5be502c](https://github.com/littlecarlito/threejs_site/commit/5be502c))
+- slice(blorktools): none background function ([d5239bc](https://github.com/littlecarlito/threejs_site/commit/d5239bc))
+- slice(docs): add key benefits section to BlorkPack README ([912d31e](https://github.com/littlecarlito/threejs_site/commit/912d31e))
+
 ## 0.47.0 (2025-05-01)
 
 - feat(blorkpack): add new feature documentation ([8b928e0](https://github.com/littlecarlito/threejs_site/commit/8b928e0))
