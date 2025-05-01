@@ -109,6 +109,64 @@ if [ "$RUN_TESTS" = true ]; then
     fi
     echo "✅ Build passed!"
     
+    # Check if there are any changeset files to consume
+    CHANGESET_COUNT=$(find .changeset -name "*.md" -not -name "README.md" -not -name "config.json" | wc -l | tr -d ' ')
+    
+    if [ "$CHANGESET_COUNT" -gt 0 ]; then
+        echo "📦 Found $CHANGESET_COUNT changesets to consume."
+        
+        # Create a temporary branch to work on in case we need to abort
+        CURRENT_BRANCH=$(git symbolic-ref --short HEAD)
+        TEMP_BRANCH="temp-changeset-version-$(date +%s)"
+        
+        echo "Creating temporary branch $TEMP_BRANCH to safely process changesets..."
+        git checkout -b "$TEMP_BRANCH"
+        
+        # Run changeset version to consume changesets and bump versions
+        echo "📈 Running changeset version to bump package versions..."
+        pnpm changeset version
+        VERSION_STATUS=$?
+        
+        if [ $VERSION_STATUS -ne 0 ]; then
+            echo "❌ Changeset version failed. Reverting changes and aborting push."
+            git checkout "$CURRENT_BRANCH"
+            git branch -D "$TEMP_BRANCH"
+            exit 1
+        fi
+        
+        # Commit the version changes
+        echo "💾 Committing version changes..."
+        git add .
+        git commit -m "chore(pipeline): version packages"
+        COMMIT_STATUS=$?
+        
+        if [ $COMMIT_STATUS -ne 0 ]; then
+            echo "❌ Failed to commit version changes. Reverting changes and aborting push."
+            git checkout "$CURRENT_BRANCH"
+            git branch -D "$TEMP_BRANCH"
+            exit 1
+        fi
+        
+        # Everything looks good, merge back to the original branch
+        echo "🔄 Merging changes back to $CURRENT_BRANCH..."
+        git checkout "$CURRENT_BRANCH"
+        git merge --no-ff "$TEMP_BRANCH" -m "chore(pipeline): merge version changes"
+        MERGE_STATUS=$?
+        
+        # Clean up temp branch regardless of merge status
+        git branch -D "$TEMP_BRANCH"
+        
+        if [ $MERGE_STATUS -ne 0 ]; then
+            echo "❌ Failed to merge version changes. Aborting push."
+            echo "Please resolve any merge conflicts and try again."
+            exit 1
+        fi
+        
+        echo "✅ Successfully versioned packages and committed changes!"
+    else
+        echo "ℹ️ No changesets found to consume. Skipping version bump."
+    fi
+    
     echo "✅ All pre-push checks completed successfully!"
 else
     echo "✅ No changes detected outside development/ and public/ directories. Skipping tests."

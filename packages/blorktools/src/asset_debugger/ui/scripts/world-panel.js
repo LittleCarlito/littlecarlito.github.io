@@ -1147,134 +1147,57 @@ export function createSpherePreview(THREE, texture, canvas, noImageMessage) {
 }
 
 /**
- * Fallback to 2D preview if 3D sphere fails
- * @param {THREE.Texture} texture - The environment texture to render
- * @param {HTMLCanvasElement} canvas - The canvas element
+ * Log error when 2D preview fails instead of showing fallback
+ * @param {THREE.Texture} texture - The texture that failed to render
+ * @param {HTMLCanvasElement} canvas - The canvas that would have shown a preview
  */
 export function fallbackTo2DPreview(texture, canvas) {
-    if (!canvas || !texture || !texture.image) {
-        console.error('Cannot render fallback preview, missing canvas or texture');
+    console.error('ERROR: Failed to create texture preview');
+    
+    if (!canvas) {
+        console.error('Canvas element is missing');
         return false;
     }
     
-    console.log('Falling back to 2D texture preview');
-    
-    // Get the 2D context and clear it
+    // Display error message on canvas
     const ctx = canvas.getContext('2d');
     
-    try {
-        // Ensure the canvas is visible
-        canvas.style.display = 'block';
-        
-        // Set canvas dimensions to match aspect ratio or be square if no texture
-        if (texture.image) {
-            if (texture.image.width && texture.image.height) {
-                const aspectRatio = texture.image.width / texture.image.height;
-                canvas.width = 260;
-                canvas.height = Math.round(canvas.width / aspectRatio);
-            } else {
-                canvas.width = 260;
-                canvas.height = 260;
-            }
-        } else {
-            canvas.width = 260;
-            canvas.height = 260;
-        }
-        
-        // Clear any previous content
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw the texture
-        if (texture.image) {
-            // If we have a direct image reference, just draw it
-            if (texture.image instanceof HTMLImageElement ||
-                texture.image instanceof HTMLCanvasElement ||
-                texture.image instanceof ImageBitmap) {
-                
-                try {
-                    ctx.drawImage(texture.image, 0, 0, canvas.width, canvas.height);
-                } catch (e) {
-                    console.error('Error drawing texture image:', e);
-                    
-                    // If drawing failed, try to extract raw pixel data
-                    try {
-                        // Create a temporary canvas to read pixel data
-                        const tempCanvas = document.createElement('canvas');
-                        tempCanvas.width = texture.image.width || 260;
-                        tempCanvas.height = texture.image.height || 260;
-                        const tempCtx = tempCanvas.getContext('2d');
-                        
-                        // Draw to temp canvas first
-                        tempCtx.drawImage(texture.image, 0, 0);
-                        
-                        // Get the pixel data
-                        const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-                        
-                        // Put the image data into our display canvas
-                        ctx.putImageData(imageData, 0, 0);
-                    } catch (extractError) {
-                        console.error('Failed to extract pixel data:', extractError);
-                        
-                        // If all else fails, draw a placeholder gradient
-                        drawPlaceholderGradient(ctx, canvas.width, canvas.height);
-                    }
-                }
-            } 
-            // For HDRi data, try to treat it as a normal image for preview
-            else if (texture.image.data && texture.image.width && texture.image.height) {
-                try {
-                    // For raw data, try to create an ImageData object and draw that
-                    const imageData = new ImageData(
-                        new Uint8ClampedArray(texture.image.data),
-                        texture.image.width,
-                        texture.image.height
-                    );
-                    ctx.putImageData(imageData, 0, 0);
-                } catch (dataError) {
-                    console.error('Error creating ImageData from texture:', dataError);
-                    drawPlaceholderGradient(ctx, canvas.width, canvas.height);
-                }
-            } else {
-                console.warn('Unknown texture image format, falling back to placeholder');
-                drawPlaceholderGradient(ctx, canvas.width, canvas.height);
-            }
-        } else {
-            // If no image data at all, draw a placeholder gradient
-            drawPlaceholderGradient(ctx, canvas.width, canvas.height);
-        }
-        
-        return true;
-    } catch (error) {
-        console.error('Error in fallback 2D preview:', error);
-        return false;
-    }
+    // Clear any existing content
+    ctx.fillStyle = '#111111';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    /**
-     * Draw a colorful placeholder gradient when we can't render the real texture
-     * @param {CanvasRenderingContext2D} ctx - Canvas context
-     * @param {number} width - Width 
-     * @param {number} height - Height
-     */
-    function drawPlaceholderGradient(ctx, width, height) {
-        // Create a gradient
-        const gradient = ctx.createLinearGradient(0, 0, width, height);
-        gradient.addColorStop(0, '#3498db');
-        gradient.addColorStop(0.5, '#9b59b6');
-        gradient.addColorStop(1, '#f39c12');
-        
-        // Fill with gradient
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, width, height);
-        
-        // Add some text
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.font = 'bold 18px monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('HDR/EXR Preview', width/2, height/2 - 15);
-        ctx.font = '14px monospace';
-        ctx.fillText('(Unable to render image data)', width/2, height/2 + 15);
-    }
+    // Add error text
+    ctx.fillStyle = '#ff3333';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('ERROR: Preview Failed', canvas.width / 2, canvas.height / 2 - 10);
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('See console for details', canvas.width / 2, canvas.height / 2 + 15);
+    
+    // Log detailed error information
+    console.error({
+        message: 'Texture preview generation failed',
+        timestamp: new Date().toISOString(),
+        textureInfo: {
+            type: texture ? (
+                texture.isHDRTexture ? 'HDR Texture' :
+                texture.isDataTexture ? 'Data Texture' :
+                texture.isCompressedTexture ? 'Compressed Texture' :
+                'Standard Texture'
+            ) : 'Unknown',
+            dimensions: texture && texture.image ? 
+                `${texture.image.width}x${texture.image.height}` : 'Unknown dimensions'
+        },
+        canvasInfo: {
+            width: canvas.width,
+            height: canvas.height,
+            id: canvas.id || 'unknown'
+        }
+    });
+    
+    return false;
 }
 
 /**
