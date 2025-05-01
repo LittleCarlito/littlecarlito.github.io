@@ -18,10 +18,13 @@ module.exports = {
     'scope-case': [2, 'always', 'lowercase'],
     'subject-empty': [2, 'never'],
     'subject-full-stop': [2, 'never', '.'],
+    'subject-case': [2, 'never', ['sentence-case', 'pascal-case', 'upper-case']],
     'header-max-length': [2, 'always', 72]
   },
   ignorePatterns: [
     // List of patterns to ignore (if needed)
   ],
-  helpUrl: 'https://github.com/conventional-changelog/commitlint/#what-is-commitlint'
+  helpUrl: 'https://github.com/conventional-changelog/commitlint/#what-is-commitlint',
+  // Define scopes that should be ignored by automated versioning
+  ignoredScopes: ['pipeline']
 };
