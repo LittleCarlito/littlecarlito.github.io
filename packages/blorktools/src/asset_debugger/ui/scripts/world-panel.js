@@ -945,22 +945,11 @@ export function renderEnvironmentPreview(texture, externalCanvas, externalNoImag
                 return true;
             }).catch(error => {
                 console.error('Error importing Three.js:', error);
-                fallbackTo2DPreview(texture, canvas);
                 return false;
             });
         }
     } catch (error) {
         console.error('Error rendering HDR preview as sphere:', error);
-        
-        // Fallback to 2D preview for errors
-        try {
-            fallbackTo2DPreview(texture, canvas);
-            return true;
-        } catch (fallbackError) {
-            console.error('Error rendering fallback 2D preview:', fallbackError);
-            showNoImageMessage(canvas, noImageMessage, `Error: ${error.message}`);
-            return false;
-        }
     }
     
     return true;
@@ -1142,62 +1131,7 @@ export function createSpherePreview(THREE, texture, canvas, noImageMessage) {
         console.log('Successfully rendered environment map as interactive 3D sphere');
     } catch (error) {
         console.error('Error in createSpherePreview:', error);
-        fallbackTo2DPreview(texture, canvas);
     }
-}
-
-/**
- * Log error when 2D preview fails instead of showing fallback
- * @param {THREE.Texture} texture - The texture that failed to render
- * @param {HTMLCanvasElement} canvas - The canvas that would have shown a preview
- */
-export function fallbackTo2DPreview(texture, canvas) {
-    console.error('ERROR: Failed to create texture preview');
-    
-    if (!canvas) {
-        console.error('Canvas element is missing');
-        return false;
-    }
-    
-    // Display error message on canvas
-    const ctx = canvas.getContext('2d');
-    
-    // Clear any existing content
-    ctx.fillStyle = '#111111';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Add error text
-    ctx.fillStyle = '#ff3333';
-    ctx.font = 'bold 16px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('ERROR: Preview Failed', canvas.width / 2, canvas.height / 2 - 10);
-    
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '12px sans-serif';
-    ctx.fillText('See console for details', canvas.width / 2, canvas.height / 2 + 15);
-    
-    // Log detailed error information
-    console.error({
-        message: 'Texture preview generation failed',
-        timestamp: new Date().toISOString(),
-        textureInfo: {
-            type: texture ? (
-                texture.isHDRTexture ? 'HDR Texture' :
-                texture.isDataTexture ? 'Data Texture' :
-                texture.isCompressedTexture ? 'Compressed Texture' :
-                'Standard Texture'
-            ) : 'Unknown',
-            dimensions: texture && texture.image ? 
-                `${texture.image.width}x${texture.image.height}` : 'Unknown dimensions'
-        },
-        canvasInfo: {
-            width: canvas.width,
-            height: canvas.height,
-            id: canvas.id || 'unknown'
-        }
-    });
-    
-    return false;
 }
 
 /**
@@ -1684,13 +1618,11 @@ export function renderBackgroundPreview(fileOrTexture) {
                         return true;
                     }).catch(error => {
                         console.error('Error importing Three.js:', error);
-                        fallbackTo2DPreview(fileOrTexture, canvas);
                         return false;
                     });
                 }
             } catch (error) {
                 console.error('Error creating sphere preview for texture:', error);
-                fallbackTo2DPreview(fileOrTexture, canvas);
             }
             
             return true;
