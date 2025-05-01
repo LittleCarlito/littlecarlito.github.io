@@ -1685,3 +1685,16 @@ document.addEventListener('lighting-updated', function(e) {
     
     console.log('Updated lighting info UI with example lighting data');
 });
+
+/**
+ * Set the current background option without triggering UI updates
+ * @param {string} option - The option to set ('none', 'background', or 'hdr')
+ */
+export function setCurrentBackgroundOption(option) {
+    if (['none', 'background', 'hdr'].includes(option)) {
+        console.log('Setting current background option to:', option);
+        currentBackgroundOption = option;
+    } else {
+        console.warn('Invalid background option:', option);
+    }
+}

@@ -537,19 +537,44 @@ function startDebugging() {
                         if (backgroundTexture) {
                             console.log('[DEBUG] Using already loaded background texture');
                             
-                            // Apply the texture to the scene
-                            if (currentState.scene) {
-                                currentState.scene.background = backgroundTexture;
-                                
-                                // Dispatch an event to notify UI components
-                                const event = new CustomEvent('background-updated', { 
-                                    detail: { texture: backgroundTexture, file: backgroundFile }
-                                });
-                                document.dispatchEvent(event);
-                                
-                                resourcesLoaded.backgroundLoaded = true;
-                                checkAllResourcesLoaded();
-                            }
+                            // Don't automatically apply the texture to the scene background
+                            // Instead, just update the state and dispatch the event
+                            
+                            // Dispatch an event to notify UI components
+                            const event = new CustomEvent('background-updated', { 
+                                detail: { texture: backgroundTexture, file: backgroundFile }
+                            });
+                            document.dispatchEvent(event);
+                            
+                            // When the background texture is ready, inform the world panel
+                            // so it can update the UI to show the Background Image radio option
+                            // but NOT automatically select it
+                            import('./world-panel.js').then(worldPanelModule => {
+                                if (worldPanelModule.updateBackgroundInfo && backgroundFile) {
+                                    // Get metadata to display in the UI
+                                    const metadata = {
+                                        fileName: backgroundFile.name,
+                                        type: backgroundFile.type || backgroundFile.name.split('.').pop().toUpperCase(),
+                                        dimensions: { 
+                                            width: backgroundTexture.image?.width || 0, 
+                                            height: backgroundTexture.image?.height || 0 
+                                        },
+                                        fileSizeBytes: backgroundFile.size
+                                    };
+                                    
+                                    // Update the background info panel with this data
+                                    worldPanelModule.updateBackgroundInfo(metadata, false);
+                                    
+                                    // Make sure the "None" radio is still selected
+                                    const noneRadio = document.querySelector('input[name="bg-option"][value="none"]');
+                                    if (noneRadio) {
+                                        noneRadio.checked = true;
+                                    }
+                                }
+                            });
+                            
+                            resourcesLoaded.backgroundLoaded = true;
+                            checkAllResourcesLoaded();
                         }
                         else if (backgroundFile) {
                             console.log('[DEBUG] Setting up background image from:', backgroundFile.name, 'type:', backgroundFile.type);

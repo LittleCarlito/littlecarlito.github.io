@@ -193,6 +193,38 @@ function applyBackgroundTexture(texture, file) {
     });
     document.dispatchEvent(event);
     
+    // Call into world panel to update metadata, but don't change the radio selection
+    import('../ui/scripts/world-panel.js').then(worldPanelModule => {
+        if (worldPanelModule.updateBackgroundInfo) {
+            // Get metadata to display in the UI
+            const metadata = {
+                fileName: file.name,
+                type: file.type || file.name.split('.').pop().toUpperCase(),
+                dimensions: { 
+                    width: texture.image?.width || 0, 
+                    height: texture.image?.height || 0 
+                },
+                fileSizeBytes: file.size
+            };
+            
+            // Update the background info panel with this data
+            worldPanelModule.updateBackgroundInfo(metadata, false);
+            
+            // Make sure the "None" radio is still selected
+            const noneRadio = document.querySelector('input[name="bg-option"][value="none"]');
+            if (noneRadio) {
+                noneRadio.checked = true;
+                
+                // If there's a current option in world panel, also update it
+                if (typeof worldPanelModule.setCurrentBackgroundOption === 'function') {
+                    worldPanelModule.setCurrentBackgroundOption('none');
+                }
+            }
+        }
+    }).catch(error => {
+        console.warn('Could not update world panel with background info:', error);
+    });
+    
     console.log('[DEBUG] Background texture added to state successfully');
 }
 
