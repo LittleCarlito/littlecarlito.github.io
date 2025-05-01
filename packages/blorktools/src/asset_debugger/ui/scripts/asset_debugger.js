@@ -475,8 +475,45 @@ function startDebugging() {
                                                 if (worldPanelModule.updateLightingInfo) {
                                                     worldPanelModule.updateLightingInfo(metadata);
                                                 }
+                                                
+                                                // If there's no background file, make sure to show the "No Background" message
+                                                if (!backgroundFile && !backgroundTexture) {
+                                                    if (worldPanelModule.toggleBackgroundMessages) {
+                                                        worldPanelModule.toggleBackgroundMessages(false, true);
+                                                    }
+                                                    
+                                                    // Update background info with empty data
+                                                    if (worldPanelModule.updateBackgroundInfo) {
+                                                        worldPanelModule.updateBackgroundInfo({
+                                                            fileName: null,
+                                                            type: null,
+                                                            dimensions: { width: 0, height: 0 },
+                                                            fileSizeBytes: 0
+                                                        }, true);
+                                                    }
+                                                }
+                                                
                                                 // Apply the lighting to the scene
-                                                return lightingModule.setupEnvironmentLighting(lightingFile);
+                                                return lightingModule.setupEnvironmentLighting(lightingFile)
+                                                    .then(texture => {
+                                                        // Ensure the lighting preview is rendered in world panel
+                                                        if (texture && worldPanelModule.renderEnvironmentPreview) {
+                                                            console.log('Rendering environment preview in world panel');
+                                                            // Find the canvas in the world panel
+                                                            const hdrCanvas = document.getElementById('hdr-preview-canvas');
+                                                            const noImageMessage = document.getElementById('no-image-message');
+                                                            
+                                                            // Render the preview if canvas exists
+                                                            if (hdrCanvas) {
+                                                                worldPanelModule.renderEnvironmentPreview(texture, hdrCanvas, noImageMessage);
+                                                            } else {
+                                                                console.warn('HDR preview canvas not found, will be rendered when panel is ready');
+                                                                // Store the texture in state for later use
+                                                                updateState('environmentTexture', texture);
+                                                            }
+                                                        }
+                                                        return texture;
+                                                    });
                                             });
                                     })
                                     .catch(error => {

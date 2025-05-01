@@ -242,9 +242,6 @@ export function initWorldPanel() {
             console.log('We have existing environment texture, rendering preview');
             renderEnvironmentPreview(environmentTexture);
         }
-    } else {
-        console.log('No lighting metadata available yet during initialization');
-        refreshBackgroundUI();
     }
     
     // Update background image info if we have it already
@@ -379,121 +376,89 @@ function setupLightingControls() {
  * Set up listener for Background radio button selection
  */
 function setupBgToggleListener() {
-    // Get all radio buttons with name="bg-option"
-    const bgRadioButtons = document.querySelectorAll('input[name="bg-option"]');
+    // Find all background toggle radio buttons
+    const backgroundOptions = document.querySelectorAll('input[name="bg-option"]');
+    const state = getState();
     
-    if (bgRadioButtons && bgRadioButtons.length > 0) {
-        // Listen for changes on any radio button
-        bgRadioButtons.forEach(radio => {
-            radio.addEventListener('change', function(e) {
-                // Prevent event propagation
-                e.stopPropagation();
-                
-                // Only process if it's a radio input
-                if (e.target.type === 'radio') {
-                    // Get the selected option value
-                    const selectedValue = e.target.value;
-                    
-                    // Store the user's explicit choice
-                    currentBackgroundOption = selectedValue;
-                    
-                    console.log('Background option manually changed to:', selectedValue);
-                    
-                    // Get the state
-                    const state = getState();
-                    
-                    // Handle based on selection
-                    if (state.scene) {
-                        if (selectedValue === 'none') {
-                            // Disable all backgrounds
-                            setNullBackground(state.scene);
-                            
-                            // Tell background-util.js to disable any background images
-                            import('../../core/background-util.js').then(backgroundModule => {
-                                if (backgroundModule.toggleBackgroundVisibility) {
-                                    backgroundModule.toggleBackgroundVisibility(false);
-                                }
-                            });
-                            
-                            // Update canvas opacity
-                            updateCanvasOpacity('none');
-                        }
-                        else if (selectedValue === 'background') {
-                            // Check if we have a background file or texture before enabling
-                            const hasBackgroundImage = state.backgroundFile || state.backgroundTexture;
-                            
-                            if (hasBackgroundImage) {
-                                // Enable background image, disable environment
-                                import('../../core/background-util.js').then(backgroundModule => {
-                                    if (backgroundModule.toggleBackgroundVisibility) {
-                                        backgroundModule.toggleBackgroundVisibility(true);
-                                    }
-                                });
-                            } else {
-                                // No background image available, set null background
-                                console.warn('No background image available, setting null background');
-                                setNullBackground(state.scene);
-                                
-                                // Keep the background radio button selected
-                                const backgroundRadio = document.querySelector('input[name="bg-option"][value="background"]');
-                                if (backgroundRadio) {
-                                    backgroundRadio.checked = true;
-                                    // Ensure currentBackgroundOption remains as background
-                                    currentBackgroundOption = 'background';
-                                }
-                            }
-                            
-                            // Disable environment if it was previously set
-                            if (state.scene.background === state.scene.environment) {
-                                setNullBackground(state.scene);
-                            }
-                            
-                            // Update canvas opacity
-                            updateCanvasOpacity(hasBackgroundImage ? 'background' : 'none');
-                        }
-                        else if (selectedValue === 'hdr') {
-                            // Enable environment as background
-                            if (state.scene.environment) {
-                                // First disable the regular background texture if any
-                                import('../../core/background-util.js').then(backgroundModule => {
-                                    if (backgroundModule.toggleBackgroundVisibility) {
-                                        backgroundModule.toggleBackgroundVisibility(false);
-                                    }
-                                    
-                                    // Then set the environment as the background
-                                    // Important: Do this AFTER hiding the regular background to avoid conflicts
-                                    console.log('[DEBUG] Setting environment as background texture');
-                                    state.scene.background = state.scene.environment;
-                                });
-                            } else {
-                                console.log('No environment texture available, setting null background');
-                                // Set null background when no environment is available but HDR is selected
-                                setNullBackground(state.scene);
-                                
-                                // Keep the HDR radio button selected
-                                const hdrRadio = document.querySelector('input[name="bg-option"][value="hdr"]');
-                                if (hdrRadio) {
-                                    hdrRadio.checked = true;
-                                    // Ensure currentBackgroundOption remains as hdr
-                                    currentBackgroundOption = 'hdr';
-                                }
-                            }
-                            
-                            // Update canvas opacity based on whether we have an environment
-                            updateCanvasOpacity(state.scene.environment ? 'hdr' : 'none');
-                        }
-                    }
-                }
-            });
-            
-            // Also ensure clicks don't propagate
-            radio.addEventListener('click', function(e) {
-                e.stopPropagation();
-            });
-        });
-    } else {
-        console.warn('Background radio buttons not found');
+    // Initial selection based on loaded files
+    let initialOption = 'none'; // Default is none
+    
+    // If we have lighting file, default to HDR
+    if (state.lightingFile && state.environmentLightingEnabled) {
+        initialOption = 'hdr';
     }
+    
+    // If we have background file, that takes precedence
+    if (state.backgroundFile) {
+        initialOption = 'background';
+    }
+    
+    // Set the initial selection
+    const selectedRadio = document.querySelector(`input[name="bg-option"][value="${initialOption}"]`);
+    if (selectedRadio) {
+        selectedRadio.checked = true;
+        currentBackgroundOption = initialOption;
+    }
+    
+    // Process UI state based on available resources
+    const uiState = determineBackgroundUIState();
+    updateBackgroundUIVisibility(uiState);
+    
+    // Add event listeners to each radio button
+    backgroundOptions.forEach(option => {
+        option.addEventListener('change', function() {
+            if (this.checked) {
+                const selectedValue = this.value;
+                currentBackgroundOption = selectedValue;
+                
+                // Get scene from state
+                const state = getState();
+                if (!state.scene) {
+                    console.error('Cannot update background - scene not found in state');
+                    return;
+                }
+                
+                // Apply the appropriate background based on selection
+                switch (selectedValue) {
+                    case 'none':
+                        // Set background to null or a dark color
+                        setNullBackground(state.scene);
+                        break;
+                        
+                    case 'hdr':
+                        // Only apply HDR/EXR background if we have one
+                        if (state.scene.environment) {
+                            console.log('Setting background to HDR/EXR environment map');
+                            state.scene.background = state.scene.environment;
+                        } else {
+                            console.warn('No HDR/EXR environment map available');
+                            // Fall back to null background but KEEP the radio selection
+                            setNullBackground(state.scene);
+                            // Don't reset the radio selection - keep HDR/EXR selected 
+                            // even if there's no environment map available
+                        }
+                        break;
+                        
+                    case 'background':
+                        // Only apply background texture if we have one
+                        if (state.backgroundTexture) {
+                            console.log('Setting background to loaded background texture');
+                            state.scene.background = state.backgroundTexture;
+                        } else {
+                            console.warn('No background texture available');
+                            // Fall back to null background but KEEP the radio selection
+                            setNullBackground(state.scene);
+                            // Don't reset the radio selection - keep Background Image selected
+                            // even if there's no background image available
+                        }
+                        break;
+                }
+                
+                // Update canvas opacity based on selection
+                updateCanvasOpacity(selectedValue);
+            }
+        });
+    });
     
     // Helper function to update canvas opacity based on selection
     function updateCanvasOpacity(selectedValue) {
@@ -515,7 +480,7 @@ function setupBgToggleListener() {
  * @param {boolean} hasContent - Whether environment texture or background is loaded
  * @param {boolean} [forceShow=false] - Force show/hide the data info regardless of content status
  */
-function toggleBackgroundMessages(hasContent, forceShow = false) {
+export function toggleBackgroundMessages(hasContent, forceShow = false) {
     const noBackgroundMessage = document.querySelector('.no-background-message');
     const backgroundDataInfo = document.querySelector('.background-data-info');
     
@@ -924,7 +889,6 @@ export function createSpherePreview(THREE, texture, canvas, noImageMessage) {
         // Store cleanup function for later use
         canvas.cleanup = cleanup;
         console.log('Successfully rendered environment map as interactive 3D sphere');
-        refreshBackgroundUI();
     } catch (error) {
         console.error('Error in createSpherePreview:', error);
     }
