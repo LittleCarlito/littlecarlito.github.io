@@ -1,44 +1,64 @@
 'use strict';
 
-const conventionalCommitsConfig = require('conventional-changelog-conventionalcommits');
+// Require the config factory
+const conventionalConfig = require('conventional-changelog-conventionalcommits');
 
-module.exports = async function customConventionalConfig(config) {
-  const conventionalConfig = await conventionalCommitsConfig(config);
-  
-  // The default recommended bump for slice commits is patch
-  conventionalConfig.recommendedBumpOpts.parserOpts.noteKeywords = [
-    ...conventionalConfig.recommendedBumpOpts.parserOpts.noteKeywords,
-    'SLICE'
-  ];
-  
-  // Define custom rules for "slice" commit type
-  conventionalConfig.recommendedBumpOpts.whatBump = (commits) => {
-    let level = 2; // Default to patch level
-    let breakingChange = false;
-    let features = false;
-    
-    commits.forEach(commit => {
-      if (commit.notes.length > 0) {
-        breakingChange = true;
-        level = 0; // Major
-      } else if (commit.type === 'feat') {
-        features = true;
-        level = 1; // Minor
-      } else if (commit.type === 'slice') {
-        // Treat slice as patch (level 2)
-        level = Math.min(level, 2);
-      }
-    });
-    
-    return {
-      level: level,
-      reason: breakingChange 
-        ? 'There are breaking changes'
-        : features 
-          ? 'There are new features'
-          : 'There are patches or slice updates'
-    };
-  };
-  
-  return conventionalConfig;
+module.exports = {
+  name: 'mypreset',
+  recommendedBumpOpts: {
+    preset: {
+      name: 'conventionalcommits',
+      types: [
+        { type: 'feat', section: 'Features', hidden: false },
+        { type: 'fix', section: 'Bug Fixes', hidden: false },
+        { type: 'docs', section: 'Documentation', hidden: false },
+        { type: 'style', section: 'Styles', hidden: false },
+        { type: 'refactor', section: 'Code Refactoring', hidden: false },
+        { type: 'perf', section: 'Performance Improvements', hidden: false },
+        { type: 'test', section: 'Tests', hidden: false },
+        { type: 'build', section: 'Build System', hidden: false },
+        { type: 'ci', section: 'Continuous Integration', hidden: false },
+        { type: 'chore', section: 'Chores', hidden: false },
+        { type: 'slice', section: 'Slices', hidden: false }
+      ]
+    },
+    parserOpts: {
+      noteKeywords: ['BREAKING CHANGE', 'BREAKING CHANGES', 'BREAKING']
+    },
+    whatBump: (commits) => {
+      let level = 2; // Default to patch level
+      let breaking = 0;
+      let features = 0;
+      let slices = 0;
+
+      commits.forEach(commit => {
+        // Exclude commits with 'pipeline' scope from version calculation
+        if (commit.scope === 'pipeline') {
+          return;
+        }
+
+        if (commit.notes.length > 0) {
+          breaking += commit.notes.length;
+          level = 0; // Major
+        } else if (commit.type === 'feat') {
+          features += 1;
+          if (level > 1) level = 1; // Minor
+        } else if (commit.type === 'slice') {
+          slices += 1;
+          if (level > 2) level = 2; // Patch
+        }
+      });
+
+      return {
+        level: level,
+        reason: breaking 
+          ? `There ${breaking === 1 ? 'is' : 'are'} ${breaking} BREAKING CHANGE${breaking === 1 ? '' : 'S'}`
+          : features 
+            ? `There ${features === 1 ? 'is' : 'are'} ${features} new feature${features === 1 ? '' : 's'}`
+            : slices
+              ? `There ${slices === 1 ? 'is' : 'are'} ${slices} slice ${slices === 1 ? 'change' : 'changes'}`
+              : 'There are only fixes, chores, or other non-API changes'
+      };
+    }
+  }
 }; 
