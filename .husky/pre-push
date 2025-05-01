@@ -1,8 +1,17 @@
 #!/bin/bash
 # Running pre-push checks directly without husky sourcing
 
+# Set -e is removed to prevent silent exits
+# Instead we'll explicitly handle errors and provide better logging
+
+# Add debugging
+set -x
+
 # Change to repository root directory to ensure commands work correctly
-cd "$(git rev-parse --show-toplevel)" || exit 1
+cd "$(git rev-parse --show-toplevel)" || {
+    echo "❌ Failed to change to repository root directory"
+    exit 1
+}
 
 echo "🔍 Running pre-push checks..."
 
@@ -33,25 +42,30 @@ echo "Checking for relevant file changes..."
 
 # Get files changed between base commit and HEAD
 CHANGED_FILES=$(git diff --name-only HEAD^ HEAD)
+if [ $? -ne 0 ]; then
+    echo "❌ Error getting changed files. This might happen if you're pushing a new branch."
+    echo "Proceeding with tests to be safe..."
+    RUN_TESTS=true
+else
+    # Flag to indicate if we need to run tests
+    RUN_TESTS=false
 
-# Flag to indicate if we need to run tests
-RUN_TESTS=false
-
-# Use a different approach to avoid subshell issues
-for file in $CHANGED_FILES; do
-    # Skip empty lines
-    [ -z "$file" ] && continue
-    
-    # Check if file is NOT in development/ or public/ directories
-    if ! [[ "$file" =~ ^(development/|public/) ]]; then
-        echo "🔍 Found change in $file - will run pipeline tests"
-        RUN_TESTS=true
-    fi
-done
+    # Use a different approach to avoid subshell issues
+    for file in $CHANGED_FILES; do
+        # Skip empty lines
+        [ -z "$file" ] && continue
+        
+        # Check if file is NOT in development/ or public/ directories
+        if ! [[ "$file" =~ ^(development/|public/) ]]; then
+            echo "🔍 Found change in $file - will run pipeline tests"
+            RUN_TESTS=true
+        fi
+    done
+fi
 
 if [ "$RUN_TESTS" = true ]; then
     # Check if .github directory has changes
-    GITHUB_DIR_CHANGES=$(git diff --name-only HEAD^ HEAD | grep -c "^\.github/")
+    GITHUB_DIR_CHANGES=$(git diff --name-only HEAD^ HEAD 2>/dev/null | grep -c "^\.github/" || echo "0")
     
     # Only run workflow validation if .github directory has changes
     if [ "$GITHUB_DIR_CHANGES" -gt 0 ]; then
@@ -116,11 +130,14 @@ if [ "$RUN_TESTS" = true ]; then
         echo "📦 Found $CHANGESET_COUNT changesets to consume."
         
         # Create a temporary branch to work on in case we need to abort
-        CURRENT_BRANCH=$(git symbolic-ref --short HEAD)
+        CURRENT_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD)
         TEMP_BRANCH="temp-changeset-version-$(date +%s)"
         
         echo "Creating temporary branch $TEMP_BRANCH to safely process changesets..."
-        git checkout -b "$TEMP_BRANCH"
+        git checkout -b "$TEMP_BRANCH" || {
+            echo "❌ Failed to create temporary branch. Aborting push."
+            exit 1
+        }
         
         # Run changeset version to consume changesets and bump versions
         echo "📈 Running changeset version to bump package versions..."
@@ -128,7 +145,7 @@ if [ "$RUN_TESTS" = true ]; then
         VERSION_STATUS=$?
         
         if [ $VERSION_STATUS -ne 0 ]; then
-            echo "❌ Changeset version failed. Reverting changes and aborting push."
+            echo "❌ Changeset version failed with status $VERSION_STATUS. Reverting changes and aborting push."
             git checkout "$CURRENT_BRANCH"
             git branch -D "$TEMP_BRANCH"
             exit 1
@@ -174,7 +191,7 @@ if [ "$RUN_TESTS" = true ]; then
         COMMIT_STATUS=$?
         
         if [ $COMMIT_STATUS -ne 0 ]; then
-            echo "❌ Failed to commit version changes. Reverting changes and aborting push."
+            echo "❌ Failed to commit version changes with status $COMMIT_STATUS. Reverting changes and aborting push."
             git checkout "$CURRENT_BRANCH"
             git branch -D "$TEMP_BRANCH"
             exit 1
@@ -190,15 +207,19 @@ if [ "$RUN_TESTS" = true ]; then
         
         # Everything looks good, merge back to the original branch
         echo "🔄 Merging changes back to $CURRENT_BRANCH..."
-        git checkout "$CURRENT_BRANCH"
+        git checkout "$CURRENT_BRANCH" || {
+            echo "❌ Failed to checkout original branch. You may need to manually clean up temporary branch $TEMP_BRANCH."
+            exit 1
+        }
+        
         git merge --no-ff "$TEMP_BRANCH" -m "chore(pipeline): merge version changes"
         MERGE_STATUS=$?
         
         # Clean up temp branch regardless of merge status
-        git branch -D "$TEMP_BRANCH"
+        git branch -D "$TEMP_BRANCH" || echo "⚠️ Warning: Could not delete temporary branch $TEMP_BRANCH"
         
         if [ $MERGE_STATUS -ne 0 ]; then
-            echo "❌ Failed to merge version changes. Aborting push."
+            echo "❌ Failed to merge version changes with status $MERGE_STATUS. Aborting push."
             echo "Please resolve any merge conflicts and try again."
             exit 1
         fi
@@ -212,6 +233,9 @@ if [ "$RUN_TESTS" = true ]; then
 else
     echo "✅ No changes detected outside development/ and public/ directories. Skipping tests."
 fi
+
+# Disable debugging before exiting
+set +x
 
 echo "🎉 Pre-push checks completed successfully!"
 exit 0 
