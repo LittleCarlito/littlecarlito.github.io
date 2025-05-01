@@ -82,6 +82,8 @@ function updateBackgroundUIVisibility(uiState) {
     
     // 2. Update message visibility - show the "no data" message only if BOTH background types are missing
     const hasAnyBackground = uiState.hasBackgroundImage || uiState.hasEnvironment;
+    console.log("BAZINGA Has Any Background:", hasAnyBackground);
+    console.log("BLAZORPA Has Environment:", uiState.hasEnvironment);
     toggleBackgroundMessages(hasAnyBackground);
     
     // Helper function to update canvas opacity
@@ -371,7 +373,6 @@ function setupLightingControls() {
     
     // Initialize message visibility
     updateLightingMessage();
-    refreshBackgroundUI();
 }
 
 /**
@@ -649,9 +650,6 @@ export function updateLightingInfo(metadata) {
     console.log('Showing lighting data info and hiding no data message');
     toggleLightingMessages(true);
     
-    // Update background message visibility
-    refreshBackgroundUI();
-    
     // Update slider visibility - we have HDR/EXR data
     updateSliderVisibility(true);
     
@@ -925,8 +923,8 @@ export function createSpherePreview(THREE, texture, canvas, noImageMessage) {
         
         // Store cleanup function for later use
         canvas.cleanup = cleanup;
-        
         console.log('Successfully rendered environment map as interactive 3D sphere');
+        refreshBackgroundUI();
     } catch (error) {
         console.error('Error in createSpherePreview:', error);
     }
@@ -1065,9 +1063,6 @@ export function updateBackgroundInfo(metadata, skipRendering = false) {
     
     const fileSizeMB = metadata.fileSizeBytes ? (metadata.fileSizeBytes / 1024 / 1024).toFixed(2) + ' MB' : '-';
     sizeEl.textContent = fileSizeMB;
-    
-    // Show the background info section and hide the no background message
-    refreshBackgroundUI();
     
     // Respect the current radio selection without changing it on automatic background updates
     // Only auto-select the option if this is a fresh load (no option selected yet)

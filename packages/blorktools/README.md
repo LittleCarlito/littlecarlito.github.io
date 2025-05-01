@@ -1,6 +1,11 @@
 # BlorkTools
 
-A toolkit of utilities for Three.js development with an emphasis on debugging, visualization, and development tools.
+Advanced development and debugging toolkit for Three.js applications. This package provides a comprehensive suite of tools for visualizing, debugging, and analyzing 3D applications built with Three.js.
+
+## Performance Improvement
+
+- **New Debug Render System**: Improved visualization with lower performance impact
+- **Memory Usage Tracker**: Better memory tracking and optimization suggestions
 
 ## Key Features
 
@@ -17,19 +22,23 @@ npm install @littlecarlito/blorktools
 ## Usage
 
 ```javascript
-import { AssetDebugger } from '@littlecarlito/blorktools';
+import { 
+  AssetDebugger,
+  RigDebugger, 
+  SceneAnalyzer 
+} from '@littlecarlito/blorktools';
 
-// Initialize the asset debugger
-const debugger = new AssetDebugger({
-  container: document.getElementById('debug-container'),
-  options: {
-    showGrid: true,
-    showAxes: true
-  }
-});
+// Initialize the debugger
+const debugger = AssetDebugger.initialize(scene, renderer);
 
-// Load a model for debugging
-debugger.loadModel('path/to/model.glb');
+// Enable debugging features
+debugger.enableWireframes();
+debugger.enableBoundingBoxes();
+debugger.enablePerformanceMetrics();
+
+// Analyze scene
+const analysis = SceneAnalyzer.analyzeScene(scene);
+console.log(analysis.statistics);
 ```
 
 ## Architecture
@@ -137,4 +146,6 @@ This package is part of the [threejs_site](https://github.com/littlecarlito/thre
 
 ## License
 
-GNU General Public License v3.0 (GPL-3.0) 
+This package is licensed under the GNU General Public License v3.0 (GPL-3.0).
+
+See the root [LICENSE](../../LICENSE) file for full terms and conditions. 

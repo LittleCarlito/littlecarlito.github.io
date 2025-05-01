@@ -1,11 +1,11 @@
 {
   "$schema": "node_modules/lerna/schemas/lerna-schema.json",
-  "version": "0.47.0",
+  "version": "independent",
   "npmClient": "pnpm",
   "command": {
     "version": {
       "conventionalCommits": true,
-      "message": "chore(release): publish %s",
+      "message": "chore(release): publish",
       "createRelease": "github",
       "changelogPreset": "./conventional-changelog-config.js",
       "ignoreScopes": ["pipeline"]
