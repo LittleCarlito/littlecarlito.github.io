@@ -720,91 +720,39 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
 }
 
 /**
- * Create a fallback sphere preview for HDR/EXR when actual preview fails
- * @param {HTMLCanvasElement} canvas - The canvas to draw on
+ * Instead of creating a fallback sphere, log the error properly
+ * @param {HTMLCanvasElement} canvas - The canvas that would have shown a preview
  */
 function createFallbackSphere(canvas) {
+    console.error('ERROR: Failed to create environment preview');
+    
+    // Add error message to canvas context
     const ctx = canvas.getContext('2d');
     
     // Clear canvas with dark background
     ctx.fillStyle = '#111111';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Create a sphere-like gradient with a more metallic/chrome look
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const radius = Math.min(canvas.width, canvas.height) * 0.4;
+    // Add error text
+    ctx.fillStyle = '#ff3333';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('ERROR: Preview Failed', canvas.width / 2, canvas.height / 2 - 10);
     
-    // Create a metallic-looking sphere with reflective highlights
-    const gradient = ctx.createRadialGradient(
-        centerX - radius * 0.3, // Highlight origin X
-        centerY - radius * 0.3, // Highlight origin Y 
-        radius * 0.1,           // Inner radius for highlight
-        centerX,                // Center X
-        centerY,                // Center Y
-        radius                  // Outer radius
-    );
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('See console for details', canvas.width / 2, canvas.height / 2 + 15);
     
-    // Metallic silver-blue colors
-    gradient.addColorStop(0, '#ffffff');       // Bright highlight
-    gradient.addColorStop(0.1, '#c0d0f0');     // Near highlight
-    gradient.addColorStop(0.4, '#607090');     // Mid tone
-    gradient.addColorStop(0.7, '#405070');     // Darker tone
-    gradient.addColorStop(0.9, '#203050');     // Edge
-    gradient.addColorStop(1, '#101830');       // Outer edge
-    
-    // Draw the sphere
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.fillStyle = gradient;
-    ctx.fill();
-    
-    // Add a sharper highlight
-    const highlightGradient = ctx.createRadialGradient(
-        centerX - radius * 0.4,  // X
-        centerY - radius * 0.4,  // Y
-        1,                       // Inner radius
-        centerX - radius * 0.4,  // X
-        centerY - radius * 0.4,  // Y
-        radius * 0.3             // Outer radius
-    );
-    highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
-    highlightGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
-    highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    
-    ctx.beginPath();
-    ctx.arc(centerX - radius * 0.4, centerY - radius * 0.4, radius * 0.3, 0, Math.PI * 2);
-    ctx.fillStyle = highlightGradient;
-    ctx.fill();
-    
-    // Add subtle environment reflection suggestion
-    const bands = 3;
-    const bandHeight = radius * 2 / bands;
-    
-    for (let i = 0; i < bands; i++) {
-        const y = centerY - radius + i * bandHeight;
-        const opacity = 0.1 - (i * 0.02);  // Decrease opacity for lower bands
-        
-        // Add a subtle color band
-        ctx.beginPath();
-        ctx.ellipse(
-            centerX,                     // X
-            y + bandHeight/2,            // Y
-            radius * 0.9,                // X radius
-            bandHeight/2,                // Y radius
-            0,                           // Rotation
-            0, Math.PI * 2               // Start/end angles
-        );
-        
-        // Different colors for each band
-        let bandColor;
-        if (i === 0) bandColor = 'rgba(100, 150, 255, ' + opacity + ')';  // Blue-ish for top
-        else if (i === 1) bandColor = 'rgba(100, 170, 200, ' + opacity + ')';  // Teal-ish for middle
-        else bandColor = 'rgba(100, 200, 150, ' + opacity + ')';  // Green-ish for bottom
-        
-        ctx.fillStyle = bandColor;
-        ctx.fill();
-    }
+    // Log additional information about the issue in the console
+    console.error({
+        message: 'Environment texture preview failed',
+        timestamp: new Date().toISOString(),
+        elementInfo: {
+            canvasWidth: canvas.width,
+            canvasHeight: canvas.height,
+            canvasId: canvas.id || 'unknown'
+        }
+    });
 }
 
 /**
