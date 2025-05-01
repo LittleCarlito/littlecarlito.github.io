@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 0.47.0 (2025-05-01)
+
+- feat(blorkpack): add new feature documentation ([8b928e0](https://github.com/littlecarlito/threejs_site/commit/8b928e0))
+
 ## 0.46.0 (2025-05-01)
 
 - slice(blorktools): none background function ([d5239bc](https://github.com/littlecarlito/threejs_site/commit/d5239bc))

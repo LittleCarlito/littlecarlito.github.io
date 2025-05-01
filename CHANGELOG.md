@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 0.47.0 (2025-05-01)
+
+- feat(blorkpack): add new feature documentation ([8b928e0](https://github.com/LittleCarlito/threejs_site/commit/8b928e0))
+
 ## <small>0.46.3 (2025-05-01)</small>
 
 - feat(pipeline): update documentation and version management ([6281a9b](https://github.com/LittleCarlito/threejs_site/commit/6281a9b))

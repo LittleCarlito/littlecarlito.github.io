@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 0.47.0 (2025-05-01)
+
+**Note:** Version bump only for package @littlecarlito/blorktools
+
 ## <small>0.46.1 (2025-05-01)</small>
 
 - slice(docs): simplify BlorkTools README ([3967739](https://github.com/littlecarlito/threejs_site/commit/3967739))
