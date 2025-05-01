@@ -714,6 +714,7 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
     titleElement.textContent = originalTitle;
     dropzone.appendChild(titleElement);
     
+    // TODO make into shared function
     // Add a clear button
     const clearButton = document.createElement('button');
     clearButton.className = 'clear-preview-button';
@@ -744,6 +745,7 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
     dropzone.appendChild(previewDiv);
     
     const containerDiv = document.createElement('div');
+    // TODO rename as HDR is filetype and not always type used
     containerDiv.className = 'hdr-preview-container';
     
     // Add event listener to prevent click events from reaching the dropzone
@@ -763,6 +765,7 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
     
     // Create canvas for the preview with appropriate size
     const canvas = document.createElement('canvas');
+    // TODO Rename ref
     canvas.className = 'hdr-preview-canvas';
     
     // Make canvas dimensions equal for a square aspect ratio
@@ -785,6 +788,7 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
     // Process the file based on its type
     if (['exr'].includes(fileExtension)) {
         // EXR needs special loader
+        // TODO Change these to static imports
         import('three').then(THREE => {
             import('three/addons/loaders/EXRLoader.js').then(({ EXRLoader }) => {
                 const loader = new EXRLoader();
@@ -806,6 +810,8 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                         
                         // Use the world panel's renderEnvironmentPreview function
                         if (worldPanelModule.renderEnvironmentPreview) {
+                            // TODO OOOOO
+                            // TODO This is the function that needs to be changed to just create the sphere
                             worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
                         }
                         
