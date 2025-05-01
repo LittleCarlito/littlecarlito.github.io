@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.46.3 (2025-05-01)</small>
+
+- feat(pipeline): update documentation and version management ([6281a9b](https://github.com/littlecarlito/threejs_site/commit/6281a9b))
+
 ## <small>0.46.2 (2025-05-01)</small>
 
 - feat(pipeline): add CI/CD integration section to BlorkVisor README ([ff88d70](https://github.com/littlecarlito/threejs_site/commit/ff88d70))
