@@ -86,7 +86,6 @@ const FILE_TYPE_CONFIG = {
         stateKey: 'backgroundFile',
         resetState: () => {
             updateState({ backgroundFile: null, backgroundTexture: null });
-            checkStartButton();
         },
         handler: handleBackgroundUpload
     }
@@ -316,9 +315,6 @@ function handleTextureUpload(file, textureType, infoElement, previewElement, dro
                     // Hide loading indicator
                     hidePreviewLoading(containerDiv);
                     
-                    // Check if all textures are loaded to enable the start button
-                    checkStartButton();
-                    
                     // Update atlas visualization if we're on that tab
                     const atlasTab = document.getElementById('atlas-tab');
                     if (atlasTab && atlasTab.classList.contains('active')) {
@@ -364,7 +360,6 @@ function handleModelUpload(file, infoElement, dropzone) {
         // If still null, just update state and return early
         if (!dropzone) {
             console.error("Could not find model-dropzone element, skipping UI update");
-            checkStartButton();
             return;
         }
     }
@@ -436,9 +431,6 @@ function handleModelUpload(file, infoElement, dropzone) {
                 hint.textContent = 'Textures are optional with GLB';
                 hint.classList.add('optional');
             });
-            
-            // Check if we can enable the start button
-            checkStartButton();
         })
         .catch(error => {
             console.error('Error processing model file:', error);
@@ -455,9 +447,6 @@ function handleModelUpload(file, infoElement, dropzone) {
                 hint.textContent = 'Textures are optional with GLB';
                 hint.classList.add('optional');
             });
-            
-            // Check if we can enable the start button
-            checkStartButton();
         });
 }
 
@@ -585,9 +574,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             // Hide loading indicator
                             hidePreviewLoading(containerDiv);
                             
-                            // Check if start button should be enabled
-                            checkStartButton();
-                            
                             // Only update background state if no background file exists already
                             const currentState = getState();
                             if (!currentState.backgroundFile) {
@@ -612,7 +598,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             canvas.classList.add('visible');
                             canvas.classList.remove('hidden');
                             hidePreviewLoading(containerDiv);
-                            checkStartButton();
                             if (messageDiv) {
                                 messageDiv.classList.remove('hidden');
                                 messageDiv.classList.add('visible');
@@ -648,9 +633,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             // Hide loading indicator
                             hidePreviewLoading(containerDiv);
                             
-                            // Check if start button should be enabled
-                            checkStartButton();
-                            
                             // Only update background state if no background file exists already
                             const currentState = getState();
                             if (!currentState.backgroundFile) {
@@ -675,7 +657,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             canvas.classList.add('visible');
                             canvas.classList.remove('hidden');
                             hidePreviewLoading(containerDiv);
-                            checkStartButton();
                             if (messageDiv) {
                                 messageDiv.classList.remove('hidden');
                                 messageDiv.classList.add('visible');
@@ -701,26 +682,10 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
         canvas.classList.add('visible');
         canvas.classList.remove('hidden');
         hidePreviewLoading(containerDiv);
-        checkStartButton();
         if (messageDiv) {
             messageDiv.classList.remove('hidden');
             messageDiv.classList.add('visible');
             messageDiv.textContent = 'Error loading lighting file';
-        }
-    }
-}
-
-/**
- * Check if all required textures are loaded and enable start button if they are
- */
-function checkStartButton() {
-    const startButton = document.getElementById('start-debug');
-    
-    if (startButton) {
-        // Always enable the button regardless of file status
-        startButton.disabled = false;
-        if (DEBUG_LIGHTING) {
-            console.log('Start debugging button is always enabled');
         }
     }
 }
@@ -763,9 +728,6 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
         
         // Update state to remove the background image
         updateState({ backgroundFile: null, backgroundTexture: null });
-        
-        // Re-check if start button should be enabled
-        checkStartButton();
     });
     dropzone.appendChild(clearButton);
     
@@ -859,9 +821,6 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                             backgroundFile: file  // Preserve the file reference
                         });
                         
-                        // Re-check if start button should be enabled
-                        checkStartButton();
-                        
                         // Trigger an update in world panel to show the environment preview
                         import('../ui/scripts/world-panel.js').then(worldPanel => {
                             if (worldPanel.updateWorldPanel) {
@@ -938,9 +897,6 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                         
                         // Hide loading indicator
                         hidePreviewLoading(containerDiv);
-                        
-                        // Check if start button should be enabled
-                        checkStartButton();
                         
                         // Only update background state if no background file exists already
                         const currentState = getState();
@@ -1031,9 +987,6 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                         backgroundFile: file  // Preserve the file reference
                     });
                     
-                    // Re-check if start button should be enabled
-                    checkStartButton();
-                    
                     // Trigger an update in world panel to show the environment preview
                     import('../ui/scripts/world-panel.js').then(worldPanel => {
                         if (worldPanel.updateWorldPanel) {
@@ -1080,9 +1033,6 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
     updateState({
         backgroundFile: file
     });
-    
-    // Re-check if start button should be enabled
-    checkStartButton();
 }
 
 /**
@@ -1115,9 +1065,6 @@ export function setupDropzones() {
     const modelInfo = document.getElementById('model-info');
     const lightingInfo = document.getElementById('lighting-info');
     const backgroundInfo = document.getElementById('background-info');
-    
-    // Ensure the start button is disabled initially
-    checkStartButton();
     
     // Set up each dropzone using the configuration
     const dropzones = [
