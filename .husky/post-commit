@@ -66,7 +66,7 @@ if [[ $COMMIT_MSG =~ ^([a-z]+)(\(([a-z,-]+)\))?:(.+)$ ]]; then
     # If we found packages, create a changeset
     if [ ${#PACKAGES[@]} -gt 0 ]; then
       # Create changeset command
-      CHANGESET_CMD="pnpm changeset"
+      CHANGESET_CMD="pnpm changeset add"
       CHANGESET_CMD="$CHANGESET_CMD --$BUMP_TYPE"
       
       # Add each package to the command
@@ -80,6 +80,10 @@ if [[ $COMMIT_MSG =~ ^([a-z]+)(\(([a-z,-]+)\))?:(.+)$ ]]; then
       # Run the changeset command
       echo "Running: $CHANGESET_CMD"
       eval $CHANGESET_CMD
+      
+      # Add the new changeset files to git
+      git add .changeset/*.md
+      git commit --amend --no-edit
     else
       echo "No packages found to create changesets for."
     fi
@@ -122,7 +126,7 @@ if [[ $COMMIT_MSG =~ ^([a-z]+)(\(([a-z,-]+)\))?:(.+)$ ]]; then
     # If we found packages, create a changeset
     if [ ${#PACKAGES[@]} -gt 0 ]; then
       # Create changeset command
-      CHANGESET_CMD="pnpm changeset"
+      CHANGESET_CMD="pnpm changeset add"
       CHANGESET_CMD="$CHANGESET_CMD --$BUMP_TYPE"
       
       # Add each package to the command
@@ -136,6 +140,10 @@ if [[ $COMMIT_MSG =~ ^([a-z]+)(\(([a-z,-]+)\))?:(.+)$ ]]; then
       # Run the changeset command
       echo "Running: $CHANGESET_CMD"
       eval $CHANGESET_CMD
+      
+      # Add the new changeset files to git
+      git add .changeset/*.md
+      git commit --amend --no-edit
     else
       echo "No packages found to create changesets for."
     fi
