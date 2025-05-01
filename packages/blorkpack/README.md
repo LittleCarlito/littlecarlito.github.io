@@ -6,6 +6,13 @@ Advanced asset management and physics integration system for Three.js applicatio
   <img src="https://via.placeholder.com/800x200?text=BlorkPack+Visualization" alt="BlorkPack visualization" width="800"/>
 </p>
 
+## Key Benefits
+
+- **Performance Optimized**: Built with performance as a priority for complex 3D scenes
+- **Memory Efficient**: Smart resource management to minimize memory footprint
+- **Developer Friendly**: Intuitive APIs that simplify complex 3D workflows
+- **Highly Extensible**: Modular architecture allowing for easy customization
+
 ## Installation
 
 ```bash

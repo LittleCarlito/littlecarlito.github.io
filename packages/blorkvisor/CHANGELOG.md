@@ -1,13 +1,8 @@
-# @littlecarlito/blorkvisor
+# Changelog
 
-## 0.37.1
+All notable changes to this project will be documented in this file.
 
-### Patch Changes
+## [Unreleased]
 
-- Test changeset for flow testing
-
-## 0.37.0
-
-### Minor Changes
-
-- 378a821: Bringing in changesets
+### Added
+- Initial release
