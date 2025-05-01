@@ -275,6 +275,14 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "${{ steps.extract-info.outputs.package_name }} v${{ steps.extract-info.outputs.package_version }}"
+          tag_name: ${{ needs.capture-trigger-info.outputs.version_tag }}
+          generate_release_notes: true
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   # Build the site for GitHub Pages
   build-site:

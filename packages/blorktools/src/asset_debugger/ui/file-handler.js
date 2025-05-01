@@ -18,16 +18,6 @@ import {
   terminateAllWorkers 
 } from '../core/worker-manager.js';
 
-// Debug flags
-const DEBUG_LIGHTING = false;
-
-// Keep track of worker tasks by type
-const workerTasks = {
-  texture: new Map(),
-  model: new Map(),
-  lighting: new Map()
-};
-
 // Add event listener to terminate all workers when the page is unloaded
 window.addEventListener('beforeunload', () => {
   terminateAllWorkers();
@@ -586,13 +576,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             
                             // Always store the lighting texture for use in previews
                             updateState('environmentTexture', texture);
-                            
-                            // Trigger an update in world panel to show the environment preview
-                            import('../ui/scripts/world-panel.js').then(worldPanel => {
-                                if (worldPanel.updateWorldPanel) {
-                                    worldPanel.updateWorldPanel();
-                                }
-                            });
                         }, undefined, error => {
                             console.error('Error loading EXR texture:', error);
                             canvas.classList.add('visible');
@@ -645,13 +628,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             
                             // Always store the lighting texture for use in previews
                             updateState('environmentTexture', texture);
-                            
-                            // Trigger an update in world panel to show the environment preview
-                            import('../ui/scripts/world-panel.js').then(worldPanel => {
-                                if (worldPanel.updateWorldPanel) {
-                                    worldPanel.updateWorldPanel();
-                                }
-                            });
                         }, undefined, error => {
                             console.error('Error loading HDR texture:', error);
                             canvas.classList.add('visible');
@@ -810,8 +786,6 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                         
                         // Use the world panel's renderEnvironmentPreview function
                         if (worldPanelModule.renderEnvironmentPreview) {
-                            // TODO OOOOO
-                            // TODO This is the function that needs to be changed to just create the sphere
                             worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
                         }
                         
@@ -825,13 +799,6 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                         updateState({ 
                             backgroundTexture: texture,
                             backgroundFile: file  // Preserve the file reference
-                        });
-                        
-                        // Trigger an update in world panel to show the environment preview
-                        import('../ui/scripts/world-panel.js').then(worldPanel => {
-                            if (worldPanel.updateWorldPanel) {
-                                worldPanel.updateWorldPanel();
-                            }
                         });
                     }, undefined, error => {
                         console.error('Error loading EXR background texture:', error);
