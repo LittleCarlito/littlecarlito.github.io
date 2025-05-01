@@ -69,12 +69,13 @@ jobs:
               echo "is_tag_push=false"
             } >> "$GITHUB_OUTPUT"
           elif [[ "${{ github.ref }}" =~ ^refs/tags/ ]]; then
-            # Tag push
+            # Tag push - using proper regex comparison
+            TAG_NAME="${{ github.ref_name }}"
             {
               echo "trigger_workflow=tag_push"
               echo "triggering_workflow=tag_push"
               echo "is_tag_push=true"
-              echo "version_tag=${GITHUB_REF#refs/tags/}"
+              echo "version_tag=${TAG_NAME}"
             } >> "$GITHUB_OUTPUT"
           else
             # Direct push to main

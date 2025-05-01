@@ -176,7 +176,7 @@ function applyBackgroundTexture(texture, file) {
         return;
     }
     
-    console.log('[DEBUG] Applying background texture to scene');
+    console.log('[DEBUG] Adding background texture to state');
     
     // Store the file and texture in state for reference
     updateState({
@@ -184,8 +184,8 @@ function applyBackgroundTexture(texture, file) {
         backgroundTexture: texture
     });
     
-    // Set the scene background directly - this takes precedence over any environment map
-    state.scene.background = texture;
+    // DO NOT automatically set the scene background
+    // This allows the UI radio button selection to control visibility instead
     
     // Dispatch an event to notify UI components
     const event = new CustomEvent('background-updated', { 
@@ -193,7 +193,7 @@ function applyBackgroundTexture(texture, file) {
     });
     document.dispatchEvent(event);
     
-    console.log('[DEBUG] Background texture applied successfully');
+    console.log('[DEBUG] Background texture added to state successfully');
 }
 
 /**

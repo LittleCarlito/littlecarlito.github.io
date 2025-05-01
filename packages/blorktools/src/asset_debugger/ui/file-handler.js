@@ -17,6 +17,7 @@ import {
   processLightingFile, 
   terminateAllWorkers 
 } from '../core/worker-manager.js';
+import { parseLightingData } from '../core/lighting-util.js';
 
 // Add event listener to terminate all workers when the page is unloaded
 window.addEventListener('beforeunload', () => {
@@ -564,16 +565,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             // Hide loading indicator
                             hidePreviewLoading(containerDiv);
                             
-                            // Only update background state if no background file exists already
-                            const currentState = getState();
-                            if (!currentState.backgroundFile) {
-                                // Update state with the background texture only if no background exists
-                                updateState({ 
-                                    backgroundTexture: texture,
-                                    backgroundFile: file  // Preserve the file reference
-                                });
-                            }
-                            
                             // Always store the lighting texture for use in previews
                             updateState('environmentTexture', texture);
                         }, undefined, error => {
@@ -616,16 +607,6 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             // Hide loading indicator
                             hidePreviewLoading(containerDiv);
                             
-                            // Only update background state if no background file exists already
-                            const currentState = getState();
-                            if (!currentState.backgroundFile) {
-                                // Update state with the background texture only if no background exists
-                                updateState({ 
-                                    backgroundTexture: texture,
-                                    backgroundFile: file  // Preserve the file reference
-                                });
-                            }
-                            
                             // Always store the lighting texture for use in previews
                             updateState('environmentTexture', texture);
                         }, undefined, error => {
@@ -642,10 +623,16 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                     }).catch(handleLightingError);
                 }).catch(handleLightingError);
             }
-            // Fallback if type not recognized
             else {
                 handleLightingError(new Error('Unsupported file type: ' + fileType));
+                return -1;
             }
+            // TODO OOOOO
+            // TODO Update the metadata only for world panel
+            // Import lighting utilities
+            // BUG NEED TO ENSURE LIGHTING MODULE CALL BELOW WORKS IT IS COPIED
+            const fileMetadata =  parseLightingData(file);
+            worldPanelModule.updateLightingInfo(fileMetadata);
         })
         .catch(error => {
             console.error('Error processing lighting file:', error);

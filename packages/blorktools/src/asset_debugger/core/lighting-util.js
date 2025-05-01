@@ -10,7 +10,7 @@ import { getState, updateState } from './state.js';
 let environmentExposure = 1.0;
 
 // Debug flag to control logging - set to false to disable logs
-const DEBUG_LIGHTING = true;
+const DEBUG_LIGHTING = false;
 
 /**
  * Add standard lighting to the scene

@@ -22,6 +22,7 @@
     "test:e2e:portfolio": "pnpm --filter='@littlecarlito/portfolio' test:e2e",
     "test:e2e:blorkvisor": "pnpm --filter='@littlecarlito/blorkvisor' test:e2e",
     "test:e2e:blorktools": "pnpm --filter='@littlecarlito/blorktools' test:e2e",
+    "test:push": "chmod +x .husky/pre-push && .husky/pre-push --dry-run",
     "check": "pnpm -r check",
     "fmt": "pnpm -r fmt",
     "fmt:check": "pnpm -r fmt:check",
