@@ -3,6 +3,29 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 0.48.0 (2025-05-01)
+
+- feat(blorktools): add performance improvement features ([e96d03f](https://github.com/littlecarlito/threejs_site/commit/e96d03f))
+
+## 0.47.0 (2025-05-01)
+
+- chore(release): publish v0.47.0 ([2651f61](https://github.com/littlecarlito/threejs_site/commit/2651f61))
+
+## <small>0.46.1 (2025-05-01)</small>
+
+- chore(release): publish v0.46.1 ([2291007](https://github.com/littlecarlito/threejs_site/commit/2291007))
+- slice(docs): simplify BlorkTools README ([3967739](https://github.com/littlecarlito/threejs_site/commit/3967739))
+
+## 0.46.0 (2025-05-01)
+
+- chore(blorktools): load work outline ([4e22de0](https://github.com/littlecarlito/threejs_site/commit/4e22de0))
+- chore(release): publish v0.46.0 ([5be502c](https://github.com/littlecarlito/threejs_site/commit/5be502c))
+- slice(blorktools): none background function ([d5239bc](https://github.com/littlecarlito/threejs_site/commit/d5239bc))
+- slice(docs): add key benefits section to BlorkPack README ([912d31e](https://github.com/littlecarlito/threejs_site/commit/912d31e))
+- refactor(blorktools): dead function removal ([ea734dc](https://github.com/littlecarlito/threejs_site/commit/ea734dc))
+- refactor(blorktools): removing duplicate code ([cf30a90](https://github.com/littlecarlito/threejs_site/commit/cf30a90))
+- fix(blorktools): double exr load ([afec804](https://github.com/littlecarlito/threejs_site/commit/afec804))
+
 ## 0.47.0 (2025-05-01)
 
 **Note:** Version bump only for package @littlecarlito/blorktools
