@@ -39,19 +39,28 @@ if [[ $COMMIT_MSG =~ ^([a-z]+)(\(([a-z,-]+)\))?:(.+)$ ]]; then
   # Clean the message
   CLEAN_MESSAGE="${MESSAGE# }"  # Remove leading space if any
   
+  # Create a temporary changeset file
+  TIMESTAMP=$(date +%s)
+  CHANGESET_ID="auto-changeset-${TIMESTAMP}"
+  CHANGESET_DIR=".changeset"
+  CHANGESET_FILE="${CHANGESET_DIR}/${CHANGESET_ID}.md"
+  
+  # Ensure changeset directory exists
+  mkdir -p "$CHANGESET_DIR"
+  
   # Determine which packages to include based on scope
   if [[ -z "$SCOPE" ]]; then
     # No scope - apply to all packages/apps
     echo "Creating changeset for all packages with bump type: $BUMP_TYPE"
     
-    # Collect all package names
-    PACKAGES=()
+    # Collect all package names and their bump types
+    PACKAGE_ENTRIES=""
     
     # Add all packages from packages/ directory
     for PKG_DIR in packages/*; do
       if [ -d "$PKG_DIR" ] && [ -f "$PKG_DIR/package.json" ]; then
         PKG_NAME=$(grep -m 1 '"name":' "$PKG_DIR/package.json" | sed 's/.*"name": "\(.*\)".*/\1/')
-        PACKAGES+=("$PKG_NAME")
+        PACKAGE_ENTRIES+="'$PKG_NAME': $BUMP_TYPE\n"
       fi
     done
     
@@ -59,31 +68,23 @@ if [[ $COMMIT_MSG =~ ^([a-z]+)(\(([a-z,-]+)\))?:(.+)$ ]]; then
     for APP_DIR in apps/*; do
       if [ -d "$APP_DIR" ] && [ -f "$APP_DIR/package.json" ]; then
         APP_NAME=$(grep -m 1 '"name":' "$APP_DIR/package.json" | sed 's/.*"name": "\(.*\)".*/\1/')
-        PACKAGES+=("$APP_NAME")
+        PACKAGE_ENTRIES+="'$APP_NAME': $BUMP_TYPE\n"
       fi
     done
     
-    # If we found packages, create a changeset
-    if [ ${#PACKAGES[@]} -gt 0 ]; then
-      # Create changeset command
-      CHANGESET_CMD="pnpm changeset add"
-      CHANGESET_CMD="$CHANGESET_CMD --$BUMP_TYPE"
+    # Create changeset file manually
+    if [ -n "$PACKAGE_ENTRIES" ]; then
+      echo "---" > "$CHANGESET_FILE"
+      echo -e "$PACKAGE_ENTRIES" >> "$CHANGESET_FILE"
+      echo "---" >> "$CHANGESET_FILE"
+      echo "" >> "$CHANGESET_FILE"
+      echo "$CLEAN_MESSAGE" >> "$CHANGESET_FILE"
       
-      # Add each package to the command
-      for PKG in "${PACKAGES[@]}"; do
-        CHANGESET_CMD="$CHANGESET_CMD $PKG"
-      done
-      
-      # Add the message
-      CHANGESET_CMD="$CHANGESET_CMD -m \"$CLEAN_MESSAGE\""
-      
-      # Run the changeset command
-      echo "Running: $CHANGESET_CMD"
-      eval $CHANGESET_CMD
-      
-      # Add the new changeset files to git
-      git add .changeset/*.md
+      # Add the changeset file to git
+      git add "$CHANGESET_FILE"
       git commit --amend --no-edit
+      
+      echo "✅ Created changeset file: $CHANGESET_FILE"
     else
       echo "No packages found to create changesets for."
     fi
@@ -94,8 +95,8 @@ if [[ $COMMIT_MSG =~ ^([a-z]+)(\(([a-z,-]+)\))?:(.+)$ ]]; then
     # Handle comma-separated scopes
     IFS=',' read -ra SCOPE_ARRAY <<< "$SCOPE"
     
-    # Collect matching package names
-    PACKAGES=()
+    # Collect matching package entries
+    PACKAGE_ENTRIES=""
     
     for SINGLE_SCOPE in "${SCOPE_ARRAY[@]}"; do
       FOUND=false
@@ -104,7 +105,7 @@ if [[ $COMMIT_MSG =~ ^([a-z]+)(\(([a-z,-]+)\))?:(.+)$ ]]; then
       for PKG_DIR in packages/*; do
         if [ -d "$PKG_DIR" ] && [ "$(basename "$PKG_DIR")" = "$SINGLE_SCOPE" ] && [ -f "$PKG_DIR/package.json" ]; then
           PKG_NAME=$(grep -m 1 '"name":' "$PKG_DIR/package.json" | sed 's/.*"name": "\(.*\)".*/\1/')
-          PACKAGES+=("$PKG_NAME")
+          PACKAGE_ENTRIES+="'$PKG_NAME': $BUMP_TYPE\n"
           FOUND=true
         fi
       done
@@ -113,7 +114,7 @@ if [[ $COMMIT_MSG =~ ^([a-z]+)(\(([a-z,-]+)\))?:(.+)$ ]]; then
       for APP_DIR in apps/*; do
         if [ -d "$APP_DIR" ] && [ "$(basename "$APP_DIR")" = "$SINGLE_SCOPE" ] && [ -f "$APP_DIR/package.json" ]; then
           APP_NAME=$(grep -m 1 '"name":' "$APP_DIR/package.json" | sed 's/.*"name": "\(.*\)".*/\1/')
-          PACKAGES+=("$APP_NAME")
+          PACKAGE_ENTRIES+="'$APP_NAME': $BUMP_TYPE\n"
           FOUND=true
         fi
       done
@@ -123,27 +124,19 @@ if [[ $COMMIT_MSG =~ ^([a-z]+)(\(([a-z,-]+)\))?:(.+)$ ]]; then
       fi
     done
     
-    # If we found packages, create a changeset
-    if [ ${#PACKAGES[@]} -gt 0 ]; then
-      # Create changeset command
-      CHANGESET_CMD="pnpm changeset add"
-      CHANGESET_CMD="$CHANGESET_CMD --$BUMP_TYPE"
+    # Create changeset file manually
+    if [ -n "$PACKAGE_ENTRIES" ]; then
+      echo "---" > "$CHANGESET_FILE"
+      echo -e "$PACKAGE_ENTRIES" >> "$CHANGESET_FILE"
+      echo "---" >> "$CHANGESET_FILE"
+      echo "" >> "$CHANGESET_FILE"
+      echo "$CLEAN_MESSAGE" >> "$CHANGESET_FILE"
       
-      # Add each package to the command
-      for PKG in "${PACKAGES[@]}"; do
-        CHANGESET_CMD="$CHANGESET_CMD $PKG"
-      done
-      
-      # Add the message
-      CHANGESET_CMD="$CHANGESET_CMD -m \"$CLEAN_MESSAGE\""
-      
-      # Run the changeset command
-      echo "Running: $CHANGESET_CMD"
-      eval $CHANGESET_CMD
-      
-      # Add the new changeset files to git
-      git add .changeset/*.md
+      # Add the changeset file to git
+      git add "$CHANGESET_FILE"
       git commit --amend --no-edit
+      
+      echo "✅ Created changeset file: $CHANGESET_FILE"
     else
       echo "No packages found to create changesets for."
     fi
