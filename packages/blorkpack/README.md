@@ -13,6 +13,12 @@ Advanced asset management and physics integration system for Three.js applicatio
 - **Developer Friendly**: Intuitive APIs that simplify complex 3D workflows
 - **Highly Extensible**: Modular architecture allowing for easy customization
 
+## New Features
+
+- **Advanced Asset Pooling**: Optimized asset reuse system for better performance
+- **Physics Optimization**: Enhanced collision detection with spatial partitioning
+- **Memory Management**: Improved garbage collection and resource handling
+
 ## Installation
 
 ```bash
@@ -433,4 +439,8 @@ This package is part of the [threejs_site](https://github.com/littlecarlito/thre
 
 This package is licensed under the GNU General Public License v3.0 (GPL-3.0).
 
-See the root [LICENSE](../../LICENSE) file for full terms and conditions. 
+See the root [LICENSE](../../LICENSE) file for full terms and conditions.
+
+## Documentation
+
+For detailed documentation, visit our [documentation site](https://littlecarlito.github.io/threejs_site/docs/blorkpack). 
