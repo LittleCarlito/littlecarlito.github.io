@@ -1,321 +1,35 @@
-# Blorktools - 3D Asset Development Toolset
+# BlorkTools
 
-A comprehensive development and debugging toolkit for Three.js applications, designed to streamline asset optimization, scene debugging, and performance tuning. Essential companion to the BlorkPack asset management system.
+A toolkit of utilities for Three.js development with an emphasis on debugging, visualization, and development tools.
 
-<p align="center">
-  <img src="https://via.placeholder.com/800x200?text=BlorkTools+Interface" alt="BlorkTools Interface" width="800"/>
-</p>
+## Key Features
+
+- Asset Debugger: Visualize and debug 3D assets with a powerful UI
+- Rig Debugger: Debug animation rigs and skeletal animations 
+- Performance Tools: Monitor and optimize rendering performance
 
 ## Installation
 
 ```bash
-# From npm registry
 npm install @littlecarlito/blorktools
-
-# Within monorepo
-pnpm install @littlecarlito/blorktools
 ```
-
-## Key Features
-
-### Performance Monitoring Suite
-
-<p align="center">
-  <img src="https://via.placeholder.com/600x300?text=Performance+Monitor+Screenshot" alt="Performance Monitor" width="600"/>
-</p>
-
-The Performance Monitor helps identify and resolve bottlenecks:
-
-- **Real-time Metrics**
-  - FPS counter with history graph
-  - Frame time breakdown (CPU vs GPU)
-  - Memory usage tracking
-  - Draw call counter
-  - GPU utilization metrics
-
-- **Performance Analysis**
-  - WebGL call profiling
-  - Shader compilation time tracking
-  - Asset loading time analysis
-  - Physics performance metrics
-  - Animation system overhead tracking
-
-- **Optimization Suggestions**
-  - Intelligent bottleneck identification
-  - Batching opportunities detection
-  - Texture optimization recommendations
-  - LOD implementation suggestions
-  - Memory leak detection
-
-### Scene Inspector
-
-<p align="center">
-  <img src="https://via.placeholder.com/600x300?text=Scene+Inspector+Screenshot" alt="Scene Inspector" width="600"/>
-</p>
-
-The Scene Inspector provides a deep dive into your Three.js scene:
-
-- **Hierarchical Scene View**
-  - Complete object tree visualization
-  - Object filtering and search
-  - Selection and isolation modes
-  - Visibility toggles
-  - Transform gizmos and manipulation
-
-- **Property Editor**
-  - Material property inspection and editing
-  - Transform manipulation with precision controls
-  - Object property modification in real-time
-  - Shader uniform tweaking
-  - Animation timeline editor
-
-- **Scene Analysis**
-  - Lighting optimization suggestions
-  - Shadow rendering analysis
-  - Occlusion culling visualization
-  - Render order optimization
-  - Frustum culling debugging
-
-### Shader and Material Workshop
-
-<p align="center">
-  <img src="https://via.placeholder.com/600x300?text=Material+Workshop+Screenshot" alt="Material Workshop" width="600"/>
-</p>
-
-The Material Workshop aids in creating and optimizing materials:
-
-- **Shader Development**
-  - Live GLSL shader editing
-  - Real-time compilation and error reporting
-  - Uniform control panel
-  - Shader performance analysis
-  - Preset shader library
-
-- **Material Creation**
-  - PBR material designer
-  - Texture channel mixing tools
-  - Material variant creator
-  - Environment map testing
-  - Material performance analysis
-
-### Asset Debugger
-
-<p align="center">
-  <img src="https://via.placeholder.com/600x300?text=Asset+Debugger+Screenshot" alt="Asset Debugger" width="600"/>
-</p>
-
-The Asset Debugger helps test and debug PBR texture sets:
-
-- **Atlas Texture Testing**
-  - Drag and drop interface for quick testing
-  - Support for Base Color, ORM, and Normal map atlases
-  - Real-time rendering on 3D cube for validation
-  - Orbit controls for easy inspection
-
-- **Material Visualization**
-  - PBR material visualization with proper lighting
-  - Individual channel inspection
-  - Texture resolution and quality assessment
-  - Format compatibility testing
 
 ## Usage
 
-### As a Development Tool
-
-When used within the monorepo, the tools can be started with:
-```bash
-# Start tools for all projects
-pnpm dev
-
-# Start tools specifically
-pnpm turbo run tools --filter=@littlecarlito/blorktools
-```
-
-The tools will start on the next available port after the main application.
-
-### Standalone Usage
-
-Run the tools independently:
-```bash
-pnpm tools
-```
-
-Run the modular version (new architecture):
-```bash
-pnpm tools:modular
-```
-
-### Integration with Three.js Applications
-
 ```javascript
-import { 
-  PerformanceMonitor,
-  SceneInspector, 
-  MaterialWorkshop 
-} from '@littlecarlito/blorktools';
+import { AssetDebugger } from '@littlecarlito/blorktools';
 
-// Initialize the Three.js scene
-const scene = new THREE.Scene();
-const renderer = new THREE.WebGLRenderer();
-const camera = new THREE.PerspectiveCamera();
-
-// Initialize the tools with your Three.js environment
-const perfMonitor = new PerformanceMonitor({ renderer });
-const inspector = new SceneInspector({ scene, domElement: document.body });
-const workshop = new MaterialWorkshop();
-
-// Start monitoring performance
-perfMonitor.start();
-
-// Add custom metrics to track
-perfMonitor.addCustomMetric('Physics', () => physicsTime);
-perfMonitor.addCustomMetric('Animations', () => animationTime);
-
-// Hook into render loop
-function animate() {
-  requestAnimationFrame(animate);
-  
-  // Update tools before rendering
-  perfMonitor.beginFrame();
-  renderer.render(scene, camera);
-  perfMonitor.endFrame();
-  
-  // Update other tools
-  inspector.update();
-}
-animate();
-
-// Toggle tools visibility with keyboard shortcuts
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'F1') perfMonitor.toggle();
-  if (e.key === 'F2') inspector.toggle();
-  if (e.key === 'F3') workshop.toggle();
-});
-```
-
-### Advanced API Examples
-
-#### Model Optimization
-
-```javascript
-import { ModelOptimizer } from '@littlecarlito/blorktools';
-
-// Load model for optimization
-const model = await THREE.GLTFLoader().loadAsync('model.glb');
-
-// Initialize optimizer
-const optimizer = new ModelOptimizer(model);
-
-// Analyze model
-const analysis = await optimizer.analyze();
-console.log(`Triangles: ${analysis.triangles}, Vertices: ${analysis.vertices}`);
-console.log(`Overdraw: ${analysis.overdrawFactor}`);
-console.log(`Texture Memory: ${analysis.textureMemory} MB`);
-
-// Get optimization suggestions
-const suggestions = optimizer.getSuggestions();
-for (const suggestion of suggestions) {
-  console.log(`${suggestion.priority}: ${suggestion.description}`);
-}
-
-// Apply automatic optimizations
-const optimizedModel = await optimizer.optimize({
-  decimation: {
-    enabled: true,
-    targetTriangles: 10000,
-    preserveUVs: true
-  },
-  textures: {
-    maxSize: 1024,
-    compressFormat: 'ktx2',
-    mipmap: true
-  },
-  meshes: {
-    mergeByMaterial: true,
-    removeHidden: true
+// Initialize the asset debugger
+const debugger = new AssetDebugger({
+  container: document.getElementById('debug-container'),
+  options: {
+    showGrid: true,
+    showAxes: true
   }
 });
 
-// Export optimized model
-await optimizer.export(optimizedModel, 'optimized.glb');
-```
-
-#### Performance Profiling
-
-```javascript
-import { PerformanceProfiler } from '@littlecarlito/blorktools';
-
-// Create profiler
-const profiler = new PerformanceProfiler();
-
-// Start recording session
-profiler.startRecording({
-  duration: 30, // seconds
-  markers: ['loading', 'rendering', 'physics'],
-  captureTraces: true
-});
-
-// Add markers during app execution
-function gameLoop() {
-  profiler.markStart('physics');
-  updatePhysics();
-  profiler.markEnd('physics');
-  
-  profiler.markStart('rendering');
-  render();
-  profiler.markEnd('rendering');
-  
-  requestAnimationFrame(gameLoop);
-}
-
-// After recording completes
-profiler.onRecordingComplete((report) => {
-  console.log(`Average FPS: ${report.averageFps}`);
-  console.log(`Frame time breakdown:`, report.frameTimeBreakdown);
-  console.log(`Memory usage peak: ${report.memoryPeak} MB`);
-  
-  // Generate visual report
-  const reportElement = profiler.generateVisualReport();
-  document.body.appendChild(reportElement);
-  
-  // Export data for further analysis
-  const jsonData = profiler.exportData();
-  downloadJSON(jsonData, 'performance-report.json');
-});
-```
-
-#### Shader Debugging
-
-```javascript
-import { ShaderDebugger } from '@littlecarlito/blorktools';
-
-// Create shader debugger for a specific material
-const material = new THREE.ShaderMaterial({
-  vertexShader: myVertexShader,
-  fragmentShader: myFragmentShader,
-  uniforms: myUniforms
-});
-
-const debugger = new ShaderDebugger(material);
-
-// Visualize specific shader outputs
-debugger.visualizeOutput({
-  normals: true,
-  depth: true,
-  uvs: true
-});
-
-// Add breakpoint to fragment shader (when pixel value meets condition)
-debugger.addBreakpoint('fragColor.r > 0.9');
-
-// Display uniform values over time
-debugger.monitorUniform('time');
-
-// Get shader complexity analysis
-const complexity = debugger.analyzeComplexity();
-console.log(`Instruction count: ${complexity.instructionCount}`);
-console.log(`Register usage: ${complexity.registerUsage}`);
-console.log(`Texture reads: ${complexity.textureReads}`);
+// Load a model for debugging
+debugger.loadModel('path/to/model.glb');
 ```
 
 ## Architecture
