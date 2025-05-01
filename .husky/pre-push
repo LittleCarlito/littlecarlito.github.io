@@ -134,6 +134,39 @@ if [ "$RUN_TESTS" = true ]; then
             exit 1
         fi
         
+        # Collect updated package information for tags
+        echo "📋 Collecting updated package information for tags..."
+        # Store package paths and new versions in arrays
+        PACKAGE_PATHS=()
+        PACKAGE_NAMES=()
+        PACKAGE_VERSIONS=()
+        
+        # Collect packages from packages/ directory
+        for PKG_DIR in packages/*; do
+            if [ -d "$PKG_DIR" ] && [ -f "$PKG_DIR/package.json" ]; then
+                PKG_PATH="$PKG_DIR"
+                PKG_NAME=$(grep -m 1 '"name":' "$PKG_DIR/package.json" | sed 's/.*"name": "\(.*\)".*/\1/')
+                PKG_VERSION=$(grep -m 1 '"version":' "$PKG_DIR/package.json" | sed 's/.*"version": "\(.*\)".*/\1/')
+                
+                PACKAGE_PATHS+=("$PKG_PATH")
+                PACKAGE_NAMES+=("$PKG_NAME")
+                PACKAGE_VERSIONS+=("$PKG_VERSION")
+            fi
+        done
+        
+        # Collect packages from apps/ directory
+        for APP_DIR in apps/*; do
+            if [ -d "$APP_DIR" ] && [ -f "$APP_DIR/package.json" ]; then
+                APP_PATH="$APP_DIR"
+                APP_NAME=$(grep -m 1 '"name":' "$APP_DIR/package.json" | sed 's/.*"name": "\(.*\)".*/\1/')
+                APP_VERSION=$(grep -m 1 '"version":' "$APP_DIR/package.json" | sed 's/.*"version": "\(.*\)".*/\1/')
+                
+                PACKAGE_PATHS+=("$APP_PATH")
+                PACKAGE_NAMES+=("$APP_NAME")
+                PACKAGE_VERSIONS+=("$APP_VERSION")
+            fi
+        done
+        
         # Commit the version changes
         echo "💾 Committing version changes..."
         git add .
@@ -146,6 +179,14 @@ if [ "$RUN_TESTS" = true ]; then
             git branch -D "$TEMP_BRANCH"
             exit 1
         fi
+        
+        # Create tags for each updated package
+        echo "🏷️ Creating tags for updated packages..."
+        for i in "${!PACKAGE_NAMES[@]}"; do
+            TAG_NAME="${PACKAGE_NAMES[$i]}@${PACKAGE_VERSIONS[$i]}"
+            echo "Creating tag $TAG_NAME"
+            git tag -a "$TAG_NAME" -m "Release ${PACKAGE_NAMES[$i]} version ${PACKAGE_VERSIONS[$i]}"
+        done
         
         # Everything looks good, merge back to the original branch
         echo "🔄 Merging changes back to $CURRENT_BRANCH..."
@@ -162,7 +203,7 @@ if [ "$RUN_TESTS" = true ]; then
             exit 1
         fi
         
-        echo "✅ Successfully versioned packages and committed changes!"
+        echo "✅ Successfully versioned packages, created tags, and committed changes!"
     else
         echo "ℹ️ No changesets found to consume. Skipping version bump."
     fi
