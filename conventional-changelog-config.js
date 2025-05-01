@@ -3,6 +3,9 @@
 // Require the config factory
 const conventionalConfig = require('conventional-changelog-conventionalcommits');
 
+// Define which scopes should be ignored for versioning
+const IGNORED_SCOPES = ['pipeline'];
+
 module.exports = {
   name: 'mypreset',
   recommendedBumpOpts: {
@@ -30,12 +33,16 @@ module.exports = {
       let breaking = 0;
       let features = 0;
       let slices = 0;
+      let hasNonIgnoredCommits = false;
 
       commits.forEach(commit => {
-        // Exclude commits with 'pipeline' scope from version calculation
-        if (commit.scope === 'pipeline') {
+        // Skip commits with ignored scopes
+        if (IGNORED_SCOPES.includes(commit.scope)) {
           return;
         }
+
+        // Mark that we have at least one non-ignored commit
+        hasNonIgnoredCommits = true;
 
         if (commit.notes.length > 0) {
           breaking += commit.notes.length;
@@ -48,6 +55,11 @@ module.exports = {
           if (level > 2) level = 2; // Patch
         }
       });
+
+      // If all commits were in the ignored scopes, don't bump version
+      if (!hasNonIgnoredCommits) {
+        return null;
+      }
 
       return {
         level: level,
