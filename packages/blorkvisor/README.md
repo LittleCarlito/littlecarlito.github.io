@@ -2,6 +2,14 @@
 
 A beautiful dashboard for managing and launching Blork projects.
 
+## CI/CD Integration
+
+BlorkVisor provides seamless integration with CI/CD pipelines:
+
+- **GitHub Actions Support**: Pre-configured workflows for continuous integration
+- **Pipeline Configuration**: Customizable pipeline steps for testing and deployment
+- **Build Optimization**: Parallelized builds for faster CI execution
+
 ## Installation
 
 ```bash
