@@ -9,7 +9,7 @@ A monorepo containing advanced Three.js tooling libraries and interactive 3D app
 ![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
 ![Rapier](https://img.shields.io/badge/Rapier-Physics-blue)
 ![Version](https://img.shields.io/github/v/release/LittleCarlito/threejs_site?include_prereleases)
-![Turborepo](https://img.shields.io/badge/Turborepo-EF4444?logo=turborepo&logoColor=white)
+![Lerna](https://img.shields.io/badge/Lerna-9333EA?logo=lerna&logoColor=white)
 ![pnpm](https://img.shields.io/badge/pnpm-F69220?logo=pnpm&logoColor=white)
 
 ## 📋 Overview
@@ -44,7 +44,7 @@ threejs_site/
 │       ├── ui/        # User interface components
 │       └── ...        # Configuration and build files
 ├── package.json       # Root package configuration
-├── turbo.json         # Turborepo configuration
+├── lerna.json         # Lerna configuration
 └── pnpm-workspace.yaml # Workspace definition
 ```
 
@@ -172,7 +172,7 @@ Comprehensive development and debugging toolkit with:
 
 ## 🛠️ Development Workflow
 
-The monorepo is powered by Turborepo for efficient build orchestration and PNPM for fast, disk-space efficient package management.
+The monorepo is powered by Lerna for package versioning/publishing and PNPM for fast, disk-space efficient package management.
 
 ### Common Commands
 
@@ -190,53 +190,70 @@ pnpm clean
 pnpm lint
 
 # Format code with Prettier
-pnpm format
+pnpm fmt
 
 # Run tests
 pnpm test
 ```
 
-### Turborepo Advanced Commands
+## 📝 Versioning System
 
-```bash
-# Build all packages with maximum concurrency
-pnpm turbo run build --concurrency=10
+This project uses [Lerna](https://lerna.js.org/) and [Conventional Commits](https://www.conventionalcommits.org/) for automated versioning and publishing.
 
-# Build specific package with verbose output
-pnpm turbo run build --filter=@littlecarlito/blorkpack --verbose
+### Commit Message Format
 
-# Run tools in specific package with custom environment
-pnpm turbo run tools --filter=@littlecarlito/blorktools --env=development
+We follow the conventional commits specification with some custom extensions:
 
-# Run with cache disabled during development
-pnpm turbo run dev --no-cache
+```
+<type>([scope]): <description>
 
-# Build only affected packages 
-pnpm turbo run build --filter=...[origin/main]
+[optional body]
+
+[optional footer(s)]
 ```
 
-## 🔍 Architecture Deep Dive
+### Commit Types
 
-### Performance Optimization
+We support the following commit types:
 
-The tooling suite implements several advanced techniques for performance:
+- `feat`: A new feature (minor version bump)
+- `fix`: A bug fix (patch version bump)
+- `refactor`: Code changes that neither fix bugs nor add features (patch version bump)
+- `perf`: Performance improvements (patch version bump)
+- `docs`: Documentation only changes (no version bump)
+- `style`: Changes that don't affect code functionality (no version bump)
+- `test`: Adding or correcting tests (no version bump)
+- `chore`: Changes to build process or auxiliary tools (no version bump)
+- `ci`: Changes to CI configuration files and scripts (no version bump)
+- `build`: Changes that affect the build system (no version bump)
+- `revert`: Reverts a previous commit (depends on the reverted commit)
+- `slice`: Small, incremental changes (patch version bump)
 
-- **Custom WebGL State Management** - Minimizes expensive state changes
-- **Geometry Instancing** - Reduces draw calls for repeated objects
-- **Worker Thread Processing** - Offloads heavy calculations
-- **GPU-Accelerated Physics** - Utilizes compute shaders where available
-- **Texture Streaming** - Progressive loading of high-resolution textures
-- **Shader Permutation Management** - Optimizes shader variants
+### Special Scopes
 
-### Memory Management
+- `(pipeline)`: When this scope is used, the commit is ignored for version bumping regardless of type
 
-Careful attention to memory usage ensures stable performance:
+### Version Bumping Rules
 
-- **Asset Reference Counting** - Automatic cleanup of unused resources
-- **Texture Compression** - Automatic format selection based on support
-- **Geometry Simplification** - Dynamic LOD based on camera distance
-- **Deferred Asset Loading** - Only load what's needed when it's needed
-- **Memory Pool Allocation** - Reduces garbage collection pauses
+- **Major (x.0.0)**: Any commit with a `BREAKING CHANGE` footer
+- **Minor (0.x.0)**: `feat` type commits
+- **Patch (0.0.x)**: `fix`, `refactor`, `perf`, and `slice` type commits
+
+### Lerna Commands
+
+```bash
+# Check which packages have changed since the last release
+pnpm lerna:changed
+
+# Bump versions based on commit messages
+pnpm lerna:version [--no-push]
+
+# Publish packages to npm registry
+pnpm lerna:publish
+
+# Show differences between packages
+pnpm lerna:diff
+```
 
 ## 🚀 Deployment
 
@@ -250,7 +267,7 @@ The site is automatically deployed to GitHub Pages through a sophisticated CI/CD
 
 ## 🤝 Contributing
 
-This project welcomes contributions. See our [contributing guide](CONTRIBUTING.md) for more information.
+This project welcomes contributions. Please follow our commit message conventions when submitting PRs.
 
 ## 📝 License
 
@@ -267,35 +284,6 @@ For the full license text, see the [LICENSE](LICENSE) file.
 
 - Email: info@blorkfield.com
 - Discord: "Blooooork"
-
-## Versioning
-
-This project uses conventional commits and direct versioning for package management. When making changes that should result in a version bump:
-
-1. Make your changes
-2. Use proper conventional commit format:
-   - `fix:` or `fix(package-name):` for patch updates
-   - `feat:` or `feat(package-name):` for minor updates
-   - `fix!:`, `feat!:` or adding `BREAKING CHANGE:` to commit body for major updates
-3. Create a PR with your changes
-
-When your PR is merged to main, packages affected by your changes will be automatically versioned and published to GitHub Packages through our pipeline scripts.
-
-## GitHub Actions Workflows
-
-This repository uses several GitHub Actions workflows:
-
-1. **Main Pipeline** (primary) - Runs on every push to main
-   - Builds and tests packages
-   - Automatically versions and publishes packages based on conventional commits
-   - Handles GitHub Pages deployments
-   - Fully automated - no manual intervention required
-
-2. **Release/Prerelease** - For specific/beta releases
-   - Only run when manually triggered
-   - For special release scenarios
-
-**Note:** If you see multiple workflows running in parallel after a merge to main, it may include GitHub's default Pages deployment alongside our custom workflow. This is expected behavior.
 
 ---
 
