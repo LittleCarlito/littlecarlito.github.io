@@ -5,7 +5,7 @@
 # Instead we'll explicitly handle errors and provide better logging
 
 # Add debugging
-set -x
+# set -x
 
 # Change to repository root directory to ensure commands work correctly
 cd "$(git rev-parse --show-toplevel)" || {
@@ -157,6 +157,7 @@ if [ "$RUN_TESTS" = true ]; then
         PACKAGE_PATHS=()
         PACKAGE_NAMES=()
         PACKAGE_VERSIONS=()
+        CREATED_TAGS=()
         
         # Collect packages from packages/ directory
         for PKG_DIR in packages/*; do
@@ -203,6 +204,7 @@ if [ "$RUN_TESTS" = true ]; then
             TAG_NAME="${PACKAGE_NAMES[$i]}@${PACKAGE_VERSIONS[$i]}"
             echo "Creating tag $TAG_NAME"
             git tag -a "$TAG_NAME" -m "Release ${PACKAGE_NAMES[$i]} version ${PACKAGE_VERSIONS[$i]}"
+            CREATED_TAGS+=("$TAG_NAME")
         done
         
         # Everything looks good, merge back to the original branch
@@ -225,6 +227,42 @@ if [ "$RUN_TESTS" = true ]; then
         fi
         
         echo "✅ Successfully versioned packages, created tags, and committed changes!"
+        
+        # Get the remote name and branch being pushed to from the pre-push arguments
+        # Format: local_ref local_sha remote_ref remote_sha
+        read -r _ _ remote_ref _ < "/dev/stdin"
+        
+        if [ -n "$remote_ref" ]; then
+            # Extract remote name and branch from remote ref (refs/heads/main -> origin main)
+            REMOTE=$(git remote | head -n 1) # Default to first remote if we can't extract it
+            REMOTE_BRANCH=${remote_ref#refs/heads/}
+            
+            # Push the created tags to trigger package publishing
+            if [ ${#CREATED_TAGS[@]} -gt 0 ]; then
+                echo "🚀 Pushing version tags to trigger publishing..."
+                TAG_PUSH_FAILED=false
+                
+                for TAG in "${CREATED_TAGS[@]}"; do
+                    echo "Pushing tag: $TAG"
+                    git push "$REMOTE" "$TAG"
+                    TAG_PUSH_STATUS=$?
+                    if [ $TAG_PUSH_STATUS -ne 0 ]; then
+                        echo "❌ Failed to push tag $TAG with status $TAG_PUSH_STATUS."
+                        TAG_PUSH_FAILED=true
+                    fi
+                done
+                
+                if [ "$TAG_PUSH_FAILED" = true ]; then
+                    echo "❌ One or more tags failed to push. Aborting branch push to ensure consistency."
+                    echo "Fix the tag push issues and try again."
+                    exit 1
+                fi
+            fi
+        else
+            echo "⚠️ Could not determine remote details. Aborting push."
+            echo "Failed to push tags which are required for publishing."
+            exit 1
+        fi
     else
         echo "ℹ️ No changesets found to consume. Skipping version bump."
     fi
@@ -235,7 +273,7 @@ else
 fi
 
 # Disable debugging before exiting
-set +x
+# set +x
 
 echo "🎉 Pre-push checks completed successfully!"
 exit 0 
