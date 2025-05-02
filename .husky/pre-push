@@ -1,5 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Running pre-push checks directly without husky sourcing
+
+# Shell environment debug info
+echo "Shell: $SHELL"
+echo "Bash version: $BASH_VERSION"
 
 # Set -e is removed to prevent silent exits
 # Instead we'll explicitly handle errors and provide better logging
@@ -135,12 +139,14 @@ if [ "$PUSH_TAGS" = true ]; then
         git fetch --tags origin
         
         # Get count of local tags that don't exist on remote
-        LOCAL_ONLY_HISTORICAL_TAGS=$(comm -23 <(git tag | sort) <(git ls-remote --tags origin | grep -v '\^{}' | awk '{print $2}' | sed 's|refs/tags/||' | sort) | wc -l | tr -d '[:space:]')
+        git tag | sort > /tmp/local_tags
+        git ls-remote --tags origin | grep -v '\^{}' | awk '{print $2}' | sed 's|refs/tags/||' | sort > /tmp/remote_tags
+        LOCAL_ONLY_HISTORICAL_TAGS=$(comm -23 /tmp/local_tags /tmp/remote_tags | wc -l | tr -d '[:space:]')
         
         if [ "$LOCAL_ONLY_HISTORICAL_TAGS" -gt 0 ]; then
             echo "🏷️ Found $LOCAL_ONLY_HISTORICAL_TAGS local tag(s) not on remote"
             # List the tags for visibility
-            comm -23 <(git tag | sort) <(git ls-remote --tags origin | grep -v '\^{}' | awk '{print $2}' | sed 's|refs/tags/||' | sort)
+            comm -23 /tmp/local_tags /tmp/remote_tags
             PUSH_WITH_TAGS=true
         else
             echo "✅ No local tags ahead of remote"
@@ -252,6 +258,10 @@ else
         echo "🚀 Pushing branch with tags..."
         # This command executes a push with the --follow-tags flag
         # Note: This needs to be changed if you want to push to a specific remote and branch
+        git tag | sort > /tmp/local_tags
+        git ls-remote --tags origin | grep -v '\^{}' | awk '{print $2}' | sed 's|refs/tags/||' | sort > /tmp/remote_tags
+        comm -23 /tmp/local_tags /tmp/remote_tags
+        rm /tmp/local_tags /tmp/remote_tags
         exec git push --follow-tags "${@:2}"
         # Exit code will be the status of the git push command
     else
