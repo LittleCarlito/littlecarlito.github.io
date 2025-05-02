@@ -475,24 +475,7 @@ function startDebugging() {
                                                 if (worldPanelModule.updateLightingInfo) {
                                                     worldPanelModule.updateLightingInfo(metadata);
                                                 }
-                                                
-                                                // If there's no background file, make sure to show the "No Background" message
-                                                if (!backgroundFile && !backgroundTexture) {
-                                                    if (worldPanelModule.toggleBackgroundMessages) {
-                                                        worldPanelModule.toggleBackgroundMessages(false, true);
-                                                    }
-                                                    
-                                                    // Update background info with empty data
-                                                    if (worldPanelModule.updateBackgroundInfo) {
-                                                        worldPanelModule.updateBackgroundInfo({
-                                                            fileName: null,
-                                                            type: null,
-                                                            dimensions: { width: 0, height: 0 },
-                                                            fileSizeBytes: 0
-                                                        }, true);
-                                                    }
-                                                }
-                                                
+
                                                 // Apply the lighting to the scene
                                                 return lightingModule.setupEnvironmentLighting(lightingFile)
                                                     .then(texture => {
