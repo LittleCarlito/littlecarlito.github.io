@@ -193,7 +193,7 @@ if [ "$RUN_TESTS" = true ]; then
     GITHUB_DIR_CHANGES=$(git diff --name-only HEAD^ HEAD 2>/dev/null | grep -c "^\.github/" || echo "0")
     
     # Only run workflow validation if .github directory has changes
-    if [ "$GITHUB_DIR_CHANGES" -gt 0 ]; then
+    if [ "${GITHUB_DIR_CHANGES:-0}" -gt 0 ]; then
         echo "🔍 Changes detected in .github directory, validating workflows..."
         
         # Run the new validation script
@@ -255,15 +255,15 @@ if [ "$DRY_RUN" = true ]; then
 else
     # If we need to push with tags, we'll do it here
     if [ "$PUSH_WITH_TAGS" = true ]; then
-        echo "🚀 Pushing branch with tags..."
-        # This command executes a push with the --follow-tags flag
-        # Note: This needs to be changed if you want to push to a specific remote and branch
+        # Show the tags that will be pushed
+        echo "🏷️ The following tags will be pushed:"
         git tag | sort > /tmp/local_tags
         git ls-remote --tags origin | grep -v '\^{}' | awk '{print $2}' | sed 's|refs/tags/||' | sort > /tmp/remote_tags
         comm -23 /tmp/local_tags /tmp/remote_tags
         rm /tmp/local_tags /tmp/remote_tags
-        exec git push --follow-tags "${@:2}"
-        # Exit code will be the status of the git push command
+        
+        # Don't actually push - the original command that triggered this hook will handle that
+        echo "✅ Pre-push checks complete - continuing with push including tags"
     else
         echo "🎉 Pre-push checks completed successfully!"
     fi
@@ -274,4 +274,5 @@ if [ "$DRY_RUN" = true ]; then
     exit 0
 fi
 
+# Exit with success to allow the original push to proceed
 exit 0 
