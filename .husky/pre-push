@@ -74,19 +74,45 @@ if [ "$UNCOMMITTED_VERSIONS" -gt 0 ]; then
     if [ "$DRY_RUN" = true ]; then
         echo "🔬 [DRY RUN] Would run automatic versioning"
     else
-        echo "🏷️ Running full versioning with tag creation..."
-        # Run lerna version with tag creation for all branches
-        # Use the ignore-scripts flag to avoid running the version script from package.json
-        pnpm version:local-tags
+        # Check for existing remote tags before creating new ones
+        echo "🔍 Checking for existing remote tags..."
+        git fetch --tags
         
-        # Re-stage any changes made by lerna
-        git add .
-        git commit -m "chore(release): publish [skip ci]" || echo "No changes to commit"
+        # Get a list of packages with version changes
+        CHANGED_PACKAGES=$(git diff --name-only --diff-filter=M -- "**/package.json" | xargs dirname)
+        WILL_CREATE_TAGS=false
         
-        echo "✅ Versioning completed! Tags created before push."
+        for pkg_dir in $CHANGED_PACKAGES; do
+            PKG_NAME=$(node -e "console.log(require('./$pkg_dir/package.json').name)")
+            PKG_VERSION=$(node -e "console.log(require('./$pkg_dir/package.json').version)")
+            POTENTIAL_TAG="$PKG_NAME@$PKG_VERSION"
+            
+            # Check if this tag already exists remotely
+            if git ls-remote --tags origin "refs/tags/$POTENTIAL_TAG" | grep -q "$POTENTIAL_TAG"; then
+                echo "⚠️ Tag $POTENTIAL_TAG already exists on the remote repository. Skipping version creation."
+            else
+                echo "✅ No existing tag found for $POTENTIAL_TAG. Will proceed with version creation."
+                WILL_CREATE_TAGS=true
+            fi
+        done
         
-        # Set flag to push with tags
-        PUSH_WITH_TAGS=true
+        if [ "$WILL_CREATE_TAGS" = "true" ]; then
+            echo "🏷️ Running full versioning with tag creation..."
+            # Run lerna version with tag creation for all branches
+            # Use the ignore-scripts flag to avoid running the version script from package.json
+            pnpm version:local-tags
+            
+            # Re-stage any changes made by lerna
+            git add .
+            git commit -m "chore(release): publish [skip ci]" || echo "No changes to commit"
+            
+            echo "✅ Versioning completed! Tags created before push."
+            
+            # Set flag to push with tags
+            PUSH_WITH_TAGS=true
+        else
+            echo "⏩ Skipping versioning since all necessary tags already exist."
+        fi
     fi
 fi
 
