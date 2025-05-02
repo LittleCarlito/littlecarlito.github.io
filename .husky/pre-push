@@ -59,6 +59,20 @@ else
     echo "✅ Lockfile is in sync with package.json"
 fi
 
+# Check for uncommitted package version changes from Lerna
+echo "Checking for uncommitted package version changes..."
+UNCOMMITTED_VERSIONS=$(git diff --name-only --diff-filter=M -- "**/package.json" | wc -l)
+if [ "$UNCOMMITTED_VERSIONS" -gt 0 ]; then
+    echo "⚠️ Found uncommitted package version changes in package.json file(s)"
+    git diff --name-only --diff-filter=M -- "**/package.json"
+    echo ""
+    echo "❌ You need to commit version changes before pushing."
+    echo "Run 'pnpm lerna version' to properly version your packages, or commit these changes."
+    exit 1
+else
+    echo "✅ No uncommitted package version changes found"
+fi
+
 # Check for changes outside development/ and public/ directories
 echo "Checking for relevant file changes..."
 

@@ -265,12 +265,39 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          token: ${{ secrets.PACKAGE_TOKEN }} 
+          token: ${{ secrets.PACKAGE_TOKEN }}
+
+  # Handle version and release directly in the main pipeline using our composite action
+  version-and-release:
+    name: Version and Release Packages
+    needs: [build, test, build-site]
+    if: github.ref == 'refs/heads/main' && needs.build.result == 'success' && needs.test.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PR_CREATION_TOKEN || secrets.GITHUB_TOKEN }}
+          
+      - name: Setup Git credentials
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+      # Use our composite action directly for versioning and release
+      - name: Version and Release Packages
+        id: version-release
+        uses: ./.github/actions/version-and-release
+        with:
+          github-token: ${{ secrets.PR_CREATION_TOKEN || secrets.GITHUB_TOKEN }}
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          release-type: 'auto'
 
   # Report pipeline results (always runs after all jobs)
   report-results:
     name: Report Pipeline Results
-    needs: [capture-trigger-info, build, test, build-site]
+    needs: [capture-trigger-info, build, test, build-site, version-and-release]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -281,7 +308,8 @@ jobs:
           # Check if any job failed
           if [[ "${{ needs.build.result }}" != "success" || 
                 "${{ needs.test.result }}" != "success" || 
-                ("${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped") ]]; then
+                ("${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped") ||
+                ("${{ needs.version-and-release.result }}" != "success" && "${{ needs.version-and-release.result }}" != "skipped") ]]; then
             echo "result=failure" >> "$GITHUB_OUTPUT"
             
             # Collect what failed for detailed reporting
@@ -289,6 +317,7 @@ jobs:
             [[ "${{ needs.build.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Build, "
             [[ "${{ needs.test.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Test, "
             [[ "${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Site Deployment, "
+            [[ "${{ needs.version-and-release.result }}" != "success" && "${{ needs.version-and-release.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Version and Release, "
             
             # Remove trailing comma and space
             FAILED_JOBS="${FAILED_JOBS%, }"
