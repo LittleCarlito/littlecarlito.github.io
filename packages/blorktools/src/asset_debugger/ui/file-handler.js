@@ -554,9 +554,9 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             canvas.classList.add('visible');
                             canvas.classList.remove('hidden');
                             
-                            // Use the world panel's renderEnvironmentPreview function
-                            if (worldPanelModule.renderEnvironmentPreview) {
-                                worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
+                            // Use the world panel's createSpherePreview function
+                            if (worldPanelModule.createSpherePreview) {
+                                worldPanelModule.createSpherePreview(THREE, texture, canvas, messageDiv);
                             }
                             
                             // Clean up URL after loading
@@ -596,9 +596,9 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                             canvas.classList.add('visible');
                             canvas.classList.remove('hidden');
                             
-                            // Use the world panel's renderEnvironmentPreview function
-                            if (worldPanelModule.renderEnvironmentPreview) {
-                                worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
+                            // Use the world panel's createSpherePreview function
+                            if (worldPanelModule.createSpherePreview) {
+                                worldPanelModule.createSpherePreview(THREE, texture, canvas, messageDiv);
                             }
                             
                             // Clean up URL after loading
@@ -674,6 +674,8 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
             messageDiv.textContent = 'Error loading lighting file';
         }
     }
+    // Enable visibility of the HDR option - this is the ONLY place where the HDR option visibility should be toggled
+    worldPanelModule.toggleOptionVisibility('hdr-option', true);
 }
 
 /**
@@ -793,9 +795,9 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                         canvas.classList.add('visible');
                         canvas.classList.remove('hidden');
                         
-                        // Use the world panel's renderEnvironmentPreview function
-                        if (worldPanelModule.renderEnvironmentPreview) {
-                            worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
+                        // Use the world panel's createSpherePreview function
+                        if (worldPanelModule.createSpherePreview) {
+                            worldPanelModule.createSpherePreview(THREE, texture, canvas, messageDiv);
                         }
                         
                         // Clean up URL after loading
@@ -869,9 +871,9 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                         canvas.classList.add('visible');
                         canvas.classList.remove('hidden');
                         
-                        // Use the world panel's renderEnvironmentPreview function
-                        if (worldPanelModule.renderEnvironmentPreview) {
-                            worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
+                        // Use the world panel's createSpherePreview function
+                        if (worldPanelModule.createSpherePreview) {
+                            worldPanelModule.createSpherePreview(THREE, texture, canvas, messageDiv);
                         }
                         
                         // Clean up URL after loading
@@ -955,9 +957,9 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                     // Make sure to set proper texture parameters
                     texture.mapping = THREE.EquirectangularReflectionMapping;
                     
-                    // Use the world panel's renderEnvironmentPreview function
-                    if (worldPanelModule.renderEnvironmentPreview) {
-                        worldPanelModule.renderEnvironmentPreview(texture, canvas, messageDiv);
+                    // Use the world panel's createSpherePreview function
+                    if (worldPanelModule.createSpherePreview) {
+                        worldPanelModule.createSpherePreview(THREE, texture, canvas, messageDiv);
                     }
                     
                     // Hide loading indicator
@@ -1015,6 +1017,8 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
     updateState({
         backgroundFile: file
     });
+    // Enable visibility of the background option - this is the ONLY place where the background option visibility should be toggled
+    worldPanelModule.toggleOptionVisibility('background-option', true);
 }
 
 /**

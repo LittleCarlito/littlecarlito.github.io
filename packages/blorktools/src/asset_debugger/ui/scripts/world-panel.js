@@ -70,6 +70,36 @@ function determineBackgroundUIState() {
 }
 
 /**
+ * Toggle visibility of a specific background option
+ * @param {string} optionId - The ID of the option element to toggle ('background-option' or 'hdr-option')
+ * @param {boolean} visible - Whether the option should be visible
+ */
+export function toggleOptionVisibility(optionId, visible) {
+    const option = document.getElementById(optionId);
+    if (!option) {
+        console.warn(`Cannot toggle visibility: Option with ID '${optionId}' not found`);
+        return;
+    }
+    
+    // Get input and label elements specifically (not all children)
+    const input = option.querySelector('input[type="radio"]');
+    const label = option.querySelector('label');
+    
+    if (!input || !label) {
+        console.warn(`Radio input or label not found in option with ID '${optionId}'`);
+        return;
+    }
+    
+    // Set display style for the elements
+    // Radio buttons use inline-block, labels use inline
+    input.style.display = visible ? 'inline-block' : 'none';
+    label.style.display = visible ? 'inline' : 'none';
+    
+    // For debugging
+    console.log(`Background option '${optionId}' visibility set to ${visible ? 'visible' : 'hidden'}`);
+}
+
+/**
  * Update all background UI elements based on the current state
  * @param {Object} uiState - The UI state object from determineBackgroundUIState
  */
@@ -82,8 +112,6 @@ function updateBackgroundUIVisibility(uiState) {
     
     // 2. Update message visibility - show the "no data" message only if BOTH background types are missing
     const hasAnyBackground = uiState.hasBackgroundImage || uiState.hasEnvironment;
-    console.log("BAZINGA Has Any Background:", hasAnyBackground);
-    console.log("BLAZORPA Has Environment:", uiState.hasEnvironment);
     toggleBackgroundMessages(hasAnyBackground);
     
     // Helper function to update canvas opacity
@@ -132,6 +160,10 @@ export function initWorldPanel() {
     }
     
     console.log('[DEBUG] World panel found, initializing...');
+    
+    // Initially hide background and HDR options until content is loaded
+    toggleOptionVisibility('background-option', false);
+    toggleOptionVisibility('hdr-option', false);
     
     // Initialize value displays on sliders and set up event listeners
     document.querySelectorAll('.control-group input[type="range"]').forEach(slider => {
@@ -228,33 +260,8 @@ export function initWorldPanel() {
             renderBackgroundPreview(texture);
         }
     });
-    
     // Mark as initialized
     controlsInitialized = true;
-    
-    // Update lighting info if we have it already
-    if (currentLightingMetadata) {
-        console.log('We have existing metadata, updating lighting info');
-        updateLightingInfo(currentLightingMetadata);
-        
-        // If we have an environment texture, render the preview
-        if (environmentTexture) {
-            console.log('We have existing environment texture, rendering preview');
-            renderEnvironmentPreview(environmentTexture);
-        }
-    }
-    
-    // Update background image info if we have it already
-    if (currentBackgroundMetadata) {
-        console.log('We have existing background metadata, updating background info');
-        updateBackgroundInfo(currentBackgroundMetadata);
-        
-        // If we have a background texture, render the preview
-        if (backgroundTexture) {
-            console.log('We have existing background texture, rendering preview');
-            renderBackgroundPreview(backgroundTexture);
-        }
-    }
 }
 
 /**
@@ -708,6 +715,7 @@ export function renderEnvironmentPreview(texture, externalCanvas, externalNoImag
         // Create a mini Three.js scene for the sphere preview
         // Use the imported THREE directly
         createSpherePreview(THREE, texture, canvas, noImageMessage);
+        
         return true;
     } catch (error) {
         console.error('Error rendering HDR preview as sphere:', error);
@@ -1309,13 +1317,13 @@ export function renderBackgroundPreview(fileOrTexture) {
             } catch (error) {
                 console.error('Error creating sphere preview for texture:', error);
             }
-            
             return true;
         } else {
             console.error('Unknown fileOrTexture type:', fileOrTexture);
             showNoBackgroundImageMessage(canvas, noImageMessage, 'Unsupported background format.');
             return false;
         }
+
     } catch (error) {
         console.error('Error in renderBackgroundPreview:', error);
         showNoBackgroundImageMessage(canvas, noImageMessage, `Error: ${error.message}`);
@@ -1541,7 +1549,7 @@ export function generatePreviewOnly(file, previewElement) {
                 },
                 (error) => {
                     console.error('Error loading preview:', error);
-                    previewElement.textContent = 'Error loading preview';
+                    previewElement.textContent = 'Preview unavailable';
                     URL.revokeObjectURL(url);
                 }
             );

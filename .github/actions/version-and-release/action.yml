@@ -1,0 +1,66 @@
+name: 'Version and Release Packages'
+description: 'Handle Lerna versioning and release of packages using conventional commits'
+
+inputs:
+  github-token:
+    description: 'GitHub token for creating releases and commits'
+    required: true
+  npm-token:
+    description: 'NPM token for publishing packages'
+    required: true
+  release-type:
+    description: 'Type of release to create (auto, patch, minor, major, etc.)'
+    required: false
+    default: 'auto'
+
+outputs:
+  has-changes:
+    description: 'Whether changes requiring versioning were found'
+    value: ${{ steps.check-changes.outputs.has_changes }}
+  version:
+    description: 'Version number from the versioning process (if applicable)'
+    value: ${{ steps.version.outputs.version }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 'lts/*'
+        registry-url: 'https://npm.pkg.github.com'
+        
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v3
+      with:
+        version: '8.15.4'
+        
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install
+    
+    - name: Check for versionable changes
+      id: check-changes
+      shell: bash
+      run: .github/scripts/ci/check-version-changes.sh
+    
+    - name: Handle versioning and release
+      id: version
+      if: steps.check-changes.outputs.has_changes == 'true'
+      shell: bash
+      run: |
+        .github/scripts/ci/handle-release.sh \
+          --type "${{ inputs.release-type }}" \
+          --token "${{ inputs.github-token }}"
+      env:
+        NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
+        GH_TOKEN: ${{ inputs.github-token }}
+    
+    - name: Create GitHub Release
+      if: steps.version.outputs.version != ''
+      uses: softprops/action-gh-release@v2
+      with:
+        name: "v${{ steps.version.outputs.version }}"
+        tag_name: "v${{ steps.version.outputs.version }}"
+        generate_release_notes: true
+        token: ${{ inputs.github-token }} 

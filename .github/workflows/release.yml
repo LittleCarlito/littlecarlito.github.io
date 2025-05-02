@@ -1,0 +1,84 @@
+name: Version, Tag and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Type of release to create'
+        required: true
+        default: 'auto'
+        type: choice
+        options:
+          - 'auto'
+          - 'patch'
+          - 'minor'
+          - 'major'
+          - 'preminor'
+          - 'prerelease'
+
+# Note: This workflow is now triggered from main-pipeline.yml on main branch pushes
+# to keep the release flow centralized and consistent
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  # Version, tag and release packages using our composite action
+  release:
+    name: Version and Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PR_CREATION_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Setup Git credentials
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+      # Use our composite action for versioning and release
+      - name: Version and Release Packages
+        id: version-release
+        uses: ./.github/actions/version-and-release
+        with:
+          github-token: ${{ secrets.PR_CREATION_TOKEN || secrets.GITHUB_TOKEN }}
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          release-type: ${{ github.event.inputs.release_type || 'auto' }}
+
+  # Report results
+  report-results:
+    name: Report Release Results
+    needs: release
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set result message
+        id: result
+        run: |
+          if [ "${{ needs.release.result }}" = "success" ]; then
+            echo "result=success" >> "$GITHUB_OUTPUT"
+            echo "summary=Successfully versioned and published packages" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=failure" >> "$GITHUB_OUTPUT"
+            echo "summary=Failed to version and publish packages" >> "$GITHUB_OUTPUT"
+          fi
+        
+      - name: Report pipeline results
+        uses: ./.github/actions/report-workflow-results
+        with:
+          workflow-name: 'Version and Release'
+          result: ${{ steps.result.outputs.result }}
+          branch: main
+          summary: ${{ steps.result.outputs.summary }}
+          source: 'dispatch'
+          discord-webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          github-token: ${{ secrets.PR_CREATION_TOKEN || secrets.GITHUB_TOKEN }} 

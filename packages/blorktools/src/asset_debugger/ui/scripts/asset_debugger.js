@@ -600,10 +600,6 @@ function startDebugging() {
                                                     });
                                                 });
                                                 
-                                                // TODO OOOOO
-                                                // TODO Need to add a call to update world panel's background information with the background file
-
-                                                // TODO I think this function needs to be reworked to something less hidden and mysterious
                                                 // Manually dispatch the background-updated event
                                                 const event = new CustomEvent('background-updated', { 
                                                     detail: { texture }
