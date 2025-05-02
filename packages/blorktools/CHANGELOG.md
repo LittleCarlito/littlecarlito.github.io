@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.48.2 (2025-05-02)</small>
+
+* fix(blorktools): background file loading ([6ab998e](https://github.com/littlecarlito/threejs_site/commit/6ab998e))
+* fix(blorktools): null background start ([3cc3621](https://github.com/littlecarlito/threejs_site/commit/3cc3621))
+* fix(blorktools): radio button availablility ([2570bcc](https://github.com/littlecarlito/threejs_site/commit/2570bcc))
+
+
+
+
+
+## <small>0.48.1 (2025-05-02)</small>
+
+* fix(blorktools): background file loading ([6ab998e](https://github.com/littlecarlito/threejs_site/commit/6ab998e))
+* fix(blorktools): null background start ([3cc3621](https://github.com/littlecarlito/threejs_site/commit/3cc3621))
+* fix(blorktools): radio button availablility ([2570bcc](https://github.com/littlecarlito/threejs_site/commit/2570bcc))
+
+
+
+
+
 ## 0.48.0 (2025-05-01)
 
 - feat(blorktools): add performance improvement features ([e96d03f](https://github.com/littlecarlito/threejs_site/commit/e96d03f))

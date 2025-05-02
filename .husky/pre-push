@@ -9,13 +9,17 @@
 
 # Parse command-line arguments
 DRY_RUN=false
+PUSH_TAGS=true
 
-# Check if --dry-run flag is provided
+# Check for command-line arguments
 for arg in "$@"; do
   if [ "$arg" = "--dry-run" ]; then
     DRY_RUN=true
     echo "🔬 DRY RUN MODE ENABLED - No changes will be committed or pushed"
-    break
+  fi
+  if [ "$arg" = "--no-tags" ]; then
+    PUSH_TAGS=false
+    echo "🏷️ TAGS WILL NOT BE PUSHED"
   fi
 done
 
@@ -59,18 +63,55 @@ else
     echo "✅ Lockfile is in sync with package.json"
 fi
 
-# Check for uncommitted package version changes from Lerna
+# Check if there are uncommitted package version changes
 echo "Checking for uncommitted package version changes..."
 UNCOMMITTED_VERSIONS=$(git diff --name-only --diff-filter=M -- "**/package.json" | wc -l)
 if [ "$UNCOMMITTED_VERSIONS" -gt 0 ]; then
     echo "⚠️ Found uncommitted package version changes in package.json file(s)"
     git diff --name-only --diff-filter=M -- "**/package.json"
     echo ""
-    echo "❌ You need to commit version changes before pushing."
-    echo "Run 'pnpm lerna version' to properly version your packages, or commit these changes."
-    exit 1
+    
+    if [ "$DRY_RUN" = true ]; then
+        echo "🔬 [DRY RUN] Would run automatic versioning"
+    else
+        echo "🏷️ Running full versioning with tag creation..."
+        # Run lerna version with tag creation for all branches
+        pnpm version:local-tags
+        
+        # Re-stage any changes made by lerna
+        git add .
+        git commit -m "chore(release): publish [skip ci]" || echo "No changes to commit"
+        
+        echo "✅ Versioning completed! Tags created before push."
+        
+        # Set flag to push with tags
+        PUSH_WITH_TAGS=true
+    fi
+fi
+
+# Check if we should push tags with this branch
+CURRENT_BRANCH=$(git symbolic-ref --short HEAD)
+if [ "$PUSH_TAGS" = true ]; then
+    # Check if there are any local tags that aren't on the remote
+    LOCAL_ONLY_TAGS=$(git tag -l --points-at HEAD | wc -l | tr -d '[:space:]')
+    
+    if [ "$LOCAL_ONLY_TAGS" -gt 0 ]; then
+        echo "🏷️ Found $LOCAL_ONLY_TAGS local tag(s) for the current commit"
+        git tag -l --points-at HEAD
+        
+        if [ "$DRY_RUN" = true ]; then
+            echo "🔬 [DRY RUN] Would push branch with tags"
+        else
+            echo "🚀 Pushing branch $CURRENT_BRANCH with tags..."
+            # Modify git push command to include --follow-tags
+            # This will be executed later in the script (or by Git)
+            PUSH_WITH_TAGS=true
+        fi
+    else
+        echo "✅ No new tags to push"
+    fi
 else
-    echo "✅ No uncommitted package version changes found"
+    echo "⏩ Tag pushing is disabled, only pushing branch"
 fi
 
 # Check for changes outside development/ and public/ directories
@@ -170,7 +211,16 @@ if [ "$DRY_RUN" = true ]; then
     echo "🔬 DRY RUN COMPLETED - No actual changes were made"
     echo "Run without the --dry-run flag to apply these changes when pushing"
 else
-    echo "🎉 Pre-push checks completed successfully!"
+    # If we need to push with tags, we'll do it here
+    if [ "$PUSH_WITH_TAGS" = true ]; then
+        echo "🚀 Pushing branch with tags..."
+        # This command executes a push with the --follow-tags flag
+        # Note: This needs to be changed if you want to push to a specific remote and branch
+        exec git push --follow-tags "${@:2}"
+        # Exit code will be the status of the git push command
+    else
+        echo "🎉 Pre-push checks completed successfully!"
+    fi
 fi
 
 # Exit with success in dry run mode

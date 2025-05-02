@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.47.3 (2025-05-02)</small>
+
+**Note:** Version bump only for package @littlecarlito/portfolio
+
+
+
+
+
+## <small>0.47.2 (2025-05-02)</small>
+
+**Note:** Version bump only for package @littlecarlito/portfolio
+
+
+
+
+
 ## <small>0.47.1 (2025-05-01)</small>
 
 ## 0.47.0 (2025-05-01)

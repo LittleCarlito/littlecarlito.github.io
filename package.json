@@ -39,6 +39,10 @@
     "gh-pages:test": "node tests/apps/portfolio/environment/gh-pages-texture-test.js --keep-open",
     "gh-pages:debug": "chmod +x .husky/gh-pages-test && .husky/gh-pages-test",
     "gh-pages:check": "node tests/apps/portfolio/environment/gh-pages-texture-test.js --headless",
+    "version": "chmod +x scripts/version-packages.sh && ./scripts/version-packages.sh",
+    "version:check": "pnpm lerna changed",
+    "version:update": "pnpm lerna version --conventional-commits --yes --no-git-tag-version --no-push --ignore-scripts",
+    "version:local-tags": "pnpm lerna version --conventional-commits --yes",
     "lerna:version": "lerna version --conventional-commits --yes",
     "lerna:publish": "lerna publish from-package --yes",
     "lerna:changed": "lerna changed",
@@ -91,7 +95,9 @@
   },
   "version": "0.0.0",
   "pnpm": {
-    "overrides": {},
+    "overrides": {
+      "punycode": "2.1.1"
+    },
     "peerDependencyRules": {
       "ignoreMissing": []
     },
