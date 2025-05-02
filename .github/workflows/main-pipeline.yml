@@ -237,6 +237,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN || secrets.GITHUB_TOKEN }}
           
+      # Make sure all CI scripts are executable
+      - name: Ensure CI scripts are executable
+        run: |
+          chmod +x .github/scripts/ci/*.sh
+          ls -la .github/scripts/ci/
+          
       # Use our composite action directly for versioning and release
       - name: Version and Release Packages
         id: version-release

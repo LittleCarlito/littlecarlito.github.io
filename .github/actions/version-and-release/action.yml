@@ -14,12 +14,18 @@ inputs:
     default: 'auto'
 
 outputs:
+  has-tags:
+    description: 'Whether any new tags were synchronized'
+    value: ${{ steps.sync-tags.outputs.has_new_tags }}
+  tag-count:
+    description: 'Total number of package tags'
+    value: ${{ steps.sync-tags.outputs.tag_count }}
   has-releases:
     description: 'Whether any releases were created'
-    value: ${{ steps.check-tags.outputs.has_releases }}
+    value: ${{ steps.create-releases.outputs.has_new_releases }}
   releases-count:
     description: 'Number of releases created'
-    value: ${{ steps.publish-releases.outputs.releases_count }}
+    value: ${{ steps.create-releases.outputs.releases_count }}
 
 runs:
   using: "composite"
@@ -56,62 +62,30 @@ runs:
       run: |
         chmod +x tests/pipeline-tests/test-lerna-commands.sh
         ./tests/pipeline-tests/test-lerna-commands.sh
-        
-    - name: Check for tags to release
-      id: check-tags
+    
+    # Step 1: Synchronize tags (independent of releases)
+    - name: Synchronize package tags
+      id: sync-tags
       shell: bash
       run: |
-        # Fetch all tags to ensure we have the latest from the remote
-        git fetch --tags
-        
-        # Get all tags on the current HEAD (should be main)
-        LOCAL_TAGS=$(git tag --points-at HEAD | grep "@littlecarlito/" || echo "")
-        
-        if [ -z "$LOCAL_TAGS" ]; then
-          echo "No package tags found on the current commit."
-          echo "has_releases=false" >> $GITHUB_OUTPUT
-          exit 0
-        fi
-        
-        # Count tags
-        TAG_COUNT=$(echo "$LOCAL_TAGS" | wc -l | tr -d '[:space:]')
-        echo "Found $TAG_COUNT tags on the current commit:"
-        echo "$LOCAL_TAGS"
-        
-        # Check if GitHub releases exist for these tags
-        TAGS_TO_RELEASE=""
-        RELEASE_COUNT=0
-        
-        echo "Checking for existing GitHub releases..."
-        while IFS= read -r TAG; do
-          # Skip empty lines
-          [ -z "$TAG" ] && continue
-          
-          # Check if release exists using GitHub CLI
-          if ! gh release view "$TAG" &>/dev/null; then
-            echo "No GitHub release found for tag: $TAG"
-            TAGS_TO_RELEASE="$TAGS_TO_RELEASE $TAG"
-            RELEASE_COUNT=$((RELEASE_COUNT + 1))
-          else
-            echo "GitHub release already exists for tag: $TAG"
-          fi
-        done <<< "$LOCAL_TAGS"
-        
-        # Check if we have any tags to release
-        if [ -z "$TAGS_TO_RELEASE" ]; then
-          echo "All tags already have GitHub releases. Nothing to do."
-          echo "has_releases=false" >> $GITHUB_OUTPUT
-        else
-          echo "Tags to release: $TAGS_TO_RELEASE"
-          echo "has_releases=true" >> $GITHUB_OUTPUT
-          echo "tags_to_release=$TAGS_TO_RELEASE" >> $GITHUB_OUTPUT
-          echo "release_count=$RELEASE_COUNT" >> $GITHUB_OUTPUT
-        fi
+        chmod +x .github/scripts/ci/sync-package-tags.sh
+        .github/scripts/ci/sync-package-tags.sh --verbose
       env:
         GH_TOKEN: ${{ inputs.github-token }}
     
+    # Step 2: Create GitHub releases (independent of tag creation)
+    - name: Create GitHub releases
+      id: create-releases
+      shell: bash
+      run: |
+        chmod +x .github/scripts/ci/manage-github-releases.sh
+        .github/scripts/ci/manage-github-releases.sh --verbose --tag-file all_package_tags.txt
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+    
+    # Step 3: Publish npm packages (if needed)
     - name: Publish npm packages
-      if: steps.check-tags.outputs.has_releases == 'true'
+      if: steps.create-releases.outputs.has_new_releases == 'true'
       id: publish-npm
       shell: bash
       run: |
@@ -124,70 +98,4 @@ runs:
         pnpm lerna publish from-package --yes --loglevel=info --ignore-scripts || echo "Some packages may already be published, continuing"
       env:
         NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
-        GH_TOKEN: ${{ inputs.github-token }}
-    
-    - name: Create GitHub releases
-      if: steps.check-tags.outputs.has_releases == 'true'
-      id: publish-releases
-      shell: bash
-      run: |
-        TAGS_TO_RELEASE="${{ steps.check-tags.outputs.tags_to_release }}"
-        RELEASE_COUNT=0
-        
-        for TAG in $TAGS_TO_RELEASE; do
-          # Skip empty or invalid tags
-          [ -z "$TAG" ] && continue
-          
-          echo "Creating GitHub release for tag: $TAG"
-          
-          # Extract package name from tag
-          PACKAGE_NAME=$(echo "$TAG" | sed 's/@\(.*\)@.*/\1/')
-          VERSION=$(echo "$TAG" | sed 's/.*@\(.*\)/\1/')
-          
-          # Check if there's a CHANGELOG.md file for this package
-          CHANGELOG_PATH=""
-          if [[ "$PACKAGE_NAME" == *"portfolio"* ]]; then
-            CHANGELOG_PATH="apps/portfolio/CHANGELOG.md"
-          else
-            # Extract the package short name
-            SHORT_NAME=$(echo "$PACKAGE_NAME" | sed 's/.*\/\(.*\)/\1/')
-            CHANGELOG_PATH="packages/$SHORT_NAME/CHANGELOG.md"
-          fi
-          
-          # Extract release notes if changelog exists
-          RELEASE_NOTES=""
-          if [ -f "$CHANGELOG_PATH" ]; then
-            echo "Extracting release notes from $CHANGELOG_PATH for version $VERSION"
-            # Extract section for this specific version
-            RELEASE_NOTES=$(awk -v version="$VERSION" '
-              BEGIN { found=0; capture=0; notes="" }
-              $0 ~ "^## " version { found=1; capture=1; next }
-              found && $0 ~ "^## " { capture=0 }
-              capture { notes = notes $0 "\n" }
-              END { print notes }
-            ' "$CHANGELOG_PATH")
-          fi
-          
-          # Default notes if none found
-          if [ -z "$RELEASE_NOTES" ]; then
-            RELEASE_NOTES="Release of $PACKAGE_NAME version $VERSION"
-          fi
-          
-          # Create GitHub release
-          gh release create "$TAG" \
-            --title "$PACKAGE_NAME v$VERSION" \
-            --notes "$RELEASE_NOTES" \
-            --target main
-          
-          if [ $? -eq 0 ]; then
-            echo "✅ Successfully created release for $TAG"
-            RELEASE_COUNT=$((RELEASE_COUNT + 1))
-          else
-            echo "❌ Failed to create release for $TAG"
-          fi
-        done
-        
-        echo "Created $RELEASE_COUNT GitHub releases"
-        echo "releases_count=$RELEASE_COUNT" >> $GITHUB_OUTPUT
-      env:
         GH_TOKEN: ${{ inputs.github-token }} 
