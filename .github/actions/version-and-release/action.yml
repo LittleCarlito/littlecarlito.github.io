@@ -20,6 +20,9 @@ outputs:
   version:
     description: 'Version number from the versioning process (if applicable)'
     value: ${{ steps.version.outputs.version }}
+  pr-url:
+    description: 'URL of the created PR (if any)'
+    value: ${{ steps.create-pr.outputs.pr_url }}
 
 runs:
   using: "composite"
@@ -63,25 +66,104 @@ runs:
       run: |
         chmod +x .github/scripts/ci/check-version-changes.sh
         .github/scripts/ci/check-version-changes.sh
+        
+        # Check if there are already tags on this commit (created locally by pre-push)
+        LOCAL_TAGS=$(git tag --points-at HEAD | wc -l | tr -d '[:space:]')
+        if [ "$LOCAL_TAGS" -gt 0 ]; then
+          echo "Detected $LOCAL_TAGS tags already on HEAD commit:"
+          git tag --points-at HEAD
+          echo "has_local_tags=true" >> $GITHUB_OUTPUT
+          echo "Skipping version creation as tags already exist."
+        else
+          echo "has_local_tags=false" >> $GITHUB_OUTPUT
+          echo "No tags found on HEAD commit, proceeding with version creation."
+        fi
     
-    - name: Handle versioning and release
+    - name: Create version branch
+      if: steps.check-changes.outputs.has_changes == 'true' && steps.check-changes.outputs.has_local_tags != 'true'
+      shell: bash
+      run: |
+        # Configure git
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+        
+        # Create a new branch for version changes
+        VERSION_BRANCH="version-bump-$(date +%Y%m%d%H%M%S)"
+        git checkout -b "$VERSION_BRANCH"
+        
+        echo "version_branch=$VERSION_BRANCH" >> $GITHUB_OUTPUT
+      id: create-branch
+    
+    - name: Run version command
       id: version
+      if: steps.check-changes.outputs.has_changes == 'true' && steps.check-changes.outputs.has_local_tags != 'true'
+      shell: bash
+      run: |
+        echo "🔄 Running versioning with type: ${{ inputs.release-type }}"
+        
+        # Run appropriate version command based on type
+        if [ "${{ inputs.release-type }}" = "auto" ]; then
+          pnpm lerna version --conventional-commits --yes --no-push
+        else
+          pnpm lerna version "${{ inputs.release-type }}" --yes --no-push
+        fi
+        
+        # Get the latest version for output
+        if [ -f "lerna.json" ]; then
+          VERSION=$(jq -r '.version // "unknown"' lerna.json)
+          if [ "$VERSION" != "unknown" ] && [ "$VERSION" != "independent" ]; then
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          fi
+        fi
+        
+        # Commit and push the changes to the version branch
+        git push -u origin "${{ steps.create-branch.outputs.version_branch }}"
+    
+    - name: Create PR for version changes
+      if: steps.check-changes.outputs.has_changes == 'true' && steps.check-changes.outputs.has_local_tags != 'true'
+      id: create-pr
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        # Create PR
+        PR_URL=$(gh pr create \
+          --base main \
+          --head "${{ steps.create-branch.outputs.version_branch }}" \
+          --title "chore(release): version bump" \
+          --body "This PR contains package version updates created by Lerna based on conventional commits." \
+          --label "release" \
+          --label "automated")
+          
+        echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+        echo "Created PR: $PR_URL"
+    
+    # This step is conditional based on your publishing strategy
+    # If you want to publish after merging the PR, you would remove this step
+    # and add a new workflow that triggers on PR merge with label "release"
+    - name: Publish packages
       if: steps.check-changes.outputs.has_changes == 'true'
       shell: bash
       run: |
-        chmod +x .github/scripts/ci/handle-release.sh
-        .github/scripts/ci/handle-release.sh \
-          --type "${{ inputs.release-type }}" \
-          --token "${{ inputs.github-token }}"
+        # If we have local tags, we can just publish from package
+        if [ "${{ steps.check-changes.outputs.has_local_tags }}" == "true" ]; then
+          echo "📦 Publishing packages from local tags..."
+          # Build packages before publishing
+          echo "🏗️ Building packages..."
+          pnpm build
+          
+          # Publish to registry
+          echo "📦 Publishing packages..."
+          pnpm lerna publish from-package --yes
+        else 
+          # Build packages before publishing
+          echo "🏗️ Building packages..."
+          pnpm build
+          
+          # Publish to registry
+          echo "📦 Publishing packages..."
+          pnpm lerna publish from-package --yes
+        fi
       env:
         NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
-        GH_TOKEN: ${{ inputs.github-token }}
-    
-    - name: Create GitHub Release
-      if: steps.version.outputs.version != ''
-      uses: softprops/action-gh-release@v2
-      with:
-        name: "v${{ steps.version.outputs.version }}"
-        tag_name: "v${{ steps.version.outputs.version }}"
-        generate_release_notes: true
-        token: ${{ inputs.github-token }} 
+        GH_TOKEN: ${{ inputs.github-token }} 

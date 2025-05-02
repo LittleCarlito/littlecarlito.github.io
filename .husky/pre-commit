@@ -2,6 +2,19 @@
 
 echo "🔍 Running pre-commit checks..."
 
+# Check for package.json files with version changes
+echo "Checking for package.json changes..."
+PACKAGE_CHANGES=$(git diff --cached --name-only | grep "package.json$")
+
+# If package.json files changed, run build dependency tests
+if [ -n "$PACKAGE_CHANGES" ]; then
+  echo "🔄 Package.json files changed:"
+  echo "$PACKAGE_CHANGES"
+  
+  echo "📦 Running build dependency tests..."
+  pnpm test:build-deps
+fi
+
 # Create a timeout function for handling potential hanging tests
 run_with_timeout() {
     # Command to run

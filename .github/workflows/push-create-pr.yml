@@ -152,7 +152,7 @@ jobs:
       - name: Push changes
         id: push_changes
         run: |
-          git push origin "${{ steps.branch_info.outputs.branch }}"
+          git push origin "${{ steps.branch_info.outputs.branch }}" --follow-tags
           {
             echo "commit_sha=$(git rev-parse HEAD)"
           } >> "${GITHUB_OUTPUT}"

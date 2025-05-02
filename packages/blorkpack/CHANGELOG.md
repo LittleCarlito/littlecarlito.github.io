@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.48.2 (2025-05-02)</small>
+
+**Note:** Version bump only for package @littlecarlito/blorkpack
+
+
+
+
+
+## <small>0.48.1 (2025-05-02)</small>
+
+**Note:** Version bump only for package @littlecarlito/blorkpack
+
+
+
+
+
 ## 0.48.0 (2025-05-01)
 
 - feat(blorkpack): add WebGPU support indication ([6ae5e39](https://github.com/littlecarlito/threejs_site/commit/6ae5e39))
