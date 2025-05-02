@@ -25,7 +25,7 @@ else
   echo "🔄 Changes in each package:"
   for pkg in $(echo "$CHANGED_OUTPUT" | jq -r '.[].name'); do
     echo "Package: $pkg"
-    pnpm lerna diff --scope="$pkg"
+    pnpm lerna diff "$pkg"
     echo ""
   done
 fi
