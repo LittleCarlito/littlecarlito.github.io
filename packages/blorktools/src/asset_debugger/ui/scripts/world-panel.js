@@ -497,10 +497,12 @@ export function toggleBackgroundMessages(hasContent, forceShow = false) {
     }
     
     if (hasContent || forceShow) {
+        console.log("Revealing Background Data section in World Panel");
         // We have content, so show the data info and hide the "no data" message
         noBackgroundMessage.style.display = 'none';
         backgroundDataInfo.style.display = 'block';
     } else {
+        console.log("Hiding Background Data section in World Panel");
         // No content, show the "no data" message and hide the data info
         noBackgroundMessage.style.display = 'block';
         backgroundDataInfo.style.display = 'none';
@@ -1127,6 +1129,9 @@ export function renderBackgroundPreview(fileOrTexture) {
     // Make canvas visible
     canvas.style.display = 'block';
     
+    // Show background data info and hide no background message
+    toggleBackgroundMessages(true);
+
     try {
         // Different handling based on what type of data we have
         if (fileOrTexture instanceof File || fileOrTexture instanceof Blob) {

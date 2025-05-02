@@ -198,10 +198,58 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           artifact-name: ${{ needs.build.outputs.build_artifact_name }}
 
+  # Handle version and release directly in the main pipeline using our composite action
+  version-and-release:
+    name: Version and Release Packages
+    needs: [build, test]
+    if: github.ref == 'refs/heads/main' && needs.build.result == 'success' && needs.test.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PR_CREATION_TOKEN || secrets.GITHUB_TOKEN }}
+          
+      - name: Setup Git credentials
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+          
+      - name: Install dependencies
+        run: pnpm install
+          
+      # Run cleanup script to ensure no conflicting tags exist
+      - name: Clean conflicting tags
+        run: |
+          chmod +x .github/scripts/ci/clean-duplicate-tags.sh
+          bash .github/scripts/ci/clean-duplicate-tags.sh
+        env:
+          GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN || secrets.GITHUB_TOKEN }}
+          
+      # Use our composite action directly for versioning and release
+      - name: Version and Release Packages
+        id: version-release
+        uses: ./.github/actions/version-and-release
+        with:
+          github-token: ${{ secrets.PR_CREATION_TOKEN || secrets.GITHUB_TOKEN }}
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          release-type: 'auto'
+
   # Build the site for GitHub Pages
   build-site:
     name: Build Site for GitHub Pages
-    needs: test
+    needs: [test, version-and-release]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -221,7 +269,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
-          registry-url: 'https://npm.pkg.github.com'
           
       - name: Setup pnpm
         uses: pnpm/action-setup@v3
@@ -267,37 +314,10 @@ jobs:
         with:
           token: ${{ secrets.PACKAGE_TOKEN }}
 
-  # Handle version and release directly in the main pipeline using our composite action
-  version-and-release:
-    name: Version and Release Packages
-    needs: [build, test, build-site]
-    if: github.ref == 'refs/heads/main' && needs.build.result == 'success' && needs.test.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.PR_CREATION_TOKEN || secrets.GITHUB_TOKEN }}
-          
-      - name: Setup Git credentials
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          
-      # Use our composite action directly for versioning and release
-      - name: Version and Release Packages
-        id: version-release
-        uses: ./.github/actions/version-and-release
-        with:
-          github-token: ${{ secrets.PR_CREATION_TOKEN || secrets.GITHUB_TOKEN }}
-          npm-token: ${{ secrets.NPM_TOKEN }}
-          release-type: 'auto'
-
   # Report pipeline results (always runs after all jobs)
   report-results:
     name: Report Pipeline Results
-    needs: [capture-trigger-info, build, test, build-site, version-and-release]
+    needs: [capture-trigger-info, build, test, version-and-release, build-site]
     if: always()
     runs-on: ubuntu-latest
     steps:

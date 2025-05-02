@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
 const glob = require('glob');
+const { expect } = require('@jest/globals');
 
 describe('Workflow Action Validation', () => {
 	const workflowsPath = path.join(process.cwd(), '.github', 'workflows');
@@ -79,7 +80,7 @@ describe('Workflow Action Validation', () => {
 				))
 				.join('\n');
       
-			fail(errorMessage);
+			expect(missingActions.length).toBe(0, errorMessage);
 		}
 	});
   
@@ -127,11 +128,11 @@ describe('Workflow Action Validation', () => {
 		if (scriptUsageIssues.length > 0) {
 			const errorMessage = ['The following script usages should be prefixed with bash:']
 				.concat(scriptUsageIssues.map(({ workflow, line, error }) => 
-					`- ${workflow}: "${line}" - ${error}`
+					`- In ${workflow}: "${line}" - ${error}`
 				))
-				.join('\n');
+				.join('\n') + '\n\nAdd "bash " before each script path in workflow files.';
       
-			fail(errorMessage);
+			expect(scriptUsageIssues.length).toBe(0, errorMessage);
 		}
 	});
 }); 

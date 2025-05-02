@@ -1,5 +1,5 @@
 name: 'Version and Release Packages'
-description: 'Handle Lerna versioning and release of packages using conventional commits'
+description: 'Publish packages from existing tags and create GitHub releases'
 
 inputs:
   github-token:
@@ -14,15 +14,12 @@ inputs:
     default: 'auto'
 
 outputs:
-  has-changes:
-    description: 'Whether changes requiring versioning were found'
-    value: ${{ steps.check-changes.outputs.has_changes }}
-  version:
-    description: 'Version number from the versioning process (if applicable)'
-    value: ${{ steps.version.outputs.version }}
-  pr-url:
-    description: 'URL of the created PR (if any)'
-    value: ${{ steps.create-pr.outputs.pr_url }}
+  has-releases:
+    description: 'Whether any releases were created'
+    value: ${{ steps.check-tags.outputs.has_releases }}
+  releases-count:
+    description: 'Number of releases created'
+    value: ${{ steps.publish-releases.outputs.releases_count }}
 
 runs:
   using: "composite"
@@ -60,110 +57,137 @@ runs:
         chmod +x tests/pipeline-tests/test-lerna-commands.sh
         ./tests/pipeline-tests/test-lerna-commands.sh
         
-    - name: Check for versionable changes
-      id: check-changes
+    - name: Check for tags to release
+      id: check-tags
       shell: bash
       run: |
-        chmod +x .github/scripts/ci/check-version-changes.sh
-        .github/scripts/ci/check-version-changes.sh
+        # Fetch all tags to ensure we have the latest from the remote
+        git fetch --tags
         
-        # Check if there are already tags on this commit (created locally by pre-push)
-        LOCAL_TAGS=$(git tag --points-at HEAD | wc -l | tr -d '[:space:]')
-        if [ "$LOCAL_TAGS" -gt 0 ]; then
-          echo "Detected $LOCAL_TAGS tags already on HEAD commit:"
-          git tag --points-at HEAD
-          echo "has_local_tags=true" >> $GITHUB_OUTPUT
-          echo "Skipping version creation as tags already exist."
-        else
-          echo "has_local_tags=false" >> $GITHUB_OUTPUT
-          echo "No tags found on HEAD commit, proceeding with version creation."
-        fi
-    
-    - name: Create version branch
-      if: steps.check-changes.outputs.has_changes == 'true' && steps.check-changes.outputs.has_local_tags != 'true'
-      shell: bash
-      run: |
-        # Configure git
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
+        # Get all tags on the current HEAD (should be main)
+        LOCAL_TAGS=$(git tag --points-at HEAD | grep "@littlecarlito/" || echo "")
         
-        # Create a new branch for version changes
-        VERSION_BRANCH="version-bump-$(date +%Y%m%d%H%M%S)"
-        git checkout -b "$VERSION_BRANCH"
-        
-        echo "version_branch=$VERSION_BRANCH" >> $GITHUB_OUTPUT
-      id: create-branch
-    
-    - name: Run version command
-      id: version
-      if: steps.check-changes.outputs.has_changes == 'true' && steps.check-changes.outputs.has_local_tags != 'true'
-      shell: bash
-      run: |
-        echo "🔄 Running versioning with type: ${{ inputs.release-type }}"
-        
-        # Run appropriate version command based on type
-        if [ "${{ inputs.release-type }}" = "auto" ]; then
-          pnpm lerna version --conventional-commits --yes --no-push --ignore-scripts --loglevel=info
-        else
-          pnpm lerna version "${{ inputs.release-type }}" --yes --no-push --ignore-scripts --loglevel=info
+        if [ -z "$LOCAL_TAGS" ]; then
+          echo "No package tags found on the current commit."
+          echo "has_releases=false" >> $GITHUB_OUTPUT
+          exit 0
         fi
         
-        # Get the latest version for output
-        if [ -f "lerna.json" ]; then
-          VERSION=$(jq -r '.version // "unknown"' lerna.json)
-          if [ "$VERSION" != "unknown" ] && [ "$VERSION" != "independent" ]; then
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
+        # Count tags
+        TAG_COUNT=$(echo "$LOCAL_TAGS" | wc -l | tr -d '[:space:]')
+        echo "Found $TAG_COUNT tags on the current commit:"
+        echo "$LOCAL_TAGS"
+        
+        # Check if GitHub releases exist for these tags
+        TAGS_TO_RELEASE=""
+        RELEASE_COUNT=0
+        
+        echo "Checking for existing GitHub releases..."
+        while IFS= read -r TAG; do
+          # Skip empty lines
+          [ -z "$TAG" ] && continue
+          
+          # Check if release exists using GitHub CLI
+          if ! gh release view "$TAG" &>/dev/null; then
+            echo "No GitHub release found for tag: $TAG"
+            TAGS_TO_RELEASE="$TAGS_TO_RELEASE $TAG"
+            RELEASE_COUNT=$((RELEASE_COUNT + 1))
+          else
+            echo "GitHub release already exists for tag: $TAG"
           fi
-        fi
+        done <<< "$LOCAL_TAGS"
         
-        # Commit and push the changes to the version branch
-        git push -u origin "${{ steps.create-branch.outputs.version_branch }}"
-    
-    - name: Create PR for version changes
-      if: steps.check-changes.outputs.has_changes == 'true' && steps.check-changes.outputs.has_local_tags != 'true'
-      id: create-pr
-      shell: bash
+        # Check if we have any tags to release
+        if [ -z "$TAGS_TO_RELEASE" ]; then
+          echo "All tags already have GitHub releases. Nothing to do."
+          echo "has_releases=false" >> $GITHUB_OUTPUT
+        else
+          echo "Tags to release: $TAGS_TO_RELEASE"
+          echo "has_releases=true" >> $GITHUB_OUTPUT
+          echo "tags_to_release=$TAGS_TO_RELEASE" >> $GITHUB_OUTPUT
+          echo "release_count=$RELEASE_COUNT" >> $GITHUB_OUTPUT
+        fi
       env:
         GH_TOKEN: ${{ inputs.github-token }}
-      run: |
-        # Create PR
-        PR_URL=$(gh pr create \
-          --base main \
-          --head "${{ steps.create-branch.outputs.version_branch }}" \
-          --title "chore(release): version bump" \
-          --body "This PR contains package version updates created by Lerna based on conventional commits." \
-          --label "release" \
-          --label "automated")
-          
-        echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
-        echo "Created PR: $PR_URL"
     
-    # This step is conditional based on your publishing strategy
-    # If you want to publish after merging the PR, you would remove this step
-    # and add a new workflow that triggers on PR merge with label "release"
-    - name: Publish packages
-      if: steps.check-changes.outputs.has_changes == 'true'
+    - name: Publish npm packages
+      if: steps.check-tags.outputs.has_releases == 'true'
+      id: publish-npm
       shell: bash
       run: |
-        # If we have local tags, we can just publish from package
-        if [ "${{ steps.check-changes.outputs.has_local_tags }}" == "true" ]; then
-          echo "📦 Publishing packages from local tags..."
-          # Build packages before publishing
-          echo "🏗️ Building packages..."
-          pnpm build
-          
-          # Publish to registry
-          echo "📦 Publishing packages..."
-          pnpm lerna publish from-package --yes --loglevel=info --ignore-scripts
-        else 
-          # Build packages before publishing
-          echo "🏗️ Building packages..."
-          pnpm build
-          
-          # Publish to registry
-          echo "📦 Publishing packages..."
-          pnpm lerna publish from-package --yes --loglevel=info --ignore-scripts
-        fi
+        # Build packages before publishing
+        echo "🏗️ Building packages..."
+        pnpm build
+        
+        # Publish to npm registry if packages are not already published
+        echo "📦 Publishing packages from tags..."
+        pnpm lerna publish from-package --yes --loglevel=info --ignore-scripts || echo "Some packages may already be published, continuing"
       env:
         NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
+        GH_TOKEN: ${{ inputs.github-token }}
+    
+    - name: Create GitHub releases
+      if: steps.check-tags.outputs.has_releases == 'true'
+      id: publish-releases
+      shell: bash
+      run: |
+        TAGS_TO_RELEASE="${{ steps.check-tags.outputs.tags_to_release }}"
+        RELEASE_COUNT=0
+        
+        for TAG in $TAGS_TO_RELEASE; do
+          # Skip empty or invalid tags
+          [ -z "$TAG" ] && continue
+          
+          echo "Creating GitHub release for tag: $TAG"
+          
+          # Extract package name from tag
+          PACKAGE_NAME=$(echo "$TAG" | sed 's/@\(.*\)@.*/\1/')
+          VERSION=$(echo "$TAG" | sed 's/.*@\(.*\)/\1/')
+          
+          # Check if there's a CHANGELOG.md file for this package
+          CHANGELOG_PATH=""
+          if [[ "$PACKAGE_NAME" == *"portfolio"* ]]; then
+            CHANGELOG_PATH="apps/portfolio/CHANGELOG.md"
+          else
+            # Extract the package short name
+            SHORT_NAME=$(echo "$PACKAGE_NAME" | sed 's/.*\/\(.*\)/\1/')
+            CHANGELOG_PATH="packages/$SHORT_NAME/CHANGELOG.md"
+          fi
+          
+          # Extract release notes if changelog exists
+          RELEASE_NOTES=""
+          if [ -f "$CHANGELOG_PATH" ]; then
+            echo "Extracting release notes from $CHANGELOG_PATH for version $VERSION"
+            # Extract section for this specific version
+            RELEASE_NOTES=$(awk -v version="$VERSION" '
+              BEGIN { found=0; capture=0; notes="" }
+              $0 ~ "^## " version { found=1; capture=1; next }
+              found && $0 ~ "^## " { capture=0 }
+              capture { notes = notes $0 "\n" }
+              END { print notes }
+            ' "$CHANGELOG_PATH")
+          fi
+          
+          # Default notes if none found
+          if [ -z "$RELEASE_NOTES" ]; then
+            RELEASE_NOTES="Release of $PACKAGE_NAME version $VERSION"
+          fi
+          
+          # Create GitHub release
+          gh release create "$TAG" \
+            --title "$PACKAGE_NAME v$VERSION" \
+            --notes "$RELEASE_NOTES" \
+            --target main
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ Successfully created release for $TAG"
+            RELEASE_COUNT=$((RELEASE_COUNT + 1))
+          else
+            echo "❌ Failed to create release for $TAG"
+          fi
+        done
+        
+        echo "Created $RELEASE_COUNT GitHub releases"
+        echo "releases_count=$RELEASE_COUNT" >> $GITHUB_OUTPUT
+      env:
         GH_TOKEN: ${{ inputs.github-token }} 
