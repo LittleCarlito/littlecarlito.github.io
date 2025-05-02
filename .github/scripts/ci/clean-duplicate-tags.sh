@@ -125,7 +125,7 @@ if [ ${#CONFLICTING_VERSIONS[@]} -gt 0 ]; then
       echo "  [DRY RUN] Would delete remote tag: $tag"
     else
       echo "  Deleting remote tag: $tag"
-      git push --delete origin "$tag"
+      git push origin ":refs/tags/$tag"
       
       # Also delete it locally if it exists
       if git tag -l "$tag" | grep -q .; then
