@@ -48,7 +48,7 @@ runs:
         echo "Checking Lerna installation..."
         pnpm lerna --version
         echo "Listing available packages..."
-        pnpm lerna list --json
+        pnpm lerna list --json --loglevel=info
         echo "Checking pnpm version..."
         pnpm --version
         echo "Checking Node.js version..."
@@ -103,9 +103,9 @@ runs:
         
         # Run appropriate version command based on type
         if [ "${{ inputs.release-type }}" = "auto" ]; then
-          pnpm lerna version --conventional-commits --yes --no-push
+          pnpm lerna version --conventional-commits --yes --no-push --ignore-scripts --loglevel=info
         else
-          pnpm lerna version "${{ inputs.release-type }}" --yes --no-push
+          pnpm lerna version "${{ inputs.release-type }}" --yes --no-push --ignore-scripts --loglevel=info
         fi
         
         # Get the latest version for output
@@ -154,7 +154,7 @@ runs:
           
           # Publish to registry
           echo "📦 Publishing packages..."
-          pnpm lerna publish from-package --yes
+          pnpm lerna publish from-package --yes --loglevel=info --ignore-scripts
         else 
           # Build packages before publishing
           echo "🏗️ Building packages..."
@@ -162,7 +162,7 @@ runs:
           
           # Publish to registry
           echo "📦 Publishing packages..."
-          pnpm lerna publish from-package --yes
+          pnpm lerna publish from-package --yes --loglevel=info --ignore-scripts
         fi
       env:
         NODE_AUTH_TOKEN: ${{ inputs.npm-token }}

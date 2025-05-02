@@ -42,7 +42,7 @@
     "version": "chmod +x scripts/version-packages.sh && ./scripts/version-packages.sh",
     "version:check": "pnpm lerna changed",
     "version:update": "pnpm lerna version --conventional-commits --yes --no-git-tag-version --no-push --ignore-scripts",
-    "version:local-tags": "pnpm lerna version --conventional-commits --yes",
+    "version:local-tags": "pnpm lerna version --conventional-commits --yes --ignore-scripts",
     "lerna:version": "lerna version --conventional-commits --yes",
     "lerna:publish": "lerna publish from-package --yes",
     "lerna:changed": "lerna changed",

@@ -76,6 +76,7 @@ if [ "$UNCOMMITTED_VERSIONS" -gt 0 ]; then
     else
         echo "🏷️ Running full versioning with tag creation..."
         # Run lerna version with tag creation for all branches
+        # Use the ignore-scripts flag to avoid running the version script from package.json
         pnpm version:local-tags
         
         # Re-stage any changes made by lerna

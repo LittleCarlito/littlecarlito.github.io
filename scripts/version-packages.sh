@@ -10,10 +10,15 @@ set -e
 # - BREAKING CHANGE: → major version bump
 # - etc.
 
-# Check if Git is clean
-if [ -n "$(git status --porcelain)" ]; then
-  echo "❌ Your Git working directory is not clean. Please commit or stash changes before versioning."
-  exit 1
+# Check if we're in CI environment
+if [ -n "$CI" ]; then
+  echo "🤖 CI environment detected, skipping clean git check"
+else
+  # Check if Git is clean
+  if [ -n "$(git status --porcelain)" ]; then
+    echo "❌ Your Git working directory is not clean. Please commit or stash changes before versioning."
+    exit 1
+  fi
 fi
 
 # Get current branch
