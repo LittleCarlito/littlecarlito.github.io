@@ -119,23 +119,32 @@ fi
 # Check if we should push tags with this branch
 CURRENT_BRANCH=$(git symbolic-ref --short HEAD)
 if [ "$PUSH_TAGS" = true ]; then
-    # Check if there are any local tags that aren't on the remote
-    LOCAL_ONLY_TAGS=$(git tag -l --points-at HEAD | wc -l | tr -d '[:space:]')
+    # First check if there are any local tags that point to HEAD
+    LOCAL_HEAD_TAGS=$(git tag -l --points-at HEAD | wc -l | tr -d '[:space:]')
     
-    if [ "$LOCAL_ONLY_TAGS" -gt 0 ]; then
-        echo "🏷️ Found $LOCAL_ONLY_TAGS local tag(s) for the current commit"
+    if [ "$LOCAL_HEAD_TAGS" -gt 0 ]; then
+        echo "🏷️ Found $LOCAL_HEAD_TAGS local tag(s) for the current commit"
         git tag -l --points-at HEAD
-        
-        if [ "$DRY_RUN" = true ]; then
-            echo "🔬 [DRY RUN] Would push branch with tags"
-        else
-            echo "🚀 Pushing branch $CURRENT_BRANCH with tags..."
-            # Modify git push command to include --follow-tags
-            # This will be executed later in the script (or by Git)
-            PUSH_WITH_TAGS=true
-        fi
+        PUSH_WITH_TAGS=true
     else
-        echo "✅ No new tags to push"
+        echo "✅ No new tags pointing to current HEAD"
+        
+        # If no HEAD tags, check for any local tags that don't exist on remote
+        echo "🔍 Checking for historical local tags not on remote..."
+        # Fetch all remote tags for comparison
+        git fetch --tags origin
+        
+        # Get count of local tags that don't exist on remote
+        LOCAL_ONLY_HISTORICAL_TAGS=$(comm -23 <(git tag | sort) <(git ls-remote --tags origin | grep -v '\^{}' | awk '{print $2}' | sed 's|refs/tags/||' | sort) | wc -l | tr -d '[:space:]')
+        
+        if [ "$LOCAL_ONLY_HISTORICAL_TAGS" -gt 0 ]; then
+            echo "🏷️ Found $LOCAL_ONLY_HISTORICAL_TAGS local tag(s) not on remote"
+            # List the tags for visibility
+            comm -23 <(git tag | sort) <(git ls-remote --tags origin | grep -v '\^{}' | awk '{print $2}' | sed 's|refs/tags/||' | sort)
+            PUSH_WITH_TAGS=true
+        else
+            echo "✅ No local tags ahead of remote"
+        fi
     fi
 else
     echo "⏩ Tag pushing is disabled, only pushing branch"
