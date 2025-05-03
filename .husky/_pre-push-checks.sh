@@ -18,7 +18,15 @@ ORIGINAL_REMOTE_URL="$2"
 
 # Capture the ref information from STDIN (what git provides to pre-push hooks)
 # Format: local_ref local_sha remote_ref remote_sha
-REF_INFO=$(cat)
+# But when called directly, don't wait for stdin input
+if [ -t 0 ]; then
+  # Terminal is interactive, don't try to read stdin
+  REF_INFO=""
+else
+  # Read from stdin when it has data (like when Git calls the hook)
+  REF_INFO=$(cat)
+fi
+
 # Extract the branch name from the ref (assuming format refs/heads/branch-name)
 if [ -n "$REF_INFO" ]; then
   LOCAL_REF=$(echo "$REF_INFO" | cut -d' ' -f1)
