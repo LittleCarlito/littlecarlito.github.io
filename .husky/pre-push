@@ -246,6 +246,18 @@ if [ "$RUN_TESTS" = true ]; then
         echo "✅ No changes in .github directory, skipping workflow validation."
     fi
     
+    # Run build to ensure it succeeds - MOVED HERE BEFORE TESTS
+    echo "🏗️ Running build..."
+    pnpm build
+    BUILD_STATUS=$?
+    echo "Build command exited with status: $BUILD_STATUS"
+    
+    if [ $BUILD_STATUS -ne 0 ]; then
+        echo "❌ Build failed. Please fix build issues before pushing."
+        exit 1
+    fi
+    echo "✅ Build passed!"
+    
     # Run unified pipeline with logging
     echo "🚀 Running unified pipeline test with full logging..."
     pnpm test
@@ -258,19 +270,7 @@ if [ "$RUN_TESTS" = true ]; then
     fi
     
     # Explicitly indicate tests passed
-    echo "✅ Pipeline tests passed! Moving to build step..."
-
-    # Run build to ensure it succeeds
-    echo "🏗️ Running build..."
-    pnpm build
-    BUILD_STATUS=$?
-    echo "Build command exited with status: $BUILD_STATUS"
-    
-    if [ $BUILD_STATUS -ne 0 ]; then
-        echo "❌ Build failed. Please fix build issues before pushing."
-        exit 1
-    fi
-    echo "✅ Build passed!"
+    echo "✅ Pipeline tests passed!"
 fi
 
 # Now, handle the actual push ourselves
@@ -299,7 +299,7 @@ else
         
         if [ $PUSH_STATUS -ne 0 ]; then
             echo "❌ Push failed with status $PUSH_STATUS"
-            exit $PUSH_STATUS
+            exit 1
         fi
         
         echo "✅ Push completed successfully with tags!"
@@ -310,13 +310,24 @@ else
         
         if [ $PUSH_STATUS -ne 0 ]; then
             echo "❌ Push failed with status $PUSH_STATUS"
-            exit $PUSH_STATUS
+            exit 1
         fi
         
         echo "✅ Push completed successfully!"
     fi
 fi
 
-# Exit with code 1 to prevent Git from performing its own push
-# since we've handled it ourselves
-exit 1 
+# Create a special flag file to indicate we've already handled this push
+# This prevents the infinite loop scenario
+MARKER_FILE="/tmp/husky_push_handled"
+if [ ! -f "$MARKER_FILE" ]; then
+    touch "$MARKER_FILE"
+    
+    # Exit with success (0) to prevent Git from doing its own push but not trigger a retry
+    exit 0
+else
+    # We've already handled a push in this session, prevent infinite loop
+    echo "⚠️ Detected potential recursive push. Breaking infinite loop."
+    rm -f "$MARKER_FILE"  # Clean up the marker file
+    exit 1  # Exit with error to stop the push
+fi 
