@@ -261,7 +261,7 @@ jobs:
           
           if [ -z "$LATEST_TAG" ]; then
             echo "No tags found, will create initial versions"
-            echo "has_version_worthy_commits=true" >> $GITHUB_OUTPUT
+            echo "has_version_worthy_commits=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           
@@ -293,11 +293,11 @@ jobs:
           fi
           
           # Get merge commits since last tag
-          MERGE_COMMITS=$(git log $LATEST_TAG..HEAD --merges --pretty=format:"%h %s" | wc -l | tr -d ' ')
+          MERGE_COMMITS=$(git log "$LATEST_TAG"..HEAD --merges --pretty=format:"%h %s" | wc -l | tr -d ' ')
           echo "Found $MERGE_COMMITS merge commits since last tag"
           
           # Look for versioning-worthy commits with correct types, excluding ignored scopes
-          VERSION_WORTHY_COMMITS=$(git log $LATEST_TAG..HEAD --pretty=format:"%h %s")
+          VERSION_WORTHY_COMMITS=$(git log "$LATEST_TAG"..HEAD --pretty=format:"%h %s")
           
           # Count version-worthy commits (matching types but not in ignored scopes)
           VERSION_WORTHY=0
@@ -338,14 +338,16 @@ jobs:
           
           # Set output based on findings
           if [ "$VERSION_WORTHY" -gt 0 ] || [ "$MERGE_COMMITS" -gt 0 ]; then
-            echo "has_version_worthy_commits=true" >> $GITHUB_OUTPUT
+            echo "has_version_worthy_commits=true" >> "$GITHUB_OUTPUT"
           else
-            echo "has_version_worthy_commits=false" >> $GITHUB_OUTPUT
+            echo "has_version_worthy_commits=false" >> "$GITHUB_OUTPUT"
           fi
       
       # Create releases and publish packages when there are version-worthy commits
       - name: Version and publish packages
         if: steps.check-version-worthy.outputs.has_version_worthy_commits == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Creating versions based on conventional commits..."
           
@@ -370,9 +372,11 @@ jobs:
       - name: Publish to npm and GitHub Packages
         run: |
           # Configure npm registry
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
-          echo "registry=https://registry.npmjs.org/" >> .npmrc
-          echo "always-auth=true" >> .npmrc
+          {
+            echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}"
+            echo "registry=https://registry.npmjs.org/"
+            echo "always-auth=true"
+          } > .npmrc
           
           # Publish packages using pnpm
           pnpm publish:packages --no-git-checks
@@ -380,10 +384,12 @@ jobs:
           echo "✅ Packages published to npm!"
           
           # Configure GitHub Packages registry for scoped packages
-          echo "@${GITHUB_REPOSITORY_OWNER}:registry=https://npm.pkg.github.com" > .npmrc
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
-          echo "registry=https://npm.pkg.github.com" >> .npmrc
-          echo "always-auth=true" >> .npmrc
+          {
+            echo "@${GITHUB_REPOSITORY_OWNER}:registry=https://npm.pkg.github.com"
+            echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}"
+            echo "registry=https://npm.pkg.github.com"
+            echo "always-auth=true"
+          } > .npmrc
           
           # Publish to GitHub Packages
           pnpm publish:packages --no-git-checks
