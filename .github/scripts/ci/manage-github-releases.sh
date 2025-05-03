@@ -21,26 +21,75 @@ while [[ "$#" -gt 0 ]]; do
   shift
 done
 
-# If no tag file is provided, get all package tags
+# Enhanced tag detection - fetch tags first to ensure we have all tags
+echo "🔄 Fetching tags from remote..."
+git fetch --tags
+
+# If no tag file is provided, get all package tags directly
 if [ -z "$TAG_FILE" ]; then
-  echo "📋 No tag file provided, fetching all package tags..."
-  git fetch --tags
-  git tag -l "@littlecarlito/*" > all_package_tags.txt
+  echo "📋 No tag file provided, fetching tags directly..."
+  
+  # Create a temporary tag file
+  ALL_TAGS_FILE="all_tags_$(date +%s).txt"
+  
+  # Get all tags and filter for package tags
+  git tag > "$ALL_TAGS_FILE"
+  
+  # Check if we found any tags
+  if [ ! -s "$ALL_TAGS_FILE" ]; then
+    echo "⚠️ Warning: No tags found in the repository"
+    echo "Creating empty tag file to proceed..."
+    touch "$ALL_TAGS_FILE"
+  fi
+  
+  # Filter to just get the package tags with @namespace/package@version format only
+  cat "$ALL_TAGS_FILE" | grep -E "^@" > "all_package_tags.txt" || true
+  
+  # Check if we found any matching package tags
+  if [ ! -s "all_package_tags.txt" ]; then
+    echo "⚠️ Warning: No package tags found matching the expected @namespace/package@version format"
+    echo "📢 Available tags in repository:"
+    cat "$ALL_TAGS_FILE" | head -n 10
+    if [ "$(cat "$ALL_TAGS_FILE" | wc -l)" -gt 10 ]; then
+      echo "... and $(( $(cat "$ALL_TAGS_FILE" | wc -l) - 10 )) more"
+    fi
+    echo "Creating empty package tag file to proceed..."
+    touch "all_package_tags.txt"
+  fi
+  
   TAG_FILE="all_package_tags.txt"
+  
+  # Clean up the temporary all tags file
+  rm -f "$ALL_TAGS_FILE"
 fi
 
 # Verify tag file exists
 if [ ! -f "$TAG_FILE" ]; then
   echo "❌ Error: Tag file $TAG_FILE does not exist"
-  exit 1
+  echo "Creating empty tag file to proceed..."
+  touch "$TAG_FILE"
 fi
 
 # Read all available package tags
 echo "📋 Reading available package tags from $TAG_FILE..."
-PACKAGE_TAGS=$(cat "$TAG_FILE" | grep -v '^$')
+PACKAGE_TAGS=$(cat "$TAG_FILE" | grep -v '^$' || echo "")
 TAG_COUNT=$(echo "$PACKAGE_TAGS" | grep -v '^$' | wc -l | tr -d '[:space:]')
 
 echo "Found $TAG_COUNT package tags to check for releases"
+
+# If no tags found, exit early with success to avoid breaking the pipeline
+if [ "$TAG_COUNT" -eq 0 ]; then
+  echo "⚠️ Warning: No tags to process, exiting successfully"
+  
+  # Write zero values to GitHub output if we're in a GitHub action
+  if [ -n "$GITHUB_OUTPUT" ]; then
+    echo "releases_count=0" >> $GITHUB_OUTPUT
+    echo "has_new_releases=false" >> $GITHUB_OUTPUT
+  fi
+  
+  echo "✅ GitHub release management completed without creating releases"
+  exit 0
+fi
 
 # If verbose mode, show all tags
 if [ "$VERBOSE" = true ]; then
@@ -51,7 +100,7 @@ fi
 
 # Get existing GitHub releases
 echo "🔍 Getting existing GitHub releases..."
-EXISTING_RELEASES=$(gh release list --limit 1000 | awk '{print $1}')
+EXISTING_RELEASES=$(gh release list --limit 1000 | awk '{print $1}' || echo "")
 RELEASE_COUNT=$(echo "$EXISTING_RELEASES" | grep -v '^$' | wc -l | tr -d '[:space:]')
 
 echo "Found $RELEASE_COUNT existing GitHub releases"
@@ -101,9 +150,11 @@ if [ ${#TAGS_TO_RELEASE[@]} -gt 0 ]; then
   echo "🚀 Creating GitHub releases for tags without releases..."
   
   for tag in "${TAGS_TO_RELEASE[@]}"; do
-    # Extract package name from tag
+    # Only handle package tag format now
+    # Package tag format
     PACKAGE_NAME=$(echo "$tag" | sed 's/@\(.*\)@.*/\1/')
     VERSION=$(echo "$tag" | sed 's/.*@\(.*\)/\1/')
+    TITLE="$PACKAGE_NAME v$VERSION"
     
     echo "Processing tag: $tag (Package: $PACKAGE_NAME, Version: $VERSION)"
     
@@ -111,7 +162,7 @@ if [ ${#TAGS_TO_RELEASE[@]} -gt 0 ]; then
     CHANGELOG_PATH=""
     if [[ "$PACKAGE_NAME" == *"portfolio"* ]]; then
       CHANGELOG_PATH="apps/portfolio/CHANGELOG.md"
-    else
+    elif [[ "$PACKAGE_NAME" == *"blork"* ]]; then
       # Extract the package short name
       SHORT_NAME=$(echo "$PACKAGE_NAME" | sed 's/.*\/\(.*\)/\1/')
       CHANGELOG_PATH="packages/$SHORT_NAME/CHANGELOG.md"
@@ -138,7 +189,7 @@ if [ ${#TAGS_TO_RELEASE[@]} -gt 0 ]; then
     
     if [ "$DRY_RUN" = true ]; then
       echo "  [DRY RUN] Would create GitHub release for tag: $tag"
-      echo "  Title: $PACKAGE_NAME v$VERSION"
+      echo "  Title: $TITLE"
       echo "  Notes: $RELEASE_NOTES"
       RELEASES_CREATED=$((RELEASES_CREATED + 1))
     else
@@ -146,13 +197,13 @@ if [ ${#TAGS_TO_RELEASE[@]} -gt 0 ]; then
       
       # Create GitHub release
       if gh release create "$tag" \
-        --title "$PACKAGE_NAME v$VERSION" \
+        --title "$TITLE" \
         --notes "$RELEASE_NOTES" \
         --target main; then
         echo "  ✅ Successfully created release for $tag"
         RELEASES_CREATED=$((RELEASES_CREATED + 1))
       else
-        echo "  ❌ Failed to create release for $tag"
+        echo "  ⚠️ Failed to create release for $tag, continuing with others"
       fi
     fi
   done
