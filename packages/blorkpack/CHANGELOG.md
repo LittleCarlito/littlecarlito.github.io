@@ -3,21 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.48.3 (2025-05-03)</small>
+
+- feat(pipeline): local versioning ([a06bcaf](https://github.com/littlecarlito/threejs_site/commit/a06bcaf))
+
 ## <small>0.48.2 (2025-05-02)</small>
 
 **Note:** Version bump only for package @littlecarlito/blorkpack
 
-
-
-
-
 ## <small>0.48.1 (2025-05-02)</small>
 
 **Note:** Version bump only for package @littlecarlito/blorkpack
-
-
-
-
 
 ## 0.48.0 (2025-05-01)
 

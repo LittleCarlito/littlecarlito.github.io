@@ -5,6 +5,9 @@
 echo "Shell: $SHELL"
 echo "Bash version: $BASH_VERSION"
 
+# Prevent git from using a pager for any command
+export GIT_PAGER=""
+
 # Parse command-line arguments and capture the original git arguments
 DRY_RUN=false
 PUSH_TAGS=true
@@ -144,6 +147,43 @@ if [ "$UNCOMMITTED_VERSIONS" -gt 0 ]; then
             echo "⏩ Skipping versioning since all necessary tags already exist."
         fi
     fi
+else
+    # Check for version-worthy commits since last tag
+    echo "Checking for version-worthy commits since last tag..."
+    
+    # Get the latest tag
+    LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+    
+    if [ -n "$LATEST_TAG" ]; then
+        # Check for feat: or fix: commits since the last tag
+        VERSION_WORTHY=$(git log $LATEST_TAG..HEAD --grep="^feat\|^fix" --oneline | wc -l | tr -d '[:space:]')
+        
+        if [ "$VERSION_WORTHY" -gt 0 ]; then
+            echo "🔍 Found $VERSION_WORTHY version-worthy commits since last tag:"
+            git --no-pager log $LATEST_TAG..HEAD --grep="^feat\|^fix" --oneline | head -n 10
+            echo "... and more"
+            
+            if [ "$DRY_RUN" = true ]; then
+                echo "🔬 [DRY RUN] Would run version:by-message"
+            else
+                echo "🏷️ Running versioning based on commit messages..."
+                pnpm version:local-message
+                
+                # Re-stage any changes made by lerna
+                git add .
+                git commit -m "chore(release): publish [skip ci]" || echo "No changes to commit"
+                
+                echo "✅ Versioning completed! Tags created before push."
+                
+                # Set flag to push with tags
+                PUSH_WITH_TAGS="true"
+            fi
+        else
+            echo "✅ No version-worthy commits found since last tag"
+        fi
+    else
+        echo "⚠️ No tags found. To create initial tags, run 'pnpm version:by-message' manually."
+    fi
 fi
 
 # Check if we should push tags with this branch
@@ -152,11 +192,11 @@ PUSH_WITH_TAGS=""
 
 if [ "$PUSH_TAGS" = true ]; then
     # First check if there are any local tags that point to HEAD
-    LOCAL_HEAD_TAGS=$(git tag -l --points-at HEAD | wc -l | tr -d '[:space:]')
+    LOCAL_HEAD_TAGS=$(git --no-pager tag -l --points-at HEAD | wc -l | tr -d '[:space:]')
     
     if [ "$LOCAL_HEAD_TAGS" -gt 0 ]; then
         echo "🏷️ Found $LOCAL_HEAD_TAGS local tag(s) for the current commit"
-        git tag -l --points-at HEAD
+        git --no-pager tag -l --points-at HEAD
         PUSH_WITH_TAGS="true"
     else
         echo "✅ No new tags pointing to current HEAD"
@@ -174,7 +214,10 @@ if [ "$PUSH_TAGS" = true ]; then
         if [ "$LOCAL_ONLY_HISTORICAL_TAGS" -gt 0 ]; then
             echo "🏷️ Found $LOCAL_ONLY_HISTORICAL_TAGS local tag(s) not on remote"
             # List the tags for visibility
-            comm -23 /tmp/local_tags /tmp/remote_tags
+            comm -23 /tmp/local_tags /tmp/remote_tags | head -n 10
+            if [ "$LOCAL_ONLY_HISTORICAL_TAGS" -gt 10 ]; then
+                echo "... and $(($LOCAL_ONLY_HISTORICAL_TAGS - 10)) more"
+            fi
             PUSH_WITH_TAGS="true"
         else
             echo "✅ No local tags ahead of remote"
