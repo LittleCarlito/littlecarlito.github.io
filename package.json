@@ -13,7 +13,6 @@
     "build:libs": "pnpm --filter='@littlecarlito/blorkpack' build && pnpm --filter='@littlecarlito/blorktools' build && pnpm --filter='@littlecarlito/blorkvisor' build",
     "build:apps": "pnpm --filter='@littlecarlito/portfolio' build",
     "clean": "pnpm -r clean",
-    "push": "node scripts/git-push.js",
     "test": "jest tests --config=tests/config/jest/jest.config.cjs --passWithNoTests && pnpm -r test",
     "test:project": "jest tests/ --config=tests/config/jest/jest.config.cjs --passWithNoTests",
     "test:coverage": "CHECK_ALL_BUILDS=true JEST_COVERAGE=true node tests/config/setup/prepare-tests.cjs && jest --config=tests/config/jest/jest.config.cjs --coverage",

@@ -9,7 +9,7 @@ SHA=""
 WORKFLOW=""
 TIMEOUT=300
 MIN_CHECKS=3
-INITIAL_DELAY=30
+INITIAL_DELAY=10
 
 # Parse command-line arguments
 while [[ $# -gt 0 ]]; do

@@ -137,6 +137,9 @@ if [ "$UNCOMMITTED_VERSIONS" -gt 0 ]; then
             git commit -m "chore(release): publish [skip ci]" || echo "No changes to commit"
             
             echo "✅ Versioning completed! Tags created before push."
+            
+            # Set flag to push with tags
+            PUSH_WITH_TAGS="true"
         else
             echo "⏩ Skipping versioning since all necessary tags already exist."
         fi
@@ -145,6 +148,8 @@ fi
 
 # Check if we should push tags with this branch
 CURRENT_BRANCH=$(git symbolic-ref --short HEAD)
+PUSH_WITH_TAGS=""
+
 if [ "$PUSH_TAGS" = true ]; then
     # First check if there are any local tags that point to HEAD
     LOCAL_HEAD_TAGS=$(git tag -l --points-at HEAD | wc -l | tr -d '[:space:]')
@@ -152,6 +157,7 @@ if [ "$PUSH_TAGS" = true ]; then
     if [ "$LOCAL_HEAD_TAGS" -gt 0 ]; then
         echo "🏷️ Found $LOCAL_HEAD_TAGS local tag(s) for the current commit"
         git tag -l --points-at HEAD
+        PUSH_WITH_TAGS="true"
     else
         echo "✅ No new tags pointing to current HEAD"
         
@@ -169,6 +175,7 @@ if [ "$PUSH_TAGS" = true ]; then
             echo "🏷️ Found $LOCAL_ONLY_HISTORICAL_TAGS local tag(s) not on remote"
             # List the tags for visibility
             comm -23 /tmp/local_tags /tmp/remote_tags
+            PUSH_WITH_TAGS="true"
         else
             echo "✅ No local tags ahead of remote"
         fi
@@ -176,6 +183,8 @@ if [ "$PUSH_TAGS" = true ]; then
 else
     echo "⏩ Tag pushing is disabled, only pushing branch"
 fi
+
+export PUSH_WITH_TAGS
 
 # Check for changes outside development/ and public/ directories
 echo "Checking for relevant file changes..."
