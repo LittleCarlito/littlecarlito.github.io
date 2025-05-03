@@ -7,11 +7,39 @@ if [ -n "${HUSKY_PUSH_RUNNING}" ]; then
   exit 0
 fi
 
-# Now run the pre-push checks
+# Set environment variable to mark that we're running
+export HUSKY_PUSH_RUNNING=1
+
+# Capture original args
+ARGS=("$@")
+
 # Source the shared checks script
 source "$(dirname "$0")/_pre-push-checks.sh"
 
-# If we get here, checks passed but we don't want to handle the push ourselves
-# Let Git perform the actual push by exiting with success
-# This allows the standard Git behavior to continue
+# If we reach here, all checks passed. Now handle the actual push
+# with proper tag handling based on the checks that were run
+
+PUSH_CMD="git push"
+if [ "$PUSH_TAGS" = "true" ] && [ -n "$PUSH_WITH_TAGS" ]; then
+  PUSH_CMD="$PUSH_CMD --tags"
+fi
+
+# Add the original arguments
+for arg in "${ARGS[@]}"; do
+  PUSH_CMD="$PUSH_CMD $arg"
+done
+
+# Execute the push with our environment variable to prevent recursion
+echo "🚀 Running: $PUSH_CMD"
+eval "HUSKY_PUSH_RUNNING=1 $PUSH_CMD"
+PUSH_STATUS=$?
+
+if [ $PUSH_STATUS -ne 0 ]; then
+  echo "❌ Push failed with status $PUSH_STATUS"
+  exit $PUSH_STATUS
+fi
+
+echo "✅ Push completed successfully!"
+
+# Exit with 0 which tells Git not to do its own push
 exit 0 
