@@ -198,9 +198,9 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           artifact-name: ${{ needs.build.outputs.build_artifact_name }}
 
-  # Handle version and release directly in the main pipeline using our composite action
-  version-and-release:
-    name: Version and Release Packages
+  # Create releases and publish to GitHub packages
+  create-releases-and-publish:
+    name: Create Releases and Publish
     needs: [build, test]
     if: github.ref == 'refs/heads/main' && needs.build.result == 'success' && needs.test.result == 'success'
     runs-on: ubuntu-latest
@@ -229,24 +229,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install
           
-      # Run cleanup script to ensure no conflicting tags exist
-      - name: Clean conflicting tags
-        run: |
-          chmod +x .github/scripts/ci/clean-duplicate-tags.sh
-          bash .github/scripts/ci/clean-duplicate-tags.sh
-        env:
-          GH_TOKEN: ${{ secrets.PR_CREATION_TOKEN || secrets.GITHUB_TOKEN }}
-          
-      # Make sure all CI scripts are executable
-      - name: Ensure CI scripts are executable
-        run: |
-          chmod +x .github/scripts/ci/*.sh
-          ls -la .github/scripts/ci/
-          
-      # Use our composite action directly for versioning and release
-      - name: Version and Release Packages
-        id: version-release
-        uses: ./.github/actions/version-and-release
+      # Use our composite action for creating releases and publishing
+      - name: Create Releases and Publish
+        id: create-releases-publish
+        uses: ./.github/actions/create-releases-and-publish
         with:
           github-token: ${{ secrets.PR_CREATION_TOKEN || secrets.GITHUB_TOKEN }}
           npm-token: ${{ secrets.NPM_TOKEN }}
@@ -255,7 +241,7 @@ jobs:
   # Build the site for GitHub Pages
   build-site:
     name: Build Site for GitHub Pages
-    needs: [test, version-and-release]
+    needs: [test, create-releases-and-publish]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -323,7 +309,7 @@ jobs:
   # Report pipeline results (always runs after all jobs)
   report-results:
     name: Report Pipeline Results
-    needs: [capture-trigger-info, build, test, version-and-release, build-site]
+    needs: [capture-trigger-info, build, test, create-releases-and-publish, build-site]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -335,7 +321,7 @@ jobs:
           if [[ "${{ needs.build.result }}" != "success" || 
                 "${{ needs.test.result }}" != "success" || 
                 ("${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped") ||
-                ("${{ needs.version-and-release.result }}" != "success" && "${{ needs.version-and-release.result }}" != "skipped") ]]; then
+                ("${{ needs.create-releases-and-publish.result }}" != "success" && "${{ needs.create-releases-and-publish.result }}" != "skipped") ]]; then
             echo "result=failure" >> "$GITHUB_OUTPUT"
             
             # Collect what failed for detailed reporting
@@ -343,7 +329,7 @@ jobs:
             [[ "${{ needs.build.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Build, "
             [[ "${{ needs.test.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Test, "
             [[ "${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Site Deployment, "
-            [[ "${{ needs.version-and-release.result }}" != "success" && "${{ needs.version-and-release.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Version and Release, "
+            [[ "${{ needs.create-releases-and-publish.result }}" != "success" && "${{ needs.create-releases-and-publish.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Create Releases and Publish, "
             
             # Remove trailing comma and space
             FAILED_JOBS="${FAILED_JOBS%, }"

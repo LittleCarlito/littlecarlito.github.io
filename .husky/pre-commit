@@ -367,7 +367,7 @@ Please run 'pnpm test' with the proper environment to see what's failing."
       echo "✅ Workflow branch reference validation passed."
     fi
 else
-    echo "✅ Only changes in development/ or public/ directories. Skipping detailed checks for artists."
+    echo "✅ Only changes in development/ or public/ directories. Skipping detailed checks."
 fi
 
 echo "✅ All checks passed!" 
