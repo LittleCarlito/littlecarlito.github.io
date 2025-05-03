@@ -53,6 +53,8 @@ if [ -z "$TAG_FILE" ]; then
     if [ "$(cat "$ALL_TAGS_FILE" | wc -l)" -gt 10 ]; then
       echo "... and $(( $(cat "$ALL_TAGS_FILE" | wc -l) - 10 )) more"
     fi
+    
+    # Create empty package tag file since we rely on actual tags now
     echo "Creating empty package tag file to proceed..."
     touch "all_package_tags.txt"
   fi

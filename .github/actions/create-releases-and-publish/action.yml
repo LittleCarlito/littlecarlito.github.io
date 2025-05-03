@@ -101,7 +101,7 @@ runs:
       id: publish-npm
       shell: bash
       run: |
-        # Check if we should try to publish based on the release status
+        # Only publish if releases were created
         if [ "${{ steps.create-releases.outputs.has_new_releases }}" == "true" ]; then
           # Build packages before publishing
           echo "🏗️ Building packages..."

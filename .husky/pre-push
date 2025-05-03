@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 # Running pre-push checks directly without husky sourcing
 
+# Detect if this is a recursive call from our own script
+if [ -n "${HUSKY_PUSH_RUNNING}" ]; then
+  echo "✅ Detected push from our own script, skipping pre-push hook"
+  exit 0
+fi
+
+# Set an environment variable to mark that we're running
+export HUSKY_PUSH_RUNNING=1
+
 # Shell environment debug info
 echo "Shell: $SHELL"
 echo "Bash version: $BASH_VERSION"
@@ -11,9 +20,33 @@ echo "Bash version: $BASH_VERSION"
 # Add debugging
 # set -x
 
-# Parse command-line arguments
+# Parse command-line arguments and capture the original git arguments
 DRY_RUN=false
 PUSH_TAGS=true
+ORIGINAL_REMOTE=""
+ORIGINAL_BRANCH=""
+
+# Store the original git arguments
+# The first two arguments passed to pre-push are the remote name and URL
+ORIGINAL_REMOTE="$1"
+ORIGINAL_REMOTE_URL="$2"
+
+# Capture the ref information from STDIN (what git provides to pre-push hooks)
+# Format: local_ref local_sha remote_ref remote_sha
+REF_INFO=$(cat)
+# Extract the branch name from the ref (assuming format refs/heads/branch-name)
+if [ -n "$REF_INFO" ]; then
+  LOCAL_REF=$(echo "$REF_INFO" | cut -d' ' -f1)
+  REMOTE_REF=$(echo "$REF_INFO" | cut -d' ' -f3)
+  ORIGINAL_BRANCH=$(echo "$LOCAL_REF" | sed 's|refs/heads/||')
+  REMOTE_BRANCH=$(echo "$REMOTE_REF" | sed 's|refs/heads/||')
+  echo "Pushing branch $ORIGINAL_BRANCH to $REMOTE_BRANCH on $ORIGINAL_REMOTE"
+else
+  echo "No ref information provided, will use current branch"
+  ORIGINAL_BRANCH=$(git symbolic-ref --short HEAD)
+  REMOTE_BRANCH="$ORIGINAL_BRANCH"
+  echo "Using current branch: $ORIGINAL_BRANCH"
+fi
 
 # Check for command-line arguments
 for arg in "$@"; do
@@ -222,6 +255,18 @@ if [ "$RUN_TESTS" = true ]; then
         echo "✅ No changes in .github directory, skipping workflow validation."
     fi
     
+    # Run build to ensure it succeeds - MOVED HERE BEFORE TESTS
+    echo "🏗️ Running build..."
+    pnpm build
+    BUILD_STATUS=$?
+    echo "Build command exited with status: $BUILD_STATUS"
+    
+    if [ $BUILD_STATUS -ne 0 ]; then
+        echo "❌ Build failed. Please fix build issues before pushing."
+        exit 1
+    fi
+    echo "✅ Build passed!"
+    
     # Run unified pipeline with logging
     echo "🚀 Running unified pipeline test with full logging..."
     pnpm test
@@ -234,45 +279,54 @@ if [ "$RUN_TESTS" = true ]; then
     fi
     
     # Explicitly indicate tests passed
-    echo "✅ Pipeline tests passed! Moving to build step..."
-
-    # Run build to ensure it succeeds
-    echo "🏗️ Running build..."
-    pnpm build
-    BUILD_STATUS=$?
-    echo "Build command exited with status: $BUILD_STATUS"
-    
-    if [ $BUILD_STATUS -ne 0 ]; then
-        echo "❌ Build failed. Please fix build issues before pushing."
-        exit 1
-    fi
-    echo "✅ Build passed!"
+    echo "✅ Pipeline tests passed!"
 fi
 
+# Now, handle the actual push ourselves
 if [ "$DRY_RUN" = true ]; then
     echo "🔬 DRY RUN COMPLETED - No actual changes were made"
     echo "Run without the --dry-run flag to apply these changes when pushing"
 else
-    # If we need to push with tags, we'll do it here
+    # Determine the push command based on whether we need to push tags
+    PUSH_CMD="git push $ORIGINAL_REMOTE $ORIGINAL_BRANCH:$REMOTE_BRANCH"
+    
     if [ "$PUSH_WITH_TAGS" = true ]; then
         # Show the tags that will be pushed
         echo "🏷️ The following tags will be pushed:"
         git tag | sort > /tmp/local_tags
         git ls-remote --tags origin | grep -v '\^{}' | awk '{print $2}' | sed 's|refs/tags/||' | sort > /tmp/remote_tags
-        comm -23 /tmp/local_tags /tmp/remote_tags
+        TAGS_TO_PUSH=$(comm -23 /tmp/local_tags /tmp/remote_tags)
+        echo "$TAGS_TO_PUSH"
         rm /tmp/local_tags /tmp/remote_tags
         
-        # Don't actually push - the original command that triggered this hook will handle that
-        echo "✅ Pre-push checks complete - continuing with push including tags"
+        # Add --tags flag to push all tags
+        PUSH_CMD="$PUSH_CMD --tags"
+        
+        echo "🚀 Executing: $PUSH_CMD"
+        # Add the environment variable to the command
+        eval "HUSKY_PUSH_RUNNING=1 $PUSH_CMD"
+        PUSH_STATUS=$?
+        
+        if [ $PUSH_STATUS -ne 0 ]; then
+            echo "❌ Push failed with status $PUSH_STATUS"
+            exit 1
+        fi
+        
+        echo "✅ Push completed successfully with tags!"
     else
-        echo "🎉 Pre-push checks completed successfully!"
+        echo "🚀 Executing: $PUSH_CMD"
+        # Add the environment variable to the command
+        eval "HUSKY_PUSH_RUNNING=1 $PUSH_CMD"
+        PUSH_STATUS=$?
+        
+        if [ $PUSH_STATUS -ne 0 ]; then
+            echo "❌ Push failed with status $PUSH_STATUS"
+            exit 1
+        fi
+        
+        echo "✅ Push completed successfully!"
     fi
 fi
 
-# Exit with success in dry run mode
-if [ "$DRY_RUN" = true ]; then
-    exit 0
-fi
-
-# Exit with success to allow the original push to proceed
+# Exit with success
 exit 0 
