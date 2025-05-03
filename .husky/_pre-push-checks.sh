@@ -167,7 +167,7 @@ else
                 echo "🔬 [DRY RUN] Would run version:by-message"
             else
                 echo "🏷️ Running versioning based on commit messages..."
-                pnpm version:by-message
+                pnpm version:local-message
                 
                 # Re-stage any changes made by lerna
                 git add .
