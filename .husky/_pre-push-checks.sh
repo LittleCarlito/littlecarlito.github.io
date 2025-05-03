@@ -144,6 +144,42 @@ if [ "$UNCOMMITTED_VERSIONS" -gt 0 ]; then
             echo "⏩ Skipping versioning since all necessary tags already exist."
         fi
     fi
+else
+    # Check for version-worthy commits since last tag
+    echo "Checking for version-worthy commits since last tag..."
+    
+    # Get the latest tag
+    LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+    
+    if [ -n "$LATEST_TAG" ]; then
+        # Check for feat: or fix: commits since the last tag
+        VERSION_WORTHY=$(git log $LATEST_TAG..HEAD --grep="^feat\|^fix" --oneline | wc -l | tr -d '[:space:]')
+        
+        if [ "$VERSION_WORTHY" -gt 0 ]; then
+            echo "🔍 Found $VERSION_WORTHY version-worthy commits since last tag:"
+            git log $LATEST_TAG..HEAD --grep="^feat\|^fix" --oneline
+            
+            if [ "$DRY_RUN" = true ]; then
+                echo "🔬 [DRY RUN] Would run version:by-message"
+            else
+                echo "🏷️ Running versioning based on commit messages..."
+                pnpm version:by-message
+                
+                # Re-stage any changes made by lerna
+                git add .
+                git commit -m "chore(release): publish [skip ci]" || echo "No changes to commit"
+                
+                echo "✅ Versioning completed! Tags created before push."
+                
+                # Set flag to push with tags
+                PUSH_WITH_TAGS="true"
+            fi
+        else
+            echo "✅ No version-worthy commits found since last tag"
+        fi
+    else
+        echo "⚠️ No tags found. To create initial tags, run 'pnpm version:by-message' manually."
+    fi
 fi
 
 # Check if we should push tags with this branch
