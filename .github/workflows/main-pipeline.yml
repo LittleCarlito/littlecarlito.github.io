@@ -209,12 +209,31 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.PR_CREATION_TOKEN || secrets.GITHUB_TOKEN }}
+          # Use standard token for initial checkout
+          token: ${{ secrets.GITHUB_TOKEN }}
           
-      - name: Setup Git credentials
+      # Set up SSH for deploy key authentication
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_KEY }}
+      
+      # Configure git to use SSH instead of HTTPS
+      - name: Configure git to use SSH
         run: |
+          # Add GitHub to known hosts
+          mkdir -p ~/.ssh
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          
+          # Set up Git identity
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
+          
+          # Change origin URL to use SSH
+          git remote set-url origin git@github.com:${{ github.repository }}.git
+          
+          # Test SSH connection
+          ssh -T git@github.com || true
           
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -229,14 +248,147 @@ jobs:
       - name: Install dependencies
         run: pnpm install
           
-      # Use our composite action for creating releases and publishing
-      - name: Create Releases and Publish
-        id: create-releases-publish
-        uses: ./.github/actions/create-releases-and-publish
-        with:
-          github-token: ${{ secrets.PR_CREATION_TOKEN || secrets.GITHUB_TOKEN }}
-          npm-token: ${{ secrets.NPM_TOKEN }}
-          release-type: 'auto'
+      # Check for version-worthy commits since last tag
+      - name: Check for version-worthy commits
+        id: check-version-worthy
+        run: |
+          # Fetch all tags to ensure we have the latest ones
+          git fetch --tags origin
+          
+          # Get the latest tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          echo "Latest tag: $LATEST_TAG"
+          
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No tags found, will create initial versions"
+            echo "has_version_worthy_commits=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Read versioning types from config file
+          if [ -f ".husky/.versioning-types" ]; then
+            VERSION_TYPES=$(cat .husky/.versioning-types)
+            echo "Using versioning types from .husky/.versioning-types: $VERSION_TYPES"
+          else
+            # Fail loudly if versioning types file not found
+            echo "::error::FATAL ERROR: .husky/.versioning-types file not found!"
+            echo "This file is required for versioning decisions. Please ensure it exists and contains valid commit types."
+            echo "Pipeline cannot continue without proper versioning configuration."
+            exit 1
+          fi
+          
+          # Create regex pattern from version types
+          # Format each type as "^type(\([^)]+\))?:" and join with |
+          TYPES_REGEX=$(echo "$VERSION_TYPES" | tr ' ' '\n' | sed 's/^/^/' | sed 's/$/\\(\\([^)]+\\)\\)?:/' | tr '\n' '|' | sed 's/|$//')
+          echo "Using regex pattern: $TYPES_REGEX"
+          
+          # Read ignored scopes
+          IGNORED_SCOPES=""
+          if [ -f ".husky/.ignored-scopes" ]; then
+            IGNORED_SCOPES=$(cat .husky/.ignored-scopes)
+            echo "Using ignored scopes from .husky/.ignored-scopes: $IGNORED_SCOPES"
+          elif [ -f ".husky/.ignore-scopes" ]; then
+            IGNORED_SCOPES=$(cat .husky/.ignore-scopes)
+            echo "Using ignored scopes from .husky/.ignore-scopes: $IGNORED_SCOPES"
+          fi
+          
+          # Get merge commits since last tag
+          MERGE_COMMITS=$(git log $LATEST_TAG..HEAD --merges --pretty=format:"%h %s" | wc -l | tr -d ' ')
+          echo "Found $MERGE_COMMITS merge commits since last tag"
+          
+          # Look for versioning-worthy commits with correct types, excluding ignored scopes
+          VERSION_WORTHY_COMMITS=$(git log $LATEST_TAG..HEAD --pretty=format:"%h %s")
+          
+          # Count version-worthy commits (matching types but not in ignored scopes)
+          VERSION_WORTHY=0
+          VERSION_WORTHY_LIST=""
+          
+          while IFS= read -r COMMIT; do
+            if [[ -n "$COMMIT" ]]; then
+              COMMIT_MSG=$(echo "$COMMIT" | cut -d' ' -f2-)
+              
+              # Check if commit matches version types regex
+              if echo "$COMMIT_MSG" | grep -E "$TYPES_REGEX" > /dev/null; then
+                # Check if commit has an ignored scope
+                SHOULD_COUNT=true
+                
+                for SCOPE in $IGNORED_SCOPES; do
+                  if echo "$COMMIT_MSG" | grep -E "^[a-z]+\\($SCOPE\\):" > /dev/null; then
+                    echo "Skipping commit with ignored scope '$SCOPE': $COMMIT"
+                    SHOULD_COUNT=false
+                    break
+                  fi
+                done
+                
+                if [ "$SHOULD_COUNT" = true ]; then
+                  VERSION_WORTHY=$((VERSION_WORTHY + 1))
+                  VERSION_WORTHY_LIST="${VERSION_WORTHY_LIST}${COMMIT}\n"
+                fi
+              fi
+            fi
+          done <<< "$VERSION_WORTHY_COMMITS"
+          
+          echo "Found $VERSION_WORTHY version-worthy commits since last tag:"
+          if [ "$VERSION_WORTHY" -gt 0 ]; then
+            echo -e "$VERSION_WORTHY_LIST" | head -n 10
+            if [ "$VERSION_WORTHY" -gt 10 ]; then
+              echo "... and $((VERSION_WORTHY - 10)) more"
+            fi
+          fi
+          
+          # Set output based on findings
+          if [ "$VERSION_WORTHY" -gt 0 ] || [ "$MERGE_COMMITS" -gt 0 ]; then
+            echo "has_version_worthy_commits=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_version_worthy_commits=false" >> $GITHUB_OUTPUT
+          fi
+      
+      # Create releases and publish packages when there are version-worthy commits
+      - name: Version and publish packages
+        if: steps.check-version-worthy.outputs.has_version_worthy_commits == 'true'
+        run: |
+          echo "Creating versions based on conventional commits..."
+          
+          # Run versioning based on conventional commit messages
+          pnpm version:by-message
+          
+          # Commit any changes made by version command
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .
+            git commit -m "chore(release): publish [skip ci]"
+            
+            # Push with SSH using deploy key to bypass branch protection
+            echo "Pushing version changes and tags to main (using deploy key to bypass branch protection)..."
+            git push --follow-tags origin main
+          else
+            echo "No changes detected from versioning"
+          fi
+          
+          echo "✅ Versioning completed!"
+          
+      # Publish packages to registry
+      - name: Publish to npm and GitHub Packages
+        run: |
+          # Configure npm registry
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
+          echo "registry=https://registry.npmjs.org/" >> .npmrc
+          echo "always-auth=true" >> .npmrc
+          
+          # Publish packages using pnpm
+          pnpm publish:packages --no-git-checks
+          
+          echo "✅ Packages published to npm!"
+          
+          # Configure GitHub Packages registry for scoped packages
+          echo "@${GITHUB_REPOSITORY_OWNER}:registry=https://npm.pkg.github.com" > .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
+          echo "registry=https://npm.pkg.github.com" >> .npmrc
+          echo "always-auth=true" >> .npmrc
+          
+          # Publish to GitHub Packages
+          pnpm publish:packages --no-git-checks
+          
+          echo "✅ Packages published to GitHub Packages!"
 
   # Build the site for GitHub Pages
   build-site:
