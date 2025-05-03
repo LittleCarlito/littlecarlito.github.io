@@ -180,12 +180,12 @@ jobs:
           # We need to get the SHA from the PR
           SHA="${{ steps.push_changes.outputs.commit_sha }}"
           
-          bash .github/scripts/branch/wait-checks.sh \
+          bash .github/scripts/branch/wait-with-delay.sh \
             --repo "${{ github.repository }}" \
             --sha "${SHA}" \
             --workflow "Push and Create PR" \
             --timeout "300" \
-            --min-checks "2"  # Adjust based on expected number of checks
+            --min-checks "2"
             
           echo "All required checks have completed successfully!"
         env:
