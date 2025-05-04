@@ -49,7 +49,8 @@
     "lerna:publish": "lerna publish from-package --yes",
     "lerna:changed": "lerna changed",
     "lerna:diff": "lerna diff",
-    "publish:packages": "lerna publish from-package --yes --no-private"
+    "publish:packages": "lerna publish from-package --yes --no-private",
+    "npm:init-scope": "node -e \"console.log('Attempting to verify npm scope access...'); require('child_process').execSync('npm access ls-packages || npm init --scope=meier_steven -y', {stdio: 'inherit'});\""
   },
   "dependencies": {
     "chalk": "^4.1.2",

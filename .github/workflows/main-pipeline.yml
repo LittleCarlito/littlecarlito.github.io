@@ -436,6 +436,27 @@ jobs:
           # Verify registry configuration
           echo "Using npm registry: $(npm config get registry)"
           
+          # Make sure npm is logged in (scope exists and token works)
+          echo "Verifying npm authentication..."
+          if ! npm whoami; then
+            echo "::error::npm authentication failed! Cannot continue with publishing."
+            echo "Please check that your NPM_TOKEN secret is valid and has publish permissions."
+            exit 1
+          fi
+          
+          # Try to initialize/validate npm scope
+          echo "Attempting to initialize npm scope (if needed):"
+          npm run npm:init-scope || echo "Could not initialize scope. This is expected if the scope already exists."
+          
+          # Check if npm user and scope exist
+          echo "Checking npm scope access:"
+          if ! npm access ls-packages; then
+            echo "::error::Unable to verify access to npm packages!"
+            echo "Please ensure your token has access to the @littlecarlito scope."
+            exit 1
+          fi
+          
+          echo "Publishing packages to npm..."
           # Publish packages directly with lerna (excluding root package)
           npx lerna publish from-package --yes --no-private --registry=https://registry.npmjs.org/
           
