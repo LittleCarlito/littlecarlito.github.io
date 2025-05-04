@@ -354,33 +354,39 @@ jobs:
         run: |
           echo "Creating versions based on conventional commits..."
           
-          # Run versioning based on conventional commit messages
-          pnpm version:by-message
+          # Run versioning based on conventional commit messages and capture output
+          VERSION_OUTPUT=$(pnpm version:by-message)
+          VERSION_EXIT_CODE=$?
           
-          # Commit any changes made by version command
-          if [ -n "$(git status --porcelain)" ]; then
-            git add .
-            git commit -m "chore(release): publish [skip ci]"
-            
-            # Push with SSH using deploy key to bypass branch protection
-            echo "Pushing version changes and tags to main (using deploy key to bypass branch protection)..."
-            git push --follow-tags origin main
+          echo "$VERSION_OUTPUT"
+          
+          # Check if versions were actually bumped by looking for the "Changes:" section in the output
+          if echo "$VERSION_OUTPUT" | grep -q "Changes:" && [ $VERSION_EXIT_CODE -eq 0 ]; then
+            echo "✅ Versioning detected and completed successfully"
             
             # Set output to indicate versioning was performed
             echo "versioning_performed=true" >> "$GITHUB_OUTPUT"
-            echo "✅ Versioning completed and changes pushed. A new workflow will handle publishing."
             
-            # Exit early - the new push will trigger another workflow
+            # Add a commit if there are local changes to commit
+            if [ -n "$(git status --porcelain)" ]; then
+              git add .
+              git commit -m "chore(release): publish [skip ci]"
+              git push --follow-tags origin main
+            fi
+            
             echo "Exiting workflow after versioning - a new workflow will be triggered for publishing and site deployment"
             exit 0
           else
-            echo "No changes detected from versioning"
+            echo "No version changes detected or versioning failed"
             echo "versioning_performed=false" >> "$GITHUB_OUTPUT"
           fi
       
       # Publish packages to registry - Only if NO version-worthy commits were found
       - name: Publish to npm and GitHub Packages
         if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           echo "Publishing packages to npm and GitHub Packages..."
           
@@ -400,19 +406,23 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           
-          # Configure npm registry
+          # Configure npm registry with explicit authentication
           {
-            echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}"
+            echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}"
             echo "registry=https://registry.npmjs.org/"
             echo "always-auth=true"
           } > .npmrc
+          
+          # Ensure .npmrc is correct
+          echo "Verifying .npmrc contents (masking token):"
+          sed 's/_authToken=.*/_authToken=***/' < .npmrc
           
           # Temporarily commit the .npmrc file to avoid git issues
           git add .npmrc
           git commit -m "chore: temporary commit for npm registry configuration [skip ci]" || true
           
-          # Publish packages using pnpm
-          pnpm publish:packages
+          # Publish packages using pnpm with explicit environment variables
+          NPM_CONFIG_REGISTRY=https://registry.npmjs.org/ pnpm publish:packages
           
           echo "✅ Packages published to npm!"
           
