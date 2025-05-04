@@ -83,8 +83,8 @@ if [ $LOCKFILE_STATUS -ne 0 ]; then
     else
         echo "🔧 Automatically updating lockfile..."
         
-        # Update lockfile
-        pnpm install --no-frozen-lockfile
+        # Update lockfile WITHOUT installing packages - only update lockfile
+        pnpm install --lockfile-only --no-frozen-lockfile
         
         # Commit the changes
         git add pnpm-lock.yaml
@@ -94,6 +94,20 @@ if [ $LOCKFILE_STATUS -ne 0 ]; then
     fi
 else
     echo "✅ Lockfile is in sync with package.json"
+    
+    # Even when lockfile is "in sync", pnpm might make platform-specific changes
+    # Check if there are uncommitted changes to pnpm-lock.yaml
+    if [ -n "$(git status --porcelain pnpm-lock.yaml)" ]; then
+        echo "⚠️ Detected platform-specific changes to lockfile"
+        if [ "$DRY_RUN" = true ]; then
+            echo "🔬 [DRY RUN] Would commit platform-specific lockfile changes"
+        else
+            echo "🔧 Committing platform-specific lockfile changes..."
+            git add pnpm-lock.yaml
+            git commit -m "chore: update lockfile with platform-specific changes"
+            echo "✅ Platform-specific lockfile changes committed!"
+        fi
+    fi
 fi
 
 # Check for changes outside development/ and public/ directories
