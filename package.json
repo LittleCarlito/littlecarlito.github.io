@@ -49,7 +49,7 @@
     "lerna:publish": "lerna publish from-package --yes",
     "lerna:changed": "lerna changed",
     "lerna:diff": "lerna diff",
-    "publish:packages": "lerna publish from-package --yes --no-private --no-verify-access --ignore-scripts --no-git-tag-version"
+    "publish:packages": "lerna publish from-package --yes --no-private --no-verify-access --ignore-scripts --no-git-tag-version --registry=https://registry.npmjs.org/ --loglevel=verbose"
   },
   "dependencies": {
     "chalk": "^4.1.2",

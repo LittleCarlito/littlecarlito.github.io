@@ -384,6 +384,9 @@ jobs:
       # Publish packages to registry - Only if NO version-worthy commits were found
       - name: Publish to npm and GitHub Packages
         if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           echo "Publishing packages to npm and GitHub Packages..."
           
@@ -403,19 +406,23 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           
-          # Configure npm registry
+          # Configure npm registry with explicit authentication
           {
-            echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}"
+            echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}"
             echo "registry=https://registry.npmjs.org/"
             echo "always-auth=true"
           } > .npmrc
+          
+          # Ensure .npmrc is correct
+          echo "Verifying .npmrc contents (masking token):"
+          sed 's/_authToken=.*/_authToken=***/' < .npmrc
           
           # Temporarily commit the .npmrc file to avoid git issues
           git add .npmrc
           git commit -m "chore: temporary commit for npm registry configuration [skip ci]" || true
           
-          # Publish packages using pnpm
-          pnpm publish:packages
+          # Publish packages using pnpm with explicit environment variables
+          NPM_CONFIG_REGISTRY=https://registry.npmjs.org/ pnpm publish:packages
           
           echo "✅ Packages published to npm!"
           
