@@ -448,15 +448,6 @@ jobs:
           echo "Attempting to initialize npm scope (if needed):"
           npm run npm:init-scope || echo "Could not initialize scope. This is expected if the scope already exists."
           
-          # Check if npm user has access to the littlecarlito organization
-          echo "Checking npm organization access:"
-          if ! npm org ls littlecarlito; then
-            echo "::error::Unable to access @littlecarlito organization!"
-            echo "Please ensure your token has access to the @littlecarlito organization."
-            echo "Check that you have owner permissions in the npm organization."
-            exit 1
-          fi
-          
           echo "Publishing packages to npm..."
           # Publish packages directly with lerna (excluding root package)
           npx lerna publish from-package --yes --no-private --registry=https://registry.npmjs.org/
