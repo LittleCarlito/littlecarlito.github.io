@@ -400,6 +400,13 @@ jobs:
             echo "No version changes detected or versioning failed"
             echo "versioning_performed=false" >> "$GITHUB_OUTPUT"
           fi
+        
+      # Skip message when no version-worthy commits are found
+      - name: Skip versioning message
+        if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
+        run: |
+          echo "ℹ️ No version-worthy commits found - skipping versioning step"
+          echo "✅ Proceeding directly to publishing existing packages (if any)"
       
       # Publish packages to registry - Only if NO version-worthy commits were found
       - name: Publish to npm and GitHub Packages
