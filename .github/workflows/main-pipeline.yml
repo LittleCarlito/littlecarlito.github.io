@@ -369,15 +369,13 @@ jobs:
             # Set output to indicate versioning was performed
             echo "versioning_performed=true" >> "$GITHUB_OUTPUT"
             echo "✅ Versioning completed and changes pushed. A new workflow will handle publishing."
+            
+            # Exit early - the new push will trigger another workflow
+            echo "Exiting workflow after versioning - a new workflow will be triggered for publishing and site deployment"
+            exit 0
           else
             echo "No changes detected from versioning"
             echo "versioning_performed=false" >> "$GITHUB_OUTPUT"
-          fi
-          
-          # Exit the workflow early - remaining steps will be handled by the new workflow run
-          if [ "$(git status --porcelain)" = "" ]; then
-            echo "Exiting workflow after versioning - a new workflow will be triggered for publishing"
-            exit 0
           fi
       
       # Publish packages to registry - Only if NO version-worthy commits were found
@@ -398,6 +396,10 @@ jobs:
           git checkout -- .npmrc || true
           rm -f .npmrc || true
           
+          # Set git identity for temporary commits
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
           # Configure npm registry
           {
             echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}"
@@ -405,10 +407,17 @@ jobs:
             echo "always-auth=true"
           } > .npmrc
           
-          # Publish packages using pnpm (skip git checks)
+          # Temporarily commit the .npmrc file to avoid git issues
+          git add .npmrc
+          git commit -m "chore: temporary commit for npm registry configuration [skip ci]" || true
+          
+          # Publish packages using pnpm
           pnpm publish:packages
           
           echo "✅ Packages published to npm!"
+          
+          # Remove the temporary commit
+          git reset --hard HEAD~1 || true
           
           # Clean .npmrc before reconfiguring
           rm -f .npmrc
@@ -421,8 +430,15 @@ jobs:
             echo "always-auth=true"
           } > .npmrc
           
-          # Publish to GitHub Packages (skip git checks)
+          # Temporarily commit the .npmrc file to avoid git issues
+          git add .npmrc
+          git commit -m "chore: temporary commit for GitHub Packages configuration [skip ci]" || true
+          
+          # Publish to GitHub Packages
           pnpm publish:packages
+          
+          # Clean up the temporary commit
+          git reset --hard HEAD~1 || true
           
           echo "✅ Packages published to GitHub Packages!"
 
@@ -430,8 +446,11 @@ jobs:
   build-site:
     name: Build Site for GitHub Pages
     needs: [test, create-releases-and-publish]
-    # Skip the build-site step if versioning was performed, as a new workflow will be triggered
-    if: github.ref == 'refs/heads/main' && (needs.create-releases-and-publish.outputs.versioning_performed != 'true' || needs.create-releases-and-publish.outputs.versioning_performed == '')
+    # Only run build-site if we're on main branch AND no versioning was performed
+    if: |
+      github.ref == 'refs/heads/main' && 
+      needs.create-releases-and-publish.outputs.versioning_performed != 'true' && 
+      needs.create-releases-and-publish.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
