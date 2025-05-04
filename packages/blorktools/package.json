@@ -32,7 +32,8 @@
     "directory": "packages/blorktools"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
   },
   "license": "SEE LICENSE IN LICENSE"
 }

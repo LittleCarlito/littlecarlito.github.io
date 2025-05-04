@@ -68,7 +68,8 @@
     "directory": "packages/blorkpack"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
   },
   "copyright": "Copyright (C) 2024 Blorkfield LLC"
 }
