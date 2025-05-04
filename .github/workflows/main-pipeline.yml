@@ -436,8 +436,8 @@ jobs:
           # Verify registry configuration
           echo "Using npm registry: $(npm config get registry)"
           
-          # Publish packages
-          pnpm publish:packages
+          # Publish packages directly with lerna (excluding root package)
+          npx lerna publish from-package --yes --no-private --registry=https://registry.npmjs.org/
           
           echo "✅ Packages published to npm!"
       
@@ -459,8 +459,8 @@ jobs:
           # Verify registry configuration
           echo "Using npm registry: $(npm config get registry)"
           
-          # Publish packages
-          pnpm publish:packages
+          # Publish packages directly with lerna (excluding root package)
+          npx lerna publish from-package --yes --no-private --registry=https://npm.pkg.github.com/
           
           echo "✅ Packages published to GitHub Packages!"
 
