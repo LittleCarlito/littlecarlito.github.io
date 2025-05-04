@@ -6,6 +6,7 @@
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "private": false,
   "files": [
     "dist"
   ],
@@ -27,5 +28,8 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/littlecarlito/threejs_site.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   }
 }

@@ -4,6 +4,7 @@
   "description": "Asset management utilities for 3D scenes",
   "type": "module",
   "blorkType": "package",
+  "private": false,
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "exports": {
