@@ -364,13 +364,33 @@ jobs:
           if echo "$VERSION_OUTPUT" | grep -q "Changes:" && [ $VERSION_EXIT_CODE -eq 0 ]; then
             echo "✅ Versioning detected and completed successfully"
             
+            # Extract the package names that were versioned
+            VERSIONED_PACKAGES=$(echo "$VERSION_OUTPUT" | grep -A 100 "Changes:" | grep -v "Changes:" | grep -E '^ - ' | sed 's/^ - \(@[^:]*\).*/\1/' | xargs)
+            
+            # Determine if all packages were versioned
+            TOTAL_PACKAGES=$(find packages apps -maxdepth 1 -mindepth 1 -type d | wc -l)
+            VERSIONED_COUNT=$(echo "$VERSIONED_PACKAGES" | wc -w)
+            
+            # Create appropriate commit message
+            if [ "$VERSIONED_COUNT" -eq "$TOTAL_PACKAGES" ]; then
+              COMMIT_MSG="chore(release): publish all"
+            elif [ "$VERSIONED_COUNT" -le 3 ]; then
+              # If 3 or fewer packages, list them individually
+              COMMIT_MSG="chore(release): publish $VERSIONED_PACKAGES"
+            else
+              # If more than 3, show count
+              COMMIT_MSG="chore(release): publish $VERSIONED_COUNT packages"
+            fi
+            
+            echo "Commit message: $COMMIT_MSG"
+            
             # Set output to indicate versioning was performed
             echo "versioning_performed=true" >> "$GITHUB_OUTPUT"
             
             # Add a commit if there are local changes to commit
             if [ -n "$(git status --porcelain)" ]; then
               git add .
-              git commit -m "chore(release): publish [skip ci]"
+              git commit -m "$COMMIT_MSG"
               git push --follow-tags origin main
             fi
             
@@ -384,9 +404,6 @@ jobs:
       # Publish packages to registry - Only if NO version-worthy commits were found
       - name: Publish to npm and GitHub Packages
         if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           echo "Publishing packages to npm and GitHub Packages..."
           
@@ -398,57 +415,52 @@ jobs:
             exit 1
           fi
           
-          # Clean any uncommitted changes to .npmrc before proceeding
-          git checkout -- .npmrc || true
-          rm -f .npmrc || true
+          # Clean any uncommitted changes
+          git clean -fdx
+      
+      # Set up Node.js with npm authentication for npm registry
+      - name: Setup Node.js for npm registry
+        if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://registry.npmjs.org/'
+          scope: '@littlecarlito'
           
-          # Set git identity for temporary commits
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+      # Publish to npm registry
+      - name: Publish to npm
+        if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          # Verify registry configuration
+          echo "Using npm registry: $(npm config get registry)"
           
-          # Configure npm registry with explicit authentication
-          {
-            echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}"
-            echo "registry=https://registry.npmjs.org/"
-            echo "always-auth=true"
-          } > .npmrc
-          
-          # Ensure .npmrc is correct
-          echo "Verifying .npmrc contents (masking token):"
-          sed 's/_authToken=.*/_authToken=***/' < .npmrc
-          
-          # Temporarily commit the .npmrc file to avoid git issues
-          git add .npmrc
-          git commit -m "chore: temporary commit for npm registry configuration [skip ci]" || true
-          
-          # Publish packages using pnpm with explicit environment variables
-          NPM_CONFIG_REGISTRY=https://registry.npmjs.org/ pnpm publish:packages
-          
-          echo "✅ Packages published to npm!"
-          
-          # Remove the temporary commit
-          git reset --hard HEAD~1 || true
-          
-          # Clean .npmrc before reconfiguring
-          rm -f .npmrc
-          
-          # Configure GitHub Packages registry for scoped packages
-          {
-            echo "@${GITHUB_REPOSITORY_OWNER}:registry=https://npm.pkg.github.com"
-            echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}"
-            echo "registry=https://npm.pkg.github.com"
-            echo "always-auth=true"
-          } > .npmrc
-          
-          # Temporarily commit the .npmrc file to avoid git issues
-          git add .npmrc
-          git commit -m "chore: temporary commit for GitHub Packages configuration [skip ci]" || true
-          
-          # Publish to GitHub Packages
+          # Publish packages
           pnpm publish:packages
           
-          # Clean up the temporary commit
-          git reset --hard HEAD~1 || true
+          echo "✅ Packages published to npm!"
+      
+      # Set up Node.js with npm authentication for GitHub Packages
+      - name: Setup Node.js for GitHub Packages
+        if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://npm.pkg.github.com/'
+          scope: '@littlecarlito'
+          
+      # Publish to GitHub Packages
+      - name: Publish to GitHub Packages
+        if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Verify registry configuration
+          echo "Using npm registry: $(npm config get registry)"
+          
+          # Publish packages
+          pnpm publish:packages
           
           echo "✅ Packages published to GitHub Packages!"
 
