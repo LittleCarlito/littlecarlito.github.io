@@ -190,12 +190,14 @@ if [ "$RUN_TESTS" = true ]; then
 fi
 
 # If we reach here, all checks have passed - execute the actual push
-PUSH_CMD="git push"
+# Only use the remote name, not the URL
+PUSH_CMD="git push $ORIGINAL_REMOTE"
 
-# Add the original arguments
-for arg in "${ARGS[@]}"; do
-  PUSH_CMD="$PUSH_CMD $arg"
-done
+# Don't add all original arguments since that includes the URL which breaks the command
+# Instead, manually add any flags/options that might have been passed
+if [ "$DRY_RUN" = true ]; then
+  PUSH_CMD="$PUSH_CMD --dry-run"
+fi
 
 # Execute the push with our environment variable to prevent recursion
 echo "🚀 Running: $PUSH_CMD"
