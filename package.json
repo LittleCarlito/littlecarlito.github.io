@@ -32,6 +32,7 @@
     "ci": "pnpm lint && pnpm test",
     "validate": "pnpm fmt:check && pnpm lint && pnpm build && pnpm test",
     "update-lockfile": "pnpm install --no-frozen-lockfile",
+    "fix:lockfile": "pnpm install --lockfile-only && git add pnpm-lock.yaml && git commit -m \"chore: fix lockfile platform inconsistencies\" || echo \"No lockfile changes to commit\"",
     "simulate-deploy": "pnpm --filter=@littlecarlito/blorkpack build && GITHUB_PAGES=true pnpm --filter=@littlecarlito/portfolio build",
     "prepare-artifacts": "node scripts/prepare-artifacts.js",
     "commitlint": "commitlint",
