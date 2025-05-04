@@ -450,7 +450,7 @@ jobs:
           
           # Check if npm user and scope exist
           echo "Checking npm scope access:"
-          if ! npm access ls-packages; then
+          if ! npm access list packages; then
             echo "::error::Unable to verify access to npm packages!"
             echo "Please ensure your token has access to the @littlecarlito scope."
             exit 1
