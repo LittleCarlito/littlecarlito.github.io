@@ -49,7 +49,7 @@
     "lerna:publish": "lerna publish from-package --yes",
     "lerna:changed": "lerna changed",
     "lerna:diff": "lerna diff",
-    "publish:packages": "lerna publish from-package --yes --no-private --access public"
+    "publish:packages": "lerna publish from-package --yes --no-private"
   },
   "dependencies": {
     "chalk": "^4.1.2",
