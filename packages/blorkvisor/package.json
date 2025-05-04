@@ -30,6 +30,7 @@
     "url": "git+https://github.com/littlecarlito/threejs_site.git"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
   }
 }
