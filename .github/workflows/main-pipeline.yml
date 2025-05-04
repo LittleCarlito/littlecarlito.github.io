@@ -395,8 +395,8 @@ jobs:
             echo "always-auth=true"
           } > .npmrc
           
-          # Publish packages using pnpm
-          pnpm publish:packages --no-git-checks
+          # Publish packages using pnpm (skip git checks)
+          LERNA_ARGS="--no-git-tag-version" pnpm publish:packages
           
           echo "✅ Packages published to npm!"
           
@@ -408,8 +408,8 @@ jobs:
             echo "always-auth=true"
           } > .npmrc
           
-          # Publish to GitHub Packages
-          pnpm publish:packages --no-git-checks
+          # Publish to GitHub Packages (skip git checks)
+          LERNA_ARGS="--no-git-tag-version" pnpm publish:packages
           
           echo "✅ Packages published to GitHub Packages!"
 

@@ -4,6 +4,7 @@
   "type": "module",
   "description": "Interactive 3D portfolio website showcasing web development and creative coding projects",
   "blorkType": "app",
+  "private": false,
   "main": "dist/index.html",
   "module": "dist/assets/index.js",
   "repository": {
