@@ -535,6 +535,19 @@ jobs:
       - name: Add .nojekyll file
         run: touch apps/portfolio/dist/.nojekyll
       
+      # Display pre-optimization directory stats
+      - name: Display pre-optimization directory stats
+        run: |
+          echo "Directory stats before optimization:"
+          du -sh apps/portfolio/dist
+          find apps/portfolio/dist -type f | wc -l
+      
+      # Optimize files for GitHub Pages to prevent deployment issues
+      - name: Optimize files for GitHub Pages
+        uses: ./.github/actions/optimize-gh-pages
+        with:
+          dist-dir: 'apps/portfolio/dist'
+      
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
