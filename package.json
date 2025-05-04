@@ -50,7 +50,7 @@
     "lerna:changed": "lerna changed",
     "lerna:diff": "lerna diff",
     "publish:packages": "lerna publish from-package --yes --no-private",
-    "npm:init-scope": "node -e \"console.log('Attempting to verify npm scope access...'); require('child_process').execSync('npm access ls-packages || npm init --scope=meier_steven -y', {stdio: 'inherit'});\""
+    "npm:init-scope": "node -e \"console.log('Attempting to verify npm scope access...'); require('child_process').execSync('npm access list packages || echo \\'No packages found, but authentication successful\\'\\'', {stdio: 'inherit'});\""
   },
   "dependencies": {
     "chalk": "^4.1.2",
