@@ -373,10 +373,16 @@ jobs:
             echo "No changes detected from versioning"
             echo "versioning_performed=false" >> "$GITHUB_OUTPUT"
           fi
+          
+          # Exit the workflow early - remaining steps will be handled by the new workflow run
+          if [ "$(git status --porcelain)" = "" ]; then
+            echo "Exiting workflow after versioning - a new workflow will be triggered for publishing"
+            exit 0
+          fi
       
-      # Publish packages to registry - Only if NO versioning was performed
+      # Publish packages to registry - Only if NO version-worthy commits were found
       - name: Publish to npm and GitHub Packages
-        if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true' || steps.versioning.outputs.versioning_performed != 'true'
+        if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
         run: |
           echo "Publishing packages to npm and GitHub Packages..."
           
@@ -387,6 +393,10 @@ jobs:
             echo "For example: \"publish:packages\": \"lerna publish from-package --yes\""
             exit 1
           fi
+          
+          # Clean any uncommitted changes to .npmrc before proceeding
+          git checkout -- .npmrc || true
+          rm -f .npmrc || true
           
           # Configure npm registry
           {
@@ -399,6 +409,9 @@ jobs:
           LERNA_ARGS="--no-git-tag-version" pnpm publish:packages
           
           echo "✅ Packages published to npm!"
+          
+          # Clean .npmrc before reconfiguring
+          rm -f .npmrc
           
           # Configure GitHub Packages registry for scoped packages
           {
