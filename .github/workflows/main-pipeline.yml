@@ -204,6 +204,8 @@ jobs:
     needs: [build, test]
     if: github.ref == 'refs/heads/main' && needs.build.result == 'success' && needs.test.result == 'success'
     runs-on: ubuntu-latest
+    outputs:
+      versioning_performed: ${{ steps.versioning.outputs.versioning_performed }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -345,6 +347,7 @@ jobs:
       
       # Create releases and publish packages when there are version-worthy commits
       - name: Version and publish packages
+        id: versioning
         if: steps.check-version-worthy.outputs.has_version_worthy_commits == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -362,15 +365,29 @@ jobs:
             # Push with SSH using deploy key to bypass branch protection
             echo "Pushing version changes and tags to main (using deploy key to bypass branch protection)..."
             git push --follow-tags origin main
+            
+            # Set output to indicate versioning was performed
+            echo "versioning_performed=true" >> "$GITHUB_OUTPUT"
+            echo "✅ Versioning completed and changes pushed. A new workflow will handle publishing."
           else
             echo "No changes detected from versioning"
+            echo "versioning_performed=false" >> "$GITHUB_OUTPUT"
+          fi
+      
+      # Publish packages to registry - Only if NO versioning was performed
+      - name: Publish to npm and GitHub Packages
+        if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true' || steps.versioning.outputs.versioning_performed != 'true'
+        run: |
+          echo "Publishing packages to npm and GitHub Packages..."
+          
+          # Check if package.json has the publish:packages script
+          if ! grep -q '"publish:packages"' package.json; then
+            echo "::error::The publish:packages script is missing in package.json"
+            echo "Please add a publish:packages script to your package.json file."
+            echo "For example: \"publish:packages\": \"lerna publish from-package --yes\""
+            exit 1
           fi
           
-          echo "✅ Versioning completed!"
-          
-      # Publish packages to registry
-      - name: Publish to npm and GitHub Packages
-        run: |
           # Configure npm registry
           {
             echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}"
@@ -400,7 +417,8 @@ jobs:
   build-site:
     name: Build Site for GitHub Pages
     needs: [test, create-releases-and-publish]
-    if: github.ref == 'refs/heads/main'
+    # Skip the build-site step if versioning was performed, as a new workflow will be triggered
+    if: github.ref == 'refs/heads/main' && (needs.create-releases-and-publish.outputs.versioning_performed != 'true' || needs.create-releases-and-publish.outputs.versioning_performed == '')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -475,44 +493,56 @@ jobs:
       - name: Determine workflow result
         id: workflow-result
         run: |
-          # Check if any job failed
-          if [[ "${{ needs.build.result }}" != "success" || 
-                "${{ needs.test.result }}" != "success" || 
-                ("${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped") ||
-                ("${{ needs.create-releases-and-publish.result }}" != "success" && "${{ needs.create-releases-and-publish.result }}" != "skipped") ]]; then
-            echo "result=failure" >> "$GITHUB_OUTPUT"
-            
-            # Collect what failed for detailed reporting
-            FAILED_JOBS=""
-            [[ "${{ needs.build.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Build, "
-            [[ "${{ needs.test.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Test, "
-            [[ "${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Site Deployment, "
-            [[ "${{ needs.create-releases-and-publish.result }}" != "success" && "${{ needs.create-releases-and-publish.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Create Releases and Publish, "
-            
-            # Remove trailing comma and space
-            FAILED_JOBS="${FAILED_JOBS%, }"
-            echo "error_details=Jobs failed: ${FAILED_JOBS}" >> "$GITHUB_OUTPUT"
-          else
-            echo "result=success" >> "$GITHUB_OUTPUT"
-          fi
+          # Check if versioning was performed
+          VERSIONING_PERFORMED="${{ needs.create-releases-and-publish.outputs.versioning_performed }}"
           
-          # Get trigger info from actor only
-          echo "trigger_actor=${{ needs.capture-trigger-info.outputs.trigger_actor }}" >> "$GITHUB_OUTPUT"
+          if [ "$VERSIONING_PERFORMED" = "true" ]; then
+            {
+              echo "result=success"
+              echo "report_type=versioning"
+              echo "details=Versioning was performed successfully. A new workflow will handle publishing and deployment."
+              # Get trigger info from actor only
+              echo "trigger_actor=${{ needs.capture-trigger-info.outputs.trigger_actor }}"
+            } >> "$GITHUB_OUTPUT"
+          else
+            # Check if any job failed
+            if [[ "${{ needs.build.result }}" != "success" || 
+                  "${{ needs.test.result }}" != "success" || 
+                  ("${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped") ||
+                  ("${{ needs.create-releases-and-publish.result }}" != "success" && "${{ needs.create-releases-and-publish.result }}" != "skipped") ]]; then
+              
+              # Collect what failed for detailed reporting
+              FAILED_JOBS=""
+              [[ "${{ needs.build.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Build, "
+              [[ "${{ needs.test.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Test, "
+              [[ "${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Site Deployment, "
+              [[ "${{ needs.create-releases-and-publish.result }}" != "success" && "${{ needs.create-releases-and-publish.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Create Releases and Publish, "
+              
+              # Remove trailing comma and space
+              FAILED_JOBS="${FAILED_JOBS%, }"
+              
+              {
+                echo "result=failure"
+                echo "report_type=full_pipeline"
+                echo "details=Jobs failed: ${FAILED_JOBS}"
+                # Get trigger info from actor only
+                echo "trigger_actor=${{ needs.capture-trigger-info.outputs.trigger_actor }}"
+              } >> "$GITHUB_OUTPUT"
+            else
+              {
+                echo "result=success"
+                echo "report_type=full_pipeline"
+                echo "details=Full pipeline completed successfully"
+                # Get trigger info from actor only
+                echo "trigger_actor=${{ needs.capture-trigger-info.outputs.trigger_actor }}"
+              } >> "$GITHUB_OUTPUT"
+            fi
+          fi
           
       # Use the new action to report results
       - name: Checkout repository
         uses: actions/checkout@v4
-        
-      # Set details text based on result
-      - name: Set details text
-        id: details_text
-        run: |
-          if [[ -n "${{ steps.workflow-result.outputs.error_details }}" ]]; then
-            echo "content=${{ steps.workflow-result.outputs.error_details }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "content=Successful run" >> "$GITHUB_OUTPUT"
-          fi
-        
+          
       - name: Report pipeline results
         uses: ./.github/actions/report-workflow-results
         with:
@@ -520,9 +550,10 @@ jobs:
           result: ${{ steps.workflow-result.outputs.result }}
           branch: main
           summary: >-
-            Main Pipeline ${{ steps.workflow-result.outputs.result }}. 
-            Triggered by ${{ needs.capture-trigger-info.outputs.trigger_actor }}. 
-            Details ${{ steps.details_text.outputs.content }}.
+            Main Pipeline ${{ steps.workflow-result.outputs.result }} 
+            (${{ steps.workflow-result.outputs.report_type }}). 
+            Triggered by ${{ steps.workflow-result.outputs.trigger_actor }}. 
+            Details: ${{ steps.workflow-result.outputs.details }}
           source: 'dispatch'
           discord-webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
           github-token: ${{ secrets.PR_CREATION_TOKEN }} 

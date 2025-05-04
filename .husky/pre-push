@@ -189,27 +189,8 @@ if [ "$RUN_TESTS" = true ]; then
     echo "✅ Pipeline tests passed!"
 fi
 
-# If we reach here, all checks have passed - execute the actual push
-# Only use the remote name, not the URL
-PUSH_CMD="git push $ORIGINAL_REMOTE"
+# If we reach here, all checks have passed
+echo "✅ All pre-push checks passed! Git will now push your changes."
 
-# Don't add all original arguments since that includes the URL which breaks the command
-# Instead, manually add any flags/options that might have been passed
-if [ "$DRY_RUN" = true ]; then
-  PUSH_CMD="$PUSH_CMD --dry-run"
-fi
-
-# Execute the push with our environment variable to prevent recursion
-echo "🚀 Running: $PUSH_CMD"
-eval "HUSKY_PUSH_RUNNING=1 $PUSH_CMD"
-PUSH_STATUS=$?
-
-if [ $PUSH_STATUS -ne 0 ]; then
-  echo "❌ Push failed with status $PUSH_STATUS"
-  exit $PUSH_STATUS
-fi
-
-echo "✅ Push completed successfully!"
-
-# Exit with 0 which tells Git not to do its own push
+# Exit with 0 to let Git perform the actual push
 exit 0 

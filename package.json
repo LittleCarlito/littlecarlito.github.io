@@ -48,7 +48,8 @@
     "lerna:version": "lerna version --conventional-commits --yes",
     "lerna:publish": "lerna publish from-package --yes",
     "lerna:changed": "lerna changed",
-    "lerna:diff": "lerna diff"
+    "lerna:diff": "lerna diff",
+    "publish:packages": "lerna publish from-package --yes"
   },
   "dependencies": {
     "chalk": "^4.1.2",
