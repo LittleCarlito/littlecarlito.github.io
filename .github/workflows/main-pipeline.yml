@@ -406,7 +406,7 @@ jobs:
           } > .npmrc
           
           # Publish packages using pnpm (skip git checks)
-          LERNA_ARGS="--no-git-tag-version" pnpm publish:packages
+          pnpm publish:packages
           
           echo "✅ Packages published to npm!"
           
@@ -422,7 +422,7 @@ jobs:
           } > .npmrc
           
           # Publish to GitHub Packages (skip git checks)
-          LERNA_ARGS="--no-git-tag-version" pnpm publish:packages
+          pnpm publish:packages
           
           echo "✅ Packages published to GitHub Packages!"
 
