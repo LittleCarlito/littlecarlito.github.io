@@ -1,6 +1,6 @@
 {
   "name": "@littlecarlito/blorkvisor",
-  "version": "0.47.4",
+  "version": "0.47.5",
   "description": "A beautiful dashboard for managing and launching Blork projects",
   "type": "module",
   "main": "dist/index.js",

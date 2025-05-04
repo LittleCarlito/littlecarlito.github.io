@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.47.6 (2025-05-04)</small>
+
+- fix: publishing public only ([03b19ef](https://github.com/littlecarlito/threejs_site/commit/03b19ef))
+
 ## <small>0.47.5 (2025-05-04)</small>
 
 - chore(release): publish ([d385331](https://github.com/littlecarlito/threejs_site/commit/d385331))
