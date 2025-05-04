@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.48.8 (2025-05-04)</small>
+
+**Note:** Version bump only for package @littlecarlito/blorktools
+
 ## <small>0.48.7 (2025-05-04)</small>
 
 **Note:** Version bump only for package @littlecarlito/blorktools
