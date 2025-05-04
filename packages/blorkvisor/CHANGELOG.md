@@ -3,6 +3,31 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.47.4 (2025-05-04)</small>
+
+- chore(release): publish ([d385331](https://github.com/littlecarlito/threejs_site/commit/d385331))
+- feat(pipeline): local versioning ([a06bcaf](https://github.com/littlecarlito/threejs_site/commit/a06bcaf))
+
+## 0.47.0 (2025-05-01)
+
+- chore(release): publish v0.47.0 ([2651f61](https://github.com/littlecarlito/threejs_site/commit/2651f61))
+
+## <small>0.46.3 (2025-05-01)</small>
+
+- chore(release): publish v0.46.3 ([3fe2d65](https://github.com/littlecarlito/threejs_site/commit/3fe2d65))
+- feat(pipeline): update documentation and version management ([6281a9b](https://github.com/littlecarlito/threejs_site/commit/6281a9b))
+
+## <small>0.46.2 (2025-05-01)</small>
+
+- chore(release): publish v0.46.2 ([9ffa404](https://github.com/littlecarlito/threejs_site/commit/9ffa404))
+- feat(pipeline): add CI/CD integration section to BlorkVisor README ([ff88d70](https://github.com/littlecarlito/threejs_site/commit/ff88d70))
+
+## 0.46.0 (2025-05-01)
+
+- chore(release): publish v0.46.0 ([5be502c](https://github.com/littlecarlito/threejs_site/commit/5be502c))
+- slice(blorktools): none background function ([d5239bc](https://github.com/littlecarlito/threejs_site/commit/d5239bc))
+- slice(docs): add key benefits section to BlorkPack README ([912d31e](https://github.com/littlecarlito/threejs_site/commit/912d31e))
+
 ## <small>0.47.3 (2025-05-03)</small>
 
 - feat(pipeline): local versioning ([a06bcaf](https://github.com/littlecarlito/threejs_site/commit/a06bcaf))
