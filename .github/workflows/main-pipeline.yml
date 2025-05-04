@@ -354,27 +354,30 @@ jobs:
         run: |
           echo "Creating versions based on conventional commits..."
           
-          # Run versioning based on conventional commit messages
-          pnpm version:by-message
+          # Run versioning based on conventional commit messages and capture output
+          VERSION_OUTPUT=$(pnpm version:by-message)
+          VERSION_EXIT_CODE=$?
           
-          # Commit any changes made by version command
-          if [ -n "$(git status --porcelain)" ]; then
-            git add .
-            git commit -m "chore(release): publish [skip ci]"
-            
-            # Push with SSH using deploy key to bypass branch protection
-            echo "Pushing version changes and tags to main (using deploy key to bypass branch protection)..."
-            git push --follow-tags origin main
+          echo "$VERSION_OUTPUT"
+          
+          # Check if versions were actually bumped by looking for the "Changes:" section in the output
+          if echo "$VERSION_OUTPUT" | grep -q "Changes:" && [ $VERSION_EXIT_CODE -eq 0 ]; then
+            echo "✅ Versioning detected and completed successfully"
             
             # Set output to indicate versioning was performed
             echo "versioning_performed=true" >> "$GITHUB_OUTPUT"
-            echo "✅ Versioning completed and changes pushed. A new workflow will handle publishing."
             
-            # Exit early - the new push will trigger another workflow
+            # Add a commit if there are local changes to commit
+            if [ -n "$(git status --porcelain)" ]; then
+              git add .
+              git commit -m "chore(release): publish [skip ci]"
+              git push --follow-tags origin main
+            fi
+            
             echo "Exiting workflow after versioning - a new workflow will be triggered for publishing and site deployment"
             exit 0
           else
-            echo "No changes detected from versioning"
+            echo "No version changes detected or versioning failed"
             echo "versioning_performed=false" >> "$GITHUB_OUTPUT"
           fi
       
