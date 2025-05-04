@@ -1,0 +1,43 @@
+name: 'Optimize for GitHub Pages'
+description: 'Optimizes build artifacts for GitHub Pages deployment by compressing images and removing unnecessary files'
+
+inputs:
+  dist-dir:
+    description: 'Path to the distribution directory to optimize'
+    required: false
+    default: 'apps/portfolio/dist'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install optimization dependencies
+      shell: bash
+      run: |
+        echo "Installing optimization tools..."
+        sudo apt-get update
+        sudo apt-get install -y pngquant jpegoptim gifsicle imagemagick
+        
+        # Fix ImageMagick policy to allow PDF/SVG/etc operations if needed
+        if [ -f /etc/ImageMagick-6/policy.xml ]; then
+          sudo sed -i 's/rights="none" pattern="PDF"/rights="read|write" pattern="PDF"/' /etc/ImageMagick-6/policy.xml
+        fi
+        
+        echo "✅ Optimization tools installed"
+        
+    - name: Make optimization script executable
+      shell: bash
+      run: |
+        chmod +x ${{ github.workspace }}/.github/scripts/maintenance/optimize-gh-pages.js
+        
+    - name: Run file optimization
+      shell: bash
+      run: |
+        echo "Running optimization script on ${{ inputs.dist-dir }}..."
+        node ${{ github.workspace }}/.github/scripts/maintenance/optimize-gh-pages.js
+        
+    - name: Display optimized directory stats
+      shell: bash
+      run: |
+        echo "Directory stats after optimization:"
+        du -sh ${{ inputs.dist-dir }}
+        find ${{ inputs.dist-dir }} -type f | wc -l 
