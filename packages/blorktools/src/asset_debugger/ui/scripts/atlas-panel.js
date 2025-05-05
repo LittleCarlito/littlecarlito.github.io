@@ -80,6 +80,11 @@ export function updateAtlasVisualization() {
         // Check if we have texture objects
         if (!state.textureObjects) {
             console.warn('No texture objects available for atlas visualization');
+            // Show no texture state for the canvas
+            const atlasCanvas = document.getElementById('atlas-canvas');
+            if (atlasCanvas) {
+                showNoTextureState(atlasCanvas);
+            }
             return;
         }
         
@@ -88,11 +93,34 @@ export function updateAtlasVisualization() {
         const ormTexture = state.textureObjects.orm;
         const normalTexture = state.textureObjects.normal;
         
-        // Initialize the visualization if we have any textures
-        if (baseColorTexture || ormTexture || normalTexture) {
-            initializeAtlasPanel(baseColorTexture, ormTexture, normalTexture);
+        // Get the current texture type from state
+        const currentTextureType = state.currentTextureType || 'baseColor';
+        
+        // Get the active texture based on current texture type
+        let activeTexture = null;
+        if (currentTextureType === 'baseColor') {
+            activeTexture = baseColorTexture;
+        } else if (currentTextureType === 'orm') {
+            activeTexture = ormTexture;
+        } else if (currentTextureType === 'normal') {
+            activeTexture = normalTexture;
+        }
+        
+        // Get the atlas canvas
+        const atlasCanvas = document.getElementById('atlas-canvas');
+        if (!atlasCanvas) {
+            console.warn('Atlas canvas not found');
+            return;
+        }
+        
+        // Get current UV region from state or use default
+        const currentRegion = state.currentUvRegion || { min: [0, 0], max: [1, 1] };
+        
+        // Show the active texture or no texture state
+        if (activeTexture) {
+            updateCanvasWithTexture(activeTexture, currentRegion);
         } else {
-            console.warn('No atlas textures available to visualize');
+            showNoTextureState(atlasCanvas);
         }
     }).catch(error => {
         console.error('Error updating atlas visualization:', error);
