@@ -216,8 +216,11 @@ function handleMouseLeave(event) {
 function showTooltip(element) {
     initTooltip();
     
+    // Use the raw name from data attribute if available, otherwise use the full text
+    const tooltipContent = element.dataset.rawName || element.textContent;
+    
     // Set tooltip content
-    tooltipElement.textContent = element.textContent;
+    tooltipElement.textContent = tooltipContent;
     
     // Make tooltip visible
     tooltipElement.classList.add('visible');
@@ -443,9 +446,9 @@ function createRigDetailsContent(container, details) {
                 // Create name element
                 const nameElem = document.createElement('div');
                 nameElem.textContent = `Name: ${item.name}`;
+                // Store raw name in data attribute for tooltip
+                nameElem.dataset.rawName = item.name;
                 nameElem.className = 'rig-item-name';
-                // Removed the padding-right style setting here as it's now in CSS
-                // We'll set truncation status after the DOM is updated
                 itemElem.appendChild(nameElem);
                 
                 // Add count as a separate styled element if more than one
@@ -665,15 +668,19 @@ function createRigDetailsContent(container, details) {
                     
                     if (item.parentBone) {
                         const parentElem = document.createElement('div');
-                        parentElem.className = 'rig-parent-bone';
                         parentElem.textContent = `Parent: ${item.parentBone}`;
+                        // Store raw parent bone name
+                        parentElem.dataset.rawName = item.parentBone;
+                        parentElem.className = 'rig-parent-bone';
                         itemElem.appendChild(parentElem);
                     }
                     
                     if (item.childBone) {
                         const childElem = document.createElement('div');
-                        childElem.className = 'rig-child-bone';
                         childElem.textContent = `Child: ${item.childBone}`;
+                        // Store raw child bone name
+                        childElem.dataset.rawName = item.childBone;
+                        childElem.className = 'rig-child-bone';
                         itemElem.appendChild(childElem);
                     }
                 }
@@ -683,8 +690,10 @@ function createRigDetailsContent(container, details) {
                     const associatedBone = findAssociatedBone(item.name, details.bones);
                     if (associatedBone) {
                         const boneElem = document.createElement('div');
-                        boneElem.className = 'rig-associated-bone';
                         boneElem.textContent = `Controls bone: ${associatedBone.name}`;
+                        // Store raw associated bone name
+                        boneElem.dataset.rawName = associatedBone.name;
+                        boneElem.className = 'rig-associated-bone';
                         itemElem.appendChild(boneElem);
                     }
                     
@@ -692,8 +701,10 @@ function createRigDetailsContent(container, details) {
                     const state = getState();
                     if (state.model && furthestBoneHandle && furthestBoneHandle.userData.controlledBone) {
                         const controlElem = document.createElement('div');
-                        controlElem.className = 'rig-connected-bone';
                         controlElem.textContent = `Connected: ${furthestBoneHandle.userData.controlledBone.name}`;
+                        // Store raw controlled bone name
+                        controlElem.dataset.rawName = furthestBoneHandle.userData.controlledBone.name;
+                        controlElem.className = 'rig-connected-bone';
                         itemElem.appendChild(controlElem);
                     }
                 }
