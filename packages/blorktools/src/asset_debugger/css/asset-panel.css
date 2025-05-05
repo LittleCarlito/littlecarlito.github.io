@@ -1,0 +1,115 @@
+/* Asset Panel Styles */
+
+.asset-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+/* All content containers should be visible without scrollbars */
+.sample-status,
+.sample-data-info,
+.metadata-content {
+    overflow: visible !important;
+}
+
+/* Section header styles */
+.section-header {
+    padding: 4px 0;
+    margin-bottom: 6px;
+}
+
+/* Main section headers (Sample sections) */
+.asset-section > .section-header h3.metadata-header {
+    margin: 0;
+    font-size: 1.1em;
+    color: #4CAF50; /* Terminal green from theme */
+    font-weight: 500;
+    text-shadow: 0 0 5px rgba(76, 175, 80, 0.3);
+}
+
+/* Main section collapse indicators */
+.asset-section > .section-header .collapse-indicator {
+    color: #4CAF50; /* Match header color */
+    font-weight: 500;
+}
+
+/* Subheaders remain gray for contrast */
+.section-content .metadata-header {
+    color: #aaa;
+}
+
+.section-content {
+    padding: 0 2px;
+}
+
+/* Section divider styles - reduce margins to fix spacing */
+.section-divider {
+    height: 1px;
+    background-color: #333;
+    margin: 4px 0; /* Reduced from 8px */
+    width: 100%;
+}
+
+/* Remove any underlines that might be appearing */
+.asset-section .section-header,
+.asset-section .metadata-header,
+.asset-section h3 {
+    border-bottom: none;
+    text-decoration: none;
+    box-shadow: none;
+}
+
+.no-sample-message {
+    text-align: center;
+    color: #777;
+    font-size: 0.9em;
+    font-style: italic;
+}
+
+.sample-data-info {
+    margin-top: 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 4px 0;
+}
+
+.collapse-indicator {
+    font-size: 14px;
+    color: #777;
+    margin-right: 4px;
+}
+
+.metadata-header {
+    font-size: 1em;
+    color: #aaa;
+    margin: 0;
+    font-weight: normal;
+    cursor: pointer; /* Add pointer cursor to make it clear it's clickable */
+}
+
+.asset-metadata {
+    width: 100%;
+    font-size: 0.9em;
+    color: #aaa;
+    table-layout: fixed;
+}
+
+.asset-metadata td {
+    padding: 3px 0;
+}
+
+.asset-metadata td:first-child {
+    width: 110px;
+    color: #777;
+} 

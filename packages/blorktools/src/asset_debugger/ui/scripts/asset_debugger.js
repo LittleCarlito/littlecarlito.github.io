@@ -14,12 +14,17 @@ import { SettingsModal } from './settings-modal.js';
 import { ExamplesModal } from './examples-modal.js';
 // Import World Panel
 import { initWorldPanel } from './world-panel.js';
+// Import Asset Panel
+import { initAssetPanel } from './asset-panel.js';
 
 // Debug flags
 const DEBUG_LIGHTING = false;
 
 // Track if World Panel has been initialized
 let worldPanelInitialized = false;
+
+// Track if Asset Panel has been initialized
+let assetPanelInitialized = false;
 
 // Track loading completion state
 let loadingComplete = false;
@@ -47,7 +52,7 @@ let resourcesLoaded = {
  */
 function loadComponentHtml() {
     // Track loading of components
-    let componentsToLoad = 7; // Total components to load
+    let componentsToLoad = 8; // Total components to load (increased for asset panel)
     let componentsLoaded = 0;
 
     // Function to update progress when a component loads
@@ -78,6 +83,26 @@ function loadComponentHtml() {
         })
         .catch(error => {
             console.error('Error loading world panel:', error);
+            componentLoaded();
+        });
+    
+    // Load Asset Panel (second in the tab order)
+    fetch('../pages/asset-panel.html')
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('asset-tab-container').innerHTML = html;
+            
+            // Initialize Asset Panel once its HTML is loaded
+            console.log('Asset Panel HTML loaded, initializing panel...');
+            if (!assetPanelInitialized) {
+                initAssetPanel();
+                assetPanelInitialized = true;
+            }
+            
+            componentLoaded();
+        })
+        .catch(error => {
+            console.error('Error loading asset panel:', error);
             componentLoaded();
         });
     
@@ -227,6 +252,9 @@ function initializeDebugger(settings) {
     
     // World panel is already initialized during component HTML loading
     // Do not initialize again: initWorldPanel();
+    
+    // Asset panel is already initialized during component HTML loading
+    // Do not initialize again: initAssetPanel();
     
     // Initialize other panels that might be needed
     import('./atlas-panel.js').then(module => {
@@ -863,6 +891,7 @@ function setupTabNavigation() {
     
     // Get tab buttons
     const worldTabButton = document.getElementById('world-tab-button');
+    const assetTabButton = document.getElementById('asset-tab-button');
     const meshTabButton = document.getElementById('mesh-tab-button');
     const atlasTabButton = document.getElementById('atlas-tab-button');
     const uvTabButton = document.getElementById('uv-tab-button');
@@ -873,6 +902,8 @@ function setupTabNavigation() {
         return {
             worldTab: document.getElementById('world-tab-container'),
             worldContent: document.getElementById('world-tab'),
+            assetTab: document.getElementById('asset-tab-container'),
+            assetContent: document.getElementById('asset-tab'),
             meshTab: document.getElementById('mesh-tab-container'),
             meshContent: document.getElementById('mesh-tab'),
             atlasTab: document.getElementById('atlas-tab-container'),
@@ -897,6 +928,7 @@ function setupTabNavigation() {
         worldTabButton.addEventListener('click', () => {
             // Update active button
             worldTabButton.classList.add('active');
+            assetTabButton.classList.remove('active');
             meshTabButton.classList.remove('active');
             atlasTabButton.classList.remove('active');
             uvTabButton.classList.remove('active');
@@ -912,10 +944,31 @@ function setupTabNavigation() {
         });
     }
     
+    if (assetTabButton) {
+        assetTabButton.addEventListener('click', () => {
+            // Update active button
+            worldTabButton.classList.remove('active');
+            assetTabButton.classList.add('active');
+            meshTabButton.classList.remove('active');
+            atlasTabButton.classList.remove('active');
+            uvTabButton.classList.remove('active');
+            rigTabButton.classList.remove('active');
+            
+            // Hide all tabs first
+            hideAllTabs();
+            
+            // Show asset tab content
+            const tabs = getTabElements();
+            if (tabs.assetTab) tabs.assetTab.classList.add('active');
+            if (tabs.assetContent) tabs.assetContent.classList.add('active');
+        });
+    }
+    
     if (meshTabButton) {
         meshTabButton.addEventListener('click', () => {
             // Update active button
             worldTabButton.classList.remove('active');
+            assetTabButton.classList.remove('active');
             meshTabButton.classList.add('active');
             atlasTabButton.classList.remove('active');
             uvTabButton.classList.remove('active');
@@ -935,6 +988,7 @@ function setupTabNavigation() {
         atlasTabButton.addEventListener('click', () => {
             // Update active button
             worldTabButton.classList.remove('active');
+            assetTabButton.classList.remove('active');
             meshTabButton.classList.remove('active');
             atlasTabButton.classList.add('active');
             uvTabButton.classList.remove('active');
@@ -961,6 +1015,7 @@ function setupTabNavigation() {
         uvTabButton.addEventListener('click', () => {
             // Update active button
             worldTabButton.classList.remove('active');
+            assetTabButton.classList.remove('active');
             meshTabButton.classList.remove('active');
             atlasTabButton.classList.remove('active');
             uvTabButton.classList.add('active');
@@ -987,6 +1042,7 @@ function setupTabNavigation() {
         rigTabButton.addEventListener('click', () => {
             // Update active button
             worldTabButton.classList.remove('active');
+            assetTabButton.classList.remove('active');
             meshTabButton.classList.remove('active');
             atlasTabButton.classList.remove('active');
             uvTabButton.classList.remove('active');
@@ -1023,6 +1079,8 @@ function activateWorldTab() {
         return {
             worldTab: document.getElementById('world-tab-container'),
             worldContent: document.getElementById('world-tab'),
+            assetTab: document.getElementById('asset-tab-container'),
+            assetContent: document.getElementById('asset-tab'),
             meshTab: document.getElementById('mesh-tab-container'),
             meshContent: document.getElementById('mesh-tab'),
             atlasTab: document.getElementById('atlas-tab-container'),
@@ -1052,12 +1110,14 @@ function activateWorldTab() {
     
     // Make sure the World tab button is active and others inactive
     const worldTabButton = document.getElementById('world-tab-button');
+    const assetTabButton = document.getElementById('asset-tab-button');
     const meshTabButton = document.getElementById('mesh-tab-button');
     const atlasTabButton = document.getElementById('atlas-tab-button');
     const uvTabButton = document.getElementById('uv-tab-button');
     const rigTabButton = document.getElementById('rig-tab-button');
     
     if (worldTabButton) worldTabButton.classList.add('active');
+    if (assetTabButton) assetTabButton.classList.remove('active');
     if (meshTabButton) meshTabButton.classList.remove('active');
     if (atlasTabButton) atlasTabButton.classList.remove('active');
     if (uvTabButton) uvTabButton.classList.remove('active');
