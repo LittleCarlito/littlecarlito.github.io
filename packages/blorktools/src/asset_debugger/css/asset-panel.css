@@ -112,4 +112,70 @@
 .asset-metadata td:first-child {
     width: 110px;
     color: #777;
+}
+
+/* Mesh Visibility Panel Styles */
+#mesh-visibility-container {
+    margin-bottom: 12px;
+    width: 100%;
+}
+
+.subsection-header {
+    font-size: 0.95em;
+    color: #aaa;
+    margin: 0 0 8px 0;
+    font-weight: normal;
+}
+
+.mesh-groups-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 6px;
+}
+
+.mesh-group {
+    margin-bottom: 8px;
+}
+
+.mesh-group-header {
+    padding: 2px 0;
+    font-size: 0.9em;
+    color: #ddd;
+}
+
+.mesh-group-name {
+    margin-left: 6px;
+}
+
+.mesh-group-count {
+    font-size: 0.85em;
+    color: #777;
+}
+
+.mesh-group-collapse {
+    padding: 0 4px;
+    color: #777;
+}
+
+.mesh-items {
+    margin-left: 20px;
+    margin-top: 4px;
+}
+
+.mesh-item {
+    display: flex;
+    align-items: center;
+    padding: 2px 0;
+    font-size: 0.85em;
+}
+
+.mesh-name {
+    margin-left: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 170px;
 } 

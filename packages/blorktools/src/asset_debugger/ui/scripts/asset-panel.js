@@ -4,6 +4,7 @@
  * This module handles sample sections and their collapsible functionality.
  */
 import { getState } from '../../core/state.js';
+import { createMeshVisibilityPanel } from './mesh-panel.js';
 
 // Track initialization state
 let controlsInitialized = false;
@@ -41,6 +42,11 @@ export function initAssetPanel() {
                 if (content.style.display === 'none') {
                     content.style.display = 'block';
                     indicator.textContent = '[-]';
+                    
+                    // Initialize mesh visibility panel when mesh section is expanded
+                    if (this.querySelector('.metadata-header').textContent === 'Mesh') {
+                        createMeshVisibilityPanel();
+                    }
                 } else {
                     content.style.display = 'none';
                     indicator.textContent = '[+]';
