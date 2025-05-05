@@ -5,9 +5,15 @@
  */
 import { getState } from '../../core/state.js';
 import { createMeshVisibilityPanel } from './mesh-panel.js';
+import { initAtlasPanel, updateAtlasVisualization } from './atlas-panel.js';
+import { initUvPanel, updateUvPanel } from './uv-panel.js';
+import { updateRigPanel } from './rig-panel.js';
 
 // Track initialization state
 let controlsInitialized = false;
+let atlasInitialized = false;
+let uvInitialized = false;
+let rigInitialized = false;
 
 /**
  * Initialize the Asset panel and cache DOM elements
@@ -43,9 +49,35 @@ export function initAssetPanel() {
                     content.style.display = 'block';
                     indicator.textContent = '[-]';
                     
-                    // Initialize mesh visibility panel when mesh section is expanded
-                    if (this.querySelector('.metadata-header').textContent === 'Mesh') {
+                    // Initialize panel content based on which section is expanded
+                    const headerText = this.querySelector('.metadata-header').textContent;
+                    
+                    if (headerText === 'Mesh') {
                         createMeshVisibilityPanel();
+                    } 
+                    else if (headerText === 'Atlas') {
+                        if (!atlasInitialized) {
+                            initAtlasPanel();
+                            atlasInitialized = true;
+                        } else {
+                            updateAtlasVisualization();
+                        }
+                    }
+                    else if (headerText === 'UV') {
+                        if (!uvInitialized) {
+                            initUvPanel();
+                            uvInitialized = true;
+                        } else {
+                            updateUvPanel();
+                        }
+                    }
+                    else if (headerText === 'Rig') {
+                        if (!rigInitialized) {
+                            updateRigPanel();
+                            rigInitialized = true;
+                        } else {
+                            updateRigPanel();
+                        }
                     }
                 } else {
                     content.style.display = 'none';

@@ -178,4 +178,244 @@
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 170px;
+}
+
+/* Atlas Panel Styles */
+.panel-container {
+    width: 100%;
+    margin-bottom: 12px;
+}
+
+.texture-type-selector {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.texture-type-button {
+    background-color: #333;
+    border: 1px solid #555;
+    color: #ddd;
+    padding: 4px 8px;
+    font-size: 0.85em;
+    cursor: pointer;
+    border-radius: 3px;
+}
+
+.texture-type-button.active {
+    background-color: #4CAF50;
+    color: #fff;
+    border-color: #4CAF50;
+}
+
+.atlas-view-container {
+    width: 100%;
+    margin-bottom: 10px;
+    border: 1px solid #444;
+    padding: 4px;
+    box-sizing: border-box;
+    border-radius: 3px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: rgba(0,0,0,0.2);
+}
+
+#atlas-canvas {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    background-color: #222;
+}
+
+.coords-text {
+    margin-top: 5px;
+    font-size: 0.8em;
+    color: #aaa;
+    width: 100%;
+    text-align: center;
+}
+
+/* UV Panel Styles */
+.uv-info-container {
+    background-color: rgba(0,0,0,0.2);
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 12px;
+    font-size: 0.9em;
+    color: #bbb;
+}
+
+.uv-manual-controls {
+    margin-top: 15px;
+    background-color: rgba(0,0,0,0.2);
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.control-title {
+    margin: 0 0 10px 0;
+    font-size: 0.95em;
+    color: #4CAF50;
+    font-weight: normal;
+}
+
+.uv-control-group {
+    margin-bottom: 12px;
+}
+
+.uv-control-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 8px;
+    gap: 8px;
+}
+
+.uv-control-row label {
+    width: 70px;
+    font-size: 0.85em;
+    color: #aaa;
+}
+
+.uv-control-row input {
+    width: 60px;
+    background-color: #333;
+    color: #fff;
+    border: 1px solid #555;
+    padding: 3px 5px;
+    border-radius: 3px;
+}
+
+.uv-control-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 0.85em;
+    color: #aaa;
+}
+
+.uv-control-group select {
+    width: 100%;
+    background-color: #333;
+    color: #fff;
+    border: 1px solid #555;
+    padding: 6px;
+    border-radius: 3px;
+}
+
+/* Rig Panel Styles */
+#rig-content {
+    width: 100%;
+    color: #bbb;
+    font-size: 0.9em;
+}
+
+.rig-controls-section {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+    background-color: rgba(0,0,0,0.2);
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.rig-checkbox-wrapper {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 12px;
+}
+
+.rig-checkbox-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rig-checkbox-label {
+    font-size: 0.9em;
+    color: #ddd;
+}
+
+.rig-reset-button {
+    width: 100%;
+    background-color: transparent;
+    color: #0e84f1;
+    border: 1px solid #0e84f1;
+    border-radius: 3px;
+    padding: 8px 12px;
+    font-size: 1em;
+    cursor: pointer;
+    text-align: center;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.rig-reset-button:hover {
+    background-color: rgba(14, 132, 241, 0.1);
+}
+
+.rig-details-section {
+    background-color: rgba(0,0,0,0.2);
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+.rig-details-title {
+    margin: 0 0 10px 0;
+    font-size: 1em;
+    color: #4CAF50;
+    font-weight: normal;
+}
+
+.rig-section {
+    margin-bottom: 15px;
+}
+
+.rig-section-title {
+    margin: 0 0 8px 0;
+    font-size: 0.95em;
+    color: #3498db;
+    font-weight: normal;
+    border-bottom: 1px solid #444;
+    padding-bottom: 3px;
+}
+
+.rig-item {
+    background-color: rgba(0,0,0,0.2);
+    padding: 8px;
+    border-radius: 3px;
+    margin-bottom: 8px;
+}
+
+.rig-item-name {
+    color: #ddd;
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.rig-item-count {
+    background-color: #3498db;
+    color: white;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 0.8em;
+    margin-left: 5px;
+}
+
+.rig-constraint-container,
+.rig-lock-container {
+    display: flex;
+    align-items: center;
+    margin-top: 8px;
+    gap: 10px;
+}
+
+.rig-constraint-select {
+    background-color: #333;
+    color: white;
+    border: 1px solid #555;
+    padding: 3px 6px;
+    border-radius: 3px;
+    flex: 1;
 } 

@@ -52,7 +52,7 @@ let resourcesLoaded = {
  */
 function loadComponentHtml() {
     // Track loading of components
-    let componentsToLoad = 7; // Total components to load (reduced by 1 after removing mesh panel)
+    let componentsToLoad = 4; // Total components to load (reduced after removing Atlas, UV, and Rig panels)
     let componentsLoaded = 0;
 
     // Function to update progress when a component loads
@@ -106,42 +106,6 @@ function loadComponentHtml() {
             componentLoaded();
         });
     
-    // Load Atlas Panel
-    fetch('../pages/atlas-panel.html')
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById('atlas-tab-container').innerHTML = html;
-            componentLoaded();
-        })
-        .catch(error => {
-            console.error('Error loading atlas panel:', error);
-            componentLoaded();
-        });
-        
-    // Load UV Panel
-    fetch('../pages/uv-panel.html')
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById('uv-tab-container').innerHTML = html;
-            componentLoaded();
-        })
-        .catch(error => {
-            console.error('Error loading UV panel:', error);
-            componentLoaded();
-        });
-        
-    // Load Rig Panel
-    fetch('../pages/rig-panel.html')
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById('rig-tab-container').innerHTML = html;
-            componentLoaded();
-        })
-        .catch(error => {
-            console.error('Error loading rig panel:', error);
-            componentLoaded();
-        });
-        
     // Load the settings modal component FIRST
     fetch('../pages/settings-modal.html')
         .then(response => response.text())
@@ -237,25 +201,6 @@ function initializeDebugger(settings) {
     
     // Now that the user has clicked "Start Debugging", we can initialize all the panels
     console.log('Start debugging clicked - initializing panels...');
-    
-    // World panel is already initialized during component HTML loading
-    // Do not initialize again: initWorldPanel();
-    
-    // Asset panel is already initialized during component HTML loading
-    // Do not initialize again: initAssetPanel();
-    
-    // Initialize other panels that might be needed
-    import('./atlas-panel.js').then(module => {
-        if (module.initAtlasPanel) {
-            module.initAtlasPanel();
-        }
-    });
-    
-    import('./uv-panel.js').then(module => {
-        if (module.initUvPanel) {
-            module.initUvPanel();
-        }
-    });
     
     // Initialize settings modal with loaded settings
     new SettingsModal(settings);
@@ -874,9 +819,6 @@ function setupTabNavigation() {
     // Get tab buttons
     const worldTabButton = document.getElementById('world-tab-button');
     const assetTabButton = document.getElementById('asset-tab-button');
-    const atlasTabButton = document.getElementById('atlas-tab-button');
-    const uvTabButton = document.getElementById('uv-tab-button');
-    const rigTabButton = document.getElementById('rig-tab-button');
     
     // Helper function to get the latest references to tab content elements
     function getTabElements() {
@@ -884,13 +826,7 @@ function setupTabNavigation() {
             worldTab: document.getElementById('world-tab-container'),
             worldContent: document.getElementById('world-tab'),
             assetTab: document.getElementById('asset-tab-container'),
-            assetContent: document.getElementById('asset-tab'),
-            atlasTab: document.getElementById('atlas-tab-container'),
-            atlasContent: document.getElementById('atlas-tab-container').querySelector('.tab-content-inner'),
-            uvTab: document.getElementById('uv-tab-container'),
-            uvContent: document.getElementById('uv-tab'),
-            rigTab: document.getElementById('rig-tab-container'),
-            rigContent: document.getElementById('rig-tab')
+            assetContent: document.getElementById('asset-tab')
         };
     }
     
@@ -908,9 +844,6 @@ function setupTabNavigation() {
             // Update active button
             worldTabButton.classList.add('active');
             assetTabButton.classList.remove('active');
-            atlasTabButton.classList.remove('active');
-            uvTabButton.classList.remove('active');
-            rigTabButton.classList.remove('active');
             
             // Hide all tabs first
             hideAllTabs();
@@ -927,9 +860,6 @@ function setupTabNavigation() {
             // Update active button
             worldTabButton.classList.remove('active');
             assetTabButton.classList.add('active');
-            atlasTabButton.classList.remove('active');
-            uvTabButton.classList.remove('active');
-            rigTabButton.classList.remove('active');
             
             // Hide all tabs first
             hideAllTabs();
@@ -938,88 +868,6 @@ function setupTabNavigation() {
             const tabs = getTabElements();
             if (tabs.assetTab) tabs.assetTab.classList.add('active');
             if (tabs.assetContent) tabs.assetContent.classList.add('active');
-        });
-    }
-    
-    if (atlasTabButton) {
-        atlasTabButton.addEventListener('click', () => {
-            // Update active button
-            worldTabButton.classList.remove('active');
-            assetTabButton.classList.remove('active');
-            atlasTabButton.classList.add('active');
-            uvTabButton.classList.remove('active');
-            rigTabButton.classList.remove('active');
-            
-            // Hide all tabs first
-            hideAllTabs();
-            
-            // Show atlas tab content
-            const tabs = getTabElements();
-            if (tabs.atlasTab) tabs.atlasTab.classList.add('active');
-            if (tabs.atlasContent) tabs.atlasContent.classList.add('active');
-            
-            // Update atlas visualization without recreating everything
-            import('./atlas-panel.js').then(module => {
-                if (module.updateAtlasVisualization) {
-                    module.updateAtlasVisualization();
-                }
-            });
-        });
-    }
-    
-    if (uvTabButton) {
-        uvTabButton.addEventListener('click', () => {
-            // Update active button
-            worldTabButton.classList.remove('active');
-            assetTabButton.classList.remove('active');
-            atlasTabButton.classList.remove('active');
-            uvTabButton.classList.add('active');
-            rigTabButton.classList.remove('active');
-            
-            // Hide all tabs first
-            hideAllTabs();
-            
-            // Show UV tab content
-            const tabs = getTabElements();
-            if (tabs.uvTab) tabs.uvTab.classList.add('active');
-            if (tabs.uvContent) tabs.uvContent.classList.add('active');
-            
-            // Update UV panel without recreating everything
-            import('./uv-panel.js').then(module => {
-                if (module.updateUvPanel) {
-                    module.updateUvPanel();
-                }
-            });
-        });
-    }
-    
-    if (rigTabButton) {
-        rigTabButton.addEventListener('click', () => {
-            // Update active button
-            worldTabButton.classList.remove('active');
-            assetTabButton.classList.remove('active');
-            atlasTabButton.classList.remove('active');
-            uvTabButton.classList.remove('active');
-            rigTabButton.classList.add('active');
-            
-            // Hide all tabs first
-            hideAllTabs();
-            
-            // Show rig tab content
-            const tabs = getTabElements();
-            if (tabs.rigTab) tabs.rigTab.classList.add('active');
-            if (tabs.rigContent) tabs.rigContent.classList.add('active');
-            
-            // Update rig panel if needed
-            import('./rig-panel.js').then(module => {
-                // Only update the panel if it hasn't been initialized yet
-                if (document.getElementById('rig-content') && 
-                    document.getElementById('rig-content').children.length === 0) {
-                    if (module.updateRigPanel) {
-                        module.updateRigPanel();
-                    }
-                }
-            });
         });
     }
 }
@@ -1034,13 +882,7 @@ function activateWorldTab() {
             worldTab: document.getElementById('world-tab-container'),
             worldContent: document.getElementById('world-tab'),
             assetTab: document.getElementById('asset-tab-container'),
-            assetContent: document.getElementById('asset-tab'),
-            atlasTab: document.getElementById('atlas-tab-container'),
-            atlasContent: document.getElementById('atlas-tab-container').querySelector('.tab-content-inner'),
-            uvTab: document.getElementById('uv-tab-container'),
-            uvContent: document.getElementById('uv-tab'),
-            rigTab: document.getElementById('rig-tab-container'),
-            rigContent: document.getElementById('rig-tab')
+            assetContent: document.getElementById('asset-tab')
         };
     }
     
@@ -1063,15 +905,9 @@ function activateWorldTab() {
     // Make sure the World tab button is active and others inactive
     const worldTabButton = document.getElementById('world-tab-button');
     const assetTabButton = document.getElementById('asset-tab-button');
-    const atlasTabButton = document.getElementById('atlas-tab-button');
-    const uvTabButton = document.getElementById('uv-tab-button');
-    const rigTabButton = document.getElementById('rig-tab-button');
     
     if (worldTabButton) worldTabButton.classList.add('active');
     if (assetTabButton) assetTabButton.classList.remove('active');
-    if (atlasTabButton) atlasTabButton.classList.remove('active');
-    if (uvTabButton) uvTabButton.classList.remove('active');
-    if (rigTabButton) rigTabButton.classList.remove('active');
 }
 
 /**
