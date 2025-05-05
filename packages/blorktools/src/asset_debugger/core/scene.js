@@ -28,7 +28,9 @@ export function initScene(container) {
         0.1, 
         1000
     );
-    camera.position.z = 3;
+    
+    // Set initial camera position with better perspective angle
+    camera.position.set(3, 2, 5); // Position at a diagonal angle instead of just along Z
     updateState('camera', camera);
     
     // Create renderer
@@ -164,9 +166,9 @@ export function clearScene() {
 }
 
 /**
- * Fit camera to object
+ * Fit camera to object with sophisticated positioning
  * @param {THREE.Object3D} object - The object to fit the camera to
- * @param {number} offset - Offset factor
+ * @param {number} offset - Optional base offset factor (default: 1.2)
  */
 export function fitCameraToObject(object, offset = 1.2) {
     const state = getState();
@@ -178,19 +180,76 @@ export function fitCameraToObject(object, offset = 1.2) {
     const center = boundingBox.getCenter(new THREE.Vector3());
     const size = boundingBox.getSize(new THREE.Vector3());
     
-    // Get the max side of the bounding box
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const fov = state.camera.fov * (Math.PI / 180);
-    let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+    // Get the camera aspect ratio
+    const aspect = state.renderer.domElement.clientWidth / state.renderer.domElement.clientHeight;
     
-    // Apply the offset
-    cameraZ *= offset;
+    // Calculate optimal camera position to ensure the model is fully visible
+    const fov = state.camera.fov * (Math.PI / 180); // convert to radians
     
-    // Update camera position and target
-    state.camera.position.z = cameraZ;
+    // Get model dimensions
+    const scaledSizeX = size.x;
+    const scaledSizeY = size.y;
+    const scaledSizeZ = size.z;
     
-    // Update orbit controls target using our controls module's setControlsTarget
-    setControlsTarget(center);
+    // Calculate the center point of the model for camera targeting
+    // This is the geometric center, not just (0,0,0)
+    const modelCenter = new THREE.Vector3(center.x, center.y, center.z);
+    
+    // Calculate required distance for each dimension
+    const distanceForHeight = scaledSizeY / (2 * Math.tan(fov / 2));
+    const distanceForWidth = scaledSizeX / (2 * Math.tan(fov / 2) * aspect);
+    const distanceForDepth = scaledSizeZ * 1.2; // Add more space for depth
+    
+    // Base distance calculation
+    let optimalDistance = Math.max(distanceForWidth, distanceForHeight, distanceForDepth);
+    
+    // Detect extreme model shapes and adjust accordingly
+    const aspectRatioXY = scaledSizeX / (scaledSizeY || 0.001); // Avoid division by zero
+    const aspectRatioXZ = scaledSizeX / (scaledSizeZ || 0.001);
+    const aspectRatioYZ = scaledSizeY / (scaledSizeZ || 0.001);
+    
+    // Add extra buffer for camera distance
+    let bufferMultiplier = 1.6; // Base buffer multiplier
+    
+    // Add more buffer for flat/wide models (high aspect ratios)
+    if (aspectRatioXY > 4 || aspectRatioXY < 0.25 || 
+        aspectRatioXZ > 4 || aspectRatioXZ < 0.25 || 
+        aspectRatioYZ > 4 || aspectRatioYZ < 0.25) {
+        bufferMultiplier = 2.0; // More space for extreme shapes
+        console.log('Extreme model shape detected - using larger buffer');
+    }
+    
+    // Apply buffer to optimal distance
+    optimalDistance *= bufferMultiplier;
+    
+    // Set minimum distance
+    const finalDistance = Math.max(optimalDistance, 2.5);
+    
+    // Calculate X and Y offsets for perspective view
+    const xOffset = finalDistance * 0.4;
+    let yOffset = finalDistance * 0.3;
+    
+    // Special handling for very tall models
+    if (scaledSizeY > scaledSizeX * 3 && scaledSizeY > scaledSizeZ * 3) {
+        // For very tall models, position camera higher to see from middle
+        yOffset = Math.min(modelCenter.y + finalDistance * 0.2, finalDistance * 0.7);
+    } else if (scaledSizeY < 0.5) {
+        // For very flat horizontal models, don't position camera too low
+        yOffset = Math.max(modelCenter.y * 2, finalDistance * 0.2);
+    } else {
+        // For normal models, position camera to see the entire height
+        yOffset = Math.max(modelCenter.y, finalDistance * 0.2);
+    }
+    
+    // Final camera positioning - position relative to the model's center point
+    state.camera.position.set(
+        modelCenter.x + xOffset,
+        modelCenter.y + yOffset,
+        modelCenter.z + finalDistance
+    );
+    
+    // Update orbit controls target to the center of the model
+    setControlsTarget(modelCenter);
 }
 
 export default {

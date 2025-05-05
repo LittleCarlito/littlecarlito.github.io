@@ -55,6 +55,9 @@ export function createCube() {
     // Set up mesh visibility panel
     createMeshVisibilityPanel();
     
+    // Position camera for optimal view
+    fitCameraToObject(cube);
+    
     // Update all panels based on active tab
     const atlasTab = document.getElementById('atlas-tab');
     const uvTab = document.getElementById('uv-tab');
@@ -155,6 +158,9 @@ export function createLightingTestCube() {
     
     // Set up mesh visibility panel
     createMeshVisibilityPanel();
+    
+    // Position camera for optimal view
+    fitCameraToObject(cube);
     
     console.log('Created lighting test cube with multiple materials');
     return cube;
