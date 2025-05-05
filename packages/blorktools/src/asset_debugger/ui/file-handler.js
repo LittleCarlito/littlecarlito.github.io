@@ -155,7 +155,7 @@ function hidePreviewLoading(previewElement) {
  * @param {string} fileType - The type of file ('baseColor', 'orm', 'normal', 'model', 'lighting', 'background')
  * @param {string} title - The original title of the dropzone
  */
-function clearDropzone(dropzone, fileType, title) {
+export function clearDropzone(dropzone, fileType, title) {
     const config = FILE_TYPE_CONFIG[fileType];
     
     if (!config) {
@@ -1081,7 +1081,7 @@ export function setupDropzones() {
  * @param {string} fileType - The type of file this dropzone accepts
  * @param {HTMLElement} infoElement - Element to display file info
  */
-function setupDropzone(dropzone, fileType, infoElement) {
+export function setupDropzone(dropzone, fileType, infoElement) {
     if (!dropzone) {
         console.error(`Error: dropzone is null or undefined for type ${fileType}`);
         return;
