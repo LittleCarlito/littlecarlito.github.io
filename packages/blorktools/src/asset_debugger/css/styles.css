@@ -16,6 +16,8 @@
     --label-text: #959595; /* Label text */
     --hover-glow: 0 0 5px rgba(241, 196, 15, 0.7); /* Yellow glow for hover */
     --success-glow: 0 0 5px rgba(76, 175, 80, 0.7); /* Green glow for success */
+    --tooltip-bg: rgba(40, 40, 40, 0.95); /* Tooltip background */
+    --tooltip-border: #555; /* Tooltip border */
 }
 
 /* Legacy dark theme variables - we'll override these */
@@ -1272,13 +1274,15 @@ h3 {
 
 .rig-item-name {
     font-weight: bold;
-    padding-right: 40px;
+    padding-right: 40px; /* Ensure space for the count */
     margin-bottom: 5px;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     width: 100%;
     display: block;
+    box-sizing: border-box; /* Ensure padding is included in width calculation */
+    position: relative; /* Already set in the tooltip CSS, but repeated here for clarity */
 }
 
 .rig-item-count {
@@ -1292,6 +1296,8 @@ h3 {
     border-radius: 3px;
     padding: 1px 5px;
     z-index: 2;
+    max-width: 35px; /* Limit maximum width of count element */
+    text-align: center;
 }
 
 .rig-item-position {
@@ -2172,4 +2178,40 @@ h2 {
         right: 0;
         border-radius: 0;
     }
+}
+
+/* Text tooltip for truncated elements */
+.text-tooltip {
+    position: absolute;
+    background-color: var(--tooltip-bg);
+    color: var(--text-color);
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--tooltip-border);
+    font-size: 12px;
+    max-width: 300px;
+    z-index: 2500;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    pointer-events: auto; /* Allow interaction with tooltip */
+    transition: opacity 0.2s ease;
+    word-break: break-word;
+    word-wrap: break-word;
+    opacity: 0;
+    visibility: hidden;
+    user-select: text; /* Make text selectable */
+}
+
+.text-tooltip.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Position relative for all potentially truncated elements */
+.rig-item-name, .rig-parent-bone, .rig-child-bone, .rig-associated-bone, .rig-connected-bone {
+    position: relative;
+}
+
+/* Use standard cursor for truncated text */
+.is-truncated {
+    cursor: text;
 } 
