@@ -16,6 +16,16 @@ import { ExamplesModal } from './examples-modal.js';
 import { initWorldPanel } from './world-panel.js';
 // Import Asset Panel
 import { initAssetPanel } from './asset-panel.js';
+// Import ZIP utilities
+import { 
+    processZipContents, 
+    loadTextureIntoDropzone, 
+    updateStateWithBestTextures,
+    loadModelIntoDropzone,
+    loadLightingIntoDropzone,
+    loadBackgroundIntoDropzone,
+    updateStateWithOtherAssets
+} from '../../core/zip-util.js';
 
 // Debug flags
 const DEBUG_LIGHTING = false;
@@ -377,36 +387,72 @@ function setupMainContainerDropzone() {
  * Process a ZIP file
  * @param {File} file - The ZIP file to process
  */
-function processZipFile(file) {
-    const zipInfoElement = document.getElementById('zip-info');
+async function processZipFile(file) {
+    console.log(`ZIP file received: ${file.name} size: ${file.size}`);
     
-    // Show loading message
-    if (zipInfoElement) {
-        zipInfoElement.textContent = `Processing ${file.name}...`;
-        zipInfoElement.style.display = 'block';
-        zipInfoElement.style.color = '';
-    }
-    
-    // For now, just show that the ZIP file was received
-    // This would be expanded to actually process the ZIP in a real implementation
-    console.log('ZIP file received:', file.name, 'size:', file.size);
-    
-    // Update the info element with success message
-    if (zipInfoElement) {
-        zipInfoElement.textContent = `ZIP file received: ${file.name} (${formatFileSize(file.size)})`;
+    try {
+        // Process the ZIP file contents using the zip-util module
+        const results = await processZipContents(file);
         
-        // Hide after 5 seconds
-        setTimeout(() => {
-            zipInfoElement.style.display = 'none';
-        }, 5000);
+        // Log the results
+        console.log('ZIP processing successful:', results);
+        
+        // If successful, update state with all detected assets
+        if (results.success) {
+            // Update state with texture assets
+            updateStateWithBestTextures(results.atlasResults);
+            
+            // Update state with model, lighting, and background files
+            updateStateWithOtherAssets(results);
+        }
+    } catch (error) {
+        console.error('Error processing ZIP file:', error);
     }
+}
+
+/**
+ * Load a background image from a file
+ * @param {File} file - The image file to load
+ */
+function loadBackgroundImage(file) {
+    // Skip loading background images from ZIP files for now
+    console.log('Skipping background image loading from ZIP files as per requirements');
     
-    // Store the ZIP file in state for later use
-    import('../../core/state.js').then(stateModule => {
-        stateModule.setState({
-            zipFile: file
-        });
+    /*
+    // Original implementation - commented out
+    console.log(`Loading background image into background dropzone: ${file.name}`);
+    
+    // Create a FileList-like object
+    const fileList = {
+        0: file,
+        length: 1,
+        item: (index) => index === 0 ? file : null
+    };
+    
+    // Create a drop event
+    const dropEvent = new Event('drop', {
+        bubbles: true,
+        cancelable: true
     });
+    
+    // Add dataTransfer property with files
+    Object.defineProperty(dropEvent, 'dataTransfer', {
+        value: {
+            files: fileList
+        }
+    });
+    
+    // Get the background dropzone
+    const dropzone = document.getElementById('background-dropzone');
+    
+    if (dropzone) {
+        // Dispatch the drop event on the dropzone
+        dropzone.dispatchEvent(dropEvent);
+        console.log('Dispatched drop event for background dropzone');
+    } else {
+        console.warn('Could not find background dropzone element');
+    }
+    */
 }
 
 /**
