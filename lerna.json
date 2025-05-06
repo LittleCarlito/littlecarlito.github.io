@@ -8,8 +8,7 @@
       "message": "chore(release): publish",
       "createRelease": "github",
       "changelogPreset": "./conventional-changelog-config.js",
-      "ignoreScopes": ["pipeline"],
-      "forcePublish": true
+      "ignoreScopes": ["pipeline"]
     },
     "publish": {
       "registry": "https://registry.npmjs.org/"
