@@ -424,7 +424,14 @@ export function createAxisIndicator(scene, camera, renderer) {
     // Create axis indicator mode event listener
     document.addEventListener('axisIndicatorModeChange', function(e) {
         const mode = e.detail.mode;
+        const intensity = e.detail.intensity || 0.7;
         console.log('Axis indicator mode changed to:', mode);
+        
+        // Update the state's embedded intensity if applicable
+        const state = getState();
+        if (state.embeddedAxisIndicator) {
+            state.embeddedAxisIndicator.intensity = intensity;
+        }
         
         // Toggle between windowed, embedded, and disabled modes
         if (mode === 'embedded') {
@@ -462,6 +469,8 @@ export function createAxisIndicator(scene, camera, renderer) {
         // Check if we already have an embedded axis indicator
         const state = getState();
         if (state.embeddedAxisIndicator) {
+            // If it exists, just set active to true
+            state.embeddedAxisIndicator.active = true;
             return;
         }
         
@@ -610,6 +619,20 @@ export function createAxisIndicator(scene, camera, renderer) {
         const embeddedCenterSphere = new THREE.Mesh(embeddedCenterGeometry, embeddedCenterMaterial);
         embeddedAxisScene.add(embeddedCenterSphere);
         
+        // Get intensity value from settings if available
+        let intensity = 0.7; // Default intensity
+        const savedSettings = localStorage.getItem('assetDebuggerSettings');
+        if (savedSettings) {
+            try {
+                const settings = JSON.parse(savedSettings);
+                if (settings.axisIndicator && settings.axisIndicator.intensity !== undefined) {
+                    intensity = settings.axisIndicator.intensity;
+                }
+            } catch (e) {
+                console.error('Error reading intensity from settings:', e);
+            }
+        }
+        
         // Store references
         state.embeddedAxisIndicator = {
             scene: embeddedAxisScene,
@@ -620,7 +643,7 @@ export function createAxisIndicator(scene, camera, renderer) {
             centerSphere: embeddedCenterSphere,
             scale: axisScale,
             active: true, // Mark as active
-            intensity: 0.7 // Default intensity
+            intensity: intensity // Use intensity from settings
         };
         
         // Create a renderer for the embedded axis indicator
@@ -720,7 +743,7 @@ export function createAxisIndicator(scene, camera, renderer) {
             }
         };
         
-        console.log('Full-screen embedded axis indicator created successfully');
+        console.log('Full-screen embedded axis indicator created successfully with intensity:', intensity);
     }
     
     // Function to remove embedded axis indicator
@@ -730,13 +753,42 @@ export function createAxisIndicator(scene, camera, renderer) {
         if (state.embeddedAxisIndicator) {
             console.log('Removing embedded axis indicator');
             
-            // Mark as inactive first (easier than restoring the render function)
+            // Mark as inactive first
             state.embeddedAxisIndicator.active = false;
             
-            // Clean up objects
+            // If we have a scene, remove all objects to prevent memory leaks
+            if (state.embeddedAxisIndicator.scene) {
+                // Dispose of geometries and materials
+                state.embeddedAxisIndicator.scene.traverse((object) => {
+                    if (object.geometry) {
+                        object.geometry.dispose();
+                    }
+                    
+                    if (object.material) {
+                        if (Array.isArray(object.material)) {
+                            object.material.forEach(material => material.dispose());
+                        } else {
+                            object.material.dispose();
+                        }
+                    }
+                });
+                
+                // Clear the scene
+                while (state.embeddedAxisIndicator.scene.children.length > 0) {
+                    state.embeddedAxisIndicator.scene.remove(state.embeddedAxisIndicator.scene.children[0]);
+                }
+            }
+            
+            // Free references to Three.js objects
+            state.embeddedAxisIndicator.xAxis = null;
+            state.embeddedAxisIndicator.yAxis = null;
+            state.embeddedAxisIndicator.zAxis = null;
+            state.embeddedAxisIndicator.centerSphere = null;
             state.embeddedAxisIndicator.scene = null;
             state.embeddedAxisIndicator.camera = null;
-            state.embeddedAxisIndicator = null;
+            
+            // Keep the embeddedAxisIndicator object but mark it as inactive
+            // This allows us to maintain settings like intensity
         }
     }
     
@@ -747,56 +799,24 @@ export function createAxisIndicator(scene, camera, renderer) {
             const settings = JSON.parse(savedSettings);
             if (settings.axisIndicator && settings.axisIndicator.type) {
                 const mode = settings.axisIndicator.type;
+                const intensity = settings.axisIndicator.intensity || 0.7;
                 
-                // Handle saved setting
-                if (mode === 'disabled') {
-                    // Hide the axis indicator
-                    const axisContainer = document.getElementById('axis-indicator-container');
-                    if (axisContainer) {
-                        axisContainer.style.display = 'none';
-                    }
-                } else if (mode === 'embedded') {
-                    // Create embedded indicator on initialization and make sure the windowed one is hidden
-                    const axisContainer = document.getElementById('axis-indicator-container');
-                    if (axisContainer) {
-                        axisContainer.style.display = 'none';
-                    }
-                    
-                    // Force the creation of the embedded indicator
-                    setTimeout(() => {
-                        createEmbeddedAxisIndicator(scene, camera, renderer);
-                        console.log('Embedded axis indicator created from saved settings');
-                    }, 100);
-                }
-                // Default for 'windowed' is to show the windowed indicator (no action needed)
-            } else {
-                // Default to disabled if no setting is found
-                const axisContainer = document.getElementById('axis-indicator-container');
-                if (axisContainer) {
-                    axisContainer.style.display = 'none';
-                }
+                // Always forcefully trigger the mode change to ensure correct state
+                setTimeout(() => {
+                    document.dispatchEvent(new CustomEvent('axisIndicatorModeChange', {
+                        detail: { 
+                            mode: mode,
+                            intensity: intensity
+                        }
+                    }));
+                    console.log('Forced axis indicator mode:', mode);
+                }, 200);
             }
         } catch (e) {
             console.error('Error loading saved axis indicator settings:', e);
-            // Default to disabled on error
-            const axisContainer = document.getElementById('axis-indicator-container');
-            if (axisContainer) {
-                axisContainer.style.display = 'none';
-            }
-        }
-    } else {
-        // No saved settings - default to disabled
-        const axisContainer = document.getElementById('axis-indicator-container');
-        if (axisContainer) {
-            axisContainer.style.display = 'none';
         }
     }
     
     // Draw a debug log to confirm axis indicator creation complete
-    console.log('Modern axis indicator setup complete', {
-        windowed: savedSettings && JSON.parse(savedSettings)?.axisIndicator?.type === 'windowed',
-        embedded: savedSettings && JSON.parse(savedSettings)?.axisIndicator?.type === 'embedded',
-        disabled: !savedSettings || !JSON.parse(savedSettings)?.axisIndicator?.type || 
-                  JSON.parse(savedSettings)?.axisIndicator?.type === 'disabled'
-    });
+    console.log('Modern axis indicator setup complete');
 }

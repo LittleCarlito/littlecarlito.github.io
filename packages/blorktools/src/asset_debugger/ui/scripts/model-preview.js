@@ -293,24 +293,62 @@ function addClearButton(container, file) {
             // Clean up preview
             cleanupPreview();
             
+            // Store the original title before clearing
+            const originalTitle = dropzone.querySelector('h3')?.textContent || '3D Model';
+            
             // Clean up the dropzone
             if (dropzone) {
                 dropzone.classList.remove('has-file');
-                const infoElement = document.getElementById('model-info');
-                if (infoElement) {
-                    infoElement.textContent = '';
-                }
+                
+                // Clear the dropzone content
+                dropzone.innerHTML = '';
+                
+                // Import the file handler module to properly restore the dropzone
+                import('../file-handler.js').then(module => {
+                    // Use the clearDropzone function to restore the original content
+                    if (module.clearDropzone) {
+                        module.clearDropzone(dropzone, 'model', originalTitle);
+                    } else {
+                        // Fallback if clearDropzone isn't directly accessible
+                        
+                        // Recreate basic content
+                        const titleElement = document.createElement('h3');
+                        titleElement.textContent = originalTitle;
+                        dropzone.appendChild(titleElement);
+                        
+                        // Add instruction text
+                        const instructionText = document.createElement('p');
+                        instructionText.textContent = 'Drag & drop a GLB model file here';
+                        dropzone.appendChild(instructionText);
+                        
+                        // Add optional text
+                        const optionalText = document.createElement('p');
+                        optionalText.textContent = 'If not provided, a cube will be used';
+                        dropzone.appendChild(optionalText);
+                        
+                        // Add file info element
+                        const infoElement = document.createElement('p');
+                        infoElement.className = 'file-info';
+                        infoElement.id = 'model-info';
+                        dropzone.appendChild(infoElement);
+                        
+                        // Re-setup the dropzone
+                        if (module.setupDropzone) {
+                            module.setupDropzone(dropzone, 'model', infoElement);
+                        }
+                    }
+                });
+                
+                // Reset state model file
+                import('../../core/state.js').then(stateModule => {
+                    const state = stateModule.getState();
+                    state.modelFile = null;
+                    state.useCustomModel = false;
+                });
+                
+                // Clear preview container
+                container.innerHTML = '';
             }
-            
-            // Reset state model file
-            import('../../core/state.js').then(stateModule => {
-                const state = stateModule.getState();
-                state.modelFile = null;
-                state.useCustomModel = false;
-            });
-            
-            // Clear preview container
-            container.innerHTML = '';
         });
     }
 }

@@ -49,10 +49,11 @@ export default defineConfig({
 		emptyOutDir: true,
 		sourcemap: true,
 		rollupOptions: {
-			external: ['three'],
+			external: ['three', 'jszip'],
 			output: {
 				globals: {
-					three: 'THREE'
+					three: 'THREE',
+					jszip: 'JSZip'
 				}
 			}
 		}
@@ -68,5 +69,21 @@ export default defineConfig({
 	},
 	plugins: [
 		gracefulShutdownPlugin()
-	]
+	],
+	// Better handling of dynamic imports and externals
+	optimizeDeps: {
+		exclude: ['jszip'], // Let the dynamic import handle this
+		esbuildOptions: {
+			// Define global names for externalized dependencies
+			define: {
+				global: 'globalThis',
+			}
+		}
+	},
+	// Handle CDN fallbacks in development
+	resolve: {
+		alias: {
+			// If needed, define aliases here
+		}
+	}
 }); 

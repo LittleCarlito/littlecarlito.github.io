@@ -77,7 +77,7 @@
         </div>
         
         <!-- Upload section overlay -->
-        <div id="upload-section" class="tool-panel">
+        <div id="upload-section" class="tool-panel dropzone-container-main">
             <h2 class="section-heading">Asset Files</h2>
             <div class="dropzone-row">
                 <div class="dropzone-container">
@@ -141,6 +141,8 @@
                 </div>
             </div>
             
+            <p id="zip-info" class="file-info" style="text-align: center; margin-top: 15px; display: none;"></p>
+            
             <button id="start-debug" class="start-button">Start Debugging</button>
         </div>
         
@@ -148,23 +150,18 @@
         <div id="tab-container" class="tab-container" style="display: none !important; visibility: hidden !important;">
             <div class="tab-navigation">
                 <button id="world-tab-button" class="tab-button active">World</button>
-                <button id="mesh-tab-button" class="tab-button">Mesh</button>
-                <button id="atlas-tab-button" class="tab-button">Atlas</button>
-                <button id="uv-tab-button" class="tab-button">UV</button>
-                <button id="rig-tab-button" class="tab-button">Rig</button>
+                <button id="asset-tab-button" class="tab-button">Asset</button>
             </div>
             <!-- Tab content containers - will be loaded dynamically -->
             <div id="world-tab-container" class="tab-content active"></div>
-            <div id="mesh-tab-container" class="tab-content"></div>
-            <div id="atlas-tab-container" class="tab-content"></div>
-            <div id="uv-tab-container" class="tab-content"></div>
-            <div id="rig-tab-container" class="tab-content"></div>
+            <div id="asset-tab-container" class="tab-content"></div>
         </div>
     </div>
     
     <!-- Modal containers - will be loaded dynamically -->
     <div id="settings-modal-container"></div>
     <div id="examples-modal-container"></div>
+    <div id="html-editor-modal-container"></div>
     
     <!-- Main application script -->
     <script type="module" src="../scripts/asset_debugger.js"></script>

@@ -8,8 +8,8 @@ import { loadTextureFromFile, formatFileSize } from '../core/materials.js';
 import { updateAtlasVisualization } from './scripts/atlas-panel.js';
 // Import for HDR/EXR preview rendering
 import * as worldPanelModule from './scripts/world-panel.js';
-// Import for GLB model preview
-import { createModelPreview } from './scripts/model-preview.js';
+// Import for GLB model preview from the new GLB utility
+import { processGLBModel, createGLBPreview } from '../core/glb-utils.js';
 // Import the worker manager
 import { 
   processTextureFile, 
@@ -79,6 +79,16 @@ const FILE_TYPE_CONFIG = {
             updateState({ backgroundFile: null, backgroundTexture: null });
         },
         handler: handleBackgroundUpload
+    },
+    zip: {
+        title: 'ZIP Archive',
+        instruction: 'Drag & drop a ZIP file containing asset files here',
+        acceptedFileTypes: ['.zip'],
+        stateKey: 'zipFile',
+        resetState: () => {
+            updateState('zipFile', null);
+        },
+        handler: handleZipUpload
     }
 };
 
@@ -155,7 +165,7 @@ function hidePreviewLoading(previewElement) {
  * @param {string} fileType - The type of file ('baseColor', 'orm', 'normal', 'model', 'lighting', 'background')
  * @param {string} title - The original title of the dropzone
  */
-function clearDropzone(dropzone, fileType, title) {
+export function clearDropzone(dropzone, fileType, title) {
     const config = FILE_TYPE_CONFIG[fileType];
     
     if (!config) {
@@ -407,12 +417,13 @@ function handleModelUpload(file, infoElement, dropzone) {
     // Show loading state
     showPreviewLoading(previewDiv);
     
-    // Process the model file in a web worker
-    processModelFile(file)
+    // Process the model file using our new GLB utility
+    processGLBModel(file)
         .then(result => {
-            // Create the 3D preview with the model-preview module after worker has processed it
-            createModelPreview(file);
-            
+            // Create the 3D preview with our new GLB utility
+            return createGLBPreview(file, previewDiv);
+        })
+        .then(result => {
             // Hide loading indicator
             hidePreviewLoading(previewDiv);
             
@@ -425,19 +436,13 @@ function handleModelUpload(file, infoElement, dropzone) {
         })
         .catch(error => {
             console.error('Error processing model file:', error);
-            
-            // Fall back to direct loading if worker fails
-            createModelPreview(file);
-            
-            // Hide loading indicator
             hidePreviewLoading(previewDiv);
             
-            // Update the texture dropzone hints
-            const textureHints = document.querySelectorAll('.texture-hint');
-            textureHints.forEach(hint => {
-                hint.textContent = 'Textures are optional with GLB';
-                hint.classList.add('optional');
-            });
+            // Show error message in preview
+            const errorMsg = document.createElement('div');
+            errorMsg.className = 'no-image-message visible';
+            errorMsg.textContent = 'Error loading model. Please try another file.';
+            previewDiv.appendChild(errorMsg);
         });
 }
 
@@ -1022,6 +1027,42 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
 }
 
 /**
+ * Handle ZIP file upload
+ * @param {File} file - The uploaded ZIP file
+ * @param {HTMLElement} infoElement - Element to display file info
+ * @param {HTMLElement} previewElement - Element to display file preview
+ * @param {HTMLElement} dropzone - The dropzone element
+ */
+function handleZipUpload(file, infoElement, previewElement, dropzone) {
+    console.log('Processing ZIP file:', file.name, 'size:', file.size);
+    
+    // Store the file in the state
+    updateState('zipFile', file);
+    
+    // Display info about the ZIP file
+    const zipInfoElement = document.getElementById('zip-info');
+    if (zipInfoElement) {
+        zipInfoElement.textContent = `ZIP file received: ${file.name} (${formatFileSize(file.size)})`;
+        zipInfoElement.style.display = 'block';
+        zipInfoElement.style.color = '';
+        
+        // Hide after 5 seconds
+        setTimeout(() => {
+            zipInfoElement.style.display = 'none';
+        }, 5000);
+    }
+    
+    // In a real implementation, here you would process the ZIP file
+    // For example, extract its contents and handle each file accordingly
+    
+    // Dispatch an event to notify that a ZIP file was uploaded
+    const event = new CustomEvent('zip-uploaded', { 
+        detail: { file }
+    });
+    document.dispatchEvent(event);
+}
+
+/**
  * Setup dropzones for file input
  */
 export function setupDropzones() {
@@ -1081,7 +1122,7 @@ export function setupDropzones() {
  * @param {string} fileType - The type of file this dropzone accepts
  * @param {HTMLElement} infoElement - Element to display file info
  */
-function setupDropzone(dropzone, fileType, infoElement) {
+export function setupDropzone(dropzone, fileType, infoElement) {
     if (!dropzone) {
         console.error(`Error: dropzone is null or undefined for type ${fileType}`);
         return;

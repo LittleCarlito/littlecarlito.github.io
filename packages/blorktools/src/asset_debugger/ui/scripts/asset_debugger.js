@@ -14,12 +14,33 @@ import { SettingsModal } from './settings-modal.js';
 import { ExamplesModal } from './examples-modal.js';
 // Import World Panel
 import { initWorldPanel } from './world-panel.js';
+// Import Asset Panel
+import { initAssetPanel } from './asset-panel.js';
+// Import HTML Editor Modal
+import { initHtmlEditorModal } from './html-editor-modal.js';
+// Import Mesh Settings Modal
+import { initMeshSettingsModal } from './mesh-settings-modal.js';
+// Import Model Integration for HTML Editor
+import { initModelIntegration } from './model-integration.js';
+// Import ZIP utilities
+import { 
+    processZipContents, 
+    loadTextureIntoDropzone, 
+    updateStateWithBestTextures,
+    loadModelIntoDropzone,
+    loadLightingIntoDropzone,
+    loadBackgroundIntoDropzone,
+    updateStateWithOtherAssets
+} from '../../core/zip-util.js';
 
 // Debug flags
 const DEBUG_LIGHTING = false;
 
 // Track if World Panel has been initialized
 let worldPanelInitialized = false;
+
+// Track if Asset Panel has been initialized
+let assetPanelInitialized = false;
 
 // Track loading completion state
 let loadingComplete = false;
@@ -47,7 +68,7 @@ let resourcesLoaded = {
  */
 function loadComponentHtml() {
     // Track loading of components
-    let componentsToLoad = 7; // Total components to load
+    let componentsToLoad = 6; // Total components to load (increased to include HTML editor and mesh settings modals)
     let componentsLoaded = 0;
 
     // Function to update progress when a component loads
@@ -81,54 +102,26 @@ function loadComponentHtml() {
             componentLoaded();
         });
     
-    // Load Atlas Panel
-    fetch('../pages/atlas-panel.html')
+    // Load Asset Panel (second in the tab order)
+    fetch('../pages/asset-panel.html')
         .then(response => response.text())
         .then(html => {
-            document.getElementById('atlas-tab-container').innerHTML = html;
+            document.getElementById('asset-tab-container').innerHTML = html;
+            
+            // Initialize Asset Panel once its HTML is loaded
+            console.log('Asset Panel HTML loaded, initializing panel...');
+            if (!assetPanelInitialized) {
+                initAssetPanel();
+                assetPanelInitialized = true;
+            }
+            
             componentLoaded();
         })
         .catch(error => {
-            console.error('Error loading atlas panel:', error);
+            console.error('Error loading asset panel:', error);
             componentLoaded();
         });
-        
-    // Load Mesh Panel
-    fetch('../pages/mesh-panel.html')
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById('mesh-tab-container').innerHTML = html;
-            componentLoaded();
-        })
-        .catch(error => {
-            console.error('Error loading mesh panel:', error);
-            componentLoaded();
-        });
-        
-    // Load UV Panel
-    fetch('../pages/uv-panel.html')
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById('uv-tab-container').innerHTML = html;
-            componentLoaded();
-        })
-        .catch(error => {
-            console.error('Error loading UV panel:', error);
-            componentLoaded();
-        });
-        
-    // Load Rig Panel
-    fetch('../pages/rig-panel.html')
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById('rig-tab-container').innerHTML = html;
-            componentLoaded();
-        })
-        .catch(error => {
-            console.error('Error loading rig panel:', error);
-            componentLoaded();
-        });
-        
+    
     // Load the settings modal component FIRST
     fetch('../pages/settings-modal.html')
         .then(response => response.text())
@@ -175,6 +168,136 @@ function loadComponentHtml() {
         })
         .catch(error => {
             console.error('Error loading examples modal:', error);
+            componentLoaded();
+        });
+        
+    // Load the HTML editor modal component
+    fetch('../pages/html-editor-modal.html')
+        .then(response => response.text())
+        .then(html => {
+            // Create a temporary div to parse the HTML
+            const tempContainer = document.createElement('div');
+            tempContainer.innerHTML = html.trim();
+            
+            // Extract the modal element using querySelector instead of firstChild
+            const modalElement = tempContainer.querySelector('#html-editor-modal');
+            
+            // Ensure the modal is hidden before adding it to the DOM
+            if (modalElement) {
+                modalElement.style.display = 'none';
+                
+                // Remove any existing modal with the same ID
+                const existingModal = document.getElementById('html-editor-modal');
+                if (existingModal) {
+                    existingModal.remove();
+                }
+                
+                // Append the new modal directly to the body
+                document.body.appendChild(modalElement);
+                
+                // Initialize the modal now that it's in the DOM and hidden
+                setTimeout(() => {
+                    // Call initHtmlEditorModal and ensure it registers the global function
+                    initHtmlEditorModal();
+                    
+                    // Double-check that the function is registered globally
+                    if (typeof window.openEmbeddedHtmlEditor !== 'function') {
+                        console.log('Global function not registered properly, manually registering now');
+                        
+                        // Import the module and manually register the function
+                        import('./html-editor-modal.js').then(module => {
+                            // Create a wrapper function that calls openEmbeddedHtmlEditor from the module
+                            window.openEmbeddedHtmlEditor = function(meshName, meshId) {
+                                console.log(`Global wrapper: Opening HTML editor for ${meshName} (ID: ${meshId})`);
+                                // Call the module's openEmbeddedHtmlEditor function or its default export's function
+                                if (module.openEmbeddedHtmlEditor) {
+                                    module.openEmbeddedHtmlEditor(meshName, meshId);
+                                } else if (module.default && module.default.openEmbeddedHtmlEditor) {
+                                    module.default.openEmbeddedHtmlEditor(meshName, meshId);
+                                } else {
+                                    console.error('Could not find openEmbeddedHtmlEditor in module');
+                                }
+                            };
+                            
+                            console.log('Global function registered:', typeof window.openEmbeddedHtmlEditor === 'function');
+                        });
+                    } else {
+                        console.log('HTML Editor Modal initialized successfully, global function available');
+                    }
+                }, 100);
+            } else {
+                console.error('Could not extract HTML editor modal element from HTML: modal element not found');
+            }
+            
+            componentLoaded();
+        })
+        .catch(error => {
+            console.error('Error loading HTML editor modal:', error);
+            componentLoaded();
+        });
+        
+    // Load the mesh settings modal component
+    fetch('../pages/mesh-settings-modal.html')
+        .then(response => response.text())
+        .then(html => {
+            // Create a temporary div to parse the HTML
+            const tempContainer = document.createElement('div');
+            tempContainer.innerHTML = html.trim();
+            
+            // Extract the modal element using querySelector
+            const modalElement = tempContainer.querySelector('#mesh-settings-modal');
+            
+            // Ensure the modal is hidden before adding it to the DOM
+            if (modalElement) {
+                modalElement.style.display = 'none';
+                
+                // Remove any existing modal with the same ID
+                const existingModal = document.getElementById('mesh-settings-modal');
+                if (existingModal) {
+                    existingModal.remove();
+                }
+                
+                // Append the new modal directly to the body
+                document.body.appendChild(modalElement);
+                
+                // Initialize the modal now that it's in the DOM and hidden
+                setTimeout(() => {
+                    // Call initMeshSettingsModal and ensure it registers the global function
+                    initMeshSettingsModal();
+                    
+                    // Double-check that the function is registered globally
+                    if (typeof window.openMeshSettingsModal !== 'function') {
+                        console.log('Mesh Settings global function not registered properly, manually registering now');
+                        
+                        // Import the module and manually register the function
+                        import('./mesh-settings-modal.js').then(module => {
+                            // Create a wrapper function that calls openMeshSettingsModal from the module
+                            window.openMeshSettingsModal = function(meshName, meshId) {
+                                console.log(`Global wrapper: Opening mesh settings for ${meshName} (ID: ${meshId})`);
+                                // Call the module's openMeshSettingsModal function or its default export's function
+                                if (module.openMeshSettingsModal) {
+                                    module.openMeshSettingsModal(meshName, meshId);
+                                } else if (module.default && module.default.openMeshSettingsModal) {
+                                    module.default.openMeshSettingsModal(meshName, meshId);
+                                } else {
+                                    console.error('Could not find openMeshSettingsModal in module');
+                                }
+                            };
+                            
+                            console.log('Mesh Settings global function registered:', typeof window.openMeshSettingsModal === 'function');
+                        });
+                    } else {
+                        console.log('Mesh Settings Modal initialized successfully, global function available');
+                    }
+                }, 100);
+            } else {
+                console.error('Could not extract mesh settings modal element from HTML: modal element not found');
+            }
+            
+            componentLoaded();
+        })
+        .catch(error => {
+            console.error('Error loading mesh settings modal:', error);
             componentLoaded();
         });
 }
@@ -225,30 +348,17 @@ function initializeDebugger(settings) {
     // Now that the user has clicked "Start Debugging", we can initialize all the panels
     console.log('Start debugging clicked - initializing panels...');
     
-    // World panel is already initialized during component HTML loading
-    // Do not initialize again: initWorldPanel();
-    
-    // Initialize other panels that might be needed
-    import('./atlas-panel.js').then(module => {
-        if (module.initAtlasPanel) {
-            module.initAtlasPanel();
-        }
-    });
-    
-    import('./uv-panel.js').then(module => {
-        if (module.initUvPanel) {
-            module.initUvPanel();
-        }
-    });
-    
-    import('./mesh-panel.js').then(module => {
-        if (module.initMeshPanel) {
-            module.initMeshPanel();
-        }
-    });
-    
     // Initialize settings modal with loaded settings
     new SettingsModal(settings);
+    
+    // Initialize HTML Editor Modal
+    initHtmlEditorModal();
+    
+    // Initialize Mesh Settings Modal
+    initMeshSettingsModal();
+    
+    // Initialize Model Integration for HTML Editor
+    initModelIntegration();
     
     // Scene initialization is now handled in startDebugging function
     // to ensure proper sequencing of operations
@@ -310,6 +420,199 @@ function setupThemeAndUI() {
     
     // Set up Mac-like dock behavior for header
     setupHeaderDockBehavior(true);
+    
+    // Set up the main container as a dropzone for zip files
+    setupMainContainerDropzone();
+}
+
+/**
+ * Set up the main container as a dropzone for zip files
+ */
+function setupMainContainerDropzone() {
+    const mainContainer = document.getElementById('upload-section');
+    const zipInfoElement = document.getElementById('zip-info');
+    
+    if (!mainContainer) return;
+    
+    // Function to check if an element is a child of any dropzone
+    const isChildOfDropzone = (element) => {
+        if (!element) return false;
+        
+        // Check if element itself is a dropzone
+        if (element.classList && element.classList.contains('dropzone')) {
+            return true;
+        }
+        
+        // Check if element is a child of a dropzone
+        let parent = element.parentElement;
+        while (parent) {
+            if (parent.classList && parent.classList.contains('dropzone')) {
+                return true;
+            }
+            parent = parent.parentElement;
+        }
+        
+        return false;
+    };
+    
+    // Add drag enter event
+    mainContainer.addEventListener('dragenter', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Don't apply styling if dragging over a child dropzone
+        if (isChildOfDropzone(e.target)) return;
+        
+        // Add active class to show it's a valid drop target
+        mainContainer.classList.add('dropzone-container-active');
+    });
+    
+    // Add drag over event
+    mainContainer.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Don't apply styling if dragging over a child dropzone
+        if (isChildOfDropzone(e.target)) return;
+        
+        // Set the drop effect
+        e.dataTransfer.dropEffect = 'copy';
+    });
+    
+    // Add drag leave event
+    mainContainer.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Don't remove styling if entering a child element within the container
+        // that isn't a dropzone
+        if (mainContainer.contains(e.relatedTarget) && !isChildOfDropzone(e.relatedTarget)) return;
+        
+        // Remove active class
+        mainContainer.classList.remove('dropzone-container-active');
+    });
+    
+    // Add drop event
+    mainContainer.addEventListener('drop', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Remove active class
+        mainContainer.classList.remove('dropzone-container-active');
+        
+        // Don't handle drop if dropping on a child dropzone
+        if (isChildOfDropzone(e.target)) return;
+        
+        const files = e.dataTransfer.files;
+        if (!files || files.length === 0) return;
+        
+        // Only handle ZIP files
+        const file = files[0];
+        if (file.type !== 'application/zip' && !file.name.toLowerCase().endsWith('.zip')) {
+            // Show error message
+            if (zipInfoElement) {
+                zipInfoElement.textContent = 'Error: Only ZIP files are supported for container drops';
+                zipInfoElement.style.display = 'block';
+                zipInfoElement.style.color = 'red';
+                
+                // Hide after 3 seconds
+                setTimeout(() => {
+                    zipInfoElement.style.display = 'none';
+                }, 3000);
+            }
+            return;
+        }
+        
+        // Process the ZIP file
+        processZipFile(file);
+    });
+}
+
+/**
+ * Process a ZIP file
+ * @param {File} file - The ZIP file to process
+ */
+async function processZipFile(file) {
+    console.log(`ZIP file received: ${file.name} size: ${file.size}`);
+    
+    try {
+        // Process the ZIP file contents using the zip-util module
+        const results = await processZipContents(file);
+        
+        // Log the results
+        console.log('ZIP processing successful:', results);
+        
+        // If successful, update state with all detected assets
+        if (results.success) {
+            // Update state with texture assets
+            updateStateWithBestTextures(results.atlasResults);
+            
+            // Update state with model, lighting, and background files
+            updateStateWithOtherAssets(results);
+        }
+    } catch (error) {
+        console.error('Error processing ZIP file:', error);
+    }
+}
+
+/**
+ * Load a background image from a file
+ * @param {File} file - The image file to load
+ */
+function loadBackgroundImage(file) {
+    // Skip loading background images from ZIP files for now
+    console.log('Skipping background image loading from ZIP files as per requirements');
+    
+    /*
+    // Original implementation - commented out
+    console.log(`Loading background image into background dropzone: ${file.name}`);
+    
+    // Create a FileList-like object
+    const fileList = {
+        0: file,
+        length: 1,
+        item: (index) => index === 0 ? file : null
+    };
+    
+    // Create a drop event
+    const dropEvent = new Event('drop', {
+        bubbles: true,
+        cancelable: true
+    });
+    
+    // Add dataTransfer property with files
+    Object.defineProperty(dropEvent, 'dataTransfer', {
+        value: {
+            files: fileList
+        }
+    });
+    
+    // Get the background dropzone
+    const dropzone = document.getElementById('background-dropzone');
+    
+    if (dropzone) {
+        // Dispatch the drop event on the dropzone
+        dropzone.dispatchEvent(dropEvent);
+        console.log('Dispatched drop event for background dropzone');
+    } else {
+        console.warn('Could not find background dropzone element');
+    }
+    */
+}
+
+/**
+ * Format file size in bytes to a human-readable format
+ * @param {number} bytes - The file size in bytes
+ * @returns {string} - Formatted file size
+ */
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 /**
@@ -863,24 +1166,15 @@ function setupTabNavigation() {
     
     // Get tab buttons
     const worldTabButton = document.getElementById('world-tab-button');
-    const meshTabButton = document.getElementById('mesh-tab-button');
-    const atlasTabButton = document.getElementById('atlas-tab-button');
-    const uvTabButton = document.getElementById('uv-tab-button');
-    const rigTabButton = document.getElementById('rig-tab-button');
+    const assetTabButton = document.getElementById('asset-tab-button');
     
     // Helper function to get the latest references to tab content elements
     function getTabElements() {
         return {
             worldTab: document.getElementById('world-tab-container'),
             worldContent: document.getElementById('world-tab'),
-            meshTab: document.getElementById('mesh-tab-container'),
-            meshContent: document.getElementById('mesh-tab'),
-            atlasTab: document.getElementById('atlas-tab-container'),
-            atlasContent: document.getElementById('atlas-tab-container').querySelector('.tab-content-inner'),
-            uvTab: document.getElementById('uv-tab-container'),
-            uvContent: document.getElementById('uv-tab'),
-            rigTab: document.getElementById('rig-tab-container'),
-            rigContent: document.getElementById('rig-tab')
+            assetTab: document.getElementById('asset-tab-container'),
+            assetContent: document.getElementById('asset-tab')
         };
     }
     
@@ -897,10 +1191,7 @@ function setupTabNavigation() {
         worldTabButton.addEventListener('click', () => {
             // Update active button
             worldTabButton.classList.add('active');
-            meshTabButton.classList.remove('active');
-            atlasTabButton.classList.remove('active');
-            uvTabButton.classList.remove('active');
-            rigTabButton.classList.remove('active');
+            assetTabButton.classList.remove('active');
             
             // Hide all tabs first
             hideAllTabs();
@@ -912,104 +1203,19 @@ function setupTabNavigation() {
         });
     }
     
-    if (meshTabButton) {
-        meshTabButton.addEventListener('click', () => {
+    if (assetTabButton) {
+        assetTabButton.addEventListener('click', () => {
             // Update active button
             worldTabButton.classList.remove('active');
-            meshTabButton.classList.add('active');
-            atlasTabButton.classList.remove('active');
-            uvTabButton.classList.remove('active');
-            rigTabButton.classList.remove('active');
+            assetTabButton.classList.add('active');
             
             // Hide all tabs first
             hideAllTabs();
             
-            // Show mesh tab content
+            // Show asset tab content
             const tabs = getTabElements();
-            if (tabs.meshTab) tabs.meshTab.classList.add('active');
-            if (tabs.meshContent) tabs.meshContent.classList.add('active');
-        });
-    }
-    
-    if (atlasTabButton) {
-        atlasTabButton.addEventListener('click', () => {
-            // Update active button
-            worldTabButton.classList.remove('active');
-            meshTabButton.classList.remove('active');
-            atlasTabButton.classList.add('active');
-            uvTabButton.classList.remove('active');
-            rigTabButton.classList.remove('active');
-            
-            // Hide all tabs first
-            hideAllTabs();
-            
-            // Show atlas tab content
-            const tabs = getTabElements();
-            if (tabs.atlasTab) tabs.atlasTab.classList.add('active');
-            if (tabs.atlasContent) tabs.atlasContent.classList.add('active');
-            
-            // Update atlas visualization without recreating everything
-            import('./atlas-panel.js').then(module => {
-                if (module.updateAtlasVisualization) {
-                    module.updateAtlasVisualization();
-                }
-            });
-        });
-    }
-    
-    if (uvTabButton) {
-        uvTabButton.addEventListener('click', () => {
-            // Update active button
-            worldTabButton.classList.remove('active');
-            meshTabButton.classList.remove('active');
-            atlasTabButton.classList.remove('active');
-            uvTabButton.classList.add('active');
-            rigTabButton.classList.remove('active');
-            
-            // Hide all tabs first
-            hideAllTabs();
-            
-            // Show UV tab content
-            const tabs = getTabElements();
-            if (tabs.uvTab) tabs.uvTab.classList.add('active');
-            if (tabs.uvContent) tabs.uvContent.classList.add('active');
-            
-            // Update UV panel without recreating everything
-            import('./uv-panel.js').then(module => {
-                if (module.updateUvPanel) {
-                    module.updateUvPanel();
-                }
-            });
-        });
-    }
-    
-    if (rigTabButton) {
-        rigTabButton.addEventListener('click', () => {
-            // Update active button
-            worldTabButton.classList.remove('active');
-            meshTabButton.classList.remove('active');
-            atlasTabButton.classList.remove('active');
-            uvTabButton.classList.remove('active');
-            rigTabButton.classList.add('active');
-            
-            // Hide all tabs first
-            hideAllTabs();
-            
-            // Show rig tab content
-            const tabs = getTabElements();
-            if (tabs.rigTab) tabs.rigTab.classList.add('active');
-            if (tabs.rigContent) tabs.rigContent.classList.add('active');
-            
-            // Update rig panel if needed
-            import('./rig-panel.js').then(module => {
-                // Only update the panel if it hasn't been initialized yet
-                if (document.getElementById('rig-content') && 
-                    document.getElementById('rig-content').children.length === 0) {
-                    if (module.updateRigPanel) {
-                        module.updateRigPanel();
-                    }
-                }
-            });
+            if (tabs.assetTab) tabs.assetTab.classList.add('active');
+            if (tabs.assetContent) tabs.assetContent.classList.add('active');
         });
     }
 }
@@ -1023,14 +1229,8 @@ function activateWorldTab() {
         return {
             worldTab: document.getElementById('world-tab-container'),
             worldContent: document.getElementById('world-tab'),
-            meshTab: document.getElementById('mesh-tab-container'),
-            meshContent: document.getElementById('mesh-tab'),
-            atlasTab: document.getElementById('atlas-tab-container'),
-            atlasContent: document.getElementById('atlas-tab-container').querySelector('.tab-content-inner'),
-            uvTab: document.getElementById('uv-tab-container'),
-            uvContent: document.getElementById('uv-tab'),
-            rigTab: document.getElementById('rig-tab-container'),
-            rigContent: document.getElementById('rig-tab')
+            assetTab: document.getElementById('asset-tab-container'),
+            assetContent: document.getElementById('asset-tab')
         };
     }
     
@@ -1052,16 +1252,10 @@ function activateWorldTab() {
     
     // Make sure the World tab button is active and others inactive
     const worldTabButton = document.getElementById('world-tab-button');
-    const meshTabButton = document.getElementById('mesh-tab-button');
-    const atlasTabButton = document.getElementById('atlas-tab-button');
-    const uvTabButton = document.getElementById('uv-tab-button');
-    const rigTabButton = document.getElementById('rig-tab-button');
+    const assetTabButton = document.getElementById('asset-tab-button');
     
     if (worldTabButton) worldTabButton.classList.add('active');
-    if (meshTabButton) meshTabButton.classList.remove('active');
-    if (atlasTabButton) atlasTabButton.classList.remove('active');
-    if (uvTabButton) uvTabButton.classList.remove('active');
-    if (rigTabButton) rigTabButton.classList.remove('active');
+    if (assetTabButton) assetTabButton.classList.remove('active');
 }
 
 /**

@@ -208,9 +208,9 @@ export class SettingsModal {
                 const indicator = header.querySelector('.collapse-indicator');
                 if (indicator) {
                     if (header.classList.contains('expanded')) {
-                        indicator.textContent = '-'; // Minus sign when expanded
+                        indicator.textContent = '[-]'; // Minus sign when expanded (with brackets)
                     } else {
-                        indicator.textContent = '+'; // Plus sign when collapsed
+                        indicator.textContent = '[+]'; // Plus sign when collapsed (with brackets)
                     }
                 }
                 

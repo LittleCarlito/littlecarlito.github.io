@@ -649,7 +649,7 @@ export function updateLightingInfo(metadata) {
         if (indicators && indicators.length > 0) {
             indicators.forEach(indicator => {
                 // Always set to '+' to indicate collapsed state
-                indicator.textContent = '+';
+                indicator.textContent = '[+]';
             });
         }
     }
@@ -968,7 +968,7 @@ function clearLightingInfo() {
     const indicators = document.querySelectorAll('.collapse-indicator');
     if (indicators) {
         indicators.forEach(indicator => {
-            indicator.textContent = '+';
+            indicator.textContent = '[+]';
         });
     }
     
@@ -1070,7 +1070,7 @@ export function updateBackgroundInfo(metadata, skipRendering = false) {
         if (indicators && indicators.length > 0) {
             indicators.forEach(indicator => {
                 // Always set to '+' to indicate collapsed state
-                indicator.textContent = '+';
+                indicator.textContent = '[+]';
             });
         }
     }

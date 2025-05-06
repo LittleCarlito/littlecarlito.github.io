@@ -1,0 +1,77 @@
+<!-- Embedded HTML Editor Modal -->
+<div id="html-editor-modal" class="modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3 class="modal-title">HTML Editor: <span id="html-editor-mesh-name"></span></h3>
+            <button class="modal-close" id="html-editor-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="editor-controls">
+                <label for="html-editor-textarea">Edit HTML for this mesh:</label>
+                <div class="editor-options" style="justify-content: center;">
+                    <button id="html-editor-settings" class="editor-btn" title="Mesh Settings">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="14" height="14" style="stroke: currentColor; stroke-width: 30; fill: none; stroke-linecap: round; stroke-linejoin: round;">
+                            <path d="M487.4 315.7l-42.6-24.6c4.3-23.2 4.3-47 0-70.2l42.6-24.6c4.9-2.8 7.1-8.6 5.5-14-11.1-35.6-30-67.8-54.7-94.6-3.8-4.1-10-5.1-14.8-2.3L380.8 110c-17.9-15.4-38.5-27.3-60.8-35.1V25.8c0-5.6-3.9-10.5-9.4-11.7-36.7-8.2-74.3-7.8-109.2 0-5.5 1.2-9.4 6.1-9.4 11.7V75c-22.2 7.9-42.8 19.8-60.8 35.1L88.7 85.5c-4.9-2.8-11-1.9-14.8 2.3-24.7 26.7-43.6 58.9-54.7 94.6-1.7 5.4.6 11.2 5.5 14L67.3 221c-4.3 23.2-4.3 47 0 70.2l-42.6 24.6c-4.9 2.8-7.1 8.6-5.5 14 11.1 35.6 30 67.8 54.7 94.6 3.8 4.1 10 5.1 14.8 2.3l42.6-24.6c17.9 15.4 38.5 27.3 60.8 35.1v49.2c0 5.6 3.9 10.5 9.4 11.7 36.7 8.2 74.3 7.8 109.2 0 5.5-1.2 9.4-6.1 9.4-11.7v-49.2c22.2-7.9 42.8-19.8 60.8-35.1l42.6 24.6c4.9 2.8 11 1.9 14.8-2.3 24.7-26.7 43.6-58.9 54.7-94.6 1.5-5.5-.7-11.3-5.6-14.1zM256 336c-44.1 0-80-35.9-80-80s35.9-80 80-80 80 35.9 80 80-35.9 80-80 80z"/>
+                        </svg>
+                    </button>
+                    <button id="html-editor-format" class="editor-btn" title="Format">Format</button>
+                    <button id="html-editor-preview" class="editor-btn" title="Preview">Preview</button>
+                    <button id="html-editor-reset" class="editor-btn" title="Reset" style="display: none;">Reset</button>
+                </div>
+            </div>
+            
+            <div class="editor-container">
+                <textarea id="html-editor-textarea" class="code-editor" placeholder="Enter HTML code here..."></textarea>
+            </div>
+            
+            <div class="editor-preview-container" id="html-preview-container">
+                <div id="html-preview-content" class="html-preview"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <div class="editor-status" id="html-editor-status"></div>
+            <div class="editor-buttons">
+                <button id="html-editor-cancel" class="modal-btn modal-btn-secondary">Cancel</button>
+                <button id="html-editor-save" class="modal-btn modal-btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    #html-editor-reset {
+        background: none;
+        border: 2px solid #007bff;
+        color: #007bff;
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: background-color 0.3s, color 0.3s;
+    }
+
+    #html-editor-reset:hover {
+        background: #007bff;
+        color: white;
+    }
+
+    .editor-options {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+    }
+    
+    /* Modal stacking styles */
+    #html-editor-modal {
+        z-index: 1000; /* Base z-index for HTML editor modal */
+    }
+    
+    #html-editor-settings {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    #html-editor-settings svg {
+        width: 14px;
+        height: 14px;
+    }
+</style>

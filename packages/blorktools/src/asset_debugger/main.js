@@ -45,14 +45,15 @@ export function init() {
  */
 function preventDefaultDragEvents() {
     const preventDefaults = function(e) {
-        // Skip if the target is one of our dropzones
+        // Skip if the target is one of our dropzones or the main container dropzone
         const dropzoneIds = [
             'basecolor-dropzone', 
             'orm-dropzone', 
             'normal-dropzone',
             'model-dropzone',
             'lighting-dropzone',
-            'background-dropzone'
+            'background-dropzone',
+            'upload-section' // Add the main container
         ];
         
         if (dropzoneIds.some(id => e.target.id === id || e.target.closest(`#${id}`))) {

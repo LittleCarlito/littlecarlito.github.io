@@ -1,63 +1,109 @@
 /**
  * Model Worker
  * 
- * A web worker for processing model files (GLB) asynchronously.
+ * This worker processes GLB model files.
+ * It performs initial validation and processing of GLB files in a separate thread.
  */
 
-// Listen for messages from the main thread
-self.onmessage = async function(e) {
+/**
+ * Process a GLB model file
+ * @param {File} file - The GLB file to process
+ * @returns {Object} An object containing processing results
+ */
+async function processGLBFile(file) {
   try {
-    const { file, id } = e.data;
-    console.log(`[Model Worker] Processing model: ${file.name}`);
+    // Basic file validation
+    if (!file || !file.name.toLowerCase().endsWith('.glb')) {
+      return {
+        status: 'error',
+        error: 'Invalid GLB file'
+      };
+    }
     
-    // In a real implementation, this would parse the GLB file
-    // and extract useful information and metadata
-    // Since we can't load Three.js in a worker directly, we'll send back
-    // just the file metadata and let the main thread do the actual 3D processing
+    // Convert file to ArrayBuffer for processing
+    const arrayBuffer = await file.arrayBuffer();
     
-    // Create an ArrayBuffer from the file
-    const arrayBuffer = await readFileAsArrayBuffer(file);
+    // Validate GLB format
+    if (arrayBuffer.byteLength < 12) {
+      return {
+        status: 'error',
+        error: 'Invalid GLB format: File too small'
+      };
+    }
     
-    // For GLB files, we could extract the header information here if needed
-    // For now, just send back basic information
-    self.postMessage({
+    // Check GLB magic bytes
+    const headerView = new Uint8Array(arrayBuffer, 0, 4);
+    const magicString = String.fromCharCode.apply(null, headerView);
+    
+    if (magicString !== 'glTF') {
+      return {
+        status: 'error',
+        error: 'Invalid GLB format: Missing glTF magic bytes'
+      };
+    }
+    
+    // Get GLB version
+    const dataView = new DataView(arrayBuffer);
+    const version = dataView.getUint32(4, true);
+    if (version !== 2) {
+      return {
+        status: 'error',
+        error: `Unsupported GLB version: ${version}`
+      };
+    }
+    
+    // Check for JSON chunk
+    const jsonChunkType = dataView.getUint32(16, true);
+    if (jsonChunkType !== 0x4E4F534A) { // 'JSON' in ASCII
+      return {
+        status: 'error',
+        error: 'Invalid GLB: First chunk is not JSON'
+      };
+    }
+    
+    // Successfully validated the GLB file
+    return {
       status: 'success',
-      id,
       fileName: file.name,
       fileSize: file.size,
-      // We could include extracted metadata in a real implementation
-      metadata: {
-        type: 'glb',
-        hasAnimations: false, // Would be determined by parsing the file
-        hasMorphTargets: false // Would be determined by parsing the file
-      }
-    });
+      fileType: 'glb',
+      version: version,
+      // We don't need to send the full arrayBuffer back to the main thread
+      // Just send validation results
+      message: 'GLB file validated successfully'
+    };
+    
   } catch (error) {
-    console.error('[Model Worker] Error:', error);
+    console.error('Error in model worker:', error);
+    return {
+      status: 'error',
+      error: `Error processing GLB file: ${error.message || 'Unknown error'}`
+    };
+  }
+}
+
+// Set up message handler to process GLB files
+self.onmessage = async (e) => {
+  try {
+    const { file, id } = e.data;
+    
+    // Process the file
+    const result = await processGLBFile(file);
+    
+    // Add the worker ID to the result
+    result.id = id;
+    
+    // Send the result back to the main thread
+    self.postMessage(result);
+  } catch (error) {
+    // Send error result back to main thread
     self.postMessage({
       status: 'error',
-      error: error.message || 'Unknown error processing model'
+      id: e.data.id,
+      error: error.message || 'Unknown error in model worker'
     });
   }
 };
 
-/**
- * Read a file as an ArrayBuffer
- * @param {File} file - The file to read
- * @returns {Promise<ArrayBuffer>} A promise that resolves to the ArrayBuffer
- */
-function readFileAsArrayBuffer(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    
-    reader.onload = function(e) {
-      resolve(e.target.result);
-    };
-    
-    reader.onerror = function() {
-      reject(new Error('Failed to read model file'));
-    };
-    
-    reader.readAsArrayBuffer(file);
-  });
-} 
+// Log that the worker has started
+console.log('Model worker started'); 
