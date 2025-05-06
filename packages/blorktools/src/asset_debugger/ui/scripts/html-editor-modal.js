@@ -136,6 +136,7 @@ export function initHtmlEditorModal() {
     const saveBtn = document.getElementById('html-editor-save');
     const formatBtn = document.getElementById('html-editor-format');
     const previewBtn = document.getElementById('html-editor-preview');
+    const resetBtn = document.getElementById('html-editor-reset');
     const textarea = document.getElementById('html-editor-textarea');
     const previewContainer = document.getElementById('html-preview-container');
     const previewContent = document.getElementById('html-preview-content');
@@ -179,10 +180,38 @@ export function initHtmlEditorModal() {
         try {
             previewHtml(textarea.value);
             previewContainer.style.display = 'block';
+            textarea.style.display = 'none';
+            previewBtn.style.display = 'none';
+            resetBtn.style.display = 'inline-block';
+            const editorContainer = document.querySelector('.editor-container');
+            if (editorContainer) {
+                editorContainer.style.display = 'none'; // Hide editor container
+            }
+            const label = document.querySelector('.editor-controls label');
+            if (label) {
+                label.textContent = 'Preview:'; // Update label text
+            }
             showStatus('Preview updated', 'success');
         } catch (error) {
             showStatus('Error generating preview: ' + error.message, 'error');
         }
+    });
+    
+    // Reset button
+    resetBtn.addEventListener('click', () => {
+        previewContainer.style.display = 'none';
+        textarea.style.display = 'block';
+        previewBtn.style.display = 'inline-block';
+        resetBtn.style.display = 'none';
+        const editorContainer = document.querySelector('.editor-container');
+        if (editorContainer) {
+            editorContainer.style.display = 'block'; // Show editor container
+        }
+        const label = document.querySelector('.editor-controls label');
+        if (label) {
+            label.textContent = 'Edit HTML for this mesh:'; // Restore label text
+        }
+        showStatus('Editor view restored', 'info');
     });
     
     // Save button
@@ -447,4 +476,4 @@ export default {
     setCurrentGlbBuffer,
     loadHtmlFromGlb,
     saveHtmlToGlb
-}; 
+};

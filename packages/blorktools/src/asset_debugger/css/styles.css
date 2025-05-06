@@ -2424,4 +2424,26 @@ h2 {
     border: 1px solid var(--panel-border);
     border-radius: 3px;
     width: 100px;
-} 
+}
+
+#html-editor-modal .editor-preview-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+#html-editor-modal .editor-btn#html-editor-reset {
+    background-color: transparent;
+    border: 2px solid var(--button-color);
+    color: var(--button-color);
+    padding: 5px 10px;
+    border-radius: 3px;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+#html-editor-modal .editor-btn#html-editor-reset:hover {
+    background-color: var(--button-color);
+    color: white;
+}

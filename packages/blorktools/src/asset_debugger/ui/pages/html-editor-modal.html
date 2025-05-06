@@ -8,9 +8,10 @@
         <div class="modal-body">
             <div class="editor-controls">
                 <label for="html-editor-textarea">Edit HTML for this mesh:</label>
-                <div class="editor-options">
+                <div class="editor-options" style="justify-content: center;">
                     <button id="html-editor-format" class="editor-btn" title="Format HTML">Format</button>
                     <button id="html-editor-preview" class="editor-btn" title="Preview">Preview</button>
+                    <button id="html-editor-reset" class="editor-btn" title="Reset" style="display: none;">Reset</button>
                 </div>
             </div>
             
@@ -19,7 +20,6 @@
             </div>
             
             <div class="editor-preview-container" id="html-preview-container">
-                <h4>Preview</h4>
                 <div id="html-preview-content" class="html-preview"></div>
             </div>
         </div>
@@ -31,4 +31,26 @@
             </div>
         </div>
     </div>
-</div> 
+</div>
+
+<style>
+    #html-editor-reset {
+        background: none;
+        border: 2px solid #007bff;
+        color: #007bff;
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: background-color 0.3s, color 0.3s;
+    }
+
+    #html-editor-reset:hover {
+        background: #007bff;
+        color: white;
+    }
+
+    .editor-options {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+    }
+</style>
