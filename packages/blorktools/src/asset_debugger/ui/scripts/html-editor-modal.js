@@ -19,6 +19,11 @@ const meshHtmlContent = new Map();
 // Store reference to the current GLB array buffer
 let currentGlbBuffer = null;
 
+// Store HTML editor state to restore after mesh settings modal closes
+let htmlEditorState = {
+    isOpen: false
+};
+
 /**
  * Set the current GLB buffer for HTML operations
  * @param {ArrayBuffer} glbBuffer - The GLB file as an ArrayBuffer
@@ -69,6 +74,7 @@ export function openEmbeddedHtmlEditor(meshName, meshId) {
             
             // Show the modal by adding the visible class
             modal.classList.add('visible');
+            htmlEditorState.isOpen = true;
             console.log('HTML Editor Modal opened successfully');
         }).catch(error => {
             console.error('Error loading HTML content:', error);
@@ -76,6 +82,7 @@ export function openEmbeddedHtmlEditor(meshName, meshId) {
             
             // Still show the modal even if loading fails
             modal.classList.add('visible');
+            htmlEditorState.isOpen = true;
         });
     } catch (error) {
         console.error('Error opening HTML Editor Modal:', error);
@@ -137,6 +144,7 @@ export function initHtmlEditorModal() {
     const formatBtn = document.getElementById('html-editor-format');
     const previewBtn = document.getElementById('html-editor-preview');
     const resetBtn = document.getElementById('html-editor-reset');
+    const settingsBtn = document.getElementById('html-editor-settings');
     const textarea = document.getElementById('html-editor-textarea');
     const previewContainer = document.getElementById('html-preview-container');
     const previewContent = document.getElementById('html-preview-content');
@@ -214,6 +222,37 @@ export function initHtmlEditorModal() {
         showStatus('Editor view restored', 'info');
     });
     
+    // Settings button - opens mesh settings modal
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
+            try {
+                const meshId = parseInt(modal.dataset.meshId);
+                const meshName = document.getElementById('html-editor-mesh-name').textContent;
+                
+                if (!isNaN(meshId)) {
+                    console.log(`Opening mesh settings from HTML editor for mesh: ${meshName} (ID: ${meshId})`);
+                    
+                    // Store HTML editor state
+                    htmlEditorState.isOpen = true;
+                    
+                    // Call the mesh settings modal
+                    if (typeof window.openMeshSettingsModal === 'function') {
+                        // Call with a special flag to indicate it was opened from HTML editor
+                        window.openMeshSettingsModal(meshName, meshId, {fromHtmlEditor: true});
+                    } else {
+                        console.error('Mesh Settings function not found');
+                        alert('Mesh Settings not available');
+                    }
+                } else {
+                    console.error('Invalid mesh ID in HTML editor');
+                }
+            } catch (error) {
+                console.error('Error opening mesh settings from HTML editor:', error);
+                showStatus('Error opening settings', 'error');
+            }
+        });
+    }
+    
     // Save button
     saveBtn.addEventListener('click', async () => {
         try {
@@ -254,6 +293,19 @@ export function initHtmlEditorModal() {
 function closeModal() {
     const modal = document.getElementById('html-editor-modal');
     modal.classList.remove('visible');
+    htmlEditorState.isOpen = false;
+}
+
+/**
+ * Re-open the HTML Editor Modal (used after mesh settings modal closes)
+ */
+export function reopenHtmlEditorModal() {
+    if (htmlEditorState.isOpen) {
+        const modal = document.getElementById('html-editor-modal');
+        if (modal) {
+            modal.classList.add('visible');
+        }
+    }
 }
 
 /**

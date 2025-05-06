@@ -11,6 +11,9 @@ import { getCurrentGlbBuffer } from './model-integration.js';
 // Store HTML settings for each mesh
 const meshHtmlSettings = new Map();
 
+// Flag to track if modal was opened from HTML editor
+let openedFromHtmlEditor = false;
+
 // Default settings for HTML content
 const defaultSettings = {
     position: { x: 0, y: 0, z: 0 },
@@ -31,11 +34,16 @@ const defaultSettings = {
  * Open the Mesh Settings Modal for a specific mesh
  * @param {string} meshName - The name of the mesh
  * @param {number} meshId - The ID/index of the mesh
+ * @param {Object} options - Additional options
+ * @param {boolean} options.fromHtmlEditor - Whether the modal was opened from HTML editor
  */
-export function openMeshSettingsModal(meshName, meshId) {
+export function openMeshSettingsModal(meshName, meshId, options = {}) {
     console.log(`openMeshSettingsModal called for mesh: ${meshName} (ID: ${meshId})`);
     
     try {
+        // Track if opened from HTML editor
+        openedFromHtmlEditor = !!options.fromHtmlEditor;
+        
         const modal = document.getElementById('mesh-settings-modal');
         if (!modal) {
             console.error('Mesh Settings Modal element not found in the DOM');
@@ -56,8 +64,16 @@ export function openMeshSettingsModal(meshName, meshId) {
         // Load settings for this mesh or use defaults
         loadSettingsForMesh(meshId);
         
+        // Always ensure the highest z-index for this modal
+        // No need to conditionally set based on openedFromHtmlEditor
+        // As we always want it to be on top
+        
         // Show the modal by adding the visible class
         modal.classList.add('visible');
+        
+        // Force the browser to recalculate styles to ensure modal is displayed correctly
+        void modal.offsetWidth;
+        
         console.log('Mesh Settings Modal opened successfully');
     } catch (error) {
         console.error('Error opening Mesh Settings Modal:', error);
@@ -200,6 +216,24 @@ function showStatus(message, type = 'info') {
 function closeModal() {
     const modal = document.getElementById('mesh-settings-modal');
     modal.classList.remove('visible');
+    
+    // If opened from HTML editor, re-open the HTML editor modal
+    if (openedFromHtmlEditor) {
+        // Wait a short moment before reopening HTML editor to avoid visual glitches
+        setTimeout(() => {
+            // Need to dynamically import to avoid circular dependency
+            import('./html-editor-modal.js').then(htmlEditorModule => {
+                if (typeof htmlEditorModule.reopenHtmlEditorModal === 'function') {
+                    htmlEditorModule.reopenHtmlEditorModal();
+                }
+            }).catch(error => {
+                console.error('Error importing HTML editor module:', error);
+            });
+        }, 100);
+        
+        // Reset flag
+        openedFromHtmlEditor = false;
+    }
 }
 
 /**

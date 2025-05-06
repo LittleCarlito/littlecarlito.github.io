@@ -103,4 +103,23 @@
             </div>
         </div>
     </div>
-</div> 
+</div>
+
+<style>
+    /* Modal stacking styles */
+    #mesh-settings-modal {
+        z-index: 9999 !important; /* Extremely high z-index to ensure it's above everything */
+    }
+    
+    /* Ensure modal container appears above other elements */
+    #mesh-settings-modal .modal-container {
+        position: relative;
+        z-index: 10000;
+    }
+    
+    /* Make sure the modal overlay is visible */
+    #mesh-settings-modal.visible {
+        display: flex !important;
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+</style> 
