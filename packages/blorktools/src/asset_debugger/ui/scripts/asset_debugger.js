@@ -18,6 +18,10 @@ import { initWorldPanel } from './world-panel.js';
 import { initAssetPanel } from './asset-panel.js';
 // Import HTML Editor Modal
 import { initHtmlEditorModal } from './html-editor-modal.js';
+// Import Mesh Settings Modal
+import { initMeshSettingsModal } from './mesh-settings-modal.js';
+// Import Model Integration for HTML Editor
+import { initModelIntegration } from './model-integration.js';
 // Import ZIP utilities
 import { 
     processZipContents, 
@@ -64,7 +68,7 @@ let resourcesLoaded = {
  */
 function loadComponentHtml() {
     // Track loading of components
-    let componentsToLoad = 5; // Total components to load (increased to include HTML editor modal)
+    let componentsToLoad = 6; // Total components to load (increased to include HTML editor and mesh settings modals)
     let componentsLoaded = 0;
 
     // Function to update progress when a component loads
@@ -171,32 +175,129 @@ function loadComponentHtml() {
     fetch('../pages/html-editor-modal.html')
         .then(response => response.text())
         .then(html => {
-            document.getElementById('html-editor-modal-container').innerHTML = html;
+            // Create a temporary div to parse the HTML
+            const tempContainer = document.createElement('div');
+            tempContainer.innerHTML = html.trim();
             
-            // Initialize the HTML editor modal once loaded
-            console.log('HTML Editor Modal HTML loaded, initializing...');
-            setTimeout(() => {
-                // Use a small timeout to ensure DOM is fully ready
-                initHtmlEditorModal();
-                console.log('HTML Editor Modal initialized, global function available:', typeof window.openEmbeddedHtmlEditor === 'function');
+            // Extract the modal element using querySelector instead of firstChild
+            const modalElement = tempContainer.querySelector('#html-editor-modal');
+            
+            // Ensure the modal is hidden before adding it to the DOM
+            if (modalElement) {
+                modalElement.style.display = 'none';
                 
-                // Expose it globally again just to be safe
-                if (typeof window.openEmbeddedHtmlEditor !== 'function') {
-                    console.warn('Global function not set correctly, attempting to fix...');
-                    import('./html-editor-modal.js').then(module => {
-                        // Force re-exposure of the function
-                        window.openEmbeddedHtmlEditor = module.default.openEmbeddedHtmlEditor || 
-                                                      function() { 
-                                                          console.error('Fallback function called - real function not available'); 
-                                                      };
-                    });
+                // Remove any existing modal with the same ID
+                const existingModal = document.getElementById('html-editor-modal');
+                if (existingModal) {
+                    existingModal.remove();
                 }
-            }, 100);
+                
+                // Append the new modal directly to the body
+                document.body.appendChild(modalElement);
+                
+                // Initialize the modal now that it's in the DOM and hidden
+                setTimeout(() => {
+                    // Call initHtmlEditorModal and ensure it registers the global function
+                    initHtmlEditorModal();
+                    
+                    // Double-check that the function is registered globally
+                    if (typeof window.openEmbeddedHtmlEditor !== 'function') {
+                        console.log('Global function not registered properly, manually registering now');
+                        
+                        // Import the module and manually register the function
+                        import('./html-editor-modal.js').then(module => {
+                            // Create a wrapper function that calls openEmbeddedHtmlEditor from the module
+                            window.openEmbeddedHtmlEditor = function(meshName, meshId) {
+                                console.log(`Global wrapper: Opening HTML editor for ${meshName} (ID: ${meshId})`);
+                                // Call the module's openEmbeddedHtmlEditor function or its default export's function
+                                if (module.openEmbeddedHtmlEditor) {
+                                    module.openEmbeddedHtmlEditor(meshName, meshId);
+                                } else if (module.default && module.default.openEmbeddedHtmlEditor) {
+                                    module.default.openEmbeddedHtmlEditor(meshName, meshId);
+                                } else {
+                                    console.error('Could not find openEmbeddedHtmlEditor in module');
+                                }
+                            };
+                            
+                            console.log('Global function registered:', typeof window.openEmbeddedHtmlEditor === 'function');
+                        });
+                    } else {
+                        console.log('HTML Editor Modal initialized successfully, global function available');
+                    }
+                }, 100);
+            } else {
+                console.error('Could not extract HTML editor modal element from HTML: modal element not found');
+            }
             
             componentLoaded();
         })
         .catch(error => {
             console.error('Error loading HTML editor modal:', error);
+            componentLoaded();
+        });
+        
+    // Load the mesh settings modal component
+    fetch('../pages/mesh-settings-modal.html')
+        .then(response => response.text())
+        .then(html => {
+            // Create a temporary div to parse the HTML
+            const tempContainer = document.createElement('div');
+            tempContainer.innerHTML = html.trim();
+            
+            // Extract the modal element using querySelector
+            const modalElement = tempContainer.querySelector('#mesh-settings-modal');
+            
+            // Ensure the modal is hidden before adding it to the DOM
+            if (modalElement) {
+                modalElement.style.display = 'none';
+                
+                // Remove any existing modal with the same ID
+                const existingModal = document.getElementById('mesh-settings-modal');
+                if (existingModal) {
+                    existingModal.remove();
+                }
+                
+                // Append the new modal directly to the body
+                document.body.appendChild(modalElement);
+                
+                // Initialize the modal now that it's in the DOM and hidden
+                setTimeout(() => {
+                    // Call initMeshSettingsModal and ensure it registers the global function
+                    initMeshSettingsModal();
+                    
+                    // Double-check that the function is registered globally
+                    if (typeof window.openMeshSettingsModal !== 'function') {
+                        console.log('Mesh Settings global function not registered properly, manually registering now');
+                        
+                        // Import the module and manually register the function
+                        import('./mesh-settings-modal.js').then(module => {
+                            // Create a wrapper function that calls openMeshSettingsModal from the module
+                            window.openMeshSettingsModal = function(meshName, meshId) {
+                                console.log(`Global wrapper: Opening mesh settings for ${meshName} (ID: ${meshId})`);
+                                // Call the module's openMeshSettingsModal function or its default export's function
+                                if (module.openMeshSettingsModal) {
+                                    module.openMeshSettingsModal(meshName, meshId);
+                                } else if (module.default && module.default.openMeshSettingsModal) {
+                                    module.default.openMeshSettingsModal(meshName, meshId);
+                                } else {
+                                    console.error('Could not find openMeshSettingsModal in module');
+                                }
+                            };
+                            
+                            console.log('Mesh Settings global function registered:', typeof window.openMeshSettingsModal === 'function');
+                        });
+                    } else {
+                        console.log('Mesh Settings Modal initialized successfully, global function available');
+                    }
+                }, 100);
+            } else {
+                console.error('Could not extract mesh settings modal element from HTML: modal element not found');
+            }
+            
+            componentLoaded();
+        })
+        .catch(error => {
+            console.error('Error loading mesh settings modal:', error);
             componentLoaded();
         });
 }
@@ -249,6 +350,15 @@ function initializeDebugger(settings) {
     
     // Initialize settings modal with loaded settings
     new SettingsModal(settings);
+    
+    // Initialize HTML Editor Modal
+    initHtmlEditorModal();
+    
+    // Initialize Mesh Settings Modal
+    initMeshSettingsModal();
+    
+    // Initialize Model Integration for HTML Editor
+    initModelIntegration();
     
     // Scene initialization is now handled in startDebugging function
     // to ensure proper sequencing of operations

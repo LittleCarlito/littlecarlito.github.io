@@ -595,7 +595,45 @@ async function classifyAtlasTextures(images) {
             });
             
             // Classify the image
-            const classification = classifier.classifyImage(img);
+            let classification = null;
+            
+            // Check if classifier.classifyImage exists
+            if (typeof classifier.classifyImage === 'function') {
+                classification = classifier.classifyImage(img);
+            } else {
+                // Fallback classification based on filename
+                console.log('[ZIP Util] Using fallback classification for:', imageInfo.name);
+                const filenameLower = imageInfo.name.toLowerCase();
+                
+                classification = {
+                    base_color: null,
+                    normal_map: null,
+                    orm_map: null
+                };
+                
+                // Simple classification rules based on filename
+                if (filenameLower.includes('basecolor') || 
+                    filenameLower.includes('base_color') || 
+                    filenameLower.includes('albedo') ||
+                    filenameLower.includes('diffuse') ||
+                    filenameLower.includes('color') && !filenameLower.includes('normal')) {
+                    classification.base_color = { confidence: 0.8 };
+                }
+                
+                if (filenameLower.includes('normal') || 
+                    filenameLower.includes('nrm') || 
+                    filenameLower.includes('nor')) {
+                    classification.normal_map = { confidence: 0.8 };
+                }
+                
+                if (filenameLower.includes('orm') || 
+                    filenameLower.includes('occlusion') ||
+                    filenameLower.includes('roughness') ||
+                    filenameLower.includes('metallic') ||
+                    filenameLower.includes('metalness')) {
+                    classification.orm_map = { confidence: 0.8 };
+                }
+            }
             
             // Add the file and filename to the classification results
             classification.file = imageInfo.file;

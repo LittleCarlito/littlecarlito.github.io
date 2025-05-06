@@ -4,6 +4,46 @@
  * This module handles mesh visibility panel UI and interaction.
  */
 import { getState, updateState } from '../../core/state.js';
+import { getCurrentGlbBuffer } from './model-integration.js';
+import { getBinaryBufferForMesh } from '../../core/glb-utils.js';
+
+// Track meshes with HTML content
+const meshesWithHtml = new Set();
+
+/**
+ * Check if a mesh has HTML content
+ * @param {number} meshIndex - The index of the mesh to check
+ * @returns {Promise<boolean>} Promise that resolves to true if the mesh has HTML content
+ */
+async function checkMeshHasHtmlContent(meshIndex) {
+    // First check our cache
+    if (meshesWithHtml.has(meshIndex)) {
+        return true;
+    }
+    
+    // Get the current GLB buffer
+    const glbBuffer = getCurrentGlbBuffer();
+    if (!glbBuffer) {
+        return false;
+    }
+    
+    try {
+        // Try to get binary buffer for this mesh
+        const binaryBuffer = await getBinaryBufferForMesh(glbBuffer, meshIndex);
+        
+        // If buffer found, mesh has HTML
+        if (binaryBuffer) {
+            // Cache the result
+            meshesWithHtml.add(meshIndex);
+            return true;
+        }
+        
+        return false;
+    } catch (error) {
+        console.error('Error checking if mesh has HTML:', error);
+        return false;
+    }
+}
 
 /**
  * Create the mesh visibility panel in the UI
@@ -158,19 +198,50 @@ export function createMeshVisibilityPanel() {
             // Create wrench icon for mesh settings
             const wrenchIcon = document.createElement('span');
             wrenchIcon.className = 'mesh-settings-icon';
-            // SVG code icon for better cross-browser compatibility
+            wrenchIcon.title = 'Mesh Settings';
             wrenchIcon.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M5.854 4.854a.5.5 0 1 0-.708-.708l-3.5 3.5a.5.5 0 0 0 0 .708l3.5 3.5a.5.5 0 0 0 .708-.708L2.707 8l3.147-3.146zm4.292 0a.5.5 0 0 1 .708-.708l3.5 3.5a.5.5 0 0 1 0 .708l-3.5 3.5a.5.5 0 0 1-.708-.708L13.293 8l-3.147-3.146z"/>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="8" height="8" style="stroke: currentColor; stroke-width: 30; fill: none; stroke-linecap: round; stroke-linejoin: round;">
+                    <path d="M487.4 315.7l-42.6-24.6c4.3-23.2 4.3-47 0-70.2l42.6-24.6c4.9-2.8 7.1-8.6 5.5-14-11.1-35.6-30-67.8-54.7-94.6-3.8-4.1-10-5.1-14.8-2.3L380.8 110c-17.9-15.4-38.5-27.3-60.8-35.1V25.8c0-5.6-3.9-10.5-9.4-11.7-36.7-8.2-74.3-7.8-109.2 0-5.5 1.2-9.4 6.1-9.4 11.7V75c-22.2 7.9-42.8 19.8-60.8 35.1L88.7 85.5c-4.9-2.8-11-1.9-14.8 2.3-24.7 26.7-43.6 58.9-54.7 94.6-1.7 5.4.6 11.2 5.5 14L67.3 221c-4.3 23.2-4.3 47 0 70.2l-42.6 24.6c-4.9 2.8-7.1 8.6-5.5 14 11.1 35.6 30 67.8 54.7 94.6 3.8 4.1 10 5.1 14.8 2.3l42.6-24.6c17.9 15.4 38.5 27.3 60.8 35.1v49.2c0 5.6 3.9 10.5 9.4 11.7 36.7 8.2 74.3 7.8 109.2 0 5.5-1.2 9.4-6.1 9.4-11.7v-49.2c22.2-7.9 42.8-19.8 60.8-35.1l42.6 24.6c4.9 2.8 11 1.9 14.8-2.3 24.7-26.7 43.6-58.9 54.7-94.6 1.5-5.5-.7-11.3-5.6-14.1zM256 336c-44.1 0-80-35.9-80-80s35.9-80 80-80 80 35.9 80 80-35.9 80-80 80z"/>
                 </svg>
             `;
-            wrenchIcon.style.color = '#007bff';  // Blue color
-            wrenchIcon.style.cursor = 'pointer';
-            wrenchIcon.style.marginLeft = 'auto';
-            wrenchIcon.title = 'Open HTML editor';
             
-            // Add click event listener for the icon to open modal
+            // Add event listener to open mesh settings modal
             wrenchIcon.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent propagation to parent elements
+                console.log('Mesh settings icon clicked');
+                
+                try {
+                    const meshIndex = parseInt(meshToggle.dataset.meshIndex);
+                    const meshName = state.meshes[meshIndex].name || 'Unnamed mesh';
+                    
+                    console.log(`Opening mesh settings for mesh: ${meshName} (index: ${meshIndex})`);
+                    
+                    // Check if the function exists before calling it
+                    if (typeof window.openMeshSettingsModal === 'function') {
+                        // Call the mesh settings modal
+                        window.openMeshSettingsModal(meshName, meshIndex);
+                    } else {
+                        console.error('Mesh Settings function not found. Modal may not be initialized yet.');
+                        alert('Mesh Settings not ready. Please try again in a moment.');
+                    }
+                } catch (error) {
+                    console.error('Error opening mesh settings modal:', error);
+                    alert('Error opening mesh settings. See console for details.');
+                }
+            });
+            
+            // Create HTML editor icon
+            const htmlEditorIcon = document.createElement('span');
+            htmlEditorIcon.className = 'mesh-html-editor-icon';
+            htmlEditorIcon.title = 'Edit HTML';
+            htmlEditorIcon.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512">
+                    <path d="M234.8 511.7L196 500.4c-4.2-1.2-6.7-5.7-5.5-9.9L331.3 5.8c1.2-4.2 5.7-6.7 9.9-5.5L380 11.6c4.2 1.2 6.7 5.7 5.5 9.9L244.7 506.2c-1.2 4.3-5.6 6.7-9.9 5.5zm-83.2-121.1l27.2-29c3.1-3.3 2.8-8.5-.5-11.5L72.2 256l106.1-94.1c3.4-3 3.6-8.2.5-11.5l-27.2-29c-3-3.2-8.1-3.4-11.3-.4L2.5 250.2c-3.4 3.2-3.4 8.5 0 11.7L140.3 391c3.2 3 8.2 2.8 11.3-.4zm284.1.4l137.7-129.1c3.4-3.2 3.4-8.5 0-11.7L435.7 121c-3.2-3-8.3-2.9-11.3.4l-27.2 29c-3.1 3.3-2.8 8.5.5 11.5L503.8 256l-106.1 94.1c-3.4 3-3.6 8.2-.5 11.5l27.2 29c3.1 3.2 8.1 3.4 11.3.4z"/>
+                </svg>
+            `;
+            
+            // Add event listener to open HTML editor modal
+            htmlEditorIcon.addEventListener('click', (e) => {
                 e.stopPropagation(); // Prevent propagation to parent elements
                 console.log('HTML editor icon clicked');
                 
@@ -197,6 +268,7 @@ export function createMeshVisibilityPanel() {
             // Assemble mesh item
             meshDiv.appendChild(meshToggle);
             meshDiv.appendChild(meshNameSpan);
+            meshDiv.appendChild(htmlEditorIcon);
             meshDiv.appendChild(wrenchIcon);
             
             // Add to mesh items container

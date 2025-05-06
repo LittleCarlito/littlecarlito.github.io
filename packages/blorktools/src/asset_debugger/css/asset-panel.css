@@ -202,6 +202,27 @@
     transform: rotate(20deg);
 }
 
+/* HTML Editor Icon */
+.mesh-html-editor-icon {
+    color: #28a745;
+    cursor: pointer;
+    margin-left: 8px;
+    font-size: 1.1em;
+    display: flex;
+    align-items: center;
+}
+
+.mesh-html-editor-icon svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+    transition: transform 0.2s ease;
+}
+
+.mesh-html-editor-icon:hover svg {
+    transform: rotate(20deg);
+}
+
 /* Atlas Panel Styles */
 .panel-container {
     width: 100%;
@@ -440,4 +461,76 @@
     padding: 3px 6px;
     border-radius: 3px;
     flex: 1;
+}
+
+/* Mesh Settings Modal Styles */
+.settings-section {
+    margin-bottom: 20px;
+}
+
+.settings-section h4 {
+    color: #4CAF50;
+    margin: 0 0 15px 0;
+    font-weight: 500;
+}
+
+.settings-group {
+    margin-bottom: 15px;
+}
+
+.settings-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.9em;
+    color: #ddd;
+}
+
+.position-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.control-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.control-row label {
+    width: 20px;
+    margin-bottom: 0;
+    color: #aaa;
+}
+
+.number-input {
+    width: 60px;
+    padding: 4px 6px;
+    background: #333;
+    border: 1px solid #555;
+    color: white;
+    border-radius: 3px;
+}
+
+.settings-status {
+    margin-top: 15px;
+    padding: 5px 10px;
+    border-radius: 3px;
+    min-height: 20px;
+}
+
+.settings-status.success {
+    background-color: rgba(76, 175, 80, 0.2);
+    color: #4CAF50;
+}
+
+.settings-status.error {
+    background-color: rgba(244, 67, 54, 0.2);
+    color: #F44336;
+}
+
+.settings-status.info {
+    background-color: rgba(33, 150, 243, 0.2);
+    color: #2196F3;
 } 

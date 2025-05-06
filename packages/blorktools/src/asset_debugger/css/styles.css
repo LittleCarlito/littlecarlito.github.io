@@ -485,6 +485,7 @@ h3 {
     right: 0;
     bottom: 0;
     background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(3px);
     display: none;
     justify-content: center;
     align-items: center;
@@ -2252,38 +2253,21 @@ h2 {
     display: none;
 }
 
-#html-editor-modal.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+#html-editor-modal.visible {
+    display: flex !important;
     z-index: 3000; /* Ensure it's above other UI elements */
 }
 
-#html-editor-modal .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    z-index: 3000;
-}
-
 #html-editor-modal .modal-container {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
     width: 80%;
     max-width: 800px;
     height: 80vh;
     display: flex;
     flex-direction: column;
-    z-index: 3001;
     background-color: var(--panel-bg);
     border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    overflow: hidden;
 }
 
 #html-editor-modal .modal-body {
@@ -2292,6 +2276,7 @@ h2 {
     flex: 1;
     overflow: hidden;
     padding: 15px;
+    box-sizing: border-box;
 }
 
 .editor-controls {
@@ -2299,6 +2284,7 @@ h2 {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
+    width: 100%;
 }
 
 .editor-options {
@@ -2324,6 +2310,8 @@ h2 {
     flex: 1;
     min-height: 200px;
     margin-bottom: 15px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .code-editor {
@@ -2338,6 +2326,8 @@ h2 {
     resize: none;
     font-size: 14px;
     line-height: 1.5;
+    box-sizing: border-box;
+    overflow-x: auto;
 }
 
 .editor-preview-container {
@@ -2347,6 +2337,8 @@ h2 {
     border-radius: 3px;
     margin-bottom: 15px;
     display: none;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .editor-preview-container h4 {
@@ -2365,6 +2357,8 @@ h2 {
     overflow: auto;
     padding: 10px;
     border-radius: 3px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .modal-footer {
@@ -2392,4 +2386,42 @@ h2 {
 .editor-buttons {
     display: flex;
     gap: 10px;
+}
+
+/* Mesh Settings Modal Styles */
+#mesh-settings-modal {
+    display: none;
+}
+
+#mesh-settings-modal.visible {
+    display: flex !important;
+    z-index: 3000; /* Ensure it's above other UI elements */
+}
+
+/* Animation controls styling */
+.animation-controls {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.animation-controls .control-row {
+    display: flex;
+    align-items: center;
+}
+
+.animation-controls label {
+    width: 80px;
+    margin-right: 8px;
+    color: var(--label-text);
+}
+
+.select-input {
+    padding: 4px 6px;
+    background-color: var(--input-bg);
+    color: var(--input-text);
+    border: 1px solid var(--panel-border);
+    border-radius: 3px;
+    width: 100px;
 } 
