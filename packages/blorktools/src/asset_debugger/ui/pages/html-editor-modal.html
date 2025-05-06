@@ -1,0 +1,35 @@
+<!-- Embedded HTML Editor Modal -->
+<div id="html-editor-modal" class="modal">
+    <div class="modal-overlay"></div>
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3 class="modal-title">HTML Editor: <span id="html-editor-mesh-name"></span></h3>
+            <button class="modal-close" id="html-editor-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="editor-controls">
+                <label for="html-editor-textarea">Edit HTML for this mesh:</label>
+                <div class="editor-options">
+                    <button id="html-editor-format" class="editor-btn" title="Format HTML">Format</button>
+                    <button id="html-editor-preview" class="editor-btn" title="Preview">Preview</button>
+                </div>
+            </div>
+            
+            <div class="editor-container">
+                <textarea id="html-editor-textarea" class="code-editor" placeholder="Enter HTML code here..."></textarea>
+            </div>
+            
+            <div class="editor-preview-container" id="html-preview-container">
+                <h4>Preview</h4>
+                <div id="html-preview-content" class="html-preview"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <div class="editor-status" id="html-editor-status"></div>
+            <div class="editor-buttons">
+                <button id="html-editor-cancel" class="modal-btn modal-btn-secondary">Cancel</button>
+                <button id="html-editor-save" class="modal-btn modal-btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+</div> 

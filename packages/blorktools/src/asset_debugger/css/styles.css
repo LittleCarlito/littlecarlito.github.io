@@ -667,14 +667,12 @@ h3 {
 }
 
 .mesh-panel {
-    flex: 0 0 300px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+    overflow: hidden;
     background-color: var(--panel-bg);
     border: 1px solid var(--panel-border);
-    padding: 15px;
-    max-height: 600px;
-    overflow-y: auto;
-    display: none;
-    transition: background-color 0.3s ease;
+    padding: 10px;
 }
 
 .mesh-panel h3 {
@@ -724,26 +722,49 @@ h3 {
 }
 
 .mesh-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 3px;
-    padding: 3px;
+    padding: 5px;
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
 }
 
 .mesh-item:hover {
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: rgba(30, 30, 30, 0.8);
 }
 
 .mesh-toggle {
-    margin-right: 5px;
-    color: var(--primary-color);
+    margin-right: 8px;
+    cursor: pointer;
 }
 
 .mesh-name {
-    font-size: 13px;
+    color: var(--text-color);
+    font-size: 14px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    margin-right: 10px;
+}
+
+/* Mesh Settings Icon */
+.mesh-settings-icon {
+    color: var(--button-color);
+    font-size: 16px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    display: flex;
+    align-items: center;
+}
+
+.mesh-settings-icon svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+    transition: transform 0.2s ease;
+}
+
+.mesh-settings-icon:hover svg {
+    transform: rotate(20deg);
+    filter: drop-shadow(0 0 2px var(--button-color));
 }
 
 /* Tabs styling */
@@ -2224,4 +2245,151 @@ h2 {
 /* Use standard cursor for truncated text */
 .is-truncated {
     cursor: text;
+}
+
+/* HTML Editor Modal Styles */
+#html-editor-modal {
+    display: none;
+}
+
+#html-editor-modal.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 3000; /* Ensure it's above other UI elements */
+}
+
+#html-editor-modal .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 3000;
+}
+
+#html-editor-modal .modal-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    max-width: 800px;
+    height: 80vh;
+    display: flex;
+    flex-direction: column;
+    z-index: 3001;
+    background-color: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+}
+
+#html-editor-modal .modal-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    padding: 15px;
+}
+
+.editor-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.editor-options {
+    display: flex;
+    gap: 10px;
+}
+
+.editor-btn {
+    background-color: var(--button-color);
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border-radius: 3px;
+}
+
+.editor-btn:hover {
+    background-color: #0d74c7;
+}
+
+.editor-container {
+    flex: 1;
+    min-height: 200px;
+    margin-bottom: 15px;
+}
+
+.code-editor {
+    width: 100%;
+    height: 100%;
+    min-height: 200px;
+    font-family: monospace;
+    padding: 10px;
+    background-color: var(--panel-bg-lighter);
+    color: var(--text-color);
+    border: 1px solid var(--panel-border);
+    resize: none;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.editor-preview-container {
+    border: 1px solid var(--panel-border);
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 3px;
+    margin-bottom: 15px;
+    display: none;
+}
+
+.editor-preview-container h4 {
+    margin-top: 0;
+    color: #333;
+    font-size: 14px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 5px;
+}
+
+.html-preview {
+    background-color: white;
+    color: #333;
+    min-height: 150px;
+    overflow: auto;
+    padding: 10px;
+    border-radius: 3px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.editor-status {
+    font-size: 14px;
+}
+
+.editor-status.success {
+    color: #4CAF50;
+}
+
+.editor-status.error {
+    color: #F44336;
+}
+
+.editor-status.info {
+    color: var(--button-color);
+}
+
+.editor-buttons {
+    display: flex;
+    gap: 10px;
 } 

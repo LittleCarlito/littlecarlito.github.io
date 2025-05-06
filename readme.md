@@ -275,10 +275,6 @@ The site is automatically deployed to GitHub Pages through a sophisticated CI/CD
 - **Performance Regression Testing** - Automated benchmarks
 - **Lighthouse Integration** - Score tracking and improvement suggestions
 
-## 🤝 Contributing
-
-This project welcomes contributions. Please follow our commit message conventions when submitting PRs.
-
 ## 📝 License
 
 This project is licensed under the GNU General Public License v3.0 (GPL-3.0).

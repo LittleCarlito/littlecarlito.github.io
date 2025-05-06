@@ -8,8 +8,8 @@ import { loadTextureFromFile, formatFileSize } from '../core/materials.js';
 import { updateAtlasVisualization } from './scripts/atlas-panel.js';
 // Import for HDR/EXR preview rendering
 import * as worldPanelModule from './scripts/world-panel.js';
-// Import for GLB model preview
-import { createModelPreview } from './scripts/model-preview.js';
+// Import for GLB model preview from the new GLB utility
+import { processGLBModel, createGLBPreview } from '../core/glb-utils.js';
 // Import the worker manager
 import { 
   processTextureFile, 
@@ -417,12 +417,13 @@ function handleModelUpload(file, infoElement, dropzone) {
     // Show loading state
     showPreviewLoading(previewDiv);
     
-    // Process the model file in a web worker
-    processModelFile(file)
+    // Process the model file using our new GLB utility
+    processGLBModel(file)
         .then(result => {
-            // Create the 3D preview with the model-preview module after worker has processed it
-            createModelPreview(file);
-            
+            // Create the 3D preview with our new GLB utility
+            return createGLBPreview(file, previewDiv);
+        })
+        .then(result => {
             // Hide loading indicator
             hidePreviewLoading(previewDiv);
             
@@ -435,19 +436,13 @@ function handleModelUpload(file, infoElement, dropzone) {
         })
         .catch(error => {
             console.error('Error processing model file:', error);
-            
-            // Fall back to direct loading if worker fails
-            createModelPreview(file);
-            
-            // Hide loading indicator
             hidePreviewLoading(previewDiv);
             
-            // Update the texture dropzone hints
-            const textureHints = document.querySelectorAll('.texture-hint');
-            textureHints.forEach(hint => {
-                hint.textContent = 'Textures are optional with GLB';
-                hint.classList.add('optional');
-            });
+            // Show error message in preview
+            const errorMsg = document.createElement('div');
+            errorMsg.className = 'no-image-message visible';
+            errorMsg.textContent = 'Error loading model. Please try another file.';
+            previewDiv.appendChild(errorMsg);
         });
 }
 

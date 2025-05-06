@@ -125,6 +125,8 @@ export function createMeshVisibilityPanel() {
         groupMeshes.forEach(mesh => {
             const meshDiv = document.createElement('div');
             meshDiv.className = 'mesh-item';
+            meshDiv.style.display = 'flex';
+            meshDiv.style.alignItems = 'center';
             
             // Create mesh toggle checkbox
             const meshToggle = document.createElement('input');
@@ -151,10 +153,51 @@ export function createMeshVisibilityPanel() {
             meshNameSpan.className = 'mesh-name';
             meshNameSpan.textContent = getMeshDisplayName(mesh);
             meshNameSpan.title = mesh.name || "Unnamed mesh";
+            meshNameSpan.style.flexGrow = '1';
+            
+            // Create wrench icon for mesh settings
+            const wrenchIcon = document.createElement('span');
+            wrenchIcon.className = 'mesh-settings-icon';
+            // SVG code icon for better cross-browser compatibility
+            wrenchIcon.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M5.854 4.854a.5.5 0 1 0-.708-.708l-3.5 3.5a.5.5 0 0 0 0 .708l3.5 3.5a.5.5 0 0 0 .708-.708L2.707 8l3.147-3.146zm4.292 0a.5.5 0 0 1 .708-.708l3.5 3.5a.5.5 0 0 1 0 .708l-3.5 3.5a.5.5 0 0 1-.708-.708L13.293 8l-3.147-3.146z"/>
+                </svg>
+            `;
+            wrenchIcon.style.color = '#007bff';  // Blue color
+            wrenchIcon.style.cursor = 'pointer';
+            wrenchIcon.style.marginLeft = 'auto';
+            wrenchIcon.title = 'Open HTML editor';
+            
+            // Add click event listener for the icon to open modal
+            wrenchIcon.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent propagation to parent elements
+                console.log('HTML editor icon clicked');
+                
+                try {
+                    const meshIndex = parseInt(meshToggle.dataset.meshIndex);
+                    const meshName = state.meshes[meshIndex].name || 'Unnamed mesh';
+                    
+                    console.log(`Opening HTML editor for mesh: ${meshName} (index: ${meshIndex})`);
+                    
+                    // Check if the function exists before calling it
+                    if (typeof window.openEmbeddedHtmlEditor === 'function') {
+                        // Call the embedded HTML editor modal
+                        window.openEmbeddedHtmlEditor(meshName, meshIndex);
+                    } else {
+                        console.error('HTML Editor function not found. Modal may not be initialized yet.');
+                        alert('HTML Editor not ready. Please try again in a moment.');
+                    }
+                } catch (error) {
+                    console.error('Error opening HTML editor modal:', error);
+                    alert('Error opening HTML editor. See console for details.');
+                }
+            });
             
             // Assemble mesh item
             meshDiv.appendChild(meshToggle);
             meshDiv.appendChild(meshNameSpan);
+            meshDiv.appendChild(wrenchIcon);
             
             // Add to mesh items container
             meshItemsDiv.appendChild(meshDiv);

@@ -16,6 +16,8 @@ import { ExamplesModal } from './examples-modal.js';
 import { initWorldPanel } from './world-panel.js';
 // Import Asset Panel
 import { initAssetPanel } from './asset-panel.js';
+// Import HTML Editor Modal
+import { initHtmlEditorModal } from './html-editor-modal.js';
 // Import ZIP utilities
 import { 
     processZipContents, 
@@ -62,7 +64,7 @@ let resourcesLoaded = {
  */
 function loadComponentHtml() {
     // Track loading of components
-    let componentsToLoad = 4; // Total components to load (reduced after removing Atlas, UV, and Rig panels)
+    let componentsToLoad = 5; // Total components to load (increased to include HTML editor modal)
     let componentsLoaded = 0;
 
     // Function to update progress when a component loads
@@ -162,6 +164,39 @@ function loadComponentHtml() {
         })
         .catch(error => {
             console.error('Error loading examples modal:', error);
+            componentLoaded();
+        });
+        
+    // Load the HTML editor modal component
+    fetch('../pages/html-editor-modal.html')
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('html-editor-modal-container').innerHTML = html;
+            
+            // Initialize the HTML editor modal once loaded
+            console.log('HTML Editor Modal HTML loaded, initializing...');
+            setTimeout(() => {
+                // Use a small timeout to ensure DOM is fully ready
+                initHtmlEditorModal();
+                console.log('HTML Editor Modal initialized, global function available:', typeof window.openEmbeddedHtmlEditor === 'function');
+                
+                // Expose it globally again just to be safe
+                if (typeof window.openEmbeddedHtmlEditor !== 'function') {
+                    console.warn('Global function not set correctly, attempting to fix...');
+                    import('./html-editor-modal.js').then(module => {
+                        // Force re-exposure of the function
+                        window.openEmbeddedHtmlEditor = module.default.openEmbeddedHtmlEditor || 
+                                                      function() { 
+                                                          console.error('Fallback function called - real function not available'); 
+                                                      };
+                    });
+                }
+            }, 100);
+            
+            componentLoaded();
+        })
+        .catch(error => {
+            console.error('Error loading HTML editor modal:', error);
             componentLoaded();
         });
 }
