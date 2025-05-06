@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 0.49.0 (2025-05-06)
+
+- fix(blorktools): asset drop text on clear ([bef4aef](https://github.com/littlecarlito/threejs_site/commit/bef4aef))
+- fix(blorktools): asset load distance ([650972a](https://github.com/littlecarlito/threejs_site/commit/650972a))
+- fix(blorktools): atlas panel no data preview ([7352833](https://github.com/littlecarlito/threejs_site/commit/7352833))
+- fix(blorktools): axis indicator window ([c06ee99](https://github.com/littlecarlito/threejs_site/commit/c06ee99))
+- fix(blorktools): expanding icon ([a7cd646](https://github.com/littlecarlito/threejs_site/commit/a7cd646))
+- fix(blorktools): joint name truncation ([2ad268a](https://github.com/littlecarlito/threejs_site/commit/2ad268a))
+- fix(blorktools): modal nesting ([3017c86](https://github.com/littlecarlito/threejs_site/commit/3017c86))
+- slice(blorktools): Asset panel outline ([eb44de4](https://github.com/littlecarlito/threejs_site/commit/eb44de4))
+- slice(blorktools): hover tool text ([6e5ef05](https://github.com/littlecarlito/threejs_site/commit/6e5ef05))
+- slice(blorktools): html preview container ([0d46701](https://github.com/littlecarlito/threejs_site/commit/0d46701))
+- slice(blorktools): zip drop outline ([2156fe9](https://github.com/littlecarlito/threejs_site/commit/2156fe9))
+- feat(blorktools): html editor ([0dc3126](https://github.com/littlecarlito/threejs_site/commit/0dc3126))
+- feat(blorktools): mesh settings ([70bcb58](https://github.com/littlecarlito/threejs_site/commit/70bcb58))
+- feat(blorktools): zip processing ([beff56c](https://github.com/littlecarlito/threejs_site/commit/beff56c))
+- chore(blorktools): sample mesh removal ([e190be0](https://github.com/littlecarlito/threejs_site/commit/e190be0))
+- refactor(blorktools): condensing asset tabs ([0142646](https://github.com/littlecarlito/threejs_site/commit/0142646))
+- refactor(blorktools): mesh to asset panel ([7f0818e](https://github.com/littlecarlito/threejs_site/commit/7f0818e))
+- refactor(blorktools): name tool tip shortening ([84b8821](https://github.com/littlecarlito/threejs_site/commit/84b8821))
+
 ## <small>0.48.12 (2025-05-04)</small>
 
 **Note:** Version bump only for package @littlecarlito/blorktools
