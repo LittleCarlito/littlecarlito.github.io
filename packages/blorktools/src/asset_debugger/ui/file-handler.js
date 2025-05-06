@@ -54,8 +54,38 @@ const FILE_TYPE_CONFIG = {
         acceptedFileTypes: ['.glb'],
         stateKey: 'modelFile',
         resetState: () => {
+            // Get current model and clear it from the scene if needed
+            const state = getState();
+            if (state.model && state.scene) {
+                // Remove model from scene
+                state.scene.remove(state.model);
+                // Dispose of any textures or geometries within the model
+                if (state.model.traverse) {
+                    state.model.traverse((node) => {
+                        if (node.geometry) node.geometry.dispose();
+                        if (node.material) {
+                            if (Array.isArray(node.material)) {
+                                node.material.forEach(mat => {
+                                    Object.values(mat).forEach(value => {
+                                        if (value && typeof value.dispose === 'function') value.dispose();
+                                    });
+                                    mat.dispose();
+                                });
+                            } else {
+                                Object.values(node.material).forEach(value => {
+                                    if (value && typeof value.dispose === 'function') value.dispose();
+                                });
+                                node.material.dispose();
+                            }
+                        }
+                    });
+                }
+            }
+            
+            // Clear model-related state
             updateState('modelFile', null);
             updateState('useCustomModel', false);
+            updateState('model', null);
         },
         handler: handleModelUpload
     },
@@ -65,8 +95,27 @@ const FILE_TYPE_CONFIG = {
         acceptedFileTypes: ['.hdr', '.exr'],
         stateKey: 'lightingFile',
         resetState: () => {
+            // Get current state
+            const state = getState();
+            
+            // Remove environment map from scene if it exists
+            if (state.scene && state.scene.environment) {
+                // Dispose of the environment texture
+                if (state.scene.environment.dispose) {
+                    state.scene.environment.dispose();
+                }
+                state.scene.environment = null;
+                
+                // Also reset the background if it was using the same environment map
+                if (state.scene.background === state.scene.environment) {
+                    state.scene.background = null;
+                }
+            }
+            
+            // Clear lighting-related state
             updateState('lightingFile', null);
             updateState('environmentLightingEnabled', false);
+            updateState('environmentTexture', null);
         },
         handler: handleLightingUpload
     },
@@ -76,7 +125,28 @@ const FILE_TYPE_CONFIG = {
         acceptedFileTypes: ['.hdr', '.exr', '.jpg', '.jpeg', '.png', '.webp', '.tiff', '.tif'],
         stateKey: 'backgroundFile',
         resetState: () => {
-            updateState({ backgroundFile: null, backgroundTexture: null });
+            // Get current state
+            const state = getState();
+            
+            // Dispose of background texture if it exists
+            if (state.backgroundTexture && state.backgroundTexture.dispose) {
+                state.backgroundTexture.dispose();
+            }
+            
+            // Remove background from scene if it exists and is different from environment
+            if (state.scene && state.scene.background && state.scene.background !== state.scene.environment) {
+                if (state.scene.background.dispose) {
+                    state.scene.background.dispose();
+                }
+                state.scene.background = null;
+            }
+            
+            // Clear background-related state
+            updateState({ 
+                backgroundFile: null, 
+                backgroundTexture: null,
+                backgroundEnabled: false
+            });
         },
         handler: handleBackgroundUpload
     },
@@ -182,6 +252,13 @@ export function clearDropzone(dropzone, fileType, title) {
         const state = getState();
         state.textureFiles[fileType] = null;
         updateState('textureFiles', state.textureFiles);
+        
+        // BUGFIX: Also clear the corresponding texture object
+        // This ensures the texture doesn't continue to be used after clearing
+        if (state.textureObjects && state.textureObjects[fileType]) {
+            state.textureObjects[fileType] = null;
+            updateState('textureObjects', state.textureObjects);
+        }
     } else if (config.stateKey) {
         // Handle other state keys
         updateState(config.stateKey, null);
@@ -264,6 +341,16 @@ function handleTextureUpload(file, textureType, infoElement, previewElement, dro
     clearButton.title = 'Clear file';
     clearButton.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent dropzone click event
+        
+        // Dispose of texture if it exists
+        if (state.textureObjects && state.textureObjects[textureType]) {
+            const texture = state.textureObjects[textureType];
+            if (texture && typeof texture.dispose === 'function') {
+                texture.dispose();
+            }
+        }
+        
+        // Clear the dropzone
         clearDropzone(dropzone, textureType, originalTitle);
         
         // Reattach the dropzone event handlers
@@ -326,6 +413,13 @@ function handleTextureUpload(file, textureType, infoElement, previewElement, dro
         .catch(error => {
             console.error(`Error processing ${textureType} texture:`, error);
             alert(`Error processing ${textureType} texture: ${error.message}`);
+            
+            // On error, make sure textureObjects entry is null
+            const state = getState();
+            if (state.textureObjects) {
+                state.textureObjects[textureType] = null;
+                updateState('textureObjects', state.textureObjects);
+            }
             
             // Fall back to direct loading if worker fails
             const reader = new FileReader();
