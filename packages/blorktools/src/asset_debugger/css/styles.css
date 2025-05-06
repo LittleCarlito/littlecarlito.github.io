@@ -225,11 +225,21 @@ h3 {
 .tool-panel {
     padding: 20px;
     background-color: rgba(30, 30, 30, 0.9);
-    border: 3px solid var(--fallout-yellow);
     border-radius: 4px;
     max-height: unset;
     overflow-y: visible;
     backdrop-filter: blur(10px);
+}
+
+/* Main container dropzone styles */
+.dropzone-container-main {
+    border: 3px solid var(--tool-color);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dropzone-container-active {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.7);
 }
 
 /* Adjust dropzone container to distribute items evenly */

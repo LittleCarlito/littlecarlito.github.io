@@ -265,6 +265,163 @@ function setupThemeAndUI() {
     
     // Set up Mac-like dock behavior for header
     setupHeaderDockBehavior(true);
+    
+    // Set up the main container as a dropzone for zip files
+    setupMainContainerDropzone();
+}
+
+/**
+ * Set up the main container as a dropzone for zip files
+ */
+function setupMainContainerDropzone() {
+    const mainContainer = document.getElementById('upload-section');
+    const zipInfoElement = document.getElementById('zip-info');
+    
+    if (!mainContainer) return;
+    
+    // Function to check if an element is a child of any dropzone
+    const isChildOfDropzone = (element) => {
+        if (!element) return false;
+        
+        // Check if element itself is a dropzone
+        if (element.classList && element.classList.contains('dropzone')) {
+            return true;
+        }
+        
+        // Check if element is a child of a dropzone
+        let parent = element.parentElement;
+        while (parent) {
+            if (parent.classList && parent.classList.contains('dropzone')) {
+                return true;
+            }
+            parent = parent.parentElement;
+        }
+        
+        return false;
+    };
+    
+    // Add drag enter event
+    mainContainer.addEventListener('dragenter', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Don't apply styling if dragging over a child dropzone
+        if (isChildOfDropzone(e.target)) return;
+        
+        // Add active class to show it's a valid drop target
+        mainContainer.classList.add('dropzone-container-active');
+    });
+    
+    // Add drag over event
+    mainContainer.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Don't apply styling if dragging over a child dropzone
+        if (isChildOfDropzone(e.target)) return;
+        
+        // Set the drop effect
+        e.dataTransfer.dropEffect = 'copy';
+    });
+    
+    // Add drag leave event
+    mainContainer.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Don't remove styling if entering a child element within the container
+        // that isn't a dropzone
+        if (mainContainer.contains(e.relatedTarget) && !isChildOfDropzone(e.relatedTarget)) return;
+        
+        // Remove active class
+        mainContainer.classList.remove('dropzone-container-active');
+    });
+    
+    // Add drop event
+    mainContainer.addEventListener('drop', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Remove active class
+        mainContainer.classList.remove('dropzone-container-active');
+        
+        // Don't handle drop if dropping on a child dropzone
+        if (isChildOfDropzone(e.target)) return;
+        
+        const files = e.dataTransfer.files;
+        if (!files || files.length === 0) return;
+        
+        // Only handle ZIP files
+        const file = files[0];
+        if (file.type !== 'application/zip' && !file.name.toLowerCase().endsWith('.zip')) {
+            // Show error message
+            if (zipInfoElement) {
+                zipInfoElement.textContent = 'Error: Only ZIP files are supported for container drops';
+                zipInfoElement.style.display = 'block';
+                zipInfoElement.style.color = 'red';
+                
+                // Hide after 3 seconds
+                setTimeout(() => {
+                    zipInfoElement.style.display = 'none';
+                }, 3000);
+            }
+            return;
+        }
+        
+        // Process the ZIP file
+        processZipFile(file);
+    });
+}
+
+/**
+ * Process a ZIP file
+ * @param {File} file - The ZIP file to process
+ */
+function processZipFile(file) {
+    const zipInfoElement = document.getElementById('zip-info');
+    
+    // Show loading message
+    if (zipInfoElement) {
+        zipInfoElement.textContent = `Processing ${file.name}...`;
+        zipInfoElement.style.display = 'block';
+        zipInfoElement.style.color = '';
+    }
+    
+    // For now, just show that the ZIP file was received
+    // This would be expanded to actually process the ZIP in a real implementation
+    console.log('ZIP file received:', file.name, 'size:', file.size);
+    
+    // Update the info element with success message
+    if (zipInfoElement) {
+        zipInfoElement.textContent = `ZIP file received: ${file.name} (${formatFileSize(file.size)})`;
+        
+        // Hide after 5 seconds
+        setTimeout(() => {
+            zipInfoElement.style.display = 'none';
+        }, 5000);
+    }
+    
+    // Store the ZIP file in state for later use
+    import('../../core/state.js').then(stateModule => {
+        stateModule.setState({
+            zipFile: file
+        });
+    });
+}
+
+/**
+ * Format file size in bytes to a human-readable format
+ * @param {number} bytes - The file size in bytes
+ * @returns {string} - Formatted file size
+ */
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 /**

@@ -64,7 +64,11 @@ function preventDefaultDragBehavior() {
             if (e.target !== document.getElementById('basecolor-dropzone') &&
                 e.target !== document.getElementById('orm-dropzone') &&
                 e.target !== document.getElementById('normal-dropzone') &&
-                e.target !== document.getElementById('model-dropzone')) {
+                e.target !== document.getElementById('model-dropzone') &&
+                e.target !== document.getElementById('lighting-dropzone') &&
+                e.target !== document.getElementById('background-dropzone') &&
+                e.target !== document.getElementById('upload-section') &&
+                !e.target.closest('#upload-section')) {
                 e.preventDefault();
                 e.stopPropagation();
             }

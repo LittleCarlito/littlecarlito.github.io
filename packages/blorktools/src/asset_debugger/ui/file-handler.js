@@ -79,6 +79,16 @@ const FILE_TYPE_CONFIG = {
             updateState({ backgroundFile: null, backgroundTexture: null });
         },
         handler: handleBackgroundUpload
+    },
+    zip: {
+        title: 'ZIP Archive',
+        instruction: 'Drag & drop a ZIP file containing asset files here',
+        acceptedFileTypes: ['.zip'],
+        stateKey: 'zipFile',
+        resetState: () => {
+            updateState('zipFile', null);
+        },
+        handler: handleZipUpload
     }
 };
 
@@ -1019,6 +1029,42 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
     });
     // Enable visibility of the background option - this is the ONLY place where the background option visibility should be toggled
     worldPanelModule.toggleOptionVisibility('background-option', true);
+}
+
+/**
+ * Handle ZIP file upload
+ * @param {File} file - The uploaded ZIP file
+ * @param {HTMLElement} infoElement - Element to display file info
+ * @param {HTMLElement} previewElement - Element to display file preview
+ * @param {HTMLElement} dropzone - The dropzone element
+ */
+function handleZipUpload(file, infoElement, previewElement, dropzone) {
+    console.log('Processing ZIP file:', file.name, 'size:', file.size);
+    
+    // Store the file in the state
+    updateState('zipFile', file);
+    
+    // Display info about the ZIP file
+    const zipInfoElement = document.getElementById('zip-info');
+    if (zipInfoElement) {
+        zipInfoElement.textContent = `ZIP file received: ${file.name} (${formatFileSize(file.size)})`;
+        zipInfoElement.style.display = 'block';
+        zipInfoElement.style.color = '';
+        
+        // Hide after 5 seconds
+        setTimeout(() => {
+            zipInfoElement.style.display = 'none';
+        }, 5000);
+    }
+    
+    // In a real implementation, here you would process the ZIP file
+    // For example, extract its contents and handle each file accordingly
+    
+    // Dispatch an event to notify that a ZIP file was uploaded
+    const event = new CustomEvent('zip-uploaded', { 
+        detail: { file }
+    });
+    document.dispatchEvent(event);
 }
 
 /**
