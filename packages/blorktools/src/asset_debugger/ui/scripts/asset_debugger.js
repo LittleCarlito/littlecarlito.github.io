@@ -350,12 +350,7 @@ function initializeDebugger(settings) {
     
     // Initialize settings modal with loaded settings
     new SettingsModal(settings);
-    
-    // Initialize HTML Editor Modal
-    initHtmlEditorModal();
-    
-    // Initialize Mesh Settings Modal
-    initMeshSettingsModal();
+
     
     // Initialize Model Integration for HTML Editor
     initModelIntegration();

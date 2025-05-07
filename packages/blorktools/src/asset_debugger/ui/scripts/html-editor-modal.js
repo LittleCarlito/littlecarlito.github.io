@@ -18,6 +18,9 @@ import { updateHtmlIcons } from './mesh-panel.js';
 // Store HTML content for each mesh
 const meshHtmlContent = new Map();
 
+// Flag to track if event listeners have been initialized
+let listenersInitialized = false;
+
 // Store HTML editor state to restore after mesh settings modal closes
 let htmlEditorState = {
     isOpen: false
@@ -201,6 +204,12 @@ export function initHtmlEditorModal() {
         return;
     }
 
+    // Only register event listeners once
+    if (listenersInitialized) {
+        console.log('HTML Editor Modal event listeners already initialized, skipping');
+        return;
+    }
+
     // Close modal events
     closeBtn.addEventListener('click', closeModal);
     cancelBtn.addEventListener('click', closeModal);
@@ -330,6 +339,10 @@ export function initHtmlEditorModal() {
     
     // Initial setup for the modal
     previewContainer.style.display = 'none';
+    
+    // Set flag to indicate listeners have been initialized
+    listenersInitialized = true;
+    console.log('HTML Editor Modal event listeners initialized successfully');
 }
 
 /**
@@ -438,7 +451,7 @@ function sanitizeHtml(html) {
 async function saveHtmlForMesh(meshId, html) {
     // Check if content is empty or just whitespace
     const isEmpty = !html || html.trim() === '';
-    
+    console.info("BAZINGA " + html);
     // Get GLB buffer from the model integration
     const glbBuffer = getCurrentGlbBuffer();
     

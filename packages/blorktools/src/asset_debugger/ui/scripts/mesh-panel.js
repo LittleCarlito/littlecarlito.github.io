@@ -16,6 +16,10 @@ const ICON_COLORS = {
     NO_HTML: '#8a8a8a'   // Default color for meshes without HTML
 };
 
+// Track initialization state
+let downloadButtonInitialized = false;
+let meshPanelInitialized = false;
+
 /**
  * Toggle the HTML code icon appearance for a specific mesh
  * @param {number} meshIndex - The index of the mesh to toggle
@@ -355,23 +359,31 @@ export function createMeshVisibilityPanel() {
             meshDiv.appendChild(meshNameSpan);
             meshDiv.appendChild(htmlEditorIcon);
             
-            // Add to mesh items container
-            meshItemsDiv.appendChild(meshDiv);
+            return meshDiv;
         });
         
         // Wait for all mesh promises to resolve
-        Promise.all(meshPromises).then(() => {
-            // Assemble group
+        Promise.all(meshPromises).then(meshDivs => {
+            // Add all mesh divs to the mesh items container
+            meshDivs.forEach(div => {
+                meshItemsDiv.appendChild(div);
+            });
+            
+            // Add group header and mesh items to group container
             groupDiv.appendChild(headerDiv);
             groupDiv.appendChild(meshItemsDiv);
             
-            // Add to groups container
+            // Add group container to mesh groups container
             meshGroupsContainer.appendChild(groupDiv);
         });
     }
     
-    // Initialize the download button
-    initDownloadButton();
+    // Initialize the download button only once
+    if (!meshPanelInitialized) {
+        initDownloadButton();
+        meshPanelInitialized = true;
+        console.log('Mesh panel initialized');
+    }
 }
 
 /**
@@ -381,6 +393,12 @@ function initDownloadButton() {
     const downloadBtn = document.getElementById('download-asset-btn');
     if (!downloadBtn) return;
     
+    // Only register event listener once
+    if (downloadButtonInitialized) {
+        console.log('Download button already initialized, skipping');
+        return;
+    }
+    
     downloadBtn.addEventListener('click', async () => {
         try {
             await downloadUpdatedGlb();
@@ -389,6 +407,10 @@ function initDownloadButton() {
             alert('Error downloading GLB: ' + error.message);
         }
     });
+    
+    // Mark as initialized
+    downloadButtonInitialized = true;
+    console.log('Download button event listener initialized successfully');
 }
 
 /**
