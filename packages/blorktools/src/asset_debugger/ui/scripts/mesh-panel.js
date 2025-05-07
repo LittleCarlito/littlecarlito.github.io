@@ -5,7 +5,8 @@
  */
 import { getState, updateState } from '../../core/state.js';
 import { getCurrentGlbBuffer, setCurrentGlbBuffer } from './model-integration.js';
-import { getBinaryBufferForMesh, deserializeBinaryToString } from '../../core/glb-utils.js';
+import { getBinaryBufferForMesh } from '../../core/glb-utils.js';
+import { deserializeStringFromBinary, isValidHtml } from '../../core/string-serder.js';
 
 // Track meshes with HTML content
 const meshesWithHtml = new Set();
@@ -97,9 +98,9 @@ async function checkMeshHasHtmlContent(meshIndex) {
             try {
                 const binaryBuffer = await getBinaryBufferForMesh(glbBuffer, meshIndex);
                 if (binaryBuffer) {
-                    const html = deserializeBinaryToString(binaryBuffer);
-                    // Only consider valid if there's actual content
-                    const hasContent = html && html.trim() !== '' && (html.includes('<') && html.includes('>'));
+                    const html = deserializeStringFromBinary(binaryBuffer);
+                    // Consider valid if there's any non-empty content
+                    const hasContent = html && html.trim() !== '';
                     if (!hasContent) {
                         // Remove from cache if no longer valid
                         meshesWithHtml.delete(meshIndex);
@@ -111,7 +112,7 @@ async function checkMeshHasHtmlContent(meshIndex) {
                 meshesWithHtml.delete(meshIndex);
                 return false;
             } catch (e) {
-                // Error retrieving content, remove from cache
+                // Remove from cache if error
                 meshesWithHtml.delete(meshIndex);
                 return false;
             }
@@ -129,21 +130,20 @@ async function checkMeshHasHtmlContent(meshIndex) {
         // Try to get binary buffer for this mesh
         const binaryBuffer = await getBinaryBufferForMesh(glbBuffer, meshIndex);
         
-        // If buffer found, mesh has HTML
+        // If buffer found, check for content
         if (binaryBuffer) {
-            // Try to decode the buffer as HTML to verify it's valid
+            // Try to decode the buffer and check for content
             try {
-                const html = deserializeBinaryToString(binaryBuffer);
+                const html = deserializeStringFromBinary(binaryBuffer);
                 
-                // Only consider it HTML if it contains some basic HTML structure
-                // and is not empty or just whitespace
-                if (html && html.trim() !== '' && (html.includes('<') && html.includes('>'))) {
+                // Consider valid if there's any non-empty content
+                if (html && html.trim() !== '') {
                     // Cache the result
                     meshesWithHtml.add(meshIndex);
                     return true;
                 }
             } catch (e) {
-                console.warn(`Binary data for mesh ${meshIndex} exists but isn't valid HTML:`, e);
+                console.warn(`Binary data for mesh ${meshIndex} exists but couldn't be decoded:`, e);
             }
         }
         
@@ -599,9 +599,9 @@ export function removeMeshHtmlFlag(meshIndex) {
 }
 
 /**
- * Update an icon's appearance based on HTML content status
+ * Update an icon's appearance based on content status
  * @param {HTMLElement} icon - The icon element to update
- * @param {boolean} hasHtml - Whether the mesh has HTML content
+ * @param {boolean} hasHtml - Whether the mesh has content
  */
 function updateIconAppearance(icon, hasHtml) {
     // Update all visual properties
@@ -610,14 +610,14 @@ function updateIconAppearance(icon, hasHtml) {
     if (hasHtml) {
         icon.classList.add('has-html');
         icon.style.color = ICON_COLORS.HAS_HTML;
-        icon.title = 'Edit HTML (has content)';
+        icon.title = 'Edit content (has content)';
     } else {
         icon.classList.remove('has-html');
         icon.style.color = ICON_COLORS.NO_HTML;
-        icon.title = 'Edit HTML';
+        icon.title = 'Edit content';
     }
     
-    console.log(`Updated icon appearance, hasHtml=${hasHtml}, color=${icon.style.color}`);
+    console.log(`Updated icon appearance, hasContent=${hasHtml}, color=${icon.style.color}`);
 }
 
 /**

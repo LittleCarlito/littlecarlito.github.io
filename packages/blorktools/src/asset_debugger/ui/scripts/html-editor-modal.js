@@ -8,11 +8,16 @@
 import { getState, updateState } from '../../core/state.js';
 import { 
     getBinaryBufferForMesh, 
-    deserializeBinaryToString, 
-    serializeStringToBinary,
     associateBinaryBufferWithMesh
 } from '../../core/glb-utils.js';
-import { getCurrentGlbBuffer, setCurrentGlbBuffer, updateGlbFile } from './model-integration.js';
+import { 
+    deserializeStringFromBinary, 
+    serializeStringToBinary,
+    isValidHtml,
+    formatHtml,
+    sanitizeHtml
+} from '../../core/string-serder.js';
+import { getCurrentGlbBuffer, updateGlbFile } from './model-integration.js';
 import { updateHtmlIcons } from './mesh-panel.js';
 
 // Store HTML content for each mesh
@@ -115,63 +120,31 @@ async function loadHtmlForMesh(meshId) {
             return '';
         }
         
-        // Deserialize buffer to HTML
-        let htmlContent = deserializeBinaryToString(binaryBuffer);
+        // Deserialize buffer to HTML/text content
+        let content = deserializeStringFromBinary(binaryBuffer);
         
-        // Sanitize and validate the HTML
-        if (htmlContent) {
-            // Check if this seems like valid HTML
-            if (!isValidHtml(htmlContent)) {
-                console.warn(`Binary data for mesh ${meshId} does not appear to be valid HTML`);
-                htmlContent = ''; // Reset to empty string
-            }
+        // Validate the content
+        if (!content || content.trim() === '') {
+            content = ''; // Ensure it's an empty string, not null or undefined
         } else {
-            htmlContent = ''; // Ensure it's an empty string, not null or undefined
+            console.log(`Loaded content for mesh ID ${meshId}: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`);
         }
         
-        // Cache the content only if it's valid
-        if (htmlContent && htmlContent.trim() !== '') {
-            meshHtmlContent.set(meshId, htmlContent);
-            console.log(`Successfully loaded HTML content for mesh ID ${meshId}`);
+        // Cache the content if it's not empty
+        if (content && content.trim() !== '') {
+            meshHtmlContent.set(meshId, content);
+            console.log(`Successfully loaded content for mesh ID ${meshId}`);
         } else {
             // If empty, ensure we remove any cached content
             meshHtmlContent.delete(meshId);
-            console.log(`No valid HTML content found for mesh ID ${meshId}`);
+            console.log(`No valid content found for mesh ID ${meshId}`);
         }
         
-        return htmlContent;
+        return content;
     } catch (error) {
-        console.error('Error loading HTML from binary buffer:', error);
-        throw new Error(`Failed to load HTML data: ${error.message}`);
+        console.error('Error loading content from binary buffer:', error);
+        throw new Error(`Failed to load data: ${error.message}`);
     }
-}
-
-/**
- * Check if a string appears to be valid HTML
- * @param {string} html - The string to check
- * @returns {boolean} True if the string appears to be valid HTML
- */
-function isValidHtml(html) {
-    if (!html || typeof html !== 'string') {
-        return false;
-    }
-    
-    // If it's empty or just whitespace, it's not valid HTML
-    if (html.trim() === '') {
-        return false;
-    }
-    
-    // Check for common HTML markers
-    const hasHtmlTags = html.includes('<') && html.includes('>');
-    
-    // Check for binary data (a high percentage of non-printable characters)
-    const nonPrintableCount = (html.match(/[^\x20-\x7E]/g) || []).length;
-    const nonPrintablePercentage = nonPrintableCount / html.length;
-    
-    // If more than 20% of the characters are non-printable, it's probably binary data
-    const isBinaryData = nonPrintablePercentage > 0.2;
-    
-    return hasHtmlTags && !isBinaryData;
 }
 
 /**
@@ -384,47 +357,13 @@ function showStatus(message, type = 'info') {
 }
 
 /**
- * Format HTML code
- * @param {string} html - The HTML code to format
- * @returns {string} The formatted HTML
- */
-function formatHtml(html) {
-    if (!html || html.trim() === '') return '';
-    
-    // Simple HTML formatting logic
-    let formatted = '';
-    let indent = 0;
-    const lines = html.replace(/>\s*</g, '>\n<').split('\n');
-    
-    lines.forEach(line => {
-        line = line.trim();
-        if (!line) return;
-        
-        // Check if line contains closing tag
-        if (line.match(/^<\/.*>$/)) {
-            indent -= 2; // Reduce indent for closing tag
-        }
-        
-        // Add indentation
-        formatted += ' '.repeat(Math.max(0, indent)) + line + '\n';
-        
-        // Check if line contains opening tag and not self-closing
-        if (line.match(/^<[^/].*[^/]>$/) && !line.match(/<.*\/.*>/)) {
-            indent += 2; // Increase indent for next line
-        }
-    });
-    
-    return formatted;
-}
-
-/**
  * Preview HTML code
  * @param {string} html - The HTML code to preview
  */
 function previewHtml(html) {
     const previewContent = document.getElementById('html-preview-content');
     
-    // Sanitize the HTML before displaying (basic sanitization)
+    // Sanitize the HTML before displaying
     const sanitizedHtml = sanitizeHtml(html);
     
     // Update the preview
@@ -432,39 +371,28 @@ function previewHtml(html) {
 }
 
 /**
- * Basic HTML sanitization to prevent XSS
- * @param {string} html - The HTML to sanitize
- * @returns {string} The sanitized HTML
- */
-function sanitizeHtml(html) {
-    // This is a simple sanitization to remove script tags
-    // In a production environment, use a proper sanitization library
-    return html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-}
-
-/**
- * Save HTML content for a specific mesh
+ * Save content for a specific mesh
  * @param {number} meshId - The ID/index of the mesh
- * @param {string} html - The HTML content to save
- * @returns {Promise<void>} A promise that resolves when saving is complete
+ * @param {string} content - The content to save
+ * @returns {Promise<boolean>} A promise that resolves when saving is complete
  */
-async function saveHtmlForMesh(meshId, html) {
+async function saveHtmlForMesh(meshId, content) {
     // Check if content is empty or just whitespace
-    const isEmpty = !html || html.trim() === '';
-    console.info("BAZINGA " + html);
+    const isEmpty = !content || content.trim() === '';
+    
     // Get GLB buffer from the model integration
     const glbBuffer = getCurrentGlbBuffer();
     
     // If we have no GLB buffer, we can't save
     if (!glbBuffer) {
-        console.warn(`No GLB buffer available, HTML for mesh ID ${meshId} saved in memory only`);
-        throw new Error('No GLB buffer available to save HTML. Your changes are saved in memory but will be lost when you reload.');
+        console.warn(`No GLB buffer available, content for mesh ID ${meshId} saved in memory only`);
+        throw new Error('No GLB buffer available to save content. Your changes are saved in memory but will be lost when you reload.');
     }
-    
+
     try {
         if (isEmpty) {
-            // If HTML is empty, we want to remove the association
-            console.log(`Removing HTML content for mesh ID ${meshId}...`);
+            // If content is empty, we want to remove the association
+            console.log(`Removing content for mesh ID ${meshId}...`);
             
             // Remove from our in-memory map
             meshHtmlContent.delete(meshId);
@@ -482,7 +410,7 @@ async function saveHtmlForMesh(meshId, html) {
             // Update the GLB file
             await updateGlbFile(updatedGlb);
             
-            console.log(`Successfully removed HTML content for mesh ID ${meshId}`);
+            console.log(`Successfully removed content for mesh ID ${meshId}`);
             
             // Update the UI
             // Remove from the set of meshes with HTML
@@ -492,13 +420,13 @@ async function saveHtmlForMesh(meshId, html) {
         }
         
         // For non-empty content, continue with normal save
-        console.log(`Serializing HTML content for mesh ID ${meshId}...`);
+        console.log(`Serializing content for mesh ID ${meshId}...`);
         
         // Save to our in-memory map
-        meshHtmlContent.set(meshId, html);
+        meshHtmlContent.set(meshId, content);
         
-        // Serialize HTML to binary
-        const binaryData = serializeStringToBinary(html);
+        // Serialize content to binary
+        const binaryData = serializeStringToBinary(content);
         
         console.log(`Associating binary data with mesh ID ${meshId} in GLB...`);
         // Associate binary data with mesh index in GLB
@@ -511,100 +439,16 @@ async function saveHtmlForMesh(meshId, html) {
         // Update the GLB file
         await updateGlbFile(updatedGlb);
         
-        console.log(`Successfully saved HTML for mesh ID ${meshId} to GLB`);
+        console.log(`Successfully saved content for mesh ID ${meshId} to GLB`);
         
         const state = getState();
         if (state.meshes && state.meshes[meshId]) {
-            console.log(`Saved HTML for mesh: ${state.meshes[meshId].name}`);
+            console.log(`Saved content for mesh: ${state.meshes[meshId].name}`);
         }
         
         return true;
     } catch (error) {
-        console.error('Error saving HTML to GLB:', error);
-        throw error;
-    }
-}
-
-/**
- * Get HTML content for a specific mesh
- * @param {number} meshId - The ID/index of the mesh
- * @returns {string|null} The HTML content for the mesh, or null if not found
- */
-function getHtmlForMesh(meshId) {
-    return meshHtmlContent.get(meshId) || null;
-}
-
-/**
- * Load HTML content from GLB and apply to editor
- * @param {ArrayBuffer} glbBuffer - The GLB buffer containing HTML data
- * @param {number} meshId - The mesh ID to load HTML for
- * @returns {Promise<string>} - The loaded HTML content
- */
-export async function loadHtmlFromGlb(glbBuffer, meshId) {
-    if (!glbBuffer) {
-        console.warn('No GLB buffer provided to load HTML from');
-        return '';
-    }
-
-    try {
-        // Set the current GLB buffer
-        setCurrentGlbBuffer(glbBuffer);
-        
-        // Get binary buffer for this mesh
-        const binaryBuffer = await getBinaryBufferForMesh(glbBuffer, meshId);
-        
-        // If no buffer found, return empty string
-        if (!binaryBuffer) {
-            return '';
-        }
-        
-        // Deserialize buffer to HTML
-        const htmlContent = deserializeBinaryToString(binaryBuffer);
-        
-        // Cache the content
-        meshHtmlContent.set(meshId, htmlContent);
-        
-        return htmlContent;
-    } catch (error) {
-        console.error('Error loading HTML from binary buffer:', error);
-        return '';
-    }
-}
-
-/**
- * Save HTML content to GLB
- * @param {ArrayBuffer} glbBuffer - The GLB buffer to save HTML to
- * @param {number} meshId - The mesh ID to save HTML for
- * @param {string} html - The HTML content to save
- * @returns {Promise<ArrayBuffer>} - The updated GLB buffer
- */
-export async function saveHtmlToGlb(glbBuffer, meshId, html) {
-    if (!glbBuffer) {
-        console.warn('No GLB buffer provided to save HTML to');
-        return null;
-    }
-
-    try {
-        // Save to our in-memory map
-        meshHtmlContent.set(meshId, html);
-        
-        // Serialize HTML to binary
-        const binaryData = serializeStringToBinary(html);
-        
-        // Associate binary data with mesh index in GLB
-        const updatedGlb = await associateBinaryBufferWithMesh(
-            glbBuffer, 
-            meshId, 
-            binaryData
-        );
-        
-        // Update current GLB buffer
-        setCurrentGlbBuffer(updatedGlb);
-        
-        console.log(`Saved HTML for mesh ID ${meshId} to GLB`);
-        return updatedGlb;
-    } catch (error) {
-        console.error('Error saving HTML to GLB:', error);
+        console.error('Error saving content to GLB:', error);
         throw error;
     }
 }
@@ -612,8 +456,5 @@ export async function saveHtmlToGlb(glbBuffer, meshId, html) {
 // Make sure both the default export and named exports are available
 export default {
     initHtmlEditorModal,
-    openEmbeddedHtmlEditor,
-    setCurrentGlbBuffer,
-    loadHtmlFromGlb,
-    saveHtmlToGlb
+    openEmbeddedHtmlEditor
 };

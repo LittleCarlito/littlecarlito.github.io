@@ -842,11 +842,30 @@ export function getBinaryBufferForMesh(glbArrayBuffer, meshIndex) {
                     return;
                 }
                 
-                // Return the binary data for this buffer
-                // In a real implementation, you would need to handle buffer views and accessors
-                // This is a simplified version that assumes the whole binary chunk is for this buffer
-                const data = glbArrayBuffer.slice(binaryChunkOffset + 8, binaryChunkOffset + 8 + binaryChunkLength);
-                resolve(data);
+                // We need to locate the specific buffer data within the binary chunk
+                // The buffer data is stored sequentially in the binary chunk
+                
+                // Calculate the offset of this buffer within the binary chunk
+                let currentOffset = 0;
+                for (let i = 0; i < bufferIndex; i++) {
+                    if (gltf.buffers[i] && !gltf.buffers[i].uri) {
+                        // Add the length of each preceding buffer, padded to 4-byte boundary
+                        const bufferLength = gltf.buffers[i].byteLength;
+                        currentOffset += Math.ceil(bufferLength / 4) * 4;
+                    }
+                }
+                
+                // Get the length of this buffer
+                const bufferLength = buffer.byteLength;
+                
+                // Extract just this buffer's data from the binary chunk
+                const bufferStartOffset = binaryChunkOffset + 8 + currentOffset;
+                const bufferData = glbArrayBuffer.slice(
+                    bufferStartOffset,
+                    bufferStartOffset + bufferLength
+                );
+                
+                resolve(bufferData);
             }
         } catch (error) {
             reject(new Error(`Error retrieving binary buffer: ${error.message}`));
@@ -855,67 +874,21 @@ export function getBinaryBufferForMesh(glbArrayBuffer, meshIndex) {
 }
 
 /**
- * Serialize String content to binary format
- * @param {string} stringContent - The String content to serialize
- * @returns {ArrayBuffer} The serialized binary data
+ * Check if a binary buffer appears to be a GLB structure
+ * @param {ArrayBuffer} buffer - The buffer to check
+ * @returns {boolean} True if the buffer appears to be a GLB structure
  */
-export function serializeStringToBinary(stringContent) {
-    // Simple serialization: convert string to UTF-8 encoded ArrayBuffer
-    const encoder = new TextEncoder();
-    return encoder.encode(stringContent).buffer;
-}
-
-/**
- * Deserialize binary data to String content
- * @param {ArrayBuffer} binaryData - The binary data to deserialize
- * @returns {string} The deserialized String content
- */
-export function deserializeBinaryToString(binaryData) {
-    // Simple deserialization: convert UTF-8 encoded ArrayBuffer to string
-    const decoder = new TextDecoder('utf-8');
-    return decoder.decode(binaryData);
-}
-
-/**
- * Get all mesh indices from a GLB file
- * @param {ArrayBuffer} glbArrayBuffer - The GLB file as an ArrayBuffer
- * @returns {Promise<number[]>} A promise that resolves with an array of mesh indices
- */
-export function getGLBMeshIndices(glbArrayBuffer) {
-    return new Promise((resolve, reject) => {
-        try {
-            // Create a temporary blob and URL for the GLB
-            const blob = new Blob([glbArrayBuffer], { type: 'model/gltf-binary' });
-            const url = URL.createObjectURL(blob);
-            
-            const loader = new GLTFLoader();
-            loader.load(url, (gltf) => {
-                // Clean up the temporary URL
-                URL.revokeObjectURL(url);
-                
-                const meshIndices = [];
-                
-                // Traverse the scene to find all meshes
-                gltf.scene.traverse((object) => {
-                    if (object.isMesh) {
-                        // Get the mesh index - in this case we're using the userData to store the index
-                        // In a real implementation, you might need to match it with the original GLTF data
-                        if (object.userData && object.userData.meshIndex !== undefined) {
-                            meshIndices.push(object.userData.meshIndex);
-                        } else {
-                            // If no explicit index, use the object's id or name as a fallback
-                            meshIndices.push(object.id);
-                        }
-                    }
-                });
-                
-                resolve(meshIndices);
-            }, undefined, (error) => {
-                URL.revokeObjectURL(url);
-                reject(new Error(`Error loading GLB for mesh indices: ${error.message}`));
-            });
-        } catch (error) {
-            reject(new Error(`Error getting mesh indices: ${error.message}`));
-        }
-    });
+export function isGlbStructure(buffer) {
+    if (!buffer || buffer.byteLength < 12) {
+        return false;
+    }
+    
+    try {
+        const dataView = new DataView(buffer);
+        // Check for GLB magic bytes (glTF in ASCII)
+        const magic = dataView.getUint32(0, true);
+        return magic === 0x46546C67; // 'glTF' in ASCII
+    } catch (e) {
+        return false;
+    }
 } 
