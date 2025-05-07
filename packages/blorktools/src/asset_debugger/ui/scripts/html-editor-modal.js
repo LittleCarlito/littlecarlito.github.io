@@ -8,8 +8,8 @@
 import { getState, updateState } from '../../core/state.js';
 import { 
     getBinaryBufferForMesh, 
-    deserializeBinaryToHTML, 
-    serializeHTMLToBinary,
+    deserializeBinaryToString, 
+    serializeStringToBinary,
     associateBinaryBufferWithMesh
 } from '../../core/glb-utils.js';
 import { getCurrentGlbBuffer, setCurrentGlbBuffer, updateGlbFile } from './model-integration.js';
@@ -116,7 +116,7 @@ async function loadHtmlForMesh(meshId) {
         }
         
         // Deserialize buffer to HTML
-        let htmlContent = deserializeBinaryToHTML(binaryBuffer);
+        let htmlContent = deserializeBinaryToString(binaryBuffer);
         
         // Sanitize and validate the HTML
         if (htmlContent) {
@@ -498,7 +498,7 @@ async function saveHtmlForMesh(meshId, html) {
         meshHtmlContent.set(meshId, html);
         
         // Serialize HTML to binary
-        const binaryData = serializeHTMLToBinary(html);
+        const binaryData = serializeStringToBinary(html);
         
         console.log(`Associating binary data with mesh ID ${meshId} in GLB...`);
         // Associate binary data with mesh index in GLB
@@ -559,7 +559,7 @@ export async function loadHtmlFromGlb(glbBuffer, meshId) {
         }
         
         // Deserialize buffer to HTML
-        const htmlContent = deserializeBinaryToHTML(binaryBuffer);
+        const htmlContent = deserializeBinaryToString(binaryBuffer);
         
         // Cache the content
         meshHtmlContent.set(meshId, htmlContent);
@@ -589,7 +589,7 @@ export async function saveHtmlToGlb(glbBuffer, meshId, html) {
         meshHtmlContent.set(meshId, html);
         
         // Serialize HTML to binary
-        const binaryData = serializeHTMLToBinary(html);
+        const binaryData = serializeStringToBinary(html);
         
         // Associate binary data with mesh index in GLB
         const updatedGlb = await associateBinaryBufferWithMesh(

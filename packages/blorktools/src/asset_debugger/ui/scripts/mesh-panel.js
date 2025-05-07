@@ -5,7 +5,7 @@
  */
 import { getState, updateState } from '../../core/state.js';
 import { getCurrentGlbBuffer, setCurrentGlbBuffer } from './model-integration.js';
-import { getBinaryBufferForMesh, deserializeBinaryToHTML } from '../../core/glb-utils.js';
+import { getBinaryBufferForMesh, deserializeBinaryToString } from '../../core/glb-utils.js';
 
 // Track meshes with HTML content
 const meshesWithHtml = new Set();
@@ -97,7 +97,7 @@ async function checkMeshHasHtmlContent(meshIndex) {
             try {
                 const binaryBuffer = await getBinaryBufferForMesh(glbBuffer, meshIndex);
                 if (binaryBuffer) {
-                    const html = deserializeBinaryToHTML(binaryBuffer);
+                    const html = deserializeBinaryToString(binaryBuffer);
                     // Only consider valid if there's actual content
                     const hasContent = html && html.trim() !== '' && (html.includes('<') && html.includes('>'));
                     if (!hasContent) {
@@ -133,7 +133,7 @@ async function checkMeshHasHtmlContent(meshIndex) {
         if (binaryBuffer) {
             // Try to decode the buffer as HTML to verify it's valid
             try {
-                const html = deserializeBinaryToHTML(binaryBuffer);
+                const html = deserializeBinaryToString(binaryBuffer);
                 
                 // Only consider it HTML if it contains some basic HTML structure
                 // and is not empty or just whitespace

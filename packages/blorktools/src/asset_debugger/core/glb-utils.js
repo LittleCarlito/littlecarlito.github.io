@@ -855,22 +855,22 @@ export function getBinaryBufferForMesh(glbArrayBuffer, meshIndex) {
 }
 
 /**
- * Serialize HTML content to binary format
- * @param {string} htmlContent - The HTML content to serialize
+ * Serialize String content to binary format
+ * @param {string} stringContent - The String content to serialize
  * @returns {ArrayBuffer} The serialized binary data
  */
-export function serializeHTMLToBinary(htmlContent) {
+export function serializeStringToBinary(stringContent) {
     // Simple serialization: convert string to UTF-8 encoded ArrayBuffer
     const encoder = new TextEncoder();
-    return encoder.encode(htmlContent).buffer;
+    return encoder.encode(stringContent).buffer;
 }
 
 /**
- * Deserialize binary data to HTML content
+ * Deserialize binary data to String content
  * @param {ArrayBuffer} binaryData - The binary data to deserialize
- * @returns {string} The deserialized HTML content
+ * @returns {string} The deserialized String content
  */
-export function deserializeBinaryToHTML(binaryData) {
+export function deserializeBinaryToString(binaryData) {
     // Simple deserialization: convert UTF-8 encoded ArrayBuffer to string
     const decoder = new TextDecoder('utf-8');
     return decoder.decode(binaryData);
