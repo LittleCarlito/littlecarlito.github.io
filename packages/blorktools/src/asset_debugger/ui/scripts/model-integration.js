@@ -6,8 +6,10 @@
  */
 
 import { getState, updateState } from '../../core/state.js';
-import { setCurrentGlbBuffer } from './html-editor-modal.js';
 import { processGLBModel } from '../../core/glb-utils.js';
+
+// Current GLB buffer storage
+let currentGlbBuffer = null;
 
 /**
  * Initialize the model-HTML integration
@@ -82,15 +84,83 @@ async function processModelFileForHtmlEditor(file) {
 }
 
 /**
- * Get the current GLB buffer from state
- * @returns {ArrayBuffer|null} The current GLB buffer or null if not available
+ * Set the current GLB buffer for the application
+ * @param {ArrayBuffer} glbBuffer - The GLB file as an ArrayBuffer
+ */
+export function setCurrentGlbBuffer(glbBuffer) {
+    currentGlbBuffer = glbBuffer;
+    
+    // Optionally notify other components that the buffer has changed
+    const event = new CustomEvent('glb-buffer-changed', { detail: { buffer: glbBuffer } });
+    window.dispatchEvent(event);
+}
+
+/**
+ * Get the current GLB buffer
+ * @returns {ArrayBuffer|null} The current GLB buffer or null if not set
  */
 export function getCurrentGlbBuffer() {
+    // First check our local variable
+    if (currentGlbBuffer) {
+        return currentGlbBuffer;
+    }
+    
+    // If not available, try to get from state
     const state = getState();
-    return state.currentGlb?.arrayBuffer || null;
+    if (state && state.currentGlb && state.currentGlb.arrayBuffer) {
+        // Update our local variable for next time
+        currentGlbBuffer = state.currentGlb.arrayBuffer;
+        return currentGlbBuffer;
+    }
+    
+    return null;
+}
+
+/**
+ * Get mesh by index from the loaded model
+ * @param {number} meshIndex - Index of the mesh to retrieve
+ * @returns {THREE.Mesh|null} The mesh object or null if not found
+ */
+export function getMeshByIndex(meshIndex) {
+    const state = getState();
+    if (!state || !state.meshes || meshIndex >= state.meshes.length) {
+        return null;
+    }
+    
+    return state.meshes[meshIndex];
+}
+
+/**
+ * Update the GLB file with modified data and save it
+ * @param {ArrayBuffer} updatedGlb - The updated GLB file
+ * @returns {Promise<boolean>} Promise that resolves to true if successful
+ */
+export async function updateGlbFile(updatedGlb) {
+    try {
+        // Update our local reference
+        setCurrentGlbBuffer(updatedGlb);
+        
+        // Update state
+        const state = getState();
+        if (state && state.currentGlb) {
+            state.currentGlb.arrayBuffer = updatedGlb;
+            
+            // If there's a download function available, call it
+            if (typeof window.updateDownloadLink === 'function') {
+                window.updateDownloadLink(updatedGlb);
+            }
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Error updating GLB file:', error);
+        return false;
+    }
 }
 
 export default {
     initModelIntegration,
-    getCurrentGlbBuffer
+    getCurrentGlbBuffer,
+    getMeshByIndex,
+    updateGlbFile
 }; 

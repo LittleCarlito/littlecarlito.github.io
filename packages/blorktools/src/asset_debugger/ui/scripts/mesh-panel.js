@@ -4,11 +4,74 @@
  * This module handles mesh visibility panel UI and interaction.
  */
 import { getState, updateState } from '../../core/state.js';
-import { getCurrentGlbBuffer } from './model-integration.js';
-import { getBinaryBufferForMesh } from '../../core/glb-utils.js';
+import { getCurrentGlbBuffer, setCurrentGlbBuffer } from './model-integration.js';
+import { getBinaryBufferForMesh, deserializeBinaryToHTML } from '../../core/glb-utils.js';
 
 // Track meshes with HTML content
 const meshesWithHtml = new Set();
+
+// Icon color constants
+const ICON_COLORS = {
+    HAS_HTML: '#4a9eff', // Highlight color for meshes with HTML
+    NO_HTML: '#8a8a8a'   // Default color for meshes without HTML
+};
+
+/**
+ * Toggle the HTML code icon appearance for a specific mesh
+ * @param {number} meshIndex - The index of the mesh to toggle
+ * @param {boolean} hasHtml - Whether the mesh has HTML content
+ * @param {boolean} forceUpdate - If true, forces the update without rechecking
+ * @returns {boolean} Whether the operation was successful
+ */
+export function toggleMeshCodeIcon(meshIndex, hasHtml, forceUpdate = false) {
+    console.log(`Toggling mesh code icon for mesh ${meshIndex} to ${hasHtml ? 'has HTML' : 'no HTML'}`);
+    
+    // Update tracking set
+    if (hasHtml) {
+        meshesWithHtml.add(meshIndex);
+    } else {
+        meshesWithHtml.delete(meshIndex);
+    }
+    
+    // If forcing update, temporarily store this state to prevent automatic rechecking
+    if (forceUpdate) {
+        // Use a data attribute on the document to store forced states temporarily
+        if (!window._forcedHtmlStates) {
+            window._forcedHtmlStates = {};
+        }
+        window._forcedHtmlStates[meshIndex] = hasHtml;
+        
+        // Clear this forced state after a short delay
+        setTimeout(() => {
+            if (window._forcedHtmlStates) {
+                delete window._forcedHtmlStates[meshIndex];
+            }
+        }, 500);
+    }
+    
+    // Find all icons for this mesh index
+    const icons = document.querySelectorAll(`.mesh-html-editor-icon[data-mesh-index="${meshIndex}"]`);
+    
+    if (icons.length === 0) {
+        console.log(`No icons found for mesh index ${meshIndex}, trying broader search`);
+        // Try broader search - get all icons and look for the right one
+        const allIcons = document.querySelectorAll('.mesh-html-editor-icon');
+        
+        allIcons.forEach((icon) => {
+            const iconMeshIndex = parseInt(icon.dataset.meshIndex);
+            if (iconMeshIndex === meshIndex) {
+                updateIconAppearance(icon, hasHtml);
+            }
+        });
+    } else {
+        // Update all found icons
+        icons.forEach(icon => {
+            updateIconAppearance(icon, hasHtml);
+        });
+    }
+    
+    return true;
+}
 
 /**
  * Check if a mesh has HTML content
@@ -16,9 +79,40 @@ const meshesWithHtml = new Set();
  * @returns {Promise<boolean>} Promise that resolves to true if the mesh has HTML content
  */
 async function checkMeshHasHtmlContent(meshIndex) {
+    // Check if there's a forced state for this mesh
+    if (window._forcedHtmlStates && meshIndex in window._forcedHtmlStates) {
+        console.log(`Using forced HTML state for mesh ${meshIndex}: ${window._forcedHtmlStates[meshIndex]}`);
+        return window._forcedHtmlStates[meshIndex];
+    }
+
     // First check our cache
     if (meshesWithHtml.has(meshIndex)) {
-        return true;
+        // Double check that it's still valid by getting the actual content
+        const glbBuffer = getCurrentGlbBuffer();
+        if (glbBuffer) {
+            try {
+                const binaryBuffer = await getBinaryBufferForMesh(glbBuffer, meshIndex);
+                if (binaryBuffer) {
+                    const html = deserializeBinaryToHTML(binaryBuffer);
+                    // Only consider valid if there's actual content
+                    const hasContent = html && html.trim() !== '' && (html.includes('<') && html.includes('>'));
+                    if (!hasContent) {
+                        // Remove from cache if no longer valid
+                        meshesWithHtml.delete(meshIndex);
+                        return false;
+                    }
+                    return true;
+                }
+                // No buffer found, remove from cache
+                meshesWithHtml.delete(meshIndex);
+                return false;
+            } catch (e) {
+                // Error retrieving content, remove from cache
+                meshesWithHtml.delete(meshIndex);
+                return false;
+            }
+        }
+        return true; // Keep the cached value if we can't check
     }
     
     // Get the current GLB buffer
@@ -33,9 +127,20 @@ async function checkMeshHasHtmlContent(meshIndex) {
         
         // If buffer found, mesh has HTML
         if (binaryBuffer) {
-            // Cache the result
-            meshesWithHtml.add(meshIndex);
-            return true;
+            // Try to decode the buffer as HTML to verify it's valid
+            try {
+                const html = deserializeBinaryToHTML(binaryBuffer);
+                
+                // Only consider it HTML if it contains some basic HTML structure
+                // and is not empty or just whitespace
+                if (html && html.trim() !== '' && (html.includes('<') && html.includes('>'))) {
+                    // Cache the result
+                    meshesWithHtml.add(meshIndex);
+                    return true;
+                }
+            } catch (e) {
+                console.warn(`Binary data for mesh ${meshIndex} exists but isn't valid HTML:`, e);
+            }
         }
         
         return false;
@@ -49,6 +154,10 @@ async function checkMeshHasHtmlContent(meshIndex) {
  * Create the mesh visibility panel in the UI
  */
 export function createMeshVisibilityPanel() {
+    // Register utility functions globally
+    window.removeMeshHtmlFlag = removeMeshHtmlFlag;
+    window.updateHtmlIcons = updateHtmlIcons;
+    
     // Organize meshes into groups based on name prefixes
     groupMeshesByName();
     
@@ -162,7 +271,7 @@ export function createMeshVisibilityPanel() {
         meshItemsDiv.style.display = 'none';
         
         // Create elements for each mesh in the group
-        groupMeshes.forEach(mesh => {
+        const meshPromises = groupMeshes.map(async (mesh, index) => {
             const meshDiv = document.createElement('div');
             meshDiv.className = 'mesh-item';
             meshDiv.style.display = 'flex';
@@ -173,7 +282,8 @@ export function createMeshVisibilityPanel() {
             meshToggle.type = 'checkbox';
             meshToggle.className = 'mesh-toggle';
             meshToggle.checked = mesh.visible;
-            meshToggle.dataset.meshIndex = state.meshes.indexOf(mesh);
+            const meshIndex = state.meshes.indexOf(mesh);
+            meshToggle.dataset.meshIndex = meshIndex;
             
             // Add event listener for mesh toggle
             meshToggle.addEventListener('change', (e) => {
@@ -199,11 +309,21 @@ export function createMeshVisibilityPanel() {
             const htmlEditorIcon = document.createElement('span');
             htmlEditorIcon.className = 'mesh-html-editor-icon';
             htmlEditorIcon.title = 'Edit HTML';
+            htmlEditorIcon.dataset.meshIndex = meshIndex;
             htmlEditorIcon.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512">
                     <path d="M234.8 511.7L196 500.4c-4.2-1.2-6.7-5.7-5.5-9.9L331.3 5.8c1.2-4.2 5.7-6.7 9.9-5.5L380 11.6c4.2 1.2 6.7 5.7 5.5 9.9L244.7 506.2c-1.2 4.3-5.6 6.7-9.9 5.5zm-83.2-121.1l27.2-29c3.1-3.3 2.8-8.5-.5-11.5L72.2 256l106.1-94.1c3.4-3 3.6-8.2.5-11.5l-27.2-29c-3-3.2-8.1-3.4-11.3-.4L2.5 250.2c-3.4 3.2-3.4 8.5 0 11.7L140.3 391c3.2 3 8.2 2.8 11.3-.4zm284.1.4l137.7-129.1c3.4-3.2 3.4-8.5 0-11.7L435.7 121c-3.2-3-8.3-2.9-11.3.4l-27.2 29c-3.1 3.3-2.8 8.5.5 11.5L503.8 256l-106.1 94.1c-3.4 3-3.6 8.2-.5 11.5l27.2 29c3.1 3.2 8.1 3.4 11.3.4z"/>
                 </svg>
             `;
+            
+            // Check if mesh has HTML content
+            const hasHtml = await checkMeshHasHtmlContent(meshIndex);
+            
+            // Add a data attribute to the icon indicating if it has HTML content
+            htmlEditorIcon.dataset.hasHtml = hasHtml;
+            
+            // Style the icon based on HTML content status
+            updateIconAppearance(htmlEditorIcon, hasHtml);
             
             // Add event listener to open HTML editor modal
             htmlEditorIcon.addEventListener('click', (e) => {
@@ -239,13 +359,106 @@ export function createMeshVisibilityPanel() {
             meshItemsDiv.appendChild(meshDiv);
         });
         
-        // Assemble group
-        groupDiv.appendChild(headerDiv);
-        groupDiv.appendChild(meshItemsDiv);
-        
-        // Add to groups container
-        meshGroupsContainer.appendChild(groupDiv);
+        // Wait for all mesh promises to resolve
+        Promise.all(meshPromises).then(() => {
+            // Assemble group
+            groupDiv.appendChild(headerDiv);
+            groupDiv.appendChild(meshItemsDiv);
+            
+            // Add to groups container
+            meshGroupsContainer.appendChild(groupDiv);
+        });
     }
+    
+    // Initialize the download button
+    initDownloadButton();
+}
+
+/**
+ * Initialize the download button
+ */
+function initDownloadButton() {
+    const downloadBtn = document.getElementById('download-asset-btn');
+    if (!downloadBtn) return;
+    
+    downloadBtn.addEventListener('click', async () => {
+        try {
+            await downloadUpdatedGlb();
+        } catch (error) {
+            console.error('Error downloading GLB:', error);
+            alert('Error downloading GLB: ' + error.message);
+        }
+    });
+}
+
+/**
+ * Download the updated GLB file
+ */
+async function downloadUpdatedGlb() {
+    const glbBuffer = getCurrentGlbBuffer();
+    if (!glbBuffer) {
+        alert('No GLB file loaded to download.');
+        return;
+    }
+    
+    // Get state for filename
+    const state = getState();
+    let fileName = 'model_with_html.glb';
+    
+    // Use original filename if available
+    if (state.currentGlb && state.currentGlb.fileName) {
+        // Add _with_html suffix to the filename
+        const originalName = state.currentGlb.fileName;
+        const nameParts = originalName.split('.');
+        if (nameParts.length > 1) {
+            // Insert the suffix before the file extension
+            nameParts[nameParts.length - 2] += '_with_html';
+            fileName = nameParts.join('.');
+        } else {
+            fileName = originalName + '_with_html.glb';
+        }
+    }
+    
+    // Create a blob from the array buffer
+    const blob = new Blob([glbBuffer], { type: 'model/gltf-binary' });
+    
+    // Create a URL for the blob
+    const url = URL.createObjectURL(blob);
+    
+    // Create a temporary link to trigger the download
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.style.display = 'none';
+    
+    // Add the link to the document
+    document.body.appendChild(link);
+    
+    // Trigger the download
+    link.click();
+    
+    // Clean up
+    setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }, 100);
+    
+    console.log(`Downloaded GLB as ${fileName}`);
+}
+
+/**
+ * Update HTML icons to reflect current HTML content
+ * This should be called after saving HTML data
+ */
+export function updateHtmlIcons() {
+    // Update all HTML editor icons to reflect their current state
+    document.querySelectorAll('.mesh-html-editor-icon').forEach(async (icon) => {
+        const meshIndex = parseInt(icon.dataset.meshIndex);
+        if (!isNaN(meshIndex)) {
+            const hasHtml = await checkMeshHasHtmlContent(meshIndex);
+            toggleMeshCodeIcon(meshIndex, hasHtml);
+        }
+    });
 }
 
 /**
@@ -346,8 +559,59 @@ export function updateGroupToggleState(groupName) {
     }
 }
 
+/**
+ * Remove HTML flag for a specific mesh
+ * @param {number} meshIndex - The index of the mesh to update
+ */
+export function removeMeshHtmlFlag(meshIndex) {
+    console.log(`Removing HTML flag for mesh index ${meshIndex}`);
+    
+    // Use the new toggle function to update the icon state to 'no HTML'
+    // Force the update to prevent inconsistent state
+    toggleMeshCodeIcon(meshIndex, false, true);
+    
+    // Force refresh of cache
+    checkMeshHasHtmlContent(meshIndex).then(() => {
+        console.log(`Re-checked mesh HTML content status for mesh ${meshIndex}`);
+    });
+}
+
+/**
+ * Update an icon's appearance based on HTML content status
+ * @param {HTMLElement} icon - The icon element to update
+ * @param {boolean} hasHtml - Whether the mesh has HTML content
+ */
+function updateIconAppearance(icon, hasHtml) {
+    // Update all visual properties
+    icon.dataset.hasHtml = hasHtml ? 'true' : 'false';
+    
+    if (hasHtml) {
+        icon.classList.add('has-html');
+        icon.style.color = ICON_COLORS.HAS_HTML;
+        icon.title = 'Edit HTML (has content)';
+    } else {
+        icon.classList.remove('has-html');
+        icon.style.color = ICON_COLORS.NO_HTML;
+        icon.title = 'Edit HTML';
+    }
+    
+    console.log(`Updated icon appearance, hasHtml=${hasHtml}, color=${icon.style.color}`);
+}
+
+/**
+ * Force update mesh HTML icon state - to be called from html-editor-modal.js
+ * This avoids race conditions when saving/removing HTML content
+ * @param {number} meshIndex - The index of the mesh to update
+ * @param {boolean} hasHtml - Whether the mesh has HTML content
+ */
+export function forceUpdateMeshHtmlState(meshIndex, hasHtml) {
+    return toggleMeshCodeIcon(meshIndex, hasHtml, true);
+}
+
 export default {
     createMeshVisibilityPanel,
     toggleMeshGroupVisibility,
-    updateGroupToggleState
+    updateGroupToggleState,
+    toggleMeshCodeIcon,
+    forceUpdateMeshHtmlState
 }; 
