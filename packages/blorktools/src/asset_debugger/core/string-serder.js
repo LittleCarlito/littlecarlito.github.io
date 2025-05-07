@@ -11,9 +11,13 @@
  * @returns {ArrayBuffer} The serialized binary data
  */
 export function serializeStringToBinary(stringContent) {
-    console.info("Serializing " + stringContent);
-    // Convert string to UTF-8 encoded ArrayBuffer
+    console.info("Serializing: " + stringContent);
+    
+    // Create a UTF-8 encoder
     const encoder = new TextEncoder();
+    
+    // Simply encode the string as UTF-8
+    // This is the most reliable way to handle all characters
     return encoder.encode(stringContent).buffer;
 }
 
@@ -25,21 +29,37 @@ export function serializeStringToBinary(stringContent) {
 export function deserializeStringFromBinary(binaryData) {
     try {
         // Simple check for valid buffer
-        if (!binaryData) {
+        if (!binaryData || binaryData.byteLength === 0) {
             console.warn("Empty binary data received");
             return "";
         }
         
-        // Convert UTF-8 encoded ArrayBuffer to string
-        const decoder = new TextDecoder('utf-8');
-        const stringContent = decoder.decode(binaryData);
+        // Create a view of the binary data to check for null terminators
+        const dataView = new Uint8Array(binaryData);
         
-        // Log a shorter version to avoid console flooding
-        const previewLength = Math.min(stringContent.length, 50);
-        const contentPreview = stringContent.substring(0, previewLength) + (stringContent.length > previewLength ? "..." : "");
+        // Find the actual length of the string (stop at first null byte if any)
+        let actualLength = dataView.length;
+        for (let i = 0; i < dataView.length; i++) {
+            if (dataView[i] === 0) {
+                actualLength = i;
+                break;
+            }
+        }
+        
+        // Create a clean buffer without any padding bytes
+        const cleanBuffer = binaryData.slice(0, actualLength);
+        
+        // Convert binary to string using UTF-8 decoder
+        const decoder = new TextDecoder('utf-8');
+        const content = decoder.decode(cleanBuffer);
+        
+        // Log a preview of the content
+        const previewLength = Math.min(content.length, 50);
+        const contentPreview = content.substring(0, previewLength) + 
+                              (content.length > previewLength ? "..." : "");
         console.info("Deserialized to: " + contentPreview);
         
-        return stringContent;
+        return content;
     } catch (error) {
         console.error("Error deserializing binary data:", error);
         return "";

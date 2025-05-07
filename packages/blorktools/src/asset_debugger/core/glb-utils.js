@@ -371,6 +371,7 @@ export function associateBinaryBufferWithMesh(glbArrayBuffer, meshIndex, binaryD
         try {
             // Check if this is a removal operation (empty buffer)
             const isRemoval = !binaryData || binaryData.byteLength === 0;
+            console.log(`${isRemoval ? 'Removing' : 'Associating'} binary data for mesh ${meshIndex} (${isRemoval ? 0 : binaryData.byteLength} bytes)`);
             
             // Parse the GLB to access the JSON content
             const dataView = new DataView(glbArrayBuffer);
@@ -457,10 +458,6 @@ export function associateBinaryBufferWithMesh(glbArrayBuffer, meshIndex, binaryD
                     }
                 }
                 
-                // We don't need to keep the buffer, but we could mark it as unused
-                // For simplicity, we'll just leave the buffer data in the file
-                // A more advanced implementation could remove the buffer and update all references
-                
                 // Create a new JSON string with the updated extensions
                 const newJsonString = JSON.stringify(gltf);
                 const newJsonBytes = new TextEncoder().encode(newJsonString);
@@ -471,45 +468,55 @@ export function associateBinaryBufferWithMesh(glbArrayBuffer, meshIndex, binaryD
                 return;
             }
             
-            // If not a removal operation, continue with normal association
-            // Determine the binary buffer index
-            let binaryBufferIndex;
+            // For non-removal operations, we'll rebuild the entire binary chunk
+            // to avoid contamination between buffers
+            
+            // First, collect all existing buffers except the one we're updating
+            const existingBuffers = [];
+            let bufferToUpdateIndex = -1;
+            
             if (existingAssociation) {
-                // Replace existing association
-                binaryBufferIndex = existingAssociation[BINARY_DATA_PROPERTY];
-                
-                // Update buffer if it exists
-                if (gltf.buffers && gltf.buffers[binaryBufferIndex]) {
-                    const bufferLength = Math.ceil(binaryData.byteLength / 4) * 4;
-                    gltf.buffers[binaryBufferIndex].byteLength = bufferLength;
-                    
-                    // Important: Remove any existing URI if we're updating
-                    delete gltf.buffers[binaryBufferIndex].uri;
-                }
+                // Use existing association's buffer index
+                bufferToUpdateIndex = existingAssociation[BINARY_DATA_PROPERTY];
             } else {
-                // Create a new buffer for the binary data
-                if (!gltf.buffers) {
-                    gltf.buffers = [];
-                }
-                
-                // Calculate buffer length with padding to 4 bytes alignment
-                const bufferLength = Math.ceil(binaryData.byteLength / 4) * 4;
-                
-                // Create new buffer reference
-                binaryBufferIndex = gltf.buffers.length;
-                gltf.buffers.push({
-                    byteLength: bufferLength
-                    // Don't add URI - we'll include in BIN chunk
-                });
+                // Create a new buffer index
+                bufferToUpdateIndex = gltf.buffers ? gltf.buffers.length : 0;
                 
                 // Add the new association
                 associations.push({
                     [MESH_INDEX_PROPERTY]: meshIndex,
-                    [BINARY_DATA_PROPERTY]: binaryBufferIndex
+                    [BINARY_DATA_PROPERTY]: bufferToUpdateIndex
                 });
             }
             
-            // Create a new JSON string with the extensions
+            // Ensure buffers array exists
+            if (!gltf.buffers) {
+                gltf.buffers = [];
+            }
+            
+            // Store the exact byte length (no padding)
+            const exactByteLength = binaryData.byteLength;
+            
+            // Calculate buffer length with padding to 4 bytes alignment for GLB spec
+            const bufferLength = Math.ceil(exactByteLength / 4) * 4;
+            
+            // Create or update buffer reference
+            if (bufferToUpdateIndex < gltf.buffers.length) {
+                // Update existing buffer - use exact byte length in the JSON
+                gltf.buffers[bufferToUpdateIndex] = {
+                    byteLength: exactByteLength
+                };
+                
+                // Remove any URI if it exists
+                delete gltf.buffers[bufferToUpdateIndex].uri;
+            } else {
+                // Add new buffer - use exact byte length in the JSON
+                gltf.buffers.push({
+                    byteLength: exactByteLength
+                });
+            }
+            
+            // Create a new JSON string with the updated extensions and buffers
             const newJsonString = JSON.stringify(gltf);
             const newJsonBytes = new TextEncoder().encode(newJsonString);
             
@@ -517,68 +524,76 @@ export function associateBinaryBufferWithMesh(glbArrayBuffer, meshIndex, binaryD
             const paddedJsonLength = Math.ceil(newJsonBytes.length / 4) * 4;
             const jsonPadding = paddedJsonLength - newJsonBytes.length;
             
-            // Check for binary chunk in the original GLB
+            // Extract all existing binary data that we want to keep
             const binaryChunkOffset = jsonEnd;
-            let hasOriginalBinaryChunk = false;
-            let binaryChunkLength = 0;
-            let binaryChunkData = null;
+            const existingBinaryData = [];
             
+            // Check if there's a binary chunk in the original GLB
             if (binaryChunkOffset + 8 <= dataView.byteLength) {
-                // Try to read binary chunk header
                 try {
                     const binaryChunkHeaderLength = dataView.getUint32(binaryChunkOffset, true);
                     const binaryChunkType = dataView.getUint32(binaryChunkOffset + 4, true);
                     
                     if (binaryChunkType === 0x004E4942) { // 'BIN' in ASCII
-                        hasOriginalBinaryChunk = true;
-                        binaryChunkLength = binaryChunkHeaderLength;
+                        console.log(`Original binary chunk found: ${binaryChunkHeaderLength} bytes`);
                         
-                        console.log(`Original binary chunk found: ${binaryChunkLength} bytes`);
+                        // Extract all buffers from the existing binary chunk
+                        let currentOffset = 0;
                         
-                        // Validate binary chunk boundaries
-                        if (binaryChunkOffset + 8 + binaryChunkLength <= dataView.byteLength) {
-                            // Copy the original binary chunk data
-                            binaryChunkData = glbArrayBuffer.slice(
-                                binaryChunkOffset + 8, 
-                                binaryChunkOffset + 8 + binaryChunkLength
-                            );
-                        } else {
-                            console.warn('Binary chunk length exceeds file size, ignoring');
-                            hasOriginalBinaryChunk = false;
-                            binaryChunkLength = 0;
+                        for (let i = 0; i < gltf.buffers.length; i++) {
+                            // Skip the buffer we're updating
+                            if (i === bufferToUpdateIndex) {
+                                continue;
+                            }
+                            
+                            // Only process buffers stored in the GLB (no URI)
+                            if (gltf.buffers[i] && !gltf.buffers[i].uri) {
+                                const bufLen = gltf.buffers[i].byteLength;
+                                const paddedLen = Math.ceil(bufLen / 4) * 4;
+                                
+                                // Make sure this buffer is within the binary chunk
+                                if (binaryChunkOffset + 8 + currentOffset + bufLen <= dataView.byteLength) {
+                                    // Extract this buffer's data - use exact length, not padded
+                                    const bufData = glbArrayBuffer.slice(
+                                        binaryChunkOffset + 8 + currentOffset,
+                                        binaryChunkOffset + 8 + currentOffset + bufLen
+                                    );
+                                    
+                                    // Store the buffer data and its index
+                                    existingBuffers.push({
+                                        index: i,
+                                        data: bufData
+                                    });
+                                }
+                                
+                                currentOffset += paddedLen;
+                            }
                         }
                     }
                 } catch (e) {
-                    console.warn('Error reading binary chunk, treating as not present:', e);
-                    hasOriginalBinaryChunk = false;
+                    console.warn('Error extracting existing binary data:', e);
                 }
             }
             
-            // Create binary chunk for the new file
-            // We need to include our new binary data plus any existing binary data
-            // Ensure binary data is aligned to 4 bytes
-            const paddedBinaryDataLength = Math.ceil(binaryData.byteLength / 4) * 4;
-            const binaryDataPadding = paddedBinaryDataLength - binaryData.byteLength;
+            // Calculate the total size of all binary data
+            let totalBinarySize = 0;
             
-            let newBinaryChunkLength = 0;
-            
-            if (hasOriginalBinaryChunk) {
-                // Include existing binary data plus our new data
-                newBinaryChunkLength = binaryChunkLength + paddedBinaryDataLength;
-            } else {
-                // Only our new data
-                newBinaryChunkLength = paddedBinaryDataLength;
+            // Add size of existing buffers (with padding for alignment)
+            for (const buf of existingBuffers) {
+                totalBinarySize += Math.ceil(buf.data.byteLength / 4) * 4;
             }
             
-            console.log(`New binary chunk size: ${newBinaryChunkLength} bytes`);
+            // Add size of the new buffer (with padding for alignment)
+            totalBinarySize += bufferLength;
             
-            // Calculate new total size
+            // Calculate new total size for the GLB
             const newTotalSize = 
                 12 +                     // GLB header (12 bytes)
                 8 + paddedJsonLength +   // JSON chunk header (8 bytes) + padded JSON
-                8 + newBinaryChunkLength; // Binary chunk header (8 bytes) + binary data
+                8 + totalBinarySize;     // Binary chunk header (8 bytes) + binary data
             
             console.log(`New GLB total size: ${newTotalSize} bytes`);
+            console.log(`New binary chunk size: ${totalBinarySize} bytes`);
             
             // Create the new GLB buffer
             const newGlb = new ArrayBuffer(newTotalSize);
@@ -606,40 +621,46 @@ export function associateBinaryBufferWithMesh(glbArrayBuffer, meshIndex, binaryD
             const newBinaryChunkOffset = 20 + paddedJsonLength;
             
             // Write binary chunk header
-            newDataView.setUint32(newBinaryChunkOffset, newBinaryChunkLength, true); // Binary chunk length
+            newDataView.setUint32(newBinaryChunkOffset, totalBinarySize, true); // Binary chunk length
             newDataView.setUint32(newBinaryChunkOffset + 4, 0x004E4942, true); // 'BIN'
             
-            // Copy existing binary data if available
-            let binaryDataOffset = newBinaryChunkOffset + 8;
+            // Write binary data
+            let currentBinaryOffset = newBinaryChunkOffset + 8;
             
-            if (hasOriginalBinaryChunk && binaryChunkData) {
-                try {
-                    // Use the previously extracted binary chunk data
-                    const originalBinaryArray = new Uint8Array(binaryChunkData);
-                    newUint8Array.set(originalBinaryArray, binaryDataOffset);
-                    binaryDataOffset += binaryChunkLength;
-                } catch (e) {
-                    console.error('Error copying original binary data:', e);
-                    // Continue without the original binary data
-                }
-            }
-            
-            // Add our new binary data
-            try {
-                const binaryArray = new Uint8Array(binaryData);
-                newUint8Array.set(binaryArray, binaryDataOffset);
+            // First, write all existing buffers
+            for (let i = 0; i < existingBuffers.length; i++) {
+                const buf = existingBuffers[i];
+                const bufArray = new Uint8Array(buf.data);
+                const paddedLength = Math.ceil(buf.data.byteLength / 4) * 4;
                 
-                // Add padding to the binary data if needed
-                for (let i = 0; i < binaryDataPadding; i++) {
-                    newUint8Array[binaryDataOffset + binaryData.byteLength + i] = 0;
+                // Write buffer data
+                newUint8Array.set(bufArray, currentBinaryOffset);
+                
+                // Add padding if needed
+                const padding = paddedLength - buf.data.byteLength;
+                for (let j = 0; j < padding; j++) {
+                    newUint8Array[currentBinaryOffset + buf.data.byteLength + j] = 0;
                 }
-            } catch (e) {
-                console.error('Error adding binary data:', e);
-                reject(new Error(`Error adding binary data: ${e.message}`));
-                return;
+                
+                currentBinaryOffset += paddedLength;
             }
             
-            console.log('Successfully created new GLB with added binary data');
+            // Now write the new buffer
+            if (binaryData && binaryData.byteLength > 0) {
+                const binaryArray = new Uint8Array(binaryData);
+                
+                // Write buffer data
+                newUint8Array.set(binaryArray, currentBinaryOffset);
+                
+                // Add padding if needed
+                const padding = bufferLength - binaryData.byteLength;
+                for (let i = 0; i < padding; i++) {
+                    // Use explicit null bytes (0) for padding
+                    newUint8Array[currentBinaryOffset + binaryData.byteLength + i] = 0;
+                }
+            }
+            
+            console.log('Successfully created new GLB with updated binary data');
             resolve(newGlb);
         } catch (error) {
             console.error('Error in associateBinaryBufferWithMesh:', error);
@@ -743,7 +764,7 @@ export function getBinaryBufferForMesh(glbArrayBuffer, meshIndex) {
             // Parse the GLB to access the JSON content
             const dataView = new DataView(glbArrayBuffer);
             
-            // GLB header validation (same as above)
+            // GLB header validation
             if (dataView.byteLength < 12) {
                 reject(new Error('Invalid GLB: File too small'));
                 return;
@@ -783,15 +804,23 @@ export function getBinaryBufferForMesh(glbArrayBuffer, meshIndex) {
             
             // Check if our extension exists
             if (!gltf.extensions || !gltf.extensions[MESH_BINARY_EXTENSION]) {
+                console.log(`No binary extension found for mesh ${meshIndex}`);
                 resolve(null); // No extension found
                 return;
             }
             
             // Find the association for this mesh index
             const associations = gltf.extensions[MESH_BINARY_EXTENSION].meshBinaryAssociations;
+            if (!associations || !Array.isArray(associations)) {
+                console.log(`No binary associations found for mesh ${meshIndex}`);
+                resolve(null);
+                return;
+            }
+            
             const association = associations.find(assoc => assoc[MESH_INDEX_PROPERTY] === meshIndex);
             
             if (!association) {
+                console.log(`No binary association found for mesh ${meshIndex}`);
                 resolve(null); // No association found for this mesh
                 return;
             }
@@ -801,11 +830,13 @@ export function getBinaryBufferForMesh(glbArrayBuffer, meshIndex) {
             
             // Access the buffer data
             if (!gltf.buffers || !gltf.buffers[bufferIndex]) {
+                console.log(`Buffer ${bufferIndex} not found for mesh ${meshIndex}`);
                 resolve(null); // Buffer not found
                 return;
             }
             
             const buffer = gltf.buffers[bufferIndex];
+            console.log(`Found buffer ${bufferIndex} for mesh ${meshIndex} with length ${buffer.byteLength}`);
             
             // Handle buffer data
             if (buffer.uri) {
@@ -829,6 +860,7 @@ export function getBinaryBufferForMesh(glbArrayBuffer, meshIndex) {
                 
                 // Ensure there is a binary chunk
                 if (dataView.byteLength <= binaryChunkOffset + 8) {
+                    console.log(`No binary chunk found at offset ${binaryChunkOffset}`);
                     resolve(null); // No binary chunk
                     return;
                 }
@@ -842,32 +874,50 @@ export function getBinaryBufferForMesh(glbArrayBuffer, meshIndex) {
                     return;
                 }
                 
-                // We need to locate the specific buffer data within the binary chunk
-                // The buffer data is stored sequentially in the binary chunk
-                
-                // Calculate the offset of this buffer within the binary chunk
+                // Find the correct offset for this buffer within the binary chunk
                 let currentOffset = 0;
-                for (let i = 0; i < bufferIndex; i++) {
-                    if (gltf.buffers[i] && !gltf.buffers[i].uri) {
-                        // Add the length of each preceding buffer, padded to 4-byte boundary
+                let foundBuffer = false;
+                
+                // Calculate offset by summing up sizes of previous buffers
+                for (let i = 0; i < gltf.buffers.length; i++) {
+                    if (i === bufferIndex) {
+                        foundBuffer = true;
+                        break;
+                    }
+                    
+                    // Only count buffers that are stored in the GLB (no URI)
+                    if (!gltf.buffers[i].uri) {
+                        // Add the length of this buffer (padded to 4-byte boundary)
                         const bufferLength = gltf.buffers[i].byteLength;
-                        currentOffset += Math.ceil(bufferLength / 4) * 4;
+                        const paddedLength = Math.ceil(bufferLength / 4) * 4;
+                        currentOffset += paddedLength;
                     }
                 }
                 
-                // Get the length of this buffer
-                const bufferLength = buffer.byteLength;
+                if (!foundBuffer) {
+                    console.warn(`Buffer index ${bufferIndex} exceeds buffer count`);
+                    resolve(null);
+                    return;
+                }
                 
-                // Extract just this buffer's data from the binary chunk
+                // Extract just this buffer's data
                 const bufferStartOffset = binaryChunkOffset + 8 + currentOffset;
-                const bufferData = glbArrayBuffer.slice(
-                    bufferStartOffset,
-                    bufferStartOffset + bufferLength
-                );
+                const bufferEndOffset = bufferStartOffset + buffer.byteLength;
+                
+                // Validate buffer boundaries
+                if (bufferEndOffset > dataView.byteLength) {
+                    console.warn(`Buffer extends beyond GLB file (${bufferEndOffset} > ${dataView.byteLength})`);
+                    resolve(null);
+                    return;
+                }
+                
+                console.log(`Extracting buffer at offset ${currentOffset} (${bufferStartOffset}-${bufferEndOffset})`);
+                const bufferData = glbArrayBuffer.slice(bufferStartOffset, bufferEndOffset);
                 
                 resolve(bufferData);
             }
         } catch (error) {
+            console.error('Error retrieving binary buffer:', error);
             reject(new Error(`Error retrieving binary buffer: ${error.message}`));
         }
     });

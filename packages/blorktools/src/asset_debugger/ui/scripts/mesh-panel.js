@@ -425,19 +425,19 @@ async function downloadUpdatedGlb() {
     
     // Get state for filename
     const state = getState();
-    let fileName = 'model_with_html.glb';
+    let fileName = 'model_' + getCurrentTimestamp() + '.glb';
     
     // Use original filename if available
     if (state.currentGlb && state.currentGlb.fileName) {
-        // Add _with_html suffix to the filename
+        // Add timestamp to the filename
         const originalName = state.currentGlb.fileName;
         const nameParts = originalName.split('.');
         if (nameParts.length > 1) {
-            // Insert the suffix before the file extension
-            nameParts[nameParts.length - 2] += '_with_html';
-            fileName = nameParts.join('.');
+            // Insert the timestamp before the file extension
+            const extension = nameParts.pop();
+            fileName = nameParts.join('.') + '_' + getCurrentTimestamp() + '.' + extension;
         } else {
-            fileName = originalName + '_with_html.glb';
+            fileName = originalName + '_' + getCurrentTimestamp() + '.glb';
         }
     }
     
@@ -466,6 +466,22 @@ async function downloadUpdatedGlb() {
     }, 100);
     
     console.log(`Downloaded GLB as ${fileName}`);
+}
+
+/**
+ * Get a formatted timestamp string for filenames
+ * @returns {string} Formatted timestamp (YYYYMMDD_HHMMSS)
+ */
+function getCurrentTimestamp() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    
+    return `${year}${month}${day}_${hours}${minutes}${seconds}`;
 }
 
 /**
