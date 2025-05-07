@@ -65,13 +65,16 @@ export default defineConfig({
 		fs: {
 			// Allow serving files from one level up to the project root
 			allow: ['..', '../..'],
-		}
+		},
+		// Add MIME type configuration
+		middlewareMode: false,
 	},
 	plugins: [
 		gracefulShutdownPlugin()
 	],
 	// Better handling of dynamic imports and externals
 	optimizeDeps: {
+		include: ['js-beautify'], // Include js-beautify for optimization
 		exclude: ['jszip'], // Let the dynamic import handle this
 		esbuildOptions: {
 			// Define global names for externalized dependencies

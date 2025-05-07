@@ -288,11 +288,15 @@ export function initHtmlEditorModal() {
             textarea.style.display = 'none';
             previewBtn.style.display = 'none';
             resetBtn.style.display = 'inline-block';
-            const editorContainer = document.querySelector('.editor-container');
+            
+            // Find editor container only within the modal
+            const editorContainer = modal.querySelector('.editor-container');
             if (editorContainer) {
                 editorContainer.style.display = 'none'; // Hide editor container
             }
-            const label = document.querySelector('.editor-controls label');
+            
+            // Find label only within the modal
+            const label = modal.querySelector('.editor-controls label');
             if (label) {
                 label.textContent = 'Preview:'; // Update label text
             }
@@ -308,11 +312,15 @@ export function initHtmlEditorModal() {
         textarea.style.display = 'block';
         previewBtn.style.display = 'inline-block';
         resetBtn.style.display = 'none';
-        const editorContainer = document.querySelector('.editor-container');
+        
+        // Find editor container only within the modal
+        const editorContainer = modal.querySelector('.editor-container');
         if (editorContainer) {
             editorContainer.style.display = 'block'; // Show editor container
         }
-        const label = document.querySelector('.editor-controls label');
+        
+        // Find label only within the modal
+        const label = modal.querySelector('.editor-controls label');
         if (label) {
             label.textContent = 'Edit HTML for this mesh:'; // Restore label text
         }
@@ -436,8 +444,9 @@ function showStatus(message, type = 'info') {
  */
 function previewHtml(html) {
     const previewContent = document.getElementById('html-preview-content');
+    if (!previewContent) return;
     
-    // Sanitize the HTML before displaying
+    // The sanitizeHtml function now handles document structure extraction
     const sanitizedHtml = sanitizeHtml(html);
     
     // Update the preview
@@ -550,14 +559,15 @@ function createErrorContainer() {
         display: none;
     `;
     
-    // Find the editor container to append to
-    const editorContainer = document.querySelector('.editor-container');
+    // Find the editor container only within the modal
+    const modal = document.getElementById('html-editor-modal');
+    const editorContainer = modal ? modal.querySelector('.editor-container') : null;
+    
     if (editorContainer) {
         editorContainer.style.position = 'relative';
         editorContainer.appendChild(container);
     } else {
         // Fallback to appending to the modal
-        const modal = document.getElementById('html-editor-modal');
         if (modal) {
             modal.appendChild(container);
         }
@@ -570,8 +580,9 @@ function createErrorContainer() {
  * Lint the HTML content in the editor
  */
 async function lintHtmlContent() {
-    const textarea = document.getElementById('html-editor-textarea');
-    const errorContainer = document.getElementById('html-editor-errors') || createErrorContainer();
+    const modal = document.getElementById('html-editor-modal');
+    const textarea = modal ? modal.querySelector('#html-editor-textarea') : null;
+    const errorContainer = modal ? modal.querySelector('#html-editor-errors') : null;
     
     if (!textarea) return;
     
@@ -585,12 +596,15 @@ async function lintHtmlContent() {
         // Clear previous error indicators
         clearErrorIndicators();
         
+        // Create error container if it doesn't exist
+        const container = errorContainer || createErrorContainer();
+        
         // Display errors if any
         if (errors && errors.length > 0) {
             displayLintErrors(errors);
-            errorContainer.style.display = 'block';
+            container.style.display = 'block';
         } else {
-            errorContainer.style.display = 'none';
+            if (container) container.style.display = 'none';
         }
     } catch (error) {
         console.error('Error linting HTML:', error);
@@ -601,14 +615,15 @@ async function lintHtmlContent() {
  * Clear error indicators from the editor
  */
 function clearErrorIndicators() {
-    const textarea = document.getElementById('html-editor-textarea');
+    const modal = document.getElementById('html-editor-modal');
+    const textarea = modal ? modal.querySelector('#html-editor-textarea') : null;
     if (!textarea) return;
     
     // Remove any existing error styling
     textarea.classList.remove('has-errors');
     
     // Clear the error container
-    const errorContainer = document.getElementById('html-editor-errors');
+    const errorContainer = modal ? modal.querySelector('#html-editor-errors') : null;
     if (errorContainer) {
         errorContainer.innerHTML = '';
     }
@@ -619,8 +634,9 @@ function clearErrorIndicators() {
  * @param {Array} errors - The lint errors to display
  */
 function displayLintErrors(errors) {
-    const textarea = document.getElementById('html-editor-textarea');
-    const errorContainer = document.getElementById('html-editor-errors');
+    const modal = document.getElementById('html-editor-modal');
+    const textarea = modal ? modal.querySelector('#html-editor-textarea') : null;
+    const errorContainer = modal ? modal.querySelector('#html-editor-errors') : null;
     
     if (!textarea || !errorContainer) return;
     

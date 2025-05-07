@@ -129,14 +129,34 @@ export function formatHtml(html) {
 }
 
 /**
- * Basic HTML sanitization to prevent XSS
+ * Basic HTML sanitization to prevent XSS and handle document structure
  * @param {string} html - The HTML to sanitize
  * @returns {string} The sanitized HTML
  */
 export function sanitizeHtml(html) {
-    // This is a simple sanitization to remove script tags
-    // In a production environment, use a proper sanitization library
-    return html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    if (!html || typeof html !== 'string') {
+        return '';
+    }
+    
+    // Remove script tags for security
+    let sanitized = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    
+    // If the HTML contains a full document structure, extract just the body content
+    if (sanitized.includes('<body') || sanitized.includes('<!DOCTYPE') || sanitized.includes('<html')) {
+        try {
+            // Use DOMParser to parse the HTML string
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(sanitized, 'text/html');
+            
+            // Extract just the content from the body
+            sanitized = doc.body.innerHTML;
+        } catch (error) {
+            console.error('Error extracting body content during sanitization:', error);
+            // Continue with the script-sanitized HTML if extraction fails
+        }
+    }
+    
+    return sanitized;
 }
 
 // Export default for convenience
