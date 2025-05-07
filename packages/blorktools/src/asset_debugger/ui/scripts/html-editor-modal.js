@@ -14,9 +14,18 @@ import {
     deserializeStringFromBinary, 
     serializeStringToBinary,
     isValidHtml,
-    formatHtml,
     sanitizeHtml
 } from '../../core/string-serder.js';
+import { 
+    formatHtml as externalFormatHtml, 
+    initHtmlFormatter,
+    hasExternalFormatter 
+} from '../../core/html-formatter.js';
+import {
+    lintHtml,
+    initHtmlLinter,
+    hasExternalLinter
+} from '../../core/html-linter.js';
 import { getCurrentGlbBuffer, updateGlbFile } from './model-integration.js';
 import { updateHtmlIcons } from './mesh-panel.js';
 
@@ -30,6 +39,12 @@ let listenersInitialized = false;
 let htmlEditorState = {
     isOpen: false
 };
+
+// Store current lint errors
+let currentLintErrors = [];
+
+// Debounce timer for linting
+let lintDebounceTimer = null;
 
 /**
  * Open the HTML Editor Modal for a specific mesh
@@ -76,6 +91,9 @@ export function openEmbeddedHtmlEditor(meshName, meshId) {
             modal.classList.add('visible');
             htmlEditorState.isOpen = true;
             console.log('HTML Editor Modal opened successfully');
+            
+            // Run linting after content is loaded
+            lintHtmlContent();
         }).catch(error => {
             console.error('Error loading HTML content:', error);
             if (textarea) textarea.value = '';
@@ -153,6 +171,18 @@ async function loadHtmlForMesh(meshId) {
 export function initHtmlEditorModal() {
     console.log('Initializing HTML Editor Modal');
     
+    // Initialize the HTML formatter and linter
+    Promise.all([
+        initHtmlFormatter().then(() => {
+            console.log('HTML formatter initialized');
+        }),
+        initHtmlLinter().then(() => {
+            console.log('HTML linter initialized');
+        })
+    ]).catch(error => {
+        console.warn('Error initializing HTML tools:', error);
+    });
+    
     // Get modal elements
     const modal = document.getElementById('html-editor-modal');
     const closeBtn = document.getElementById('html-editor-close');
@@ -166,6 +196,7 @@ export function initHtmlEditorModal() {
     const previewContainer = document.getElementById('html-preview-container');
     const previewContent = document.getElementById('html-preview-content');
     const statusEl = document.getElementById('html-editor-status');
+    const errorContainer = document.getElementById('html-editor-errors') || createErrorContainer();
     
     // Make the modal available globally - do this first before any potential errors
     window.openEmbeddedHtmlEditor = openEmbeddedHtmlEditor;
@@ -196,14 +227,57 @@ export function initHtmlEditorModal() {
     });
     
     // Format button
-    formatBtn.addEventListener('click', () => {
+    formatBtn.addEventListener('click', async () => {
         try {
-            const formattedHtml = formatHtml(textarea.value);
-            textarea.value = formattedHtml;
-            showStatus('HTML formatted', 'success');
+            // Check if there's a selection
+            const selectionStart = textarea.selectionStart;
+            const selectionEnd = textarea.selectionEnd;
+            const hasSelection = selectionStart !== selectionEnd;
+            
+            let htmlToFormat, formattedHtml;
+            
+            if (hasSelection) {
+                // Format only the selected text
+                htmlToFormat = textarea.value.substring(selectionStart, selectionEnd);
+            } else {
+                // Format the entire content
+                htmlToFormat = textarea.value;
+            }
+            
+            // Use the formatter
+            formattedHtml = await externalFormatHtml(htmlToFormat);
+            
+            if (hasSelection) {
+                // Replace only the selected portion
+                textarea.value = 
+                    textarea.value.substring(0, selectionStart) + 
+                    formattedHtml + 
+                    textarea.value.substring(selectionEnd);
+                
+                // Restore selection (approximately, as formatting changes length)
+                textarea.selectionStart = selectionStart;
+                textarea.selectionEnd = selectionStart + formattedHtml.length;
+            } else {
+                // Replace the entire content
+                textarea.value = formattedHtml;
+            }
+            
+            showStatus(`${hasSelection ? 'Selection' : 'HTML'} formatted successfully`, 'success');
+            
+            // Run linting after formatting
+            lintHtmlContent();
         } catch (error) {
             showStatus('Error formatting HTML: ' + error.message, 'error');
         }
+    });
+    
+    // Add linting on input
+    textarea.addEventListener('input', () => {
+        // Debounce the linting to avoid performance issues
+        clearTimeout(lintDebounceTimer);
+        lintDebounceTimer = setTimeout(() => {
+            lintHtmlContent();
+        }, 500); // Wait 500ms after typing stops
     });
     
     // Preview button
@@ -451,6 +525,151 @@ async function saveHtmlForMesh(meshId, content) {
         console.error('Error saving content to GLB:', error);
         throw error;
     }
+}
+
+/**
+ * Create the error container for displaying lint errors
+ * @returns {HTMLElement} The created error container
+ */
+function createErrorContainer() {
+    const container = document.createElement('div');
+    container.id = 'html-editor-errors';
+    container.className = 'html-editor-errors';
+    container.style.cssText = `
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        max-height: 100px;
+        overflow-y: auto;
+        background-color: #f8d7da;
+        color: #721c24;
+        border-top: 1px solid #f5c6cb;
+        padding: 8px;
+        font-size: 12px;
+        display: none;
+    `;
+    
+    // Find the editor container to append to
+    const editorContainer = document.querySelector('.editor-container');
+    if (editorContainer) {
+        editorContainer.style.position = 'relative';
+        editorContainer.appendChild(container);
+    } else {
+        // Fallback to appending to the modal
+        const modal = document.getElementById('html-editor-modal');
+        if (modal) {
+            modal.appendChild(container);
+        }
+    }
+    
+    return container;
+}
+
+/**
+ * Lint the HTML content in the editor
+ */
+async function lintHtmlContent() {
+    const textarea = document.getElementById('html-editor-textarea');
+    const errorContainer = document.getElementById('html-editor-errors') || createErrorContainer();
+    
+    if (!textarea) return;
+    
+    const html = textarea.value;
+    
+    try {
+        // Run the linter
+        const errors = await lintHtml(html);
+        currentLintErrors = errors;
+        
+        // Clear previous error indicators
+        clearErrorIndicators();
+        
+        // Display errors if any
+        if (errors && errors.length > 0) {
+            displayLintErrors(errors);
+            errorContainer.style.display = 'block';
+        } else {
+            errorContainer.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error linting HTML:', error);
+    }
+}
+
+/**
+ * Clear error indicators from the editor
+ */
+function clearErrorIndicators() {
+    const textarea = document.getElementById('html-editor-textarea');
+    if (!textarea) return;
+    
+    // Remove any existing error styling
+    textarea.classList.remove('has-errors');
+    
+    // Clear the error container
+    const errorContainer = document.getElementById('html-editor-errors');
+    if (errorContainer) {
+        errorContainer.innerHTML = '';
+    }
+}
+
+/**
+ * Display lint errors in the editor
+ * @param {Array} errors - The lint errors to display
+ */
+function displayLintErrors(errors) {
+    const textarea = document.getElementById('html-editor-textarea');
+    const errorContainer = document.getElementById('html-editor-errors');
+    
+    if (!textarea || !errorContainer) return;
+    
+    // Add error class to textarea
+    textarea.classList.add('has-errors');
+    
+    // Create error messages
+    const errorList = document.createElement('ul');
+    errorList.style.margin = '0';
+    errorList.style.padding = '0 0 0 20px';
+    
+    errors.forEach(error => {
+        const errorItem = document.createElement('li');
+        errorItem.textContent = `Line ${error.line}, Col ${error.col}: ${error.message}`;
+        errorItem.style.cursor = 'pointer';
+        
+        // Add click handler to navigate to the error position
+        errorItem.addEventListener('click', () => {
+            navigateToErrorPosition(textarea, error.line, error.col);
+        });
+        
+        errorList.appendChild(errorItem);
+    });
+    
+    errorContainer.innerHTML = '';
+    errorContainer.appendChild(errorList);
+}
+
+/**
+ * Navigate to a specific position in the textarea
+ * @param {HTMLTextAreaElement} textarea - The textarea element
+ * @param {number} line - The line number (1-based)
+ * @param {number} col - The column number (1-based)
+ */
+function navigateToErrorPosition(textarea, line, col) {
+    const lines = textarea.value.split('\n');
+    
+    // Calculate position
+    let position = 0;
+    for (let i = 0; i < line - 1 && i < lines.length; i++) {
+        position += lines[i].length + 1; // +1 for the newline character
+    }
+    
+    // Add column position (ensuring we don't go past the end of the line)
+    position += Math.min(col - 1, lines[line - 1] ? lines[line - 1].length : 0);
+    
+    // Set cursor position
+    textarea.focus();
+    textarea.setSelectionRange(position, position);
 }
 
 // Make sure both the default export and named exports are available
