@@ -8,13 +8,14 @@ import { getCurrentGlbBuffer, setCurrentGlbBuffer } from './model-integration.js
 import { getBinaryBufferForMesh } from '../../core/glb-utils.js';
 import { deserializeStringFromBinary, isValidHtml } from '../../core/string-serder.js';
 
-// Track meshes with HTML content
+// Track meshes with binary content
 const meshesWithHtml = new Set();
 
 // Icon color constants
 const ICON_COLORS = {
-    HAS_HTML: '#4a9eff', // Highlight color for meshes with HTML
-    NO_HTML: '#8a8a8a'   // Default color for meshes without HTML
+    HAS_HTML: '#f8d73e', // Yellow color for meshes with binary content (Fallout yellow)
+    VALID_HTML: '#4CAF50', // Green color for meshes with valid HTML content
+    NO_HTML: '#8a8a8a'   // Default color for meshes without content
 };
 
 // Track initialization state
@@ -22,14 +23,14 @@ let downloadButtonInitialized = false;
 let meshPanelInitialized = false;
 
 /**
- * Toggle the HTML code icon appearance for a specific mesh
+ * Toggle the binary content icon appearance for a specific mesh
  * @param {number} meshIndex - The index of the mesh to toggle
- * @param {boolean} hasHtml - Whether the mesh has HTML content
+ * @param {boolean} hasHtml - Whether the mesh has binary content
  * @param {boolean} forceUpdate - If true, forces the update without rechecking
  * @returns {boolean} Whether the operation was successful
  */
 export function toggleMeshCodeIcon(meshIndex, hasHtml, forceUpdate = false) {
-    console.log(`Toggling mesh code icon for mesh ${meshIndex} to ${hasHtml ? 'has HTML' : 'no HTML'}`);
+    console.log(`Toggling mesh code icon for mesh ${meshIndex} to ${hasHtml ? 'has content' : 'no content'}`);
     
     // Update tracking set
     if (hasHtml) {
@@ -79,9 +80,9 @@ export function toggleMeshCodeIcon(meshIndex, hasHtml, forceUpdate = false) {
 }
 
 /**
- * Check if a mesh has HTML content
+ * Check if a mesh has binary content
  * @param {number} meshIndex - The index of the mesh to check
- * @returns {Promise<boolean>} Promise that resolves to true if the mesh has HTML content
+ * @returns {Promise<boolean>} Promise that resolves to true if the mesh has any binary content
  */
 async function checkMeshHasHtmlContent(meshIndex) {
     // Check if there's a forced state for this mesh
@@ -97,20 +98,13 @@ async function checkMeshHasHtmlContent(meshIndex) {
         if (glbBuffer) {
             try {
                 const binaryBuffer = await getBinaryBufferForMesh(glbBuffer, meshIndex);
-                if (binaryBuffer) {
-                    const html = deserializeStringFromBinary(binaryBuffer);
-                    // Consider valid if there's any non-empty content
-                    const hasContent = html && html.trim() !== '';
-                    if (!hasContent) {
-                        // Remove from cache if no longer valid
-                        meshesWithHtml.delete(meshIndex);
-                        return false;
-                    }
-                    return true;
+                // Consider valid if buffer exists and has content
+                if (!binaryBuffer || binaryBuffer.byteLength === 0) {
+                    // Remove from cache if no longer valid
+                    meshesWithHtml.delete(meshIndex);
+                    return false;
                 }
-                // No buffer found, remove from cache
-                meshesWithHtml.delete(meshIndex);
-                return false;
+                return true;
             } catch (e) {
                 // Remove from cache if error
                 meshesWithHtml.delete(meshIndex);
@@ -130,26 +124,16 @@ async function checkMeshHasHtmlContent(meshIndex) {
         // Try to get binary buffer for this mesh
         const binaryBuffer = await getBinaryBufferForMesh(glbBuffer, meshIndex);
         
-        // If buffer found, check for content
-        if (binaryBuffer) {
-            // Try to decode the buffer and check for content
-            try {
-                const html = deserializeStringFromBinary(binaryBuffer);
-                
-                // Consider valid if there's any non-empty content
-                if (html && html.trim() !== '') {
-                    // Cache the result
-                    meshesWithHtml.add(meshIndex);
-                    return true;
-                }
-            } catch (e) {
-                console.warn(`Binary data for mesh ${meshIndex} exists but couldn't be decoded:`, e);
-            }
+        // If buffer found and has data, it has content
+        if (binaryBuffer && binaryBuffer.byteLength > 0) {
+            // Cache the result
+            meshesWithHtml.add(meshIndex);
+            return true;
         }
         
         return false;
     } catch (error) {
-        console.error('Error checking if mesh has HTML:', error);
+        console.error('Error checking if mesh has binary content:', error);
         return false;
     }
 }
@@ -485,11 +469,11 @@ function getCurrentTimestamp() {
 }
 
 /**
- * Update HTML icons to reflect current HTML content
- * This should be called after saving HTML data
+ * Update binary content icons to reflect current content
+ * This should be called after saving binary data
  */
 export function updateHtmlIcons() {
-    // Update all HTML editor icons to reflect their current state
+    // Update all content editor icons to reflect their current state
     document.querySelectorAll('.mesh-html-editor-icon').forEach(async (icon) => {
         const meshIndex = parseInt(icon.dataset.meshIndex);
         if (!isNaN(meshIndex)) {
@@ -598,19 +582,19 @@ export function updateGroupToggleState(groupName) {
 }
 
 /**
- * Remove HTML flag for a specific mesh
+ * Remove binary content flag for a specific mesh
  * @param {number} meshIndex - The index of the mesh to update
  */
 export function removeMeshHtmlFlag(meshIndex) {
-    console.log(`Removing HTML flag for mesh index ${meshIndex}`);
+    console.log(`Removing binary content flag for mesh index ${meshIndex}`);
     
-    // Use the new toggle function to update the icon state to 'no HTML'
+    // Use the new toggle function to update the icon state to 'no content'
     // Force the update to prevent inconsistent state
     toggleMeshCodeIcon(meshIndex, false, true);
     
     // Force refresh of cache
     checkMeshHasHtmlContent(meshIndex).then(() => {
-        console.log(`Re-checked mesh HTML content status for mesh ${meshIndex}`);
+        console.log(`Re-checked mesh binary content status for mesh ${meshIndex}`);
     });
 }
 
@@ -625,8 +609,37 @@ function updateIconAppearance(icon, hasHtml) {
     
     if (hasHtml) {
         icon.classList.add('has-html');
+        
+        // Check if the binary content is valid HTML
+        const meshIndex = parseInt(icon.dataset.meshIndex);
+        
+        // Asynchronously check if content is valid HTML
+        // We'll set the default color first, then update if it's valid HTML
         icon.style.color = ICON_COLORS.HAS_HTML;
         icon.title = 'Edit content (has content)';
+        
+        // Only proceed if we have a valid mesh index
+        if (!isNaN(meshIndex)) {
+            // Use an immediately invoked async function to handle the promise
+            (async () => {
+                try {
+                    const glbBuffer = getCurrentGlbBuffer();
+                    if (glbBuffer) {
+                        const binaryBuffer = await getBinaryBufferForMesh(glbBuffer, meshIndex);
+                        if (binaryBuffer) {
+                            const content = deserializeStringFromBinary(binaryBuffer);
+                            if (isValidHtml(content)) {
+                                // It's valid HTML - set icon to green
+                                icon.style.color = ICON_COLORS.VALID_HTML;
+                                icon.title = 'Edit content (valid HTML)';
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error checking if content is valid HTML:', error);
+                }
+            })();
+        }
     } else {
         icon.classList.remove('has-html');
         icon.style.color = ICON_COLORS.NO_HTML;
@@ -637,10 +650,10 @@ function updateIconAppearance(icon, hasHtml) {
 }
 
 /**
- * Force update mesh HTML icon state - to be called from html-editor-modal.js
- * This avoids race conditions when saving/removing HTML content
+ * Force update mesh binary icon state - to be called from html-editor-modal.js
+ * This avoids race conditions when saving/removing binary content
  * @param {number} meshIndex - The index of the mesh to update
- * @param {boolean} hasHtml - Whether the mesh has HTML content
+ * @param {boolean} hasHtml - Whether the mesh has binary content
  */
 export function forceUpdateMeshHtmlState(meshIndex, hasHtml) {
     return toggleMeshCodeIcon(meshIndex, hasHtml, true);
