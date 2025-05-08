@@ -29,6 +29,9 @@ import {
 import { getCurrentGlbBuffer, updateGlbFile } from './model-integration.js';
 import { updateHtmlIcons } from './mesh-panel.js';
 
+// Import Three.js the same way as other files in the codebase
+import * as THREE from 'three';
+
 // Store HTML content for each mesh
 const meshHtmlContent = new Map();
 
@@ -45,6 +48,15 @@ let currentLintErrors = [];
 
 // Debounce timer for linting
 let lintDebounceTimer = null;
+
+// Three.js variables for preview
+let previewScene, previewCamera, previewRenderer, previewPlane;
+let previewAnimationId = null;
+let previewRenderTarget = null;
+let isPreviewAnimationPaused = false;
+let lastTextureUpdateTime = 0;
+let textureUpdateInterval = 100; // Update texture every 100ms
+let isPreviewActive = false; // Track if preview is currently active
 
 /**
  * Open the HTML Editor Modal for a specific mesh
@@ -324,6 +336,10 @@ export function initHtmlEditorModal() {
         if (label) {
             label.textContent = 'Edit HTML for this mesh:'; // Restore label text
         }
+        
+        // Clean up Three.js resources
+        cleanupThreeJsPreview();
+        
         showStatus('Editor view restored', 'info');
     });
     
@@ -407,6 +423,9 @@ function closeModal() {
     const modal = document.getElementById('html-editor-modal');
     modal.classList.remove('visible');
     htmlEditorState.isOpen = false;
+    
+    // Clean up Three.js resources when closing the modal
+    cleanupThreeJsPreview();
 }
 
 /**
@@ -439,7 +458,7 @@ function showStatus(message, type = 'info') {
 }
 
 /**
- * Preview HTML code
+ * Preview HTML code using Three.js
  * @param {string} html - The HTML code to preview
  */
 function previewHtml(html) {
@@ -447,58 +466,574 @@ function previewHtml(html) {
     if (!previewContent) return;
     
     try {
-        // First clear the preview container
+        // First clean up any existing preview
+        cleanupThreeJsPreview();
+        
+        // Set preview as active
+        isPreviewActive = true;
+        
+        // Clear the preview container
         previewContent.innerHTML = '';
         
-        // Create a sandboxed iframe using srcdoc instead of directly writing to the document
-        const iframe = document.createElement('iframe');
-        iframe.style.width = '100%';
-        iframe.style.height = '400px';
-        iframe.style.border = 'none';
-        iframe.style.backgroundColor = 'white';
-        // Remove allow-same-origin to prevent sandbox escape
-        iframe.sandbox = 'allow-scripts';
+        // Create a hidden iframe for rendering HTML to texture
+        const renderIframe = document.createElement('iframe');
+        renderIframe.id = 'html-render-iframe';
+        renderIframe.style.width = '512px';
+        renderIframe.style.height = '512px';
+        renderIframe.style.position = 'absolute';
+        renderIframe.style.left = '-9999px';
+        renderIframe.style.top = '0';
+        renderIframe.style.border = 'none';
+        renderIframe.style.backgroundColor = 'white';
+        document.body.appendChild(renderIframe);
         
-        // Add message event listener for iframe content
-        window.addEventListener('message', function iframeMessageHandler(event) {
-            try {
-                // Only handle resize messages
-                if (event.data && event.data.type === 'resize') {
-                    const height = event.data.height + 40; // Add padding
-                    iframe.style.height = `${height}px`;
-                    
-                    // Log successful resize
-                    console.log(`Iframe resized to ${height}px`);
-                }
-            } catch (error) {
-                logPreviewError(`Resize error: ${error.message}`);
-            }
-        });
+        // Store reference to the iframe
+        previewRenderTarget = renderIframe;
         
         // The sanitizeHtml function handles wrapping fragments if needed
         const sanitizedHtml = sanitizeHtml(html);
         
-        // Use srcdoc attribute to set the content (avoids cross-origin issues)
-        iframe.srcdoc = sanitizedHtml;
+        // Wait for iframe to be ready
+        renderIframe.onload = () => {
+            // Only proceed if preview is still active
+            if (!isPreviewActive) return;
+            
+            // Create container for Three.js canvas
+            const canvasContainer = document.createElement('div');
+            canvasContainer.style.width = '100%';
+            canvasContainer.style.height = '400px';
+            canvasContainer.style.position = 'relative';
+            previewContent.appendChild(canvasContainer);
+            
+            // Create animation control buttons
+            const controlsContainer = document.createElement('div');
+            controlsContainer.className = 'preview-controls';
+            controlsContainer.style.position = 'absolute';
+            controlsContainer.style.bottom = '10px';
+            controlsContainer.style.left = '10px';
+            controlsContainer.style.zIndex = '10';
+            controlsContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            controlsContainer.style.padding = '8px';
+            controlsContainer.style.borderRadius = '4px';
+            
+            const pauseResumeBtn = document.createElement('button');
+            pauseResumeBtn.textContent = 'Pause Animation';
+            pauseResumeBtn.className = 'preview-control-btn';
+            pauseResumeBtn.style.marginRight = '10px';
+            pauseResumeBtn.style.padding = '5px 10px';
+            pauseResumeBtn.style.backgroundColor = '#007AFF';
+            pauseResumeBtn.style.color = 'white';
+            pauseResumeBtn.style.border = 'none';
+            pauseResumeBtn.style.borderRadius = '4px';
+            pauseResumeBtn.style.cursor = 'pointer';
+            
+            const restartBtn = document.createElement('button');
+            restartBtn.textContent = 'Restart Animation';
+            restartBtn.className = 'preview-control-btn';
+            restartBtn.style.padding = '5px 10px';
+            restartBtn.style.backgroundColor = '#007AFF';
+            restartBtn.style.color = 'white';
+            restartBtn.style.border = 'none';
+            restartBtn.style.borderRadius = '4px';
+            restartBtn.style.cursor = 'pointer';
+            restartBtn.style.marginRight = '10px';
+            
+            // Add a slider to control animation speed
+            const speedContainer = document.createElement('div');
+            speedContainer.style.display = 'flex';
+            speedContainer.style.alignItems = 'center';
+            speedContainer.style.marginTop = '8px';
+            
+            const speedLabel = document.createElement('label');
+            speedLabel.textContent = 'Update Speed:';
+            speedLabel.style.color = 'white';
+            speedLabel.style.marginRight = '8px';
+            speedLabel.style.fontSize = '12px';
+            
+            const speedSlider = document.createElement('input');
+            speedSlider.type = 'range';
+            speedSlider.min = '50';
+            speedSlider.max = '500';
+            speedSlider.value = textureUpdateInterval.toString();
+            speedSlider.style.width = '100px';
+            
+            speedContainer.appendChild(speedLabel);
+            speedContainer.appendChild(speedSlider);
+            
+            controlsContainer.appendChild(pauseResumeBtn);
+            controlsContainer.appendChild(restartBtn);
+            controlsContainer.appendChild(speedContainer);
+            canvasContainer.appendChild(controlsContainer);
+            
+            // Add error log container
+            const errorLog = document.createElement('div');
+            errorLog.id = 'html-preview-error-log';
+            errorLog.className = 'preview-error-log';
+            errorLog.style.display = 'none';
+            previewContent.appendChild(errorLog);
+            
+            // Initialize Three.js for preview
+            initThreeJsPreview(canvasContainer, renderIframe);
+            
+            // Add event listeners for control buttons
+            pauseResumeBtn.addEventListener('click', () => {
+                if (isPreviewAnimationPaused) {
+                    // Resume animation
+                    isPreviewAnimationPaused = false;
+                    pauseResumeBtn.textContent = 'Pause Animation';
+                    showStatus('Animation resumed', 'info');
+                } else {
+                    // Pause animation
+                    isPreviewAnimationPaused = true;
+                    pauseResumeBtn.textContent = 'Resume Animation';
+                    showStatus('Animation paused', 'info');
+                }
+            });
+            
+            restartBtn.addEventListener('click', () => {
+                // Restart animation by reloading the iframe content
+                try {
+                    if (renderIframe && renderIframe.contentDocument) {
+                        renderIframe.contentDocument.open();
+                        renderIframe.contentDocument.write(sanitizedHtml);
+                        renderIframe.contentDocument.close();
+                        
+                        // Ensure animation is running
+                        isPreviewAnimationPaused = false;
+                        pauseResumeBtn.textContent = 'Pause Animation';
+                        
+                        // Force immediate texture update
+                        lastTextureUpdateTime = 0;
+                        
+                        showStatus('Animation restarted', 'success');
+                    } else {
+                        showStatus('Cannot restart animation - iframe not accessible', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error restarting animation:', error);
+                    showStatus('Error restarting animation', 'error');
+                }
+            });
+            
+            // Add event listener for speed slider
+            speedSlider.addEventListener('input', (e) => {
+                // Update the texture update interval
+                textureUpdateInterval = parseInt(e.target.value);
+                showStatus(`Update speed set to ${textureUpdateInterval}ms`, 'info');
+            });
+            
+            // Log success message
+            showStatus('Preview generated successfully', 'success');
+        };
         
-        // Append the iframe
-        previewContent.appendChild(iframe);
-        
-        // Add error log container
-        const errorLog = document.createElement('div');
-        errorLog.id = 'html-preview-error-log';
-        errorLog.className = 'preview-error-log';
-        // Start hidden until there are errors
-        errorLog.style.display = 'none';
-        previewContent.appendChild(errorLog);
-        
-        // Log success message
-        showStatus('Preview generated successfully', 'success');
+        // Write content to iframe
+        try {
+            renderIframe.srcdoc = sanitizedHtml;
+        } catch (error) {
+            console.error('Error setting iframe srcdoc:', error);
+            // Fallback method
+            renderIframe.contentDocument.open();
+            renderIframe.contentDocument.write(sanitizedHtml);
+            renderIframe.contentDocument.close();
+        }
     } catch (error) {
         logPreviewError(`Preview error: ${error.message}`);
         console.error('HTML Preview error:', error);
         showStatus('Error generating preview: ' + error.message, 'error');
     }
+}
+
+/**
+ * Initialize Three.js for HTML preview
+ * @param {HTMLElement} container - The container element for the Three.js canvas
+ * @param {HTMLIFrameElement} iframe - The iframe containing the HTML to render as texture
+ */
+function initThreeJsPreview(container, iframe) {
+    try {
+        // We already have THREE imported at the top of the file
+        console.log('Using imported Three.js module');
+        
+        // Only need to load html2canvas
+        loadHtml2Canvas(() => {
+            setupThreeJsScene(container, iframe);
+        });
+    } catch (error) {
+        console.error('Error initializing Three.js preview:', error);
+        logPreviewError(`Three.js initialization error: ${error.message}`);
+    }
+}
+
+/**
+ * Load html2canvas library
+ * @param {Function} callback - Function to call when loading is complete
+ */
+function loadHtml2Canvas(callback) {
+    // Check if html2canvas is already loaded
+    if (typeof window.html2canvas !== 'undefined') {
+        callback();
+        return;
+    }
+    
+    // Check if it's already being loaded
+    if (document.querySelector('script[src*="html2canvas"]')) {
+        const checkInterval = setInterval(() => {
+            if (typeof window.html2canvas !== 'undefined') {
+                clearInterval(checkInterval);
+                callback();
+            }
+        }, 100);
+        return;
+    }
+    
+    // Load html2canvas
+    console.log('Loading html2canvas library');
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    script.onload = callback;
+    script.onerror = (error) => {
+        console.error('Failed to load html2canvas:', error);
+    };
+    document.head.appendChild(script);
+}
+
+/**
+ * Set up the Three.js scene for HTML preview
+ * @param {HTMLElement} container - The container element for the Three.js canvas
+ * @param {HTMLIFrameElement} iframe - The iframe containing the HTML to render as texture
+ */
+function setupThreeJsScene(container, iframe) {
+    try {
+        // Create scene
+        previewScene = new THREE.Scene();
+        previewScene.background = new THREE.Color(0xffffff);
+        
+        // Create camera
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+        const aspectRatio = containerWidth / containerHeight;
+        
+        previewCamera = new THREE.OrthographicCamera(
+            -aspectRatio, aspectRatio, 1, -1, 0.1, 1000
+        );
+        previewCamera.position.z = 5;
+        
+        // Create renderer
+        previewRenderer = new THREE.WebGLRenderer({ antialias: true });
+        previewRenderer.setSize(containerWidth, containerHeight);
+        previewRenderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(previewRenderer.domElement);
+        
+        // Create a render target for the iframe
+        previewRenderTarget = iframe;
+        
+        // Create initial texture from iframe content
+        createTextureFromIframe(iframe).then(texture => {
+            // Create plane geometry based on texture aspect ratio
+            const planeWidth = 2;
+            const planeHeight = planeWidth / aspectRatio;
+            
+            const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+            const material = new THREE.MeshBasicMaterial({ 
+                map: texture,
+                side: THREE.DoubleSide
+            });
+            
+            // Create plane mesh
+            previewPlane = new THREE.Mesh(geometry, material);
+            previewScene.add(previewPlane);
+            
+            // Start animation loop
+            animatePreview();
+        }).catch(error => {
+            console.error('Error creating texture from iframe:', error);
+            logPreviewError(`Texture creation error: ${error.message}`);
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', onPreviewResize);
+    } catch (error) {
+        console.error('Error setting up Three.js scene:', error);
+        logPreviewError(`Scene setup error: ${error.message}`);
+    }
+}
+
+/**
+ * Create a texture from the iframe content using html2canvas
+ * @param {HTMLIFrameElement} iframe - The iframe containing the HTML content
+ * @returns {Promise<THREE.Texture>} A promise that resolves to a Three.js texture
+ */
+async function createTextureFromIframe(iframe) {
+    return new Promise((resolve, reject) => {
+        try {
+            // Check if preview is still active
+            if (!isPreviewActive) {
+                // Silent return of fallback during cleanup
+                resolve(createFallbackTexture());
+                return;
+            }
+            
+            // Check if iframe is still in the DOM and accessible
+            if (!iframe || !document.body.contains(iframe)) {
+                // Only log if not during cleanup
+                if (isPreviewActive) {
+                    console.warn('Iframe not found in DOM or removed');
+                }
+                resolve(createFallbackTexture());
+                return;
+            }
+            
+            // Wait a bit for the iframe content to load
+            setTimeout(async () => {
+                try {
+                    // Check if preview is still active
+                    if (!isPreviewActive) {
+                        resolve(createFallbackTexture());
+                        return;
+                    }
+                    
+                    // Check if we can access the iframe content
+                    if (!iframe.contentDocument || !iframe.contentWindow) {
+                        // Only log if not during cleanup
+                        if (isPreviewActive) {
+                            console.warn('Cannot access iframe content, using fallback texture');
+                        }
+                        resolve(createFallbackTexture());
+                        return;
+                    }
+                    
+                    // Check if html2canvas is available
+                    if (typeof window.html2canvas === 'undefined') {
+                        console.warn('html2canvas not available, using fallback texture');
+                        resolve(createFallbackTexture());
+                        return;
+                    }
+                    
+                    // Use html2canvas to capture the iframe content
+                    const canvas = await window.html2canvas(iframe.contentDocument.body, {
+                        backgroundColor: 'white',
+                        scale: 1,
+                        width: 512,
+                        height: 512,
+                        logging: false,
+                        allowTaint: true,
+                        useCORS: true
+                    });
+                    
+                    // Create a texture from the canvas
+                    const texture = new THREE.CanvasTexture(canvas);
+                    texture.needsUpdate = true;
+                    
+                    resolve(texture);
+                } catch (error) {
+                    if (isPreviewActive) {
+                        console.error('Error capturing iframe with html2canvas:', error);
+                    }
+                    // Use fallback texture instead of rejecting
+                    resolve(createFallbackTexture());
+                }
+            }, 200);
+        } catch (error) {
+            if (isPreviewActive) {
+                console.warn('Error in createTextureFromIframe:', error);
+            }
+            resolve(createFallbackTexture());
+        }
+    });
+}
+
+/**
+ * Create a fallback texture when iframe content can't be accessed
+ * @returns {THREE.Texture} A simple fallback texture
+ */
+function createFallbackTexture() {
+    console.log('Creating fallback texture');
+    
+    // Create a canvas element
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    
+    // Fill with white background
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, 512, 512);
+    
+    // Draw a message about preview limitations
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillText('HTML Preview', 20, 40);
+    
+    ctx.font = '16px sans-serif';
+    ctx.fillText('Preview content cannot be displayed.', 20, 80);
+    ctx.fillText('This may be due to security restrictions', 20, 110);
+    ctx.fillText('or content that requires special rendering.', 20, 140);
+    
+    // Create texture from canvas
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
+}
+
+/**
+ * Animation loop for the Three.js preview
+ */
+function animatePreview() {
+    // If preview is no longer active, don't continue the animation loop
+    if (!isPreviewActive) {
+        console.log('Preview no longer active, stopping animation loop');
+        return;
+    }
+    
+    previewAnimationId = requestAnimationFrame(animatePreview);
+    
+    try {
+        // Only update texture if animation is not paused and enough time has passed
+        const currentTime = Date.now();
+        if (!isPreviewAnimationPaused && previewPlane && previewRenderTarget && 
+            (currentTime - lastTextureUpdateTime > textureUpdateInterval)) {
+            
+            // Update the last update time
+            lastTextureUpdateTime = currentTime;
+            
+            // Check if iframe is still valid before trying to update texture
+            if (previewRenderTarget && document.body.contains(previewRenderTarget)) {
+                // Update texture from iframe content
+                createTextureFromIframe(previewRenderTarget).then(texture => {
+                    // Check if preview is still active before updating
+                    if (!isPreviewActive) return;
+                    
+                    if (previewPlane && previewPlane.material) {
+                        if (previewPlane.material.map) {
+                            previewPlane.material.map.dispose();
+                        }
+                        previewPlane.material.map = texture;
+                        previewPlane.material.needsUpdate = true;
+                    }
+                }).catch(error => {
+                    console.error('Error updating texture:', error);
+                });
+            }
+        }
+        
+        // Render the scene
+        if (previewRenderer && previewScene && previewCamera) {
+            previewRenderer.render(previewScene, previewCamera);
+        }
+    } catch (error) {
+        console.error('Error in animation loop:', error);
+        // Don't stop the animation loop for errors, just log them
+    }
+}
+
+/**
+ * Handle window resize for the Three.js preview
+ */
+function onPreviewResize() {
+    const container = previewRenderer.domElement.parentElement;
+    if (!container) return;
+    
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    const aspectRatio = containerWidth / containerHeight;
+    
+    // Update camera
+    previewCamera.left = -aspectRatio;
+    previewCamera.right = aspectRatio;
+    previewCamera.updateProjectionMatrix();
+    
+    // Update renderer
+    previewRenderer.setSize(containerWidth, containerHeight);
+}
+
+/**
+ * Clean up Three.js resources
+ */
+function cleanupThreeJsPreview() {
+    // Mark preview as inactive to stop animation loop
+    isPreviewActive = false;
+    
+    // Cancel animation loop
+    if (previewAnimationId !== null) {
+        cancelAnimationFrame(previewAnimationId);
+        previewAnimationId = null;
+    }
+    
+    // Remove event listener
+    window.removeEventListener('resize', onPreviewResize);
+    
+    // Dispose of Three.js resources
+    if (previewPlane) {
+        if (previewPlane.geometry) previewPlane.geometry.dispose();
+        if (previewPlane.material) {
+            if (previewPlane.material.map) previewPlane.material.map.dispose();
+            previewPlane.material.dispose();
+        }
+        if (previewScene) previewScene.remove(previewPlane);
+        previewPlane = null;
+    }
+    
+    if (previewScene) {
+        // Clean up any other objects in the scene
+        if (previewScene.children) {
+            while (previewScene.children.length > 0) {
+                const object = previewScene.children[0];
+                previewScene.remove(object);
+                
+                // Dispose of geometry and materials
+                if (object.geometry) object.geometry.dispose();
+                if (object.material) {
+                    if (Array.isArray(object.material)) {
+                        object.material.forEach(material => {
+                            if (material.map) material.map.dispose();
+                            material.dispose();
+                        });
+                    } else {
+                        if (object.material.map) object.material.map.dispose();
+                        object.material.dispose();
+                    }
+                }
+            }
+        }
+        previewScene = null;
+    }
+    
+    if (previewCamera) {
+        previewCamera = null;
+    }
+    
+    if (previewRenderer) {
+        previewRenderer.dispose();
+        if (previewRenderer.domElement && previewRenderer.domElement.parentElement) {
+            previewRenderer.domElement.parentElement.removeChild(previewRenderer.domElement);
+        }
+        previewRenderer = null;
+    }
+    
+    // Remove the render iframe
+    const renderIframe = document.getElementById('html-render-iframe');
+    if (renderIframe) {
+        try {
+            // Clear iframe content first
+            if (renderIframe.contentDocument) {
+                renderIframe.contentDocument.open();
+                renderIframe.contentDocument.write('');
+                renderIframe.contentDocument.close();
+            }
+            
+            // Then remove from DOM
+            if (renderIframe.parentElement) {
+                renderIframe.parentElement.removeChild(renderIframe);
+            }
+        } catch (error) {
+            // Suppress iframe access errors during cleanup
+            console.debug('Cleaning up iframe (access errors expected)');
+        }
+    }
+    
+    // Reset animation state
+    isPreviewAnimationPaused = false;
+    previewRenderTarget = null;
+    lastTextureUpdateTime = 0;
 }
 
 /**
