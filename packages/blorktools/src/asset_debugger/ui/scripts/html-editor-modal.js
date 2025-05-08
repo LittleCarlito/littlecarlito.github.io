@@ -214,18 +214,7 @@ export function initHtmlEditorModal() {
     const previewContent = document.getElementById('html-preview-content');
     const statusEl = document.getElementById('html-editor-status');
     const errorContainer = document.getElementById('html-editor-errors') || createErrorContainer();
-    
-    // Create replay animation button
-    const replayBtn = document.createElement('button');
-    replayBtn.id = 'html-editor-replay';
-    replayBtn.className = 'editor-button';
-    replayBtn.innerHTML = '<i class="fas fa-redo"></i> Replay';
-    replayBtn.title = 'Replay animation';
-    
-    // Insert the replay button after format button and before preview button
-    if (formatBtn && formatBtn.parentNode && previewBtn) {
-        formatBtn.parentNode.insertBefore(replayBtn, previewBtn);
-    }
+    const replayBtn = document.getElementById('html-editor-replay');
     
     // Make the modal available globally - do this first before any potential errors
     window.openEmbeddedHtmlEditor = openEmbeddedHtmlEditor;
@@ -303,33 +292,96 @@ export function initHtmlEditorModal() {
     // Replay animation button
     replayBtn.addEventListener('click', () => {
         try {
-            // Get the preview iframe
-            const previewIframe = previewContent.querySelector('iframe');
-            if (previewIframe && previewIframe.contentWindow) {
-                // Try to call the animation function
-                if (typeof previewIframe.contentWindow.animateMessages === 'function') {
-                    previewIframe.contentWindow.animateMessages();
-                    showStatus('Animation replayed', 'success');
-                } else {
-                    showStatus('No animation function found', 'error');
-                }
-            } else if (css3dObject && css3dObject.element) {
-                // Try with CSS3D object
+            console.log('Replay button clicked - trying to restart animation');
+            let animationReplayed = false;
+            
+            // Method 1: Direct preview iframe
+            const directPreviewIframe = previewContent.querySelector('iframe');
+            if (directPreviewIframe && directPreviewIframe.contentWindow) {
+                console.log('Found direct preview iframe, attempting to replay animation');
                 try {
-                    if (css3dObject.element.contentWindow && 
-                        typeof css3dObject.element.contentWindow.animateMessages === 'function') {
-                        css3dObject.element.contentWindow.animateMessages();
-                        showStatus('Animation replayed', 'success');
-                    } else {
-                        showStatus('No animation function found in CSS3D object', 'error');
-                    }
+                    // Clear any existing content and reload
+                    const contentHTML = directPreviewIframe.srcdoc || directPreviewIframe.contentDocument.documentElement.outerHTML;
+                    directPreviewIframe.srcdoc = contentHTML;
+                    
+                    // Set a timeout to ensure content has reloaded before calling animation
+                    setTimeout(() => {
+                        if (typeof directPreviewIframe.contentWindow.animateMessages === 'function') {
+                            console.log('Calling animateMessages function on direct preview');
+                            directPreviewIframe.contentWindow.animateMessages();
+                            animationReplayed = true;
+                            showStatus('Animation replayed', 'success');
+                        } else {
+                            console.log('No animateMessages function found in direct preview');
+                        }
+                    }, 100);
                 } catch (error) {
-                    showStatus('Error replaying animation: ' + error.message, 'error');
+                    console.error('Error reloading direct preview iframe:', error);
                 }
             } else {
-                showStatus('No preview available', 'error');
+                console.log('No direct preview iframe found');
+            }
+            
+            // Method 2: CSS3D object (which contains an iframe)
+            if (css3dObject && css3dObject.element) {
+                console.log('Found CSS3D object with iframe, attempting to replay animation');
+                try {
+                    // Refresh the iframe content to force a reload
+                    const iframe = css3dObject.element;
+                    const contentHTML = iframe.srcdoc || iframe.contentDocument.documentElement.outerHTML;
+                    iframe.srcdoc = contentHTML;
+                    
+                    // Set a timeout to ensure content has reloaded before calling animation
+                    setTimeout(() => {
+                        if (iframe.contentWindow && typeof iframe.contentWindow.animateMessages === 'function') {
+                            console.log('Calling animateMessages function on CSS3D object iframe');
+                            iframe.contentWindow.animateMessages();
+                            animationReplayed = true;
+                            showStatus('Animation replayed', 'success');
+                        } else {
+                            console.log('No animateMessages function found in CSS3D object iframe');
+                        }
+                    }, 100);
+                } catch (error) {
+                    console.error('Error reloading CSS3D iframe:', error);
+                }
+            } else {
+                console.log('No CSS3D object with iframe found');
+            }
+            
+            // Method 3: Preview render target (which might be an iframe)
+            if (previewRenderTarget && previewRenderTarget.contentWindow) {
+                console.log('Found preview render target, attempting to replay animation');
+                try {
+                    // Refresh the content
+                    const contentHTML = previewRenderTarget.srcdoc || previewRenderTarget.contentDocument.documentElement.outerHTML;
+                    previewRenderTarget.srcdoc = contentHTML;
+                    
+                    // Set a timeout to ensure content has reloaded before calling animation
+                    setTimeout(() => {
+                        if (typeof previewRenderTarget.contentWindow.animateMessages === 'function') {
+                            console.log('Calling animateMessages function on preview render target');
+                            previewRenderTarget.contentWindow.animateMessages();
+                            animationReplayed = true;
+                            showStatus('Animation replayed', 'success');
+                        } else {
+                            console.log('No animateMessages function found in preview render target');
+                        }
+                    }, 100);
+                } catch (error) {
+                    console.error('Error reloading preview render target:', error);
+                }
+            } else {
+                console.log('No accessible preview render target found');
+            }
+            
+            // If we didn't successfully replay the animation using any method, show warning
+            if (!animationReplayed) {
+                console.log('Could not replay animation with any method');
+                showStatus('No animation function found to replay', 'warning');
             }
         } catch (error) {
+            console.error('Error replaying animation:', error);
             showStatus('Error replaying animation: ' + error.message, 'error');
         }
     });
@@ -362,6 +414,7 @@ export function initHtmlEditorModal() {
             textarea.style.display = 'none';
             previewBtn.style.display = 'none';
             resetBtn.style.display = 'inline-block';
+            replayBtn.style.display = 'inline-block'; // Show replay button during preview
             
             // Hide editor container
             if (editorContainer) {
@@ -390,6 +443,7 @@ export function initHtmlEditorModal() {
         textarea.style.display = 'block';
         previewBtn.style.display = 'inline-block';
         resetBtn.style.display = 'none';
+        replayBtn.style.display = 'none'; // Hide replay button when going back to editor
         
         // Find editor container only within the modal
         const editorContainer = modal.querySelector('.editor-container');
@@ -1128,12 +1182,6 @@ function cleanupThreeJsPreview() {
     // Remove event listener
     window.removeEventListener('resize', onPreviewResize);
     
-    // Clean up CSS3D controls
-    const controlsContainer = document.querySelector('.css3d-controls');
-    if (controlsContainer && controlsContainer.parentElement) {
-        controlsContainer.parentElement.removeChild(controlsContainer);
-    }
-    
     // Clean up CSS3D resources
     if (css3dObject) {
         if (css3dScene) css3dScene.remove(css3dObject);
@@ -1537,22 +1585,8 @@ function initCSS3DPreview(container, iframe) {
             .then(module => {
                 const { CSS3DRenderer, CSS3DObject, isCSS3DRendererAvailable } = module;
                 
-                // Log the imported objects to verify they're functions/classes
-                console.log('CSS3D imports:', {
-                    CSS3DRenderer: typeof CSS3DRenderer,
-                    CSS3DObject: typeof CSS3DObject,
-                    isCSS3DRendererAvailable: typeof isCSS3DRendererAvailable
-                });
-                
-                if (isCSS3DRendererAvailable && isCSS3DRendererAvailable()) {
+                if (isCSS3DRendererAvailable()) {
                     console.log('CSS3D renderer loaded successfully');
-                    
-                    // Debug logging to verify our imports
-                    console.log('THREE availability check:',
-                               'THREE:', typeof THREE !== 'undefined',
-                               'CSS3DRenderer:', typeof CSS3DRenderer === 'function',
-                               'CSS3DObject:', typeof CSS3DObject === 'function');
-                    
                     setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject);
                 } else {
                     throw new Error('CSS3D renderer not available');
@@ -1562,15 +1596,17 @@ function initCSS3DPreview(container, iframe) {
                 console.error('Error initializing CSS3D preview:', error);
                 logPreviewError(`CSS3D initialization error: ${error.message}`);
                 
-                // Don't fall back - we want to see the error
-                showStatus('CSS3D error: ' + error.message, 'error');
+                // Fallback to texture-based preview
+                showStatus('CSS3D renderer not available, falling back to texture-based preview', 'warning');
+                initThreeJsPreview(container, iframe);
             });
     } catch (error) {
         console.error('Error in initCSS3DPreview:', error);
         logPreviewError(`CSS3D initialization error: ${error.message}`);
         
-        // Don't fall back - we want to see the error
-        showStatus('CSS3D init error: ' + error.message, 'error');
+        // Fallback to texture-based preview
+        showStatus('Error initializing CSS3D preview, falling back to texture-based preview', 'error');
+        initThreeJsPreview(container, iframe);
     }
 }
 
@@ -1583,12 +1619,6 @@ function initCSS3DPreview(container, iframe) {
  */
 function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
     try {
-        // Debug logging
-        console.log('Setting up CSS3D scene with:', 
-                   'THREE:', typeof THREE, 
-                   'CSS3DRenderer:', typeof CSS3DRenderer, 
-                   'CSS3DObject:', typeof CSS3DObject);
-        
         // Get container dimensions
         const containerWidth = container.clientWidth;
         const containerHeight = container.clientHeight;
@@ -1596,19 +1626,11 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
         
         // Create shared camera
         previewCamera = new THREE.PerspectiveCamera(60, containerAspectRatio, 0.1, 5000);
-        // Move camera back a bit to see the content better
-        previewCamera.position.z = 800;
+        previewCamera.position.z = 1000;
         
         // Create CSS3D scene and renderer using the provided classes
         css3dScene = new THREE.Scene();
-        
-        // Create instance of CSS3DRenderer from the imported class
-        console.log('Creating CSS3DRenderer with imported class:', typeof CSS3DRenderer);
         css3dRenderer = new CSS3DRenderer();
-        
-        // Debug check
-        console.log('Created CSS3DRenderer instance:', css3dRenderer);
-        
         css3dRenderer.setSize(containerWidth, containerHeight);
         css3dRenderer.domElement.style.position = 'absolute';
         css3dRenderer.domElement.style.top = '0';
@@ -1624,7 +1646,7 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
         webglRenderer.domElement.style.top = '0';
         container.appendChild(webglRenderer.domElement);
         
-        // Add debug helpers to WebGL scene - disabled now that CSS3D is working
+        // Add debug helpers to WebGL scene - disabled by default
         addDebugHelpers(webglScene, false);
         
         // Get the content from the textarea
@@ -1646,44 +1668,34 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
         css3dIframe.onload = () => {
             console.log('CSS3D iframe loaded');
             
-            try {
-                // Create CSS3D object with the loaded iframe
-                console.log('Creating CSS3DObject with imported class:', typeof CSS3DObject);
-                
-                // Always use the 'new' keyword when creating CSS3DObject
-                css3dObject = new CSS3DObject(css3dIframe);
-                
-                console.log('Created CSS3DObject:', css3dObject);
-                
-                // Position the object in front of the camera - centered
-                css3dObject.position.set(0, 0, 0);
-                
-                // Scale to fit nicely in view - adjusted for better visibility
-                const scale = 0.5;
-                css3dObject.scale.set(scale, scale, scale);
-                
-                css3dScene.add(css3dObject);
-                
-                // Start animation loop
-                animateCSS3D();
-                
-                // Trigger the animation if it's in the user's HTML
-                setTimeout(() => {
-                    try {
-                        if (css3dIframe.contentWindow && css3dIframe.contentWindow.animateMessages) {
-                            css3dIframe.contentWindow.animateMessages();
-                            showStatus('Animation started', 'success');
-                        }
-                    } catch (error) {
-                        console.log('No animation function found in iframe content');
+            // Create CSS3D object with the loaded iframe
+            css3dObject = new CSS3DObject(css3dIframe);
+            
+            // Position the object in front of the camera - centered
+            css3dObject.position.set(0, 0, 0);
+            
+            // Scale to fit nicely in view
+            const scale = 0.8;
+            css3dObject.scale.set(scale, scale, scale);
+            
+            css3dScene.add(css3dObject);
+            
+            // Start animation loop
+            animateCSS3D();
+            
+            // Trigger the animation if it's in the user's HTML
+            setTimeout(() => {
+                try {
+                    if (css3dIframe.contentWindow && css3dIframe.contentWindow.animateMessages) {
+                        css3dIframe.contentWindow.animateMessages();
+                        showStatus('Animation started', 'success');
                     }
-                }, 300);
-                
-                console.log('CSS3D scene setup complete with user content');
-            } catch (error) {
-                console.error('Error creating CSS3D object:', error);
-                logPreviewError(`Error creating CSS3D object: ${error.message}`);
-            }
+                } catch (error) {
+                    console.log('No animation function found in iframe content');
+                }
+            }, 300);
+            
+            console.log('CSS3D scene setup complete with user content');
         };
         
         // Always use the content from the textarea
@@ -1697,62 +1709,12 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
         
         // Store for cleanup
         previewRenderTarget = css3dIframe;
-
-        // Create control buttons for the CSS3D view
-        const controlsContainer = document.createElement('div');
-        controlsContainer.className = 'css3d-controls';
-        controlsContainer.style.position = 'absolute';
-        controlsContainer.style.bottom = '10px';
-        controlsContainer.style.left = '10px';
-        controlsContainer.style.zIndex = '1000';
-        controlsContainer.style.background = 'rgba(0,0,0,0.5)';
-        controlsContainer.style.padding = '5px';
-        controlsContainer.style.borderRadius = '5px';
-        container.appendChild(controlsContainer);
-
-        // Zoom buttons
-        const zoomInBtn = document.createElement('button');
-        zoomInBtn.textContent = '+ Zoom In';
-        zoomInBtn.style.marginRight = '5px';
-        zoomInBtn.addEventListener('click', () => {
-            if (css3dObject) {
-                const currentScale = css3dObject.scale.x;
-                css3dObject.scale.set(currentScale * 1.2, currentScale * 1.2, currentScale * 1.2);
-            }
-        });
-        controlsContainer.appendChild(zoomInBtn);
-
-        const zoomOutBtn = document.createElement('button');
-        zoomOutBtn.textContent = '- Zoom Out';
-        zoomOutBtn.style.marginRight = '5px';
-        zoomOutBtn.addEventListener('click', () => {
-            if (css3dObject) {
-                const currentScale = css3dObject.scale.x;
-                css3dObject.scale.set(currentScale * 0.8, currentScale * 0.8, currentScale * 0.8);
-            }
-        });
-        controlsContainer.appendChild(zoomOutBtn);
-
-        // Reset button
-        const resetViewBtn = document.createElement('button');
-        resetViewBtn.textContent = 'Reset View';
-        resetViewBtn.addEventListener('click', () => {
-            if (css3dObject) {
-                css3dObject.position.set(0, 0, 0);
-                css3dObject.scale.set(0.5, 0.5, 0.5);
-                if (previewCamera) {
-                    previewCamera.position.set(0, 0, 800);
-                    previewCamera.lookAt(0, 0, 0);
-                }
-            }
-        });
-        controlsContainer.appendChild(resetViewBtn);
     } catch (error) {
         console.error('Error setting up CSS3D scene:', error);
         logPreviewError(`CSS3D scene setup error: ${error.message}`);
         
-        // Don't fall back - we want to see the error
-        showStatus('CSS3D setup error: ' + error.message, 'error');
+        // Fall back to texture-based method
+        initThreeJsPreview(container, iframe);
     }
 }
 
@@ -1817,61 +1779,34 @@ function animateCSS3D() {
     previewAnimationId = requestAnimationFrame(animateCSS3D);
     
     try {
-        // Log debug info occasionally, only when debugging is needed
-        if (css3dObject && css3dScene) {
-            // Only log every 10 seconds to avoid console spam
-            const now = Date.now();
-            if (!window._lastCSS3DDebugTime || now - window._lastCSS3DDebugTime > 10000) {
-                // Check if the object is in the scene
-                const isInScene = css3dScene.children.includes(css3dObject);
+        // Only log debug info once at the start
+        if (css3dObject && css3dScene && !window._css3dDebugLogged) {
+            // Check if the object is in the scene
+            const isInScene = css3dScene.children.includes(css3dObject);
+            console.log(`CSS3D object in scene: ${isInScene}`);
+            
+            // Check if the element is in the DOM
+            if (css3dObject.element) {
+                const isInDOM = document.body.contains(css3dObject.element);
+                console.log(`CSS3D element in DOM: ${isInDOM}`);
                 
-                console.log('CSS3D Status:', isInScene ? 'Working correctly' : 'Object not in scene');
-                
-                // Only log full debug if there's a problem
-                if (!isInScene) {
-                    console.log('CSS3D Animation debugging:');
-                    console.log(`- css3dObject exists: ${!!css3dObject}`);
-                    console.log(`- css3dScene exists: ${!!css3dScene}`);
-                    console.log(`- CSS3D object in scene: ${isInScene}`);
-                    console.log(`- css3dRenderer exists: ${!!css3dRenderer}`);
-                    
-                    // Check if the element is in the DOM
-                    if (css3dObject && css3dObject.element) {
-                        const isInDOM = document.body.contains(css3dObject.element);
-                        console.log(`- CSS3D element in DOM: ${isInDOM}`);
-                        console.log(`- CSS3D element dimensions: ${css3dObject.element.offsetWidth}x${css3dObject.element.offsetHeight}`);
-                        console.log(`- CSS3D object position: ${JSON.stringify({
-                            x: css3dObject.position.x,
-                            y: css3dObject.position.y,
-                            z: css3dObject.position.z
-                        })}`);
-                    }
-                }
-                
-                window._lastCSS3DDebugTime = now;
+                // Log element dimensions
+                console.log(`CSS3D element dimensions: ${css3dObject.element.offsetWidth}x${css3dObject.element.offsetHeight}`);
             }
+            
+            window._css3dDebugLogged = true;
         }
         
         // Render both scenes
         if (css3dRenderer && css3dScene && previewCamera) {
-            try {
-                css3dRenderer.render(css3dScene, previewCamera);
-            } catch (renderError) {
-                console.error('Error rendering CSS3D scene:', renderError);
-                logPreviewError(`CSS3D render error: ${renderError.message}`);
-            }
+            css3dRenderer.render(css3dScene, previewCamera);
         }
         
         if (webglRenderer && webglScene && previewCamera) {
-            try {
-                webglRenderer.render(webglScene, previewCamera);
-            } catch (renderError) {
-                console.error('Error rendering WebGL scene:', renderError);
-            }
+            webglRenderer.render(webglScene, previewCamera);
         }
     } catch (error) {
         console.error('Error in CSS3D animation loop:', error);
-        logPreviewError(`CSS3D animation error: ${error.message}`);
     }
 }
 

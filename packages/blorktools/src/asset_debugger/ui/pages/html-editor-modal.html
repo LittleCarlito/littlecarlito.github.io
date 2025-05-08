@@ -1,3 +1,4 @@
+<link rel="stylesheet" href="../../css/html-editor-modal.css">
 <!-- Embedded HTML Editor Modal -->
 <div id="html-editor-modal" class="modal-overlay">
     <div class="modal-container">
@@ -16,6 +17,7 @@
                     </button>
                     <button id="html-editor-format" class="editor-btn" title="Format">Format</button>
                     <button id="html-editor-preview" class="editor-btn" title="Preview">Preview</button>
+                    <button id="html-editor-replay" class="editor-btn" title="Replay" style="display: none;">Replay</button>
                     <button id="html-editor-reset" class="editor-btn" title="Reset" style="display: none;">Reset</button>
                 </div>
             </div>
@@ -37,121 +39,3 @@
         </div>
     </div>
 </div>
-
-<!-- Link to HTML Editor CSS -->
-<link rel="stylesheet" href="../styles/html-editor.css">
-
-<style>
-    #html-editor-reset {
-        background: none;
-        border: 2px solid #007bff;
-        color: #007bff;
-        padding: 5px 10px;
-        border-radius: 4px;
-        transition: background-color 0.3s, color 0.3s;
-    }
-
-    #html-editor-reset:hover {
-        background: #007bff;
-        color: white;
-    }
-
-    .editor-options {
-        display: flex;
-        justify-content: center;
-        gap: 10px;
-    }
-    
-    /* Modal stacking styles */
-    #html-editor-modal {
-        z-index: 3000; /* Lower than mesh settings modal (4000) */
-    }
-    
-    /* Fix horizontal scrollbar issue */
-    #html-editor-modal .modal-body {
-        overflow-x: hidden;
-        padding: 15px;
-        box-sizing: border-box;
-        width: 100%;
-    }
-    
-    #html-editor-settings {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    #html-editor-settings svg {
-        width: 14px;
-        height: 14px;
-    }
-    
-    /* Enhanced preview container styles */
-    #html-preview-container {
-        background-color: transparent;
-        background-image: linear-gradient(45deg, #ddd 25%, transparent 25%),
-                          linear-gradient(-45deg, #ddd 25%, transparent 25%),
-                          linear-gradient(45deg, transparent 75%, #ddd 75%),
-                          linear-gradient(-45deg, transparent 75%, #ddd 75%);
-        background-size: 20px 20px;
-        background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-        border: 1px solid #e2e6ea;
-        border-radius: 4px;
-        min-height: 400px;
-        height: 100%;
-        padding: 0;
-        overflow: auto;
-        position: relative;
-        box-sizing: border-box;
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-    }
-    
-    #html-preview-content {
-        width: 100%;
-        height: 100%;
-        min-height: 300px;
-        background-color: transparent;
-        position: relative;
-        overflow: auto;
-        flex: 1;
-    }
-    
-    #html-preview-content iframe {
-        border: none;
-        width: 100%;
-        height: 100%;
-        min-height: 300px;
-        background-color: transparent;
-    }
-    
-    /* Error log styling */
-    .preview-error-log {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        max-height: 150px;
-        overflow-y: auto;
-        background-color: rgba(0, 0, 0, 0.8);
-        color: #f8f9fa;
-        font-family: monospace;
-        font-size: 12px;
-        padding: 10px;
-        z-index: 100;
-        border-top: 1px solid #e83e8c;
-    }
-    
-    .error-entry {
-        margin-bottom: 4px;
-        padding: 4px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    .error-time {
-        color: #e83e8c;
-        font-weight: bold;
-        margin-right: 5px;
-    }
-</style>

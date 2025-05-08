@@ -175,25 +175,15 @@ function loadComponentHtml() {
     fetch('../pages/html-editor-modal.html')
         .then(response => response.text())
         .then(html => {
-            // Create a temporary div to parse the HTML
-            const tempContainer = document.createElement('div');
-            tempContainer.innerHTML = html.trim();
+            // Insert the entire HTML into the container, which includes the CSS link
+            document.getElementById('html-editor-modal-container').innerHTML = html;
             
-            // Extract the modal element using querySelector instead of firstChild
-            const modalElement = tempContainer.querySelector('#html-editor-modal');
+            // Get a reference to the modal element
+            const modalElement = document.getElementById('html-editor-modal');
             
-            // Ensure the modal is hidden before adding it to the DOM
+            // Ensure the modal is hidden
             if (modalElement) {
                 modalElement.style.display = 'none';
-                
-                // Remove any existing modal with the same ID
-                const existingModal = document.getElementById('html-editor-modal');
-                if (existingModal) {
-                    existingModal.remove();
-                }
-                
-                // Append the new modal directly to the body
-                document.body.appendChild(modalElement);
                 
                 // Initialize the modal now that it's in the DOM and hidden
                 setTimeout(() => {
