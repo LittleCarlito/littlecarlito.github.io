@@ -215,6 +215,18 @@ export function initHtmlEditorModal() {
     const statusEl = document.getElementById('html-editor-status');
     const errorContainer = document.getElementById('html-editor-errors') || createErrorContainer();
     
+    // Create replay animation button
+    const replayBtn = document.createElement('button');
+    replayBtn.id = 'html-editor-replay';
+    replayBtn.className = 'editor-button';
+    replayBtn.innerHTML = '<i class="fas fa-redo"></i> Replay';
+    replayBtn.title = 'Replay animation';
+    
+    // Insert the replay button after format button and before preview button
+    if (formatBtn && formatBtn.parentNode && previewBtn) {
+        formatBtn.parentNode.insertBefore(replayBtn, previewBtn);
+    }
+    
     // Make the modal available globally - do this first before any potential errors
     window.openEmbeddedHtmlEditor = openEmbeddedHtmlEditor;
     console.log('Registered global function: window.openEmbeddedHtmlEditor =', 
@@ -285,6 +297,40 @@ export function initHtmlEditorModal() {
             lintHtmlContent();
         } catch (error) {
             showStatus('Error formatting HTML: ' + error.message, 'error');
+        }
+    });
+    
+    // Replay animation button
+    replayBtn.addEventListener('click', () => {
+        try {
+            // Get the preview iframe
+            const previewIframe = previewContent.querySelector('iframe');
+            if (previewIframe && previewIframe.contentWindow) {
+                // Try to call the animation function
+                if (typeof previewIframe.contentWindow.animateMessages === 'function') {
+                    previewIframe.contentWindow.animateMessages();
+                    showStatus('Animation replayed', 'success');
+                } else {
+                    showStatus('No animation function found', 'error');
+                }
+            } else if (css3dObject && css3dObject.element) {
+                // Try with CSS3D object
+                try {
+                    if (css3dObject.element.contentWindow && 
+                        typeof css3dObject.element.contentWindow.animateMessages === 'function') {
+                        css3dObject.element.contentWindow.animateMessages();
+                        showStatus('Animation replayed', 'success');
+                    } else {
+                        showStatus('No animation function found in CSS3D object', 'error');
+                    }
+                } catch (error) {
+                    showStatus('Error replaying animation: ' + error.message, 'error');
+                }
+            } else {
+                showStatus('No preview available', 'error');
+            }
+        } catch (error) {
+            showStatus('Error replaying animation: ' + error.message, 'error');
         }
     });
     
@@ -536,10 +582,12 @@ function previewHtml(html) {
             console.error('Error getting mesh settings:', error);
         }
         
-        // Create a hidden iframe for rendering HTML to texture
+        // The sanitizeHtml function handles wrapping fragments if needed
+        const sanitizedHtml = sanitizeHtml(html);
+        
+        // Create a hidden iframe for rendering HTML to texture (if needed)
         const renderIframe = document.createElement('iframe');
         renderIframe.id = 'html-render-iframe';
-        // Use a more natural aspect ratio for web content (16:9)
         renderIframe.style.width = '960px';
         renderIframe.style.height = '540px';
         renderIframe.style.position = 'absolute';
@@ -551,9 +599,6 @@ function previewHtml(html) {
         
         // Store reference to the iframe
         previewRenderTarget = renderIframe;
-        
-        // The sanitizeHtml function handles wrapping fragments if needed
-        const sanitizedHtml = sanitizeHtml(html);
         
         // For direct preview without Three.js (fallback method)
         const directPreviewIframe = document.createElement('iframe');
@@ -585,6 +630,17 @@ function previewHtml(html) {
                     directPreviewIframe.contentDocument.open();
                     directPreviewIframe.contentDocument.write(sanitizedHtml);
                     directPreviewIframe.contentDocument.close();
+                    
+                    // Trigger animation if it exists
+                    setTimeout(() => {
+                        try {
+                            if (directPreviewIframe.contentWindow && directPreviewIframe.contentWindow.animateMessages) {
+                                directPreviewIframe.contentWindow.animateMessages();
+                            }
+                        } catch (error) {
+                            console.log('No animation function found in direct preview');
+                        }
+                    }, 100);
                 }
             } catch (error) {
                 console.error('Error setting up direct preview:', error);
@@ -612,12 +668,11 @@ function previewHtml(html) {
             
             // Initialize preview based on mode
             if (previewMode === 'css3d') {
+                showStatus('Initializing CSS3D preview mode...', 'info');
                 initCSS3DPreview(canvasContainer, directPreviewIframe.cloneNode(true));
-                showStatus('Preview generated in CSS3D mode (real HTML in 3D)', 'success');
             } else if (previewMode === 'threejs') {
-                // Traditional texture-based Three.js preview
-            initThreeJsPreview(canvasContainer, renderIframe);
-                showStatus('Preview generated in 3D texture mode', 'success');
+                showStatus('Initializing 3D texture preview mode...', 'info');
+                initThreeJsPreview(canvasContainer, renderIframe);
             } else {
                 showStatus('Preview generated in direct HTML mode', 'success');
             }
@@ -1061,6 +1116,9 @@ function cleanupThreeJsPreview() {
     isPreviewActive = false;
     combinedRenderRequired = false;
     
+    // Reset debug flag
+    window._css3dDebugLogged = false;
+    
     // Cancel animation loop
     if (previewAnimationId !== null) {
         cancelAnimationFrame(previewAnimationId);
@@ -1069,6 +1127,12 @@ function cleanupThreeJsPreview() {
     
     // Remove event listener
     window.removeEventListener('resize', onPreviewResize);
+    
+    // Clean up CSS3D controls
+    const controlsContainer = document.querySelector('.css3d-controls');
+    if (controlsContainer && controlsContainer.parentElement) {
+        controlsContainer.parentElement.removeChild(controlsContainer);
+    }
     
     // Clean up CSS3D resources
     if (css3dObject) {
@@ -1178,6 +1242,8 @@ function cleanupThreeJsPreview() {
     isPreviewAnimationPaused = false;
     previewRenderTarget = null;
     lastTextureUpdateTime = 0;
+    
+    console.log('Three.js and CSS3D resources cleaned up');
 }
 
 /**
@@ -1464,113 +1530,47 @@ function navigateToErrorPosition(textarea, line, col) {
  */
 function initCSS3DPreview(container, iframe) {
     try {
-        // We already have THREE imported at the top of the file
         console.log('Initializing CSS3D preview');
         
-        // Load CSS3DRenderer with error handling
-        loadCSS3DRenderer((error) => {
-            if (error) {
+        // Directly import our standalone CSS3D renderer
+        import('../../core/css3d-renderer.js')
+            .then(module => {
+                const { CSS3DRenderer, CSS3DObject, isCSS3DRendererAvailable } = module;
+                
+                // Log the imported objects to verify they're functions/classes
+                console.log('CSS3D imports:', {
+                    CSS3DRenderer: typeof CSS3DRenderer,
+                    CSS3DObject: typeof CSS3DObject,
+                    isCSS3DRendererAvailable: typeof isCSS3DRendererAvailable
+                });
+                
+                if (isCSS3DRendererAvailable && isCSS3DRendererAvailable()) {
+                    console.log('CSS3D renderer loaded successfully');
+                    
+                    // Debug logging to verify our imports
+                    console.log('THREE availability check:',
+                               'THREE:', typeof THREE !== 'undefined',
+                               'CSS3DRenderer:', typeof CSS3DRenderer === 'function',
+                               'CSS3DObject:', typeof CSS3DObject === 'function');
+                    
+                    setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject);
+                } else {
+                    throw new Error('CSS3D renderer not available');
+                }
+            })
+            .catch(error => {
                 console.error('Error initializing CSS3D preview:', error);
                 logPreviewError(`CSS3D initialization error: ${error.message}`);
                 
-                // Fallback to texture-based preview
-                showStatus('CSS3D renderer not available, falling back to texture-based preview', 'warning');
-                initThreeJsPreview(container, iframe);
-                return;
-            }
-            
-            // CSS3DRenderer loaded successfully, set up the scene
-            setupCSS3DScene(container, iframe);
-        });
+                // Don't fall back - we want to see the error
+                showStatus('CSS3D error: ' + error.message, 'error');
+            });
     } catch (error) {
         console.error('Error in initCSS3DPreview:', error);
         logPreviewError(`CSS3D initialization error: ${error.message}`);
         
-        // Fallback to texture-based preview
-        showStatus('Error initializing CSS3D preview, falling back to texture-based preview', 'error');
-        initThreeJsPreview(container, iframe);
-    }
-}
-
-/**
- * Load CSS3DRenderer if not already loaded
- * @param {Function} callback - Function to call when loading is complete
- */
-function loadCSS3DRenderer(callback) {
-    try {
-        // Check if the CSS3DRenderer is already loaded in Three.js
-        if (THREE.CSS3DRenderer) {
-            console.log('CSS3DRenderer already available');
-            callback();
-            return;
-        }
-        
-        // Try multiple CDN sources in case one fails
-        const cdnUrls = [
-            // Unpkg is generally more reliable for Three.js examples
-            'https://unpkg.com/three@0.149.0/examples/js/renderers/CSS3DRenderer.js',
-            // Fallback to jsDelivr with explicit content type
-            'https://cdn.jsdelivr.net/npm/three@0.149.0/examples/js/renderers/CSS3DRenderer.js',
-            // Another fallback to older version
-            'https://unpkg.com/three@0.147.0/examples/js/renderers/CSS3DRenderer.js'
-        ];
-        
-        // Try to load from the first URL
-        loadFromUrl(cdnUrls, 0);
-        
-        function loadFromUrl(urls, index) {
-            if (index >= urls.length) {
-                console.warn('All CDN attempts failed, trying local fallback');
-                
-                // Try local fallback
-                import('../../core/css3d-renderer.js')
-                    .then(() => {
-                        if (typeof THREE.CSS3DRenderer === 'function') {
-                            console.log('Successfully loaded CSS3DRenderer from local fallback');
-                            callback();
-                        } else {
-                            console.error('Local fallback loaded but CSS3DRenderer not found');
-                            callback(new Error('Failed to load CSS3DRenderer from any source'));
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Failed to load local CSS3DRenderer fallback:', error);
-                        callback(new Error('Failed to load CSS3DRenderer from any source'));
-                    });
-                return;
-            }
-            
-            const url = urls[index];
-            console.log(`Attempting to load CSS3DRenderer from: ${url}`);
-            
-            const script = document.createElement('script');
-            script.src = url;
-            
-            // Set explicit content type to help with MIME type issues
-            script.type = 'text/javascript';
-            
-            script.onload = () => {
-                console.log(`CSS3DRenderer loaded successfully from ${url}`);
-                
-                // Verify that it actually loaded the correct object
-                if (typeof THREE.CSS3DRenderer === 'function') {
-                    callback();
-                } else {
-                    console.warn('CSS3DRenderer loaded but object not found, trying next source');
-                    loadFromUrl(urls, index + 1);
-                }
-            };
-            
-            script.onerror = () => {
-                console.warn(`Failed to load CSS3DRenderer from ${url}, trying next source`);
-                loadFromUrl(urls, index + 1);
-            };
-            
-            document.head.appendChild(script);
-        }
-    } catch (error) {
-        console.error('Error in loadCSS3DRenderer:', error);
-        callback(error);
+        // Don't fall back - we want to see the error
+        showStatus('CSS3D init error: ' + error.message, 'error');
     }
 }
 
@@ -1578,21 +1578,37 @@ function loadCSS3DRenderer(callback) {
  * Set up CSS3D scene for HTML preview
  * @param {HTMLElement} container - The container element
  * @param {HTMLIFrameElement} iframe - The iframe containing the HTML content
+ * @param {Function} CSS3DRenderer - The CSS3DRenderer class
+ * @param {Function} CSS3DObject - The CSS3DObject class
  */
-function setupCSS3DScene(container, iframe) {
+function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
     try {
+        // Debug logging
+        console.log('Setting up CSS3D scene with:', 
+                   'THREE:', typeof THREE, 
+                   'CSS3DRenderer:', typeof CSS3DRenderer, 
+                   'CSS3DObject:', typeof CSS3DObject);
+        
         // Get container dimensions
         const containerWidth = container.clientWidth;
         const containerHeight = container.clientHeight;
         const containerAspectRatio = containerWidth / containerHeight;
         
         // Create shared camera
-        previewCamera = new THREE.PerspectiveCamera(60, containerAspectRatio, 0.1, 1000);
-        previewCamera.position.z = 1000;
+        previewCamera = new THREE.PerspectiveCamera(60, containerAspectRatio, 0.1, 5000);
+        // Move camera back a bit to see the content better
+        previewCamera.position.z = 800;
         
-        // Create CSS3D scene and renderer
+        // Create CSS3D scene and renderer using the provided classes
         css3dScene = new THREE.Scene();
-        css3dRenderer = new THREE.CSS3DRenderer();
+        
+        // Create instance of CSS3DRenderer from the imported class
+        console.log('Creating CSS3DRenderer with imported class:', typeof CSS3DRenderer);
+        css3dRenderer = new CSS3DRenderer();
+        
+        // Debug check
+        console.log('Created CSS3DRenderer instance:', css3dRenderer);
+        
         css3dRenderer.setSize(containerWidth, containerHeight);
         css3dRenderer.domElement.style.position = 'absolute';
         css3dRenderer.domElement.style.top = '0';
@@ -1608,36 +1624,160 @@ function setupCSS3DScene(container, iframe) {
         webglRenderer.domElement.style.top = '0';
         container.appendChild(webglRenderer.domElement);
         
-        // Prepare iframe for CSS3D
-        iframe.style.width = '960px';
-        iframe.style.height = '540px';
-        iframe.style.border = 'none';
-        iframe.style.overflow = 'hidden';
+        // Add debug helpers to WebGL scene - disabled now that CSS3D is working
+        addDebugHelpers(webglScene, false);
         
-        // Create CSS3D object with the iframe
-        css3dObject = new THREE.CSS3DObject(iframe);
-        css3dObject.position.set(0, 0, 0);
-        css3dObject.scale.set(1, 1, 1);
-        css3dScene.add(css3dObject);
+        // Get the content from the textarea
+        const textarea = document.getElementById('html-editor-textarea');
+        const userHtml = textarea ? textarea.value : '';
+        
+        // Create a new iframe for CSS3D
+        const css3dIframe = document.createElement('iframe');
+        css3dIframe.style.width = '960px';
+        css3dIframe.style.height = '540px';
+        css3dIframe.style.border = 'none';
+        css3dIframe.style.overflow = 'hidden';
+        css3dIframe.style.backgroundColor = 'transparent';
+        
+        // Append the iframe to the document body temporarily to ensure it loads
+        document.body.appendChild(css3dIframe);
+        
+        // Wait for iframe to load before creating CSS3D object
+        css3dIframe.onload = () => {
+            console.log('CSS3D iframe loaded');
+            
+            try {
+                // Create CSS3D object with the loaded iframe
+                console.log('Creating CSS3DObject with imported class:', typeof CSS3DObject);
+                
+                // Always use the 'new' keyword when creating CSS3DObject
+                css3dObject = new CSS3DObject(css3dIframe);
+                
+                console.log('Created CSS3DObject:', css3dObject);
+                
+                // Position the object in front of the camera - centered
+                css3dObject.position.set(0, 0, 0);
+                
+                // Scale to fit nicely in view - adjusted for better visibility
+                const scale = 0.5;
+                css3dObject.scale.set(scale, scale, scale);
+                
+                css3dScene.add(css3dObject);
+                
+                // Start animation loop
+                animateCSS3D();
+                
+                // Trigger the animation if it's in the user's HTML
+                setTimeout(() => {
+                    try {
+                        if (css3dIframe.contentWindow && css3dIframe.contentWindow.animateMessages) {
+                            css3dIframe.contentWindow.animateMessages();
+                            showStatus('Animation started', 'success');
+                        }
+                    } catch (error) {
+                        console.log('No animation function found in iframe content');
+                    }
+                }, 300);
+                
+                console.log('CSS3D scene setup complete with user content');
+            } catch (error) {
+                console.error('Error creating CSS3D object:', error);
+                logPreviewError(`Error creating CSS3D object: ${error.message}`);
+            }
+        };
+        
+        // Always use the content from the textarea
+        css3dIframe.srcdoc = userHtml;
         
         // Add simple controls
         setupOrbitControls(previewCamera, css3dRenderer.domElement);
-        
-        // Start animation loop
-        animateCSS3D();
         
         // Mark that combined rendering is needed
         combinedRenderRequired = true;
         
         // Store for cleanup
-        previewRenderTarget = iframe;
+        previewRenderTarget = css3dIframe;
+
+        // Create control buttons for the CSS3D view
+        const controlsContainer = document.createElement('div');
+        controlsContainer.className = 'css3d-controls';
+        controlsContainer.style.position = 'absolute';
+        controlsContainer.style.bottom = '10px';
+        controlsContainer.style.left = '10px';
+        controlsContainer.style.zIndex = '1000';
+        controlsContainer.style.background = 'rgba(0,0,0,0.5)';
+        controlsContainer.style.padding = '5px';
+        controlsContainer.style.borderRadius = '5px';
+        container.appendChild(controlsContainer);
+
+        // Zoom buttons
+        const zoomInBtn = document.createElement('button');
+        zoomInBtn.textContent = '+ Zoom In';
+        zoomInBtn.style.marginRight = '5px';
+        zoomInBtn.addEventListener('click', () => {
+            if (css3dObject) {
+                const currentScale = css3dObject.scale.x;
+                css3dObject.scale.set(currentScale * 1.2, currentScale * 1.2, currentScale * 1.2);
+            }
+        });
+        controlsContainer.appendChild(zoomInBtn);
+
+        const zoomOutBtn = document.createElement('button');
+        zoomOutBtn.textContent = '- Zoom Out';
+        zoomOutBtn.style.marginRight = '5px';
+        zoomOutBtn.addEventListener('click', () => {
+            if (css3dObject) {
+                const currentScale = css3dObject.scale.x;
+                css3dObject.scale.set(currentScale * 0.8, currentScale * 0.8, currentScale * 0.8);
+            }
+        });
+        controlsContainer.appendChild(zoomOutBtn);
+
+        // Reset button
+        const resetViewBtn = document.createElement('button');
+        resetViewBtn.textContent = 'Reset View';
+        resetViewBtn.addEventListener('click', () => {
+            if (css3dObject) {
+                css3dObject.position.set(0, 0, 0);
+                css3dObject.scale.set(0.5, 0.5, 0.5);
+                if (previewCamera) {
+                    previewCamera.position.set(0, 0, 800);
+                    previewCamera.lookAt(0, 0, 0);
+                }
+            }
+        });
+        controlsContainer.appendChild(resetViewBtn);
     } catch (error) {
         console.error('Error setting up CSS3D scene:', error);
         logPreviewError(`CSS3D scene setup error: ${error.message}`);
         
-        // Fall back to texture-based method
-        initThreeJsPreview(container, iframe);
+        // Don't fall back - we want to see the error
+        showStatus('CSS3D setup error: ' + error.message, 'error');
     }
+}
+
+/**
+ * Add debug helpers to the scene
+ * @param {THREE.Scene} scene - The scene to add helpers to
+ * @param {boolean} showHelpers - Whether to show the helpers
+ */
+function addDebugHelpers(scene, showHelpers = false) {
+    if (!showHelpers) return;
+    
+    // Add axes helper
+    const axesHelper = new THREE.AxesHelper(100);
+    scene.add(axesHelper);
+    
+    // Add grid helper
+    const gridHelper = new THREE.GridHelper(200, 10);
+    scene.add(gridHelper);
+    
+    // Add a cube as a reference object
+    const geometry = new THREE.BoxGeometry(50, 50, 50);
+    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+    const cube = new THREE.Mesh(geometry, material);
+    cube.position.set(100, 0, 0);
+    scene.add(cube);
 }
 
 /**
@@ -1646,28 +1786,26 @@ function setupCSS3DScene(container, iframe) {
  * @param {HTMLElement} domElement - The DOM element to attach controls to
  */
 function setupOrbitControls(camera, domElement) {
-    // Check if OrbitControls is available
-    if (!THREE.OrbitControls) {
-        // Try to load OrbitControls
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/three@0.149.0/examples/js/controls/OrbitControls.js';
-        script.onload = () => {
-            if (THREE.OrbitControls) {
-                const controls = new THREE.OrbitControls(camera, domElement);
+    try {
+        // Use dynamic import to get OrbitControls directly from three.js
+        console.log('Loading OrbitControls directly from three.js');
+        import('three/examples/jsm/controls/OrbitControls.js')
+            .then(module => {
+                const { OrbitControls } = module;
+                const controls = new OrbitControls(camera, domElement);
                 controls.enableDamping = true;
                 controls.dampingFactor = 0.25;
                 controls.screenSpacePanning = true;
-            }
-        };
-        document.head.appendChild(script);
-        return;
+                console.log('OrbitControls initialized successfully');
+            })
+            .catch(error => {
+                console.error('Failed to load OrbitControls module:', error);
+                logPreviewError(`OrbitControls error: ${error.message}`);
+            });
+    } catch (error) {
+        console.error('Error setting up OrbitControls:', error);
+        logPreviewError(`OrbitControls error: ${error.message}`);
     }
-    
-    // Create controls
-    const controls = new THREE.OrbitControls(camera, domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.25;
-    controls.screenSpacePanning = true;
 }
 
 /**
@@ -1679,16 +1817,61 @@ function animateCSS3D() {
     previewAnimationId = requestAnimationFrame(animateCSS3D);
     
     try {
+        // Log debug info occasionally, only when debugging is needed
+        if (css3dObject && css3dScene) {
+            // Only log every 10 seconds to avoid console spam
+            const now = Date.now();
+            if (!window._lastCSS3DDebugTime || now - window._lastCSS3DDebugTime > 10000) {
+                // Check if the object is in the scene
+                const isInScene = css3dScene.children.includes(css3dObject);
+                
+                console.log('CSS3D Status:', isInScene ? 'Working correctly' : 'Object not in scene');
+                
+                // Only log full debug if there's a problem
+                if (!isInScene) {
+                    console.log('CSS3D Animation debugging:');
+                    console.log(`- css3dObject exists: ${!!css3dObject}`);
+                    console.log(`- css3dScene exists: ${!!css3dScene}`);
+                    console.log(`- CSS3D object in scene: ${isInScene}`);
+                    console.log(`- css3dRenderer exists: ${!!css3dRenderer}`);
+                    
+                    // Check if the element is in the DOM
+                    if (css3dObject && css3dObject.element) {
+                        const isInDOM = document.body.contains(css3dObject.element);
+                        console.log(`- CSS3D element in DOM: ${isInDOM}`);
+                        console.log(`- CSS3D element dimensions: ${css3dObject.element.offsetWidth}x${css3dObject.element.offsetHeight}`);
+                        console.log(`- CSS3D object position: ${JSON.stringify({
+                            x: css3dObject.position.x,
+                            y: css3dObject.position.y,
+                            z: css3dObject.position.z
+                        })}`);
+                    }
+                }
+                
+                window._lastCSS3DDebugTime = now;
+            }
+        }
+        
         // Render both scenes
         if (css3dRenderer && css3dScene && previewCamera) {
-            css3dRenderer.render(css3dScene, previewCamera);
+            try {
+                css3dRenderer.render(css3dScene, previewCamera);
+            } catch (renderError) {
+                console.error('Error rendering CSS3D scene:', renderError);
+                logPreviewError(`CSS3D render error: ${renderError.message}`);
+            }
         }
         
         if (webglRenderer && webglScene && previewCamera) {
-            webglRenderer.render(webglScene, previewCamera);
+            try {
+                webglRenderer.render(webglScene, previewCamera);
+            } catch (renderError) {
+                console.error('Error rendering WebGL scene:', renderError);
+            }
         }
     } catch (error) {
         console.error('Error in CSS3D animation loop:', error);
+        logPreviewError(`CSS3D animation error: ${error.message}`);
     }
 }
 
