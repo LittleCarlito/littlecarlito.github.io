@@ -54,10 +54,10 @@
                 </div>
                 
                 <div class="settings-group">
-                    <label>
+                    <div class="settings-option">
+                        <label for="mesh-html-auto-show">Auto-Show:</label>
                         <input type="checkbox" id="mesh-html-auto-show" checked>
-                        Auto-show when camera is nearby
-                    </label>
+                    </div>
                 </div>
                 
                 <div class="settings-group" id="distance-threshold-group">
@@ -94,6 +94,21 @@
                 </div>
             </div>
             
+            <!-- Preview Settings -->
+            <div class="settings-group">
+                <h4 class="settings-title">Preview Settings</h4>
+                <div class="settings-row">
+                    <div class="settings-option">
+                        <label for="mesh-html-preview-mode">Preview Mode:</label>
+                        <select id="mesh-html-preview-mode" class="select-input">
+                            <option value="direct">Direct HTML (Better for debugging)</option>
+                            <option value="threejs">3D Texture (As seen in 3D)</option>
+                            <option value="css3d">CSS3D - Real HTML in 3D (Best quality)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
             <div class="settings-status" id="mesh-settings-status"></div>
         </div>
         <div class="modal-footer">
@@ -121,5 +136,14 @@
     #mesh-settings-modal.visible {
         display: flex !important;
         background-color: rgba(0, 0, 0, 0.5);
+    }
+    
+    /* Fix for mesh settings modal to appear in front of HTML editor modal */
+    #html-editor-modal {
+        z-index: 3000; /* Lower than mesh settings modal */
+    }
+    
+    #mesh-settings-modal {
+        z-index: 4000 !important; /* Higher than HTML editor modal */
     }
 </style> 

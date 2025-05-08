@@ -165,6 +165,18 @@ window.addEventListener('load', notifySize);
     
     // For full document structures with doctype, html and body tags
     if (html.includes('<!DOCTYPE') || html.includes('<html')) {
+        // Ensure the HTML has a transparent background
+        // Check if there's a head section to add the transparent background style
+        if (!html.includes('background-color: transparent') && !html.includes('background:transparent')) {
+            // Add transparent background style if not already present
+            if (html.includes('</head>')) {
+                html = html.replace('</head>', '<style>body { background-color: transparent; }</style></head>');
+            } else if (html.includes('<body')) {
+                // Add style attribute to body tag if no head section
+                html = html.replace(/<body([^>]*)>/i, '<body$1 style="background-color: transparent;">');
+            }
+        }
+        
         // Insert resizer script before the closing body tag
         if (html.includes('</body>')) {
             return html.replace('</body>', `${resizerScript}</body>`);
@@ -183,6 +195,13 @@ window.addEventListener('load', notifySize);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: transparent;
+        }
+    </style>
     <title>HTML Preview</title>
 </head>
 <body>
