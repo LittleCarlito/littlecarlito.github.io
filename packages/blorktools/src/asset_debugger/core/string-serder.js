@@ -129,7 +129,7 @@ export function formatHtml(html) {
 }
 
 /**
- * Basic HTML sanitization to prevent XSS and handle document structure
+ * Enhanced HTML sanitization that preserves styling and safe scripts
  * @param {string} html - The HTML to sanitize
  * @returns {string} The sanitized HTML
  */
@@ -138,25 +138,58 @@ export function sanitizeHtml(html) {
         return '';
     }
     
-    // Remove script tags for security
-    let sanitized = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    // Resizer script to help with iframe sizing
+    const resizerScript = `
+<script>
+// Helper function to adjust iframe height
+function notifySize() {
+    try {
+        const height = document.body.scrollHeight;
+        window.parent.postMessage({ type: 'resize', height: height }, '*');
+        
+        // Observe DOM changes to adjust size dynamically
+        const resizeObserver = new ResizeObserver(() => {
+            const updatedHeight = document.body.scrollHeight;
+            window.parent.postMessage({ type: 'resize', height: updatedHeight }, '*');
+        });
+        
+        resizeObserver.observe(document.body);
+    } catch (error) {
+        console.error('Error in size notification:', error);
+    }
+}
+
+// Run on load
+window.addEventListener('load', notifySize);
+</script>`;
     
-    // If the HTML contains a full document structure, extract just the body content
-    if (sanitized.includes('<body') || sanitized.includes('<!DOCTYPE') || sanitized.includes('<html')) {
-        try {
-            // Use DOMParser to parse the HTML string
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(sanitized, 'text/html');
-            
-            // Extract just the content from the body
-            sanitized = doc.body.innerHTML;
-        } catch (error) {
-            console.error('Error extracting body content during sanitization:', error);
-            // Continue with the script-sanitized HTML if extraction fails
+    // For full document structures with doctype, html and body tags
+    if (html.includes('<!DOCTYPE') || html.includes('<html')) {
+        // Insert resizer script before the closing body tag
+        if (html.includes('</body>')) {
+            return html.replace('</body>', `${resizerScript}</body>`);
+        } else if (html.includes('</html>')) {
+            return html.replace('</html>', `${resizerScript}</html>`);
+        } else {
+            // If no closing tags found, just append
+            return html + resizerScript;
         }
     }
     
-    return sanitized;
+    // For HTML fragments, wrap them in a basic document structure
+    // This helps ensure styles and scripts work properly
+    return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Preview</title>
+</head>
+<body>
+    ${html}
+    ${resizerScript}
+</body>
+</html>`;
 }
 
 // Export default for convenience

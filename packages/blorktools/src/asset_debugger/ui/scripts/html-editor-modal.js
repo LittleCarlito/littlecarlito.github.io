@@ -446,11 +446,100 @@ function previewHtml(html) {
     const previewContent = document.getElementById('html-preview-content');
     if (!previewContent) return;
     
-    // The sanitizeHtml function now handles document structure extraction
-    const sanitizedHtml = sanitizeHtml(html);
+    try {
+        // First clear the preview container
+        previewContent.innerHTML = '';
+        
+        // Create a sandboxed iframe using srcdoc instead of directly writing to the document
+        const iframe = document.createElement('iframe');
+        iframe.style.width = '100%';
+        iframe.style.height = '400px';
+        iframe.style.border = 'none';
+        iframe.style.backgroundColor = 'white';
+        iframe.sandbox = 'allow-scripts allow-same-origin';
+        
+        // Add message event listener for iframe content
+        window.addEventListener('message', function iframeMessageHandler(event) {
+            try {
+                // Only handle resize messages
+                if (event.data && event.data.type === 'resize') {
+                    const height = event.data.height + 40; // Add padding
+                    iframe.style.height = `${height}px`;
+                    
+                    // Log successful resize
+                    console.log(`Iframe resized to ${height}px`);
+                }
+            } catch (error) {
+                logPreviewError(`Resize error: ${error.message}`);
+            }
+        });
+        
+        // The sanitizeHtml function handles wrapping fragments if needed
+        const sanitizedHtml = sanitizeHtml(html);
+        
+        // Use srcdoc attribute to set the content (avoids cross-origin issues)
+        iframe.srcdoc = sanitizedHtml;
+        
+        // Append the iframe
+        previewContent.appendChild(iframe);
+        
+        // Add error log container
+        const errorLog = document.createElement('div');
+        errorLog.id = 'html-preview-error-log';
+        errorLog.className = 'preview-error-log';
+        // Start hidden until there are errors
+        errorLog.style.display = 'none';
+        previewContent.appendChild(errorLog);
+        
+        // Log success message
+        showStatus('Preview generated successfully', 'success');
+    } catch (error) {
+        logPreviewError(`Preview error: ${error.message}`);
+        console.error('HTML Preview error:', error);
+        showStatus('Error generating preview: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Log errors to the preview error console
+ * @param {string} message - Error message to display
+ */
+function logPreviewError(message) {
+    const errorLog = document.getElementById('html-preview-error-log') || 
+                     document.createElement('div');
     
-    // Update the preview
-    previewContent.innerHTML = sanitizedHtml;
+    if (!errorLog.id) {
+        errorLog.id = 'html-preview-error-log';
+        errorLog.className = 'preview-error-log';
+        
+        const previewContent = document.getElementById('html-preview-content');
+        if (previewContent) {
+            previewContent.appendChild(errorLog);
+        }
+    }
+    
+    // Make error log visible
+    errorLog.style.display = 'block';
+    
+    // Create error entry
+    const errorEntry = document.createElement('div');
+    errorEntry.className = 'error-entry';
+    errorEntry.textContent = message;
+    
+    // Add timestamp
+    const timestamp = new Date().toLocaleTimeString();
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'error-time';
+    timeSpan.textContent = `[${timestamp}] `;
+    errorEntry.prepend(timeSpan);
+    
+    // Add to log
+    errorLog.appendChild(errorEntry);
+    
+    // Show the error in the editor status as well
+    showStatus(message, 'error');
+    
+    console.error(message);
 }
 
 /**
