@@ -456,7 +456,8 @@ function previewHtml(html) {
         iframe.style.height = '400px';
         iframe.style.border = 'none';
         iframe.style.backgroundColor = 'white';
-        iframe.sandbox = 'allow-scripts allow-same-origin';
+        // Remove allow-same-origin to prevent sandbox escape
+        iframe.sandbox = 'allow-scripts';
         
         // Add message event listener for iframe content
         window.addEventListener('message', function iframeMessageHandler(event) {
