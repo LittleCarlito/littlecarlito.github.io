@@ -28,9 +28,13 @@ import {
 } from '../../core/html-linter.js';
 import { getCurrentGlbBuffer, updateGlbFile } from './model-integration.js';
 import { updateHtmlIcons } from './mesh-panel.js';
+import { getHtmlSettingsForMesh } from './mesh-settings-modal.js';
 
 // Import Three.js the same way as other files in the codebase
 import * as THREE from 'three';
+
+// Expose getHtmlSettingsForMesh globally for access from window object
+window.getHtmlSettingsForMesh = getHtmlSettingsForMesh;
 
 // Store HTML content for each mesh
 const meshHtmlContent = new Map();
@@ -625,8 +629,8 @@ function previewHtml(html) {
         
         try {
             // Try to get preview mode from mesh settings
-            if (typeof window.getMeshHtmlSettings === 'function') {
-                const meshSettings = window.getMeshHtmlSettings(currentMeshId);
+            if (typeof window.getHtmlSettingsForMesh === 'function') {
+                const meshSettings = window.getHtmlSettingsForMesh(currentMeshId);
                 if (meshSettings && meshSettings.previewMode) {
                     previewMode = meshSettings.previewMode;
                     console.log(`Using preview mode from settings: ${previewMode}`);
@@ -818,12 +822,11 @@ function setupThreeJsScene(container, iframe) {
         const containerHeight = container.clientHeight;
         const containerAspectRatio = containerWidth / containerHeight;
         
-        // Use a different approach for the camera to better fit content
-        const cameraDistance = 1.5;
-        previewCamera = new THREE.OrthographicCamera(
-            -1, 1, 1, -1, 0.1, 10
+        // Use perspective camera for better 3D cube viewing
+        previewCamera = new THREE.PerspectiveCamera(
+            60, containerAspectRatio, 0.1, 1000
         );
-        previewCamera.position.z = cameraDistance;
+        previewCamera.position.z = 3;
         
         // Create renderer with proper sizing to fit container exactly and enable transparency
         previewRenderer = new THREE.WebGLRenderer({ 
@@ -846,43 +849,42 @@ function setupThreeJsScene(container, iframe) {
         
         // Create initial texture from iframe content
         createTextureFromIframe(iframe).then(texture => {
-            // Get the texture's aspect ratio (default to 1:1 if not available)
-            // This ensures we respect the content's natural aspect ratio
-            const textureAspectRatio = texture.image ? texture.image.width / texture.image.height : 1;
+            // Create a box geometry instead of a plane
+            const geometry = new THREE.BoxGeometry(1, 1, 1);
             
-            // Calculate dimensions to fit the content properly in view
-            // We'll make the content fill most of the view while maintaining aspect ratio
-            let planeWidth, planeHeight;
-            
-            if (textureAspectRatio >= 1) {
-                // For landscape or square content
-                planeWidth = 1.8; // Fill most of the view width
-                planeHeight = planeWidth / textureAspectRatio;
-            } else {
-                // For portrait content
-                planeHeight = 1.8; // Fill most of the view height
-                planeWidth = planeHeight * textureAspectRatio;
-            }
-            
-            // Update camera to match content aspect ratio
-            updateCameraForContent(previewCamera, containerAspectRatio, textureAspectRatio);
-            
-            const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
-            const material = new THREE.MeshBasicMaterial({ 
-                map: texture,
-                side: THREE.DoubleSide,
-                transparent: true // Enable transparency
+            // Create material array for each face of the cube
+            const materials = Array(6).fill().map(() => {
+                return new THREE.MeshBasicMaterial({ 
+                    map: texture,
+                    side: THREE.DoubleSide,
+                    transparent: true
+                });
             });
             
-            // Create plane mesh
-            previewPlane = new THREE.Mesh(geometry, material);
+            // Create cube mesh
+            previewPlane = new THREE.Mesh(geometry, materials);
             previewScene.add(previewPlane);
             
-            // Start animation loop
-            animatePreview();
+            // Set initial rotation but don't animate it
+            previewPlane.rotation.x = Math.PI / 10;
+            previewPlane.rotation.y = Math.PI / 6;
+            
+            // Add orbit controls for better user interaction
+            setupOrbitControls(previewCamera, previewRenderer.domElement)
+                .then(controls => {
+                    // Start animation loop after controls are set up
+                    animatePreview();
+                })
+                .catch(error => {
+                    console.error('Failed to setup orbit controls:', error);
+                    // Still start animation even if controls fail
+                    animatePreview();
+                });
         }).catch(error => {
             console.error('Error creating texture from iframe:', error);
             logPreviewError(`Texture creation error: ${error.message}`);
+            // Still try to start animation with fallback texture
+            animatePreview();
         });
         
         // Handle window resize
@@ -894,30 +896,86 @@ function setupThreeJsScene(container, iframe) {
 }
 
 /**
- * Update camera parameters to better fit content with different aspect ratios
- * @param {THREE.OrthographicCamera} camera - The camera to update
- * @param {number} containerAspect - The container's aspect ratio
- * @param {number} contentAspect - The content's aspect ratio
+ * Animation loop for the Three.js preview
  */
-function updateCameraForContent(camera, containerAspect, contentAspect) {
-    // Base size for the camera frustum
-    const baseSize = 1;
-    
-    if (containerAspect >= contentAspect) {
-        // Container is wider than content - fit to height
-        camera.top = baseSize;
-        camera.bottom = -baseSize;
-        camera.left = -baseSize * containerAspect;
-        camera.right = baseSize * containerAspect;
-    } else {
-        // Container is taller than content - fit to width
-        camera.left = -baseSize;
-        camera.right = baseSize;
-        camera.top = baseSize / containerAspect;
-        camera.bottom = -baseSize / containerAspect;
+function animatePreview() {
+    // If preview is no longer active, don't continue the animation loop
+    if (!isPreviewActive) {
+        console.log('Preview no longer active, stopping animation loop');
+        return;
     }
     
-    camera.updateProjectionMatrix();
+    previewAnimationId = requestAnimationFrame(animatePreview);
+    
+    try {
+        // Only update texture if animation is not paused and enough time has passed
+        const currentTime = Date.now();
+        if (!isPreviewAnimationPaused && previewPlane && previewRenderTarget && 
+            (currentTime - lastTextureUpdateTime > textureUpdateInterval)) {
+            
+            // Update the last update time
+            lastTextureUpdateTime = currentTime;
+            
+            // Check if iframe is still valid before trying to update texture
+            if (previewRenderTarget && document.body.contains(previewRenderTarget)) {
+                // Update texture from iframe content
+                createTextureFromIframe(previewRenderTarget).then(texture => {
+                    // Check if preview is still active before updating
+                    if (!isPreviewActive) return;
+                    
+                    if (previewPlane && previewPlane.material) {
+                        // Handle array of materials for cube
+                        if (Array.isArray(previewPlane.material)) {
+                            previewPlane.material.forEach(material => {
+                                if (material.map) {
+                                    material.map.dispose();
+                                }
+                                material.map = texture;
+                                material.needsUpdate = true;
+                            });
+                        } else {
+                            // For backwards compatibility
+                            if (previewPlane.material.map) {
+                                previewPlane.material.map.dispose();
+                            }
+                            previewPlane.material.map = texture;
+                            previewPlane.material.needsUpdate = true;
+                        }
+                    }
+                }).catch(error => {
+                    console.error('Error updating texture:', error);
+                });
+            }
+        }
+        
+        // Render the scene
+        if (previewRenderer && previewScene && previewCamera) {
+            previewRenderer.render(previewScene, previewCamera);
+        }
+    } catch (error) {
+        console.error('Error in animation loop:', error);
+        // Don't stop the animation loop for errors, just log them
+    }
+}
+
+/**
+ * Handle window resize for the Three.js preview
+ */
+function onPreviewResize() {
+    const container = previewRenderer.domElement.parentElement;
+    if (!container) return;
+    
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    
+    // Update camera aspect ratio
+    if (previewCamera) {
+        previewCamera.aspect = containerWidth / containerHeight;
+        previewCamera.updateProjectionMatrix();
+    }
+    
+    // Update renderer
+    previewRenderer.setSize(containerWidth, containerHeight);
 }
 
 /**
@@ -1046,123 +1104,6 @@ function createFallbackTexture() {
 }
 
 /**
- * Animation loop for the Three.js preview
- */
-function animatePreview() {
-    // If preview is no longer active, don't continue the animation loop
-    if (!isPreviewActive) {
-        console.log('Preview no longer active, stopping animation loop');
-        return;
-    }
-    
-    previewAnimationId = requestAnimationFrame(animatePreview);
-    
-    try {
-        // Only update texture if animation is not paused and enough time has passed
-        const currentTime = Date.now();
-        if (!isPreviewAnimationPaused && previewPlane && previewRenderTarget && 
-            (currentTime - lastTextureUpdateTime > textureUpdateInterval)) {
-            
-            // Update the last update time
-            lastTextureUpdateTime = currentTime;
-            
-            // Check if iframe is still valid before trying to update texture
-            if (previewRenderTarget && document.body.contains(previewRenderTarget)) {
-                // Update texture from iframe content
-                createTextureFromIframe(previewRenderTarget).then(texture => {
-                    // Check if preview is still active before updating
-                    if (!isPreviewActive) return;
-                    
-                    if (previewPlane && previewPlane.material) {
-                        if (previewPlane.material.map) {
-                            previewPlane.material.map.dispose();
-                        }
-                        previewPlane.material.map = texture;
-                        previewPlane.material.transparent = true; // Ensure transparency is maintained
-                        previewPlane.material.needsUpdate = true;
-                        
-                        // Update the plane geometry to match the new texture's aspect ratio
-                        if (texture.image) {
-                            const textureAspectRatio = texture.image.width / texture.image.height;
-                            
-                            // Calculate dimensions to fit the content properly in view
-                            let planeWidth, planeHeight;
-                            
-                            if (textureAspectRatio >= 1) {
-                                // For landscape or square content
-                                planeWidth = 1.8; // Fill most of the view width
-                                planeHeight = planeWidth / textureAspectRatio;
-                            } else {
-                                // For portrait content
-                                planeHeight = 1.8; // Fill most of the view height
-                                planeWidth = planeHeight * textureAspectRatio;
-                            }
-                            
-                            // Only update geometry if aspect ratio has changed significantly
-                            const currentGeometry = previewPlane.geometry;
-                            const currentWidth = currentGeometry.parameters.width;
-                            const currentHeight = currentGeometry.parameters.height;
-                            const currentAspectRatio = currentWidth / currentHeight;
-                            
-                            if (Math.abs(currentAspectRatio - textureAspectRatio) > 0.01) {
-                                // Dispose of old geometry
-                                if (currentGeometry) currentGeometry.dispose();
-                                
-                                // Create new geometry with correct aspect ratio
-                                const newGeometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
-                                previewPlane.geometry = newGeometry;
-                                
-                                // Update camera to match content aspect ratio
-                                if (previewRenderer && previewRenderer.domElement && previewRenderer.domElement.parentElement) {
-                                    const container = previewRenderer.domElement.parentElement;
-                                    const containerAspectRatio = container.clientWidth / container.clientHeight;
-                                    updateCameraForContent(previewCamera, containerAspectRatio, textureAspectRatio);
-                                }
-                            }
-                        }
-                    }
-                }).catch(error => {
-                    console.error('Error updating texture:', error);
-                });
-            }
-        }
-        
-        // Render the scene
-        if (previewRenderer && previewScene && previewCamera) {
-            previewRenderer.render(previewScene, previewCamera);
-        }
-    } catch (error) {
-        console.error('Error in animation loop:', error);
-        // Don't stop the animation loop for errors, just log them
-    }
-}
-
-/**
- * Handle window resize for the Three.js preview
- */
-function onPreviewResize() {
-    const container = previewRenderer.domElement.parentElement;
-    if (!container) return;
-    
-    const containerWidth = container.clientWidth;
-    const containerHeight = container.clientHeight;
-    const containerAspectRatio = containerWidth / containerHeight;
-    
-    // Update camera using our helper function
-    if (previewPlane && previewPlane.material && previewPlane.material.map && previewPlane.material.map.image) {
-        const texture = previewPlane.material.map;
-        const textureAspectRatio = texture.image.width / texture.image.height;
-        updateCameraForContent(previewCamera, containerAspectRatio, textureAspectRatio);
-    } else {
-        // Fallback if we don't have texture information
-        updateCameraForContent(previewCamera, containerAspectRatio, 1);
-    }
-    
-    // Update renderer
-    previewRenderer.setSize(containerWidth, containerHeight);
-}
-
-/**
  * Clean up Three.js resources
  */
 function cleanupThreeJsPreview() {
@@ -1183,14 +1124,30 @@ function cleanupThreeJsPreview() {
     window.removeEventListener('resize', onPreviewResize);
     
     // Clean up CSS3D resources
-    if (css3dObject) {
-        if (css3dScene) css3dScene.remove(css3dObject);
-        
-        // Remove iframe if it's still in the DOM
-        if (css3dObject.element && css3dObject.element.parentNode) {
-            css3dObject.element.parentNode.removeChild(css3dObject.element);
+    if (css3dScene) {
+        // Remove all objects from the scene
+        while (css3dScene.children.length > 0) {
+            const object = css3dScene.children[0];
+            css3dScene.remove(object);
+            
+            // If it's a CSS3D object with an iframe element, remove it from DOM
+            if (object.element && object.element.parentNode) {
+                try {
+                    if (object.element.contentDocument) {
+                        object.element.contentDocument.open();
+                        object.element.contentDocument.write('');
+                        object.element.contentDocument.close();
+                    }
+                    object.element.parentNode.removeChild(object.element);
+                } catch (err) {
+                    console.debug('Error cleaning up iframe element:', err);
+                }
+            }
         }
-        
+        css3dScene = null;
+    }
+    
+    if (css3dObject) {
         css3dObject = null;
     }
     
@@ -1201,28 +1158,26 @@ function cleanupThreeJsPreview() {
         css3dRenderer = null;
     }
     
-    if (css3dScene) {
-        css3dScene = null;
-    }
-    
-    if (webglRenderer) {
-        if (webglRenderer.domElement && webglRenderer.domElement.parentElement) {
-            webglRenderer.domElement.parentElement.removeChild(webglRenderer.domElement);
-        }
-        webglRenderer = null;
-    }
-    
-    if (webglScene) {
-        webglScene = null;
+    // Reset replay button
+    const replayBtn = document.getElementById('html-editor-replay');
+    if (replayBtn && window.originalReplayBtnClick) {
+        replayBtn.onclick = window.originalReplayBtnClick;
+        window.originalReplayBtnClick = null;
     }
     
     // Original cleanup code for texture-based preview
-    // Dispose of Three.js resources
     if (previewPlane) {
         if (previewPlane.geometry) previewPlane.geometry.dispose();
         if (previewPlane.material) {
-            if (previewPlane.material.map) previewPlane.material.map.dispose();
-            previewPlane.material.dispose();
+            if (Array.isArray(previewPlane.material)) {
+                previewPlane.material.forEach(material => {
+                    if (material.map) material.map.dispose();
+                    material.dispose();
+                });
+            } else {
+                if (previewPlane.material.map) previewPlane.material.map.dispose();
+                previewPlane.material.dispose();
+            }
         }
         if (previewScene) previewScene.remove(previewPlane);
         previewPlane = null;
@@ -1578,22 +1533,22 @@ function navigateToErrorPosition(textarea, line, col) {
  */
 function initCSS3DPreview(container, iframe) {
     try {
-        console.log('Initializing CSS3D preview');
+        console.log('Initializing CSS3D preview with detailed debugging');
         
-        // Directly import our standalone CSS3D renderer
-        import('../../core/css3d-renderer.js')
+        // Directly import Three.js CSS3D renderer
+        import('three/examples/jsm/renderers/CSS3DRenderer.js')
             .then(module => {
-                const { CSS3DRenderer, CSS3DObject, isCSS3DRendererAvailable } = module;
+                const { CSS3DRenderer, CSS3DObject } = module;
                 
-                if (isCSS3DRendererAvailable()) {
-                    console.log('CSS3D renderer loaded successfully');
-                    setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject);
-                } else {
-                    throw new Error('CSS3D renderer not available');
-                }
+                console.log('CSS3D renderer loaded successfully, classes exist:', 
+                    'CSS3DRenderer:', !!CSS3DRenderer, 
+                    'CSS3DObject:', !!CSS3DObject);
+                
+                // Now that we have the correct classes, set up the CSS3D scene
+                setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject);
             })
             .catch(error => {
-                console.error('Error initializing CSS3D preview:', error);
+                console.error('Error loading CSS3DRenderer:', error);
                 logPreviewError(`CSS3D initialization error: ${error.message}`);
                 
                 // Fallback to texture-based preview
@@ -1611,202 +1566,424 @@ function initCSS3DPreview(container, iframe) {
 }
 
 /**
+ * Set up orbit controls for camera manipulation
+ * @param {THREE.Camera} camera - The camera to control
+ * @param {HTMLElement} domElement - The DOM element to attach controls to
+ * @returns {OrbitControls} The orbit controls object
+ */
+function setupOrbitControls(camera, domElement) {
+    return import('three/examples/jsm/controls/OrbitControls.js')
+        .then(module => {
+            const { OrbitControls } = module;
+            const controls = new OrbitControls(camera, domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.25;
+            controls.rotateSpeed = 0.35;
+            controls.minDistance = 1;
+            controls.maxDistance = 10;
+            controls.enablePan = true;
+            controls.panSpeed = 0.5;
+            console.log('OrbitControls created successfully');
+            return controls;
+        })
+        .catch(error => {
+            console.error('Error creating OrbitControls:', error);
+            return null;
+        });
+}
+
+/**
  * Set up CSS3D scene for HTML preview
  * @param {HTMLElement} container - The container element
  * @param {HTMLIFrameElement} iframe - The iframe containing the HTML content
  * @param {Function} CSS3DRenderer - The CSS3DRenderer class
- * @param {Function} CSS3DObject - The CSS3DObject class
+ * @param {Function} CSS3DObject - The CSS3DObject constructor
+ * @returns {boolean} True if setup was successful, false otherwise
  */
 function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
     try {
-        // Get container dimensions
-        const containerWidth = container.clientWidth;
-        const containerHeight = container.clientHeight;
-        const containerAspectRatio = containerWidth / containerHeight;
+        console.log('=== DETAILED CSS3D DEBUG ===');
+        console.log('Setting up CSS3D scene with container:', container);
         
-        // Create shared camera
-        previewCamera = new THREE.PerspectiveCamera(60, containerAspectRatio, 0.1, 5000);
-        previewCamera.position.z = 1000;
+        // Clear any existing content
+        container.innerHTML = '';
+        console.log('Container cleared, dimensions:', container.clientWidth, 'x', container.clientHeight);
         
-        // Create CSS3D scene and renderer using the provided classes
-        css3dScene = new THREE.Scene();
-        css3dRenderer = new CSS3DRenderer();
-        css3dRenderer.setSize(containerWidth, containerHeight);
-        css3dRenderer.domElement.style.position = 'absolute';
-        css3dRenderer.domElement.style.top = '0';
-        css3dRenderer.domElement.style.pointerEvents = 'none'; // Let events pass through to WebGL layer
-        container.appendChild(css3dRenderer.domElement);
+        // Basic variables
+        const userHtml = document.getElementById('html-editor-textarea').value || '';
+        console.log('User HTML content length:', userHtml.length);
         
-        // Create WebGL scene and renderer for any 3D objects
-        webglScene = new THREE.Scene();
-        webglRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        webglRenderer.setSize(containerWidth, containerHeight);
-        webglRenderer.setClearColor(0x000000, 0); // Transparent background
-        webglRenderer.domElement.style.position = 'absolute';
-        webglRenderer.domElement.style.top = '0';
-        container.appendChild(webglRenderer.domElement);
+        // Panel size and spacing - using much larger panels for visibility
+        const panelWidth = 300;
+        const panelHeight = 250;
+        console.log('Panel dimensions:', panelWidth, 'x', panelHeight);
         
-        // Add debug helpers to WebGL scene - disabled by default
-        addDebugHelpers(webglScene, false);
+        // Setup camera with greater distance to see the entire scene
+        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 1, 10000);
+        camera.position.set(500, 300, 700); // Position to see cube from angle
+        console.log('Camera created at position:', camera.position);
         
-        // Get the content from the textarea
-        const textarea = document.getElementById('html-editor-textarea');
-        const userHtml = textarea ? textarea.value : '';
+        // Create CSS3D scene
+        const scene = new THREE.Scene();
+        console.log('THREE.Scene created');
         
-        // Create a new iframe for CSS3D
-        const css3dIframe = document.createElement('iframe');
-        css3dIframe.style.width = '960px';
-        css3dIframe.style.height = '540px';
-        css3dIframe.style.border = 'none';
-        css3dIframe.style.overflow = 'hidden';
-        css3dIframe.style.backgroundColor = 'transparent';
+        // Create CSS3D renderer - IMPORTANT: Use the correct renderer type!
+        console.log('Creating CSS3DRenderer...');
+        const renderer = new CSS3DRenderer();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.domElement.style.position = 'absolute';
+        renderer.domElement.style.top = '0';
+        container.appendChild(renderer.domElement);
+        console.log('CSS3DRenderer created and added to container:', renderer.domElement);
         
-        // Append the iframe to the document body temporarily to ensure it loads
-        document.body.appendChild(css3dIframe);
-        
-        // Wait for iframe to load before creating CSS3D object
-        css3dIframe.onload = () => {
-            console.log('CSS3D iframe loaded');
-            
-            // Create CSS3D object with the loaded iframe
-            css3dObject = new CSS3DObject(css3dIframe);
-            
-            // Position the object in front of the camera - centered
-            css3dObject.position.set(0, 0, 0);
-            
-            // Scale to fit nicely in view
-            const scale = 0.8;
-            css3dObject.scale.set(scale, scale, scale);
-            
-            css3dScene.add(css3dObject);
-            
-            // Start animation loop
-            animateCSS3D();
-            
-            // Trigger the animation if it's in the user's HTML
-            setTimeout(() => {
-                try {
-                    if (css3dIframe.contentWindow && css3dIframe.contentWindow.animateMessages) {
-                        css3dIframe.contentWindow.animateMessages();
-                        showStatus('Animation started', 'success');
-                    }
-                } catch (error) {
-                    console.log('No animation function found in iframe content');
-                }
-            }, 300);
-            
-            console.log('CSS3D scene setup complete with user content');
+        // Function to create HTML content
+        const wrapContent = (content, title) => {
+            return `<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            margin: 0;
+            padding: 10px;
+            background-color: white;
+            color: #333;
+            font-family: Arial, sans-serif;
+            overflow: auto;
+            box-sizing: border-box;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .panel-title {
+            background: #f0f0f0;
+            padding: 5px;
+            margin-bottom: 10px;
+            text-align: center;
+            font-weight: bold;
+            border-bottom: 1px solid #ccc;
+            font-size: 14px;
+        }
+        .content {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="panel-title">${title}</div>
+    <div class="content">${content}</div>
+</body>
+</html>`;
         };
         
-        // Always use the content from the textarea
-        css3dIframe.srcdoc = userHtml;
+        // Panel titles
+        const panelTitles = [
+            'Front View',
+            'Back View',
+            'Right View',
+            'Left View',
+            'Top View',
+            'Bottom View'
+        ];
         
-        // Add simple controls
-        setupOrbitControls(previewCamera, css3dRenderer.domElement);
+        // Create HTML elements for each panel
+        const elements = [];
+        const objects = [];
         
-        // Mark that combined rendering is needed
-        combinedRenderRequired = true;
+        // Define panel positions for a cube arrangement
+        // Using the correct panel size to create a proper cube
+        const positions = [
+            { x: 0, y: 0, z: panelWidth/2, rx: 0, ry: 0, rz: 0 },             // Front
+            { x: 0, y: 0, z: -panelWidth/2, rx: 0, ry: Math.PI, rz: 0 },      // Back
+            { x: panelWidth/2, y: 0, z: 0, rx: 0, ry: Math.PI/2, rz: 0 },     // Right
+            { x: -panelWidth/2, y: 0, z: 0, rx: 0, ry: -Math.PI/2, rz: 0 },   // Left
+            { x: 0, y: panelHeight/2, z: 0, rx: -Math.PI/2, ry: 0, rz: 0 },   // Top
+            { x: 0, y: -panelHeight/2, z: 0, rx: Math.PI/2, ry: 0, rz: 0 }    // Bottom
+        ];
         
-        // Store for cleanup
-        previewRenderTarget = css3dIframe;
-    } catch (error) {
-        console.error('Error setting up CSS3D scene:', error);
-        logPreviewError(`CSS3D scene setup error: ${error.message}`);
+        console.log('Starting to create', positions.length, 'panels in cube arrangement...');
         
-        // Fall back to texture-based method
-        initThreeJsPreview(container, iframe);
-    }
-}
-
-/**
- * Add debug helpers to the scene
- * @param {THREE.Scene} scene - The scene to add helpers to
- * @param {boolean} showHelpers - Whether to show the helpers
- */
-function addDebugHelpers(scene, showHelpers = false) {
-    if (!showHelpers) return;
-    
-    // Add axes helper
-    const axesHelper = new THREE.AxesHelper(100);
-    scene.add(axesHelper);
-    
-    // Add grid helper
-    const gridHelper = new THREE.GridHelper(200, 10);
-    scene.add(gridHelper);
-    
-    // Add a cube as a reference object
-    const geometry = new THREE.BoxGeometry(50, 50, 50);
-    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
-    const cube = new THREE.Mesh(geometry, material);
-    cube.position.set(100, 0, 0);
-    scene.add(cube);
-}
-
-/**
- * Set up orbit controls for the preview
- * @param {THREE.Camera} camera - The camera to control
- * @param {HTMLElement} domElement - The DOM element to attach controls to
- */
-function setupOrbitControls(camera, domElement) {
-    try {
-        // Use dynamic import to get OrbitControls directly from three.js
-        console.log('Loading OrbitControls directly from three.js');
-        import('three/examples/jsm/controls/OrbitControls.js')
-            .then(module => {
-                const { OrbitControls } = module;
-                const controls = new OrbitControls(camera, domElement);
-                controls.enableDamping = true;
-                controls.dampingFactor = 0.25;
-                controls.screenSpacePanning = true;
-                console.log('OrbitControls initialized successfully');
-            })
-            .catch(error => {
-                console.error('Failed to load OrbitControls module:', error);
-                logPreviewError(`OrbitControls error: ${error.message}`);
-            });
-    } catch (error) {
-        console.error('Error setting up OrbitControls:', error);
-        logPreviewError(`OrbitControls error: ${error.message}`);
-    }
-}
-
-/**
- * Animation loop for CSS3D preview
- */
-function animateCSS3D() {
-    if (!isPreviewActive || !combinedRenderRequired) return;
-    
-    previewAnimationId = requestAnimationFrame(animateCSS3D);
-    
-    try {
-        // Only log debug info once at the start
-        if (css3dObject && css3dScene && !window._css3dDebugLogged) {
-            // Check if the object is in the scene
-            const isInScene = css3dScene.children.includes(css3dObject);
-            console.log(`CSS3D object in scene: ${isInScene}`);
-            
-            // Check if the element is in the DOM
-            if (css3dObject.element) {
-                const isInDOM = document.body.contains(css3dObject.element);
-                console.log(`CSS3D element in DOM: ${isInDOM}`);
+        // Create a DOM container to hold all iframes temporarily
+        // This is critical - CSS3DObject needs elements to be in the DOM!
+        const tempContainer = document.createElement('div');
+        tempContainer.style.position = 'absolute';
+        tempContainer.style.left = '-9999px'; // Off-screen
+        tempContainer.style.top = '0';
+        document.body.appendChild(tempContainer);
+        console.log('Created temporary DOM container for iframes');
+        
+        // Create a panel for each position with visible debugging
+        for (let i = 0; i < positions.length; i++) {
+            try {
+                console.log(`Creating panel ${i}: ${panelTitles[i]} at position:`, positions[i]);
                 
-                // Log element dimensions
-                console.log(`CSS3D element dimensions: ${css3dObject.element.offsetWidth}x${css3dObject.element.offsetHeight}`);
+                // Create the element
+                const element = document.createElement('iframe');
+                element.id = `panel-iframe-${i}`;
+                element.style.width = `${panelWidth}px`;
+                element.style.height = `${panelHeight}px`;
+                element.style.border = '3px solid'; // Thicker border
+                element.style.borderColor = i === 0 ? 'red' : 
+                                         i === 1 ? 'blue' : 
+                                         i === 2 ? 'green' : 
+                                         i === 3 ? 'purple' : 
+                                         i === 4 ? 'orange' : 'yellow'; // Different color for each panel
+                element.style.borderRadius = '5px';
+                element.style.backgroundColor = 'white';
+                element.style.overflow = 'hidden';
+                element.style.boxSizing = 'border-box';
+                
+                // CRITICAL: Add the element to DOM before creating CSS3DObject
+                tempContainer.appendChild(element);
+                console.log(`Created iframe element with ID: ${element.id} and dimensions: ${panelWidth}x${panelHeight}, added to DOM`);
+                
+                // Add content to iframe
+                element.srcdoc = wrapContent(userHtml, panelTitles[i]);
+                elements.push(element);
+                
+                // Create a CSS3D object
+                console.log(`Creating CSS3DObject for panel ${i}`);
+                try {
+                    const object = new CSS3DObject(element);
+                    
+                    // Set position and rotation for cube arrangement
+                    object.position.set(positions[i].x, positions[i].y, positions[i].z);
+                    object.rotation.set(positions[i].rx, positions[i].ry, positions[i].rz);
+                    
+                    console.log(`Set CSS3DObject position to:`, object.position, 'and rotation:', object.rotation);
+                    
+                    // Add to our tracking arrays
+                    objects.push(object);
+                    
+                } catch (err) {
+                    console.error(`ERROR creating CSS3DObject for panel ${i}:`, err);
+                }
+            } catch (err) {
+                console.error(`Error creating panel ${i}:`, err);
+            }
+        }
+        
+        // Create a cube group to make manipulation easier
+        const cubeGroup = new THREE.Group();
+        
+        // Add all objects to the cube group
+        objects.forEach(obj => {
+            cubeGroup.add(obj);
+        });
+        
+        // Add the cube group to the scene
+        scene.add(cubeGroup);
+        console.log('Created cube group with all panels:', objects.length, 'and added to scene');
+        
+        // Store references for cleanup
+        css3dScene = scene;
+        css3dRenderer = renderer;
+        previewCamera = camera;
+        
+        // Store for replay - use the first panel as reference
+        previewRenderTarget = elements[0];
+        css3dObject = objects[0];
+        
+        // Debug renderer info
+        console.log('Renderer info:', 
+            'Size:', renderer.getSize ? renderer.getSize(new THREE.Vector2()) : 'N/A',
+            'Element size:', renderer.domElement.clientWidth, 'x', renderer.domElement.clientHeight
+        );
+        
+        // Set up OrbitControls with debugging
+        console.log('Setting up OrbitControls...');
+        import('three/examples/jsm/controls/OrbitControls.js').then(module => {
+            const { OrbitControls } = module;
+            console.log('OrbitControls loaded');
+            
+            // Create controls with debug logging
+            const controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.2;
+            controls.rotateSpeed = 0.5;
+            controls.minDistance = 400;
+            controls.maxDistance = 2000;
+            console.log('OrbitControls created', controls);
+            
+            // Initial look at origin
+            camera.lookAt(0, 0, 0);
+            console.log('Camera looking at origin');
+            
+            // Disable auto-rotation
+            controls.autoRotate = false;
+            
+            // Add rotation controls
+            const controlsContainer = document.createElement('div');
+            controlsContainer.className = 'cube-controls';
+            controlsContainer.style.position = 'absolute';
+            controlsContainer.style.bottom = '20px';
+            controlsContainer.style.left = '50%';
+            controlsContainer.style.transform = 'translateX(-50%)';
+            controlsContainer.style.zIndex = '3000';
+            controlsContainer.style.display = 'flex';
+            controlsContainer.style.flexDirection = 'column';
+            controlsContainer.style.alignItems = 'center';
+            controlsContainer.style.gap = '10px';
+            controlsContainer.style.backgroundColor = 'rgba(0,0,0,0.7)';
+            controlsContainer.style.padding = '10px';
+            controlsContainer.style.borderRadius = '5px';
+            
+            // Function to create button
+            const createButton = (label, onClick) => {
+                const btn = document.createElement('button');
+                btn.textContent = label;
+                btn.style.padding = '5px 10px';
+                btn.style.margin = '2px';
+                btn.style.cursor = 'pointer';
+                btn.style.backgroundColor = '#007bff';
+                btn.style.color = 'white';
+                btn.style.border = 'none';
+                btn.style.borderRadius = '3px';
+                btn.onclick = onClick;
+                return btn;
+            };
+            
+            // Add reset button
+            const buttonRow1 = document.createElement('div');
+            buttonRow1.style.display = 'flex';
+            buttonRow1.style.gap = '5px';
+            buttonRow1.appendChild(createButton('Reset View', () => {
+                camera.position.set(500, 300, 700);
+                camera.lookAt(0, 0, 0);
+                cubeGroup.rotation.set(0, 0, 0);
+            }));
+            controlsContainer.appendChild(buttonRow1);
+            
+            // Create views for different angles
+            const viewPositions = [
+                { label: 'Front', rotation: [0, 0, 0] },
+                { label: 'Back', rotation: [0, Math.PI, 0] },
+                { label: 'Left', rotation: [0, -Math.PI/2, 0] },
+                { label: 'Right', rotation: [0, Math.PI/2, 0] },
+                { label: 'Top', rotation: [Math.PI/2, 0, 0] },
+                { label: 'Bottom', rotation: [-Math.PI/2, 0, 0] }
+            ];
+            
+            // Add view buttons
+            const viewButtons = document.createElement('div');
+            viewButtons.style.display = 'flex';
+            viewButtons.style.flexWrap = 'wrap';
+            viewButtons.style.justifyContent = 'center';
+            viewButtons.style.gap = '5px';
+            
+            viewPositions.forEach(view => {
+                viewButtons.appendChild(createButton(view.label, () => {
+                    cubeGroup.rotation.set(...view.rotation);
+                }));
+            });
+            controlsContainer.appendChild(viewButtons);
+            
+            // Create rotation control buttons
+            const rotations = [
+                { label: '↺X', axis: 'x', value: -Math.PI/8 },
+                { label: '↻X', axis: 'x', value: Math.PI/8 },
+                { label: '↺Y', axis: 'y', value: -Math.PI/8 },
+                { label: '↻Y', axis: 'y', value: Math.PI/8 },
+                { label: '↺Z', axis: 'z', value: -Math.PI/8 },
+                { label: '↻Z', axis: 'z', value: Math.PI/8 }
+            ];
+            
+            // Create rotation button container
+            const rotContainer = document.createElement('div');
+            rotContainer.style.display = 'flex';
+            rotContainer.style.flexWrap = 'wrap';
+            rotContainer.style.justifyContent = 'center';
+            rotContainer.style.gap = '5px';
+            
+            rotations.forEach(rot => {
+                rotContainer.appendChild(createButton(rot.label, () => {
+                    if (rot.axis === 'x') cubeGroup.rotation.x += rot.value;
+                    if (rot.axis === 'y') cubeGroup.rotation.y += rot.value;
+                    if (rot.axis === 'z') cubeGroup.rotation.z += rot.value;
+                }));
+            });
+            
+            // Append rotation container
+            controlsContainer.appendChild(rotContainer);
+            container.appendChild(controlsContainer);
+            
+            // Add info overlay for direct DOM display of panel status
+            const debugInfo = document.createElement('div');
+            debugInfo.style.position = 'absolute';
+            debugInfo.style.top = '10px';
+            debugInfo.style.left = '10px';
+            debugInfo.style.background = 'rgba(0,0,0,0.7)';
+            debugInfo.style.color = 'white';
+            debugInfo.style.padding = '10px';
+            debugInfo.style.borderRadius = '5px';
+            debugInfo.style.fontFamily = 'monospace';
+            debugInfo.style.fontSize = '12px';
+            debugInfo.style.maxWidth = '300px';
+            debugInfo.style.zIndex = '2000';
+            debugInfo.innerHTML = `
+                <div style="font-weight:bold">CSS3D Debug Info:</div>
+                <div>Total panels: ${objects.length}</div>
+                <div>Scene children: ${scene.children.length}</div>
+                <div>Camera position: ${camera.position.x.toFixed(0)}, ${camera.position.y.toFixed(0)}, ${camera.position.z.toFixed(0)}</div>
+                <div>Panel size: ${panelWidth}x${panelHeight}</div>
+                <div>CSS3DRenderer used: YES</div>
+            `;
+            container.appendChild(debugInfo);
+            console.log('Added debug overlay to the DOM');
+            
+            // Animation loop with detailed frame checking
+            let frameCount = 0;
+            function animate() {
+                if (!isPreviewActive) {
+                    console.log('Preview no longer active, stopping animation loop');
+                    return;
+                }
+                
+                frameCount++;
+                if (frameCount <= 5 || frameCount % 100 === 0) {
+                    console.log(`Rendering frame ${frameCount}, camera pos:`, camera.position);
+                }
+                
+                requestAnimationFrame(animate);
+                
+                // Update controls
+                controls.update();
+                
+                // Render scene
+                renderer.render(scene, camera);
+                
+                // Update debug info every 30 frames
+                if (frameCount % 30 === 0) {
+                    debugInfo.innerHTML = `
+                        <div style="font-weight:bold">CSS3D Debug Info (Frame ${frameCount}):</div>
+                        <div>Total panels: ${objects.length}</div>
+                        <div>Cube rotation: X:${cubeGroup.rotation.x.toFixed(2)}, Y:${cubeGroup.rotation.y.toFixed(2)}, Z:${cubeGroup.rotation.z.toFixed(2)}</div>
+                        <div>Camera: ${camera.position.x.toFixed(0)}, ${camera.position.y.toFixed(0)}, ${camera.position.z.toFixed(0)}</div>
+                        <div>Panel size: ${panelWidth}x${panelHeight}</div>
+                        <div>CSS3DRenderer used: YES</div>
+                    `;
+                }
             }
             
-            window._css3dDebugLogged = true;
-        }
+            // Start animation loop
+            animate();
+            console.log('Animation loop started');
+
+            // Show success status
+            showStatus('3D cube view ready - use buttons to rotate', 'success');
+            
+        }).catch(error => {
+            console.error('Error loading OrbitControls:', error);
+            showStatus('Error loading 3D controls', 'error');
+            return false;
+        });
         
-        // Render both scenes
-        if (css3dRenderer && css3dScene && previewCamera) {
-            css3dRenderer.render(css3dScene, previewCamera);
-        }
-        
-        if (webglRenderer && webglScene && previewCamera) {
-            webglRenderer.render(webglScene, previewCamera);
-        }
+        // Success
+        return true;
     } catch (error) {
-        console.error('Error in CSS3D animation loop:', error);
+        console.error('Error in setupCSS3DScene:', error);
+        showStatus('Error creating 3D cube view', 'error');
+        return false;
     }
 }
 
