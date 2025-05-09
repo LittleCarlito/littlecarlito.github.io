@@ -973,14 +973,17 @@ function setupThreeJsScene(container, iframe) {
         );
         previewCamera.position.z = 3;
         
-        // Create renderer with proper sizing to fit container exactly and enable transparency
+        // Create renderer with enhanced quality settings
         previewRenderer = new THREE.WebGLRenderer({ 
             antialias: true,
-            alpha: true // Enable transparency
+            alpha: true, // Enable transparency
+            preserveDrawingBuffer: true, // Preserve the buffer for screenshots
+            powerPreference: "high-performance" // Request high performance rendering
         });
         previewRenderer.setSize(containerWidth, containerHeight);
-        previewRenderer.setPixelRatio(window.devicePixelRatio);
+        previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap at 2x for performance
         previewRenderer.setClearColor(0x000000, 0); // Set clear color with 0 alpha (transparent)
+        previewRenderer.outputEncoding = THREE.sRGBEncoding; // Use sRGB encoding for better color accuracy
         
         // Ensure the renderer canvas fits perfectly in the container
         const rendererCanvas = previewRenderer.domElement;
@@ -992,17 +995,20 @@ function setupThreeJsScene(container, iframe) {
         // Create a render target for the iframe
         previewRenderTarget = iframe;
         
-        // Create initial texture from iframe content
+        // Create initial texture from iframe content with improved quality
         createTextureFromIframe(iframe).then(texture => {
             // Create a box geometry instead of a plane
             const geometry = new THREE.BoxGeometry(1, 1, 1);
             
-            // Create material array for each face of the cube
+            // Create material array for each face of the cube with improved settings
             const materials = Array(6).fill().map(() => {
                 return new THREE.MeshBasicMaterial({ 
                     map: texture,
                     side: THREE.DoubleSide,
-                    transparent: true
+                    transparent: true,
+                    alphaTest: 0.1, // Add alpha test to improve text edges
+                    depthWrite: false, // Disable depth write for better transparency
+                    blending: THREE.NormalBlending // Use normal blending for text
                 });
             });
             
@@ -1209,9 +1215,28 @@ async function createTextureFromIframe(iframe) {
                         return;
                     }
                     
-                    // Get iframe dimensions
+                    // Get iframe dimensions - create larger texture for better quality
                     const iframeWidth = parseInt(iframe.style.width) || 960;
                     const iframeHeight = parseInt(iframe.style.height) || 540;
+                    
+                    // Inject CSS to improve font rendering in the iframe
+                    try {
+                        const styleElement = iframe.contentDocument.createElement('style');
+                        styleElement.textContent = `
+                            * {
+                                -webkit-font-smoothing: antialiased;
+                                -moz-osx-font-smoothing: grayscale;
+                                text-rendering: optimizeLegibility;
+                            }
+                            body {
+                                margin: 0;
+                                padding: 0;
+                            }
+                        `;
+                        iframe.contentDocument.head.appendChild(styleElement);
+                    } catch (e) {
+                        console.warn('Could not inject font-smoothing CSS:', e);
+                    }
                     
                     // Use html2canvas to capture the iframe content
                     try {
@@ -1225,18 +1250,31 @@ async function createTextureFromIframe(iframe) {
                             return;
                         }
                         
+                        // Use higher scale factor for better quality
                         const canvas = await window.html2canvas(targetElement, {
                             backgroundColor: null, // Transparent background
-                            scale: 1,
+                            scale: 2, // Double the resolution for crisper text
                             width: iframeWidth,
                             height: iframeHeight,
                             logging: false,
                             allowTaint: true,
-                            useCORS: true
+                            useCORS: true,
+                            letterRendering: true, // Enhance letter rendering
+                            imageTimeout: 0, // No timeout for images
+                            removeContainer: false, // Don't remove the container
+                            foreignObjectRendering: true, // Try to use foreignObject when available
+                            x: 0,
+                            y: 0
                         });
                         
-                        // Create a texture from the canvas
+                        // Create a texture from the canvas with improved settings
                         const texture = new THREE.CanvasTexture(canvas);
+                        
+                        // Improve texture quality settings
+                        texture.anisotropy = 16; // Increase anisotropic filtering
+                        texture.minFilter = THREE.LinearFilter; // Use linear filtering for minification
+                        texture.magFilter = THREE.LinearFilter; // Use linear filtering for magnification
+                        texture.generateMipmaps = false; // Disable mipmaps to prevent text blurring
                         texture.needsUpdate = true;
                         
                         resolve(texture);
