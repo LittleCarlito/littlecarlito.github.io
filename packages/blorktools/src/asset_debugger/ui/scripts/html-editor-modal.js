@@ -67,6 +67,12 @@ let css3dScene, css3dRenderer, css3dObject;
 let webglScene, webglRenderer;
 let combinedRenderRequired = false;
 
+// Add at the top of the file, with other variables
+let lastFrameTime = 0;
+const targetFrameRate = 120; // Target 120 FPS
+const frameInterval = 1000 / targetFrameRate;
+let pendingTextureUpdate = false;
+
 /**
  * Open the HTML Editor Modal for a specific mesh
  * @param {string} meshName - The name of the mesh
@@ -843,6 +849,8 @@ function previewHtml(html) {
                 // Initialize preview based on mode
                 if (previewMode === 'css3d') {
                     showStatus('Initializing CSS3D preview mode...', 'info');
+                    // Get the iframe that may have been created earlier, or create a new one if needed
+                    const directPreviewIframe = previewContent.querySelector('iframe') || document.createElement('iframe');
                     initCSS3DPreview(canvasContainer, directPreviewIframe.cloneNode(true));
                 } else if (previewMode === 'threejs') {
                     showStatus('Initializing 3D texture preview mode...', 'info');
@@ -985,6 +993,9 @@ function setupThreeJsScene(container, iframe) {
         previewRenderer.setClearColor(0x000000, 0); // Set clear color with 0 alpha (transparent)
         previewRenderer.outputEncoding = THREE.sRGBEncoding; // Use sRGB encoding for better color accuracy
         
+        // Performance optimizations
+        previewRenderer.shadowMap.enabled = false; // Disable shadows for performance
+        
         // Ensure the renderer canvas fits perfectly in the container
         const rendererCanvas = previewRenderer.domElement;
         rendererCanvas.style.display = 'block';
@@ -997,23 +1008,30 @@ function setupThreeJsScene(container, iframe) {
         
         // Create initial texture from iframe content with improved quality
         createTextureFromIframe(iframe).then(texture => {
-            // Create a box geometry instead of a plane
-            const geometry = new THREE.BoxGeometry(1, 1, 1);
+            // Create a box geometry with optimization - lower segment count for better performance
+            const geometry = new THREE.BoxGeometry(1, 1, 1, 1, 1, 1);
             
             // Create material array for each face of the cube with improved settings
             const materials = Array(6).fill().map(() => {
                 return new THREE.MeshBasicMaterial({ 
                     map: texture,
-                    side: THREE.DoubleSide,
+                    side: THREE.FrontSide, // Only render front faces for performance
                     transparent: true,
                     alphaTest: 0.1, // Add alpha test to improve text edges
                     depthWrite: false, // Disable depth write for better transparency
-                    blending: THREE.NormalBlending // Use normal blending for text
+                    blending: THREE.NormalBlending, // Use normal blending for text
+                    fog: false, // Disable fog calculations
+                    lights: false // Disable lighting calculations
                 });
             });
             
             // Create cube mesh
             previewPlane = new THREE.Mesh(geometry, materials);
+            
+            // Optimize with frustum culling off (we know it's always visible)
+            previewPlane.frustumCulled = false;
+            
+            // Add to scene
             previewScene.add(previewPlane);
             
             // Set initial rotation but don't animate it
@@ -1091,50 +1109,85 @@ function animatePreview() {
         return;
     }
     
+    // Schedule next frame immediately for high priority
     previewAnimationId = requestAnimationFrame(animatePreview);
     
     try {
-        // Only update texture if animation is not paused and enough time has passed
-        const currentTime = Date.now();
-        if (!isPreviewAnimationPaused && previewPlane && previewRenderTarget && 
-            (currentTime - lastTextureUpdateTime > textureUpdateInterval)) {
-            
-            // Update the last update time
-            lastTextureUpdateTime = currentTime;
-            
-            // Check if iframe is still valid before trying to update texture
-            if (previewRenderTarget && document.body.contains(previewRenderTarget)) {
-                // Update texture from iframe content
-                createTextureFromIframe(previewRenderTarget).then(texture => {
-                    // Check if preview is still active before updating
-                    if (!isPreviewActive) return;
-                    
-                    if (previewPlane && previewPlane.material) {
-                        // Handle array of materials for cube
-                        if (Array.isArray(previewPlane.material)) {
-                            previewPlane.material.forEach(material => {
-                                if (material.map) {
-                                    material.map.dispose();
-                                }
-                                material.map = texture;
-                                material.needsUpdate = true;
-                            });
-                        } else {
-                            // For backwards compatibility
-                            if (previewPlane.material.map) {
-                                previewPlane.material.map.dispose();
-                            }
-                            previewPlane.material.map = texture;
-                            previewPlane.material.needsUpdate = true;
-                        }
-                    }
-                }).catch(error => {
-                    console.error('Error updating texture:', error);
-                });
-            }
+        // Throttle to target framerate
+        const now = performance.now();
+        const elapsed = now - lastFrameTime;
+        
+        if (elapsed < frameInterval) {
+            return; // Skip rendering this frame if we're ahead of schedule
         }
         
-        // Render the scene
+        // Calculate actual FPS for monitoring (once per second)
+        if (now - lastFrameTime > 1000) {
+            console.log(`Current framerate: ${Math.round(1000 / elapsed)} FPS`);
+        }
+        
+        // Remember last frame time for throttling
+        lastFrameTime = now - (elapsed % frameInterval);
+        
+        // Request texture update if it's time and we're not already processing one
+        const currentTime = Date.now();
+        if (!isPreviewAnimationPaused && previewPlane && previewRenderTarget && 
+            !pendingTextureUpdate &&
+            (currentTime - lastTextureUpdateTime > textureUpdateInterval)) {
+            
+            // Schedule texture update for when browser is idle
+            pendingTextureUpdate = true;
+            
+            // Use requestIdleCallback if available, otherwise setTimeout
+            const scheduleIdleTask = window.requestIdleCallback || 
+                                    (callback => setTimeout(callback, 1));
+            
+            scheduleIdleTask(() => {
+                // Update the last time
+                lastTextureUpdateTime = Date.now();
+                
+                // Check if iframe is still valid before trying to update texture
+                if (previewRenderTarget && document.body.contains(previewRenderTarget)) {
+                    // Update texture from iframe content
+                    createTextureFromIframe(previewRenderTarget).then(texture => {
+                        // Check if preview is still active before updating
+                        if (!isPreviewActive) return;
+                        
+                        if (previewPlane && previewPlane.material) {
+                            // Handle array of materials for cube
+                            if (Array.isArray(previewPlane.material)) {
+                                previewPlane.material.forEach(material => {
+                                    if (material.map) {
+                                        material.map.dispose();
+                                    }
+                                    material.map = texture;
+                                    material.needsUpdate = true;
+                                });
+                            } else {
+                                // For backwards compatibility
+                                if (previewPlane.material.map) {
+                                    previewPlane.material.map.dispose();
+                                }
+                                previewPlane.material.map = texture;
+                                previewPlane.material.needsUpdate = true;
+                            }
+                        }
+                        
+                        // Allow new texture updates
+                        pendingTextureUpdate = false;
+                    }).catch(error => {
+                        console.error('Error updating texture:', error);
+                        // Allow new texture updates even on error
+                        pendingTextureUpdate = false;
+                    });
+                } else {
+                    // If iframe is invalid, still reset the flag
+                    pendingTextureUpdate = false;
+                }
+            }, { timeout: 100 }); // Allow max 100ms for the idle task
+        }
+        
+        // Render the scene - this is always done at the target framerate
         if (previewRenderer && previewScene && previewCamera) {
             previewRenderer.render(previewScene, previewCamera);
         }
@@ -1355,6 +1408,12 @@ function cleanupThreeJsPreview() {
     // Remove event listener
     window.removeEventListener('resize', onPreviewResize);
     
+    // Clean up custom controls
+    const controlPanel = document.querySelector('.preview-control-panel');
+    if (controlPanel && controlPanel.parentNode) {
+        controlPanel.parentNode.removeChild(controlPanel);
+    }
+    
     // Clean up CSS3D resources
     if (css3dScene) {
         // Remove all objects from the scene
@@ -1477,6 +1536,8 @@ function cleanupThreeJsPreview() {
     isPreviewAnimationPaused = false;
     previewRenderTarget = null;
     lastTextureUpdateTime = 0;
+    pendingTextureUpdate = false;
+    lastFrameTime = 0;
     
     console.log('Three.js and CSS3D resources cleaned up');
 }
@@ -1985,9 +2046,7 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
                 
                 // Render scene
                 renderer.render(scene, camera);
-                
-                // Slow auto-rotation
-                cubeGroup.rotation.y += 0.002;
+            
             }
             
             // Start animation loop
