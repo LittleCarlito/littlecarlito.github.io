@@ -45,13 +45,16 @@
                         <label for="mesh-html-preview-mode">Preview Mode:</label>
                         <select id="mesh-html-preview-mode" class="select-input">
                             <option value="direct">Direct HTML (Better for debugging)</option>
-                            <option value="threejs">3D Texture (As seen in 3D)</option>
-                            <option value="css3d">CSS3D - Real HTML in 3D (Best quality)</option>
+                            <option value="threejs">Animated Images (low-res)</option>
+                            <option value="videotex">Animaged SVG (high-res)</option>
+                            <option value="css3d">CSS3D - Real HTML in 3D (*Best quality)</option>
                         </select>
                     </div>
                 </div>
+                <p style="font-size: 0.85em; color: #666; margin-top: 4px;">
+                    *Note: CSS3D mode supports rectangular HTML content only.
+                </p>
             </div>
-            
             <div class="settings-status" id="mesh-settings-status"></div>
         </div>
         <div class="modal-footer">
