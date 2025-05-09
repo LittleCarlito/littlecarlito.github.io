@@ -1533,16 +1533,10 @@ function navigateToErrorPosition(textarea, line, col) {
  */
 function initCSS3DPreview(container, iframe) {
     try {
-        console.log('Initializing CSS3D preview with detailed debugging');
-        
         // Directly import Three.js CSS3D renderer
         import('three/examples/jsm/renderers/CSS3DRenderer.js')
             .then(module => {
                 const { CSS3DRenderer, CSS3DObject } = module;
-                
-                console.log('CSS3D renderer loaded successfully, classes exist:', 
-                    'CSS3DRenderer:', !!CSS3DRenderer, 
-                    'CSS3DObject:', !!CSS3DObject);
                 
                 // Now that we have the correct classes, set up the CSS3D scene
                 setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject);
@@ -1565,76 +1559,33 @@ function initCSS3DPreview(container, iframe) {
     }
 }
 
-/**
- * Set up orbit controls for camera manipulation
- * @param {THREE.Camera} camera - The camera to control
- * @param {HTMLElement} domElement - The DOM element to attach controls to
- * @returns {OrbitControls} The orbit controls object
- */
-function setupOrbitControls(camera, domElement) {
-    return import('three/examples/jsm/controls/OrbitControls.js')
-        .then(module => {
-            const { OrbitControls } = module;
-            const controls = new OrbitControls(camera, domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.25;
-            controls.rotateSpeed = 0.35;
-            controls.minDistance = 1;
-            controls.maxDistance = 10;
-            controls.enablePan = true;
-            controls.panSpeed = 0.5;
-            console.log('OrbitControls created successfully');
-            return controls;
-        })
-        .catch(error => {
-            console.error('Error creating OrbitControls:', error);
-            return null;
-        });
-}
-
-/**
- * Set up CSS3D scene for HTML preview
- * @param {HTMLElement} container - The container element
- * @param {HTMLIFrameElement} iframe - The iframe containing the HTML content
- * @param {Function} CSS3DRenderer - The CSS3DRenderer class
- * @param {Function} CSS3DObject - The CSS3DObject constructor
- * @returns {boolean} True if setup was successful, false otherwise
- */
 function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
     try {
-        console.log('=== DETAILED CSS3D DEBUG ===');
         console.log('Setting up CSS3D scene with container:', container);
         
         // Clear any existing content
         container.innerHTML = '';
-        console.log('Container cleared, dimensions:', container.clientWidth, 'x', container.clientHeight);
         
         // Basic variables
         const userHtml = document.getElementById('html-editor-textarea').value || '';
-        console.log('User HTML content length:', userHtml.length);
         
         // Panel size and spacing - using much larger panels for visibility
         const panelWidth = 300;
         const panelHeight = 250;
-        console.log('Panel dimensions:', panelWidth, 'x', panelHeight);
         
         // Setup camera with greater distance to see the entire scene
         const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 1, 10000);
         camera.position.set(500, 300, 700); // Position to see cube from angle
-        console.log('Camera created at position:', camera.position);
         
         // Create CSS3D scene
         const scene = new THREE.Scene();
-        console.log('THREE.Scene created');
         
-        // Create CSS3D renderer - IMPORTANT: Use the correct renderer type!
-        console.log('Creating CSS3DRenderer...');
+        // Create CSS3D renderer
         const renderer = new CSS3DRenderer();
         renderer.setSize(container.clientWidth, container.clientHeight);
         renderer.domElement.style.position = 'absolute';
         renderer.domElement.style.top = '0';
         container.appendChild(renderer.domElement);
-        console.log('CSS3DRenderer created and added to container:', renderer.domElement);
         
         // Function to create HTML content
         const wrapContent = (content, title) => {
@@ -1701,8 +1652,6 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
             { x: 0, y: -panelHeight/2, z: 0, rx: Math.PI/2, ry: 0, rz: 0 }    // Bottom
         ];
         
-        console.log('Starting to create', positions.length, 'panels in cube arrangement...');
-        
         // Create a DOM container to hold all iframes temporarily
         // This is critical - CSS3DObject needs elements to be in the DOM!
         const tempContainer = document.createElement('div');
@@ -1710,13 +1659,10 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
         tempContainer.style.left = '-9999px'; // Off-screen
         tempContainer.style.top = '0';
         document.body.appendChild(tempContainer);
-        console.log('Created temporary DOM container for iframes');
         
-        // Create a panel for each position with visible debugging
+        // Create a panel for each position
         for (let i = 0; i < positions.length; i++) {
             try {
-                console.log(`Creating panel ${i}: ${panelTitles[i]} at position:`, positions[i]);
-                
                 // Create the element
                 const element = document.createElement('iframe');
                 element.id = `panel-iframe-${i}`;
@@ -1735,22 +1681,18 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
                 
                 // CRITICAL: Add the element to DOM before creating CSS3DObject
                 tempContainer.appendChild(element);
-                console.log(`Created iframe element with ID: ${element.id} and dimensions: ${panelWidth}x${panelHeight}, added to DOM`);
                 
                 // Add content to iframe
                 element.srcdoc = wrapContent(userHtml, panelTitles[i]);
                 elements.push(element);
                 
                 // Create a CSS3D object
-                console.log(`Creating CSS3DObject for panel ${i}`);
                 try {
                     const object = new CSS3DObject(element);
                     
                     // Set position and rotation for cube arrangement
                     object.position.set(positions[i].x, positions[i].y, positions[i].z);
                     object.rotation.set(positions[i].rx, positions[i].ry, positions[i].rz);
-                    
-                    console.log(`Set CSS3DObject position to:`, object.position, 'and rotation:', object.rotation);
                     
                     // Add to our tracking arrays
                     objects.push(object);
@@ -1773,7 +1715,6 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
         
         // Add the cube group to the scene
         scene.add(cubeGroup);
-        console.log('Created cube group with all panels:', objects.length, 'and added to scene');
         
         // Store references for cleanup
         css3dScene = scene;
@@ -1784,164 +1725,25 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
         previewRenderTarget = elements[0];
         css3dObject = objects[0];
         
-        // Debug renderer info
-        console.log('Renderer info:', 
-            'Size:', renderer.getSize ? renderer.getSize(new THREE.Vector2()) : 'N/A',
-            'Element size:', renderer.domElement.clientWidth, 'x', renderer.domElement.clientHeight
-        );
-        
-        // Set up OrbitControls with debugging
-        console.log('Setting up OrbitControls...');
+        // Set up OrbitControls
         import('three/examples/jsm/controls/OrbitControls.js').then(module => {
             const { OrbitControls } = module;
-            console.log('OrbitControls loaded');
             
-            // Create controls with debug logging
+            // Create controls
             const controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.2;
             controls.rotateSpeed = 0.5;
             controls.minDistance = 400;
             controls.maxDistance = 2000;
-            console.log('OrbitControls created', controls);
             
             // Initial look at origin
             camera.lookAt(0, 0, 0);
-            console.log('Camera looking at origin');
             
-            // Disable auto-rotation
-            controls.autoRotate = false;
-            
-            // Add rotation controls
-            const controlsContainer = document.createElement('div');
-            controlsContainer.className = 'cube-controls';
-            controlsContainer.style.position = 'absolute';
-            controlsContainer.style.bottom = '20px';
-            controlsContainer.style.left = '50%';
-            controlsContainer.style.transform = 'translateX(-50%)';
-            controlsContainer.style.zIndex = '3000';
-            controlsContainer.style.display = 'flex';
-            controlsContainer.style.flexDirection = 'column';
-            controlsContainer.style.alignItems = 'center';
-            controlsContainer.style.gap = '10px';
-            controlsContainer.style.backgroundColor = 'rgba(0,0,0,0.7)';
-            controlsContainer.style.padding = '10px';
-            controlsContainer.style.borderRadius = '5px';
-            
-            // Function to create button
-            const createButton = (label, onClick) => {
-                const btn = document.createElement('button');
-                btn.textContent = label;
-                btn.style.padding = '5px 10px';
-                btn.style.margin = '2px';
-                btn.style.cursor = 'pointer';
-                btn.style.backgroundColor = '#007bff';
-                btn.style.color = 'white';
-                btn.style.border = 'none';
-                btn.style.borderRadius = '3px';
-                btn.onclick = onClick;
-                return btn;
-            };
-            
-            // Add reset button
-            const buttonRow1 = document.createElement('div');
-            buttonRow1.style.display = 'flex';
-            buttonRow1.style.gap = '5px';
-            buttonRow1.appendChild(createButton('Reset View', () => {
-                camera.position.set(500, 300, 700);
-                camera.lookAt(0, 0, 0);
-                cubeGroup.rotation.set(0, 0, 0);
-            }));
-            controlsContainer.appendChild(buttonRow1);
-            
-            // Create views for different angles
-            const viewPositions = [
-                { label: 'Front', rotation: [0, 0, 0] },
-                { label: 'Back', rotation: [0, Math.PI, 0] },
-                { label: 'Left', rotation: [0, -Math.PI/2, 0] },
-                { label: 'Right', rotation: [0, Math.PI/2, 0] },
-                { label: 'Top', rotation: [Math.PI/2, 0, 0] },
-                { label: 'Bottom', rotation: [-Math.PI/2, 0, 0] }
-            ];
-            
-            // Add view buttons
-            const viewButtons = document.createElement('div');
-            viewButtons.style.display = 'flex';
-            viewButtons.style.flexWrap = 'wrap';
-            viewButtons.style.justifyContent = 'center';
-            viewButtons.style.gap = '5px';
-            
-            viewPositions.forEach(view => {
-                viewButtons.appendChild(createButton(view.label, () => {
-                    cubeGroup.rotation.set(...view.rotation);
-                }));
-            });
-            controlsContainer.appendChild(viewButtons);
-            
-            // Create rotation control buttons
-            const rotations = [
-                { label: '↺X', axis: 'x', value: -Math.PI/8 },
-                { label: '↻X', axis: 'x', value: Math.PI/8 },
-                { label: '↺Y', axis: 'y', value: -Math.PI/8 },
-                { label: '↻Y', axis: 'y', value: Math.PI/8 },
-                { label: '↺Z', axis: 'z', value: -Math.PI/8 },
-                { label: '↻Z', axis: 'z', value: Math.PI/8 }
-            ];
-            
-            // Create rotation button container
-            const rotContainer = document.createElement('div');
-            rotContainer.style.display = 'flex';
-            rotContainer.style.flexWrap = 'wrap';
-            rotContainer.style.justifyContent = 'center';
-            rotContainer.style.gap = '5px';
-            
-            rotations.forEach(rot => {
-                rotContainer.appendChild(createButton(rot.label, () => {
-                    if (rot.axis === 'x') cubeGroup.rotation.x += rot.value;
-                    if (rot.axis === 'y') cubeGroup.rotation.y += rot.value;
-                    if (rot.axis === 'z') cubeGroup.rotation.z += rot.value;
-                }));
-            });
-            
-            // Append rotation container
-            controlsContainer.appendChild(rotContainer);
-            container.appendChild(controlsContainer);
-            
-            // Add info overlay for direct DOM display of panel status
-            const debugInfo = document.createElement('div');
-            debugInfo.style.position = 'absolute';
-            debugInfo.style.top = '10px';
-            debugInfo.style.left = '10px';
-            debugInfo.style.background = 'rgba(0,0,0,0.7)';
-            debugInfo.style.color = 'white';
-            debugInfo.style.padding = '10px';
-            debugInfo.style.borderRadius = '5px';
-            debugInfo.style.fontFamily = 'monospace';
-            debugInfo.style.fontSize = '12px';
-            debugInfo.style.maxWidth = '300px';
-            debugInfo.style.zIndex = '2000';
-            debugInfo.innerHTML = `
-                <div style="font-weight:bold">CSS3D Debug Info:</div>
-                <div>Total panels: ${objects.length}</div>
-                <div>Scene children: ${scene.children.length}</div>
-                <div>Camera position: ${camera.position.x.toFixed(0)}, ${camera.position.y.toFixed(0)}, ${camera.position.z.toFixed(0)}</div>
-                <div>Panel size: ${panelWidth}x${panelHeight}</div>
-                <div>CSS3DRenderer used: YES</div>
-            `;
-            container.appendChild(debugInfo);
-            console.log('Added debug overlay to the DOM');
-            
-            // Animation loop with detailed frame checking
-            let frameCount = 0;
+            // Animation loop
             function animate() {
                 if (!isPreviewActive) {
-                    console.log('Preview no longer active, stopping animation loop');
                     return;
-                }
-                
-                frameCount++;
-                if (frameCount <= 5 || frameCount % 100 === 0) {
-                    console.log(`Rendering frame ${frameCount}, camera pos:`, camera.position);
                 }
                 
                 requestAnimationFrame(animate);
@@ -1952,25 +1754,15 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
                 // Render scene
                 renderer.render(scene, camera);
                 
-                // Update debug info every 30 frames
-                if (frameCount % 30 === 0) {
-                    debugInfo.innerHTML = `
-                        <div style="font-weight:bold">CSS3D Debug Info (Frame ${frameCount}):</div>
-                        <div>Total panels: ${objects.length}</div>
-                        <div>Cube rotation: X:${cubeGroup.rotation.x.toFixed(2)}, Y:${cubeGroup.rotation.y.toFixed(2)}, Z:${cubeGroup.rotation.z.toFixed(2)}</div>
-                        <div>Camera: ${camera.position.x.toFixed(0)}, ${camera.position.y.toFixed(0)}, ${camera.position.z.toFixed(0)}</div>
-                        <div>Panel size: ${panelWidth}x${panelHeight}</div>
-                        <div>CSS3DRenderer used: YES</div>
-                    `;
-                }
+                // Slow auto-rotation
+                cubeGroup.rotation.y += 0.002;
             }
             
             // Start animation loop
             animate();
-            console.log('Animation loop started');
-
+            
             // Show success status
-            showStatus('3D cube view ready - use buttons to rotate', 'success');
+            showStatus('3D cube preview ready', 'success');
             
         }).catch(error => {
             console.error('Error loading OrbitControls:', error);
