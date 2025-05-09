@@ -1,0 +1,37 @@
+/* Modal stacking styles */
+#mesh-settings-modal {
+    z-index: 9999 !important; /* Extremely high z-index to ensure it's above everything */
+}
+
+/* Ensure modal container appears above other elements */
+#mesh-settings-modal .modal-container {
+    position: relative;
+    z-index: 10000;
+}
+
+/* Make sure the modal overlay is visible */
+#mesh-settings-modal.visible {
+    display: flex !important;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* Fix for mesh settings modal to appear in front of HTML editor modal */
+#html-editor-modal {
+    z-index: 3000; /* Lower than mesh settings modal */
+}
+
+#mesh-settings-modal {
+    z-index: 4000 !important; /* Higher than HTML editor modal */
+}
+
+.control-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.control-row label {
+    width: 20px;
+    margin-bottom: 0;
+    color: #aaa;
+}

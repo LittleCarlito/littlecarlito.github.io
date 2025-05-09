@@ -90,28 +90,6 @@ function loadSettingsForMesh(meshId) {
     // Get settings for this mesh or use defaults
     const settings = meshHtmlSettings.get(meshId) || { ...defaultSettings };
     
-    // Update position inputs
-    document.getElementById('mesh-html-position-x').value = settings.position.x;
-    document.getElementById('mesh-html-position-y').value = settings.position.y;
-    document.getElementById('mesh-html-position-z').value = settings.position.z;
-    
-    // Update scale
-    const scaleInput = document.getElementById('mesh-html-scale');
-    const scaleValue = document.getElementById('mesh-html-scale-value');
-    scaleInput.value = settings.scale;
-    scaleValue.textContent = settings.scale.toFixed(1);
-    
-    // Update opacity
-    const opacityInput = document.getElementById('mesh-html-opacity');
-    const opacityValue = document.getElementById('mesh-html-opacity-value');
-    opacityInput.value = settings.opacity;
-    opacityValue.textContent = settings.opacity.toFixed(1);
-    
-    // Update checkbox settings
-    document.getElementById('mesh-html-billboard').checked = settings.billboard;
-    document.getElementById('mesh-html-interactable').checked = settings.interactable !== false; // Default to true if not set
-    document.getElementById('mesh-html-auto-show').checked = settings.autoShow;
-    
     // Update preview mode
     const previewModeSelect = document.getElementById('mesh-html-preview-mode');
     if (previewModeSelect) {
@@ -125,16 +103,6 @@ function loadSettingsForMesh(meshId) {
     
     // Update display of animation settings based on enabled state
     toggleAnimationControls(animation.enabled);
-    
-    // Update distance threshold
-    const distanceInput = document.getElementById('mesh-html-distance');
-    const distanceValue = document.getElementById('mesh-html-distance-value');
-    distanceInput.value = settings.distanceThreshold;
-    distanceValue.textContent = settings.distanceThreshold.toFixed(1);
-    
-    // Show/hide distance threshold based on auto-show setting
-    document.getElementById('distance-threshold-group').style.display = 
-        settings.autoShow ? 'block' : 'none';
 }
 
 /**
@@ -159,17 +127,6 @@ function getSettingsFromForm() {
     const animationEnabled = document.getElementById('mesh-html-animation-enabled').checked;
     
     return {
-        position: {
-            x: parseFloat(document.getElementById('mesh-html-position-x').value),
-            y: parseFloat(document.getElementById('mesh-html-position-y').value),
-            z: parseFloat(document.getElementById('mesh-html-position-z').value)
-        },
-        scale: parseFloat(document.getElementById('mesh-html-scale').value),
-        opacity: parseFloat(document.getElementById('mesh-html-opacity').value),
-        billboard: document.getElementById('mesh-html-billboard').checked,
-        interactable: document.getElementById('mesh-html-interactable').checked,
-        autoShow: document.getElementById('mesh-html-auto-show').checked,
-        distanceThreshold: parseFloat(document.getElementById('mesh-html-distance').value),
         previewMode: document.getElementById('mesh-html-preview-mode').value || defaultSettings.previewMode,
         animation: {
             enabled: animationEnabled,
@@ -295,39 +252,10 @@ export function initMeshSettingsModal() {
         }
     });
     
-    // Auto-show checkbox change event
-    const autoShowCheckbox = document.getElementById('mesh-html-auto-show');
-    autoShowCheckbox.addEventListener('change', function() {
-        // Show/hide distance threshold based on auto-show setting
-        document.getElementById('distance-threshold-group').style.display = 
-            this.checked ? 'block' : 'none';
-    });
-    
     // Animation enabled checkbox change event
     const animationEnabledCheckbox = document.getElementById('mesh-html-animation-enabled');
     animationEnabledCheckbox.addEventListener('change', function() {
         toggleAnimationControls(this.checked);
-    });
-    
-    // Scale slider change event
-    const scaleInput = document.getElementById('mesh-html-scale');
-    const scaleValue = document.getElementById('mesh-html-scale-value');
-    scaleInput.addEventListener('input', function() {
-        scaleValue.textContent = parseFloat(this.value).toFixed(1);
-    });
-    
-    // Opacity slider change event
-    const opacityInput = document.getElementById('mesh-html-opacity');
-    const opacityValue = document.getElementById('mesh-html-opacity-value');
-    opacityInput.addEventListener('input', function() {
-        opacityValue.textContent = parseFloat(this.value).toFixed(1);
-    });
-    
-    // Distance threshold slider change event
-    const distanceInput = document.getElementById('mesh-html-distance');
-    const distanceValue = document.getElementById('mesh-html-distance-value');
-    distanceInput.addEventListener('input', function() {
-        distanceValue.textContent = parseFloat(this.value).toFixed(1);
     });
     
     // Preview mode change event
