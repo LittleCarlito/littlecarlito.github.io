@@ -297,7 +297,45 @@ export function initHtmlEditorModal() {
     replayBtn.addEventListener('click', () => {
         try {
             console.log('Replay button clicked - trying to restart animation');
+
+            // Track that the replay button was clicked
+            window.lastButtonClicked = replayBtn;
+            
             let animationReplayed = false;
+            
+            // Get the current preview mode
+            const modal = document.getElementById('html-editor-modal');
+            const currentMeshId = parseInt(modal.dataset.meshId);
+            
+            // Default to 'direct' if we can't determine the mode
+            let currentPreviewMode = 'direct';
+            
+            try {
+                // Try to get preview mode from mesh settings
+                if (typeof window.getHtmlSettingsForMesh === 'function') {
+                    const meshSettings = window.getHtmlSettingsForMesh(currentMeshId);
+                    if (meshSettings && meshSettings.previewMode) {
+                        currentPreviewMode = meshSettings.previewMode;
+                        console.log(`Using preview mode for replay: ${currentPreviewMode}`);
+                    }
+                }
+            } catch (error) {
+                console.error('Error getting mesh settings for replay:', error);
+            }
+            
+            // For Three.js texture mode, call previewHtml to refresh the textures
+            // without creating a new cube (the modified previewHtml will handle this)
+            if (currentPreviewMode === 'threejs' && previewPlane) {
+                console.log('Using optimized replay for Three.js preview mode');
+                const textarea = document.getElementById('html-editor-textarea');
+                if (textarea) {
+                    previewHtml(textarea.value);
+                    animationReplayed = true;
+                    return; // Exit early, we've handled the replay
+                }
+            }
+            
+            // Original replay code for other preview modes follows
             
             // Method 1: Direct preview iframe
             const directPreviewIframe = previewContent.querySelector('iframe');
@@ -379,6 +417,46 @@ export function initHtmlEditorModal() {
                 console.log('No accessible preview render target found');
             }
             
+            // Method 4: For Three.js texture-based preview - refresh texture without creating new objects
+            if (previewPlane && previewRenderTarget && currentPreviewMode === 'threejs') {
+                console.log('Refreshing Three.js texture-based preview');
+                try {
+                    // Force texture update immediately - don't create a new mesh
+                    lastTextureUpdateTime = 0; // Reset the texture update time to force immediate update
+                    
+                    // Call createTextureFromIframe directly to update the texture
+                    createTextureFromIframe(previewRenderTarget).then(texture => {
+                        if (previewPlane && previewPlane.material) {
+                            // Handle array of materials for cube
+                            if (Array.isArray(previewPlane.material)) {
+                                previewPlane.material.forEach(material => {
+                                    if (material.map) {
+                                        material.map.dispose();
+                                    }
+                                    material.map = texture;
+                                    material.needsUpdate = true;
+                                });
+                                animationReplayed = true;
+                                showStatus('Preview texture refreshed', 'success');
+                            } else {
+                                // For backwards compatibility
+                                if (previewPlane.material.map) {
+                                    previewPlane.material.map.dispose();
+                                }
+                                previewPlane.material.map = texture;
+                                previewPlane.material.needsUpdate = true;
+                                animationReplayed = true;
+                                showStatus('Preview texture refreshed', 'success');
+                            }
+                        }
+                    }).catch(error => {
+                        console.error('Error updating texture during replay:', error);
+                    });
+                } catch (error) {
+                    console.error('Error refreshing Three.js texture:', error);
+                }
+            }
+            
             // If we didn't successfully replay the animation using any method, show warning
             if (!animationReplayed) {
                 console.log('Could not replay animation with any method');
@@ -387,6 +465,11 @@ export function initHtmlEditorModal() {
         } catch (error) {
             console.error('Error replaying animation:', error);
             showStatus('Error replaying animation: ' + error.message, 'error');
+        } finally {
+            // Clear the last button clicked after a short delay
+            setTimeout(() => {
+                window.lastButtonClicked = null;
+            }, 100);
         }
     });
     
@@ -402,6 +485,9 @@ export function initHtmlEditorModal() {
     // Preview button
     previewBtn.addEventListener('click', () => {
         try {
+            // Track that the preview button was clicked
+            window.lastButtonClicked = previewBtn;
+            
             // Find editor container and get its dimensions
             const editorContainer = modal.querySelector('.editor-container');
             const editorHeight = editorContainer ? editorContainer.clientHeight : 400;
@@ -438,6 +524,11 @@ export function initHtmlEditorModal() {
             }
         } catch (error) {
             showStatus('Error generating preview: ' + error.message, 'error');
+        } finally {
+            // Clear the last button clicked after a short delay
+            setTimeout(() => {
+                window.lastButtonClicked = null;
+            }, 100);
         }
     });
     
@@ -611,15 +702,6 @@ function previewHtml(html) {
     if (!previewContent) return;
     
     try {
-        // First clean up any existing preview
-        cleanupThreeJsPreview();
-        
-        // Set preview as active
-        isPreviewActive = true;
-        
-        // Clear the preview container
-        previewContent.innerHTML = '';
-        
         // Get current mesh ID from the modal
         const modal = document.getElementById('html-editor-modal');
         const currentMeshId = parseInt(modal.dataset.meshId);
@@ -634,11 +716,37 @@ function previewHtml(html) {
                 if (meshSettings && meshSettings.previewMode) {
                     previewMode = meshSettings.previewMode;
                     console.log(`Using preview mode from settings: ${previewMode}`);
+                    
+                    // Store the preview mode in the modal dataset for access elsewhere
+                    modal.dataset.previewMode = previewMode;
                 }
             }
         } catch (error) {
             console.error('Error getting mesh settings:', error);
         }
+        
+        // Get the originator of this call (Preview button or Replay button)
+        const replayBtn = document.getElementById('html-editor-replay');
+        const isReplayAction = replayBtn && 
+                              window.lastButtonClicked === replayBtn;
+        
+        // Only do a full cleanup if this isn't from a replay action
+        // This keeps the existing cube when replaying animations
+        if (!isReplayAction) {
+            console.log('Cleaning up previous preview');
+            // Clean up any existing preview
+            cleanupThreeJsPreview();
+            
+            // Clear the preview container
+            previewContent.innerHTML = '';
+        } else {
+            console.log('Replay action detected - preserving existing 3D scene');
+            // Just make sure preview is active
+            isPreviewActive = true;
+        }
+        
+        // Set preview as active
+        isPreviewActive = true;
         
         // The sanitizeHtml function handles wrapping fragments if needed
         const sanitizedHtml = sanitizeHtml(html);
@@ -658,19 +766,22 @@ function previewHtml(html) {
         // Store reference to the iframe
         previewRenderTarget = renderIframe;
         
-        // For direct preview without Three.js (fallback method)
-        const directPreviewIframe = document.createElement('iframe');
-        directPreviewIframe.style.width = '100%';
-        directPreviewIframe.style.height = '100%';
-        directPreviewIframe.style.border = 'none';
-        directPreviewIframe.style.backgroundColor = 'transparent';
-        directPreviewIframe.style.display = previewMode === 'direct' ? 'block' : 'none'; // Show if direct mode
-        directPreviewIframe.style.position = 'absolute';
-        directPreviewIframe.style.top = '0';
-        directPreviewIframe.style.left = '0';
-        directPreviewIframe.style.right = '0';
-        directPreviewIframe.style.bottom = '0';
-        previewContent.appendChild(directPreviewIframe);
+        // If not a replay action, create a direct preview iframe
+        if (!isReplayAction) {
+            // For direct preview without Three.js (fallback method)
+            const directPreviewIframe = document.createElement('iframe');
+            directPreviewIframe.style.width = '100%';
+            directPreviewIframe.style.height = '100%';
+            directPreviewIframe.style.border = 'none';
+            directPreviewIframe.style.backgroundColor = 'transparent';
+            directPreviewIframe.style.display = previewMode === 'direct' ? 'block' : 'none'; // Show if direct mode
+            directPreviewIframe.style.position = 'absolute';
+            directPreviewIframe.style.top = '0';
+            directPreviewIframe.style.left = '0';
+            directPreviewIframe.style.right = '0';
+            directPreviewIframe.style.bottom = '0';
+            previewContent.appendChild(directPreviewIframe);
+        }
         
         // Make sure the preview content container has proper positioning for absolute children
         previewContent.style.position = 'relative';
@@ -683,56 +794,90 @@ function previewHtml(html) {
             if (!isPreviewActive) return;
             
             try {
-                // Set up the direct preview iframe with the content
-                if (directPreviewIframe.contentDocument) {
-                    directPreviewIframe.contentDocument.open();
-                    directPreviewIframe.contentDocument.write(sanitizedHtml);
-                    directPreviewIframe.contentDocument.close();
-                    
-                    // Trigger animation if it exists
-                    setTimeout(() => {
-                        try {
-                            if (directPreviewIframe.contentWindow && directPreviewIframe.contentWindow.animateMessages) {
-                                directPreviewIframe.contentWindow.animateMessages();
+                // Set up the direct preview iframe if this isn't a replay
+                if (!isReplayAction) {
+                    const directPreviewIframe = previewContent.querySelector('iframe');
+                    if (directPreviewIframe && directPreviewIframe.contentDocument) {
+                        directPreviewIframe.contentDocument.open();
+                        directPreviewIframe.contentDocument.write(sanitizedHtml);
+                        directPreviewIframe.contentDocument.close();
+                        
+                        // Trigger animation if it exists
+                        setTimeout(() => {
+                            try {
+                                if (directPreviewIframe.contentWindow && directPreviewIframe.contentWindow.animateMessages) {
+                                    directPreviewIframe.contentWindow.animateMessages();
+                                }
+                            } catch (error) {
+                                console.log('No animation function found in direct preview');
                             }
-                        } catch (error) {
-                            console.log('No animation function found in direct preview');
-                        }
-                    }, 100);
+                        }, 100);
+                    }
                 }
             } catch (error) {
                 console.error('Error setting up direct preview:', error);
             }
             
-            // Create container for Three.js canvas
-            const canvasContainer = document.createElement('div');
-            canvasContainer.style.width = '100%';
-            canvasContainer.style.height = '100%';
-            canvasContainer.style.position = 'absolute';
-            canvasContainer.style.top = '0';
-            canvasContainer.style.left = '0';
-            canvasContainer.style.right = '0';
-            canvasContainer.style.bottom = '0';
-            canvasContainer.style.overflow = 'hidden';
-            canvasContainer.style.display = (previewMode === 'threejs' || previewMode === 'css3d') ? 'block' : 'none';
-            previewContent.appendChild(canvasContainer);
-            
-            // Add error log container
-            const errorLog = document.createElement('div');
-            errorLog.id = 'html-preview-error-log';
-            errorLog.className = 'preview-error-log';
-            errorLog.style.display = 'none';
-            previewContent.appendChild(errorLog);
-            
-            // Initialize preview based on mode
-            if (previewMode === 'css3d') {
-                showStatus('Initializing CSS3D preview mode...', 'info');
-                initCSS3DPreview(canvasContainer, directPreviewIframe.cloneNode(true));
-            } else if (previewMode === 'threejs') {
-                showStatus('Initializing 3D texture preview mode...', 'info');
-                initThreeJsPreview(canvasContainer, renderIframe);
-            } else {
-                showStatus('Preview generated in direct HTML mode', 'success');
+            // Only create containers if this isn't a replay action
+            if (!isReplayAction) {
+                // Create container for Three.js canvas
+                const canvasContainer = document.createElement('div');
+                canvasContainer.style.width = '100%';
+                canvasContainer.style.height = '100%';
+                canvasContainer.style.position = 'absolute';
+                canvasContainer.style.top = '0';
+                canvasContainer.style.left = '0';
+                canvasContainer.style.right = '0';
+                canvasContainer.style.bottom = '0';
+                canvasContainer.style.overflow = 'hidden';
+                canvasContainer.style.display = (previewMode === 'threejs' || previewMode === 'css3d') ? 'block' : 'none';
+                previewContent.appendChild(canvasContainer);
+                
+                // Add error log container
+                const errorLog = document.createElement('div');
+                errorLog.id = 'html-preview-error-log';
+                errorLog.className = 'preview-error-log';
+                errorLog.style.display = 'none';
+                previewContent.appendChild(errorLog);
+                
+                // Initialize preview based on mode
+                if (previewMode === 'css3d') {
+                    showStatus('Initializing CSS3D preview mode...', 'info');
+                    initCSS3DPreview(canvasContainer, directPreviewIframe.cloneNode(true));
+                } else if (previewMode === 'threejs') {
+                    showStatus('Initializing 3D texture preview mode...', 'info');
+                    initThreeJsPreview(canvasContainer, renderIframe);
+                } else {
+                    showStatus('Preview generated in direct HTML mode', 'success');
+                }
+            } else if (previewMode === 'threejs' && previewPlane) {
+                // For replay in threejs mode, just update the texture on the existing cube
+                console.log('Updating texture on existing 3D cube');
+                createTextureFromIframe(renderIframe).then(texture => {
+                    if (previewPlane && previewPlane.material) {
+                        // Handle array of materials for cube
+                        if (Array.isArray(previewPlane.material)) {
+                            previewPlane.material.forEach(material => {
+                                if (material.map) {
+                                    material.map.dispose();
+                                }
+                                material.map = texture;
+                                material.needsUpdate = true;
+                            });
+                            showStatus('Replay texture refreshed', 'success');
+                        } else {
+                            // For backwards compatibility
+                            if (previewPlane.material.map) {
+                                previewPlane.material.map.dispose();
+                            }
+                            previewPlane.material.map = texture;
+                            previewPlane.material.needsUpdate = true;
+                            showStatus('Replay texture refreshed', 'success');
+                        }
+                    }
+                }).catch(error => {
+                    console.error('Error updating texture during replay:', error);
+                });
             }
         };
         
@@ -896,6 +1041,41 @@ function setupThreeJsScene(container, iframe) {
 }
 
 /**
+ * Setup OrbitControls for camera interaction
+ * @param {THREE.Camera} camera - The camera to control
+ * @param {HTMLElement} domElement - The DOM element to attach controls to
+ * @returns {Promise<THREE.OrbitControls>} A promise that resolves to orbit controls
+ */
+function setupOrbitControls(camera, domElement) {
+    return new Promise((resolve, reject) => {
+        try {
+            // Import OrbitControls dynamically
+            import('three/examples/jsm/controls/OrbitControls.js')
+                .then(module => {
+                    const { OrbitControls } = module;
+                    
+                    // Create controls
+                    const controls = new OrbitControls(camera, domElement);
+                    controls.enableDamping = true;
+                    controls.dampingFactor = 0.2;
+                    controls.rotateSpeed = 0.5;
+                    controls.minDistance = 1;
+                    controls.maxDistance = 10;
+                    
+                    resolve(controls);
+                })
+                .catch(error => {
+                    console.error('Error loading OrbitControls:', error);
+                    reject(error);
+                });
+        } catch (error) {
+            console.error('Error setting up OrbitControls:', error);
+            reject(error);
+        }
+    });
+}
+
+/**
  * Animation loop for the Three.js preview
  */
 function animatePreview() {
@@ -1034,26 +1214,40 @@ async function createTextureFromIframe(iframe) {
                     const iframeHeight = parseInt(iframe.style.height) || 540;
                     
                     // Use html2canvas to capture the iframe content
-                    const canvas = await window.html2canvas(iframe.contentDocument.body, {
-                        backgroundColor: null, // Transparent background
-                        scale: 1,
-                        width: iframeWidth,
-                        height: iframeHeight,
-                        logging: false,
-                        allowTaint: true,
-                        useCORS: true
-                    });
-                    
-                    // Create a texture from the canvas
-                    const texture = new THREE.CanvasTexture(canvas);
-                    texture.needsUpdate = true;
-                    
-                    resolve(texture);
+                    try {
+                        // Make sure we're capturing content and not the empty body
+                        const targetElement = iframe.contentDocument.body;
+                        
+                        // Check if body is actually populated
+                        if (!targetElement || targetElement.children.length === 0) {
+                            console.warn('Iframe body is empty or missing children, using fallback texture');
+                            resolve(createFallbackTexture());
+                            return;
+                        }
+                        
+                        const canvas = await window.html2canvas(targetElement, {
+                            backgroundColor: null, // Transparent background
+                            scale: 1,
+                            width: iframeWidth,
+                            height: iframeHeight,
+                            logging: false,
+                            allowTaint: true,
+                            useCORS: true
+                        });
+                        
+                        // Create a texture from the canvas
+                        const texture = new THREE.CanvasTexture(canvas);
+                        texture.needsUpdate = true;
+                        
+                        resolve(texture);
+                    } catch (error) {
+                        console.error('Error capturing iframe with html2canvas:', error);
+                        resolve(createFallbackTexture());
+                    }
                 } catch (error) {
                     if (isPreviewActive) {
-                        console.error('Error capturing iframe with html2canvas:', error);
+                        console.error('Error in createTextureFromIframe:', error);
                     }
-                    // Use fallback texture instead of rejecting
                     resolve(createFallbackTexture());
                 }
             }, 200);
