@@ -23,7 +23,7 @@ const defaultSettings = {
     interactable: true,
     autoShow: true,
     distanceThreshold: 5.0,
-    previewMode: 'direct', // Default to direct HTML preview
+    previewMode: 'threejs', // Default to threejs preview instead of direct
     animation: {
         enabled: false,
         speed: 1.0,
