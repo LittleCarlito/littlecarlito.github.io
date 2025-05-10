@@ -341,7 +341,11 @@ export function createMeshVisibilityPanel() {
             // Assemble mesh item
             meshDiv.appendChild(meshToggle);
             meshDiv.appendChild(meshNameSpan);
-            meshDiv.appendChild(htmlEditorIcon);
+
+            // Only add the HTML editor icon if the mesh name contains "display"
+            if (mesh.name && mesh.name.toLowerCase().includes('display')) {
+                meshDiv.appendChild(htmlEditorIcon);
+            }
             
             return meshDiv;
         });
