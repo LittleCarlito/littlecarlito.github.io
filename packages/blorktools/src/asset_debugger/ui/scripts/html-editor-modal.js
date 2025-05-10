@@ -1454,12 +1454,6 @@ function cleanupThreeJsPreview() {
     // Remove event listener
     window.removeEventListener('resize', onPreviewResize);
     
-    // Clean up custom controls
-    const controlPanel = document.querySelector('.preview-control-panel');
-    if (controlPanel && controlPanel.parentNode) {
-        controlPanel.parentNode.removeChild(controlPanel);
-    }
-    
     // Clean up HTML texture preview elements
     const textureCanvas = document.getElementById('html-texture-canvas');
     if (textureCanvas && textureCanvas.parentNode) {
@@ -1469,22 +1463,6 @@ function cleanupThreeJsPreview() {
     const hiddenContent = document.getElementById('hidden-html-content');
     if (hiddenContent && hiddenContent.parentNode) {
         hiddenContent.parentNode.removeChild(hiddenContent);
-    }
-    
-    const previewToggle = document.getElementById('preview-toggle');
-    if (previewToggle && previewToggle.parentNode) {
-        previewToggle.parentNode.removeChild(previewToggle);
-    }
-    
-    const previewStatusMessage = document.getElementById('preview-status-message');
-    if (previewStatusMessage && previewStatusMessage.parentNode) {
-        previewStatusMessage.parentNode.removeChild(previewStatusMessage);
-    }
-    
-    // Clean up controls container
-    const controlsContainer = document.querySelector('.preview-controls');
-    if (controlsContainer && controlsContainer.parentNode) {
-        controlsContainer.parentNode.removeChild(controlsContainer);
     }
     
     // Clean up and nullify previewRenderTarget
@@ -2208,7 +2186,7 @@ function initVideoTexturePreview(container, iframe) {
         textureCanvas.style.top = '10px';
         textureCanvas.style.width = '128px';
         textureCanvas.style.height = '96px';
-        textureCanvas.style.border = '1px solid #00ffff';
+        textureCanvas.style.border = '1px solid #666fff';
         textureCanvas.style.opacity = '0.8';
         textureCanvas.style.pointerEvents = 'none';
         textureCanvas.style.zIndex = '100';
@@ -2226,24 +2204,6 @@ function initVideoTexturePreview(container, iframe) {
         hiddenContent.style.overflow = 'hidden';
         document.body.appendChild(hiddenContent);
         
-        // Add a toggle button for preview canvas
-        const previewToggle = document.createElement('button');
-        previewToggle.id = 'preview-toggle';
-        previewToggle.textContent = 'Hide Preview';
-        previewToggle.style.position = 'absolute';
-        previewToggle.style.top = '10px';
-        previewToggle.style.right = '10px';
-        previewToggle.style.background = '#333';
-        previewToggle.style.color = '#00ffff';
-        previewToggle.style.border = '1px solid #00ffff';
-        previewToggle.style.padding = '3px 8px';
-        previewToggle.style.borderRadius = '4px';
-        previewToggle.style.cursor = 'pointer';
-        previewToggle.style.fontFamily = 'monospace';
-        previewToggle.style.fontSize = '11px';
-        previewToggle.style.zIndex = '101';
-        container.appendChild(previewToggle);
-        
         // Create a controls container
         const controlsContainer = document.createElement('div');
         controlsContainer.className = 'preview-controls';
@@ -2253,64 +2213,6 @@ function initVideoTexturePreview(container, iframe) {
         controlsContainer.style.zIndex = '100';
         container.appendChild(controlsContainer);
         
-        // Add shape change button
-        const changeShapeBtn = document.createElement('button');
-        changeShapeBtn.id = 'change-shape';
-        changeShapeBtn.textContent = 'Change Shape';
-        changeShapeBtn.style.background = '#333';
-        changeShapeBtn.style.color = '#00ffff';
-        changeShapeBtn.style.border = '1px solid #00ffff';
-        changeShapeBtn.style.padding = '5px 10px';
-        changeShapeBtn.style.marginRight = '5px';
-        changeShapeBtn.style.borderRadius = '4px';
-        changeShapeBtn.style.cursor = 'pointer';
-        changeShapeBtn.style.fontFamily = 'monospace';
-        controlsContainer.appendChild(changeShapeBtn);
-        
-        // Add wireframe toggle button
-        const toggleWireframeBtn = document.createElement('button');
-        toggleWireframeBtn.id = 'toggle-wireframe';
-        toggleWireframeBtn.textContent = 'Toggle Wireframe';
-        toggleWireframeBtn.style.background = '#333';
-        toggleWireframeBtn.style.color = '#00ffff';
-        toggleWireframeBtn.style.border = '1px solid #00ffff';
-        toggleWireframeBtn.style.padding = '5px 10px';
-        toggleWireframeBtn.style.marginRight = '5px';
-        toggleWireframeBtn.style.borderRadius = '4px';
-        toggleWireframeBtn.style.cursor = 'pointer';
-        toggleWireframeBtn.style.fontFamily = 'monospace';
-        controlsContainer.appendChild(toggleWireframeBtn);
-        
-        // Add rotation toggle button
-        const toggleRotationBtn = document.createElement('button');
-        toggleRotationBtn.id = 'toggle-rotation';
-        toggleRotationBtn.textContent = 'Pause Rotation';
-        toggleRotationBtn.style.background = '#333';
-        toggleRotationBtn.style.color = '#00ffff';
-        toggleRotationBtn.style.border = '1px solid #00ffff';
-        toggleRotationBtn.style.padding = '5px 10px';
-        toggleRotationBtn.style.marginRight = '5px';
-        toggleRotationBtn.style.borderRadius = '4px';
-        toggleRotationBtn.style.cursor = 'pointer';
-        toggleRotationBtn.style.fontFamily = 'monospace';
-        controlsContainer.appendChild(toggleRotationBtn);
-        
-        // Add status message display
-        const statusMessage = document.createElement('div');
-        statusMessage.id = 'preview-status-message';
-        statusMessage.style.position = 'absolute';
-        statusMessage.style.bottom = '40px';
-        statusMessage.style.left = '10px';
-        statusMessage.style.color = '#00ffff';
-        statusMessage.style.fontFamily = 'monospace';
-        statusMessage.style.zIndex = '100';
-        statusMessage.style.background = 'rgba(0,0,0,0.5)';
-        statusMessage.style.padding = '5px 10px';
-        statusMessage.style.borderRadius = '5px';
-        statusMessage.style.opacity = '0';
-        statusMessage.style.transition = 'opacity 0.3s';
-        container.appendChild(statusMessage);
-        
         // Variables for the texture animation
         let currentShape = 'dodecahedron';
         let wireframeVisible = true;
@@ -2319,39 +2221,6 @@ function initVideoTexturePreview(container, iframe) {
         let isDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
         let animationStartTime = Date.now();
-        
-        // Toggle preview visibility
-        previewToggle.addEventListener('click', () => {
-            previewVisible = !previewVisible;
-            textureCanvas.style.display = previewVisible ? 'block' : 'none';
-            previewToggle.textContent = previewVisible ? 'Hide Preview' : 'Show Preview';
-        });
-        
-        // Change shape function
-        changeShapeBtn.addEventListener('click', () => {
-            const shapes = ['dodecahedron', 'icosahedron', 'cube', 'sphere', 'torus'];
-            const currentIndex = shapes.indexOf(currentShape);
-            currentShape = shapes[(currentIndex + 1) % shapes.length];
-            
-            createObject(currentShape);
-            showPreviewStatus(`Shape changed to ${currentShape}`);
-        });
-        
-        // Toggle wireframe
-        toggleWireframeBtn.addEventListener('click', () => {
-            wireframeVisible = !wireframeVisible;
-            if (previewPlane && previewPlane.children[0]) {
-                previewPlane.children[0].visible = wireframeVisible;
-            }
-            showPreviewStatus(wireframeVisible ? "Wireframe visible" : "Wireframe hidden");
-        });
-        
-        // Toggle rotation
-        toggleRotationBtn.addEventListener('click', () => {
-            autoRotate = !autoRotate;
-            toggleRotationBtn.textContent = autoRotate ? "Pause Rotation" : "Resume Rotation";
-            showPreviewStatus(autoRotate ? "Auto-rotation enabled" : "Auto-rotation disabled");
-        });
         
         // Show status message function
         function showPreviewStatus(message) {
@@ -2406,26 +2275,7 @@ function initVideoTexturePreview(container, iframe) {
             }
             
             // Create geometry based on shape
-            let geometry;
-            switch(shape) {
-                case 'dodecahedron':
-                    geometry = new THREE.DodecahedronGeometry(2, 0);
-                    break;
-                case 'icosahedron':
-                    geometry = new THREE.IcosahedronGeometry(2, 0);
-                    break;
-                case 'cube':
-                    geometry = new THREE.BoxGeometry(3, 3, 3);
-                    break;
-                case 'sphere':
-                    geometry = new THREE.SphereGeometry(2, 32, 16);
-                    break;
-                case 'torus':
-                    geometry = new THREE.TorusGeometry(1.5, 0.7, 16, 32);
-                    break;
-                default:
-                    geometry = new THREE.DodecahedronGeometry(2, 0);
-            }
+            let geometry = new THREE.DodecahedronGeometry(2, 0);
             
             // Create material with canvas texture
             const material = new THREE.MeshStandardMaterial({
@@ -2437,14 +2287,6 @@ function initVideoTexturePreview(container, iframe) {
             // Create mesh
             previewPlane = new THREE.Mesh(geometry, material);
             previewScene.add(previewPlane);
-            
-            // Add wireframe
-            const wireframe = new THREE.LineSegments(
-                new THREE.WireframeGeometry(geometry),
-                new THREE.LineBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.3 })
-            );
-            wireframe.visible = wireframeVisible;
-            previewPlane.add(wireframe);
             
             // Set initial rotation
             previewPlane.rotation.x = 0.5;
@@ -2652,12 +2494,6 @@ function initVideoTexturePreview(container, iframe) {
             
             requestAnimationFrame(animateScene);
             
-            // Auto-rotate the object if enabled
-            if (autoRotate && previewPlane) {
-                previewPlane.rotation.y += 0.001;
-                previewPlane.rotation.x += 0.0005;
-            }
-            
             // Render scene
             previewRenderer.render(previewScene, previewCamera);
         }
@@ -2761,319 +2597,6 @@ function createErrorTexture(title, message) {
     const texture = new THREE.CanvasTexture(canvas);
     texture.needsUpdate = true;
     return texture;
-}
-
-/**
- * Record iframe content as video
- * @param {HTMLIFrameElement} iframe - The iframe containing the HTML to record
- * @param {HTMLVideoElement} videoElement - The video element to use for playback
- * @returns {Promise<void>} Promise that resolves when recording is finished
- */
-function recordIframeToVideo(iframe, videoElement) {
-    return new Promise((resolve, reject) => {
-        try {
-            // Check if MediaRecorder is available
-            if (!window.MediaRecorder) {
-                const error = new Error('MediaRecorder API not supported in this browser');
-                console.error('VIDEO TEXTURE ERROR:', error);
-                reject(error);
-                return;
-            }
-            
-            console.log('Starting iframe recording');
-            showStatus('Recording animation...', 'info');
-            
-            // Mark as recording
-            isRecordingVideo = true;
-            
-            // Make sure the iframe content is visible
-            if (iframe && iframe.contentDocument) {
-                // Log iframe properties for debugging
-                console.log('IFRAME DEBUG INFO:', {
-                    width: iframe.clientWidth,
-                    height: iframe.clientHeight,
-                    contentLoaded: !!iframe.contentDocument,
-                    hasBody: !!(iframe.contentDocument && iframe.contentDocument.body),
-                    bodyChildCount: iframe.contentDocument && iframe.contentDocument.body ? 
-                                   iframe.contentDocument.body.childElementCount : 0,
-                    srcDoc: iframe.srcdoc ? iframe.srcdoc.substring(0, 100) + '...' : 'empty'
-                });
-                
-                // Get animation settings from mesh
-                const modal = document.getElementById('html-editor-modal');
-                const currentMeshId = parseInt(modal.dataset.meshId);
-                let recordingDuration = videoRecordingDuration; // Default 5 seconds
-                
-                // Check available media recorder MIME types
-                console.log('SUPPORTED MIME TYPES:');
-                [
-                    'video/webm',
-                    'video/webm;codecs=vp8',
-                    'video/webm;codecs=vp9',
-                    'video/mp4',
-                    'video/mpeg',
-                    'video/ogg'
-                ].forEach(mimeType => {
-                    console.log(`${mimeType}: ${MediaRecorder.isTypeSupported(mimeType)}`);
-                });
-
-                // Try to capture stream from iframe directly
-                try {
-                    console.log('Attempting direct stream capture from iframe');
-                    
-                    // Use captureStream if available (Chrome)
-                    if (iframe.contentWindow && iframe.contentWindow.document && 
-                        typeof iframe.contentWindow.document.documentElement.captureStream === 'function') {
-                        
-                        console.log('Using document.documentElement.captureStream');
-                        const stream = iframe.contentWindow.document.documentElement.captureStream(30); // 30fps
-                        
-                        if (!stream) {
-                            throw new Error('Stream capture returned null or undefined');
-                        }
-                        
-                        console.log('Stream info:', {
-                            active: stream.active,
-                            id: stream.id,
-                            tracks: stream.getTracks().map(t => ({
-                                kind: t.kind,
-                                enabled: t.enabled,
-                                readyState: t.readyState
-                            }))
-                        });
-                        
-                        startRecording(stream, videoElement, recordingDuration, resolve, reject, iframe);
-                        return;
-                    } else {
-                        console.error('VIDEO TEXTURE ERROR: captureStream method not available on iframe');
-                    }
-                } catch (err) {
-                    console.error('VIDEO TEXTURE ERROR: Error using captureStream:', err);
-                }
-                
-                // We're skipping fallbacks and reporting the error
-                const error = new Error('Direct stream capture failed and fallbacks are disabled');
-                console.error('VIDEO TEXTURE ERROR:', error);
-                reject(error);
-            } else {
-                const error = new Error('Cannot access iframe content');
-                console.error('VIDEO TEXTURE ERROR:', error);
-                reject(error);
-            }
-        } catch (error) {
-            console.error('VIDEO TEXTURE ERROR in recordIframeToVideo:', error);
-            reject(error);
-        }
-    });
-}
-
-/**
- * Start MediaRecorder to record a stream
- * @param {MediaStream} stream - The media stream to record
- * @param {HTMLVideoElement} videoElement - The video element to use for playback
- * @param {number} duration - Duration to record in ms
- * @param {Function} resolve - Promise resolve function
- * @param {Function} reject - Promise reject function
- * @param {HTMLIFrameElement} iframe - The iframe containing the content to animate
- */
-function startRecording(stream, videoElement, duration, resolve, reject, iframe) {
-    try {
-        // Make sure stream is valid
-        if (!stream || !stream.active) {
-            const error = new Error('Invalid or inactive MediaStream');
-            console.error('VIDEO TEXTURE ERROR:', error);
-            isRecordingVideo = false;
-            reject(error);
-            return;
-        }
-        
-        console.log('Starting video recording with MediaRecorder');
-        const chunks = [];
-        
-        // Use only vp8 codec which is more widely supported
-        const mimeType = 'video/webm;codecs=vp8';
-        
-        // Check if this specific mime type is supported
-        if (!MediaRecorder.isTypeSupported(mimeType)) {
-            const error = new Error(`MediaRecorder does not support ${mimeType}`);
-            console.error('VIDEO TEXTURE ERROR:', error);
-            console.error('Supported mime types:', {
-                'video/webm': MediaRecorder.isTypeSupported('video/webm'),
-                'video/webm;codecs=vp8': MediaRecorder.isTypeSupported('video/webm;codecs=vp8'),
-                'video/webm;codecs=vp9': MediaRecorder.isTypeSupported('video/webm;codecs=vp9'),
-                'video/mp4': MediaRecorder.isTypeSupported('video/mp4')
-            });
-            isRecordingVideo = false;
-            reject(error);
-            return;
-        }
-        
-        // Create recorder with debug logging
-        console.log('Creating MediaRecorder with mimetype:', mimeType);
-        const recorder = new MediaRecorder(stream, {mimeType});
-        console.log('MediaRecorder state:', recorder.state);
-        console.log('MediaRecorder mimetype:', recorder.mimeType);
-        
-        // Store reference for cleanup
-        videoRecorder = recorder;
-        
-        // Add event handlers with detailed logging
-        recorder.onstart = () => {
-            console.log('MediaRecorder started');
-        };
-        
-        recorder.onerror = (event) => {
-            console.error('VIDEO TEXTURE ERROR: MediaRecorder error:', event.error);
-            isRecordingVideo = false;
-            reject(event.error);
-        };
-        
-        recorder.ondataavailable = (e) => {
-            console.log('MediaRecorder data available, size:', e.data.size);
-            if (e.data.size > 0) {
-                chunks.push(e.data);
-            }
-        };
-        
-        recorder.onstop = () => {
-            try {
-                console.log('MediaRecorder stopped, chunks:', chunks.length);
-                
-                if (chunks.length === 0) {
-                    const error = new Error('No video data was recorded');
-                    console.error('VIDEO TEXTURE ERROR:', error);
-                    isRecordingVideo = false;
-                    reject(error);
-                    return;
-                }
-                
-                const blob = new Blob(chunks, { type: mimeType });
-                console.log('Created video blob, size:', blob.size);
-                
-                const url = URL.createObjectURL(blob);
-                console.log('Created object URL for video:', url);
-                
-                // Set up detailed handlers for video loading
-                videoElement.onerror = (e) => {
-                    console.error('VIDEO TEXTURE ERROR: Video element error:', e);
-                    isRecordingVideo = false;
-                    reject(new Error('Error loading video from recorded data'));
-                };
-                
-                videoElement.onloadstart = () => console.log('Video loadstart event');
-                videoElement.onloadeddata = () => console.log('Video loadeddata event');
-                videoElement.onprogress = () => console.log('Video progress event');
-                
-                videoElement.onloadedmetadata = () => {
-                    console.log('Video metadata loaded:', {
-                        duration: videoElement.duration,
-                        size: `${videoElement.videoWidth}x${videoElement.videoHeight}`,
-                        readyState: videoElement.readyState
-                    });
-                    isRecordingVideo = false;
-                    showStatus('Recording complete!', 'success');
-                    resolve();
-                };
-                
-                // Assign src to the video element
-                videoElement.src = url;
-                console.log('Set video element src to blob URL');
-                
-            } catch (err) {
-                console.error('VIDEO TEXTURE ERROR in recorder.onstop:', err);
-                isRecordingVideo = false;
-                reject(err);
-            }
-        };
-        
-        // Try to start any animation in the iframe
-        try {
-            console.log('Attempting to start animation in iframe');
-            if (iframe && iframe.contentWindow && iframe.contentWindow.animateMessages) {
-                console.log('Calling animateMessages() function in iframe');
-                iframe.contentWindow.animateMessages();
-            } else {
-                console.warn('No animateMessages function found in iframe');
-            }
-        } catch (err) {
-            console.error('VIDEO TEXTURE ERROR: Error starting animation:', err);
-        }
-        
-        // Start recording with a delay to ensure animation has started
-        console.log('Starting MediaRecorder with delay');
-        setTimeout(() => {
-            try {
-                recorder.start();
-                console.log('MediaRecorder started');
-                
-                // Stop after specified duration
-                setTimeout(() => {
-                    if (recorder && recorder.state !== 'inactive') {
-                        console.log('Stopping MediaRecorder after', duration, 'ms');
-                        recorder.stop();
-                    }
-                }, duration);
-            } catch (err) {
-                console.error('VIDEO TEXTURE ERROR: Failed to start recording:', err);
-                isRecordingVideo = false;
-                reject(err);
-            }
-        }, 100);
-    } catch (error) {
-        console.error('VIDEO TEXTURE ERROR in startRecording:', error);
-        isRecordingVideo = false;
-        reject(error);
-    }
-}
-
-/**
- * Restart video texture recording (for replay)
- * @param {HTMLIFrameElement} iframe - The iframe containing the HTML content
- * @returns {Promise<void>} Promise that resolves when video is restarted
- */
-function restartVideoTexture(iframe) {
-    return new Promise((resolve, reject) => {
-        try {
-            if (previewRenderTarget && previewRenderTarget.hiddenContent) {
-                console.log('Restarting HTML animation');
-                
-                // Get the chat animation div from the hidden content
-                const chatAnimation = previewRenderTarget.hiddenContent.querySelector('#chat-animation');
-                
-                if (chatAnimation) {
-                    // Get the current HTML content
-                    const currentHtml = document.getElementById('html-editor-textarea').value || '';
-                    const sanitizedHtml = sanitizeHtml(currentHtml);
-                    
-                    // Update the chat animation content with fresh HTML
-                    chatAnimation.innerHTML = sanitizedHtml;
-                    
-                    // Call the animateMessages function to restart the animation
-                    if (window.animateMessages) {
-                        window.animateMessages();
-                    }
-                    
-                    // Ensure the texture gets updated
-                    if (previewRenderTarget.texture) {
-                        previewRenderTarget.texture.needsUpdate = true;
-                    }
-                    
-                    // Show status
-                    showStatus('Animation replayed', 'success');
-                        resolve();
-            } else {
-                    console.warn('No chat animation element found');
-                    reject(new Error('No animation container found'));
-                }
-            } else {
-                console.warn('Preview render target not initialized or missing hidden content');
-                reject(new Error('Preview not properly initialized'));
-            }
-        } catch (error) {
-            console.error('Error restarting HTML texture animation:', error);
-            reject(error);
-        }
-    });
 }
 
 // Make sure both the default export and named exports are available
