@@ -1,3 +1,4 @@
+/* Base modal styles */
 #html-editor-modal {
     display: none;
 }
@@ -7,129 +8,70 @@
     z-index: 3000; /* Ensure it's above other UI elements */
 }
 
-#html-editor-modal .modal-container {
+.modal-container {
     width: 80%;
-    max-width: 800px;
-    height: 80vh;
-    display: flex;
-    flex-direction: column;
-    background-color: var(--panel-bg);
-    border: 1px solid var(--panel-border);
-    border-radius: 4px;
-    overflow: hidden;
+    height: 85%;
+    max-width: 1000px;
+    max-height: 600px;
 }
 
-#html-editor-modal .modal-body {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    overflow: hidden;
-    padding: 15px;
-    box-sizing: border-box;
+/* Preview mode class-based styling */
+.preview-mode .dropdowns-container {
+    display: none !important;
 }
 
-#html-editor-modal .editor-preview-container {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
+.preview-mode #html-editor-preview {
+    display: none !important;
 }
 
-#html-editor-modal .editor-btn#html-editor-reset, .editor-btn#html-editor-replay {
-    background-color: transparent !important;
-    border: 2px solid var(--button-color);
-    color: var(--button-color);
-    padding: 5px 10px;
-    border-radius: 3px;
-    transition: background-color 0.3s, color 0.3s;
+.preview-mode #html-editor-reset {
+    display: inline-block !important;
 }
 
-#html-editor-modal .editor-btn#html-editor-reset:hover {
-    background-color: var(--button-color);
-    color: white;
-}
-
-#html-editor-reset:hover, #html-editor-replay:hover {
-    background: #007bff;
-    color: white;
-}
-
-/* Modal stacking styles */
-#html-editor-modal {
-    z-index: 3000; /* Lower than mesh settings modal (4000) */
-}
-
-/* Fix horizontal scrollbar issue */
-#html-editor-modal .modal-body {
-    overflow-x: hidden;
-    padding: 15px;
-    box-sizing: border-box;
-    width: 100%;
-}
-
-#html-editor-settings {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-#html-editor-settings svg {
-    width: 14px;
-    height: 14px;
-}
-
-/* Enhanced preview container styles */
-#html-preview-container {
+/* Preview mode styling for containers */
+.preview-mode .editor-preview-container {
+    display: block;
+    height: 400px;
     min-height: 400px;
-    height: 100%;
-    padding: 0;
-    overflow: auto;
-    position: relative;
-    box-sizing: border-box;
+}
+
+/* Dropdown container styling */
+.dropdowns-container {
     display: flex;
-    flex-direction: column;
-    width: 100%;
-}
-
-#html-preview-content {
-    width: 100%;
-    height: 100%;
-    min-height: 300px;
-    background-color: transparent;
-    position: relative;
-    overflow: auto;
-    flex: 1;
-}
-
-#html-preview-content iframe {
-    border: none;
-    width: 100%;
-    height: 100%;
-    min-height: 300px;
-    background-color: transparent;
-}
-
-.editor-options {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background-color: rgba(30, 30, 30, 0.5);
+    border-radius: 4px;
+    border: 1px solid var(--panel-border);
+    margin-right: 10px;
     flex-wrap: wrap;
-    align-items: center;
+    justify-content: center;
 }
 
-/* Dropdown container styles */
-.dropdown-container {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    margin-right: 5px;
-}
-
-.dropdown-container label {
+/* Dropdown hint text */
+.dropdown-hint {
     font-size: 12px;
+    color: var(--label-text);
     white-space: nowrap;
-    color: var(--text-color);
+    font-style: italic;
+}
+
+/* Dropdown styling */
+.editor-dropdown {
+    max-width: 60px;
+    font-size: 12px;
+    padding: 4px 8px;
+    background-color: var(--input-bg);
+    color: var(--input-text);
+    border: 1px solid var(--panel-border);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#html-render-type {
+    max-width: 100px;
 }
 
 .editor-dropdown:hover {
@@ -139,173 +81,7 @@
 .editor-dropdown:focus {
     outline: none;
     border-color: var(--button-color);
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-}
-
-.preview-error-log {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    max-height: 150px;
-    overflow-y: auto;
-    background-color: rgba(0, 0, 0, 0.8);
-    color: #f8f9fa;
-    font-family: monospace;
-    font-size: 12px;
-    padding: 10px;
-    z-index: 100;
-    border-top: 1px solid #e83e8c;
-}
-
-.error-entry {
-    margin-bottom: 4px;
-    padding: 4px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.error-time {
-    color: #e83e8c;
-    font-weight: bold;
-    margin-right: 5px;
-}
-
-.editor-controls {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-    width: 100%;
-}
-
-.editor-options {
-    display: flex;
-    gap: 10px;
-}
-
-.editor-btn {
-    background-color: var(--button-color);
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    border-radius: 3px;
-}
-
-.editor-btn:hover {
-    background-color: #0d74c7;
-}
-
-.editor-container {
-    flex: 1;
-    min-height: 200px;
-    margin-bottom: 15px;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.code-editor {
-    width: 100%;
-    height: 100%;
-    min-height: 200px;
-    font-family: monospace;
-    padding: 10px;
-    background-color: var(--panel-bg-lighter);
-    color: var(--text-color);
-    border: 1px solid var(--panel-border);
-    resize: none;
-    font-size: 14px;
-    line-height: 1.5;
-    box-sizing: border-box;
-    overflow-x: auto;
-}
-
-.editor-preview-container {
-    border: 1px solid var(--panel-border);
-    background-color: #fff;
-    padding: 15px;
-    border-radius: 3px;
-    margin-bottom: 15px;
-    display: none;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.editor-preview-container h4 {
-    margin-top: 0;
-    color: #333;
-    font-size: 14px;
-    margin-bottom: 10px;
-    border-bottom: 1px solid #ddd;
-    padding-bottom: 5px;
-}
-
-.html-preview {
-    background-color: white;
-    color: #333;
-    min-height: 150px;
-    overflow: auto;
-    padding: 10px;
-    border-radius: 3px;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.modal-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.editor-status {
-    font-size: 14px;
-}
-
-.editor-status.success {
-    color: #4CAF50;
-}
-
-.editor-status.error {
-    color: #F44336;
-}
-
-.editor-status.info {
-    color: var(--button-color);
-}
-
-.editor-buttons {
-    display: flex;
-    gap: 10px;
-}
-
-/* HTML Editor Modal Styles */
-
-/* Main modal container */
-#html-editor-modal.visible {
-    display: flex;
-}
-
-.editor-container {
-    position: relative;
-    width: 100%;
-    height: 400px;
-    border: 1px solid var(--panel-border);
-    margin-bottom: 15px;
-    background-color: rgba(0, 0, 0, 0.2);
-}
-
-.html-editor-textarea {
-    width: 100%;
-    height: 100%;
-    padding: 10px;
-    font-family: monospace;
-    font-size: 14px;
-    line-height: 1.5;
-    color: var(--input-text);
-    background-color: var(--input-bg);
-    border: none;
-    resize: none;
+    box-shadow: 0 0 0 2px rgba(30, 136, 229, 0.25);
 }
 
 /* Format button styling */
@@ -331,44 +107,59 @@
     background-color: rgba(30, 136, 229, 0.2);
 }
 
-/* Editor options container */
-.editor-options {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 10px;
-    flex-wrap: wrap;
+/* Editor container */
+.editor-container {
+    position: relative;
+    width: 100%;
+    height: 400px;
+    border: 1px solid var(--panel-border);
+    margin-bottom: 15px;
+    background-color: rgba(0, 0, 0, 0.2);
 }
 
-/* Dropdown styling */
-.editor-dropdown {
-    padding: 6px 10px;
-    background-color: var(--input-bg);
-    color: var(--input-text);
-    border: 1px solid var(--panel-border);
+.html-editor-textarea {
+    width: 100%;
+    height: 100%;
+    padding: 10px;
     font-family: monospace;
     font-size: 14px;
-    width: 100%;
+    line-height: 1.5;
+    color: var(--input-text);
+    background-color: var(--input-bg);
+    border: none;
+    resize: none;
 }
 
-.dropdown-container {
-    min-width: 140px;
-    flex: 1;
-}
-
-/* Editor button styling */
+/* Button styling */
 .editor-btn {
     padding: 6px 12px;
     background-color: var(--button-color);
     color: white;
     border: none;
+    border-radius: 3px;
     cursor: pointer;
     font-size: 14px;
     font-family: monospace;
     transition: background-color 0.3s ease;
+    font-weight: bold;
+    min-width: 80px;
 }
 
 .editor-btn:hover {
     background-color: #0d74c7;
+}
+
+/* Reset button styling */
+#html-editor-reset {
+    display: none;
+    background-color: transparent !important;
+    border: 2px solid var(--button-color);
+    color: var(--button-color);
+}
+
+#html-editor-reset:hover {
+    background-color: var(--button-color) !important;
+    color: white;
 }
 
 /* Preview container */
@@ -391,7 +182,7 @@
     position: relative;
 }
 
-/* Status bar */
+/* Status messages */
 .editor-status {
     padding: 5px 10px;
     margin-right: 10px;
@@ -418,13 +209,18 @@
 /* Editor controls */
 .editor-controls {
     margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
 }
 
-.editor-controls label {
-    display: block;
-    margin-bottom: 5px;
-    font-size: 14px;
-    color: var(--label-text);
+.editor-options {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    align-items: center;
 }
 
 /* Error display */
@@ -437,7 +233,6 @@
     overflow-y: auto;
 }
 
-/* Textarea with errors */
 .html-editor-textarea.has-errors {
     border: 1px solid #e74c3c;
 }
@@ -468,34 +263,6 @@
     color: #f8f9fa;
 }
 
-/* Preview controls */
-.preview-controls {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    display: flex;
-    gap: 5px;
-    z-index: 100;
-}
-
-.preview-control-btn {
-    width: 30px;
-    height: 30px;
-    background-color: rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.preview-control-btn:hover {
-    background-color: rgba(0, 0, 0, 0.8);
-}
-
 /* Mobile responsiveness */
 @media (max-width: 768px) {
     .editor-options {
@@ -505,102 +272,4 @@
     .dropdown-container {
         width: 100%;
     }
-}
-
-/* Add new rules to handle preview mode visibility at the top */
-/* Hide dropdowns when preview is showing */
-#html-preview-container:not([style*="display: none"]) ~ .editor-controls .dropdown-container,
-#html-preview-container[style*="display: block"] ~ .editor-controls .dropdown-container {
-    display: none;
-}
-
-/* Hide preview button when preview is active */
-#html-preview-container:not([style*="display: none"]) ~ .editor-controls #html-editor-preview,
-#html-preview-container[style*="display: block"] ~ .editor-controls #html-editor-preview {
-    display: none;
-}
-
-/* Show reset button when preview is active */
-#html-preview-container:not([style*="display: none"]) ~ .editor-controls #html-editor-reset,
-#html-preview-container[style*="display: block"] ~ .editor-controls #html-editor-reset {
-    display: inline-block !important;
-}
-
-/* Remove old rules that weren't working and add new more specific rules */
-/* Hide the dropdowns container when preview is showing */
-#html-preview-container:not([style*="display: none"]) ~ .editor-controls #editor-dropdowns-container {
-    display: none !important;
-}
-
-/* Add styling for the new dropdown layout */
-.dropdowns-container {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background-color: rgba(30, 30, 30, 0.5);
-    border-radius: 4px;
-    border: 1px solid var(--panel-border);
-    margin-right: 10px;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
-/* Style the dropdown hint text */
-.dropdown-hint {
-    font-size: 12px;
-    color: var(--label-text);
-    white-space: nowrap;
-    font-style: italic;
-}
-
-/* Set max-width for dropdowns */
-.editor-dropdown {
-    max-width: 60px;
-    font-size: 12px;
-    padding: 4px 8px;
-    background-color: var(--input-bg);
-    color: var(--input-text);
-    border: 1px solid var(--panel-border);
-    border-radius: 3px;
-    cursor: pointer;
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.editor-dropdown:hover {
-    border-color: var(--button-color);
-}
-
-.editor-dropdown:focus {
-    outline: none;
-    border-color: var(--button-color);
-    box-shadow: 0 0 0 2px rgba(30, 136, 229, 0.25);
-}
-
-/* Make the editor buttons stand out more */
-.editor-btn {
-    padding: 6px 12px;
-    background-color: var(--button-color);
-    color: white;
-    border: none;
-    border-radius: 3px;
-    cursor: pointer;
-    font-size: 14px;
-    font-family: monospace;
-    transition: background-color 0.3s ease;
-    font-weight: bold;
-    min-width: 80px;
-}
-
-/* Ensure buttons visibility is properly controlled */
-#html-preview-container:not([style*="display: none"]) ~ .editor-controls #html-editor-preview {
-    display: none !important;
-}
-
-#html-preview-container:not([style*="display: none"]) ~ .editor-controls #html-editor-reset {
-    display: inline-block !important;
-}
-
-#html-render-type {
-    max-width: 100px;
 }

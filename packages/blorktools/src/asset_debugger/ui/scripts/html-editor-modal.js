@@ -433,25 +433,20 @@ export function initHtmlEditorModal() {
     // Preview button
     previewBtn.addEventListener('click', () => {
         try {
-            // Track that the preview button was clicked
-            window.lastButtonClicked = previewBtn;
-            
             // Find editor container and get its dimensions
             const editorContainer = modal.querySelector('.editor-container');
-            const editorHeight = editorContainer ? editorContainer.clientHeight : 400;
             
             // Generate the preview
             previewHtml(textarea.value);
             
-            // Set the preview container to take up the full editor space
-            previewContainer.style.display = 'block';
-            previewContainer.style.height = `${editorHeight}px`;
-            previewContainer.style.minHeight = '400px';
+            // Add preview mode class to modal for CSS control
+            modal.classList.add('preview-mode');
             
-            // Hide textarea and show reset button
+            // Show preview container
+            previewContainer.style.display = 'block';
+            
+            // Hide textarea
             textarea.style.display = 'none';
-            previewBtn.style.display = 'none';
-            resetBtn.style.display = 'inline-block';
             
             // Hide editor container
             if (editorContainer) {
@@ -472,20 +467,19 @@ export function initHtmlEditorModal() {
             }
         } catch (error) {
             showStatus('Error generating preview: ' + error.message, 'error');
-        } finally {
-            // Clear the last button clicked after a short delay
-            setTimeout(() => {
-                window.lastButtonClicked = null;
-            }, 100);
         }
     });
     
     // Reset button
     resetBtn.addEventListener('click', () => {
+        // Remove preview mode class from modal
+        modal.classList.remove('preview-mode');
+        
+        // Hide preview container
         previewContainer.style.display = 'none';
+        
+        // Show textarea
         textarea.style.display = 'block';
-        previewBtn.style.display = 'inline-block';
-        resetBtn.style.display = 'none';
         
         // Find editor container only within the modal
         const editorContainer = modal.querySelector('.editor-container');
