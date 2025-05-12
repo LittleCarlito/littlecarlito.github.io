@@ -35,7 +35,14 @@
                         <option value="longExposure">Long Exposure</option>
                     </select>
                 </div>
+                
+                <!-- Preview options checkboxes -->
+                <div class="preview-options">
+                    <!-- Removed duplicate checkbox -->
+                </div>
             </div>
+            <!-- Preview mode label - only visible in preview mode -->
+            <div class="preview-mode-label">Preview:</div>
             <!-- Buttons -->
             <button id="html-editor-preview" class="editor-btn" title="Preview">Preview</button>
             <button id="html-editor-reset" class="editor-btn" title="Reset">Reset</button>
@@ -43,6 +50,10 @@
         
         <div class="editor-container">
             <div class="format-btn-container">
+                <label class="checkbox-container">
+                    <input type="checkbox" id="show-wireframe" checked>
+                    <span class="checkbox-label">Show Borders</span>
+                </label>
                 <button id="html-editor-format" class="format-btn" title="Format HTML">Format</button>
             </div>
             <textarea id="html-editor-textarea" class="code-editor html-editor-textarea" placeholder="Enter HTML code here..."></textarea>

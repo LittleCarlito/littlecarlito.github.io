@@ -111,10 +111,21 @@
     background-color: rgba(30, 30, 30, 0.8);
     border-bottom: 1px solid var(--panel-border);
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     align-items: center;
-    padding-right: 10px;
+    padding: 0 10px;
     z-index: 10;
+}
+
+/* Checkbox styling in the format bar */
+.format-btn-container .checkbox-container {
+    color: #ddd;
+    font-size: 12px;
+    margin-right: auto;
+}
+
+.format-btn-container .checkbox-label {
+    font-weight: normal;
 }
 
 .html-editor-textarea {
@@ -397,4 +408,48 @@
 #preview-info-content br + strong {
     margin-top: 10px;
     display: inline-block;
+}
+
+/* Preview options styling */
+.preview-options {
+    display: flex;
+    align-items: center;
+    margin-left: 15px;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    color: var(--label-text);
+    cursor: pointer;
+    user-select: none;
+}
+
+.checkbox-container input[type="checkbox"] {
+    margin-right: 5px;
+    cursor: pointer;
+}
+
+.checkbox-label {
+    white-space: nowrap;
+}
+
+/* Preview mode label styling */
+.preview-mode-label {
+    display: none;
+    font-size: 14px;
+    color: white;
+    margin-right: 10px;
+    font-weight: bold;
+}
+
+/* Show the preview mode label only in preview mode */
+.preview-mode .preview-mode-label {
+    display: block;
+}
+
+/* Hide border checkbox in preview mode */
+.preview-mode .format-btn-container .checkbox-container {
+    display: none;
 }

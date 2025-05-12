@@ -45,6 +45,9 @@ const defaultSettings = {
     animation: {
         type: 'none',
         enabled: false
+    },
+    display: {
+        showBorders: true
     }
 };
 
@@ -178,6 +181,15 @@ function loadSettingsForMesh(meshId) {
             : 'none';
         animationTypeSelect.value = animationType;
     }
+    
+    // Update show borders checkbox
+    const showWireframeCheckbox = document.getElementById('show-wireframe');
+    if (showWireframeCheckbox && settings.display) {
+        showWireframeCheckbox.checked = settings.display.showBorders !== undefined 
+            ? settings.display.showBorders 
+            : true;
+        window.showPreviewBorders = showWireframeCheckbox.checked;
+    }
 }
 
 /**
@@ -195,12 +207,17 @@ export function getHtmlSettingsForMesh(meshId) {
  */
 function getSettingsFromForm() {
     const animationType = document.getElementById('html-animation-type').value;
+    const showWireframeCheckbox = document.getElementById('show-wireframe');
+    
     return {
         previewMode: document.getElementById('html-render-type').value || defaultSettings.previewMode,
         playbackSpeed: parseFloat(document.getElementById('html-playback-speed').value),
         animation: {
             type: animationType,
             enabled: animationType !== 'none'
+        },
+        display: {
+            showBorders: showWireframeCheckbox ? showWireframeCheckbox.checked : true
         }
     };
 }
@@ -318,6 +335,12 @@ export function initHtmlEditorModal() {
     const playbackSpeedSelect = document.getElementById('html-playback-speed');
     const animationTypeSelect = document.getElementById('html-animation-type');
     
+    // Get additional UI controls
+    const showWireframeCheckbox = document.getElementById('show-wireframe');
+    
+    // Default state for wireframe display
+    window.showPreviewBorders = showWireframeCheckbox ? showWireframeCheckbox.checked : true;
+    
     // Make the modal available globally - do this first before any potential errors
     window.openEmbeddedHtmlEditor = openEmbeddedHtmlEditor;
     window.getHtmlSettingsForMesh = getHtmlSettingsForMesh;
@@ -380,6 +403,20 @@ export function initHtmlEditorModal() {
                 const settings = getSettingsFromForm();
                 saveSettingsForMesh(meshId, settings);
                 showStatus(`Animation type set to: ${animationTypeSelect.options[animationTypeSelect.selectedIndex].text}`, 'info');
+            }
+        });
+    }
+    
+    // Show Borders checkbox
+    if (showWireframeCheckbox) {
+        showWireframeCheckbox.addEventListener('change', () => {
+            window.showPreviewBorders = showWireframeCheckbox.checked;
+            
+            // If preview is active, update it immediately
+            if (isPreviewActive && previewRenderTarget) {
+                // Force a texture update
+                lastTextureUpdateTime = 0;
+                showStatus(`Borders ${showWireframeCheckbox.checked ? 'enabled' : 'disabled'}`, 'info');
             }
         });
     }
@@ -447,12 +484,6 @@ export function initHtmlEditorModal() {
             // Add preview mode class to modal for CSS control
             modal.classList.add('preview-mode');
             
-            // Find label only within the modal
-            const label = modal.querySelector('.editor-controls label');
-            if (label) {
-                label.textContent = 'Preview:'; // Update label text
-            }
-            
             // Show a message about the current preview mode
             const renderTypeSelect = document.getElementById('html-render-type');
             if (renderTypeSelect) {
@@ -468,12 +499,6 @@ export function initHtmlEditorModal() {
     resetBtn.addEventListener('click', () => {
         // Remove preview mode class from modal
         modal.classList.remove('preview-mode');
-        
-        // Find label only within the modal
-        const label = modal.querySelector('.editor-controls label');
-        if (label) {
-            label.textContent = 'Edit HTML for this mesh:'; // Restore label text
-        }
         
         // Clean up Three.js resources
         cleanupThreeJsPreview();
@@ -1369,16 +1394,18 @@ async function createTextureFromIframe(iframe) {
                         ctx.fillStyle = '#FFFFFF';
                         ctx.fillRect(0, 0, canvas.width, canvas.height);
                         
-                        // Add a border to make the texture boundary visible
-                        ctx.strokeStyle = '#3498db';
-                        ctx.lineWidth = 8;
-                        ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
-                        
-                        // Add text to indicate it's a placeholder
-                        ctx.fillStyle = '#333333';
-                        ctx.font = 'bold 24px Arial';
-                        ctx.textAlign = 'center';
-                        ctx.fillText('HTML Content', canvas.width / 2, canvas.height / 2);
+                        // Add a border to make the texture boundary visible if enabled
+                        if (window.showPreviewBorders) {
+                            ctx.strokeStyle = '#3498db';
+                            ctx.lineWidth = 8;
+                            ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+                            
+                            // Add text to indicate it's a placeholder
+                            ctx.fillStyle = '#333333';
+                            ctx.font = 'bold 24px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.fillText('HTML Content', canvas.width / 2, canvas.height / 2);
+                        }
                         
                         const texture = new THREE.CanvasTexture(canvas);
                         texture.needsUpdate = true;
@@ -1412,7 +1439,7 @@ async function createTextureFromIframe(iframe) {
                         body {
                             margin: 0;
                             padding: 15px;
-                            border: 5px solid #3498db;
+                            ${window.showPreviewBorders ? 'border: 5px solid #3498db;' : ''}
                             box-sizing: border-box;
                             background-color: white;
                             font-size: 20px !important; /* Increase base font size for better readability */
@@ -1426,8 +1453,9 @@ async function createTextureFromIframe(iframe) {
                             left: 0;
                             right: 0;
                             bottom: 0;
-                            background-image: linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
-                                             linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+                            background-image: ${window.showPreviewBorders ? 
+                                'linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px)' : 
+                                'none'};
                             background-size: 20px 20px;
                             pointer-events: none;
                             z-index: -1;
