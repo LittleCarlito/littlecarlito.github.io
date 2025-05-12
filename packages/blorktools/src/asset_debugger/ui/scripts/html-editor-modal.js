@@ -125,8 +125,8 @@ export function openEmbeddedHtmlEditor(meshName, meshId) {
         loadHtmlForMesh(meshId).then(html => {
             if (textarea) textarea.value = html || '';
             
-            // Hide preview by default
-            if (previewContainer) previewContainer.style.display = 'none';
+            // Ensure we're not in preview mode when opening the editor
+            modal.classList.remove('preview-mode');
             
             // Show the modal by adding the visible class
             modal.classList.add('visible');
@@ -142,6 +142,9 @@ export function openEmbeddedHtmlEditor(meshName, meshId) {
             console.error('Error loading HTML content:', error);
             if (textarea) textarea.value = '';
             if (statusEl) showStatus(`Error loading HTML: ${error.message}`, 'error');
+            
+            // Ensure we're not in preview mode when opening the editor
+            modal.classList.remove('preview-mode');
             
             // Still show the modal even if loading fails
             modal.classList.add('visible');
@@ -438,25 +441,11 @@ export function initHtmlEditorModal() {
     // Preview button
     previewBtn.addEventListener('click', () => {
         try {
-            // Find editor container and get its dimensions
-            const editorContainer = modal.querySelector('.editor-container');
-            
             // Generate the preview
             previewHtml(textarea.value);
             
             // Add preview mode class to modal for CSS control
             modal.classList.add('preview-mode');
-            
-            // Show preview container
-            previewContainer.style.display = 'block';
-            
-            // Hide textarea
-            textarea.style.display = 'none';
-            
-            // Hide editor container
-            if (editorContainer) {
-                editorContainer.style.display = 'none';
-            }
             
             // Find label only within the modal
             const label = modal.querySelector('.editor-controls label');
@@ -480,18 +469,6 @@ export function initHtmlEditorModal() {
         // Remove preview mode class from modal
         modal.classList.remove('preview-mode');
         
-        // Hide preview container
-        previewContainer.style.display = 'none';
-        
-        // Show textarea
-        textarea.style.display = 'block';
-        
-        // Find editor container only within the modal
-        const editorContainer = modal.querySelector('.editor-container');
-        if (editorContainer) {
-            editorContainer.style.display = 'block'; // Show editor container
-        }
-        
         // Find label only within the modal
         const label = modal.querySelector('.editor-controls label');
         if (label) {
@@ -502,7 +479,7 @@ export function initHtmlEditorModal() {
         cleanupThreeJsPreview();
         
         // Clean up any direct preview iframe
-        const directPreviewIframe = previewContent.querySelector('iframe');
+        const directPreviewIframe = document.getElementById('html-preview-content').querySelector('iframe');
         if (directPreviewIframe) {
             try {
                 if (directPreviewIframe.contentDocument) {
@@ -517,7 +494,7 @@ export function initHtmlEditorModal() {
         }
         
         // Clean up any control buttons
-        const controlsContainer = previewContent.querySelector('.preview-controls');
+        const controlsContainer = document.getElementById('html-preview-content').querySelector('.preview-controls');
         if (controlsContainer) {
             controlsContainer.remove();
         }
@@ -565,8 +542,7 @@ export function initHtmlEditorModal() {
         }
     });
     
-    // Initial setup for the modal
-    previewContainer.style.display = 'none';
+    // Initial setup for the modal - rely on CSS classes instead of direct style manipulation
     
     // Set flag to indicate listeners have been initialized
     listenersInitialized = true;
@@ -780,7 +756,7 @@ function setupThreeJsScene(container, iframe) {
         const containerHeight = container.clientHeight;
         const containerAspectRatio = containerWidth / containerHeight;
         
-        // Use perspective camera for better 3D cube viewing
+        // Use perspective camera for better 3D viewing
         previewCamera = new THREE.PerspectiveCamera(
             60, containerAspectRatio, 0.1, 1000
         );
@@ -818,24 +794,37 @@ function setupThreeJsScene(container, iframe) {
         
         // Create initial texture from iframe content with improved quality
         createTextureFromIframe(iframe).then(texture => {
-            // Create a box geometry with optimization - lower segment count for better performance
-            const geometry = new THREE.BoxGeometry(1, 1, 1, 1, 1, 1);
+            // Get the mesh from the state if available
+            const state = getState();
+            const originalMesh = state.meshes && state.meshes[currentMeshId];
+            let geometry;
             
-            // Create material array for each face of the cube with improved settings
-            // No transparency, solid content - preserve original colors
-            const materials = Array(6).fill().map(() => {
-                return new THREE.MeshBasicMaterial({ 
-                    map: texture,
-                    side: THREE.FrontSide,
-                    transparent: false,  // No transparency
-                    depthWrite: true,    // Enable depth writing
-                    fog: false,          // Disable fog calculations
-                    color: 0xffffff      // White color (no tinting)
-                });
+            if (originalMesh && originalMesh.geometry) {
+                try {
+                    // Try to use the original mesh geometry
+                    geometry = originalMesh.geometry.clone();
+                    console.log("Using original mesh geometry for preview");
+                } catch (e) {
+                    console.warn("Could not clone original mesh geometry, falling back to cube", e);
+                    geometry = new THREE.BoxGeometry(1, 1, 1, 1, 1, 1);
+                }
+            } else {
+                // Fallback to cube if mesh not found
+                console.log("No mesh found with ID " + currentMeshId + ", using cube geometry");
+                geometry = new THREE.BoxGeometry(1, 1, 1, 1, 1, 1);
+            }
+            
+            // Create material with the HTML texture
+            const material = new THREE.MeshBasicMaterial({ 
+                map: texture,
+                side: THREE.DoubleSide,
+                transparent: true,
+                depthWrite: true,
+                fog: false
             });
             
-            // Create cube mesh
-            previewPlane = new THREE.Mesh(geometry, materials);
+            // Create mesh
+            previewPlane = new THREE.Mesh(geometry, material);
             
             // Optimize with frustum culling off (we know it's always visible)
             previewPlane.frustumCulled = false;
@@ -1661,7 +1650,8 @@ function initCSS3DPreview(container, iframe) {
             })
             .catch(error => {
                 console.error('Error loading CSS3DRenderer:', error);
-                logPreviewError(`CSS3D initialization error: ${error.message}`);
+                // Use console.error instead of logPreviewError
+                console.error('CSS3D initialization error:', error.message);
                 
                 // Fallback to texture-based preview
                 showStatus('CSS3D renderer not available, falling back to texture-based preview', 'warning');
@@ -1669,7 +1659,8 @@ function initCSS3DPreview(container, iframe) {
             });
     } catch (error) {
         console.error('Error in initCSS3DPreview:', error);
-        logPreviewError(`CSS3D initialization error: ${error.message}`);
+        // Use console.error instead of logPreviewError
+        console.error('CSS3D initialization error:', error.message);
         
         // Fallback to texture-based preview
         showStatus('Error initializing CSS3D preview, falling back to texture-based preview', 'error');
@@ -1687,13 +1678,13 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
         // Basic variables
         const userHtml = document.getElementById('html-editor-textarea').value || '';
         
-        // Panel size and spacing - using much larger panels for visibility
-        const panelWidth = 300;
-        const panelHeight = 250;
+        // Panel size - use a single panel instead of a cube
+        const panelWidth = 500;
+        const panelHeight = 400;
         
-        // Setup camera with greater distance to see the entire scene
+        // Setup camera with proper distance to see the panel
         const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 1, 10000);
-        camera.position.set(500, 300, 700); // Position to see cube from angle
+        camera.position.set(0, 0, 700); // Position to see panel straight on
         
         // Create CSS3D scene
         const scene = new THREE.Scene();
@@ -1714,7 +1705,7 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
         createInfoPanel(container, currentMeshId);
         
         // Function to create HTML content - simplified to avoid layout warnings
-        const wrapContent = (content, title) => {
+        const wrapContent = (content) => {
             return `<!DOCTYPE html>
 <html>
 <head>
@@ -1746,39 +1737,13 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
     </style>
 </head>
 <body>
-    <div class="panel-title">${title}</div>
+    <div class="panel-title">HTML Preview</div>
     <div class="content">${content}</div>
 </body>
 </html>`;
         };
         
-        // Panel titles
-        const panelTitles = [
-            'Front View',
-            'Back View',
-            'Right View',
-            'Left View',
-            'Top View',
-            'Bottom View'
-        ];
-        
-        // Create HTML elements for each panel
-        const elements = [];
-        const objects = [];
-        
-        // Define panel positions for a cube arrangement
-        // Using the correct panel size to create a proper cube
-        const positions = [
-            { x: 0, y: 0, z: panelWidth/2, rx: 0, ry: 0, rz: 0 },             // Front
-            { x: 0, y: 0, z: -panelWidth/2, rx: 0, ry: Math.PI, rz: 0 },      // Back
-            { x: panelWidth/2, y: 0, z: 0, rx: 0, ry: Math.PI/2, rz: 0 },     // Right
-            { x: -panelWidth/2, y: 0, z: 0, rx: 0, ry: -Math.PI/2, rz: 0 },   // Left
-            { x: 0, y: panelHeight/2, z: 0, rx: -Math.PI/2, ry: 0, rz: 0 },   // Top
-            { x: 0, y: -panelHeight/2, z: 0, rx: Math.PI/2, ry: 0, rz: 0 }    // Bottom
-        ];
-        
-        // Create a DOM container to hold all iframes temporarily
-        // This is critical - CSS3DObject needs elements to be in the DOM!
+        // Create a DOM container to hold the iframe temporarily
         const tempContainer = document.createElement('div');
         tempContainer.style.position = 'absolute';
         tempContainer.style.left = '-9999px'; // Off-screen
@@ -1788,57 +1753,25 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
         tempContainer.style.pointerEvents = 'none'; // Don't interact with user input
         document.body.appendChild(tempContainer);
         
-        // Create a cube group to make manipulation easier
-        const cubeGroup = new THREE.Group();
+        // Create a single iframe for the panel
+        const element = document.createElement('iframe');
+        element.id = 'css3d-panel-iframe';
+        element.style.width = `${panelWidth}px`;
+        element.style.height = `${panelHeight}px`;
+        element.style.border = '2px solid #3498db';
+        element.style.borderRadius = '5px';
+        element.style.backgroundColor = 'white';
+        element.style.overflow = 'hidden';
+        element.style.boxSizing = 'border-box';
         
-        // Using a much simpler approach to avoid layout warnings
-        for (let i = 0; i < positions.length; i++) {
-            // First create an empty iframe
-            const element = document.createElement('iframe');
-            element.id = `panel-iframe-${i}`;
-            element.style.width = `${panelWidth}px`;
-            element.style.height = `${panelHeight}px`;
-            element.style.border = '3px solid'; 
-            element.style.borderColor = i === 0 ? 'red' : 
-                                     i === 1 ? 'blue' : 
-                                     i === 2 ? 'green' : 
-                                     i === 3 ? 'purple' : 
-                                     i === 4 ? 'orange' : 'yellow';
-            element.style.borderRadius = '5px';
-            element.style.backgroundColor = 'white';
-            element.style.overflow = 'hidden';
-            element.style.boxSizing = 'border-box';
-            
-            // Add the empty iframe to DOM first
-            tempContainer.appendChild(element);
-            
-            // Create a CSS3D object with the empty iframe
-            const object = new CSS3DObject(element);
-            object.position.set(positions[i].x, positions[i].y, positions[i].z);
-            object.rotation.set(positions[i].rx, positions[i].ry, positions[i].rz);
-            cubeGroup.add(object);
-            
-            // Store references
-            elements.push(element);
-            objects.push(object);
-            
-            // After a brief delay, write content to the iframe
-            // This avoids the layout warnings by writing to it after all objects are created
-            setTimeout(() => {
-                try {
-                    if (element.contentDocument) {
-                        element.contentDocument.open();
-                        element.contentDocument.write(wrapContent(userHtml, panelTitles[i]));
-                        element.contentDocument.close();
-                    }
-                } catch (err) {
-                    console.error(`Error writing content to iframe ${i}:`, err);
-                }
-            }, 50 * i); // Stagger the writes to avoid overwhelming the browser
-        }
+        // Add the iframe to DOM first
+        tempContainer.appendChild(element);
         
-        // Add the cube group to the scene
-        scene.add(cubeGroup);
+        // Create a CSS3D object with the iframe
+        const object = new CSS3DObject(element);
+        
+        // Add to scene
+        scene.add(object);
         
         // Store references for cleanup
         css3dScene = scene;
@@ -1846,13 +1779,21 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
         previewCamera = camera;
         
         // Store for replay
-        if (elements.length > 0) {
-            previewRenderTarget = elements[0];
-        }
+        previewRenderTarget = element;
+        css3dObject = object;
         
-        if (objects.length > 0) {
-            css3dObject = objects[0];
-        }
+        // Write content to the iframe after a brief delay
+        setTimeout(() => {
+            try {
+                if (element.contentDocument) {
+                    element.contentDocument.open();
+                    element.contentDocument.write(wrapContent(userHtml));
+                    element.contentDocument.close();
+                }
+            } catch (err) {
+                console.error('Error writing content to iframe:', err);
+            }
+        }, 50);
         
         // Set up OrbitControls
         import('three/examples/jsm/controls/OrbitControls.js').then(module => {
@@ -1888,7 +1829,7 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
             animate();
             
             // Show success status
-            showStatus('3D cube preview ready', 'success');
+            showStatus('CSS3D preview ready', 'success');
             
         }).catch(error => {
             console.error('Error loading OrbitControls:', error);
@@ -1900,7 +1841,7 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
         return true;
     } catch (error) {
         console.error('Error in setupCSS3DScene:', error);
-        showStatus('Error creating 3D cube view: ' + error.message, 'error');
+        showStatus('Error creating 3D view: ' + error.message, 'error');
         return false;
     }
 }

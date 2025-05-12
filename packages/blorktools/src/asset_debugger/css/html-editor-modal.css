@@ -34,12 +34,26 @@
     display: inline-block !important;
 }
 
-/* Preview mode styling for containers */
-.preview-mode .editor-preview-container {
-    display: block;
-    height: 400px;
-    min-height: 400px;
-    flex: 1; /* Take up space when in preview mode */
+/* CSS-based toggling for preview mode */
+.preview-mode .editor-container {
+    display: none !important;
+}
+
+.preview-mode .html-editor-textarea {
+    display: none !important;
+}
+
+/* Ensure editor container is displayed properly when not in preview mode */
+#html-editor-modal:not(.preview-mode) .editor-container {
+    display: flex !important;
+}
+
+#html-editor-modal:not(.preview-mode) .html-editor-textarea {
+    display: block !important;
+}
+
+#html-editor-modal:not(.preview-mode) .editor-preview-container {
+    display: none !important;
 }
 
 /* Dropdown container styling */
@@ -118,7 +132,6 @@
     white-space: nowrap;
     overflow-x: scroll;
     overflow-y: auto;
-    flex: 1; /* Allow it to grow */
     min-height: 0; /* Important for proper flex behavior */
 }
 
@@ -148,7 +161,6 @@
     background-color: rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
-    flex: 1;
     min-height: 0; /* Important for proper flex behavior */
     height: 80%; /* Take up 80% of the modal height */
 }
@@ -190,10 +202,20 @@
     flex: 0; /* Don't take up space when not displayed */
     min-height: 0;
     margin: 10px 0;
-    display: none;
+    display: none; /* Hidden by default */
     background-color: #000;
     position: relative;
     border: 1px solid var(--panel-border);
+    height: 0; /* Start with zero height when not in preview mode */
+    overflow: hidden;
+}
+
+/* When in preview mode, the container takes proper dimensions */
+.preview-mode .editor-preview-container {
+    display: block;
+    height: 400px;
+    min-height: 400px;
+    overflow: visible;
 }
 
 .html-preview {
