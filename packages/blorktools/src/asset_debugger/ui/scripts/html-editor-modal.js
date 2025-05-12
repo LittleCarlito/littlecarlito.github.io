@@ -68,7 +68,7 @@ let previewAnimationId = null;
 let previewRenderTarget = null;
 let isPreviewAnimationPaused = false;
 let lastTextureUpdateTime = 0;
-let textureUpdateInterval = 100; // Update texture every 100ms
+let textureUpdateInterval = 16; // Update texture every 16ms (approximately 60fps) for smoother animation
 let isPreviewActive = false; // Track if preview is currently active
 
 // Add variables for CSS3D rendering
@@ -78,7 +78,7 @@ let combinedRenderRequired = false;
 
 // Add at the top of the file, with other variables
 let lastFrameTime = 0;
-const targetFrameRate = 120; // Target 120 FPS
+const targetFrameRate = 60; // Target 60 FPS for better performance/animation balance
 const frameInterval = 1000 / targetFrameRate;
 let pendingTextureUpdate = false;
 
@@ -571,11 +571,13 @@ function showStatus(message, type = 'info') {
     statusEl.textContent = message;
     statusEl.className = `editor-status ${type}`;
     
-    // Clear the message after 3 seconds
+    // Clear the message after 5 seconds for important messages, 3 seconds for others
+    const delay = (type === 'success' || type === 'error') ? 5000 : 3000;
+    
     setTimeout(() => {
         statusEl.textContent = '';
         statusEl.className = 'editor-status';
-    }, 3000);
+    }, delay);
 }
 
 /**
@@ -804,6 +806,153 @@ function setupThreeJsScene(container, iframe) {
                     // Try to use the original mesh geometry
                     geometry = originalMesh.geometry.clone();
                     console.log("Using original mesh geometry for preview");
+                    
+                    // Detect if this is a rectangle/plane-like mesh
+                    const isPlaneOrRectangle = geometry.attributes.position.count <= 8; // 4 vertices (8 corners) usually indicates a plane/rectangle
+                    
+                    // Variables to store mesh analysis results - defined in this scope to be accessible later
+                    let dominantPlane = 'xy';
+                    let normalVector = new THREE.Vector3(0, 0, 1);
+                    let upVector = new THREE.Vector3(0, 1, 0);
+                    
+                    // Find the dominant axis and create appropriate UVs
+                    if (geometry.attributes.position) {
+                        // Analyze the geometry to find the dominant plane
+                        let minX = Infinity, maxX = -Infinity;
+                        let minY = Infinity, maxY = -Infinity;
+                        let minZ = Infinity, maxZ = -Infinity;
+                        
+                        const positions = geometry.attributes.position;
+                        const count = positions.count;
+                        
+                        // Find bounds
+                        for (let i = 0; i < count; i++) {
+                            const x = positions.getX(i);
+                            const y = positions.getY(i);
+                            const z = positions.getZ(i);
+                            
+                            minX = Math.min(minX, x);
+                            maxX = Math.max(maxX, x);
+                            minY = Math.min(minY, y);
+                            maxY = Math.max(maxY, y);
+                            minZ = Math.min(minZ, z);
+                            maxZ = Math.max(maxZ, z);
+                        }
+                        
+                        // Calculate ranges
+                        const rangeX = maxX - minX;
+                        const rangeY = maxY - minY;
+                        const rangeZ = maxZ - minZ;
+                        
+                        console.log(`Mesh dimensions: X: ${rangeX.toFixed(2)}, Y: ${rangeY.toFixed(2)}, Z: ${rangeZ.toFixed(2)}`);
+                        
+                        // Determine dominant plane based on which dimension is smallest (indicating flatness)
+                        if (rangeZ < rangeX && rangeZ < rangeY) {
+                            dominantPlane = 'xy'; // Flat in Z direction
+                            normalVector = new THREE.Vector3(0, 0, 1);
+                            upVector = new THREE.Vector3(0, 1, 0);
+                        } else if (rangeY < rangeX && rangeY < rangeZ) {
+                            dominantPlane = 'xz'; // Flat in Y direction
+                            normalVector = new THREE.Vector3(0, 1, 0);
+                            upVector = new THREE.Vector3(0, 0, 1);
+                        } else {
+                            dominantPlane = 'yz'; // Flat in X direction
+                            normalVector = new THREE.Vector3(1, 0, 0);
+                            upVector = new THREE.Vector3(0, 1, 0);
+                        }
+                        
+                        // Try to detect "forward" and "up" by analyzing the mesh
+                        if (geometry.index) {
+                            // For indexed geometries, we can compute face normals
+                            try {
+                                geometry.computeVertexNormals();
+                                // Find the most common normal direction
+                                let normalSum = new THREE.Vector3(0, 0, 0);
+                                
+                                // If normal attribute exists, average the normals
+                                if (geometry.attributes.normal) {
+                                    const normals = geometry.attributes.normal;
+                                    for (let i = 0; i < normals.count; i++) {
+                                        normalSum.x += normals.getX(i);
+                                        normalSum.y += normals.getY(i);
+                                        normalSum.z += normals.getZ(i);
+                                    }
+                                    normalSum.divideScalar(normals.count);
+                                    normalSum.normalize();
+                                    
+                                    // If we found a clear normal, use it
+                                    if (normalSum.length() > 0.5) {
+                                        normalVector = normalSum;
+                                        console.log(`Detected normal vector: (${normalVector.x.toFixed(2)}, ${normalVector.y.toFixed(2)}, ${normalVector.z.toFixed(2)})`);
+                                        
+                                        // Find up vector (perpendicular to normal)
+                                        if (Math.abs(normalVector.y) < 0.7) {
+                                            // If normal is not pointing up/down, use world up as reference
+                                            upVector = new THREE.Vector3(0, 1, 0);
+                                            // Make sure up is perpendicular to normal
+                                            upVector.sub(normalVector.clone().multiplyScalar(normalVector.dot(upVector)));
+                                            upVector.normalize();
+                                        } else {
+                                            // If normal is pointing up/down, use world forward as reference for up
+                                            upVector = new THREE.Vector3(0, 0, 1);
+                                            // Make sure up is perpendicular to normal
+                                            upVector.sub(normalVector.clone().multiplyScalar(normalVector.dot(upVector)));
+                                            upVector.normalize();
+                                        }
+                                        console.log(`Calculated up vector: (${upVector.x.toFixed(2)}, ${upVector.y.toFixed(2)}, ${upVector.z.toFixed(2)})`);
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn("Error computing normals:", e);
+                            }
+                        }
+                        
+                        console.log(`Using plane: ${dominantPlane}, normal: (${normalVector.x.toFixed(2)}, ${normalVector.y.toFixed(2)}, ${normalVector.z.toFixed(2)})`);
+                        
+                        // Create UVs based on the dominant plane
+                        const uvs = new Float32Array(count * 2);
+                        
+                        // Define transform matrices to help with UV mapping based on orientation
+                        const transformMatrix = new THREE.Matrix4();
+                        
+                        // Create a quaternion that aligns the normal with the +Z axis
+                        const quaternion = new THREE.Quaternion().setFromUnitVectors(normalVector, new THREE.Vector3(0, 0, 1));
+                        transformMatrix.makeRotationFromQuaternion(quaternion);
+                        
+                        // Temporary vectors for transformed coordinates
+                        const tempVector = new THREE.Vector3();
+                        
+                        for (let i = 0; i < count; i++) {
+                            const x = positions.getX(i);
+                            const y = positions.getY(i);
+                            const z = positions.getZ(i);
+                            
+                            // Transform point to orient according to detected normal
+                            tempVector.set(x, y, z);
+                            tempVector.applyMatrix4(transformMatrix);
+                            
+                            // Now we can map the transformed X,Y to U,V
+                            const transformedX = tempVector.x;
+                            const transformedY = tempVector.y;
+                            
+                            // Map to 0-1 range based on the bounds of the geometry
+                            const u = (transformedX - minX) / Math.max(0.0001, rangeX);
+                            const v = (transformedY - minY) / Math.max(0.0001, rangeY); // Remove the 1.0 - to fix upside down orientation
+                            
+                            uvs[i * 2] = u;
+                            uvs[i * 2 + 1] = v;
+                        }
+                        
+                        // Apply the UVs, replacing any existing ones
+                        geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+                        console.log("Created custom UVs for rectangle/plane geometry");
+                        
+                        // Store these values for camera positioning
+                        geometry.userData = geometry.userData || {};
+                        geometry.userData.dominantPlane = dominantPlane;
+                        geometry.userData.normalVector = normalVector;
+                        geometry.userData.upVector = upVector;
+                    }
                 } catch (e) {
                     console.warn("Could not clone original mesh geometry, falling back to cube", e);
                     geometry = new THREE.BoxGeometry(1, 1, 1, 1, 1, 1);
@@ -832,15 +981,107 @@ function setupThreeJsScene(container, iframe) {
             // Add to scene
             previewScene.add(previewPlane);
             
-            // Set initial rotation but don't animate it
-            previewPlane.rotation.x = Math.PI / 10;
-            previewPlane.rotation.y = Math.PI / 6;
+            // Position the camera to look at the dominant face of the mesh
+            if (geometry.userData && geometry.userData.normalVector) {
+                const normalVector = geometry.userData.normalVector;
+                const upVector = geometry.userData.upVector;
+                const dominantPlane = geometry.userData.dominantPlane;
+                
+                // Position camera along the normal vector for optimal viewing
+                const cameraPosition = normalVector.clone().multiplyScalar(2); // Closer view (was 3)
+                previewCamera.position.copy(cameraPosition);
+                
+                // Look at the center of the mesh
+                previewCamera.lookAt(0, 0, 0);
+                
+                // Ensure the camera's "up" direction aligns with our computed up vector
+                previewCamera.up.copy(upVector);
+                
+                // Configure mesh orientation to present the front face to the camera
+                // Create a rotation that aligns the normal with the camera view
+                const lookAtMatrix = new THREE.Matrix4();
+                lookAtMatrix.lookAt(
+                    new THREE.Vector3(0, 0, 0),  // Object position
+                    normalVector.clone().negate(), // Look at the reverse of the normal vector
+                    upVector                       // Up vector
+                );
+                
+                // Extract the rotation from the matrix
+                const rotation = new THREE.Quaternion();
+                rotation.setFromRotationMatrix(lookAtMatrix);
+                previewPlane.quaternion.copy(rotation);
+                
+                console.log(`Camera positioned based on detected normal and up vectors`);
+            } else if (dominantPlane) {
+                // Fallback to using just the dominant plane if no normal vector
+                // Position the camera based on the dominant plane
+                if (dominantPlane === 'xy') {
+                    // Position camera to look at the XY plane
+                    previewCamera.position.set(0, 0, 3);
+                    previewCamera.lookAt(0, 0, 0);
+                    previewPlane.rotation.set(0, 0, 0);
+                } else if (dominantPlane === 'xz') {
+                    // Position camera to look at the XZ plane
+                    previewCamera.position.set(0, 3, 0);
+                    previewCamera.lookAt(0, 0, 0);
+                    previewPlane.rotation.set(-Math.PI/2, 0, 0);
+                } else { // yz
+                    // Position camera to look at the YZ plane
+                    previewCamera.position.set(3, 0, 0);
+                    previewCamera.lookAt(0, 0, 0);
+                    previewPlane.rotation.set(0, Math.PI/2, 0);
+                }
+                
+                console.log(`Camera positioned to view the ${dominantPlane} plane`);
+            } else {
+                // Default position if no dominant plane was determined
+                previewCamera.position.z = 3;
+                
+                // Set initial rotation but don't animate it
+                previewPlane.rotation.x = Math.PI / 10;
+                previewPlane.rotation.y = Math.PI / 6;
+            }
             
             // Add orbit controls for better user interaction
             setupOrbitControls(previewCamera, previewRenderer.domElement)
                 .then(controls => {
                     // Start animation loop after controls are set up
                     animatePreview();
+                    
+                    // Show helpful message about keyboard shortcuts
+                    showStatus('Preview ready. Use +/- keys to zoom in/out', 'success');
+                    
+                    // Add keyboard shortcuts for zooming
+                    const handleKeydown = (event) => {
+                        if (!isPreviewActive) return;
+                        
+                        // Get current controls - they should be attached to the camera by this point
+                        const controls = previewCamera.userData.controls;
+                        if (!controls) return;
+                        
+                        const zoomSpeed = 0.2; // How fast to zoom with keyboard
+                        
+                        switch (event.key) {
+                            case '+':
+                            case '=': // Common + key without shift
+                                // Zoom in - decrease distance to target
+                                controls.dollyIn(1 + zoomSpeed);
+                                controls.update();
+                                break;
+                            case '-':
+                            case '_': // Common - key with shift
+                                // Zoom out - increase distance to target
+                                controls.dollyOut(1 + zoomSpeed);
+                                controls.update();
+                                break;
+                        }
+                    };
+                    
+                    // Register keyboard handler
+                    document.addEventListener('keydown', handleKeydown);
+                    
+                    // Store for cleanup
+                    previewCamera.userData.keyHandler = handleKeydown;
                 })
                 .catch(error => {
                     console.error('Failed to setup orbit controls:', error);
@@ -881,8 +1122,13 @@ function setupOrbitControls(camera, domElement) {
                     controls.enableDamping = true;
                     controls.dampingFactor = 0.2;
                     controls.rotateSpeed = 0.5;
-                    controls.minDistance = 1;
-                    controls.maxDistance = 10;
+                    controls.minDistance = 0.5; // Allow much closer zooming for WebGL
+                    controls.maxDistance = 20;  // Allow zooming out for WebGL
+                    controls.zoomSpeed = 1.2;   // Faster zoom
+                    
+                    // Store controls with camera for access elsewhere
+                    camera.userData = camera.userData || {};
+                    camera.userData.controls = controls;
                     
                     resolve(controls);
                 })
@@ -926,6 +1172,78 @@ function animatePreview() {
         
         // Remember last frame time for throttling
         lastFrameTime = now - (elapsed % frameInterval);
+        
+        // Apply any animation effects to the mesh based on settings
+        if (previewPlane) {
+            // Get current mesh ID from the modal
+            const modal = document.getElementById('html-editor-modal');
+            const currentMeshId = parseInt(modal.dataset.meshId);
+            
+            // Get animation settings for this mesh
+            const settings = getHtmlSettingsForMesh(currentMeshId);
+            const animationType = settings.animation?.type || 'none';
+            const playbackSpeed = settings.playbackSpeed || 1.0;
+            
+            // Apply animation based on type
+            if (animationType !== 'none' && !isPreviewAnimationPaused) {
+                const rotationSpeed = 0.005 * playbackSpeed;
+                const time = performance.now() * 0.001;
+                
+                // Get the geometry's orientation data
+                const geometry = previewPlane.geometry;
+                const hasOrientationData = geometry && geometry.userData && geometry.userData.normalVector;
+                
+                switch (animationType) {
+                    case 'loop':
+                        if (hasOrientationData) {
+                            // For oriented meshes, animate in a way that respects the face orientation
+                            const normalVector = geometry.userData.normalVector;
+                            const upVector = geometry.userData.upVector;
+                            
+                            // Create a rotation axis perpendicular to the normal
+                            const rightVector = new THREE.Vector3().crossVectors(normalVector, upVector).normalize();
+                            
+                            // Create a quaternion for small rotations
+                            const wobbleAmount = 0.05; // Smaller angle for subtle effect
+                            const wobbleQuaternion = new THREE.Quaternion().setFromAxisAngle(
+                                rightVector,
+                                Math.sin(time * rotationSpeed * 5) * wobbleAmount
+                            );
+                            
+                            // Apply this rotation relative to the mesh's base orientation
+                            const baseQuaternion = previewPlane._baseQuaternion || previewPlane.quaternion.clone();
+                            previewPlane._baseQuaternion = baseQuaternion;
+                            
+                            // Combine the base orientation with the animation
+                            previewPlane.quaternion.copy(baseQuaternion).multiply(wobbleQuaternion);
+                        } else {
+                            // Fallback for meshes without orientation data
+                            previewPlane.rotation.y = Math.PI / 6 + Math.sin(time * rotationSpeed * 5) * 0.2;
+                        }
+                        break;
+                    case 'bounce':
+                        if (hasOrientationData) {
+                            // For oriented meshes, bounce along the normal vector
+                            const normalVector = geometry.userData.normalVector;
+                            const bounceOffset = Math.sin(time * rotationSpeed * 3) * 0.1;
+                            const bounceVector = normalVector.clone().multiplyScalar(bounceOffset);
+                            
+                            // Apply bounce to position
+                            previewPlane.position.copy(bounceVector);
+                        } else {
+                            // Fallback bounce for non-oriented meshes
+                            previewPlane.position.y = Math.sin(time * rotationSpeed * 3) * 0.1;
+                        }
+                        break;
+                    case 'longExposure':
+                        // For long exposure, we update the texture more frequently
+                        textureUpdateInterval = 8; // Update texture very frequently
+                        break;
+                    default:
+                        textureUpdateInterval = 16; // Default update interval
+                }
+            }
+        }
         
         // Request texture update if it's time and we're not already processing one
         const currentTime = Date.now();
@@ -1050,6 +1368,18 @@ async function createTextureFromIframe(iframe) {
                         // Use white background to match HTML default
                         ctx.fillStyle = '#FFFFFF';
                         ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        
+                        // Add a border to make the texture boundary visible
+                        ctx.strokeStyle = '#3498db';
+                        ctx.lineWidth = 8;
+                        ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+                        
+                        // Add text to indicate it's a placeholder
+                        ctx.fillStyle = '#333333';
+                        ctx.font = 'bold 24px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('HTML Content', canvas.width / 2, canvas.height / 2);
+                        
                         const texture = new THREE.CanvasTexture(canvas);
                         texture.needsUpdate = true;
                         return texture;
@@ -1076,35 +1406,99 @@ async function createTextureFromIframe(iframe) {
                         return;
                     }
                     
-                    // Use html2canvas to capture the iframe content
-                    const targetElement = iframe.contentDocument.body;
+                    // Apply a frame to the content to make it more visible on the texture
+                    const styleElement = iframe.contentDocument.createElement('style');
+                    styleElement.textContent = `
+                        body {
+                            margin: 0;
+                            padding: 15px;
+                            border: 5px solid #3498db;
+                            box-sizing: border-box;
+                            background-color: white;
+                            font-size: 20px !important; /* Increase base font size for better readability */
+                        }
+                        
+                        /* Add a subtle grid to help with alignment */
+                        body::before {
+                            content: "";
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            right: 0;
+                            bottom: 0;
+                            background-image: linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+                                             linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+                            background-size: 20px 20px;
+                            pointer-events: none;
+                            z-index: -1;
+                        }
+                        
+                        /* Increase font size of common elements */
+                        h1, h2, h3, h4, h5, h6 {
+                            font-size: 1.5em !important;
+                        }
+                        
+                        p, div, span, a, li, td, th {
+                            font-size: 1.2em !important;
+                        }
+                        
+                        /* Make sure buttons and inputs are readable */
+                        button, input, select, textarea {
+                            font-size: 1.2em !important;
+                            padding: 5px !important;
+                        }
+                    `;
                     
                     try {
-                        // Use higher scale factor for better quality
-                        const canvas = await window.html2canvas(targetElement, {
-                            backgroundColor: '#FFFFFF', // Explicitly set to white to match HTML default
-                            scale: 2, // Double the resolution for crisper text
-                            logging: false,
-                            allowTaint: true,
-                            useCORS: true,
-                            foreignObjectRendering: true
-                        });
+                        // Add the style element temporarily for rendering
+                        iframe.contentDocument.head.appendChild(styleElement);
                         
-                        // Create a texture from the canvas
-                        const texture = new THREE.CanvasTexture(canvas);
+                        // Use html2canvas to capture the iframe content
+                        const targetElement = iframe.contentDocument.body;
                         
-                        // Improve texture quality settings
-                        texture.anisotropy = 4;
-                        texture.minFilter = THREE.LinearFilter;
-                        texture.magFilter = THREE.LinearFilter;
-                        texture.generateMipmaps = false;
-                        texture.needsUpdate = true;
-                        
-                        resolve(texture);
+                        try {
+                            // Use higher scale factor for better quality
+                            const canvas = await window.html2canvas(targetElement, {
+                                backgroundColor: '#FFFFFF', // Explicitly set to white to match HTML default
+                                scale: 4, // Increase resolution for crisper text and animations
+                                logging: false,
+                                allowTaint: true,
+                                useCORS: true,
+                                foreignObjectRendering: true
+                            });
+                            
+                            // Remove the temporary style element after rendering
+                            if (styleElement && styleElement.parentNode) {
+                                styleElement.parentNode.removeChild(styleElement);
+                            }
+                            
+                            // Create a texture from the canvas
+                            const texture = new THREE.CanvasTexture(canvas);
+                            
+                            // Improve texture quality settings
+                            texture.anisotropy = 8; // Increase anisotropy for better quality at angles
+                            texture.minFilter = THREE.LinearFilter;
+                            texture.magFilter = THREE.LinearFilter;
+                            texture.generateMipmaps = false;
+                            texture.needsUpdate = true;
+                            
+                            resolve(texture);
+                        } catch (error) {
+                            console.error('Error capturing with html2canvas:', error);
+                            
+                            // Remove the temporary style element if it exists
+                            if (styleElement && styleElement.parentNode) {
+                                styleElement.parentNode.removeChild(styleElement);
+                            }
+                            
+                            // On error, return empty texture instead of failing
+                            resolve(createEmptyTexture());
+                        }
                     } catch (error) {
-                        console.error('Error capturing with html2canvas:', error);
-                        // On error, return empty texture instead of failing
-                        resolve(createEmptyTexture());
+                        console.error('Error in texture creation:', error);
+                        // Return empty texture on error rather than failing completely
+                        const emptyTexture = createEmptyTexture();
+                        resolve(emptyTexture);
                     }
                 } catch (error) {
                     console.error('Error in texture creation:', error);
@@ -1347,6 +1741,12 @@ function cleanupThreeJsPreview() {
     lastTextureUpdateTime = 0;
     pendingTextureUpdate = false;
     lastFrameTime = 0;
+    
+    // Clean up keyboard event handlers
+    if (previewCamera && previewCamera.userData && previewCamera.userData.keyHandler) {
+        document.removeEventListener('keydown', previewCamera.userData.keyHandler);
+        console.log('Keyboard event handlers cleaned up');
+    }
     
     // Clean up the global animateMessages function
     if (window.animateMessages) {
@@ -1804,8 +2204,9 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
             controls.enableDamping = true;
             controls.dampingFactor = 0.2;
             controls.rotateSpeed = 0.5;
-            controls.minDistance = 400;
+            controls.minDistance = 100;   // CSS3D needs larger distances
             controls.maxDistance = 2000;
+            controls.zoomSpeed = 1.2;
             
             // Initial look at origin
             camera.lookAt(0, 0, 0);
@@ -1829,8 +2230,39 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
             animate();
             
             // Show success status
-            showStatus('CSS3D preview ready', 'success');
+            showStatus('CSS3D preview ready. Use +/- keys to zoom in/out', 'success');
             
+            // Add keyboard shortcuts for zooming
+            const handleKeydown = (event) => {
+                if (!isPreviewActive) return;
+                
+                // Get current controls - they should be attached to the camera by this point
+                const controls = previewCamera.userData.controls;
+                if (!controls) return;
+                
+                const zoomSpeed = 0.2; // How fast to zoom with keyboard
+                
+                switch (event.key) {
+                    case '+':
+                    case '=': // Common + key without shift
+                        // Zoom in - decrease distance to target
+                        controls.dollyIn(1 + zoomSpeed);
+                        controls.update();
+                        break;
+                    case '-':
+                    case '_': // Common - key with shift
+                        // Zoom out - increase distance to target
+                        controls.dollyOut(1 + zoomSpeed);
+                        controls.update();
+                        break;
+                }
+            };
+            
+            // Register keyboard handler
+            document.addEventListener('keydown', handleKeydown);
+            
+            // Store for cleanup
+            previewCamera.userData.keyHandler = handleKeydown;
         }).catch(error => {
             console.error('Error loading OrbitControls:', error);
             showStatus('Error loading 3D controls: ' + error.message, 'error');
