@@ -181,27 +181,6 @@
     flex-grow: 1;
 }
 
-/* Mesh Settings Icon */
-.mesh-settings-icon {
-    color: #007bff;
-    cursor: pointer;
-    margin-left: auto;
-    font-size: 1.1em;
-    display: flex;
-    align-items: center;
-}
-
-.mesh-settings-icon svg {
-    width: 14px;
-    height: 14px;
-    fill: currentColor;
-    transition: transform 0.2s ease;
-}
-
-.mesh-settings-icon:hover svg {
-    transform: rotate(20deg);
-}
-
 /* HTML Editor Icon */
 .mesh-html-editor-icon {
     color: #28a745;

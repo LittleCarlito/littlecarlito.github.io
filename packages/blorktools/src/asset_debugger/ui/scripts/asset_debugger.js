@@ -18,8 +18,6 @@ import { initWorldPanel } from './world-panel.js';
 import { initAssetPanel } from './asset-panel.js';
 // Import HTML Editor Modal
 import { initHtmlEditorModal } from './html-editor-modal.js';
-// Import Mesh Settings Modal
-import { initMeshSettingsModal } from './mesh-settings-modal.js';
 // Import Model Integration for HTML Editor
 import { initModelIntegration } from './model-integration.js';
 // Import ZIP utilities
@@ -68,7 +66,7 @@ let resourcesLoaded = {
  */
 function loadComponentHtml() {
     // Track loading of components
-    let componentsToLoad = 6; // Total components to load (increased to include HTML editor and mesh settings modals)
+    let componentsToLoad = 5; // Total components to load (reduced by 1 since we removed mesh settings modal)
     let componentsLoaded = 0;
 
     // Function to update progress when a component loads
@@ -223,71 +221,6 @@ function loadComponentHtml() {
         })
         .catch(error => {
             console.error('Error loading HTML editor modal:', error);
-            componentLoaded();
-        });
-        
-    // Load the mesh settings modal component
-    fetch('../pages/mesh-settings-modal.html')
-        .then(response => response.text())
-        .then(html => {
-            // Create a temporary div to parse the HTML
-            const tempContainer = document.createElement('div');
-            tempContainer.innerHTML = html.trim();
-            
-            // Extract the modal element using querySelector
-            const modalElement = tempContainer.querySelector('#mesh-settings-modal');
-            
-            // Ensure the modal is hidden before adding it to the DOM
-            if (modalElement) {
-                modalElement.style.display = 'none';
-                
-                // Remove any existing modal with the same ID
-                const existingModal = document.getElementById('mesh-settings-modal');
-                if (existingModal) {
-                    existingModal.remove();
-                }
-                
-                // Append the new modal directly to the body
-                document.body.appendChild(modalElement);
-                
-                // Initialize the modal now that it's in the DOM and hidden
-                setTimeout(() => {
-                    // Call initMeshSettingsModal and ensure it registers the global function
-                    initMeshSettingsModal();
-                    
-                    // Double-check that the function is registered globally
-                    if (typeof window.openMeshSettingsModal !== 'function') {
-                        console.log('Mesh Settings global function not registered properly, manually registering now');
-                        
-                        // Import the module and manually register the function
-                        import('./mesh-settings-modal.js').then(module => {
-                            // Create a wrapper function that calls openMeshSettingsModal from the module
-                            window.openMeshSettingsModal = function(meshName, meshId) {
-                                console.log(`Global wrapper: Opening mesh settings for ${meshName} (ID: ${meshId})`);
-                                // Call the module's openMeshSettingsModal function or its default export's function
-                                if (module.openMeshSettingsModal) {
-                                    module.openMeshSettingsModal(meshName, meshId);
-                                } else if (module.default && module.default.openMeshSettingsModal) {
-                                    module.default.openMeshSettingsModal(meshName, meshId);
-                                } else {
-                                    console.error('Could not find openMeshSettingsModal in module');
-                                }
-                            };
-                            
-                            console.log('Mesh Settings global function registered:', typeof window.openMeshSettingsModal === 'function');
-                        });
-                    } else {
-                        console.log('Mesh Settings Modal initialized successfully, global function available');
-                    }
-                }, 100);
-            } else {
-                console.error('Could not extract mesh settings modal element from HTML: modal element not found');
-            }
-            
-            componentLoaded();
-        })
-        .catch(error => {
-            console.error('Error loading mesh settings modal:', error);
             componentLoaded();
         });
 }

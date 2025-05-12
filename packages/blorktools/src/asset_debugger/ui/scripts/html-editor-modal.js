@@ -28,16 +28,25 @@ import {
 } from '../../core/html-linter.js';
 import { getCurrentGlbBuffer, updateGlbFile } from './model-integration.js';
 import { updateHtmlIcons } from './mesh-panel.js';
-import { getHtmlSettingsForMesh } from './mesh-settings-modal.js';
 
 // Import Three.js the same way as other files in the codebase
 import * as THREE from 'three';
 
-// Expose getHtmlSettingsForMesh globally for access from window object
-window.getHtmlSettingsForMesh = getHtmlSettingsForMesh;
-
 // Store HTML content for each mesh
 const meshHtmlContent = new Map();
+
+// Store HTML settings for each mesh (integrated from mesh-settings-modal.js)
+const meshHtmlSettings = new Map();
+
+// Default settings for HTML content (integrated from mesh-settings-modal.js)
+const defaultSettings = {
+    previewMode: 'threejs',
+    playbackSpeed: 1.0,
+    animation: {
+        type: 'none',
+        enabled: false
+    }
+};
 
 // Flag to track if event listeners have been initialized
 let listenersInitialized = false;
@@ -119,6 +128,9 @@ export function openEmbeddedHtmlEditor(meshName, meshId) {
             htmlEditorState.isOpen = true;
             console.log('HTML Editor Modal opened successfully');
             
+            // Load and set settings for this mesh
+            loadSettingsForMesh(meshId);
+            
             // Run linting after content is loaded
             lintHtmlContent();
         }).catch(error => {
@@ -133,6 +145,74 @@ export function openEmbeddedHtmlEditor(meshName, meshId) {
     } catch (error) {
         console.error('Error opening HTML Editor Modal:', error);
         alert('Failed to open HTML Editor. See console for details.');
+    }
+}
+
+/**
+ * Load settings for a specific mesh and update the UI
+ * @param {number} meshId - The ID/index of the mesh
+ */
+function loadSettingsForMesh(meshId) {
+    // Get settings for this mesh or use defaults
+    const settings = meshHtmlSettings.get(meshId) || { ...defaultSettings };
+    
+    // Update render type dropdown
+    const renderTypeSelect = document.getElementById('html-render-type');
+    if (renderTypeSelect) {
+        renderTypeSelect.value = settings.previewMode || defaultSettings.previewMode;
+    }
+    
+    // Update animation type dropdown
+    const animationTypeSelect = document.getElementById('html-animation-type');
+    if (animationTypeSelect) {
+        const animationType = settings.animation && settings.animation.type !== undefined 
+            ? settings.animation.type 
+            : 'none';
+        animationTypeSelect.value = animationType;
+    }
+}
+
+/**
+ * Get HTML settings for a specific mesh
+ * @param {number} meshId - The ID/index of the mesh
+ * @returns {Object} The HTML settings for the mesh, or default settings if not found
+ */
+export function getHtmlSettingsForMesh(meshId) {
+    return meshHtmlSettings.get(meshId) || { ...defaultSettings };
+}
+
+/**
+ * Get settings from form dropdowns
+ * @returns {Object} The settings object
+ */
+function getSettingsFromForm() {
+    const animationType = document.getElementById('html-animation-type').value;
+    return {
+        previewMode: document.getElementById('html-render-type').value || defaultSettings.previewMode,
+        playbackSpeed: parseFloat(document.getElementById('html-playback-speed').value),
+        animation: {
+            type: animationType,
+            enabled: animationType !== 'none'
+        }
+    };
+}
+
+/**
+ * Save settings for a specific mesh
+ * @param {number} meshId - The ID/index of the mesh
+ * @param {Object} settings - The settings to save
+ */
+function saveSettingsForMesh(meshId, settings) {
+    meshHtmlSettings.set(meshId, settings);
+    
+    const state = getState();
+    if (state.meshes && state.meshes[meshId]) {
+        // Store settings in mesh userData for persistence
+        if (!state.meshes[meshId].userData) {
+            state.meshes[meshId].userData = {};
+        }
+        state.meshes[meshId].userData.htmlSettings = settings;
+        console.log(`Saved HTML settings for mesh: ${state.meshes[meshId].name}`);
     }
 }
 
@@ -218,16 +298,21 @@ export function initHtmlEditorModal() {
     const formatBtn = document.getElementById('html-editor-format');
     const previewBtn = document.getElementById('html-editor-preview');
     const resetBtn = document.getElementById('html-editor-reset');
-    const settingsBtn = document.getElementById('html-editor-settings');
     const textarea = document.getElementById('html-editor-textarea');
     const previewContainer = document.getElementById('html-preview-container');
     const previewContent = document.getElementById('html-preview-content');
     const statusEl = document.getElementById('html-editor-status');
     const errorContainer = document.getElementById('html-editor-errors') || createErrorContainer();
-    const replayBtn = document.getElementById('html-editor-replay');
+    const dropdownsContainer = document.getElementById('editor-dropdowns-container');
+    
+    // Get new dropdown elements
+    const renderTypeSelect = document.getElementById('html-render-type');
+    const playbackSpeedSelect = document.getElementById('html-playback-speed');
+    const animationTypeSelect = document.getElementById('html-animation-type');
     
     // Make the modal available globally - do this first before any potential errors
     window.openEmbeddedHtmlEditor = openEmbeddedHtmlEditor;
+    window.getHtmlSettingsForMesh = getHtmlSettingsForMesh;
     console.log('Registered global function: window.openEmbeddedHtmlEditor =', 
                 typeof window.openEmbeddedHtmlEditor === 'function' ? 'Function successfully registered' : 'Failed to register function');
 
@@ -253,6 +338,43 @@ export function initHtmlEditorModal() {
             closeModal();
         }
     });
+    
+    // Add event listeners for dropdown changes
+    if (renderTypeSelect) {
+        renderTypeSelect.addEventListener('change', () => {
+            // Update settings when user changes render type
+            const meshId = parseInt(modal.dataset.meshId);
+            if (!isNaN(meshId)) {
+                const settings = getSettingsFromForm();
+                saveSettingsForMesh(meshId, settings);
+                showStatus(`Render type set to: ${renderTypeSelect.options[renderTypeSelect.selectedIndex].text}`, 'info');
+            }
+        });
+    }
+    
+    if (playbackSpeedSelect) {
+        playbackSpeedSelect.addEventListener('change', () => {
+            // Update settings when user changes playback speed
+            const meshId = parseInt(modal.dataset.meshId);
+            if (!isNaN(meshId)) {
+                const settings = getSettingsFromForm();
+                saveSettingsForMesh(meshId, settings);
+                showStatus(`Playback speed set to: ${playbackSpeedSelect.options[playbackSpeedSelect.selectedIndex].text}`, 'info');
+            }
+        });
+    }
+    
+    if (animationTypeSelect) {
+        animationTypeSelect.addEventListener('change', () => {
+            // Update settings when user changes animation type
+            const meshId = parseInt(modal.dataset.meshId);
+            if (!isNaN(meshId)) {
+                const settings = getSettingsFromForm();
+                saveSettingsForMesh(meshId, settings);
+                showStatus(`Animation type set to: ${animationTypeSelect.options[animationTypeSelect.selectedIndex].text}`, 'info');
+            }
+        });
+    }
     
     // Format button
     formatBtn.addEventListener('click', async () => {
@@ -299,186 +421,6 @@ export function initHtmlEditorModal() {
         }
     });
     
-    // Replay animation button
-    replayBtn.addEventListener('click', () => {
-        try {
-            console.log('Replay button clicked - trying to restart animation');
-
-            // Track that the replay button was clicked
-            window.lastButtonClicked = replayBtn;
-            
-            let animationReplayed = false;
-            
-            // Get the current preview mode
-            const modal = document.getElementById('html-editor-modal');
-            const currentMeshId = parseInt(modal.dataset.meshId);
-            
-            // Default to 'direct' if we can't determine the mode
-            let currentPreviewMode = 'direct';
-            
-            try {
-                // Try to get preview mode from mesh settings
-                if (typeof window.getHtmlSettingsForMesh === 'function') {
-                    const meshSettings = window.getHtmlSettingsForMesh(currentMeshId);
-                    if (meshSettings && meshSettings.previewMode) {
-                        currentPreviewMode = meshSettings.previewMode;
-                        console.log(`Using preview mode for replay: ${currentPreviewMode}`);
-                    }
-                }
-            } catch (error) {
-                console.error('Error getting mesh settings for replay:', error);
-            }
-            
-            // For Three.js texture mode, call previewHtml to refresh the textures
-            // without creating a new cube (the modified previewHtml will handle this)
-            if (currentPreviewMode === 'threejs' && previewPlane) {
-                console.log('Using optimized replay for Three.js preview mode');
-                const textarea = document.getElementById('html-editor-textarea');
-                if (textarea) {
-                    previewHtml(textarea.value);
-                    animationReplayed = true;
-                    return; // Exit early, we've handled the replay
-                }
-            }
-            
-            // Original replay code for other preview modes follows
-            
-            // Method 1: Direct preview iframe
-            const directPreviewIframe = previewContent.querySelector('iframe');
-            if (directPreviewIframe && directPreviewIframe.contentWindow) {
-                console.log('Found direct preview iframe, attempting to replay animation');
-                try {
-                    // Clear any existing content and reload
-                    const contentHTML = directPreviewIframe.srcdoc || directPreviewIframe.contentDocument.documentElement.outerHTML;
-                    directPreviewIframe.srcdoc = contentHTML;
-                    
-                    // Set a timeout to ensure content has reloaded before calling animation
-                    setTimeout(() => {
-                        if (typeof directPreviewIframe.contentWindow.animateMessages === 'function') {
-                            console.log('Calling animateMessages function on direct preview');
-                            directPreviewIframe.contentWindow.animateMessages();
-                            animationReplayed = true;
-                            showStatus('Animation replayed', 'success');
-                        } else {
-                            console.log('No animateMessages function found in direct preview');
-                        }
-                    }, 100);
-                } catch (error) {
-                    console.error('Error reloading direct preview iframe:', error);
-                }
-            } else {
-                console.log('No direct preview iframe found');
-            }
-            
-            // Method 2: CSS3D object (which contains an iframe)
-            if (css3dObject && css3dObject.element) {
-                console.log('Found CSS3D object with iframe, attempting to replay animation');
-                try {
-                    // Refresh the iframe content to force a reload
-                    const iframe = css3dObject.element;
-                    const contentHTML = iframe.srcdoc || iframe.contentDocument.documentElement.outerHTML;
-                    iframe.srcdoc = contentHTML;
-                    
-                    // Set a timeout to ensure content has reloaded before calling animation
-                    setTimeout(() => {
-                        if (iframe.contentWindow && typeof iframe.contentWindow.animateMessages === 'function') {
-                            console.log('Calling animateMessages function on CSS3D object iframe');
-                            iframe.contentWindow.animateMessages();
-                            animationReplayed = true;
-                            showStatus('Animation replayed', 'success');
-                        } else {
-                            console.log('No animateMessages function found in CSS3D object iframe');
-                        }
-                    }, 100);
-                } catch (error) {
-                    console.error('Error reloading CSS3D iframe:', error);
-                }
-            } else {
-                console.log('No CSS3D object with iframe found');
-            }
-            
-            // Method 3: Preview render target (which might be an iframe)
-            if (previewRenderTarget && previewRenderTarget.contentWindow) {
-                console.log('Found preview render target, attempting to replay animation');
-                try {
-                    // Refresh the content
-                    const contentHTML = previewRenderTarget.srcdoc || previewRenderTarget.contentDocument.documentElement.outerHTML;
-                    previewRenderTarget.srcdoc = contentHTML;
-                    
-                    // Set a timeout to ensure content has reloaded before calling animation
-                    setTimeout(() => {
-                        if (typeof previewRenderTarget.contentWindow.animateMessages === 'function') {
-                            console.log('Calling animateMessages function on preview render target');
-                            previewRenderTarget.contentWindow.animateMessages();
-                            animationReplayed = true;
-                            showStatus('Animation replayed', 'success');
-                        } else {
-                            console.log('No animateMessages function found in preview render target');
-                        }
-                    }, 100);
-                } catch (error) {
-                    console.error('Error reloading preview render target:', error);
-                }
-            } else {
-                console.log('No accessible preview render target found');
-            }
-            
-            // Method 4: For Three.js texture-based preview - refresh texture without creating new objects
-            if (previewPlane && previewRenderTarget && currentPreviewMode === 'threejs') {
-                console.log('Refreshing Three.js texture-based preview');
-                try {
-                    // Force texture update immediately - don't create a new mesh
-                    lastTextureUpdateTime = 0; // Reset the texture update time to force immediate update
-                    
-                    // Call createTextureFromIframe directly to update the texture
-                    createTextureFromIframe(previewRenderTarget).then(texture => {
-                        if (previewPlane && previewPlane.material) {
-                            // Handle array of materials for cube
-                            if (Array.isArray(previewPlane.material)) {
-                                previewPlane.material.forEach(material => {
-                                    if (material.map) {
-                                        material.map.dispose();
-                                    }
-                                    material.map = texture;
-                                    material.needsUpdate = true;
-                                });
-                                animationReplayed = true;
-                                showStatus('Preview texture refreshed', 'success');
-                            } else {
-                                // For backwards compatibility
-                                if (previewPlane.material.map) {
-                                    previewPlane.material.map.dispose();
-                                }
-                                previewPlane.material.map = texture;
-                                previewPlane.material.needsUpdate = true;
-                                animationReplayed = true;
-                                showStatus('Preview texture refreshed', 'success');
-                            }
-                        }
-                    }).catch(error => {
-                        console.error('Error updating texture during replay:', error);
-                    });
-                } catch (error) {
-                    console.error('Error refreshing Three.js texture:', error);
-                }
-            }
-            
-            // If we didn't successfully replay the animation using any method, show warning
-            if (!animationReplayed) {
-                console.log('Could not replay animation with any method');
-                showStatus('No animation function found to replay', 'warning');
-            }
-        } catch (error) {
-            console.error('Error replaying animation:', error);
-            showStatus('Error replaying animation: ' + error.message, 'error');
-        } finally {
-            // Clear the last button clicked after a short delay
-            setTimeout(() => {
-                window.lastButtonClicked = null;
-            }, 100);
-        }
-    });
-    
     // Add linting on input
     textarea.addEventListener('input', () => {
         // Debounce the linting to avoid performance issues
@@ -510,7 +452,6 @@ export function initHtmlEditorModal() {
             textarea.style.display = 'none';
             previewBtn.style.display = 'none';
             resetBtn.style.display = 'inline-block';
-            replayBtn.style.display = 'inline-block'; // Show replay button during preview
             
             // Hide editor container
             if (editorContainer) {
@@ -523,10 +464,11 @@ export function initHtmlEditorModal() {
                 label.textContent = 'Preview:'; // Update label text
             }
             
-            // Show a message about changing preview mode in mesh settings
-            const settingsBtn = document.getElementById('html-editor-settings');
-            if (settingsBtn) {
-                showStatus('Preview mode can be changed in mesh settings', 'info');
+            // Show a message about the current preview mode
+            const renderTypeSelect = document.getElementById('html-render-type');
+            if (renderTypeSelect) {
+                const previewMode = renderTypeSelect.options[renderTypeSelect.selectedIndex].text;
+                showStatus(`Preview mode: ${previewMode}`, 'info');
             }
         } catch (error) {
             showStatus('Error generating preview: ' + error.message, 'error');
@@ -544,7 +486,6 @@ export function initHtmlEditorModal() {
         textarea.style.display = 'block';
         previewBtn.style.display = 'inline-block';
         resetBtn.style.display = 'none';
-        replayBtn.style.display = 'none'; // Hide replay button when going back to editor
         
         // Find editor container only within the modal
         const editorContainer = modal.querySelector('.editor-container');
@@ -585,44 +526,19 @@ export function initHtmlEditorModal() {
         showStatus('Editor view restored', 'info');
     });
     
-    // Settings button - opens mesh settings modal
-    if (settingsBtn) {
-        settingsBtn.addEventListener('click', () => {
-            try {
-                const meshId = parseInt(modal.dataset.meshId);
-                const meshName = document.getElementById('html-editor-mesh-name').textContent;
-                
-                if (!isNaN(meshId)) {
-                    console.log(`Opening mesh settings from HTML editor for mesh: ${meshName} (ID: ${meshId})`);
-                    
-                    // Store HTML editor state
-                    htmlEditorState.isOpen = true;
-                    
-                    // Call the mesh settings modal
-                    if (typeof window.openMeshSettingsModal === 'function') {
-                        // Call with a special flag to indicate it was opened from HTML editor
-                        window.openMeshSettingsModal(meshName, meshId, {fromHtmlEditor: true});
-                    } else {
-                        console.error('Mesh Settings function not found');
-                        alert('Mesh Settings not available');
-                    }
-                } else {
-                    console.error('Invalid mesh ID in HTML editor');
-                }
-            } catch (error) {
-                console.error('Error opening mesh settings from HTML editor:', error);
-                showStatus('Error opening settings', 'error');
-            }
-        });
-    }
-    
     // Save button
     saveBtn.addEventListener('click', async () => {
         try {
             const currentMeshId = modal.dataset.meshId;
             if (currentMeshId) {
                 const html = textarea.value;
+                
+                // Save HTML content
                 await saveHtmlForMesh(parseInt(currentMeshId), html);
+                
+                // Save current settings
+                const settings = getSettingsFromForm();
+                saveSettingsForMesh(parseInt(currentMeshId), settings);
                 
                 // Update HTML icons to reflect the new state
                 updateHtmlIcons();
@@ -671,18 +587,6 @@ function closeModal() {
 }
 
 /**
- * Re-open the HTML Editor Modal (used after mesh settings modal closes)
- */
-export function reopenHtmlEditorModal() {
-    if (htmlEditorState.isOpen) {
-        const modal = document.getElementById('html-editor-modal');
-        if (modal) {
-            modal.classList.add('visible');
-        }
-    }
-}
-
-/**
  * Show a status message in the editor
  * @param {string} message - The message to display
  * @param {string} type - The type of message ('success', 'error', 'info')
@@ -712,44 +616,20 @@ function previewHtml(html) {
         const modal = document.getElementById('html-editor-modal');
         const currentMeshId = parseInt(modal.dataset.meshId);
         
-        // Get mesh settings to determine preview mode
-        let previewMode = 'threejs'; // Default to threejs preview instead of direct
+        // Get preview mode from render type dropdown
+        const renderTypeSelect = document.getElementById('html-render-type');
+        let previewMode = renderTypeSelect ? renderTypeSelect.value : 'threejs';
         
-        try {
-            // Try to get preview mode from mesh settings
-            if (typeof window.getHtmlSettingsForMesh === 'function') {
-                const meshSettings = window.getHtmlSettingsForMesh(currentMeshId);
-                if (meshSettings && meshSettings.previewMode) {
-                    previewMode = meshSettings.previewMode;
-                    console.log(`Using preview mode from settings: ${previewMode}`);
-                    
-                    // Store the preview mode in the modal dataset for access elsewhere
-                    modal.dataset.previewMode = previewMode;
-                }
-            }
-        } catch (error) {
-            console.error('Error getting mesh settings:', error);
-        }
+        // Store the preview mode in the modal dataset for access elsewhere
+        modal.dataset.previewMode = previewMode;
         
-        // Get the originator of this call (Preview button or Replay button)
-        const replayBtn = document.getElementById('html-editor-replay');
-        const isReplayAction = replayBtn && 
-                              window.lastButtonClicked === replayBtn;
+        // Always do a full cleanup for a new preview
+        console.log('Cleaning up previous preview');
+        // Clean up any existing preview
+        cleanupThreeJsPreview();
         
-        // Only do a full cleanup if this isn't from a replay action
-        // This keeps the existing cube when replaying animations
-        if (!isReplayAction) {
-            console.log('Cleaning up previous preview');
-            // Clean up any existing preview
-            cleanupThreeJsPreview();
-            
-            // Clear the preview container
-            previewContent.innerHTML = '';
-        } else {
-            console.log('Replay action detected - preserving existing 3D scene');
-            // Just make sure preview is active
-            isPreviewActive = true;
-        }
+        // Clear the preview container
+        previewContent.innerHTML = '';
         
         // Set preview as active
         isPreviewActive = true;
@@ -782,67 +662,36 @@ function previewHtml(html) {
             // Only proceed if preview is still active
             if (!isPreviewActive) return;
             
-            // Only create containers if this isn't a replay action
-            if (!isReplayAction) {
-                // Create container for Three.js canvas
-                const canvasContainer = document.createElement('div');
-                canvasContainer.style.width = '100%';
-                canvasContainer.style.height = '100%';
-                canvasContainer.style.position = 'absolute';
-                canvasContainer.style.top = '0';
-                canvasContainer.style.left = '0';
-                canvasContainer.style.right = '0';
-                canvasContainer.style.bottom = '0';
-                canvasContainer.style.overflow = 'hidden';
-                canvasContainer.style.display = 'block'; // Always display since 'direct' mode is removed
-                previewContent.appendChild(canvasContainer);
-                
-                // Add error log container
-                const errorLog = document.createElement('div');
-                errorLog.id = 'html-preview-error-log';
-                errorLog.className = 'preview-error-log';
-                errorLog.style.display = 'none';
-                previewContent.appendChild(errorLog);
-                
-                // Initialize preview based on mode
-                if (previewMode === 'css3d') {
-                    showStatus('Initializing CSS3D preview mode...', 'info');
-                    // Get the iframe that may have been created earlier, or create a new one if needed
-                    const directPreviewIframe = document.createElement('iframe');
-                    initCSS3DPreview(canvasContainer, directPreviewIframe.cloneNode(true));
-                } else {
-                    // Default to threejs mode
-                    showStatus('Initializing 3D cube preview...', 'info');
-                    initThreeJsPreview(canvasContainer, renderIframe);
-                }
-            } else if (previewPlane) {
-                // For replay in threejs mode, just update the texture on the existing cube
-                console.log('Updating texture on existing 3D cube');
-                createTextureFromIframe(renderIframe).then(texture => {
-                    if (previewPlane && previewPlane.material) {
-                        // Handle array of materials for cube
-                        if (Array.isArray(previewPlane.material)) {
-                            previewPlane.material.forEach(material => {
-                                if (material.map) {
-                                    material.map.dispose();
-                                }
-                                material.map = texture;
-                                material.needsUpdate = true;
-                            });
-                            showStatus('Replay texture refreshed', 'success');
-                        } else {
-                            // For backwards compatibility
-                            if (previewPlane.material.map) {
-                                previewPlane.material.map.dispose();
-                            }
-                            previewPlane.material.map = texture;
-                            previewPlane.material.needsUpdate = true;
-                            showStatus('Replay texture refreshed', 'success');
-                        }
-                    }
-                }).catch(error => {
-                    console.error('Error updating texture during replay:', error);
-                });
+            // Create container for Three.js canvas
+            const canvasContainer = document.createElement('div');
+            canvasContainer.style.width = '100%';
+            canvasContainer.style.height = '100%';
+            canvasContainer.style.position = 'absolute';
+            canvasContainer.style.top = '0';
+            canvasContainer.style.left = '0';
+            canvasContainer.style.right = '0';
+            canvasContainer.style.bottom = '0';
+            canvasContainer.style.overflow = 'hidden';
+            canvasContainer.style.display = 'block'; // Always display since 'direct' mode is removed
+            previewContent.appendChild(canvasContainer);
+            
+            // Add error log container
+            const errorLog = document.createElement('div');
+            errorLog.id = 'html-preview-error-log';
+            errorLog.className = 'preview-error-log';
+            errorLog.style.display = 'none';
+            previewContent.appendChild(errorLog);
+            
+            // Initialize preview based on mode
+            if (previewMode === 'css3d') {
+                showStatus('Initializing CSS3D preview mode...', 'info');
+                // Get the iframe that may have been created earlier, or create a new one if needed
+                const directPreviewIframe = document.createElement('iframe');
+                initCSS3DPreview(canvasContainer, directPreviewIframe.cloneNode(true));
+            } else {
+                // Default to threejs mode
+                showStatus('Initializing 3D cube preview...', 'info');
+                initThreeJsPreview(canvasContainer, renderIframe);
             }
         };
         
@@ -1411,17 +1260,6 @@ function cleanupThreeJsPreview() {
         }
     } catch (e) {
         console.log('CSS3D cleanup error (non-critical):', e);
-    }
-    
-    // Reset replay button
-    try {
-        const replayBtn = document.getElementById('html-editor-replay');
-        if (replayBtn && window.originalReplayBtnClick) {
-            replayBtn.onclick = window.originalReplayBtnClick;
-            window.originalReplayBtnClick = null;
-        }
-    } catch (e) {
-        console.log('Replay button cleanup error (non-critical):', e);
     }
     
     // Original cleanup code for texture-based preview

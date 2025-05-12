@@ -2248,17 +2248,6 @@ h2 {
     cursor: text;
 }
 
-
-/* Mesh Settings Modal Styles */
-#mesh-settings-modal {
-    display: none;
-}
-
-#mesh-settings-modal.visible {
-    display: flex !important;
-    z-index: 3000; /* Ensure it's above other UI elements */
-}
-
 /* Animation controls styling */
 .animation-controls {
     margin-top: 8px;
