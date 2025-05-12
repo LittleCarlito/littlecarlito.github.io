@@ -1,3 +1,7 @@
+#html-editor-reset {
+    display: none;
+}
+
 /* Base modal styles */
 #html-editor-modal {
     display: none;
@@ -13,6 +17,8 @@
     height: 85%;
     max-width: 1000px;
     max-height: 600px;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Preview mode class-based styling */
@@ -84,42 +90,21 @@
     box-shadow: 0 0 0 2px rgba(30, 136, 229, 0.25);
 }
 
-/* Format button styling */
-.format-btn {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background-color: transparent;
-    border: 1px solid var(--button-color);
-    color: var(--button-color);
-    cursor: pointer;
-    font-size: 14px;
-    padding: 6px 12px;
-    font-family: monospace;
-    transition: all 0.3s ease;
-    border-radius: 3px;
-    opacity: 0.6;
+/* Format button container */
+.format-btn-container {
+    height: 40px;
+    background-color: rgba(30, 30, 30, 0.8);
+    border-bottom: 1px solid var(--panel-border);
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding-right: 10px;
     z-index: 10;
-}
-
-.format-btn:hover {
-    opacity: 1;
-    background-color: rgba(30, 136, 229, 0.2);
-}
-
-/* Editor container */
-.editor-container {
-    position: relative;
-    width: 100%;
-    height: 400px;
-    border: 1px solid var(--panel-border);
-    margin-bottom: 15px;
-    background-color: rgba(0, 0, 0, 0.2);
 }
 
 .html-editor-textarea {
     width: 100%;
-    height: 100%;
+    flex: 1;
     padding: 10px;
     font-family: monospace;
     font-size: 14px;
@@ -128,6 +113,40 @@
     background-color: var(--input-bg);
     border: none;
     resize: none;
+    box-sizing: border-box;
+    white-space: nowrap;
+    overflow-x: scroll;
+    overflow-y: auto;
+}
+
+/* Format button styling */
+.format-btn {
+    background-color: var(--button-color);
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px 12px;
+    font-family: monospace;
+    transition: all 0.2s ease;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+.format-btn:hover {
+    background-color: #0d74c7;
+}
+
+/* Editor container */
+.editor-container {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    border: 1px solid var(--panel-border);
+    margin: 10px 15px;
+    background-color: rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
 }
 
 /* Button styling */
@@ -164,9 +183,9 @@
 
 /* Preview container */
 .editor-preview-container {
-    width: 100%;
-    height: 400px;
-    margin-bottom: 15px;
+    flex: 1;
+    min-height: 0;
+    margin: 10px 0;
     display: none;
     background-color: #000;
     position: relative;
@@ -217,20 +236,26 @@
 
 .editor-options {
     display: flex;
+    justify-content: center;
     gap: 10px;
     margin-bottom: 10px;
     flex-wrap: wrap;
     align-items: center;
 }
 
-/* Error display */
+/* Error display - moved outside the editor container */
 .html-editor-errors {
-    padding: 8px;
+    margin: 0 15px;
+    padding: 8px 12px;
     background-color: #f8d7da;
     color: #721c24;
     font-size: 12px;
-    max-height: 100px;
+    max-height: 60px;
     overflow-y: auto;
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+    border: 1px solid #f5c6cb;
+    border-top: none;
 }
 
 .html-editor-textarea.has-errors {

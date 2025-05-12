@@ -6,50 +6,55 @@
             <h3 class="modal-title">HTML Editor: <span id="html-editor-mesh-name"></span></h3>
             <button class="modal-close" id="html-editor-close">&times;</button>
         </div>
-        <div class="modal-body">
-            <div class="editor-controls">
-                <div class="editor-options" style="justify-content: center;">
-                    <!-- Grouped dropdowns with hint text -->
-                    <div id="editor-dropdowns-container" class="dropdowns-container">
-                        <span class="dropdown-hint">Rendered using</span>
-                        <select id="html-render-type" class="editor-dropdown">
-                            <option value="threejs">img2texture</option>
-                            <option value="css3d">CSS3D</option>
-                        </select>
-                        
-                        <span class="dropdown-hint">at</span>
-                        <select id="html-playback-speed" class="editor-dropdown">
-                            <option value="0.25">x0.25</option>
-                            <option value="0.5">x0.5</option>
-                            <option value="0.75">x0.75</option>
-                            <option value="1.0" selected>x1</option>
-                            <option value="1.5">x1.5</option>
-                            <option value="2.0">x2</option>
-                        </select>
-                        
-                        <span class="dropdown-hint">animated with</span>
-                        <select id="html-animation-type" class="editor-dropdown">
-                            <option value="none" selected>None</option>
-                            <option value="loop">Loop</option>
-                            <option value="bounce">Bounce</option>
-                            <option value="longExposure">Long Exposure</option>
-                        </select>
-                    </div>
+        
+        <div class="editor-controls">
+            <div class="editor-options">
+                <!-- Grouped dropdowns with hint text -->
+                <div id="editor-dropdowns-container" class="dropdowns-container">
+                    <span class="dropdown-hint">Rendered using</span>
+                    <select id="html-render-type" class="editor-dropdown">
+                        <option value="threejs">img2texture</option>
+                        <option value="css3d">CSS3D</option>
+                    </select>
+                    
+                    <span class="dropdown-hint">at</span>
+                    <select id="html-playback-speed" class="editor-dropdown">
+                        <option value="0.25">x0.25</option>
+                        <option value="0.5">x0.5</option>
+                        <option value="0.75">x0.75</option>
+                        <option value="1.0" selected>x1</option>
+                        <option value="1.5">x1.5</option>
+                        <option value="2.0">x2</option>
+                    </select>
+                    
+                    <span class="dropdown-hint">animated with</span>
+                    <select id="html-animation-type" class="editor-dropdown">
+                        <option value="none" selected>None</option>
+                        <option value="loop">Loop</option>
+                        <option value="bounce">Bounce</option>
+                        <option value="longExposure">Long Exposure</option>
+                    </select>
                 </div>
-                <!-- Buttons -->
-                <button id="html-editor-preview" class="editor-btn" title="Preview">Preview</button>
-                <button id="html-editor-reset" class="editor-btn" title="Reset" style="display: none;">Reset</button>
             </div>
-            
-            <div class="editor-container">
-                <textarea id="html-editor-textarea" class="code-editor html-editor-textarea" placeholder="Enter HTML code here..."></textarea>
+            <!-- Buttons -->
+            <button id="html-editor-preview" class="editor-btn" title="Preview">Preview</button>
+            <button id="html-editor-reset" class="editor-btn" title="Reset">Reset</button>
+        </div>
+        
+        <div class="editor-container">
+            <div class="format-btn-container">
                 <button id="html-editor-format" class="format-btn" title="Format HTML">Format</button>
             </div>
-            
-            <div class="editor-preview-container" id="html-preview-container">
-                <div id="html-preview-content" class="html-preview"></div>
-            </div>
+            <textarea id="html-editor-textarea" class="code-editor html-editor-textarea" placeholder="Enter HTML code here..."></textarea>
         </div>
+        
+        <!-- Error messages container -->
+        <div class="html-editor-errors" id="html-editor-errors"></div>
+        
+        <div class="editor-preview-container" id="html-preview-container">
+            <div id="html-preview-content" class="html-preview"></div>
+        </div>
+        
         <div class="modal-footer">
             <div class="editor-status" id="html-editor-status"></div>
             <div class="editor-buttons">
