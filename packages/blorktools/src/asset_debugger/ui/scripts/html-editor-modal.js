@@ -90,6 +90,28 @@ let infoPanel = null;
 let infoPanelCollapsed = false;
 let infoPanelPosition = { x: 10, y: 10 }; // Default position in top-left corner
 
+// Add variables for frame buffering at the top of the file with other variables
+let frameBuffer = [];
+let frameBufferMaxSize = 600; // Store up to 600 frames for higher capture rate
+let lastFramePlaybackTime = 0;
+let currentFrameIndex = 0;
+let isCapturingFrames = true; // Always capture frames
+let originalAnimationStartTime = 0;
+let lastCapturedTime = 0;
+let isFirstCapture = true;
+let animationDetected = false;
+let animationStartDetected = false;
+let animationEndDetected = false;
+let animationIdleCount = 0;
+let previousFrameHash = '';
+let animationChangeThreshold = 0.01; // Threshold for detecting change between frames
+let animationIdleThreshold = 30; // Number of similar frames before considering animation ended
+let animationStartTime = 0;
+let animationEndTime = 0;
+let isLoopingAnimation = false;
+let maxCaptureRate = 1; // ms between captures (1ms = up to 1000fps theoretical)
+let actualCaptureRate = 0; // Measured capture rate
+
 /**
  * Open the HTML Editor Modal for a specific mesh
  * @param {string} meshName - The name of the mesh
@@ -389,10 +411,11 @@ export function initHtmlEditorModal() {
             const meshId = parseInt(modal.dataset.meshId);
             if (!isNaN(meshId)) {
                 const settings = getSettingsFromForm();
-                saveSettingsForMesh(meshId, settings);
-                
-                // Get the new playback speed
+                const oldPlaybackSpeed = settings.playbackSpeed || 1.0;
                 const newPlaybackSpeed = parseFloat(playbackSpeedSelect.value);
+                
+                // Save new settings
+                saveSettingsForMesh(meshId, settings);
                 
                 // Update CSS3D preview if active
                 if (isPreviewActive) {
@@ -413,9 +436,31 @@ export function initHtmlEditorModal() {
                             }
                         }
                         
-                        // Force texture update for texture-based preview
-                        lastTextureUpdateTime = 0;
-                        textureUpdateInterval = Math.max(1, Math.floor(16 / newPlaybackSpeed));
+                        // For image2texture preview - adjust timing without resetting frames
+                        if (frameBuffer.length > 0) {
+                            // Calculate how much animation time has elapsed at the old speed
+                            const currentTime = Date.now();
+                            const realElapsedTime = currentTime - originalAnimationStartTime;
+                            const animationElapsedTime = realElapsedTime * oldPlaybackSpeed;
+                            
+                            // Reset the animation start time to maintain current position
+                            // but continue with the new speed
+                            originalAnimationStartTime = currentTime - (animationElapsedTime / newPlaybackSpeed);
+                            
+                            // For speeds > 1x, we need to ensure we have enough frames in the buffer
+                            // to maintain smooth playback
+                            if (newPlaybackSpeed > 1.0) {
+                                // Increase capture rate for faster playback
+                                maxCaptureRate = Math.max(1, Math.floor(1 / newPlaybackSpeed));
+                                console.log(`Adjusted capture rate for ${newPlaybackSpeed}x speed: ${maxCaptureRate}ms`);
+                                
+                                // Force immediate frame capture
+                                lastCapturedTime = 0;
+                            } else {
+                                // Reset to normal capture rate
+                                maxCaptureRate = 1;
+                            }
+                        }
                     } catch (err) {
                         console.debug('Error updating playback speed in preview:', err);
                     }
@@ -1301,74 +1346,213 @@ function animatePreview() {
             }
         }
         
-        // Control the texture update rate based on playback speed
         // Get current mesh ID from the modal
         const modal = document.getElementById('html-editor-modal');
         const currentMeshId = parseInt(modal.dataset.meshId);
         const settings = getHtmlSettingsForMesh(currentMeshId);
         const playbackSpeed = settings.playbackSpeed || 1.0;
         
-        // Adjust texture update interval based on playback speed
-        // Slower playback = less frequent updates, faster playback = more frequent updates
-        const baseInterval = 16; // Base interval at 1x speed (60fps)
-        const adjustedInterval = Math.max(1, Math.floor(baseInterval / playbackSpeed));
-        
-        // Request texture update if it's time and we're not already processing one
-        const currentTime = Date.now();
-        if (!isPreviewAnimationPaused && previewPlane && previewRenderTarget && 
-            !pendingTextureUpdate &&
-            (currentTime - lastTextureUpdateTime > adjustedInterval)) {
+        // Continuous frame capture and playback with sliding window approach
+        if (!isPreviewAnimationPaused && previewPlane && previewRenderTarget) {
+            const currentTime = Date.now();
             
-            // Schedule texture update for when browser is idle
-            pendingTextureUpdate = true;
-            
-            // Use requestIdleCallback if available, otherwise setTimeout
-            const scheduleIdleTask = window.requestIdleCallback || 
-                                    (callback => setTimeout(callback, 1));
-            
-            scheduleIdleTask(() => {
-                // Update the last time
-                lastTextureUpdateTime = Date.now();
+            // If this is the first capture, record the start time
+            if (isFirstCapture) {
+                originalAnimationStartTime = currentTime;
+                lastCapturedTime = currentTime;
+                isFirstCapture = false;
+                animationDetected = false;
+                animationStartDetected = false;
+                animationEndDetected = false;
+                animationIdleCount = 0;
+                previousFrameHash = '';
+                actualCaptureRate = 0;
                 
-                // Check if iframe is still valid before trying to update texture
-                if (previewRenderTarget && document.body.contains(previewRenderTarget)) {
-                    // Update texture from iframe content
-                    createTextureFromIframe(previewRenderTarget).then(texture => {
-                        // Check if preview is still active before updating
-                        if (!isPreviewActive) return;
-                        
-                        if (previewPlane && previewPlane.material) {
-                            // Handle array of materials for cube
-                            if (Array.isArray(previewPlane.material)) {
-                                previewPlane.material.forEach(material => {
-                                    if (material.map) {
-                                        material.map.dispose();
-                                    }
-                                    material.map = texture;
-                                    material.needsUpdate = true;
-                                });
-                            } else {
-                                // For backwards compatibility
-                                if (previewPlane.material.map) {
-                                    previewPlane.material.map.dispose();
+                // Try to detect if this is animation content by checking for animation CSS and setTimeout/setInterval
+                detectAnimationContent(previewRenderTarget).then(result => {
+                    animationDetected = result.hasAnimation;
+                    isLoopingAnimation = result.isLooping;
+                    console.log(`Animation detection: ${animationDetected ? 'Animation detected' : 'No animation detected'}, Looping: ${isLoopingAnimation}`);
+                });
+            }
+            
+            // Calculate how much real time has passed since animation started
+            const realElapsedTime = currentTime - originalAnimationStartTime;
+            
+            // Calculate how much animation time should have passed based on playback speed
+            const animationElapsedTime = realElapsedTime * playbackSpeed;
+            
+            // Calculate frame timing
+            const timeSinceLastCapture = currentTime - lastCapturedTime;
+            
+            // Capture frames at maximum possible rate, limited by maxCaptureRate
+            const captureInterval = maxCaptureRate; // 1ms = up to 1000fps theoretical
+            
+            // Determine if we should capture a new frame
+            const shouldCaptureFrame = !pendingTextureUpdate && 
+                                      (timeSinceLastCapture >= captureInterval);
+            
+            // If we need to capture a frame
+            if (shouldCaptureFrame) {
+                pendingTextureUpdate = true;
+                const captureStartTime = performance.now();
+                lastCapturedTime = currentTime;
+                
+                // Capture a frame from the iframe
+                createTextureFromIframe(previewRenderTarget).then(texture => {
+                    // Calculate actual capture rate for monitoring
+                    const captureDuration = performance.now() - captureStartTime;
+                    actualCaptureRate = Math.max(actualCaptureRate, captureDuration);
+                    
+                    // Log the actual capture rate occasionally
+                    if (frameBuffer.length % 100 === 0) {
+                        console.log(`Actual minimum frame capture time: ${actualCaptureRate.toFixed(2)}ms (${Math.round(1000 / actualCaptureRate)} fps max)`);
+                    }
+                    
+                    // Calculate a simple hash of the texture to detect changes
+                    const frameHash = calculateTextureHash(texture);
+                    const isSignificantChange = previousFrameHash && 
+                                               calculateHashDifference(frameHash, previousFrameHash) > animationChangeThreshold;
+                    
+                    // Detect animation start/end
+                    if (!animationStartDetected && isSignificantChange) {
+                        animationStartDetected = true;
+                        animationStartTime = currentTime;
+                        console.log('Animation start detected at:', new Date(animationStartTime).toISOString());
+                    }
+                    
+                    // If we've detected the start but not the end
+                    if (animationStartDetected && !animationEndDetected) {
+                        if (isSignificantChange) {
+                            // Reset idle counter when we detect changes
+                            animationIdleCount = 0;
+                        } else {
+                            // Increment idle counter when frames are similar
+                            animationIdleCount++;
+                            
+                            // If we've had enough similar frames, consider the animation ended
+                            if (animationIdleCount >= animationIdleThreshold) {
+                                animationEndDetected = true;
+                                animationEndTime = currentTime;
+                                console.log('Animation end detected at:', new Date(animationEndTime).toISOString());
+                                console.log(`Animation duration: ${(animationEndTime - animationStartTime) / 1000} seconds`);
+                                
+                                // If we've detected both start and end, and it's not a looping animation,
+                                // we can stop capturing new frames
+                                if (!isLoopingAnimation) {
+                                    isCapturingFrames = false;
                                 }
-                                previewPlane.material.map = texture;
-                                previewPlane.material.needsUpdate = true;
                             }
                         }
-                        
-                        // Allow new texture updates
-                        pendingTextureUpdate = false;
-                    }).catch(error => {
-                        console.error('Error updating texture:', error);
-                        // Allow new texture updates even on error
-                        pendingTextureUpdate = false;
+                    }
+                    
+                    // Store the hash for comparison with next frame
+                    previousFrameHash = frameHash;
+                    
+                    // Add to buffer
+                    frameBuffer.push({
+                        texture: texture,
+                        timestamp: currentTime,
+                        hash: frameHash
                     });
-                } else {
-                    // If iframe is invalid, still reset the flag
+                    
+                    // Keep buffer at reasonable size with sliding window approach
+                    while (frameBuffer.length > frameBufferMaxSize) {
+                        // Remove oldest frame and dispose its texture
+                        const oldFrame = frameBuffer.shift();
+                        if (oldFrame && oldFrame.texture) {
+                            oldFrame.texture.dispose();
+                        }
+                    }
+                    
                     pendingTextureUpdate = false;
+                }).catch(error => {
+                    console.error('Error capturing frame:', error);
+                    pendingTextureUpdate = false;
+                });
+            }
+            
+            // Determine which frame to display based on animation elapsed time
+            if (frameBuffer.length > 0) {
+                // If we have detected a complete animation and it's not looping
+                if (animationStartDetected && animationEndDetected && !isLoopingAnimation) {
+                    // Calculate the animation duration
+                    const animationDuration = animationEndTime - animationStartTime;
+                    
+                    // For non-looping animations, clamp to the end once we reach it
+                    let targetTimestamp;
+                    if (animationElapsedTime > animationDuration) {
+                        targetTimestamp = animationEndTime;
+                    } else {
+                        // Otherwise, loop within the detected animation bounds
+                        const animationPosition = (animationElapsedTime % animationDuration);
+                        targetTimestamp = animationStartTime + animationPosition;
+                    }
+                    
+                    // Find the frame with timestamp closest to our target
+                    let closestFrameIndex = 0;
+                    let smallestDifference = Infinity;
+                    
+                    for (let i = 0; i < frameBuffer.length; i++) {
+                        const difference = Math.abs(frameBuffer[i].timestamp - targetTimestamp);
+                        if (difference < smallestDifference) {
+                            smallestDifference = difference;
+                            closestFrameIndex = i;
+                        }
+                    }
+                    
+                    // Get the frame to display
+                    const frameToDisplay = frameBuffer[closestFrameIndex].texture;
+                    
+                    // Update the texture on the mesh if it's different from current
+                    updateMeshTexture(frameToDisplay);
+                } else {
+                    // For undetected or looping animations, use the standard time-based approach
+                    
+                    // For faster playback (>1x), we need to ensure we skip frames appropriately
+                    // to maintain the correct visual speed
+                    let targetTimestamp;
+                    
+                    if (playbackSpeed <= 1.0) {
+                        // For normal or slow motion, use the standard approach
+                        targetTimestamp = originalAnimationStartTime + animationElapsedTime;
+                    } else {
+                        // For fast motion, we need a different approach to ensure we skip frames correctly
+                        // This ensures we don't just play the animation at normal speed but with fewer frames
+                        
+                        // Calculate what percentage through the buffer we should be
+                        const bufferDuration = frameBuffer[frameBuffer.length - 1].timestamp - frameBuffer[0].timestamp;
+                        const bufferPosition = (animationElapsedTime % bufferDuration) / bufferDuration;
+                        
+                        // Find the frame index based on this position
+                        const frameIndex = Math.min(
+                            Math.floor(bufferPosition * frameBuffer.length),
+                            frameBuffer.length - 1
+                        );
+                        
+                        // Get the target timestamp
+                        targetTimestamp = frameBuffer[frameIndex].timestamp;
+                    }
+                    
+                    // Find the frame with timestamp closest to our target
+                    let closestFrameIndex = 0;
+                    let smallestDifference = Infinity;
+                    
+                    for (let i = 0; i < frameBuffer.length; i++) {
+                        const difference = Math.abs(frameBuffer[i].timestamp - targetTimestamp);
+                        if (difference < smallestDifference) {
+                            smallestDifference = difference;
+                            closestFrameIndex = i;
+                        }
+                    }
+                    
+                    // Get the frame to display
+                    const frameToDisplay = frameBuffer[closestFrameIndex].texture;
+                    
+                    // Update the texture on the mesh if it's different from current
+                    updateMeshTexture(frameToDisplay);
                 }
-            }, { timeout: 100 }); // Allow max 100ms for the idle task
+            }
         }
         
         // Render the scene - this is always done at the target framerate
@@ -1378,6 +1562,299 @@ function animatePreview() {
     } catch (error) {
         console.error('Error in animation loop:', error);
         // Don't stop the animation loop for errors, just log them
+    }
+}
+
+/**
+ * Update the mesh texture with the given texture
+ * @param {THREE.Texture} texture - The texture to apply to the mesh
+ */
+function updateMeshTexture(texture) {
+    if (!texture || !previewPlane || !previewPlane.material) return;
+    
+    let needsUpdate = false;
+    
+    if (Array.isArray(previewPlane.material)) {
+        previewPlane.material.forEach(material => {
+            if (material.map !== texture) {
+                material.map = texture;
+                needsUpdate = true;
+            }
+        });
+        
+        if (needsUpdate) {
+            previewPlane.material.forEach(material => {
+                material.needsUpdate = true;
+            });
+        }
+    } else {
+        if (previewPlane.material.map !== texture) {
+            previewPlane.material.map = texture;
+            previewPlane.material.needsUpdate = true;
+        }
+    }
+}
+
+/**
+ * Calculate a simple hash of a texture to detect changes between frames
+ * @param {THREE.Texture} texture - The texture to hash
+ * @returns {string} A simple hash of the texture
+ */
+function calculateTextureHash(texture) {
+    if (!texture || !texture.image) return '';
+    
+    try {
+        // Create a small canvas to sample the texture
+        const canvas = document.createElement('canvas');
+        const size = 16; // Small sample size for performance
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        
+        // Draw the texture to the canvas
+        ctx.drawImage(texture.image, 0, 0, size, size);
+        
+        // Get image data
+        const imageData = ctx.getImageData(0, 0, size, size).data;
+        
+        // Sample pixels at regular intervals
+        const samples = [];
+        const step = 4 * 4; // Sample every 4th pixel (RGBA)
+        for (let i = 0; i < imageData.length; i += step) {
+            // Use just the RGB values (skip alpha)
+            samples.push(imageData[i], imageData[i+1], imageData[i+2]);
+        }
+        
+        // Create a simple hash from the samples
+        return samples.join(',');
+    } catch (e) {
+        console.error('Error calculating texture hash:', e);
+        return '';
+    }
+}
+
+/**
+ * Calculate the difference between two texture hashes
+ * @param {string} hash1 - First hash
+ * @param {string} hash2 - Second hash
+ * @returns {number} Difference value between 0 and 1
+ */
+function calculateHashDifference(hash1, hash2) {
+    if (!hash1 || !hash2) return 1;
+    
+    try {
+        const arr1 = hash1.split(',').map(Number);
+        const arr2 = hash2.split(',').map(Number);
+        
+        // If arrays are different lengths, return max difference
+        if (arr1.length !== arr2.length) return 1;
+        
+        // Calculate mean absolute difference
+        let totalDiff = 0;
+        for (let i = 0; i < arr1.length; i++) {
+            totalDiff += Math.abs(arr1[i] - arr2[i]);
+        }
+        
+        // Normalize by max possible difference (255 per channel)
+        return totalDiff / (arr1.length * 255);
+    } catch (e) {
+        console.error('Error calculating hash difference:', e);
+        return 1;
+    }
+}
+
+/**
+ * Detect if the content contains animations
+ * @param {HTMLIFrameElement} iframe - The iframe containing the content
+ * @returns {Promise<{hasAnimation: boolean, isLooping: boolean}>} Whether the content has animations and if they're looping
+ */
+async function detectAnimationContent(iframe) {
+    return new Promise((resolve) => {
+        try {
+            if (!iframe || !iframe.contentDocument) {
+                resolve({ hasAnimation: false, isLooping: false });
+                return;
+            }
+            
+            const doc = iframe.contentDocument;
+            let hasAnimation = false;
+            let isLooping = false;
+            
+            // Check for CSS animations and transitions
+            const styleSheets = doc.styleSheets;
+            try {
+                for (let i = 0; i < styleSheets.length; i++) {
+                    try {
+                        const rules = styleSheets[i].cssRules || styleSheets[i].rules;
+                        if (!rules) continue;
+                        
+                        for (let j = 0; j < rules.length; j++) {
+                            const rule = rules[j];
+                            
+                            // Check for @keyframes
+                            if (rule.type === CSSRule.KEYFRAMES_RULE) {
+                                hasAnimation = true;
+                            }
+                            
+                            // Check for animation properties in style rules
+                            if (rule.type === CSSRule.STYLE_RULE) {
+                                const style = rule.style;
+                                if (style.animation || style.transition) {
+                                    hasAnimation = true;
+                                    
+                                    // Check if animation has 'infinite' value
+                                    if (style.animation && style.animation.includes('infinite')) {
+                                        isLooping = true;
+                                    }
+                                    
+                                    // Check animation-iteration-count for 'infinite'
+                                    if (style.animationIterationCount === 'infinite') {
+                                        isLooping = true;
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        // CORS issues can prevent access to some stylesheets
+                        console.debug('Could not access stylesheet rules:', e);
+                    }
+                }
+            } catch (e) {
+                console.debug('Error checking stylesheets:', e);
+            }
+            
+            // Check for JavaScript animations (setTimeout, setInterval, requestAnimationFrame)
+            const jsAnimations = iframe.contentWindow.__animationDetection;
+            if (jsAnimations) {
+                // Check for timer-based animations
+                if (jsAnimations.setTimeout > 0 || jsAnimations.setInterval > 0) {
+                    hasAnimation = true;
+                }
+                
+                // Check for requestAnimationFrame usage
+                if (jsAnimations.rAF > 0) {
+                    hasAnimation = true;
+                }
+                
+                // Check for animation loops
+                if (jsAnimations.isAnimationLoop) {
+                    hasAnimation = true;
+                    isLooping = true;
+                }
+                
+                // Check for DOM mutations that might indicate animation
+                if (jsAnimations.domChanges) {
+                    hasAnimation = true;
+                }
+                
+                // If we have recurring timeouts/intervals that are still active, consider it looping
+                if (jsAnimations.activeTimeouts > 0 || jsAnimations.activeIntervals > 0) {
+                    isLooping = true;
+                }
+            }
+            
+            // Check for elements with animated properties
+            try {
+                // Look for elements with transform, opacity or other commonly animated properties
+                const animatedElements = doc.querySelectorAll('[style*="transform"], [style*="opacity"], [style*="transition"]');
+                if (animatedElements.length > 0) {
+                    hasAnimation = true;
+                }
+            } catch (e) {
+                console.debug('Error checking for animated elements:', e);
+            }
+            
+            resolve({ hasAnimation, isLooping });
+        } catch (e) {
+            console.error('Error detecting animations:', e);
+            resolve({ hasAnimation: false, isLooping: false });
+        }
+    });
+}
+
+// Inject animation detection script when creating the iframe
+function injectAnimationDetectionScript(iframe) {
+    try {
+        if (!iframe || !iframe.contentDocument) return;
+        
+        const script = iframe.contentDocument.createElement('script');
+        script.textContent = `
+            // Animation detection
+            window.__animationDetection = {
+                setTimeout: 0,
+                setInterval: 0,
+                rAF: 0,
+                activeTimeouts: 0,
+                activeIntervals: 0,
+                animationFrameIds: new Set()
+            };
+            
+            // Override setTimeout
+            const originalSetTimeout = window.setTimeout;
+            window.setTimeout = function(callback, delay) {
+                window.__animationDetection.setTimeout++;
+                window.__animationDetection.activeTimeouts++;
+                const id = originalSetTimeout.call(this, function() {
+                    window.__animationDetection.activeTimeouts--;
+                    if (typeof callback === 'function') callback();
+                }, delay);
+                return id;
+            };
+            
+            // Override setInterval
+            const originalSetInterval = window.setInterval;
+            window.setInterval = function(callback, delay) {
+                window.__animationDetection.setInterval++;
+                window.__animationDetection.activeIntervals++;
+                return originalSetInterval.call(this, callback, delay);
+            };
+            
+            // Override requestAnimationFrame
+            const originalRAF = window.requestAnimationFrame;
+            window.requestAnimationFrame = function(callback) {
+                window.__animationDetection.rAF++;
+                const id = originalRAF.call(this, function(timestamp) {
+                    window.__animationDetection.animationFrameIds.add(id);
+                    if (typeof callback === 'function') callback(timestamp);
+                    // If the same callback requests another frame, it's likely a loop
+                    if (window.__animationDetection.animationFrameIds.size > 5) {
+                        window.__animationDetection.isAnimationLoop = true;
+                    }
+                });
+                return id;
+            };
+            
+            // Detect DOM changes that might indicate animation
+            try {
+                const observer = new MutationObserver(mutations => {
+                    for (const mutation of mutations) {
+                        // Check for style or class changes which might indicate animation
+                        if (mutation.type === 'attributes' && 
+                            (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
+                            window.__animationDetection.domChanges = true;
+                        }
+                        // Check for added/removed nodes which might indicate animation
+                        if (mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0) {
+                            window.__animationDetection.domChanges = true;
+                        }
+                    }
+                });
+                
+                // Observe the entire document for changes
+                observer.observe(document.documentElement, {
+                    attributes: true,
+                    childList: true,
+                    subtree: true
+                });
+            } catch (e) {
+                // MutationObserver might not be available in all contexts
+                console.debug('MutationObserver not available:', e);
+            }
+        `;
+        
+        iframe.contentDocument.head.appendChild(script);
+    } catch (e) {
+        console.debug('Error injecting animation detection script:', e);
     }
 }
 
@@ -1474,6 +1951,11 @@ async function createTextureFromIframe(iframe) {
                         console.log('Iframe body not available, using empty texture');
                         resolve(createEmptyTexture());
                         return;
+                    }
+                    
+                    // Inject animation detection script if not already injected
+                    if (!iframe.contentWindow.__animationDetection) {
+                        injectAnimationDetectionScript(iframe);
                     }
                     
                     // Apply a frame to the content to make it more visible on the texture
@@ -1650,6 +2132,20 @@ function cleanupThreeJsPreview() {
     if (previewAnimationId !== null) {
         cancelAnimationFrame(previewAnimationId);
         previewAnimationId = null;
+    }
+    
+    // Clean up frame buffer
+    if (frameBuffer.length > 0) {
+        frameBuffer.forEach(frame => {
+            if (frame && frame.texture) {
+                frame.texture.dispose();
+            }
+        });
+        frameBuffer = [];
+        currentFrameIndex = 0;
+        lastFramePlaybackTime = 0;
+        isCapturingFrames = true;
+        isFirstCapture = true;
     }
     
     // Reset debug flag
