@@ -715,6 +715,10 @@ function previewHtml(html) {
         const playbackSpeedSelect = document.getElementById('html-playback-speed');
         const playbackSpeed = playbackSpeedSelect ? parseFloat(playbackSpeedSelect.value) : 1.0;
         
+        // Get animation type from dropdown
+        const animationTypeSelect = document.getElementById('html-animation-type');
+        const animationType = animationTypeSelect ? animationTypeSelect.value : 'none';
+        
         // Reset pre-rendering state
         isPreRenderingComplete = false;
         preRenderedFrames = [];
@@ -811,8 +815,13 @@ function previewHtml(html) {
                 loadingOverlay.style.left = '0';
                 loadingOverlay.style.width = '100%';
                 loadingOverlay.style.height = '100%';
-                loadingOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
+                loadingOverlay.style.backgroundColor = '#000000'; // Solid black background
                 loadingOverlay.style.zIndex = '1000';
+                
+                // Remove any border/outline that might be causing green lines
+                loadingOverlay.style.border = 'none';
+                loadingOverlay.style.outline = 'none';
+                loadingOverlay.style.boxShadow = 'none';
                 
                 // Create content container similar to loading-splash.html
                 const loadingContent = document.createElement('div');
@@ -822,6 +831,8 @@ function previewHtml(html) {
                 loadingContent.style.alignItems = 'center';
                 loadingContent.style.justifyContent = 'center';
                 loadingContent.style.height = '100%';
+                loadingContent.style.width = '100%';
+                loadingContent.style.backgroundColor = '#000000'; // Ensure content background is also black
                 
                 // Create title
                 const loadingTitle = document.createElement('h2');
@@ -891,6 +902,10 @@ function previewHtml(html) {
                 loadingOverlay.appendChild(loadingContent);
                 canvasContainer.appendChild(loadingOverlay);
                 
+                // Initialize the preview first, but don't start animation yet
+                // Pass false for createInfoPanel to prevent creating the info panel until pre-rendering is complete
+                initializePreview(previewMode, canvasContainer, renderIframe, currentMeshId, false, false);
+                
                 // Start pre-rendering with a callback for when it's done
                 startPreRendering(renderIframe, () => {
                     // Remove loading overlay
@@ -898,12 +913,22 @@ function previewHtml(html) {
                         loadingOverlay.parentNode.removeChild(loadingOverlay);
                     }
                     
-                    // Initialize preview
-                    initializePreview(previewMode, canvasContainer, renderIframe, currentMeshId);
+                    // Now create the info panel after pre-rendering is complete
+                    createMeshInfoPanel(canvasContainer, currentMeshId);
+                    
+                    // Reset animation start time to now
+                    originalAnimationStartTime = Date.now();
+                    isFirstCapture = false; // We've already captured frames
+                    
+                    // Start the animation
+                    isPreviewAnimationPaused = false;
+                    
+                    // Show a message that playback is starting
+                    showStatus(`Animation playback starting at ${playbackSpeed}x speed`, 'success');
                 }, progressBar);
             } else {
                 // Initialize preview immediately for normal speed
-                initializePreview(previewMode, canvasContainer, renderIframe, currentMeshId);
+                initializePreview(previewMode, canvasContainer, renderIframe, currentMeshId, true, true);
             }
         };
         
@@ -930,18 +955,25 @@ function previewHtml(html) {
  * @param {HTMLElement} canvasContainer - The container for the preview
  * @param {HTMLIFrameElement} renderIframe - The iframe containing the HTML content
  * @param {number} currentMeshId - The ID of the current mesh
+ * @param {boolean} startAnimation - Whether to start the animation immediately
+ * @param {boolean} createInfoPanel - Whether to create the info panel
  */
-function initializePreview(previewMode, canvasContainer, renderIframe, currentMeshId) {
+function initializePreview(previewMode, canvasContainer, renderIframe, currentMeshId, startAnimation = true, createInfoPanel = true) {
+    // If not starting animation immediately, pause it
+    if (!startAnimation) {
+        isPreviewAnimationPaused = true;
+    }
+    
     // Initialize preview based on mode
     if (previewMode === 'css3d') {
         showStatus('Initializing CSS3D preview mode...', 'info');
         // Get the iframe that may have been created earlier, or create a new one if needed
         const directPreviewIframe = document.createElement('iframe');
-        initCSS3DPreview(canvasContainer, directPreviewIframe.cloneNode(true));
+        initCSS3DPreview(canvasContainer, directPreviewIframe.cloneNode(true), currentMeshId, createInfoPanel);
     } else {
         // Default to threejs mode
         showStatus('Initializing 3D cube preview...', 'info');
-        initThreeJsPreview(canvasContainer, renderIframe);
+        initThreeJsPreview(canvasContainer, renderIframe, currentMeshId, createInfoPanel);
     }
 }
 
@@ -1051,15 +1083,17 @@ function startPreRendering(iframe, callback, progressBar = null) {
  * Initialize Three.js for HTML preview
  * @param {HTMLElement} container - The container element for the Three.js canvas
  * @param {HTMLIFrameElement} iframe - The iframe containing the HTML to render as texture
+ * @param {number} currentMeshId - The ID of the current mesh
+ * @param {boolean} createInfoPanel - Whether to create the info panel
  */
-function initThreeJsPreview(container, iframe) {
+function initThreeJsPreview(container, iframe, currentMeshId, createInfoPanel = true) {
     try {
         // We already have THREE imported at the top of the file
         console.log('Using imported Three.js module');
         
         // Only need to load html2canvas
         loadHtml2Canvas(() => {
-            setupThreeJsScene(container, iframe);
+            setupThreeJsScene(container, iframe, currentMeshId, createInfoPanel);
         });
     } catch (error) {
         console.error('Error initializing Three.js preview:', error);
@@ -1104,8 +1138,10 @@ function loadHtml2Canvas(callback) {
  * Set up the Three.js scene for HTML preview
  * @param {HTMLElement} container - The container element for the Three.js canvas
  * @param {HTMLIFrameElement} iframe - The iframe containing the HTML to render as texture
+ * @param {number} currentMeshId - The ID of the current mesh
+ * @param {boolean} createInfoPanel - Whether to create the info panel
  */
-function setupThreeJsScene(container, iframe) {
+function setupThreeJsScene(container, iframe, currentMeshId, createInfoPanel = true) {
     try {
         // Create scene with dark gray background
         previewScene = new THREE.Scene();
@@ -1145,12 +1181,17 @@ function setupThreeJsScene(container, iframe) {
         // Create a render target for the iframe
         previewRenderTarget = iframe;
         
+        // Create info panel if requested
+        if (createInfoPanel) {
+            createMeshInfoPanel(container, currentMeshId);
+        }
+        
         // Get current mesh ID from the modal
         const modal = document.getElementById('html-editor-modal');
         const currentMeshId = parseInt(modal.dataset.meshId);
         
         // Create info panel
-        createInfoPanel(container, currentMeshId);
+        createMeshInfoPanel(container, currentMeshId);
         
         // Create initial texture from iframe content with improved quality
         createTextureFromIframe(iframe).then(texture => {
@@ -1608,6 +1649,8 @@ function animatePreview() {
         const currentMeshId = parseInt(modal.dataset.meshId);
         const settings = getHtmlSettingsForMesh(currentMeshId);
         const playbackSpeed = settings.playbackSpeed || 1.0;
+        const animationType = settings.animation?.type || 'none';
+        const shouldLoop = animationType === 'loop';
         
         // If we haven't attempted pre-rendering yet and we're using a speed other than 1x,
         // start pre-rendering the animation
@@ -1626,6 +1669,15 @@ function animatePreview() {
             showStatus('Pre-rendering animation for smooth playback...', 'info');
         }
         
+        // Skip frame updates if animation is paused
+        if (isPreviewAnimationPaused) {
+            // Still render the scene with the current frame
+            if (previewRenderer && previewScene && previewCamera) {
+                previewRenderer.render(previewScene, previewCamera);
+            }
+            return;
+        }
+        
         // Handle playback based on available frames and speed
         const currentTime = Date.now();
         const elapsedSinceStart = currentTime - originalAnimationStartTime;
@@ -1637,16 +1689,39 @@ function animatePreview() {
             
             // For finite animations, we need to handle looping
             if (isAnimationFinite && animationDuration > 0 && preRenderedFrames.length > 0) {
-                // Calculate the position within the animation loop
-                const loopPosition = (adjustedTime % animationDuration) / animationDuration;
-                const frameIndex = Math.min(
-                    Math.floor(loopPosition * preRenderedFrames.length),
-                    preRenderedFrames.length - 1
-                );
-                
-                // Use the pre-rendered frame at this position
-                if (frameIndex >= 0 && frameIndex < preRenderedFrames.length) {
-                    updateMeshTexture(preRenderedFrames[frameIndex].texture);
+                // Check if we've reached the end of the animation
+                if (adjustedTime >= animationDuration && !shouldLoop) {
+                    // If not looping, stay on the last frame
+                    if (!isPreviewAnimationPaused) {
+                        console.log('Animation complete, pausing at last frame');
+                        isPreviewAnimationPaused = true;
+                        
+                        // Show the last frame
+                        updateMeshTexture(preRenderedFrames[preRenderedFrames.length - 1].texture);
+                        
+                        // Show a message that playback has ended
+                        showStatus('Animation playback complete', 'info');
+                    }
+                } else {
+                    // Calculate the position within the animation
+                    let loopPosition;
+                    if (shouldLoop) {
+                        // If looping, wrap around
+                        loopPosition = (adjustedTime % animationDuration) / animationDuration;
+                    } else {
+                        // If not looping, clamp to the end
+                        loopPosition = Math.min(adjustedTime / animationDuration, 0.999);
+                    }
+                    
+                    const frameIndex = Math.min(
+                        Math.floor(loopPosition * preRenderedFrames.length),
+                        preRenderedFrames.length - 1
+                    );
+                    
+                    // Use the pre-rendered frame at this position
+                    if (frameIndex >= 0 && frameIndex < preRenderedFrames.length) {
+                        updateMeshTexture(preRenderedFrames[frameIndex].texture);
+                    }
                 }
             }
             // For non-finite animations or while still pre-rendering
@@ -1679,15 +1754,32 @@ function animatePreview() {
                     
                     // If we've reached the end of pre-rendering and it's not a finite animation
                     if (!preRenderingInProgress && !isAnimationFinite) {
-                        bufferExhausted = true;
-                        
-                        if (!fallbackToRealtime) {
-                            fallbackToRealtime = true;
-                            showStatus('Reached end of buffer, continuing at normal speed', 'warning');
-                            console.log('Buffer exhausted, falling back to realtime playback');
+                        // If we should loop, continue playing
+                        if (shouldLoop) {
+                            bufferExhausted = true;
                             
-                            // Reset animation start time for smooth transition to realtime
-                            originalAnimationStartTime = currentTime - (elapsedSinceStart / playbackSpeed);
+                            if (!fallbackToRealtime) {
+                                fallbackToRealtime = true;
+                                showStatus('Reached end of buffer, continuing at normal speed', 'warning');
+                                console.log('Buffer exhausted, falling back to realtime playback');
+                                
+                                // Reset animation start time for smooth transition to realtime
+                                originalAnimationStartTime = currentTime - (elapsedSinceStart / playbackSpeed);
+                            }
+                        } else {
+                            // If not looping, pause at the last frame
+                            if (!isPreviewAnimationPaused) {
+                                console.log('Animation complete, pausing at last frame');
+                                isPreviewAnimationPaused = true;
+                                
+                                // Show the last frame
+                                if (closestFrameIndex >= 0 && closestFrameIndex < framesArray.length) {
+                                    updateMeshTexture(framesArray[closestFrameIndex].texture);
+                                }
+                                
+                                // Show a message that playback has ended
+                                showStatus('Animation playback complete', 'info');
+                            }
                         }
                     }
                 }
@@ -2901,8 +2993,10 @@ function navigateToErrorPosition(textarea, line, col) {
  * Initialize CSS3D renderer for HTML preview
  * @param {HTMLElement} container - The container element for the renderers
  * @param {HTMLIFrameElement} iframe - The iframe containing the HTML content
+ * @param {number} currentMeshId - The ID of the current mesh
+ * @param {boolean} createInfoPanel - Whether to create the info panel
  */
-function initCSS3DPreview(container, iframe) {
+function initCSS3DPreview(container, iframe, currentMeshId, createInfoPanel = true) {
     try {
         // Directly import Three.js CSS3D renderer
         import('three/examples/jsm/renderers/CSS3DRenderer.js')
@@ -2910,7 +3004,7 @@ function initCSS3DPreview(container, iframe) {
                 const { CSS3DRenderer, CSS3DObject } = module;
                 
                 // Now that we have the correct classes, set up the CSS3D scene
-                setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject);
+                setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, currentMeshId, createInfoPanel);
             })
             .catch(error => {
                 console.error('Error loading CSS3DRenderer:', error);
@@ -2919,7 +3013,7 @@ function initCSS3DPreview(container, iframe) {
                 
                 // Fallback to texture-based preview
                 showStatus('CSS3D renderer not available, falling back to texture-based preview', 'warning');
-                initThreeJsPreview(container, iframe);
+                initThreeJsPreview(container, iframe, currentMeshId, createInfoPanel);
             });
     } catch (error) {
         console.error('Error in initCSS3DPreview:', error);
@@ -2928,11 +3022,11 @@ function initCSS3DPreview(container, iframe) {
         
         // Fallback to texture-based preview
         showStatus('Error initializing CSS3D preview, falling back to texture-based preview', 'error');
-        initThreeJsPreview(container, iframe);
+        initThreeJsPreview(container, iframe, currentMeshId, createInfoPanel);
     }
 }
 
-function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
+function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, currentMeshId, createInfoPanel = true) {
     try {
         console.log('Setting up CSS3D scene with container:', container);
         
@@ -2961,16 +3055,14 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
         renderer.domElement.style.top = '0';
         container.appendChild(renderer.domElement);
         
-        // Get current mesh ID from the modal
-        const modal = document.getElementById('html-editor-modal');
-        const currentMeshId = parseInt(modal.dataset.meshId);
+        // Create info panel if requested
+        if (createInfoPanel) {
+            createMeshInfoPanel(container, currentMeshId);
+        }
         
         // Get settings for this mesh
         const settings = getHtmlSettingsForMesh(currentMeshId);
         const playbackSpeed = settings.playbackSpeed || 1.0;
-        
-        // Create info panel
-        createInfoPanel(container, currentMeshId);
         
         // Function to create HTML content - simplified to avoid layout warnings
         const wrapContent = (content) => {
@@ -3187,7 +3279,7 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
  * @param {number} meshId - The ID of the mesh being previewed
  * @returns {HTMLElement} The created info panel element
  */
-function createInfoPanel(container, meshId) {
+function createMeshInfoPanel(container, meshId) {
     // Remove any existing info panel
     if (infoPanel) {
         try {
@@ -3213,7 +3305,7 @@ function createInfoPanel(container, meshId) {
     const panel = document.createElement('div');
     panel.id = 'preview-info-panel';
     panel.style.position = 'absolute';
-    panel.style.zIndex = '1000';
+    panel.style.zIndex = '900'; // Lower z-index than the loading overlay (1000)
     panel.style.pointerEvents = 'auto';
     panel.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
     panel.style.border = '1px solid rgba(50, 50, 50, 0.7)';
