@@ -766,13 +766,11 @@ function previewHtml(html) {
         previewContent.style.minHeight = '400px';
         previewContent.style.height = '100%';
         
-        // Check if we need to pre-render for speeds > 1x
-        const needsPreRendering = playbackSpeed > 1.0;
+        // Always pre-render for all speeds
+        const needsPreRendering = true;
         
         // Show appropriate status message
-        if (needsPreRendering) {
-            showStatus('Pre-rendering animation for smooth playback...', 'info');
-        }
+        showStatus('Pre-rendering animation for smooth playback...', 'info');
         
         // Wait for iframe to be ready
         renderIframe.onload = () => {
@@ -799,137 +797,132 @@ function previewHtml(html) {
             errorLog.style.display = 'none';
             previewContent.appendChild(errorLog);
             
-            // If we need pre-rendering, do it before initializing the preview
-            if (needsPreRendering) {
-                // Start pre-rendering immediately
-                preRenderAttempted = true;
-                preRenderingInProgress = true;
-                preRenderStartTime = Date.now();
+            // Always pre-render for all speeds
+            // Start pre-rendering immediately
+            preRenderAttempted = true;
+            preRenderingInProgress = true;
+            preRenderStartTime = Date.now();
+            
+            // Add a loading overlay that matches the loading-splash.html style
+            const loadingOverlay = document.createElement('div');
+            loadingOverlay.id = 'pre-rendering-overlay';
+            loadingOverlay.className = 'loading-splash';
+            loadingOverlay.style.position = 'absolute';
+            loadingOverlay.style.top = '0';
+            loadingOverlay.style.left = '0';
+            loadingOverlay.style.width = '100%';
+            loadingOverlay.style.height = '100%';
+            loadingOverlay.style.backgroundColor = '#000000'; // Solid black background
+            loadingOverlay.style.zIndex = '1000';
+            
+            // Remove any border/outline that might be causing green lines
+            loadingOverlay.style.border = 'none';
+            loadingOverlay.style.outline = 'none';
+            loadingOverlay.style.boxShadow = 'none';
+            
+            // Create content container similar to loading-splash.html
+            const loadingContent = document.createElement('div');
+            loadingContent.className = 'loading-content';
+            loadingContent.style.display = 'flex';
+            loadingContent.style.flexDirection = 'column';
+            loadingContent.style.alignItems = 'center';
+            loadingContent.style.justifyContent = 'center';
+            loadingContent.style.height = '100%';
+            loadingContent.style.width = '100%';
+            loadingContent.style.backgroundColor = '#000000'; // Ensure content background is also black
+            
+            // Create title
+            const loadingTitle = document.createElement('h2');
+            loadingTitle.className = 'loading-title';
+            loadingTitle.textContent = 'PRE-RENDERING';
+            loadingTitle.style.color = 'white';
+            loadingTitle.style.margin = '0 0 20px 0';
+            
+            // Create spinner container
+            const spinnerContainer = document.createElement('div');
+            spinnerContainer.className = 'loading-spinner-container';
+            
+            // Create atomic spinner
+            const atomicSpinner = document.createElement('div');
+            atomicSpinner.className = 'atomic-spinner';
+            
+            // Create nucleus
+            const nucleus = document.createElement('div');
+            nucleus.className = 'nucleus';
+            atomicSpinner.appendChild(nucleus);
+            
+            // Create electron orbits (3)
+            for (let i = 0; i < 3; i++) {
+                const orbit = document.createElement('div');
+                orbit.className = 'electron-orbit';
                 
-                // Add a loading overlay that matches the loading-splash.html style
-                const loadingOverlay = document.createElement('div');
-                loadingOverlay.id = 'pre-rendering-overlay';
-                loadingOverlay.className = 'loading-splash';
-                loadingOverlay.style.position = 'absolute';
-                loadingOverlay.style.top = '0';
-                loadingOverlay.style.left = '0';
-                loadingOverlay.style.width = '100%';
-                loadingOverlay.style.height = '100%';
-                loadingOverlay.style.backgroundColor = '#000000'; // Solid black background
-                loadingOverlay.style.zIndex = '1000';
+                const electron = document.createElement('div');
+                electron.className = 'electron';
                 
-                // Remove any border/outline that might be causing green lines
-                loadingOverlay.style.border = 'none';
-                loadingOverlay.style.outline = 'none';
-                loadingOverlay.style.boxShadow = 'none';
-                
-                // Create content container similar to loading-splash.html
-                const loadingContent = document.createElement('div');
-                loadingContent.className = 'loading-content';
-                loadingContent.style.display = 'flex';
-                loadingContent.style.flexDirection = 'column';
-                loadingContent.style.alignItems = 'center';
-                loadingContent.style.justifyContent = 'center';
-                loadingContent.style.height = '100%';
-                loadingContent.style.width = '100%';
-                loadingContent.style.backgroundColor = '#000000'; // Ensure content background is also black
-                
-                // Create title
-                const loadingTitle = document.createElement('h2');
-                loadingTitle.className = 'loading-title';
-                loadingTitle.textContent = 'PRE-RENDERING';
-                loadingTitle.style.color = 'white';
-                loadingTitle.style.margin = '0 0 20px 0';
-                
-                // Create spinner container
-                const spinnerContainer = document.createElement('div');
-                spinnerContainer.className = 'loading-spinner-container';
-                
-                // Create atomic spinner
-                const atomicSpinner = document.createElement('div');
-                atomicSpinner.className = 'atomic-spinner';
-                
-                // Create nucleus
-                const nucleus = document.createElement('div');
-                nucleus.className = 'nucleus';
-                atomicSpinner.appendChild(nucleus);
-                
-                // Create electron orbits (3)
-                for (let i = 0; i < 3; i++) {
-                    const orbit = document.createElement('div');
-                    orbit.className = 'electron-orbit';
-                    
-                    const electron = document.createElement('div');
-                    electron.className = 'electron';
-                    
-                    orbit.appendChild(electron);
-                    atomicSpinner.appendChild(orbit);
+                orbit.appendChild(electron);
+                atomicSpinner.appendChild(orbit);
+            }
+            
+            spinnerContainer.appendChild(atomicSpinner);
+            
+            // Create progress text
+            const progressText = document.createElement('div');
+            progressText.id = 'loading-progress-text';
+            progressText.className = 'loading-progress-text';
+            progressText.textContent = 'Pre-rendering animation...';
+            progressText.style.color = 'white';
+            progressText.style.marginTop = '20px';
+            
+            // Create progress bar
+            const progressContainer = document.createElement('div');
+            progressContainer.style.width = '80%';
+            progressContainer.style.height = '4px';
+            progressContainer.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+            progressContainer.style.borderRadius = '2px';
+            progressContainer.style.overflow = 'hidden';
+            progressContainer.style.marginTop = '10px';
+            
+            const progressBar = document.createElement('div');
+            progressBar.id = 'pre-rendering-progress';
+            progressBar.style.width = '0%';
+            progressBar.style.height = '100%';
+            progressBar.style.backgroundColor = '#3498db';
+            progressBar.style.transition = 'width 0.5s';
+            
+            progressContainer.appendChild(progressBar);
+            
+            // Assemble the loading overlay
+            loadingContent.appendChild(loadingTitle);
+            loadingContent.appendChild(spinnerContainer);
+            loadingContent.appendChild(progressText);
+            loadingContent.appendChild(progressContainer);
+            loadingOverlay.appendChild(loadingContent);
+            canvasContainer.appendChild(loadingOverlay);
+            
+            // Initialize the preview first, but don't start animation yet
+            // Pass false for createInfoPanel to prevent creating the info panel until pre-rendering is complete
+            initializePreview(previewMode, canvasContainer, renderIframe, currentMeshId, false, false);
+            
+            // Start pre-rendering with a callback for when it's done
+            startPreRendering(renderIframe, () => {
+                // Remove loading overlay
+                if (loadingOverlay.parentNode) {
+                    loadingOverlay.parentNode.removeChild(loadingOverlay);
                 }
                 
-                spinnerContainer.appendChild(atomicSpinner);
+                // Now create the info panel after pre-rendering is complete
+                createMeshInfoPanel(canvasContainer, currentMeshId);
                 
-                // Create progress text
-                const progressText = document.createElement('div');
-                progressText.id = 'loading-progress-text';
-                progressText.className = 'loading-progress-text';
-                progressText.textContent = 'Pre-rendering animation...';
-                progressText.style.color = 'white';
-                progressText.style.marginTop = '20px';
+                // Reset animation start time to now
+                originalAnimationStartTime = Date.now();
+                isFirstCapture = false; // We've already captured frames
                 
-                // Create progress bar
-                const progressContainer = document.createElement('div');
-                progressContainer.style.width = '80%';
-                progressContainer.style.height = '4px';
-                progressContainer.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-                progressContainer.style.borderRadius = '2px';
-                progressContainer.style.overflow = 'hidden';
-                progressContainer.style.marginTop = '10px';
+                // Start the animation
+                isPreviewAnimationPaused = false;
                 
-                const progressBar = document.createElement('div');
-                progressBar.id = 'pre-rendering-progress';
-                progressBar.style.width = '0%';
-                progressBar.style.height = '100%';
-                progressBar.style.backgroundColor = '#3498db';
-                progressBar.style.transition = 'width 0.5s';
-                
-                progressContainer.appendChild(progressBar);
-                
-                // Assemble the loading overlay
-                loadingContent.appendChild(loadingTitle);
-                loadingContent.appendChild(spinnerContainer);
-                loadingContent.appendChild(progressText);
-                loadingContent.appendChild(progressContainer);
-                loadingOverlay.appendChild(loadingContent);
-                canvasContainer.appendChild(loadingOverlay);
-                
-                // Initialize the preview first, but don't start animation yet
-                // Pass false for createInfoPanel to prevent creating the info panel until pre-rendering is complete
-                initializePreview(previewMode, canvasContainer, renderIframe, currentMeshId, false, false);
-                
-                // Start pre-rendering with a callback for when it's done
-                startPreRendering(renderIframe, () => {
-                    // Remove loading overlay
-                    if (loadingOverlay.parentNode) {
-                        loadingOverlay.parentNode.removeChild(loadingOverlay);
-                    }
-                    
-                    // Now create the info panel after pre-rendering is complete
-                    createMeshInfoPanel(canvasContainer, currentMeshId);
-                    
-                    // Reset animation start time to now
-                    originalAnimationStartTime = Date.now();
-                    isFirstCapture = false; // We've already captured frames
-                    
-                    // Start the animation
-                    isPreviewAnimationPaused = false;
-                    
-                    // Show a message that playback is starting
-                    showStatus(`Animation playback starting at ${playbackSpeed}x speed`, 'success');
-                }, progressBar);
-            } else {
-                // Initialize preview immediately for normal speed
-                initializePreview(previewMode, canvasContainer, renderIframe, currentMeshId, true, true);
-            }
+                // Show a message that playback is starting
+                showStatus(`Animation playback starting at ${playbackSpeed}x speed`, 'success');
+            }, progressBar);
         };
         
         // Write content to iframe
@@ -1645,23 +1638,6 @@ function animatePreview() {
         const animationType = settings.animation?.type || 'none';
         const shouldLoop = animationType === 'loop';
         
-        // If we haven't attempted pre-rendering yet and we're using a speed other than 1x,
-        // start pre-rendering the animation
-        if (!preRenderAttempted && playbackSpeed !== 1.0 && previewRenderTarget) {
-            preRenderAttempted = true;
-            preRenderingInProgress = true;
-            preRenderStartTime = Date.now();
-            bufferExhausted = false;
-            fallbackToRealtime = false;
-            bufferExhaustWarningShown = false;
-            
-            // Start pre-rendering in the background
-            startPreRendering(previewRenderTarget);
-            
-            // Show status message
-            showStatus('Pre-rendering animation for smooth playback...', 'info');
-        }
-        
         // Skip frame updates if animation is paused
         if (isPreviewAnimationPaused) {
             // Still render the scene with the current frame
@@ -1675,8 +1651,8 @@ function animatePreview() {
         const currentTime = Date.now();
         const elapsedSinceStart = currentTime - originalAnimationStartTime;
         
-        // If we're pre-rendering or have pre-rendered frames
-        if ((preRenderingInProgress || preRenderedFrames.length > 0) && playbackSpeed !== 1.0) {
+        // If we're pre-rendering or have pre-rendered frames - now for ALL speeds
+        if (preRenderingInProgress || preRenderedFrames.length > 0) {
             // Calculate adjusted time based on playback speed
             const adjustedTime = elapsedSinceStart * playbackSpeed;
             
@@ -1701,6 +1677,12 @@ function animatePreview() {
                     if (shouldLoop) {
                         // If looping, wrap around
                         loopPosition = (adjustedTime % animationDuration) / animationDuration;
+                        
+                        // Log when we complete a loop
+                        if (adjustedTime >= animationDuration) {
+                            const loopCount = Math.floor(adjustedTime / animationDuration);
+                            console.log(`Loop ${loopCount} complete, continuing animation`);
+                        }
                     } else {
                         // If not looping, clamp to the end
                         loopPosition = Math.min(adjustedTime / animationDuration, 0.999);
@@ -1737,61 +1719,16 @@ function animatePreview() {
                     }
                 }
                 
-                // Check if we're approaching the end of our buffer
-                if (closestFrameIndex >= framesArray.length - 5) {
-                    // We're near the end of our buffer
-                    if (!bufferExhaustWarningShown) {
-                        console.log('Approaching end of pre-rendered buffer');
-                        bufferExhaustWarningShown = true;
-                    }
-                    
-                    // If we've reached the end of pre-rendering and it's not a finite animation
-                    if (!preRenderingInProgress && !isAnimationFinite) {
-                        // If we should loop, continue playing
-                        if (shouldLoop) {
-                            bufferExhausted = true;
-                            
-                            if (!fallbackToRealtime) {
-                                fallbackToRealtime = true;
-                                showStatus('Reached end of buffer, continuing at normal speed', 'warning');
-                                console.log('Buffer exhausted, falling back to realtime playback');
-                                
-                                // Reset animation start time for smooth transition to realtime
-                                originalAnimationStartTime = currentTime - (elapsedSinceStart / playbackSpeed);
-                            }
-                        } else {
-                            // If not looping, pause at the last frame
-                            if (!isPreviewAnimationPaused) {
-                                console.log('Animation complete, pausing at last frame');
-                                isPreviewAnimationPaused = true;
-                                
-                                // Show the last frame
-                                if (closestFrameIndex >= 0 && closestFrameIndex < framesArray.length) {
-                                    updateMeshTexture(framesArray[closestFrameIndex].texture);
-                                }
-                                
-                                // Show a message that playback has ended
-                                showStatus('Animation playback complete', 'info');
-                            }
-                        }
-                    }
-                }
-                
-                // If we have a valid frame and haven't exhausted the buffer
-                if (closestFrameIndex >= 0 && closestFrameIndex < framesArray.length && !bufferExhausted) {
+                // If we have a valid frame, use it
+                if (closestFrameIndex >= 0 && closestFrameIndex < framesArray.length) {
                     // Update texture with the appropriate frame
                     updateMeshTexture(framesArray[closestFrameIndex].texture);
-                } 
-                // If we've exhausted the buffer, fall back to realtime capture
-                else if (bufferExhausted) {
-                    // Continue capturing frames in realtime
-                    captureAndDisplayFrame(currentTime);
                 }
             }
-        } 
-        // Standard realtime playback (speed = 1x)
-        else if (!isPreviewAnimationPaused && previewPlane && previewRenderTarget) {
-            captureAndDisplayFrame(currentTime);
+        }
+        // If no pre-rendered frames and not pre-rendering, log error
+        else {
+            console.error('No pre-rendered frames available and not pre-rendering');
         }
         
         // Render the scene - this is always done at the target framerate
