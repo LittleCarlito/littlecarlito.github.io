@@ -1186,13 +1186,6 @@ function setupThreeJsScene(container, iframe, currentMeshId, createInfoPanel = t
             createMeshInfoPanel(container, currentMeshId);
         }
         
-        // Get current mesh ID from the modal
-        const modal = document.getElementById('html-editor-modal');
-        const currentMeshId = parseInt(modal.dataset.meshId);
-        
-        // Create info panel
-        createMeshInfoPanel(container, currentMeshId);
-        
         // Create initial texture from iframe content with improved quality
         createTextureFromIframe(iframe).then(texture => {
             // Get the mesh from the state if available
