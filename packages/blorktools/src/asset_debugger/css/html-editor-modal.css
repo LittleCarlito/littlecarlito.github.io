@@ -435,20 +435,6 @@
     white-space: nowrap;
 }
 
-/* Preview mode label styling */
-.preview-mode-label {
-    display: none;
-    font-size: 14px;
-    color: white;
-    margin-right: 10px;
-    font-weight: bold;
-}
-
-/* Show the preview mode label only in preview mode */
-.preview-mode .preview-mode-label {
-    display: block;
-}
-
 /* Hide border checkbox in preview mode */
 .preview-mode .format-btn-container .checkbox-container {
     display: none;

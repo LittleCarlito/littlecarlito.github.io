@@ -390,6 +390,37 @@ export function initHtmlEditorModal() {
             if (!isNaN(meshId)) {
                 const settings = getSettingsFromForm();
                 saveSettingsForMesh(meshId, settings);
+                
+                // Get the new playback speed
+                const newPlaybackSpeed = parseFloat(playbackSpeedSelect.value);
+                
+                // Update CSS3D preview if active
+                if (isPreviewActive) {
+                    try {
+                        // For CSS3D preview - update animation speed via CSS
+                        const css3dIframe = document.getElementById('css3d-panel-iframe');
+                        if (css3dIframe && css3dIframe.contentDocument) {
+                            const styleEl = css3dIframe.contentDocument.querySelector('style');
+                            if (styleEl) {
+                                // Update animation-duration and transition-duration
+                                styleEl.textContent = styleEl.textContent.replace(
+                                    /animation-duration:\s*[^;]+/,
+                                    `animation-duration: ${1.0/newPlaybackSpeed}s !important`
+                                ).replace(
+                                    /transition-duration:\s*[^;]+/,
+                                    `transition-duration: ${1.0/newPlaybackSpeed}s !important`
+                                );
+                            }
+                        }
+                        
+                        // Force texture update for texture-based preview
+                        lastTextureUpdateTime = 0;
+                        textureUpdateInterval = Math.max(1, Math.floor(16 / newPlaybackSpeed));
+                    } catch (err) {
+                        console.debug('Error updating playback speed in preview:', err);
+                    }
+                }
+                
                 showStatus(`Playback speed set to: ${playbackSpeedSelect.options[playbackSpeedSelect.selectedIndex].text}`, 'info');
             }
         });
@@ -1270,11 +1301,23 @@ function animatePreview() {
             }
         }
         
+        // Control the texture update rate based on playback speed
+        // Get current mesh ID from the modal
+        const modal = document.getElementById('html-editor-modal');
+        const currentMeshId = parseInt(modal.dataset.meshId);
+        const settings = getHtmlSettingsForMesh(currentMeshId);
+        const playbackSpeed = settings.playbackSpeed || 1.0;
+        
+        // Adjust texture update interval based on playback speed
+        // Slower playback = less frequent updates, faster playback = more frequent updates
+        const baseInterval = 16; // Base interval at 1x speed (60fps)
+        const adjustedInterval = Math.max(1, Math.floor(baseInterval / playbackSpeed));
+        
         // Request texture update if it's time and we're not already processing one
         const currentTime = Date.now();
         if (!isPreviewAnimationPaused && previewPlane && previewRenderTarget && 
             !pendingTextureUpdate &&
-            (currentTime - lastTextureUpdateTime > textureUpdateInterval)) {
+            (currentTime - lastTextureUpdateTime > adjustedInterval)) {
             
             // Schedule texture update for when browser is idle
             pendingTextureUpdate = true;
@@ -2129,6 +2172,10 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
         const modal = document.getElementById('html-editor-modal');
         const currentMeshId = parseInt(modal.dataset.meshId);
         
+        // Get settings for this mesh
+        const settings = getHtmlSettingsForMesh(currentMeshId);
+        const playbackSpeed = settings.playbackSpeed || 1.0;
+        
         // Create info panel
         createInfoPanel(container, currentMeshId);
         
@@ -2138,16 +2185,21 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
 <html>
 <head>
     <style>
-        body {
+        html, body {
             margin: 0;
-            padding: 10px;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        body {
             background-color: white;
             color: #333;
             font-family: Arial, sans-serif;
-            overflow: auto;
-            box-sizing: border-box;
-            width: 100%;
-            height: 100%;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
         }
         .panel-title {
             background: #f0f0f0;
@@ -2157,10 +2209,36 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
             font-weight: bold;
             border-bottom: 1px solid #ccc;
             font-size: 14px;
+            flex-shrink: 0;
         }
         .content {
-            overflow: auto;
-            height: calc(100% - 30px);
+            flex: 1;
+            overflow: hidden;
+            padding: 5px;
+            position: relative;
+            width: calc(100% - 10px);
+        }
+        
+        /* Add a border if enabled */
+        ${window.showPreviewBorders ? 
+            `body { border: 5px solid #3498db; }` : 
+            ''}
+            
+        /* Control animation speed - apply to all animations */
+        * {
+            animation-duration: ${1.0/playbackSpeed}s !important;
+            transition-duration: ${1.0/playbackSpeed}s !important;
+        }
+        
+        /* Ensure content doesn't overflow */
+        .content > * {
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        
+        /* Override any styles that might cause horizontal scrollbars */
+        .content div, .content p, .content span, .content img {
+            max-width: 100%;
         }
     </style>
 </head>
@@ -2186,10 +2264,10 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject) {
         element.id = 'css3d-panel-iframe';
         element.style.width = `${panelWidth}px`;
         element.style.height = `${panelHeight}px`;
-        element.style.border = '2px solid #3498db';
+        element.style.border = 'none'; // Remove border - we'll add it in the content if needed
         element.style.borderRadius = '5px';
         element.style.backgroundColor = 'white';
-        element.style.overflow = 'hidden';
+        element.style.overflow = 'hidden'; // Prevent scrollbars
         element.style.boxSizing = 'border-box';
         
         // Add the iframe to DOM first
