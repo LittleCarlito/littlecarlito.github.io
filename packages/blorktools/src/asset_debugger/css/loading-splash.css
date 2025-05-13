@@ -28,8 +28,6 @@
     width: 100%;
     max-width: 600px;
     padding: 2rem;
-    border: 1px solid #2ecc71;
-    box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
 }
 
 .loading-title {
