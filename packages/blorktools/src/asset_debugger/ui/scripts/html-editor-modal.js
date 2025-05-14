@@ -133,6 +133,9 @@ let finalProgressAnimation = false;
 let finalProgressStartTime = 0;
 let finalProgressDuration = 800; // Duration of final progress animation in ms
 
+// Add a variable to track if we're capturing frames for long exposure
+let isCapturingForLongExposure = false;
+
 /**
  * Open the HTML Editor Modal for a specific mesh
  * @param {string} meshName - The name of the mesh
@@ -727,6 +730,11 @@ function previewHtml(html) {
         const animationTypeSelect = document.getElementById('html-animation-type');
         const animationType = animationTypeSelect ? animationTypeSelect.value : 'none';
         
+        // For long exposure, set a flag to indicate we should create the long exposure immediately
+        // This prevents showing the first frame before the long exposure
+        const isLongExposureMode = animationType === 'longExposure';
+        window.createLongExposureImmediately = isLongExposureMode;
+        
         // Reset pre-rendering state
         isPreRenderingComplete = false;
         preRenderedFrames = [];
@@ -779,8 +787,12 @@ function previewHtml(html) {
         // Always pre-render for all speeds
         const needsPreRendering = true;
         
-        // Show appropriate status message
-        showStatus('Pre-rendering animation for smooth playback...', 'info');
+        // For long exposure, show a different status message
+        if (isLongExposureMode) {
+            showStatus('Pre-rendering animation for long exposure capture...', 'info');
+        } else {
+            showStatus('Pre-rendering animation for smooth playback...', 'info');
+        }
         
         // Wait for iframe to be ready
         renderIframe.onload = () => {
@@ -947,6 +959,13 @@ function previewHtml(html) {
  * @param {boolean} createInfoPanel - Whether to create the info panel
  */
 function initializePreview(previewMode, canvasContainer, renderIframe, currentMeshId, startAnimation = true, createInfoPanel = true) {
+    // Get animation type
+    const animationTypeSelect = document.getElementById('html-animation-type');
+    const animationType = animationTypeSelect ? animationTypeSelect.value : 'none';
+    
+    // Remove the special case for long exposure that immediately pauses animation
+    // For long exposure, we want to see the actual animation
+    
     // If not starting animation immediately, pause it
     if (!startAnimation) {
         isPreviewAnimationPaused = true;
@@ -985,6 +1004,24 @@ function startPreRendering(iframe, callback, progressBar = null) {
     finalProgressAnimation = false;
     finalProgressStartTime = 0;
     
+    // Check if we're in long exposure mode
+    const modal = document.getElementById('html-editor-modal');
+    const animationTypeSelect = document.getElementById('html-animation-type');
+    const isLongExposureMode = animationTypeSelect && animationTypeSelect.value === 'longExposure';
+    
+    // Set flag if we're capturing for long exposure
+    if (isLongExposureMode) {
+        isCapturingForLongExposure = true;
+        
+        // Temporarily disable borders during capture
+        const originalBorderSetting = window.showPreviewBorders;
+        window.showPreviewBorders = false;
+        console.log('Borders temporarily disabled for long exposure capture');
+        
+        // Store original setting to restore later
+        window._originalBorderSetting = originalBorderSetting;
+    }
+    
     // Function to update progress bar
     const updateProgress = (percent) => {
         if (progressBar) {
@@ -993,6 +1030,26 @@ function startPreRendering(iframe, callback, progressBar = null) {
                 percent = maxProgressBeforeFinalAnimation;
             }
             progressBar.style.width = `${percent}%`;
+        }
+    };
+    
+    // Function to create the long exposure texture and apply it
+    const createAndApplyLongExposure = () => {
+        if (preRenderedFrames.length > 0) {
+            const playbackSpeedSelect = document.getElementById('html-playback-speed');
+            const playbackSpeed = playbackSpeedSelect ? parseFloat(playbackSpeedSelect.value) : 1.0;
+            
+            // Create the long exposure texture
+            const longExposureTexture = createLongExposureTexture(preRenderedFrames, playbackSpeed);
+            
+            // Update the mesh with the long exposure texture
+            updateMeshTexture(longExposureTexture);
+            
+            // Show a message about the long exposure
+            showStatus(`Long exposure created from ${preRenderedFrames.length} frames`, 'success');
+            
+            // Pause animation since we just want to display the static image
+            isPreviewAnimationPaused = true;
         }
     };
     
@@ -1036,17 +1093,48 @@ function startPreRendering(iframe, callback, progressBar = null) {
                         createMeshInfoPanel(canvasContainer, currentMeshId);
                     }
                     
-                    // Reset animation start time to now
-                    originalAnimationStartTime = Date.now();
-                    isFirstCapture = false; // We've already captured frames
-                    
-                    // Start the animation
-                    isPreviewAnimationPaused = false;
-                    
-                    // Show a message that playback is starting
-                    const playbackSpeedSelect = document.getElementById('html-playback-speed');
-                    const playbackSpeed = playbackSpeedSelect ? parseFloat(playbackSpeedSelect.value) : 1.0;
-                    showStatus(`Animation playback starting at ${playbackSpeed}x speed`, 'success');
+                    // For long exposure, create the static image now that all frames are captured
+                    if (isLongExposureMode && preRenderedFrames.length > 0) {
+                        const playbackSpeedSelect = document.getElementById('html-playback-speed');
+                        const playbackSpeed = playbackSpeedSelect ? parseFloat(playbackSpeedSelect.value) : 1.0;
+                        
+                        // Create the long exposure texture
+                        const longExposureTexture = createLongExposureTexture(preRenderedFrames, playbackSpeed);
+                        
+                        // Update the mesh with the long exposure texture
+                        updateMeshTexture(longExposureTexture);
+                        
+                        // Show a message about the long exposure
+                        showStatus(`Long exposure created from ${preRenderedFrames.length} frames`, 'success');
+                        
+                        // Pause animation since we just want to display the static image
+                        isPreviewAnimationPaused = true;
+                        
+                        // Apply border to the container if the user has selected that option
+                        if (window.showPreviewBorders) {
+                            // Find the preview plane or its container
+                            if (previewPlane && previewPlane.material) {
+                                // Add a border to the container instead of the texture
+                                const previewContainer = document.querySelector('#html-preview-content');
+                                if (previewContainer) {
+                                    previewContainer.style.border = '5px solid #3498db';
+                                    console.log('Added border to long exposure container');
+                                }
+                            }
+                        }
+                    } else {
+                        // Reset animation start time to now
+                        originalAnimationStartTime = Date.now();
+                        isFirstCapture = false; // We've already captured frames
+                        
+                        // Start the animation
+                        isPreviewAnimationPaused = false;
+                        
+                        // Show a message that playback is starting
+                        const playbackSpeedSelect = document.getElementById('html-playback-speed');
+                        const playbackSpeed = playbackSpeedSelect ? parseFloat(playbackSpeedSelect.value) : 1.0;
+                        showStatus(`Animation playback starting at ${playbackSpeed}x speed`, 'success');
+                    }
                 }, 500);
                 
                 // Don't continue the animation
@@ -1061,7 +1149,11 @@ function startPreRendering(iframe, callback, progressBar = null) {
             // Update loading text
             const progressText = document.getElementById('loading-progress-text');
             if (progressText) {
-                progressText.textContent = 'Finalizing animation...';
+                if (isLongExposureMode) {
+                    progressText.textContent = 'Creating long exposure...';
+                } else {
+                    progressText.textContent = 'Finalizing animation...';
+                }
             }
             
             // Continue animation
@@ -1153,7 +1245,11 @@ function startPreRendering(iframe, callback, progressBar = null) {
             animationDuration = preRenderedFrames[preRenderedFrames.length - 1].timestamp - preRenderedFrames[0].timestamp;
             
             // Show success message
-            showStatus(`Animation loop detected (${(animationDuration/1000).toFixed(1)}s), ${preRenderedFrames.length} frames captured`, 'success');
+            if (isLongExposureMode) {
+                showStatus(`Animation loop detected, creating long exposure from ${preRenderedFrames.length} frames`, 'info');
+            } else {
+                showStatus(`Animation loop detected (${(animationDuration/1000).toFixed(1)}s), ${preRenderedFrames.length} frames captured`, 'success');
+            }
             
             // Start final progress animation instead of immediately calling callback
             startFinalProgressAnimation();
@@ -1227,6 +1323,13 @@ function startPreRendering(iframe, callback, progressBar = null) {
                 timestamp: now,
                 hash: frameHash
             });
+            
+            // For long exposure mode, if we have enough frames, create the texture immediately
+            // This prevents showing the first frame before the long exposure
+            if (isLongExposureMode && window.createLongExposureImmediately && preRenderedFrames.length >= 15) {
+                window.createLongExposureImmediately = false; // Only do this once
+                createAndApplyLongExposure();
+            }
             
             // Use a shorter delay for more frequent frame capture to increase smoothness
             setTimeout(() => {
@@ -1797,8 +1900,8 @@ function animatePreview() {
                         }
                         break;
                     case 'longExposure':
-                        // For long exposure, we update the texture more frequently
-                        textureUpdateInterval = 8; // Update texture very frequently
+                        // For long exposure, we don't need to do anything here
+                        // The static image is created once after pre-rendering
                         break;
                     default:
                         textureUpdateInterval = 16; // Default update interval
@@ -1812,10 +1915,9 @@ function animatePreview() {
         const settings = getHtmlSettingsForMesh(currentMeshId);
         const playbackSpeed = settings.playbackSpeed || 1.0;
         const animationType = settings.animation?.type || 'none';
-        const shouldLoop = animationType === 'loop';
         
-        // Skip frame updates if animation is paused
-        if (isPreviewAnimationPaused) {
+        // Skip frame updates if animation is paused or we're in long exposure mode
+        if (isPreviewAnimationPaused || animationType === 'longExposure') {
             // Still render the scene with the current frame
             if (previewRenderer && previewScene && previewCamera) {
                 previewRenderer.render(previewScene, previewCamera);
@@ -2599,11 +2701,15 @@ async function createTextureFromIframe(iframe) {
                     
                     // Apply a frame to the content to make it more visible on the texture
                     const styleElement = iframe.contentDocument.createElement('style');
+                    
+                    // Never show borders when capturing for long exposure
+                    const shouldShowBorders = window.showPreviewBorders && !isCapturingForLongExposure;
+                    
                     styleElement.textContent = `
                         body {
                             margin: 0;
                             padding: 15px;
-                            ${window.showPreviewBorders ? 'border: 5px solid #3498db;' : ''}
+                            ${shouldShowBorders ? 'border: 5px solid #3498db;' : ''}
                             box-sizing: border-box;
                             background-color: white;
                             font-size: 20px !important; /* Increase base font size for better readability */
@@ -2617,7 +2723,7 @@ async function createTextureFromIframe(iframe) {
                             left: 0;
                             right: 0;
                             bottom: 0;
-                            background-image: ${window.showPreviewBorders ? 
+                            background-image: ${shouldShowBorders ? 
                                 'linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px)' : 
                                 'none'};
                             background-size: 20px 20px;
@@ -3801,5 +3907,94 @@ function cleanupInfoPanel() {
             console.log('Error removing info panel:', e);
         }
         infoPanel = null;
+    }
+}
+
+/**
+ * Create a long exposure texture from all animation frames
+ * @param {Array} frames - Array of frames with textures
+ * @param {number} playbackSpeed - The playback speed affecting opacity
+ * @returns {THREE.Texture} A static long exposure texture
+ */
+function createLongExposureTexture(frames, playbackSpeed) {
+    if (!frames || frames.length === 0) {
+        return createEmptyTexture();
+    }
+    
+    try {
+        // Create a canvas for the blended result
+        const canvas = document.createElement('canvas');
+        
+        // Use the dimensions of the first frame's texture
+        const firstTexture = frames[0].texture;
+        if (!firstTexture || !firstTexture.image) {
+            return createEmptyTexture();
+        }
+        
+        canvas.width = firstTexture.image.width;
+        canvas.height = firstTexture.image.height;
+        const ctx = canvas.getContext('2d');
+        
+        // Clear canvas with white background
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Calculate base opacity based on playback speed
+        // Faster playback = fainter traces (lower opacity per frame)
+        // Slower playback = more solid impressions (higher opacity per frame)
+        // Use a direct inverse relationship between speed and opacity
+        // This makes the effect much more noticeable between different speeds
+        const baseOpacity = Math.min(0.3, Math.max(0.01, 0.075 / playbackSpeed));
+        
+        console.log(`Creating long exposure with ${frames.length} frames at base opacity ${baseOpacity.toFixed(4)} (speed: ${playbackSpeed}x)`);
+        
+        // Draw all frames with calculated opacity
+        frames.forEach((frame) => {
+            if (!frame.texture || !frame.texture.image) return;
+            
+            // Set global alpha for this frame
+            ctx.globalAlpha = baseOpacity;
+            
+            // Draw the frame
+            ctx.drawImage(frame.texture.image, 0, 0, canvas.width, canvas.height);
+        });
+        
+        // Reset global alpha
+        ctx.globalAlpha = 1.0;
+        
+        // Create texture from the blended canvas
+        const texture = new THREE.CanvasTexture(canvas);
+        
+        // Apply high quality settings
+        texture.anisotropy = 16;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.generateMipmaps = false;
+        texture.needsUpdate = true;
+        
+        // Reset the capture flag
+        isCapturingForLongExposure = false;
+        
+        // Restore original border setting
+        if (window._originalBorderSetting !== undefined) {
+            window.showPreviewBorders = window._originalBorderSetting;
+            console.log(`Long exposure complete, borders restored to: ${window.showPreviewBorders}`);
+            window._originalBorderSetting = undefined;
+        }
+        
+        return texture;
+    } catch (error) {
+        console.error('Error creating long exposure texture:', error);
+        
+        // Reset the capture flag
+        isCapturingForLongExposure = false;
+        
+        // Restore original border setting even on error
+        if (window._originalBorderSetting !== undefined) {
+            window.showPreviewBorders = window._originalBorderSetting;
+            window._originalBorderSetting = undefined;
+        }
+        
+        return createEmptyTexture();
     }
 }
