@@ -13,6 +13,7 @@ import {
 import { 
     deserializeStringFromBinary, 
     serializeStringToBinary,
+    serializeStringWithSettingsToBinary,
     isValidHtml,
     sanitizeHtml
 } from '../../core/string-serder.js';
@@ -219,6 +220,36 @@ function loadSettingsForMesh(meshId) {
         renderTypeSelect.value = settings.previewMode || defaultSettings.previewMode;
     }
     
+    // Update playback speed dropdown
+    const playbackSpeedSelect = document.getElementById('html-playback-speed');
+    if (playbackSpeedSelect) {
+        // Convert the numeric playback speed to string format that matches the dropdown options
+        const playbackSpeed = settings.playbackSpeed !== undefined ? settings.playbackSpeed : defaultSettings.playbackSpeed;
+        
+        // Find the closest matching option
+        let found = false;
+        for (let i = 0; i < playbackSpeedSelect.options.length; i++) {
+            const optionValue = parseFloat(playbackSpeedSelect.options[i].value);
+            if (Math.abs(optionValue - playbackSpeed) < 0.01) {
+                playbackSpeedSelect.selectedIndex = i;
+                found = true;
+                break;
+            }
+        }
+        
+        // If no exact match found, fallback to default
+        if (!found) {
+            console.log(`No matching option found for playback speed: ${playbackSpeed}, using default`);
+            for (let i = 0; i < playbackSpeedSelect.options.length; i++) {
+                const optionValue = parseFloat(playbackSpeedSelect.options[i].value);
+                if (Math.abs(optionValue - defaultSettings.playbackSpeed) < 0.01) {
+                    playbackSpeedSelect.selectedIndex = i;
+                    break;
+                }
+            }
+        }
+    }
+    
     // Update animation type dropdown
     const animationTypeSelect = document.getElementById('html-animation-type');
     if (animationTypeSelect) {
@@ -316,19 +347,36 @@ async function loadHtmlForMesh(meshId) {
             return '';
         }
         
-        // Deserialize buffer to HTML/text content
-        let content = deserializeStringFromBinary(binaryBuffer);
+        // Deserialize buffer to HTML/text content and settings
+        const result = deserializeStringFromBinary(binaryBuffer);
+        let htmlContent = result.content || '';
+        const settings = result.settings;
+        
+        // If we have settings, store them
+        if (settings) {
+            console.log(`Loaded settings for mesh ID ${meshId}:`, settings);
+            meshHtmlSettings.set(meshId, settings);
+            
+            // Also store in mesh userData for persistence
+            const state = getState();
+            if (state.meshes && state.meshes[meshId]) {
+                if (!state.meshes[meshId].userData) {
+                    state.meshes[meshId].userData = {};
+                }
+                state.meshes[meshId].userData.htmlSettings = settings;
+            }
+        }
         
         // Validate the content
-        if (!content || content.trim() === '') {
-            content = ''; // Ensure it's an empty string, not null or undefined
+        if (htmlContent.trim() === '') {
+            htmlContent = ''; // Ensure it's an empty string, not null or undefined
         } else {
-            console.log(`Loaded content for mesh ID ${meshId}: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`);
+            console.log(`Loaded content for mesh ID ${meshId}: ${htmlContent.substring(0, 50)}${htmlContent.length > 50 ? '...' : ''}`);
         }
         
         // Cache the content if it's not empty
-        if (content && content.trim() !== '') {
-            meshHtmlContent.set(meshId, content);
+        if (htmlContent && htmlContent.trim() !== '') {
+            meshHtmlContent.set(meshId, htmlContent);
             console.log(`Successfully loaded content for mesh ID ${meshId}`);
         } else {
             // If empty, ensure we remove any cached content
@@ -336,7 +384,7 @@ async function loadHtmlForMesh(meshId) {
             console.log(`No valid content found for mesh ID ${meshId}`);
         }
         
-        return content;
+        return htmlContent;
     } catch (error) {
         console.error('Error loading content from binary buffer:', error);
         throw new Error(`Failed to load data: ${error.message}`);
@@ -636,10 +684,6 @@ export function initHtmlEditorModal() {
                 
                 // Save HTML content
                 await saveHtmlForMesh(parseInt(currentMeshId), html);
-                
-                // Save current settings
-                const settings = getSettingsFromForm();
-                saveSettingsForMesh(parseInt(currentMeshId), settings);
                 
                 // Update HTML icons to reflect the new state
                 updateHtmlIcons();
@@ -3139,6 +3183,7 @@ async function saveHtmlForMesh(meshId, content) {
             
             // Remove from our in-memory map
             meshHtmlContent.delete(meshId);
+            meshHtmlSettings.delete(meshId);
             
             // Create an empty buffer to signal removal
             const emptyBuffer = new ArrayBuffer(0);
@@ -3168,8 +3213,14 @@ async function saveHtmlForMesh(meshId, content) {
         // Save to our in-memory map
         meshHtmlContent.set(meshId, content);
         
-        // Serialize content to binary
-        const binaryData = serializeStringToBinary(content);
+        // Get current settings from the form
+        const settings = getSettingsFromForm();
+        
+        // Save settings to our in-memory map
+        saveSettingsForMesh(meshId, settings);
+        
+        // Serialize content with settings to binary
+        const binaryData = serializeStringWithSettingsToBinary(content, settings);
         
         console.log(`Associating binary data with mesh ID ${meshId} in GLB...`);
         // Associate binary data with mesh index in GLB

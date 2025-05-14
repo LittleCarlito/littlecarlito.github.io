@@ -631,7 +631,8 @@ function updateIconAppearance(icon, hasHtml) {
                     if (glbBuffer) {
                         const binaryBuffer = await getBinaryBufferForMesh(glbBuffer, meshIndex);
                         if (binaryBuffer) {
-                            const content = deserializeStringFromBinary(binaryBuffer);
+                            const result = deserializeStringFromBinary(binaryBuffer);
+                            const content = result.content;
                             if (isValidHtml(content)) {
                                 // It's valid HTML - set icon to green
                                 icon.style.color = ICON_COLORS.VALID_HTML;

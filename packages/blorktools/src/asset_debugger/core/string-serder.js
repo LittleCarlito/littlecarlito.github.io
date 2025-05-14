@@ -22,18 +22,99 @@ export function serializeStringToBinary(stringContent) {
 }
 
 /**
+ * Serialize string content with HTML settings to binary format
+ * @param {string} stringContent - The string content to serialize
+ * @param {Object} settings - The HTML settings to include
+ * @returns {ArrayBuffer} The serialized binary data with settings metadata
+ */
+export function serializeStringWithSettingsToBinary(stringContent, settings) {
+    console.info("Serializing with settings: ", settings);
+    
+    // Create a UTF-8 encoder
+    const encoder = new TextEncoder();
+    
+    // Convert settings to JSON string
+    const settingsJson = JSON.stringify(settings || {});
+    const settingsBytes = encoder.encode(settingsJson);
+    
+    // Create a header with a magic number and settings length
+    const MAGIC = 0x48544D4C; // "HTML" in ASCII
+    const VERSION = 1; // Version 1 of our format
+    
+    // Calculate total buffer size:
+    // 4 bytes for magic + 4 bytes for version + 4 bytes for settings length +
+    // settings bytes + content bytes
+    const totalSize = 4 + 4 + 4 + settingsBytes.byteLength + encoder.encode(stringContent).byteLength;
+    
+    // Create the buffer
+    const buffer = new ArrayBuffer(totalSize);
+    const view = new DataView(buffer);
+    
+    // Write magic number
+    view.setUint32(0, MAGIC, true);
+    
+    // Write version
+    view.setUint32(4, VERSION, true);
+    
+    // Write settings length
+    view.setUint32(8, settingsBytes.byteLength, true);
+    
+    // Write settings bytes
+    const settingsView = new Uint8Array(buffer, 12, settingsBytes.byteLength);
+    settingsView.set(settingsBytes);
+    
+    // Write content bytes
+    const contentView = new Uint8Array(buffer, 12 + settingsBytes.byteLength);
+    contentView.set(encoder.encode(stringContent));
+    
+    return buffer;
+}
+
+/**
  * Deserialize binary data to string content
  * @param {ArrayBuffer} binaryData - The binary data to deserialize
- * @returns {string} The deserialized string content
+ * @returns {Object} Object containing the deserialized content and settings if available
  */
 export function deserializeStringFromBinary(binaryData) {
     try {
         // Simple check for valid buffer
         if (!binaryData || binaryData.byteLength === 0) {
             console.warn("Empty binary data received");
-            return "";
+            return { content: "", settings: null };
         }
         
+        // Check if this is our enhanced format with settings
+        if (binaryData.byteLength >= 12) {
+            const view = new DataView(binaryData);
+            const magic = view.getUint32(0, true);
+            const MAGIC = 0x48544D4C; // "HTML" in ASCII
+            
+            if (magic === MAGIC) {
+                // This is our enhanced format
+                const version = view.getUint32(4, true);
+                const settingsLength = view.getUint32(8, true);
+                
+                // Extract settings
+                const settingsBytes = new Uint8Array(binaryData, 12, settingsLength);
+                const settingsJson = new TextDecoder('utf-8').decode(settingsBytes);
+                let settings = {};
+                
+                try {
+                    settings = JSON.parse(settingsJson);
+                } catch (e) {
+                    console.warn("Error parsing settings JSON:", e);
+                }
+                
+                // Extract content
+                const contentBytes = new Uint8Array(binaryData, 12 + settingsLength);
+                const content = new TextDecoder('utf-8').decode(contentBytes);
+                
+                console.info("Deserialized with settings: ", settings);
+                return { content, settings };
+            }
+        }
+        
+        // If not our enhanced format, treat as legacy format (just content)
         // Create a view of the binary data to check for null terminators
         const dataView = new Uint8Array(binaryData);
         
@@ -59,10 +140,10 @@ export function deserializeStringFromBinary(binaryData) {
                               (content.length > previewLength ? "..." : "");
         console.info("Deserialized to: " + contentPreview);
         
-        return content;
+        return { content, settings: null };
     } catch (error) {
         console.error("Error deserializing binary data:", error);
-        return "";
+        return { content: "", settings: null };
     }
 }
 
@@ -214,6 +295,7 @@ window.addEventListener('load', notifySize);
 // Export default for convenience
 export default {
     serializeStringToBinary,
+    serializeStringWithSettingsToBinary,
     deserializeStringFromBinary,
     isValidHtml,
     formatHtml,
