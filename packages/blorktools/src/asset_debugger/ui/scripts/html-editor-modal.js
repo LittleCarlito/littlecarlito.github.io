@@ -128,6 +128,10 @@ let bufferExhausted = false;
 let fallbackToRealtime = false;
 let bufferExhaustWarningShown = false;
 let animationDuration = 0; // Store detected animation duration
+// Add variables for smooth progress animation
+let finalProgressAnimation = false;
+let finalProgressStartTime = 0;
+let finalProgressDuration = 800; // Duration of final progress animation in ms
 
 /**
  * Open the HTML Editor Modal for a specific mesh
@@ -732,6 +736,8 @@ function previewHtml(html) {
         bufferExhausted = false;
         fallbackToRealtime = false;
         bufferExhaustWarningShown = false;
+        finalProgressAnimation = false;
+        finalProgressStartTime = 0;
         
         // Store the preview mode in the modal dataset for access elsewhere
         modal.dataset.previewMode = previewMode;
@@ -891,7 +897,7 @@ function previewHtml(html) {
             progressBar.style.width = '0%';
             progressBar.style.height = '100%';
             progressBar.style.backgroundColor = '#3498db';
-            progressBar.style.transition = 'width 0.5s';
+            progressBar.style.transition = 'width 0.3s ease-out'; // Smoother transition
             
             progressContainer.appendChild(progressBar);
             
@@ -909,23 +915,8 @@ function previewHtml(html) {
             
             // Start pre-rendering with a callback for when it's done
             startPreRendering(renderIframe, () => {
-                // Remove loading overlay
-                if (loadingOverlay.parentNode) {
-                    loadingOverlay.parentNode.removeChild(loadingOverlay);
-                }
-                
-                // Now create the info panel after pre-rendering is complete
-                createMeshInfoPanel(canvasContainer, currentMeshId);
-                
-                // Reset animation start time to now
-                originalAnimationStartTime = Date.now();
-                isFirstCapture = false; // We've already captured frames
-                
-                // Start the animation
-                isPreviewAnimationPaused = false;
-                
-                // Show a message that playback is starting
-                showStatus(`Animation playback starting at ${playbackSpeed}x speed`, 'success');
+                // The callback is now called from the final animation completion
+                console.log('Pre-rendering complete callback executed');
             }, progressBar);
         };
         
@@ -990,12 +981,97 @@ function startPreRendering(iframe, callback, progressBar = null) {
     let totalFramesEstimate = 120; // Initial estimate
     let lastProgressUpdate = 0;
     let progressUpdateInterval = 100; // Update progress every 100ms
+    let maxProgressBeforeFinalAnimation = 92; // Cap progress at this value until final animation
+    finalProgressAnimation = false;
+    finalProgressStartTime = 0;
     
     // Function to update progress bar
     const updateProgress = (percent) => {
         if (progressBar) {
+            // Ensure progress never exceeds maxProgressBeforeFinalAnimation unless in final animation
+            if (!finalProgressAnimation && percent > maxProgressBeforeFinalAnimation) {
+                percent = maxProgressBeforeFinalAnimation;
+            }
             progressBar.style.width = `${percent}%`;
         }
+    };
+    
+    // Function to start final progress animation
+    const startFinalProgressAnimation = () => {
+        if (finalProgressAnimation) return; // Already animating
+        
+        finalProgressAnimation = true;
+        finalProgressStartTime = Date.now();
+        
+        // Start the animation loop
+        animateFinalProgress();
+    };
+    
+    // Function to animate progress to 100%
+    const animateFinalProgress = () => {
+        const now = Date.now();
+        const elapsed = now - finalProgressStartTime;
+        
+        if (elapsed >= finalProgressDuration) {
+            // Animation complete, set to 100%
+            updateProgress(100);
+            
+            // Hide loading overlay with fade out
+            const loadingOverlay = document.getElementById('pre-rendering-overlay');
+            if (loadingOverlay) {
+                loadingOverlay.style.transition = 'opacity 0.5s ease';
+                loadingOverlay.style.opacity = '0';
+                
+                // Remove after fade out
+                setTimeout(() => {
+                    if (loadingOverlay.parentNode) {
+                        loadingOverlay.parentNode.removeChild(loadingOverlay);
+                    }
+                    
+                    // Now create the info panel after pre-rendering is complete
+                    const canvasContainer = document.querySelector('#html-preview-content');
+                    if (canvasContainer) {
+                        const modal = document.getElementById('html-editor-modal');
+                        const currentMeshId = parseInt(modal.dataset.meshId);
+                        createMeshInfoPanel(canvasContainer, currentMeshId);
+                    }
+                    
+                    // Reset animation start time to now
+                    originalAnimationStartTime = Date.now();
+                    isFirstCapture = false; // We've already captured frames
+                    
+                    // Start the animation
+                    isPreviewAnimationPaused = false;
+                    
+                    // Show a message that playback is starting
+                    const playbackSpeedSelect = document.getElementById('html-playback-speed');
+                    const playbackSpeed = playbackSpeedSelect ? parseFloat(playbackSpeedSelect.value) : 1.0;
+                    showStatus(`Animation playback starting at ${playbackSpeed}x speed`, 'success');
+                }, 500);
+                
+                // Don't continue the animation
+                return;
+            }
+        } else {
+            // Calculate progress based on easing function
+            const progress = easeOutCubic(elapsed / finalProgressDuration);
+            const currentProgress = maxProgressBeforeFinalAnimation + (100 - maxProgressBeforeFinalAnimation) * progress;
+            updateProgress(currentProgress);
+            
+            // Update loading text
+            const progressText = document.getElementById('loading-progress-text');
+            if (progressText) {
+                progressText.textContent = 'Finalizing animation...';
+            }
+            
+            // Continue animation
+            requestAnimationFrame(animateFinalProgress);
+        }
+    };
+    
+    // Easing function for smooth animation
+    const easeOutCubic = (x) => {
+        return 1 - Math.pow(1 - x, 3);
     };
     
     // Create high-quality texture from iframe for better visuals
@@ -1021,7 +1097,7 @@ function startPreRendering(iframe, callback, progressBar = null) {
     const captureFrames = async () => {
         if (!isPreviewActive || !preRenderingInProgress) {
             preRenderingInProgress = false;
-            if (callback) callback();
+            startFinalProgressAnimation();
             return;
         }
         
@@ -1033,7 +1109,7 @@ function startPreRendering(iframe, callback, progressBar = null) {
             
             // Calculate elapsed time percentage
             const elapsedTime = now - preRenderStartTime;
-            const timeProgress = Math.min(100, (elapsedTime / preRenderMaxDuration) * 100);
+            const timeProgress = Math.min(90, (elapsedTime / preRenderMaxDuration) * 100);
             
             // Calculate frame-based progress
             let frameProgress = 0;
@@ -1043,14 +1119,18 @@ function startPreRendering(iframe, callback, progressBar = null) {
                     // If we've captured more than half our estimate, update the estimate
                     totalFramesEstimate = Math.max(totalFramesEstimate, Math.ceil(preRenderedFrames.length * 1.2));
                 }
-                frameProgress = Math.min(100, (preRenderedFrames.length / totalFramesEstimate) * 100);
+                frameProgress = Math.min(90, (preRenderedFrames.length / totalFramesEstimate) * 100);
             } else {
                 // If no animation detected, use time-based progress
                 frameProgress = timeProgress;
             }
             
             // Use a weighted combination of time and frame progress
-            const combinedProgress = (timeProgress * 0.3) + (frameProgress * 0.7);
+            // Cap at maxProgressBeforeFinalAnimation to leave room for final animation
+            const combinedProgress = Math.min(
+                maxProgressBeforeFinalAnimation, 
+                (timeProgress * 0.3) + (frameProgress * 0.7)
+            );
             updateProgress(combinedProgress);
             
             // Update the loading text to show more information
@@ -1075,11 +1155,8 @@ function startPreRendering(iframe, callback, progressBar = null) {
             // Show success message
             showStatus(`Animation loop detected (${(animationDuration/1000).toFixed(1)}s), ${preRenderedFrames.length} frames captured`, 'success');
             
-            // Update progress to 100% before callback
-            updateProgress(100);
-            
-            // Call the callback to initialize the preview
-            if (callback) callback();
+            // Start final progress animation instead of immediately calling callback
+            startFinalProgressAnimation();
             return;
         }
         
@@ -1106,11 +1183,8 @@ function startPreRendering(iframe, callback, progressBar = null) {
                 // Show success message
                 showStatus(`Animation end detected (${(animationDuration/1000).toFixed(1)}s), ${preRenderedFrames.length} frames captured`, 'success');
                 
-                // Update progress to 100% before callback
-                updateProgress(100);
-                
-                // Call the callback to initialize the preview
-                if (callback) callback();
+                // Start final progress animation instead of immediately calling callback
+                startFinalProgressAnimation();
                 return;
             }
         }
@@ -1135,11 +1209,8 @@ function startPreRendering(iframe, callback, progressBar = null) {
                 showStatus(`Animation appears infinite, ${preRenderedFrames.length} frames captured for playback`, 'info');
             }
             
-            // Update progress to 100% before callback
-            updateProgress(100);
-            
-            // Call the callback to initialize the preview
-            if (callback) callback();
+            // Start final progress animation instead of immediately calling callback
+            startFinalProgressAnimation();
             return;
         }
         
@@ -1165,16 +1236,16 @@ function startPreRendering(iframe, callback, progressBar = null) {
             console.error('Error during pre-rendering:', error);
             preRenderingInProgress = false;
             
-            // Update progress to 100% before callback
-            updateProgress(100);
-            
-            // Still call the callback even if there was an error
-            if (callback) callback();
+            // Start final progress animation instead of immediately calling callback
+            startFinalProgressAnimation();
         }
     };
     
     // Start capturing frames
     captureFrames();
+    
+    // Store callback to be called after final animation completes
+    window._preRenderCallback = callback;
 }
 
 /**
