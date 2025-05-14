@@ -688,13 +688,41 @@ export function initHtmlEditorModal() {
                 // Update HTML icons to reflect the new state
                 updateHtmlIcons();
                 
-                closeModal();
+                // Don't close the modal, just show success message
                 showStatus('HTML saved successfully', 'success');
             }
         } catch (error) {
             showStatus('Error saving HTML: ' + error.message, 'error');
         }
     });
+    
+    // Save and Apply button
+    const saveApplyBtn = document.getElementById('html-editor-save-apply');
+    if (saveApplyBtn) {
+        saveApplyBtn.addEventListener('click', async () => {
+            try {
+                const currentMeshId = modal.dataset.meshId;
+                if (currentMeshId) {
+                    const html = textarea.value;
+                    
+                    // Save HTML content
+                    await saveHtmlForMesh(parseInt(currentMeshId), html);
+                    
+                    // Update HTML icons to reflect the new state
+                    updateHtmlIcons();
+                    
+                    // Close the modal
+                    closeModal();
+                    showStatus('HTML saved and applied successfully', 'success');
+                    
+                    // In the future, additional code will be added here to apply 
+                    // the texture/animation to the mesh in real-time
+                }
+            } catch (error) {
+                showStatus('Error saving and applying HTML: ' + error.message, 'error');
+            }
+        });
+    }
     
     // Make textarea tab-friendly
     textarea.addEventListener('keydown', function(e) {
