@@ -32,7 +32,10 @@ import { updateHtmlIcons } from './mesh-panel.js';
 // Import Three.js the same way as other files in the codebase
 import * as THREE from 'three';
 import { createLongExposureTexture, createTextureFromIframe } from '../../core/texture-util.js';
-import { cleanupThreeJsPreview, frameBuffer, isPreviewActive, maxCaptureRate, originalAnimationStartTime, previewHtml, previewRenderTarget, setLastTextureUpdateTime } from '../../core/preview-util.js';
+import { isPreviewActive, maxCaptureRate, previewHtml, setLastTextureUpdateTime } from '../../core/preview-util.js';
+import { cleanupThreeJsPreview, frameBuffer, previewRenderTarget } from '../../core/threejs-util.js';
+
+export let originalAnimationStartTime = 0;
 
 // Store HTML content for each mesh
 const meshHtmlContent = new Map();
@@ -835,4 +838,12 @@ function createErrorContainer() {
     }
     
     return container;
+}
+
+/**
+ * Set original animation start time
+ * @param {number} incomingValue - The new value to set
+ */
+export function setOriginalAnimationStartTime(incomingValue) {
+    originalAnimationStartTime = incomingValue;
 }
