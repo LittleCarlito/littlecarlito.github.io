@@ -402,3 +402,41 @@ export function setCapturingForLongExposure(incomingValue) {
         isCapturingForLongExposure = incomingValue;
     }
 }
+
+/**
+ * Calculate a simple hash of a texture to detect changes between frames
+ * @param {THREE.Texture} texture - The texture to hash
+ * @returns {string} A simple hash of the texture
+ */
+export function calculateTextureHash(texture) {
+    if (!texture || !texture.image) return '';
+    
+    try {
+        // Create a small canvas to sample the texture
+        const canvas = document.createElement('canvas');
+        const size = 16; // Small sample size for performance
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        
+        // Draw the texture to the canvas
+        ctx.drawImage(texture.image, 0, 0, size, size);
+        
+        // Get image data
+        const imageData = ctx.getImageData(0, 0, size, size).data;
+        
+        // Sample pixels at regular intervals
+        const samples = [];
+        const step = 4 * 4; // Sample every 4th pixel (RGBA)
+        for (let i = 0; i < imageData.length; i += step) {
+            // Use just the RGB values (skip alpha)
+            samples.push(imageData[i], imageData[i+1], imageData[i+2]);
+        }
+        
+        // Create a simple hash from the samples
+        return samples.join(',');
+    } catch (e) {
+        console.error('Error calculating texture hash:', e);
+        return '';
+    }
+}

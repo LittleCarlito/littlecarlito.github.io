@@ -32,7 +32,8 @@ import { updateHtmlIcons } from './mesh-panel.js';
 
 // Import Three.js the same way as other files in the codebase
 import * as THREE from 'three';
-import { createLongExposureTexture, createTextureFromIframe, setCapturingForLongExposure } from '../../core/texture-util.js';
+import { createLongExposureTexture, createTextureFromIframe } from '../../core/texture-util.js';
+import { analyzeAnimationFrames, animationDuration, detectAnimationLoop, isAnimationFinite, preRenderedFrames, preRenderingInProgress, resetPreRender, startPreRendering } from '../../core/animation-util.js';
 
 // Store HTML content for each mesh
 const meshHtmlContent = new Map();
@@ -68,7 +69,8 @@ let currentLintErrors = [];
 let lintDebounceTimer = null;
 
 // Three.js variables for preview
-let previewScene, previewCamera, previewRenderer, previewPlane;
+let previewScene, previewCamera, previewRenderer;
+export let previewPlane;
 let previewAnimationId = null;
 let previewRenderTarget = null;
 let isPreviewAnimationPaused = false;
@@ -79,7 +81,6 @@ export let isPreviewActive = false; // Track if preview is currently active
 // Add variables for CSS3D rendering
 let css3dScene, css3dRenderer, css3dObject;
 let webglScene, webglRenderer;
-let combinedRenderRequired = false;
 
 // Add at the top of the file, with other variables
 let lastFrameTime = 0;
@@ -94,48 +95,8 @@ let infoPanelPosition = { x: 10, y: 10 }; // Default position in top-left corner
 
 // Add variables for frame buffering at the top of the file with other variables
 let frameBuffer = [];
-let frameBufferMaxSize = 1200; // Increased to store more frames for smoother playback (was 600)
-let lastFramePlaybackTime = 0;
-let currentFrameIndex = 0;
-let isCapturingFrames = true; // Always capture frames
 let originalAnimationStartTime = 0;
-let lastCapturedTime = 0;
-let isFirstCapture = true;
-let animationDetected = false;
-let animationStartDetected = false;
-let animationEndDetected = false;
-let animationIdleCount = 0;
-let previousFrameHash = '';
-let animationChangeThreshold = 0.008; // Lower threshold for detecting change (was 0.01)
-let animationIdleThreshold = 30; // Number of similar frames before considering animation ended
-let animationStartTime = 0;
-let animationEndTime = 0;
-let isLoopingAnimation = false;
 let maxCaptureRate = 0.5; // Reduce to 0.5ms between captures for more frames (was 1)
-let actualCaptureRate = 0;
-// Add new variables for improved animation detection
-let animationDetectionSensitivity = 0.85; // Increased from 0.5 to 0.85 for much stricter detection by default
-let frameChangeRates = []; // Store recent frame change rates
-let previousChangeFrequency = 0; // Track previous change frequency
-
-// Add at the top of the file, with other variables
-let isPreRenderingComplete = false;
-let preRenderedFrames = [];
-let isAnimationFinite = false;
-let preRenderAttempted = false;
-let preRenderingInProgress = false;
-let preRenderMaxDuration = 30000; // Increased to 30 seconds for longer animations
-let preRenderStartTime = 0;
-let bufferExhausted = false;
-let fallbackToRealtime = false;
-let bufferExhaustWarningShown = false;
-let animationDuration = 0; // Store detected animation duration
-// Add variables for smooth progress animation
-let finalProgressAnimation = false;
-let finalProgressStartTime = 0;
-let finalProgressDuration = 800; // Duration of final progress animation in ms
-
-
 
 /**
  * Open the HTML Editor Modal for a specific mesh
@@ -526,9 +487,6 @@ export function initHtmlEditorModal() {
                                 // Increase capture rate for faster playback
                                 maxCaptureRate = Math.max(1, Math.floor(1 / newPlaybackSpeed));
                                 console.log(`Adjusted capture rate for ${newPlaybackSpeed}x speed: ${maxCaptureRate}ms`);
-                                
-                                // Force immediate frame capture
-                                lastCapturedTime = 0;
                             } else {
                                 // Reset to normal capture rate
                                 maxCaptureRate = 1;
@@ -761,7 +719,7 @@ function closeModal() {
  * @param {string} message - The message to display
  * @param {string} type - The type of message ('success', 'error', 'info')
  */
-function showStatus(message, type = 'info') {
+export function showStatus(message, type = 'info') {
     const statusEl = document.getElementById('html-editor-status');
     statusEl.textContent = message;
     statusEl.className = `editor-status ${type}`;
@@ -805,17 +763,7 @@ function previewHtml(html) {
         const isLongExposureMode = animationType === 'longExposure';
         window.createLongExposureImmediately = isLongExposureMode;
         
-        // Reset pre-rendering state
-        isPreRenderingComplete = false;
-        preRenderedFrames = [];
-        isAnimationFinite = false;
-        preRenderAttempted = false;
-        preRenderingInProgress = false;
-        bufferExhausted = false;
-        fallbackToRealtime = false;
-        bufferExhaustWarningShown = false;
-        finalProgressAnimation = false;
-        finalProgressStartTime = 0;
+        resetPreRender();
         
         // Store the preview mode in the modal dataset for access elsewhere
         modal.dataset.previewMode = previewMode;
@@ -888,12 +836,6 @@ function previewHtml(html) {
             errorLog.className = 'preview-error-log';
             errorLog.style.display = 'none';
             previewContent.appendChild(errorLog);
-            
-            // Always pre-render for all speeds
-            // Start pre-rendering immediately
-            preRenderAttempted = true;
-            preRenderingInProgress = true;
-            preRenderStartTime = Date.now();
             
             // Add a loading overlay that matches the loading-splash.html style
             const loadingOverlay = document.createElement('div');
@@ -1052,373 +994,6 @@ function initializePreview(previewMode, canvasContainer, renderIframe, currentMe
         showStatus('Initializing 3D cube preview...', 'info');
         initThreeJsPreview(canvasContainer, renderIframe, currentMeshId, createInfoPanel);
     }
-}
-
-/**
- * Start pre-rendering animation frames
- * @param {HTMLIFrameElement} iframe - The iframe containing the HTML content
- * @param {Function} callback - Function to call when pre-rendering is complete
- * @param {HTMLElement} progressBar - Optional progress bar element to update
- */
-function startPreRendering(iframe, callback, progressBar = null) {
-    console.log('Starting pre-rendering of animation frames...');
-    
-    // Reset pre-rendered frames
-    preRenderedFrames = [];
-    
-    // Track progress metrics
-    let totalFramesEstimate = 120; // Initial estimate
-    let lastProgressUpdate = 0;
-    let progressUpdateInterval = 100; // Update progress every 100ms
-    let maxProgressBeforeFinalAnimation = 92; // Cap progress at this value until final animation
-    finalProgressAnimation = false;
-    finalProgressStartTime = 0;
-    
-    // Check if we're in long exposure mode
-    const modal = document.getElementById('html-editor-modal');
-    const animationTypeSelect = document.getElementById('html-animation-type');
-    const isLongExposureMode = animationTypeSelect && animationTypeSelect.value === 'longExposure';
-    
-    // Set flag if we're capturing for long exposure
-    if (isLongExposureMode) {
-        setCapturingForLongExposure(true);
-        
-        // Temporarily disable borders during capture
-        const originalBorderSetting = window.showPreviewBorders;
-        window.showPreviewBorders = false;
-        console.log('Borders temporarily disabled for long exposure capture');
-        
-        // Store original setting to restore later
-        window._originalBorderSetting = originalBorderSetting;
-    }
-    
-    // Function to update progress bar
-    const updateProgress = (percent) => {
-        if (progressBar) {
-            // Ensure progress never exceeds maxProgressBeforeFinalAnimation unless in final animation
-            if (!finalProgressAnimation && percent > maxProgressBeforeFinalAnimation) {
-                percent = maxProgressBeforeFinalAnimation;
-            }
-            progressBar.style.width = `${percent}%`;
-        }
-    };
-    
-    // Function to create the long exposure texture and apply it
-    const createAndApplyLongExposure = () => {
-        if (preRenderedFrames.length > 0) {
-            const playbackSpeedSelect = document.getElementById('html-playback-speed');
-            const playbackSpeed = playbackSpeedSelect ? parseFloat(playbackSpeedSelect.value) : 1.0;
-            
-            // Create the long exposure texture
-            const longExposureTexture = createLongExposureTexture(preRenderedFrames, playbackSpeed);
-            
-            // Update the mesh with the long exposure texture
-            updateMeshTexture(longExposureTexture);
-            
-            // Show a message about the long exposure
-            showStatus(`Long exposure created from ${preRenderedFrames.length} frames`, 'success');
-            
-            // Pause animation since we just want to display the static image
-            isPreviewAnimationPaused = true;
-        }
-    };
-    
-    // Function to start final progress animation
-    const startFinalProgressAnimation = () => {
-        if (finalProgressAnimation) return; // Already animating
-        
-        finalProgressAnimation = true;
-        finalProgressStartTime = Date.now();
-        
-        // Start the animation loop
-        animateFinalProgress();
-    };
-    
-    // Function to animate progress to 100%
-    const animateFinalProgress = () => {
-        const now = Date.now();
-        const elapsed = now - finalProgressStartTime;
-        
-        if (elapsed >= finalProgressDuration) {
-            // Animation complete, set to 100%
-            updateProgress(100);
-            
-            // Hide loading overlay with fade out
-            const loadingOverlay = document.getElementById('pre-rendering-overlay');
-            if (loadingOverlay) {
-                loadingOverlay.style.transition = 'opacity 0.5s ease';
-                loadingOverlay.style.opacity = '0';
-                
-                // Remove after fade out
-                setTimeout(() => {
-                    if (loadingOverlay.parentNode) {
-                        loadingOverlay.parentNode.removeChild(loadingOverlay);
-                    }
-                    
-                    // Now create the info panel after pre-rendering is complete
-                    const canvasContainer = document.querySelector('#html-preview-content');
-                    if (canvasContainer) {
-                        const modal = document.getElementById('html-editor-modal');
-                        const currentMeshId = parseInt(modal.dataset.meshId);
-                        createMeshInfoPanel(canvasContainer, currentMeshId);
-                    }
-                    
-                    // For long exposure, create the static image now that all frames are captured
-                    if (isLongExposureMode && preRenderedFrames.length > 0) {
-                        const playbackSpeedSelect = document.getElementById('html-playback-speed');
-                        const playbackSpeed = playbackSpeedSelect ? parseFloat(playbackSpeedSelect.value) : 1.0;
-                        
-                        // Create the long exposure texture
-                        const longExposureTexture = createLongExposureTexture(preRenderedFrames, playbackSpeed);
-                        
-                        // Update the mesh with the long exposure texture
-                        updateMeshTexture(longExposureTexture);
-                        
-                        // Show a message about the long exposure
-                        showStatus(`Long exposure created from ${preRenderedFrames.length} frames`, 'success');
-                        
-                        // Pause animation since we just want to display the static image
-                        isPreviewAnimationPaused = true;
-                        
-                        // Apply border to the container if the user has selected that option
-                        if (window.showPreviewBorders) {
-                            // Find the preview plane or its container
-                            if (previewPlane && previewPlane.material) {
-                                // Add a border to the container instead of the texture
-                                const previewContainer = document.querySelector('#html-preview-content');
-                                if (previewContainer) {
-                                    previewContainer.style.border = '5px solid #3498db';
-                                    console.log('Added border to long exposure container');
-                                }
-                            }
-                        }
-                    } else {
-                        // Reset animation start time to now
-                        originalAnimationStartTime = Date.now();
-                        isFirstCapture = false; // We've already captured frames
-                        
-                        // Start the animation
-                        isPreviewAnimationPaused = false;
-                        
-                        // Show a message that playback is starting
-                        const playbackSpeedSelect = document.getElementById('html-playback-speed');
-                        const playbackSpeed = playbackSpeedSelect ? parseFloat(playbackSpeedSelect.value) : 1.0;
-                        showStatus(`Animation playback starting at ${playbackSpeed}x speed`, 'success');
-                    }
-                }, 500);
-                
-                // Don't continue the animation
-                return;
-            }
-        } else {
-            // Calculate progress based on easing function
-            const progress = easeOutCubic(elapsed / finalProgressDuration);
-            const currentProgress = maxProgressBeforeFinalAnimation + (100 - maxProgressBeforeFinalAnimation) * progress;
-            updateProgress(currentProgress);
-            
-            // Update loading text
-            const progressText = document.getElementById('loading-progress-text');
-            if (progressText) {
-                if (isLongExposureMode) {
-                    progressText.textContent = 'Creating long exposure...';
-                } else {
-                    progressText.textContent = 'Finalizing animation...';
-                }
-            }
-            
-            // Continue animation
-            requestAnimationFrame(animateFinalProgress);
-        }
-    };
-    
-    // Easing function for smooth animation
-    const easeOutCubic = (x) => {
-        return 1 - Math.pow(1 - x, 3);
-    };
-    
-    // Create high-quality texture from iframe for better visuals
-    const createHighQualityTexture = async (iframe) => {
-        try {
-            const texture = await createTextureFromIframe(iframe);
-            
-            // Apply higher quality settings
-            texture.anisotropy = 16; // Increased from 8 for sharper textures
-            texture.minFilter = THREE.LinearFilter;
-            texture.magFilter = THREE.LinearFilter;
-            texture.generateMipmaps = false;
-            texture.needsUpdate = true;
-            
-            return texture;
-        } catch (error) {
-            console.error('Error creating high-quality texture:', error);
-            throw error;
-        }
-    };
-    
-    // Function to capture frames until animation completes or times out
-    const captureFrames = async () => {
-        if (!isPreviewActive || !preRenderingInProgress) {
-            preRenderingInProgress = false;
-            startFinalProgressAnimation();
-            return;
-        }
-        
-        const now = Date.now();
-        
-        // Update progress based on more accurate metrics
-        if (now - lastProgressUpdate > progressUpdateInterval) {
-            lastProgressUpdate = now;
-            
-            // Calculate elapsed time percentage
-            const elapsedTime = now - preRenderStartTime;
-            const timeProgress = Math.min(90, (elapsedTime / preRenderMaxDuration) * 100);
-            
-            // Calculate frame-based progress
-            let frameProgress = 0;
-            if (animationDetected) {
-                // If we've detected animation, adjust the total frames estimate
-                if (preRenderedFrames.length > totalFramesEstimate * 0.5) {
-                    // If we've captured more than half our estimate, update the estimate
-                    totalFramesEstimate = Math.max(totalFramesEstimate, Math.ceil(preRenderedFrames.length * 1.2));
-                }
-                frameProgress = Math.min(90, (preRenderedFrames.length / totalFramesEstimate) * 100);
-            } else {
-                // If no animation detected, use time-based progress
-                frameProgress = timeProgress;
-            }
-            
-            // Use a weighted combination of time and frame progress
-            // Cap at maxProgressBeforeFinalAnimation to leave room for final animation
-            const combinedProgress = Math.min(
-                maxProgressBeforeFinalAnimation, 
-                (timeProgress * 0.3) + (frameProgress * 0.7)
-            );
-            updateProgress(combinedProgress);
-            
-            // Update the loading text to show more information
-            const progressText = document.getElementById('loading-progress-text');
-            if (progressText) {
-                progressText.textContent = `Pre-rendering animation... ${preRenderedFrames.length} frames captured`;
-            }
-        }
-        
-        // Check if we've detected a loop and have enough frames
-        // Use the improved detection logic with higher sensitivity for pre-rendering
-        const sensitivity = animationDetectionSensitivity + 0.1; // Slight boost during pre-rendering
-        const loopDetected = preRenderedFrames.length > 20 && 
-                             detectAnimationLoop(preRenderedFrames, sensitivity);
-                             
-        if (loopDetected && preRenderedFrames.length > 20) {
-            console.log('Animation loop detected after ' + preRenderedFrames.length + ' frames');
-            preRenderingInProgress = false;
-            isAnimationFinite = true;
-            animationDuration = preRenderedFrames[preRenderedFrames.length - 1].timestamp - preRenderedFrames[0].timestamp;
-            
-            // Show success message
-            if (isLongExposureMode) {
-                showStatus(`Animation loop detected, creating long exposure from ${preRenderedFrames.length} frames`, 'info');
-            } else {
-                showStatus(`Animation loop detected (${(animationDuration/1000).toFixed(1)}s), ${preRenderedFrames.length} frames captured`, 'success');
-            }
-            
-            // Start final progress animation instead of immediately calling callback
-            startFinalProgressAnimation();
-            return;
-        }
-        
-        // Check for animation end using the new analysis function
-        if (preRenderedFrames.length > 20) { // Reduced from 30
-            // Calculate the latest frame hash
-            const latestFrameHash = preRenderedFrames[preRenderedFrames.length - 1].hash;
-            
-            // Analyze frames to detect animation end with higher sensitivity
-            const analysisResult = analyzeAnimationFrames(
-                preRenderedFrames.slice(0, -1), // All frames except the latest
-                latestFrameHash,
-                sensitivity
-            );
-            
-            // If end detected and we have enough frames, stop pre-rendering
-            if (analysisResult.endDetected && preRenderedFrames.length > 20) {
-                console.log('Animation end detected during pre-rendering after ' + preRenderedFrames.length + ' frames');
-                console.log('Detection metrics:', analysisResult.metrics);
-                preRenderingInProgress = false;
-                isAnimationFinite = true;
-                animationDuration = preRenderedFrames[preRenderedFrames.length - 1].timestamp - preRenderedFrames[0].timestamp;
-                
-                // Show success message
-                showStatus(`Animation end detected (${(animationDuration/1000).toFixed(1)}s), ${preRenderedFrames.length} frames captured`, 'success');
-                
-                // Start final progress animation instead of immediately calling callback
-                startFinalProgressAnimation();
-                return;
-            }
-        }
-        
-        // Check if we've exceeded the maximum pre-rendering time
-        if (now - preRenderStartTime > preRenderMaxDuration) {
-            console.log('Pre-rendering time limit reached after ' + preRenderMaxDuration + 'ms');
-            preRenderingInProgress = false;
-            
-            if (loopDetected) {
-                isAnimationFinite = true;
-                animationDuration = preRenderedFrames[preRenderedFrames.length - 1].timestamp - preRenderedFrames[0].timestamp;
-                console.log(`Animation loop detected, duration: ${animationDuration}ms, ${preRenderedFrames.length} frames captured`);
-                showStatus(`Animation loop detected (${(animationDuration/1000).toFixed(1)}s), ${preRenderedFrames.length} frames captured`, 'success');
-            } else if (animationStartDetected && animationEndDetected) {
-                isAnimationFinite = true;
-                animationDuration = animationEndTime - animationStartTime;
-                console.log(`Animation start/end detected, duration: ${animationDuration}ms, ${preRenderedFrames.length} frames captured`);
-                showStatus(`Animation start/end detected (${(animationDuration/1000).toFixed(1)}s), ${preRenderedFrames.length} frames captured`, 'success');
-            } else {
-                console.log(`No animation loop detected, ${preRenderedFrames.length} frames captured`);
-                showStatus(`Animation appears infinite, ${preRenderedFrames.length} frames captured for playback`, 'info');
-            }
-            
-            // Start final progress animation instead of immediately calling callback
-            startFinalProgressAnimation();
-            return;
-        }
-        
-        try {
-            // Capture a high-quality frame
-            const texture = await createHighQualityTexture(iframe);
-            
-            // Calculate a hash of the texture to detect changes
-            const frameHash = calculateTextureHash(texture);
-            
-            // Add frame to pre-rendered frames
-            preRenderedFrames.push({
-                texture: texture,
-                timestamp: now,
-                hash: frameHash
-            });
-            
-            // For long exposure mode, if we have enough frames, create the texture immediately
-            // This prevents showing the first frame before the long exposure
-            if (isLongExposureMode && window.createLongExposureImmediately && preRenderedFrames.length >= 15) {
-                window.createLongExposureImmediately = false; // Only do this once
-                createAndApplyLongExposure();
-            }
-            
-            // Use a shorter delay for more frequent frame capture to increase smoothness
-            setTimeout(() => {
-                requestAnimationFrame(captureFrames);
-            }, 5); // 5ms delay allows for more frames to be captured in the same time
-        } catch (error) {
-            console.error('Error during pre-rendering:', error);
-            preRenderingInProgress = false;
-            
-            // Start final progress animation instead of immediately calling callback
-            startFinalProgressAnimation();
-        }
-    };
-    
-    // Start capturing frames
-    captureFrames();
-    
-    // Store callback to be called after final animation completes
-    window._preRenderCallback = callback;
 }
 
 /**
@@ -2115,278 +1690,15 @@ function animatePreview() {
     }
 }
 
-/**
- * Analyze animation frames to detect the end of an animation
- * @param {Array} frames - Array of captured frames with hash and timestamp
- * @param {string} currentFrameHash - Hash of the current frame
- * @param {number} sensitivity - Detection sensitivity (0.0-1.0, higher = more sensitive)
- * @returns {Object} Detection results including whether end is detected
- */
-function analyzeAnimationFrames(frames, currentFrameHash, sensitivity = 0.85) {
-    // Normalize sensitivity to ensure it's between 0.0 and 1.0
-    sensitivity = Math.max(0.0, Math.min(1.0, sensitivity));
-    
-    // Calculate adaptive thresholds based on sensitivity
-    // Higher sensitivity = lower thresholds = easier to detect changes/end
-    const changeThreshold = animationChangeThreshold * (1.0 - sensitivity * 0.7); // More aggressive scaling (was 0.5)
-    const idleThreshold = Math.round(animationIdleThreshold * (1.0 - sensitivity * 0.85)); // More aggressive reduction (was 0.7)
-    
-    // Initialize result object
-    const result = {
-        endDetected: false,
-        loopDetected: false,
-        isSignificantChange: false,
-        idleCount: 0,
-        patternLength: 0,
-        metrics: {
-            changeThreshold,
-            idleThreshold,
-            avgChangeRate: 0,
-            changeFrequency: 0
-        }
-    };
-    
-    // Need at least 2 frames to analyze
-    if (frames.length < 2) {
-        return result;
-    }
-    
-    // Get the previous frame hash
-    const prevHash = frames[frames.length - 1].hash;
-    
-    // Calculate difference between current and previous frame
-    const hashDiff = calculateHashDifference(currentFrameHash, prevHash);
-    result.isSignificantChange = hashDiff > changeThreshold;
-    
-    // Store the change rate
-    frameChangeRates.push(hashDiff);
-    
-    // Keep only the most recent 60 change rates
-    if (frameChangeRates.length > 60) {
-        frameChangeRates.shift();
-    }
-    
-    // Calculate average change rate and frequency
-    result.metrics.avgChangeRate = frameChangeRates.reduce((sum, rate) => sum + rate, 0) / frameChangeRates.length;
-    
-    // Calculate how many of the recent frames had significant changes
-    const recentFrames = Math.min(20, frameChangeRates.length);
-    const significantChanges = frameChangeRates.slice(-recentFrames).filter(rate => rate > changeThreshold).length;
-    result.metrics.changeFrequency = significantChanges / recentFrames;
-    
-    // Detect animation end using idle count
-    if (result.isSignificantChange) {
-        result.idleCount = 0;
-    } else {
-        // Get current idle count from global variable
-        result.idleCount = animationIdleCount + 1;
-        
-        // Check if we've reached the idle threshold
-        if (result.idleCount >= idleThreshold) {
-            result.endDetected = true;
-        }
-    }
-    
-    // Detect animation end using frequency analysis (more sensitive with higher sensitivity)
-    const frequencyThreshold = 0.15 * (1.0 - sensitivity * 0.7); // More aggressive reduction (was 0.5)
-    if (previousChangeFrequency > 0.2 && result.metrics.changeFrequency < frequencyThreshold) { // Lower threshold (was 0.3)
-        result.endDetected = true;
-    }
-    
-    // Detect animation loops
-    if (frames.length >= 20) { // Reduced from 30 to detect loops earlier
-        result.loopDetected = detectAnimationLoop(frames, sensitivity);
-        if (result.loopDetected) {
-            result.endDetected = true;
-        }
-    }
-    
-    // Store current change frequency for next comparison
-    previousChangeFrequency = result.metrics.changeFrequency;
-    
-    return result;
-}
 
-/**
- * Detect if the animation has completed a loop by comparing frame hashes
- * @param {Array} frames - Array of captured frames with hash and timestamp
- * @param {number} sensitivity - Detection sensitivity (0.0-1.0, higher = more sensitive)
- * @returns {boolean} True if a loop is detected
- */
-function detectAnimationLoop(frames, sensitivity = 0.85) {
-    // Need at least 20 frames to detect a loop (reduced from 30)
-    if (frames.length < 20) return false;
-    
-    // Adjust threshold based on sensitivity
-    const loopThreshold = 0.05 * (1.0 - sensitivity * 0.8); // More aggressive reduction (was 0.6)
-    
-    const minLoopSize = 4;  // Minimum number of frames that could constitute a loop (reduced from 5)
-    const maxLoopSize = Math.floor(frames.length / 2); // Max half the total frames
-    
-    // Try different loop sizes
-    for (let loopSize = minLoopSize; loopSize <= maxLoopSize; loopSize++) {
-        let isLoop = true;
-        
-        // Compare the last loopSize frames with the previous loopSize frames
-        for (let i = 0; i < loopSize; i++) {
-            const currentIndex = frames.length - 1 - i;
-            const previousIndex = currentIndex - loopSize;
-            
-            if (previousIndex < 0) {
-                isLoop = false;
-                break;
-            }
-            
-            const currentHash = frames[currentIndex].hash;
-            const previousHash = frames[previousIndex].hash;
-            
-            // If hashes are different by more than the threshold, it's not a loop
-            if (calculateHashDifference(currentHash, previousHash) > loopThreshold) {
-                isLoop = false;
-                break;
-            }
-        }
-        
-        if (isLoop) {
-            console.log(`Detected animation loop of ${loopSize} frames (sensitivity: ${sensitivity.toFixed(2)})`);
-            return true;
-        }
-    }
-    
-    return false;
-}
 
-/**
- * Capture a new frame and display it
- * @param {number} currentTime - The current timestamp
- */
-function captureAndDisplayFrame(currentTime) {
-    // If this is the first capture, record the start time
-    if (isFirstCapture) {
-        originalAnimationStartTime = currentTime;
-        lastCapturedTime = currentTime;
-        isFirstCapture = false;
-        animationDetected = false;
-        animationStartDetected = false;
-        animationEndDetected = false;
-        animationIdleCount = 0;
-        previousFrameHash = '';
-        actualCaptureRate = 0;
-        frameChangeRates = []; // Reset frame change rates
-        previousChangeFrequency = 0;
-        
-        // Try to detect if this is animation content by checking for animation CSS and setTimeout/setInterval
-        detectAnimationContent(previewRenderTarget).then(result => {
-            animationDetected = result.hasAnimation;
-            isLoopingAnimation = result.isLooping;
-            console.log(`Animation detection: ${animationDetected ? 'Animation detected' : 'No animation detected'}, Looping: ${isLoopingAnimation}`);
-        });
-    }
-    
-    // Calculate frame timing
-    const timeSinceLastCapture = currentTime - lastCapturedTime;
-    
-    // Capture frames at maximum possible rate, limited by maxCaptureRate
-    const captureInterval = maxCaptureRate; // 1ms = up to 1000fps theoretical
-    
-    // Determine if we should capture a new frame
-    const shouldCaptureFrame = !pendingTextureUpdate && 
-                              (timeSinceLastCapture >= captureInterval);
-    
-    // If we need to capture a frame
-    if (shouldCaptureFrame) {
-        pendingTextureUpdate = true;
-        const captureStartTime = performance.now();
-        lastCapturedTime = currentTime;
-        
-        // Capture a frame from the iframe
-        createTextureFromIframe(previewRenderTarget).then(texture => {
-            // Calculate actual capture rate for monitoring
-            const captureDuration = performance.now() - captureStartTime;
-            actualCaptureRate = Math.max(actualCaptureRate, captureDuration);
-            
-            // Log the actual capture rate occasionally
-            if (frameBuffer.length % 100 === 0) {
-                console.log(`Actual minimum frame capture time: ${actualCaptureRate.toFixed(2)}ms (${Math.round(1000 / actualCaptureRate)} fps max)`);
-            }
-            
-            // Calculate a simple hash of the texture to detect changes
-            const frameHash = calculateTextureHash(texture);
-            
-            // Get current mesh ID from the modal
-            const modal = document.getElementById('html-editor-modal');
-            const currentMeshId = parseInt(modal.dataset.meshId);
-            
-            // Get settings for this mesh to determine sensitivity
-            const settings = getHtmlSettingsForMesh(currentMeshId);
-            // In the future, this could come from a UI slider
-            const sensitivity = animationDetectionSensitivity;
-            
-            // Analyze frames to detect animation end
-            const analysisResult = analyzeAnimationFrames(frameBuffer, frameHash, sensitivity);
-            
-            // Update idle count from analysis result
-            animationIdleCount = analysisResult.idleCount;
-            
-            // Detect animation start/end
-            if (!animationStartDetected && analysisResult.isSignificantChange) {
-                animationStartDetected = true;
-                animationStartTime = currentTime;
-                console.log('Animation start detected at:', new Date(animationStartTime).toISOString());
-            }
-            
-            // If we've detected the start but not the end
-            if (animationStartDetected && !animationEndDetected && analysisResult.endDetected) {
-                animationEndDetected = true;
-                animationEndTime = currentTime;
-                console.log('Animation end detected at:', new Date(animationEndTime).toISOString());
-                console.log(`Animation duration: ${(animationEndTime - animationStartTime) / 1000} seconds`);
-                console.log(`Detection metrics:`, analysisResult.metrics);
-                
-                // If we've detected both start and end, and it's not a looping animation,
-                // we can stop capturing new frames
-                if (!isLoopingAnimation) {
-                    isCapturingFrames = false;
-                }
-            }
-            
-            // Store the hash for comparison with next frame
-            previousFrameHash = frameHash;
-            
-            // Add to buffer
-            frameBuffer.push({
-                texture: texture,
-                timestamp: currentTime,
-                hash: frameHash
-            });
-            
-            // Keep buffer at reasonable size with sliding window approach
-            while (frameBuffer.length > frameBufferMaxSize) {
-                // Remove oldest frame and dispose its texture
-                const oldFrame = frameBuffer.shift();
-                if (oldFrame && oldFrame.texture) {
-                    oldFrame.texture.dispose();
-                }
-            }
-            
-            // If we're not pre-rendering, update the texture immediately
-            if (!preRenderingInProgress || bufferExhausted) {
-                updateMeshTexture(texture);
-            }
-            
-            pendingTextureUpdate = false;
-        }).catch(error => {
-            console.error('Error capturing frame:', error);
-            pendingTextureUpdate = false;
-        });
-    }
-}
+
 
 /**
  * Update the mesh texture with the given texture
  * @param {THREE.Texture} texture - The texture to apply to the mesh
  */
-function updateMeshTexture(texture) {
+export function updateMeshTexture(texture) {
     if (!texture || !previewPlane || !previewPlane.material) return;
     
     let needsUpdate = false;
@@ -2410,205 +1722,6 @@ function updateMeshTexture(texture) {
             previewPlane.material.needsUpdate = true;
         }
     }
-}
-
-/**
- * Calculate a simple hash of a texture to detect changes between frames
- * @param {THREE.Texture} texture - The texture to hash
- * @returns {string} A simple hash of the texture
- */
-function calculateTextureHash(texture) {
-    if (!texture || !texture.image) return '';
-    
-    try {
-        // Create a small canvas to sample the texture
-        const canvas = document.createElement('canvas');
-        const size = 16; // Small sample size for performance
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext('2d');
-        
-        // Draw the texture to the canvas
-        ctx.drawImage(texture.image, 0, 0, size, size);
-        
-        // Get image data
-        const imageData = ctx.getImageData(0, 0, size, size).data;
-        
-        // Sample pixels at regular intervals
-        const samples = [];
-        const step = 4 * 4; // Sample every 4th pixel (RGBA)
-        for (let i = 0; i < imageData.length; i += step) {
-            // Use just the RGB values (skip alpha)
-            samples.push(imageData[i], imageData[i+1], imageData[i+2]);
-        }
-        
-        // Create a simple hash from the samples
-        return samples.join(',');
-    } catch (e) {
-        console.error('Error calculating texture hash:', e);
-        return '';
-    }
-}
-
-/**
- * Calculate the difference between two texture hashes
- * @param {string} hash1 - First hash
- * @param {string} hash2 - Second hash
- * @returns {number} Difference value between 0 and 1
- */
-function calculateHashDifference(hash1, hash2) {
-    if (!hash1 || !hash2) return 1;
-    
-    try {
-        const arr1 = hash1.split(',').map(Number);
-        const arr2 = hash2.split(',').map(Number);
-        
-        // If arrays are different lengths, return max difference
-        if (arr1.length !== arr2.length) return 1;
-        
-        // Calculate mean absolute difference
-        let totalDiff = 0;
-        for (let i = 0; i < arr1.length; i++) {
-            totalDiff += Math.abs(arr1[i] - arr2[i]);
-        }
-        
-        // Normalize by max possible difference (255 per channel)
-        return totalDiff / (arr1.length * 255);
-    } catch (e) {
-        console.error('Error calculating hash difference:', e);
-        return 1;
-    }
-}
-
-/**
- * Detect if the content contains animations
- * @param {HTMLIFrameElement} iframe - The iframe containing the content
- * @returns {Promise<{hasAnimation: boolean, isLooping: boolean}>} Whether the content has animations and if they're looping
- */
-async function detectAnimationContent(iframe) {
-    return new Promise((resolve) => {
-        try {
-            if (!iframe || !iframe.contentDocument) {
-                resolve({ hasAnimation: false, isLooping: false });
-                return;
-            }
-            
-            const doc = iframe.contentDocument;
-            let hasAnimation = false;
-            let isLooping = false;
-            
-            // Check for CSS animations and transitions
-            const styleSheets = doc.styleSheets;
-            try {
-                for (let i = 0; i < styleSheets.length; i++) {
-                    try {
-                        const rules = styleSheets[i].cssRules || styleSheets[i].rules;
-                        if (!rules) continue;
-                        
-                        for (let j = 0; j < rules.length; j++) {
-                            const rule = rules[j];
-                            
-                            // Check for @keyframes
-                            if (rule.type === CSSRule.KEYFRAMES_RULE) {
-                                hasAnimation = true;
-                            }
-                            
-                            // Check for animation properties in style rules
-                            if (rule.type === CSSRule.STYLE_RULE) {
-                                const style = rule.style;
-                                if (style.animation || style.transition) {
-                                    hasAnimation = true;
-                                    
-                                    // Check if animation has 'infinite' value
-                                    if (style.animation && style.animation.includes('infinite')) {
-                                        isLooping = true;
-                                    }
-                                    
-                                    // Check animation-iteration-count for 'infinite'
-                                    if (style.animationIterationCount === 'infinite') {
-                                        isLooping = true;
-                                    }
-                                    
-                                    // If animation-iteration-count is a number, it's finite
-                                    if (style.animationIterationCount && 
-                                        !isNaN(parseFloat(style.animationIterationCount)) && 
-                                        parseFloat(style.animationIterationCount) > 0) {
-                                        // It's a finite animation with a specific number of iterations
-                                        hasAnimation = true;
-                                        // Not infinite, but we know it's a specific count
-                                    }
-                                    
-                                    // Check animation-duration to estimate total animation time
-                                    if (style.animationDuration) {
-                                        const durationMatch = style.animationDuration.match(/(\d+(\.\d+)?)(m?s)/);
-                                        if (durationMatch) {
-                                            let duration = parseFloat(durationMatch[1]);
-                                            // Convert to milliseconds if in seconds
-                                            if (durationMatch[3] === 's') {
-                                                duration *= 1000;
-                                            }
-                                            console.log(`Detected animation duration: ${duration}ms`);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } catch (e) {
-                        // CORS issues can prevent access to some stylesheets
-                        console.debug('Could not access stylesheet rules:', e);
-                    }
-                }
-            } catch (e) {
-                console.debug('Error checking stylesheets:', e);
-            }
-            
-            // Check for JavaScript animations (setTimeout, setInterval, requestAnimationFrame)
-            const jsAnimations = iframe.contentWindow.__animationDetection;
-            if (jsAnimations) {
-                // Check for timer-based animations
-                if (jsAnimations.setTimeout > 0 || jsAnimations.setInterval > 0) {
-                    hasAnimation = true;
-                }
-                
-                // Check for requestAnimationFrame usage
-                if (jsAnimations.rAF > 0) {
-                    hasAnimation = true;
-                }
-                
-                // Check for animation loops
-                if (jsAnimations.isAnimationLoop) {
-                    hasAnimation = true;
-                    isLooping = true;
-                }
-                
-                // Check for DOM mutations that might indicate animation
-                if (jsAnimations.domChanges) {
-                    hasAnimation = true;
-                }
-                
-                // If we have recurring timeouts/intervals that are still active, consider it looping
-                if (jsAnimations.activeTimeouts > 0 || jsAnimations.activeIntervals > 0) {
-                    isLooping = true;
-                }
-            }
-            
-            // Check for elements with animated properties
-            try {
-                // Look for elements with transform, opacity or other commonly animated properties
-                const animatedElements = doc.querySelectorAll('[style*="transform"], [style*="opacity"], [style*="transition"]');
-                if (animatedElements.length > 0) {
-                    hasAnimation = true;
-                }
-            } catch (e) {
-                console.debug('Error checking for animated elements:', e);
-            }
-            
-            resolve({ hasAnimation, isLooping });
-        } catch (e) {
-            console.error('Error detecting animations:', e);
-            resolve({ hasAnimation: false, isLooping: false });
-        }
-    });
 }
 
 /**
@@ -2641,7 +1754,6 @@ function onPreviewResize() {
 function cleanupThreeJsPreview() {
     // Mark preview as inactive to stop animation loop first
     isPreviewActive = false;
-    combinedRenderRequired = false;
     
     // Clean up info panel
     cleanupInfoPanel();
@@ -2664,10 +1776,6 @@ function cleanupThreeJsPreview() {
             }
         });
         frameBuffer = [];
-        currentFrameIndex = 0;
-        lastFramePlaybackTime = 0;
-        isCapturingFrames = true;
-        isFirstCapture = true;
     }
     
     // Reset debug flag
@@ -3423,7 +2531,7 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, currentM
  * @param {number} meshId - The ID of the mesh being previewed
  * @returns {HTMLElement} The created info panel element
  */
-function createMeshInfoPanel(container, meshId) {
+export function createMeshInfoPanel(container, meshId) {
     // Remove any existing info panel
     if (infoPanel) {
         try {
@@ -3693,4 +2801,20 @@ function cleanupInfoPanel() {
         }
         infoPanel = null;
     }
+}
+
+/**
+ * Set the original animation start time
+ * @param {number} incomingValue - The new value to set
+ */
+export function setOriginalAnimationStartTime(incomingValue) {
+    originalAnimationStartTime = incomingValue;
+}
+
+/**
+ * Set the isPreviewAnimationPaused flag
+ * @param {boolean} incomingValue - The new value to set
+ */
+export function setIsPreviewAnimationPaused(incomingValue) {
+    isPreviewAnimationPaused = incomingValue;
 }
