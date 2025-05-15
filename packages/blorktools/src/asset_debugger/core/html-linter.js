@@ -5,6 +5,54 @@
  * No external dependencies are used.
  */
 
+
+// Store current lint errors
+let currentLintErrors = [];
+
+/**
+ * Initialize the HTML linter (no-op since we don't need initialization)
+ * @returns {Promise<void>}
+ */
+export async function initHtmlLinter() {
+    console.log('HTML linter initialized (built-in)');
+    return Promise.resolve();
+}
+
+/**
+ * Lint the HTML content in the editor
+ */
+export async function lintHtmlContent() {
+    const modal = document.getElementById('html-editor-modal');
+    const textarea = modal ? modal.querySelector('#html-editor-textarea') : null;
+    const errorContainer = modal ? modal.querySelector('#html-editor-errors') : null;
+    
+    if (!textarea) return;
+    
+    const html = textarea.value;
+    
+    try {
+        // Run the linter
+        const errors = await lintHtml(html);
+        currentLintErrors = errors;
+        
+        // Clear previous error indicators
+        clearErrorIndicators();
+        
+        // Create error container if it doesn't exist
+        const container = errorContainer || createErrorContainer();
+        
+        // Display errors if any
+        if (errors && errors.length > 0) {
+            displayLintErrors(errors);
+            container.style.display = 'block';
+        } else {
+            if (container) container.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error linting HTML:', error);
+    }
+}
+
 /**
  * Built-in HTML validation
  * @param {string} html - The HTML to validate
@@ -156,7 +204,7 @@ function validateHtml(html) {
  * @param {string} html - The HTML to lint
  * @returns {Promise<Array>} Array of lint errors/warnings
  */
-export async function lintHtml(html) {
+async function lintHtml(html) {
     if (!html) return [];
     
     try {
@@ -174,24 +222,55 @@ export async function lintHtml(html) {
 }
 
 /**
- * Check if external linter is available
- * @returns {boolean} Always false since we don't use external linters
+ * Clear error indicators from the editor
  */
-export function hasExternalLinter() {
-    return false;
+function clearErrorIndicators() {
+    const modal = document.getElementById('html-editor-modal');
+    const textarea = modal ? modal.querySelector('#html-editor-textarea') : null;
+    if (!textarea) return;
+    
+    // Remove any existing error styling
+    textarea.classList.remove('has-errors');
+    
+    // Clear the error container
+    const errorContainer = modal ? modal.querySelector('#html-editor-errors') : null;
+    if (errorContainer) {
+        errorContainer.innerHTML = '';
+    }
 }
 
 /**
- * Initialize the HTML linter (no-op since we don't need initialization)
- * @returns {Promise<void>}
+ * Display lint errors in the editor
+ * @param {Array} errors - The lint errors to display
  */
-export async function initHtmlLinter() {
-    console.log('HTML linter initialized (built-in)');
-    return Promise.resolve();
+function displayLintErrors(errors) {
+    const modal = document.getElementById('html-editor-modal');
+    const textarea = modal ? modal.querySelector('#html-editor-textarea') : null;
+    const errorContainer = modal ? modal.querySelector('#html-editor-errors') : null;
+    
+    if (!textarea || !errorContainer) return;
+    
+    // Add error class to textarea
+    textarea.classList.add('has-errors');
+    
+    // Create error messages
+    const errorList = document.createElement('ul');
+    errorList.style.margin = '0';
+    errorList.style.padding = '0 0 0 20px';
+    
+    errors.forEach(error => {
+        const errorItem = document.createElement('li');
+        errorItem.textContent = `Line ${error.line}, Col ${error.col}: ${error.message}`;
+        errorItem.style.cursor = 'pointer';
+        
+        // Add click handler to navigate to the error position
+        errorItem.addEventListener('click', () => {
+            navigateToErrorPosition(textarea, error.line, error.col);
+        });
+        
+        errorList.appendChild(errorItem);
+    });
+    
+    errorContainer.innerHTML = '';
+    errorContainer.appendChild(errorList);
 }
-
-export default {
-    lintHtml,
-    initHtmlLinter,
-    hasExternalLinter
-}; 
