@@ -295,7 +295,8 @@ function getSettingsFromForm() {
         },
         display: {
             showBorders: showWireframeCheckbox ? showWireframeCheckbox.checked : true
-        }
+        },
+        active: false // Default to false, will be set to true when using Save and Apply
     };
 }
 
@@ -683,7 +684,7 @@ export function initHtmlEditorModal() {
                 const html = textarea.value;
                 
                 // Save HTML content
-                await saveHtmlForMesh(parseInt(currentMeshId), html);
+                await saveHtmlForMesh(parseInt(currentMeshId), html, false); // Pass false for isActive
                 
                 // Update HTML icons to reflect the new state
                 updateHtmlIcons();
@@ -705,8 +706,8 @@ export function initHtmlEditorModal() {
                 if (currentMeshId) {
                     const html = textarea.value;
                     
-                    // Save HTML content
-                    await saveHtmlForMesh(parseInt(currentMeshId), html);
+                    // Save HTML content with active flag set to true
+                    await saveHtmlForMesh(parseInt(currentMeshId), html, true); // Pass true for isActive
                     
                     // Update HTML icons to reflect the new state
                     updateHtmlIcons();
@@ -714,9 +715,6 @@ export function initHtmlEditorModal() {
                     // Close the modal
                     closeModal();
                     showStatus('HTML saved and applied successfully', 'success');
-                    
-                    // In the future, additional code will be added here to apply 
-                    // the texture/animation to the mesh in real-time
                 }
             } catch (error) {
                 showStatus('Error saving and applying HTML: ' + error.message, 'error');
@@ -3189,9 +3187,10 @@ function logPreviewError(message) {
  * Save content for a specific mesh
  * @param {number} meshId - The ID/index of the mesh
  * @param {string} content - The content to save
+ * @param {boolean} isActive - Whether the HTML content should be active (animated) in the main scene
  * @returns {Promise<boolean>} A promise that resolves when saving is complete
  */
-async function saveHtmlForMesh(meshId, content) {
+async function saveHtmlForMesh(meshId, content, isActive = false) {
     // Check if content is empty or just whitespace
     const isEmpty = !content || content.trim() === '';
     
@@ -3243,6 +3242,9 @@ async function saveHtmlForMesh(meshId, content) {
         
         // Get current settings from the form
         const settings = getSettingsFromForm();
+        
+        // Set the active flag based on the isActive parameter
+        settings.active = !!isActive;
         
         // Save settings to our in-memory map
         saveSettingsForMesh(meshId, settings);
