@@ -1,12 +1,16 @@
 import * as THREE from 'three';
 import { createTextureFromIframe } from './texture-util';
-import { showStatus } from '../ui/scripts/html-editor-modal';
-import { resetPreRender, startPreRendering } from './animation-util';
+import { originalAnimationStartTime, showStatus } from '../ui/scripts/html-editor-modal';
+import { animationDuration, isAnimationFinite, preRenderedFrames, preRenderingInProgress, resetPreRender, startPreRendering } from './animation-util';
 import { sanitizeHtml } from './string-serder';
 import { getState } from './state';
 import { initCSS3DPreview } from './css3d-util';
-import { cleanupThreeJsPreview, initThreeJsPreview, previewPlane, setPreviewRenderTarget } from './threejs-util';
+import { animationPreviewCamera, animationPreviewRenderer, animationPreviewScene, cleanupThreeJsPreview, initThreeJsPreview, previewPlane, setPreviewRenderTarget } from './threejs-util';
 
+export let lastAnimationFrameTime = 0;
+export let previewAnimationId = null;
+const targetFrameRate = 60; // Target 60 FPS for better performance/animation balance
+const frameInterval = 1000 / targetFrameRate;
 // Add variables for CSS3D rendering
 let webglRenderer;
 // Three.js variables for preview
@@ -623,3 +627,284 @@ export function resetInfoPanel() {
     infoPanel = null;
 }
 
+/**
+ * Animation loop for the Three.js preview
+ */
+export function animatePreview() {
+    // If preview is no longer active, don't continue the animation loop
+    if (!isPreviewActive) {
+        console.log('Preview no longer active, stopping animation loop');
+        return;
+    }
+    
+    // Schedule next frame immediately for high priority
+    previewAnimationId = requestAnimationFrame(animatePreview);
+    
+    try {
+        // Throttle to target framerate
+        const now = performance.now();
+        const elapsed = now - lastAnimationFrameTime;
+        
+        if (elapsed < frameInterval) {
+            return; // Skip rendering this frame if we're ahead of schedule
+        }
+        
+        // Calculate actual FPS for monitoring (once per second)
+        if (now - lastAnimationFrameTime > 1000) {
+            console.log(`Current framerate: ${Math.round(1000 / elapsed)} FPS`);
+        }
+        
+        // Remember last frame time for throttling
+        lastAnimationFrameTime = now - (elapsed % frameInterval);
+        
+        // Apply any animation effects to the mesh based on settings
+        if (previewPlane) {
+            // Get current mesh ID from the modal
+            const modal = document.getElementById('html-editor-modal');
+            const currentMeshId = parseInt(modal.dataset.meshId);
+            
+            // Get animation settings for this mesh
+            const settings = getHtmlSettingsForMesh(currentMeshId);
+            const animationType = settings.animation?.type || 'none';
+            const playbackSpeed = settings.playbackSpeed || 1.0;
+            
+            // Apply animation based on type
+            if (animationType !== 'none' && !isPreviewAnimationPaused) {
+                const rotationSpeed = 0.005 * playbackSpeed;
+                const time = performance.now() * 0.001;
+                
+                // Get the geometry's orientation data
+                const geometry = previewPlane.geometry;
+                const hasOrientationData = geometry && geometry.userData && geometry.userData.normalVector;
+                
+                switch (animationType) {
+                    case 'loop':
+                        if (hasOrientationData) {
+                            // For oriented meshes, animate in a way that respects the face orientation
+                            const normalVector = geometry.userData.normalVector;
+                            const upVector = geometry.userData.upVector;
+                            
+                            // Create a rotation axis perpendicular to the normal
+                            const rightVector = new THREE.Vector3().crossVectors(normalVector, upVector).normalize();
+                            
+                            // Create a quaternion for small rotations
+                            const wobbleAmount = 0.05; // Smaller angle for subtle effect
+                            const wobbleQuaternion = new THREE.Quaternion().setFromAxisAngle(
+                                rightVector,
+                                Math.sin(time * rotationSpeed * 5) * wobbleAmount
+                            );
+                            
+                            // Apply this rotation relative to the mesh's base orientation
+                            const baseQuaternion = previewPlane._baseQuaternion || previewPlane.quaternion.clone();
+                            previewPlane._baseQuaternion = baseQuaternion;
+                            
+                            // Combine the base orientation with the animation
+                            previewPlane.quaternion.copy(baseQuaternion).multiply(wobbleQuaternion);
+                        } else {
+                            // Fallback for meshes without orientation data
+                            previewPlane.rotation.y = Math.PI / 6 + Math.sin(time * rotationSpeed * 5) * 0.2;
+                        }
+                        break;
+                    case 'bounce':
+                        if (hasOrientationData) {
+                            // For oriented meshes, bounce along the normal vector
+                            const normalVector = geometry.userData.normalVector;
+                            const bounceOffset = Math.sin(time * rotationSpeed * 3) * 0.1;
+                            const bounceVector = normalVector.clone().multiplyScalar(bounceOffset);
+                            
+                            // Apply bounce to position
+                            previewPlane.position.copy(bounceVector);
+                        } else {
+                            // Fallback bounce for non-oriented meshes
+                            previewPlane.position.y = Math.sin(time * rotationSpeed * 3) * 0.1;
+                        }
+                        break;
+                    case 'longExposure':
+                        // For long exposure, we don't need to do anything here
+                        // The static image is created once after pre-rendering
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+        
+        // Get current mesh ID from the modal
+        const modal = document.getElementById('html-editor-modal');
+        const currentMeshId = parseInt(modal.dataset.meshId);
+        const settings = getHtmlSettingsForMesh(currentMeshId);
+        const playbackSpeed = settings.playbackSpeed || 1.0;
+        const animationType = settings.animation?.type || 'none';
+        
+        // Skip frame updates if animation is paused or we're in long exposure mode
+        if (isPreviewAnimationPaused || animationType === 'longExposure') {
+            // Still render the scene with the current frame
+            if (animationPreviewRenderer && animationPreviewScene && animationPreviewCamera) {
+                animationPreviewRenderer.render(animationPreviewScene, animationPreviewCamera);
+            }
+            return;
+        }
+        
+        // Handle playback based on available frames and speed
+        const currentTime = Date.now();
+        const elapsedSinceStart = currentTime - originalAnimationStartTime;
+        
+        // If we're pre-rendering or have pre-rendered frames - now for ALL speeds
+        if (preRenderingInProgress || preRenderedFrames.length > 0) {
+            // Calculate adjusted time based on playback speed
+            const adjustedTime = elapsedSinceStart * playbackSpeed;
+            
+            // For finite animations, we need to handle looping
+            if (isAnimationFinite && animationDuration > 0 && preRenderedFrames.length > 0) {
+                // Calculate the position within the animation based on animation type
+                let loopPosition;
+                
+                // First, calculate the normalized time position (shared between loop and bounce)
+                // This is how the loop animation has been calculating it
+                const normalizedTime = (adjustedTime % animationDuration) / animationDuration;
+                
+                // Log cycle completion (shared between loop and bounce)
+                const cycleCount = Math.floor(adjustedTime / animationDuration);
+                if (cycleCount > 0 && normalizedTime < 0.05) {
+                    console.log(`Cycle ${cycleCount} complete`);
+                }
+                
+                // Group all animation type handling together
+                switch (animationType) {
+                    case 'loop':
+                        // Loop just uses the normalized time directly
+                        loopPosition = normalizedTime;
+                        break;
+                        
+                    case 'bounce':
+                        // For bounce, we need to determine if we're in a forward or backward cycle
+                        // Even cycles (0, 2, 4...) play forward, odd cycles (1, 3, 5...) play backward
+                        const isForwardCycle = (cycleCount % 2 === 0);
+                        
+                        if (isForwardCycle) {
+                            // Forward playback - use normalized time directly
+                            loopPosition = normalizedTime;
+                        } else {
+                            // Backward playback - invert the normalized time
+                            loopPosition = 1 - normalizedTime;
+                        }
+                        break;
+                        
+                    default: // 'none' or any other type
+                        // Check if we've reached the end of the animation
+                        if (adjustedTime >= animationDuration) {
+                            // If not looping or bouncing, stay on the last frame
+                            if (!isPreviewAnimationPaused) {
+                                console.log('Animation complete, pausing at last frame');
+                                setIsPreviewAnimationPaused(true);
+                                
+                                // Show the last frame
+                                updateMeshTexture(preRenderedFrames[preRenderedFrames.length - 1].texture);
+                                
+                                // Show a message that playback has ended
+                                showStatus('Animation playback complete', 'info');
+                            }
+                            return; // Exit early to avoid further processing
+                        } else {
+                            // If not at the end yet, clamp to the current position
+                            loopPosition = adjustedTime / animationDuration;
+                        }
+                        break;
+                }
+                
+                // Calculate frame index based on loop position
+                const frameIndex = Math.min(
+                    Math.floor(loopPosition * preRenderedFrames.length),
+                    preRenderedFrames.length - 1
+                );
+                
+                // Use the pre-rendered frame at this position
+                if (frameIndex >= 0 && frameIndex < preRenderedFrames.length) {
+                    updateMeshTexture(preRenderedFrames[frameIndex].texture);
+                }
+            }
+            // For non-finite animations or while still pre-rendering
+            else {
+                // Calculate what time we should be showing
+                const targetTime = originalAnimationStartTime + adjustedTime;
+                
+                // Find the frame with timestamp closest to our target time
+                let closestFrameIndex = -1;
+                let smallestDifference = Infinity;
+                
+                // Use pre-rendered frames first
+                const framesArray = preRenderedFrames.length > 0 ? preRenderedFrames : frameBuffer;
+                
+                for (let i = 0; i < framesArray.length; i++) {
+                    const difference = Math.abs(framesArray[i].timestamp - targetTime);
+                    if (difference < smallestDifference) {
+                        smallestDifference = difference;
+                        closestFrameIndex = i;
+                    }
+                }
+                
+                // If we have a valid frame, use it
+                if (closestFrameIndex >= 0 && closestFrameIndex < framesArray.length) {
+                    // Update texture with the appropriate frame
+                    updateMeshTexture(framesArray[closestFrameIndex].texture);
+                }
+            }
+        }
+        // If no pre-rendered frames and not pre-rendering, log error
+        else {
+            console.error('No pre-rendered frames available and not pre-rendering');
+        }
+        
+        // Render the scene - this is always done at the target framerate
+        if (animationPreviewRenderer && animationPreviewScene && animationPreviewCamera) {
+            animationPreviewRenderer.render(animationPreviewScene, animationPreviewCamera);
+        }
+    } catch (error) {
+        console.error('Error in animation loop:', error);
+        // Don't stop the animation loop for errors, just log them
+    }
+}
+
+/**
+ * Reset preview animation id
+ */
+export function resetPreviewAnimationId() {
+    previewAnimationId = null;
+}
+
+/**
+ * Reset last animation frame time
+ */
+export function resetLastAnimationFrameTime() {
+    lastAnimationFrameTime = 0;
+}
+
+/**
+ * Update the mesh texture with the given texture
+ * @param {THREE.Texture} texture - The texture to apply to the mesh
+ */
+export function updateMeshTexture(texture) {
+    if (!texture || !previewPlane || !previewPlane.material) return;
+    
+    let needsUpdate = false;
+    
+    if (Array.isArray(previewPlane.material)) {
+        previewPlane.material.forEach(material => {
+            if (material.map !== texture) {
+                material.map = texture;
+                needsUpdate = true;
+            }
+        });
+        
+        if (needsUpdate) {
+            previewPlane.material.forEach(material => {
+                material.needsUpdate = true;
+            });
+        }
+    } else {
+        if (previewPlane.material.map !== texture) {
+            previewPlane.material.map = texture;
+            previewPlane.material.needsUpdate = true;
+        }
+    }
+}

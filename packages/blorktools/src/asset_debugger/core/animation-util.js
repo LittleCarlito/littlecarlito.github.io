@@ -1,8 +1,7 @@
 import * as THREE from 'three';
 import { setOriginalAnimationStartTime, showStatus } from "../ui/scripts/html-editor-modal";
 import { calculateTextureHash, createLongExposureTexture, createTextureFromIframe, setCapturingForLongExposure } from "./texture-util";
-import { createMeshInfoPanel, setIsPreviewAnimationPaused, isPreviewActive } from './preview-util';
-import { updateMeshTexture } from './threejs-util';
+import { createMeshInfoPanel, setIsPreviewAnimationPaused, isPreviewActive, updateMeshTexture } from './preview-util';
 
 let isPreRenderingComplete = false;
 let finalProgressAnimation = false;
