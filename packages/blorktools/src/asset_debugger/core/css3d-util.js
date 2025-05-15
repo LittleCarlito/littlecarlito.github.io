@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { animationPreviewCamera, initThreeJsPreview, setAnimationPreviewCamera, setPreviewRenderTarget } from './threejs-util';
+import { createMeshInfoPanel } from './mesh-info-util';
 
 /**
  * Initialize CSS3D renderer for HTML preview

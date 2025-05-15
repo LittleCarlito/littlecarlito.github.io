@@ -1,8 +1,9 @@
 import * as THREE from 'three';
-import { animatePreview, infoPanel, isPreviewActive, previewAnimationId, resetInfoPanel, resetLastAnimationFrameTime, resetPreviewAnimationId, setIsPreviewActive, setIsPreviewAnimationPaused, setLastTextureUpdateTime } from "./preview-util";
+import { animatePreview, isPreviewActive, previewAnimationId, resetLastAnimationFrameTime, resetPreviewAnimationId, setIsPreviewActive, setIsPreviewAnimationPaused, setLastTextureUpdateTime } from "./preview-util";
 import { createTextureFromIframe } from './texture-util';
 import { getState } from './state';
 import { showStatus } from '../ui/scripts/html-editor-modal';
+import { createMeshInfoPanel, infoPanel, resetInfoPanel } from './mesh-info-util';
 
 let pendingTextureUpdate = false;
 export let previewPlane;
