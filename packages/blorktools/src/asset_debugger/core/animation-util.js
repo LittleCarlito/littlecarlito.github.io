@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { createMeshInfoPanel, isPreviewActive, previewPlane, setIsPreviewAnimationPaused, setOriginalAnimationStartTime, showStatus, updateMeshTexture } from "../ui/scripts/html-editor-modal";
+import { showStatus } from "../ui/scripts/html-editor-modal";
 import { calculateTextureHash, createLongExposureTexture, createTextureFromIframe, setCapturingForLongExposure } from "./texture-util";
+import { setOriginalAnimationStartTime, createMeshInfoPanel, setIsPreviewAnimationPaused, previewPlane, isPreviewActive, updateMeshTexture } from './preview-util';
 
 let isPreRenderingComplete = false;
 let finalProgressAnimation = false;
@@ -409,7 +410,7 @@ export function resetPreRender() {
  * @param {number} sensitivity - Detection sensitivity (0.0-1.0, higher = more sensitive)
  * @returns {Object} Detection results including whether end is detected
  */
-export function analyzeAnimationFrames(frames, currentFrameHash, sensitivity = 0.85) {
+function analyzeAnimationFrames(frames, currentFrameHash, sensitivity = 0.85) {
     // Normalize sensitivity to ensure it's between 0.0 and 1.0
     sensitivity = Math.max(0.0, Math.min(1.0, sensitivity));
     
@@ -500,7 +501,7 @@ export function analyzeAnimationFrames(frames, currentFrameHash, sensitivity = 0
  * @param {number} sensitivity - Detection sensitivity (0.0-1.0, higher = more sensitive)
  * @returns {boolean} True if a loop is detected
  */
-export function detectAnimationLoop(frames, sensitivity = 0.85) {
+function detectAnimationLoop(frames, sensitivity = 0.85) {
     // Need at least 20 frames to detect a loop (reduced from 30)
     if (frames.length < 20) return false;
     

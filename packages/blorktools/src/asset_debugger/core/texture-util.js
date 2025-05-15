@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { isPreviewActive } from '../ui/scripts/html-editor-modal';
+import { isPreviewActive } from './preview-util';
 
 // Add a variable to track if we're capturing frames for long exposure
 let isCapturingForLongExposure = false;
