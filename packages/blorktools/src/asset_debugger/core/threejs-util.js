@@ -3,7 +3,7 @@ import { animatePreview, isPreviewActive, previewAnimationId, resetLastAnimation
 import { createTextureFromIframe } from './texture-util';
 import { getState } from './state';
 import { showStatus } from '../ui/scripts/html-editor-modal';
-import { createMeshInfoPanel, infoPanel, resetInfoPanel } from './mesh-info-util';
+import { createMeshInfoPanel, infoPanel, resetInfoPanel } from './mesh-info-panel-util';
 
 let pendingTextureUpdate = false;
 export let previewPlane;
