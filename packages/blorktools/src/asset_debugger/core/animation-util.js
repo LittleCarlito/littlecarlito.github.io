@@ -4,6 +4,36 @@ import { calculateTextureHash, createLongExposureTexture, createTextureFromIfram
 import { setIsPreviewAnimationPaused, isPreviewActive, updateMeshTexture } from './preview/preview-util';
 import { createMeshInfoPanel } from './mesh-info-panel-util';
 
+// Debug reporting function for animation analysis
+function logAnimationAnalysisReport(renderType, data) {
+    const {
+        frameCount,
+        duration,
+        isFinite,
+        loopDetected,
+        endDetected,
+        analysisTime,
+        metrics
+    } = data;
+    
+    console.debug(
+        `%c Animation Analysis Report: ${renderType} %c`,
+        'background: #4285f4; color: white; padding: 2px 6px; border-radius: 2px; font-weight: bold;',
+        'background: transparent;'
+    );
+    
+    console.debug({
+        renderType,
+        framesAnalyzed: frameCount,
+        duration: duration ? `${(duration/1000).toFixed(2)}s` : 'unknown',
+        isFiniteAnimation: isFinite,
+        loopDetected,
+        endDetected,
+        analysisTime: `${(analysisTime/1000).toFixed(2)}s`,
+        metrics
+    });
+}
+
 let isPreRenderingComplete = false;
 let finalProgressAnimation = false;
 let finalProgressStartTime = 0;
@@ -36,13 +66,12 @@ export let isAnimationFinite = false;
  * @param {Function} callback - Function to call when pre-rendering is complete
  * @param {HTMLElement} progressBar - Optional progress bar element to update
  */
-export function startPreRendering(iframe, callback, progressBar = null) {
+export function startImage2TexturePreRendering(iframe, callback, progressBar = null) {
     // Always pre-render for all speeds
     // Start pre-rendering immediately
     preRenderAttempted = true;
     preRenderingInProgress = true;
     preRenderStartTime = Date.now();
-
 
     console.log('Starting pre-rendering of animation frames...');
     
@@ -56,6 +85,11 @@ export function startPreRendering(iframe, callback, progressBar = null) {
     let maxProgressBeforeFinalAnimation = 92; // Cap progress at this value until final animation
     finalProgressAnimation = false;
     finalProgressStartTime = 0;
+    
+    // Analysis metrics tracking
+    let loopDetected = false;
+    let endDetected = false;
+    let analysisMetrics = {};
     
     // Check if we're in long exposure mode
     const modal = document.getElementById('html-editor-modal');
@@ -125,6 +159,17 @@ export function startPreRendering(iframe, callback, progressBar = null) {
         if (elapsed >= finalProgressDuration) {
             // Animation complete, set to 100%
             updateProgress(100);
+            
+            // Log animation analysis report
+            logAnimationAnalysisReport('Image2Texture', {
+                frameCount: preRenderedFrames.length,
+                duration: animationDuration,
+                isFinite: isAnimationFinite,
+                loopDetected,
+                endDetected,
+                analysisTime: now - preRenderStartTime,
+                metrics: analysisMetrics
+            });
             
             // Hide loading overlay with fade out
             const loadingOverlay = document.getElementById('pre-rendering-overlay');
@@ -274,14 +319,17 @@ export function startPreRendering(iframe, callback, progressBar = null) {
         // Check if we've detected a loop and have enough frames
         // Use the improved detection logic with higher sensitivity for pre-rendering
         const sensitivity = animationDetectionSensitivity + 0.1; // Slight boost during pre-rendering
-        const loopDetected = preRenderedFrames.length > 20 && 
+        const isLoopDetected = preRenderedFrames.length > 20 && 
                              detectAnimationLoop(preRenderedFrames, sensitivity);
                              
-        if (loopDetected && preRenderedFrames.length > 20) {
+        if (isLoopDetected && preRenderedFrames.length > 20) {
             console.log('Animation loop detected after ' + preRenderedFrames.length + ' frames');
             preRenderingInProgress = false;
             isAnimationFinite = true;
             animationDuration = preRenderedFrames[preRenderedFrames.length - 1].timestamp - preRenderedFrames[0].timestamp;
+            
+            // Update analysis metrics
+            loopDetected = true;
             
             // Show success message
             if (isLongExposureMode) {
@@ -307,6 +355,9 @@ export function startPreRendering(iframe, callback, progressBar = null) {
                 sensitivity
             );
             
+            // Store analysis metrics
+            analysisMetrics = analysisResult.metrics;
+            
             // If end detected and we have enough frames, stop pre-rendering
             if (analysisResult.endDetected && preRenderedFrames.length > 20) {
                 console.log('Animation end detected during pre-rendering after ' + preRenderedFrames.length + ' frames');
@@ -314,6 +365,9 @@ export function startPreRendering(iframe, callback, progressBar = null) {
                 preRenderingInProgress = false;
                 isAnimationFinite = true;
                 animationDuration = preRenderedFrames[preRenderedFrames.length - 1].timestamp - preRenderedFrames[0].timestamp;
+                
+                // Update analysis metrics
+                endDetected = true;
                 
                 // Show success message
                 showStatus(`Animation end detected (${(animationDuration/1000).toFixed(1)}s), ${preRenderedFrames.length} frames captured`, 'success');
@@ -339,6 +393,9 @@ export function startPreRendering(iframe, callback, progressBar = null) {
                 animationDuration = animationEndTime - animationStartTime;
                 console.log(`Animation start/end detected, duration: ${animationDuration}ms, ${preRenderedFrames.length} frames captured`);
                 showStatus(`Animation start/end detected (${(animationDuration/1000).toFixed(1)}s), ${preRenderedFrames.length} frames captured`, 'success');
+                
+                // Update analysis metrics
+                endDetected = true;
             } else {
                 console.log(`No animation loop detected, ${preRenderedFrames.length} frames captured`);
                 showStatus(`Animation appears infinite, ${preRenderedFrames.length} frames captured for playback`, 'info');
@@ -388,6 +445,761 @@ export function startPreRendering(iframe, callback, progressBar = null) {
     
     // Store callback to be called after final animation completes
     window._preRenderCallback = callback;
+}
+
+/**
+ * Start pre-rendering CSS3D animation analysis
+ * @param {HTMLIFrameElement} iframe - The iframe containing the HTML content for CSS3D
+ * @param {Function} callback - Function to call when pre-rendering is complete
+ * @param {HTMLElement} progressBar - Optional progress bar element to update
+ */
+export function startCss3dPreRendering(iframe, callback, progressBar = null) {
+    // Initialize pre-rendering state
+    preRenderAttempted = true;
+    preRenderingInProgress = true;
+    preRenderStartTime = Date.now();
+
+    console.log('Starting CSS3D animation analysis...');
+    
+    // Reset DOM snapshot frames
+    let domSnapshotFrames = [];
+    
+    // Track progress metrics
+    let totalFramesEstimate = 120; // Initial estimate
+    let lastProgressUpdate = 0;
+    let progressUpdateInterval = 100; // Update progress every 100ms
+    let maxProgressBeforeFinalAnimation = 92; // Cap progress at this value until final animation
+    finalProgressAnimation = false;
+    finalProgressStartTime = 0;
+    
+    // Analysis metrics tracking
+    let loopDetected = false;
+    let endDetected = false;
+    let analysisMetrics = {};
+    let detectedLoopSize = 0;
+    
+    // Track the last capture time to pace captures similar to image2texture
+    let lastCaptureTime = 0;
+    let captureInterval = 350; // Start with 500ms between captures to match image2texture's effective rate
+    
+    // Check if we're in long exposure mode
+    const modal = document.getElementById('html-editor-modal');
+    const animationTypeSelect = document.getElementById('html-animation-type');
+    const isLongExposureMode = animationTypeSelect && animationTypeSelect.value === 'longExposure';
+    
+    // Set flag if we're capturing for long exposure
+    if (isLongExposureMode) {
+        setCapturingForLongExposure(true);
+        
+        // Temporarily disable borders during capture
+        const originalBorderSetting = window.showPreviewBorders;
+        window.showPreviewBorders = false;
+        console.log('Borders temporarily disabled for long exposure capture');
+        
+        // Store original setting to restore later
+        window._originalBorderSetting = originalBorderSetting;
+    }
+    
+    // Function to update progress bar
+    const updateProgress = (percent) => {
+        if (progressBar) {
+            // Ensure progress never exceeds maxProgressBeforeFinalAnimation unless in final animation
+            if (!finalProgressAnimation && percent > maxProgressBeforeFinalAnimation) {
+                percent = maxProgressBeforeFinalAnimation;
+            }
+            progressBar.style.width = `${percent}%`;
+        }
+    };
+    
+    // Function to create CSS3D long exposure effect
+    const createAndApplyCss3dLongExposure = () => {
+        if (domSnapshotFrames.length > 0) {
+            const playbackSpeedSelect = document.getElementById('html-playback-speed');
+            const playbackSpeed = playbackSpeedSelect ? parseFloat(playbackSpeedSelect.value) : 1.0;
+            
+            // Create a container for the long exposure effect
+            const longExposureContainer = document.createElement('div');
+            longExposureContainer.className = 'css3d-long-exposure-container';
+            longExposureContainer.style.position = 'relative';
+            longExposureContainer.style.width = '100%';
+            longExposureContainer.style.height = '100%';
+            
+            // Select key frames based on playback speed
+            const keyFrameInterval = Math.max(1, Math.floor(domSnapshotFrames.length / (10 * playbackSpeed)));
+            const keyFrames = [];
+            
+            for (let i = 0; i < domSnapshotFrames.length; i += keyFrameInterval) {
+                keyFrames.push(domSnapshotFrames[i]);
+            }
+            
+            // Add the key frames to the container with decreasing opacity
+            keyFrames.forEach((frame, index) => {
+                const frameElement = frame.domSnapshot.cloneNode(true);
+                frameElement.style.position = 'absolute';
+                frameElement.style.top = '0';
+                frameElement.style.left = '0';
+                frameElement.style.width = '100%';
+                frameElement.style.height = '100%';
+                frameElement.style.opacity = (index + 1) / keyFrames.length;
+                frameElement.style.pointerEvents = 'none';
+                longExposureContainer.appendChild(frameElement);
+            });
+            
+            // Replace the iframe content with the long exposure container
+            if (iframe.contentDocument && iframe.contentDocument.body) {
+                iframe.contentDocument.body.innerHTML = '';
+                iframe.contentDocument.body.appendChild(longExposureContainer);
+            }
+            
+            // Show a message about the long exposure
+            showStatus(`Long exposure created from ${domSnapshotFrames.length} frames`, 'success');
+            
+            // Pause animation since we just want to display the static image
+            setIsPreviewAnimationPaused(true);
+        }
+    };
+    
+    // Function to start final progress animation
+    const startFinalProgressAnimation = () => {
+        if (finalProgressAnimation) return; // Already animating
+        
+        finalProgressAnimation = true;
+        finalProgressStartTime = Date.now();
+        
+        // Start the animation loop
+        animateFinalProgress();
+    };
+    
+    // Function to animate progress to 100%
+    const animateFinalProgress = () => {
+        const now = Date.now();
+        const elapsed = now - finalProgressStartTime;
+        
+        if (elapsed >= finalProgressDuration) {
+            // Animation complete, set to 100%
+            updateProgress(100);
+            
+            // Log animation analysis report
+            logAnimationAnalysisReport('CSS3D', {
+                frameCount: domSnapshotFrames.length,
+                duration: animationDuration,
+                isFinite: isAnimationFinite,
+                loopDetected,
+                endDetected,
+                analysisTime: now - preRenderStartTime,
+                metrics: {
+                    ...analysisMetrics,
+                    loopSize: detectedLoopSize,
+                    domSnapshotCount: domSnapshotFrames.length
+                }
+            });
+            
+            // Store the DOM snapshot frames in the preRenderedFrames array for compatibility
+            preRenderedFrames = domSnapshotFrames;
+            
+            // Hide loading overlay with fade out
+            const loadingOverlay = document.getElementById('pre-rendering-overlay');
+            if (loadingOverlay) {
+                loadingOverlay.style.transition = 'opacity 0.5s ease';
+                loadingOverlay.style.opacity = '0';
+                
+                // Remove after fade out
+                setTimeout(() => {
+                    if (loadingOverlay.parentNode) {
+                        loadingOverlay.parentNode.removeChild(loadingOverlay);
+                    }
+                    
+                    // IMPORTANT: First execute the callback to initialize the CSS3D preview
+                    if (typeof callback === 'function') {
+                        console.log('Executing CSS3D pre-rendering callback');
+                        callback();
+                    }
+                    
+                    // The info panel is now created in the callback when initializing CSS3D preview
+                    
+                    // Now we prepare for animation to start
+                    const modal = document.getElementById('html-editor-modal');
+                    const currentMeshId = parseInt(modal.dataset.meshId);
+                    const isLongExposureMode = animationTypeSelect && animationTypeSelect.value === 'longExposure';
+                    
+                    // For long exposure, create the static composite view
+                    if (isLongExposureMode && domSnapshotFrames.length > 0) {
+                        createAndApplyCss3dLongExposure();
+                    } else {
+                        // Reset animation start time to now
+                        setOriginalAnimationStartTime(Date.now());
+                        
+                        // Start the animation
+                        setIsPreviewAnimationPaused(false);
+                        
+                        // Show a message that playback is starting
+                        const playbackSpeedSelect = document.getElementById('html-playback-speed');
+                        const playbackSpeed = playbackSpeedSelect ? parseFloat(playbackSpeedSelect.value) : 1.0;
+                        showStatus(`CSS3D animation playback starting at ${playbackSpeed}x speed`, 'success');
+                    }
+                }, 500);
+                
+                // Don't continue the animation
+                return;
+            } else {
+                // If no loading overlay found, still execute the callback
+                if (typeof callback === 'function') {
+                    console.log('Executing CSS3D pre-rendering callback (no overlay)');
+                    callback();
+                }
+            }
+        } else {
+            // Calculate progress based on easing function
+            const progress = easeOutCubic(elapsed / finalProgressDuration);
+            const currentProgress = maxProgressBeforeFinalAnimation + (100 - maxProgressBeforeFinalAnimation) * progress;
+            updateProgress(currentProgress);
+            
+            // Update loading text
+            const progressText = document.getElementById('loading-progress-text');
+            if (progressText) {
+                if (isLongExposureMode) {
+                    progressText.textContent = 'Creating CSS3D long exposure...';
+                } else {
+                    progressText.textContent = 'Finalizing CSS3D animation...';
+                }
+            }
+            
+            // Continue animation
+            requestAnimationFrame(animateFinalProgress);
+        }
+    };
+    
+    // Easing function for smooth animation
+    const easeOutCubic = (x) => {
+        return 1 - Math.pow(1 - x, 3);
+    };
+    
+    // Create a DOM snapshot from the iframe
+    const createDomSnapshot = (iframe) => {
+        try {
+            if (!iframe || !iframe.contentDocument || !iframe.contentDocument.documentElement) {
+                return null;
+            }
+            
+            // Clone the DOM for snapshot
+            const domClone = iframe.contentDocument.documentElement.cloneNode(true);
+            
+            // Calculate a hash of the DOM to detect changes
+            const domHash = calculateDomHash(domClone);
+            
+            return {
+                domSnapshot: domClone,
+                hash: domHash
+            };
+        } catch (error) {
+            console.error('Error creating DOM snapshot:', error);
+            return null;
+        }
+    };
+    
+    // Calculate a hash of the DOM to detect changes
+    const calculateDomHash = (domElement) => {
+        try {
+            // Extract relevant attributes for comparison
+            const attributes = [];
+            
+            // Track animation state separately
+            let hasAnimations = false;
+            let hasTransitions = false;
+            
+            // Process element and its children recursively
+            const processElement = (element) => {
+                // Skip script elements
+                if (element.tagName === 'SCRIPT') return;
+                
+                // Get element attributes
+                const tagName = element.tagName || '';
+                const className = element.className || '';
+                const id = element.id || '';
+                const style = element.style ? element.style.cssText : '';
+                
+                // Check for animations and transitions in style
+                if (style.includes('animation') || style.includes('keyframes')) {
+                    hasAnimations = true;
+                }
+                if (style.includes('transition')) {
+                    hasTransitions = true;
+                }
+                
+                // Extract more detailed style information
+                const transform = style.match(/transform:[^;]+/) || '';
+                const opacity = style.match(/opacity:[^;]+/) || '';
+                const position = style.match(/((left|top|right|bottom):[^;]+)/) || '';
+                const animation = style.match(/animation:[^;]+/) || '';
+                const transition = style.match(/transition:[^;]+/) || '';
+                const backgroundColor = style.match(/background-color:[^;]+/) || '';
+                const color = style.match(/color:[^;]+/) || '';
+                
+                // Add element info to attributes array with more details
+                attributes.push(`${tagName}#${id}.${className}[${transform}][${opacity}][${position}][${animation}][${transition}][${backgroundColor}][${color}]`);
+                
+                // Process child elements
+                if (element.children) {
+                    for (let i = 0; i < element.children.length; i++) {
+                        processElement(element.children[i]);
+                    }
+                }
+            };
+            
+            // Start processing from the root element
+            processElement(domElement);
+            
+            // Join all attributes and hash them
+            const attributesString = attributes.join('|');
+            
+            // Add animation state to the hash
+            const stateInfo = `animations:${hasAnimations}|transitions:${hasTransitions}`;
+            const fullString = attributesString + '|' + stateInfo;
+            
+            // Create a simple hash
+            let hash = 0;
+            for (let i = 0; i < fullString.length; i++) {
+                const char = fullString.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32bit integer
+            }
+            
+            return hash.toString();
+        } catch (e) {
+            console.error('Error calculating DOM hash:', e);
+            return Math.random().toString(); // Fallback to random hash
+        }
+    };
+    
+    // Calculate the difference between two DOM hashes
+    const calculateDomHashDifference = (hash1, hash2) => {
+        if (!hash1 || !hash2) return 1;
+        
+        try {
+            // Convert hashes to numbers
+            const num1 = parseInt(hash1);
+            const num2 = parseInt(hash2);
+            
+            // Calculate normalized difference (0-1)
+            // Use a more conservative normalization factor
+            const diff = Math.abs(num1 - num2) / (Math.pow(2, 30) - 1);
+            return Math.min(1, diff);
+        } catch (e) {
+            console.error('Error calculating hash difference:', e);
+            return 1;
+        }
+    };
+    
+    // Inject animation detection script into iframe
+    const injectAnimationDetectionScript = () => {
+        try {
+            if (!iframe || !iframe.contentDocument) return;
+            
+            const script = iframe.contentDocument.createElement('script');
+            script.textContent = `
+                // Animation detection
+                window.__css3dAnimationDetection = {
+                    setTimeout: 0,
+                    setInterval: 0,
+                    rAF: 0,
+                    activeTimeouts: 0,
+                    activeIntervals: 0,
+                    animationFrameIds: new Set(),
+                    cssAnimations: new Set(),
+                    cssTransitions: new Set(),
+                    domChanges: 0,
+                    lastDomChange: 0
+                };
+                
+                // Override setTimeout
+                const originalSetTimeout = window.setTimeout;
+                window.setTimeout = function(callback, delay) {
+                    window.__css3dAnimationDetection.setTimeout++;
+                    window.__css3dAnimationDetection.activeTimeouts++;
+                    const id = originalSetTimeout.call(this, function() {
+                        window.__css3dAnimationDetection.activeTimeouts--;
+                        if (typeof callback === 'function') callback();
+                    }, delay);
+                    return id;
+                };
+                
+                // Override setInterval
+                const originalSetInterval = window.setInterval;
+                window.setInterval = function(callback, delay) {
+                    window.__css3dAnimationDetection.setInterval++;
+                    window.__css3dAnimationDetection.activeIntervals++;
+                    return originalSetInterval.call(this, callback, delay);
+                };
+                
+                // Override requestAnimationFrame
+                const originalRAF = window.requestAnimationFrame;
+                window.requestAnimationFrame = function(callback) {
+                    window.__css3dAnimationDetection.rAF++;
+                    const id = originalRAF.call(this, function(timestamp) {
+                        window.__css3dAnimationDetection.animationFrameIds.add(id);
+                        if (typeof callback === 'function') callback(timestamp);
+                    });
+                    return id;
+                };
+                
+                // Listen for CSS animation events
+                document.addEventListener('animationstart', (event) => {
+                    window.__css3dAnimationDetection.cssAnimations.add(event.animationName);
+                });
+                
+                document.addEventListener('animationend', (event) => {
+                    window.__css3dAnimationDetection.cssAnimations.delete(event.animationName);
+                });
+                
+                // Listen for CSS transition events
+                document.addEventListener('transitionstart', (event) => {
+                    window.__css3dAnimationDetection.cssTransitions.add(event.propertyName);
+                });
+                
+                document.addEventListener('transitionend', (event) => {
+                    window.__css3dAnimationDetection.cssTransitions.delete(event.propertyName);
+                });
+                
+                // Detect DOM changes that might indicate animation
+                try {
+                    const observer = new MutationObserver(mutations => {
+                        window.__css3dAnimationDetection.domChanges += mutations.length;
+                        window.__css3dAnimationDetection.lastDomChange = Date.now();
+                        
+                        for (const mutation of mutations) {
+                            // Check for style or class changes which might indicate animation
+                            if (mutation.type === 'attributes' && 
+                                (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
+                                window.__css3dAnimationDetection.styleChanges = true;
+                            }
+                        }
+                    });
+                    
+                    // Observe the entire document for changes
+                    observer.observe(document.documentElement, {
+                        attributes: true,
+                        childList: true,
+                        subtree: true,
+                        attributeFilter: ['style', 'class']
+                    });
+                } catch (e) {
+                    // MutationObserver might not be available in all contexts
+                    console.debug('MutationObserver not available:', e);
+                }
+            `;
+            
+            iframe.contentDocument.head.appendChild(script);
+        } catch (e) {
+            console.debug('Error injecting CSS3D animation detection script:', e);
+        }
+    };
+    
+    // Detect CSS3D animation loops
+    const detectCSS3DAnimationLoop = (frames, currentHash) => {
+        // Need at least 30 frames to detect a loop (increased from 20)
+        if (frames.length < 30) {
+            return { loopDetected: false, loopSize: 0 };
+        }
+        
+        // Use a much more conservative threshold for CSS3D
+        const minLoopSize = 6;  // Increased minimum loop size (was 4)
+        const maxLoopSize = Math.floor(frames.length / 3); // Reduced from frames.length/2
+        const loopThreshold = 0.2; // Much more conservative threshold (was 0.1)
+        
+        // Try different loop sizes
+        for (let loopSize = minLoopSize; loopSize <= maxLoopSize; loopSize++) {
+            let isLoop = true;
+            let matchScore = 0;
+            
+            // Compare the last loopSize frames with the previous loopSize frames
+            for (let i = 0; i < loopSize; i++) {
+                const currentIndex = frames.length - 1 - i;
+                const previousIndex = currentIndex - loopSize;
+                
+                if (previousIndex < 0) {
+                    isLoop = false;
+                    break;
+                }
+                
+                const currentFrameHash = i === 0 ? currentHash : frames[currentIndex].hash;
+                const previousFrameHash = frames[previousIndex].hash;
+                
+                // Calculate difference
+                const diff = calculateDomHashDifference(currentFrameHash, previousFrameHash);
+                
+                // If hashes are different by more than the threshold, it's not a loop
+                if (diff > loopThreshold) {
+                    isLoop = false;
+                    break;
+                }
+                
+                // Track how close the match is
+                matchScore += (1 - diff);
+            }
+            
+            // Only consider it a loop if we have a good match score
+            const avgMatchScore = matchScore / loopSize;
+            if (isLoop && avgMatchScore > 0.7) { // Require at least 70% match confidence
+                console.log(`Detected CSS3D animation loop of ${loopSize} frames with match score ${avgMatchScore.toFixed(2)}`);
+                return { loopDetected: true, loopSize, matchScore: avgMatchScore };
+            }
+        }
+        
+        return { loopDetected: false, loopSize: 0, matchScore: 0 };
+    };
+    
+    // Function to analyze CSS3D animation state
+    const analyzeCSS3DAnimation = (iframe, domSnapshotFrames, currentHash) => {
+        try {
+            if (!iframe || !iframe.contentWindow || !iframe.contentWindow.__css3dAnimationDetection) {
+                return {
+                    isAnimating: false,
+                    metrics: {}
+                };
+            }
+            
+            const detection = iframe.contentWindow.__css3dAnimationDetection;
+            const now = Date.now();
+            
+            // Check if there are active animations
+            const hasActiveTimeouts = detection.activeTimeouts > 0;
+            const hasActiveIntervals = detection.activeIntervals > 0;
+            const hasActiveRAF = detection.rAF > 0 && detection.animationFrameIds.size > 0;
+            const hasCssAnimations = detection.cssAnimations && detection.cssAnimations.size > 0;
+            const hasCssTransitions = detection.cssTransitions && detection.cssTransitions.size > 0;
+            
+            // Check for recent DOM changes
+            const timeSinceLastDomChange = now - (detection.lastDomChange || 0);
+            const hasRecentDomChanges = timeSinceLastDomChange < 500; // Consider DOM changes in last 500ms as active
+            
+            // Determine if animation is active
+            const isAnimating = hasActiveTimeouts || hasActiveIntervals || hasActiveRAF || 
+                               hasCssAnimations || hasCssTransitions || hasRecentDomChanges;
+            
+            // Check for loop patterns in DOM snapshots
+            let loopDetected = false;
+            let loopSize = 0;
+            let matchScore = 0;
+            
+            // Only try to detect loops if we have enough frames and animation seems to be happening
+            if (domSnapshotFrames.length >= 30 && (isAnimating || detection.domChanges > 10)) {
+                const result = detectCSS3DAnimationLoop(domSnapshotFrames, currentHash);
+                loopDetected = result.loopDetected;
+                loopSize = result.loopSize;
+                matchScore = result.matchScore;
+            }
+            
+            return {
+                isAnimating,
+                loopDetected,
+                loopSize,
+                matchScore,
+                metrics: {
+                    activeTimeouts: detection.activeTimeouts,
+                    activeIntervals: detection.activeIntervals,
+                    rAF: detection.rAF,
+                    cssAnimations: detection.cssAnimations ? detection.cssAnimations.size : 0,
+                    cssTransitions: detection.cssTransitions ? detection.cssTransitions.size : 0,
+                    domChanges: detection.domChanges,
+                    timeSinceLastDomChange,
+                    matchScore
+                }
+            };
+        } catch (e) {
+            console.error('Error analyzing CSS3D animation:', e);
+            return {
+                isAnimating: false,
+                metrics: {}
+            };
+        }
+    };
+    
+    // Function to capture DOM snapshots until animation completes or times out
+    const captureDomSnapshots = async () => {
+        if (!isPreviewActive || !preRenderingInProgress) {
+            preRenderingInProgress = false;
+            startFinalProgressAnimation();
+            return;
+        }
+        
+        const now = Date.now();
+        
+        // Check if enough time has passed since last capture
+        // This ensures we capture at a similar rate to image2texture
+        const timeSinceLastCapture = now - lastCaptureTime;
+        if (timeSinceLastCapture < captureInterval) {
+            // Schedule next check
+            requestAnimationFrame(captureDomSnapshots);
+            return;
+        }
+        
+        // Update last capture time
+        lastCaptureTime = now;
+        
+        // Update progress based on more accurate metrics
+        if (now - lastProgressUpdate > progressUpdateInterval) {
+            lastProgressUpdate = now;
+            
+            // Calculate elapsed time percentage
+            const elapsedTime = now - preRenderStartTime;
+            const timeProgress = Math.min(90, (elapsedTime / preRenderMaxDuration) * 100);
+            
+            // Calculate frame-based progress
+            let frameProgress = Math.min(90, (domSnapshotFrames.length / totalFramesEstimate) * 100);
+            
+            // Use a weighted combination of time and frame progress
+            // Cap at maxProgressBeforeFinalAnimation to leave room for final animation
+            const combinedProgress = Math.min(
+                maxProgressBeforeFinalAnimation, 
+                (timeProgress * 0.3) + (frameProgress * 0.7)
+            );
+            updateProgress(combinedProgress);
+            
+            // Update the loading text to show more information
+            const progressText = document.getElementById('loading-progress-text');
+            if (progressText) {
+                progressText.textContent = `Analyzing CSS3D animation... ${domSnapshotFrames.length} snapshots captured`;
+            }
+            
+            // Log capture rate for debugging
+            console.debug(`CSS3D capture interval: ${captureInterval}ms, frames: ${domSnapshotFrames.length}, elapsed: ${elapsedTime}ms`);
+        }
+        
+        // Inject animation detection script if not already done
+        if (domSnapshotFrames.length === 0) {
+            injectAnimationDetectionScript();
+        }
+        
+        // Create a DOM snapshot
+        const snapshot = createDomSnapshot(iframe);
+        
+        if (snapshot) {
+            // Add snapshot to frames
+            domSnapshotFrames.push({
+                ...snapshot,
+                timestamp: now
+            });
+            
+            // Only start analyzing after we have enough frames
+            // Use same threshold as image2texture (20 frames)
+            if (domSnapshotFrames.length >= 20) {
+                // Analyze the CSS3D animation
+                const analysis = analyzeCSS3DAnimation(
+                    iframe, 
+                    domSnapshotFrames.slice(0, -1), 
+                    snapshot.hash
+                );
+                
+                // Store analysis metrics
+                analysisMetrics = analysis.metrics;
+                
+                // Check if we've detected a loop with high confidence
+                if (analysis.loopDetected && analysis.matchScore > 0.7) {
+                    console.log('CSS3D animation loop detected after ' + domSnapshotFrames.length + ' snapshots with match score ' + analysis.matchScore.toFixed(2));
+                    preRenderingInProgress = false;
+                    isAnimationFinite = true;
+                    animationDuration = domSnapshotFrames[domSnapshotFrames.length - 1].timestamp - domSnapshotFrames[0].timestamp;
+                    
+                    // Update analysis metrics
+                    loopDetected = true;
+                    detectedLoopSize = analysis.loopSize;
+                    
+                    // Show success message
+                    if (isLongExposureMode) {
+                        showStatus(`CSS3D animation loop detected, creating long exposure from ${domSnapshotFrames.length} frames`, 'info');
+                    } else {
+                        showStatus(`CSS3D animation loop detected (${(animationDuration/1000).toFixed(1)}s), ${domSnapshotFrames.length} snapshots captured`, 'success');
+                    }
+                    
+                    // Start final progress animation
+                    startFinalProgressAnimation();
+                    return;
+                }
+                
+                // Check if animation has ended (no changes for a while)
+                if (domSnapshotFrames.length > 20 && !analysis.isAnimating) {
+                    // Check if there have been no significant changes in the last few frames
+                    let noChanges = true;
+                    const recentFrames = domSnapshotFrames.slice(-5);
+                    
+                    for (let i = 1; i < recentFrames.length; i++) {
+                        const diff = calculateDomHashDifference(recentFrames[i].hash, recentFrames[i-1].hash);
+                        if (diff > 0.01) { // Small threshold for changes
+                            noChanges = false;
+                            break;
+                        }
+                    }
+                    
+                    if (noChanges) {
+                        console.log('CSS3D animation end detected after ' + domSnapshotFrames.length + ' snapshots');
+                        preRenderingInProgress = false;
+                        isAnimationFinite = true;
+                        animationDuration = domSnapshotFrames[domSnapshotFrames.length - 1].timestamp - domSnapshotFrames[0].timestamp;
+                        
+                        // Update analysis metrics
+                        endDetected = true;
+                        
+                        // Show success message
+                        showStatus(`CSS3D animation end detected (${(animationDuration/1000).toFixed(1)}s), ${domSnapshotFrames.length} snapshots captured`, 'success');
+                        
+                        // Start final progress animation
+                        startFinalProgressAnimation();
+                        return;
+                    }
+                }
+            }
+        }
+        
+        // Check if we've exceeded the maximum pre-rendering time
+        if (now - preRenderStartTime > preRenderMaxDuration) {
+            console.log('CSS3D analysis time limit reached after ' + preRenderMaxDuration + 'ms');
+            preRenderingInProgress = false;
+            
+            const analysis = analyzeCSS3DAnimation(iframe, domSnapshotFrames, null);
+            
+            // Store final analysis metrics
+            analysisMetrics = analysis.metrics;
+            
+            if (analysis.loopDetected) {
+                isAnimationFinite = true;
+                animationDuration = domSnapshotFrames[domSnapshotFrames.length - 1].timestamp - domSnapshotFrames[0].timestamp;
+                console.log(`CSS3D animation loop detected, duration: ${animationDuration}ms, ${domSnapshotFrames.length} snapshots captured`);
+                showStatus(`CSS3D animation loop detected (${(animationDuration/1000).toFixed(1)}s), ${domSnapshotFrames.length} snapshots captured`, 'success');
+                
+                // Update analysis metrics
+                loopDetected = true;
+                detectedLoopSize = analysis.loopSize;
+            } else if (!analysis.isAnimating) {
+                isAnimationFinite = true;
+                animationDuration = domSnapshotFrames[domSnapshotFrames.length - 1].timestamp - domSnapshotFrames[0].timestamp;
+                console.log(`CSS3D animation appears to have ended, duration: ${animationDuration}ms, ${domSnapshotFrames.length} snapshots captured`);
+                showStatus(`CSS3D animation end detected (${(animationDuration/1000).toFixed(1)}s), ${domSnapshotFrames.length} snapshots captured`, 'success');
+                
+                // Update analysis metrics
+                endDetected = true;
+            } else {
+                console.log(`No CSS3D animation end detected, ${domSnapshotFrames.length} snapshots captured`);
+                showStatus(`CSS3D animation appears infinite, ${domSnapshotFrames.length} snapshots captured for playback`, 'info');
+            }
+            
+            // Start final progress animation
+            startFinalProgressAnimation();
+            return;
+        }
+        
+        // Continue capturing snapshots with requestAnimationFrame
+        // The timing is controlled by the captureInterval check at the beginning
+        requestAnimationFrame(captureDomSnapshots);
+    };
+    
+    // Start capturing DOM snapshots
+    captureDomSnapshots();
+    
+    // Store callback to be called after final animation completes
+    window._preRenderCallback = callback;
+    
+    // Store the DOM snapshot frames in the preRenderedFrames array for compatibility
+    preRenderedFrames = domSnapshotFrames;
 }
 
 export function resetPreRender() {
@@ -573,4 +1385,12 @@ function calculateHashDifference(hash1, hash2) {
         console.error('Error calculating hash difference:', e);
         return 1;
     }
+}
+
+/**
+ * Set is preRenderingInProgress
+ * @param {boolean} incomingValue - The new value to set
+ */
+export function setPreRenderingInProgress(incomingValue) {
+    preRenderingInProgress = incomingValue;
 }

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { createTextureFromIframe } from '../texture-util';
 import { originalAnimationStartTime, showStatus } from '../../ui/scripts/html-editor-modal';
-import { animationDuration, isAnimationFinite, preRenderedFrames, preRenderingInProgress, resetPreRender, startPreRendering } from '../animation-util';
+import { animationDuration, isAnimationFinite, preRenderedFrames, preRenderingInProgress, resetPreRender, startImage2TexturePreRendering, startCss3dPreRendering } from '../animation-util';
 import { sanitizeHtml } from '../string-serder';
 import { getState } from '../state';
 import { initCSS3DPreview } from '../css3d-util';
@@ -46,10 +46,9 @@ function initializePreview(previewMode, canvasContainer, renderIframe, currentMe
 
     // Initialize preview based on mode
     if (previewMode === 'css3d') {
-        showStatus('Initializing CSS3D preview mode...', 'info');
-        // Get the iframe that may have been created earlier, or create a new one if needed
-        const directPreviewIframe = document.createElement('iframe');
-        initCSS3DPreview(canvasContainer, directPreviewIframe.cloneNode(true), currentMeshId, createInfoPanel);
+        // The CSS3D preview should not be initialized until pre-rendering is complete
+        // This will be called from the callback after pre-rendering
+        console.log('CSS3D initialization will happen after pre-rendering');
     } else {
         // Default to threejs mode
         showStatus('Initializing 3D cube preview...', 'info');
@@ -262,10 +261,37 @@ export function previewHtml(html) {
             initializePreview(previewMode, canvasContainer, renderIframe, currentMeshId, false, false);
 
             // Start pre-rendering with a callback for when it's done
-            startPreRendering(renderIframe, () => {
-                // The callback is now called from the final animation completion
-                console.log('Pre-rendering complete callback executed');
-            }, progressBar);
+            switch (previewMode) {
+                case 'css3d':
+                    console.debug('Using CSS3D pre-rendering method');
+                    // Update loading text to match CSS3D analysis
+                    progressText.textContent = 'Analyzing CSS3D animation...';
+                    
+                    // Use the imported CSS3D pre-rendering function
+                    // IMPORTANT: Initialize CSS3D preview only AFTER pre-rendering is complete
+                    startCss3dPreRendering(renderIframe, () => {
+                        // The callback is executed when pre-rendering is complete
+                        console.log('CSS3D pre-rendering complete, initializing preview');
+                        
+                        // Now create and show the CSS3D preview
+                        showStatus('Initializing CSS3D preview...', 'info');
+                        
+                        // Pass true for createInfoPanel to ensure the info panel is created
+                        initCSS3DPreview(canvasContainer, renderIframe, currentMeshId, true);
+                    }, progressBar);
+                    break;
+                    
+                case 'threejs':
+                default:
+                    console.debug('Using Image2Texture pre-rendering method');
+                    progressText.textContent = 'Pre-rendering animation...';
+                    
+                    startImage2TexturePreRendering(renderIframe, () => {
+                        // The callback is now called from the final animation completion
+                        console.log('Pre-rendering complete callback executed');
+                    }, progressBar);
+                    break;
+            }
         };
 
         // Write content to iframe
