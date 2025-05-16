@@ -5,7 +5,7 @@ import { animationDuration, isAnimationFinite, preRenderedFrames, preRenderingIn
 import { sanitizeHtml } from '../string-serder';
 import { getState } from '../state';
 import { initCSS3DPreview } from '../css3d-util';
-import { animationPreviewCamera, animationPreviewRenderer, animationPreviewScene, cleanupThreeJsPreview, initThreeJsPreview, previewPlane, setPreviewRenderTarget } from '../threejs-util';
+import { animationPreviewCamera, animationPreviewRenderer, animationPreviewScene, cleanupThreeJsPreview, initThreeJsPreview, previewPlane, setPreviewRenderTarget } from './threejs-util';
 import { getHtmlSettingsForMesh } from '../mesh-data-util';
 
 export let lastAnimationFrameTime = 0;

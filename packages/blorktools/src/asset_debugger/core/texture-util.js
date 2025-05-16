@@ -121,21 +121,18 @@ export async function createTextureFromIframe(iframe) {
                 try {
                     // Check if we can access the iframe content safely
                     if (!iframe.contentDocument || !iframe.contentWindow) {
-                        console.log('Cannot access iframe content, using empty texture');
                         resolve(createEmptyTexture());
                         return;
                     }
                     
                     // Check if html2canvas is available
                     if (typeof window.html2canvas === 'undefined') {
-                        console.log('html2canvas not available, using empty texture');
                         resolve(createEmptyTexture());
                         return;
                     }
                     
                     // Make sure the body is fully loaded
                     if (!iframe.contentDocument.body) {
-                        console.log('Iframe body not available, using empty texture');
                         resolve(createEmptyTexture());
                         return;
                     }
@@ -271,9 +268,7 @@ export async function createTextureFromIframe(iframe) {
  * Create a fallback texture when iframe content can't be accessed
  * @returns {THREE.Texture} A simple fallback texture
  */
-function createEmptyTexture() {
-    console.log('Creating empty texture');
-    
+function createEmptyTexture() {    
     // Create a canvas element with 16:9 aspect ratio
     const canvas = document.createElement('canvas');
     canvas.width = 960;

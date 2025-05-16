@@ -33,7 +33,7 @@ import { updateHtmlIcons } from './mesh-panel.js';
 import * as THREE from 'three';
 import { createLongExposureTexture, createTextureFromIframe } from '../../core/texture-util.js';
 import { isPreviewActive, maxCaptureRate, previewHtml, setLastTextureUpdateTime  } from '../../core/preview/preview-util.js';
-import { cleanupThreeJsPreview, frameBuffer, previewRenderTarget } from '../../core/threejs-util.js';
+import { cleanupThreeJsPreview, frameBuffer, previewRenderTarget } from '../../core/preview/threejs-util.js';
 import { getHtmlSettingsForMesh, loadHtmlForMesh, loadSettingsForMesh, saveHtmlForMesh, saveSettingsForMesh } from '../../core/mesh-data-util.js';
 
 export let originalAnimationStartTime = 0;

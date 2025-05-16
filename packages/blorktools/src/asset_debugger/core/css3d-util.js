@@ -1,7 +1,9 @@
 import * as THREE from 'three';
-import { animationPreviewCamera, initThreeJsPreview, setAnimationPreviewCamera, setPreviewRenderTarget } from './threejs-util';
+import { animationCss3dObject, animationCss3dRenderer, animationCss3dScene, animationPreviewCamera, initThreeJsPreview, setAnimationCss3dObject, setAnimationCss3dRenderer, setAnimationCss3dScene, setAnimationPreviewCamera, setPreviewRenderTarget } from './preview/threejs-util';
 import { createMeshInfoPanel } from './mesh-info-panel-util';
 import { getHtmlSettingsForMesh } from './mesh-data-util';
+import { isPreviewActive } from './preview/preview-util';
+import { showStatus } from '../ui/scripts/html-editor-modal';
 
 /**
  * Initialize CSS3D renderer for HTML preview
@@ -185,13 +187,13 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, currentM
         scene.add(object);
 
         // Store references for cleanup
-        css3dScene = scene;
-        css3dRenderer = renderer;
+        setAnimationCss3dScene(scene);
+        setAnimationCss3dRenderer(renderer);
         setAnimationPreviewCamera(camera);
 
         // Store for replay
         setPreviewRenderTarget(element);
-        css3dObject = object;
+        setAnimationCss3dObject(object);
 
         // Write content to the iframe after a brief delay
         setTimeout(() => {
