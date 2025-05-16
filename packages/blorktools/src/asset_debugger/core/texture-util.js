@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { isPreviewActive } from './preview-util';
+import { isPreviewActive } from './preview/preview-util';
 
 // Add a variable to track if we're capturing frames for long exposure
 let isCapturingForLongExposure = false;

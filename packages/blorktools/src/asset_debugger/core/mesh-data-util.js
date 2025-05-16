@@ -1,7 +1,7 @@
-import { getBinaryBufferForMesh } from "./src/asset_debugger/core/glb-utils";
-import { getState } from "./src/asset_debugger/core/state";
-import { deserializeStringFromBinary } from "./src/asset_debugger/core/string-serder";
-import { getCurrentGlbBuffer } from "./src/asset_debugger/ui/scripts/model-integration";
+import { getBinaryBufferForMesh } from "./glb-utils";
+import { getState } from "./state";
+import { deserializeStringFromBinary } from "./string-serder";
+import { getCurrentGlbBuffer } from "../ui/scripts/model-integration";
 
 // Store HTML content for each mesh
 const meshHtmlContent = new Map();
