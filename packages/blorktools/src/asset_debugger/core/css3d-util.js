@@ -88,6 +88,24 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, currentM
 
         // Function to create HTML content - simplified to avoid layout warnings
         const wrapContent = (content) => {
+            // Generate a unique ID for this iframe instance
+            const uniqueFrameId = 'frame_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
+            
+            // Process content to handle typical variable declarations
+            // Find script tags and wrap their contents in a function to avoid global variable redeclarations
+            let processedContent = content;
+            
+            // Find all script tags and wrap their contents in a closure to avoid redeclaration issues
+            processedContent = processedContent.replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, (match, scriptContent) => {
+                // Wrap script content in an IIFE to create a new scope each time
+                return `<script>
+                (function() { 
+                    // Create a new scope for variables
+                    ${scriptContent}
+                })();
+                </script>`;
+            });
+            
             return `<!DOCTYPE html>
 <html>
 <head>
@@ -151,7 +169,7 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, currentM
 </head>
 <body>
     <div class="panel-title">HTML Preview</div>
-    <div class="content">${content}</div>
+    <div class="content">${processedContent}</div>
 </body>
 </html>`;
         };
@@ -167,7 +185,7 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, currentM
         document.body.appendChild(tempContainer);
 
         // Create a single iframe for the panel
-        const element = document.createElement('iframe');
+        let element = document.createElement('iframe');
         element.id = 'css3d-panel-iframe';
         element.style.width = `${panelWidth}px`;
         element.style.height = `${panelHeight}px`;
@@ -202,6 +220,47 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, currentM
                     element.contentDocument.open();
                     element.contentDocument.write(wrapContent(userHtml));
                     element.contentDocument.close();
+                    
+                    // Get detected animation duration from pre-render (animationDuration is in milliseconds)
+                    import('../core/animation-util').then(module => {
+                        const { animationDuration, isAnimationFinite } = module;
+                        
+                        // Only set up restart timer if animation is finite and has a duration
+                        if (isAnimationFinite && animationDuration > 0) {
+                            console.log(`Setting up CSS3D iframe restart timer for ${animationDuration}ms animation`);
+                            
+                            // Calculate actual duration based on playback speed
+                            const actualDuration = animationDuration / playbackSpeed;
+                            
+                            // Create repeating timer to reload the iframe content
+                            const restartTimer = setInterval(() => {
+                                if (!isPreviewActive) {
+                                    // Clean up timer if preview is no longer active
+                                    clearInterval(restartTimer);
+                                    return;
+                                }
+                                
+                                console.log('Restarting CSS3D preview iframe content');
+                                
+                                // Reload the iframe content to restart all animations from the beginning
+                                try {
+                                    if (element.contentDocument) {
+                                        // Simply rewrite the content in the existing iframe
+                                        element.contentDocument.open();
+                                        element.contentDocument.write(wrapContent(userHtml));
+                                        element.contentDocument.close();
+                                    }
+                                } catch (err) {
+                                    console.error('Error reloading iframe content:', err);
+                                }
+                            }, actualDuration);
+                            
+                            // Store timer reference for cleanup
+                            element.restartTimer = restartTimer;
+                        } else {
+                            console.log('No finite animation duration detected, not setting up restart timer');
+                        }
+                    });
                 }
             } catch (err) {
                 console.error('Error writing content to iframe:', err);
@@ -288,5 +347,14 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, currentM
         console.error('Error in setupCSS3DScene:', error);
         showStatus('Error creating 3D view: ' + error.message, 'error');
         return false;
+    }
+}
+
+// Add a function to clear any restart timers when cleaning up
+export function cleanupCSS3DPreview() {
+    const previewIframe = document.getElementById('css3d-panel-iframe');
+    if (previewIframe && previewIframe.restartTimer) {
+        clearInterval(previewIframe.restartTimer);
+        previewIframe.restartTimer = null;
     }
 }
