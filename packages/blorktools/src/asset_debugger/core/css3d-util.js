@@ -225,9 +225,15 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, currentM
                     import('../core/animation-util').then(module => {
                         const { animationDuration, isAnimationFinite } = module;
                         
-                        // Only set up restart timer if animation is finite and has a duration
-                        if (isAnimationFinite && animationDuration > 0) {
-                            console.log(`Setting up CSS3D iframe restart timer for ${animationDuration}ms animation`);
+                        // Get animation type from dropdown
+                        const animationTypeSelect = document.getElementById('html-animation-type');
+                        const animationType = animationTypeSelect ? animationTypeSelect.value : 'none';
+                        
+                        // Only set up restart timer if:
+                        // 1. Animation is finite and has a duration
+                        // 2. Animation type is set to "loop"
+                        if (isAnimationFinite && animationDuration > 0 && animationType === 'loop') {
+                            console.log(`Setting up CSS3D iframe restart timer for ${animationDuration}ms animation with animation type: ${animationType}`);
                             
                             // Calculate actual duration based on playback speed
                             const actualDuration = animationDuration / playbackSpeed;
