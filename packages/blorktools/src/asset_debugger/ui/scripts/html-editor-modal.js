@@ -29,6 +29,8 @@ import {
 } from '../../core/html-linter.js';
 import { updateGlbFile } from './model-integration.js';
 import { updateHtmlIcons } from './mesh-panel.js';
+import { handleCustomTexture, disableCustomTexture } from '../../core/texture-util.js';
+import { handleCustomDisplay, disableCustomDisplay } from '../../core/css3d-util.js';
 
 // Import Three.js the same way as other files in the codebase
 import * as THREE from 'three';
@@ -667,6 +669,45 @@ export function initHtmlEditorModal() {
                 
                 // Reset the needs reload flag since we've just saved
                 htmlEditorState.needsReload = false;
+                
+                // Check if Display on Mesh is checked
+                const displayOnMeshCheckbox = document.getElementById('display-on-mesh');
+                if (displayOnMeshCheckbox && displayOnMeshCheckbox.checked) {
+                    // Get rendering settings
+                    const renderTypeSelect = document.getElementById('html-render-type');
+                    const renderType = renderTypeSelect ? renderTypeSelect.value : 'threejs';
+                    
+                    // Create mesh data object
+                    const meshData = {
+                        id: parseInt(currentMeshId),
+                        html: html
+                    };
+                    
+                    // Get additional settings
+                    const settings = getSettingsFromForm();
+                    
+                    // Call appropriate function based on render type
+                    if (renderType === 'css3d') {
+                        // Use CSS3D rendering
+                        handleCustomDisplay(meshData, settings);
+                    } else {
+                        // Use texture-based rendering (either threejs or longExposure)
+                        handleCustomTexture(meshData, renderType, settings);
+                    }
+                    
+                    console.debug(`Displaying HTML on mesh ${currentMeshId} using ${renderType} renderer`);
+                } else {
+                    // Display on Mesh is not checked, disable any existing custom display
+                    const meshData = {
+                        id: parseInt(currentMeshId)
+                    };
+                    
+                    // Disable both types to ensure cleanup
+                    disableCustomTexture(meshData);
+                    disableCustomDisplay(meshData);
+                    
+                    console.debug(`Removing custom display from mesh ${currentMeshId}`);
+                }
                 
                 // Don't close the modal, just show success message
                 showStatus('HTML saved successfully', 'success');

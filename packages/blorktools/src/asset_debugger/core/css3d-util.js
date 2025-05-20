@@ -1961,3 +1961,22 @@ function generateUniqueSelector(element) {
         return element.tagName ? element.tagName.toLowerCase() : '*';
     }
 }
+
+/**
+ * Handle custom CSS3D display on a mesh
+ * @param {Object} meshData - Data about the mesh to display on
+ * @param {Object} settings - Additional settings for rendering
+ */
+export function handleCustomDisplay(meshData, settings = {}) {
+    console.debug('BAZLORPA I GOT CALLED handleCustomDisplay', { meshData, settings });
+    // Future implementation will create a CSS3D object linked to the mesh
+}
+
+/**
+ * Disable custom CSS3D display on a mesh
+ * @param {Object} meshData - Data about the mesh to remove display from
+ */
+export function disableCustomDisplay(meshData) {
+    console.debug('Disabling custom CSS3D display for mesh:', meshData);
+    // Future implementation will remove the CSS3D object linked to the mesh
+}

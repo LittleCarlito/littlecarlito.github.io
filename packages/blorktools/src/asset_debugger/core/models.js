@@ -1,8 +1,9 @@
 /**
- * Texture Debugger - Models Module
+ * Models Module
  * 
- * This module handles model loading, cube creation, and model processing.
+ * Handles creation and loading of 3D models for debugging.
  */
+
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { getState, updateState } from './state.js';
@@ -174,10 +175,7 @@ export function createLightingTestCube() {
 export function loadAndSetupModel(loadingIndicator) {
     const state = getState();
     
-    // Show loading indicator if provided
-    if (loadingIndicator) {
-        loadingIndicator.style.display = 'flex';
-    }
+    // Loading indicator is now managed by the parent function
     
     return new Promise((resolve, reject) => {
         // Load model file with GLTFLoader
@@ -190,39 +188,87 @@ export function loadAndSetupModel(loadingIndicator) {
             const modelData = event.target.result;
             
             try {
-                loader.parse(modelData, '', (gltf) => {
-                    try {
-                        // Process the loaded model
-                        processLoadedModel(gltf);
-                        resolve();
-                    } catch (processError) {
-                        console.error('Error processing model:', processError);
-                        reject(processError);
-                    } finally {
-                        // Always hide loading indicator when finished
-                        if (loadingIndicator) {
-                            loadingIndicator.style.display = 'none';
-                        }
-                    }
-                }, undefined, function(error) {
-                    console.error('Error loading model:', error);
-                    alert('Error loading model. Please make sure it is a valid glTF/GLB file.');
-                    reject(error);
+                // First, set the GLB buffer for HTML editor integration
+                Promise.all([
+                    import('../core/mesh-data-util.js'),
+                    import('../ui/scripts/model-integration.js')
+                ]).then(([meshDataUtil, modelIntegration]) => {
+                    let bufferPromises = [];
                     
-                    // Hide loading indicator on error
-                    if (loadingIndicator) {
-                        loadingIndicator.style.display = 'none';
+                    // Set current GLB buffer directly
+                    if (typeof meshDataUtil.setCurrentGlbBuffer === 'function') {
+                        console.debug('Setting current GLB buffer in loadAndSetupModel');
+                        meshDataUtil.setCurrentGlbBuffer(modelData);
                     }
+                    
+                    // Also update the state through the model integration
+                    if (modelIntegration.processModelFileForHtmlEditor && state.modelFile) {
+                        console.debug('Processing model file for HTML editor in loadAndSetupModel');
+                        bufferPromises.push(modelIntegration.processModelFileForHtmlEditor(state.modelFile));
+                    }
+                    
+                    // Ensure the GLB buffer is set in state directly as well
+                    if (!state.currentGlb) {
+                        updateState('currentGlb', {
+                            arrayBuffer: modelData,
+                            fileName: state.modelFile?.name || 'model.glb',
+                            fileSize: state.modelFile?.size || modelData.byteLength
+                        });
+                    } else {
+                        state.currentGlb.arrayBuffer = modelData;
+                    }
+                    
+                    // Wait for all promises to complete
+                    return Promise.all(bufferPromises).then(() => {
+                        // Verify the buffer was properly set
+                        const buffer = state.currentGlb?.arrayBuffer || 
+                                      (modelIntegration.getCurrentGlbBuffer && modelIntegration.getCurrentGlbBuffer());
+                        
+                        if (!buffer) {
+                            console.warn('GLB buffer was not set during processing. This may cause issues later.');
+                        } else {
+                            console.debug(`GLB buffer successfully set, size: ${buffer.byteLength} bytes`);
+                        }
+                        
+                        return buffer;
+                    });
+                }).then((buffer) => {
+                    // Now load and parse the model, knowing the buffer is set
+                    loader.parse(modelData, '', (gltf) => {
+                        try {
+                            // Process the loaded model
+                            processLoadedModel(gltf);
+                            resolve();
+                        } catch (processError) {
+                            console.error('Error processing model:', processError);
+                            reject(processError);
+                        }
+                    }, undefined, function(error) {
+                        console.error('Error loading model:', error);
+                        alert('Error loading model. Please make sure it is a valid glTF/GLB file.');
+                        reject(error);
+                    });
+                }).catch(error => {
+                    console.error('Error setting up GLB buffer:', error);
+                    // Still try to parse the model even if buffer setup fails
+                    loader.parse(modelData, '', (gltf) => {
+                        try {
+                            processLoadedModel(gltf);
+                            resolve();
+                        } catch (processError) {
+                            console.error('Error processing model:', processError);
+                            reject(processError);
+                        }
+                    }, undefined, function(error) {
+                        console.error('Error loading model:', error);
+                        alert('Error loading model. Please make sure it is a valid glTF/GLB file.');
+                        reject(error);
+                    });
                 });
             } catch (parseError) {
                 console.error('Error parsing model data:', parseError);
                 alert('Error parsing model data: ' + parseError.message);
                 reject(parseError);
-                
-                // Hide loading indicator on catch
-                if (loadingIndicator) {
-                    loadingIndicator.style.display = 'none';
-                }
             }
         };
         
@@ -230,11 +276,6 @@ export function loadAndSetupModel(loadingIndicator) {
             console.error('Error reading file:', error);
             alert('Error reading model file: ' + error);
             reject(error);
-            
-            // Hide loading indicator on read error
-            if (loadingIndicator) {
-                loadingIndicator.style.display = 'none';
-            }
         };
         
         // Read the file as ArrayBuffer
@@ -313,6 +354,10 @@ function processLoadedModel(gltf) {
                 
                 // Add to meshes array for visibility control
                 meshes.push(node);
+                
+                // Store mesh index in userData for reference
+                const meshIndex = meshes.length - 1;
+                node.userData.meshId = meshIndex;
             }
         });
         
@@ -387,128 +432,315 @@ export function loadDebugModel() {
                 if (state.scene) {
                     clearInterval(checkInterval);
                     console.log('Scene initialized, proceeding with model loading');
-                    loadModelBasedOnState()
-                        .then(resolve)
-                        .catch(reject);
-                } else if (attempts >= maxAttempts) {
-                    clearInterval(checkInterval);
-                    const error = new Error('Scene initialization timeout');
-                    console.error(error);
-                    reject(error);
                     
-                    // Hide loading indicator
-                    if (loadingIndicator) {
-                        loadingIndicator.style.display = 'none';
-                    }
-                }
-            }, 300);
-        } else {
-            // Scene is already initialized, proceed with model loading
-            loadModelBasedOnState()
-                .then(resolve)
-                .catch(reject);
-        }
-    });
-    
-    function loadModelBasedOnState() {
-        return new Promise((resolve, reject) => {
-            try {
-                // Check if an example was selected
-                if (state.selectedExample) {
-                    console.log(`Loading selected example: ${state.selectedExample}`);
-                    
-                    // Handle the rig example by loading a wireframe cube first
-                    if (state.selectedExample === 'rig') {
-                        import('../core/examples.js').then(examplesModule => {
-                            examplesModule.loadExample('wireframe-cube')
-                                .then(() => {
-                                    if (loadingIndicator) {
-                                        loadingIndicator.style.display = 'none';
-                                    }
-                                    console.log('Loaded wireframe cube for rig example');
-                                    resolve();
-                                })
-                                .catch(error => {
-                                    console.error('Error loading wireframe cube for rig example:', error);
-                                    // Even if there's an error, continue with the rig setup
-                                    if (loadingIndicator) {
-                                        loadingIndicator.style.display = 'none';
-                                    }
-                                    resolve();
-                                });
-                        }).catch(error => {
-                            console.error('Error importing examples module:', error);
-                            // Continue with rig setup even if there's an error
+                    // Load model, then check for custom display settings
+                    handleModelLoading()
+                        .then(() => checkAndApplyCustomDisplaySettings())
+                        .then(() => {
+                            // Hide loading indicator after everything is done
                             if (loadingIndicator) {
                                 loadingIndicator.style.display = 'none';
                             }
                             resolve();
+                        })
+                        .catch((error) => {
+                            // Hide loading indicator on error
+                            if (loadingIndicator) {
+                                loadingIndicator.style.display = 'none';
+                            }
+                            reject(error);
                         });
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(checkInterval);
+                    const error = new Error('Scene initialization timeout');
+                    console.error(error);
+                    // Hide loading indicator on timeout
+                    if (loadingIndicator) {
+                        loadingIndicator.style.display = 'none';
                     }
-                    // Handle future examples here
-                    else {
-                        console.warn(`Unknown example type: ${state.selectedExample}`);
-                        if (loadingIndicator) {
-                            loadingIndicator.style.display = 'none';
-                        }
-                        resolve();
-                    }
+                    reject(error);
                 }
-                // Check if a custom model was uploaded
-                else if (state.useCustomModel && state.modelFile) {
-                    console.log('Loading custom model...');
-                    loadAndSetupModel(loadingIndicator)
-                        .then(resolve)
-                        .catch(reject);
-                } 
-                // Check if we should create a test cube for lighting
-                else if (state.useLightingTestCube) {
-                    console.log('Creating lighting test cube...');
-                    try {
-                        createLightingTestCube();
-                        resolve();
-                    } catch (error) {
-                        reject(error);
-                    } finally {
-                        if (loadingIndicator) {
-                            loadingIndicator.style.display = 'none';
-                        }
-                    }
-                }
-                // Create a cube if at least one texture is available
-                else if (state.textureObjects.baseColor || 
-                           state.textureObjects.orm || 
-                           state.textureObjects.normal) {
-                    console.log('Creating default cube...');
-                    try {
-                        createCube();
-                        resolve();
-                    } catch (error) {
-                        reject(error);
-                    } finally {
-                        // Hide loading indicator
-                        if (loadingIndicator) {
-                            loadingIndicator.style.display = 'none';
-                        }
-                    }
-                }
-                // No options available, just resolve
-                else {
-                    console.log('No model, textures, or examples selected.');
+            }, 300);
+        } else {
+            // Scene is already initialized, proceed with model loading
+            handleModelLoading()
+                .then(() => checkAndApplyCustomDisplaySettings())
+                .then(() => {
+                    // Hide loading indicator after everything is done
                     if (loadingIndicator) {
                         loadingIndicator.style.display = 'none';
                     }
                     resolve();
-                }
-            } catch (error) {
-                console.error('Error in loadModelBasedOnState:', error);
-                if (loadingIndicator) {
-                    loadingIndicator.style.display = 'none';
-                }
-                reject(error);
+                })
+                .catch((error) => {
+                    // Hide loading indicator on error
+                    if (loadingIndicator) {
+                        loadingIndicator.style.display = 'none';
+                    }
+                    reject(error);
+                });
+        }
+    });
+}
+
+/**
+ * Handle model loading based on current state
+ * @returns {Promise} A promise that resolves when the model is loaded
+ */
+function handleModelLoading() {
+    const state = getState();
+    
+    // First prepare GLB buffer if needed, then load the model
+    return prepareGlbBuffer().then(loadModelBasedOnState);
+}
+
+/**
+ * Prepare the GLB buffer for HTML editor integration if a custom model file is available
+ * @returns {Promise} A promise that resolves when the GLB buffer is prepared
+ */
+function prepareGlbBuffer() {
+    const state = getState();
+    
+    // If we have a model file, pre-process it to set up the GLB buffer
+    if (state.useCustomModel && state.modelFile) {
+        return Promise.all([
+            import('../core/mesh-data-util.js'),
+            import('../ui/scripts/model-integration.js')
+        ]).then(([meshDataUtil, modelIntegration]) => {
+            // Process the model file to set up the GLB buffer
+            if (modelIntegration.processModelFileForHtmlEditor) {
+                console.debug('Pre-processing model file for HTML editor integration...');
+                return modelIntegration.processModelFileForHtmlEditor(state.modelFile)
+                    .then(() => {
+                        // Verify the buffer was properly set
+                        const updatedState = getState();
+                        const buffer = updatedState.currentGlb?.arrayBuffer || modelIntegration.getCurrentGlbBuffer();
+                        
+                        if (!buffer) {
+                            console.warn('GLB buffer was not set during pre-processing. This may cause issues later.');
+                        } else {
+                            console.debug(`GLB buffer successfully set, size: ${buffer.byteLength} bytes`);
+                        }
+                        
+                        return buffer;
+                    });
             }
+            return Promise.resolve(null);
+        }).catch(error => {
+            console.error('Error pre-processing model file:', error);
+            // Continue even if pre-processing fails
+            return Promise.resolve(null);
         });
     }
+    
+    // No custom model file, nothing to prepare
+    return Promise.resolve(null);
+}
+
+/**
+ * Load the appropriate model based on current state
+ * @returns {Promise} A promise that resolves when the model is loaded
+ */
+function loadModelBasedOnState() {
+    const state = getState();
+    
+    return new Promise((resolve, reject) => {
+        try {
+            // Check if an example was selected
+            if (state.selectedExample) {
+                console.log(`Loading selected example: ${state.selectedExample}`);
+                
+                // Handle the rig example by loading a wireframe cube first
+                if (state.selectedExample === 'rig') {
+                    import('../core/examples.js').then(examplesModule => {
+                        examplesModule.loadExample('wireframe-cube')
+                            .then(() => {
+                                console.log('Loaded wireframe cube for rig example');
+                                resolve();
+                            })
+                            .catch(error => {
+                                console.error('Error loading wireframe cube for rig example:', error);
+                                // Even if there's an error, continue with the rig setup
+                                resolve();
+                            });
+                    }).catch(error => {
+                        console.error('Error importing examples module:', error);
+                        // Continue with rig setup even if there's an error
+                        resolve();
+                    });
+                }
+                // Handle future examples here
+                else {
+                    console.warn(`Unknown example type: ${state.selectedExample}`);
+                    resolve();
+                }
+            }
+            // Check if a custom model was uploaded
+            else if (state.useCustomModel && state.modelFile) {
+                console.log('Loading custom model...');
+                loadAndSetupModel(null) // Pass null to prevent hiding loading indicator
+                    .then(resolve)
+                    .catch(reject);
+            } 
+            // Check if we should create a test cube for lighting
+            else if (state.useLightingTestCube) {
+                console.log('Creating lighting test cube...');
+                try {
+                    createLightingTestCube();
+                    resolve();
+                } catch (error) {
+                    reject(error);
+                }
+            }
+            // Create a cube if at least one texture is available
+            else if (state.textureObjects.baseColor || 
+                    state.textureObjects.orm || 
+                    state.textureObjects.normal) {
+                console.log('Creating default cube...');
+                try {
+                    createCube();
+                    resolve();
+                } catch (error) {
+                    reject(error);
+                }
+            }
+            // No options available, just resolve
+            else {
+                console.log('No model, textures, or examples selected.');
+                resolve();
+            }
+        } catch (error) {
+            console.error('Error in loadModelBasedOnState:', error);
+            reject(error);
+        }
+    });
+}
+
+/**
+ * Check for custom display settings in the binary buffer and apply them
+ * @returns {Promise} A promise that resolves when all custom display settings are checked
+ */
+function checkAndApplyCustomDisplaySettings() {
+    return new Promise((resolve) => {
+        const state = getState();
+        const meshes = state.meshes || [];
+        
+        // Import necessary modules
+        Promise.all([
+            import('../core/glb-utils.js'),
+            import('../core/string-serder.js'),
+            import('../core/texture-util.js'),
+            import('../core/css3d-util.js'),
+            import('../ui/scripts/model-integration.js') // Add model integration import
+        ]).then(([glbUtils, stringSerder, textureUtil, css3dUtil, modelIntegration]) => {
+            // If no meshes, resolve immediately
+            if (meshes.length === 0) {
+                console.debug('No meshes to check for custom display settings');
+                resolve();
+                return;
+            }
+            
+            console.debug('Checking for custom display settings in GLB buffer...');
+            
+            // Get the GLB buffer from multiple sources to ensure we find it
+            let glbBuffer = state.currentGlb?.arrayBuffer;
+            
+            // If not in state, try to get from model integration module
+            if (!glbBuffer && modelIntegration && typeof modelIntegration.getCurrentGlbBuffer === 'function') {
+                glbBuffer = modelIntegration.getCurrentGlbBuffer();
+                
+                // If found via model integration, update state for future use
+                if (glbBuffer && state.currentGlb) {
+                    state.currentGlb.arrayBuffer = glbBuffer;
+                }
+            }
+            
+            if (!glbBuffer) {
+                console.debug('No GLB buffer available, skipping custom display check');
+                resolve();
+                return;
+            }
+            
+            console.debug(`GLB buffer available, size: ${glbBuffer.byteLength} bytes`);
+            
+            // Create an array to hold all promises for checking each mesh
+            const checkPromises = meshes.map((mesh, index) => {
+                return new Promise((resolveCheck) => {
+                    console.debug(`Checking mesh ${index} (${mesh.name || 'unnamed'}) for custom display data...`);
+                    
+                    glbUtils.getBinaryBufferForMesh(glbBuffer, index)
+                        .then((binaryBuffer) => {
+                            if (!binaryBuffer) {
+                                console.debug(`No binary buffer found for mesh ${index}`);
+                                resolveCheck();
+                                return;
+                            }
+                            
+                            console.debug(`Found binary buffer for mesh ${index}, size: ${binaryBuffer.byteLength} bytes`);
+                            
+                            if (binaryBuffer.byteLength > 0) {
+                                // Deserialize data to get HTML content and settings
+                                const result = stringSerder.deserializeStringFromBinary(binaryBuffer);
+                                
+                                console.debug(`Deserialized data for mesh ${index}:`, 
+                                    result ? `Settings: ${!!result.settings}, Content length: ${result.content ? result.content.length : 0}` : 'No result');
+                                
+                                if (result && result.settings) {
+                                    const settings = result.settings;
+                                    const content = result.content;
+                                    
+                                    console.debug(`Settings for mesh ${index}:`, settings);
+                                    
+                                    // Check if display on mesh is enabled
+                                    if (settings.display && settings.display.displayOnMesh === true) {
+                                        console.debug(`Mesh ${index} has display_on_mesh enabled with render type: ${settings.previewMode}`);
+                                        
+                                        // Create mesh data object
+                                        const meshData = {
+                                            id: index,
+                                            mesh: mesh,
+                                            html: content
+                                        };
+                                        
+                                        // Call appropriate function based on render type
+                                        if (settings.previewMode === 'css3d') {
+                                            // Use CSS3D rendering
+                                            console.debug(`Calling handleCustomDisplay for mesh ${index}`);
+                                            css3dUtil.handleCustomDisplay(meshData, settings);
+                                        } else {
+                                            // Use texture-based rendering (either threejs or longExposure)
+                                            console.debug(`Calling handleCustomTexture for mesh ${index} with renderType: ${settings.previewMode}`);
+                                            textureUtil.handleCustomTexture(meshData, settings.previewMode, settings);
+                                        }
+                                    } else {
+                                        console.debug(`Display on mesh is not enabled for mesh ${index}`);
+                                    }
+                                }
+                            }
+                            resolveCheck();
+                        })
+                        .catch((error) => {
+                            console.error(`Error checking display settings for mesh ${index}:`, error);
+                            resolveCheck(); // Still resolve even on error to continue the process
+                        });
+                });
+            });
+            
+            // Wait for all mesh checks to complete
+            Promise.all(checkPromises)
+                .then(() => {
+                    console.debug('Finished checking all meshes for custom display settings');
+                    resolve();
+                })
+                .catch((error) => {
+                    console.error('Error checking custom display settings:', error);
+                    resolve(); // Still resolve even on error to continue the process
+                });
+        }).catch((error) => {
+            console.error('Error loading utility modules:', error);
+            resolve(); // Still resolve even on error to continue the process
+        });
+    });
 }
 
 export default {

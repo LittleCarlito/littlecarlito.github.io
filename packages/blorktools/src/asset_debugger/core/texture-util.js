@@ -435,3 +435,23 @@ export function calculateTextureHash(texture) {
         return '';
     }
 }
+
+/**
+ * Handle custom texture display on a mesh
+ * @param {Object} meshData - Data about the mesh to display on
+ * @param {string} renderType - The type of rendering (threejs, longExposure)
+ * @param {Object} settings - Additional settings for rendering
+ */
+export function handleCustomTexture(meshData, renderType, settings = {}) {
+    console.debug('BAZLORPA I GOT CALLED handleCustomTexture', { meshData, renderType, settings });
+    // Future implementation will display HTML content as a texture on the mesh
+}
+
+/**
+ * Disable custom texture display on a mesh
+ * @param {Object} meshData - Data about the mesh to remove display from
+ */
+export function disableCustomTexture(meshData) {
+    console.debug('Disabling custom texture for mesh:', meshData);
+    // Future implementation will remove the custom texture from the mesh
+}
