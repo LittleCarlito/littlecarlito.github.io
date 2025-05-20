@@ -65,18 +65,21 @@ export let isAnimationFinite = false;
  * @param {HTMLIFrameElement} iframe - The iframe containing the HTML content
  * @param {Function} callback - Function to call when pre-rendering is complete
  * @param {HTMLElement} progressBar - Optional progress bar element to update
+ * @param {Object} settings - Optional settings object
  */
-export function startImage2TexturePreRendering(iframe, callback, progressBar = null) {
-    // Always pre-render for all speeds
-    // Start pre-rendering immediately
-    preRenderAttempted = true;
-    preRenderingInProgress = true;
-    preRenderStartTime = Date.now();
-
-    console.log('Starting pre-rendering of animation frames...');
+export function startImage2TexturePreRendering(iframe, callback, progressBar = null, settings = null) {
+    if (!iframe) {
+        console.error('No iframe provided for pre-rendering');
+        if (callback) callback();
+        return;
+    }
     
-    // Reset pre-rendered frames
+    // Reset state
+    preRenderingInProgress = true;
     preRenderedFrames = [];
+    
+    // Set the start time
+    const preRenderStartTime = Date.now();
     
     // Track progress metrics
     let totalFramesEstimate = 120; // Initial estimate
@@ -86,15 +89,24 @@ export function startImage2TexturePreRendering(iframe, callback, progressBar = n
     finalProgressAnimation = false;
     finalProgressStartTime = 0;
     
-    // Analysis metrics tracking
+    // Track animation detection variables
     let loopDetected = false;
     let endDetected = false;
     let analysisMetrics = {};
     
-    // Check if we're in long exposure mode
-    const modal = document.getElementById('html-editor-modal');
-    const animationTypeSelect = document.getElementById('html-animation-type');
-    const isLongExposureMode = animationTypeSelect && animationTypeSelect.value === 'longExposure';
+    // Get animation settings from passed settings object instead of DOM
+    let isLongExposureMode = false;
+    let playbackSpeed = 1.0;
+    
+    if (settings) {
+        // Use settings parameters instead of DOM elements
+        isLongExposureMode = settings.isLongExposureMode;
+        playbackSpeed = settings.playbackSpeed || 1.0;
+    } else {
+        // Fallback to DOM access if settings not provided (for backward compatibility)
+        const animationTypeSelect = document.getElementById('html-animation-type');
+        isLongExposureMode = animationTypeSelect && animationTypeSelect.value === 'longExposure';
+    }
     
     // Set flag if we're capturing for long exposure
     if (isLongExposureMode) {
@@ -123,10 +135,7 @@ export function startImage2TexturePreRendering(iframe, callback, progressBar = n
     // Function to create the long exposure texture and apply it
     const createAndApplyLongExposure = () => {
         if (preRenderedFrames.length > 0) {
-            const playbackSpeedSelect = document.getElementById('html-playback-speed');
-            const playbackSpeed = playbackSpeedSelect ? parseFloat(playbackSpeedSelect.value) : 1.0;
-            
-            // Create the long exposure texture
+            // Use the playbackSpeed from settings instead of DOM
             const longExposureTexture = createLongExposureTexture(preRenderedFrames, playbackSpeed);
             
             // Update the mesh with the long exposure texture
@@ -193,10 +202,7 @@ export function startImage2TexturePreRendering(iframe, callback, progressBar = n
                     
                     // For long exposure, create the static image now that all frames are captured
                     if (isLongExposureMode && preRenderedFrames.length > 0) {
-                        const playbackSpeedSelect = document.getElementById('html-playback-speed');
-                        const playbackSpeed = playbackSpeedSelect ? parseFloat(playbackSpeedSelect.value) : 1.0;
-                        
-                        // Create the long exposure texture
+                        // Use playbackSpeed from settings instead of DOM
                         const longExposureTexture = createLongExposureTexture(preRenderedFrames, playbackSpeed);
                         
                         // Update the mesh with the long exposure texture
@@ -215,8 +221,6 @@ export function startImage2TexturePreRendering(iframe, callback, progressBar = n
                         setIsPreviewAnimationPaused(false);
                         
                         // Show a message that playback is starting
-                        const playbackSpeedSelect = document.getElementById('html-playback-speed');
-                        const playbackSpeed = playbackSpeedSelect ? parseFloat(playbackSpeedSelect.value) : 1.0;
                         showStatus(`Animation playback starting at ${playbackSpeed}x speed`, 'success');
                     }
                 }, 500);
@@ -422,8 +426,8 @@ export function startImage2TexturePreRendering(iframe, callback, progressBar = n
             
             // For long exposure mode, if we have enough frames, create the texture immediately
             // This prevents showing the first frame before the long exposure
-            if (isLongExposureMode && window.createLongExposureImmediately && preRenderedFrames.length >= 15) {
-                window.createLongExposureImmediately = false; // Only do this once
+            if (isLongExposureMode && preRenderedFrames.length >= 15) {
+                // Create the long exposure immediately
                 createAndApplyLongExposure();
             }
             
@@ -448,24 +452,28 @@ export function startImage2TexturePreRendering(iframe, callback, progressBar = n
 }
 
 /**
- * Start pre-rendering CSS3D animation analysis
- * @param {HTMLIFrameElement} iframe - The iframe containing the HTML content for CSS3D
+ * Start pre-rendering for CSS3D content
+ * @param {HTMLIFrameElement} iframe - The iframe containing the content
  * @param {Function} callback - Function to call when pre-rendering is complete
  * @param {HTMLElement} progressBar - Optional progress bar element to update
+ * @param {Object} settings - Optional settings object
  */
-export function startCss3dPreRendering(iframe, callback, progressBar = null) {
-    // Initialize pre-rendering state
-    preRenderAttempted = true;
+export function startCss3dPreRendering(iframe, callback, progressBar = null, settings = null) {
+    if (!iframe) {
+        console.error('No iframe provided for CSS3D pre-rendering');
+        if (callback) callback();
+        return;
+    }
+    
+    // Reset and initialize state
     preRenderingInProgress = true;
-    preRenderStartTime = Date.now();
-
-    console.log('Starting CSS3D animation analysis...');
+    preRenderedFrames = [];
     
-    // Reset DOM snapshot frames
+    // Tracking variables
     let domSnapshotFrames = [];
+    const preRenderStartTime = Date.now();
     
-    // Track progress metrics
-    let totalFramesEstimate = 120; // Initial estimate
+    // Progress tracking
     let lastProgressUpdate = 0;
     let progressUpdateInterval = 100; // Update progress every 100ms
     let maxProgressBeforeFinalAnimation = 92; // Cap progress at this value until final animation
@@ -480,12 +488,26 @@ export function startCss3dPreRendering(iframe, callback, progressBar = null) {
     
     // Track the last capture time to pace captures similar to image2texture
     let lastCaptureTime = 0;
-    let captureInterval = 350; // Start with 500ms between captures to match image2texture's effective rate
+    let captureInterval = 350; // Start with 350ms between captures
     
-    // Check if we're in long exposure mode
-    const modal = document.getElementById('html-editor-modal');
-    const animationTypeSelect = document.getElementById('html-animation-type');
-    const isLongExposureMode = animationTypeSelect && animationTypeSelect.value === 'longExposure';
+    // Track total frames estimate
+    let totalFramesEstimate = 120; // Initial estimate
+    
+    console.log('Starting CSS3D pre-rendering analysis...');
+    
+    // Get animation settings from passed settings object instead of DOM
+    let isLongExposureMode = false;
+    let playbackSpeed = 1.0;
+    
+    if (settings) {
+        // Use settings parameters instead of DOM elements
+        isLongExposureMode = settings.isLongExposureMode;
+        playbackSpeed = settings.playbackSpeed || 1.0;
+    } else {
+        // Fallback to DOM access if settings not provided (for backward compatibility)
+        const animationTypeSelect = document.getElementById('html-animation-type');
+        isLongExposureMode = animationTypeSelect && animationTypeSelect.value === 'longExposure';
+    }
     
     // Set flag if we're capturing for long exposure
     if (isLongExposureMode) {
@@ -511,48 +533,17 @@ export function startCss3dPreRendering(iframe, callback, progressBar = null) {
         }
     };
     
-    // Function to create CSS3D long exposure effect
+    // Function to create the long exposure texture and apply it
     const createAndApplyCss3dLongExposure = () => {
         if (domSnapshotFrames.length > 0) {
-            const playbackSpeedSelect = document.getElementById('html-playback-speed');
-            const playbackSpeed = playbackSpeedSelect ? parseFloat(playbackSpeedSelect.value) : 1.0;
+            // Use playbackSpeed from settings instead of DOM
+            const longExposureTexture = createLongExposureTexture(domSnapshotFrames, playbackSpeed);
             
-            // Create a container for the long exposure effect
-            const longExposureContainer = document.createElement('div');
-            longExposureContainer.className = 'css3d-long-exposure-container';
-            longExposureContainer.style.position = 'relative';
-            longExposureContainer.style.width = '100%';
-            longExposureContainer.style.height = '100%';
-            
-            // Select key frames based on playback speed
-            const keyFrameInterval = Math.max(1, Math.floor(domSnapshotFrames.length / (10 * playbackSpeed)));
-            const keyFrames = [];
-            
-            for (let i = 0; i < domSnapshotFrames.length; i += keyFrameInterval) {
-                keyFrames.push(domSnapshotFrames[i]);
-            }
-            
-            // Add the key frames to the container with decreasing opacity
-            keyFrames.forEach((frame, index) => {
-                const frameElement = frame.domSnapshot.cloneNode(true);
-                frameElement.style.position = 'absolute';
-                frameElement.style.top = '0';
-                frameElement.style.left = '0';
-                frameElement.style.width = '100%';
-                frameElement.style.height = '100%';
-                frameElement.style.opacity = (index + 1) / keyFrames.length;
-                frameElement.style.pointerEvents = 'none';
-                longExposureContainer.appendChild(frameElement);
-            });
-            
-            // Replace the iframe content with the long exposure container
-            if (iframe.contentDocument && iframe.contentDocument.body) {
-                iframe.contentDocument.body.innerHTML = '';
-                iframe.contentDocument.body.appendChild(longExposureContainer);
-            }
+            // Update the iframe with the long exposure texture
+            updateMeshTexture(longExposureTexture);
             
             // Show a message about the long exposure
-            showStatus(`Long exposure created from ${domSnapshotFrames.length} frames`, 'success');
+            showStatus(`CSS3D Long exposure created from ${domSnapshotFrames.length} frames`, 'success');
             
             // Pause animation since we just want to display the static image
             setIsPreviewAnimationPaused(true);
@@ -620,7 +611,6 @@ export function startCss3dPreRendering(iframe, callback, progressBar = null) {
                     // Now we prepare for animation to start
                     const modal = document.getElementById('html-editor-modal');
                     const currentMeshId = parseInt(modal.dataset.meshId);
-                    const isLongExposureMode = animationTypeSelect && animationTypeSelect.value === 'longExposure';
                     
                     // For long exposure, create the static composite view
                     if (isLongExposureMode && domSnapshotFrames.length > 0) {
@@ -633,8 +623,6 @@ export function startCss3dPreRendering(iframe, callback, progressBar = null) {
                         setIsPreviewAnimationPaused(false);
                         
                         // Show a message that playback is starting
-                        const playbackSpeedSelect = document.getElementById('html-playback-speed');
-                        const playbackSpeed = playbackSpeedSelect ? parseFloat(playbackSpeedSelect.value) : 1.0;
                         showStatus(`CSS3D animation playback starting at ${playbackSpeed}x speed`, 'success');
                     }
                 }, 500);

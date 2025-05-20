@@ -41,7 +41,7 @@ export let originalAnimationStartTime = 0;
 // Store HTML settings for each mesh (integrated from mesh-settings-modal.js)
 
 // Default settings for HTML content (integrated from mesh-settings-modal.js)
-const defaultSettings = {
+export const defaultSettings = {
     previewMode: 'threejs',
     playbackSpeed: 1.0,
     animation: {
@@ -129,7 +129,7 @@ export class PreviewSettings {
  * @param {string} meshName - The name of the mesh
  * @param {number} meshId - The ID/index of the mesh
  */
-export function openEmbeddedHtmlEditor(meshName, meshId) {
+export async function openEmbeddedHtmlEditor(meshName, meshId) {
     console.log(`openEmbeddedHtmlEditor called for mesh: ${meshName} (ID: ${meshId})`);
     
     try {
@@ -158,8 +158,36 @@ export function openEmbeddedHtmlEditor(meshName, meshId) {
         // Store the mesh ID in the modal's dataset
         modal.dataset.meshId = meshId;
         
-        // Load HTML content for this mesh
-        loadHtmlForMesh(meshId).then(html => {
+        // Determine if we should force reload from binary buffer
+        const forceReload = htmlEditorState.needsReload === true;
+        if (forceReload) {
+            console.log('Forcing reload from binary buffer for mesh ID:', meshId);
+            htmlEditorState.needsReload = false; // Reset flag after using it
+        }
+        
+        // Clear in-memory settings cache if needed to ensure we get the actual saved settings
+        if (forceReload) {
+            // Import here to avoid circular dependency
+            const meshDataUtil = await import('../../core/mesh-data-util');
+            // Clear the settings from memory cache so we reload from binary
+            meshDataUtil.clearMeshHtmlSettings(meshId);
+        }
+        
+        // Load saved settings for this mesh first, so other UI changes don't interfere
+        loadSettingsForMesh(meshId).then(settings => {
+            // After settings are loaded, update the UI based on renderer type
+            const renderTypeSelect = document.getElementById('html-render-type');
+            const dropdownsContainer = document.getElementById('editor-dropdowns-container');
+            
+            if (renderTypeSelect && renderTypeSelect.value === 'longExposure' && dropdownsContainer) {
+                dropdownsContainer.classList.add('long-exposure-mode');
+            } else if (dropdownsContainer) {
+                dropdownsContainer.classList.remove('long-exposure-mode');
+            }
+        });
+        
+        // Load HTML content for this mesh (forcing reload if needed)
+        loadHtmlForMesh(meshId, forceReload).then(html => {
             if (textarea) textarea.value = html || '';
             
             // Ensure we're not in preview mode when opening the editor
@@ -169,9 +197,6 @@ export function openEmbeddedHtmlEditor(meshName, meshId) {
             modal.classList.add('visible');
             htmlEditorState.isOpen = true;
             console.log('HTML Editor Modal opened successfully');
-            
-            // Load and set settings for this mesh
-            loadSettingsForMesh(meshId);
             
             // Run linting after content is loaded
             lintHtmlContent();
@@ -197,7 +222,7 @@ export function openEmbeddedHtmlEditor(meshName, meshId) {
  * Get settings from form dropdowns
  * @returns {Object} The settings object
  */
-function getSettingsFromForm() {
+export function getSettingsFromForm() {
     const animationType = document.getElementById('html-animation-type').value;
     const showWireframeCheckbox = document.getElementById('show-wireframe');
     
@@ -269,6 +294,14 @@ export function initHtmlEditorModal() {
         console.error('HTML Editor Modal not found in the DOM');
         return;
     }
+    
+    // Check initial renderer selection and update animation dropdown visibility
+    if (renderTypeSelect && renderTypeSelect.value === 'longExposure') {
+        const dropdownsContainer = document.getElementById('editor-dropdowns-container');
+        if (dropdownsContainer) {
+            dropdownsContainer.classList.add('long-exposure-mode');
+        }
+    }
 
     // Only register event listeners once
     if (listenersInitialized) {
@@ -297,6 +330,16 @@ export function initHtmlEditorModal() {
                 const settings = getSettingsFromForm();
                 saveSettingsForMesh(meshId, settings);
                 showStatus(`Render type set to: ${renderTypeSelect.options[renderTypeSelect.selectedIndex].text}`, 'info');
+                
+                // Use CSS class to control animation dropdown visibility
+                const dropdownsContainer = document.getElementById('editor-dropdowns-container');
+                if (dropdownsContainer) {
+                    if (renderTypeSelect.value === 'longExposure') {
+                        dropdownsContainer.classList.add('long-exposure-mode');
+                    } else {
+                        dropdownsContainer.classList.remove('long-exposure-mode');
+                    }
+                }
             }
         });
     }
@@ -458,7 +501,7 @@ export function initHtmlEditorModal() {
             
             // Get preview mode
             const renderTypeSelect = document.getElementById('html-render-type');
-            const previewMode = renderTypeSelect ? renderTypeSelect.value : 'threejs';
+            let previewMode = renderTypeSelect ? renderTypeSelect.value : 'threejs';
             
             // Get playback speed
             const playbackSpeedSelect = document.getElementById('html-playback-speed');
@@ -466,7 +509,14 @@ export function initHtmlEditorModal() {
             
             // Get animation type
             const animationTypeSelect = document.getElementById('html-animation-type');
-            const animationType = animationTypeSelect ? animationTypeSelect.value : 'none';
+            let animationType = animationTypeSelect ? animationTypeSelect.value : 'none';
+            
+            // Special handling for Long Exposure rendering
+            if (previewMode === 'longExposure') {
+                // For Long Exposure, use image2texture renderer but with longExposure animation type
+                previewMode = 'threejs'; // Use threejs (which uses image2texture under the hood)
+                animationType = 'longExposure'; // Set animation type to longExposure
+            }
             
             // Get border display setting
             const showWireframeCheckbox = document.getElementById('show-wireframe');
@@ -554,6 +604,9 @@ export function initHtmlEditorModal() {
                 // Update HTML icons to reflect the new state
                 updateHtmlIcons();
                 
+                // Reset the needs reload flag since we've just saved
+                htmlEditorState.needsReload = false;
+                
                 // Don't close the modal, just show success message
                 showStatus('HTML saved successfully', 'success');
             }
@@ -576,6 +629,9 @@ export function initHtmlEditorModal() {
                     
                     // Update HTML icons to reflect the new state
                     updateHtmlIcons();
+                    
+                    // Reset the needs reload flag since we've just saved
+                    htmlEditorState.needsReload = false;
                     
                     // Close the modal
                     closeModal();
@@ -614,11 +670,21 @@ export function initHtmlEditorModal() {
  */
 function closeModal() {
     const modal = document.getElementById('html-editor-modal');
+    const meshId = parseInt(modal.dataset.meshId);
+    
     modal.classList.remove('visible');
     htmlEditorState.isOpen = false;
     
     // Clean up Three.js resources when closing the modal
     cleanupThreeJsPreview();
+    
+    // Discard unsaved changes by forcing a reload from binary buffer next time
+    // This ensures that when reopening the modal, we'll see the last saved settings
+    if (!isNaN(meshId)) {
+        console.log('Discarding unsaved changes for mesh ID:', meshId);
+        // Force reloading from binary buffer next time the modal is opened
+        htmlEditorState.needsReload = true;
+    }
 }
 
 /**

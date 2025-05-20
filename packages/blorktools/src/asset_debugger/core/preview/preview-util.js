@@ -89,7 +89,6 @@ export function previewHtml(settings, previewContent, setModalData) {
         // This prevents showing the first frame before the long exposure
         const isLongExposureMode = settings.isLongExposureMode;
         window.showPreviewBorders = settings.showPreviewBorders;
-        window.createLongExposureImmediately = isLongExposureMode;
 
         resetPreRender();
 
@@ -285,7 +284,7 @@ export function previewHtml(settings, previewContent, setModalData) {
                         
                         // Pass true for createInfoPanel to ensure the info panel is created
                         initCSS3DPreview(canvasContainer, renderIframe, currentMeshId, true);
-                    }, progressBar);
+                    }, progressBar, settings);
                     break;
                     
                 case 'threejs':
@@ -296,7 +295,7 @@ export function previewHtml(settings, previewContent, setModalData) {
                     startImage2TexturePreRendering(renderIframe, () => {
                         // The callback is now called from the final animation completion
                         console.log('Pre-rendering complete callback executed');
-                    }, progressBar);
+                    }, progressBar, settings);
                     break;
             }
         };

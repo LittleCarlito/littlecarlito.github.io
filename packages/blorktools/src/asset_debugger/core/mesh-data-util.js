@@ -1,7 +1,8 @@
-import { getBinaryBufferForMesh } from "./glb-utils";
+import { getBinaryBufferForMesh, associateBinaryBufferWithMesh } from "./glb-utils";
 import { getState } from "./state";
-import { deserializeStringFromBinary } from "./string-serder";
-import { getCurrentGlbBuffer } from "../ui/scripts/model-integration";
+import { deserializeStringFromBinary, serializeStringWithSettingsToBinary } from "./string-serder";
+import { getCurrentGlbBuffer, updateGlbFile } from "../ui/scripts/model-integration";
+import { defaultSettings, getSettingsFromForm } from "../ui/scripts/html-editor-modal";
 
 // Store HTML content for each mesh
 const meshHtmlContent = new Map();
@@ -29,10 +30,12 @@ export function saveSettingsForMesh(meshId, settings) {
 /**
  * Load settings for a specific mesh and update the UI
  * @param {number} meshId - The ID/index of the mesh
+ * @returns {Promise<Object>} The loaded settings
  */
 export function loadSettingsForMesh(meshId) {
-    // Get settings for this mesh or use defaults
-    const settings = meshHtmlSettings.get(meshId) || { ...defaultSettings };
+    return new Promise(resolve => {
+        // Get settings for this mesh or use defaults
+        const settings = meshHtmlSettings.get(meshId) || { ...defaultSettings };
     
     // Update render type dropdown
     const renderTypeSelect = document.getElementById('html-render-type');
@@ -87,6 +90,21 @@ export function loadSettingsForMesh(meshId) {
             : true;
         window.showPreviewBorders = showWireframeCheckbox.checked;
     }
+    
+    // Update the dropdowns container class based on renderer selection
+    const renderTypeValue = renderTypeSelect ? renderTypeSelect.value : 'threejs';
+    const dropdownsContainer = document.getElementById('editor-dropdowns-container');
+    if (dropdownsContainer) {
+        if (renderTypeValue === 'longExposure') {
+            dropdownsContainer.classList.add('long-exposure-mode');
+        } else {
+            dropdownsContainer.classList.remove('long-exposure-mode');
+        }
+    }
+    
+    // Resolve the promise with the settings
+    resolve(settings);
+    });
 }
 
 /**
@@ -101,12 +119,13 @@ export function getHtmlSettingsForMesh(meshId) {
 /**
  * Load HTML content for a specific mesh from GLB binary buffer
  * @param {number} meshId - The ID/index of the mesh
+ * @param {boolean} forceReload - Force reload from binary buffer, ignoring cache
  * @returns {Promise<string>} The HTML content for the mesh
  */
-export async function loadHtmlForMesh(meshId) {
-    // First check if we have cached content
+export async function loadHtmlForMesh(meshId, forceReload = false) {
+    // First check if we have cached content and not forcing reload
     const cachedHtml = meshHtmlContent.get(meshId);
-    if (cachedHtml !== undefined) {
+    if (!forceReload && cachedHtml !== undefined) {
         return cachedHtml;
     }
     
@@ -263,4 +282,13 @@ export async function saveHtmlForMesh(meshId, content, isActive = false) {
         console.error('Error saving content to GLB:', error);
         throw error;
     }
+}
+
+/**
+ * Clear the HTML settings for a specific mesh from the in-memory cache
+ * @param {number} meshId - The ID/index of the mesh to clear settings for
+ */
+export function clearMeshHtmlSettings(meshId) {
+    meshHtmlSettings.delete(meshId);
+    console.log(`Cleared cached HTML settings for mesh ID ${meshId}`);
 }

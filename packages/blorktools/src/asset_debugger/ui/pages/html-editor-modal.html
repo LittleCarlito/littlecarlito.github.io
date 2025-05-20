@@ -1,4 +1,11 @@
 <link rel="stylesheet" href="../../css/html-editor-modal.css">
+<style>
+    /* Hide animation dropdown when long-exposure-mode class is present */
+    #editor-dropdowns-container.long-exposure-mode .dropdown-hint:nth-child(5),
+    #editor-dropdowns-container.long-exposure-mode #html-animation-type {
+        display: none;
+    }
+</style>
 <!-- Embedded HTML Editor Modal -->
 <div id="html-editor-modal" class="modal-overlay">
     <div class="modal-container">
@@ -33,7 +40,6 @@
                         <option value="none" selected>None</option>
                         <option value="loop">Loop</option>
                         <option value="bounce">Bounce</option>
-                        <option value="longExposure">Long Exposure</option>
                     </select>
                 </div>
                 
