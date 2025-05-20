@@ -660,34 +660,6 @@ export function initHtmlEditorModal() {
         }
     });
     
-    // Save and Apply button
-    const saveApplyBtn = document.getElementById('html-editor-save-apply');
-    if (saveApplyBtn) {
-        saveApplyBtn.addEventListener('click', async () => {
-            try {
-                const currentMeshId = modal.dataset.meshId;
-                if (currentMeshId) {
-                    const html = textarea.value;
-                    
-                    // Save HTML content with active flag set to true
-                    await saveHtmlForMesh(parseInt(currentMeshId), html, true); // Pass true for isActive
-                    
-                    // Update HTML icons to reflect the new state
-                    updateHtmlIcons();
-                    
-                    // Reset the needs reload flag since we've just saved
-                    htmlEditorState.needsReload = false;
-                    
-                    // Close the modal
-                    closeModal();
-                    showStatus('HTML saved and applied successfully', 'success');
-                }
-            } catch (error) {
-                showStatus('Error saving and applying HTML: ' + error.message, 'error');
-            }
-        });
-    }
-    
     // Make textarea tab-friendly
     textarea.addEventListener('keydown', function(e) {
         if (e.key === 'Tab') {
