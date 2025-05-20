@@ -442,7 +442,7 @@ export function calculateTextureHash(texture) {
  * @param {string} renderType - The type of rendering (threejs, longExposure)
  * @param {Object} settings - Additional settings for rendering
  */
-export function handleCustomTexture(meshData, renderType, settings = {}) {
+export function setCustomTexture(meshData, renderType, settings = {}) {
     console.debug('BAZLORPA I GOT CALLED handleCustomTexture', { meshData, renderType, settings });
     // Future implementation will display HTML content as a texture on the mesh
 }

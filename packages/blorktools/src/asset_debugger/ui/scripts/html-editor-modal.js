@@ -29,8 +29,8 @@ import {
 } from '../../core/html-linter.js';
 import { updateGlbFile } from './model-integration.js';
 import { updateHtmlIcons } from './mesh-panel.js';
-import { handleCustomTexture, disableCustomTexture } from '../../core/texture-util.js';
-import { handleCustomDisplay, disableCustomDisplay } from '../../core/css3d-util.js';
+import { setCustomTexture, disableCustomTexture } from '../../core/texture-util.js';
+import { setCustomDisplay, disableCustomDisplay } from '../../core/css3d-util.js';
 
 // Import Three.js the same way as other files in the codebase
 import * as THREE from 'three';
@@ -689,10 +689,10 @@ export function initHtmlEditorModal() {
                     // Call appropriate function based on render type
                     if (renderType === 'css3d') {
                         // Use CSS3D rendering
-                        handleCustomDisplay(meshData, settings);
+                        setCustomDisplay(meshData, settings);
                     } else {
                         // Use texture-based rendering (either threejs or longExposure)
-                        handleCustomTexture(meshData, renderType, settings);
+                        setCustomTexture(meshData, renderType, settings);
                     }
                     
                     console.debug(`Displaying HTML on mesh ${currentMeshId} using ${renderType} renderer`);

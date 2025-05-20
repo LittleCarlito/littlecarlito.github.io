@@ -1967,7 +1967,7 @@ function generateUniqueSelector(element) {
  * @param {Object} meshData - Data about the mesh to display on
  * @param {Object} settings - Additional settings for rendering
  */
-export function handleCustomDisplay(meshData, settings = {}) {
+export function setCustomDisplay(meshData, settings = {}) {
     console.debug('BAZLORPA I GOT CALLED handleCustomDisplay', { meshData, settings });
     // Future implementation will create a CSS3D object linked to the mesh
 }

@@ -706,11 +706,11 @@ function checkAndApplyCustomDisplaySettings() {
                                         if (settings.previewMode === 'css3d') {
                                             // Use CSS3D rendering
                                             console.debug(`Calling handleCustomDisplay for mesh ${index}`);
-                                            css3dUtil.handleCustomDisplay(meshData, settings);
+                                            css3dUtil.setCustomDisplay(meshData, settings);
                                         } else {
                                             // Use texture-based rendering (either threejs or longExposure)
                                             console.debug(`Calling handleCustomTexture for mesh ${index} with renderType: ${settings.previewMode}`);
-                                            textureUtil.handleCustomTexture(meshData, settings.previewMode, settings);
+                                            textureUtil.setCustomTexture(meshData, settings.previewMode, settings);
                                         }
                                     } else {
                                         console.debug(`Display on mesh is not enabled for mesh ${index}`);
