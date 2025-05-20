@@ -34,76 +34,107 @@ export function saveSettingsForMesh(meshId, settings) {
  */
 export function loadSettingsForMesh(meshId) {
     return new Promise(resolve => {
-        // Get settings for this mesh or use defaults
-        const settings = meshHtmlSettings.get(meshId) || { ...defaultSettings };
-    
-    // Update render type dropdown
-    const renderTypeSelect = document.getElementById('html-render-type');
-    if (renderTypeSelect) {
-        renderTypeSelect.value = settings.previewMode || defaultSettings.previewMode;
-    }
-    
-    // Update playback speed dropdown
-    const playbackSpeedSelect = document.getElementById('html-playback-speed');
-    if (playbackSpeedSelect) {
-        // Convert the numeric playback speed to string format that matches the dropdown options
-        const playbackSpeed = settings.playbackSpeed !== undefined ? settings.playbackSpeed : defaultSettings.playbackSpeed;
+        // First try to load from binary buffer if needed
+        const state = getState();
+        const glbBuffer = getCurrentGlbBuffer();
         
-        // Find the closest matching option
-        let found = false;
-        for (let i = 0; i < playbackSpeedSelect.options.length; i++) {
-            const optionValue = parseFloat(playbackSpeedSelect.options[i].value);
-            if (Math.abs(optionValue - playbackSpeed) < 0.01) {
-                playbackSpeedSelect.selectedIndex = i;
-                found = true;
-                break;
-            }
+        // Get settings for this mesh from memory cache
+        let settings = meshHtmlSettings.get(meshId);
+        
+        // If no settings in cache, try to load from binary buffer
+        if (!settings && glbBuffer) {
+            getBinaryBufferForMesh(glbBuffer, meshId).then(binaryBuffer => {
+                if (binaryBuffer && binaryBuffer.byteLength > 0) {
+                    const result = deserializeStringFromBinary(binaryBuffer);
+                    if (result.settings) {
+                        settings = result.settings;
+                        // Cache the loaded settings
+                        meshHtmlSettings.set(meshId, settings);
+                    }
+                }
+                
+                finishLoading();
+            }).catch(err => {
+                console.error('Error loading settings from buffer:', err);
+                finishLoading();
+            });
+        } else {
+            // If we already have settings or no GLB buffer, proceed
+            finishLoading();
         }
         
-        // If no exact match found, fallback to default
-        if (!found) {
-            console.log(`No matching option found for playback speed: ${playbackSpeed}, using default`);
-            for (let i = 0; i < playbackSpeedSelect.options.length; i++) {
-                const optionValue = parseFloat(playbackSpeedSelect.options[i].value);
-                if (Math.abs(optionValue - defaultSettings.playbackSpeed) < 0.01) {
-                    playbackSpeedSelect.selectedIndex = i;
-                    break;
+        function finishLoading() {
+            // Use cached settings or defaults
+            settings = settings || { ...defaultSettings };
+            console.log('Using settings for UI update:', settings);
+            
+            // Update render type dropdown
+            const renderTypeSelect = document.getElementById('html-render-type');
+            if (renderTypeSelect) {
+                // Make sure the value is valid
+                if (settings.previewMode && ['threejs', 'css3d', 'longExposure'].includes(settings.previewMode)) {
+                    renderTypeSelect.value = settings.previewMode;
+                } else {
+                    renderTypeSelect.value = defaultSettings.previewMode;
                 }
             }
+            
+            // Update playback speed dropdown
+            const playbackSpeedSelect = document.getElementById('html-playback-speed');
+            if (playbackSpeedSelect) {
+                // Convert the numeric playback speed to string format that matches the dropdown options
+                const playbackSpeed = settings.playbackSpeed !== undefined ? settings.playbackSpeed : defaultSettings.playbackSpeed;
+                
+                // Try to find exact match first
+                let found = false;
+                for (let i = 0; i < playbackSpeedSelect.options.length; i++) {
+                    const optionValue = parseFloat(playbackSpeedSelect.options[i].value);
+                    if (Math.abs(optionValue - playbackSpeed) < 0.01) {
+                        playbackSpeedSelect.value = playbackSpeedSelect.options[i].value;
+                        found = true;
+                        break;
+                    }
+                }
+                
+                // If no exact match found, fallback to default
+                if (!found) {
+                    console.log(`No matching option found for playback speed: ${playbackSpeed}, using default`);
+                    playbackSpeedSelect.value = "1.0";
+                }
+            }
+            
+            // Update animation type dropdown
+            const animationTypeSelect = document.getElementById('html-animation-type');
+            if (animationTypeSelect) {
+                const animationType = settings.animation && settings.animation.type !== undefined 
+                    ? settings.animation.type 
+                    : 'none';
+                animationTypeSelect.value = animationType;
+            }
+            
+            // Update show borders checkbox
+            const showWireframeCheckbox = document.getElementById('show-wireframe');
+            if (showWireframeCheckbox && settings.display) {
+                showWireframeCheckbox.checked = settings.display.showBorders !== undefined 
+                    ? settings.display.showBorders 
+                    : true;
+                window.showPreviewBorders = showWireframeCheckbox.checked;
+            }
+            
+            // Update the dropdowns container class based on renderer selection
+            const renderTypeValue = renderTypeSelect ? renderTypeSelect.value : 'threejs';
+            const dropdownsContainer = document.getElementById('editor-dropdowns-container');
+            if (dropdownsContainer) {
+                if (renderTypeValue === 'longExposure') {
+                    dropdownsContainer.classList.add('long-exposure-mode');
+                } else {
+                    dropdownsContainer.classList.remove('long-exposure-mode');
+                }
+            }
+            
+            // Resolve the promise with the settings
+            resolve(settings);
         }
-    }
-    
-    // Update animation type dropdown
-    const animationTypeSelect = document.getElementById('html-animation-type');
-    if (animationTypeSelect) {
-        const animationType = settings.animation && settings.animation.type !== undefined 
-            ? settings.animation.type 
-            : 'none';
-        animationTypeSelect.value = animationType;
-    }
-    
-    // Update show borders checkbox
-    const showWireframeCheckbox = document.getElementById('show-wireframe');
-    if (showWireframeCheckbox && settings.display) {
-        showWireframeCheckbox.checked = settings.display.showBorders !== undefined 
-            ? settings.display.showBorders 
-            : true;
-        window.showPreviewBorders = showWireframeCheckbox.checked;
-    }
-    
-    // Update the dropdowns container class based on renderer selection
-    const renderTypeValue = renderTypeSelect ? renderTypeSelect.value : 'threejs';
-    const dropdownsContainer = document.getElementById('editor-dropdowns-container');
-    if (dropdownsContainer) {
-        if (renderTypeValue === 'longExposure') {
-            dropdownsContainer.classList.add('long-exposure-mode');
-        } else {
-            dropdownsContainer.classList.remove('long-exposure-mode');
-        }
-    }
-    
-    // Resolve the promise with the settings
-    resolve(settings);
     });
 }
 

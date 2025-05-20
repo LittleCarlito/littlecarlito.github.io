@@ -175,10 +175,55 @@ export async function openEmbeddedHtmlEditor(meshName, meshId) {
         
         // Load saved settings for this mesh first, so other UI changes don't interfere
         loadSettingsForMesh(meshId).then(settings => {
+            console.log('Loaded settings:', settings); // Debug loaded settings
+            
             // After settings are loaded, update the UI based on renderer type
             const renderTypeSelect = document.getElementById('html-render-type');
+            const playbackSpeedSelect = document.getElementById('html-playback-speed');
+            const animationTypeSelect = document.getElementById('html-animation-type');
+            const showWireframeCheckbox = document.getElementById('show-wireframe');
             const dropdownsContainer = document.getElementById('editor-dropdowns-container');
             
+            // Update dropdowns with saved settings
+            if (renderTypeSelect) {
+                // Make sure we have a valid value before setting
+                if (settings.previewMode && ['threejs', 'css3d', 'longExposure'].includes(settings.previewMode)) {
+                    renderTypeSelect.value = settings.previewMode;
+                } else {
+                    renderTypeSelect.value = 'threejs'; // Default to threejs if invalid
+                }
+            }
+            
+            if (playbackSpeedSelect) {
+                // Convert playbackSpeed to string with one decimal place
+                const speedValue = settings.playbackSpeed ? settings.playbackSpeed.toString() : '1.0';
+                
+                // Check if option exists
+                const speedExists = Array.from(playbackSpeedSelect.options).some(option => option.value === speedValue);
+                
+                if (speedExists) {
+                    playbackSpeedSelect.value = speedValue;
+                } else {
+                    // Fallback to default
+                    playbackSpeedSelect.value = '1.0';
+                }
+            }
+            
+            if (animationTypeSelect && settings.animation && settings.animation.type) {
+                // Make sure we have a valid value
+                if (['none', 'loop', 'bounce'].includes(settings.animation.type)) {
+                    animationTypeSelect.value = settings.animation.type;
+                } else {
+                    animationTypeSelect.value = 'none'; // Default
+                }
+            }
+            
+            if (showWireframeCheckbox && settings.display) {
+                showWireframeCheckbox.checked = settings.display.showBorders !== undefined ? 
+                    settings.display.showBorders : true;
+            }
+            
+            // Apply long-exposure-mode class if needed
             if (renderTypeSelect && renderTypeSelect.value === 'longExposure' && dropdownsContainer) {
                 dropdownsContainer.classList.add('long-exposure-mode');
             } else if (dropdownsContainer) {
